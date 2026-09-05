@@ -1,0 +1,353 @@
+{
+  "_note": "Access and licence facts marked verified:true were confirmed against the source's own documentation. verified:false entries are carried from prior knowledge and must be checked before their harvester is written.",
+  "_schema": {
+    "mode": "api | bulk | tiles | none",
+    "auth": "none | key | token | manual",
+    "cors": "yes | no | unknown  (whether a browser can call it directly)",
+    "route": "direct | worker | pmtiles  (how the map reaches it)"
+  },
+  "sources": [
+    {
+      "id": "climate_trace",
+      "name": "Climate TRACE",
+      "replaces_embeds": 6,
+      "mode": "bulk",
+      "auth": "none",
+      "cors": "unknown",
+      "route": "pmtiles",
+      "endpoint": "https://api.climatetrace.org/v7",
+      "bulk": "https://climatetrace.org/data",
+      "licence": "free and publicly available",
+      "licence_verified": true,
+      "access_verified": true,
+      "notes": "2,765,671 emission sources. Cut by emissions coverage (95% per sector) rather than an arbitrary top-N, with a 60,000-feature cap for tile size; the harvester reports both every run. Rows without coordinates are dropped rather than placed — some subsectors are gridded or country-level.",
+      "layer": {
+        "kind": "point",
+        "value": "emissions_tonnes",
+        "unit": "t CO2e/yr"
+      },
+      "discovery": "resolve() in pipeline/sources/climate_trace.py — scrapes climatetrace.org/data for the newest global package. PATTERN IS INFERRED, NOT OBSERVED; run probe.py before trusting it.",
+      "api_note": "v7 API is public and keyless but pages at max 100 rows via limit/offset, and Climate TRACE ask that beta volume be kept low. A full harvest would be 27,000+ requests, so ingest uses bulk packages and the API is reserved for spot lookups.",
+      "tested": false,
+      "blocked_from_test": "climatetrace.org unreachable from the build environment"
+    },
+    {
+      "id": "epa_tri",
+      "name": "US EPA Toxics Release Inventory",
+      "mode": "api",
+      "auth": "none",
+      "cors": "unknown",
+      "route": "worker",
+      "endpoint": "https://data.epa.gov/efservice",
+      "licence": "US Government work, public domain",
+      "licence_verified": true,
+      "access_verified": true,
+      "notes": "RESTful, JSON by default, no authentication. US only.",
+      "layer": {
+        "kind": "point",
+        "value": "release_lbs",
+        "unit": "lb/yr"
+      }
+    },
+    {
+      "id": "global_forest_watch",
+      "name": "Global Forest Watch Data API",
+      "mode": "api",
+      "auth": "key",
+      "cors": "no",
+      "route": "worker",
+      "endpoint": "https://data-api.globalforestwatch.org",
+      "licence": "unchecked",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "API key required, so it cannot be called from page source. Key lives in the Worker.",
+      "layer": {
+        "kind": "point",
+        "value": "alert_count",
+        "unit": "alerts"
+      },
+      "worker_shaper": "shape() in worker/index.js — field names are INFERRED; the Worker returns a loud 502 rather than an empty layer if they are wrong",
+      "tested": false,
+      "blocked_from_test": "needs an API key and the host is unreachable from the build environment"
+    },
+    {
+      "id": "global_fishing_watch",
+      "name": "Global Fishing Watch",
+      "mode": "api",
+      "auth": "token",
+      "cors": "no",
+      "route": "worker",
+      "endpoint": "https://gateway.api.globalfishingwatch.org/v3",
+      "licence": "non-commercial use only",
+      "licence_verified": true,
+      "access_verified": true,
+      "notes": "4Wings, Vessels, Events, Datasets APIs. Token required. Non-commercial only — fine while the site stays non-commercial.",
+      "layer": {
+        "kind": "point",
+        "value": "fishing_hours",
+        "unit": "hours"
+      },
+      "worker_shaper": "shape() in worker/index.js — field names are INFERRED; the Worker returns a loud 502 rather than an empty layer if they are wrong",
+      "tested": false,
+      "blocked_from_test": "needs an API key and the host is unreachable from the build environment"
+    },
+    {
+      "id": "land_matrix",
+      "name": "Land Matrix",
+      "mode": "bulk",
+      "auth": "none",
+      "cors": "unknown",
+      "route": "country",
+      "endpoint": "https://landmatrix.org/api",
+      "licence": "DISPUTED: mirror README says CC BY-SA 4.0, its datapackage.json says CC BY-NC 4.0",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "2,370 deals, 59.8M hectares across 97 countries. NO COORDINATES in the mirror despite its README describing location data, so this renders as a country choropleth, not points. Scope is deals >=200 ha in low/middle-income countries since 2000 — absence means not captured, not nothing happening.",
+      "isolate": true,
+      "layer": {
+        "kind": "country",
+        "value": "hectares",
+        "unit": "hectares under land deals"
+      },
+      "discovery": "resolve() in pipeline/sources/land_matrix.py — GitHub mirror, default branch resolved each run",
+      "tested": true
+    },
+    {
+      "id": "global_energy_monitor",
+      "name": "Global Energy Monitor trackers",
+      "mode": "bulk",
+      "auth": "manual",
+      "cors": "n/a",
+      "route": "pmtiles",
+      "endpoint": null,
+      "licence": "CC BY 4.0",
+      "licence_verified": true,
+      "access_verified": true,
+      "notes": "Download sits behind a request form, so there is no stable URL to poll. A person must fetch each release and drop it in data/manual/. Everything downstream is automated.",
+      "manual_drop": "data/manual/gem/",
+      "layer": {
+        "kind": "point",
+        "value": "capacity",
+        "unit": "varies by tracker"
+      }
+    },
+    {
+      "id": "trase",
+      "name": "Trase",
+      "mode": "bulk",
+      "auth": "none",
+      "cors": "n/a",
+      "route": "pmtiles",
+      "endpoint": "https://trase.earth/open-data",
+      "licence": "free to download; exact terms unchecked",
+      "licence_verified": false,
+      "access_verified": true,
+      "layer": {
+        "kind": "polygon",
+        "value": "deforestation_risk",
+        "unit": "ha"
+      }
+    },
+    {
+      "id": "carbon_bombs",
+      "name": "Carbon Bombs",
+      "mode": "bulk",
+      "auth": "none",
+      "route": "pmtiles",
+      "access_verified": true,
+      "licence_verified": true,
+      "cors": "n/a",
+      "endpoint": "https://github.com/dataforgoodfr/CarbonBombs",
+      "licence": "repo declares NO licence; underlying GEM trackers are CC BY 4.0, project data from Kuhne et al. (Energy Policy)",
+      "tested": true,
+      "notes": "425 projects, 1,182 Gt CO2 combined. Raw CSV serves an ETag, so release detection works. Coordinate precision varies: 330 asset-level from GEM, 92 country centroids, 3 manual — carried as x_precision and styled separately. company_data.csv is NOT harvested: its HQ coordinates were geocoded from ChatGPT-generated addresses.",
+      "caution": "No declared repo licence. Tracked in _publish_blockers; build proceeds, decision deferred to pre-publish.",
+      "layer": {
+        "kind": "point",
+        "value": "Potential_GtCO2",
+        "unit": "Gt CO2 lifetime"
+      },
+      "discovery": "resolve() in pipeline/sources/carbon_bombs.py — GitHub API, default branch resolved each run",
+      "tiles_verified": "Built with tippecanoe 2.68.0: 1.0 MB, zooms 0-12, 2,070 tiles. z0 rolls up to 425 features / 1,182.3 Gt, matching the source exactly."
+    },
+    {
+      "id": "forest_500",
+      "name": "Forest 500",
+      "mode": "bulk",
+      "auth": "none",
+      "route": "pmtiles",
+      "access_verified": false,
+      "licence_verified": false
+    },
+    {
+      "id": "bocc",
+      "name": "Banking on Climate Chaos",
+      "mode": "bulk",
+      "auth": "none",
+      "route": "pmtiles",
+      "access_verified": true,
+      "licence_verified": false,
+      "notes": "Bank-to-company financing totals, not geocoded upstream. Needs sourced bank HQ coordinates before it can be a layer; the Carbon Bombs company file is not an acceptable source for those.",
+      "discovery": "resolve() in pipeline/sources/bocc.py — scrapes the download page and takes the highest year, so annual releases are picked up automatically"
+    },
+    {
+      "id": "allen_coral",
+      "name": "Allen Coral Atlas",
+      "mode": "bulk",
+      "auth": "none",
+      "route": "pmtiles",
+      "access_verified": false,
+      "licence_verified": false,
+      "check_runtime_endpoint": true
+    },
+    {
+      "id": "global_safety_net",
+      "name": "Global Safety Net",
+      "mode": "bulk",
+      "auth": "none",
+      "route": "pmtiles",
+      "access_verified": false,
+      "licence_verified": false,
+      "check_runtime_endpoint": true
+    },
+    {
+      "id": "counterglow",
+      "name": "Counterglow",
+      "mode": "bulk",
+      "auth": "none",
+      "route": "pmtiles",
+      "access_verified": false,
+      "licence_verified": false,
+      "check_runtime_endpoint": true
+    },
+    {
+      "id": "nusantara_atlas",
+      "name": "Nusantara Atlas",
+      "mode": "bulk",
+      "auth": "none",
+      "route": "pmtiles",
+      "access_verified": false,
+      "licence_verified": false,
+      "check_runtime_endpoint": true
+    },
+    {
+      "id": "palmwatch",
+      "name": "PalmWatch",
+      "mode": "bulk",
+      "auth": "none",
+      "route": "pmtiles",
+      "access_verified": false,
+      "licence_verified": false,
+      "check_runtime_endpoint": true
+    },
+    {
+      "id": "glw",
+      "name": "Gridded Livestock of the World",
+      "mode": "bulk",
+      "auth": "none",
+      "route": "pmtiles",
+      "access_verified": false,
+      "licence_verified": false
+    },
+    {
+      "id": "hydrofate",
+      "name": "HydroFATE",
+      "mode": "bulk",
+      "auth": "none",
+      "route": "pmtiles",
+      "access_verified": false,
+      "licence_verified": false
+    },
+    {
+      "id": "gwwm",
+      "name": "Global Wastewater Model",
+      "mode": "bulk",
+      "auth": "none",
+      "route": "pmtiles",
+      "access_verified": false,
+      "licence_verified": false
+    },
+    {
+      "id": "soilgrids",
+      "name": "SoilGrids",
+      "mode": "api",
+      "auth": "unknown",
+      "route": "worker",
+      "access_verified": false,
+      "licence_verified": false
+    },
+    {
+      "id": "umap_wreckers",
+      "name": "Wreckers of the Earth (uMap)",
+      "mode": "api",
+      "auth": "none",
+      "cors": "yes",
+      "route": "direct",
+      "access_verified": false,
+      "licence_verified": false,
+      "notes": "uMap serves each datalayer as GeoJSON."
+    },
+    {
+      "id": "arcgis_layers",
+      "name": "ArcGIS FeatureServers behind the two arcg.is links",
+      "mode": "api",
+      "auth": "none",
+      "cors": "yes",
+      "route": "direct",
+      "access_verified": false,
+      "licence_verified": false
+    },
+    {
+      "id": "google_mymaps",
+      "name": "Google My Maps layer",
+      "mode": "bulk",
+      "auth": "none",
+      "route": "pmtiles",
+      "access_verified": false,
+      "licence_verified": false,
+      "notes": "KML export."
+    },
+    {
+      "id": "glad_hansen",
+      "name": "GLAD / Hansen forest change",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "direct",
+      "access_verified": true,
+      "licence_verified": false,
+      "notes": "Raster only. Overlays as a tile layer; has no features to click."
+    },
+    {
+      "id": "_no_data",
+      "name": "Render-only embeds",
+      "mode": "none",
+      "members": [
+        "Fortune Global 500",
+        "They Rule",
+        "ConstructConnect",
+        "Power BI report",
+        "Scribd",
+        "Imgflip x2",
+        "portfolio.earth",
+        "Deforestation Free Funds"
+      ],
+      "notes": "Nothing underneath to merge. These stay as embeds in the atlas."
+    }
+  ],
+  "_publish_blockers": [
+    {
+      "source": "carbon_bombs",
+      "issue": "The dataforgoodfr/CarbonBombs repo declares no licence, which defaults to all rights reserved. The underlying GEM trackers are CC BY 4.0 and the project list is from Kuhne et al., Energy Policy.",
+      "decision": "Proceeding with the build. Raise again before the map goes public.",
+      "resolve_by": "attribute GEM and Kuhne et al., or ask hellodataforgood@gmail.com",
+      "blocks": "publish"
+    },
+    {
+      "source": "land_matrix",
+      "issue": "The datasets/land-matrix mirror states two different licences for the same data: README.md says CC BY-SA 4.0, datapackage.json says CC BY-NC 4.0. Share-alike and non-commercial are different obligations and only one can be correct.",
+      "decision": "Building against the stricter reading (isolated archive, non-commercial site). Resolve against Land Matrix's own terms before publishing.",
+      "resolve_by": "check landmatrix.org terms, or use their API directly rather than the mirror",
+      "blocks": "publish"
+    }
+  ]
+}
