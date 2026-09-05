@@ -1,0 +1,34 @@
+name: Check
+
+# Runs on every push. Cheap, and catches the two failure modes that otherwise
+# only appear in production: a Worker regression, and a discovery pattern that
+# has gone stale because a source reorganised its download page.
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  js:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Worker request handling
+        run: node worker/test.mjs
+      - name: Map wiring and popup honesty
+        run: node map/test.mjs
+
+  discovery:
+    runs-on: ubuntu-latest
+    # A source going offline shouldn't fail the build — it should be visible.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests openpyxl
+      - name: Can every harvester still find its data?
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 pipeline/probe.py

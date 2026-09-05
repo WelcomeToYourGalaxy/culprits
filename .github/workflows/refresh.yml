@@ -1,0 +1,124 @@
+name: Refresh atlas tiles
+
+# Weekly is the right cadence: these sources publish on release cycles, not
+# continuously, so polling harder returns identical bytes. The job checks each
+# source's ETag first and skips anything unchanged, so a normal run does almost
+# no work. Free on public repos.
+on:
+  schedule:
+    - cron: "0 5 * * 1"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Rebuild every source, ignoring ETags"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install harvest dependencies
+        run: pip install requests openpyxl
+
+      # tippecanoe isn't in the Ubuntu repos, so it's built once and cached.
+      # The cache turns a 2-minute compile into a few seconds on later runs.
+      - name: Cache tippecanoe
+        id: tippecanoe-cache
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/tippecanoe
+          key: tippecanoe-2.68.0-${{ runner.os }}
+
+      - name: Build tippecanoe
+        if: steps.tippecanoe-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq build-essential libsqlite3-dev zlib1g-dev
+          git clone --depth 1 --branch 2.68.0 https://github.com/felt/tippecanoe.git /tmp/tippecanoe
+          make -C /tmp/tippecanoe -j"$(nproc)"
+          sudo make -C /tmp/tippecanoe install
+
+      - name: Harvest changed sources
+        id: harvest
+        env:
+          FORCE: ${{ inputs.force }}
+          # Lifts the GitHub API from 60 to 1,000 requests/hour. Provided by
+          # Actions automatically; no secret to create.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GFW_API_KEY: ${{ secrets.GFW_API_KEY }}
+          GFW_FISHING_TOKEN: ${{ secrets.GFW_FISHING_TOKEN }}
+        run: |
+          mkdir -p data/raw data/normalized map/tiles
+          python3 pipeline/harvest.py --state .etags.json ${FORCE:+--force} \
+            | tee harvest.log
+          # harvest.py writes the ids it actually refreshed, one per line
+          echo "changed=$(paste -sd, < data/.changed 2>/dev/null || echo '')" >> "$GITHUB_OUTPUT"
+
+      # Everything the map reads lives under map/, because Pages serves that
+      # directory: map/tiles/*.pmtiles and map/data/*.json are fetched relative
+      # to map/index.html. Writing them anywhere else 404s at runtime.
+      #
+      # Country-aggregate sources ship as a small keyed JSON the map joins to
+      # boundaries; they need no tiling. Boundaries are rebuilt only if absent.
+      - name: Build boundaries if missing
+        run: |
+          test -f map/data/boundaries.geojson || python3 pipeline/build_boundaries.py
+
+      - name: Build tiles for changed sources
+        if: steps.harvest.outputs.changed != ''
+        run: |
+          chmod +x pipeline/build_tiles.sh
+          for id in $(tr ',' ' ' <<< "${{ steps.harvest.outputs.changed }}"); do
+            python3 pipeline/normalize.py \
+              --source "$id" \
+              --in "data/raw/$id.json" \
+              --out "data/normalized/$id.geojsonl"
+            if [ -f "data/normalized/$id.countries.json" ]; then
+              mkdir -p map/data
+              cp "data/normalized/$id.countries.json" map/data/
+              echo "$id: country aggregate, no tiling needed"
+            else
+              ./pipeline/build_tiles.sh "$id" "data/normalized/$id.geojsonl" map/tiles
+            fi
+          done
+
+      # Anything over GitHub's 100 MB file cap goes to R2, which is free to
+      # store up to 10 GB and free to read. Skipped entirely if nothing is
+      # oversized, so the R2 credentials are optional until they're needed.
+      - name: Upload oversized archives to R2
+        if: hashFiles('map/tiles/.needs-r2') != ''
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+        run: |
+          pip install awscli --quiet
+          while read -r id; do
+            aws s3 cp "map/tiles/$id.pmtiles" "s3://culprits-tiles/$id.pmtiles" \
+              --endpoint-url "$R2_ENDPOINT"
+            rm "map/tiles/$id.pmtiles"
+          done < map/tiles/.needs-r2
+          rm map/tiles/.needs-r2
+
+      - name: Commit refreshed tiles
+        run: |
+          git config user.name "atlas-bot"
+          git config user.email "atlas-bot@users.noreply.github.com"
+          git add -A map/tiles map/data .etags.json
+          if git diff --staged --quiet; then
+            echo "Nothing changed upstream — no commit."
+          else
+            git commit -m "Refresh tiles: ${{ steps.harvest.outputs.changed }}"
+            git push
+          fi
