@@ -4,8 +4,9 @@ const CLUSTER_MAXZOOM = 8;
 
 // Archives live wherever they fit: under 100 MB in the repo, larger ones in R2.
 // Both serve HTTP range requests, so the map treats them identically.
-const TILE_BASE = "./tiles";
-const DATA_BASE = "./data";
+const abs = (p) => new URL(p, document.baseURI).href;
+const TILE_BASE = abs("./tiles");
+const DATA_BASE = abs("./data");
 const R2_BASE = "https://tiles.welcometoyourgalaxy.com";
 const WORKER = "https://culprits-proxy.welcometoyourgalaxy.workers.dev/v1";
 
@@ -49,14 +50,32 @@ const map = new maplibregl.Map({
   },
 });
 
+map.on("error", (e) => {
+  const id = e.sourceId || "";
+  const cfg = LAYERS.find((l) => id.startsWith(l.id));
+  const msg = (e.error && e.error.message) || "failed to load";
+  if (cfg) setLayerState(cfg.id, msg);
+  console.error("[culprits]", id || "map", msg, e.error || e);
+});
+
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
 map.addControl(new maplibregl.ScaleControl({ maxWidth: 110, unit: "metric" }), "bottom-right");
 
 /* ---------- pre-tiled layers ---------- */
 
-function addPmtilesLayer(cfg) {
+async function addPmtilesLayer(cfg) {
+  const url = `${TILE_BASE}/${cfg.id}.pmtiles`;
+  try {
+    const head = await fetch(url, { method: "HEAD" });
+    if (!head.ok) throw new Error(`${head.status} at ${url}`);
+  } catch (e) {
+    setLayerState(cfg.id, `archive missing (${e.message})`);
+    console.error(`[culprits] ${cfg.id}: ${e.message}`);
+    return;
+  }
+
   const src = `${cfg.id}-src`;
-  map.addSource(src, { type: "vector", url: `pmtiles://${TILE_BASE}/${cfg.id}.pmtiles` });
+  map.addSource(src, { type: "vector", url: `pmtiles://${url}` });
 
   // Aggregate view. tippecanoe summed `value` into the clustered features, so
   // radius can encode magnitude *within this layer* without claiming anything
@@ -326,7 +345,7 @@ map.on("load", () => {
         // and the layer just silently never appears.
         addCountryLayer(cfg).catch((e) => setLayerState(cfg.id, `failed (${e.message})`));
       }
-      else addPmtilesLayer(cfg);
+      else addPmtilesLayer(cfg).catch((e) => setLayerState(cfg.id, `failed (${e.message})`));
     } catch (e) {
       setLayerState(cfg.id, `failed (${e.message})`);
     }
