@@ -1,0 +1,185 @@
+/**
+ * Worker tests.
+ *
+ * The Worker can't be exercised against the real upstreams from here — they
+ * need keys and aren't reachable — but its request handling is the part most
+ * likely to be wrong, and that is testable in isolation: bbox validation,
+ * origin handling, cache keying, and how upstream failures surface.
+ *
+ * Run: node worker/test.mjs
+ */
+
+import worker from "./index.js";
+
+let pass = 0, fail = 0;
+function check(name, cond, detail = "") {
+  if (cond) { pass++; console.log(`  ok    ${name}`); }
+  else { fail++; console.log(`  FAIL  ${name}${detail ? " — " + detail : ""}`); }
+}
+
+// --- minimal Cloudflare runtime stubs -------------------------------------
+const store = new Map();
+globalThis.caches = {
+  default: {
+    async match(req) { return store.get(req.url) || undefined; },
+    async put(req, res) { store.set(req.url, res); },
+  },
+};
+const ctx = { waitUntil: (p) => p };
+const env = { GFW_API_KEY: "k", GFW_FISHING_TOKEN: "t", LAND_MATRIX_KEY: "l" };
+
+let lastUpstream = null;
+let upstreamStatus = 200;
+// Default stub returns a payload the shapers can read, so tests about routing
+// and caching aren't tripped up by shaping. Shaping has its own section below.
+const SHAPEABLE = { data: [{ id: 1, latitude: 1, longitude: 2, alert__count: 3 }] };
+globalThis.fetch = async (url, init) => {
+  lastUpstream = { url, init };
+  return new Response(JSON.stringify(SHAPEABLE), {
+    status: upstreamStatus,
+    headers: { "Content-Type": "application/json" },
+  });
+};
+const defaultFetch = globalThis.fetch;
+
+const ORIGIN = "https://welcometoyourgalaxy.github.io";
+const call = (path, origin = ORIGIN, method = "GET") =>
+  worker.fetch(
+    new Request(`https://proxy.example${path}`, { method, headers: { Origin: origin } }),
+    env, ctx
+  );
+
+console.log("\nworker request handling");
+
+// --- CORS preflight --------------------------------------------------------
+{
+  const r = await call("/v1/gfw?bbox=0,0,1,1", ORIGIN, "OPTIONS");
+  check("preflight returns 204", r.status === 204);
+  check("preflight sends allow-origin",
+        r.headers.get("Access-Control-Allow-Origin") === ORIGIN);
+}
+
+// --- bbox validation -------------------------------------------------------
+{
+  const cases = [
+    ["missing bbox", "/v1/gfw", 400],
+    ["malformed bbox", "/v1/gfw?bbox=a,b,c,d", 400],
+    ["too few values", "/v1/gfw?bbox=0,0,1", 400],
+    ["inverted bbox", "/v1/gfw?bbox=10,10,0,0", 400],
+    ["out of range lat", "/v1/gfw?bbox=0,-100,1,1", 400],
+    ["whole world", "/v1/gfw?bbox=-180,-90,180,90", 400],
+    ["valid bbox", "/v1/gfw?bbox=0,0,1,1", 200],
+  ];
+  for (const [name, path, want] of cases) {
+    const r = await call(path);
+    check(name, r.status === want, `got ${r.status}, wanted ${want}`);
+  }
+}
+
+// --- routing ---------------------------------------------------------------
+{
+  check("unknown route 404", (await call("/v1/nope?bbox=0,0,1,1")).status === 404);
+  check("bad path 404", (await call("/nope")).status === 404);
+
+  await call("/v1/fishing?bbox=0,0,1,1&z=9");
+  check("fishing sends bearer token",
+        lastUpstream.init.headers.Authorization === "Bearer t");
+  await call("/v1/gfw?bbox=2,2,3,3");
+  check("gfw sends api key header", lastUpstream.init.headers["x-api-key"] === "k");
+}
+
+// --- zoom clamping ---------------------------------------------------------
+{
+  await call("/v1/fishing?bbox=0,0,1,1&z=99");
+  check("zoom clamped to 14", lastUpstream.url.includes("zoom=14"));
+  await call("/v1/fishing?bbox=0,0,1,1&z=notanumber");
+  check("non-numeric zoom falls back", !lastUpstream.url.includes("zoom=NaN"));
+}
+
+// --- upstream failures surface, not swallowed ------------------------------
+{
+  upstreamStatus = 401;
+  const r = await call("/v1/gfw?bbox=5,5,6,6");
+  check("401 passes through", r.status === 401);
+  const body = await r.json();
+  check("401 explains itself", /401/.test(body.error || ""));
+  upstreamStatus = 200;
+}
+
+// --- caching ---------------------------------------------------------------
+{
+  store.clear();
+  lastUpstream = null;
+  await call("/v1/gfw?bbox=7,7,8,8");
+  const first = lastUpstream;
+  lastUpstream = null;
+  await call("/v1/gfw?bbox=7,7,8,8");
+  check("second identical request served from cache", lastUpstream === null,
+        "upstream was called again");
+
+  // Different viewport must not reuse the cached body.
+  lastUpstream = null;
+  await call("/v1/gfw?bbox=9,9,10,10");
+  check("different bbox bypasses cache", lastUpstream !== null);
+  check("first call did reach upstream", first !== null);
+}
+
+// --- the cross-origin cache poisoning case ---------------------------------
+{
+  store.clear();
+  const a = "https://welcometoyourgalaxy.github.io";
+  const b = "https://www.welcometoyourgalaxy.com";
+  await call("/v1/gfw?bbox=20,20,21,21", a);
+  const second = await call("/v1/gfw?bbox=20,20,21,21", b);
+  check("cached response is not returned with the wrong allow-origin",
+        second.headers.get("Access-Control-Allow-Origin") === b,
+        `got ${second.headers.get("Access-Control-Allow-Origin")}, wanted ${b}`);
+}
+
+// --- response shaping ------------------------------------------------------
+{
+  const shaped = [];
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    data: [
+      { id: 1, latitude: 10, longitude: 20, alert__count: 5, adm2: "Somewhere" },
+      { id: 2, latitude: null, longitude: 20, alert__count: 1 },
+    ],
+  }), { status: 200, headers: { "Content-Type": "application/json" } });
+
+  store.clear();
+  const r = await call("/v1/gfw?bbox=30,30,31,31");
+  const g = await r.json();
+  check("shapes rows into a FeatureCollection", g.type === "FeatureCollection");
+  check("drops rows with no coordinates", g.features.length === 1,
+        `got ${g.features?.length}`);
+  check("carries the atlas schema", g.features[0].properties.unit === "alerts");
+  check("coordinates are [lon,lat]",
+        JSON.stringify(g.features[0].geometry.coordinates) === "[20,10]");
+
+  // Already-GeoJSON passes through untouched.
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    type: "FeatureCollection", features: [{ type: "Feature", geometry: null, properties: {} }],
+  }), { status: 200, headers: { "Content-Type": "application/json" } });
+  store.clear();
+  const g2 = await (await call("/v1/gfw?bbox=40,40,41,41")).json();
+  check("passes GeoJSON through", g2.features.length === 1);
+
+  // An unrecognised shape must fail loudly, not return an empty layer.
+  globalThis.fetch = async () => new Response(JSON.stringify({ surprise: true }), {
+    status: 200, headers: { "Content-Type": "application/json" },
+  });
+  store.clear();
+  const r3 = await call("/v1/gfw?bbox=50,50,51,51");
+  check("unrecognised shape is a loud 502", r3.status === 502);
+  check("error names the fix", /shape\(\)/.test((await r3.json()).error || ""));
+
+  // Non-JSON upstream.
+  globalThis.fetch = async () => new Response("<html>nope</html>", { status: 200 });
+  store.clear();
+  check("non-JSON upstream is 502", (await call("/v1/gfw?bbox=60,60,61,61")).status === 502);
+
+  globalThis.fetch = defaultFetch;
+}
+
+console.log(`\n${pass} passed, ${fail} failed\n`);
+process.exit(fail ? 1 : 0);
