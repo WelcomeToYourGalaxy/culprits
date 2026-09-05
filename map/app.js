@@ -91,11 +91,17 @@ async function addPmtilesLayer(cfg) {
       "circle-opacity": .55,
       "circle-stroke-color": cfg.colour,
       "circle-stroke-width": 1,
-      // tippecanoe does not emit point_count for distance clustering, so the
-      // pipeline carries _count on every feature and sums it on merge.
+      // Two cases share this layer. Large sources are clustered, so _count is
+      // how many sites a dot stands for. Small sources are not clustered, so
+      // every _count is 1 and size must come from the magnitude instead —
+      // otherwise every dot renders at the minimum and the map reads flat.
       "circle-radius": [
-        "interpolate", ["linear"], ["coalesce", ["get", "_count"], 1],
-        1, 3, 10, 6, 100, 11, 1000, 18, 10000, 26,
+        "case",
+        [">", ["coalesce", ["get", "_count"], 1], 1],
+        ["interpolate", ["linear"], ["get", "_count"],
+          1, 3, 10, 6, 100, 11, 1000, 18, 10000, 26],
+        ["interpolate", ["linear"], ["sqrt", ["coalesce", ["get", "value"], 0]],
+          0, 2.5, 1, 4, 3, 7, 6, 12],
       ],
     },
   });
@@ -124,6 +130,9 @@ async function addPmtilesLayer(cfg) {
     },
   });
 
+  // Both layers, not just the detail one: below the cluster threshold the
+  // aggregate layer is the only thing on screen, and it was unclickable.
+  bindPopup(`${cfg.id}-agg`);
   bindPopup(`${cfg.id}-pt`);
 }
 
