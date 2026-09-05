@@ -12,13 +12,16 @@
 # a million markers. From zoom 8 up, clustering stops and individual features
 # appear, and the browser range-requests only the tiles it can see.
 #
-# Usage: build_tiles.sh <source_id> <normalized.geojsonl> <out_dir>
+# Usage: build_tiles.sh <source_id> <normalized.geojsonl> [out_dir]
+#
+# Default out_dir is map/tiles — GitHub Pages serves map/, and the map fetches
+# ./tiles/<id>.pmtiles relative to itself.
 
 set -euo pipefail
 
 SOURCE="${1:?source id required}"
 INPUT="${2:?input geojsonl required}"
-OUTDIR="${3:-dist/tiles}"
+OUTDIR="${3:-map/tiles}"
 
 mkdir -p "$OUTDIR"
 OUT="$OUTDIR/${SOURCE}.pmtiles"
@@ -29,6 +32,14 @@ OUT="$OUTDIR/${SOURCE}.pmtiles"
 CLUSTER_MAXZOOM=8
 MAXZOOM=12
 
+# Clustering exists so million-feature sources survive a global view. Applied to
+# a small source it just deletes the distribution: 425 carbon bombs clustered
+# down to two dots at world zoom, which is worse than no map. Below this count
+# every feature is kept at every zoom and the map shows them all.
+CLUSTER_ABOVE=20000
+
+FEATURES=$(wc -l < "$INPUT")
+
 # Attribution is baked into the archive so credit travels with the data even if
 # the file is copied somewhere else.
 ATTRIBUTION=$(python3 -c "
@@ -38,6 +49,25 @@ s={x['id']:x for x in reg['sources']}.get('$SOURCE',{})
 print(f\"{s.get('name','$SOURCE')} — {s.get('licence','licence unchecked')}\")
 ")
 
+if [ "$FEATURES" -gt "$CLUSTER_ABOVE" ]; then
+  echo "$SOURCE: $FEATURES features — clustering below z$CLUSTER_MAXZOOM"
+  CLUSTER_ARGS=(
+    --cluster-distance=12
+    --cluster-maxzoom="$CLUSTER_MAXZOOM"
+    --accumulate-attribute=value:sum
+    --accumulate-attribute=_count:sum
+    --drop-densest-as-needed
+    --extend-zooms-if-still-dropping
+  )
+else
+  echo "$SOURCE: $FEATURES features — small enough to show every point at every zoom"
+  # --drop-rate=1 is the important one. tippecanoe thins dense points at low
+  # zoom by default, independently of clustering and of the feature/size
+  # limits, which is what reduced 425 carbon bombs to a single dot at world
+  # view. Rate 1 keeps every feature at every zoom.
+  CLUSTER_ARGS=(--drop-rate=1 --no-feature-limit --no-tile-size-limit)
+fi
+
 tippecanoe \
   --quiet \
   --output="$OUT" \
@@ -46,12 +76,7 @@ tippecanoe \
   --name="$SOURCE" \
   --minimum-zoom=0 \
   --maximum-zoom="$MAXZOOM" \
-  --cluster-distance=12 \
-  --cluster-maxzoom="$CLUSTER_MAXZOOM" \
-  --accumulate-attribute=value:sum \
-  --accumulate-attribute=_count:sum \
-  --drop-densest-as-needed \
-  --extend-zooms-if-still-dropping \
+  "${CLUSTER_ARGS[@]}" \
   --preserve-input-order \
   --attribution="$ATTRIBUTION" \
   "$INPUT"
