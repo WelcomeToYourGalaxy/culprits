@@ -32,9 +32,9 @@ const LAYERS = [
   { id:"trase",                name:"Commodity supply chains", unit:"ha",         colour:"#62755F", route:"pmtiles", ready:false },
   { id:"land_matrix",          name:"Land deals",              unit:"hectares",   colour:"#6C7F63", route:"country", ready:true,  isolate:true },
   { id:"counterglow",          name:"Industrial animal farms", unit:"facilities", colour:"#7B7A5C", route:"pmtiles", ready:false },
-  { id:"epa_tri",              name:"US toxic releases",       unit:"lb/yr",      colour:"#5C6E77", route:"worker",  ready:false },
-  { id:"gfw",                  name:"Deforestation alerts",    unit:"alerts",     colour:"#55705E", route:"worker",  ready:false },
-  { id:"fishing",              name:"Fishing effort",          unit:"hours",      colour:"#4F6773", route:"worker",  ready:false },
+  { id:"epa_tri",              name:"US toxic release sites",  unit:"TRI facilities", colour:"#5C6E77", route:"worker",  ready:true },
+  { id:"gfw",                  name:"Deforestation alerts",    unit:"alerts",     colour:"#55705E", route:"worker",  ready:true },
+  { id:"fishing",              name:"Fishing effort",          unit:"hours",      colour:"#4F6773", route:"worker",  ready:true },
 ];
 
 const protocol = new pmtiles.Protocol();
