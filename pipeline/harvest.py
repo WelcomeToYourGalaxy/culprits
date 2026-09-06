@@ -66,7 +66,9 @@ def changed_upstream(meta, state, force):
     try:
         mod = importlib.import_module(f"sources.{sid}")
         if hasattr(mod, "resolve"):
-            _, tag = mod.resolve()
+            url, tag = mod.resolve()
+            if url is None and tag is None:
+                return False, "harvester reports its source is not resolvable yet", None
         else:
             raise AttributeError
     except (ModuleNotFoundError, AttributeError):
