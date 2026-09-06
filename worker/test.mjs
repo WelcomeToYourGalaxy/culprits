@@ -33,7 +33,16 @@ let upstreamStatus = 200;
 // Default stub returns a payload the shapers can read, so tests about routing
 // and caching aren't tripped up by shaping. Shaping has its own section below.
 const SHAPEABLE = { data: [{ id: 1, latitude: 1, longitude: 2, alert__count: 3 }] };
+
+// Every gfw query is preceded by a catalogue lookup for the newest version.
+// Stubs must answer it or the query never happens.
+const CATALOGUE = "/dataset/gfw_integrated_alerts";
+const catalogueReply = () => new Response(JSON.stringify({
+  data: { versions: ["v20260101", "v20260906", "v20260401"] },
+}), { status: 200, headers: { "Content-Type": "application/json" } });
+const isCatalogue = (url) => String(url).endsWith(CATALOGUE);
 globalThis.fetch = async (url, init) => {
+  if (isCatalogue(url)) return catalogueReply();
   lastUpstream = { url, init };
   return new Response(JSON.stringify(SHAPEABLE), {
     status: upstreamStatus,
@@ -139,7 +148,7 @@ console.log("\nworker request handling");
 // --- response shaping ------------------------------------------------------
 {
   const shaped = [];
-  globalThis.fetch = async () => new Response(JSON.stringify({
+  globalThis.fetch = async (u) => isCatalogue(u) ? catalogueReply() : new Response(JSON.stringify({
     data: [
       { id: 1, latitude: 10, longitude: 20, alert__count: 5, adm2: "Somewhere" },
       { id: 2, latitude: null, longitude: 20, alert__count: 1 },
@@ -159,7 +168,7 @@ console.log("\nworker request handling");
         JSON.stringify(g.features[0].geometry.coordinates) === "[20,10]");
 
   // Already-GeoJSON passes through untouched.
-  globalThis.fetch = async () => new Response(JSON.stringify({
+  globalThis.fetch = async (u) => isCatalogue(u) ? catalogueReply() : new Response(JSON.stringify({
     type: "FeatureCollection", features: [{ type: "Feature", geometry: null, properties: {} }],
   }), { status: 200, headers: { "Content-Type": "application/json" } });
   store.clear();
@@ -167,7 +176,7 @@ console.log("\nworker request handling");
   check("passes GeoJSON through", g2.features.length === 1);
 
   // An unrecognised shape must fail loudly, not return an empty layer.
-  globalThis.fetch = async () => new Response(JSON.stringify({ surprise: true }), {
+  globalThis.fetch = async (u) => isCatalogue(u) ? catalogueReply() : new Response(JSON.stringify({ surprise: true }), {
     status: 200, headers: { "Content-Type": "application/json" },
   });
   store.clear();
@@ -176,7 +185,7 @@ console.log("\nworker request handling");
   check("error names the fix", /shape\(\)/.test((await r3.json()).error || ""));
 
   // Non-JSON upstream.
-  globalThis.fetch = async () => new Response("<html>nope</html>", { status: 200 });
+  globalThis.fetch = async (u) => isCatalogue(u) ? catalogueReply() : new Response("<html>nope</html>", { status: 200 });
   store.clear();
   check("non-JSON upstream is 502", (await call("/v1/gfw?bbox=60.0,60.0,60.3,60.3")).status === 502);
 
@@ -212,7 +221,7 @@ console.log("\nworker request handling");
 // --- upstream errors carry the upstream's own words -----------------------
 {
   store.clear();
-  globalThis.fetch = async () => new Response("Invalid API key for domain", { status: 401 });
+  globalThis.fetch = async (u) => isCatalogue(u) ? catalogueReply() : new Response("Invalid API key for domain", { status: 401 });
   const r = await call("/v1/gfw?bbox=70.0,70.0,70.3,70.3");
   const msg = (await r.json()).error;
   check("401 passes through", r.status === 401);
@@ -224,16 +233,18 @@ console.log("\nworker request handling");
 {
   store.clear();
   globalThis.fetch = async (url, init) => {
+    if (isCatalogue(url)) return catalogueReply();
     lastUpstream = { url, init };
     return new Response(JSON.stringify({ data: [
       { longitude: -59.5, latitude: -4.5, gfw_integrated_alerts__date: "2026-08-01",
-        gfw_integrated_alerts__confidence: "high" },
+        gfw_integrated_alerts__confidence: "high", gfw_integrated_alerts__intensity: 55 },
     ] }), { status: 200, headers: { "Content-Type": "application/json" } });
   };
   const r = await call("/v1/gfw?bbox=-59.5,-4.5,-59.2,-4.2");
   check("gfw uses POST", lastUpstream.init.method === "POST");
-  check("gfw hits the gfw_integrated_alerts dataset",
-        /gfw_integrated_alerts\/latest\/query\/json/.test(lastUpstream.url), lastUpstream.url);
+  check("gfw resolves the newest version rather than using /latest",
+        /gfw_integrated_alerts\/v20260906\/query\/json/.test(lastUpstream.url), lastUpstream.url);
+  check("gfw never asks for /latest", !/\/latest\//.test(lastUpstream.url));
   const body = JSON.parse(lastUpstream.init.body);
   check("gfw sends a closed polygon",
         body.geometry.type === "Polygon" &&
