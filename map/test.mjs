@@ -72,6 +72,11 @@ class FakeMap {
   }
   fire(key, arg) { (this.handlers.get(key) || []).forEach((h) => h(arg)); }
   addControl() {}
+  setFilter(id, f) {
+    const l = this.getLayer(id);
+    if (!l) throw new Error(`setFilter on missing layer "${id}"`);
+    l.filter = f;
+  }
   getZoom() { return this.zoom; }
   getBounds() {
     return { getWest: () => 10, getSouth: () => 20, getEast: () => 11, getNorth: () => 21 };
@@ -272,6 +277,44 @@ console.log("\nmap wiring");
   check("each country layer keeps its own value",
         st.v_land_matrix === 111 && st.v_owid_co2 === 999,
         JSON.stringify(st));
+}
+
+// --- heavy-tailed data must stay visible ----------------------------------
+{
+  const { map } = run({
+    fetchImpl: async (u) => {
+      if (String(u).endsWith(".pmtiles")) return { ok: false, status: 404 };
+      return { ok: true, status: 200, json: async () => ({
+        CHN: { value: 12289, unit: "Mt" },   // the outlier
+        KEN: { value: 21.2, unit: "Mt" },    // a median-ish country
+      }) };
+    },
+  });
+  map.fire("load");
+  await new Promise((r) => setTimeout(r, 10));
+  const fill = map.getLayer("owid_co2-fill");
+  const expr = JSON.stringify(fill.paint["fill-opacity"]);
+  check("choropleth uses a log scale", /log10/.test(expr), expr.slice(0, 90));
+  check("small values keep a visible floor", /0\.12/.test(expr));
+  check("no-data countries stay transparent", expr.includes('"case"'));
+}
+
+// --- fuel filtering happens in the map, not the harvester -----------------
+{
+  const { map } = run();
+  map.fire("load");
+  await new Promise((r) => setTimeout(r, 10));
+  const pt = map.getLayer("power_plants-pt");
+  check("no filter is applied by default", !pt.filter,
+        JSON.stringify(pt && pt.filter));
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("power_plants declares a fuel facet",
+        /facet:\s*\{[^}]*property:\s*"x_fuel"/.test(src));
+  check("the facet lists non-fossil fuels too — nothing is hidden by default",
+        /"Solar"/.test(src) && /"Wind"/.test(src) && /"Hydro"/.test(src));
+  check("filtering is wired to setFilter, not to the harvester",
+        /map\.setFilter\(/.test(src) && !/FUELS/.test(
+          fs.readFileSync(path.join(HERE, "..", "pipeline", "sources", "power_plants.py"), "utf8")));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

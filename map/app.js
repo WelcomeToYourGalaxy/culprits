@@ -18,7 +18,13 @@ const LAYERS = [
   { id:"climate_trace",        name:"Emitting assets",         unit:"t CO₂e/yr (GWP-100)", colour:"#8F4E40", route:"pmtiles", ready:false },
   { id:"global_energy_monitor",name:"Oil, gas and coal assets",unit:"capacity",   colour:"#7A5548", route:"pmtiles", ready:false },
   { id:"carbon_bombs",         name:"Carbon bombs",            unit:"Gt CO₂ lifetime", colour:"#6E4A44", route:"pmtiles", ready:true },
-  { id:"power_plants",         name:"Power plants",            unit:"MW capacity", colour:"#7E5A4E", route:"pmtiles", ready:true },
+  { id:"power_plants",         name:"Power plants",            unit:"MW capacity", colour:"#7E5A4E", route:"pmtiles", ready:true,
+    // The source covers every fuel and nothing is filtered out of the data.
+    // Filtering happens here instead, where it is visible and reversible.
+    facet: { property: "x_fuel", label: "fuel",
+             values: ["Coal","Gas","Oil","Petcoke","Nuclear","Hydro","Wind","Solar",
+                      "Biomass","Waste","Geothermal","Storage","Cogeneration",
+                      "Wave and Tidal","Other"] } },
   { id:"trase",                name:"Commodity supply chains", unit:"ha",         colour:"#62755F", route:"pmtiles", ready:false },
   { id:"land_matrix",          name:"Land deals",              unit:"hectares",   colour:"#6C7F63", route:"country", ready:true,  isolate:true },
   { id:"counterglow",          name:"Industrial animal farms", unit:"facilities", colour:"#7B7A5C", route:"pmtiles", ready:false },
@@ -177,6 +183,18 @@ async function addCountryLayer(cfg) {
 
   const values = Object.values(totals).map((t) => t.value).filter((v) => v > 0);
   const max = Math.max(...values, 1);
+  const min = Math.min(...values);
+
+  // Log scale, not linear or square-root. These distributions are extremely
+  // heavy-tailed: China emits 12,289 Mt against a median country's 11.8, so a
+  // square-root ramp gave the median an opacity of 0.02 — data present, nothing
+  // visible. Log spreads the middle of the range where most countries sit.
+  //
+  // OPACITY_FLOOR keeps the smallest reporting country distinguishable from a
+  // country with no data at all, which must stay fully transparent.
+  const OPACITY_FLOOR = 0.12, OPACITY_CEIL = 0.72;
+  const lo = Math.log10(Math.max(min, 1e-6));
+  const span = Math.max(Math.log10(max) - lo, 0.001);
 
   // Country layers share one boundaries source, so each needs its own
   // feature-state key. A shared "v" meant the second layer to load silently
@@ -193,7 +211,8 @@ async function addCountryLayer(cfg) {
       // would otherwise flatten every other country to invisible.
       "fill-opacity": [
         "case", ["==", ["feature-state", key], null], 0,
-        ["*", 0.72, ["sqrt", ["/", ["feature-state", key], max]]],
+        ["+", OPACITY_FLOOR, ["*", OPACITY_CEIL - OPACITY_FLOOR,
+          ["/", ["-", ["log10", ["max", ["feature-state", key], 1e-6]], lo], span]]],
       ],
     },
   }, pointLayerAbove());
@@ -324,6 +343,34 @@ function setLayerState(id, text) {
   if (el) el.textContent = text;
 }
 
+// Which facet values are currently shown, per layer. Empty set means all.
+const facetState = new Map();
+
+function applyFacet(cfg) {
+  const chosen = facetState.get(cfg.id);
+  const filter = (!chosen || chosen.size === 0)
+    ? null
+    : ["in", ["get", cfg.facet.property], ["literal", [...chosen]]];
+  [`${cfg.id}-agg`, `${cfg.id}-pt`].forEach((l) => {
+    if (map.getLayer(l)) map.setFilter(l, filter);
+  });
+  const el = document.querySelector(`[data-state="${cfg.id}"]`);
+  if (el) {
+    el.textContent = (!chosen || chosen.size === 0)
+      ? cfg.unit
+      : `${cfg.unit} · ${chosen.size} of ${cfg.facet.values.length} ${cfg.facet.label}s`;
+  }
+}
+
+function facetRow(cfg) {
+  const box = document.createElement("div");
+  box.className = "facet";
+  box.innerHTML = cfg.facet.values
+    .map((v) => `<button class="chip" data-facet="${cfg.id}" data-value="${v}">${v}</button>`)
+    .join("") + `<button class="chip reset" data-facet="${cfg.id}" data-value="">all</button>`;
+  return box;
+}
+
 function buildPanel() {
   const box = document.getElementById("layers");
   LAYERS.forEach((cfg) => {
@@ -335,6 +382,27 @@ function buildPanel() {
       `<span class="body"><span class="nm">${cfg.name}</span>` +
       `<span class="un" data-state="${cfg.id}">${cfg.unit}</span></span>`;
     box.appendChild(row);
+    if (cfg.ready && cfg.facet) box.appendChild(facetRow(cfg));
+  });
+
+  box.addEventListener("click", (e) => {
+    const btn = e.target.closest(".chip");
+    if (!btn) return;
+    const cfg = LAYERS.find((l) => l.id === btn.dataset.facet);
+    if (!cfg) return;
+    const chosen = facetState.get(cfg.id) || new Set();
+    if (btn.dataset.value === "") {
+      chosen.clear();
+    } else {
+      chosen.has(btn.dataset.value)
+        ? chosen.delete(btn.dataset.value)
+        : chosen.add(btn.dataset.value);
+    }
+    facetState.set(cfg.id, chosen);
+    btn.closest(".facet").querySelectorAll(".chip").forEach((c) => {
+      c.classList.toggle("on", c.dataset.value !== "" && chosen.has(c.dataset.value));
+    });
+    applyFacet(cfg);
   });
 
   box.addEventListener("change", (e) => {
