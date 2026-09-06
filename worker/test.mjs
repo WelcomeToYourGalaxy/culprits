@@ -152,7 +152,9 @@ console.log("\nworker request handling");
   check("shapes rows into a FeatureCollection", g.type === "FeatureCollection");
   check("drops rows with no coordinates", g.features.length === 1,
         `got ${g.features?.length}`);
-  check("carries the atlas schema", g.features[0].properties.unit === "alerts");
+  check("carries the atlas schema",
+        g.features[0].properties.unit === "deforestation alert",
+        g.features[0].properties.unit);
   check("coordinates are [lon,lat]",
         JSON.stringify(g.features[0].geometry.coordinates) === "[20,10]");
 
@@ -178,6 +180,70 @@ console.log("\nworker request handling");
   store.clear();
   check("non-JSON upstream is 502", (await call("/v1/gfw?bbox=60,60,61,61")).status === 502);
 
+  globalThis.fetch = defaultFetch;
+}
+
+// --- EPA route needs no credentials ---------------------------------------
+{
+  store.clear();
+  globalThis.fetch = defaultFetch;
+  const r = await call("/v1/epa_tri?bbox=-120,30,-119,31");
+  check("epa_tri route exists", r.status === 200, `got ${r.status}`);
+  check("epa_tri sends no auth header",
+        !lastUpstream.init.headers.Authorization && !lastUpstream.init.headers["x-api-key"]);
+  check("epa_tri builds a bbox-filtered path",
+        /latitude/.test(lastUpstream.url) && /longitude/.test(lastUpstream.url),
+        lastUpstream.url);
+}
+
+// --- a missing secret must say so, not become "Bearer undefined" ----------
+{
+  store.clear();
+  globalThis.fetch = defaultFetch;
+  const r = await worker.fetch(
+    new Request("https://proxy.example/v1/fishing?bbox=0,0,1,1", { headers: { Origin: ORIGIN } }),
+    { GFW_API_KEY: "k" }, ctx);          // no GFW_FISHING_TOKEN
+  check("missing secret returns 503, not a confusing 401", r.status === 503,
+        `got ${r.status}`);
+  check("missing secret names the command that fixes it",
+        /wrangler secret put GFW_FISHING_TOKEN/.test((await r.json()).error));
+}
+
+// --- upstream errors carry the upstream's own words -----------------------
+{
+  store.clear();
+  globalThis.fetch = async () => new Response("Invalid API key for domain", { status: 401 });
+  const r = await call("/v1/gfw?bbox=70,70,71,71");
+  const msg = (await r.json()).error;
+  check("401 passes through", r.status === 401);
+  check("401 includes the upstream's explanation", /Invalid API key/.test(msg), msg);
+  globalThis.fetch = defaultFetch;
+}
+
+// --- gfw must POST a polygon, not GET a bbox ------------------------------
+{
+  store.clear();
+  globalThis.fetch = async (url, init) => {
+    lastUpstream = { url, init };
+    return new Response(JSON.stringify({ data: [
+      { longitude: -59.5, latitude: -4.5, gfw_integrated_alerts__date: "2026-08-01",
+        gfw_integrated_alerts__confidence: "high" },
+    ] }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+  const r = await call("/v1/gfw?bbox=-60,-5,-59,-4");
+  check("gfw uses POST", lastUpstream.init.method === "POST");
+  check("gfw hits the gfw_integrated_alerts dataset",
+        /gfw_integrated_alerts\/latest\/query\/json/.test(lastUpstream.url), lastUpstream.url);
+  const body = JSON.parse(lastUpstream.init.body);
+  check("gfw sends a closed polygon",
+        body.geometry.type === "Polygon" &&
+        body.geometry.coordinates[0].length === 5 &&
+        JSON.stringify(body.geometry.coordinates[0][0]) ===
+          JSON.stringify(body.geometry.coordinates[0][4]));
+  const g = await r.json();
+  check("gfw alert rows become features", g.features.length === 1);
+  check("gfw alert carries its date",
+        /2026-08-01/.test(g.features[0].properties.name), g.features[0].properties.name);
   globalThis.fetch = defaultFetch;
 }
 
