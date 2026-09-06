@@ -14,6 +14,7 @@ const WORKER = "https://culprits-proxy.welcometoyourgalaxy.workers.dev/v1";
 // per layer, because tonnes of CO2e and hectares of land are not comparable
 // and a shared size ramp would imply that they are.
 const LAYERS = [
+  { id:"owid_co2",             name:"National CO₂ emissions", unit:"Mt CO₂/yr", colour:"#8A5750", route:"country", ready:true },
   { id:"climate_trace",        name:"Emitting assets",         unit:"t CO₂e/yr (GWP-100)", colour:"#8F4E40", route:"pmtiles", ready:false },
   { id:"global_energy_monitor",name:"Oil, gas and coal assets",unit:"capacity",   colour:"#7A5548", route:"pmtiles", ready:false },
   { id:"carbon_bombs",         name:"Carbon bombs",            unit:"Gt CO₂ lifetime", colour:"#6E4A44", route:"pmtiles", ready:true },
@@ -177,6 +178,11 @@ async function addCountryLayer(cfg) {
   const values = Object.values(totals).map((t) => t.value).filter((v) => v > 0);
   const max = Math.max(...values, 1);
 
+  // Country layers share one boundaries source, so each needs its own
+  // feature-state key. A shared "v" meant the second layer to load silently
+  // overwrote the first's values for every country.
+  const key = `v_${cfg.id}`;
+
   map.addLayer({
     id: `${cfg.id}-fill`,
     type: "fill",
@@ -186,8 +192,8 @@ async function addCountryLayer(cfg) {
       // Square root, not linear: one country holding a third of the total
       // would otherwise flatten every other country to invisible.
       "fill-opacity": [
-        "case", ["==", ["feature-state", "v"], null], 0,
-        ["*", 0.72, ["sqrt", ["/", ["feature-state", "v"], max]]],
+        "case", ["==", ["feature-state", key], null], 0,
+        ["*", 0.72, ["sqrt", ["/", ["feature-state", key], max]]],
       ],
     },
   }, pointLayerAbove());
@@ -199,24 +205,31 @@ async function addCountryLayer(cfg) {
     paint: {
       "line-color": cfg.colour,
       "line-width": 0.6,
-      "line-opacity": ["case", ["==", ["feature-state", "v"], null], 0, 0.55],
+      "line-opacity": ["case", ["==", ["feature-state", key], null], 0, 0.55],
     },
   });
 
   for (const [iso, t] of Object.entries(totals)) {
-    map.setFeatureState({ source: "boundaries", id: iso },
-                        { v: t.value, name: t.name, unit: t.unit, deals: t.x_deals });
+    // Merge rather than replace: another country layer may already hold state
+    // on this feature.
+    map.setFeatureState({ source: "boundaries", id: iso }, {
+      [key]: t.value,
+      [`${key}_unit`]: t.unit,
+      [`${key}_note`]: t.x_deals ? `${t.x_deals} deals`
+                     : t.x_share_global ? `${t.x_share_global}% of global`
+                     : null,
+    });
   }
 
   map.on("click", `${cfg.id}-fill`, (e) => {
     const st = map.getFeatureState({ source: "boundaries", id: e.features[0].id });
-    if (st.v == null) return;
+    if (st[key] == null) return;
     new maplibregl.Popup({ maxWidth: "280px" })
       .setLngLat(e.lngLat)
       .setHTML(
         `<b>${e.features[0].properties.name}</b>` +
-        `${Number(st.v).toLocaleString()} ${st.unit || ""}` +
-        (st.deals ? `<div class="meta">${st.deals} deals</div>` : "") +
+        `${Number(st[key]).toLocaleString()} ${st[`${key}_unit`] || ""}` +
+        (st[`${key}_note`] ? `<div class="meta">${st[`${key}_note`]}</div>` : "") +
         `<div class="meta" style="color:#8F4E40">Country total — the source ` +
         `records no site coordinates for these.</div>`
       )

@@ -59,7 +59,10 @@ class FakeMap {
   }
   setFeatureState({ source, id }, state) {
     if (!this.sources.has(source)) throw new Error(`featureState on missing source`);
-    this.featureState.set(`${source}:${id}`, state);
+    // MapLibre merges into existing state rather than replacing it. The stub
+    // must too, or it hides exactly the collision this test is looking for.
+    const k = `${source}:${id}`;
+    this.featureState.set(k, { ...(this.featureState.get(k) || {}), ...state });
   }
   getFeatureState({ source, id }) { return this.featureState.get(`${source}:${id}`) || {}; }
   on(ev, a, b) {
@@ -91,6 +94,7 @@ function run({ layersReady = null, fetchImpl = null } = {}) {
 
   const els = new Map();
   globalThis.document = {
+    baseURI: "https://example.test/culprits/",
     getElementById: (id) => els.get(id) || (els.set(id, {
       innerHTML: "", textContent: "", appendChild() {}, addEventListener() {},
     }), els.get(id)),
@@ -105,6 +109,7 @@ function run({ layersReady = null, fetchImpl = null } = {}) {
     addProtocol() {},
   };
   globalThis.pmtiles = { Protocol: function () { return { tile: () => {} }; } };
+  globalThis.document.baseURI = "https://example.test/culprits/";
   globalThis.fetch = fetchImpl || (async (u) => {
     fetched.push(u);
     return { ok: true, status: 200, json: async () => ({}) };
@@ -123,11 +128,15 @@ console.log("\nmap wiring");
 {
   const { map } = run();
   let err = null;
-  try { map.fire("load"); } catch (e) { err = e; }
+  try { map.fire("load"); await new Promise((r) => setTimeout(r, 5)); }
+  catch (e) { err = e; }
   check("load adds layers without error", err === null, err && err.message);
   check("point source registered", map.sources.has("carbon_bombs-src"));
   check("aggregate + detail layers both added",
         !!map.getLayer("carbon_bombs-agg") && !!map.getLayer("carbon_bombs-pt"));
+  check("tile URL is absolute",
+        String(map.sources.get("carbon_bombs-src").url).startsWith("pmtiles://https://"),
+        String(map.sources.get("carbon_bombs-src").url));
 }
 
 // --- the beforeId race -----------------------------------------------------
@@ -151,6 +160,7 @@ console.log("\nmap wiring");
 {
   const { map } = run();
   map.fire("load");
+  await new Promise((r) => setTimeout(r, 5));
   const agg = map.getLayer("carbon_bombs-agg");
   const pt = map.getLayer("carbon_bombs-pt");
   check("aggregate layer stops at the cluster threshold", agg.maxzoom === 8);
@@ -163,6 +173,7 @@ console.log("\nmap wiring");
 {
   const { map } = run();
   map.fire("load");
+  await new Promise((r) => setTimeout(r, 5));
 
   map.fire("click:carbon_bombs-pt", {
     lngLat: [0, 0],
@@ -198,6 +209,7 @@ console.log("\nmap wiring");
 {
   const { map } = run();
   map.fire("load");
+  await new Promise((r) => setTimeout(r, 5));
   map.fire("click:carbon_bombs-pt", {
     lngLat: [0, 0],
     features: [{ properties: { _count: 1, value: 5, name: "X", x_precision: "country" } }],
@@ -209,7 +221,7 @@ console.log("\nmap wiring");
 {
   const { map } = run();
   map.fire("load");
-  await new Promise((r) => setTimeout(r, 0));
+  await new Promise((r) => setTimeout(r, 5));
   const p = fetched.find((u) => String(u).includes("land_matrix"));
   check("country data fetched", !!p, `fetched: ${JSON.stringify(fetched)}`);
   if (p) check("country path has no '/../' segment", !String(p).includes("/../"),
@@ -220,12 +232,46 @@ console.log("\nmap wiring");
 {
   const { map } = run();
   map.fire("load");
+  await new Promise((r) => setTimeout(r, 5));
   fetched.length = 0;
   map.zoom = 3;
   map.fire("moveend");
   await new Promise((r) => setTimeout(r, 0));
   check("no worker call at aggregate zoom",
         !fetched.some((u) => String(u).includes("/v1/")), JSON.stringify(fetched));
+}
+
+// --- a missing archive must say so ----------------------------------------
+{
+  const { map, els } = run({
+    fetchImpl: async (u, o) => (String(u).endsWith(".pmtiles")
+      ? { ok: false, status: 404 }
+      : { ok: true, status: 200, json: async () => ({}) }),
+  });
+  map.fire("load");
+  await new Promise((r) => setTimeout(r, 5));
+  check("missing archive does not register a source",
+        !map.sources.has("carbon_bombs-src"));
+  check("missing archive does not throw", true);
+}
+
+// --- two country layers must not overwrite each other ---------------------
+{
+  const { map } = run({
+    fetchImpl: async (u) => {
+      const id = String(u).includes("land_matrix") ? "land_matrix" : "owid_co2";
+      if (String(u).endsWith(".pmtiles")) return { ok: false, status: 404 };
+      return { ok: true, status: 200, json: async () => ({
+        USA: { value: id === "land_matrix" ? 111 : 999, unit: id, name: "USA" },
+      }) };
+    },
+  });
+  map.fire("load");
+  await new Promise((r) => setTimeout(r, 10));
+  const st = map.getFeatureState({ source: "boundaries", id: "USA" });
+  check("each country layer keeps its own value",
+        st.v_land_matrix === 111 && st.v_owid_co2 === 999,
+        JSON.stringify(st));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
