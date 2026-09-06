@@ -28,6 +28,11 @@ const ALLOWED_ORIGINS = [
 // 100k requests from being spent on repeats.
 const CACHE_SECONDS = 3600;
 
+// Bump on any change to how responses are built. Without this the edge cache
+// keeps serving bodies from the previous deploy for up to an hour — which is
+// exactly what hid the EPA longitude fix.
+const CACHE_VERSION = "v3";
+
 // How far back deforestation alerts are fetched. Wider means more rows and a
 // slower, heavier query; the API has no LIMIT to fall back on.
 const ALERT_WINDOW_DAYS = 30;
@@ -99,6 +104,39 @@ async function gfwLatestVersion(env) {
  */
 const num = (v) => (v === null || v === undefined || v === "" ? null : Number(v));
 const westward = (v) => (v === null || v === undefined ? null : (v > 0 ? -v : v));
+
+// Rough bounding boxes per state, used only to pick which state to ask
+// Envirofacts about. Deliberately generous: a state wrongly included costs one
+// query, a state wrongly excluded loses facilities.
+const STATE_BOXES = {
+  AL:[-88.5,30.1,-84.8,35.1], AK:[-179,51,-129,72], AZ:[-115,31.3,-109,37.1],
+  AR:[-94.7,33,-89.6,36.6], CA:[-124.5,32.5,-114,42.1], CO:[-109.1,36.9,-102,41.1],
+  CT:[-73.8,40.9,-71.7,42.1], DE:[-75.8,38.4,-75,39.9], DC:[-77.2,38.7,-76.9,39.1],
+  FL:[-87.7,24.4,-79.9,31.1], GA:[-85.7,30.3,-80.8,35.1], HI:[-160.3,18.8,-154.7,22.3],
+  ID:[-117.3,41.9,-111,49.1], IL:[-91.6,36.9,-87.4,42.6], IN:[-88.1,37.7,-84.7,41.8],
+  IA:[-96.7,40.3,-90.1,43.6], KS:[-102.1,36.9,-94.5,40.1], KY:[-89.6,36.4,-81.9,39.2],
+  LA:[-94.1,28.9,-88.8,33.1], ME:[-71.1,42.9,-66.9,47.5], MD:[-79.5,37.8,-75,39.8],
+  MA:[-73.6,41.2,-69.8,42.9], MI:[-90.5,41.6,-82.1,48.3], MN:[-97.3,43.4,-89.4,49.4],
+  MS:[-91.7,30.1,-88,35.1], MO:[-95.8,35.9,-89.1,40.7], MT:[-116.1,44.3,-104,49.1],
+  NE:[-104.1,39.9,-95.3,43.1], NV:[-120.1,35,-114,42.1], NH:[-72.6,42.6,-70.6,45.4],
+  NJ:[-75.6,38.9,-73.8,41.4], NM:[-109.1,31.3,-103,37.1], NY:[-79.8,40.4,-71.8,45.1],
+  NC:[-84.4,33.8,-75.4,36.6], ND:[-104.1,45.9,-96.5,49.1], OH:[-84.9,38.4,-80.5,42.4],
+  OK:[-103.1,33.6,-94.4,37.1], OR:[-124.6,41.9,-116.4,46.3], PA:[-80.6,39.7,-74.6,42.3],
+  RI:[-71.9,41.1,-71.1,42.1], SC:[-83.4,32,-78.5,35.3], SD:[-104.1,42.4,-96.4,46],
+  TN:[-90.4,34.9,-81.6,36.7], TX:[-106.7,25.8,-93.5,36.6], UT:[-114.1,36.9,-109,42.1],
+  VT:[-73.5,42.7,-71.5,45.1], VA:[-83.7,36.5,-75.2,39.5], WA:[-124.9,45.5,-116.9,49.1],
+  WV:[-82.7,37.2,-77.7,40.7], WI:[-92.9,42.4,-86.8,47.1], WY:[-111.1,40.9,-104,45.1],
+  PR:[-67.3,17.9,-65.2,18.6], VI:[-65.1,17.6,-64.5,18.5],
+};
+
+function statesForBbox(bbox) {
+  const [w, s, e, n] = bbox.split(",").map(Number);
+  const hits = [];
+  for (const [abbr, [bw, bs, be, bn]] of Object.entries(STATE_BOXES)) {
+    if (bw <= e && be >= w && bs <= n && bn >= s) hits.push(abbr);
+  }
+  return hits;
+}
 
 function rowsToGeoJSON(rows, source, unit, pick) {
   if (!Array.isArray(rows)) return null;
@@ -240,6 +278,11 @@ const UPSTREAM = {
     headers: (env) => ({ Authorization: `Bearer ${env.GFW_FISHING_TOKEN}` }),
   },
   epa_tri: {
+    // Envirofacts silently ignores range filters on tri_facility: asking for
+    // latitude between 33.9 and 34.1 returns Puerto Rico. Equality filters do
+    // work, so the query is scoped by state and the bounding box is applied
+    // here, after the rows come back.
+    postFilter: true,
     // EPA Envirofacts is public and needs no key, but it does not send CORS
     // headers, so the browser still cannot call it directly. It is routed
     // through here for that reason alone.
@@ -248,16 +291,14 @@ const UPSTREAM = {
     // INFERRED and untested — if it is wrong the request returns a 502 naming
     // shape(), not an empty layer.
     url: (bbox) => {
-      const [w, s, e, n] = bbox.split(",").map(Number);
-      // Envirofacts stores TRI longitude UNSIGNED — positive west. Facilities
-      // in Puerto Rico come back as +67.185, not -67.185. So the filter is
-      // built from absolute values, and the shaper puts the sign back.
-      const lo = Math.min(Math.abs(w), Math.abs(e));
-      const hi = Math.max(Math.abs(w), Math.abs(e));
-      return "https://data.epa.gov/efservice/tri_facility" +
-        `/latitude/>/${s}/latitude/</${n}` +
-        `/longitude/>/${lo}/longitude/</${hi}` +
-        "/rows/0:500/JSON";
+      const states = statesForBbox(bbox);
+      // One state per request keeps the response small and the filter honest.
+      // Without a state match the query would return an arbitrary first 500
+      // rows of the whole country, which is worse than returning nothing.
+      const scope = states.length
+        ? `/state_abbr/${states[0]}`
+        : "/state_abbr/__none__";
+      return `https://data.epa.gov/efservice/tri_facility${scope}/rows/0:5000/JSON`;
     },
     headers: () => ({}),
   },
@@ -444,7 +485,8 @@ export default {
     // Keyed on the query alone, deliberately not on the request: the cached
     // entry must be origin-agnostic so it can be replayed to any allowed
     // origin with that origin's own CORS headers attached below.
-    const cacheKey = new Request(`${url.origin}${url.pathname}?bbox=${bbox}&z=${zoom}`);
+    const cacheKey = new Request(
+      `${url.origin}${url.pathname}?bbox=${bbox}&z=${zoom}&_c=${CACHE_VERSION}`);
     const hit = await cache.match(cacheKey);
     if (hit) return withCors(hit, origin);
 
@@ -490,7 +532,17 @@ export default {
       return bad("upstream returned something that isn't JSON", 502, origin);
     }
 
-    const geo = shape(match[1], payload);
+    let geo = shape(match[1], payload);
+    if (geo && source.postFilter) {
+      const [w, s2, e, n] = bbox.split(",").map(Number);
+      geo = {
+        type: "FeatureCollection",
+        features: geo.features.filter((f) => {
+          const [lon, lat] = f.geometry.coordinates;
+          return lon >= w && lon <= e && lat >= s2 && lat <= n;
+        }),
+      };
+    }
     if (!geo) {
       // Better a loud error than an empty layer: "nothing here" and "I did not
       // understand the response" look identical on a map otherwise.
