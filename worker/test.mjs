@@ -38,11 +38,24 @@ const SHAPEABLE = { data: [{ id: 1, latitude: 1, longitude: 2, alert__count: 3 }
 // Stubs must answer it or the query never happens.
 const CATALOGUE = "/dataset/gfw_integrated_alerts";
 const catalogueReply = () => new Response(JSON.stringify({
-  data: { versions: ["v20260101", "v20260906", "v20260401"] },
+  data: { versions: ["v20260101", "v20260906", "v20260905", "v20260401"] },
 }), { status: 200, headers: { "Content-Type": "application/json" } });
 const isCatalogue = (url) => String(url).endsWith(CATALOGUE);
+
+// The newest version is mid-build, exactly as the real API showed it.
+const isAssets = (url) => /\/v\d+\/assets$/.test(String(url));
+const assetsReply = (url) => {
+  const built = !String(url).includes("v20260906");
+  return new Response(JSON.stringify({
+    data: [
+      { asset_type: "Raster tile set", status: "saved" },
+      { asset_type: "COG", status: built ? "saved" : "pending" },
+    ],
+  }), { status: 200, headers: { "Content-Type": "application/json" } });
+};
 globalThis.fetch = async (url, init) => {
   if (isCatalogue(url)) return catalogueReply();
+  if (isAssets(url)) return assetsReply(url);
   lastUpstream = { url, init };
   return new Response(JSON.stringify(SHAPEABLE), {
     status: upstreamStatus,
@@ -148,7 +161,7 @@ console.log("\nworker request handling");
 // --- response shaping ------------------------------------------------------
 {
   const shaped = [];
-  globalThis.fetch = async (u) => isCatalogue(u) ? catalogueReply() : new Response(JSON.stringify({
+  globalThis.fetch = async (u) => isCatalogue(u) ? catalogueReply() : isAssets(u) ? assetsReply(u) : new Response(JSON.stringify({
     data: [
       { id: 1, latitude: 10, longitude: 20, alert__count: 5, adm2: "Somewhere" },
       { id: 2, latitude: null, longitude: 20, alert__count: 1 },
@@ -168,7 +181,7 @@ console.log("\nworker request handling");
         JSON.stringify(g.features[0].geometry.coordinates) === "[20,10]");
 
   // Already-GeoJSON passes through untouched.
-  globalThis.fetch = async (u) => isCatalogue(u) ? catalogueReply() : new Response(JSON.stringify({
+  globalThis.fetch = async (u) => isCatalogue(u) ? catalogueReply() : isAssets(u) ? assetsReply(u) : new Response(JSON.stringify({
     type: "FeatureCollection", features: [{ type: "Feature", geometry: null, properties: {} }],
   }), { status: 200, headers: { "Content-Type": "application/json" } });
   store.clear();
@@ -176,7 +189,7 @@ console.log("\nworker request handling");
   check("passes GeoJSON through", g2.features.length === 1);
 
   // An unrecognised shape must fail loudly, not return an empty layer.
-  globalThis.fetch = async (u) => isCatalogue(u) ? catalogueReply() : new Response(JSON.stringify({ surprise: true }), {
+  globalThis.fetch = async (u) => isCatalogue(u) ? catalogueReply() : isAssets(u) ? assetsReply(u) : new Response(JSON.stringify({ surprise: true }), {
     status: 200, headers: { "Content-Type": "application/json" },
   });
   store.clear();
@@ -185,7 +198,7 @@ console.log("\nworker request handling");
   check("error names the fix", /shape\(\)/.test((await r3.json()).error || ""));
 
   // Non-JSON upstream.
-  globalThis.fetch = async (u) => isCatalogue(u) ? catalogueReply() : new Response("<html>nope</html>", { status: 200 });
+  globalThis.fetch = async (u) => isCatalogue(u) ? catalogueReply() : isAssets(u) ? assetsReply(u) : new Response("<html>nope</html>", { status: 200 });
   store.clear();
   check("non-JSON upstream is 502", (await call("/v1/gfw?bbox=60.0,60.0,60.3,60.3")).status === 502);
 
@@ -196,13 +209,12 @@ console.log("\nworker request handling");
 {
   store.clear();
   globalThis.fetch = defaultFetch;
-  const r = await call("/v1/epa_tri?bbox=-120,30,-119,31");
+  const r = await call("/v1/epa_tri?bbox=-118.4,33.9,-118.1,34.1");
   check("epa_tri route exists", r.status === 200, `got ${r.status}`);
   check("epa_tri sends no auth header",
         !lastUpstream.init.headers.Authorization && !lastUpstream.init.headers["x-api-key"]);
-  check("epa_tri builds a bbox-filtered path",
-        /latitude/.test(lastUpstream.url) && /longitude/.test(lastUpstream.url),
-        lastUpstream.url);
+  check("epa_tri scopes the query to a state it can actually filter on",
+        /state_abbr\/[A-Z]{2}\//.test(lastUpstream.url), lastUpstream.url);
 }
 
 // --- a missing secret must say so, not become "Bearer undefined" ----------
@@ -221,7 +233,7 @@ console.log("\nworker request handling");
 // --- upstream errors carry the upstream's own words -----------------------
 {
   store.clear();
-  globalThis.fetch = async (u) => isCatalogue(u) ? catalogueReply() : new Response("Invalid API key for domain", { status: 401 });
+  globalThis.fetch = async (u) => isCatalogue(u) ? catalogueReply() : isAssets(u) ? assetsReply(u) : new Response("Invalid API key for domain", { status: 401 });
   const r = await call("/v1/gfw?bbox=70.0,70.0,70.3,70.3");
   const msg = (await r.json()).error;
   check("401 passes through", r.status === 401);
@@ -234,6 +246,7 @@ console.log("\nworker request handling");
   store.clear();
   globalThis.fetch = async (url, init) => {
     if (isCatalogue(url)) return catalogueReply();
+    if (isAssets(url)) return assetsReply(url);
     lastUpstream = { url, init };
     return new Response(JSON.stringify({ data: [
       { longitude: -59.5, latitude: -4.5, gfw_integrated_alerts__date: "2026-08-01",
@@ -242,8 +255,10 @@ console.log("\nworker request handling");
   };
   const r = await call("/v1/gfw?bbox=-59.5,-4.5,-59.2,-4.2");
   check("gfw uses POST", lastUpstream.init.method === "POST");
-  check("gfw resolves the newest version rather than using /latest",
-        /gfw_integrated_alerts\/v20260906\/query\/json/.test(lastUpstream.url), lastUpstream.url);
+  check("gfw skips the version that is still building",
+        !/v20260906/.test(lastUpstream.url), lastUpstream.url);
+  check("gfw uses the newest FULLY BUILT version",
+        /gfw_integrated_alerts\/v20260905\/query\/json/.test(lastUpstream.url), lastUpstream.url);
   check("gfw never asks for /latest", !/\/latest\//.test(lastUpstream.url));
   const body = JSON.parse(lastUpstream.init.body);
   check("gfw sends a closed polygon",
@@ -263,6 +278,97 @@ console.log("\nworker request handling");
   check("an area too dense for gfw is refused with advice", tooBig.status === 400);
   check("that refusal says to zoom in",
         /zoom in further/.test((await tooBig.json()).error));
+  globalThis.fetch = defaultFetch;
+}
+
+// --- EPA longitude is stored unsigned ------------------------------------
+{
+  store.clear();
+  globalThis.fetch = async (u) => {
+    if (isCatalogue(u)) return catalogueReply();
+    lastUpstream = { url: u };
+    return new Response(JSON.stringify([
+      { tri_facility_id: "X1", facility_name: "SOMEWHERE PR",
+        latitude: 18.48, longitude: 67.185 },     // note: positive
+    ]), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+  const g = await (await call("/v1/epa_tri?bbox=-67.3,18.4,-67.1,18.5")).json();
+  check("positive longitude is flipped west",
+        g.features[0].geometry.coordinates[0] === -67.185,
+        JSON.stringify(g.features[0].geometry.coordinates));
+  check("the query is scoped to the right state",
+        /state_abbr\/PR\//.test(lastUpstream.url), lastUpstream.url);
+  check("the bbox is applied after the response, not by Envirofacts",
+        g.features.length === 1, `${g.features.length} features`);
+  globalThis.fetch = defaultFetch;
+}
+
+// --- Envirofacts ignores range filters, so the bbox is applied here -------
+{
+  store.clear();
+  globalThis.fetch = async (u) => {
+    if (isCatalogue(u)) return catalogueReply();
+    if (isAssets(u)) return assetsReply(u);
+    lastUpstream = { url: u };
+    return new Response(JSON.stringify([
+      { tri_facility_id: "IN", facility_name: "INSIDE",
+        latitude: 34.0, longitude: 118.2 },        // inside the bbox
+      { tri_facility_id: "OUT", facility_name: "OUTSIDE",
+        latitude: 40.0, longitude: 120.0 },        // same state query, wrong place
+    ]), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+  const g = await (await call("/v1/epa_tri?bbox=-118.4,33.9,-118.1,34.1")).json();
+  check("out-of-bbox rows are dropped by the Worker",
+        g.features.length === 1 && g.features[0].properties.name === "INSIDE",
+        JSON.stringify(g.features.map((f) => f.properties.name)));
+  check("California is the state queried, not the first in the table",
+        /state_abbr\/CA\//.test(lastUpstream.url), lastUpstream.url);
+  globalThis.fetch = defaultFetch;
+}
+
+// --- the browser must not cache; the edge still should --------------------
+{
+  store.clear();
+  globalThis.fetch = defaultFetch;
+  const r = await call("/v1/gfw?bbox=1,1,1.3,1.3");
+  check("responses are sent with no-store",
+        r.headers.get("Cache-Control") === "no-store",
+        r.headers.get("Cache-Control"));
+
+  lastUpstream = null;
+  await call("/v1/gfw?bbox=1,1,1.3,1.3");
+  check("the edge cache still works despite no-store",
+        lastUpstream === null, "upstream was called again");
+}
+
+// --- a viewport spanning a state line queries both states -----------------
+{
+  store.clear();
+  const asked = [];
+  globalThis.fetch = async (u) => {
+    if (isCatalogue(u)) return catalogueReply();
+    if (isAssets(u)) return assetsReply(u);
+    asked.push(String(u));
+    const st = String(u).match(/state_abbr\/([A-Z]{2})/)?.[1];
+    return new Response(JSON.stringify([
+      { tri_facility_id: st, facility_name: `PLANT IN ${st}`,
+        latitude: 39.0, longitude: 75.0, state_abbr: st,
+        parent_co_name: "SOME PARENT", city_name: "TOWN",
+        epa_registry_id: "110000000001" },
+    ]), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+  // A box on the Delaware / New Jersey / Maryland margin.
+  const g = await (await call("/v1/epa_tri?bbox=-75.4,38.8,-74.9,39.2")).json();
+  const states = asked.map((u) => u.match(/state_abbr\/([A-Z]{2})/)?.[1]).filter(Boolean);
+  check("more than one state is queried", new Set(states).size > 1,
+        JSON.stringify(states));
+  check("results from every state are merged", g.features.length > 1,
+        `${g.features.length} features`);
+  check("popups carry the parent company",
+        g.features[0].properties.x_parent === "SOME PARENT");
+  check("popups link to EPA's own facility report",
+        /echo\.epa\.gov/.test(g.features[0].properties.url || ""),
+        g.features[0].properties.url);
   globalThis.fetch = defaultFetch;
 }
 
