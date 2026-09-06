@@ -305,11 +305,14 @@ async function refreshLiveLayer(cfg) {
   }
 
   const bbox = [west, south, east, north].map((n) => n.toFixed(3)).join(",");
+
+  if (inFlight.get(cfg.id)) return;   // one at a time; the settle timer retries
   if (liveCache.get(cfg.id) === bbox) return;    // same viewport, already have it
   liveCache.set(cfg.id, bbox);
 
   const src = map.getSource(`${cfg.id}-live`);
   if (!src) return;
+  inFlight.set(cfg.id, true);
   try {
     setLayerState(cfg.id, "loading…");
     const r = await fetch(`${WORKER}/${cfg.id}?bbox=${bbox}&z=${Math.round(map.getZoom())}`);
@@ -328,7 +331,18 @@ async function refreshLiveLayer(cfg) {
   } catch (e) {
     // A live source failing is not a reason for the map to fail. The layer
     // stays empty and says so rather than throwing.
-    setLayerState(cfg.id, `unavailable (${e.message})`);
+    const busy = /429|Too Many Requests|concurrent/.test(e.message);
+    setLayerState(cfg.id, busy
+      ? "the source is still finishing the last request — pausing, then retrying"
+      : `unavailable (${e.message})`);
+    if (busy) {
+      // The previous report is still running upstream. Forget the cached
+      // viewport so the next attempt actually re-requests it.
+      liveCache.delete(cfg.id);
+      setTimeout(() => refreshLiveLayer(cfg), 8000);
+    }
+  } finally {
+    inFlight.set(cfg.id, false);
   }
 }
 
@@ -404,6 +418,21 @@ function setLayerState(id, text) {
 
 // Which facet values are currently shown, per layer. Empty set means all.
 const facetState = new Map();
+
+// One request in flight per layer. Global Fishing Watch tokens permit a single
+// concurrent report, and panning fires a request per movement — so without
+// this the map issues several at once and every one after the first is
+// refused with 429.
+const inFlight = new Map();
+
+// Panning emits a burst of moveend events. Waiting for the movement to settle
+// turns a drag across a country into one request instead of a dozen.
+const SETTLE_MS = 600;
+let settleTimer = null;
+function afterMovement(fn) {
+  clearTimeout(settleTimer);
+  settleTimer = setTimeout(fn, SETTLE_MS);
+}
 
 // Desired visibility per layer, applied whenever its layers exist.
 const visibility = new Map();
@@ -533,7 +562,9 @@ map.on("load", () => {
 
 map.on("zoom", updateZoomState);
 map.on("moveend", () => {
-  LAYERS.filter((c) => c.ready && c.route === "worker").forEach(refreshLiveLayer);
+  afterMovement(() =>
+    LAYERS.filter((c) => c.ready && c.route === "worker").forEach(refreshLiveLayer)
+  );
 });
 
 }  // end of the double-execution guard
