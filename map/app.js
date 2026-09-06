@@ -16,7 +16,11 @@ const WORKER = "https://culprits-proxy.welcometoyourgalaxy.workers.dev/v1";
 const LAYERS = [
   { id:"owid_co2",             name:"National CO₂ emissions", unit:"Mt CO₂/yr", colour:"#8A5750", route:"country", ready:true },
   { id:"climate_trace",        name:"Emitting assets",         unit:"t CO₂e/yr (GWP-100)", colour:"#8F4E40", route:"pmtiles", ready:false },
-  { id:"global_energy_monitor",name:"Oil, gas and coal assets",unit:"capacity",   colour:"#7A5548", route:"pmtiles", ready:false },
+  { id:"gem_coal",             name:"Coal plant units",        unit:"MW capacity", colour:"#7A5548", route:"pmtiles", ready:true,
+    facet: { property: "x_status", label: "status",
+             values: ["operating","construction","permitted","pre-permit","announced",
+                      "shelved","mothballed","retired","cancelled"] } },
+  { id:"global_energy_monitor",name:"GEM's other trackers",     unit:"capacity",   colour:"#7A5548", route:"pmtiles", ready:false },
   { id:"carbon_bombs",         name:"Carbon bombs",            unit:"Gt CO₂ lifetime", colour:"#6E4A44", route:"pmtiles", ready:true },
   { id:"power_plants",         name:"Power plants",            unit:"MW capacity", colour:"#7E5A4E", route:"pmtiles", ready:true,
     // The source covers every fuel and nothing is filtered out of the data.
