@@ -123,7 +123,7 @@
       "licence": "CC BY 4.0",
       "licence_verified": true,
       "access_verified": true,
-      "notes": "Download sits behind a request form, so there is no stable URL to poll. A person must fetch each release and drop it in data/manual/. Everything downstream is automated.",
+      "notes": "Download sits behind a request form, so there is no stable URL to poll. A person must fetch each release and drop it in data/manual/. Everything downstream is automated. NOTE: the Global Coal Plant Tracker is now harvested automatically via gem_coal (GreenInfo-Network's repo). This manual entry covers only the trackers not mirrored that way.",
       "manual_drop": "data/manual/gem/",
       "layer": {
         "kind": "point",
@@ -371,6 +371,25 @@
         "kind": "country",
         "value": "co2",
         "unit": "million tonnes CO2"
+      }
+    },
+    {
+      "id": "gem_coal",
+      "name": "Coal plant units (GEM Global Coal Plant Tracker)",
+      "mode": "bulk",
+      "auth": "none",
+      "route": "pmtiles",
+      "endpoint": "https://github.com/GreenInfo-Network/coal-tracker-client",
+      "discovery": "resolve() in pipeline/sources/gem_coal.py — raw URL with ETag; the contents API is skipped because it is rate limited to 60/hour unauthenticated",
+      "licence": "CC BY 4.0 (Global Energy Monitor)",
+      "licence_verified": true,
+      "access_verified": true,
+      "tested": true,
+      "notes": "13,784 generating units, 5,036,189 MW. Reached via GreenInfo-Network's tracker client repo, which commits GEM's data — so this bypasses GEM's request form. Rows are UNITS, not stations: one plant appears several times at nearly the same coordinates. All statuses kept (6,550 operating, 2,990 cancelled, 2,831 retired, and so on); filtering is offered in the map panel.",
+      "layer": {
+        "kind": "point",
+        "value": "capacity",
+        "unit": "MW capacity"
       }
     }
   ],
