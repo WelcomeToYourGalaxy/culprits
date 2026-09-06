@@ -83,15 +83,15 @@ const LAYERS = [
   // things by different instruments, and a reader who sees an alert should be
   // able to tell which one saw it.
   { id:"gfw",                  name:"Deforestation alerts — tropics",  unit:"GLAD + RADD, last 30 days", colour:"#55705E", route:"tile", ready:true,
-    tileMaxZoom: 22, tileQuery: "kind=integrated&days=30",
+    tileMaxZoom: 22, tileQuery: "kind=integrated&days=30", off: true,
     note: "Pan-tropical only. GLAD and RADD do not cover boreal or temperate forest — use the global layers for those.",
     attribution: '<a href="https://www.globalforestwatch.org" target="_blank" rel="noopener">Global Forest Watch</a>' },
   { id:"gfw_dist",             name:"Disturbance alerts — global",     unit:"DIST-ALERT, last 30 days", colour:"#6E7A55", route:"tile", ready:true,
-    tilePath: "gfw_tile", tileMaxZoom: 22, tileQuery: "kind=dist&days=30",
+    tilePath: "gfw_tile", tileMaxZoom: 22, tileQuery: "kind=dist&days=30", off: true,
     note: "Global coverage, including boreal and temperate forest. Detects vegetation disturbance generally, so it catches fire and harvest as well as clearing.",
     attribution: '<a href="https://www.globalforestwatch.org" target="_blank" rel="noopener">Global Forest Watch</a>' },
   { id:"gfw_dist_year",        name:"Disturbance alerts — past year",  unit:"DIST-ALERT, last 365 days", colour:"#7E6F4E", route:"tile", ready:true,
-    tilePath: "gfw_tile", tileMaxZoom: 22, tileQuery: "kind=dist&days=365",
+    tilePath: "gfw_tile", tileMaxZoom: 22, tileQuery: "kind=dist&days=365", off: true,
     note: "The same global product over a twelve-month window, for seeing a season's cumulative loss rather than this month's.",
     attribution: '<a href="https://www.globalforestwatch.org" target="_blank" rel="noopener">Global Forest Watch</a>' },
   // Not a "worker" route any more, and not points.
@@ -122,39 +122,56 @@ const map = new maplibregl.Map({
   style: {
     version: 8,
     sources: {
-      // Satellite imagery rather than a drawn basemap. What this map documents
-      // is physical: a mine, a plantation edge, a cleared block. On a drawn
-      // basemap a deforestation alert floats over an abstraction; on imagery it
-      // sits on the ground it refers to, and the reader can see the cut.
+      // Imagery, relief and labels as three layers, the way the Leaflet atlas
+      // builds them. What this map documents is physical — a mine, a cleared
+      // block, a plantation edge — and on a drawn basemap those float over an
+      // abstraction rather than sitting on the ground they refer to.
+      //
+      // NOT a full port. The Leaflet version tints with CSS blend modes on DOM
+      // panes: a green wash in soft-light, warmth in overlay, sea in screen.
+      // MapLibre draws raster in WebGL and exposes only opacity, saturation,
+      // brightness, contrast and hue-rotate — there is no blend mode. So the
+      // relief and the grading carry over and the tinting does not. Saying that
+      // plainly rather than shipping something close and calling it the same.
       base: {
         type: "raster",
         tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/" +
                 "World_Imagery/MapServer/tile/{z}/{y}/{x}"],
-        tileSize: 256,
-        maxzoom: 18,
+        tileSize: 256, maxzoom: 18,
         attribution: "Imagery © Esri, Maxar",
       },
-      // Coastlines, borders and place names, carried separately so they can sit
-      // ABOVE the data layers. Imagery alone is unreadable at low zoom — there
-      // is no way to tell which coast you are looking at.
-      reference: {
+      // Relief is what makes imagery read as terrain rather than as a
+      // photograph. In the Leaflet map it multiplies; here it can only sit on
+      // top at low opacity, which is weaker but the same idea.
+      hillshade: {
         type: "raster",
-        tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/" +
-                "Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"],
+        tiles: ["https://services.arcgisonline.com/arcgis/rest/services/" +
+                "Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}"],
+        tileSize: 256, maxzoom: 16,
+        attribution: "Hillshade © Esri",
+      },
+      // Labels only — coastlines and place names over the imagery. Without
+      // them satellite is unreadable at low zoom: no way to tell which coast.
+      labels: {
+        type: "raster",
+        tiles: ["https://a.basemaps.cartocdn.com/rastertiles/" +
+                "voyager_only_labels/{z}/{x}/{y}@2x.png"],
         tileSize: 256,
-        maxzoom: 16,
-        attribution: "© Esri",
+        attribution: "Labels © CARTO, © OpenStreetMap",
       },
     },
     layers: [
-      { id: "bg", type: "background", paint: { "background-color": "#0B0E14" } },
-      // Darkened and desaturated so the data reads on top of it. Raw Esri
-      // imagery is bright enough that a muted point layer disappears into it.
+      { id: "bg", type: "background", paint: { "background-color": "#0B1017" } },
+      // Graded down so the data layers read on top. Raw Esri imagery is bright
+      // enough that a muted point layer disappears into it.
       { id: "base", type: "raster", source: "base",
-        paint: { "raster-opacity": 1, "raster-brightness-max": .72,
-                 "raster-saturation": -.28, "raster-contrast": .08 } },
-      { id: "reference", type: "raster", source: "reference",
-        paint: { "raster-opacity": .55 } },
+        paint: { "raster-opacity": 1, "raster-brightness-max": .74,
+                 "raster-saturation": -.22, "raster-contrast": .10 } },
+      // Relief eases IN as you zoom, the way the Leaflet ramp does it: wide out
+      // it muddies the picture, at valley scale it is what you want more of.
+      { id: "hillshade", type: "raster", source: "hillshade",
+        paint: { "raster-opacity":
+          ["interpolate", ["linear"], ["zoom"], 4, .18, 9, .34, 13, .46] } },
     ],
   },
 });
@@ -212,12 +229,12 @@ async function addPmtilesLayer(cfg) {
       // small one) while shrinking everything at the zooms where they collide.
       "circle-radius": [
         "*",
-        ["interpolate", ["linear"], ["zoom"], 0, 0.34, 4, 0.55, 7, 0.85, 10, 1],
+        ["interpolate", ["linear"], ["zoom"], 0, 0.55, 4, 0.72, 7, 0.9, 10, 1],
         [
           "case",
           [">", ["coalesce", ["get", "_count"], 1], 1],
           ["interpolate", ["linear"], ["get", "_count"],
-            1, 3, 10, 6, 100, 11, 1000, 18, 10000, 26],
+            1, 4, 10, 7, 100, 11, 1000, 17, 10000, 23],
           ["interpolate", ["linear"], ["sqrt", ["coalesce", ["get", "value"], 0]],
             0, 2.5, 1, 4, 3, 7, 6, 12],
         ],
@@ -455,6 +472,21 @@ function addLiveLayer(cfg) {
   applyVisibility(cfg.id);
 }
 
+// Place names go on top of the data rather than under it. Added last, after
+// every other layer exists, because MapLibre draws in insertion order and a
+// beforeId naming a layer that has not been added yet throws.
+function addLabelsOnTop() {
+  if (map.getLayer("labels")) return;
+  // Skipped rather than thrown if the style did not supply the source. A
+  // missing label layer costs place names; a throw here costs every layer
+  // added after it, which is a far worse failure for one cosmetic overlay.
+  if (typeof map.getSource === "function" && !map.getSource("labels")) return;
+  map.addLayer({
+    id: "labels", type: "raster", source: "labels",
+    paint: { "raster-opacity": .92 },
+  });
+}
+
 /* ---------- raster tile layers, via the Worker ---------- */
 
 // A continuous field rather than a set of located things. There is nothing to
@@ -480,8 +512,6 @@ function addTileLayer(cfg) {
   // their HEAD requests — so the circles land on top of the heatmap rather than
   // under it. beforeId is not used because the layers it would name may not
   // exist yet, and MapLibre throws on a beforeId that is missing.
-  // Inserted below the reference overlay so coastlines and place names stay
-  // legible on top of the data rather than being buried by it.
   map.addLayer({
     id: `${cfg.id}-raster`,
     type: "raster",
@@ -491,7 +521,7 @@ function addTileLayer(cfg) {
       // empty; this only softens the painted cells against the basemap.
       "raster-opacity": 0.85,
     },
-  }, map.getLayer("reference") ? "reference" : undefined);
+  });
 
   setLayerState(cfg.id, cfg.unit);
   applyVisibility(cfg.id);
@@ -565,7 +595,9 @@ function afterMovement(fn) {
 }
 
 // Desired visibility per layer, applied whenever its layers exist.
-const visibility = new Map();
+// Seeded from the layer configs so an `off` layer is hidden the moment it is
+// added, not after the panel is built.
+const visibility = new Map(LAYERS.filter((c) => c.off).map((c) => [c.id, "none"]));
 
 function applyVisibility(id) {
   const vis = visibility.get(id) || "visible";
@@ -610,7 +642,11 @@ function buildPanel() {
     const row = document.createElement("label");
     row.className = "layer";
     row.innerHTML =
-      `<input type="checkbox" checked data-layer="${cfg.id}">` +
+      // Layers marked off start unticked. The alert rasters are: a raster that
+      // fails to render covers the whole viewport in a flat wash, which is what
+      // hid every other layer. Off by default means one broken upstream layer
+      // cannot take the map down with it.
+      `<input type="checkbox"${cfg.off ? "" : " checked"} data-layer="${cfg.id}">` +
       `<span class="swatch" style="background:${cfg.colour}"></span>` +
       `<span class="body"><span class="nm">${cfg.name}</span>` +
       `<span class="un" data-state="${cfg.id}">${cfg.unit}</span></span>`;
@@ -671,7 +707,21 @@ function updateZoomState() {
     : `Zoom <b>${z.toFixed(1)}</b> — detail view.`;
 }
 
+// Esri and CARTO are third-party tile hosts. If one stops answering, the
+// console fills but the map keeps working — worth logging once so the cause is
+// findable, rather than silently showing a darker map than intended.
+const badTiles = new Set();
+map.on("error", (e) => {
+  const src = e && e.sourceId;
+  if (src && ["base", "hillshade", "labels"].includes(src) && !badTiles.has(src)) {
+    badTiles.add(src);
+    console.warn(`[culprits] basemap source "${src}" is failing to load tiles ` +
+                 `— the map still works, but it will look wrong.`);
+  }
+});
+
 map.on("load", () => {
+  addLabelsOnTop();
   LAYERS.filter((c) => c.ready).forEach((cfg) => {
     try {
       if (cfg.route === "worker") addLiveLayer(cfg);
