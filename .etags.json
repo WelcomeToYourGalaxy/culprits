@@ -4,5 +4,8 @@
  },
  "land_matrix": {
   "validator": null
+ },
+ "power_plants": {
+  "validator": null
  }
 }
