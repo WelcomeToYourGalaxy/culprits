@@ -112,8 +112,11 @@ console.log("\nworker request handling");
 
 // --- zoom clamping ---------------------------------------------------------
 {
+  // Zoom is no longer part of any upstream URL, but it still must never reach
+  // one as NaN or as an unclamped value.
   await call("/v1/fishing?bbox=0,0,1,1&z=99");
-  check("zoom clamped to 14", lastUpstream.url.includes("zoom=14"));
+  check("an absurd zoom produces no malformed upstream URL",
+        !/zoom=(NaN|99)/.test(lastUpstream.url), lastUpstream.url);
   await call("/v1/fishing?bbox=0,0,1,1&z=notanumber");
   check("non-numeric zoom falls back", !lastUpstream.url.includes("zoom=NaN"));
 }
@@ -369,6 +372,217 @@ console.log("\nworker request handling");
   check("popups link to EPA's own facility report",
         /echo\.epa\.gov/.test(g.features[0].properties.url || ""),
         g.features[0].properties.url);
+  globalThis.fetch = defaultFetch;
+}
+
+// --- fishing: POST, geojson body, unencoded datasets bracket --------------
+{
+  store.clear();
+  globalThis.fetch = async (u, init) => {
+    if (isCatalogue(u)) return catalogueReply();
+    if (isAssets(u)) return assetsReply(u);
+    lastUpstream = { url: String(u), init };
+    return new Response(JSON.stringify({ entries: [
+      { lat: 50.5, lon: -9.5, hours: 12.5, flag: "ESP" },
+    ] }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+  const r = await call("/v1/fishing?bbox=-10,50,-9,51");
+  check("fishing uses POST", lastUpstream.init.method === "POST",
+        lastUpstream.init.method);
+  check("datasets bracket is NOT percent-encoded",
+        /datasets\[0\]=public-global-fishing-effort:latest/.test(lastUpstream.url),
+        lastUpstream.url);
+  const body = JSON.parse(lastUpstream.init.body);
+  check("area travels as a geojson polygon in the body",
+        body.geojson && body.geojson.type === "Polygon");
+  check("a date range is supplied", /date-range=\d{4}-\d{2}-\d{2},/.test(lastUpstream.url));
+  globalThis.fetch = defaultFetch;
+}
+
+// --- fishing tiles: the route that replaced /report ------------------------
+//
+// /report is capped at one concurrent report per GFW ACCOUNT, so it could never
+// serve a page with two readers. These cover the tile route that took over.
+{
+  const BINS = { entries: [[0, 1, 2, 3, 4, 5, 6, 7, 8]] };
+  const isBins = (u) => String(u).includes("/4wings/bins/");
+  const tileStub = (binsOk = true) => async (u, init) => {
+    lastUpstream = { url: String(u), init };
+    if (isBins(u)) {
+      return binsOk
+        ? new Response(JSON.stringify(BINS), { status: 200 })
+        : new Response("nope", { status: 500 });
+    }
+    return new Response(new Uint8Array([137, 80, 78, 71]), { status: 200 });
+  };
+
+  store.clear();
+  globalThis.fetch = tileStub();
+  const r = await call("/v1/fishing_tile/3/4/3");
+  check("tile route returns 200", r.status === 200, `got ${r.status}`);
+  check("tile route serves image bytes", r.headers.get("Content-Type") === "image/png",
+        r.headers.get("Content-Type"));
+  check("tile route sends the bearer token",
+        lastUpstream.init.headers.Authorization === "Bearer t");
+  check("tile route calls tile/heatmap, not /report",
+        /\/4wings\/tile\/heatmap\/3\/4\/3/.test(lastUpstream.url) &&
+        !/\/report/.test(lastUpstream.url), lastUpstream.url);
+  check("tile route is a GET",
+        !lastUpstream.init.method || lastUpstream.init.method === "GET");
+  check("datasets bracket stays unencoded on tiles",
+        /datasets\[0\]=public-global-fishing-effort%3Alatest/.test(lastUpstream.url),
+        lastUpstream.url);
+  check("PNG tiles carry a style", /[?&]style=/.test(lastUpstream.url), lastUpstream.url);
+  check("tiles aggregate time into one frame",
+        /temporal-aggregation=true/.test(lastUpstream.url), lastUpstream.url);
+
+  // The style is base64 of {"color":[r,g,b],"ramp":[...]} — decodable, not an
+  // opaque id, which is why no round trip to /generate-png is needed.
+  const styled = decodeURIComponent(lastUpstream.url.match(/[?&]style=([^&]+)/)[1]);
+  const decoded = JSON.parse(Buffer.from(styled, "base64").toString("utf8"));
+  check("style decodes to colour and ramp",
+        Array.isArray(decoded.color) && decoded.ramp.length === 9,
+        JSON.stringify(decoded));
+  check("style uses the ramp /bins returned",
+        decoded.ramp[8] === 8, JSON.stringify(decoded.ramp));
+  check("style carries no orange or yellow",
+        decoded.color[2] >= decoded.color[0], JSON.stringify(decoded.color));
+
+  // Unlike the bbox routes, tiles MUST stay cacheable in the browser: every
+  // miss costs one request against both free-plan allowances.
+  check("tiles are browser-cacheable", /max-age/.test(r.headers.get("Cache-Control") || ""),
+        r.headers.get("Cache-Control"));
+
+  lastUpstream = null;
+  await call("/v1/fishing_tile/3/4/3");
+  check("a repeated tile is served from the edge cache", lastUpstream === null,
+        "upstream was called again");
+
+  const mvt = await call("/v1/fishing_tile/3/4/3?format=MVT");
+  check("MVT tiles are passed through as protobuf",
+        mvt.headers.get("Content-Type") === "application/x-protobuf",
+        mvt.headers.get("Content-Type"));
+  check("MVT tiles carry no PNG style", !/[?&]style=/.test(lastUpstream.url),
+        lastUpstream.url);
+
+  // Out-of-range coordinates must be refused here rather than spending a GFW
+  // request to be told the same thing.
+  check("z beyond 12 is refused", (await call("/v1/fishing_tile/13/0/0")).status === 400);
+  check("x outside the zoom's grid is refused",
+        (await call("/v1/fishing_tile/1/9/0")).status === 400);
+
+  // A ramp failure must cost the thresholds, not the layer.
+  store.clear();
+  globalThis.fetch = tileStub(false);
+  const fb = await call("/v1/fishing_tile/5/1/1");
+  check("a /bins failure still returns a tile", fb.status === 200, `got ${fb.status}`);
+  check("the fallback ramp is reported, not hidden",
+        /fallback/.test(fb.headers.get("X-Ramp-Source") || ""),
+        fb.headers.get("X-Ramp-Source"));
+
+  // A missing secret must say so rather than becoming "Bearer undefined".
+  const noSecret = await worker.fetch(
+    new Request("https://proxy.example/v1/fishing_tile/3/4/3", { headers: { Origin: ORIGIN } }),
+    { GFW_API_KEY: "k" }, ctx);
+  check("a tile with no token returns 503", noSecret.status === 503, `got ${noSecret.status}`);
+
+  globalThis.fetch = defaultFetch;
+}
+
+// --- the MVT probe reports real names, so the vector option isn't a guess ---
+{
+  const varint = (n) => {
+    const out = [];
+    do { let b = n & 0x7f; n >>>= 7; if (n) b |= 0x80; out.push(b); } while (n);
+    return out;
+  };
+  const tg = (f, w) => varint((f << 3) | w);
+  const str = (f, s) => {
+    const b = [...Buffer.from(s, "utf8")];
+    return [...tg(f, 2), ...varint(b.length), ...b];
+  };
+  const msg = (f, body) => [...tg(f, 2), ...varint(body.length), ...body];
+  const feature = msg(2, [...tg(1, 0), ...varint(1), ...tg(3, 0), ...varint(1)]);
+  const tile = Uint8Array.from(msg(3, [
+    ...tg(15, 0), ...varint(2),
+    ...str(1, "main"),
+    ...feature, ...feature,
+    ...str(3, "count"),
+    ...tg(5, 0), ...varint(4096),
+  ]));
+
+  store.clear();
+  globalThis.fetch = async () => new Response(tile, { status: 200 });
+  const g = await (await call("/v1/_fishing_mvt/3/4/3")).json();
+  check("the probe decodes the tile", g.decode_error === null, g.decode_error);
+  check("the probe names the source-layer", g.layers[0].name === "main",
+        JSON.stringify(g.layers));
+  check("the probe lists the property keys",
+        JSON.stringify(g.layers[0].keys) === '["count"]', JSON.stringify(g.layers[0].keys));
+  check("the probe counts features", g.layers[0].features === 2, g.layers[0].features);
+  globalThis.fetch = defaultFetch;
+}
+
+// --- the report route is untouched and still works -------------------------
+{
+  store.clear();
+  globalThis.fetch = async (u, init) => {
+    if (isCatalogue(u)) return catalogueReply();
+    if (isAssets(u)) return assetsReply(u);
+    lastUpstream = { url: String(u), init };
+    return new Response(JSON.stringify({ entries: [{ lat: 1, lon: 2, hours: 3 }] }),
+                        { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+  const r = await call("/v1/fishing?bbox=-10,50,-9,51");
+  check("the /report route still answers", r.status === 200);
+  check("the /report route still POSTs", lastUpstream.init.method === "POST");
+  globalThis.fetch = defaultFetch;
+}
+
+// --- deforestation alerts: tile route, no key ------------------------------
+//
+// The route pattern is read from wri/gfw-tile-cache source, not documentation.
+// These pin the parts that would silently break if it drifted.
+{
+  store.clear();
+  globalThis.fetch = async (u, init) => {
+    lastUpstream = { url: String(u), init };
+    return new Response(new Uint8Array([137, 80, 78, 71]), { status: 200 });
+  };
+
+  const r = await call("/v1/gfw_tile/3/4/3");
+  check("alerts tile route returns 200", r.status === 200, `got ${r.status}`);
+  check("alerts tiles are PNG", r.headers.get("Content-Type") === "image/png",
+        r.headers.get("Content-Type"));
+  check("alerts use the tile cache, not the Data API query endpoint",
+        /tiles\.globalforestwatch\.org/.test(lastUpstream.url) &&
+        !/query\/json/.test(lastUpstream.url), lastUpstream.url);
+  check("alerts hit the documented dynamic route",
+        /\/gfw_integrated_alerts\/latest\/dynamic\/3\/4\/3\.png/.test(lastUpstream.url),
+        lastUpstream.url);
+  check("alerts render as colour, not GFW's encoded bit-packing",
+        /render_type=true_color/.test(lastUpstream.url), lastUpstream.url);
+  // No editorial filtering: "low" means at least low, i.e. everything published.
+  check("every confidence level is requested",
+        /alert_confidence=low/.test(lastUpstream.url), lastUpstream.url);
+  check("a date window is sent", /start_date=\d{4}-\d{2}-\d{2}/.test(lastUpstream.url) &&
+        /end_date=\d{4}-\d{2}-\d{2}/.test(lastUpstream.url), lastUpstream.url);
+  // The upstream route takes no auth dependency; sending a key would be noise.
+  check("no API key is sent to the tile cache",
+        !/x-api-key/i.test(JSON.stringify(lastUpstream.init || {})),
+        JSON.stringify(lastUpstream.init));
+  check("alerts tiles are browser-cacheable",
+        /max-age/.test(r.headers.get("Cache-Control") || ""),
+        r.headers.get("Cache-Control"));
+
+  lastUpstream = null;
+  await call("/v1/gfw_tile/3/4/3");
+  check("a repeated alerts tile comes from the edge cache", lastUpstream === null,
+        "upstream was called again");
+
+  check("alerts z beyond 22 is refused",
+        (await call("/v1/gfw_tile/23/0/0")).status === 400);
+
   globalThis.fetch = defaultFetch;
 }
 
