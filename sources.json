@@ -68,7 +68,8 @@
       },
       "worker_shaper": "shape() in worker/index.js — field names are INFERRED; the Worker returns a loud 502 rather than an empty layer if they are wrong",
       "tested": false,
-      "blocked_from_test": "needs an API key and the host is unreachable from the build environment"
+      "blocked_from_test": "needs an API key and the host is unreachable from the build environment",
+      "blocked": "POST /dataset/gfw_integrated_alerts/{version}/query/json returns 500 {\"message\":null} for all requests including GFW's own documented example, on fully built versions with all assets saved. Key is valid (catalogue and assets endpoints work with it). Reported to GFW. The Worker route, shaper, version resolver and tests are in place; map/app.js just needs ready:true."
     },
     {
       "id": "global_fishing_watch",
@@ -390,6 +391,44 @@
         "kind": "point",
         "value": "capacity",
         "unit": "MW capacity"
+      }
+    },
+    {
+      "id": "fertilizer_facilities",
+      "name": "Synthetic fertilizer facilities (Welcome to Your Galaxy)",
+      "mode": "bulk",
+      "auth": "none",
+      "route": "pmtiles",
+      "endpoint": "https://github.com/WelcomeToYourGalaxy/maps",
+      "discovery": "resolve() in pipeline/sources/fertilizer_facilities.py — GitHub API",
+      "licence": "the user's own compilation",
+      "licence_verified": true,
+      "access_verified": true,
+      "tested": true,
+      "notes": "58 ammonia/urea plants lifted from the page's own embedded map. Capacity is prose in the source ('4.3M tons ammonia/year - world's largest'), so the layer carries no numeric magnitude — parsing it would mean inventing units.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "ammonia / urea plant"
+      }
+    },
+    {
+      "id": "soy_organizations",
+      "name": "Soy industry organisations (Welcome to Your Galaxy)",
+      "mode": "bulk",
+      "auth": "none",
+      "route": "pmtiles",
+      "endpoint": "https://github.com/WelcomeToYourGalaxy/maps",
+      "discovery": "resolve() in pipeline/sources/soy_organizations.py — GitHub API",
+      "licence": "the user's own compilation",
+      "licence_verified": true,
+      "access_verified": true,
+      "tested": true,
+      "notes": "21 trade bodies and standards organisations. Not facilities — no magnitude, since there is nothing to count.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "soy industry body"
       }
     }
   ],
