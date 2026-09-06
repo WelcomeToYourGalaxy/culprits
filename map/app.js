@@ -37,18 +37,23 @@ const LAYERS = [
              values: ["Coal","Gas","Oil","Petcoke","Nuclear","Hydro","Wind","Solar",
                       "Biomass","Waste","Geothermal","Storage","Cogeneration",
                       "Wave and Tidal","Other"] } },
+  { id:"carbon_majors",        name:"Carbon major HQs",        unit:"company headquarters", colour:"#7E6B8F", route:"pmtiles", ready:true },
   { id:"fertilizer_facilities",name:"Fertilizer plants",       unit:"ammonia / urea", colour:"#8A7C5C", route:"pmtiles", ready:true },
   { id:"soy_organizations",    name:"Soy industry bodies",     unit:"trade organisations", colour:"#6F7F72", route:"pmtiles", ready:true },
   { id:"trase",                name:"Commodity supply chains", unit:"ha",         colour:"#62755F", route:"pmtiles", ready:false },
   { id:"land_matrix",          name:"Land deals",              unit:"hectares",   colour:"#6C7F63", route:"country", ready:true,  isolate:true },
   { id:"counterglow",          name:"Industrial animal farms", unit:"facilities", colour:"#7B7A5C", route:"pmtiles", ready:false },
-  { id:"epa_tri",              name:"US toxic release sites",  unit:"TRI facilities", colour:"#5C6E77", route:"worker",  ready:true },
+  { id:"epa_tri",              name:"US toxic release sites",  unit:"TRI facilities", colour:"#5C6E77", route:"worker",  ready:true,
+    // Upstream returns at most 500 rows per request, so a very large viewport
+    // would show an arbitrary 500 rather than everything. Capped to keep what
+    // is drawn honest rather than a truncated sample presented as complete.
+    maxAreaDeg2: 25 },
       // Disabled pending GFW. Their raster query endpoint returns
   // 500 {"message":null} for every request tried, including GFW's own
   // documented example, on fully built dataset versions. Route, shaper, version
   // resolver and tests all stay — this is one flag to flip when it works.
   { id:"gfw",                  name:"Deforestation alerts",    unit:"alert pixels", colour:"#55705E", route:"worker",  ready:false },
-  { id:"fishing",              name:"Fishing effort",          unit:"hours",      colour:"#4F6773", route:"worker",  ready:true },
+  { id:"fishing",              name:"Fishing effort",          unit:"hours",      colour:"#4F6773", route:"worker",  ready:true, maxAreaDeg2: 100 },
 ];
 
 const protocol = new pmtiles.Protocol();
@@ -283,15 +288,23 @@ async function addCountryLayer(cfg) {
 const liveCache = new Map();
 
 async function refreshLiveLayer(cfg) {
-  if (map.getZoom() < CLUSTER_MAXZOOM) {
-    // These layers are queried per viewport, so at world zoom they hold
-    // nothing. Say so — an empty layer with no explanation reads as broken.
-    setLayerState(cfg.id, `zoom in past z${CLUSTER_MAXZOOM} to load`);
+  const b = map.getBounds();
+  const west = Math.max(b.getWest(), -180), east = Math.min(b.getEast(), 180);
+  const south = Math.max(b.getSouth(), -90), north = Math.min(b.getNorth(), 90);
+
+  // No fixed zoom threshold. Live layers load at whatever zoom the source can
+  // answer for — which differs by source, because a request covering half the
+  // planet is a different thing to EPA than it is to a 10 m alert raster.
+  const area = (east - west) * (north - south);
+  const cap = cfg.maxAreaDeg2 || 25;
+  if (area > cap) {
+    setLayerState(cfg.id, `zoom in — area too wide for this source`);
+    const src = map.getSource(`${cfg.id}-live`);
+    if (src) src.setData({ type: "FeatureCollection", features: [] });
     return;
   }
-  const b = map.getBounds();
-  const bbox = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]
-    .map((n) => n.toFixed(3)).join(",");
+
+  const bbox = [west, south, east, north].map((n) => n.toFixed(3)).join(",");
   if (liveCache.get(cfg.id) === bbox) return;    // same viewport, already have it
   liveCache.set(cfg.id, bbox);
 
@@ -328,7 +341,6 @@ function addLiveLayer(cfg) {
     id: `${cfg.id}-pt`,
     type: "circle",
     source: `${cfg.id}-live`,
-    minzoom: CLUSTER_MAXZOOM,
     paint: {
       "circle-color": cfg.colour,
       "circle-opacity": .75,
@@ -338,7 +350,7 @@ function addLiveLayer(cfg) {
     },
   });
   bindPopup(`${cfg.id}-pt`);
-  setLayerState(cfg.id, `zoom in past z${CLUSTER_MAXZOOM} to load`);
+  applyVisibility(cfg.id);
 }
 
 /* ---------- shared ---------- */
@@ -483,9 +495,11 @@ function buildPanel() {
 
 function updateZoomState() {
   const z = map.getZoom();
+  // The live layers need z8+, and "zoom in" is ambiguous without a number —
+  // z8 is closer in than it feels, roughly a large country filling the screen.
   document.getElementById("zoomstate").innerHTML = z < CLUSTER_MAXZOOM
-    ? `Aggregate view — <b>totals per cluster</b>. Zoom in for individual sites.`
-    : `Detail view — <b>individual sites</b>, loaded for this area only.`;
+    ? `Zoom <b>${z.toFixed(1)}</b> — wide view.`
+    : `Zoom <b>${z.toFixed(1)}</b> — detail view.`;
 }
 
 map.on("load", () => {
@@ -504,6 +518,7 @@ map.on("load", () => {
   });
   buildPanel();
   updateZoomState();
+  LAYERS.filter((c) => c.ready && c.route === "worker").forEach(refreshLiveLayer);
 });
 
 map.on("zoom", updateZoomState);
