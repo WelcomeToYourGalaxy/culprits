@@ -2,7 +2,13 @@
  "carbon_bombs": {
   "validator": null
  },
+ "gem_coal": {
+  "validator": null
+ },
  "land_matrix": {
+  "validator": null
+ },
+ "owid_co2": {
   "validator": null
  },
  "power_plants": {
