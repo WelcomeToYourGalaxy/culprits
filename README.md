@@ -33,16 +33,21 @@ Verified end to end with tippecanoe 2.68.0: Carbon Bombs builds to 1.0 MB
 across zooms 0-12, and z0 rolls up to exactly 425 features and 1,182.3 Gt,
 matching the source.
 
-**What a cluster may and may not claim.** A merged feature inherits one
-arbitrary member's name, operator, country, status and link. Only the summed
-`value` and `_count` are true of the cluster; everything else describes a
-single site that happened to win the merge. Left alone, the global view of
-Carbon Bombs reported 1,182 Gt as a shelved Canadian coal mine operated by CKD
-Mines. So clusters get their own popup — a count and a total — and the
-inherited fields are withheld rather than shown with a caveat.
+**Nothing is filtered and nothing is clustered.** Every feature a harvester
+produces reaches the archive. tippecanoe thins only the densest points when a
+single tile would exceed its size limit, and only in that tile — zooming in
+restores full detail. The build prints what the world tile carries, e.g.
+`12,200 of 34,936 features`, so the thinning is visible rather than assumed.
 
-`point_count` is not emitted by tippecanoe for distance clustering, so every
-feature carries `_count: 1` from `normalize.py` and it is summed on merge.
+Clustering was tried and removed. It collapsed 34,936 power plants to one dot
+at world view, and it fabricated attributes: a merged feature inherits one
+arbitrary member's name and owner, so the global Carbon Bombs dot reported
+1,182 Gt as a shelved Canadian coal mine. The cluster-aware popup path is kept
+as a guard in case a future source needs clustering.
+
+Filtering belongs to the reader, not the pipeline. Where a source covers more
+than the map is about — WRI's database includes solar, hydro and wind — every
+row is still harvested and the distinguishing field travels per feature.
 
 **Live.** The three sources needing credentials go through a Cloudflare Worker
 that holds the keys and adds the CORS headers the upstream APIs mostly omit.
@@ -130,6 +135,39 @@ release is picked up the week it lands with nothing to re-check.
 Where the API is rate-limited or down, `github_file()` falls back to the
 conventional branch and the raw file's ETag, so the change signal degrades
 rather than the harvest failing.
+
+## Deploying
+
+GitHub Pages serves `map/`. Everything the map fetches must therefore live
+under `map/`:
+
+    map/index.html          the page
+    map/app.js              logic
+    map/tiles/*.pmtiles     point layers, committed by refresh.yml
+    map/data/*.json         country layers and boundaries
+
+Pages branch deployment only offers `/` or `/docs` as a source folder, so it
+cannot serve `map/` directly. `pages.yml` deploys it via Actions instead, which
+can publish any directory.
+
+    Settings → Pages → Source            : GitHub Actions
+    Settings → Actions → Workflow perms  : read and write
+
+The second is needed or `refresh.yml` cannot commit tiles. Tile commits touch
+`map/`, so they trigger a redeploy automatically.
+
+If you would rather avoid the extra workflow, the alternative is to rename
+`map/` to `docs/`, set Pages to deploy from the branch `/docs` folder, and
+update the two `map/` paths in `refresh.yml`. Then delete `pages.yml`.
+
+The Worker deploys separately from `worker/`:
+
+    wrangler deploy
+    wrangler secret put GFW_API_KEY
+    wrangler secret put GFW_FISHING_TOKEN
+
+Then set `WORKER` in `map/app.js` to your workers.dev URL, and
+`ALLOWED_ORIGINS` in `worker/index.js` to your Pages domain.
 
 ## Tests
 

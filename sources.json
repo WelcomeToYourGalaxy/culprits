@@ -332,6 +332,27 @@
         "Deforestation Free Funds"
       ],
       "notes": "Nothing underneath to merge. These stay as embeds in the atlas."
+    },
+    {
+      "id": "power_plants",
+      "name": "Power plants (WRI Global Power Plant Database)",
+      "mode": "bulk",
+      "auth": "none",
+      "cors": "n/a",
+      "route": "pmtiles",
+      "endpoint": "https://github.com/wri/global-power-plant-database",
+      "discovery": "resolve() in pipeline/sources/power_plants.py — GitHub API, master branch",
+      "licence": "CC BY 4.0 (database); MIT for the repo's Python source",
+      "licence_verified": true,
+      "access_verified": true,
+      "tested": true,
+      "notes": "All 34,936 plants, every fuel, 5,706,975 MW total. Nothing filtered — `fuel` travels per feature so filtering belongs to the reader at view time. Harvests the bleeding-edge output_database/ copy, not the tagged datasets.wri.org release.",
+      "caution": "capacity_mw is potential output, not emissions. Coordinates come from many upstreams of differing quality; geolocation_source is carried per feature.",
+      "layer": {
+        "kind": "point",
+        "value": "capacity_mw",
+        "unit": "MW capacity"
+      }
     }
   ],
   "_publish_blockers": [
