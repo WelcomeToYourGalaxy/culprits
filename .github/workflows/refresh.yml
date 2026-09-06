@@ -29,7 +29,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install harvest dependencies
-        run: pip install requests openpyxl
+        run: pip install requests openpyxl pmtiles mapbox-vector-tile
 
       # tippecanoe isn't in the Ubuntu repos, so it's built once and cached.
       # The cache turns a 2-minute compile into a few seconds on later runs.
