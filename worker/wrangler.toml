@@ -1,0 +1,6 @@
+name = "culprits-proxy"
+main = "index.js"
+compatibility_date = "2026-01-01"
+
+# No bindings needed. Keys are set with `wrangler secret put`, never in this
+# file — it is committed and this is a public repo.
