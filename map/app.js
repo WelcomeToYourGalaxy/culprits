@@ -359,9 +359,18 @@ function bindPopup(layerId) {
   map.on("click", layerId, (e) => {
     const p = e.features[0].properties;
     const count = Number(p._count || 1);
+    // Some layers genuinely have no magnitude — a head office, a trade body,
+    // a facility record with no release figure. Rather than announce the
+    // absence, show what the source does know.
+    const detail = Object.entries(p)
+      .filter(([k, v]) => k.startsWith("x_") && v !== null && v !== "" &&
+                          k !== "x_precision")
+      .slice(0, 6)
+      .map(([k, v]) => `${k.slice(2).replace(/_/g, " ")}: ${v}`)
+      .join("<br>");
     const value = p.value != null && p.value !== ""
       ? `${Number(p.value).toLocaleString()} ${p.unit || ""}`
-      : "no magnitude recorded";
+      : (p.unit || "");
 
     // A merged feature inherits ONE member's name, operator, country, status
     // and link. The summed value is real; those fields are not facts about the
@@ -372,6 +381,7 @@ function bindPopup(layerId) {
         `individual sites and their details.</div>` +
         `<div class="meta">${p.source}<br>${p.licence || ""}</div>`
       : `<b>${p.name || "Unnamed"}</b>${value}` +
+        (detail ? `<div class="meta">${detail}</div>` : "") +
         (p.x_precision === "country"
           ? `<div class="meta" style="color:#8F4E40">Plotted at the country ` +
             `centroid — the source has no site coordinate for this one.</div>`
