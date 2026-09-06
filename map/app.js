@@ -33,7 +33,7 @@ const LAYERS = [
   { id:"land_matrix",          name:"Land deals",              unit:"hectares",   colour:"#6C7F63", route:"country", ready:true,  isolate:true },
   { id:"counterglow",          name:"Industrial animal farms", unit:"facilities", colour:"#7B7A5C", route:"pmtiles", ready:false },
   { id:"epa_tri",              name:"US toxic release sites",  unit:"TRI facilities", colour:"#5C6E77", route:"worker",  ready:true },
-  { id:"gfw",                  name:"Deforestation alerts",    unit:"alerts",     colour:"#55705E", route:"worker",  ready:true },
+  { id:"gfw",                  name:"Deforestation alerts",    unit:"alert pixels", colour:"#55705E", route:"worker",  ready:true },
   { id:"fishing",              name:"Fishing effort",          unit:"hours",      colour:"#4F6773", route:"worker",  ready:true },
 ];
 
@@ -267,7 +267,12 @@ async function addCountryLayer(cfg) {
 const liveCache = new Map();
 
 async function refreshLiveLayer(cfg) {
-  if (map.getZoom() < CLUSTER_MAXZOOM) return;   // aggregate view: don't query
+  if (map.getZoom() < CLUSTER_MAXZOOM) {
+    // These layers are queried per viewport, so at world zoom they hold
+    // nothing. Say so — an empty layer with no explanation reads as broken.
+    setLayerState(cfg.id, `zoom in past z${CLUSTER_MAXZOOM} to load`);
+    return;
+  }
   const b = map.getBounds();
   const bbox = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]
     .map((n) => n.toFixed(3)).join(",");
@@ -277,9 +282,20 @@ async function refreshLiveLayer(cfg) {
   const src = map.getSource(`${cfg.id}-live`);
   if (!src) return;
   try {
+    setLayerState(cfg.id, "loading…");
     const r = await fetch(`${WORKER}/${cfg.id}?bbox=${bbox}&z=${Math.round(map.getZoom())}`);
-    if (!r.ok) throw new Error(`${r.status}`);
-    src.setData(await r.json());
+    if (!r.ok) {
+      // Surface the Worker's own explanation, which names the upstream problem,
+      // rather than a bare status code.
+      let detail = `${r.status}`;
+      try { detail = (await r.json()).error || detail; } catch (_) {}
+      throw new Error(detail);
+    }
+    const geo = await r.json();
+    src.setData(geo);
+    const n = (geo.features || []).length;
+    setLayerState(cfg.id, n ? `${n.toLocaleString()} in view` : "none in this area");
+    console.log(`[culprits] ${cfg.id}: ${n} features for ${bbox}`);
   } catch (e) {
     // A live source failing is not a reason for the map to fail. The layer
     // stays empty and says so rather than throwing.
@@ -306,6 +322,7 @@ function addLiveLayer(cfg) {
     },
   });
   bindPopup(`${cfg.id}-pt`);
+  setLayerState(cfg.id, `zoom in past z${CLUSTER_MAXZOOM} to load`);
 }
 
 /* ---------- shared ---------- */
