@@ -52,7 +52,15 @@ const LAYERS = [
   // 500 {"message":null} for every request tried, including GFW's own
   // documented example, on fully built dataset versions. Route, shaper, version
   // resolver and tests all stay — this is one flag to flip when it works.
-  { id:"gfw",                  name:"Deforestation alerts",    unit:"alert pixels", colour:"#55705E", route:"worker",  ready:false },
+  // Also a tile layer, and for the same reason as fishing. /query/json is an
+  // analysis endpoint: it computes over one area of interest, which is why it
+  // wants a tiny polygon and a date filter and still returned 500s. WRI runs a
+  // separate tile service that GFW's own map renders from, and its integrated
+  // alerts route needs no API key. Colour and confidence come from upstream:
+  // alert_confidence=low means every alert published, filtered nowhere.
+  { id:"gfw",                  name:"Deforestation alerts",    unit:"alerts, last 30 days", colour:"#55705E", route:"tile", ready:true,
+    tileMaxZoom: 22,
+    attribution: '<a href="https://www.globalforestwatch.org" target="_blank" rel="noopener">Global Forest Watch</a>' },
   // Not a "worker" route any more, and not points.
   //
   // This used to query /v3/4wings/report per viewport and returned 429 on
