@@ -31,7 +31,12 @@ const CACHE_SECONDS = 3600;
 // Bump on any change to how responses are built. Without this the edge cache
 // keeps serving bodies from the previous deploy for up to an hour — which is
 // exactly what hid the EPA longitude fix.
-const CACHE_VERSION = "v3";
+const CACHE_VERSION = "v5";
+
+// Reported by /v1/_diag so it is possible to tell, in one request, which build
+// is actually live. Several fixes appeared not to work when the real problem
+// was that the deploy had not happened.
+const BUILD = "2026-09-06T05:10 epa-multistate+detail, fishing-datasets";
 
 // How far back deforestation alerts are fetched. Wider means more rows and a
 // slower, heavier query; the API has no LIMIT to fall back on.
@@ -157,6 +162,13 @@ function rowsToGeoJSON(rows, source, unit, pick) {
         year: p.year ?? null,
         licence: p.licence ?? "see source",
         url: p.url ?? null,
+        // Namespaced exactly as normalize.py does, so a live feature and a
+        // harvested one carry their source-specific detail the same way.
+        ...Object.fromEntries(
+          Object.entries(p.extra || {})
+            .filter(([, v]) => v !== null && v !== undefined && v !== "")
+            .map(([k, v]) => [`x_${k}`, v])
+        ),
       },
     });
   }
@@ -211,6 +223,23 @@ function shape(sourceId, payload) {
     return rowsToGeoJSON(rows, "epa_tri", "TRI facility", (r) => ({
       id: r.tri_facility_id ?? r.TRI_FACILITY_ID ?? r.frs_id,
       name: r.facility_name ?? r.FACILITY_NAME ?? "TRI facility",
+      // The facility table carries no release quantities — those live in
+      // separate reporting tables — so rather than leave the popup saying
+      // nothing, it carries what this record does know: who owns it, where it
+      // is, whether it has closed, and a link to EPA's own report.
+      extra: {
+        parent: r.parent_co_name || r.standardized_parent_company || null,
+        city: r.city_name || null,
+        county: r.county_name || null,
+        state: r.state_abbr || null,
+        address: r.street_address || null,
+        closed: r.fac_closed_ind === "1" ? "reported closed" : null,
+        contact: r.asgn_public_contact || null,
+        registry_id: r.epa_registry_id || null,
+      },
+      url: r.epa_registry_id
+        ? `https://echo.epa.gov/detailed-facility-report?fid=${r.epa_registry_id}`
+        : null,
       // Sign restored here: every TRI facility is in the US or its territories,
       // all of which are west of the meridian, so a positive longitude is the
       // unsigned storage format rather than a real eastern location.
@@ -290,15 +319,18 @@ const UPSTREAM = {
     // Envirofacts chains column filters as path segments. This pattern is
     // INFERRED and untested — if it is wrong the request returns a 502 naming
     // shape(), not an empty layer.
-    url: (bbox) => {
+    // A viewport near a state line covers two or more states, and querying
+    // only the first drew facilities on one side of the border and nothing on
+    // the other. Every intersecting state is fetched and the results merged.
+    multi: (bbox) => {
       const states = statesForBbox(bbox);
-      // One state per request keeps the response small and the filter honest.
-      // Without a state match the query would return an arbitrary first 500
-      // rows of the whole country, which is worse than returning nothing.
-      const scope = states.length
-        ? `/state_abbr/${states[0]}`
-        : "/state_abbr/__none__";
-      return `https://data.epa.gov/efservice/tri_facility${scope}/rows/0:5000/JSON`;
+      if (!states.length) return [];
+      // Bounded so a wide viewport cannot fan out into dozens of requests.
+      return states.slice(0, 6).map(
+        (abbr) =>
+          `https://data.epa.gov/efservice/tri_facility/state_abbr/${abbr}` +
+          "/rows/0:5000/JSON"
+      );
     },
     headers: () => ({}),
   },
@@ -321,6 +353,11 @@ function cors(origin) {
 function withCors(response, origin) {
   const headers = new Headers(response.headers);
   for (const [k, v] of Object.entries(cors(origin))) headers.set(k, v);
+  // Caching belongs at the edge, not in the browser. The stored copy carries a
+  // max-age so Cloudflare can reuse it; the copy sent onward does not, because
+  // a browser holding a response for an hour makes every fix invisible until
+  // it expires — which hid two separate corrections here.
+  headers.set("Cache-Control", "no-store");
   return new Response(response.body, { status: response.status, headers });
 }
 
@@ -365,6 +402,8 @@ export default {
         ),
         all_binding_names: Object.keys(env).sort(),
         gfw_version_cached: gfwVersion.value,
+        build: BUILD,
+        epa_query_for_los_angeles: UPSTREAM.epa_tri.url("-118.4,33.9,-118.1,34.1"),
       }, null, 2), {
         headers: { "Content-Type": "application/json", ...cors(origin) },
       });
@@ -487,18 +526,40 @@ export default {
     // origin with that origin's own CORS headers attached below.
     const cacheKey = new Request(
       `${url.origin}${url.pathname}?bbox=${bbox}&z=${zoom}&_c=${CACHE_VERSION}`);
-    const hit = await cache.match(cacheKey);
+    // ?fresh=1 skips the stored copy. The cache key ignores unknown query
+    // parameters by design, so adding junk to the URL does NOT bypass it —
+    // which made several deployed fixes look like they had not shipped.
+    const fresh = url.searchParams.get("fresh") === "1";
+    const hit = fresh ? null : await cache.match(cacheKey);
     if (hit) return withCors(hit, origin);
 
     let upstream;
     let target;   // hoisted: the error path below reports what was sent
     try {
+      if (source.multi) {
+        const urls = source.multi(bbox, zoom, env);
+        target = urls.join(" + ") || "(no states intersect this viewport)";
+        if (!urls.length) {
+          return withCors(new Response(
+            JSON.stringify({ type: "FeatureCollection", features: [] }),
+            { headers: { "Content-Type": "application/json" } }), origin);
+        }
+        const parts = await Promise.all(urls.map((u) =>
+          fetch(u, { headers: { Accept: "application/json", ...source.headers(env) } })
+            .then((r) => (r.ok ? r.json() : []))
+            .catch(() => [])
+        ));
+        const merged = parts.flat();
+        upstream = new Response(JSON.stringify(merged),
+                                { status: 200, headers: { "Content-Type": "application/json" } });
+      } else {
       target = await source.url(bbox, zoom, env);
       upstream = await fetch(target, {
         method: source.method || "GET",
         headers: { Accept: "application/json", ...source.headers(env) },
         ...(source.body ? { body: source.body(bbox, zoom) } : {}),
       });
+      }
     } catch (e) {
       return bad(`upstream unreachable: ${e.message}`, 502, origin);
     }
