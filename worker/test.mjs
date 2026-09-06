@@ -53,7 +53,7 @@ console.log("\nworker request handling");
 
 // --- CORS preflight --------------------------------------------------------
 {
-  const r = await call("/v1/gfw?bbox=0,0,1,1", ORIGIN, "OPTIONS");
+  const r = await call("/v1/gfw?bbox=0.0,0.0,0.3,0.3", ORIGIN, "OPTIONS");
   check("preflight returns 204", r.status === 204);
   check("preflight sends allow-origin",
         r.headers.get("Access-Control-Allow-Origin") === ORIGIN);
@@ -68,7 +68,7 @@ console.log("\nworker request handling");
     ["inverted bbox", "/v1/gfw?bbox=10,10,0,0", 400],
     ["out of range lat", "/v1/gfw?bbox=0,-100,1,1", 400],
     ["whole world", "/v1/gfw?bbox=-180,-90,180,90", 400],
-    ["valid bbox", "/v1/gfw?bbox=0,0,1,1", 200],
+    ["valid bbox", "/v1/gfw?bbox=0.0,0.0,0.3,0.3", 200],
   ];
   for (const [name, path, want] of cases) {
     const r = await call(path);
@@ -84,7 +84,7 @@ console.log("\nworker request handling");
   await call("/v1/fishing?bbox=0,0,1,1&z=9");
   check("fishing sends bearer token",
         lastUpstream.init.headers.Authorization === "Bearer t");
-  await call("/v1/gfw?bbox=2,2,3,3");
+  await call("/v1/gfw?bbox=2.0,2.0,2.3,2.3");
   check("gfw sends api key header", lastUpstream.init.headers["x-api-key"] === "k");
 }
 
@@ -99,7 +99,7 @@ console.log("\nworker request handling");
 // --- upstream failures surface, not swallowed ------------------------------
 {
   upstreamStatus = 401;
-  const r = await call("/v1/gfw?bbox=5,5,6,6");
+  const r = await call("/v1/gfw?bbox=5.0,5.0,5.3,5.3");
   check("401 passes through", r.status === 401);
   const body = await r.json();
   check("401 explains itself", /401/.test(body.error || ""));
@@ -110,16 +110,16 @@ console.log("\nworker request handling");
 {
   store.clear();
   lastUpstream = null;
-  await call("/v1/gfw?bbox=7,7,8,8");
+  await call("/v1/gfw?bbox=7.0,7.0,7.3,7.3");
   const first = lastUpstream;
   lastUpstream = null;
-  await call("/v1/gfw?bbox=7,7,8,8");
+  await call("/v1/gfw?bbox=7.0,7.0,7.3,7.3");
   check("second identical request served from cache", lastUpstream === null,
         "upstream was called again");
 
   // Different viewport must not reuse the cached body.
   lastUpstream = null;
-  await call("/v1/gfw?bbox=9,9,10,10");
+  await call("/v1/gfw?bbox=9.0,9.0,9.3,9.3");
   check("different bbox bypasses cache", lastUpstream !== null);
   check("first call did reach upstream", first !== null);
 }
@@ -129,8 +129,8 @@ console.log("\nworker request handling");
   store.clear();
   const a = "https://welcometoyourgalaxy.github.io";
   const b = "https://www.welcometoyourgalaxy.com";
-  await call("/v1/gfw?bbox=20,20,21,21", a);
-  const second = await call("/v1/gfw?bbox=20,20,21,21", b);
+  await call("/v1/gfw?bbox=20.0,20.0,20.3,20.3", a);
+  const second = await call("/v1/gfw?bbox=20.0,20.0,20.3,20.3", b);
   check("cached response is not returned with the wrong allow-origin",
         second.headers.get("Access-Control-Allow-Origin") === b,
         `got ${second.headers.get("Access-Control-Allow-Origin")}, wanted ${b}`);
@@ -147,13 +147,13 @@ console.log("\nworker request handling");
   }), { status: 200, headers: { "Content-Type": "application/json" } });
 
   store.clear();
-  const r = await call("/v1/gfw?bbox=30,30,31,31");
+  const r = await call("/v1/gfw?bbox=30.0,30.0,30.3,30.3");
   const g = await r.json();
   check("shapes rows into a FeatureCollection", g.type === "FeatureCollection");
   check("drops rows with no coordinates", g.features.length === 1,
         `got ${g.features?.length}`);
   check("carries the atlas schema",
-        g.features[0].properties.unit === "deforestation alert",
+        g.features[0].properties.unit === "alert intensity",
         g.features[0].properties.unit);
   check("coordinates are [lon,lat]",
         JSON.stringify(g.features[0].geometry.coordinates) === "[20,10]");
@@ -163,7 +163,7 @@ console.log("\nworker request handling");
     type: "FeatureCollection", features: [{ type: "Feature", geometry: null, properties: {} }],
   }), { status: 200, headers: { "Content-Type": "application/json" } });
   store.clear();
-  const g2 = await (await call("/v1/gfw?bbox=40,40,41,41")).json();
+  const g2 = await (await call("/v1/gfw?bbox=40.0,40.0,40.3,40.3")).json();
   check("passes GeoJSON through", g2.features.length === 1);
 
   // An unrecognised shape must fail loudly, not return an empty layer.
@@ -171,14 +171,14 @@ console.log("\nworker request handling");
     status: 200, headers: { "Content-Type": "application/json" },
   });
   store.clear();
-  const r3 = await call("/v1/gfw?bbox=50,50,51,51");
+  const r3 = await call("/v1/gfw?bbox=50.0,50.0,50.3,50.3");
   check("unrecognised shape is a loud 502", r3.status === 502);
   check("error names the fix", /shape\(\)/.test((await r3.json()).error || ""));
 
   // Non-JSON upstream.
   globalThis.fetch = async () => new Response("<html>nope</html>", { status: 200 });
   store.clear();
-  check("non-JSON upstream is 502", (await call("/v1/gfw?bbox=60,60,61,61")).status === 502);
+  check("non-JSON upstream is 502", (await call("/v1/gfw?bbox=60.0,60.0,60.3,60.3")).status === 502);
 
   globalThis.fetch = defaultFetch;
 }
@@ -213,7 +213,7 @@ console.log("\nworker request handling");
 {
   store.clear();
   globalThis.fetch = async () => new Response("Invalid API key for domain", { status: 401 });
-  const r = await call("/v1/gfw?bbox=70,70,71,71");
+  const r = await call("/v1/gfw?bbox=70.0,70.0,70.3,70.3");
   const msg = (await r.json()).error;
   check("401 passes through", r.status === 401);
   check("401 includes the upstream's explanation", /Invalid API key/.test(msg), msg);
@@ -230,7 +230,7 @@ console.log("\nworker request handling");
         gfw_integrated_alerts__confidence: "high" },
     ] }), { status: 200, headers: { "Content-Type": "application/json" } });
   };
-  const r = await call("/v1/gfw?bbox=-60,-5,-59,-4");
+  const r = await call("/v1/gfw?bbox=-59.5,-4.5,-59.2,-4.2");
   check("gfw uses POST", lastUpstream.init.method === "POST");
   check("gfw hits the gfw_integrated_alerts dataset",
         /gfw_integrated_alerts\/latest\/query\/json/.test(lastUpstream.url), lastUpstream.url);
@@ -244,6 +244,14 @@ console.log("\nworker request handling");
   check("gfw alert rows become features", g.features.length === 1);
   check("gfw alert carries its date",
         /2026-08-01/.test(g.features[0].properties.name), g.features[0].properties.name);
+  check("gfw filters to a recent date window, since the API takes no LIMIT",
+        /WHERE gfw_integrated_alerts__date >= '\d{4}-\d{2}-\d{2}'/.test(body.sql), body.sql);
+  check("gfw sends no LIMIT clause", !/LIMIT/i.test(body.sql), body.sql);
+
+  const tooBig = await call("/v1/gfw?bbox=-60,-5,-58.5,-3.5");
+  check("an area too dense for gfw is refused with advice", tooBig.status === 400);
+  check("that refusal says to zoom in",
+        /zoom in further/.test((await tooBig.json()).error));
   globalThis.fetch = defaultFetch;
 }
 
