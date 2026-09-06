@@ -7,14 +7,22 @@ name: Deploy map to Pages
 #
 # Set Settings -> Pages -> Source to "GitHub Actions" for this to take effect.
 #
-# Runs on pushes that touch the map or its data — including the tile commits
-# refresh.yml makes, so new tiles go live without a second step.
+# Runs on pushes that touch the map, and after refresh.yml finishes.
+#
+# The workflow_run trigger is not redundant: a push made with the default
+# GITHUB_TOKEN does not start another workflow — GitHub blocks that to prevent
+# loops. So refresh.yml committing new tiles would NOT trigger the push event
+# below, and fresh tiles would sit in the repo undeployed until something else
+# touched map/. This trigger closes that gap.
 on:
   push:
     branches: [main]
     paths:
       - "map/**"
       - ".github/workflows/pages.yml"
+  workflow_run:
+    workflows: ["Refresh atlas tiles"]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -45,6 +53,17 @@ jobs:
           test -f map/data/boundaries.geojson || {
             echo "::error::map/data/boundaries.geojson missing — country layers will not draw"
             exit 1; }
+
+          # A layer marked ready with no archive is a silent blank layer at
+          # runtime, so name it here instead.
+          missing=0
+          for id in $(grep -oP 'id:"\K[a-z_]+(?=".*route:"pmtiles".*ready:true)' map/app.js); do
+            if [ ! -f "map/tiles/$id.pmtiles" ]; then
+              echo "::warning::$id is ready:true but map/tiles/$id.pmtiles is missing — run the Refresh workflow"
+              missing=1
+            fi
+          done
+          [ "$missing" = 0 ] && echo "all ready pmtiles layers have archives"
           echo "tiles present:"; ls -la map/tiles/ 2>/dev/null || echo "  none yet"
 
       - uses: actions/configure-pages@v5

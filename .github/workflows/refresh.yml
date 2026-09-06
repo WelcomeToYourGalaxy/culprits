@@ -56,8 +56,10 @@ jobs:
           # Lifts the GitHub API from 60 to 1,000 requests/hour. Provided by
           # Actions automatically; no secret to create.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GFW_API_KEY: ${{ secrets.GFW_API_KEY }}
-          GFW_FISHING_TOKEN: ${{ secrets.GFW_FISHING_TOKEN }}
+          # No API keys here. The keyed sources (Global Forest Watch, Global
+          # Fishing Watch, EPA) are queried live by the browser through the
+          # Cloudflare Worker, not harvested in CI — so their credentials are
+          # Worker secrets (`wrangler secret put`), not GitHub repo secrets.
         run: |
           mkdir -p data/raw data/normalized map/tiles
           python3 pipeline/harvest.py --state .etags.json ${FORCE:+--force} \
