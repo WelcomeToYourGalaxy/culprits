@@ -102,6 +102,16 @@ function shape(sourceId, payload) {
       licence: "Global Fishing Watch, non-commercial use only",
     }));
   }
+  if (sourceId === "epa_tri") {
+    return rowsToGeoJSON(rows, "epa_tri", "TRI facility", (r) => ({
+      id: r.tri_facility_id ?? r.TRI_FACILITY_ID ?? r.frs_id,
+      name: r.facility_name ?? r.FACILITY_NAME ?? "TRI facility",
+      lon: num(r.pref_longitude ?? r.longitude ?? r.LONGITUDE),
+      lat: num(r.pref_latitude ?? r.latitude ?? r.LATITUDE),
+      value: null,
+      licence: "US Government work, public domain",
+    }));
+  }
   if (sourceId === "landmatrix") {
     return rowsToGeoJSON(rows, "landmatrix", "hectares", (r) => ({
       id: r.id ?? r.deal_id,
@@ -127,6 +137,23 @@ const UPSTREAM = {
       `https://gateway.api.globalfishingwatch.org/v3/4wings/report` +
       `?spatial-resolution=LOW&temporal-resolution=YEARLY&format=JSON&bbox=${bbox}&zoom=${z}`,
     headers: (env) => ({ Authorization: `Bearer ${env.GFW_FISHING_TOKEN}` }),
+  },
+  epa_tri: {
+    // EPA Envirofacts is public and needs no key, but it does not send CORS
+    // headers, so the browser still cannot call it directly. It is routed
+    // through here for that reason alone.
+    //
+    // Envirofacts chains column filters as path segments. This pattern is
+    // INFERRED and untested — if it is wrong the request returns a 502 naming
+    // shape(), not an empty layer.
+    url: (bbox) => {
+      const [w, s, e, n] = bbox.split(",");
+      return "https://data.epa.gov/efservice/tri_facility" +
+        `/latitude/>/${s}/latitude/</${n}` +
+        `/longitude/>/${w}/longitude/</${e}` +
+        "/rows/0:500/JSON";
+    },
+    headers: () => ({}),
   },
   landmatrix: {
     url: (bbox) => `https://landmatrix.org/api/deals/?bbox=${bbox}&limit=2000`,
