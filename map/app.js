@@ -37,9 +37,16 @@ const LAYERS = [
              values: ["Coal","Gas","Oil","Petcoke","Nuclear","Hydro","Wind","Solar",
                       "Biomass","Waste","Geothermal","Storage","Cogeneration",
                       "Wave and Tidal","Other"] } },
-  { id:"carbon_majors",        name:"Carbon major HQs",        unit:"company headquarters", colour:"#7E6B8F", route:"pmtiles", ready:true },
-  { id:"fertilizer_facilities",name:"Fertilizer plants",       unit:"ammonia / urea", colour:"#8A7C5C", route:"pmtiles", ready:true },
-  { id:"soy_organizations",    name:"Soy industry bodies",     unit:"trade organisations", colour:"#6F7F72", route:"pmtiles", ready:true },
+  // The next three carry no harvester and no entry in sources.json: their data
+  // came from the separate maps repo, and neither the archive nor a way to
+  // rebuild it is in this repository. Listing them as live layers put a row in
+  // the panel that always failed with "archive missing", which reads as a
+  // broken map rather than an unbuilt source. ready:false names them once in
+  // the unbuilt list instead, which is what the panel is for. Flip back to true
+  // once map/tiles/<id>.pmtiles exists, or once a harvester is registered.
+  { id:"carbon_majors",        name:"Carbon major HQs",        unit:"company headquarters", colour:"#7E6B8F", route:"pmtiles", ready:false },
+  { id:"fertilizer_facilities",name:"Fertilizer plants",       unit:"ammonia / urea", colour:"#8A7C5C", route:"pmtiles", ready:false },
+  { id:"soy_organizations",    name:"Soy industry bodies",     unit:"trade organisations", colour:"#6F7F72", route:"pmtiles", ready:false },
   { id:"trase",                name:"Commodity supply chains", unit:"ha",         colour:"#62755F", route:"pmtiles", ready:false },
   { id:"land_matrix",          name:"Land deals",              unit:"hectares",   colour:"#6C7F63", route:"country", ready:true,  isolate:true },
   { id:"counterglow",          name:"Industrial animal farms", unit:"facilities", colour:"#7B7A5C", route:"pmtiles", ready:false },

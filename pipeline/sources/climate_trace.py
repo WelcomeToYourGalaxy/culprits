@@ -205,14 +205,26 @@ def fetch():
     skipped_no_coords = 0
     stats = {"skipped_files": [], "columns_seen": set()}
 
-    for sector_name in SECTORS:
+    # Progress is printed per sector because this run takes many minutes: eight
+    # packages to download and several million CSV rows to parse. A harvester
+    # that prints nothing until it finishes is indistinguishable from one that
+    # has hung, and the first version of this file was exactly that.
+    for i, sector_name in enumerate(SECTORS, 1):
         url = sector_url(sector_name)
+        print(f"climate_trace: [{i}/{len(SECTORS)}] downloading {sector_name}...",
+              flush=True)
         try:
             r = requests.get(url, timeout=900)
             r.raise_for_status()
         except requests.RequestException as e:
-            print(f"climate_trace: WARNING — {sector_name} package failed: {e}")
+            print(f"climate_trace: WARNING — {sector_name} package failed: {e}",
+                  flush=True)
             continue
+
+        mb = len(r.content) / 1_048_576
+        print(f"climate_trace: [{i}/{len(SECTORS)}] {sector_name} {mb:.1f} MB, parsing...",
+              flush=True)
+        before = sum(len(v) for v in by_sector.values())
 
         for row in _rows_from_package(r.content, stats):
             stats["columns_seen"].update(row.keys())
@@ -257,6 +269,10 @@ def fetch():
                     "gas": GAS,
                 },
             })
+
+        gained = sum(len(v) for v in by_sector.values()) - before
+        print(f"climate_trace: [{i}/{len(SECTORS)}] {sector_name} -> {gained:,} rows",
+              flush=True)
 
     kept, report = [], []
     for sector, rows in sorted(by_sector.items()):
