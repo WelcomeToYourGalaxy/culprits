@@ -1,1 +1,3 @@
-
+Drop each new Global Energy Monitor tracker release here.
+Its download sits behind a request form, so it is the one source that cannot
+be fetched automatically. The pipeline picks up new files from their mtime.
