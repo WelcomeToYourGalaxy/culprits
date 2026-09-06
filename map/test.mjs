@@ -97,6 +97,9 @@ function run({ layersReady = null, fetchImpl = null } = {}) {
   const map = new FakeMap();
   popups = []; fetched.length = 0;
 
+  // Fresh window each run: app.js guards against executing twice, and every
+  // test needs a clean slate.
+  globalThis.window = {};
   const els = new Map();
   globalThis.document = {
     baseURI: "https://example.test/culprits/",
@@ -324,6 +327,30 @@ console.log("\nmap wiring");
         /LAYERS\.filter\(\(c\) => c\.ready\)\.forEach/.test(src));
   check("unbuilt sources are named once, not listed as disabled rows",
         /pending-note/.test(src) && !/disabled data-layer/.test(src));
+}
+
+// --- worker layers must explain why they are empty ------------------------
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("worker layers say to zoom in rather than sitting silently empty",
+        /zoom in past z/.test(src));
+  check("worker errors surface the Worker's own message, not a bare status",
+        /\(await r\.json\(\)\)\.error/.test(src));
+}
+
+// --- running twice must not duplicate the layers --------------------------
+{
+  const { map } = run();
+  map.fire("load");
+  await new Promise((r) => setTimeout(r, 10));
+  const before = map.layers.length;
+
+  // Simulate index.html carrying both an inline copy and <script src>.
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  new Function(src)();
+  await new Promise((r) => setTimeout(r, 10));
+  check("a second execution adds no layers", map.layers.length === before,
+        `${before} -> ${map.layers.length}`);
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

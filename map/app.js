@@ -1,3 +1,11 @@
+if (window.__culpritsLoaded) {
+  console.warn("[culprits] app.js ran twice — index.html is probably still " +
+               "carrying the old inline <script> as well as <script src>. " +
+               "Ignoring the second run; layers would otherwise be duplicated " +
+               "and only one copy would answer the toggles.");
+} else {
+  window.__culpritsLoaded = true;
+
 // Where the map stops summarising and starts listing individual culprits.
 // Must match CLUSTER_MAXZOOM in pipeline/build_tiles.sh.
 const CLUSTER_MAXZOOM = 8;
@@ -152,6 +160,7 @@ async function addPmtilesLayer(cfg) {
   // aggregate layer is the only thing on screen, and it was unclickable.
   bindPopup(`${cfg.id}-agg`);
   bindPopup(`${cfg.id}-pt`);
+  applyVisibility(cfg.id);
 }
 
 /* ---------- country aggregate layers (choropleth) ---------- */
@@ -266,6 +275,7 @@ async function addCountryLayer(cfg) {
   });
   map.on("mouseenter", `${cfg.id}-fill`, () => (map.getCanvas().style.cursor = "pointer"));
   map.on("mouseleave", `${cfg.id}-fill`, () => (map.getCanvas().style.cursor = ""));
+  applyVisibility(cfg.id);
 }
 
 /* ---------- live layers, via the Worker ---------- */
@@ -373,6 +383,16 @@ function setLayerState(id, text) {
 // Which facet values are currently shown, per layer. Empty set means all.
 const facetState = new Map();
 
+// Desired visibility per layer, applied whenever its layers exist.
+const visibility = new Map();
+
+function applyVisibility(id) {
+  const vis = visibility.get(id) || "visible";
+  [`${id}-agg`, `${id}-pt`, `${id}-fill`, `${id}-line`].forEach((l) => {
+    if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", vis);
+  });
+}
+
 function applyFacet(cfg) {
   const chosen = facetState.get(cfg.id);
   const filter = (!chosen || chosen.size === 0)
@@ -449,10 +469,10 @@ function buildPanel() {
   box.addEventListener("change", (e) => {
     const id = e.target.dataset.layer;
     if (!id) return;
-    const vis = e.target.checked ? "visible" : "none";
-    [`${id}-agg`, `${id}-pt`, `${id}-fill`, `${id}-line`].forEach((l) => {
-      if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", vis);
-    });
+    // Remembered, because layers load asynchronously: a toggle flipped before
+    // its archive arrives would otherwise be lost and the layer would appear.
+    visibility.set(id, e.target.checked ? "visible" : "none");
+    applyVisibility(id);
   });
 
   document.getElementById("note").textContent =
@@ -490,3 +510,5 @@ map.on("zoom", updateZoomState);
 map.on("moveend", () => {
   LAYERS.filter((c) => c.ready && c.route === "worker").forEach(refreshLiveLayer);
 });
+
+}  // end of the double-execution guard
