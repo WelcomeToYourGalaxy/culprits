@@ -373,17 +373,31 @@ function facetRow(cfg) {
 
 function buildPanel() {
   const box = document.getElementById("layers");
-  LAYERS.forEach((cfg) => {
+
+  // Only built layers appear. Greyed-out placeholders for sources that have no
+  // harvester yet read as breakage — three separate times they were reported as
+  // "layers not working" — so unbuilt sources are named once at the bottom
+  // instead of sitting in the list looking broken.
+  LAYERS.filter((c) => c.ready).forEach((cfg) => {
     const row = document.createElement("label");
-    row.className = "layer" + (cfg.ready ? "" : " pending");
+    row.className = "layer";
     row.innerHTML =
-      `<input type="checkbox" ${cfg.ready ? "checked" : "disabled"} data-layer="${cfg.id}">` +
+      `<input type="checkbox" checked data-layer="${cfg.id}">` +
       `<span class="swatch" style="background:${cfg.colour}"></span>` +
       `<span class="body"><span class="nm">${cfg.name}</span>` +
       `<span class="un" data-state="${cfg.id}">${cfg.unit}</span></span>`;
     box.appendChild(row);
-    if (cfg.ready && cfg.facet) box.appendChild(facetRow(cfg));
+    if (cfg.facet) box.appendChild(facetRow(cfg));
   });
+
+  const pending = LAYERS.filter((c) => !c.ready);
+  if (pending.length) {
+    const el = document.createElement("p");
+    el.className = "pending-note";
+    el.textContent = `${pending.length} more sources in progress: ` +
+      pending.map((c) => c.name).join(", ") + ".";
+    box.appendChild(el);
+  }
 
   box.addEventListener("click", (e) => {
     const btn = e.target.closest(".chip");

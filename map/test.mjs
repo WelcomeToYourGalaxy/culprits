@@ -317,5 +317,14 @@ console.log("\nmap wiring");
           fs.readFileSync(path.join(HERE, "..", "pipeline", "sources", "power_plants.py"), "utf8")));
 }
 
+// --- unbuilt sources must not look broken ---------------------------------
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("only ready layers get a row",
+        /LAYERS\.filter\(\(c\) => c\.ready\)\.forEach/.test(src));
+  check("unbuilt sources are named once, not listed as disabled rows",
+        /pending-note/.test(src) && !/disabled data-layer/.test(src));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
