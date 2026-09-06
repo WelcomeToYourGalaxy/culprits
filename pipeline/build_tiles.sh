@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
 # Turn normalized line-delimited GeoJSON into one .pmtiles archive per source.
 #
-# A clustered feature inherits ONE arbitrary member's attributes — its name,
-# operator, country, status. That is fine for the summed `value` and actively
-# misleading for everything else, so the map must branch on `_count` and refuse
-# to present a cluster's inherited fields as facts about it. See bindPopup().
-#
 # The zoom behaviour is done here, in the tiling, not in the map's JavaScript.
 # Below zoom 8 tippecanoe clusters points into aggregate features and sums their
 # `value`, so the global view is a snapshot of shape and magnitude rather than
@@ -29,15 +24,16 @@ OUT="$OUTDIR/${SOURCE}.pmtiles"
 # --cluster-maxzoom is the threshold the map's legend refers to. Changing it
 # here changes where the map stops summarising and starts listing, so keep it
 # in step with CLUSTER_MAXZOOM in map/index.html.
-CLUSTER_MAXZOOM=8
 MAXZOOM=12
 
-# Clustering exists so million-feature sources survive a global view. Applied to
-# a small source it just deletes the distribution: 425 carbon bombs clustered
-# down to two dots at world zoom, which is worse than no map. Below this count
-# every feature is kept at every zoom and the map shows them all.
-CLUSTER_ABOVE=20000
-
+# No clustering, and no feature filtering. Every feature the harvester produced
+# goes in. tippecanoe thins only the densest points when a single tile would
+# exceed its size limit, and only in that tile — nothing is removed from the
+# dataset, and zooming in restores full detail.
+#
+# The alternative, clustering, was worse on both counts: it collapsed 34,936
+# plants to one dot at world view, and it fabricated attributes, since a merged
+# feature inherits one arbitrary member's name and owner.
 FEATURES=$(wc -l < "$INPUT")
 
 # Attribution is baked into the archive so credit travels with the data even if
@@ -49,25 +45,6 @@ s={x['id']:x for x in reg['sources']}.get('$SOURCE',{})
 print(f\"{s.get('name','$SOURCE')} — {s.get('licence','licence unchecked')}\")
 ")
 
-if [ "$FEATURES" -gt "$CLUSTER_ABOVE" ]; then
-  echo "$SOURCE: $FEATURES features — clustering below z$CLUSTER_MAXZOOM"
-  CLUSTER_ARGS=(
-    --cluster-distance=12
-    --cluster-maxzoom="$CLUSTER_MAXZOOM"
-    --accumulate-attribute=value:sum
-    --accumulate-attribute=_count:sum
-    --drop-densest-as-needed
-    --extend-zooms-if-still-dropping
-  )
-else
-  echo "$SOURCE: $FEATURES features — small enough to show every point at every zoom"
-  # --drop-rate=1 is the important one. tippecanoe thins dense points at low
-  # zoom by default, independently of clustering and of the feature/size
-  # limits, which is what reduced 425 carbon bombs to a single dot at world
-  # view. Rate 1 keeps every feature at every zoom.
-  CLUSTER_ARGS=(--drop-rate=1 --no-feature-limit --no-tile-size-limit)
-fi
-
 tippecanoe \
   --quiet \
   --output="$OUT" \
@@ -76,13 +53,45 @@ tippecanoe \
   --name="$SOURCE" \
   --minimum-zoom=0 \
   --maximum-zoom="$MAXZOOM" \
-  "${CLUSTER_ARGS[@]}" \
+  --drop-rate=1 \
+  --drop-densest-as-needed \
   --preserve-input-order \
   --attribution="$ATTRIBUTION" \
   "$INPUT"
 
 SIZE=$(stat -c%s "$OUT" 2>/dev/null || stat -f%z "$OUT")
 echo "$SOURCE: $(( SIZE / 1024 / 1024 )) MB -> $OUT"
+
+# Archive size is not what the reader pays. PMTiles fetches tiles by range
+# request, so the number that matters is the heaviest tile someone actually
+# loads — the world tile, which every visitor gets. Report it, because a large
+# archive with small tiles is fine and a small archive with a 5 MB z0 tile is
+# not.
+FEATURE_COUNT="$FEATURES" python3 - "$OUT" "$SOURCE" <<'TILECHECK'
+import sys, os
+from pmtiles.reader import Reader, MmapSource
+path, layer = sys.argv[1], sys.argv[2]
+try:
+    r = Reader(MmapSource(open(path, "rb")))
+    import gzip
+    import mapbox_vector_tile as mvt
+    z0 = r.get(0, 0, 0)
+    if not z0:
+        print(f"::error::{layer} has no world tile — the map will look empty at "
+              f"the default zoom")
+        raise SystemExit(1)
+    kb = len(z0) / 1000
+    raw = gzip.decompress(z0) if z0[:2] == b"\x1f\x8b" else z0
+    shown = len(mvt.decode(raw).get(layer, {}).get("features", []))
+    total = int(os.environ.get("FEATURE_COUNT", 0))
+    frac = f" of {total:,}" if total else ""
+    print(f"{layer}: world tile {kb:.0f} KB carrying {shown:,}{frac} features "
+          f"— every visitor downloads this")
+    if kb > 800:
+        print(f"::warning::{layer} world tile is {kb:.0f} KB")
+except Exception as e:
+    print(f"{layer}: could not inspect archive ({e})")
+TILECHECK
 
 # GitHub refuses files over 100 MB. Anything larger belongs in R2, which serves
 # range requests the same way and costs nothing to read.
