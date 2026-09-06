@@ -245,7 +245,9 @@ console.log("\nmap wiring");
   map.zoom = 3;
   map.fire("moveend");
   await new Promise((r) => setTimeout(r, 0));
-  check("no worker call at aggregate zoom",
+  // At world zoom the viewport is far wider than any source can answer for,
+  // so the request is skipped rather than sent and refused.
+  check("no worker call when the viewport is wider than the source allows",
         !fetched.some((u) => String(u).includes("/v1/")), JSON.stringify(fetched));
 }
 
@@ -332,8 +334,8 @@ console.log("\nmap wiring");
 // --- worker layers must explain why they are empty ------------------------
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("worker layers say to zoom in rather than sitting silently empty",
-        /zoom in past z/.test(src));
+  check("a viewport too wide for a source says so rather than sitting empty",
+        /area too wide for this source/.test(src));
   check("worker errors surface the Worker's own message, not a bare status",
         /\(await r\.json\(\)\)\.error/.test(src));
 }
@@ -351,6 +353,17 @@ console.log("\nmap wiring");
   await new Promise((r) => setTimeout(r, 10));
   check("a second execution adds no layers", map.layers.length === before,
         `${before} -> ${map.layers.length}`);
+}
+
+// --- live layers are not gated on a fixed zoom ----------------------------
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("no fixed zoom gate on live layers",
+        !/getZoom\(\) < CLUSTER_MAXZOOM/.test(src));
+  check("each live source declares its own area cap",
+        /maxAreaDeg2/.test(src));
+  check("live point layers have no minzoom",
+        !/source: `\$\{cfg\.id\}-live`,\s*\n\s*minzoom/.test(src));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
