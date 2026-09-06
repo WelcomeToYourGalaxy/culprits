@@ -54,7 +54,10 @@ const LAYERS = [
     // Upstream returns at most 500 rows per request, so a very large viewport
     // would show an arbitrary 500 rather than everything. Capped to keep what
     // is drawn honest rather than a truncated sample presented as complete.
-    maxAreaDeg2: 25 },
+    // Raised from 25 so sites appear roughly two zoom levels earlier. The cap
+    // exists because upstream returns at most 500 rows, so a viewport wider
+    // than this would show an arbitrary 500 presented as the whole picture.
+    maxAreaDeg2: 100 },
       // Disabled pending GFW. Their raster query endpoint returns
   // 500 {"message":null} for every request tried, including GFW's own
   // documented example, on fully built dataset versions. Route, shaper, version
@@ -65,8 +68,31 @@ const LAYERS = [
   // separate tile service that GFW's own map renders from, and its integrated
   // alerts route needs no API key. Colour and confidence come from upstream:
   // alert_confidence=low means every alert published, filtered nowhere.
-  { id:"gfw",                  name:"Deforestation alerts",    unit:"alerts, last 30 days", colour:"#55705E", route:"tile", ready:true,
-    tileMaxZoom: 22,
+  // Three alert layers, not one, because they do not cover the same planet.
+  //
+  // "Integrated" combines GLAD-L, GLAD-S2 and RADD, and all three are
+  // PAN-TROPICAL by design. That is why it lights up the Amazon, the Congo
+  // basin and Southeast Asia and shows nothing in British Columbia, Sweden or
+  // Siberia: not missing data, a stated extent. Anyone reading the map without
+  // that stated would reasonably conclude the boreal forest is untouched.
+  //
+  // The two DIST layers are global vegetation-disturbance products, and they
+  // are what shows clearing outside the tropics.
+  //
+  // They are kept separate rather than merged because they detect different
+  // things by different instruments, and a reader who sees an alert should be
+  // able to tell which one saw it.
+  { id:"gfw",                  name:"Deforestation alerts — tropics",  unit:"GLAD + RADD, last 30 days", colour:"#55705E", route:"tile", ready:true,
+    tileMaxZoom: 22, tileQuery: "kind=integrated&days=30",
+    note: "Pan-tropical only. GLAD and RADD do not cover boreal or temperate forest — use the global layers for those.",
+    attribution: '<a href="https://www.globalforestwatch.org" target="_blank" rel="noopener">Global Forest Watch</a>' },
+  { id:"gfw_dist",             name:"Disturbance alerts — global",     unit:"DIST-ALERT, last 30 days", colour:"#6E7A55", route:"tile", ready:true,
+    tilePath: "gfw_tile", tileMaxZoom: 22, tileQuery: "kind=dist&days=30",
+    note: "Global coverage, including boreal and temperate forest. Detects vegetation disturbance generally, so it catches fire and harvest as well as clearing.",
+    attribution: '<a href="https://www.globalforestwatch.org" target="_blank" rel="noopener">Global Forest Watch</a>' },
+  { id:"gfw_dist_year",        name:"Disturbance alerts — past year",  unit:"DIST-ALERT, last 365 days", colour:"#7E6F4E", route:"tile", ready:true,
+    tilePath: "gfw_tile", tileMaxZoom: 22, tileQuery: "kind=dist&days=365",
+    note: "The same global product over a twelve-month window, for seeing a season's cumulative loss rather than this month's.",
     attribution: '<a href="https://www.globalforestwatch.org" target="_blank" rel="noopener">Global Forest Watch</a>' },
   // Not a "worker" route any more, and not points.
   //
@@ -96,16 +122,39 @@ const map = new maplibregl.Map({
   style: {
     version: 8,
     sources: {
+      // Satellite imagery rather than a drawn basemap. What this map documents
+      // is physical: a mine, a plantation edge, a cleared block. On a drawn
+      // basemap a deforestation alert floats over an abstraction; on imagery it
+      // sits on the ground it refers to, and the reader can see the cut.
       base: {
         type: "raster",
-        tiles: ["https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png"],
+        tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/" +
+                "World_Imagery/MapServer/tile/{z}/{y}/{x}"],
         tileSize: 256,
-        attribution: "© OpenStreetMap © CARTO",
+        maxzoom: 18,
+        attribution: "Imagery © Esri, Maxar",
+      },
+      // Coastlines, borders and place names, carried separately so they can sit
+      // ABOVE the data layers. Imagery alone is unreadable at low zoom — there
+      // is no way to tell which coast you are looking at.
+      reference: {
+        type: "raster",
+        tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/" +
+                "Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"],
+        tileSize: 256,
+        maxzoom: 16,
+        attribution: "© Esri",
       },
     },
     layers: [
-      { id: "bg", type: "background", paint: { "background-color": "#17150F" } },
-      { id: "base", type: "raster", source: "base", paint: { "raster-opacity": .8 } },
+      { id: "bg", type: "background", paint: { "background-color": "#0B0E14" } },
+      // Darkened and desaturated so the data reads on top of it. Raw Esri
+      // imagery is bright enough that a muted point layer disappears into it.
+      { id: "base", type: "raster", source: "base",
+        paint: { "raster-opacity": 1, "raster-brightness-max": .72,
+                 "raster-saturation": -.28, "raster-contrast": .08 } },
+      { id: "reference", type: "raster", source: "reference",
+        paint: { "raster-opacity": .55 } },
     ],
   },
 });
@@ -155,13 +204,23 @@ async function addPmtilesLayer(cfg) {
       // how many sites a dot stands for. Small sources are not clustered, so
       // every _count is 1 and size must come from the magnitude instead —
       // otherwise every dot renders at the minimum and the map reads flat.
+      // Radius is scaled by zoom as well as by magnitude. Sized on magnitude
+      // alone, a 10,000-site cluster drew a 26px disc at z2, and half a dozen
+      // of those covered whole continents in overlapping blobs — the global
+      // view showed less than a blank map would. The multiplier keeps the
+      // relative sizes intact (a big cluster is still visibly bigger than a
+      // small one) while shrinking everything at the zooms where they collide.
       "circle-radius": [
-        "case",
-        [">", ["coalesce", ["get", "_count"], 1], 1],
-        ["interpolate", ["linear"], ["get", "_count"],
-          1, 3, 10, 6, 100, 11, 1000, 18, 10000, 26],
-        ["interpolate", ["linear"], ["sqrt", ["coalesce", ["get", "value"], 0]],
-          0, 2.5, 1, 4, 3, 7, 6, 12],
+        "*",
+        ["interpolate", ["linear"], ["zoom"], 0, 0.34, 4, 0.55, 7, 0.85, 10, 1],
+        [
+          "case",
+          [">", ["coalesce", ["get", "_count"], 1], 1],
+          ["interpolate", ["linear"], ["get", "_count"],
+            1, 3, 10, 6, 100, 11, 1000, 18, 10000, 26],
+          ["interpolate", ["linear"], ["sqrt", ["coalesce", ["get", "value"], 0]],
+            0, 2.5, 1, 4, 3, 7, 6, 12],
+        ],
       ],
     },
   });
@@ -405,7 +464,11 @@ function addLiveLayer(cfg) {
 function addTileLayer(cfg) {
   map.addSource(`${cfg.id}-tiles`, {
     type: "raster",
-    tiles: [`${WORKER}/${cfg.id}_tile/{z}/{x}/{y}`],
+    // tilePath lets several layers share one Worker route, distinguished by
+    // tileQuery — the three alert layers are the same endpoint with different
+    // datasets and windows behind it.
+    tiles: [`${WORKER}/${cfg.tilePath || cfg.id + "_tile"}/{z}/{x}/{y}` +
+            (cfg.tileQuery ? `?${cfg.tileQuery}` : "")],
     tileSize: 256,
     // Past its maxzoom MapLibre scales the last tiles up rather than asking for
     // tiles the source does not serve — which would be a 400 on every one.
@@ -417,6 +480,8 @@ function addTileLayer(cfg) {
   // their HEAD requests — so the circles land on top of the heatmap rather than
   // under it. beforeId is not used because the layers it would name may not
   // exist yet, and MapLibre throws on a beforeId that is missing.
+  // Inserted below the reference overlay so coastlines and place names stay
+  // legible on top of the data rather than being buried by it.
   map.addLayer({
     id: `${cfg.id}-raster`,
     type: "raster",
@@ -426,7 +491,7 @@ function addTileLayer(cfg) {
       // empty; this only softens the painted cells against the basemap.
       "raster-opacity": 0.85,
     },
-  });
+  }, map.getLayer("reference") ? "reference" : undefined);
 
   setLayerState(cfg.id, cfg.unit);
   applyVisibility(cfg.id);

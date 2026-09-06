@@ -31,12 +31,12 @@ const CACHE_SECONDS = 3600;
 // Bump on any change to how responses are built. Without this the edge cache
 // keeps serving bodies from the previous deploy for up to an hour — which is
 // exactly what hid the EPA longitude fix.
-const CACHE_VERSION = "v10";
+const CACHE_VERSION = "v11";
 
 // Reported by /v1/_diag so it is possible to tell, in one request, which build
 // is actually live. Several fixes appeared not to work when the real problem
 // was that the deploy had not happened.
-const BUILD = "2026-09-05T02:00 fishing + deforestation alerts both on tile routes";
+const BUILD = "2026-09-05T03:00 three alert products, transparent-tile fallback";
 
 // How far back deforestation alerts are fetched. Wider means more rows and a
 // slower, heavier query; the API has no LIMIT to fall back on.
@@ -493,8 +493,36 @@ function mvtSummary(bytes) {
 // service is what GFW's own map renders from.
 const FOREST_TILES_BASE = "https://tiles.globalforestwatch.org";
 
+// A 1x1 fully transparent PNG, decoded once at module scope. Served in place
+// of an upstream tile failure so one bad tile does not read as a broken layer.
+const TRANSPARENT_PNG = Uint8Array.from(atob(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk" +
+  "YPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="), (c) => c.charCodeAt(0));
+
 // The route validates 0 <= z <= 22.
 const FOREST_TILE_MAXZOOM = 22;
+
+// Three alert products, because ONE OF THEM IS TROPICS-ONLY and that is not
+// obvious from the map.
+//
+// gfw_integrated_alerts combines GLAD-L (Landsat), GLAD-S2 (Sentinel-2) and
+// RADD (Sentinel-1 radar). All three are pan-tropical by design: they cover
+// the humid tropics and stop there. That is why the layer shows the Amazon,
+// the Congo basin and Southeast Asia and nothing in British Columbia, Sweden
+// or Siberia — not missing data, a stated extent.
+//
+// gfw_integrated_dist_alerts and umd_glad_dist_alerts are DIST-ALERT, a
+// vegetation-disturbance product with GLOBAL coverage. Those are the layers
+// that show boreal and temperate clearing.
+//
+// Keeping all three separate rather than merging them is the honest choice:
+// they detect different things by different means, and a reader who sees an
+// alert should be able to tell which instrument saw it.
+const FOREST_ALERT_DATASETS = {
+  integrated: "gfw_integrated_alerts",
+  dist:       "gfw_integrated_dist_alerts",
+  glad_dist:  "umd_glad_dist_alerts",
+};
 
 // `latest` is accepted directly here — the version is a plain path string, not
 // the enum the /query routes use, so the version-resolution dance that
@@ -502,18 +530,19 @@ const FOREST_TILE_MAXZOOM = 22;
 const FOREST_TILE_VERSION = "latest";
 
 // Whole days, so every visitor requests the same URL and the cache can hold it.
-function alertDateRange(now = Date.now()) {
+function alertDateRange(days = ALERT_WINDOW_DAYS, now = Date.now()) {
   const end = new Date(now);
-  const start = new Date(now - ALERT_WINDOW_DAYS * 86400_000);
+  const start = new Date(now - days * 86400_000);
   return [start.toISOString().slice(0, 10), end.toISOString().slice(0, 10)];
 }
 
-function alertTileUrl(z, x, y) {
-  const [start, end] = alertDateRange();
+function alertTileUrl(z, x, y, kind = "integrated", days = ALERT_WINDOW_DAYS) {
+  const dataset = FOREST_ALERT_DATASETS[kind] || FOREST_ALERT_DATASETS.integrated;
+  const [start, end] = alertDateRange(days);
   // alert_confidence=low means "at least low", i.e. every alert the source
   // publishes. Anything stricter would be filtering the data on the reader's
   // behalf, which belongs in the map panel, not in the fetch.
-  return `${FOREST_TILES_BASE}/gfw_integrated_alerts/${FOREST_TILE_VERSION}` +
+  return `${FOREST_TILES_BASE}/${dataset}/${FOREST_TILE_VERSION}` +
     `/dynamic/${z}/${x}/${y}.png` +
     `?start_date=${start}&end_date=${end}` +
     "&render_type=true_color&alert_confidence=low";
@@ -995,27 +1024,43 @@ export default {
                      400, origin);
         }
 
+        const kind = FOREST_ALERT_DATASETS[url.searchParams.get("kind")]
+          ? url.searchParams.get("kind") : "integrated";
+        const days = Math.min(365, Math.max(1,
+          parseInt(url.searchParams.get("days"), 10) || ALERT_WINDOW_DAYS));
+
         const cacheKey = new Request(
-          `${url.origin}/v1/gfw_tile/${z}/${x}/${y}?_c=${CACHE_VERSION}`);
+          `${url.origin}/v1/gfw_tile/${z}/${x}/${y}` +
+          `?kind=${kind}&days=${days}&_c=${CACHE_VERSION}`);
         const fresh = url.searchParams.get("fresh") === "1";
         const hit = fresh ? null : await cache.match(cacheKey);
         if (hit) return withTileCors(hit, origin);
 
-        const target = alertTileUrl(z, x, y);
+        const target = alertTileUrl(z, x, y, kind, days);
         let up;
         try {
           up = await fetch(target);
         } catch (e) {
           return bad(`upstream unreachable: ${e.message}`, 502, origin);
         }
+        // A failing tile is served as a transparent one rather than as an
+        // error. The upstream returns 500 on individual tiles — z6/11/22 among
+        // them — and MapLibre turns any non-200 raster response into an
+        // AJAXError that surfaces to the reader as a broken map, when what has
+        // actually happened is that one tile out of dozens did not render.
+        // The status is kept in a header so the failure is still visible to
+        // anyone looking, without being visible to everyone else.
         if (!up.ok) {
-          return new Response(JSON.stringify({
-            error: `upstream returned ${up.status}: ${(await up.text()).slice(0, 400)}`,
-            sent: target,
-          }, null, 2), {
-            status: up.status,
-            headers: { "Content-Type": "application/json", ...cors(origin) },
-          });
+          const why = (await up.text()).slice(0, 200);
+          return withTileCors(new Response(TRANSPARENT_PNG, {
+            status: 200,
+            headers: {
+              "Content-Type": "image/png",
+              "Cache-Control": "public, max-age=300",
+              "X-Upstream-Status": String(up.status),
+              "X-Upstream-Note": why.replace(/[^\x20-\x7e]/g, "").slice(0, 120),
+            },
+          }), origin);
         }
 
         const body = await up.arrayBuffer();
@@ -1024,6 +1069,7 @@ export default {
           headers: {
             "Content-Type": "image/png",
             "Cache-Control": `public, max-age=${TILE_CACHE_SECONDS}`,
+            "X-Alert-Dataset": FOREST_ALERT_DATASETS[kind],
           },
         });
         ctx.waitUntil(cache.put(cacheKey, cacheable.clone()));
