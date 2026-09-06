@@ -353,6 +353,25 @@
         "value": "capacity_mw",
         "unit": "MW capacity"
       }
+    },
+    {
+      "id": "owid_co2",
+      "name": "National CO2 emissions (Our World in Data)",
+      "mode": "bulk",
+      "auth": "none",
+      "route": "country",
+      "endpoint": "https://github.com/owid/co2-data",
+      "discovery": "resolve() in pipeline/sources/owid_co2.py — GitHub API, master branch",
+      "licence": "CC BY 4.0 for OWID's own work; third-party series they redistribute keep their original terms",
+      "licence_verified": true,
+      "access_verified": true,
+      "tested": true,
+      "notes": "50,411 country-years, 1750-2024. Takes the most recent year with at least 150 reporting countries rather than a hardcoded year, so it never shows a half-empty world. Value is production (territorial) CO2; consumption CO2 travels alongside it since the two tell different stories about wealthy importers. OWID aggregate rows (OWID_WRL, regions, income groups) are excluded — they are not countries.",
+      "layer": {
+        "kind": "country",
+        "value": "co2",
+        "unit": "million tonnes CO2"
+      }
     }
   ],
   "_publish_blockers": [
