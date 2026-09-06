@@ -29,14 +29,16 @@ const LAYERS = [
              values: ["Coal","Gas","Oil","Petcoke","Nuclear","Hydro","Wind","Solar",
                       "Biomass","Waste","Geothermal","Storage","Cogeneration",
                       "Wave and Tidal","Other"] } },
+  { id:"fertilizer_facilities",name:"Fertilizer plants",       unit:"ammonia / urea", colour:"#8A7C5C", route:"pmtiles", ready:true },
+  { id:"soy_organizations",    name:"Soy industry bodies",     unit:"trade organisations", colour:"#6F7F72", route:"pmtiles", ready:true },
   { id:"trase",                name:"Commodity supply chains", unit:"ha",         colour:"#62755F", route:"pmtiles", ready:false },
   { id:"land_matrix",          name:"Land deals",              unit:"hectares",   colour:"#6C7F63", route:"country", ready:true,  isolate:true },
   { id:"counterglow",          name:"Industrial animal farms", unit:"facilities", colour:"#7B7A5C", route:"pmtiles", ready:false },
   { id:"epa_tri",              name:"US toxic release sites",  unit:"TRI facilities", colour:"#5C6E77", route:"worker",  ready:true },
-    // Disabled, not abandoned: GFW's query API returns 500 for their own
-  // documented example request, so this is an upstream fault rather than a
-  // wiring problem. The Worker route and shaper stay in place for when it
-  // works, or for the tile-cache route if that turns out to be the way in.
+      // Disabled pending GFW. Their raster query endpoint returns
+  // 500 {"message":null} for every request tried, including GFW's own
+  // documented example, on fully built dataset versions. Route, shaper, version
+  // resolver and tests all stay — this is one flag to flip when it works.
   { id:"gfw",                  name:"Deforestation alerts",    unit:"alert pixels", colour:"#55705E", route:"worker",  ready:false },
   { id:"fishing",              name:"Fishing effort",          unit:"hours",      colour:"#4F6773", route:"worker",  ready:true },
 ];
