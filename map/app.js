@@ -53,7 +53,21 @@ const LAYERS = [
   // documented example, on fully built dataset versions. Route, shaper, version
   // resolver and tests all stay — this is one flag to flip when it works.
   { id:"gfw",                  name:"Deforestation alerts",    unit:"alert pixels", colour:"#55705E", route:"worker",  ready:false },
-  { id:"fishing",              name:"Fishing effort",          unit:"hours",      colour:"#4F6773", route:"worker",  ready:true, maxAreaDeg2: 100 },
+  // Not a "worker" route any more, and not points.
+  //
+  // This used to query /v3/4wings/report per viewport and returned 429 on
+  // almost every pan. That was not a pacing bug. GFW allows one concurrent
+  // report per account, shared across everyone who opens this page, and a
+  // report runs asynchronously for up to 100 seconds. Two readers at once
+  // were already over the limit, so no amount of debouncing here could have
+  // fixed it.
+  //
+  // The 4Wings tile endpoint has no report queue, and fishing effort is a
+  // continuous field rather than a set of sites, so a heatmap says what the
+  // data actually is. Attribution is required by GFW's terms of use.
+  { id:"fishing",              name:"Fishing effort",          unit:"apparent fishing hours, 12 months", colour:"#4F6773", route:"tile", ready:true,
+    tileMaxZoom: 12,
+    attribution: '<a href="https://globalfishingwatch.org" target="_blank" rel="noopener">Powered by Global Fishing Watch</a>' },
 ];
 
 const protocol = new pmtiles.Protocol();
@@ -367,6 +381,42 @@ function addLiveLayer(cfg) {
   applyVisibility(cfg.id);
 }
 
+/* ---------- raster tile layers, via the Worker ---------- */
+
+// A continuous field rather than a set of located things. There is nothing to
+// cluster and nothing to debounce: MapLibre asks for the tiles the viewport
+// covers, the Worker caches them at the edge, and panning back over ground
+// already seen costs nothing.
+function addTileLayer(cfg) {
+  map.addSource(`${cfg.id}-tiles`, {
+    type: "raster",
+    tiles: [`${WORKER}/${cfg.id}_tile/{z}/{x}/{y}`],
+    tileSize: 256,
+    // Past its maxzoom MapLibre scales the last tiles up rather than asking for
+    // tiles the source does not serve — which would be a 400 on every one.
+    maxzoom: cfg.tileMaxZoom || 12,
+    attribution: cfg.attribution || "",
+  });
+
+  // Added here, synchronously, while the pmtiles layers are still awaiting
+  // their HEAD requests — so the circles land on top of the heatmap rather than
+  // under it. beforeId is not used because the layers it would name may not
+  // exist yet, and MapLibre throws on a beforeId that is missing.
+  map.addLayer({
+    id: `${cfg.id}-raster`,
+    type: "raster",
+    source: `${cfg.id}-tiles`,
+    paint: {
+      // The ramp's own lowest step is fully transparent, so empty ocean stays
+      // empty; this only softens the painted cells against the basemap.
+      "raster-opacity": 0.85,
+    },
+  });
+
+  setLayerState(cfg.id, cfg.unit);
+  applyVisibility(cfg.id);
+}
+
 /* ---------- shared ---------- */
 
 function bindPopup(layerId) {
@@ -439,7 +489,7 @@ const visibility = new Map();
 
 function applyVisibility(id) {
   const vis = visibility.get(id) || "visible";
-  [`${id}-agg`, `${id}-pt`, `${id}-fill`, `${id}-line`].forEach((l) => {
+  [`${id}-agg`, `${id}-pt`, `${id}-fill`, `${id}-line`, `${id}-raster`].forEach((l) => {
     if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", vis);
   });
 }
@@ -545,6 +595,7 @@ map.on("load", () => {
   LAYERS.filter((c) => c.ready).forEach((cfg) => {
     try {
       if (cfg.route === "worker") addLiveLayer(cfg);
+      else if (cfg.route === "tile") addTileLayer(cfg);
       else if (cfg.route === "country") {
         // Async: without a catch a failure here becomes an unhandled rejection
         // and the layer just silently never appears.
