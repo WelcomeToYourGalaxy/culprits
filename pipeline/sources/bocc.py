@@ -25,12 +25,29 @@ PATTERN = r"bcc-data-(\d{4})/.*\.xlsx$"
 
 
 def resolve():
-    url = discover.page_link(PAGE, PATTERN, pick="highest")
+    """
+    The download page is rendered client-side, so the .xlsx link is not in the
+    served HTML and scraping it finds nothing. Reported as unresolved rather
+    than raising: this is a known gap in this harvester, not a run failure.
+    """
+    try:
+        url = discover.page_link(PAGE, PATTERN, pick="highest")
+    except (LookupError, requests.RequestException) as e:
+        # LookupError: the page loaded but held no matching link.
+        # RequestException: the page could not be loaded at all.
+        # Neither is a run failure — this harvester has a known gap.
+        print(f"bocc: cannot resolve a workbook URL ({type(e).__name__})")
+        return None, None
     return url, discover.validator(url)
 
 
 def fetch():
     url, _ = resolve()
+    if not url:
+        print("bocc: no workbook link found on the download page — the page is "
+              "client-rendered, so the link must come from its API or be "
+              "dropped into data/manual/bocc/")
+        return []
     r = requests.get(url, timeout=180)
     r.raise_for_status()
 
