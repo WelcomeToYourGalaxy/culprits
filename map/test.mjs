@@ -424,5 +424,85 @@ console.log("\nmap wiring");
         /report per account/i.test(src), "the reason is not stated in app.js");
 }
 
+// --- blurred positions must never draw as located sites --------------------
+//
+// This is regression cover for a bug that shipped in the remains harvester and
+// was caught only by running it: the source tags blurred burial positions
+// `geo: "coarsened"`, the mapping did not know the word, and 2,580 records
+// deliberately degraded to ~5 km would have drawn as solid, precise graves.
+// The map is the last place that can catch it, so the precision value has to
+// be in the hollow list AND the popup has to say what happened.
+{
+  const { map } = run();
+  map.fire("load");
+  await new Promise((r) => setTimeout(r, 5));
+  map.fire("click:carbon_bombs-pt", {
+    lngLat: [0, 0],
+    features: [{ properties: { _count: 1, name: "A permit", x_precision: "blurred" } }],
+  });
+  const html = popups.at(-1).html;
+  check("blurred features say the position was coarsened", /coarsen/i.test(html), html);
+  check("blurred features do not read as a located site",
+        !/Plotted at the country centroid/.test(html));
+}
+
+// Every precision value any harvester emits must appear in the hollow list, or
+// it silently renders solid. Listing them here means adding a new one to a
+// harvester without adding it to the map fails a test rather than publishing a
+// false position.
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const EMITTED = ["country", "admin", "grid", "area", "segment", "mobile",
+                   "blurred", "unknown"];
+  const lists = src.match(/\[\s*"country",[^\]]*\]/g) || [];
+  check("the hollow-precision list is used in every paint property",
+        lists.length === 3, `found ${lists.length}`);
+  for (const v of EMITTED) {
+    check(`precision "${v}" renders hollow everywhere`,
+          lists.length === 3 && lists.every((l) => l.includes(`"${v}"`)));
+  }
+}
+
+// --- the guerillamap frame is scoped to this map's subject -----------------
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const set = (src.match(/const GM_OVERLAYS = \[([\s\S]*?)\]/) || [])[1] || "";
+  check("guerillamap overlays include fossil fuel infrastructure",
+        /ppcoal/.test(set) && /pipelines/.test(set) && /refineries/.test(set));
+  // conflict-feed drives the same frame with a conflict overlay set. Sharing the
+  // mechanism must not mean inheriting the subject.
+  check("guerillamap overlays carry none of conflict-feed's conflict layers",
+        !/geoNews|conflicts|losses|terror|uyghurs|migration_routes/.test(set), set);
+  check("the frame starts closed",
+        /let gmOpen = false/.test(src), "a third-party frame should not load unasked");
+  check("toggling the frame re-measures the map canvas",
+        /gmSetOpen[\s\S]{0,600}map\.resize/.test(src),
+        "the container changes height, so the canvas must be re-measured");
+}
+
+// --- polygon sources must not be drawn as circles --------------------------
+//
+// A circle layer handed polygon geometry does not throw. It draws nothing, and
+// an empty layer is indistinguishable from a source that returned no data — so
+// this is checked here rather than discovered on the map.
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const branch = (src.match(/if \(cfg\.geometry === "polygon"\)[\s\S]*?\n  }/) || [])[0] || "";
+  check("addLiveLayer has a polygon branch", branch.length > 0);
+  check("the polygon branch draws a fill", /type: "fill"/.test(branch));
+  check("the polygon branch draws an outline too", /type: "line"/.test(branch),
+        "a sub-pixel fill at low zoom disappears without one");
+  check("the polygon branch draws no circle", !/type: "circle"/.test(branch));
+  check("the polygon branch returns before the circle layer",
+        /return;\n  }/.test(branch), "otherwise both are added to one source");
+
+  // applyVisibility toggles a fixed list of layer id suffixes. A polygon layer
+  // whose suffixes are missing from it cannot be switched off.
+  const vis = (src.match(/function applyVisibility[\s\S]*?\n}/) || [])[0] || "";
+  for (const sfx of ["-fill", "-line"]) {
+    check(`applyVisibility reaches ${sfx} layers`, vis.includes(`${sfx}\``) || vis.includes(sfx));
+  }
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
