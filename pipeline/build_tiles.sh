@@ -34,7 +34,13 @@ MAXZOOM=12
 # The alternative, clustering, was worse on both counts: it collapsed 34,936
 # plants to one dot at world view, and it fabricated attributes, since a merged
 # feature inherits one arbitrary member's name and owner.
-FEATURES=$(wc -l < "$INPUT")
+# The input may be gzipped: at 99 million features the plain file is tens of
+# gigabytes. tippecanoe reads gzipped GeoJSON directly, so only the line count
+# needs to know the difference.
+case "$INPUT" in
+  *.gz) FEATURES=$(gzip -cd "$INPUT" | wc -l) ;;
+  *)    FEATURES=$(wc -l < "$INPUT") ;;
+esac
 
 # Attribution is baked into the archive so credit travels with the data even if
 # the file is copied somewhere else.

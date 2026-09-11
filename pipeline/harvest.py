@@ -6,7 +6,8 @@ Two jobs. First, decide which sources actually changed — these publish on
 release cycles, so most weeks nothing has, and a HEAD request settles it far
 cheaper than a download. Second, hand the changed ones to their source module.
 
-A source module is one function, `fetch() -> list[dict]`, where each dict is
+A source module is one function, `fetch() -> list[dict]` — or an iterable of
+dicts, for sources too large to hold in memory — where each dict is
 the keyword arguments for normalize.feature(). Nothing else. That contract is
 deliberately narrow so adding a source is a small file, not a change here.
 
@@ -16,6 +17,7 @@ run, so the pipeline is useful before all 20 sources are written.
 
 import argparse
 import importlib
+import gzip
 import json
 import pathlib
 import sys
@@ -100,12 +102,28 @@ def harvest_one(meta):
         return None, f"pending — sources/{sid}.py not written yet"
 
     rows = mod.fetch()
-    if not rows:
-        return None, "returned no rows"
-    out = ROOT / "data" / "raw" / f"{sid}.json"
+    # Gzipped and line-delimited, not one JSON array. Climate TRACE yields ~99
+    # million features: as a plain array that file is about 30 GB, and
+    # normalize.py used to json.loads() the whole thing into memory. Neither is
+    # possible on an ordinary machine. Compression is lossless — every field of
+    # every row is still here, stored roughly ten times smaller — and one row
+    # per line means the next stage can stream it instead of loading it.
+    out = ROOT / "data" / "raw" / f"{sid}.jsonl.gz"
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(rows))
-    return len(rows), None
+    # Written one row at a time rather than json.dumps(rows), so a harvester
+    # may return a generator instead of a list. Climate TRACE yields ~99
+    # million features; holding those as a list and then again as a single
+    # JSON string needs tens of gigabytes of memory for no reason. Lists still
+    # work unchanged — this only removes the requirement to be one.
+    count = 0
+    with gzip.open(out, "wt", encoding="utf-8") as fh:
+        for row in rows:
+            fh.write(json.dumps(row, separators=(",", ":")) + "\n")
+            count += 1
+    if not count:
+        out.unlink(missing_ok=True)
+        return None, "returned no rows"
+    return count, None
 
 
 def main():

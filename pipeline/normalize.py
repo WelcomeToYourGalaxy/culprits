@@ -22,6 +22,8 @@ Usage:
 """
 
 import argparse
+import itertools
+import gzip
 import json
 import pathlib
 import sys
@@ -111,7 +113,11 @@ def write(features, path):
     """Line-delimited GeoJSON — what tippecanoe wants, and streamable."""
     pathlib.Path(path).parent.mkdir(parents=True, exist_ok=True)
     n = 0
-    with open(path, "w", encoding="utf-8") as fh:
+    # Gzipped when the caller asks for it. tippecanoe reads gzipped GeoJSON
+    # natively, so this costs nothing downstream and turns a 30 GB intermediate
+    # into roughly 3 GB. Nothing is dropped — the bytes are the same bytes.
+    opener = gzip.open if str(path).endswith(".gz") else open
+    with opener(path, "wt", encoding="utf-8") as fh:
         for f in features:
             fh.write(json.dumps(f, separators=(",", ":")) + "\n")
             n += 1
@@ -139,11 +145,29 @@ def main():
     # Each harvester writes a flat list of dicts with the keys `feature()` or
     # `country_row()` takes. Keeping that contract narrow means a new source is
     # one small module, not a change to this file.
-    rows = json.loads(pathlib.Path(args.infile).read_text())
+    # Streamed one line at a time. Reading the whole file was fine while the
+    # largest source was a few hundred thousand rows; it is not fine at 99
+    # million, and holding them all in memory is what this avoids.
+    opener = gzip.open if args.infile.endswith(".gz") else open
+
+    def _rows():
+        with opener(args.infile, "rt", encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if line:
+                    yield json.loads(line)
+
+    stream = _rows()
+    try:
+        first = next(stream)
+    except StopIteration:
+        print(f"{args.source}: no rows")
+        return
+    rows = itertools.chain([first], stream)
 
     # Geometry is decided by what the source actually has, not by configuration.
     # A row with iso3 and no coordinates is an aggregate and stays one.
-    if rows and rows[0].get("iso3") and "lat" not in rows[0]:
+    if first.get("iso3") and "lat" not in first:
         out = args.outfile.replace(".geojsonl", ".countries.json")
         n = write_countries((country_row(args.source, **r) for r in rows), out)
         print(f"{args.source}: {n} country aggregates -> {out}")

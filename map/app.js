@@ -68,11 +68,29 @@ const LAYERS = [
   // separate tile service that GFW's own map renders from, and its integrated
   // alerts route needs no API key. Colour and confidence come from upstream:
   // alert_confidence=low means every alert published, filtered nowhere.
-  // Permitted CAFOs. Public regulatory data, so no licence question and no
-  // extraction question — but it is the PERMITTED subset, not every operation.
-  // Most animal feeding operations never need a Clean Water Act permit, so
-  // absence here is not absence on the ground, and the note says so.
-  { id:"epa_cafo",             name:"Permitted animal feeding operations (US)", unit:"head (where reported)", colour:"#7B6A4E", route:"worker", ready:true,
+  // Permitted CAFOs — UNBUILT, and not for want of a harvester.
+  //
+  // The route was written against `V_ICIS_FACILITY_CAFO`, a table name taken
+  // from EPA's metadata pages because those pages disallow automated access and
+  // the name could not be confirmed against the live service. It cannot be
+  // confirmed now either, because the table does not answer:
+  //
+  //   efservice   /V_ICIS_FACILITY_CAFO/ROWS/0:10/JSON
+  //               -> "The table is not available."
+  //   dmapservice /icis.v_icis_facility_cafo/1:10/json
+  //               -> "The table, icis.v_icis_facility_cafo was not found."
+  //
+  // EPA still documents the view and publishes a sample URL for it, so the name
+  // is right and the view has been retired from the live services while its
+  // documentation stayed up. Two authoritative services agreeing is an answer,
+  // not a reason to try more spellings.
+  //
+  // ready:false rather than true-pointing-at-a-404, because a row reading
+  // "unavailable (404)" is the failure this panel was designed to stop: it
+  // reads as a broken map rather than an unbuilt source. The replacement is
+  // ECHO's CWA REST services, which draw on the same ICIS-NPDES database — a
+  // different route shape, so it is a decision rather than a patch.
+  { id:"epa_cafo",             name:"Permitted animal feeding operations (US)", unit:"head (where reported)", colour:"#7B6A4E", route:"worker", ready:false,
     maxAreaDeg2: 100,
     note: "US only, and only operations holding a Clean Water Act NPDES permit. Most animal feeding operations are unpermitted and do not appear here.",
     attribution: "US EPA (public domain)" },

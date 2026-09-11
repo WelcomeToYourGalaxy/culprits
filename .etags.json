@@ -2,16 +2,40 @@
  "carbon_bombs": {
   "validator": null
  },
+ "climate_trace": {
+  "validator": null
+ },
  "gem_coal": {
   "validator": null
  },
+ "gmo_releases": {
+  "validator": null
+ },
  "land_matrix": {
+  "validator": null
+ },
+ "local_projects": {
   "validator": null
  },
  "owid_co2": {
   "validator": null
  },
  "power_plants": {
+  "validator": null
+ },
+ "remains_records": {
+  "validator": null
+ },
+ "slavery_cases": {
+  "validator": null
+ },
+ "slavery_fishing": {
+  "validator": null
+ },
+ "slavery_ports": {
+  "validator": null
+ },
+ "slavery_sites": {
   "validator": null
  }
 }

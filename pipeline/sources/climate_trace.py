@@ -55,20 +55,16 @@ emissions if it carries coordinates and an emissions quantity. That is
 self-correcting: if Climate TRACE rename their files, this keeps working, and
 if they restructure their columns the run says so instead of returning junk.
 
-THE CUT
-The inventory does not fit in a browser, or in a free-hosted tile archive, so
-something has to be left out, and the rule for what should be visible rather
-than buried in a config file.
+NOTHING IS CUT
+Every source Climate TRACE publishes with a coordinate is harvested. An earlier
+version kept only the largest emitters until 95% of each sector's total was
+accounted for, under a hard ceiling of 60,000 features. Those two limits
+interacted and produced a layer carrying 41.7% of the emissions it claimed to
+show — a figure nobody chose. Selection belongs in the map panel, where the
+reader can see it and change it.
 
-Emissions are heavily tailed: a small number of sources account for most of the
-total. So the cut is by coverage, not by an arbitrary top-N. Sources are sorted
-by emissions and kept until COVERAGE of the sector's total is accounted for.
-The harvester reports how many sources that took and what share of the total
-they carry, so the tradeoff is visible every run rather than assumed once.
-
-FEATURE_CAP is a second, harder limit for file size. If coverage is reached
-before the cap, the cap never binds. If the cap binds first, the run says so
-and reports the coverage actually achieved — it does not silently truncate.
+The only rows dropped are those with no coordinate: there is nothing to place.
+The count is printed every run.
 
 STILL UNRUN
 climatetrace.org is not reachable from the environment this was written in, so
@@ -80,6 +76,9 @@ trusting it; the probe reports what it found without writing anything.
 
 import csv
 import io
+import os
+import re
+import tempfile
 import zipfile
 from collections import defaultdict
 
@@ -106,10 +105,21 @@ SECTORS = [
     "waste",
 ]
 
-# Share of each sector's total emissions the kept sources must account for.
-COVERAGE = 0.95
-# Hard ceiling on features, for tile size. Binds only if COVERAGE needs more.
-FEATURE_CAP = 60_000
+# Nothing is cut. Every emissions source Climate TRACE publishes with a
+# coordinate is harvested, and what a reader sees is decided in the map panel
+# rather than here.
+#
+# Three limits used to sit at this point in the file and all three are gone:
+#   COVERAGE = 0.95   kept only the largest emitters per sector
+#   FEATURE_CAP       hard ceiling of 60,000 features
+#   HEAP_CAP          bounded the rows held while streaming
+# Together they produced a layer carrying 41.7% of the emissions it claimed to
+# show, and no one chose that figure — it fell out of two caps interacting.
+#
+# Removing them removes the sorting and the heap as well: those existed only to
+# decide what to drop. fetch() is now a generator that yields every row as it
+# reads it, so memory stays flat no matter how large the dataset is.
+#
 # Gas to map. The inventory carries CO2, CH4, N2O and CO2e at 20 and 100 year
 # GWPs; mixing them in one layer would be meaningless, so pick one explicitly.
 GAS = "co2e_100yr"
@@ -163,10 +173,13 @@ def _is_asset_emissions(fieldnames):
             and bool(cols & set(QTY_COLS)))
 
 
-def _rows_from_package(content, stats):
-    """Yield asset-level emission rows from one sector zip, skipping ownership
-    and country-level CSVs by inspecting their columns."""
-    with zipfile.ZipFile(io.BytesIO(content)) as z:
+def _rows_from_package(path, stats):
+    """Yield asset-level emission rows from one sector zip on disk, skipping
+    ownership and country-level CSVs by inspecting their columns.
+
+    Takes a path rather than bytes: a 1.4 GB archive held in memory alongside
+    its parsed rows is what killed the first run."""
+    with zipfile.ZipFile(path) as z:
         names = [n for n in z.namelist() if n.lower().endswith(".csv")]
         if not names:
             raise ValueError("no CSVs in the Climate TRACE package")
@@ -190,6 +203,18 @@ def _rows_from_package(content, stats):
             )
 
 
+def _download(url, dest):
+    """Stream a package to disk in chunks. Returns its size in bytes."""
+    total = 0
+    with requests.get(url, timeout=900, stream=True) as r:
+        r.raise_for_status()
+        with open(dest, "wb") as fh:
+            for chunk in r.iter_content(chunk_size=1 << 20):
+                fh.write(chunk)
+                total += len(chunk)
+    return total
+
+
 def _pick(row, *candidates):
     """Column names have shifted across releases; try each in turn."""
     for c in candidates:
@@ -198,121 +223,205 @@ def _pick(row, *candidates):
     return None
 
 
+# Climate TRACE's own column dictionary. Its third column,
+# "2026_asset-definition", is what separates a power station from a 9 km
+# pasture cell, keyed on (sector, subsector) — both of which travel in the data
+# rows. So precision is read from the publisher's schema rather than guessed
+# from the geometry.
+SCHEMA_URL = f"{DOWNLOAD_BASE}/latest/about_the_data/detailed_data_schema.csv"
+
+
+# Written against the real list of 91 asset-definitions, printed from the
+# schema, not against a guess at their shape. An earlier version had only
+# "grid", "gadm/fua" and "everything else is a facility", and that put 51.6
+# million rows in the facility bucket — including rice paddies, fields,
+# reservoirs, road segments and ships. There are not 51 million refineries.
+#
+# The classes below are what the strings actually describe:
+#   asset    a located facility — refinery, coal mine, port, cement plant
+#   admin    a GADM/GHS-FUA unit, plotted at its centroid
+#   grid     a model cell, plotted at its centre (cell size kept)
+#   area     an extent — rice paddies, fields, reservoirs
+#   segment  a line — road or rail, plotted at a point along it
+#   mobile   a vessel; its position is one moment, not a site
+#   unknown  the schema gives no definition
+#
+# Only "asset" renders solid. Everything else is a point standing in for
+# something that is not a point, and the map says so.
+AREA_DEFINITIONS = {"field", "rice-paddies-area", "water-reservoirs"}
+MOBILE_DEFINITIONS = {"ship"}
+SEGMENT_DEFINITIONS = {"road-segment"}
+
+
+def _precision_of(definition):
+    """Classify one asset-definition string into one of the classes above."""
+    d = (definition or "").strip().lower()
+    if not d or d in ("n/a", "na", "none"):
+        return "unknown", None
+    if "grid" in d:
+        # Keep the cell size: "9km-by-9km" is the difference between a field
+        # and a landscape, and the reader is entitled to know which.
+        m = (re.search(r"(\d+\s*(?:km|m))-by-\1", d)
+             or re.search(r"(\d+\s*(?:km|m))-by-", d))
+        return "grid", (m.group(1) if m else None)
+    if "gadm" in d or "fua" in d:
+        # GADM is the global administrative-boundary set; GHS-FUA is functional
+        # urban areas. Either way the point is a centroid, not a place.
+        return "admin", None
+    if d in MOBILE_DEFINITIONS:
+        return "mobile", None
+    if d in SEGMENT_DEFINITIONS:
+        return "segment", None
+    if d in AREA_DEFINITIONS or d.endswith("-area"):
+        return "area", None
+    return "asset", None
+
+
+def load_asset_definitions():
+    """Map (sector, subsector) -> asset-definition string, from the publisher.
+
+    Positional rather than DictReader: the header repeats 'sector' and
+    'subsector' later in the row, and DictReader silently keeps the last of
+    each, which would key every lookup on the wrong column.
+    """
+    r = requests.get(SCHEMA_URL, headers=discover.UA, timeout=120)
+    r.raise_for_status()
+    rows = list(csv.reader(io.StringIO(r.content.decode("utf-8-sig"))))
+    if not rows:
+        raise ValueError("schema CSV was empty")
+    out = {}
+    for row in rows[1:]:
+        if len(row) < 3:
+            continue
+        sector, subsector, definition = row[0].strip(), row[1].strip(), row[2].strip()
+        if sector and subsector:
+            out[(sector.lower(), subsector.lower())] = definition
+    if not out:
+        raise ValueError("schema CSV parsed to no (sector, subsector) pairs")
+    return out
+
+
 def fetch():
+    """Yield every asset-level emissions row, with its precision.
+
+    A generator, not a list: this returns on the order of 99 million features
+    and no machine holds that in memory. harvest.py writes each row as it
+    arrives.
+    """
     resolve()
 
-    by_sector = defaultdict(list)
+    # Fetched before anything is downloaded: if the schema cannot be read the
+    # run stops rather than emitting features with no way to tell a refinery
+    # from a pasture cell.
+    definitions = load_asset_definitions()
+    print(f"climate_trace: schema gives {len(definitions):,} "
+          f"(sector, subsector) definitions", flush=True)
+
+    precision_counts = defaultdict(int)
+    # Counted per definition as well as per class, so the next run can be
+    # checked against the schema instead of trusted.
+    definition_counts = defaultdict(int)
     skipped_no_coords = 0
+    emitted = 0
     stats = {"skipped_files": [], "columns_seen": set()}
 
-    # Progress is printed per sector because this run takes many minutes: eight
-    # packages to download and several million CSV rows to parse. A harvester
-    # that prints nothing until it finishes is indistinguishable from one that
-    # has hung, and the first version of this file was exactly that.
     for i, sector_name in enumerate(SECTORS, 1):
         url = sector_url(sector_name)
+        tmp = os.path.join(tempfile.gettempdir(), f"ct_{sector_name}.zip")
         print(f"climate_trace: [{i}/{len(SECTORS)}] downloading {sector_name}...",
               flush=True)
         try:
-            r = requests.get(url, timeout=900)
-            r.raise_for_status()
+            size = _download(url, tmp)
         except requests.RequestException as e:
             print(f"climate_trace: WARNING — {sector_name} package failed: {e}",
                   flush=True)
             continue
 
-        mb = len(r.content) / 1_048_576
-        print(f"climate_trace: [{i}/{len(SECTORS)}] {sector_name} {mb:.1f} MB, parsing...",
-              flush=True)
-        before = sum(len(v) for v in by_sector.values())
+        print(f"climate_trace: [{i}/{len(SECTORS)}] {sector_name} "
+              f"{size / 1_048_576:.0f} MB, parsing...", flush=True)
+        rows_in, sector_out = 0, 0
 
-        for row in _rows_from_package(r.content, stats):
-            stats["columns_seen"].update(row.keys())
+        try:
+            for row in _rows_from_package(tmp, stats):
+                rows_in += 1
+                if rows_in == 1:
+                    stats["columns_seen"].update(row.keys())
 
-            # The gas is already fixed by the URL path, so this is a sanity
-            # check rather than a filter: a mismatch means the package layout
-            # changed under us and the rows are not what was asked for.
-            gas = (_pick(row, "gas") or "").lower()
-            if gas and gas != GAS:
-                continue
+                gas = (_pick(row, "gas") or "").lower()
+                if gas and gas != GAS:
+                    continue
 
-            lat = _pick(row, *LAT_COLS)
-            lon = _pick(row, *LON_COLS)
-            if not lat or not lon:
-                skipped_no_coords += 1
-                continue
+                lat = _pick(row, *LAT_COLS)
+                lon = _pick(row, *LON_COLS)
+                if not lat or not lon:
+                    # The only rows dropped. They carry no coordinate, so there
+                    # is nothing to place on a map — not a judgement about them.
+                    skipped_no_coords += 1
+                    continue
 
-            qty = _pick(row, *QTY_COLS)
+                qty = _pick(row, *QTY_COLS)
+                try:
+                    value = float(qty) if qty else 0.0
+                except ValueError:
+                    value = 0.0
+
+                sector = _pick(row, "sector") or sector_name
+                subsector = _pick(row, "subsector") or ""
+                definition = definitions.get((sector.lower(), subsector.lower()), "")
+                precision, cell = _precision_of(definition)
+                precision_counts[precision] += 1
+                definition_counts[definition or "(none)"] += 1
+                sector_out += 1
+                emitted += 1
+
+                yield {
+                    "ident": _pick(row, "source_id", "asset_id", "native_id")
+                             or _pick(row, "source_name", "asset_name"),
+                    "name": _pick(row, "source_name", "asset_name") or "Unnamed source",
+                    "lon": lon,
+                    "lat": lat,
+                    "value": value,
+                    "unit": "t CO₂e/yr (GWP-100)",
+                    "year": int(_pick(row, "year") or 0) or None,
+                    "url": None,
+                    "extra": {
+                        # normalize namespaces these to x_*, and the map reads
+                        # x_precision to render non-facilities hollow.
+                        "precision": precision,
+                        "sector": sector,
+                        "subsector": subsector,
+                        "asset_definition": definition or None,
+                        "grid_cell": cell,
+                        "country": _pick(row, "iso3_country", "country_iso3"),
+                        "capacity": _pick(row, "capacity"),
+                        "capacity_units": _pick(row, "capacity_units"),
+                        "owner": _pick(row, "reporting_entity", "owner"),
+                        "gas": GAS,
+                    },
+                }
+        finally:
             try:
-                value = float(qty) if qty else 0.0
-            except ValueError:
-                value = 0.0
+                os.remove(tmp)
+            except OSError:
+                pass
 
-            sector = _pick(row, "sector") or sector_name
-            by_sector[sector].append({
-                "ident": _pick(row, "source_id", "asset_id", "native_id")
-                         or _pick(row, "source_name", "asset_name"),
-                "name": _pick(row, "source_name", "asset_name") or "Unnamed source",
-                "lon": lon,
-                "lat": lat,
-                "value": value,
-                "unit": "t CO₂e/yr (GWP-100)",
-                "year": int(_pick(row, "year") or 0) or None,
-                "url": None,
-                "extra": {
-                    "sector": sector,
-                    "subsector": _pick(row, "subsector"),
-                    "country": _pick(row, "iso3_country", "country_iso3"),
-                    "capacity": _pick(row, "capacity"),
-                    "capacity_units": _pick(row, "capacity_units"),
-                    "owner": _pick(row, "reporting_entity", "owner"),
-                    "gas": GAS,
-                },
-            })
+        print(f"climate_trace: [{i}/{len(SECTORS)}] {sector_name} -> "
+              f"{sector_out:,} of {rows_in:,} rows", flush=True)
 
-        gained = sum(len(v) for v in by_sector.values()) - before
-        print(f"climate_trace: [{i}/{len(SECTORS)}] {sector_name} -> {gained:,} rows",
-              flush=True)
-
-    kept, report = [], []
-    for sector, rows in sorted(by_sector.items()):
-        rows.sort(key=lambda r: r["value"], reverse=True)
-        total = sum(r["value"] for r in rows)
-        if total <= 0:
-            continue
-        running, cut = 0.0, 0
-        for i, row in enumerate(rows, 1):
-            running += row["value"]
-            cut = i
-            if running / total >= COVERAGE:
-                break
-        kept.extend(rows[:cut])
-        report.append((sector, cut, len(rows), running / total))
-
-    kept.sort(key=lambda r: r["value"], reverse=True)
-    capped = False
-    achieved = 1.0
-    if len(kept) > FEATURE_CAP:
-        capped = True
-        grand = sum(r["value"] for r in kept)
-        kept = kept[:FEATURE_CAP]
-        achieved = sum(r["value"] for r in kept) / grand if grand else 0
-
-    print(f"climate_trace: gas={GAS}, coverage target={COVERAGE:.0%}")
-    for sector, cut, n, share in report:
-        print(f"  {sector:<32} {cut:>7,} of {n:>9,} sources = {share:.1%}")
+    print(f"climate_trace: gas={GAS}, nothing cut")
+    print("  precision of features emitted:")
+    for kind in ("asset", "admin", "grid", "area", "segment", "mobile", "unknown"):
+        if precision_counts[kind]:
+            print(f"    {kind:<10} {precision_counts[kind]:>14,}")
+    print("  by asset-definition (top 20):")
+    for defn, n in sorted(definition_counts.items(),
+                          key=lambda kv: kv[1], reverse=True)[:20]:
+        kind = _precision_of(None if defn == "(none)" else defn)[0]
+        print(f"    {kind:<8} {n:>14,}  {defn[:56]}")
     if stats["skipped_files"]:
         print(f"  {len(stats['skipped_files'])} CSVs skipped as ownership or "
               f"country-level (no coordinates or no quantity)")
     if skipped_no_coords:
         print(f"  {skipped_no_coords:,} rows had no coordinates and were dropped "
-              f"(gridded or country-level subsectors)")
-    if capped:
-        print(f"  FEATURE_CAP bound at {FEATURE_CAP:,}; kept features carry "
-              f"{achieved:.1%} of the emissions that met the coverage rule")
-    print(f"  {len(kept):,} features out")
-
-    if not kept:
-        raise RuntimeError("Climate TRACE harvest produced nothing — the package "
-                           "shape has probably changed; run probe.py")
-    return kept
+              f"(gridded or country-level subsectors with no point to place)")
+    print(f"  {emitted:,} features out")
