@@ -3,3 +3,17 @@ data/normalized/
 __pycache__/
 *.pyc
 .DS_Store
+
+# Local Python environment. Hundreds of MB, and machine-specific — it was
+# sitting untracked in the repo root.
+.venv/
+
+# Wrangler's local state. wrangler-account.json holds Cloudflare account
+# identifiers, and this is a public repo.
+worker/.wrangler/
+
+# Downloaded artefacts and pipeline state that were committed by accident.
+# Already tracked, so these lines only stop them recurring — untrack with
+#   git rm --cached detailed_data_schema.csv data/.changed
+detailed_data_schema.csv
+data/.changed
