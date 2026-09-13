@@ -504,5 +504,18 @@ console.log("\nmap wiring");
   }
 }
 
+// --- filters and visibility must cover the same layers ---------------------
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const facet = (src.match(/function applyFacet[\s\S]*?\n}/) || [])[0] || "";
+  for (const sfx of ["-agg", "-pt", "-fill", "-line"]) {
+    check(`applyFacet filters ${sfx} layers`, facet.includes(`${sfx}\``), sfx);
+  }
+  // A facet must narrow what `where` selects, never replace it: replacing would
+  // turn climate_trace_cafo back into every Climate TRACE source on first click.
+  check("a facet is ANDed with the layer's `where`, not substituted for it",
+        /\["all", cfg\.where, picked\]/.test(facet));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

@@ -189,6 +189,56 @@ const LAYERS = [
   { id:"fishing",              name:"Fishing effort",          unit:"apparent fishing hours, 12 months", colour:"#4F6773", route:"tile", ready:true,
     tileMaxZoom: 12,
     attribution: '<a href="https://globalfishingwatch.org" target="_blank" rel="noopener">Powered by Global Fishing Watch</a>' },
+
+  // ---- the other maps in this suite -------------------------------------
+  //
+  // Seven layers out of five repos in the WelcomeToYourGalaxy org. Their
+  // harvesters are written and have been run against live data; what does not
+  // exist yet is map/tiles/<id>.pmtiles, because the refresh workflow has not
+  // built them. So they are ready:false — not because anything is missing, but
+  // because ready:true with no archive puts a row in the panel reading
+  // "archive missing", and that has been reported as a broken map three times.
+  // Flip each to true once its archive lands.
+  { id:"local_projects",       name:"Development projects",    unit:"acres, where the register states them", colour:"#6E7B84", route:"pmtiles", ready:false,
+    isolate:true,
+    note: "401,100 filings from 68 registers — mines, pipelines, LNG, offshore wind, and the environmental reviews that precede them. What is about to be built, at the point where it is still a filing." },
+  { id:"gmo_releases",         name:"Genetic-engineering releases", unit:"authorisations", colour:"#7C6F84", route:"pmtiles", ready:false,
+    facet: { property: "x_register", label: "register",
+             values: ["US APHIS BRS","industry register",
+                      "CBD Biosafety Clearing-House","clinical trial sponsor",
+                      "Australia OGTR"] },
+    note: "96% of these records carry no site coordinate. APHIS publishes the state a release was authorised in and never the field, so most draw hollow at a state centroid." },
+  { id:"slavery_sites",        name:"Brick kilns and artisanal mining", unit:"sites", colour:"#8A6B62", route:"pmtiles", ready:false,
+    note: "Sector infrastructure, not confirmed exploitation. These are sites in sectors where forced and child labour concentrate; where IPIS actually observed it, the site says so." },
+  { id:"slavery_ports",        name:"Ports with high-risk vessel calls", unit:"ports", colour:"#5F7480", route:"pmtiles", ready:false,
+    note: "Scored on the share of calling fishing vessels flagged high-risk by a published behavioural model. A property of the calls, not of the port." },
+  { id:"slavery_fishing",      name:"Modelled at-risk fishing effort", unit:"model cells, 2.5°", colour:"#4E6A70", route:"pmtiles", ready:false,
+    note: "Not vessels. The authors anonymised every hull, so each mark is a cell of ocean and identifies nobody." },
+  { id:"remains_records",      name:"Unearthings and burial decisions", unit:"records", colour:"#6A6257", route:"pmtiles", ready:false,
+    facet: { property: "x_posture", label: "direction",
+             values: ["harm","watch","redress","unlawful"] },
+    note: "This layer does not plot graves. Burial locations arrive blurred to about 5 km from the source and stay that way. Direction is separate from size: a large repatriation is a large event, not a bad one." },
+  { id:"slavery_cases",        name:"Identified trafficking cases", unit:"identified cases", colour:"#7A6A72", route:"country", ready:false,
+    note: "Detection, not prevalence. A country with a large count has organisations filing records; a country with none may have no one counting." },
+
+  // ---- verified contracts, worker routes not written yet -----------------
+  //
+  // Registered here rather than left out so the geometry, the caps and the
+  // wording are settled while the API documentation is fresh. All three are
+  // polygons, which is why addLiveLayer grew a fill/line branch. Each needs a
+  // Worker route before ready can flip.
+  { id:"cerulean_slicks",      name:"Oil slicks (Cerulean)",   unit:"potential slicks, Sentinel-1", colour:"#5A5750", route:"worker", ready:false,
+    geometry:"polygon", maxAreaDeg2: 120,
+    note: "Potential slicks. SkyTruth state that oil cannot be definitively identified from radar alone, so every shape here is a detection awaiting review. Coverage is EEZs rather than the high seas.",
+    attribution: '<a href="https://cerulean.skytruth.org" target="_blank" rel="noopener">SkyTruth Cerulean</a>' },
+  { id:"cerulean_sources",     name:"Slick sources (Cerulean)", unit:"candidate vessels and platforms", colour:"#6B5F58", route:"worker", ready:false,
+    geometry:"polygon", maxAreaDeg2: 120,
+    note: "Candidates, ranked. The score is an estimated likelihood on a -5 to +5 scale, not a finding, and vessel identity lags up to 72 hours behind the detection. This layer names parties and must read as a question rather than an answer.",
+    attribution: '<a href="https://cerulean.skytruth.org" target="_blank" rel="noopener">SkyTruth Cerulean</a>' },
+  { id:"allen_coral",          name:"Coral reef habitat",      unit:"benthic and geomorphic zones", colour:"#5E7377", route:"worker", ready:false,
+    geometry:"polygon", maxAreaDeg2: 40,
+    note: "Mapped between 32°N and 32°S only, which is the product's stated extent and not an absence of reefs elsewhere. Benthic zones to 10 m depth, geomorphic to 15 m.",
+    attribution: '<a href="https://allencoralatlas.org" target="_blank" rel="noopener">Allen Coral Atlas</a> (CC BY 4.0)' },
 ];
 
 const protocol = new pmtiles.Protocol();
@@ -360,11 +410,11 @@ async function addPmtilesLayer(cfg) {
       // Only genuine facilities render solid: plants, mines, ports, airports,
       // refineries, waste sites — 23 of Climate TRACE's 91 definitions.
       "circle-opacity": ["case", ["in", ["get", "x_precision"],
-        ["literal", ["country", "admin", "grid", "area", "segment", "mobile", "unknown"]]], 0, .75],
+        ["literal", ["country", "admin", "grid", "area", "segment", "mobile", "blurred", "unknown"]]], 0, .75],
       "circle-stroke-color": ["case", ["in", ["get", "x_precision"],
-        ["literal", ["country", "admin", "grid", "area", "segment", "mobile", "unknown"]]], cfg.colour, "#17150F"],
+        ["literal", ["country", "admin", "grid", "area", "segment", "mobile", "blurred", "unknown"]]], cfg.colour, "#17150F"],
       "circle-stroke-width": ["case", ["in", ["get", "x_precision"],
-        ["literal", ["country", "admin", "grid", "area", "segment", "mobile", "unknown"]]], 1.4, .6],
+        ["literal", ["country", "admin", "grid", "area", "segment", "mobile", "blurred", "unknown"]]], 1.4, .6],
     },
   });
 
@@ -558,6 +608,50 @@ function addLiveLayer(cfg) {
     type: "geojson",
     data: { type: "FeatureCollection", features: [] },
   });
+
+  // Not every live source is a set of points.
+  //
+  // Cerulean returns oil slicks as MultiPolygon, and the slick's shape is the
+  // evidence: a long thin streak behind a transiting vessel is what makes the
+  // detection a bilge dump rather than a smudge, and SkyTruth's own attribution
+  // model reads its linearity and aspect ratio. Collapsing that to a dot would
+  // throw away the part a reader can actually judge. Allen Coral's benthic and
+  // geomorphic zones are polygons for the same reason — a reef zone has an
+  // extent and is not anywhere in particular.
+  //
+  // A circle layer given polygon geometry does not error. It draws nothing,
+  // which reads as a source that returned no data.
+  if (cfg.geometry === "polygon") {
+    map.addLayer({
+      id: `${cfg.id}-fill`,
+      type: "fill",
+      source: `${cfg.id}-live`,
+      paint: {
+        "fill-color": cfg.colour,
+        // Lower than a point layer's. These overlap each other and the basemap
+        // needs to stay readable underneath — a slick over a coastline is the
+        // thing you want to see the relationship of.
+        "fill-opacity": .38,
+      },
+    });
+    // The outline separately, because at low zoom a slick is a few pixels wide
+    // and a fill alone disappears. The line keeps it findable when the fill is
+    // sub-pixel.
+    map.addLayer({
+      id: `${cfg.id}-line`,
+      type: "line",
+      source: `${cfg.id}-live`,
+      paint: {
+        "line-color": cfg.colour,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 3, .7, 10, 1.6],
+        "line-opacity": .85,
+      },
+    });
+    bindPopup(`${cfg.id}-fill`);
+    applyVisibility(cfg.id);
+    return;
+  }
+
   map.addLayer({
     id: `${cfg.id}-pt`,
     type: "circle",
@@ -711,6 +805,11 @@ function bindPopup(layerId) {
           ? `<div class="meta" style="color:#8F4E40">Not a facility. This is a ` +
             `stretch of road or rail, plotted at one point along it rather than ` +
             `drawn as the line it is.</div>`
+          : p.x_precision === "blurred"
+          ? `<div class="meta" style="color:#8F4E40">This position has been ` +
+            `deliberately coarsened by the source, to about 5 km. Burial ` +
+            `locations are withheld because publishing them invites ` +
+            `desecration. The mark is a neighbourhood, not a site.</div>`
           : p.x_precision === "mobile"
           ? `<div class="meta" style="color:#8F4E40">A vessel, not a site. This ` +
             `position is where it was recorded, not where it stays.</div>`
@@ -780,7 +879,12 @@ function applyFacet(cfg) {
   const filter = cfg.where
     ? (picked ? ["all", cfg.where, picked] : cfg.where)
     : picked;
-  [`${cfg.id}-agg`, `${cfg.id}-pt`].forEach((l) => {
+  // Same four ids applyVisibility walks. -fill and -line are here because a
+  // polygon layer can carry `where` or a facet just as a point layer can, and
+  // a filter that reaches only the circle layers would leave the polygons
+  // showing everything while the panel says otherwise — the silent-disagreement
+  // failure this function's `where` guard already exists to prevent.
+  [`${cfg.id}-agg`, `${cfg.id}-pt`, `${cfg.id}-fill`, `${cfg.id}-line`].forEach((l) => {
     if (map.getLayer(l)) map.setFilter(l, filter);
   });
   const el = document.querySelector(`[data-state="${cfg.id}"]`);
@@ -917,5 +1021,130 @@ map.on("moveend", () => {
     LAYERS.filter((c) => c.ready && c.route === "worker").forEach(refreshLiveLayer)
   );
 });
+
+/* ---------- guerillamap companion ---------- */
+/*
+ * A second map in a frame under this one, driven from this one.
+ *
+ * A cross-origin iframe cannot be read: no DOM access, no pulling their layers
+ * out. What it can be is DRIVEN — their app takes its whole state from the
+ * query string. This is the same mechanism the conflict-feed map uses, which is
+ * where the contract was read from rather than guessed.
+ *
+ * Rebuilding src reloads the frame and makes their app re-fetch, so the update
+ * waits for the gesture to settle and is skipped when the view has not actually
+ * changed. Follow can be switched off to pin their view while this one moves.
+ *
+ * THE OVERLAY IDS ARE THEIRS, AND VERIFIED
+ * Taken from guerillamap.com/shortcuts, which publishes complete prefiltered
+ * URLs. This set is their "Fossil Fuels Infrastructure" shortcut plus nuclear
+ * facilities and NASA FIRMS active fires — the parts of their catalogue that
+ * are about this subject. Their conflict overlays, which conflict-feed uses,
+ * are deliberately not here.
+ *
+ * Some guerillamap layers sit behind a membership. If a layer renders empty in
+ * the frame, check that before assuming the id is wrong.
+ */
+const GM_HOME = "https://guerillamap.com/";
+const GM_GRID = "-0.35,0.5,10,10,null,null";
+const GM_BASEMAP = "esri-aerial-layer";
+const GM_OVERLAYS = [
+  "feature_group_ppcoal", "feature_group_ppgas", "feature_group_ppoil",
+  "feature_group_oilgaswells", "feature_group_refineries", "feature_group_pipelines",
+  "feature_group_ppnuc", "feature_group_nuctests",
+  "feature_group_FIRMS", "feature_group_borders",
+].join(",");
+
+// Their panel is wider and shorter than this map, so handing it the same centre
+// puts the ground higher in their frame than in ours. Dropped south by a share
+// of their own frame height — a proportion, not a fixed number of degrees, so it
+// holds at every zoom. gmShift(0) turns it off.
+let GM_SHIFT = 0.22;
+let gmOpen = false, gmTimer = null, gmLast = "";
+
+function gmUrl() {
+  let lat = 20, lon = 10, z = 3;
+  try {
+    const c = map.getCenter();
+    lat = c.lat; lon = c.lng;
+    z = Math.max(2, Math.min(18, Math.round(map.getZoom())));
+  } catch (e) { /* map not ready; the defaults stand */ }
+  try {
+    const f = document.getElementById("gmFrame");
+    const hpx = (f && f.clientHeight) || 260;
+    // Web Mercator: a pixel is (360 / 256·2^z) degrees of longitude, and that
+    // many degrees of latitude narrowed by cos(lat).
+    const degPerPx = (360 / (256 * Math.pow(2, z))) * Math.cos(lat * Math.PI / 180);
+    lat = Math.max(-78, Math.min(82, lat - GM_SHIFT * hpx * degPerPx));
+  } catch (e) { /* no frame yet; centre as-is */ }
+
+  return GM_HOME + "?coords=" + encodeURIComponent(lat.toFixed(5) + "," + lon.toFixed(5)) +
+         "&zoom=" + z +
+         "&grid=" + encodeURIComponent(GM_GRID) +
+         "&basemap=" + GM_BASEMAP +
+         "&overlays=" + encodeURIComponent(GM_OVERLAYS);
+}
+
+window.gmShift = (v) => { if (v != null) GM_SHIFT = v; gmSync(true); return GM_SHIFT; };
+
+function gmSync(force) {
+  if (!gmOpen) return;
+  const follow = document.getElementById("gmFollow");
+  if (!force && !(follow && follow.checked)) return;
+  const url = gmUrl();
+  if (url === gmLast) return;          // same view: do not reload them for nothing
+  gmLast = url;
+  const f = document.getElementById("gmFrame");
+  const out = document.getElementById("gmOut");
+  const wait = document.getElementById("gmWait");
+  if (out) out.href = url;
+  if (!f) return;
+  if (wait) wait.hidden = false;
+  f.addEventListener("load", () => { if (wait) wait.hidden = true; }, { once: true });
+  // Wait a frame: assigning src before the panel has been laid out leaves their
+  // app measuring a zero-height box and drawing nothing into it.
+  requestAnimationFrame(() => { f.src = url; });
+}
+
+function gmSetOpen(open) {
+  const el = document.getElementById("gm");
+  const canvas = document.getElementById("map");
+  if (!el || !canvas) return;
+  gmOpen = open;
+  el.hidden = !open;
+  canvas.classList.toggle("gm-open", open);
+  // The container changed size, so MapLibre has to re-measure or the canvas
+  // keeps the old dimensions and the mouse lands in the wrong place.
+  if (typeof map.resize === "function") map.resize();
+  if (open) gmSync(true);
+}
+
+function gmInit() {
+  const close = document.getElementById("gmClose");
+  if (close) close.addEventListener("click", () => gmSetOpen(false));
+  const follow = document.getElementById("gmFollow");
+  if (follow) follow.addEventListener("change", () => gmSync(true));
+
+  // Opened from its own row in the panel rather than on by default: it is a
+  // third-party frame that fetches on load, and one that fails should not be
+  // the first thing a reader meets.
+  const box = document.getElementById("layers");
+  if (!box) return;
+  const row = document.createElement("label");
+  row.className = "layer";
+  row.innerHTML =
+    `<input type="checkbox" data-gm="1">` +
+    `<span class="swatch" style="background:#6E7B84"></span>` +
+    `<span class="body"><span class="nm">Guerillamap overlays</span>` +
+    `<span class="un">fossil fuel and nuclear infrastructure, active fires — ` +
+    `loads guerillamap.com in a frame</span></span>`;
+  box.appendChild(row);
+  box.addEventListener("change", (e) => {
+    if (e.target && e.target.dataset && e.target.dataset.gm) gmSetOpen(e.target.checked);
+  });
+}
+
+map.on("load", gmInit);
+map.on("moveend", () => { clearTimeout(gmTimer); gmTimer = setTimeout(gmSync, 900); });
 
 }  // end of the double-execution guard
