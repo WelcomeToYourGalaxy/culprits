@@ -213,12 +213,31 @@ the failure stays visible to anyone checking without being visible to everyone.
 render covers the viewport in a flat wash — that is what hid every other layer
 once. One broken upstream cannot take the map down with it.
 
-**EPA CAFO — column names read tolerantly.** EPA's metadata page for
-`V_ICIS_FACILITY_CAFO` disallows automated access, so exact spellings could not
-be confirmed. The shaper tries several likely names per field and falls back to
-null rather than dropping features. **Still to do:** run
-`/v1/_epa?path=V_ICIS_FACILITY_CAFO/rows/0:1/JSON`, read the real names off one
-row, pin them.
+**EPA CAFO — CLOSED, the table is gone.** The route was written against
+`V_ICIS_FACILITY_CAFO`, a name taken from EPA's metadata pages because those
+pages disallow automated access. It has now been tested against both live
+services and both reject it:
+
+    data.epa.gov/efservice/V_ICIS_FACILITY_CAFO/ROWS/0:10/JSON
+      -> "The table is not available."
+    enviro.epa.gov/enviro/efservice/V_ICIS_FACILITY_CAFO/zip/72655/rows/0:2/JSON
+      -> "The table is not available."   (after following the 301)
+    data.epa.gov/dmapservice/icis.v_icis_facility_cafo/1:10/json
+      -> "The table, icis.v_icis_facility_cafo was not found."
+
+EPA still documents the view and publishes a sample URL for it, so the name is
+right and the view has been retired from the live services while its
+documentation page stayed up. Two hosts agreeing is an answer; do not try more
+spellings.
+
+The replacement is already in the map and needs no EPA route at all:
+`climate_trace_cafo` draws confined animal facilities from Climate TRACE's own
+`confined-animal-facility` definition via `sourceOf`, reusing the
+`climate_trace` archive. Global rather than US-only, and modelled rather than
+permitted — which the layer note says. If a permit register is still wanted
+later, ECHO's CWA REST services draw on the same ICIS-NPDES database and take a
+bounding box natively, but whether they expose animal head counts is unverified,
+and the layer's unit depends on that.
 
 **FAO GLW — no pipeline at all.** FAO serve WMTS with open CORS and there is no
 key, so the map fetches directly. CC BY 4.0. Two quirks recorded in the code:
@@ -552,18 +571,24 @@ checkbox.
 
    Last full run: 111,949,068 features, 575 MB gzipped, ~40 minutes.
 
-2. `cd worker && npx wrangler deploy` — **v12 is written and tested but not
-   deployed.** The EPA CAFO route and the two extra alert layers 404 until it is.
-   `/v1/_diag` should then read `v12`.
+2. ~~Deploy v12~~ — **THERE IS NO v12.** This was wrong in an earlier handoff and
+   cost a session to disprove. `grep -c epa_cafo worker/index.js` returns 0 in
+   the clone, in `culprits-local`, and in every commit on the remote; the Worker
+   has only ever been v11. The alert work that v12 was supposed to carry is
+   already in v11 — `BUILD` reads "three alert products, transparent-tile
+   fallback", `DIST` and `GLAD_DIST` are at lines 523-524, and `/v1/gfw_tile`
+   answers. So `gfw_dist` and `gfw_dist_year` are correctly `ready:true`. The
+   only thing v12 ever added was the EPA CAFO route, which is dead anyway.
+   `/v1/_diag` reading `v11` with four routes was accurate throughout; the
+   routes array lists the bbox routes only, which is a cosmetic gap and not a
+   lie about what is deployed.
 
-3. `git push` — `map/app.js` carries the GLW, CAFO and alert layers.
+3. ~~`git push`~~ — done, at 61b4cc2. Note the token lacks `workflow` scope, so
+   any commit touching `.github/workflows/` is rejected; either restore that
+   file from `origin/main` before committing, upload it through the web
+   interface, or add the scope.
 
-4. Pin the CAFO column names:
-
-       curl -s "$W/v1/_epa?path=V_ICIS_FACILITY_CAFO/rows/0:1/JSON"
-
-   EPA's metadata page disallows automated access, so the shaper currently tries
-   several likely spellings per field and falls back to null.
+4. ~~Pin the CAFO column names~~ — moot, see the EPA CAFO entry above.
 
 5. Actions → Refresh atlas tiles → force, to build `power_plants` and
    `gem_coal`. Not before step 1 — it would pick up `climate_trace` too.
