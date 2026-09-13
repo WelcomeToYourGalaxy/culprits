@@ -51,7 +51,24 @@ s={x['id']:x for x in reg['sources']}.get('$SOURCE',{})
 print(f\"{s.get('name','$SOURCE')} — {s.get('licence','licence unchecked')}\")
 ")
 
+# tippecanoe needs scratch space that scales with FEATURE COUNT, not input
+# size: 112 million features wanted ~10 GB while the gzipped input was 1.6 GB.
+# It does NOT honour TMPDIR — setting that and watching it fill the internal
+# disk anyway is how this was found. TILE_TMPDIR points it somewhere with room,
+# e.g. an external drive:
+#
+#   TILE_TMPDIR="/Volumes/MY DRIVE/tc-tmp" ./pipeline/build_tiles.sh ...
+#
+# Unset, tippecanoe uses its own default and small sources are unaffected.
+TMPFLAG=()
+if [ -n "${TILE_TMPDIR:-}" ]; then
+  mkdir -p "$TILE_TMPDIR"
+  TMPFLAG=(--temporary-directory="$TILE_TMPDIR")
+  echo "$SOURCE: tiling scratch in $TILE_TMPDIR"
+fi
+
 tippecanoe \
+  "${TMPFLAG[@]}" \
   --quiet \
   --output="$OUT" \
   --force \
