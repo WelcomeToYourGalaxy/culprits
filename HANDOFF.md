@@ -213,6 +213,50 @@ the failure stays visible to anyone checking without being visible to everyone.
 render covers the viewport in a flat wash — that is what hid every other layer
 once. One broken upstream cannot take the map down with it.
 
+**Climate TRACE is monthly, and that shapes everything about it.** Every row is
+one month for one source, not one facility — 300,000 sampled rows of
+`confined-animal-facility` held 4,546 distinct `source_id`s, 66 rows each. The
+periods are 2021-01 to 2026-06, 66 exactly. Without a month facet the map stacks
+66 coincident dots on every facility and the popup shows one arbitrary month
+with no date on it.
+
+Measured, not estimated: 12 months tiles to 1,132 MB with a 375 KB world tile —
+past GitHub's 100 MB file cap, and a world tile every visitor downloads before
+seeing anything. 112M features need ~10 GB of tippecanoe scratch, and tippecanoe
+ignores `TMPDIR`; it needs `--temporary-directory` explicitly. Any 28 KB
+`climate_trace.pmtiles` is a truncated husk — delete it, because
+`addPmtilesLayer`'s HEAD check will accept it as real.
+
+So: the current month ships in the repo at ~95 MB, and the past ships per year
+on R2, off by default, through the layer group described below.
+
+**Layer groups are built and tested, and dormant until R2 has archives.**
+`CT_HISTORY_YEARS` in `map/app.js` is an empty array. Add `"2024"` when
+`climate_trace_2024.pmtiles` is on R2 and the group appears; with no years the
+parent row is not rendered at all. Per year rather than one history file because
+PMTiles loads a header and index per archive, so one multi-gigabyte file makes
+every reader pay for an index spanning all years, an unticked year costs nothing,
+one year tiles successfully where all years exceed a runner's disk, and a
+finished year never needs rebuilding.
+
+Three things in it worth not undoing:
+
+- **Lazy.** A year's source and layers are created on first tick, in
+  `ensureLayer()`. Nothing is fetched for an unopened year. A failure clears the
+  created flag so a slow R2 response does not kill the row for the session.
+- **Tri-state parent.** `syncGroupBox()` sets `indeterminate` for partial
+  selection. A parent reading "on" while two of six children show is the same
+  failure as a cluster popup inheriting one member's name: the control states
+  something the map does not show.
+- **Facet values come from the archive, not from `CT_MONTHS`.**
+  `learnFacetValues()` reads tippecanoe's recorded per-attribute values out of
+  the tile metadata, so a year archive offers its own twelve months. This is the
+  fix for both directions of the hardcoded-list problem: `CT_MONTHS` ends at
+  2026-06 while `refresh.yml` runs weekly, so a new month would be harvested and
+  never offered; and a 12-month build would make the constant offer 54 months
+  that render nothing. Note the metadata path is UNVERIFIED — no archive exists
+  to read yet. On failure it logs and the declared list stands.
+
 **EPA CAFO — CLOSED, the table is gone.** The route was written against
 `V_ICIS_FACILITY_CAFO`, a name taken from EPA's metadata pages because those
 pages disallow automated access. It has now been tested against both live
