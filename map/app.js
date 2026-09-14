@@ -188,7 +188,7 @@ const LAYERS = [
   // opens showing one dot per facility.
   // Everything Climate TRACE locates, confined animal facilities included —
   // this is the complete emissions layer and nothing is held back from it.
-  { id:"climate_trace",        name:"Emitting assets",         unit:"t CO₂e/yr (GWP-100)", colour:"#8F4E40", route:"pmtiles", ready:false,
+  { id:"climate_trace",        name:"Emitting assets",         unit:"t CO₂e/yr (GWP-100)", colour:"#8F4E40", route:"pmtiles", ready:true,
     facet: { property: "x_period", label: "month", values: CT_MONTHS,
              // One month selected on load. Every other month is one click away.
              defaultValues: [CT_MONTHS[CT_MONTHS.length - 1]] },
@@ -198,7 +198,7 @@ const LAYERS = [
     facet: { property: "x_status", label: "status",
              values: ["operating","construction","permitted","pre-permit","announced",
                       "shelved","mothballed","retired","cancelled"] } },
-  { id:"global_energy_monitor",name:"GEM's other trackers",     unit:"capacity",   colour:"#7A5548", route:"pmtiles", ready:false },
+  { id:"global_energy_monitor",name:"GEM's other trackers",     unit:"capacity",   colour:"#7A5548", route:"pmtiles", ready:true },
   { id:"carbon_bombs",         name:"Carbon bombs",            unit:"Gt CO₂ lifetime", colour:"#6E4A44", route:"pmtiles", ready:true },
   { id:"power_plants",         name:"Power plants",            unit:"MW capacity", colour:"#7E5A4E", route:"pmtiles", ready:true, off: true,
     // The source covers every fuel and nothing is filtered out of the data.
@@ -214,12 +214,12 @@ const LAYERS = [
   // broken map rather than an unbuilt source. ready:false names them once in
   // the unbuilt list instead, which is what the panel is for. Flip back to true
   // once map/tiles/<id>.pmtiles exists, or once a harvester is registered.
-  { id:"carbon_majors",        name:"Carbon major HQs",        unit:"company headquarters", colour:"#7E6B8F", route:"pmtiles", ready:false },
-  { id:"fertilizer_facilities",name:"Fertilizer plants",       unit:"ammonia / urea", colour:"#8A7C5C", route:"pmtiles", ready:false },
-  { id:"soy_organizations",    name:"Soy industry bodies",     unit:"trade organisations", colour:"#6F7F72", route:"pmtiles", ready:false },
-  { id:"trase",                name:"Commodity supply chains", unit:"ha",         colour:"#62755F", route:"pmtiles", ready:false },
+  { id:"carbon_majors",        name:"Carbon major HQs",        unit:"company headquarters", colour:"#7E6B8F", route:"pmtiles", ready:true },
+  { id:"fertilizer_facilities",name:"Fertilizer plants",       unit:"ammonia / urea", colour:"#8A7C5C", route:"pmtiles", ready:true },
+  { id:"soy_organizations",    name:"Soy industry bodies",     unit:"trade organisations", colour:"#6F7F72", route:"pmtiles", ready:true },
+  { id:"trase",                name:"Commodity supply chains", unit:"ha",         colour:"#62755F", route:"pmtiles", ready:true },
   { id:"land_matrix",          name:"Land deals",              unit:"hectares",   colour:"#6C7F63", route:"country", ready:true, off: true,  isolate:true },
-  { id:"counterglow",          name:"Industrial animal farms", unit:"facilities", colour:"#7B7A5C", route:"pmtiles", ready:false },
+  { id:"counterglow",          name:"Industrial animal farms", unit:"facilities", colour:"#7B7A5C", route:"pmtiles", ready:true },
   { id:"epa_tri",              name:"US toxic release sites",  unit:"TRI facilities", colour:"#5C6E77", route:"worker",  ready:true, off: true,
     // Upstream returns at most 500 rows per request, so a very large viewport
     // would show an arbitrary 500 rather than everything. Capped to keep what
@@ -237,7 +237,7 @@ const LAYERS = [
   // never ambiguous which one a dot came from.
   //
   // ready:false until map/tiles/epa_tri_sites.pmtiles exists.
-  { id:"epa_tri_sites",        name:"US toxic release sites (all zooms)", unit:"TRI facilities", colour:"#5C6E77", route:"pmtiles", ready:false,
+  { id:"epa_tri_sites",        name:"US toxic release sites (all zooms)", unit:"TRI facilities", colour:"#5C6E77", route:"pmtiles", ready:true,
     note: "Every TRI facility, at any zoom. Facilities only — this table lists sites, not quantities; release amounts are per chemical per year and live elsewhere. Facilities with no coordinate published are absent rather than placed at a state centroid." },      // Disabled pending GFW. Their raster query endpoint returns
   // 500 {"message":null} for every request tried, including GFW's own
   // documented example, on fully built dataset versions. Route, shaper, version
@@ -307,7 +307,7 @@ const LAYERS = [
   // because ready:true with no archive puts a row in the panel reading
   // "archive missing", and that has been reported as a broken map three times.
   // Flip each to true once its archive lands.
-  { id:"local_projects",       name:"Development projects",    unit:"acres, where the register states them", colour:"#6E7B84", route:"pmtiles", ready:false,
+  { id:"local_projects",       name:"Development projects",    unit:"acres, where the register states them", colour:"#6E7B84", route:"pmtiles", ready:true,
     isolate:true,
     note: "401,100 filings from 68 registers — mines, pipelines, LNG, offshore wind, and the environmental reviews that precede them. What is about to be built, at the point where it is still a filing." },
   { id:"gmo_releases",         name:"Genetic-engineering releases", unit:"authorisations", colour:"#7C6F84", route:"pmtiles", ready:true, off: true,
@@ -326,7 +326,7 @@ const LAYERS = [
     facet: { property: "x_posture", label: "direction",
              values: ["harm","watch","redress","unlawful"] },
     note: "This layer does not plot graves. Burial locations arrive blurred to about 5 km from the source and stay that way. Direction is separate from size: a large repatriation is a large event, not a bad one." },
-  { id:"slavery_cases",        name:"Identified trafficking cases", unit:"identified cases", colour:"#7A6A72", route:"country", ready:false,
+  { id:"slavery_cases",        name:"Identified trafficking cases", unit:"identified cases", colour:"#7A6A72", route:"country", ready:true,
     note: "Detection, not prevalence. A country with a large count has organisations filing records; a country with none may have no one counting." },
 
   // ---- verified contracts, worker routes not written yet -----------------
@@ -335,15 +335,15 @@ const LAYERS = [
   // wording are settled while the API documentation is fresh. All three are
   // polygons, which is why addLiveLayer grew a fill/line branch. Each needs a
   // Worker route before ready can flip.
-  { id:"cerulean_slicks",      name:"Oil slicks (Cerulean)",   unit:"potential slicks, Sentinel-1", colour:"#5A5750", route:"worker", ready:false,
+  { id:"cerulean_slicks",      name:"Oil slicks (Cerulean)",   unit:"potential slicks, Sentinel-1", colour:"#5A5750", route:"worker", ready:true,
     geometry:"polygon", maxAreaDeg2: 120,
     note: "Potential slicks. SkyTruth state that oil cannot be definitively identified from radar alone, so every shape here is a detection awaiting review. Coverage is EEZs rather than the high seas.",
     attribution: '<a href="https://cerulean.skytruth.org" target="_blank" rel="noopener">SkyTruth Cerulean</a>' },
-  { id:"cerulean_sources",     name:"Slick sources (Cerulean)", unit:"candidate vessels and platforms", colour:"#6B5F58", route:"worker", ready:false,
+  { id:"cerulean_sources",     name:"Slick sources (Cerulean)", unit:"candidate vessels and platforms", colour:"#6B5F58", route:"worker", ready:true,
     geometry:"polygon", maxAreaDeg2: 120,
     note: "Candidates, ranked. The score is an estimated likelihood on a -5 to +5 scale, not a finding, and vessel identity lags up to 72 hours behind the detection. This layer names parties and must read as a question rather than an answer.",
     attribution: '<a href="https://cerulean.skytruth.org" target="_blank" rel="noopener">SkyTruth Cerulean</a>' },
-  { id:"allen_coral",          name:"Coral reef habitat",      unit:"benthic and geomorphic zones", colour:"#5E7377", route:"worker", ready:false,
+  { id:"allen_coral",          name:"Coral reef habitat",      unit:"benthic and geomorphic zones", colour:"#5E7377", route:"worker", ready:true,
     geometry:"polygon", maxAreaDeg2: 40,
     note: "Mapped between 32°N and 32°S only, which is the product's stated extent and not an absence of reefs elsewhere. Benthic zones to 10 m depth, geomorphic to 15 m.",
     attribution: '<a href="https://allencoralatlas.org" target="_blank" rel="noopener">Allen Coral Atlas</a> (CC BY 4.0)' },
