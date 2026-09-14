@@ -35,6 +35,147 @@ const CT_MONTHS = (() => {
   return out;
 })();
 
+// Climate TRACE history, as a group of per-year archives.
+//
+// One month tiles to about 95 MB and fits in the repo. Twelve months measured
+// 1,132 MB with a 375 KB world tile — past GitHub's 100 MB file cap, and a
+// world tile every visitor downloads before seeing anything. So the current
+// month ships in the repo and the past ships per year, off by default, on R2.
+//
+// PER YEAR RATHER THAN ONE HISTORY FILE
+// PMTiles fetches tiles by range request, but the header and index load per
+// archive. One multi-gigabyte history makes every reader pay for an index
+// spanning all years; per year they pay for the year they opened. An unticked
+// year costs nothing, because the file is never requested. And a finished year
+// is finished — 2024 never needs rebuilding.
+//
+// EMPTY UNTIL THE ARCHIVES EXIST
+// Add "2024" here when culprits-tiles/climate_trace_2024.pmtiles is on R2, and
+// the group appears. With no years the parent row is not rendered at all,
+// rather than offering toggles that 404 — an archive-missing row reads as a
+// broken map, which is the same reason unbuilt sources are named at the bottom
+// instead of listed as dead checkboxes.
+const CT_HISTORY_BASE = "https://tiles.welcometoyourgalaxy.com";
+const CT_HISTORY_YEARS = [];
+
+// Climate TRACE, split across three groups and three repos.
+//
+// One month is 1,696,198 features. As a single archive it tiled to ~475 MB,
+// past GitHub's 100 MiB file cap; split by sector, agriculture (233 MB) and
+// forestry (121 MB) were still over, so those two are split again by subsector.
+// That yields 26 archives, none above 96 MiB.
+//
+// THREE REPOS, BECAUSE A PAGES SITE IS CAPPED AT 1 GB
+// The six small sectors stay here (~345 MB). Agriculture's nine (~563 MB) and
+// forestry's eleven (~523 MB) each get their own repo and their own Pages site.
+// Verified before building on it: GitHub Pages returns
+// access-control-allow-origin: * and accept-ranges: bytes, and answers a range
+// request with 206 — which is all PMTiles needs. No object store, no account,
+// no proxy in front of every tile.
+//
+// THREE GROUPS RATHER THAN ONE
+// 26 checkboxes under a single parent is not a list anyone reads. Split into
+// three siblings, each is scannable, and it states something true: at this
+// granularity agriculture and forestry are their own subjects, not two entries
+// in a sector list.
+const CT_AG_BASE  = "https://welcometoyourgalaxy.github.io/culprits-tiles-ag";
+const CT_FLU_BASE = "https://welcometoyourgalaxy.github.io/culprits-tiles-flu";
+
+// Shared shape. `base` null means the archive is in this repo, so addPmtilesLayer
+// resolves it against TILE_BASE as every other layer does.
+function ctChild(id, label, base) {
+  return {
+    id,
+    name: label,
+    unit: "t CO\u2082e/yr (GWP-100)",
+    colour: "#8F4E40",
+    route: "pmtiles",
+    ready: true,
+    lazy: true,
+    archiveUrl: base ? `${base}/tiles/${id}.pmtiles` : null,
+    // Learned from each archive's own metadata rather than from CT_MONTHS:
+    // a month archive holds one month and the shared constant holds 66.
+    facet: { property: "x_period", label: "month", values: [] },
+  };
+}
+
+const CT_SECTORS = {
+  id: "climate_trace_sectors",
+  name: "Climate TRACE — emitting assets",
+  group: true,
+  ready: true,
+  children: [
+    ["climate_trace_power", "power"],
+    ["climate_trace_fossil_fuel_operations", "fossil fuel operations"],
+    ["climate_trace_manufacturing", "manufacturing"],
+    ["climate_trace_transportation", "transportation"],
+    ["climate_trace_buildings", "buildings"],
+    ["climate_trace_waste", "waste"],
+  ].map(([id, label]) => ctChild(id, label, null)),
+};
+
+const CT_AGRICULTURE = {
+  id: "climate_trace_agriculture",
+  name: "Climate TRACE — agriculture",
+  group: true,
+  ready: true,
+  children: [
+    ["climate_trace_ag_enteric_fermentation_cattle_operation", "enteric fermentation, cattle operations"],
+    ["climate_trace_ag_manure_management_cattle_operation", "manure management, cattle operations"],
+    ["climate_trace_ag_enteric_fermentation_cattle_pasture", "enteric fermentation, pasture"],
+    ["climate_trace_ag_manure_left_on_pasture_cattle", "manure left on pasture"],
+    ["climate_trace_ag_manure_applied_to_soils", "manure applied to soils"],
+    ["climate_trace_ag_synthetic_fertilizer_application", "synthetic fertiliser"],
+    ["climate_trace_ag_rice_cultivation", "rice cultivation"],
+    ["climate_trace_ag_cropland_fires", "cropland fires"],
+    ["climate_trace_ag_crop_residues", "crop residues"],
+  ].map(([id, label]) => ctChild(id, label, CT_AG_BASE)),
+};
+
+const CT_FORESTRY = {
+  id: "climate_trace_forestry",
+  name: "Climate TRACE — forestry and land use",
+  group: true,
+  ready: true,
+  children: [
+    ["climate_trace_flu_forest_land_clearing", "forest land clearing"],
+    ["climate_trace_flu_forest_land_degradation", "forest land degradation"],
+    ["climate_trace_flu_forest_land_fires", "forest land fires"],
+    ["climate_trace_flu_shrubgrass_fires", "shrub and grass fires"],
+    ["climate_trace_flu_wetland_fires", "wetland fires"],
+    ["climate_trace_flu_net_forest_land", "net forest land"],
+    ["climate_trace_flu_net_shrubgrass", "net shrub and grass"],
+    ["climate_trace_flu_net_wetland", "net wetland"],
+    ["climate_trace_flu_net_soil_organic_carbon", "net soil organic carbon"],
+    ["climate_trace_flu_removals", "removals"],
+    ["climate_trace_flu_water_reservoirs", "water reservoirs"],
+  ].map(([id, label]) => ctChild(id, label, CT_FLU_BASE)),
+};
+
+const CT_HISTORY = {
+  id: "ct_history",
+  name: "Historical",
+  group: true,
+  ready: true,
+  children: CT_HISTORY_YEARS.map((y) => ({
+    id: `climate_trace_${y}`,
+    name: String(y),
+    unit: "t CO\u2082e/yr (GWP-100)",
+    colour: "#8F4E40",
+    route: "pmtiles",
+    ready: true,
+    // Not created at load. The source and its layers are added the first time
+    // the box is ticked, so ten unopened years cost ten zero requests.
+    lazy: true,
+    archiveUrl: `${CT_HISTORY_BASE}/climate_trace_${y}.pmtiles`,
+    // Months come from the archive's own metadata, not from CT_MONTHS. A year
+    // archive holds twelve months and the shared constant holds sixty-six, so
+    // using the constant would offer fifty-four months that render nothing.
+    facet: { property: "x_period", label: "month", values: [] },
+    note: `Climate TRACE emissions for ${y}, monthly.`,
+  })),
+};
+
 const LAYERS = [
   { id:"owid_co2",             name:"National CO₂ emissions", unit:"Mt CO₂/yr", colour:"#8A5750", route:"country", ready:true },
   // Every row is ONE MONTH for one source, not one facility: 2021-01 through
@@ -64,12 +205,22 @@ const LAYERS = [
   //
   // Modelled, not registered — see the note. A point here is Climate TRACE's
   // estimate that a facility exists, not a permit or an inspection.
-  { id:"climate_trace_cafo",   name:"Confined animal facilities (global)", unit:"locations", colour:"#7B6A4E", route:"pmtiles", ready:false,
-    sourceOf: "climate_trace",
+  { id:"climate_trace_cafo",   name:"Confined animal facilities (global)", unit:"locations", colour:"#7B6A4E", route:"pmtiles", ready:true,
+    // The definition lives in the enteric-fermentation archive — confirmed
+    // against the data, not guessed from the name. It appears in
+    // manure-management too (the same 285,517 facilities, a second process),
+    // so drawing from one archive rather than both avoids plotting every
+    // facility twice.
+    sourceOf: "climate_trace_ag_enteric_fermentation_cattle_operation",
+    // That archive is in the agriculture repo, so the URL travels with the
+    // layer. Without this it would be looked for in this repo and 404.
+    archiveUrl: `${CT_AG_BASE}/tiles/climate_trace_ag_enteric_fermentation_cattle_operation.pmtiles`,
     where: ["==", ["get", "x_asset_definition"], "confined-animal-facility"],
     uniformRadius: true,
-    facet: { property: "x_period", label: "month", values: CT_MONTHS,
-             defaultValues: [CT_MONTHS[CT_MONTHS.length - 1]] },
+    // Empty so the months are read from the archive. CT_MONTHS lists all 66;
+    // this archive holds one, and offering 65 that render nothing looks like a
+    // broken layer.
+    facet: { property: "x_period", label: "month", values: [] },
     note: "Locations only — dots are one size and do not encode emissions. Modelled by Climate TRACE from satellite and census data, not a permit register: a point here has not necessarily been inspected or licensed." },
   { id:"gem_coal",             name:"Coal plant units",        unit:"MW capacity", colour:"#7A5548", route:"pmtiles", ready:true,
     facet: { property: "x_status", label: "status",
@@ -319,12 +470,62 @@ map.addControl(new maplibregl.ScaleControl({ maxWidth: 110, unit: "metric" }), "
 
 /* ---------- pre-tiled layers ---------- */
 
+// Read a facet's values out of the archive rather than declaring them.
+//
+// tippecanoe writes per-attribute value lists into the tile metadata, so the
+// months an archive actually holds are recorded in the file. Reading them means
+// a facet can never offer a month the archive lacks, or omit one it gained —
+// the two ways a hardcoded CT_MONTHS goes wrong, in opposite directions, as
+// soon as the build granularity or the publishing schedule changes.
+//
+// The instance is registered with the same protocol the map uses, so this costs
+// no second header fetch.
+async function learnFacetValues(cfg, url) {
+  try {
+    const archive = new pmtiles.PMTiles(url);
+    protocol.add(archive);
+    const md = await archive.getMetadata();
+    const values = facetValuesFrom(md, cfg.facet.property);
+    if (!values.length) throw new Error("no recorded values for " + cfg.facet.property);
+    cfg.facet.values = values;
+    refreshFacetRow(cfg);
+  } catch (e) {
+    console.warn(`[culprits] ${cfg.id}: could not read facet values from the ` +
+                 `archive (${e.message}). The declared list stands.`);
+  }
+}
+
+// tippecanoe has written this in more than one shape across versions: a
+// top-level `tilestats`, or a `json` key holding either a string or an object.
+// All three are tried rather than assuming the one this build happens to emit.
+function facetValuesFrom(md, property) {
+  if (!md) return [];
+  let stats = md.tilestats;
+  if (!stats && md.json) {
+    try {
+      const j = typeof md.json === "string" ? JSON.parse(md.json) : md.json;
+      stats = j.tilestats;
+    } catch (_) { /* not JSON; fall through to the empty list */ }
+  }
+  const layers = (stats && stats.layers) || [];
+  const out = new Set();
+  for (const layer of layers) {
+    for (const attr of layer.attributes || []) {
+      if (attr.attribute !== property) continue;
+      for (const v of attr.values || []) out.add(String(v));
+    }
+  }
+  return [...out].sort();
+}
+
 async function addPmtilesLayer(cfg) {
   // A layer may draw from another layer's archive — see climate_trace_cafo.
   // The source and source-layer keep the OWNER's id; only the map layers and
   // the filter belong to this one.
   const owner = cfg.sourceOf || cfg.id;
-  const url = `${TILE_BASE}/${owner}.pmtiles`;
+  // History years live on R2, not in the repo, so a layer may name its own
+  // archive. Everything else resolves against the repo's tiles directory.
+  const url = cfg.archiveUrl || `${TILE_BASE}/${owner}.pmtiles`;
   try {
     const head = await fetch(url, { method: "HEAD" });
     if (!head.ok) throw new Error(`${head.status} at ${url}`);
@@ -338,6 +539,14 @@ async function addPmtilesLayer(cfg) {
   // Added once; a second layer over the same archive reuses it.
   if (!map.getSource(src)) {
     map.addSource(src, { type: "vector", url: `pmtiles://${url}` });
+    // An archive that declares its own facet values is asked for them, so a
+    // year archive offers its twelve months rather than the shared list's
+    // sixty-six. Failure here is not fatal: the declared list stands and the
+    // reason is logged, because a facet that silently empties looks like a
+    // layer with no data.
+    if (cfg.facet && Array.isArray(cfg.facet.values) && cfg.facet.values.length === 0) {
+      learnFacetValues(cfg, url);
+    }
   }
 
   // Aggregate view. tippecanoe summed `value` into the clustered features, so
@@ -898,10 +1107,112 @@ function applyFacet(cfg) {
 function facetRow(cfg) {
   const box = document.createElement("div");
   box.className = "facet";
+  box.dataset.for = cfg.id;
   box.innerHTML = cfg.facet.values
     .map((v) => `<button class="chip" data-facet="${cfg.id}" data-value="${v}">${v}</button>`)
     .join("") + `<button class="chip reset" data-facet="${cfg.id}" data-value="">all</button>`;
   return box;
+}
+
+// Build the parent row and its nested children.
+function groupRows(group) {
+  const wrap = document.createElement("div");
+  wrap.className = "group";
+  const parent = document.createElement("label");
+  parent.className = "layer";
+  parent.innerHTML =
+    `<input type="checkbox" data-group="${group.id}">` +
+    `<span class="swatch" style="background:${group.children[0].colour}"></span>` +
+    `<span class="body"><span class="nm">${group.name}</span>` +
+    `<span class="un" data-state="${group.id}">` +
+    `${group.children.length} year archives, loaded on demand</span></span>`;
+  wrap.appendChild(parent);
+
+  group.children.forEach((child) => {
+    const row = document.createElement("label");
+    row.className = "layer child";
+    row.innerHTML =
+      `<input type="checkbox" data-layer="${child.id}">` +
+      `<span class="swatch" style="background:${child.colour}"></span>` +
+      `<span class="body"><span class="nm">${child.name}</span>` +
+      `<span class="un" data-state="${child.id}">not loaded</span></span>`;
+    wrap.appendChild(row);
+  });
+  return wrap;
+}
+
+// none / some / all. A checkbox that reads "on" while two of six children are
+// showing is the same failure as a cluster popup inheriting one member's name:
+// the control states something the map does not show. `indeterminate` is the
+// only honest rendering of partial, so it is used rather than approximated.
+function syncGroupBox(box, group) {
+  for (const g of (group ? [group] : GROUPS)) {
+    const parent = box.querySelector(`[data-group="${g.id}"]`);
+    if (!parent) continue;
+    const on = g.children.filter(
+      (c) => (visibility.get(c.id) || "none") === "visible").length;
+    parent.checked = on === g.children.length && on > 0;
+    parent.indeterminate = on > 0 && on < g.children.length;
+    const el = box.querySelector(`[data-state="${g.id}"]`);
+    if (el) {
+      el.textContent = on === 0
+        ? `${g.children.length} archives, loaded on demand`
+        : `${on} of ${g.children.length} showing`;
+    }
+  }
+}
+
+// Every group, in panel order. A child id is looked up across all of them, so
+// adding a group needs no change to the toggle handler.
+const GROUPS = [CT_SECTORS, CT_AGRICULTURE, CT_FORESTRY, CT_HISTORY];
+function childById(id) {
+  for (const g of GROUPS) {
+    const hit = g.children.find((c) => c.id === id);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+// Create a lazy layer once, on first tick. Repeat ticks are a no-op, and a
+// failure marks the row rather than throwing into the change handler, where an
+// unhandled rejection would leave the box ticked and nothing on the map.
+const created = new Set();
+function ensureLayer(cfg) {
+  if (created.has(cfg.id)) return;
+  created.add(cfg.id);
+  setLayerState(cfg.id, "loading\u2026");
+  addPmtilesLayer(cfg)
+    .then(() => {
+      const box = document.getElementById("layers");
+      if (cfg.facet) {
+        const existing = box.querySelector(`.facet[data-for="${cfg.id}"]`);
+        if (!existing && cfg.facet.values.length) {
+          const row = box.querySelector(`[data-layer="${cfg.id}"]`).closest("label");
+          row.after(facetRow(cfg));
+        }
+      }
+      applyVisibility(cfg.id);
+    })
+    .catch((e) => {
+      // Let it be retried: a year that failed once because R2 was slow should
+      // not be permanently dead for the rest of the session.
+      created.delete(cfg.id);
+      setLayerState(cfg.id, `failed (${e.message})`);
+    });
+}
+
+// Replace a facet row in place once its values are known. Built before the
+// archive answers, so the first render can be empty and this fills it.
+function refreshFacetRow(cfg) {
+  const box = document.getElementById("layers");
+  if (!box) return;
+  const old = box.querySelector(`.facet[data-for="${cfg.id}"]`);
+  const fresh = facetRow(cfg);
+  if (old) old.replaceWith(fresh);
+  else {
+    const cb = box.querySelector(`[data-layer="${cfg.id}"]`);
+    if (cb) cb.closest("label").after(fresh);
+  }
 }
 
 function buildPanel() {
@@ -926,6 +1237,12 @@ function buildPanel() {
     box.appendChild(row);
     if (cfg.facet) box.appendChild(facetRow(cfg));
   });
+
+  // The group renders only if it has children. With no year archives on R2 the
+  // parent is absent entirely rather than an empty disclosure that opens onto
+  // nothing.
+  GROUPS.filter((g) => g.children.length)
+        .forEach((g) => box.appendChild(groupRows(g)));
 
   const pending = LAYERS.filter((c) => !c.ready);
   if (pending.length) {
@@ -957,12 +1274,37 @@ function buildPanel() {
   });
 
   box.addEventListener("change", (e) => {
+    // The group parent ticks and unticks every child, then falls through to
+    // the per-child handling below by dispatching nothing — each child's state
+    // is set directly here so one click does not fire six change events.
+    if (e.target.dataset.group) {
+      const group = GROUPS.find((g) => g.id === e.target.dataset.group);
+      if (!group) return;
+      const on = e.target.checked;
+      group.children.forEach((child) => {
+        const cb = box.querySelector(`[data-layer="${child.id}"]`);
+        if (cb) cb.checked = on;
+        visibility.set(child.id, on ? "visible" : "none");
+        if (on) ensureLayer(child);
+        applyVisibility(child.id);
+      });
+      syncGroupBox(box, group);
+      return;
+    }
+
     const id = e.target.dataset.layer;
     if (!id) return;
     // Remembered, because layers load asynchronously: a toggle flipped before
     // its archive arrives would otherwise be lost and the layer would appear.
     visibility.set(id, e.target.checked ? "visible" : "none");
+    // Lazy layers do not exist until now. Created on the first tick, so an
+    // unopened year costs no header fetch, no index read and no tile request.
+    if (e.target.checked) {
+      const child = childById(id);
+      if (child) ensureLayer(child);
+    }
     applyVisibility(id);
+    syncGroupBox(box);
   });
 
   document.getElementById("note").textContent =

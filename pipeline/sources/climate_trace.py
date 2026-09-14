@@ -215,6 +215,31 @@ def _download(url, dest):
     return total
 
 
+def _year_of(ts):
+    """Leading year from an ISO timestamp, or None."""
+    if not ts or len(str(ts)) < 4:
+        return None
+    try:
+        return int(str(ts)[:4])
+    except ValueError:
+        return None
+
+
+def _period_label(start, end):
+    """A short label for one row's reporting period, e.g. "2024" or "2024-03".
+
+    Kept as a string rather than a date so it can drive a panel facet directly.
+    """
+    if not start:
+        return None
+    s = str(start)
+    e = str(end or "")
+    # A whole calendar year reads better as the year alone.
+    if s[5:10] == "01-01" and e[5:10] in ("12-31", "01-01"):
+        return s[:4]
+    return s[:7] if len(s) >= 7 else s[:4]
+
+
 def _pick(row, *candidates):
     """Column names have shifted across releases; try each in turn."""
     for c in candidates:
@@ -365,6 +390,9 @@ def fetch():
                 except ValueError:
                     value = 0.0
 
+                start = _pick(row, "start_time", "start_date")
+                end = _pick(row, "end_time", "end_date")
+
                 sector = _pick(row, "sector") or sector_name
                 subsector = _pick(row, "subsector") or ""
                 definition = definitions.get((sector.lower(), subsector.lower()), "")
@@ -382,12 +410,24 @@ def fetch():
                     "lat": lat,
                     "value": value,
                     "unit": "t CO₂e/yr (GWP-100)",
-                    "year": int(_pick(row, "year") or 0) or None,
+                    # Climate TRACE has no "year" column — it has start_time and
+                    # end_time, and every row is one PERIOD for one source. The
+                    # first version looked for "year", found nothing, and wrote
+                    # null, which hid the fact that a single confined-animal
+                    # facility appears 66 times. Without the period, 66 identical
+                    # dots stack on one point and no popup can say which span it
+                    # is showing.
+                    "year": _year_of(start),
                     "url": None,
                     "extra": {
                         # normalize namespaces these to x_*, and the map reads
                         # x_precision to render non-facilities hollow.
                         "precision": precision,
+                        # Carried so the map can facet by period rather than
+                        # stacking every period on one point.
+                        "start_time": start,
+                        "end_time": end,
+                        "period": _period_label(start, end),
                         "sector": sector,
                         "subsector": subsector,
                         "asset_definition": definition or None,

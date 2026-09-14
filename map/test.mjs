@@ -110,9 +110,23 @@ function run({ layersReady = null, fetchImpl = null } = {}) {
       _listeners: {},
       addEventListener(ev, fn) { (this._listeners[ev] ||= []).push(fn); },
       fire(ev, arg) { (this._listeners[ev] || []).forEach((fn) => fn(arg)); },
+      // The panel queries itself for group and layer checkboxes. Returning
+      // nothing is the honest stub answer — no rows are rendered here — but it
+      // has to be a function, or the group code throws where a browser would
+      // simply find no match.
+      querySelector: () => null, querySelectorAll: () => [],
+      dataset: {}, after() {}, replaceWith() {}, closest: () => null,
     }), els.get(id)),
     querySelector: () => ({ textContent: "" }),
-    createElement: () => ({ className: "", innerHTML: "", appendChild() {} }),
+    // Closer to a real element than it was: the layer panel now builds nested
+    // group rows, reads data-* attributes and inserts facet rows after a
+    // checkbox, so a stub with only className and innerHTML made app.js look
+    // broken when it was the harness that was thin.
+    createElement: () => ({
+      className: "", innerHTML: "", dataset: {},
+      appendChild() {}, after() {}, replaceWith() {},
+      closest: () => null, querySelector: () => null, querySelectorAll: () => [],
+    }),
     addEventListener() {},
   };
   globalThis.maplibregl = {
@@ -515,6 +529,79 @@ console.log("\nmap wiring");
   // turn climate_trace_cafo back into every Climate TRACE source on first click.
   check("a facet is ANDed with the layer's `where`, not substituted for it",
         /\["all", cfg\.where, picked\]/.test(facet));
+}
+
+// --- layer groups ----------------------------------------------------------
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+
+  // With no year archives on R2 the group must not render at all. An empty
+  // disclosure, or rows that 404 on tick, read as a broken map.
+  check("a group renders only when it has children",
+        /GROUPS\.filter\(\(g\) => g\.children\.length\)/.test(src));
+  // Two groups now share one set of functions. A child id must resolve across
+  // all of them, or ticking a sector would look up only the history years and
+  // silently create nothing.
+  check("child lookup spans every group", /function childById[\s\S]*?for \(const g of GROUPS\)/.test(src));
+  check("the toggle handler resolves which group was clicked",
+        /GROUPS\.find\(\(g\) => g\.id === e\.target\.dataset\.group\)/.test(src));
+
+  // Lazy means lazy: nothing about a year is fetched until it is ticked.
+  check("year children are marked lazy", /lazy: true/.test(src));
+  const load = (src.match(/map\.on\("load"[\s\S]*?buildPanel\(\)/) || [])[0] || "";
+  check("no year archive is created at load",
+        !/CT_HISTORY/.test(load), "the load handler must not touch the group");
+
+  const ensure = (src.match(/function ensureLayer[\s\S]*?\n}/) || [])[0] || "";
+  check("ensureLayer creates each year only once", /created\.has/.test(ensure));
+  check("a failed year can be retried", /created\.delete/.test(ensure),
+        "a slow R2 response must not kill the row for the session");
+
+  // Partial selection must not read as "all on".
+  const sync = (src.match(/function syncGroupBox[\s\S]*?\n}/) || [])[0] || "";
+  check("the parent reports partial selection as indeterminate",
+        /indeterminate = on > 0 && on < /.test(sync));
+  check("the parent is only checked when every child is on",
+        /checked = on === g\.children\.length/.test(sync));
+
+  // A year archive holds 12 months; CT_MONTHS holds 66. Using the constant
+  // would offer 54 months that render nothing.
+  check("year facets start empty and are learned from the archive",
+        /facet: \{ property: "x_period", label: "month", values: \[\] \}/.test(src));
+  const learn = (src.match(/async function learnFacetValues[\s\S]*?\n}/) || [])[0] || "";
+  check("a metadata read failure leaves the declared list standing",
+        /catch[\s\S]*console\.warn/.test(learn));
+  check("history archives are addressed off their own base, not the repo",
+        /archiveUrl \|\| `\$\{TILE_BASE\}/.test(src));
+}
+
+// --- the Climate TRACE groups are actually wired ---------------------------
+//
+// A stale app.js passed the whole suite because nothing asserted the sector
+// groups exist. The archives are split across three repos and 26 children; if
+// any of that is missing the map silently offers fewer layers than were built.
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const count = (re) => (src.match(re) || []).length;
+
+  check("the agriculture repo base is declared", /const CT_AG_BASE\s*=/.test(src));
+  check("the forestry repo base is declared", /const CT_FLU_BASE\s*=/.test(src));
+  check("all four groups are registered",
+        /GROUPS = \[CT_SECTORS, CT_AGRICULTURE, CT_FORESTRY, CT_HISTORY\]/.test(src));
+
+  check("six local sector archives", count(/"climate_trace_(?!ag_|flu_|sectors|cafo|agriculture|forestry)[a-z_]+"/g) >= 6);
+  check("nine agriculture subsector archives", count(/"climate_trace_ag_[a-z_]+"/g) >= 9);
+  check("eleven forestry subsector archives", count(/"climate_trace_flu_[a-z_]+"/g) >= 11);
+
+  // The CAFO layer shares an archive that lives in another repo. Without its
+  // own archiveUrl it would be looked for here and 404.
+  const cafo = (src.match(/id:"climate_trace_cafo"[\s\S]*?\},/) || [])[0] || "";
+  check("the CAFO layer names the archive that holds its definition",
+        /sourceOf: "climate_trace_ag_enteric_fermentation_cattle_operation"/.test(cafo));
+  check("the CAFO layer carries its own archive URL, being in another repo",
+        /archiveUrl: `\$\{CT_AG_BASE\}/.test(cafo));
+  check("the CAFO month facet is learned, not the 66-month constant",
+        /values: \[\]/.test(cafo), "CT_MONTHS would offer 65 months that render nothing");
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
