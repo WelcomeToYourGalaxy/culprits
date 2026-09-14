@@ -445,8 +445,27 @@ console.log("\nworker request handling");
         JSON.stringify(decoded));
   check("style uses the ramp /bins returned",
         decoded.ramp[8] === 8, JSON.stringify(decoded.ramp));
-  check("style carries no orange or yellow",
-        decoded.color[2] >= decoded.color[0], JSON.stringify(decoded.color));
+  // Was `blue >= red`, which is a proxy for "not warm" rather than a test for
+  // orange or yellow — it rejected this map's own clay and rust tones, and it
+  // forced the fishing heatmap to stay in the blues, which is exactly where it
+  // could not be seen against ocean. Now it measures the hue and rejects the
+  // 20-70 degree band, which is orange and yellow and nothing else.
+  {
+    const [r, g, b] = decoded.color;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let hue = 0;
+    if (max !== min) {
+      const d = max - min;
+      hue = max === r ? ((g - b) / d + (g < b ? 6 : 0))
+          : max === g ? ((b - r) / d + 2)
+          : ((r - g) / d + 4);
+      hue *= 60;
+    }
+    const saturated = (max - min) / (max || 1) > 0.15;
+    check("style carries no orange or yellow",
+          !(saturated && hue >= 20 && hue <= 70),
+          `${JSON.stringify(decoded.color)} is hue ${hue.toFixed(0)}`);
+  }
 
   // Unlike the bbox routes, tiles MUST stay cacheable in the browser: every
   // miss costs one request against both free-plan allowances.

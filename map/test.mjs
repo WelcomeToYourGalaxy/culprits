@@ -586,8 +586,8 @@ console.log("\nmap wiring");
 
   check("the agriculture repo base is declared", /const CT_AG_BASE\s*=/.test(src));
   check("the forestry repo base is declared", /const CT_FLU_BASE\s*=/.test(src));
-  check("all five groups are registered",
-        /GROUPS = \[CT_SECTORS, CT_AGRICULTURE, CT_FORESTRY, GLW_SPECIES, CT_HISTORY\]/.test(src));
+  check("all four groups are registered",
+        /GROUPS = \[CT_SECTORS, CT_AGRICULTURE, CT_FORESTRY, CT_HISTORY\]/.test(src));
 
   check("six local sector archives", count(/"climate_trace_(?!ag_|flu_|sectors|cafo|agriculture|forestry)[a-z_]+"/g) >= 6);
   check("nine agriculture subsector archives", count(/"climate_trace_ag_[a-z_]+"/g) >= 9);
@@ -635,8 +635,13 @@ console.log("\nmap wiring");
   check("ensureLayer dispatches by route",
         /cfg\.route === "wmts"/.test(ensure),
         "the livestock species are WMTS, not archives");
-  check("livestock is a group", /const GLW_SPECIES = \{[\s\S]*?group: true/.test(src));
-  check("livestock is registered in GROUPS", /GLW_SPECIES/.test(src.match(/const GROUPS = \[.*\]/)[0]));
+  check("the livestock layers are gone", !/GLW_SPECIES|glw_/.test(src));
+  // Most layers start off. Twenty-five point layers switched on at world zoom
+  // was not a map, it was a texture. Nothing is removed — every layer is one
+  // click away, and the opening view is a choropleth plus one point set.
+  check("the map opens with a legible number of layers",
+        (src.match(/ready:true(?!, off: true)/g) || []).length <= 3,
+        "more than three layers start visible");
   check("the CAFO locations layer is gone",
         !/id:"climate_trace_cafo"/.test(src));
 }
@@ -671,39 +676,6 @@ console.log("\nmap wiring");
         /"circle-radius": \[\s*\n?\s*"interpolate", \["linear"\], \["zoom"\]/.test(src));
   check("the magnitude expression is defined once, not copied per stop",
         (src.match(/const MAGNITUDE_RADIUS =/g) || []).length === 1);
-}
-
-// --- groups collapse, and collapsing is display-only ----------------------
-{
-  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  const rows = (src.match(/function groupRows[\s\S]*?\n}/) || [])[0] || "";
-  check("children start hidden", /kids\.hidden = true/.test(rows));
-  check("the parent carries a disclosure control", /data-disc=/.test(rows));
-
-  // Opening a group must not load anything, and loading must not require
-  // opening — so the triangle touches no layer state at all.
-  const tog = (src.match(/function toggleGroup[\s\S]*?\n}/) || [])[0] || "";
-  check("expanding a group creates no layer",
-        !/ensureLayer|addPmtilesLayer|applyVisibility|visibility\.set/.test(tog),
-        "the triangle must only show and hide rows");
-}
-
-// --- one archive instance per file, read after the map has drawn -----------
-//
-// learnFacetValues used to build its own PMTiles instance after addSource had
-// run, so every layer fetched the header and root directory twice and the
-// second pair competed with the tiles. This is purely about when requests
-// happen; no feature is affected either way.
-{
-  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  const add = (src.match(/if \(!map\.getSource\(src\)\)[\s\S]*?map\.addSource/) || [])[0] || "";
-  check("the archive is registered with the protocol before the source exists",
-        /protocol\.add\(archive\)/.test(add), "otherwise the map builds a second instance");
-  check("learnFacetValues is handed the instance, not a URL",
-        /async function learnFacetValues\(cfg, archive\)/.test(src));
-  check("the metadata read waits for the first idle",
-        /map\.once\("idle", \(\) => learnFacetValues/.test(src),
-        "tiles are what the reader is waiting for, not a panel row");
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

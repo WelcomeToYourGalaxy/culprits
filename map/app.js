@@ -194,13 +194,13 @@ const LAYERS = [
              defaultValues: [CT_MONTHS[CT_MONTHS.length - 1]] },
     note: "Monthly, 2021-01 to 2026-06. One month is shown at a time — pick others in the panel." },
 
-  { id:"gem_coal",             name:"Coal plant units",        unit:"MW capacity", colour:"#7A5548", route:"pmtiles", ready:true,
+  { id:"gem_coal",             name:"Coal plant units",        unit:"MW capacity", colour:"#7A5548", route:"pmtiles", ready:true, off: true,
     facet: { property: "x_status", label: "status",
              values: ["operating","construction","permitted","pre-permit","announced",
                       "shelved","mothballed","retired","cancelled"] } },
   { id:"global_energy_monitor",name:"GEM's other trackers",     unit:"capacity",   colour:"#7A5548", route:"pmtiles", ready:false },
   { id:"carbon_bombs",         name:"Carbon bombs",            unit:"Gt CO₂ lifetime", colour:"#6E4A44", route:"pmtiles", ready:true },
-  { id:"power_plants",         name:"Power plants",            unit:"MW capacity", colour:"#7E5A4E", route:"pmtiles", ready:true,
+  { id:"power_plants",         name:"Power plants",            unit:"MW capacity", colour:"#7E5A4E", route:"pmtiles", ready:true, off: true,
     // The source covers every fuel and nothing is filtered out of the data.
     // Filtering happens here instead, where it is visible and reversible.
     facet: { property: "x_fuel", label: "fuel",
@@ -218,9 +218,9 @@ const LAYERS = [
   { id:"fertilizer_facilities",name:"Fertilizer plants",       unit:"ammonia / urea", colour:"#8A7C5C", route:"pmtiles", ready:false },
   { id:"soy_organizations",    name:"Soy industry bodies",     unit:"trade organisations", colour:"#6F7F72", route:"pmtiles", ready:false },
   { id:"trase",                name:"Commodity supply chains", unit:"ha",         colour:"#62755F", route:"pmtiles", ready:false },
-  { id:"land_matrix",          name:"Land deals",              unit:"hectares",   colour:"#6C7F63", route:"country", ready:true,  isolate:true },
+  { id:"land_matrix",          name:"Land deals",              unit:"hectares",   colour:"#6C7F63", route:"country", ready:true, off: true,  isolate:true },
   { id:"counterglow",          name:"Industrial animal farms", unit:"facilities", colour:"#7B7A5C", route:"pmtiles", ready:false },
-  { id:"epa_tri",              name:"US toxic release sites",  unit:"TRI facilities", colour:"#5C6E77", route:"worker",  ready:true,
+  { id:"epa_tri",              name:"US toxic release sites",  unit:"TRI facilities", colour:"#5C6E77", route:"worker",  ready:true, off: true,
     // Upstream returns at most 500 rows per request, so a very large viewport
     // would show an arbitrary 500 rather than everything. Capped to keep what
     // is drawn honest rather than a truncated sample presented as complete.
@@ -264,20 +264,21 @@ const LAYERS = [
   // They are kept separate rather than merged because they detect different
   // things by different instruments, and a reader who sees an alert should be
   // able to tell which one saw it.
-  { id:"gfw",                  name:"Deforestation alerts — tropics",  unit:"GLAD + RADD, last 30 days", colour:"#55705E", route:"tile", ready:true,
+  { id:"gfw",                  name:"Deforestation alerts — tropics",  unit:"GLAD + RADD, last 30 days", colour:"#55705E", route:"tile", ready:true, off: true,
     tileMaxZoom: 22, tileQuery: "kind=integrated&days=30", off: true,
-    // GFW paint these blue. Rotated towards the muted green this map uses for
-    // forest loss, and desaturated so they sit on the imagery rather than on
-    // top of it. Turn the degrees if the hue is still wrong.
-    rasterAdjust: { "raster-hue-rotate": 100, "raster-saturation": -0.35 },
+    // GFW paint these blue. +100 landed on magenta, which places the source at
+    // roughly 210 degrees, so -90 is the rotation that reaches the muted green
+    // this map uses for forest loss. Measured off the wrong answer rather than
+    // guessed twice.
+    rasterAdjust: { "raster-hue-rotate": -90, "raster-saturation": -0.35 },
     note: "Pan-tropical only. GLAD and RADD do not cover boreal or temperate forest — use the global layers for those.",
     attribution: '<a href="https://www.globalforestwatch.org" target="_blank" rel="noopener">Global Forest Watch</a>' },
-  { id:"gfw_dist",             name:"Disturbance alerts — global",     unit:"DIST-ALERT, last 30 days", colour:"#6E7A55", route:"tile", ready:true,
+  { id:"gfw_dist",             name:"Disturbance alerts — global",     unit:"DIST-ALERT, last 30 days", colour:"#6E7A55", route:"tile", ready:true, off: true,
     tilePath: "gfw_tile", tileMaxZoom: 22, tileQuery: "kind=dist&days=30", off: true,
-    rasterAdjust: { "raster-hue-rotate": 100, "raster-saturation": -0.35 },
+    rasterAdjust: { "raster-hue-rotate": -90, "raster-saturation": -0.35 },
     note: "Global coverage, including boreal and temperate forest. Detects vegetation disturbance generally, so it catches fire and harvest as well as clearing.",
     attribution: '<a href="https://www.globalforestwatch.org" target="_blank" rel="noopener">Global Forest Watch</a>' },
-  { id:"gfw_dist_year",        name:"Disturbance alerts — past year",  unit:"DIST-ALERT, last 365 days", colour:"#7E6F4E", route:"tile", ready:true,
+  { id:"gfw_dist_year",        name:"Disturbance alerts — past year",  unit:"DIST-ALERT, last 365 days", colour:"#7E6F4E", route:"tile", ready:true, off: true,
     tilePath: "gfw_tile", tileMaxZoom: 22, tileQuery: "kind=dist&days=365", off: true,
     note: "The same global product over a twelve-month window, for seeing a season's cumulative loss rather than this month's.",
     attribution: '<a href="https://www.globalforestwatch.org" target="_blank" rel="noopener">Global Forest Watch</a>' },
@@ -293,7 +294,7 @@ const LAYERS = [
   // The 4Wings tile endpoint has no report queue, and fishing effort is a
   // continuous field rather than a set of sites, so a heatmap says what the
   // data actually is. Attribution is required by GFW's terms of use.
-  { id:"fishing",              name:"Fishing effort",          unit:"apparent fishing hours, 12 months", colour:"#9C96BE", route:"tile", ready:true,
+  { id:"fishing",              name:"Fishing effort",          unit:"apparent fishing hours, 12 months", colour:"#A8707E", route:"tile", ready:true, off: true,
     tileMaxZoom: 12,
     attribution: '<a href="https://globalfishingwatch.org" target="_blank" rel="noopener">Powered by Global Fishing Watch</a>' },
 
@@ -1231,48 +1232,7 @@ function syncGroupBox(box, group) {
 
 // Every group, in panel order. A child id is looked up across all of them, so
 // adding a group needs no change to the toggle handler.
-// Livestock density, as its own group.
-//
-// Six species, so six rows — the same reason the Climate TRACE sectors are
-// grouped rather than listed flat. Collapsed by default; opening it loads
-// nothing, since each species fetches only when its own box is ticked.
-//
-// A model, not an inventory: densities are downscaled from subnational census
-// data by random forest, so a bright cell means "the model puts animals here",
-// not "a farm is here".
-//
-// FAO's own caveat, repeated in each layer note: the data is lat/long, which
-// visually over-represents density at high latitudes because those pixels cover
-// less ground. Greenland and Siberia read hotter than they are.
-const GLW_SPECIES = {
-  id: "glw",
-  name: "Livestock density (modelled)",
-  group: true,
-  ready: true,
-  children: ["cattle:CTL:#6E5A44", "pigs:PGS:#7A5560", "chicken:CHK:#6B6A4A",
-             "buffalo:BFL:#5C5245", "goats:GTS:#6F6552", "sheep:SHP:#5F6659"]
-    .map((spec) => {
-      const [animal, code, colour] = spec.split(":");
-      return {
-        id: `glw_${animal}`,
-        name: animal,
-        unit: "head/km\u00B2 (modelled, 2020)",
-        colour,
-        route: "wmts",
-        ready: true,
-        lazy: true,
-        wmtsLayer: `fao-gismgr/GLW4-2020/mapsets/D-DA-${code}`,
-        note: "Modelled density downscaled from census data, not a facility " +
-              "register. FAO note that lat/long display over-represents high " +
-              "latitudes.",
-        attribution: '<a href="https://data.apps.fao.org/catalog/organization/' +
-                     'gridded-livestock-of-the-world-glw" target="_blank" ' +
-                     'rel="noopener">FAO Gridded Livestock of the World 4</a> (CC BY 4.0)',
-      };
-    }),
-};
-
-const GROUPS = [CT_SECTORS, CT_AGRICULTURE, CT_FORESTRY, GLW_SPECIES, CT_HISTORY];
+const GROUPS = [CT_SECTORS, CT_AGRICULTURE, CT_FORESTRY, CT_HISTORY];
 function childById(id) {
   for (const g of GROUPS) {
     const hit = g.children.find((c) => c.id === id);
