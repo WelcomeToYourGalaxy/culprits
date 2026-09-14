@@ -298,7 +298,23 @@ const TILE_CACHE_SECONDS = 86400;
 
 // The fishing layer's colour from map/app.js. GFW builds a ramp as a single
 // hue at nine alpha steps, so this one value is the entire palette.
-const FISHING_RGB = [79, 103, 115];
+//
+// WAS A BLUE-GREY, AND THEREFORE INVISIBLE. rgb(79,103,115) sat within a few
+// percent of the satellite basemap's open ocean, so the layer drew correctly
+// and could not be seen — the worst kind of failure, because everything
+// reports success. Fishing effort is almost entirely over water, so this
+// palette has to contrast with water specifically, not with land.
+//
+// A pale periwinkle. It separates from ocean by LIGHTNESS rather than by hue:
+// the imagery's water is dark and desaturated, so a light cool colour reads
+// over it where a dark one of any hue does not. A warm colour would separate
+// further, but the style guard here requires blue >= red — worth knowing that
+// the guard is stricter than "no orange or yellow" and rules out this map's
+// own clay and rust tones too.
+//
+// Keep in step with the `fishing` layer's colour in map/app.js: the same value
+// written twice, once for the heatmap and once for the panel swatch.
+const FISHING_RGB = [156, 150, 190];
 
 // Whole days, so the URL is identical for everyone and the cache can hold it.
 // The window ends four days back because the dataset itself stops 96 hours ago,

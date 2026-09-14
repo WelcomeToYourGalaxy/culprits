@@ -237,7 +237,7 @@ const LAYERS = [
   // never ambiguous which one a dot came from.
   //
   // ready:false until map/tiles/epa_tri_sites.pmtiles exists.
-  { id:"epa_tri_sites",        name:"US toxic release sites (all zooms)", unit:"TRI facilities", colour:"#5C6E77", route:"pmtiles", ready:true,
+  { id:"epa_tri_sites",        name:"US toxic release sites (all zooms)", unit:"TRI facilities", colour:"#5C6E77", route:"pmtiles", ready:false,
     note: "Every TRI facility, at any zoom. Facilities only — this table lists sites, not quantities; release amounts are per chemical per year and live elsewhere. Facilities with no coordinate published are absent rather than placed at a state centroid." },      // Disabled pending GFW. Their raster query endpoint returns
   // 500 {"message":null} for every request tried, including GFW's own
   // documented example, on fully built dataset versions. Route, shaper, version
@@ -266,10 +266,15 @@ const LAYERS = [
   // able to tell which one saw it.
   { id:"gfw",                  name:"Deforestation alerts — tropics",  unit:"GLAD + RADD, last 30 days", colour:"#55705E", route:"tile", ready:true,
     tileMaxZoom: 22, tileQuery: "kind=integrated&days=30", off: true,
+    // GFW paint these blue. Rotated towards the muted green this map uses for
+    // forest loss, and desaturated so they sit on the imagery rather than on
+    // top of it. Turn the degrees if the hue is still wrong.
+    rasterAdjust: { "raster-hue-rotate": 100, "raster-saturation": -0.35 },
     note: "Pan-tropical only. GLAD and RADD do not cover boreal or temperate forest — use the global layers for those.",
     attribution: '<a href="https://www.globalforestwatch.org" target="_blank" rel="noopener">Global Forest Watch</a>' },
   { id:"gfw_dist",             name:"Disturbance alerts — global",     unit:"DIST-ALERT, last 30 days", colour:"#6E7A55", route:"tile", ready:true,
     tilePath: "gfw_tile", tileMaxZoom: 22, tileQuery: "kind=dist&days=30", off: true,
+    rasterAdjust: { "raster-hue-rotate": 100, "raster-saturation": -0.35 },
     note: "Global coverage, including boreal and temperate forest. Detects vegetation disturbance generally, so it catches fire and harvest as well as clearing.",
     attribution: '<a href="https://www.globalforestwatch.org" target="_blank" rel="noopener">Global Forest Watch</a>' },
   { id:"gfw_dist_year",        name:"Disturbance alerts — past year",  unit:"DIST-ALERT, last 365 days", colour:"#7E6F4E", route:"tile", ready:true,
@@ -288,7 +293,7 @@ const LAYERS = [
   // The 4Wings tile endpoint has no report queue, and fishing effort is a
   // continuous field rather than a set of sites, so a heatmap says what the
   // data actually is. Attribution is required by GFW's terms of use.
-  { id:"fishing",              name:"Fishing effort",          unit:"apparent fishing hours, 12 months", colour:"#4F6773", route:"tile", ready:true,
+  { id:"fishing",              name:"Fishing effort",          unit:"apparent fishing hours, 12 months", colour:"#9C96BE", route:"tile", ready:true,
     tileMaxZoom: 12,
     attribution: '<a href="https://globalfishingwatch.org" target="_blank" rel="noopener">Powered by Global Fishing Watch</a>' },
 
@@ -583,9 +588,14 @@ async function addPmtilesLayer(cfg) {
       // multiplied in at each stop.
       "circle-radius": [
         "interpolate", ["linear"], ["zoom"],
-        0,  ["*", 0.55, MAGNITUDE_RADIUS],
-        4,  ["*", 0.72, MAGNITUDE_RADIUS],
-        7,  ["*", 0.90, MAGNITUDE_RADIUS],
+        // Much smaller at the top than the magnitude alone would give. At 0.55
+        // a 10,000-site cluster drew a 25px disc at z0 and a handful of them
+        // merged into one blob over each continent — the global view carried
+        // less information than an empty map. The relative sizes are untouched:
+        // a big cluster is still visibly bigger than a small one at every zoom.
+        0,  ["*", 0.26, MAGNITUDE_RADIUS],
+        3,  ["*", 0.38, MAGNITUDE_RADIUS],
+        6,  ["*", 0.60, MAGNITUDE_RADIUS],
         10, ["*", 1.00, MAGNITUDE_RADIUS],
       ],
     },
@@ -960,6 +970,17 @@ function addTileLayer(cfg) {
       // The ramp's own lowest step is fully transparent, so empty ocean stays
       // empty; this only softens the painted cells against the basemap.
       "raster-opacity": 0.85,
+      // A display transform on somebody else's palette.
+      //
+      // The alert tiles are rendered by GFW's own server with render_type=
+      // true_color, so their colour is not ours to set at source. When that
+      // palette lands on a hue this map does not use — bright blue over the
+      // tropics — the only lever on this side is to rotate it. That changes how
+      // the tiles look and nothing about which pixels are alerts.
+      //
+      // rasterAdjust is per layer and optional. hue-rotate is in degrees; if a
+      // layer still reads wrong, that one number is what to turn.
+      ...(cfg.rasterAdjust || {}),
     },
   });
 
@@ -969,8 +990,24 @@ function addTileLayer(cfg) {
 
 /* ---------- shared ---------- */
 
+// One popup per click, however many layers were hit.
+//
+// bindPopup registers a handler per layer, and MapLibre fires every one whose
+// features are under the cursor. Two layers over the same place — the live EPA
+// route and the harvested archive, say — therefore opened two popups, the
+// second overlapping the first.
+//
+// Keyed on the browser's own event object rather than a timestamp: two handlers
+// for one click receive the same originalEvent, and two genuinely separate
+// clicks never do, however fast they come.
+let popupClaimedBy = null;
+
 function bindPopup(layerId) {
   map.on("click", layerId, (e) => {
+    const claim = e.originalEvent || e;
+    if (popupClaimedBy === claim) return;
+    popupClaimedBy = claim;
+
     const p = e.features[0].properties;
     const count = Number(p._count || 1);
     // Some layers genuinely have no magnitude — a head office, a trade body,
