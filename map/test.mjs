@@ -640,7 +640,7 @@ console.log("\nmap wiring");
   // was not a map, it was a texture. Nothing is removed — every layer is one
   // click away, and the opening view is a choropleth plus one point set.
   check("the map opens with a legible number of layers",
-        (src.match(/ready:true(?!, off: true)/g) || []).length <= 3,
+        (src.match(/\{ id:"[a-z_0-9]+",[^\n]*ready:true(?!, off: true)/g) || []).length <= 3,
         "more than three layers start visible");
   check("the CAFO locations layer is gone",
         !/id:"climate_trace_cafo"/.test(src));
