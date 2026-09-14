@@ -4,3 +4,6 @@ __pycache__/
 *.pyc
 .DS_Store
 map/tiles/.needs-r2
+
+# Over GitHub's 100 MiB file cap until it is rebuilt smaller.
+map/tiles/local_projects.pmtiles
