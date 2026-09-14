@@ -478,12 +478,24 @@ map.addControl(new maplibregl.ScaleControl({ maxWidth: 110, unit: "metric" }), "
 // the two ways a hardcoded CT_MONTHS goes wrong, in opposite directions, as
 // soon as the build granularity or the publishing schedule changes.
 //
-// The instance is registered with the same protocol the map uses, so this costs
-// no second header fetch.
-async function learnFacetValues(cfg, url) {
+// TWO THINGS HERE ARE ABOUT SPEED, AND BOTH WERE BUGS
+//
+// It takes the instance rather than making one. An earlier version called
+// `new pmtiles.PMTiles(url)` here, AFTER map.addSource had already run — by
+// which point the protocol had built its own instance for the same file. So
+// every layer fetched the header and the root directory twice, and the second
+// pair of requests competed with the tiles the reader was waiting on. The
+// instance is now created and registered before the source, so the map and this
+// share one.
+//
+// And it is deferred. Metadata is for a panel row nobody is looking at during
+// the first paint; tiles are what the reader is waiting for. Called on the first
+// idle, so it uses the connection after the map has drawn rather than during.
+//
+// No data is affected either way. This reads the archive's own index; it
+// changes when a request happens, not what the archive contains.
+async function learnFacetValues(cfg, archive) {
   try {
-    const archive = new pmtiles.PMTiles(url);
-    protocol.add(archive);
     const md = await archive.getMetadata();
     const values = facetValuesFrom(md, cfg.facet.property);
     if (!values.length) throw new Error("no recorded values for " + cfg.facet.property);
@@ -538,14 +550,30 @@ async function addPmtilesLayer(cfg) {
   const src = `${owner}-src`;
   // Added once; a second layer over the same archive reuses it.
   if (!map.getSource(src)) {
+    // Registered with the protocol BEFORE the source exists, so the map reuses
+    // this instance instead of building a second one for the same file. One
+    // header fetch and one root-directory fetch per archive, not two.
+    let archive = null;
+    try {
+      archive = new pmtiles.PMTiles(url);
+      protocol.add(archive);
+    } catch (e) {
+      // No instance is not fatal — the protocol makes its own from the URL, as
+      // it did before. Only the deduplication and the facet read are lost.
+      console.warn(`[culprits] ${cfg.id}: could not pre-register the archive ` +
+                   `(${e.message}). Falling back to the protocol's own instance.`);
+    }
+
     map.addSource(src, { type: "vector", url: `pmtiles://${url}` });
     // An archive that declares its own facet values is asked for them, so a
     // year archive offers its twelve months rather than the shared list's
     // sixty-six. Failure here is not fatal: the declared list stands and the
     // reason is logged, because a facet that silently empties looks like a
     // layer with no data.
-    if (cfg.facet && Array.isArray(cfg.facet.values) && cfg.facet.values.length === 0) {
-      learnFacetValues(cfg, url);
+    if (archive && cfg.facet && Array.isArray(cfg.facet.values) &&
+        cfg.facet.values.length === 0) {
+      // After the map has drawn, not while it is drawing.
+      map.once("idle", () => learnFacetValues(cfg, archive));
     }
   }
 
@@ -1114,20 +1142,36 @@ function facetRow(cfg) {
   return box;
 }
 
-// Build the parent row and its nested children.
+// Build the parent row and its nested children, collapsed.
+//
+// Twenty-six children across three groups is more rows than the whole rest of
+// the panel. Collapsed by default, the panel reads as four lines rather than
+// thirty, and a reader who wants forestry subsectors opens forestry.
+//
+// The disclosure triangle and the checkbox are separate controls on purpose:
+// opening a group must not load eleven archives, and loading one must not
+// depend on having opened the group. So the triangle shows and hides rows and
+// does nothing else — no layer is created, no request is made.
 function groupRows(group) {
   const wrap = document.createElement("div");
   wrap.className = "group";
-  const parent = document.createElement("label");
-  parent.className = "layer";
+
+  const parent = document.createElement("div");
+  parent.className = "layer parent";
   parent.innerHTML =
+    `<button class="disc" data-disc="${group.id}" aria-expanded="false" ` +
+    `title="show the layers in this group">&#9656;</button>` +
     `<input type="checkbox" data-group="${group.id}">` +
     `<span class="swatch" style="background:${group.children[0].colour}"></span>` +
     `<span class="body"><span class="nm">${group.name}</span>` +
     `<span class="un" data-state="${group.id}">` +
-    `${group.children.length} year archives, loaded on demand</span></span>`;
+    `${group.children.length} layers, loaded on demand</span></span>`;
   wrap.appendChild(parent);
 
+  const kids = document.createElement("div");
+  kids.className = "kids";
+  kids.dataset.kids = group.id;
+  kids.hidden = true;
   group.children.forEach((child) => {
     const row = document.createElement("label");
     row.className = "layer child";
@@ -1136,9 +1180,21 @@ function groupRows(group) {
       `<span class="swatch" style="background:${child.colour}"></span>` +
       `<span class="body"><span class="nm">${child.name}</span>` +
       `<span class="un" data-state="${child.id}">not loaded</span></span>`;
-    wrap.appendChild(row);
+    kids.appendChild(row);
   });
+  wrap.appendChild(kids);
   return wrap;
+}
+
+// Show or hide one group's children. Display only.
+function toggleGroup(box, id) {
+  const kids = box.querySelector(`[data-kids="${id}"]`);
+  const disc = box.querySelector(`[data-disc="${id}"]`);
+  if (!kids || !disc) return;
+  const open = kids.hidden;
+  kids.hidden = !open;
+  disc.innerHTML = open ? "&#9662;" : "&#9656;";
+  disc.setAttribute("aria-expanded", open ? "true" : "false");
 }
 
 // none / some / all. A checkbox that reads "on" while two of six children are
@@ -1254,6 +1310,11 @@ function buildPanel() {
   }
 
   box.addEventListener("click", (e) => {
+    // Disclosure triangles first. A button emits click, not change, so this is
+    // where group expansion belongs rather than in the checkbox handler.
+    const disc = e.target.closest && e.target.closest("[data-disc]");
+    if (disc) { toggleGroup(box, disc.dataset.disc); return; }
+
     const btn = e.target.closest(".chip");
     if (!btn) return;
     const cfg = LAYERS.find((l) => l.id === btn.dataset.facet);

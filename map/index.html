@@ -48,6 +48,18 @@
   /* Guerillamap companion. A sibling element of #map, not a MapLibre layer or
      control — so the basemap grading and the data layers are untouched by it,
      and opening it only changes the map container's height. */
+  /* Nested group. Indented and hairlined so the children read as belonging to
+     the parent rather than as six more top-level layers. */
+  .group{margin:2px 0}
+  .layer.parent{display:flex;align-items:flex-start;gap:7px}
+  .disc{background:none;border:0;color:var(--dim);cursor:pointer;padding:0 1px;
+    font-size:11px;line-height:1.5;flex:0 0 auto}
+  .disc:hover{color:var(--bone)}
+  .kids{border-left:1px solid var(--rule);margin:1px 0 3px 9px}
+  .kids[hidden]{display:none}
+  .layer.child{padding-left:13px}
+  .layer.child .nm{color:var(--dim)}
+
   .gm{position:absolute;right:0;bottom:0;left:0;height:38vh;background:var(--peat);
     border-top:1px solid var(--rule);display:flex;flex-direction:column}
   .gm[hidden]{display:none}

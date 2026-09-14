@@ -604,5 +604,38 @@ console.log("\nmap wiring");
         /values: \[\]/.test(cafo), "CT_MONTHS would offer 65 months that render nothing");
 }
 
+// --- groups collapse, and collapsing is display-only ----------------------
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const rows = (src.match(/function groupRows[\s\S]*?\n}/) || [])[0] || "";
+  check("children start hidden", /kids\.hidden = true/.test(rows));
+  check("the parent carries a disclosure control", /data-disc=/.test(rows));
+
+  // Opening a group must not load anything, and loading must not require
+  // opening — so the triangle touches no layer state at all.
+  const tog = (src.match(/function toggleGroup[\s\S]*?\n}/) || [])[0] || "";
+  check("expanding a group creates no layer",
+        !/ensureLayer|addPmtilesLayer|applyVisibility|visibility\.set/.test(tog),
+        "the triangle must only show and hide rows");
+}
+
+// --- one archive instance per file, read after the map has drawn -----------
+//
+// learnFacetValues used to build its own PMTiles instance after addSource had
+// run, so every layer fetched the header and root directory twice and the
+// second pair competed with the tiles. This is purely about when requests
+// happen; no feature is affected either way.
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const add = (src.match(/if \(!map\.getSource\(src\)\)[\s\S]*?map\.addSource/) || [])[0] || "";
+  check("the archive is registered with the protocol before the source exists",
+        /protocol\.add\(archive\)/.test(add), "otherwise the map builds a second instance");
+  check("learnFacetValues is handed the instance, not a URL",
+        /async function learnFacetValues\(cfg, archive\)/.test(src));
+  check("the metadata read waits for the first idle",
+        /map\.once\("idle", \(\) => learnFacetValues/.test(src),
+        "tiles are what the reader is waiting for, not a panel row");
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
