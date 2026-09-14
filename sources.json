@@ -600,6 +600,26 @@
         "value": null,
         "unit": "record"
       }
+    },
+    {
+      "id": "epa_tri_sites",
+      "name": "US toxic release sites (harvested)",
+      "mode": "bulk",
+      "auth": "none",
+      "cors": "n/a",
+      "route": "pmtiles",
+      "endpoint": "https://data.epa.gov/efservice/tri_facility",
+      "licence": "US Government work — public domain",
+      "licence_verified": true,
+      "access_verified": true,
+      "access_evidence": "Column names (pref_latitude, pref_longitude, tri_facility_id, facility_name, state_abbr) taken from the Worker's own epa_tri shaper, which has been rendering these facilities live. Stronger evidence than EPA's documentation, which still describes a CAFO view both live services now reject.",
+      "notes": "The same facilities as the live epa_tri Worker route, harvested whole so the layer draws at every zoom instead of sitting behind an area cap. The two coexist: one is current within a small box, the other complete and static. TRAPS: Envirofacts silently ignores range filters on this table (latitude 33.9-34.1 returns Puerto Rico), so the harvest iterates states with equality filters; and some longitudes arrive positive, which are flipped west since every TRI facility is in the US or its territories. Rows with no usable coordinate are dropped and counted, never given a state centroid. EPA no longer collects lat/long in TRI itself — positions come from the Facility Registry Service through these columns.",
+      "discovery": "resolve() reads /tri_facility/COUNT/JSON and uses the row count as the change signal. If COUNT is unavailable the harvest still runs, unconditionally.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "TRI facility"
+      }
     }
   ],
   "_publish_blockers": [

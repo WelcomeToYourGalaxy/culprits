@@ -194,34 +194,6 @@ const LAYERS = [
              defaultValues: [CT_MONTHS[CT_MONTHS.length - 1]] },
     note: "Monthly, 2021-01 to 2026-06. One month is shown at a time — pick others in the panel." },
 
-  // The same facilities again, as LOCATIONS rather than as emissions. Drawn at
-  // one size regardless of magnitude, because the question this layer answers
-  // is "where are they", not "which are worst" — and 37.7 million of the 47.9
-  // million asset-level rows are this one definition, so sized by emissions it
-  // is unreadable anyway.
-  //
-  // `sourceOf` points it at the emissions layer's PMTiles archive, so this
-  // costs no second harvest and no second download: two panel rows, one file.
-  //
-  // Modelled, not registered — see the note. A point here is Climate TRACE's
-  // estimate that a facility exists, not a permit or an inspection.
-  { id:"climate_trace_cafo",   name:"Confined animal facilities (global)", unit:"locations", colour:"#7B6A4E", route:"pmtiles", ready:true,
-    // The definition lives in the enteric-fermentation archive — confirmed
-    // against the data, not guessed from the name. It appears in
-    // manure-management too (the same 285,517 facilities, a second process),
-    // so drawing from one archive rather than both avoids plotting every
-    // facility twice.
-    sourceOf: "climate_trace_ag_enteric_fermentation_cattle_operation",
-    // That archive is in the agriculture repo, so the URL travels with the
-    // layer. Without this it would be looked for in this repo and 404.
-    archiveUrl: `${CT_AG_BASE}/tiles/climate_trace_ag_enteric_fermentation_cattle_operation.pmtiles`,
-    where: ["==", ["get", "x_asset_definition"], "confined-animal-facility"],
-    uniformRadius: true,
-    // Empty so the months are read from the archive. CT_MONTHS lists all 66;
-    // this archive holds one, and offering 65 that render nothing looks like a
-    // broken layer.
-    facet: { property: "x_period", label: "month", values: [] },
-    note: "Locations only — dots are one size and do not encode emissions. Modelled by Climate TRACE from satellite and census data, not a permit register: a point here has not necessarily been inspected or licensed." },
   { id:"gem_coal",             name:"Coal plant units",        unit:"MW capacity", colour:"#7A5548", route:"pmtiles", ready:true,
     facet: { property: "x_status", label: "status",
              values: ["operating","construction","permitted","pre-permit","announced",
@@ -256,7 +228,17 @@ const LAYERS = [
     // exists because upstream returns at most 500 rows, so a viewport wider
     // than this would show an arbitrary 500 presented as the whole picture.
     maxAreaDeg2: 100 },
-      // Disabled pending GFW. Their raster query endpoint returns
+  // The same facilities, harvested whole so they draw at every zoom.
+  //
+  // The live route above cannot show the country: Envirofacts will not serve a
+  // continent in one request, so it sits behind an area cap and asks the reader
+  // to zoom in. Both are kept — one is current to the minute inside a small
+  // box, the other is complete and static — and they are separate rows so it is
+  // never ambiguous which one a dot came from.
+  //
+  // ready:false until map/tiles/epa_tri_sites.pmtiles exists.
+  { id:"epa_tri_sites",        name:"US toxic release sites (all zooms)", unit:"TRI facilities", colour:"#5C6E77", route:"pmtiles", ready:false,
+    note: "Every TRI facility, at any zoom. Facilities only — this table lists sites, not quantities; release amounts are per chemical per year and live elsewhere. Facilities with no coordinate published are absent rather than placed at a state centroid." },      // Disabled pending GFW. Their raster query endpoint returns
   // 500 {"message":null} for every request tried, including GFW's own
   // documented example, on fully built dataset versions. Route, shaper, version
   // resolver and tests all stay — this is one flag to flip when it works.
@@ -267,37 +249,6 @@ const LAYERS = [
   // alerts route needs no API key. Colour and confidence come from upstream:
   // alert_confidence=low means every alert published, filtered nowhere.
   // FAO's Gridded Livestock of the World, served as raster tiles from FAO's own
-  // WMTS rather than harvested. Six species at ~10 km, CC BY 4.0.
-  //
-  // A model, not an inventory: densities are downscaled from subnational census
-  // data by random forest, so a bright cell means "the model puts animals here",
-  // not "a farm is here". Kept as a separate layer from the permitted CAFOs for
-  // exactly that reason — one is a register, the other is a surface.
-  //
-  // FAO's own caveat, worth repeating: the data is lat/long, which visually
-  // over-represents density at high latitudes because those pixels cover less
-  // ground. Greenland and Siberia read hotter than they are.
-  ...["cattle:CTL:#6E5A44", "pigs:PGS:#7A5560", "chicken:CHK:#6B6A4A",
-      "buffalo:BFL:#5C5245", "goats:GTS:#6F6552", "sheep:SHP:#5F6659"]
-    .map((spec) => {
-      const [animal, code, colour] = spec.split(":");
-      return {
-        id: `glw_${animal}`,
-        name: `Livestock density — ${animal}`,
-        unit: "head/km² (modelled, 2020)",
-        colour,
-        route: "wmts",
-        ready: true,
-        off: true,
-        wmtsLayer: `fao-gismgr/GLW4-2020/mapsets/D-DA-${code}`,
-        note: "Modelled density downscaled from census data, not a facility " +
-              "register. FAO note that lat/long display over-represents high " +
-              "latitudes.",
-        attribution: '<a href="https://data.apps.fao.org/catalog/organization/' +
-                     'gridded-livestock-of-the-world-glw" target="_blank" ' +
-                     'rel="noopener">FAO Gridded Livestock of the World 4</a> (CC BY 4.0)',
-      };
-    }),
 
   // Three alert layers, not one, because they do not cover the same planet.
   //
@@ -530,6 +481,25 @@ function facetValuesFrom(md, property) {
   return [...out].sort();
 }
 
+// How big a dot is before zoom is taken into account.
+//
+// Two cases share the aggregate layer. Large sources are clustered, so `_count`
+// is how many sites a dot stands for. Small sources are not clustered, so every
+// `_count` is 1 and size has to come from the magnitude instead — otherwise
+// every dot renders at the minimum and the map reads flat.
+//
+// Referenced four times in the radius below, once per zoom stop. Defined here
+// so the four stay identical: four hand-written copies would drift, and a dot
+// that changes meaning between z6 and z7 is worse than one that is too big.
+const MAGNITUDE_RADIUS = [
+  "case",
+  [">", ["coalesce", ["get", "_count"], 1], 1],
+  ["interpolate", ["linear"], ["get", "_count"],
+    1, 4, 10, 7, 100, 11, 1000, 17, 10000, 23],
+  ["interpolate", ["linear"], ["sqrt", ["coalesce", ["get", "value"], 0]],
+    0, 2.5, 1, 4, 3, 7, 6, 12],
+];
+
 async function addPmtilesLayer(cfg) {
   // A layer may draw from another layer's archive — see climate_trace_cafo.
   // The source and source-layer keep the OWNER's id; only the map layers and
@@ -602,17 +572,21 @@ async function addPmtilesLayer(cfg) {
       // view showed less than a blank map would. The multiplier keeps the
       // relative sizes intact (a big cluster is still visibly bigger than a
       // small one) while shrinking everything at the zooms where they collide.
+      //
+      // ZOOM HAS TO BE THE OUTERMOST EXPRESSION. Written as
+      // ["*", ["interpolate", … ["zoom"] …], <magnitude>] this is rejected by
+      // MapLibre — "zoom expression may only be used as input to a top-level
+      // step or interpolate expression" — and the rejection throws out of
+      // addLayer, so addPmtilesLayer aborts and the layer silently never
+      // exists. It reads exactly like a missing archive. Same arithmetic,
+      // legal shape: interpolate on zoom at the top, and the magnitude
+      // multiplied in at each stop.
       "circle-radius": [
-        "*",
-        ["interpolate", ["linear"], ["zoom"], 0, 0.55, 4, 0.72, 7, 0.9, 10, 1],
-        [
-          "case",
-          [">", ["coalesce", ["get", "_count"], 1], 1],
-          ["interpolate", ["linear"], ["get", "_count"],
-            1, 4, 10, 7, 100, 11, 1000, 17, 10000, 23],
-          ["interpolate", ["linear"], ["sqrt", ["coalesce", ["get", "value"], 0]],
-            0, 2.5, 1, 4, 3, 7, 6, 12],
-        ],
+        "interpolate", ["linear"], ["zoom"],
+        0,  ["*", 0.55, MAGNITUDE_RADIUS],
+        4,  ["*", 0.72, MAGNITUDE_RADIUS],
+        7,  ["*", 0.90, MAGNITUDE_RADIUS],
+        10, ["*", 1.00, MAGNITUDE_RADIUS],
       ],
     },
   });
@@ -1220,7 +1194,48 @@ function syncGroupBox(box, group) {
 
 // Every group, in panel order. A child id is looked up across all of them, so
 // adding a group needs no change to the toggle handler.
-const GROUPS = [CT_SECTORS, CT_AGRICULTURE, CT_FORESTRY, CT_HISTORY];
+// Livestock density, as its own group.
+//
+// Six species, so six rows — the same reason the Climate TRACE sectors are
+// grouped rather than listed flat. Collapsed by default; opening it loads
+// nothing, since each species fetches only when its own box is ticked.
+//
+// A model, not an inventory: densities are downscaled from subnational census
+// data by random forest, so a bright cell means "the model puts animals here",
+// not "a farm is here".
+//
+// FAO's own caveat, repeated in each layer note: the data is lat/long, which
+// visually over-represents density at high latitudes because those pixels cover
+// less ground. Greenland and Siberia read hotter than they are.
+const GLW_SPECIES = {
+  id: "glw",
+  name: "Livestock density (modelled)",
+  group: true,
+  ready: true,
+  children: ["cattle:CTL:#6E5A44", "pigs:PGS:#7A5560", "chicken:CHK:#6B6A4A",
+             "buffalo:BFL:#5C5245", "goats:GTS:#6F6552", "sheep:SHP:#5F6659"]
+    .map((spec) => {
+      const [animal, code, colour] = spec.split(":");
+      return {
+        id: `glw_${animal}`,
+        name: animal,
+        unit: "head/km\u00B2 (modelled, 2020)",
+        colour,
+        route: "wmts",
+        ready: true,
+        lazy: true,
+        wmtsLayer: `fao-gismgr/GLW4-2020/mapsets/D-DA-${code}`,
+        note: "Modelled density downscaled from census data, not a facility " +
+              "register. FAO note that lat/long display over-represents high " +
+              "latitudes.",
+        attribution: '<a href="https://data.apps.fao.org/catalog/organization/' +
+                     'gridded-livestock-of-the-world-glw" target="_blank" ' +
+                     'rel="noopener">FAO Gridded Livestock of the World 4</a> (CC BY 4.0)',
+      };
+    }),
+};
+
+const GROUPS = [CT_SECTORS, CT_AGRICULTURE, CT_FORESTRY, GLW_SPECIES, CT_HISTORY];
 function childById(id) {
   for (const g of GROUPS) {
     const hit = g.children.find((c) => c.id === id);
@@ -1237,7 +1252,14 @@ function ensureLayer(cfg) {
   if (created.has(cfg.id)) return;
   created.add(cfg.id);
   setLayerState(cfg.id, "loading\u2026");
-  addPmtilesLayer(cfg)
+  // Dispatch by route, the same way the load handler does. Lazy children are
+  // not all PMTiles — the livestock species are WMTS — and calling the archive
+  // builder for a tile layer would fail on a URL that was never meant to be an
+  // archive. addWmtsLayer is synchronous, so it is wrapped to keep one shape.
+  const build = cfg.route === "wmts"
+    ? Promise.resolve().then(() => addWmtsLayer(cfg))
+    : addPmtilesLayer(cfg);
+  build
     .then(() => {
       const box = document.getElementById("layers");
       if (cfg.facet) {

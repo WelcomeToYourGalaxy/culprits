@@ -5,6 +5,9 @@
  "climate_trace": {
   "validator": null
  },
+ "epa_tri_sites": {
+  "validator": null
+ },
  "gem_coal": {
   "validator": null
  },

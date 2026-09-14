@@ -586,22 +586,91 @@ console.log("\nmap wiring");
 
   check("the agriculture repo base is declared", /const CT_AG_BASE\s*=/.test(src));
   check("the forestry repo base is declared", /const CT_FLU_BASE\s*=/.test(src));
-  check("all four groups are registered",
-        /GROUPS = \[CT_SECTORS, CT_AGRICULTURE, CT_FORESTRY, CT_HISTORY\]/.test(src));
+  check("all five groups are registered",
+        /GROUPS = \[CT_SECTORS, CT_AGRICULTURE, CT_FORESTRY, GLW_SPECIES, CT_HISTORY\]/.test(src));
 
   check("six local sector archives", count(/"climate_trace_(?!ag_|flu_|sectors|cafo|agriculture|forestry)[a-z_]+"/g) >= 6);
   check("nine agriculture subsector archives", count(/"climate_trace_ag_[a-z_]+"/g) >= 9);
   check("eleven forestry subsector archives", count(/"climate_trace_flu_[a-z_]+"/g) >= 11);
 
-  // The CAFO layer shares an archive that lives in another repo. Without its
-  // own archiveUrl it would be looked for here and 404.
-  const cafo = (src.match(/id:"climate_trace_cafo"[\s\S]*?\},/) || [])[0] || "";
-  check("the CAFO layer names the archive that holds its definition",
-        /sourceOf: "climate_trace_ag_enteric_fermentation_cattle_operation"/.test(cafo));
-  check("the CAFO layer carries its own archive URL, being in another repo",
-        /archiveUrl: `\$\{CT_AG_BASE\}/.test(cafo));
-  check("the CAFO month facet is learned, not the 66-month constant",
-        /values: \[\]/.test(cafo), "CT_MONTHS would offer 65 months that render nothing");
+}
+
+// --- groups collapse, and collapsing is display-only ----------------------
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const rows = (src.match(/function groupRows[\s\S]*?\n}/) || [])[0] || "";
+  check("children start hidden", /kids\.hidden = true/.test(rows));
+  check("the parent carries a disclosure control", /data-disc=/.test(rows));
+
+  // Opening a group must not load anything, and loading must not require
+  // opening — so the triangle touches no layer state at all.
+  const tog = (src.match(/function toggleGroup[\s\S]*?\n}/) || [])[0] || "";
+  check("expanding a group creates no layer",
+        !/ensureLayer|addPmtilesLayer|applyVisibility|visibility\.set/.test(tog),
+        "the triangle must only show and hide rows");
+}
+
+// --- one archive instance per file, read after the map has drawn -----------
+//
+// learnFacetValues used to build its own PMTiles instance after addSource had
+// run, so every layer fetched the header and root directory twice and the
+// second pair competed with the tiles. This is purely about when requests
+// happen; no feature is affected either way.
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const add = (src.match(/if \(!map\.getSource\(src\)\)[\s\S]*?map\.addSource/) || [])[0] || "";
+  check("the archive is registered with the protocol before the source exists",
+        /protocol\.add\(archive\)/.test(add), "otherwise the map builds a second instance");
+  check("learnFacetValues is handed the instance, not a URL",
+        /async function learnFacetValues\(cfg, archive\)/.test(src));
+  check("the metadata read waits for the first idle",
+        /map\.once\("idle", \(\) => learnFacetValues/.test(src),
+        "tiles are what the reader is waiting for, not a panel row");
+}
+
+// --- lazy children are not all PMTiles -------------------------------------
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const ensure = (src.match(/function ensureLayer[\s\S]*?\n}/) || [])[0] || "";
+  check("ensureLayer dispatches by route",
+        /cfg\.route === "wmts"/.test(ensure),
+        "the livestock species are WMTS, not archives");
+  check("livestock is a group", /const GLW_SPECIES = \{[\s\S]*?group: true/.test(src));
+  check("livestock is registered in GROUPS", /GLW_SPECIES/.test(src.match(/const GROUPS = \[.*\]/)[0]));
+  check("the CAFO locations layer is gone",
+        !/id:"climate_trace_cafo"/.test(src));
+}
+
+// --- zoom expressions must be top-level -----------------------------------
+//
+// MapLibre rejects ["zoom"] nested inside another operator, and the rejection
+// throws out of addLayer — so addPmtilesLayer aborts and the layer never
+// exists. On the map that is indistinguishable from a missing archive, which
+// is how it went unnoticed: gem_coal, carbon_bombs and power_plants all had
+// archives and all drew nothing.
+//
+// The stub map here does not validate style expressions, so this reads the
+// source instead of exercising it.
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  // Any paint property whose value starts with an operator other than
+  // interpolate/step but contains ["zoom"] is the broken shape.
+  const bad = [];
+  const re = /"(circle-radius|circle-opacity|line-width|fill-opacity|circle-stroke-width)":\s*\[\s*"([a-z*+/-]+)"/g;
+  let m;
+  while ((m = re.exec(src)) !== null) {
+    const op = m[2];
+    if (op === "interpolate" || op === "step") continue;
+    // Look ahead a little for a nested zoom reference.
+    const window = src.slice(m.index, m.index + 400);
+    if (/\["zoom"\]/.test(window)) bad.push(`${m[1]} starts with "${op}"`);
+  }
+  check("no paint property nests ['zoom'] inside another operator",
+        bad.length === 0, bad.join("; "));
+  check("the aggregate radius interpolates on zoom at the top level",
+        /"circle-radius": \[\s*\n?\s*"interpolate", \["linear"\], \["zoom"\]/.test(src));
+  check("the magnitude expression is defined once, not copied per stop",
+        (src.match(/const MAGNITUDE_RADIUS =/g) || []).length === 1);
 }
 
 // --- groups collapse, and collapsing is display-only ----------------------
