@@ -237,7 +237,7 @@ const LAYERS = [
   // never ambiguous which one a dot came from.
   //
   // ready:false until map/tiles/epa_tri_sites.pmtiles exists.
-  { id:"epa_tri_sites",        name:"US toxic release sites (all zooms)", unit:"TRI facilities", colour:"#5C6E77", route:"pmtiles", ready:false,
+  { id:"epa_tri_sites",        name:"US toxic release sites (all zooms)", unit:"TRI facilities", colour:"#5C6E77", route:"pmtiles", ready:true,
     note: "Every TRI facility, at any zoom. Facilities only — this table lists sites, not quantities; release amounts are per chemical per year and live elsewhere. Facilities with no coordinate published are absent rather than placed at a state centroid." },      // Disabled pending GFW. Their raster query endpoint returns
   // 500 {"message":null} for every request tried, including GFW's own
   // documented example, on fully built dataset versions. Route, shaper, version

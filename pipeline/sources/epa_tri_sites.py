@@ -91,6 +91,7 @@ def fetch():
     seen_ids = set()
     no_coords = 0
     flipped = 0
+    out_of_range = 0
     empty_states = []
 
     for abbr in STATES:
@@ -109,6 +110,24 @@ def fetch():
             if lon > 0:
                 lon = -lon
                 flipped += 1
+
+            # Range-checked AFTER the flip, because the flip is what can create
+            # an impossible value out of a merely odd one.
+            #
+            # normalize.py raises on an out-of-range coordinate rather than
+            # guessing, which is right — but a harvester that hands it one kills
+            # the whole run. One TRI row publishes longitude 250.916667, which
+            # is not a longitude at all; it stopped normalize at 16,000 of
+            # 36,755 features, and because the build is a separate command it
+            # then tiled the truncated file into an archive that looked
+            # perfectly healthy.
+            #
+            # So bad coordinates are dropped here, at the source, and counted.
+            # Dropping is not the same as hiding: the count is printed, and a
+            # row EPA published as 250 degrees east has no location to show.
+            if not (-180 <= lon <= 180 and -90 <= lat <= 90):
+                out_of_range += 1
+                continue
 
             ident = _get(r, "tri_facility_id", "frs_id") or f"{abbr}:{lat},{lon}"
             # The same facility appears under more than one reporting year in
@@ -149,7 +168,12 @@ def fetch():
         print(f"  {no_coords:,} rows had no usable coordinate and were dropped, "
               f"not placed at a centroid")
     if flipped:
-        print(f"  {flipped:,} longitudes arrived positive and were flipped west")
+        print(f"  {flipped:,} longitudes arrived positive and were flipped west "
+              f"— note this is EVERY kept row, so the column is unsigned rather "
+              f"than occasionally sign-dropped")
+    if out_of_range:
+        print(f"  {out_of_range:,} rows had a coordinate outside the world "
+              f"(|lon|>180 or |lat|>90) and were dropped")
     if empty_states:
         print(f"  NO ROWS for: {', '.join(empty_states)} — check before assuming "
               f"these have no TRI facilities")

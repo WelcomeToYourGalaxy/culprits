@@ -140,6 +140,23 @@ EXCLUDE="${EXCLUDE-unit licence source x_start_time x_end_time x_sector x_subsec
 EXCLUDE_ARGS=()
 for prop in $EXCLUDE; do EXCLUDE_ARGS+=( "--exclude=$prop" ); done
 
+# A truncated input is the quiet failure this guard exists for.
+#
+# normalize.py raises on a bad row rather than guessing, so a crash leaves a
+# partial .geojsonl.gz behind. Run as a separate command, this script then tiles
+# it happily: epa_tri_sites built an archive of 16,000 features where the
+# harvest had produced 36,755, and nothing in the output said so. gzip -t reads
+# the whole stream and fails on a file whose trailer is missing, which is
+# exactly what an interrupted writer leaves.
+case "$INPUT" in
+  *.gz)
+    if ! gzip -t "$INPUT" 2>/dev/null; then
+      echo "::error::${INPUT} is truncated or corrupt — the step that wrote it did not finish. Not tiling a partial dataset." >&2
+      exit 1
+    fi
+    ;;
+esac
+
 case "$INPUT" in
   *.gz) FEATURES=$(gzip -cd "$INPUT" | wc -l) ;;
   *)    FEATURES=$(wc -l < "$INPUT") ;;
@@ -178,24 +195,7 @@ s = by_id.get(sid, {})
 print('%s — %s' % (s.get('name', '$SOURCE'), s.get('licence', 'licence unchecked')))
 ")
 
-# tippecanoe needs scratch space that scales with FEATURE COUNT, not input
-# size: 112 million features wanted ~10 GB while the gzipped input was 1.6 GB.
-# It does NOT honour TMPDIR — setting that and watching it fill the internal
-# disk anyway is how this was found. TILE_TMPDIR points it somewhere with room,
-# e.g. an external drive:
-#
-#   TILE_TMPDIR="/Volumes/MY DRIVE/tc-tmp" ./pipeline/build_tiles.sh ...
-#
-# Unset, tippecanoe uses its own default and small sources are unaffected.
-TMPFLAG=()
-if [ -n "${TILE_TMPDIR:-}" ]; then
-  mkdir -p "$TILE_TMPDIR"
-  TMPFLAG=(--temporary-directory="$TILE_TMPDIR")
-  echo "$SOURCE: tiling scratch in $TILE_TMPDIR"
-fi
-
 tippecanoe \
-  "${TMPFLAG[@]}" \
   --quiet \
   --output="$PARTIAL" \
   --force \
