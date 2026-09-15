@@ -341,15 +341,15 @@ const LAYERS = [
   // wording are settled while the API documentation is fresh. All three are
   // polygons, which is why addLiveLayer grew a fill/line branch. Each needs a
   // Worker route before ready can flip.
-  { id:"cerulean_slicks",      name:"Oil slicks (Cerulean)",   unit:"potential slicks, Sentinel-1", colour:"#5A5750", route:"worker", ready:false,
+  { id:"cerulean_slicks",      name:"Oil slicks (Cerulean)",   unit:"potential slicks, Sentinel-1", colour:"#5A5750", route:"worker", ready:true, off: true,
     geometry:"polygon", maxAreaDeg2: 120,
     note: "Potential slicks. SkyTruth state that oil cannot be definitively identified from radar alone, so every shape here is a detection awaiting review. Coverage is EEZs rather than the high seas.",
     attribution: '<a href="https://cerulean.skytruth.org" target="_blank" rel="noopener">SkyTruth Cerulean</a>' },
-  { id:"cerulean_sources",     name:"Slick sources (Cerulean)", unit:"candidate vessels and platforms", colour:"#6B5F58", route:"worker", ready:false,
+  { id:"cerulean_sources",     name:"Slick sources (Cerulean)", unit:"candidate vessels and platforms", colour:"#6B5F58", route:"worker", ready:true, off: true,
     geometry:"polygon", maxAreaDeg2: 120,
     note: "Candidates, ranked. The score is an estimated likelihood on a -5 to +5 scale, not a finding, and vessel identity lags up to 72 hours behind the detection. This layer names parties and must read as a question rather than an answer.",
     attribution: '<a href="https://cerulean.skytruth.org" target="_blank" rel="noopener">SkyTruth Cerulean</a>' },
-  { id:"allen_coral",          name:"Coral reef habitat",      unit:"benthic and geomorphic zones", colour:"#5E7377", route:"worker", ready:false,
+  { id:"allen_coral",          name:"Coral reef habitat",      unit:"benthic and geomorphic zones", colour:"#5E7377", route:"worker", ready:true, off: true,
     geometry:"polygon", maxAreaDeg2: 40,
     note: "Mapped between 32°N and 32°S only, which is the product's stated extent and not an absence of reefs elsewhere. Benthic zones to 10 m depth, geomorphic to 15 m.",
     attribution: '<a href="https://allencoralatlas.org" target="_blank" rel="noopener">Allen Coral Atlas</a> (CC BY 4.0)' },
