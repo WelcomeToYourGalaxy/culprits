@@ -189,18 +189,21 @@ const LAYERS = [
   // Everything Climate TRACE locates, confined animal facilities included —
   // this is the complete emissions layer and nothing is held back from it.
   { id:"climate_trace",        name:"Emitting assets",         unit:"t CO₂e/yr (GWP-100)", colour:"#8F4E40", route:"pmtiles", ready:false,
+    radiusScale: 0.55,
     facet: { property: "x_period", label: "month", values: CT_MONTHS,
              // One month selected on load. Every other month is one click away.
              defaultValues: [CT_MONTHS[CT_MONTHS.length - 1]] },
     note: "Monthly, 2021-01 to 2026-06. One month is shown at a time — pick others in the panel." },
 
   { id:"gem_coal",             name:"Coal plant units",        unit:"MW capacity", colour:"#7A5548", route:"pmtiles", ready:true, off: true,
+    radiusScale: 0.55,
     facet: { property: "x_status", label: "status",
              values: ["operating","construction","permitted","pre-permit","announced",
                       "shelved","mothballed","retired","cancelled"] } },
   { id:"global_energy_monitor",name:"GEM's other trackers",     unit:"capacity",   colour:"#7A5548", route:"pmtiles", ready:false },
   { id:"carbon_bombs",         name:"Carbon bombs",            unit:"Gt CO₂ lifetime", colour:"#6E4A44", route:"pmtiles", ready:true },
   { id:"power_plants",         name:"Power plants",            unit:"MW capacity", colour:"#7E5A4E", route:"pmtiles", ready:true, off: true,
+    radiusScale: 0.55,
     // The source covers every fuel and nothing is filtered out of the data.
     // Filtering happens here instead, where it is visible and reversible.
     facet: { property: "x_fuel", label: "fuel",
@@ -265,6 +268,7 @@ const LAYERS = [
   // things by different instruments, and a reader who sees an alert should be
   // able to tell which one saw it.
   { id:"gfw",                  name:"Deforestation alerts — tropics",  unit:"GLAD + RADD, last 30 days", colour:"#55705E", route:"tile", ready:true, off: true,
+    bounds: [-180, -30, 180, 30],
     tileMaxZoom: 22, tileQuery: "kind=integrated&days=30", off: true,
     // GFW paint these blue. +100 landed on magenta, which places the source at
     // roughly 210 degrees, so -90 is the rotation that reaches the muted green
@@ -274,11 +278,13 @@ const LAYERS = [
     note: "Pan-tropical only. GLAD and RADD do not cover boreal or temperate forest — use the global layers for those.",
     attribution: '<a href="https://www.globalforestwatch.org" target="_blank" rel="noopener">Global Forest Watch</a>' },
   { id:"gfw_dist",             name:"Disturbance alerts — global",     unit:"DIST-ALERT, last 30 days", colour:"#6E7A55", route:"tile", ready:true, off: true,
+    bounds: [-180, -30, 180, 30],
     tilePath: "gfw_tile", tileMaxZoom: 22, tileQuery: "kind=dist&days=30", off: true,
     rasterAdjust: { "raster-hue-rotate": -90, "raster-saturation": -0.35 },
     note: "Global coverage, including boreal and temperate forest. Detects vegetation disturbance generally, so it catches fire and harvest as well as clearing.",
     attribution: '<a href="https://www.globalforestwatch.org" target="_blank" rel="noopener">Global Forest Watch</a>' },
   { id:"gfw_dist_year",        name:"Disturbance alerts — past year",  unit:"DIST-ALERT, last 365 days", colour:"#7E6F4E", route:"tile", ready:true, off: true,
+    bounds: [-180, -30, 180, 30],
     tilePath: "gfw_tile", tileMaxZoom: 22, tileQuery: "kind=dist&days=365", off: true,
     note: "The same global product over a twelve-month window, for seeing a season's cumulative loss rather than this month's.",
     attribution: '<a href="https://www.globalforestwatch.org" target="_blank" rel="noopener">Global Forest Watch</a>' },
@@ -507,6 +513,9 @@ const MAGNITUDE_RADIUS = [
 ];
 
 async function addPmtilesLayer(cfg) {
+  // Per layer, defaulting to no change. Set radiusScale on a layer whose dots
+  // crowd at low zoom; everything else keeps the shared ramp exactly.
+  const scale = typeof cfg.radiusScale === "number" ? cfg.radiusScale : 1;
   // A layer may draw from another layer's archive — see climate_trace_cafo.
   // The source and source-layer keep the OWNER's id; only the map layers and
   // the filter belong to this one.
@@ -594,10 +603,10 @@ async function addPmtilesLayer(cfg) {
         // merged into one blob over each continent — the global view carried
         // less information than an empty map. The relative sizes are untouched:
         // a big cluster is still visibly bigger than a small one at every zoom.
-        0,  ["*", 0.26, MAGNITUDE_RADIUS],
-        3,  ["*", 0.38, MAGNITUDE_RADIUS],
-        6,  ["*", 0.60, MAGNITUDE_RADIUS],
-        10, ["*", 1.00, MAGNITUDE_RADIUS],
+        0,  ["*", 0.26 * scale, MAGNITUDE_RADIUS],
+        3,  ["*", 0.38 * scale, MAGNITUDE_RADIUS],
+        6,  ["*", 0.60 * scale, MAGNITUDE_RADIUS],
+        10, ["*", 1.00 * scale, MAGNITUDE_RADIUS],
       ],
     },
   });
@@ -645,6 +654,7 @@ async function addPmtilesLayer(cfg) {
   bindPopup(`${cfg.id}-agg`);
   bindPopup(`${cfg.id}-pt`);
   applyVisibility(cfg.id);
+  buildLegend();
 }
 
 /* ---------- country aggregate layers (choropleth) ---------- */
@@ -760,6 +770,7 @@ async function addCountryLayer(cfg) {
   map.on("mouseenter", `${cfg.id}-fill`, () => (map.getCanvas().style.cursor = "pointer"));
   map.on("mouseleave", `${cfg.id}-fill`, () => (map.getCanvas().style.cursor = ""));
   applyVisibility(cfg.id);
+  buildLegend();
 }
 
 /* ---------- live layers, via the Worker ---------- */
@@ -871,6 +882,7 @@ function addLiveLayer(cfg) {
     });
     bindPopup(`${cfg.id}-fill`);
     applyVisibility(cfg.id);
+    buildLegend();
     return;
   }
 
@@ -893,6 +905,7 @@ function addLiveLayer(cfg) {
   });
   bindPopup(`${cfg.id}-pt`);
   applyVisibility(cfg.id);
+  buildLegend();
 }
 
 // Place names go on top of the data rather than under it. Added last, after
@@ -936,6 +949,7 @@ function addWmtsLayer(cfg) {
   });
   setLayerState(cfg.id, cfg.unit);
   applyVisibility(cfg.id);
+  buildLegend();
 }
 
 /* ---------- raster tile layers, via the Worker ---------- */
@@ -956,6 +970,10 @@ function addTileLayer(cfg) {
     // Past its maxzoom MapLibre scales the last tiles up rather than asking for
     // tiles the source does not serve — which would be a 400 on every one.
     maxzoom: cfg.tileMaxZoom || 12,
+    // Declared coverage. Without this the server answers outside the product's
+    // extent with a non-transparent tile, and the map paints a wash over half
+    // the planet that a reader has no reason to read as "no data".
+    ...(cfg.bounds ? { bounds: cfg.bounds } : {}),
     attribution: cfg.attribution || "",
   });
 
@@ -987,6 +1005,46 @@ function addTileLayer(cfg) {
 
   setLayerState(cfg.id, cfg.unit);
   applyVisibility(cfg.id);
+  buildLegend();
+}
+
+
+/* ---------- legend ---------- */
+//
+// What the colours mean, for the layers currently drawn. Rebuilt on every
+// toggle so it can never name a layer that is not on the map — a legend that
+// drifts from what is displayed is worse than no legend, because a reader
+// trusts it.
+function buildLegend() {
+  const box = document.getElementById("legend");
+  if (!box) return;
+
+  const shown = [];
+  for (const cfg of LAYERS) {
+    if (!cfg.ready) continue;
+    if ((visibility.get(cfg.id) || "visible") !== "visible") continue;
+    shown.push(cfg);
+  }
+  for (const g of (typeof GROUPS !== "undefined" ? GROUPS : [])) {
+    for (const child of g.children) {
+      if ((visibility.get(child.id) || "none") === "visible") shown.push(child);
+    }
+  }
+
+  if (!shown.length) { box.hidden = true; return; }
+  box.hidden = false;
+
+  const rows = shown.map((c) =>
+    `<div class="lg-row"><span class="lg-sw" style="background:${c.colour}"></span>` +
+    `<span class="lg-nm">${c.name}</span>` +
+    `<span class="lg-un">${c.unit || ""}</span></div>`).join("");
+
+  box.innerHTML =
+    `<div class="lg-hd">Showing</div>${rows}` +
+    `<div class="lg-rule"></div>` +
+    `<div class="lg-row"><span class="lg-sw lg-hollow"></span>` +
+    `<span class="lg-nm">hollow</span>` +
+    `<span class="lg-un">no site coordinate published</span></div>`;
 }
 
 /* ---------- shared ---------- */
@@ -1267,6 +1325,7 @@ function ensureLayer(cfg) {
         }
       }
       applyVisibility(cfg.id);
+      buildLegend();
     })
     .catch((e) => {
       // Let it be retried: a year that failed once because R2 was slow should
@@ -1367,6 +1426,7 @@ function buildPanel() {
         visibility.set(child.id, on ? "visible" : "none");
         if (on) ensureLayer(child);
         applyVisibility(child.id);
+        buildLegend();
       });
       syncGroupBox(box, group);
       return;
@@ -1384,6 +1444,7 @@ function buildPanel() {
       if (child) ensureLayer(child);
     }
     applyVisibility(id);
+    buildLegend();
     syncGroupBox(box);
   });
 
@@ -1567,6 +1628,7 @@ function gmInit() {
 }
 
 map.on("load", gmInit);
+map.on("load", buildLegend);
 map.on("moveend", () => { clearTimeout(gmTimer); gmTimer = setTimeout(gmSync, 900); });
 
 }  // end of the double-execution guard
