@@ -358,6 +358,167 @@ const LAYERS = [
 const protocol = new pmtiles.Protocol();
 maplibregl.addProtocol("pmtiles", protocol.tile);
 
+/* ---------- basemaps ---------- */
+//
+// Three, chosen in the panel:
+//   atlas      a painted world chart that fades into recoloured satellite
+//              imagery between zoom 3 and 5 (the opening basemap)
+//   satellite  the imagery as this map has always drawn it
+//   outlines   country shapes from data/boundaries.geojson, no imagery at all
+//
+// The painted chart is the same plate as the Pre-Birth Rights map: already
+// reprojected to Web Mercator, covering 80.55°S to 85.05°N. MapLibre places an
+// image source linearly in Mercator space, so it registers with no warping.
+const PLATE = {
+  url: abs("./atlas-plate.webp"),
+  coordinates: [[-180, 85.05112877980659], [180, 85.05112877980659],
+                [180, -80.55], [-180, -80.55]],
+  fadeIn: 3, fadeOut: 5,          // zoom: full plate -> full imagery
+};
+
+// The Leaflet atlas's settings, kept under the same names so the two maps can
+// be compared line by line. MapLibre's raster controls are not CSS filters, so
+// the grading is the nearest equivalent rather than the same numbers: CSS
+// saturate(1.15) is raster-saturation +0.15, and brightness(1.06) — which
+// MapLibre cannot exceed 1 on — is approximated by lifting the floor.
+const ATLAS_TUNE = {
+  sat: .15, con: .05, lift: .03, hue: -6,
+  sea: .55, green: .30, warm: .22,
+};
+const BASE_GRADE = {
+  atlas: { "raster-brightness-min": ATLAS_TUNE.lift, "raster-brightness-max": 1,
+           "raster-saturation": ATLAS_TUNE.sat, "raster-contrast": ATLAS_TUNE.con,
+           "raster-hue-rotate": ATLAS_TUNE.hue },
+  // Unchanged from before the atlas existed.
+  satellite: { "raster-brightness-min": 0, "raster-brightness-max": .74,
+               "raster-saturation": -.22, "raster-contrast": .10,
+               "raster-hue-rotate": 0 },
+};
+let BASEMAP = "atlas";
+
+// The colour washes, as one WebGL layer drawn over the imagery.
+//
+// The Leaflet atlas lays three flat colours over its imagery with CSS blend
+// modes. MapLibre has no blend modes for its own layers, but a custom WebGL
+// layer sets the GPU's blend equation directly. Those equations are linear,
+// so each wash is reproduced as closely as linear allows:
+//
+//   sea    #0f3b52  screen      EXACT. screen(d, c) = d + c(1 - d), which is
+//                               blendFunc(ONE, ONE_MINUS_SRC_COLOR) with the
+//                               colour premultiplied by the wash's opacity.
+//   warm   #f0c073  overlay     EXACT FOR THE DARKER HALF of the picture. For
+//                               d <= 0.5 overlay is d * 2c: a gain above 1 on
+//                               red and green (drawn as d + d*k with
+//                               blendFunc(DST_COLOR, ONE)) and a multiply below
+//                               1 on blue. Above d = 0.5 real overlay levels
+//                               off and this keeps climbing, so bright ground
+//                               comes out warmer than on the Leaflet map.
+//   green  #5f8f3a  soft-light  MATCHED AT MID-TONES. Soft-light is quadratic
+//                               in d. This is the multiply that gives the same
+//                               result at d = 0.5; darker and lighter ground
+//                               drift from it. Its small lift on green is
+//                               dropped.
+//
+// Relief is the existing hillshade layer. The Leaflet map multiplies it; here
+// it stays a normal overlay, as it was before the atlas.
+function atlasWashRamp(z) {
+  // Tints ease off as you zoom in: wide out they do the work, close in they
+  // cover the detail somebody zoomed in to see.
+  const t = z <= 6 ? 1 : z >= 13 ? 0.45 : 1 - (z - 6) * (0.55 / 7);
+  return { t, sea: z <= 6 ? 1 : 0.7 };
+}
+function hexRgb(h) {
+  const n = parseInt(h.slice(1), 16);
+  return [(n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255];
+}
+// Passes for one frame, as { mode, rgb }. Kept separate from the GL code so the
+// arithmetic can be tested without a GPU.
+function atlasWashPasses(z) {
+  const { t, sea } = atlasWashRamp(z);
+  const passes = [];
+  const aSea = ATLAS_TUNE.sea * sea;
+  passes.push({ mode: "screen", rgb: hexRgb("#0f3b52").map((c) => c * aSea) });
+
+  const aG = ATLAS_TUNE.green * t;
+  passes.push({ mode: "multiply", rgb: hexRgb("#5f8f3a").map((c) =>
+    1 - aG * (1 - (c < .5 ? .5 + c : 1))) });
+
+  const aW = ATLAS_TUNE.warm * t;
+  const warm = hexRgb("#f0c073");
+  passes.push({ mode: "gain", rgb: warm.map((c) => c > .5 ? aW * (2 * c - 1) : 0) });
+  passes.push({ mode: "multiply", rgb: warm.map((c) => c < .5 ? 1 - aW * (1 - 2 * c) : 1) });
+  return passes;
+}
+const atlasWashes = {
+  id: "atlas-washes", type: "custom", renderingMode: "2d",
+  onAdd(m, gl) {
+    try {
+      const sh = (type, src) => {
+        const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o);
+        if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o));
+        return o;
+      };
+      const p = gl.createProgram();
+      gl.attachShader(p, sh(gl.VERTEX_SHADER,
+        "attribute vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }"));
+      gl.attachShader(p, sh(gl.FRAGMENT_SHADER,
+        "precision mediump float; uniform vec3 c; void main(){ gl_FragColor = vec4(c, 1.0); }"));
+      gl.linkProgram(p);
+      if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+      this.prog = p;
+      this.aPos = gl.getAttribLocation(p, "p");
+      this.uCol = gl.getUniformLocation(p, "c");
+      this.buf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.buf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+      this.map = m;
+    } catch (e) {
+      // A GPU that rejects the shader leaves the imagery ungraded by washes
+      // rather than taking the map down. Everything else still draws.
+      this.failed = true;
+      console.warn("[culprits] atlas washes unavailable:", e.message || e);
+    }
+  },
+  render(gl) {
+    if (this.failed || BASEMAP !== "atlas") return;
+    // MapLibre binds its own vertex array objects. Drawing with one still bound
+    // would rewrite MapLibre's attribute state; unbind first. MapLibre marks its
+    // GL state dirty around a custom layer and restores the rest itself.
+    if (gl.bindVertexArray) gl.bindVertexArray(null);
+    else { const x = gl.getExtension("OES_vertex_array_object"); if (x) x.bindVertexArrayOES(null); }
+    gl.disable(gl.DEPTH_TEST); gl.disable(gl.STENCIL_TEST); gl.disable(gl.CULL_FACE);
+    gl.useProgram(this.prog);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.buf);
+    gl.enableVertexAttribArray(this.aPos);
+    gl.vertexAttribPointer(this.aPos, 2, gl.FLOAT, false, 0, 0);
+    gl.enable(gl.BLEND);
+    // Alpha is left as it was in every pass: these change colour, not coverage.
+    const func = {
+      screen:   [gl.ONE, gl.ONE_MINUS_SRC_COLOR],
+      multiply: [gl.ZERO, gl.SRC_COLOR],
+      gain:     [gl.DST_COLOR, gl.ONE],
+    };
+    for (const pass of atlasWashPasses(this.map.getZoom())) {
+      const [src, dst] = func[pass.mode];
+      gl.blendFuncSeparate(src, dst, gl.ZERO, gl.ONE);
+      gl.uniform3f(this.uCol, pass.rgb[0], pass.rgb[1], pass.rgb[2]);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
+  },
+};
+
+// Colour is a judgement and judgements want a knob, not a redeploy:
+//   atlasTune({ green: .4, warm: .3, sat: .25 })     atlasTune() prints them
+window.atlasTune = (next) => {
+  if (!next) { console.log("[culprits] atlas tune", JSON.stringify(ATLAS_TUNE)); return ATLAS_TUNE; }
+  for (const k of Object.keys(next)) if (k in ATLAS_TUNE) ATLAS_TUNE[k] = next[k];
+  Object.assign(BASE_GRADE.atlas, {
+    "raster-brightness-min": ATLAS_TUNE.lift, "raster-saturation": ATLAS_TUNE.sat,
+    "raster-contrast": ATLAS_TUNE.con, "raster-hue-rotate": ATLAS_TUNE.hue });
+  setBasemap(BASEMAP);
+  return ATLAS_TUNE;
+};
+
 const map = new maplibregl.Map({
   container: "map",
   center: [12, 24],
@@ -371,12 +532,10 @@ const map = new maplibregl.Map({
       // block, a plantation edge — and on a drawn basemap those float over an
       // abstraction rather than sitting on the ground they refer to.
       //
-      // NOT a full port. The Leaflet version tints with CSS blend modes on DOM
-      // panes: a green wash in soft-light, warmth in overlay, sea in screen.
-      // MapLibre draws raster in WebGL and exposes only opacity, saturation,
-      // brightness, contrast and hue-rotate — there is no blend mode. So the
-      // relief and the grading carry over and the tinting does not. Saying that
-      // plainly rather than shipping something close and calling it the same.
+      // The painted atlas (see BASEMAPS below) adds the Leaflet atlas's colour
+      // washes on top of these through a WebGL layer. Two of its three washes
+      // are reproduced exactly and one is matched at mid-tones; the comments
+      // there say which.
       base: {
         type: "raster",
         tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/" +
@@ -408,9 +567,10 @@ const map = new maplibregl.Map({
       { id: "bg", type: "background", paint: { "background-color": "#0B1017" } },
       // Graded down so the data layers read on top. Raw Esri imagery is bright
       // enough that a muted point layer disappears into it.
+      // Starts in the painted atlas's grading, because that is the opening
+      // basemap; setBasemap() swaps it for the satellite grading.
       { id: "base", type: "raster", source: "base",
-        paint: { "raster-opacity": 1, "raster-brightness-max": .74,
-                 "raster-saturation": -.22, "raster-contrast": .10 } },
+        paint: { "raster-opacity": 1, ...BASE_GRADE.atlas } },
       // Relief eases IN as you zoom, the way the Leaflet ramp does it: wide out
       // it muddies the picture, at valley scale it is what you want more of.
       { id: "hillshade", type: "raster", source: "hillshade",
@@ -664,6 +824,93 @@ async function addPmtilesLayer(cfg) {
 // dressed as a point claims a location the source never gave.
 let boundariesAdded = false;
 
+// One boundaries source for the country layers and the outlines basemap.
+// MapLibre throws on a second addSource with the same id, so both ask here.
+function ensureBoundaries() {
+  if (boundariesAdded) return;
+  map.addSource("boundaries", { type: "geojson", data: `${DATA_BASE}/boundaries.geojson`,
+                                promoteId: "iso3" });
+  boundariesAdded = true;
+}
+
+// Added first on load, so everything after sits above them: imagery and relief
+// (from the style), then the washes, then the painted plate, then labels and
+// every data layer.
+function addBasemapLayers() {
+  if (map.getLayer("atlas-plate")) return;
+  map.addLayer(atlasWashes);
+  map.addSource("atlas-plate", { type: "image", url: PLATE.url,
+                                 coordinates: PLATE.coordinates });
+  map.addLayer({
+    id: "atlas-plate", type: "raster", source: "atlas-plate",
+    // zoom at the top level of the expression: MapLibre rejects it nested.
+    paint: { "raster-opacity": ["interpolate", ["linear"], ["zoom"],
+                                PLATE.fadeIn, 1, PLATE.fadeOut, 0],
+             "raster-fade-duration": 0 },
+  });
+}
+
+// Drawn under the washes and plate, which are both off while it shows. Added
+// the first time outlines are chosen, not on load: the boundary file is 1.7 MB
+// and most readers never open this basemap.
+function addOutlineLayers() {
+  if (map.getLayer("outline-land")) return;
+  ensureBoundaries();
+  map.addLayer({ id: "outline-land", type: "fill", source: "boundaries",
+                 paint: { "fill-color": "#202825" } }, "atlas-washes");
+  map.addLayer({ id: "outline-line", type: "line", source: "boundaries",
+                 paint: { "line-color": "rgba(214,211,200,.17)",
+                          "line-width": ["interpolate", ["linear"], ["zoom"], 3, .6, 4, .9] } },
+               "atlas-washes");
+}
+
+function setBasemap(kind) {
+  BASEMAP = kind;
+  const show = (id, on) => {
+    if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
+  };
+  const imagery = kind !== "outlines";
+  if (!imagery) addOutlineLayers();
+  show("base", imagery);
+  show("hillshade", imagery);
+  show("atlas-plate", kind === "atlas");
+  show("outline-land", !imagery);
+  show("outline-line", !imagery);
+  if (imagery && map.getLayer("base")) {
+    for (const [k, v] of Object.entries(BASE_GRADE[kind])) map.setPaintProperty("base", k, v);
+  }
+  // The plate carries its own drawn place names, so map labels wait until it
+  // has faded, as they do on the Leaflet atlas.
+  if (map.getLayer("labels")) {
+    map.setPaintProperty("labels", "raster-opacity", kind === "atlas"
+      ? ["interpolate", ["linear"], ["zoom"], PLATE.fadeIn, 0, PLATE.fadeOut, .92]
+      : .92);
+  }
+  if (typeof map.triggerRepaint === "function") map.triggerRepaint();
+}
+
+function buildBasemapPanel() {
+  const box = document.getElementById("basemaps");
+  if (!box) return;
+  const opts = [
+    ["atlas", "Painted atlas",
+     "A painted world chart at world view, fading into satellite imagery between " +
+     "zoom 3 and 5. The imagery is recoloured, not redrawn: every coastline is " +
+     "still Esri's photograph."],
+    ["satellite", "Satellite imagery",
+     "Esri World Imagery with relief, darkened so the layers read on top."],
+    ["outlines", "Country outlines",
+     "Country shapes from this map's own boundary file. No imagery."],
+  ];
+  box.innerHTML = `<p class="bm-h">Basemap</p>` + opts.map(([k, nm, un]) =>
+    `<label class="layer"><input type="radio" name="basemap" value="${k}"` +
+    `${k === BASEMAP ? " checked" : ""}><span class="body"><span class="nm">${nm}</span>` +
+    `<span class="un">${un}</span></span></label>`).join("");
+  box.addEventListener("change", (e) => {
+    if (e.target && e.target.name === "basemap") setBasemap(e.target.value);
+  });
+}
+
 // Choropleth fills belong under the point layers so they don't hide them. But
 // the point layers are added asynchronously too, so the id may not exist yet —
 // and MapLibre throws on a beforeId that isn't there. Return undefined in that
@@ -678,11 +925,7 @@ function pointLayerAbove() {
 }
 
 async function addCountryLayer(cfg) {
-  if (!boundariesAdded) {
-    map.addSource("boundaries", { type: "geojson", data: `${DATA_BASE}/boundaries.geojson`,
-                                  promoteId: "iso3" });
-    boundariesAdded = true;
-  }
+  ensureBoundaries();
 
   let totals;
   try {
@@ -1469,7 +1712,7 @@ function updateZoomState() {
 const badTiles = new Set();
 map.on("error", (e) => {
   const src = e && e.sourceId;
-  if (src && ["base", "hillshade", "labels"].includes(src) && !badTiles.has(src)) {
+  if (src && ["base", "hillshade", "labels", "atlas-plate"].includes(src) && !badTiles.has(src)) {
     badTiles.add(src);
     console.warn(`[culprits] basemap source "${src}" is failing to load tiles ` +
                  `— the map still works, but it will look wrong.`);
@@ -1477,7 +1720,12 @@ map.on("error", (e) => {
 });
 
 map.on("load", () => {
+  // Its own try: a basemap that fails to add costs the painted look, and must
+  // not cost every data layer added after it.
+  try { addBasemapLayers(); } catch (e) { console.warn("[culprits] basemap layers:", e.message); }
   addLabelsOnTop();
+  setBasemap(BASEMAP);
+  buildBasemapPanel();
   LAYERS.filter((c) => c.ready).forEach((cfg) => {
     try {
       if (cfg.route === "worker") addLiveLayer(cfg);

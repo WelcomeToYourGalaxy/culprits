@@ -43,15 +43,24 @@ class FakeMap {
     return d ? { ...d, setData: (data) => { d._data = data; } } : undefined;
   }
   addLayer(def, beforeId) {
-    if (!this.sources.has(def.source)) {
+    // Custom WebGL layers are the one kind MapLibre accepts with no source.
+    if (def.type !== "custom" && !this.sources.has(def.source)) {
       throw new Error(`layer "${def.id}" references missing source "${def.source}"`);
     }
     if (beforeId !== undefined && !this.layers.some((l) => l.id === beforeId)) {
       throw new Error(`beforeId "${beforeId}" does not exist`);
     }
-    this.layers.push(def);
+    // Inserted where MapLibre would put it, so drawing order is testable.
+    if (beforeId !== undefined) this.layers.splice(this.layers.findIndex((l) => l.id === beforeId), 0, def);
+    else this.layers.push(def);
   }
   getLayer(id) { return this.layers.find((l) => l.id === id); }
+  setPaintProperty(id, k, v) {
+    const l = this.getLayer(id);
+    if (!l) throw new Error(`setPaintProperty on missing layer "${id}"`);
+    (l.paint ||= {})[k] = v;
+  }
+  triggerRepaint() {}
   setLayoutProperty(id, k, v) {
     const l = this.getLayer(id);
     if (!l) throw new Error(`setLayoutProperty on missing layer "${id}"`);
@@ -676,6 +685,90 @@ console.log("\nmap wiring");
         /"circle-radius": \[\s*\n?\s*"interpolate", \["linear"\], \["zoom"\]/.test(src));
   check("the magnitude expression is defined once, not copied per stop",
         (src.match(/const MAGNITUDE_RADIUS =/g) || []).length === 1);
+}
+
+// --- basemaps: painted atlas, satellite, country outlines -------------------
+//
+// The atlas adds a custom WebGL layer and an image layer on load, first, so
+// every data layer sits above them. A throw there must not cost the data
+// layers, and the outlines basemap shares one boundaries source with the
+// country layers, which MapLibre refuses to add twice.
+console.log("\nbasemaps");
+{
+  const { map, els } = run();
+  const warned = []; const cw = console.warn; console.warn = (...a) => warned.push(a.join(" "));
+  let err = null;
+  try { map.fire("load"); await new Promise((r) => setTimeout(r, 5)); } catch (e) { err = e; }
+  console.warn = cw;
+  check("load adds the basemap without error", err === null && !warned.some((w) => /basemap layers/.test(w)),
+        (err && err.message) || warned.join("; "));
+  const ids = map.layers.map((l) => l.id);
+  const wash = map.getLayer("atlas-washes"), plate = map.getLayer("atlas-plate");
+  check("the washes are a custom layer with a render function",
+        wash && wash.type === "custom" && typeof wash.render === "function");
+  check("the plate is an image source", map.sources.get("atlas-plate")?.type === "image");
+  const firstData = ids.findIndex((id) => !/^atlas-/.test(id));
+  check("washes, then plate, then everything else",
+        ids.indexOf("atlas-washes") === 0 && ids.indexOf("atlas-plate") === 1 && firstData > 1,
+        ids.slice(0, 4).join(", "));
+  const op = plate && plate.paint["raster-opacity"];
+  check("the plate fade reads zoom at the top level of its expression",
+        Array.isArray(op) && op[0] === "interpolate" && JSON.stringify(op[2]) === '["zoom"]',
+        JSON.stringify(op));
+  check("the painted atlas is the opening basemap",
+        (els.get("basemaps")?.innerHTML || "").includes('value="atlas" checked'));
+
+  // Outlines: switch there, and the country layer that loaded on the same
+  // source must not have been re-added.
+  let e2 = null;
+  const change = (v) => els.get("basemaps").fire("change", { target: { name: "basemap", value: v } });
+  try { change("outlines"); change("satellite"); change("outlines"); change("atlas"); } catch (e) { e2 = e; }
+  check("switching basemaps back and forth throws nothing", e2 === null, e2 && e2.message);
+  check("the outlines draw under the washes",
+        map.layers.findIndex((l) => l.id === "outline-land") <
+        map.layers.findIndex((l) => l.id === "atlas-washes"));
+  check("the outlines are hidden again in the atlas",
+        map.getLayer("outline-land").layout?.visibility === "none" &&
+        map.getLayer("atlas-plate").layout?.visibility === "visible");
+  change("outlines");
+  check("the plate is hidden under outlines",
+        map.getLayer("atlas-plate").layout?.visibility === "none");
+  check("one boundaries source, shared",
+        [...map.sources.keys()].filter((k) => k === "boundaries").length === 1);
+}
+
+// The washes' arithmetic, against the CSS blend modes they stand in for.
+// Pulled out of app.js and run alone, because no GPU is available here. The
+// blend functions are simulated exactly as the GPU would apply them.
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const chunk = src.slice(src.indexOf("const ATLAS_TUNE"), src.indexOf("const atlasWashes"));
+  const { ATLAS_TUNE, atlasWashPasses } =
+    new Function("abs", chunk + "\nreturn { ATLAS_TUNE, atlasWashPasses };")(() => "");
+  const gpu = { screen: (d, s) => s + d * (1 - s), multiply: (d, s) => d * s, gain: (d, s) => d + d * s };
+  const hex = (h) => { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255].map((v) => v / 255); };
+  const cssScreen = (d, c) => d + c - d * c;
+  const cssOverlay = (d, c) => d <= .5 ? 2 * d * c : cssScreen(2 * d - 1, c);
+  const cssSoft = (d, c) => c <= .5 ? d - (1 - 2 * c) * d * (1 - d)
+    : d + (2 * c - 1) * ((d <= .25 ? ((16 * d - 12) * d + 4) * d : Math.sqrt(d)) - d);
+  const mix = (d, b, a) => d + a * (b - d);
+  const z = 2, P = atlasWashPasses(z);
+  let worst = { sea: 0, warm: 0, green: 0 };
+  for (let ch = 0; ch < 3; ch++) {
+    for (let d = 0; d <= .5001; d += .05) {
+      const sea = gpu.screen(d, P[0].rgb[ch]);
+      worst.sea = Math.max(worst.sea, Math.abs(sea - mix(d, cssScreen(d, hex("#0f3b52")[ch]), ATLAS_TUNE.sea)));
+      const warm = gpu.multiply(gpu.gain(d, P[2].rgb[ch]), P[3].rgb[ch]);
+      worst.warm = Math.max(worst.warm, Math.abs(warm - mix(d, cssOverlay(d, hex("#f0c073")[ch]), ATLAS_TUNE.warm)));
+    }
+    const g = gpu.multiply(.5, P[1].rgb[ch]);
+    worst.green = Math.max(worst.green, Math.abs(g - mix(.5, cssSoft(.5, hex("#5f8f3a")[ch]), ATLAS_TUNE.green)));
+  }
+  check("sea wash equals CSS screen", worst.sea < 1e-9, worst.sea);
+  check("warm wash equals CSS overlay on the darker half", worst.warm < 1e-9, worst.warm);
+  check("green wash is within 0.01 of CSS soft-light at mid-tone", worst.green < .01, worst.green);
+  check("no pass asks the GPU for a colour outside 0-1",
+        P.every((p) => p.rgb.every((v) => v >= 0 && v <= 1)));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

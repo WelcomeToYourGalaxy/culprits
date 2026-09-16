@@ -32,6 +32,8 @@
   .layer .nm{display:block}
   .layer .un{color:var(--dim);font-size:12px}
   .swatch{width:10px;height:10px;border-radius:50%;flex:none;margin:4px 0 0}
+  .basemaps{margin:0 0 14px;padding-bottom:6px;border-bottom:1px solid var(--rule)}
+  .bm-h{margin:0 0 2px;color:var(--dim);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
   .pending-note{margin:14px 0 0;padding-top:12px;border-top:1px solid var(--rule);
     color:var(--dim);font-size:12px;line-height:1.45}
 
@@ -107,6 +109,7 @@
 <div class="panel">
   <h1>The Culprits</h1>
   <p class="zoomstate" id="zoomstate">Reading the aggregate view.</p>
+  <div id="basemaps" class="basemaps"></div>
   <div id="layers"></div>
   <p class="note" id="note"></p>
 </div>
