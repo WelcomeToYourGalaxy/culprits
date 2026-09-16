@@ -335,15 +335,27 @@ const LAYERS = [
   { id:"slavery_cases",        name:"Identified trafficking cases", unit:"identified cases", colour:"#7A6A72", route:"country", ready:true,
     note: "Detection, not prevalence. A country with a large count has organisations filing records; a country with none may have no one counting." },
 
-  // ---- verified contracts, worker routes not written yet -----------------
+  // ---- polygon layers: Cerulean and Allen Coral ---------------------------
   //
   // Registered here rather than left out so the geometry, the caps and the
   // wording are settled while the API documentation is fresh. All three are
   // polygons, which is why addLiveLayer grew a fill/line branch. Each needs a
   // Worker route before ready can flip.
-  { id:"cerulean_slicks",      name:"Oil slicks (Cerulean)",   unit:"potential slicks, Sentinel-1", colour:"#5A5750", route:"worker", ready:true, off: true,
-    geometry:"polygon", maxAreaDeg2: 120,
-    note: "Potential slicks. SkyTruth state that oil cannot be definitively identified from radar alone, so every shape here is a detection awaiting review. Coverage is EEZs rather than the high seas.",
+  // Straight from Cerulean's own vector tiles, not through the Worker, and not
+  // an archive. Measured 15 September 2026 from the Commander's machine: the
+  // server answers with CORS for this site and a one-hour cache, every
+  // detection since January 2023 is served, and a tile off Durrës weighed
+  // 21.4 MB with every field and 6.4 MB without centerlines (2.7 MB as the
+  // browser downloads it). See CERULEAN below for the limits this works within.
+  { id:"cerulean_slicks",      name:"Oil slicks (Cerulean)",   unit:"potential slicks, Sentinel-1", colour:"#5A5750", route:"cerulean", ready:true, off: true,
+    collection: "public.slick_plus", drawFrom: 7,
+    // Every field the collection publishes except centerlines — a skeleton of
+    // each slick nested inside it, which the map cannot draw and which was
+    // most of every tile's weight. Geometry columns are never sent as fields.
+    // Read from /queryables, not from documentation. If SkyTruth add a field it
+    // will not appear until it is added here.
+    properties: ["id", "slick_timestamp", "machine_confidence", "slick_confidence", "length", "area", "perimeter", "polsby_popper", "fill_factor", "aspect_ratio_factor", "cls", "orchestrator_run", "linearity", "s1_scene_id", "hitl_cls", "hitl_cls_name", "aoi_type_1_ids", "aoi_type_2_ids", "aoi_type_3_ids", "source_type_1_ids", "source_type_2_ids", "source_type_3_ids", "max_source_collated_score", "slick_url"],
+    note: "Potential slicks. SkyTruth state that oil cannot be definitively identified from radar alone, so every shape here is a detection awaiting review. Coverage is EEZs rather than the high seas. Every detection since January 2023, live. Wide out, each circle is a live count for its square; shapes draw from zoom 7. A square marked with a dashed edge holds more slicks than one tile can carry, and shows only some of them until you zoom in.",
     attribution: '<a href="https://cerulean.skytruth.org" target="_blank" rel="noopener">SkyTruth Cerulean</a>' },
   { id:"cerulean_sources",     name:"Slick sources (Cerulean)", unit:"candidate vessels and platforms", colour:"#6B5F58", route:"worker", ready:true, off: true,
     geometry:"polygon", maxAreaDeg2: 120,
@@ -357,6 +369,38 @@ const LAYERS = [
 
 const protocol = new pmtiles.Protocol();
 maplibregl.addProtocol("pmtiles", protocol.tile);
+
+// Cerulean, read directly. Its API is tipg, which serves every collection as
+// vector tiles and as counts, and answers this site's origin with CORS.
+//
+// TILE_CAP is tipg's default number of features per tile, which Cerulean's
+// deploy config does not change. A tile over an area holding more than that is
+// cut off at the cap, and a vector tile carries no count to say so. So the
+// count is asked for separately (items?bbox=…&limit=0 returns numberMatched and
+// no geometry) and any square over the cap is marked on the map.
+//
+// Measured off Durrës: 171,473 slicks in a zoom-3 tile, 13,138 at zoom 5,
+// 3,421 at zoom 7, 376 at zoom 9. That is why shapes draw from zoom 7 — the
+// first measured zoom under the cap. Denser seas may still exceed it at 7,
+// which is what the marking is for.
+const CERULEAN = "https://api.cerulean.skytruth.org";
+const CERULEAN_TILE_CAP = 10000;
+
+// Cerulean's server is often slow to answer its first request and times out
+// once, then answers. MapLibre does not retry a failed tile, so tiles go
+// through this: the same request, tried a second time before giving up.
+maplibregl.addProtocol("cerulean", async (params, abortController) => {
+  const url = params.url.replace(/^cerulean:\/\//, "https://");
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const r = await fetch(url, { signal: abortController && abortController.signal });
+      if (!r.ok) throw new Error(`${r.status}`);
+      return { data: await r.arrayBuffer() };
+    } catch (e) {
+      if (attempt >= 1 || (abortController && abortController.signal.aborted)) throw e;
+    }
+  }
+});
 
 /* ---------- basemaps ---------- */
 //
@@ -1079,6 +1123,189 @@ async function refreshLiveLayer(cfg) {
   }
 }
 
+/* ---------- Cerulean, live from its own tiles ---------- */
+
+function addCeruleanLayer(cfg) {
+  const base = CERULEAN.replace(/^https:\/\//, "cerulean://");
+  map.addSource(`${cfg.id}-tiles`, {
+    type: "vector",
+    // No date filter: every detection the collection holds.
+    tiles: [`${base}/collections/${cfg.collection}/tiles/WebMercatorQuad/{z}/{x}/{y}` +
+            `?properties=${cfg.properties.join(",")}`],
+    minzoom: cfg.drawFrom, maxzoom: 14,
+    attribution: cfg.attribution || "",
+  });
+  // Same drawing as the Worker version: the slick's shape is the evidence.
+  map.addLayer({
+    id: `${cfg.id}-fill`, type: "fill", source: `${cfg.id}-tiles`, "source-layer": "default",
+    minzoom: cfg.drawFrom,
+    paint: { "fill-color": cfg.colour, "fill-opacity": .38 },
+  });
+  map.addLayer({
+    id: `${cfg.id}-line`, type: "line", source: `${cfg.id}-tiles`, "source-layer": "default",
+    minzoom: cfg.drawFrom,
+    paint: { "line-color": cfg.colour,
+             "line-width": ["interpolate", ["linear"], ["zoom"], 7, .8, 12, 1.6],
+             "line-opacity": .85 },
+  });
+
+  // Counts, one circle per square, below the zoom where shapes draw.
+  map.addSource(`${cfg.id}-counts`, { type: "geojson",
+    data: { type: "FeatureCollection", features: [] } });
+  map.addLayer({
+    id: `${cfg.id}-agg`, type: "circle", source: `${cfg.id}-counts`,
+    maxzoom: cfg.drawFrom,
+    paint: {
+      "circle-color": cfg.colour, "circle-opacity": .7,
+      "circle-stroke-color": "rgba(220,214,198,.55)", "circle-stroke-width": .8,
+      // Area proportional to the count.
+      "circle-radius": ["interpolate", ["linear"], ["sqrt", ["get", "n"]],
+                        0, 0, 1, 2.5, 100, 10, 450, 30],
+    },
+  });
+  // Squares holding more than one tile can carry, from the zoom shapes draw.
+  map.addSource(`${cfg.id}-caps`, { type: "geojson",
+    data: { type: "FeatureCollection", features: [] } });
+  map.addLayer({
+    id: `${cfg.id}-cap`, type: "line", source: `${cfg.id}-caps`,
+    minzoom: cfg.drawFrom,
+    paint: { "line-color": "rgba(220,214,198,.8)", "line-width": 1.2,
+             "line-dasharray": [3, 2] },
+  });
+
+  bindHtmlPopup(`${cfg.id}-agg`, (p) =>
+    `<b>${Number(p.n).toLocaleString()} potential slicks</b>` +
+    `<div class="meta">Detected in this square since January 2023, counted live ` +
+    `from SkyTruth Cerulean. Zoom to ${cfg.drawFrom} to draw them.</div>`);
+  bindHtmlPopup(`${cfg.id}-cap`, (p) =>
+    `<b>${Number(p.n).toLocaleString()} potential slicks in this square</b>` +
+    `<div class="meta">One tile carries at most ${CERULEAN_TILE_CAP.toLocaleString()}, ` +
+    `so this square shows only some of them. Zoom in here to draw all of them.</div>`);
+  // Every field as Cerulean names it. Units are not stated because the API
+  // does not state them.
+  bindHtmlPopup(`${cfg.id}-fill`, (p) => {
+    const rows = cfg.properties
+      .filter((k) => k !== "slick_url" && p[k] !== undefined && p[k] !== null && p[k] !== "")
+      .map((k) => `${k.replace(/_/g, " ")}: ${p[k]}`).join("<br>");
+    return `<b>Potential slick</b>` +
+      `<div class="meta">${rows}</div>` +
+      `<div class="meta">A radar detection awaiting review, not a confirmed spill.` +
+      (p.slick_url ? `<br><a href="${p.slick_url}" target="_blank" rel="noopener">Open in Cerulean</a>` : "") +
+      `</div>`;
+  });
+  applyVisibility(cfg.id);
+  buildLegend();
+}
+
+// One popup per click, sharing the claim with bindPopup.
+function bindHtmlPopup(layerId, html) {
+  map.on("click", layerId, (e) => {
+    const claim = e.originalEvent || e;
+    if (popupClaimedBy === claim) return;
+    popupClaimedBy = claim;
+    new maplibregl.Popup({ closeButton: true, maxWidth: "300px" })
+      .setLngLat(e.lngLat).setHTML(html(e.features[0].properties)).addTo(map);
+  });
+  map.on("mouseenter", layerId, () => (map.getCanvas().style.cursor = "pointer"));
+  map.on("mouseleave", layerId, () => (map.getCanvas().style.cursor = ""));
+}
+
+// Square (tile) bounds in lon/lat.
+function tileBounds(z, x, y) {
+  const n = 2 ** z;
+  const lon = (i) => i / n * 360 - 180;
+  const lat = (j) => Math.atan(Math.sinh(Math.PI * (1 - 2 * j / n))) * 180 / Math.PI;
+  return [lon(x), lat(y + 1), lon(x + 1), lat(y)];
+}
+function tileIndex(z, lon, lat) {
+  const n = 2 ** z;
+  const clampLat = Math.max(-85.0511, Math.min(85.0511, lat));
+  const x = Math.floor((lon + 180) / 360 * n);
+  const r = clampLat * Math.PI / 180;
+  const y = Math.floor((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n);
+  return [Math.max(0, Math.min(n - 1, x)), Math.max(0, Math.min(n - 1, y))];
+}
+
+// Counts are cached for an hour, the same time Cerulean's own responses carry.
+const ceruleanCounts = new Map();     // "id z/x/y" -> { n, at }
+const ceruleanRun = new Map();        // id -> run number, so a late answer is dropped
+const COUNT_TTL_MS = 3600 * 1000;
+const COUNT_PARALLEL = 4;             // their server is slow; do not queue 30 at once
+
+async function ceruleanCount(cfg, z, x, y) {
+  const key = `${cfg.id} ${z}/${x}/${y}`;
+  const hit = ceruleanCounts.get(key);
+  if (hit && Date.now() - hit.at < COUNT_TTL_MS) return hit.n;
+  const [w, s, e, n] = tileBounds(z, x, y).map((v) => v.toFixed(5));
+  const url = `${CERULEAN}/collections/${cfg.collection}/items?bbox=${w},${s},${e},${n}&limit=0`;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`${r.status}`);
+      const matched = (await r.json()).numberMatched;
+      if (typeof matched !== "number") throw new Error("no count returned");
+      ceruleanCounts.set(key, { n: matched, at: Date.now() });
+      return matched;
+    } catch (err) {
+      if (attempt >= 1) throw err;
+    }
+  }
+}
+
+async function refreshCerulean(cfg) {
+  if ((visibility.get(cfg.id) || "visible") !== "visible") return;   // off: ask nothing
+  const counts = map.getSource(`${cfg.id}-counts`);
+  const caps = map.getSource(`${cfg.id}-caps`);
+  if (!counts || !caps) return;
+  const run = (ceruleanRun.get(cfg.id) || 0) + 1;
+  ceruleanRun.set(cfg.id, run);
+
+  // Squares are the same tiles MapLibre requests, so a marked square is exactly
+  // a tile that was cut off. Past zoom 12 the squares stop shrinking, which
+  // keeps the number of count requests down; a zoom-12 square is 10 km.
+  const b = map.getBounds();
+  const z = Math.max(1, Math.min(12, Math.floor(map.getZoom())));
+  const [x0, y0] = tileIndex(z, Math.max(b.getWest(), -180), b.getNorth());
+  const [x1, y1] = tileIndex(z, Math.min(b.getEast(), 180), b.getSouth());
+  const cells = [];
+  for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) cells.push([x, y]);
+  if (cells.length > 64) { setLayerState(cfg.id, "zoom in a little to count"); return; }
+
+  setLayerState(cfg.id, "counting…");
+  const results = [];
+  let failed = 0, next = 0;
+  await Promise.all(Array.from({ length: COUNT_PARALLEL }, async () => {
+    while (next < cells.length) {
+      const [x, y] = cells[next++];
+      try { results.push({ x, y, n: await ceruleanCount(cfg, z, x, y) }); }
+      catch (_) { failed++; }
+    }
+  }));
+  if (ceruleanRun.get(cfg.id) !== run) return;   // the map moved on
+
+  const points = [], over = [];
+  let total = 0;
+  for (const { x, y, n } of results) {
+    total += n;
+    const [w, s, e, nn] = tileBounds(z, x, y);
+    if (n > 0) points.push({ type: "Feature", properties: { n },
+      geometry: { type: "Point", coordinates: [(w + e) / 2, (s + nn) / 2] } });
+    if (n > CERULEAN_TILE_CAP) over.push({ type: "Feature", properties: { n },
+      geometry: { type: "Polygon", coordinates: [[[w, s], [e, s], [e, nn], [w, nn], [w, s]]] } });
+  }
+  counts.setData({ type: "FeatureCollection", features: points });
+  caps.setData({ type: "FeatureCollection", features: over });
+
+  const drawn = map.getZoom() >= cfg.drawFrom;
+  let text = `${total.toLocaleString()} in the squares on screen`;
+  if (!drawn) text += ` — shapes draw from zoom ${cfg.drawFrom}`;
+  else if (over.length) text += ` — ${over.length} marked square${over.length > 1 ? "s" : ""} ` +
+                                 `show only some; zoom in there`;
+  else text += ", all drawn";
+  if (failed) text += ` (${failed} square${failed > 1 ? "s" : ""} could not be counted)`;
+  setLayerState(cfg.id, text);
+}
+
 function addLiveLayer(cfg) {
   map.addSource(`${cfg.id}-live`, {
     type: "geojson",
@@ -1413,9 +1640,13 @@ const visibility = new Map(LAYERS.filter((c) => c.off).map((c) => [c.id, "none"]
 
 function applyVisibility(id) {
   const vis = visibility.get(id) || "visible";
-  [`${id}-agg`, `${id}-pt`, `${id}-fill`, `${id}-line`, `${id}-raster`].forEach((l) => {
+  [`${id}-agg`, `${id}-pt`, `${id}-fill`, `${id}-line`, `${id}-raster`, `${id}-cap`].forEach((l) => {
     if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", vis);
   });
+  const cfg = LAYERS.find((l) => l.id === id);
+  if (cfg && cfg.route === "cerulean" && vis === "visible") {
+    refreshCerulean(cfg).catch((e) => setLayerState(id, `unavailable (${e.message})`));
+  }
 }
 
 function applyFacet(cfg) {
@@ -1731,6 +1962,7 @@ map.on("load", () => {
       if (cfg.route === "worker") addLiveLayer(cfg);
       else if (cfg.route === "tile") addTileLayer(cfg);
       else if (cfg.route === "wmts") addWmtsLayer(cfg);
+      else if (cfg.route === "cerulean") addCeruleanLayer(cfg);
       else if (cfg.route === "country") {
         // Async: without a catch a failure here becomes an unhandled rejection
         // and the layer just silently never appears.
@@ -1748,9 +1980,11 @@ map.on("load", () => {
 
 map.on("zoom", updateZoomState);
 map.on("moveend", () => {
-  afterMovement(() =>
-    LAYERS.filter((c) => c.ready && c.route === "worker").forEach(refreshLiveLayer)
-  );
+  afterMovement(() => {
+    LAYERS.filter((c) => c.ready && c.route === "worker").forEach(refreshLiveLayer);
+    LAYERS.filter((c) => c.ready && c.route === "cerulean").forEach((c) =>
+      refreshCerulean(c).catch((e) => setLayerState(c.id, `unavailable (${e.message})`)));
+  });
 });
 
 /* ---------- guerillamap companion ---------- */

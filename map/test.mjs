@@ -142,7 +142,8 @@ function run({ layersReady = null, fetchImpl = null } = {}) {
     Map: function () { return map; },
     NavigationControl: function () {}, ScaleControl: function () {},
     Popup: FakePopup,
-    addProtocol() {},
+    // Recorded so a protocol handler can be exercised directly.
+    addProtocol(name, fn) { (globalThis.__protocols ||= {})[name] = fn; },
   };
   globalThis.pmtiles = { Protocol: function () { return { tile: () => {} }; } };
   globalThis.document.baseURI = "https://example.test/culprits/";
@@ -769,6 +770,75 @@ console.log("\nbasemaps");
   check("green wash is within 0.01 of CSS soft-light at mid-tone", worst.green < .01, worst.green);
   check("no pass asks the GPU for a colour outside 0-1",
         P.every((p) => p.rgb.every((v) => v >= 0 && v <= 1)));
+}
+
+// --- Cerulean slicks, live from Cerulean's own vector tiles ------------------
+//
+// No Worker, no archive. The tile URL must carry every field but centerlines
+// and no date filter; shapes draw from zoom 7; nothing is requested while the
+// layer is off; and the counts that make a cut-off tile visible must reach the
+// map, surviving one slow first answer.
+console.log("\ncerulean, live");
+{
+  const { map } = run({ layersReady: "cerulean_slicks" });
+  map.fire("load"); await new Promise((r) => setTimeout(r, 5));
+  const src = map.sources.get("cerulean_slicks-tiles");
+  const url = src && src.tiles[0];
+  check("slicks come from Cerulean's tiles, not the Worker",
+        !!url && url.startsWith("cerulean://api.cerulean.skytruth.org/") && !url.includes("workers.dev"), url);
+  check("the tile request leaves out centerlines and nothing else it was given",
+        !!url && !/centerlines/.test(url) && /properties=id,slick_timestamp,/.test(url) && /slick_url$/.test(url), url);
+  check("no date filter: every detection since 2023", !!url && !/datetime/.test(url));
+  const fill = map.getLayer("cerulean_slicks-fill");
+  check("shapes draw from zoom 7, off the same zoom in the source",
+        fill && fill.minzoom === 7 && fill["source-layer"] === "default" && src.minzoom === 7);
+  check("nothing is counted while the layer is off",
+        !fetched.some((u) => String(u).includes("cerulean")), fetched.filter((u) => String(u).includes("cerulean")).join(" "));
+}
+{
+  let calls = 0;
+  const fetchImpl = async (u) => {
+    fetched.push(u);
+    if (String(u).includes("api.cerulean.skytruth.org") && String(u).includes("limit=0")) {
+      calls++;
+      if (calls === 1) throw new Error("timed out");       // the slow first answer
+      return { ok: true, status: 200, json: async () => ({ numberMatched: 171473, features: [] }) };
+    }
+    return { ok: true, status: 200, json: async () => ({}) };
+  };
+  const { map, els } = run({ layersReady: "cerulean_slicks", fetchImpl });
+  map.fire("load"); await new Promise((r) => setTimeout(r, 5));
+  els.get("layers").fire("change", { target: { dataset: { layer: "cerulean_slicks" }, checked: true } });
+  await new Promise((r) => setTimeout(r, 20));
+  const countUrls = fetched.filter((u) => String(u).includes("limit=0"));
+  check("switching on asks Cerulean for counts, with no geometry", countUrls.length >= 2 &&
+        countUrls.every((u) => /\/collections\/public\.slick_plus\/items\?bbox=/.test(u)), countUrls.join(" "));
+  check("a count that times out once is asked again, not given up", calls === 2, `calls=${calls}`);
+  const pts = map.sources.get("cerulean_slicks-counts")._data;
+  const caps = map.sources.get("cerulean_slicks-caps")._data;
+  check("the count reaches the map", pts && pts.features.length === 1 && pts.features[0].properties.n === 171473);
+  check("a square over 10,000 is marked", caps && caps.features.length === 1);
+  const cap = map.getLayer("cerulean_slicks-cap");
+  check("the marking only shows where shapes are drawn", cap && cap.minzoom === 7);
+  els.get("layers").fire("change", { target: { dataset: { layer: "cerulean_slicks" }, checked: false } });
+  check("switching off hides the marking too", cap.layout?.visibility === "none");
+}
+{
+  // The tile protocol: one retry, then the bytes.
+  let n = 0;
+  globalThis.fetch = async () => { if (++n === 1) throw new Error("timed out");
+    return { ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer(3) }; };
+  const handler = globalThis.__protocols && globalThis.__protocols.cerulean;
+  let got = null, err = null;
+  try { got = await handler({ url: "cerulean://api.cerulean.skytruth.org/x" }, new AbortController()); }
+  catch (e) { err = e; }
+  check("a tile that times out once is fetched again", !err && got && got.data.byteLength === 3 && n === 2,
+        err && err.message);
+  n = 0;
+  globalThis.fetch = async (u) => { n++; throw new Error("down"); };
+  try { await handler({ url: "cerulean://api.cerulean.skytruth.org/x" }, new AbortController()); err = null; }
+  catch (e) { err = e; }
+  check("…but only once", !!err && n === 2, `n=${n}`);
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
