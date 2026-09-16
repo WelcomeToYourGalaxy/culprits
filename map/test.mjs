@@ -841,5 +841,34 @@ console.log("\ncerulean, live");
   check("…but only once", !!err && n === 2, `n=${n}`);
 }
 
+// --- the tropics alert layer stops at 30°, to the pixel ---------------------
+//
+// bounds only picks which tiles load; a tile straddling 30° was drawn whole and
+// painted a wash beyond the product's extent. The rows outside the band are
+// cleared from the image, so beyond it the basemap shows untouched.
+console.log("\ntropics clip");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const a = src.indexOf("function clipTileRows"), b = src.indexOf("// latclip://");
+  const clipTileRows = new Function(src.slice(a, b) + "\nreturn clipTileRows;")();
+  // z1 tile 0/0 spans 85°N to the equator: rows north of 30° are cleared.
+  const rows = clipTileRows(1, 0, 256, -30, 30);
+  const lat = (row) => Math.atan(Math.sinh(Math.PI * (1 - 2 * ((row + .5) / 256) / 2))) * 180 / Math.PI;
+  check("a tile from the Arctic to the equator loses its rows north of 30°",
+        rows.length === 1 && rows[0][0] === 0 && lat(rows[0][1] - 1) > 30 && lat(rows[0][1]) <= 30,
+        JSON.stringify(rows));
+  check("a tile wholly inside the tropics is left alone", clipTileRows(6, 31, 256, -30, 30).length === 0);
+  const world = clipTileRows(0, 0, 256, -30, 30);
+  check("the one world tile loses both poles and keeps the band",
+        world.length === 2 && world[0][0] === 0 && world[1][1] === 256);
+
+  const { map } = run({ layersReady: "gfw" });
+  map.fire("load"); await new Promise((r) => setTimeout(r, 5));
+  const url = map.sources.get("gfw-tiles")?.tiles?.[0] || "";
+  check("the tropics layer loads through the clip, cut at its own bounds",
+        url.startsWith("latclip://-30,30/") && url.includes("/gfw_tile/{z}/{x}/{y}"), url);
+  check("the handler is registered", typeof globalThis.__protocols?.latclip === "function");
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

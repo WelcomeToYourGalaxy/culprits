@@ -269,6 +269,8 @@ const LAYERS = [
   // able to tell which one saw it.
   { id:"gfw",                  name:"Deforestation alerts — tropics",  unit:"GLAD + RADD, last 30 days", colour:"#55705E", route:"tile", ready:true, off: true,
     bounds: [-180, -30, 180, 30],
+    // Cut at 30° to the pixel, not just to the tile. See clipTileRows.
+    clipToBounds: true,
     tileMaxZoom: 22, tileQuery: "kind=integrated&days=30", off: true,
     // GFW paint these blue. +100 landed on magenta, which places the source at
     // roughly 210 degrees, so -90 is the rotation that reaches the muted green
@@ -391,6 +393,64 @@ maplibregl.addProtocol("pmtiles", protocol.tile);
 // 3,421 at zoom 7, 376 at zoom 9. That is why shapes draw from zoom 7 — the
 // first measured zoom under the cap. Denser seas may still exceed it at 7,
 // which is what the marking is for.
+// Raster tiles cut to a band of latitude, to the pixel.
+//
+// `bounds` on a raster source only decides which TILES are requested. A tile
+// that straddles the edge is drawn whole, and GFW's tile server paints the part
+// beyond its product's extent rather than leaving it transparent — so at low
+// zoom, where one tile runs from the equator to the Arctic, the tropics layer
+// laid a coloured wash over half the planet. The raster paint options cannot
+// clip by latitude, so the clipping happens to the image itself: rows whose
+// latitude falls outside the band are made transparent before MapLibre sees
+// the tile. Beyond the band the basemap shows exactly as it does with the
+// layer switched off.
+//
+// Which rows to clear, for a 256- or 512-pixel Web Mercator tile. Kept apart
+// from the canvas work so it can be tested without a browser.
+function clipTileRows(z, y, height, south, north) {
+  const n = 2 ** z;
+  const out = [];
+  let start = -1;
+  for (let row = 0; row < height; row++) {
+    const merc = Math.PI * (1 - 2 * (y + (row + 0.5) / height) / n);
+    const lat = Math.atan(Math.sinh(merc)) * 180 / Math.PI;
+    const outside = lat > north || lat < south;
+    if (outside && start < 0) start = row;
+    if (!outside && start >= 0) { out.push([start, row]); start = -1; }
+  }
+  if (start >= 0) out.push([start, height]);
+  return out;   // [firstRow, endRow) ranges to clear
+}
+
+// latclip://<south>,<north>/<https URL without the scheme>
+maplibregl.addProtocol("latclip", async (params, abortController) => {
+  const m = params.url.match(/^latclip:\/\/(-?[\d.]+),(-?[\d.]+)\/(.*)$/);
+  const url = "https://" + m[3];
+  const r = await fetch(url, { signal: abortController && abortController.signal });
+  if (!r.ok) throw new Error(`${r.status}`);
+  const buf = await r.arrayBuffer();
+  const t = url.match(/\/(\d+)\/(\d+)\/(\d+)(?:\?|$)/);
+  if (!t) return { data: buf };
+  const [z, , y] = t.slice(1).map(Number);
+  const south = Number(m[1]), north = Number(m[2]);
+  // Most tiles sit wholly inside the band; those go through untouched.
+  if (!clipTileRows(z, y, 256, south, north).length) return { data: buf };
+
+  const bmp = await createImageBitmap(new Blob([buf]));
+  const canvas = typeof OffscreenCanvas !== "undefined"
+    ? new OffscreenCanvas(bmp.width, bmp.height)
+    : Object.assign(document.createElement("canvas"), { width: bmp.width, height: bmp.height });
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(bmp, 0, 0);
+  for (const [a, b] of clipTileRows(z, y, bmp.height, south, north)) {
+    ctx.clearRect(0, a, bmp.width, b - a);
+  }
+  const blob = canvas.convertToBlob
+    ? await canvas.convertToBlob({ type: "image/png" })
+    : await new Promise((res) => canvas.toBlob(res, "image/png"));
+  return { data: await blob.arrayBuffer() };
+});
+
 const CERULEAN = "https://api.cerulean.skytruth.org";
 const CERULEAN_TILE_CAP = 10000;
 
@@ -1442,7 +1502,10 @@ function addTileLayer(cfg) {
     // tilePath lets several layers share one Worker route, distinguished by
     // tileQuery — the three alert layers are the same endpoint with different
     // datasets and windows behind it.
-    tiles: [`${WORKER}/${cfg.tilePath || cfg.id + "_tile"}/{z}/{x}/{y}` +
+    tiles: [(cfg.clipToBounds && cfg.bounds
+              ? WORKER.replace(/^https:\/\//, `latclip://${cfg.bounds[1]},${cfg.bounds[3]}/`)
+              : WORKER) +
+            `/${cfg.tilePath || cfg.id + "_tile"}/{z}/{x}/{y}` +
             (cfg.tileQuery ? `?${cfg.tileQuery}` : "")],
     tileSize: 256,
     // Past its maxzoom MapLibre scales the last tiles up rather than asking for
