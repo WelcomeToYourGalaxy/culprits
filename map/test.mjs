@@ -110,6 +110,7 @@ function run({ layersReady = null, fetchImpl = null } = {}) {
   // test needs a clean slate.
   globalThis.window = {};
   const els = new Map();
+  const states = {};
   globalThis.document = {
     baseURI: "https://example.test/culprits/",
     getElementById: (id) => els.get(id) || (els.set(id, {
@@ -126,7 +127,8 @@ function run({ layersReady = null, fetchImpl = null } = {}) {
       querySelector: () => null, querySelectorAll: () => [],
       dataset: {}, after() {}, replaceWith() {}, closest: () => null,
     }), els.get(id)),
-    querySelector: () => ({ textContent: "" }),
+    // One object per selector, kept, so a layer's status line can be read back.
+    querySelector: (sel) => (states[sel] ||= { textContent: "" }),
     // Closer to a real element than it was: the layer panel now builds nested
     // group rows, reads data-* attributes and inserts facet rows after a
     // checkbox, so a stub with only className and innerHTML made app.js look
@@ -156,7 +158,7 @@ function run({ layersReady = null, fetchImpl = null } = {}) {
   if (layersReady) src = src.replace(/ready:\s*true/g, "ready:false")
                            .replace(new RegExp(`(id:"${layersReady}"[^}]*?)ready:false`), "$1ready:true");
   new Function(src)();
-  return { map, els };
+  return { map, els, states };
 }
 
 console.log("\nmap wiring");
@@ -868,6 +870,33 @@ console.log("\ntropics clip");
   check("the tropics layer loads through the clip, cut at its own bounds",
         url.startsWith("latclip://-30,30/") && url.includes("/gfw_tile/{z}/{x}/{y}"), url);
   check("the handler is registered", typeof globalThis.__protocols?.latclip === "function");
+}
+
+// --- a capped live source says it is capped ---------------------------------
+console.log("\npartial answers");
+{
+  const fetchImpl = async (u) => {
+    fetched.push(u);
+    return { ok: true, status: 200, json: async () => ({
+      type: "FeatureCollection", numberMatched: 49124,
+      features: Array.from({ length: 2000 }, () => ({ type: "Feature", properties: {},
+        geometry: { type: "Polygon", coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] } })) }) };
+  };
+  const { map, states } = run({ layersReady: "allen_coral", fetchImpl });
+  map.fire("load"); await new Promise((r) => setTimeout(r, 10));
+  const text = (states['[data-state="allen_coral"]'] || {}).textContent || "";
+  check("a source that returns 2,000 of 49,124 says so", /2,000 of 49,124/.test(text), text);
+}
+{
+  const fetchImpl = async (u) => {
+    fetched.push(u);
+    return { ok: true, status: 200, json: async () => ({ type: "FeatureCollection", numberMatched: 3,
+      features: [1, 2, 3].map(() => ({ type: "Feature", properties: {}, geometry: null })) }) };
+  };
+  const { map, states } = run({ layersReady: "allen_coral", fetchImpl });
+  map.fire("load"); await new Promise((r) => setTimeout(r, 10));
+  const text = (states['[data-state="allen_coral"]'] || {}).textContent || "";
+  check("a complete answer does not claim to be partial", text === "3 in view", text);
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

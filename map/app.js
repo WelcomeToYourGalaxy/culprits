@@ -1171,7 +1171,17 @@ async function refreshLiveLayer(cfg) {
     const geo = await r.json();
     src.setData(geo);
     const n = (geo.features || []).length;
-    setLayerState(cfg.id, n ? `${n.toLocaleString()} in view` : "none in this area");
+    // Several sources cap how many features one request returns — the Allen
+    // Coral Atlas at 2,000, Cerulean's source collection at 500 — and say how
+    // many matched. Off Cairns that was 2,000 of 49,124: 4% drawn, and the panel
+    // said "2,000 in view" as though that were all of it. Where the source
+    // states its match count, the panel states it too.
+    const matched = Number(geo.numberMatched ?? geo.totalFeatures);
+    const partial = Number.isFinite(matched) && matched > n;
+    setLayerState(cfg.id, partial
+      ? `showing ${n.toLocaleString()} of ${matched.toLocaleString()} here — the source sends ` +
+        `at most ${n.toLocaleString()} at once`
+      : n ? `${n.toLocaleString()} in view` : "none in this area");
     console.log(`[culprits] ${cfg.id}: ${n} features for ${bbox}`);
   } catch (e) {
     // A live source failing is not a reason for the map to fail. The layer
