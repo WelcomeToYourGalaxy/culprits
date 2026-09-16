@@ -477,7 +477,7 @@ console.log("\nmap wiring");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const EMITTED = ["country", "admin", "grid", "area", "segment", "mobile",
-                   "blurred", "unknown"];
+                   "blurred", "locality", "unknown"];
   const lists = src.match(/\[\s*"country",[^\]]*\]/g) || [];
   check("the hollow-precision list is used in every paint property",
         lists.length === 3, `found ${lists.length}`);

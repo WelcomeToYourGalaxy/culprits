@@ -73,7 +73,17 @@ fi
 # number and the two do not have to match. Past this zoom the map keeps
 # rendering from the highest tiles available, so raising it costs archive size
 # and gains precision at close range.
-MAXZOOM=12
+#
+# Per source, from `tile_maxzoom` in sources.json, because two archives only fit
+# under GitHub's 100 MiB file cap below 12: local_projects at 10 (142 MB at 12)
+# and abattoir_facilities at 11 (112 MB at 12, 84 MB at 11). Held in the
+# registry rather than typed on a command line, so the weekly refresh builds
+# them the same way a hand build does. MAXZOOM in the environment still wins.
+MAXZOOM="${MAXZOOM:-$(python3 -c "
+import json
+reg = {x['id']: x for x in json.load(open('sources.json'))['sources']}
+print(reg.get('$SOURCE', {}).get('tile_maxzoom', 12))
+")}"
 
 # Coordinate resolution inside each tile, as a power of two: detail 12 divides a
 # tile into 4096 units, detail 10 into 1024.

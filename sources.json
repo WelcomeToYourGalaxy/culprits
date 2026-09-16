@@ -499,7 +499,8 @@
         "value": null,
         "unit": "acres"
       },
-      "isolate": true
+      "isolate": true,
+      "tile_maxzoom": 10
     },
     {
       "id": "slavery_sites",
@@ -600,6 +601,28 @@
         "value": null,
         "unit": "record"
       }
+    },
+    {
+      "id": "abattoir_facilities",
+      "name": "Animal-use facilities (abattoir atlas)",
+      "mode": "bulk",
+      "auth": "none",
+      "cors": "yes",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/abattoir-atlas/main/out/facilities.json.gz",
+      "licence": "mixed — official registries (US FSIS, EU TRACES, EU industrial emissions register, UK FSA, CFIA, Brazil SIF, Australia DAFF, NZ MPI, China via CIFER; terms vary), Farm Transparency Project, OpenStreetMap (ODbL 1.0, SHARE-ALIKE), and positions geocoded with Photon and Nominatim from OpenStreetMap data (ODbL); unverified",
+      "licence_verified": false,
+      "access_verified": true,
+      "access_evidence": "Read from the repo's committed out/facilities.json.gz on 15 September 2026: 173,391 merged records, 1,685 without a position; geo_precision rooftop 132,769, locality 26,787, street 12,150, none 1,685. Counts observed, not inferred.",
+      "notes": "Own repo, WelcomeToYourGalaxy/abattoir-atlas. It declares NO LICENCE FILE, which defaults to all rights reserved — not a problem for self-use, but the upstream terms travel with the data and bind republication. Every merged record is harvested, including the activities the atlas's own page leaves out; most records are farms, processors, transporters and other animal-use sites rather than slaughterhouses. slaughter is yes / no / not stated as the registries give it, and is the panel facet. Records with no position are counted by the harvester and not drawn.",
+      "discovery": "resolve() reads out/facilities.json.gz through discover.github_file(), so the blob SHA is the change signal.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "facility"
+      },
+      "isolate": true,
+      "tile_maxzoom": 11
     },
     {
       "id": "epa_tri_sites",

@@ -332,6 +332,14 @@ const LAYERS = [
     facet: { property: "x_posture", label: "direction",
              values: ["harm","watch","redress","unlawful"] },
     note: "This layer does not plot graves. Burial locations arrive blurred to about 5 km from the source and stay that way. Direction is separate from size: a large repatriation is a large event, not a bad one." },
+  // From WelcomeToYourGalaxy/abattoir-atlas: its merged facility records, every
+  // one, not the subset its own page draws. Share-alike (OSM rows and OSM-based
+  // geocoding), so its archive is isolated, as local_projects is.
+  { id:"abattoir_facilities",  name:"Slaughterhouses, farms and other animal-use sites", unit:"facilities", colour:"#80605A", route:"pmtiles", ready:true, off: true,
+    isolate:true,
+    facet: { property: "x_slaughter", label: "slaughter",
+             values: ["yes","no","not stated"] },
+    note: "Most of these are not slaughterhouses: farms, dairies, processors, transporters, hatcheries and zoos are registered animal-use sites too. Slaughter is marked yes or no only where a registry says; for most it says neither. Hollow points are placed at a town, not the site. Records with no position at all are not drawn." },
   { id:"slavery_cases",        name:"Identified trafficking cases", unit:"identified cases", colour:"#7A6A72", route:"country", ready:true,
     note: "Detection, not prevalence. A country with a large count has organisations filing records; a country with none may have no one counting." },
 
@@ -845,11 +853,11 @@ async function addPmtilesLayer(cfg) {
       // Only genuine facilities render solid: plants, mines, ports, airports,
       // refineries, waste sites — 23 of Climate TRACE's 91 definitions.
       "circle-opacity": ["case", ["in", ["get", "x_precision"],
-        ["literal", ["country", "admin", "grid", "area", "segment", "mobile", "blurred", "unknown"]]], 0, .75],
+        ["literal", ["country", "admin", "grid", "area", "segment", "mobile", "blurred", "locality", "unknown"]]], 0, .75],
       "circle-stroke-color": ["case", ["in", ["get", "x_precision"],
-        ["literal", ["country", "admin", "grid", "area", "segment", "mobile", "blurred", "unknown"]]], cfg.colour, "#17150F"],
+        ["literal", ["country", "admin", "grid", "area", "segment", "mobile", "blurred", "locality", "unknown"]]], cfg.colour, "#17150F"],
       "circle-stroke-width": ["case", ["in", ["get", "x_precision"],
-        ["literal", ["country", "admin", "grid", "area", "segment", "mobile", "blurred", "unknown"]]], 1.4, .6],
+        ["literal", ["country", "admin", "grid", "area", "segment", "mobile", "blurred", "locality", "unknown"]]], 1.4, .6],
     },
   });
 
@@ -1587,6 +1595,10 @@ function bindPopup(layerId) {
             `deliberately coarsened by the source, to about 5 km. Burial ` +
             `locations are withheld because publishing them invites ` +
             `desecration. The mark is a neighbourhood, not a site.</div>`
+          : p.x_precision === "locality"
+          ? `<div class="meta" style="color:#8F4E40">Placed at the town or village ` +
+            `in the registry's address, not at the site. The facility is somewhere ` +
+            `in or near that settlement.</div>`
           : p.x_precision === "mobile"
           ? `<div class="meta" style="color:#8F4E40">A vessel, not a site. This ` +
             `position is where it was recorded, not where it stays.</div>`
