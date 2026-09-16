@@ -61,6 +61,11 @@ class FakeMap {
     (l.paint ||= {})[k] = v;
   }
   triggerRepaint() {}
+  removeLayer(id) {
+    const i = this.layers.findIndex((l) => l.id === id);
+    if (i < 0) throw new Error(`removeLayer on missing layer "${id}"`);
+    this.layers.splice(i, 1);
+  }
   setLayoutProperty(id, k, v) {
     const l = this.getLayer(id);
     if (!l) throw new Error(`setLayoutProperty on missing layer "${id}"`);
@@ -882,9 +887,9 @@ console.log("\npartial answers");
       features: Array.from({ length: 2000 }, () => ({ type: "Feature", properties: {},
         geometry: { type: "Polygon", coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] } })) }) };
   };
-  const { map, states } = run({ layersReady: "allen_coral", fetchImpl });
+  const { map, states } = run({ layersReady: "cerulean_sources", fetchImpl });
   map.fire("load"); await new Promise((r) => setTimeout(r, 10));
-  const text = (states['[data-state="allen_coral"]'] || {}).textContent || "";
+  const text = (states['[data-state="cerulean_sources"]'] || {}).textContent || "";
   check("a source that returns 2,000 of 49,124 says so", /2,000 of 49,124/.test(text), text);
 }
 {
@@ -893,10 +898,62 @@ console.log("\npartial answers");
     return { ok: true, status: 200, json: async () => ({ type: "FeatureCollection", numberMatched: 3,
       features: [1, 2, 3].map(() => ({ type: "Feature", properties: {}, geometry: null })) }) };
   };
-  const { map, states } = run({ layersReady: "allen_coral", fetchImpl });
+  const { map, states } = run({ layersReady: "cerulean_sources", fetchImpl });
   map.fire("load"); await new Promise((r) => setTimeout(r, 10));
-  const text = (states['[data-state="allen_coral"]'] || {}).textContent || "";
+  const text = (states['[data-state="cerulean_sources"]'] || {}).textContent || "";
   check("a complete answer does not claim to be partial", text === "3 in view", text);
+}
+
+// --- coral reefs, live from the Atlas's own tiles ----------------------------
+console.log("\ncoral, live");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const a = src.indexOf("function readTileLayers"), b = src.indexOf("// coral://");
+  const readTileLayers = new Function(src.slice(a, b) + "\nreturn readTileLayers;")();
+  // A real vector tile, encoded by the mapbox-vector-tile library, with two layers.
+  const tile = Uint8Array.from(Buffer.from("Gl4KFGJlbnRoaWNfZGF0YV92ZXJib3NlEhcSBAAAAQEYAyINCQCAQBLIAccBAMgBDxoKY2xhc3NfbmFtZRoJYXJlYV9zcWttIgYKBFNhbmQiCRkAAAAAAADgPyiAIHgCGg0KBnNlY29uZCiAIHgC", "base64"));
+  check("the tile reader finds every layer name in a real tile",
+        JSON.stringify(readTileLayers(tile.buffer)) === '["benthic_data_verbose","second"]',
+        JSON.stringify(readTileLayers(tile.buffer)));
+  check("an empty tile has no names, and does not throw", readTileLayers(new ArrayBuffer(0)).length === 0);
+
+  const { map, states } = run({ layersReady: "allen_coral" });
+  map.fire("load"); await new Promise((r) => setTimeout(r, 5));
+  const s2 = map.sources.get("allen_coral-tiles");
+  check("coral comes from the Atlas's tiles, not the Worker",
+        s2 && s2.tiles[0].startsWith("coral://allencoralatlas.org/geoserver/gwc/service/wmts?") &&
+        /TILEMATRIX=EPSG:900913:\{z\}&TILEROW=\{y\}&TILECOL=\{x\}/.test(s2.tiles[0]), s2 && s2.tiles[0]);
+  check("no Worker request is made for coral", !fetched.some((u) => String(u).includes("/allen_coral?")));
+  const fill = map.getLayer("allen_coral-fill");
+  check("shapes draw from zoom 12", fill && fill.minzoom === 12 && s2.minzoom === 12);
+  check("wider out the layer says why it is empty",
+        /zoom in to 12/.test((states['[data-state="allen_coral"]'] || {}).textContent || ""));
+
+  // A tile that names its layer differently: the layer is redrawn from that name.
+  globalThis.fetch = async () => ({ ok: true, status: 200, arrayBuffer: async () => tile.buffer.slice(0) });
+  const cfgSrc = src.match(/sourceLayer: "([^"]+)"/)[1];
+  check("the configured name is the one the reader will be checked against", cfgSrc === "benthic_data_verbose");
+  const handler = globalThis.__protocols.coral;
+  const got = await handler({ url: s2.tiles[0].replace("{z}", "13").replace("{y}", "1").replace("{x}", "2") },
+                            new AbortController());
+  check("the tile bytes pass through untouched", got.data.byteLength === tile.byteLength);
+  check("a matching layer name leaves the layer as it was",
+        map.getLayer("allen_coral-fill")["source-layer"] === "benthic_data_verbose");
+}
+{
+  // A fresh run, whose first tile calls its layer something else.
+  const { map } = run({ layersReady: "allen_coral" });
+  map.fire("load"); await new Promise((r) => setTimeout(r, 5));
+  const other = Uint8Array.from(Buffer.from("GjkKB2JlbnRoaWMSFRICAAAYAyINCQCAQBLIAccBAMgBDxoKY2xhc3NfbmFtZSIGCgRTYW5kKIAgeAI=", "base64"));
+  globalThis.fetch = async () => ({ ok: true, status: 200, arrayBuffer: async () => other.buffer.slice(0) });
+  const url = map.sources.get("allen_coral-tiles").tiles[0];
+  await globalThis.__protocols.coral({ url: url.replace("{z}", "13").replace("{y}", "1").replace("{x}", "2") },
+                                     new AbortController());
+  check("a tile that names its layer differently is drawn from that name",
+        map.getLayer("allen_coral-fill")?.["source-layer"] === "benthic" &&
+        map.getLayer("allen_coral-line")?.["source-layer"] === "benthic");
+  check("and the redrawn layer stays switched off like the rest",
+        map.getLayer("allen_coral-fill")?.layout?.visibility === "none");
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

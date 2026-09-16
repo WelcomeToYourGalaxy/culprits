@@ -371,9 +371,26 @@ const LAYERS = [
     geometry:"polygon", maxAreaDeg2: 120,
     note: "Candidates, ranked. The score is an estimated likelihood on a -5 to +5 scale, not a finding, and vessel identity lags up to 72 hours behind the detection. This layer names parties and must read as a question rather than an answer.",
     attribution: '<a href="https://cerulean.skytruth.org" target="_blank" rel="noopener">SkyTruth Cerulean</a>' },
-  { id:"allen_coral",          name:"Coral reef habitat",      unit:"benthic and geomorphic zones", colour:"#5E7377", route:"worker", ready:true, off: true,
-    geometry:"polygon", maxAreaDeg2: 40,
-    note: "Mapped between 32°N and 32°S only, which is the product's stated extent and not an absence of reefs elsewhere. Benthic zones to 10 m depth, geomorphic to 15 m.",
+  // Straight from the Atlas's own vector tiles, not through the Worker.
+  //
+  // Measured 16 September 2026 from the Commander's machine. Through the Worker
+  // every request was cut at 2,000 shapes: off Cairns 2,000 of 49,124, over the
+  // widest allowed area 2,000 of 706,608, and 55 seconds to answer. The Atlas's
+  // tiles carry every shape in the square and send CORS for this site — but it
+  // builds each tile when asked, and wide squares never finish: zoom 6 gave up
+  // after 60 s in every format, zoom 10 took 21 s for 2.4 MB, zoom 14 took under
+  // a second for 84 KB. Nothing is served below zoom 3. So shapes draw from
+  // zoom 12, and wider out the layer says why it is empty rather than sitting
+  // empty. The benthic set only; the Atlas's geomorphic set is not added here.
+  { id:"allen_coral",          name:"Coral reef habitat",      unit:"benthic habitat zones", colour:"#5E7377", route:"coral", ready:true, off: true,
+    drawFrom: 12,
+    tiles: "https://allencoralatlas.org/geoserver/gwc/service/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0" +
+           "&LAYER=coral-atlas:benthic_data_verbose&STYLE=&TILEMATRIXSET=EPSG:900913" +
+           "&TILEMATRIX=EPSG:900913:{z}&TILEROW={y}&TILECOL={x}&FORMAT=application/vnd.mapbox-vector-tile",
+    // GeoServer names the layer inside each tile. This is the expected name; if a
+    // tile says otherwise the layer re-reads it from the tile (see readTileLayers).
+    sourceLayer: "benthic_data_verbose",
+    note: "Mapped between 32°N and 32°S only, which is the product's stated extent and not an absence of reefs elsewhere. Benthic zones to 10 m depth. The Atlas draws its shapes only for small areas, so they appear from zoom 12; wider out this layer is empty by necessity, not because there are no reefs.",
     attribution: '<a href="https://allencoralatlas.org" target="_blank" rel="noopener">Allen Coral Atlas</a> (CC BY 4.0)' },
 ];
 
@@ -449,6 +466,82 @@ maplibregl.addProtocol("latclip", async (params, abortController) => {
     ? await canvas.convertToBlob({ type: "image/png" })
     : await new Promise((res) => canvas.toBlob(res, "image/png"));
   return { data: await blob.arrayBuffer() };
+});
+
+// Which layers a vector tile contains, read from the tile's own bytes.
+//
+// A vector-tile layer is drawn by naming the layer inside the tile. Name it
+// wrong and MapLibre draws nothing and reports nothing — the failure that looks
+// exactly like a source with no data. The Allen Coral Atlas's tiles could not be
+// opened to check the name before this was written, so the first tile that
+// arrives is read: a Mapbox Vector Tile is a protobuf whose field 3 repeats per
+// layer, each with its name in field 1.
+function readTileLayers(buffer) {
+  const b = new Uint8Array(buffer);
+  const names = [];
+  let i = 0;
+  const varint = () => {
+    let r = 0, shift = 0, c;
+    do { c = b[i++]; r += (c & 0x7f) * 2 ** shift; shift += 7; } while (c & 0x80 && i < b.length);
+    return r;
+  };
+  const skip = (wire) => {
+    if (wire === 0) varint();
+    else if (wire === 1) i += 8;
+    else if (wire === 5) i += 4;
+    else if (wire === 2) { const len = varint(); i += len; }   // read the length first: `i += varint()` uses i from before the read
+    else i = b.length;   // not a tile this reader understands; stop
+  };
+  while (i < b.length) {
+    const key = varint();
+    if ((key >> 3) === 3 && (key & 7) === 2) {
+      const size = varint();
+      const end = i + size;
+      while (i < end) {
+        const k = varint();
+        if ((k >> 3) === 1 && (k & 7) === 2) {
+          const len = varint();
+          names.push(new TextDecoder().decode(b.subarray(i, i + len)));
+          i += len;
+        } else skip(k & 7);
+      }
+      i = end;
+    } else skip(key & 7);
+  }
+  return names;
+}
+
+// coral://<the tile URL without its scheme>. One retry, because the Atlas
+// builds tiles on request and a first answer can fail where a second succeeds;
+// and a check of the layer name on the first tile that carries one.
+const coralLayerChecked = new Set();
+maplibregl.addProtocol("coral", async (params, abortController) => {
+  const url = params.url.replace(/^coral:\/\//, "https://");
+  let buf;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const r = await fetch(url, { signal: abortController && abortController.signal });
+      if (!r.ok) throw new Error(`${r.status}`);
+      buf = await r.arrayBuffer();
+      break;
+    } catch (e) {
+      if (attempt >= 1 || (abortController && abortController.signal.aborted)) throw e;
+    }
+  }
+  const cfg = LAYERS.find((l) => l.route === "coral" && url.includes(l.tiles.split("?")[1].split("&")[3]));
+  if (cfg && !coralLayerChecked.has(cfg.id) && buf.byteLength) {
+    const names = readTileLayers(buf);
+    if (names.length) {
+      coralLayerChecked.add(cfg.id);
+      if (!names.includes(cfg.sourceLayer)) {
+        console.warn(`[culprits] ${cfg.id}: tiles name their layer "${names[0]}", ` +
+                     `not "${cfg.sourceLayer}"; drawing from "${names[0]}"`);
+        cfg.sourceLayer = names[0];
+        addCoralShapes(cfg, true);
+      }
+    }
+  }
+  return { data: buf };
 });
 
 const CERULEAN = "https://api.cerulean.skytruth.org";
@@ -1199,6 +1292,52 @@ async function refreshLiveLayer(cfg) {
   } finally {
     inFlight.set(cfg.id, false);
   }
+}
+
+/* ---------- Allen Coral Atlas, live from its own tiles ---------- */
+
+function addCoralLayer(cfg) {
+  map.addSource(`${cfg.id}-tiles`, {
+    type: "vector",
+    tiles: [cfg.tiles.replace(/^https:\/\//, "coral://")],
+    // Web Mercator tiles of 256 pixels, as the Atlas's EPSG:900913 grid serves.
+    tileSize: 256,
+    minzoom: cfg.drawFrom, maxzoom: 16,
+    attribution: cfg.attribution || "",
+  });
+  addCoralShapes(cfg, false);
+  bindHtmlPopup(`${cfg.id}-fill`, (p) =>
+    `<b>${p.class_name || "Unclassified"}</b>` +
+    (p.area_sqkm != null
+      ? `<div class="meta">This mapped patch: ${Number(p.area_sqkm).toPrecision(3)} km²</div>` : "") +
+    `<div class="meta">Allen Coral Atlas benthic habitat, from satellite imagery ` +
+    `to about 10 m depth. A class of seabed, not a survey of living coral.</div>`);
+  const state = () => setLayerState(cfg.id, map.getZoom() >= cfg.drawFrom
+    ? cfg.unit
+    : `zoom in to ${cfg.drawFrom} — the Atlas cannot draw reefs over a wider area`);
+  map.on("zoomend", state);
+  state();
+  applyVisibility(cfg.id);
+  buildLegend();
+}
+
+// Fill and outline, on whatever layer name the tiles use. Called again if the
+// first tile names its layer differently from the config.
+function addCoralShapes(cfg, replace) {
+  if (replace) {
+    [`${cfg.id}-fill`, `${cfg.id}-line`].forEach((l) => { if (map.getLayer(l)) map.removeLayer(l); });
+  }
+  map.addLayer({
+    id: `${cfg.id}-fill`, type: "fill", source: `${cfg.id}-tiles`, "source-layer": cfg.sourceLayer,
+    minzoom: cfg.drawFrom,
+    paint: { "fill-color": cfg.colour, "fill-opacity": .38 },
+  });
+  map.addLayer({
+    id: `${cfg.id}-line`, type: "line", source: `${cfg.id}-tiles`, "source-layer": cfg.sourceLayer,
+    minzoom: cfg.drawFrom,
+    paint: { "line-color": cfg.colour, "line-width": .8, "line-opacity": .85 },
+  });
+  if (replace) applyVisibility(cfg.id);
 }
 
 /* ---------- Cerulean, live from its own tiles ---------- */
@@ -2048,6 +2187,7 @@ map.on("load", () => {
       else if (cfg.route === "tile") addTileLayer(cfg);
       else if (cfg.route === "wmts") addWmtsLayer(cfg);
       else if (cfg.route === "cerulean") addCeruleanLayer(cfg);
+      else if (cfg.route === "coral") addCoralLayer(cfg);
       else if (cfg.route === "country") {
         // Async: without a catch a failure here becomes an unhandled rejection
         // and the layer just silently never appears.
