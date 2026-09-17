@@ -11,9 +11,9 @@
  * and every story in a file is counted in every filter.
  *
  * Kept out of app.js on purpose: parallel sessions edit that file. This one
- * adds its own element and its own styles, and touches the rest of the page in
- * two ways only — it lifts itself above the Guerillamap strip when that opens,
- * and it shortens the layer panel so the two never overlap.
+ * adds its own element and its own styles. It sits in the bottom-right corner,
+ * open, directly above the legend ("Showing"), and moves up with the legend as
+ * it grows and above the Guerillamap strip when that opens.
  *
  * Loaded by one <script src="./wire.js"> tag (patch_wire_index.py adds it).
  * Under node it loads nothing and exports its reading and filtering functions
@@ -513,14 +513,14 @@ const PAGE = 60;
 const REFRESH_MS = 30 * 60000;
 
 const state = {
-  open: false, picked: [], when: 'all', q: '', sel: {}, expanded: {},
+  open: true, picked: [], when: 'all', q: '', sel: {}, expanded: {},
   pickerOpen: false, shown: PAGE, wires: {}   // wires[id] = { status, error, loadedAt, wire }
 };
 
 try {
   const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
   if (saved) {
-    state.open = !!saved.open;
+    // Opens every visit: the box is part of the front page, not a drawer.
     state.picked = (saved.picked || []).filter((id) => BY_ID[id]);
     state.when = WINDOWS.some((w) => w.id === saved.when) ? saved.when : 'all';
     state.sel = saved.sel || {};
@@ -540,11 +540,11 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) =>
 const num = (n) => Number(n).toLocaleString('en');
 
 const CSS = `
-.wire{position:absolute;left:16px;bottom:calc(16px + var(--wire-lift,0px));z-index:3;
-  width:min(440px,calc(100vw - 32px));display:flex;flex-direction:column;
+.wire{position:absolute;right:9px;bottom:calc(26px + var(--wire-lift,0px));z-index:3;
+  width:min(440px,calc(100vw - 18px));display:flex;flex-direction:column;
   background:rgba(31,28,21,.95);border:1px solid var(--rule,#322E27);color:var(--bone,#DCD6C6);
   font:13px/1.45 var(--sans,system-ui,sans-serif);backdrop-filter:blur(6px)}
-.wire.open{height:min(54vh,600px)}
+.wire.open{height:min(54vh,600px,calc(100% - 96px - var(--wire-lift,0px)))}
 .wire button,.wire select,.wire input{font:inherit;color:inherit}
 .wire :focus-visible{outline:2px solid var(--slate,#5C6E77);outline-offset:1px}
 .wire-bar{display:flex;align-items:center;gap:10px;padding:7px 10px 7px 8px}
@@ -598,10 +598,9 @@ const CSS = `
 .wire-empty{padding:14px 10px;color:var(--dim,#948D7C)}
 .wire-more{display:block;margin:8px auto 10px}
 .wire-foot{padding:4px 10px;color:var(--dim,#948D7C);font-size:11px;border-top:1px solid var(--rule,#322E27)}
-@media (max-width:560px){.wire.open{height:min(52vh,520px)}.wire-grid{grid-template-columns:minmax(0,1fr)}
+@media (max-width:560px){.wire.open{height:min(52vh,520px,calc(100% - 96px - var(--wire-lift,0px)))}.wire-grid{grid-template-columns:minmax(0,1fr)}
   .wire-tools{flex-wrap:wrap}.wire-tools input{flex:1 0 100%;order:3}.wire-foot{display:none}}
 @media (prefers-reduced-motion:reduce){.wire-caret{transition:none}}
-.panel{max-height:max(140px,calc(100% - 44px - var(--wire-reserve,0px)))!important}
 `;
 
 let box, $sum, $body, $toggle, $pickBtn, $picker, $filters, $list, $q, $when, $refresh;
@@ -715,12 +714,17 @@ function build() {
     }
   });
 
-  // Keep clear of the Guerillamap strip, and keep the layer panel clear of us.
+  // Sit above the legend, and above the Guerillamap strip when that is open.
   const gm = document.getElementById('gm');
-  if (gm && typeof MutationObserver === 'function') {
-    new MutationObserver(layout).observe(gm, { attributes: true, attributeFilter: ['hidden', 'style', 'class'] });
+  const legend = document.getElementById('legend');
+  if (typeof MutationObserver === 'function') {
+    if (gm) new MutationObserver(layout).observe(gm, { attributes: true, attributeFilter: ['hidden', 'style', 'class'] });
+    if (legend) new MutationObserver(layout).observe(legend, { attributes: true, childList: true, subtree: true });
   }
-  if (typeof ResizeObserver === 'function') new ResizeObserver(layout).observe(box);
+  if (typeof ResizeObserver === 'function') {
+    new ResizeObserver(layout).observe(box);
+    if (legend) new ResizeObserver(layout).observe(legend);
+  }
   window.addEventListener('resize', layout);
 
   setInterval(() => {
@@ -730,10 +734,10 @@ function build() {
 
 function layout() {
   const gm = document.getElementById('gm');
-  const lift = gm && !gm.hidden ? gm.getBoundingClientRect().height : 0;
-  const root = document.documentElement.style;
-  root.setProperty('--wire-lift', lift + 'px');
-  root.setProperty('--wire-reserve', (lift + (box ? box.offsetHeight : 0)) + 'px');
+  const legend = document.getElementById('legend');
+  let lift = gm && !gm.hidden ? gm.getBoundingClientRect().height : 0;
+  if (legend && !legend.hidden) lift += legend.getBoundingClientRect().height + 8;
+  document.documentElement.style.setProperty('--wire-lift', Math.round(lift) + 'px');
 }
 
 function setOpen(open) {

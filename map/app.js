@@ -217,7 +217,8 @@ const LAYERS = [
   // broken map rather than an unbuilt source. ready:false names them once in
   // the unbuilt list instead, which is what the panel is for. Flip back to true
   // once map/tiles/<id>.pmtiles exists, or once a harvester is registered.
-  { id:"carbon_majors",        name:"Carbon major HQs",        unit:"company headquarters", colour:"#7E6B8F", route:"pmtiles", ready:false },
+  { id:"carbon_majors",        name:"Carbon major HQs",        unit:"company headquarters", colour:"#7E6B8F", route:"pmtiles", ready:true, off: true,
+    note: "From the Destruction page's Carbon Majors headquarters map (maps repo): the addresses written into that map." },
   { id:"fertilizer_facilities",name:"Fertilizer plants",       unit:"ammonia / urea", colour:"#8A7C5C", route:"pmtiles", ready:true, off: true },
   { id:"soy_organizations",    name:"Soy industry bodies",     unit:"trade organisations", colour:"#6F7F72", route:"pmtiles", ready:true, off: true },
   { id:"trase",                name:"Commodity supply chains", unit:"ha",         colour:"#62755F", route:"pmtiles", ready:false },
@@ -267,27 +268,27 @@ const LAYERS = [
   // They are kept separate rather than merged because they detect different
   // things by different instruments, and a reader who sees an alert should be
   // able to tell which one saw it.
-  { id:"gfw",                  name:"Deforestation alerts — tropics",  unit:"GLAD + RADD, last 30 days", colour:"#55705E", route:"tile", ready:true, off: true,
+  { id:"gfw",                  name:"Deforestation alerts — tropics",  unit:"GLAD + RADD, last 30 days", colour:"#8A4F46", route:"tile", ready:true, off: true,
     bounds: [-180, -30, 180, 30],
     // Cut at 30° to the pixel, not just to the tile. See clipTileRows.
     clipToBounds: true,
     tileMaxZoom: 22, tileQuery: "kind=integrated&days=30", off: true,
-    // GFW paint these blue. +100 landed on magenta, which places the source at
-    // roughly 210 degrees, so -90 is the rotation that reaches the muted green
-    // this map uses for forest loss. Measured off the wrong answer rather than
-    // guessed twice.
-    rasterAdjust: { "raster-hue-rotate": -90, "raster-saturation": -0.35 },
+    // GFW paint these tiles themselves, and no rotation of their palette read
+    // as anything but glaring. Each alert pixel is given this layer's colour
+    // instead, in the latclip protocol. See recolorAlerts.
+    recolor: "#8A4F46",
     note: "Pan-tropical only. GLAD and RADD do not cover boreal or temperate forest — use the global layers for those.",
     attribution: '<a href="https://www.globalforestwatch.org" target="_blank" rel="noopener">Global Forest Watch</a>' },
-  { id:"gfw_dist",             name:"Disturbance alerts — global",     unit:"DIST-ALERT, last 30 days", colour:"#6E7A55", route:"tile", ready:true, off: true,
+  { id:"gfw_dist",             name:"Disturbance alerts — global",     unit:"DIST-ALERT, last 30 days", colour:"#7A5B4E", route:"tile", ready:true, off: true,
     bounds: [-180, -30, 180, 30],
     tilePath: "gfw_tile", tileMaxZoom: 22, tileQuery: "kind=dist&days=30", off: true,
-    rasterAdjust: { "raster-hue-rotate": -90, "raster-saturation": -0.35 },
+    recolor: "#7A5B4E",
     note: "Global coverage, including boreal and temperate forest. Detects vegetation disturbance generally, so it catches fire and harvest as well as clearing.",
     attribution: '<a href="https://www.globalforestwatch.org" target="_blank" rel="noopener">Global Forest Watch</a>' },
-  { id:"gfw_dist_year",        name:"Disturbance alerts — past year",  unit:"DIST-ALERT, last 365 days", colour:"#7E6F4E", route:"tile", ready:true, off: true,
+  { id:"gfw_dist_year",        name:"Disturbance alerts — past year",  unit:"DIST-ALERT, last 365 days", colour:"#6E5E57", route:"tile", ready:true, off: true,
     bounds: [-180, -30, 180, 30],
     tilePath: "gfw_tile", tileMaxZoom: 22, tileQuery: "kind=dist&days=365", off: true,
+    recolor: "#6E5E57",
     note: "The same global product over a twelve-month window, for seeing a season's cumulative loss rather than this month's.",
     attribution: '<a href="https://www.globalforestwatch.org" target="_blank" rel="noopener">Global Forest Watch</a>' },
   // Not a "worker" route any more, and not points.
@@ -365,7 +366,7 @@ const LAYERS = [
     // Read from /queryables, not from documentation. If SkyTruth add a field it
     // will not appear until it is added here.
     properties: ["id", "slick_timestamp", "machine_confidence", "slick_confidence", "length", "area", "perimeter", "polsby_popper", "fill_factor", "aspect_ratio_factor", "cls", "orchestrator_run", "linearity", "s1_scene_id", "hitl_cls", "hitl_cls_name", "aoi_type_1_ids", "aoi_type_2_ids", "aoi_type_3_ids", "source_type_1_ids", "source_type_2_ids", "source_type_3_ids", "max_source_collated_score", "slick_url"],
-    note: "Potential slicks. SkyTruth state that oil cannot be definitively identified from radar alone, so every shape here is a detection awaiting review. Coverage is EEZs rather than the high seas. Every detection since January 2023, live. Wide out, each shaded square is a live count of the slicks somewhere inside it; shapes draw from zoom 7. A square marked with a dashed edge holds more slicks than one tile can carry, and shows only some of them until you zoom in.",
+    note: "Potential slicks. SkyTruth state that oil cannot be definitively identified from radar alone, so every shape here is a detection awaiting review. Coverage is EEZs rather than the high seas. Every detection since January 2023, live. Wide out the panel gives the total number of detections; shapes draw from zoom 7, where a slick is large enough to see. From there, a square marked with a dashed edge holds more slicks than one tile can carry, and shows only some of them until you zoom in.",
     attribution: '<a href="https://cerulean.skytruth.org" target="_blank" rel="noopener">SkyTruth Cerulean</a>' },
   { id:"cerulean_sources",     name:"Slick sources (Cerulean)", unit:"candidate vessels and platforms", colour:"#6B5F58", route:"worker", ready:true, off: true,
     geometry:"polygon", maxAreaDeg2: 120,
@@ -439,10 +440,37 @@ function clipTileRows(z, y, height, south, north) {
   return out;   // [firstRow, endRow) ranges to clear
 }
 
-// latclip://<south>,<north>/<https URL without the scheme>
+// Give every alert pixel one colour, keeping its transparency.
+//
+// A tile that is mostly a single flat colour is carrying a wash rather than
+// alerts — alerts are scattered, a wash is uniform — so that colour is cleared
+// before anything is painted. Kept apart from the canvas so it can be tested
+// on a plain array.
+function recolorAlerts(px, rgb) {
+  const counts = new Map();
+  let opaque = 0;
+  for (let i = 0; i < px.length; i += 4) {
+    if (!px[i + 3]) continue;
+    opaque++;
+    const k = (px[i] << 24 | px[i + 1] << 16 | px[i + 2] << 8 | px[i + 3]) >>> 0;
+    counts.set(k, (counts.get(k) || 0) + 1);
+  }
+  let wash = null;
+  for (const [k, n] of counts) if (n > (px.length / 4) * 0.6) wash = k;
+  for (let i = 0; i < px.length; i += 4) {
+    if (!px[i + 3]) continue;
+    const k = (px[i] << 24 | px[i + 1] << 16 | px[i + 2] << 8 | px[i + 3]) >>> 0;
+    if (k === wash) { px[i + 3] = 0; continue; }
+    px[i] = rgb[0]; px[i + 1] = rgb[1]; px[i + 2] = rgb[2];
+  }
+  return { opaque, washCleared: wash !== null };
+}
+
+// latclip://<south>,<north>[,<RRGGBB>]/<https URL without the scheme>
 maplibregl.addProtocol("latclip", async (params, abortController) => {
-  const m = params.url.match(/^latclip:\/\/(-?[\d.]+),(-?[\d.]+)\/(.*)$/);
-  const url = "https://" + m[3];
+  const m = params.url.match(/^latclip:\/\/(-?[\d.]+),(-?[\d.]+)(?:,([0-9A-Fa-f]{6}))?\/(.*)$/);
+  const url = "https://" + m[4];
+  const tint = m[3] ? [0, 2, 4].map((i) => parseInt(m[3].slice(i, i + 2), 16)) : null;
   const r = await fetch(url, { signal: abortController && abortController.signal });
   if (!r.ok) throw new Error(`${r.status}`);
   const buf = await r.arrayBuffer();
@@ -450,8 +478,8 @@ maplibregl.addProtocol("latclip", async (params, abortController) => {
   if (!t) return { data: buf };
   const [z, , y] = t.slice(1).map(Number);
   const south = Number(m[1]), north = Number(m[2]);
-  // Most tiles sit wholly inside the band; those go through untouched.
-  if (!clipTileRows(z, y, 256, south, north).length) return { data: buf };
+  // Most tiles sit wholly inside the band; untinted, those go through untouched.
+  if (!tint && !clipTileRows(z, y, 256, south, north).length) return { data: buf };
 
   const bmp = await createImageBitmap(new Blob([buf]));
   const canvas = typeof OffscreenCanvas !== "undefined"
@@ -461,6 +489,11 @@ maplibregl.addProtocol("latclip", async (params, abortController) => {
   ctx.drawImage(bmp, 0, 0);
   for (const [a, b] of clipTileRows(z, y, bmp.height, south, north)) {
     ctx.clearRect(0, a, bmp.width, b - a);
+  }
+  if (tint) {
+    const img = ctx.getImageData(0, 0, bmp.width, bmp.height);
+    recolorAlerts(img.data, tint);
+    ctx.putImageData(img, 0, 0);
   }
   const blob = canvas.convertToBlob
     ? await canvas.convertToBlob({ type: "image/png" })
@@ -1521,11 +1554,51 @@ async function ceruleanCount(cfg, z, x, y) {
   }
 }
 
+// One number for the whole collection, asked once per page view.
+const ceruleanTotals = new Map();     // id -> number, or a pending promise
+async function ceruleanTotal(cfg) {
+  const url = `${CERULEAN}/collections/${cfg.collection}/items?limit=0`;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`${r.status}`);
+      const matched = (await r.json()).numberMatched;
+      if (typeof matched !== "number") throw new Error("no count returned");
+      return matched;
+    } catch (err) {
+      if (attempt >= 1) throw err;
+    }
+  }
+}
+
 async function refreshCerulean(cfg) {
   if ((visibility.get(cfg.id) || "visible") !== "visible") return;   // off: ask nothing
   const counts = map.getSource(`${cfg.id}-counts`);
   const caps = map.getSource(`${cfg.id}-caps`);
   if (!counts || !caps) return;
+
+  // Wide out, no squares. At world view four squares covered the planet, each
+  // shaded near full by tens of thousands of slicks — a grey wash with a cross
+  // where their edges met — and each waited on Cerulean's slowest query. One
+  // total says what is true at that scale without drawing anything misleading.
+  if (map.getZoom() < cfg.drawFrom) {
+    const empty = { type: "FeatureCollection", features: [] };
+    counts.setData(empty);
+    caps.setData(empty);
+    const total = ceruleanTotals.get(cfg.id);
+    if (typeof total === "number") {
+      setLayerState(cfg.id, `${total.toLocaleString()} potential slicks since January 2023 — ` +
+                            `zoom in to ${cfg.drawFrom} to draw them`);
+    } else {
+      setLayerState(cfg.id, `zoom in to ${cfg.drawFrom} to draw slicks`);
+      if (total === undefined) {
+        ceruleanTotals.set(cfg.id, ceruleanTotal(cfg).then(
+          (n) => { ceruleanTotals.set(cfg.id, n); refreshCerulean(cfg); },
+          () => { ceruleanTotals.set(cfg.id, null); }));
+      }
+    }
+    return;
+  }
   const run = (ceruleanRun.get(cfg.id) || 0) + 1;
   ceruleanRun.set(cfg.id, run);
 
@@ -1691,6 +1764,67 @@ function addWmtsLayer(cfg) {
   buildLegend();
 }
 
+/* ---------- shapes: countries, regions and lines from the site's maps ---------- */
+//
+// Built by pipeline/shapes/build_shapes.py into map/data/shapes/<id>.geojson and
+// fetched only when a layer is first ticked. One file can hold areas, lines and
+// points together, so each is drawn by its own layer. Where the source map
+// coloured a shape, that colour (softened at build time) is used; otherwise the
+// layer's own colour.
+function shapeText(v) {
+  return String(v == null ? "" : v).replace(/<[^>]*>/g, " ").replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\s+/g, " ").trim();
+}
+async function addShapesLayer(cfg) {
+  const url = cfg.dataUrl || `${DATA_BASE}/shapes/${cfg.id}.geojson`;
+  let data;
+  try {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`${r.status} at ${url}`);
+    data = await r.json();
+  } catch (e) {
+    setLayerState(cfg.id, `not built yet (${e.message})`);
+    console.error(`[culprits] ${cfg.id}: ${e.message}`);
+    return;
+  }
+  const source = `${cfg.id}-shapes`;
+  map.addSource(source, { type: "geojson", data, attribution: cfg.attribution || "" });
+  const colour = ["coalesce", ["get", "_map_colour"], cfg.colour];
+  const areas = ["match", ["geometry-type"], ["Polygon", "MultiPolygon"], true, false];
+  const lines = ["match", ["geometry-type"], ["LineString", "MultiLineString"], true, false];
+  map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source, filter: areas,
+    paint: { "fill-color": colour, "fill-opacity": 0.42 } });
+  map.addLayer({ id: `${cfg.id}-line`, type: "line", source,
+    filter: ["match", ["geometry-type"], ["Point", "MultiPoint"], false, true],
+    paint: { "line-color": colour, "line-opacity": 0.85,
+             "line-width": ["case", lines, 1.6, 0.6] } });
+  map.addLayer({ id: `${cfg.id}-pt`, type: "circle", source,
+    filter: ["match", ["geometry-type"], ["Point", "MultiPoint"], true, false],
+    paint: { "circle-color": colour, "circle-radius": 4,
+             "circle-stroke-width": 0.6, "circle-stroke-color": "#17150F" } });
+  const popup = (p) => {
+    const title = p.name || p.country || p.title || cfg.name;
+    const skip = new Set(["name", "country", "title", "list", "from_the_map", "entries"]);
+    const rows = Object.entries(p).filter(([k, v]) => !k.startsWith("_") && !skip.has(k) && v !== "" && v != null)
+      .slice(0, 16).map(([k, v]) => `${shapeText(k.replace(/[_.]/g, " "))}: ${shapeText(v).slice(0, 400)}`);
+    const said = p.from_the_map ? shapeText(p.from_the_map).slice(0, 1200) : "";
+    const list = p.list ? String(p.list).split("\n") : [];
+    const shown = list.slice(0, 40).map((l) => shapeText(l).slice(0, 300));
+    return `<b>${shapeText(title)}</b>` +
+      (said ? `<div class="meta">${said}</div>` : "") +
+      (rows.length ? `<div class="meta">${rows.join("<br>")}</div>` : "") +
+      (shown.length ? `<div class="meta">${Number(p.entries || list.length).toLocaleString()} entries:<br>` +
+        shown.join("<br>") + (list.length > 40 ? `<br>…and ${(list.length - 40).toLocaleString()} more in the source file` : "") +
+        `</div>` : "");
+  };
+  bindHtmlPopup(`${cfg.id}-fill`, popup);
+  bindHtmlPopup(`${cfg.id}-line`, popup);
+  bindHtmlPopup(`${cfg.id}-pt`, popup);
+  setLayerState(cfg.id, `${data.features.length.toLocaleString()} ${cfg.unit}`);
+  applyVisibility(cfg.id);
+  buildLegend();
+}
+
 /* ---------- raster tile layers, via the Worker ---------- */
 
 // A continuous field rather than a set of located things. There is nothing to
@@ -1703,8 +1837,11 @@ function addTileLayer(cfg) {
     // tilePath lets several layers share one Worker route, distinguished by
     // tileQuery — the three alert layers are the same endpoint with different
     // datasets and windows behind it.
-    tiles: [(cfg.clipToBounds && cfg.bounds
-              ? WORKER.replace(/^https:\/\//, `latclip://${cfg.bounds[1]},${cfg.bounds[3]}/`)
+    tiles: [((cfg.clipToBounds && cfg.bounds) || cfg.recolor
+              ? WORKER.replace(/^https:\/\//,
+                  `latclip://${cfg.clipToBounds && cfg.bounds ? cfg.bounds[1] : -90},` +
+                  `${cfg.clipToBounds && cfg.bounds ? cfg.bounds[3] : 90}` +
+                  `${cfg.recolor ? "," + cfg.recolor.slice(1) : ""}/`)
               : WORKER) +
             `/${cfg.tilePath || cfg.id + "_tile"}/{z}/{x}/{y}` +
             (cfg.tileQuery ? `?${cfg.tileQuery}` : "")],
@@ -1730,7 +1867,10 @@ function addTileLayer(cfg) {
     paint: {
       // The ramp's own lowest step is fully transparent, so empty ocean stays
       // empty; this only softens the painted cells against the basemap.
-      "raster-opacity": 0.85,
+      // Recoloured alerts are lighter wide out, where a month of them over a
+      // continent would otherwise fill it, and full strength from zoom 8.
+      "raster-opacity": cfg.recolor
+        ? ["interpolate", ["linear"], ["zoom"], 2, 0.5, 8, 0.85] : 0.85,
       // A display transform on somebody else's palette.
       //
       // The alert tiles are rendered by GFW's own server with render_type=
@@ -2040,7 +2180,286 @@ function syncGroupBox(box, group) {
 
 // Every group, in panel order. A child id is looked up across all of them, so
 // adding a group needs no change to the toggle handler.
-const GROUPS = [CT_SECTORS, CT_AGRICULTURE, CT_FORESTRY, CT_HISTORY];
+// The site's own maps, one layer each. Generated from
+// pipeline/sitemaps/registry.json by patch_layers_0917.py; the places and
+// popup text are read from each map by pipeline/sitemaps/extract.mjs.
+const SITE_MAPS = {
+  id: "site_maps",
+  name: "The site's other maps",
+  group: true,
+  ready: true,
+  children: [
+    { id: "site_animal_sacrifice", name: "Animal sacrifice sites", unit: "sites", colour: "#7A4F4A", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_animal_sacrifice.pmtiles",
+      note: "From the Destruction page's animal sacrifice map." },
+    { id: "site_animal_fighting", name: "Animal fighting venues", unit: "venues", colour: "#84594F", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_animal_fighting.pmtiles",
+      note: "From the Destruction page's animal fighting map (maps repo)." },
+    { id: "site_carbon_mapper_waste", name: "Methane plumes from waste sites (Carbon Mapper)", unit: "plume sources", colour: "#6D6A5E", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_carbon_mapper_waste.pmtiles",
+      note: "From the Destruction page's Carbon Mapper waste-sector map: the hotspots written into that map, not Carbon Mapper's live feed." },
+    { id: "site_forest500_soy", name: "Worst soy financiers (Forest 500)", unit: "financial institutions", colour: "#6B5B4E", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_forest500_soy.pmtiles",
+      note: "From the Destruction page's Forest 500 map: institutions scoring 2 or less of 94 on soy policy, placed at their headquarters." },
+    { id: "site_china_grain", name: "China grain storage (Sinograin)", unit: "depots", colour: "#76705C", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_china_grain.pmtiles",
+      note: "From the Destruction page's China grain storage map. The page states 205 facilities; this layer carries the positions its map draws." },
+    { id: "site_soybean_companies", name: "Soy trading companies", unit: "offices", colour: "#6F7560", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_soybean_companies.pmtiles",
+      note: "From the Destruction page's soy companies map (maps repo)." },
+    { id: "site_secret_societies", name: "International military secret societies", unit: "organisations", colour: "#5E5A6E", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_secret_societies.pmtiles",
+      note: "From the On-Planet Invasion page's secret societies map." },
+    { id: "site_ufo_pre1900", name: "Pre-1900 UFO and USO sightings", unit: "recorded sightings", colour: "#5F6B78", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_ufo_pre1900.pmtiles",
+      note: "From the Off-Planet Invasion page's historical sightings archive." },
+    { id: "site_central_banks", name: "Central banks", unit: "banks", colour: "#5C6570", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_central_banks.pmtiles",
+      note: "From the Suppression page's central banks map." },
+    { id: "site_banking_dynasties", name: "Banking dynasties", unit: "dynasty seats", colour: "#6A5D6B", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_banking_dynasties.pmtiles",
+      note: "From the Suppression page's banking dynasties map." },
+    { id: "site_export_credit", name: "Export credit agencies", unit: "agencies", colour: "#5E6A63", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_export_credit.pmtiles",
+      note: "From the Suppression page's export credit agencies map. Its country shading is not carried here, only the agencies." },
+    { id: "site_wealth_atlas", name: "Richest dynasties and individuals", unit: "families and individuals", colour: "#735E57", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_wealth_atlas.pmtiles",
+      note: "From the Suppression page's wealth atlas." },
+    { id: "site_food_system", name: "Who owns the food system", unit: "companies", colour: "#6E6A55", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_food_system.pmtiles",
+      note: "From the Suppression page's food system ownership map." },
+    { id: "site_world_advertising", name: "Advertising companies and owners", unit: "companies", colour: "#6C5F66", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_world_advertising.pmtiles",
+      note: "From the Suppression page's World Advertising 2026 map." },
+    { id: "site_world_news", name: "News outlets and owners", unit: "outlets and owners", colour: "#626A6F", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_world_news.pmtiles",
+      note: "From the Suppression page's World News 2026 map." },
+    { id: "site_research_integrity", name: "Research integrity breaches", unit: "institutions and publishers", colour: "#5F6E6A", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_research_integrity.pmtiles",
+      note: "From the Suppression page's research integrity map." },
+    { id: "site_world_entertainment", name: "Entertainment companies and owners", unit: "companies", colour: "#6D5E5A", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_world_entertainment.pmtiles",
+      note: "From the Suppression page's World Entertainment 2026 map." },
+    { id: "site_eyes_network", name: "The network that tried to harness the eyes", unit: "places", colour: "#5B6360", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_eyes_network.pmtiles",
+      note: "From the Suppression page's sports section network map." },
+    { id: "site_animal_tourism", name: "Animal tourism sites", unit: "locations", colour: "#7C6356", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_animal_tourism.pmtiles",
+      note: "From the Suppression page's animal tourism atlas." },
+    { id: "site_circus", name: "Circuses and animal shows", unit: "venues", colour: "#7A5E61", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_circus.pmtiles",
+      note: "From the Suppression page's circus map." },
+    { id: "site_animal_racing", name: "Animal racing and sports venues", unit: "venues", colour: "#7B6452", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_animal_racing.pmtiles",
+      note: "From the Suppression page's animal racing map (maps repo)." },
+    { id: "site_rodeo", name: "Rodeos and charreadas", unit: "events and arenas", colour: "#80665A", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_rodeo.pmtiles",
+      note: "From the Suppression page's rodeo and charreada map." },
+    { id: "site_enslaved_plants", name: "Unnecessary enslavement of plants", unit: "companies", colour: "#62705A", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_enslaved_plants.pmtiles",
+      note: "From the Suppression page's plant enslavement map." },
+    { id: "site_enslaved_microbes", name: "Unnecessary enslavement of microorganisms", unit: "companies", colour: "#6A6E62", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_enslaved_microbes.pmtiles",
+      note: "From the Suppression page's microorganism enslavement map." },
+    { id: "site_insentient", name: "The insentient", unit: "companies", colour: "#66625E", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_insentient.pmtiles",
+      note: "From the Suppression page's map of industries built on things called insentient." },
+    { id: "site_subsistence_cultures", name: "Subsistence cultures", unit: "peoples", colour: "#5F7166", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_subsistence_cultures.pmtiles",
+      note: "From the Suppression page's subsistence cultures map." },
+    { id: "site_self_sufficiency", name: "Citizen and local self-sufficiency programs", unit: "programs", colour: "#5E6F5B", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_self_sufficiency.pmtiles",
+      note: "From the Solution page's self-sufficiency programs map." },
+    { id: "site_environment_law", name: "Environmental law instruments", unit: "legal instruments", colour: "#5A6B72", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_environment_law.pmtiles",
+      note: "From the Destruction page's environmental law map (enviro-atlas repo)." },
+    { id: "site_cartel_cells", name: "Cartel cells", unit: "cells and sites", colour: "#6A5A58", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_cartel_cells.pmtiles",
+      note: "From the Suppression page's cartel cells map (maps repo). Its 238 connecting lines are not drawn in this layer, only the places." },
+    { id: "enviro_law_by_country", name: "Environmental law by country and region (enviro-atlas)", unit: "countries", colour: "#5A6B72", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/enviro_law_by_country.geojson",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+    { id: "site_earmarked_funding", name: "Earmarked funding to international organisations", unit: "countries", colour: "#6A5E66", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_earmarked_funding.geojson",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+    { id: "site_trade_profits", name: "Who captures the profits in global trade (OECD TiVA)", unit: "countries", colour: "#6E6358", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_trade_profits.geojson",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+    { id: "site_settler_colonialism", name: "Settler colonialism and native displacement", unit: "territories", colour: "#6B5A52", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_settler_colonialism.geojson",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+    { id: "site_social_spheres", name: "The social spheres (board and membership links)", unit: "links", colour: "#5E6068", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_social_spheres.geojson",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+    { id: "site_cartel_lines", name: "Cartel cells — connecting lines", unit: "links", colour: "#6A5A58", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_cartel_lines.geojson",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+    { id: "site_environment_law_shapes", name: "Environmental law instruments — areas", unit: "areas", colour: "#5A6B72", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_environment_law_shapes.geojson",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+    { id: "site_export_credit_shading", name: "Export credit agencies — country shading", unit: "countries", colour: "#5E6A63", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_export_credit_shading.geojson",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+    { id: "gov_official_map", name: "How to become a government official", unit: "countries and places", colour: "#5F6A66", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/gov_official_map.geojson",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+    { id: "capture_map", name: "Drug underworld and capture map", unit: "places and areas", colour: "#6A5A5E", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/capture_map.geojson",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+  ],
+};
+
+// The facility files of the five accountability maps, one group per map.
+// Generated from pipeline/sitemaps/repo_layers.json by patch_repo_layers.py.
+const EXEC_MAP = {
+  id: "executive_map_layers",
+  name: "Executive accountability map",
+  group: true,
+  ready: true,
+  children: [
+    { id: "exec_police", name: "Police stations", unit: "stations", colour: "#5C6670", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/exec_police.pmtiles",
+      note: "Every row of execmap_local_police.json in WelcomeToYourGalaxy/executive-map, as that map reads it: position, name and link." },
+    { id: "exec_townhall", name: "Town halls", unit: "town halls", colour: "#65676A", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/exec_townhall.pmtiles",
+      note: "Every row of execmap_local_townhall.json in WelcomeToYourGalaxy/executive-map, as that map reads it: position, name and link." },
+    { id: "exec_firestation", name: "Fire stations", unit: "stations", colour: "#6E605C", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/exec_firestation.pmtiles",
+      note: "Every row of execmap_local_firestation.json in WelcomeToYourGalaxy/executive-map, as that map reads it: position, name and link." },
+    { id: "exec_govoffice", name: "Government offices", unit: "offices", colour: "#5F6A66", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/exec_govoffice.pmtiles",
+      note: "Every row of execmap_local_govoffice.json in WelcomeToYourGalaxy/executive-map, as that map reads it: position, name and link." },
+    { id: "exec_ministry", name: "Ministries and agencies", unit: "offices", colour: "#5A6272", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/exec_ministry.pmtiles",
+      note: "Every row of execmap_local_ministry.json in WelcomeToYourGalaxy/executive-map, as that map reads it: position, name and link." },
+    { id: "exec_diplomatic", name: "Embassies and consulates", unit: "missions", colour: "#666070", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/exec_diplomatic.pmtiles",
+      note: "Every row of execmap_local_diplomatic.json in WelcomeToYourGalaxy/executive-map, as that map reads it: position, name and link." },
+    { id: "exec_border", name: "Border posts", unit: "posts", colour: "#60665E", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/exec_border.pmtiles",
+      note: "Every row of execmap_local_border.json in WelcomeToYourGalaxy/executive-map, as that map reads it: position, name and link." },
+    { id: "exec_prison", name: "Prisons (executive map file)", unit: "prisons", colour: "#6A5E62", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/exec_prison.pmtiles",
+      note: "Every row of execmap_local_prison.json in WelcomeToYourGalaxy/executive-map, as that map reads it: position, name and link." },
+  ],
+};
+
+const MONEY_MAP = {
+  id: "money_map_layers",
+  name: "Money and financial accountability map",
+  group: true,
+  ready: true,
+  children: [
+    { id: "fin_bank", name: "Banks", unit: "branches and offices", colour: "#6E5F52", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/fin_bank.pmtiles",
+      note: "Every row of moneymap_local_bank.json in WelcomeToYourGalaxy/financial-map, as that map reads it: position, name and link." },
+    { id: "fin_taxoffice", name: "Tax offices", unit: "offices", colour: "#735F55", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/fin_taxoffice.pmtiles",
+      note: "Every row of moneymap_local_taxoffice.json in WelcomeToYourGalaxy/financial-map, as that map reads it: position, name and link." },
+    { id: "fin_govfinance", name: "Government finance offices", unit: "offices", colour: "#6A5D58", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/fin_govfinance.pmtiles",
+      note: "Every row of moneymap_local_govfinance.json in WelcomeToYourGalaxy/financial-map, as that map reads it: position, name and link." },
+    { id: "fin_financial", name: "Financial services", unit: "offices", colour: "#76655A", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/fin_financial.pmtiles",
+      note: "Every row of moneymap_local_financial.json in WelcomeToYourGalaxy/financial-map, as that map reads it: position, name and link." },
+    { id: "fin_exchange", name: "Currency exchanges", unit: "exchanges", colour: "#6F6358", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/fin_exchange.pmtiles",
+      note: "Every row of moneymap_local_exchange.json in WelcomeToYourGalaxy/financial-map, as that map reads it: position, name and link." },
+    { id: "fin_insurance", name: "Insurance offices", unit: "offices", colour: "#6B6056", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/fin_insurance.pmtiles",
+      note: "Every row of moneymap_local_insurance.json in WelcomeToYourGalaxy/financial-map, as that map reads it: position, name and link." },
+    { id: "fin_accountant", name: "Accountants", unit: "offices", colour: "#71645E", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/fin_accountant.pmtiles",
+      note: "Every row of moneymap_local_accountant.json in WelcomeToYourGalaxy/financial-map, as that map reads it: position, name and link." },
+    { id: "fin_remittance", name: "Money transfer offices", unit: "offices", colour: "#6D5C54", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/fin_remittance.pmtiles",
+      note: "Every row of moneymap_local_remittance.json in WelcomeToYourGalaxy/financial-map, as that map reads it: position, name and link." },
+    { id: "fin_centralbank", name: "Central bank buildings", unit: "buildings", colour: "#665A55", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/fin_centralbank.pmtiles",
+      note: "Every row of moneymap_local_centralbank.json in WelcomeToYourGalaxy/financial-map, as that map reads it: position, name and link." },
+    { id: "fin_stockexchange", name: "Stock exchanges", unit: "exchanges", colour: "#7A6558", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/fin_stockexchange.pmtiles",
+      note: "Every row of moneymap_local_stockexchange.json in WelcomeToYourGalaxy/financial-map, as that map reads it: position, name and link." },
+    { id: "fin_auditoffice", name: "Audit offices (money map file)", unit: "offices", colour: "#6C625A", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/fin_auditoffice.pmtiles",
+      note: "Every row of moneymap_local_auditoffice.json in WelcomeToYourGalaxy/financial-map, as that map reads it: position, name and link." },
+    { id: "fin_devbank", name: "Development banks", unit: "offices", colour: "#735E5A", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/fin_devbank.pmtiles",
+      note: "Every row of moneymap_local_devbank.json in WelcomeToYourGalaxy/financial-map, as that map reads it: position, name and link." },
+    { id: "fin_mint", name: "Mints", unit: "mints", colour: "#7B6A5E", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/fin_mint.pmtiles",
+      note: "Every row of moneymap_local_mint.json in WelcomeToYourGalaxy/financial-map, as that map reads it: position, name and link." },
+  ],
+};
+
+const LEGAL_MAP = {
+  id: "legal_map_layers",
+  name: "Legal defense and prisoner support map",
+  group: true,
+  ready: true,
+  children: [
+    { id: "legal_prison", name: "Prisons", unit: "prisons", colour: "#6B5A66", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/legal_prison.pmtiles",
+      note: "Every row of legalmap_local_prison.json in WelcomeToYourGalaxy/legal-map, as that map reads it: position, name and link." },
+    { id: "legal_courthouse", name: "Courthouses", unit: "courts", colour: "#645C6E", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/legal_courthouse.pmtiles",
+      note: "Every row of legalmap_local_courthouse.json in WelcomeToYourGalaxy/legal-map, as that map reads it: position, name and link." },
+    { id: "legal_publicdefender", name: "Public defenders and prosecutors", unit: "offices", colour: "#6E6070", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/legal_publicdefender.pmtiles",
+      note: "Every row of legalmap_local_publicdefender.json in WelcomeToYourGalaxy/legal-map, as that map reads it: position, name and link." },
+    { id: "legal_police", name: "Police stations (legal map file)", unit: "stations", colour: "#5E5A68", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/legal_police.pmtiles",
+      note: "Every row of legalmap_local_police.json in WelcomeToYourGalaxy/legal-map, as that map reads it: position, name and link." },
+    { id: "legal_immigration", name: "Immigration enforcement", unit: "sites", colour: "#705A62", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/legal_immigration.pmtiles",
+      note: "Every row of legalmap_local_immigration.json in WelcomeToYourGalaxy/legal-map, as that map reads it: position, name and link." },
+    { id: "legal_probation", name: "Probation offices", unit: "offices", colour: "#675E6A", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/legal_probation.pmtiles",
+      note: "Every row of legalmap_local_probation.json in WelcomeToYourGalaxy/legal-map, as that map reads it: position, name and link." },
+    { id: "legal_juvenile", name: "Juvenile detention", unit: "sites", colour: "#72606A", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/legal_juvenile.pmtiles",
+      note: "Every row of legalmap_local_juvenile.json in WelcomeToYourGalaxy/legal-map, as that map reads it: position, name and link." },
+    { id: "legal_by_state", name: "Legal defense resources by state and province", unit: "countries", colour: "#665C6E", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/shapes/legal_by_state.geojson",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+  ],
+};
+
+const LEG_MAP = {
+  id: "legislative_map_layers",
+  name: "Legislative accountability map",
+  group: true,
+  ready: true,
+  children: [
+    { id: "leg_parliament", name: "Parliaments and legislatures", unit: "buildings", colour: "#5E6B5E", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/leg_parliament.pmtiles",
+      note: "Every row of legmap_local_parliament.json in WelcomeToYourGalaxy/legislative-map, as that map reads it: position, name and link." },
+    { id: "leg_townhall", name: "Town halls (legislative map file)", unit: "town halls", colour: "#626A5F", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/leg_townhall.pmtiles",
+      note: "Every row of legmap_local_townhall.json in WelcomeToYourGalaxy/legislative-map, as that map reads it: position, name and link." },
+    { id: "leg_audit", name: "Audit offices", unit: "offices", colour: "#5A665C", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/leg_audit.pmtiles",
+      note: "Every row of legmap_local_audit.json in WelcomeToYourGalaxy/legislative-map, as that map reads it: position, name and link." },
+    { id: "leg_electoral", name: "Electoral offices", unit: "offices", colour: "#65705F", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/leg_electoral.pmtiles",
+      note: "Every row of legmap_local_electoral.json in WelcomeToYourGalaxy/legislative-map, as that map reads it: position, name and link." },
+    { id: "leg_ombudsman", name: "Ombudsman offices", unit: "offices", colour: "#5F6E64", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/leg_ombudsman.pmtiles",
+      note: "Every row of legmap_local_ombudsman.json in WelcomeToYourGalaxy/legislative-map, as that map reads it: position, name and link." },
+    { id: "leg_council", name: "Councils", unit: "councils", colour: "#687060", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/leg_council.pmtiles",
+      note: "Every row of legmap_local_council.json in WelcomeToYourGalaxy/legislative-map, as that map reads it: position, name and link." },
+    { id: "leg_by_state", name: "Legislative resources by state and province", unit: "countries", colour: "#5E6B5E", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/shapes/leg_by_state.geojson",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+    { id: "leg_subnational", name: "Regional governments", unit: "countries", colour: "#62705F", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/shapes/leg_subnational.geojson",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+    { id: "leg_county", name: "County governments", unit: "countries", colour: "#5A665C", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/shapes/leg_county.geojson",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+    { id: "leg_municipal", name: "Municipal governments", unit: "countries", colour: "#65705F", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/shapes/leg_municipal.geojson",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+    { id: "leg_municipal_recover", name: "Municipal governments (recovered list)", unit: "countries", colour: "#687060", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/shapes/leg_municipal_recover.geojson",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+    { id: "leg_laws", name: "Laws by country", unit: "countries", colour: "#5F6E64", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/shapes/leg_laws.geojson",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+  ],
+};
+
+const JUD_MAP = {
+  id: "judicial_map_layers",
+  name: "Judicial accountability map",
+  group: true,
+  ready: true,
+  children: [
+    { id: "jud_courts", name: "Courts", unit: "courts", colour: "#5A6570", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/jud_courts.pmtiles",
+      note: "Every row of judicial_facilities.json in WelcomeToYourGalaxy/judicial-map, as that map reads it: position, name and link." },
+    { id: "jud_prisons", name: "Prisons and detention (judicial map file)", unit: "facilities", colour: "#655C66", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/jud_prisons.pmtiles",
+      note: "Every row of judicial_facilities.json in WelcomeToYourGalaxy/judicial-map, as that map reads it: position, name and link." },
+    { id: "judicial_by_state", name: "Judicial accountability resources by state and province", unit: "countries", colour: "#5E6470", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/shapes/judicial_by_state.geojson",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+  ],
+};
+
+const MORE_MAPS = {
+  id: "more_map_layers",
+  name: "More from the map repos",
+  group: true,
+  ready: true,
+  children: [
+    { id: "slavery_facilities", name: "Courthouses, consulates and labour offices (anti-slavery map)", unit: "facilities", colour: "#6A5E66", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/slavery_facilities.pmtiles",
+      note: "Every row of facilities.json in WelcomeToYourGalaxy/anti-slavery-map." },
+    { id: "slavery_determinations", name: "Forced labour determinations (anti-slavery map)", unit: "determinations", colour: "#7A5E5E", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/slavery_determinations.pmtiles",
+      note: "Every row of projects.json in WelcomeToYourGalaxy/anti-slavery-map." },
+    { id: "slavery_enforcement", name: "Enforcement outcomes and detections (anti-slavery map)", unit: "records", colour: "#725A60", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/slavery_enforcement.pmtiles",
+      note: "Every row of bulk.json in WelcomeToYourGalaxy/anti-slavery-map." },
+    { id: "activist_courts", name: "Courts (activist rights map)", unit: "courts", colour: "#5E6070", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/activist_courts.pmtiles",
+      note: "Every row of facilities_courts.json in WelcomeToYourGalaxy/activist-rights-map." },
+    { id: "activist_police", name: "Police stations (activist rights map)", unit: "stations", colour: "#5A5E68", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/activist_police.pmtiles",
+      note: "Every row of facilities_police.json in WelcomeToYourGalaxy/activist-rights-map." },
+    { id: "activist_prisons", name: "Prisons (activist rights map)", unit: "prisons", colour: "#665C68", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/activist_prisons.pmtiles",
+      note: "Every row of facilities_prisons.json in WelcomeToYourGalaxy/activist-rights-map." },
+    { id: "remains_findings", name: "Published aggregate findings (Unearthings)", unit: "findings", colour: "#6A6257", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/remains_findings.pmtiles",
+      note: "Every row of findings.json in WelcomeToYourGalaxy/remains." },
+    { id: "remains_cemeteries", name: "Cemeteries (Unearthings)", unit: "cemeteries", colour: "#6A6257", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/remains_cemeteries.pmtiles",
+      note: "Every row of remains_local_cemetery_*.json.gz in WelcomeToYourGalaxy/remains." },
+    { id: "slavery_prevalence", name: "Modern slavery prevalence estimates (anti-slavery map)", unit: "countries", colour: "#735C5E", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/slavery_prevalence.geojson",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+    { id: "slavery_routes", name: "Trafficking routes, country to country (anti-slavery map)", unit: "routes", colour: "#7A6060", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/slavery_routes.geojson",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+    { id: "slavery_trackers", name: "Anti-slavery trackers by country", unit: "countries", colour: "#6C6064", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/slavery_trackers.geojson",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+    { id: "cultivated_meat_laws", name: "Restrictions on cultivated meat (abattoir atlas)", unit: "countries", colour: "#7A5E58", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/cultivated_meat_laws.geojson",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+  ],
+};
+
+const GMO_MAP = {
+  id: "gmo_map_layers",
+  name: "Genetic engineering map",
+  group: true,
+  ready: true,
+  children: [
+    { id: "gmo_cultivation", name: "Genetic-engineering cultivation", unit: "countries and regions", colour: "#6F6A5A", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/gmo_cultivation.geojson",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+    { id: "gmo_gmofree", name: "GMO-free zones", unit: "zones", colour: "#5F6E5C", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/gmo_gmofree.geojson",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+    { id: "gmo_incidents", name: "Contamination incidents", unit: "countries", colour: "#7A5A55", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/gmo_incidents.geojson",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+    { id: "gmo_regime", name: "Regulatory regimes", unit: "regime areas", colour: "#5E6470", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/gmo_regime.geojson",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+    { id: "gmo_treaties", name: "Biosafety and seed treaties", unit: "countries", colour: "#665E6C", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/gmo_treaties.geojson",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+    { id: "gmo_trials", name: "Field trials", unit: "countries and regions", colour: "#6E6456", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/gmo_trials.geojson",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+  ],
+};
+
+const GROUPS = [CT_SECTORS, CT_AGRICULTURE, CT_FORESTRY, CT_HISTORY, SITE_MAPS, EXEC_MAP, MONEY_MAP, LEGAL_MAP, LEG_MAP, JUD_MAP, MORE_MAPS, GMO_MAP];
 function childById(id) {
   for (const g of GROUPS) {
     const hit = g.children.find((c) => c.id === id);
@@ -2063,6 +2482,7 @@ function ensureLayer(cfg) {
   // archive. addWmtsLayer is synchronous, so it is wrapped to keep one shape.
   const build = cfg.route === "wmts"
     ? Promise.resolve().then(() => addWmtsLayer(cfg))
+    : cfg.route === "shapes" ? addShapesLayer(cfg)
     : addPmtilesLayer(cfg);
   build
     .then(() => {

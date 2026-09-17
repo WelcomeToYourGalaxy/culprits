@@ -1,0 +1,273 @@
+{
+ "_note": "Every non-point feature of the site's maps — country shading, regions, lines — plus maps whose whole content is read here. Built into map/data/shapes/<id>.geojson by build_shapes.py and drawn by the map's shapes route. kind: geojson (the repo's own file), extract (the map's scripts, via ../sitemaps/extract.mjs), records_by_iso and tree (country-keyed data joined to country outlines), routes (country-to-country lines between the outlines' centres, as the anti-slavery map draws them), enviro_files (one file per country or region).",
+ "layers": [
+  {
+   "id": "gmo_cultivation",
+   "group": "GMO_MAP",
+   "kind": "geojson",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/GMO-map/main/overlays/cultivation.geojson",
+   "name": "Genetic-engineering cultivation",
+   "unit": "countries and regions",
+   "colour": "#6F6A5A"
+  },
+  {
+   "id": "gmo_gmofree",
+   "group": "GMO_MAP",
+   "kind": "geojson",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/GMO-map/main/overlays/gmofree.geojson",
+   "name": "GMO-free zones",
+   "unit": "zones",
+   "colour": "#5F6E5C"
+  },
+  {
+   "id": "gmo_incidents",
+   "group": "GMO_MAP",
+   "kind": "geojson",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/GMO-map/main/overlays/incidents.geojson",
+   "name": "Contamination incidents",
+   "unit": "countries",
+   "colour": "#7A5A55"
+  },
+  {
+   "id": "gmo_regime",
+   "group": "GMO_MAP",
+   "kind": "geojson",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/GMO-map/main/overlays/regime.geojson",
+   "name": "Regulatory regimes",
+   "unit": "regime areas",
+   "colour": "#5E6470"
+  },
+  {
+   "id": "gmo_treaties",
+   "group": "GMO_MAP",
+   "kind": "geojson",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/GMO-map/main/overlays/treaties.geojson",
+   "name": "Biosafety and seed treaties",
+   "unit": "countries",
+   "colour": "#665E6C"
+  },
+  {
+   "id": "gmo_trials",
+   "group": "GMO_MAP",
+   "kind": "geojson",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/GMO-map/main/overlays/trials.geojson",
+   "name": "Field trials",
+   "unit": "countries and regions",
+   "colour": "#6E6456"
+  },
+  {
+   "id": "slavery_prevalence",
+   "group": "MORE_MAPS",
+   "kind": "records_by_iso",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/anti-slavery-map/main/prevalence.json",
+   "records": "projects",
+   "iso": "iso",
+   "name": "Modern slavery prevalence estimates (anti-slavery map)",
+   "unit": "countries",
+   "colour": "#735C5E"
+  },
+  {
+   "id": "slavery_routes",
+   "group": "MORE_MAPS",
+   "kind": "routes",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/anti-slavery-map/main/routes.json",
+   "records": "routes",
+   "name": "Trafficking routes, country to country (anti-slavery map)",
+   "unit": "routes",
+   "colour": "#7A6060"
+  },
+  {
+   "id": "slavery_trackers",
+   "group": "MORE_MAPS",
+   "kind": "tree",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/anti-slavery-map/main/trackerdata.json",
+   "name": "Anti-slavery trackers by country",
+   "unit": "countries",
+   "colour": "#6C6064"
+  },
+  {
+   "id": "cultivated_meat_laws",
+   "group": "MORE_MAPS",
+   "kind": "records_by_iso",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/abattoir-atlas/main/cultivated_meat_laws.json",
+   "records": "countries",
+   "iso": "code",
+   "name": "Restrictions on cultivated meat (abattoir atlas)",
+   "unit": "countries",
+   "colour": "#7A5E58",
+   "also": {
+    "key": "us_states",
+    "iso": "USA",
+    "label": "US state"
+   }
+  },
+  {
+   "id": "legal_by_state",
+   "group": "LEGAL_MAP",
+   "kind": "tree",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/legal-map/main/lmap_sub.json",
+   "name": "Legal defense resources by state and province",
+   "unit": "countries",
+   "colour": "#665C6E"
+  },
+  {
+   "id": "judicial_by_state",
+   "group": "JUD_MAP",
+   "kind": "tree",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/judicial-map/main/judicial_sub_data.json",
+   "name": "Judicial accountability resources by state and province",
+   "unit": "countries",
+   "colour": "#5E6470"
+  },
+  {
+   "id": "leg_by_state",
+   "group": "LEG_MAP",
+   "kind": "tree",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/legislative-map/main/legmap_sub.json",
+   "name": "Legislative resources by state and province",
+   "unit": "countries",
+   "colour": "#5E6B5E"
+  },
+  {
+   "id": "leg_subnational",
+   "group": "LEG_MAP",
+   "kind": "tree",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/legislative-map/main/legmap_subnational.json",
+   "name": "Regional governments",
+   "unit": "countries",
+   "colour": "#62705F"
+  },
+  {
+   "id": "leg_county",
+   "group": "LEG_MAP",
+   "kind": "tree",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/legislative-map/main/legmap_county.json",
+   "name": "County governments",
+   "unit": "countries",
+   "colour": "#5A665C"
+  },
+  {
+   "id": "leg_municipal",
+   "group": "LEG_MAP",
+   "kind": "tree",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/legislative-map/main/legmap_municipal.json",
+   "name": "Municipal governments",
+   "unit": "countries",
+   "colour": "#65705F"
+  },
+  {
+   "id": "leg_municipal_recover",
+   "group": "LEG_MAP",
+   "kind": "tree",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/legislative-map/main/legmap_municipal_recover.json",
+   "name": "Municipal governments (recovered list)",
+   "unit": "countries",
+   "colour": "#687060"
+  },
+  {
+   "id": "leg_laws",
+   "group": "LEG_MAP",
+   "kind": "tree",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/legislative-map/main/laws.json",
+   "name": "Laws by country",
+   "unit": "countries",
+   "colour": "#5F6E64"
+  },
+  {
+   "id": "enviro_law_by_country",
+   "group": "SITE_MAPS",
+   "kind": "enviro_files",
+   "repo": "WelcomeToYourGalaxy/enviro-atlas",
+   "name": "Environmental law by country and region (enviro-atlas)",
+   "unit": "countries",
+   "colour": "#5A6B72"
+  },
+  {
+   "id": "site_earmarked_funding",
+   "group": "SITE_MAPS",
+   "kind": "extract",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/suppression_embed_23_leaflet-map.html",
+   "name": "Earmarked funding to international organisations",
+   "unit": "countries",
+   "colour": "#6A5E66"
+  },
+  {
+   "id": "site_trade_profits",
+   "group": "SITE_MAPS",
+   "kind": "extract",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/suppression_embed_20_leaflet-map.html",
+   "name": "Who captures the profits in global trade (OECD TiVA)",
+   "unit": "countries",
+   "colour": "#6E6358"
+  },
+  {
+   "id": "site_settler_colonialism",
+   "group": "SITE_MAPS",
+   "kind": "extract",
+   "name": "Settler colonialism and native displacement",
+   "unit": "territories",
+   "colour": "#6B5A52",
+   "page": "on-planet-invasion",
+   "block": "indigenousnavigator",
+   "decode": "base64-iframe"
+  },
+  {
+   "id": "site_social_spheres",
+   "group": "SITE_MAPS",
+   "kind": "extract",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/social_spheres.html",
+   "name": "The social spheres (board and membership links)",
+   "unit": "links",
+   "colour": "#5E6068"
+  },
+  {
+   "id": "site_cartel_lines",
+   "group": "SITE_MAPS",
+   "kind": "extract",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/suppression_embed_24_leaflet-map.html",
+   "shapes_only": true,
+   "name": "Cartel cells — connecting lines",
+   "unit": "links",
+   "colour": "#6A5A58"
+  },
+  {
+   "id": "site_environment_law_shapes",
+   "group": "SITE_MAPS",
+   "kind": "extract",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/enviro-atlas/main/destruction-environment-law-map.html",
+   "shapes_only": true,
+   "name": "Environmental law instruments — areas",
+   "unit": "areas",
+   "colour": "#5A6B72"
+  },
+  {
+   "id": "site_export_credit_shading",
+   "group": "SITE_MAPS",
+   "kind": "extract",
+   "page": "suppression",
+   "block": "<title>Export Credit Agencies",
+   "shapes_only": true,
+   "name": "Export credit agencies — country shading",
+   "unit": "countries",
+   "colour": "#5E6A63"
+  },
+  {
+   "id": "gov_official_map",
+   "group": "SITE_MAPS",
+   "kind": "extract",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/become-a-gov-official/main/index.html",
+   "name": "How to become a government official",
+   "unit": "countries and places",
+   "colour": "#5F6A66"
+  },
+  {
+   "id": "capture_map",
+   "group": "SITE_MAPS",
+   "kind": "extract",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/capture/main/index.html",
+   "name": "Drug underworld and capture map",
+   "unit": "places and areas",
+   "colour": "#6A5A5E"
+  }
+ ]
+}

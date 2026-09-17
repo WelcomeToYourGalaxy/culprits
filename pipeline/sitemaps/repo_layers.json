@@ -1,0 +1,468 @@
+{
+ "_note": "Facility files inside the accountability map repos, one layer each. Rows are [lat, lon, name, url, …] as the maps read them (judicial: objects la, lo, n, u, k, where k 'p' is a prison and anything else a court). Every row is carried; fields past the url are kept as they are, unlabelled, because the files do not name them. Files marked `records` are objects inside a named list; every field the record carries is kept under its own name.",
+ "groups": [
+  {
+   "key": "exec",
+   "const": "EXEC_MAP",
+   "id": "executive_map_layers",
+   "name": "Executive accountability map",
+   "repo": "executive-map"
+  },
+  {
+   "key": "fin",
+   "const": "MONEY_MAP",
+   "id": "money_map_layers",
+   "name": "Money and financial accountability map",
+   "repo": "financial-map"
+  },
+  {
+   "key": "legal",
+   "const": "LEGAL_MAP",
+   "id": "legal_map_layers",
+   "name": "Legal defense and prisoner support map",
+   "repo": "legal-map"
+  },
+  {
+   "key": "leg",
+   "const": "LEG_MAP",
+   "id": "legislative_map_layers",
+   "name": "Legislative accountability map",
+   "repo": "legislative-map"
+  },
+  {
+   "key": "jud",
+   "const": "JUD_MAP",
+   "id": "judicial_map_layers",
+   "name": "Judicial accountability map",
+   "repo": "judicial-map"
+  },
+  {
+   "key": "more",
+   "const": "MORE_MAPS",
+   "id": "more_map_layers",
+   "name": "More from the map repos",
+   "repo": "several"
+  }
+ ],
+ "layers": [
+  {
+   "group": "exec",
+   "id": "exec_police",
+   "repo": "executive-map",
+   "file": "execmap_local_police.json",
+   "name": "Police stations",
+   "unit": "stations",
+   "colour": "#5C6670"
+  },
+  {
+   "group": "exec",
+   "id": "exec_townhall",
+   "repo": "executive-map",
+   "file": "execmap_local_townhall.json",
+   "name": "Town halls",
+   "unit": "town halls",
+   "colour": "#65676A"
+  },
+  {
+   "group": "exec",
+   "id": "exec_firestation",
+   "repo": "executive-map",
+   "file": "execmap_local_firestation.json",
+   "name": "Fire stations",
+   "unit": "stations",
+   "colour": "#6E605C"
+  },
+  {
+   "group": "exec",
+   "id": "exec_govoffice",
+   "repo": "executive-map",
+   "file": "execmap_local_govoffice.json",
+   "name": "Government offices",
+   "unit": "offices",
+   "colour": "#5F6A66"
+  },
+  {
+   "group": "exec",
+   "id": "exec_ministry",
+   "repo": "executive-map",
+   "file": "execmap_local_ministry.json",
+   "name": "Ministries and agencies",
+   "unit": "offices",
+   "colour": "#5A6272"
+  },
+  {
+   "group": "exec",
+   "id": "exec_diplomatic",
+   "repo": "executive-map",
+   "file": "execmap_local_diplomatic.json",
+   "name": "Embassies and consulates",
+   "unit": "missions",
+   "colour": "#666070"
+  },
+  {
+   "group": "exec",
+   "id": "exec_border",
+   "repo": "executive-map",
+   "file": "execmap_local_border.json",
+   "name": "Border posts",
+   "unit": "posts",
+   "colour": "#60665E"
+  },
+  {
+   "group": "exec",
+   "id": "exec_prison",
+   "repo": "executive-map",
+   "file": "execmap_local_prison.json",
+   "name": "Prisons (executive map file)",
+   "unit": "prisons",
+   "colour": "#6A5E62"
+  },
+  {
+   "group": "fin",
+   "id": "fin_bank",
+   "repo": "financial-map",
+   "file": "moneymap_local_bank.json",
+   "name": "Banks",
+   "unit": "branches and offices",
+   "colour": "#6E5F52"
+  },
+  {
+   "group": "fin",
+   "id": "fin_taxoffice",
+   "repo": "financial-map",
+   "file": "moneymap_local_taxoffice.json",
+   "name": "Tax offices",
+   "unit": "offices",
+   "colour": "#735F55"
+  },
+  {
+   "group": "fin",
+   "id": "fin_govfinance",
+   "repo": "financial-map",
+   "file": "moneymap_local_govfinance.json",
+   "name": "Government finance offices",
+   "unit": "offices",
+   "colour": "#6A5D58"
+  },
+  {
+   "group": "fin",
+   "id": "fin_financial",
+   "repo": "financial-map",
+   "file": "moneymap_local_financial.json",
+   "name": "Financial services",
+   "unit": "offices",
+   "colour": "#76655A"
+  },
+  {
+   "group": "fin",
+   "id": "fin_exchange",
+   "repo": "financial-map",
+   "file": "moneymap_local_exchange.json",
+   "name": "Currency exchanges",
+   "unit": "exchanges",
+   "colour": "#6F6358"
+  },
+  {
+   "group": "fin",
+   "id": "fin_insurance",
+   "repo": "financial-map",
+   "file": "moneymap_local_insurance.json",
+   "name": "Insurance offices",
+   "unit": "offices",
+   "colour": "#6B6056"
+  },
+  {
+   "group": "fin",
+   "id": "fin_accountant",
+   "repo": "financial-map",
+   "file": "moneymap_local_accountant.json",
+   "name": "Accountants",
+   "unit": "offices",
+   "colour": "#71645E"
+  },
+  {
+   "group": "fin",
+   "id": "fin_remittance",
+   "repo": "financial-map",
+   "file": "moneymap_local_remittance.json",
+   "name": "Money transfer offices",
+   "unit": "offices",
+   "colour": "#6D5C54"
+  },
+  {
+   "group": "fin",
+   "id": "fin_centralbank",
+   "repo": "financial-map",
+   "file": "moneymap_local_centralbank.json",
+   "name": "Central bank buildings",
+   "unit": "buildings",
+   "colour": "#665A55"
+  },
+  {
+   "group": "fin",
+   "id": "fin_stockexchange",
+   "repo": "financial-map",
+   "file": "moneymap_local_stockexchange.json",
+   "name": "Stock exchanges",
+   "unit": "exchanges",
+   "colour": "#7A6558"
+  },
+  {
+   "group": "fin",
+   "id": "fin_auditoffice",
+   "repo": "financial-map",
+   "file": "moneymap_local_auditoffice.json",
+   "name": "Audit offices (money map file)",
+   "unit": "offices",
+   "colour": "#6C625A"
+  },
+  {
+   "group": "fin",
+   "id": "fin_devbank",
+   "repo": "financial-map",
+   "file": "moneymap_local_devbank.json",
+   "name": "Development banks",
+   "unit": "offices",
+   "colour": "#735E5A"
+  },
+  {
+   "group": "fin",
+   "id": "fin_mint",
+   "repo": "financial-map",
+   "file": "moneymap_local_mint.json",
+   "name": "Mints",
+   "unit": "mints",
+   "colour": "#7B6A5E"
+  },
+  {
+   "group": "legal",
+   "id": "legal_prison",
+   "repo": "legal-map",
+   "file": "legalmap_local_prison.json",
+   "name": "Prisons",
+   "unit": "prisons",
+   "colour": "#6B5A66"
+  },
+  {
+   "group": "legal",
+   "id": "legal_courthouse",
+   "repo": "legal-map",
+   "file": "legalmap_local_courthouse.json",
+   "name": "Courthouses",
+   "unit": "courts",
+   "colour": "#645C6E"
+  },
+  {
+   "group": "legal",
+   "id": "legal_publicdefender",
+   "repo": "legal-map",
+   "file": "legalmap_local_publicdefender.json",
+   "name": "Public defenders and prosecutors",
+   "unit": "offices",
+   "colour": "#6E6070"
+  },
+  {
+   "group": "legal",
+   "id": "legal_police",
+   "repo": "legal-map",
+   "file": "legalmap_local_police.json",
+   "name": "Police stations (legal map file)",
+   "unit": "stations",
+   "colour": "#5E5A68"
+  },
+  {
+   "group": "legal",
+   "id": "legal_immigration",
+   "repo": "legal-map",
+   "file": "legalmap_local_immigration.json",
+   "name": "Immigration enforcement",
+   "unit": "sites",
+   "colour": "#705A62"
+  },
+  {
+   "group": "legal",
+   "id": "legal_probation",
+   "repo": "legal-map",
+   "file": "legalmap_local_probation.json",
+   "name": "Probation offices",
+   "unit": "offices",
+   "colour": "#675E6A"
+  },
+  {
+   "group": "legal",
+   "id": "legal_juvenile",
+   "repo": "legal-map",
+   "file": "legalmap_local_juvenile.json",
+   "name": "Juvenile detention",
+   "unit": "sites",
+   "colour": "#72606A"
+  },
+  {
+   "group": "leg",
+   "id": "leg_parliament",
+   "repo": "legislative-map",
+   "file": "legmap_local_parliament.json",
+   "name": "Parliaments and legislatures",
+   "unit": "buildings",
+   "colour": "#5E6B5E"
+  },
+  {
+   "group": "leg",
+   "id": "leg_townhall",
+   "repo": "legislative-map",
+   "file": "legmap_local_townhall.json",
+   "name": "Town halls (legislative map file)",
+   "unit": "town halls",
+   "colour": "#626A5F"
+  },
+  {
+   "group": "leg",
+   "id": "leg_audit",
+   "repo": "legislative-map",
+   "file": "legmap_local_audit.json",
+   "name": "Audit offices",
+   "unit": "offices",
+   "colour": "#5A665C"
+  },
+  {
+   "group": "leg",
+   "id": "leg_electoral",
+   "repo": "legislative-map",
+   "file": "legmap_local_electoral.json",
+   "name": "Electoral offices",
+   "unit": "offices",
+   "colour": "#65705F"
+  },
+  {
+   "group": "leg",
+   "id": "leg_ombudsman",
+   "repo": "legislative-map",
+   "file": "legmap_local_ombudsman.json",
+   "name": "Ombudsman offices",
+   "unit": "offices",
+   "colour": "#5F6E64"
+  },
+  {
+   "group": "leg",
+   "id": "leg_council",
+   "repo": "legislative-map",
+   "file": "legmap_local_council.json",
+   "name": "Councils",
+   "unit": "councils",
+   "colour": "#687060"
+  },
+  {
+   "group": "jud",
+   "id": "jud_courts",
+   "repo": "judicial-map",
+   "file": "judicial_facilities.json",
+   "name": "Courts",
+   "unit": "courts",
+   "colour": "#5A6570",
+   "kind": "court"
+  },
+  {
+   "group": "jud",
+   "id": "jud_prisons",
+   "repo": "judicial-map",
+   "file": "judicial_facilities.json",
+   "name": "Prisons and detention (judicial map file)",
+   "unit": "facilities",
+   "colour": "#655C66",
+   "kind": "prison"
+  },
+  {
+   "group": "more",
+   "id": "slavery_facilities",
+   "repo": "anti-slavery-map",
+   "file": "facilities.json",
+   "records": "facilities",
+   "lat": "lat",
+   "lon": "lng",
+   "url": "url",
+   "unit": "facilities",
+   "colour": "#6A5E66",
+   "name_field": "name",
+   "name": "Courthouses, consulates and labour offices (anti-slavery map)"
+  },
+  {
+   "group": "more",
+   "id": "slavery_determinations",
+   "repo": "anti-slavery-map",
+   "file": "projects.json",
+   "records": "projects",
+   "lat": "lat",
+   "lon": "lng",
+   "url": "url",
+   "unit": "determinations",
+   "colour": "#7A5E5E",
+   "name_field": "name",
+   "name": "Forced labour determinations (anti-slavery map)"
+  },
+  {
+   "group": "more",
+   "id": "slavery_enforcement",
+   "repo": "anti-slavery-map",
+   "file": "bulk.json",
+   "records": "projects",
+   "lat": "lat",
+   "lon": "lng",
+   "url": "url",
+   "unit": "records",
+   "colour": "#725A60",
+   "name_field": "name",
+   "name": "Enforcement outcomes and detections (anti-slavery map)"
+  },
+  {
+   "group": "more",
+   "id": "activist_courts",
+   "repo": "activist-rights-map",
+   "file": "facilities_courts.json",
+   "unit": "courts",
+   "colour": "#5E6070",
+   "name": "Courts (activist rights map)"
+  },
+  {
+   "group": "more",
+   "id": "activist_police",
+   "repo": "activist-rights-map",
+   "file": "facilities_police.json",
+   "unit": "stations",
+   "colour": "#5A5E68",
+   "name": "Police stations (activist rights map)"
+  },
+  {
+   "group": "more",
+   "id": "activist_prisons",
+   "repo": "activist-rights-map",
+   "file": "facilities_prisons.json",
+   "unit": "prisons",
+   "colour": "#665C68",
+   "name": "Prisons (activist rights map)"
+  },
+  {
+   "group": "more",
+   "id": "remains_findings",
+   "repo": "remains",
+   "file": "findings.json",
+   "records": "findings",
+   "lat": "lat",
+   "lon": "lng",
+   "url": "url",
+   "unit": "findings",
+   "colour": "#6A6257",
+   "name_field": "place",
+   "name": "Published aggregate findings (Unearthings)"
+  },
+  {
+   "group": "more",
+   "id": "remains_cemeteries",
+   "repo": "remains",
+   "file": "remains_local_cemetery_*.json.gz",
+   "glob": true,
+   "name": "Cemeteries (Unearthings)",
+   "unit": "cemeteries",
+   "colour": "#6A6257"
+  }
+ ]
+}

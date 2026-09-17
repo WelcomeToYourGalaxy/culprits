@@ -1,0 +1,263 @@
+{
+ "_note": "The site's own Leaflet maps, read by running each map's scripts (extract.mjs). url = a map in a GitHub repo (the maps repo holds the site's embeds); page + block = a map that exists only inside a page on the live site. Positions and popups are the map's own.",
+ "maps": [
+  {
+   "id": "site_animal_sacrifice",
+   "name": "Animal sacrifice sites",
+   "unit": "sites",
+   "colour": "#7A4F4A",
+   "note": "From the Destruction page's animal sacrifice map (maps repo).",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/sacrifice_map.html"
+  },
+  {
+   "id": "site_animal_fighting",
+   "name": "Animal fighting venues",
+   "unit": "venues",
+   "colour": "#84594F",
+   "note": "From the Destruction page's animal fighting map (maps repo).",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/destruction_embed_1_leaflet-map.html"
+  },
+  {
+   "id": "site_carbon_mapper_waste",
+   "name": "Methane plumes from waste sites (Carbon Mapper)",
+   "unit": "plume sources",
+   "colour": "#6D6A5E",
+   "note": "From the Destruction page's Carbon Mapper waste-sector map: the hotspots written into that map, not Carbon Mapper's live feed (maps repo).",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/destruction_embed_4_leaflet-map.html"
+  },
+  {
+   "id": "site_forest500_soy",
+   "name": "Worst soy financiers (Forest 500)",
+   "unit": "financial institutions",
+   "colour": "#6B5B4E",
+   "note": "From the Destruction page's Forest 500 map: institutions scoring 2 or less of 94 on soy policy, placed at their headquarters (maps repo).",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/destruction_embed_9_leaflet-map.html"
+  },
+  {
+   "id": "site_china_grain",
+   "name": "China grain storage (Sinograin)",
+   "unit": "depots",
+   "colour": "#76705C",
+   "note": "From the Destruction page's China grain storage map. The page states 205 facilities; this layer carries the positions its map draws (maps repo).",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/destruction_embed_11_leaflet-map.html"
+  },
+  {
+   "id": "site_soybean_companies",
+   "name": "Soy trading companies",
+   "unit": "offices",
+   "colour": "#6F7560",
+   "note": "From the Destruction page's soy companies map (maps repo).",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/soybean_companies.html"
+  },
+  {
+   "id": "carbon_majors",
+   "name": "Carbon major HQs",
+   "unit": "company headquarters",
+   "colour": "#7E6B8F",
+   "note": "From the Destruction page's Carbon Majors headquarters map (maps repo).",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/destruction_embed_3_leaflet-map.html"
+  },
+  {
+   "id": "site_secret_societies",
+   "name": "International military secret societies",
+   "unit": "organisations",
+   "colour": "#5E5A6E",
+   "note": "From the On-Planet Invasion page's secret societies map.",
+   "page": "on-planet-invasion",
+   "block": "powerTimelineChart"
+  },
+  {
+   "id": "site_ufo_pre1900",
+   "name": "Pre-1900 UFO and USO sightings",
+   "unit": "recorded sightings",
+   "colour": "#5F6B78",
+   "note": "From the Off-Planet Invasion page's historical sightings archive.",
+   "page": "off-planet-invasion",
+   "block": "I made this map with Claude AI",
+   "decode": "base64-iframe"
+  },
+  {
+   "id": "site_central_banks",
+   "name": "Central banks",
+   "unit": "banks",
+   "colour": "#5C6570",
+   "note": "From the Suppression page's central banks map (maps repo).",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/suppression_embed_18_leaflet-map.html"
+  },
+  {
+   "id": "site_banking_dynasties",
+   "name": "Banking dynasties",
+   "unit": "dynasty seats",
+   "colour": "#6A5D6B",
+   "note": "From the Suppression page's banking dynasties map (maps repo).",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/suppression_embed_29_leaflet-map.html"
+  },
+  {
+   "id": "site_export_credit",
+   "name": "Export credit agencies",
+   "unit": "agencies",
+   "colour": "#5E6A63",
+   "note": "From the Suppression page's export credit agencies map. Its country shading is not carried here, only the agencies.",
+   "page": "suppression",
+   "block": "<title>Export Credit Agencies"
+  },
+  {
+   "id": "site_wealth_atlas",
+   "name": "Richest dynasties and individuals",
+   "unit": "families and individuals",
+   "colour": "#735E57",
+   "note": "From the Suppression page's wealth atlas.",
+   "page": "suppression",
+   "block": "<title>Global Wealth Atlas"
+  },
+  {
+   "id": "site_food_system",
+   "name": "Who owns the food system",
+   "unit": "companies",
+   "colour": "#6E6A55",
+   "note": "From the Suppression page's food system ownership map.",
+   "page": "suppression",
+   "block": "<title>Who Owns the Food System"
+  },
+  {
+   "id": "site_world_advertising",
+   "name": "Advertising companies and owners",
+   "unit": "companies",
+   "colour": "#6C5F66",
+   "note": "From the Suppression page's World Advertising 2026 map.",
+   "page": "suppression",
+   "block": "<title>World Advertising 2026"
+  },
+  {
+   "id": "site_world_news",
+   "name": "News outlets and owners",
+   "unit": "outlets and owners",
+   "colour": "#626A6F",
+   "note": "From the Suppression page's World News 2026 map.",
+   "page": "suppression",
+   "block": "<title>World News 2026"
+  },
+  {
+   "id": "site_research_integrity",
+   "name": "Research integrity breaches",
+   "unit": "institutions and publishers",
+   "colour": "#5F6E6A",
+   "note": "From the Suppression page's research integrity map.",
+   "page": "suppression",
+   "block": "<title>World Research Integrity 2026"
+  },
+  {
+   "id": "site_world_entertainment",
+   "name": "Entertainment companies and owners",
+   "unit": "companies",
+   "colour": "#6D5E5A",
+   "note": "From the Suppression page's World Entertainment 2026 map.",
+   "page": "suppression",
+   "block": "<title>World Entertainment 2026"
+  },
+  {
+   "id": "site_eyes_network",
+   "name": "The network that tried to harness the eyes",
+   "unit": "places",
+   "colour": "#5B6360",
+   "note": "From the Suppression page's sports section network map.",
+   "page": "suppression",
+   "block": "metaMapFrame",
+   "decode": "base64-script"
+  },
+  {
+   "id": "site_animal_tourism",
+   "name": "Animal tourism sites",
+   "unit": "locations",
+   "colour": "#7C6356",
+   "note": "From the Suppression page's animal tourism atlas (maps repo).",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/suppression_embed_25_leaflet-map.html"
+  },
+  {
+   "id": "site_circus",
+   "name": "Circuses and animal shows",
+   "unit": "venues",
+   "colour": "#7A5E61",
+   "note": "From the Suppression page's circus map (maps repo).",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/suppression_embed_26_leaflet-map.html"
+  },
+  {
+   "id": "site_animal_racing",
+   "name": "Animal racing and sports venues",
+   "unit": "venues",
+   "colour": "#7B6452",
+   "note": "From the Suppression page's animal racing map (maps repo).",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/racing-map-embed.html"
+  },
+  {
+   "id": "site_rodeo",
+   "name": "Rodeos and charreadas",
+   "unit": "events and arenas",
+   "colour": "#80665A",
+   "note": "From the Suppression page's rodeo and charreada map.",
+   "page": "suppression",
+   "block": "above rundowns cover",
+   "decode": "base64-iframe"
+  },
+  {
+   "id": "site_enslaved_plants",
+   "name": "Unnecessary enslavement of plants",
+   "unit": "companies",
+   "colour": "#62705A",
+   "note": "From the Suppression page's plant enslavement map.",
+   "page": "suppression",
+   "block": "<title>The Unnecessary Enslavement of Plants"
+  },
+  {
+   "id": "site_enslaved_microbes",
+   "name": "Unnecessary enslavement of microorganisms",
+   "unit": "companies",
+   "colour": "#6A6E62",
+   "note": "From the Suppression page's microorganism enslavement map.",
+   "page": "suppression",
+   "block": "<title>The Unnecessary Enslavement of Microorganisms"
+  },
+  {
+   "id": "site_insentient",
+   "name": "The insentient",
+   "unit": "companies",
+   "colour": "#66625E",
+   "note": "From the Suppression page's map of industries built on things called insentient.",
+   "page": "suppression",
+   "block": "<title>The Insentient 2026"
+  },
+  {
+   "id": "site_subsistence_cultures",
+   "name": "Subsistence cultures",
+   "unit": "peoples",
+   "colour": "#5F7166",
+   "note": "From the Suppression page's subsistence cultures map (maps repo).",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/suppression_embed_28_leaflet-map.html"
+  },
+  {
+   "id": "site_self_sufficiency",
+   "name": "Citizen and local self-sufficiency programs",
+   "unit": "programs",
+   "colour": "#5E6F5B",
+   "note": "From the Solution page's self-sufficiency programs map.",
+   "page": "solution",
+   "block": "Self-Sufficiency Programs 2026"
+  },
+  {
+   "id": "site_environment_law",
+   "name": "Environmental law instruments",
+   "unit": "legal instruments",
+   "colour": "#5A6B72",
+   "note": "From the Destruction page's environmental law map (enviro-atlas repo).",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/enviro-atlas/main/destruction-environment-law-map.html"
+  },
+  {
+   "id": "site_cartel_cells",
+   "name": "Cartel cells",
+   "unit": "cells and sites",
+   "colour": "#6A5A58",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/suppression_embed_24_leaflet-map.html",
+   "note": "From the Suppression page's cartel cells map (maps repo). Its 238 connecting lines are not drawn in this layer, only the places."
+  }
+ ]
+}

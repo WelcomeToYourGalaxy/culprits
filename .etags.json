@@ -2,7 +2,19 @@
  "abattoir_facilities": {
   "validator": null
  },
+ "activist_courts": {
+  "validator": null
+ },
+ "activist_police": {
+  "validator": null
+ },
+ "activist_prisons": {
+  "validator": null
+ },
  "carbon_bombs": {
+  "validator": null
+ },
+ "carbon_majors": {
   "validator": null
  },
  "climate_trace": {
@@ -11,16 +23,178 @@
  "epa_tri_sites": {
   "validator": null
  },
+ "exec_border": {
+  "validator": null
+ },
+ "exec_diplomatic": {
+  "validator": null
+ },
+ "exec_firestation": {
+  "validator": null
+ },
+ "exec_govoffice": {
+  "validator": null
+ },
+ "exec_ministry": {
+  "validator": null
+ },
+ "exec_police": {
+  "validator": null
+ },
+ "exec_prison": {
+  "validator": null
+ },
+ "exec_townhall": {
+  "validator": null
+ },
+ "fin_accountant": {
+  "validator": null
+ },
+ "fin_auditoffice": {
+  "validator": null
+ },
+ "fin_bank": {
+  "validator": null
+ },
+ "fin_centralbank": {
+  "validator": null
+ },
+ "fin_devbank": {
+  "validator": null
+ },
+ "fin_exchange": {
+  "validator": null
+ },
+ "fin_financial": {
+  "validator": null
+ },
+ "fin_govfinance": {
+  "validator": null
+ },
+ "fin_insurance": {
+  "validator": null
+ },
+ "fin_mint": {
+  "validator": null
+ },
+ "fin_remittance": {
+  "validator": null
+ },
+ "fin_stockexchange": {
+  "validator": null
+ },
+ "fin_taxoffice": {
+  "validator": null
+ },
  "gem_coal": {
   "validator": null
  },
+ "jud_courts": {
+  "validator": null
+ },
+ "jud_prisons": {
+  "validator": null
+ },
  "land_matrix": {
+  "validator": null
+ },
+ "leg_audit": {
+  "validator": null
+ },
+ "leg_council": {
+  "validator": null
+ },
+ "leg_electoral": {
+  "validator": null
+ },
+ "leg_ombudsman": {
+  "validator": null
+ },
+ "leg_parliament": {
+  "validator": null
+ },
+ "leg_townhall": {
+  "validator": null
+ },
+ "legal_courthouse": {
+  "validator": null
+ },
+ "legal_immigration": {
+  "validator": null
+ },
+ "legal_juvenile": {
+  "validator": null
+ },
+ "legal_police": {
+  "validator": null
+ },
+ "legal_prison": {
+  "validator": null
+ },
+ "legal_probation": {
+  "validator": null
+ },
+ "legal_publicdefender": {
   "validator": null
  },
  "owid_co2": {
   "validator": null
  },
  "power_plants": {
+  "validator": null
+ },
+ "remains_findings": {
+  "validator": null
+ },
+ "site_animal_fighting": {
+  "validator": null
+ },
+ "site_animal_racing": {
+  "validator": null
+ },
+ "site_animal_sacrifice": {
+  "validator": null
+ },
+ "site_animal_tourism": {
+  "validator": null
+ },
+ "site_banking_dynasties": {
+  "validator": null
+ },
+ "site_carbon_mapper_waste": {
+  "validator": null
+ },
+ "site_cartel_cells": {
+  "validator": null
+ },
+ "site_central_banks": {
+  "validator": null
+ },
+ "site_china_grain": {
+  "validator": null
+ },
+ "site_circus": {
+  "validator": null
+ },
+ "site_environment_law": {
+  "validator": null
+ },
+ "site_forest500_soy": {
+  "validator": null
+ },
+ "site_soybean_companies": {
+  "validator": null
+ },
+ "site_subsistence_cultures": {
+  "validator": null
+ },
+ "slavery_determinations": {
+  "validator": null
+ },
+ "slavery_enforcement": {
+  "validator": null
+ },
+ "slavery_facilities": {
   "validator": null
  }
 }

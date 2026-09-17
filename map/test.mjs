@@ -603,8 +603,8 @@ console.log("\nmap wiring");
 
   check("the agriculture repo base is declared", /const CT_AG_BASE\s*=/.test(src));
   check("the forestry repo base is declared", /const CT_FLU_BASE\s*=/.test(src));
-  check("all four groups are registered",
-        /GROUPS = \[CT_SECTORS, CT_AGRICULTURE, CT_FORESTRY, CT_HISTORY\]/.test(src));
+  check("all five groups are registered",
+        /GROUPS = \[CT_SECTORS, CT_AGRICULTURE, CT_FORESTRY, CT_HISTORY, SITE_MAPS/.test(src));
 
   check("six local sector archives", count(/"climate_trace_(?!ag_|flu_|sectors|cafo|agriculture|forestry)[a-z_]+"/g) >= 6);
   check("nine agriculture subsector archives", count(/"climate_trace_ag_[a-z_]+"/g) >= 9);
@@ -817,14 +817,16 @@ console.log("\ncerulean, live");
   map.fire("load"); await new Promise((r) => setTimeout(r, 5));
   els.get("layers").fire("change", { target: { dataset: { layer: "cerulean_slicks" }, checked: true } });
   await new Promise((r) => setTimeout(r, 20));
+  await new Promise((r) => setTimeout(r, 20));
   const countUrls = fetched.filter((u) => String(u).includes("limit=0"));
-  check("switching on asks Cerulean for counts, with no geometry", countUrls.length >= 2 &&
-        countUrls.every((u) => /\/collections\/public\.slick_plus\/items\?bbox=/.test(u)), countUrls.join(" "));
-  check("a count that times out once is asked again, not given up", calls === 2, `calls=${calls}`);
+  check("at world view switching on asks one total, not a count per square",
+        countUrls.length >= 1 && countUrls.every((u) => /\/collections\/public\.slick_plus\/items\?limit=0$/.test(u)),
+        countUrls.join(" "));
+  check("a total that times out once is asked again, not given up", calls === 2, `calls=${calls}`);
   const pts = map.sources.get("cerulean_slicks-counts")._data;
   const caps = map.sources.get("cerulean_slicks-caps")._data;
-  check("the count reaches the map", pts && pts.features.length === 1 && pts.features[0].properties.n === 171473);
-  check("a square over 10,000 is marked", caps && caps.features.length === 1);
+  check("nothing is shaded at world view", !pts || pts.features.length === 0);
+  check("nothing is marked at world view", !caps || caps.features.length === 0);
   const cap = map.getLayer("cerulean_slicks-cap");
   check("the marking only shows where shapes are drawn", cap && cap.minzoom === 7);
   els.get("layers").fire("change", { target: { dataset: { layer: "cerulean_slicks" }, checked: false } });
@@ -873,7 +875,17 @@ console.log("\ntropics clip");
   map.fire("load"); await new Promise((r) => setTimeout(r, 5));
   const url = map.sources.get("gfw-tiles")?.tiles?.[0] || "";
   check("the tropics layer loads through the clip, cut at its own bounds",
-        url.startsWith("latclip://-30,30/") && url.includes("/gfw_tile/{z}/{x}/{y}"), url);
+        url.startsWith("latclip://-30,30,8A4F46/") && url.includes("/gfw_tile/{z}/{x}/{y}"), url);
+  const ra = src.indexOf("function recolorAlerts"), rb = src.indexOf("// latclip://<south>");
+  const recolorAlerts = new Function(src.slice(ra, rb) + "; return recolorAlerts;")();
+  const scattered = new Uint8ClampedArray(400 * 4);
+  for (let i = 0; i < 40; i++) scattered.set([60, 120, 230, 255], i * 4 * 10);
+  recolorAlerts(scattered, [138, 79, 70]);
+  check("alert pixels take the layer's colour and keep their transparency",
+        scattered[0] === 138 && scattered[1] === 79 && scattered[2] === 70 && scattered[3] === 255 && scattered[7] === 0);
+  const washed = new Uint8ClampedArray(400 * 4).fill(255);
+  const res = recolorAlerts(washed, [138, 79, 70]);
+  check("a tile that is one flat colour is treated as a wash and cleared", res.washCleared && washed[3] === 0);
   check("the handler is registered", typeof globalThis.__protocols?.latclip === "function");
 }
 

@@ -643,6 +643,1339 @@
         "value": null,
         "unit": "TRI facility"
       }
+    },
+    {
+      "id": "site_animal_sacrifice",
+      "name": "Animal sacrifice sites",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/sacrifice_map.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Destruction page's animal sacrifice map. Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "sites"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "site_animal_fighting",
+      "name": "Animal fighting venues",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/destruction_embed_1_leaflet-map.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Destruction page's animal fighting map (maps repo). Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "venues"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "site_carbon_mapper_waste",
+      "name": "Methane plumes from waste sites (Carbon Mapper)",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/destruction_embed_4_leaflet-map.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Destruction page's Carbon Mapper waste-sector map: the hotspots written into that map, not Carbon Mapper's live feed. Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "plume sources"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "site_forest500_soy",
+      "name": "Worst soy financiers (Forest 500)",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/destruction_embed_9_leaflet-map.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Destruction page's Forest 500 map: institutions scoring 2 or less of 94 on soy policy, placed at their headquarters. Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "financial institutions"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "site_china_grain",
+      "name": "China grain storage (Sinograin)",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/destruction_embed_11_leaflet-map.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Destruction page's China grain storage map. The page states 205 facilities; this layer carries the positions its map draws. Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "depots"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "site_soybean_companies",
+      "name": "Soy trading companies",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/soybean_companies.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Destruction page's soy companies map (maps repo). Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "offices"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "carbon_majors",
+      "name": "Carbon major HQs",
+      "mode": "bulk",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/destruction_embed_3_leaflet-map.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Destruction page's Carbon Majors headquarters map (maps repo). Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "company headquarters"
+      }
+    },
+    {
+      "id": "site_secret_societies",
+      "name": "International military secret societies",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://www.welcometoyourgalaxy.com/on-planet-invasion.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the On-Planet Invasion page's secret societies map. Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "organisations"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "site_ufo_pre1900",
+      "name": "Pre-1900 UFO and USO sightings",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://www.welcometoyourgalaxy.com/off-planet-invasion.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Off-Planet Invasion page's historical sightings archive. Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "recorded sightings"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "site_central_banks",
+      "name": "Central banks",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/suppression_embed_18_leaflet-map.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Suppression page's central banks map. Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "banks"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "site_banking_dynasties",
+      "name": "Banking dynasties",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/suppression_embed_29_leaflet-map.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Suppression page's banking dynasties map. Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "dynasty seats"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "site_export_credit",
+      "name": "Export credit agencies",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://www.welcometoyourgalaxy.com/suppression.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Suppression page's export credit agencies map. Its country shading is not carried here, only the agencies. Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "agencies"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "site_wealth_atlas",
+      "name": "Richest dynasties and individuals",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://www.welcometoyourgalaxy.com/suppression.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Suppression page's wealth atlas. Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "families and individuals"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "site_food_system",
+      "name": "Who owns the food system",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://www.welcometoyourgalaxy.com/suppression.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Suppression page's food system ownership map. Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "companies"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "site_world_advertising",
+      "name": "Advertising companies and owners",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://www.welcometoyourgalaxy.com/suppression.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Suppression page's World Advertising 2026 map. Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "companies"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "site_world_news",
+      "name": "News outlets and owners",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://www.welcometoyourgalaxy.com/suppression.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Suppression page's World News 2026 map. Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "outlets and owners"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "site_research_integrity",
+      "name": "Research integrity breaches",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://www.welcometoyourgalaxy.com/suppression.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Suppression page's research integrity map. Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "institutions and publishers"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "site_world_entertainment",
+      "name": "Entertainment companies and owners",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://www.welcometoyourgalaxy.com/suppression.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Suppression page's World Entertainment 2026 map. Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "companies"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "site_eyes_network",
+      "name": "The network that tried to harness the eyes",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://www.welcometoyourgalaxy.com/suppression.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Suppression page's sports section network map. Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "places"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "site_animal_tourism",
+      "name": "Animal tourism sites",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/suppression_embed_25_leaflet-map.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Suppression page's animal tourism atlas. Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "locations"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "site_circus",
+      "name": "Circuses and animal shows",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/suppression_embed_26_leaflet-map.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Suppression page's circus map. Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "venues"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "site_animal_racing",
+      "name": "Animal racing and sports venues",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/racing-map-embed.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Suppression page's animal racing map (maps repo). Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "venues"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "site_rodeo",
+      "name": "Rodeos and charreadas",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://www.welcometoyourgalaxy.com/suppression.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Suppression page's rodeo and charreada map. Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "events and arenas"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "site_enslaved_plants",
+      "name": "Unnecessary enslavement of plants",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://www.welcometoyourgalaxy.com/suppression.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Suppression page's plant enslavement map. Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "companies"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "site_enslaved_microbes",
+      "name": "Unnecessary enslavement of microorganisms",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://www.welcometoyourgalaxy.com/suppression.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Suppression page's microorganism enslavement map. Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "companies"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "site_insentient",
+      "name": "The insentient",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://www.welcometoyourgalaxy.com/suppression.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Suppression page's map of industries built on things called insentient. Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "companies"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "site_subsistence_cultures",
+      "name": "Subsistence cultures",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/suppression_embed_28_leaflet-map.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Suppression page's subsistence cultures map. Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "peoples"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "site_self_sufficiency",
+      "name": "Citizen and local self-sufficiency programs",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://www.welcometoyourgalaxy.com/solution.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Solution page's self-sufficiency programs map. Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "programs"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "site_environment_law",
+      "name": "Environmental law instruments",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/enviro-atlas/main/destruction-environment-law-map.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Destruction page's environmental law map (enviro-atlas repo). Read by pipeline/sources/_sitemap.py, which runs the map's own scripts; positions and popup text are the map's own. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "legal instruments"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "exec_police",
+      "name": "Police stations",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/executive-map/main/execmap_local_police.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of execmap_local_police.json in WelcomeToYourGalaxy/executive-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "stations"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "exec_townhall",
+      "name": "Town halls",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/executive-map/main/execmap_local_townhall.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of execmap_local_townhall.json in WelcomeToYourGalaxy/executive-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "town halls"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "exec_firestation",
+      "name": "Fire stations",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/executive-map/main/execmap_local_firestation.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of execmap_local_firestation.json in WelcomeToYourGalaxy/executive-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "stations"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "exec_govoffice",
+      "name": "Government offices",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/executive-map/main/execmap_local_govoffice.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of execmap_local_govoffice.json in WelcomeToYourGalaxy/executive-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "offices"
+      },
+      "tile_maxzoom": 11,
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "exec_ministry",
+      "name": "Ministries and agencies",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/executive-map/main/execmap_local_ministry.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of execmap_local_ministry.json in WelcomeToYourGalaxy/executive-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "offices"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "exec_diplomatic",
+      "name": "Embassies and consulates",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/executive-map/main/execmap_local_diplomatic.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of execmap_local_diplomatic.json in WelcomeToYourGalaxy/executive-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "missions"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "exec_border",
+      "name": "Border posts",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/executive-map/main/execmap_local_border.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of execmap_local_border.json in WelcomeToYourGalaxy/executive-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "posts"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "exec_prison",
+      "name": "Prisons (executive map file)",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/executive-map/main/execmap_local_prison.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of execmap_local_prison.json in WelcomeToYourGalaxy/executive-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "prisons"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "fin_bank",
+      "name": "Banks",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/financial-map/main/moneymap_local_bank.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of moneymap_local_bank.json in WelcomeToYourGalaxy/financial-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "branches and offices"
+      },
+      "tile_maxzoom": 11,
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "fin_taxoffice",
+      "name": "Tax offices",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/financial-map/main/moneymap_local_taxoffice.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of moneymap_local_taxoffice.json in WelcomeToYourGalaxy/financial-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "offices"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "fin_govfinance",
+      "name": "Government finance offices",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/financial-map/main/moneymap_local_govfinance.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of moneymap_local_govfinance.json in WelcomeToYourGalaxy/financial-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "offices"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "fin_financial",
+      "name": "Financial services",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/financial-map/main/moneymap_local_financial.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of moneymap_local_financial.json in WelcomeToYourGalaxy/financial-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "offices"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "fin_exchange",
+      "name": "Currency exchanges",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/financial-map/main/moneymap_local_exchange.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of moneymap_local_exchange.json in WelcomeToYourGalaxy/financial-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "exchanges"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "fin_insurance",
+      "name": "Insurance offices",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/financial-map/main/moneymap_local_insurance.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of moneymap_local_insurance.json in WelcomeToYourGalaxy/financial-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "offices"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "fin_accountant",
+      "name": "Accountants",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/financial-map/main/moneymap_local_accountant.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of moneymap_local_accountant.json in WelcomeToYourGalaxy/financial-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "offices"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "fin_remittance",
+      "name": "Money transfer offices",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/financial-map/main/moneymap_local_remittance.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of moneymap_local_remittance.json in WelcomeToYourGalaxy/financial-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "offices"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "fin_centralbank",
+      "name": "Central bank buildings",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/financial-map/main/moneymap_local_centralbank.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of moneymap_local_centralbank.json in WelcomeToYourGalaxy/financial-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "buildings"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "fin_stockexchange",
+      "name": "Stock exchanges",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/financial-map/main/moneymap_local_stockexchange.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of moneymap_local_stockexchange.json in WelcomeToYourGalaxy/financial-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "exchanges"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "fin_auditoffice",
+      "name": "Audit offices (money map file)",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/financial-map/main/moneymap_local_auditoffice.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of moneymap_local_auditoffice.json in WelcomeToYourGalaxy/financial-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "offices"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "fin_devbank",
+      "name": "Development banks",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/financial-map/main/moneymap_local_devbank.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of moneymap_local_devbank.json in WelcomeToYourGalaxy/financial-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "offices"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "fin_mint",
+      "name": "Mints",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/financial-map/main/moneymap_local_mint.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of moneymap_local_mint.json in WelcomeToYourGalaxy/financial-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "mints"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "legal_prison",
+      "name": "Prisons",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/legal-map/main/legalmap_local_prison.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of legalmap_local_prison.json in WelcomeToYourGalaxy/legal-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "prisons"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "legal_courthouse",
+      "name": "Courthouses",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/legal-map/main/legalmap_local_courthouse.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of legalmap_local_courthouse.json in WelcomeToYourGalaxy/legal-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "courts"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "legal_publicdefender",
+      "name": "Public defenders and prosecutors",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/legal-map/main/legalmap_local_publicdefender.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of legalmap_local_publicdefender.json in WelcomeToYourGalaxy/legal-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "offices"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "legal_police",
+      "name": "Police stations (legal map file)",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/legal-map/main/legalmap_local_police.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of legalmap_local_police.json in WelcomeToYourGalaxy/legal-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "stations"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "legal_immigration",
+      "name": "Immigration enforcement",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/legal-map/main/legalmap_local_immigration.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of legalmap_local_immigration.json in WelcomeToYourGalaxy/legal-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "sites"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "legal_probation",
+      "name": "Probation offices",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/legal-map/main/legalmap_local_probation.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of legalmap_local_probation.json in WelcomeToYourGalaxy/legal-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "offices"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "legal_juvenile",
+      "name": "Juvenile detention",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/legal-map/main/legalmap_local_juvenile.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of legalmap_local_juvenile.json in WelcomeToYourGalaxy/legal-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "sites"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "leg_parliament",
+      "name": "Parliaments and legislatures",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/legislative-map/main/legmap_local_parliament.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of legmap_local_parliament.json in WelcomeToYourGalaxy/legislative-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "buildings"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "leg_townhall",
+      "name": "Town halls (legislative map file)",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/legislative-map/main/legmap_local_townhall.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of legmap_local_townhall.json in WelcomeToYourGalaxy/legislative-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "town halls"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "leg_audit",
+      "name": "Audit offices",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/legislative-map/main/legmap_local_audit.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of legmap_local_audit.json in WelcomeToYourGalaxy/legislative-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "offices"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "leg_electoral",
+      "name": "Electoral offices",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/legislative-map/main/legmap_local_electoral.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of legmap_local_electoral.json in WelcomeToYourGalaxy/legislative-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "offices"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "leg_ombudsman",
+      "name": "Ombudsman offices",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/legislative-map/main/legmap_local_ombudsman.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of legmap_local_ombudsman.json in WelcomeToYourGalaxy/legislative-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "offices"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "leg_council",
+      "name": "Councils",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/legislative-map/main/legmap_local_council.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of legmap_local_council.json in WelcomeToYourGalaxy/legislative-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "councils"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "jud_courts",
+      "name": "Courts",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/judicial-map/main/judicial_facilities.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of judicial_facilities.json in WelcomeToYourGalaxy/judicial-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "courts"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "jud_prisons",
+      "name": "Prisons and detention (judicial map file)",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/judicial-map/main/judicial_facilities.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (the repo has no licence file, and the rows appear to come largely from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of judicial_facilities.json in WelcomeToYourGalaxy/judicial-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "facilities"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "site_cartel_cells",
+      "name": "Cartel cells",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/suppression_embed_24_leaflet-map.html",
+      "licence": "Welcome to Your Galaxy's own map; the sources it cites carry their own terms",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "From the Suppression page's cartel cells map (maps repo). Its 238 connecting lines are not drawn in this layer, only the places. Read by pipeline/sources/_sitemap.py. Points only.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "cells and sites"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "slavery_facilities",
+      "name": "Courthouses, consulates and labour offices (anti-slavery map)",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/anti-slavery-map/main/facilities.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (no licence file in the repo; many rows appear to come from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of facilities.json in WelcomeToYourGalaxy/anti-slavery-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "facilities"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "slavery_determinations",
+      "name": "Forced labour determinations (anti-slavery map)",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/anti-slavery-map/main/projects.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (no licence file in the repo; many rows appear to come from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of projects.json in WelcomeToYourGalaxy/anti-slavery-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "determinations"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "slavery_enforcement",
+      "name": "Enforcement outcomes and detections (anti-slavery map)",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/anti-slavery-map/main/bulk.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (no licence file in the repo; many rows appear to come from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of bulk.json in WelcomeToYourGalaxy/anti-slavery-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "records"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "activist_courts",
+      "name": "Courts (activist rights map)",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/activist-rights-map/main/facilities_courts.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (no licence file in the repo; many rows appear to come from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of facilities_courts.json in WelcomeToYourGalaxy/activist-rights-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "courts"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "activist_police",
+      "name": "Police stations (activist rights map)",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/activist-rights-map/main/facilities_police.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (no licence file in the repo; many rows appear to come from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of facilities_police.json in WelcomeToYourGalaxy/activist-rights-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "stations"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "activist_prisons",
+      "name": "Prisons (activist rights map)",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/activist-rights-map/main/facilities_prisons.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (no licence file in the repo; many rows appear to come from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of facilities_prisons.json in WelcomeToYourGalaxy/activist-rights-map. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "prisons"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "remains_findings",
+      "name": "Published aggregate findings (Unearthings)",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/remains/main/findings.json",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (no licence file in the repo; many rows appear to come from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of findings.json in WelcomeToYourGalaxy/remains. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "findings"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
+    },
+    {
+      "id": "remains_cemeteries",
+      "name": "Cemeteries (Unearthings)",
+      "mode": "tiles",
+      "auth": "none",
+      "route": "pmtiles",
+      "bulk": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/remains/main/remains_local_cemetery_*.json.gz",
+      "licence": "Welcome to Your Galaxy's own compilation; unverified (no licence file in the repo; many rows appear to come from OpenStreetMap, ODbL)",
+      "licence_verified": false,
+      "access_verified": true,
+      "notes": "Every row of remains_local_cemetery_*.json.gz in WelcomeToYourGalaxy/remains. Read by pipeline/sources/_repo_rows.py.",
+      "layer": {
+        "kind": "point",
+        "value": null,
+        "unit": "cemeteries"
+      },
+      "built_by": "pipeline/sitemaps/build.sh, published from culprits-tiles-gov / culprits-tiles-more"
     }
   ],
   "_publish_blockers": [

@@ -1,0 +1,18 @@
+{
+ "_note": "Where each group's archives and shape files are published. The culprits repo's own Pages site is capped at 1 GB and already carries Climate TRACE; these layers add about 1 GB more, so they live in two sibling repos with their own Pages sites, as the Climate TRACE agriculture and forestry tiles do.",
+ "base": "https://welcometoyourgalaxy.github.io",
+ "homes": {
+  "culprits-tiles-gov": [
+   "EXEC_MAP",
+   "LEG_MAP",
+   "JUD_MAP",
+   "LEGAL_MAP"
+  ],
+  "culprits-tiles-more": [
+   "MONEY_MAP",
+   "MORE_MAPS",
+   "SITE_MAPS",
+   "GMO_MAP"
+  ]
+ }
+}
