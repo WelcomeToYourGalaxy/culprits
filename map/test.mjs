@@ -1336,9 +1336,8 @@ console.log("\nreading the map");
         /drawFrom: 6/.test(src) && /const COUNT_FROM = 3/.test(src) && /map\.getZoom\(\) < COUNT_FROM/.test(src));
   check("the squares below the drawing zoom are a step finer than the view's tiles",
         /const wide = map\.getZoom\(\) < cfg\.drawFrom;/.test(src) && /\+ \(wide \? 1 : 0\)/.test(src));
-  check("aggregate circles are fainter and softer at world view",
-        /"circle-blur": \["interpolate", \["linear"\], \["zoom"\], 0, \.35/.test(src) &&
-        /0,  \["\*", 0\.18 \* scale, MAGNITUDE_RADIUS\]/.test(src));
+  check("aggregate circles are small and sharp at world view",
+        /"circle-blur": 0,/.test(src) && /0,  \["\*", 0\.18 \* scale, MAGNITUDE_RADIUS\]/.test(src));
 }
 
 
@@ -1366,6 +1365,49 @@ console.log("\nthe wires box, plainer");
   check("stories are rings, sized by how many are there",
         /id: "wire-news", type: "circle"/.test(src) && /"circle-stroke-color": WIRE_COLOUR/.test(src) &&
         !/wireDiamond/.test(src));
+}
+
+
+console.log("\nterrain, and the two labels");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("terrain comes from a keyless elevation source",
+        /elevation-tiles-prod\/terrarium/.test(src) && /encoding: "terrarium"/.test(src) &&
+        !/key=|api_key|access_token/.test(src.slice(src.indexOf("TERRAIN_SOURCE"), src.indexOf("TERRAIN_EXAGGERATION"))));
+  check("switching it on sets terrain and leans the camera over",
+        /map\.setTerrain\(\{ source: "terrain-dem"/.test(src) && /pitch: 55/.test(src) &&
+        /map\.setTerrain\(null\)/.test(src));
+  check("the settings box carries the tick box", /id="terrain-toggle"/.test(src) &&
+        /e\.target\.id === "terrain-toggle"/.test(src));
+  check("nothing about the emitting assets is blurred", /"circle-blur": 0,/.test(src) &&
+        !/"circle-blur": \["interpolate"/.test(src));
+
+  const kinds = new Function(src.match(/const LAYER_KIND = \{[\s\S]*?\n\};\n/)[0] +
+                             src.match(/const KIND_PREFIXES = \[[\s\S]*?\n\];\n/)[0] +
+                             src.match(/function kindOf[\s\S]*?\n}\n/)[0] +
+                             "; return { kindOf, LAYER_KIND };")();
+  const ids = [...new Set([...src.matchAll(/\{ *id: *"([a-z0-9_]+)", *name/g)].map((m) => m[1])
+    .concat([...src.matchAll(/\{ id:"([a-z0-9_]+)", *name/g)].map((m) => m[1])))];
+  const unlabelled = ids.filter((id) => !kinds.kindOf(id)[0]);
+  check("every layer carries both labels", unlabelled.length === 0, unlabelled.slice(0, 6).join(", "));
+  const names = ["human", "animal", "plant", "microorganism", "insentient"];
+  check("the labels are the five worlds and the two directions",
+        ids.every((id) => names.includes(kinds.kindOf(id)[0]) &&
+                          ["upstream", "downstream"].includes(kinds.kindOf(id)[1])));
+  check("the animals are with the animals", kinds.kindOf("abattoir_facilities")[0] === "animal" &&
+        kinds.kindOf("allen_coral")[0] === "animal" && kinds.kindOf("site_circus")[0] === "animal");
+  check("the plants and the microorganisms have their own",
+        kinds.kindOf("site_enslaved_plants")[0] === "plant" &&
+        kinds.kindOf("site_enslaved_microbes")[0] === "microorganism" &&
+        kinds.kindOf("gfw")[0] === "plant");
+  check("finance and permitting are upstream, the sites where it lands are downstream",
+        kinds.kindOf("site_export_credit")[1] === "upstream" && kinds.kindOf("carbon_majors")[1] === "upstream" &&
+        kinds.kindOf("slavery_cases")[1] === "downstream" && kinds.kindOf("epa_tri")[1] === "downstream");
+  check("the chips narrow the list without switching anything off",
+        /function applyKindFilter/.test(src) && /row\.style\.display = wanted/.test(src) &&
+        /\.facet\[data-for\]/.test(src) &&
+        !/applyKindFilter[\s\S]{0,400}setLayoutProperty/.test(src) && /\.kinds \.facet\{padding:0 0 6px\}/.test(index));
 }
 
 console.log("\nlegibility");

@@ -1036,9 +1036,12 @@ async function addPmtilesLayer(cfg) {
     paint: {
       "circle-color": cfg.colour,
       "circle-stroke-color": cfg.colour,
-      "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 0, .5, 5, 1],
-      "circle-blur": ["interpolate", ["linear"], ["zoom"], 0, .35, 5, 0],
-      "circle-opacity": ["interpolate", ["linear"], ["zoom"], 0, .34, 3, .45, 6, .55],
+      // Hard edges. The soft edge tried here before was a blur, and a field of
+      // blurred discs is exactly the smear it was meant to avoid: small, sharp
+      // and thinly outlined reads as many marks, not one cloud.
+      "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 0, .6, 5, 1],
+      "circle-blur": 0,
+      "circle-opacity": ["interpolate", ["linear"], ["zoom"], 0, .3, 3, .42, 6, .55],
       // Two cases share this layer. Large sources are clustered, so _count is
       // how many sites a dot stands for. Small sources are not clustered, so
       // every _count is 1 and size must come from the magnitude instead —
@@ -1687,6 +1690,41 @@ function pullableBoxes() {
 }
 
 // Names only: the settings box says what each one is, not what it does.
+/* ---------- 3D terrain ---------- */
+
+// Ground height, draped under the imagery. Mapzen's terrarium tiles on AWS
+// need no key and are served to any origin; they are elevation of the ground,
+// not buildings, and below about zoom 8 the whole planet is smooth enough that
+// the tilt is all you see.
+const TERRAIN_SOURCE = {
+  type: "raster-dem",
+  tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
+  encoding: "terrarium", tileSize: 256, maxzoom: 15,
+  attribution: '<a href="https://registry.opendata.aws/terrain-tiles/" target="_blank" rel="noopener">AWS Terrain Tiles</a>',
+};
+const TERRAIN_EXAGGERATION = 1.4;
+let TERRAIN_ON = false;
+
+function setTerrain(on) {
+  TERRAIN_ON = !!on;
+  if (typeof map.setTerrain !== "function") return;
+  if (TERRAIN_ON) {
+    if (!map.getSource("terrain-dem")) map.addSource("terrain-dem", TERRAIN_SOURCE);
+    map.setTerrain({ source: "terrain-dem", exaggeration: TERRAIN_EXAGGERATION });
+    // Flat on, height says nothing: the camera leans over so the ground reads.
+    if (typeof map.easeTo === "function" && map.getPitch && map.getPitch() < 25) {
+      map.easeTo({ pitch: 55, duration: 700 });
+    }
+  } else {
+    map.setTerrain(null);
+    if (typeof map.easeTo === "function" && map.getPitch && map.getPitch() > 0) {
+      map.easeTo({ pitch: 0, duration: 500 });
+    }
+  }
+  const box = document.getElementById("terrain-toggle");
+  if (box) box.checked = TERRAIN_ON;
+}
+
 function viewPanelHtml() {
   return `<p class="bm-h">View</p><div class="view-row"><div class="view-choices">` +
     Object.entries(VIEWS).map(([k, v]) =>
@@ -1694,6 +1732,8 @@ function viewPanelHtml() {
       `<span class="nm">${v.nm}</span></label>`).join("") +
     `</div><button type="button" id="leave-earth" class="leave" title="Hands the screen to NASA's Eyes ` +
     `on the Solar System. A box in the corner brings the map back.">Leave<br>Earth &#8594;</button></div>` +
+    `<label class="layer"><input type="checkbox" id="terrain-toggle"${TERRAIN_ON ? " checked" : ""}>` +
+    `<span class="nm">3D terrain</span></label>` +
     `<p class="bm-h">Basemap</p>`;
 }
 
@@ -1710,6 +1750,7 @@ function buildBasemapPanel() {
   box.addEventListener("change", (e) => {
     if (e.target && e.target.name === "basemap") setBasemap(e.target.value);
     if (e.target && e.target.name === "view") setView(e.target.value);
+    if (e.target && e.target.id === "terrain-toggle") setTerrain(e.target.checked);
   });
 }
 
@@ -3349,8 +3390,179 @@ function refreshFacetRow(cfg) {
   }
 }
 
+/* ---------- two labels on every layer ---------- */
+
+// Whose world the layer is about, and where it sits in the chain. Upstream is
+// the deciding, owning, financing, permitting and supplying; downstream is
+// where it lands. A layer with no entry falls to the prefix rules below, and
+// anything still unlabelled shows whatever the chips say.
+const LAYER_KIND = {
+  owid_co2: ["insentient", "upstream"],
+  climate_trace: ["insentient", "upstream"],
+  gem_coal: ["insentient", "upstream"],
+  global_energy_monitor: ["insentient", "upstream"],
+  carbon_bombs: ["insentient", "upstream"],
+  power_plants: ["insentient", "upstream"],
+  carbon_majors: ["insentient", "upstream"],
+  fertilizer_facilities: ["insentient", "upstream"],
+  soy_organizations: ["plant", "upstream"],
+  trase: ["plant", "upstream"],
+  land_matrix: ["human", "upstream"],
+  counterglow: ["animal", "downstream"],
+  epa_tri: ["insentient", "downstream"],
+  epa_tri_sites: ["insentient", "downstream"],
+  gfw: ["plant", "downstream"],
+  gfw_dist: ["plant", "downstream"],
+  gfw_dist_year: ["plant", "downstream"],
+  fishing: ["animal", "downstream"],
+  local_projects: ["human", "upstream"],
+  gmo_releases: ["plant", "upstream"],
+  slavery_sites: ["human", "downstream"],
+  slavery_ports: ["human", "downstream"],
+  slavery_fishing: ["human", "downstream"],
+  slavery_cases: ["human", "downstream"],
+  slavery_prevalence: ["human", "downstream"],
+  slavery_routes: ["human", "downstream"],
+  slavery_determinations: ["human", "downstream"],
+  slavery_enforcement: ["human", "downstream"],
+  slavery_facilities: ["human", "upstream"],
+  slavery_trackers: ["human", "upstream"],
+  remains_records: ["human", "downstream"],
+  remains_findings: ["human", "downstream"],
+  remains_cemeteries: ["human", "downstream"],
+  abattoir_facilities: ["animal", "downstream"],
+  cultivated_meat_laws: ["animal", "upstream"],
+  cerulean_slicks: ["insentient", "downstream"],
+  cerulean_sources: ["insentient", "upstream"],
+  allen_coral: ["animal", "downstream"],
+  site_animal_sacrifice: ["animal", "downstream"],
+  site_animal_fighting: ["animal", "downstream"],
+  site_animal_tourism: ["animal", "downstream"],
+  site_circus: ["animal", "downstream"],
+  site_animal_racing: ["animal", "downstream"],
+  site_rodeo: ["animal", "downstream"],
+  site_carbon_mapper_waste: ["insentient", "downstream"],
+  site_forest500_soy: ["plant", "upstream"],
+  site_china_grain: ["plant", "upstream"],
+  site_soybean_companies: ["plant", "upstream"],
+  site_food_system: ["human", "upstream"],
+  site_secret_societies: ["human", "upstream"],
+  site_ufo_pre1900: ["human", "downstream"],
+  site_central_banks: ["human", "upstream"],
+  site_banking_dynasties: ["human", "upstream"],
+  site_export_credit: ["human", "upstream"],
+  site_export_credit_shading: ["human", "upstream"],
+  site_wealth_atlas: ["human", "upstream"],
+  site_world_advertising: ["human", "upstream"],
+  site_world_news: ["human", "upstream"],
+  site_world_entertainment: ["human", "upstream"],
+  site_research_integrity: ["human", "upstream"],
+  site_eyes_network: ["human", "upstream"],
+  site_earmarked_funding: ["human", "upstream"],
+  site_trade_profits: ["human", "upstream"],
+  site_social_spheres: ["human", "upstream"],
+  site_cartel_cells: ["human", "upstream"],
+  site_environment_law: ["human", "upstream"],
+  site_environment_law_shapes: ["human", "upstream"],
+  enviro_law_by_country: ["human", "upstream"],
+  site_settler_colonialism: ["human", "downstream"],
+  site_subsistence_cultures: ["human", "downstream"],
+  site_self_sufficiency: ["human", "downstream"],
+  site_enslaved_plants: ["plant", "downstream"],
+  site_enslaved_microbes: ["microorganism", "downstream"],
+  site_insentient: ["insentient", "downstream"],
+  gov_official_map: ["human", "upstream"],
+  capture_map: ["human", "upstream"],
+  gmo_cultivation: ["plant", "downstream"],
+  gmo_trials: ["plant", "downstream"],
+  gmo_incidents: ["plant", "downstream"],
+  gmo_gmofree: ["plant", "upstream"],
+  gmo_regime: ["plant", "upstream"],
+  gmo_treaties: ["plant", "upstream"],
+  legal_prison: ["human", "downstream"],
+  legal_juvenile: ["human", "downstream"],
+  legal_immigration: ["human", "downstream"],
+  exec_prison: ["human", "downstream"],
+  jud_prisons: ["human", "downstream"],
+  activist_prisons: ["human", "downstream"],
+};
+
+// Whole families of layers share a label: every office, court and ministry is
+// human and upstream; every Climate TRACE asset is insentient and upstream.
+const KIND_PREFIXES = [
+  ["climate_trace", ["insentient", "upstream"]],
+  ["exec_", ["human", "upstream"]],
+  ["fin_", ["human", "upstream"]],
+  ["legal_", ["human", "upstream"]],
+  ["leg_", ["human", "upstream"]],
+  ["jud", ["human", "upstream"]],
+  ["activist_", ["human", "upstream"]],
+  ["gmo_", ["plant", "upstream"]],
+  ["slavery_", ["human", "downstream"]],
+  ["remains_", ["human", "downstream"]],
+  ["site_", ["human", "upstream"]],
+];
+
+function kindOf(id) {
+  if (LAYER_KIND[id]) return LAYER_KIND[id];
+  for (const [p, v] of KIND_PREFIXES) if (String(id).startsWith(p)) return v;
+  return [null, null];
+}
+
+const KIND_NAMES = ["human", "animal", "plant", "microorganism", "insentient"];
+const FLOW_NAMES = ["upstream", "downstream"];
+const kindPicked = new Set();
+const flowPicked = new Set();
+
+function kindChipsHtml() {
+  const chip = (v, on) => `<button type="button" class="chip${on ? " on" : ""}" data-kind="${v}">${v}</button>`;
+  return `<div class="kinds">` +
+    `<p class="bm-h">Whose world</p><div class="facet">` +
+    KIND_NAMES.map((k) => chip(k, kindPicked.has(k))).join("") + `</div>` +
+    `<p class="bm-h">Where in the chain</p><div class="facet">` +
+    FLOW_NAMES.map((k) => chip(k, flowPicked.has(k))).join("") + `</div></div>`;
+}
+
+// Narrowing hides rows from the list. It never switches a layer off: a layer
+// that is drawing stays drawn, and comes back into the list when the chips are
+// cleared.
+function applyKindFilter() {
+  const box = document.getElementById("layers");
+  if (!box || !box.querySelectorAll) return;
+  const wanted = (id) => {
+    const [kind, flow] = kindOf(id);
+    if (kindPicked.size && (!kind || !kindPicked.has(kind))) return false;
+    if (flowPicked.size && (!flow || !flowPicked.has(flow))) return false;
+    return true;
+  };
+  for (const input of box.querySelectorAll("[data-layer]")) {
+    const row = input.closest ? input.closest("label") : null;
+    if (row && row.style) row.style.display = wanted(input.dataset.layer) ? "" : "none";
+  }
+  for (const row of box.querySelectorAll(".facet[data-for]")) {
+    if (row.style) row.style.display = wanted(row.dataset.for) ? "" : "none";
+  }
+  for (const group of box.querySelectorAll(".group")) {
+    const kids = group.querySelectorAll ? [...group.querySelectorAll("[data-layer]")] : [];
+    const any = kids.some((i) => wanted(i.dataset.layer));
+    if (group.style) group.style.display = kids.length && !any ? "none" : "";
+  }
+}
+
 function buildPanel() {
   const box = document.getElementById("layers");
+  const chips = document.createElement("div");
+  chips.innerHTML = kindChipsHtml();
+  box.appendChild(chips);
+  chips.addEventListener("click", (e) => {
+    const b = e.target.closest && e.target.closest("[data-kind]");
+    if (!b) return;
+    const v = b.dataset.kind;
+    const set = KIND_NAMES.includes(v) ? kindPicked : flowPicked;
+    if (set.has(v)) set.delete(v); else set.add(v);
+    if (b.classList) b.classList.toggle("on", set.has(v));
+    applyKindFilter();
+  });
 
   // Only built layers appear. Greyed-out placeholders for sources that have no
   // harvester yet read as breakage — three separate times they were reported as
@@ -3377,6 +3589,8 @@ function buildPanel() {
   // nothing.
   GROUPS.filter((g) => g.children.length)
         .forEach((g) => box.appendChild(groupRows(g)));
+
+  applyKindFilter();
 
   const pending = LAYERS.filter((c) => !c.ready);
   if (pending.length) {
