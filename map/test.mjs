@@ -956,5 +956,34 @@ console.log("\ncoral, live");
         map.getLayer("allen_coral-fill")?.layout?.visibility === "none");
 }
 
+// --- what the wide views and the reefs look like --------------------------------
+console.log("\nlegibility");
+{
+  const { map } = run({ layersReady: "cerulean_slicks" });
+  map.fire("load"); await new Promise((r) => setTimeout(r, 5));
+  const agg = map.getLayer("cerulean_slicks-agg");
+  check("slick counts are shaded squares, not a dot at each square's centre",
+        agg && agg.type === "fill" && JSON.stringify(agg.paint["fill-opacity"]).includes("log10"));
+}
+{
+  const { map } = run({ layersReady: "allen_coral" });
+  map.fire("load"); await new Promise((r) => setTimeout(r, 5));
+  const fill = map.getLayer("allen_coral-fill");
+  const colour = fill && fill.paint["fill-color"];
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const classes = JSON.parse(src.match(/const CORAL_CLASSES = (\{[\s\S]*?\});/)[1].replace(/,\s*\}/, "}"));
+  check("every benthic class the Atlas names has its own colour",
+        Array.isArray(colour) && colour[0] === "match" &&
+        ["Coral/Algae", "Seagrass", "Sand", "Rubble", "Rock", "Microalgal Mats"].every((c) => colour.includes(c)));
+  check("reef fills are strong enough to see over water", fill.paint["fill-opacity"] >= .6);
+  // The palette rule: no orange or yellow (a saturated hue between 20° and 70°).
+  const hue = (h) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (!d) return [0, 0];
+    let x = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return [(x * 60 + 360) % 360, d / (1 - Math.abs(mx + mn - 1))]; };
+  const bad = Object.entries(classes).filter(([, h]) => { const [hh, sat] = hue(h); return sat > .25 && hh >= 20 && hh <= 70; });
+  check("no reef class is orange or yellow", bad.length === 0, JSON.stringify(bad));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

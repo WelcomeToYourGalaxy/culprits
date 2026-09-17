@@ -365,7 +365,7 @@ const LAYERS = [
     // Read from /queryables, not from documentation. If SkyTruth add a field it
     // will not appear until it is added here.
     properties: ["id", "slick_timestamp", "machine_confidence", "slick_confidence", "length", "area", "perimeter", "polsby_popper", "fill_factor", "aspect_ratio_factor", "cls", "orchestrator_run", "linearity", "s1_scene_id", "hitl_cls", "hitl_cls_name", "aoi_type_1_ids", "aoi_type_2_ids", "aoi_type_3_ids", "source_type_1_ids", "source_type_2_ids", "source_type_3_ids", "max_source_collated_score", "slick_url"],
-    note: "Potential slicks. SkyTruth state that oil cannot be definitively identified from radar alone, so every shape here is a detection awaiting review. Coverage is EEZs rather than the high seas. Every detection since January 2023, live. Wide out, each circle is a live count for its square; shapes draw from zoom 7. A square marked with a dashed edge holds more slicks than one tile can carry, and shows only some of them until you zoom in.",
+    note: "Potential slicks. SkyTruth state that oil cannot be definitively identified from radar alone, so every shape here is a detection awaiting review. Coverage is EEZs rather than the high seas. Every detection since January 2023, live. Wide out, each shaded square is a live count of the slicks somewhere inside it; shapes draw from zoom 7. A square marked with a dashed edge holds more slicks than one tile can carry, and shows only some of them until you zoom in.",
     attribution: '<a href="https://cerulean.skytruth.org" target="_blank" rel="noopener">SkyTruth Cerulean</a>' },
   { id:"cerulean_sources",     name:"Slick sources (Cerulean)", unit:"candidate vessels and platforms", colour:"#6B5F58", route:"worker", ready:true, off: true,
     geometry:"polygon", maxAreaDeg2: 120,
@@ -515,6 +515,7 @@ function readTileLayers(buffer) {
 // builds tiles on request and a first answer can fail where a second succeeds;
 // and a check of the layer name on the first tile that carries one.
 const coralLayerChecked = new Set();
+const coralFailures = new Map();     // id -> squares the Atlas failed to answer
 maplibregl.addProtocol("coral", async (params, abortController) => {
   const url = params.url.replace(/^coral:\/\//, "https://");
   let buf;
@@ -525,7 +526,12 @@ maplibregl.addProtocol("coral", async (params, abortController) => {
       buf = await r.arrayBuffer();
       break;
     } catch (e) {
-      if (attempt >= 1 || (abortController && abortController.signal.aborted)) throw e;
+      if (abortController && abortController.signal.aborted) throw e;
+      if (attempt >= 1) {
+        const failedCfg = LAYERS.find((l) => l.route === "coral");
+        if (failedCfg) coralFailures.set(failedCfg.id, (coralFailures.get(failedCfg.id) || 0) + 1);
+        throw e;
+      }
     }
   }
   const cfg = LAYERS.find((l) => l.route === "coral" && url.includes(l.tiles.split("?")[1].split("&")[3]));
@@ -1296,6 +1302,16 @@ async function refreshLiveLayer(cfg) {
 
 /* ---------- Allen Coral Atlas, live from its own tiles ---------- */
 
+// The Atlas's benthic classes, as they appear in class_name.
+const CORAL_CLASSES = {
+  "Coral/Algae":     "#B06F6A",
+  "Seagrass":        "#6F8F68",
+  "Sand":            "#D2CBC2",
+  "Rubble":          "#958C86",
+  "Rock":            "#5F5A57",
+  "Microalgal Mats": "#7D7191",
+};
+
 function addCoralLayer(cfg) {
   map.addSource(`${cfg.id}-tiles`, {
     type: "vector",
@@ -1312,10 +1328,28 @@ function addCoralLayer(cfg) {
       ? `<div class="meta">This mapped patch: ${Number(p.area_sqkm).toPrecision(3)} km²</div>` : "") +
     `<div class="meta">Allen Coral Atlas benthic habitat, from satellite imagery ` +
     `to about 10 m depth. A class of seabed, not a survey of living coral.</div>`);
-  const state = () => setLayerState(cfg.id, map.getZoom() >= cfg.drawFrom
-    ? cfg.unit
-    : `zoom in to ${cfg.drawFrom} — the Atlas cannot draw reefs over a wider area`);
+  // A layer that draws nothing looks the same whether it is working over open
+  // water or failing. So the panel says which: patches drawn on screen, squares
+  // still loading, or squares the Atlas failed to answer.
+  const state = () => {
+    if (map.getZoom() < cfg.drawFrom) {
+      setLayerState(cfg.id, `zoom in to ${cfg.drawFrom} — the Atlas cannot draw reefs over a wider area`);
+      return;
+    }
+    if ((visibility.get(cfg.id) || "visible") !== "visible") return;
+    const failed = coralFailures.get(cfg.id) || 0;
+    const loaded = typeof map.querySourceFeatures === "function"
+      ? map.querySourceFeatures(`${cfg.id}-tiles`, { sourceLayer: cfg.sourceLayer }).length : 0;
+    const loading = typeof map.isSourceLoaded === "function" && !map.isSourceLoaded(`${cfg.id}-tiles`);
+    let text = loaded ? `${loaded.toLocaleString()} reef patches loaded here`
+             : loading ? "loading from the Atlas — squares can take 20 seconds"
+             : "no mapped reef in this view";
+    if (failed) text += ` (the Atlas did not answer for ${failed} square${failed > 1 ? "s" : ""})`;
+    setLayerState(cfg.id, text);
+  };
   map.on("zoomend", state);
+  map.on("idle", state);
+  map.on("moveend", () => coralFailures.set(cfg.id, 0));
   state();
   applyVisibility(cfg.id);
   buildLegend();
@@ -1327,15 +1361,29 @@ function addCoralShapes(cfg, replace) {
   if (replace) {
     [`${cfg.id}-fill`, `${cfg.id}-line`].forEach((l) => { if (map.getLayer(l)) map.removeLayer(l); });
   }
+  // One grey-blue at 38% vanished into the imagery of shallow water, which is
+  // itself grey-blue. Each class now has its own colour, strong enough to read
+  // over water, with a pale edge. Earthy, and none of them orange or yellow —
+  // sand is a pale stone rather than sand-coloured for that reason.
   map.addLayer({
     id: `${cfg.id}-fill`, type: "fill", source: `${cfg.id}-tiles`, "source-layer": cfg.sourceLayer,
     minzoom: cfg.drawFrom,
-    paint: { "fill-color": cfg.colour, "fill-opacity": .38 },
+    paint: {
+      "fill-color": ["match", ["get", "class_name"],
+        "Coral/Algae", CORAL_CLASSES["Coral/Algae"],
+        "Seagrass", CORAL_CLASSES["Seagrass"],
+        "Sand", CORAL_CLASSES["Sand"],
+        "Rubble", CORAL_CLASSES["Rubble"],
+        "Rock", CORAL_CLASSES["Rock"],
+        "Microalgal Mats", CORAL_CLASSES["Microalgal Mats"],
+        cfg.colour],
+      "fill-opacity": .68,
+    },
   });
   map.addLayer({
     id: `${cfg.id}-line`, type: "line", source: `${cfg.id}-tiles`, "source-layer": cfg.sourceLayer,
     minzoom: cfg.drawFrom,
-    paint: { "line-color": cfg.colour, "line-width": .8, "line-opacity": .85 },
+    paint: { "line-color": "rgba(236,231,222,.55)", "line-width": .6 },
   });
   if (replace) applyVisibility(cfg.id);
 }
@@ -1366,18 +1414,21 @@ function addCeruleanLayer(cfg) {
              "line-opacity": .85 },
   });
 
-  // Counts, one circle per square, below the zoom where shapes draw.
+  // Counts, below the zoom where shapes draw: each square shaded by how many
+  // slicks it holds. It was a circle at each square's centre, which put the
+  // count wherever the centre fell — often on land, reading as a slick there.
+  // A shaded square claims only what the count knows: somewhere in this area.
   map.addSource(`${cfg.id}-counts`, { type: "geojson",
     data: { type: "FeatureCollection", features: [] } });
   map.addLayer({
-    id: `${cfg.id}-agg`, type: "circle", source: `${cfg.id}-counts`,
+    id: `${cfg.id}-agg`, type: "fill", source: `${cfg.id}-counts`,
     maxzoom: cfg.drawFrom,
     paint: {
-      "circle-color": cfg.colour, "circle-opacity": .7,
-      "circle-stroke-color": "rgba(220,214,198,.55)", "circle-stroke-width": .8,
-      // Area proportional to the count.
-      "circle-radius": ["interpolate", ["linear"], ["sqrt", ["get", "n"]],
-                        0, 0, 1, 2.5, 100, 10, 450, 30],
+      "fill-color": "#C9C2B6",
+      // Darker for more, on a log scale: counts run from 1 to over 100,000.
+      "fill-opacity": ["interpolate", ["linear"], ["log10", ["max", ["get", "n"], 1]],
+                       0, .10, 5, .55],
+      "fill-outline-color": "rgba(233,227,216,.45)",
     },
   });
   // Squares holding more than one tile can carry, from the zoom shapes draw.
@@ -1392,8 +1443,9 @@ function addCeruleanLayer(cfg) {
 
   bindHtmlPopup(`${cfg.id}-agg`, (p) =>
     `<b>${Number(p.n).toLocaleString()} potential slicks</b>` +
-    `<div class="meta">Detected in this square since January 2023, counted live ` +
-    `from SkyTruth Cerulean. Zoom to ${cfg.drawFrom} to draw them.</div>`);
+    `<div class="meta">Detected somewhere in this shaded square since January 2023, ` +
+    `counted live from SkyTruth Cerulean. The shading is the count, not their ` +
+    `positions. Zoom to ${cfg.drawFrom} to draw each one.</div>`);
   bindHtmlPopup(`${cfg.id}-cap`, (p) =>
     `<b>${Number(p.n).toLocaleString()} potential slicks in this square</b>` +
     `<div class="meta">One tile carries at most ${CERULEAN_TILE_CAP.toLocaleString()}, ` +
@@ -1506,7 +1558,7 @@ async function refreshCerulean(cfg) {
     total += n;
     const [w, s, e, nn] = tileBounds(z, x, y);
     if (n > 0) points.push({ type: "Feature", properties: { n },
-      geometry: { type: "Point", coordinates: [(w + e) / 2, (s + nn) / 2] } });
+      geometry: { type: "Polygon", coordinates: [[[w, s], [e, s], [e, nn], [w, nn], [w, s]]] } });
     if (n > CERULEAN_TILE_CAP) over.push({ type: "Feature", properties: { n },
       geometry: { type: "Polygon", coordinates: [[[w, s], [e, s], [e, nn], [w, nn], [w, s]]] } });
   }
