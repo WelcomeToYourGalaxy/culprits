@@ -325,6 +325,21 @@ function readFeed(data) {
     return s;
   });
 
+  // Where each story is, for the map: the feeds publish a table of place
+  // coordinates, and the most exact place a story names is used.
+  const coords = (data && data.coords) || {};
+  const findAt = (ids) => {
+    for (const id of ids) {
+      const c = coords[id];
+      if (Array.isArray(c) && c.length === 2) return [c[1], c[0]];   // the files give lat, lon
+    }
+    return null;
+  };
+  stories.forEach((s, n) => {
+    const i = items[n] || {};
+    s.at = findAt([].concat(asList(i.pl), asList(i.sr), asList(i.w), asList(i.pn)).filter((x) => x && x !== 'unlocated'));
+  });
+
   const kindF = facets.find((f) => f.key === 'kind');
   if (!kindsPublished) {
     stories.forEach((s) => s.v.kind.forEach((k) => { if (k !== NONE) kindF.labels[k] = k[0].toUpperCase() + k.slice(1); }));
@@ -369,6 +384,12 @@ function readMapWire(cfg, data) {
       .filter(Boolean).map((f) => s.v[f.key].filter((x) => x !== NONE).map((x) => f.labels[x]))
       .find((a) => a.length);
     s.place = pl ? pl.join(', ') : null;
+    // These wires give a country code rather than coordinates; the map places
+    // them from its own boundary file.
+    const isoF = facets.find((f) => f.type === 'country');
+    const iso = isoF ? (s.v[isoF.key] || []).find((x) => x !== NONE) : null;
+    s.iso = iso || null;
+    s.at = null;
     return s;
   });
   return finish(facets, stories, null);
@@ -555,6 +576,9 @@ const CSS = `
   border-top:4px solid transparent;border-bottom:4px solid transparent;transition:transform .12s}
 .wire.open .wire-caret{transform:rotate(90deg)}
 .wire-sum{color:var(--dim,#948D7C);font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.wire-onmap{display:flex;align-items:center;gap:5px;color:var(--dim,#948D7C);font-size:12px;
+  white-space:nowrap;cursor:pointer}
+.wire-onmap input{accent-color:var(--moss,#62755F)}
 .wire-btn{background:none;border:1px solid var(--rule,#322E27);color:var(--dim,#948D7C);
   padding:1px 8px;cursor:pointer;border-radius:2px;font-size:12px;white-space:nowrap}
 .wire-btn:hover{color:var(--bone,#DCD6C6);border-color:var(--dim,#948D7C)}
@@ -603,7 +627,7 @@ const CSS = `
 @media (prefers-reduced-motion:reduce){.wire-caret{transition:none}}
 `;
 
-let box, $sum, $body, $toggle, $pickBtn, $picker, $filters, $list, $q, $when, $refresh;
+let box, $sum, $body, $toggle, $pickBtn, $picker, $filters, $list, $q, $when, $refresh, $onMap;
 
 function build() {
   const style = document.createElement('style');
@@ -620,6 +644,8 @@ function build() {
       '<button type="button" class="wire-toggle" id="wireToggle" aria-expanded="false" aria-controls="wireBody">' +
         '<span class="wire-caret" aria-hidden="true"></span>News wires</button>' +
       '<span class="wire-sum" id="wireSum" aria-live="polite"></span>' +
+      '<label class="wire-onmap" title="Draw the stories that name a place on the map">' +
+        '<input type="checkbox" id="wireOnMap" checked> on the map</label>' +
       '<button type="button" class="wire-btn" id="wireRefresh" hidden>Refresh</button>' +
     '</div>' +
     '<div class="wire-body" id="wireBody" hidden>' +
@@ -647,9 +673,11 @@ function build() {
   $q = box.querySelector('#wireQ');
   $when = box.querySelector('#wireWhen');
   $refresh = box.querySelector('#wireRefresh');
+  $onMap = box.querySelector('#wireOnMap');
   $when.value = state.when;
 
   $toggle.addEventListener('click', () => setOpen(!state.open));
+  if ($onMap) $onMap.addEventListener('change', () => { state.onMap = $onMap.checked; save(); renderList(); });
   $pickBtn.addEventListener('click', () => { state.pickerOpen = !state.pickerOpen; renderPicker(); layout(); });
   $refresh.addEventListener('click', () => state.picked.forEach((id) => load(id, true)));
   $when.addEventListener('change', () => { state.when = $when.value; state.shown = PAGE; save(); renderData(); });
@@ -908,8 +936,19 @@ function renderFilters(focusId) {
   if (active) { const el = document.getElementById(active); if (el && $filters.contains(el)) el.focus(); }
 }
 
+// The stories now showing, handed to the map. Off when the box is unticked.
+function toTheMap(all) {
+  if (!window.culpritsWire) return;
+  const on = !$onMap || $onMap.checked;
+  window.culpritsWire.show(on ? all.map(({ s, id }) => ({
+    title: s.title, url: s.url, outlet: s.outlet, place: s.place, date: s.date,
+    subject: BY_ID[id] ? BY_ID[id].name : id, at: s.at || null, iso: s.iso || null,
+  })) : []);
+}
+
 function renderList() {
   if (!state.picked.length) {
+    toTheMap([]);
     $list.innerHTML = '<p class="wire-empty">Tick one or more subjects to read their wires.</p>';
     return;
   }
@@ -931,6 +970,7 @@ function renderList() {
     });
   });
   all.sort((a, b) => (b.s.date == null ? -Infinity : b.s.date) - (a.s.date == null ? -Infinity : a.s.date));
+  toTheMap(all);
 
   if (!all.length) {
     $list.innerHTML = '<p class="wire-empty">' + (anyLoaded

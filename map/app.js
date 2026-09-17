@@ -815,7 +815,7 @@ const map = new maplibregl.Map({
   // One world. Repeated copies east and west read as more planet than there is.
   renderWorldCopies: false,
   center: [12, 24],
-  zoom: 2.9,
+  zoom: 1,
   attributionControl: { compact: true },
   style: {
     version: 8,
@@ -1123,6 +1123,8 @@ let boundariesAdded = false;
 
 // One boundaries source for the country layers and the outlines basemap.
 // MapLibre throws on a second addSource with the same id, so both ask here.
+const BOUNDARIES_URL = `${DATA_BASE}/boundaries.geojson`;
+
 function ensureBoundaries() {
   if (boundariesAdded) return;
   map.addSource("boundaries", { type: "geojson", data: `${DATA_BASE}/boundaries.geojson`,
@@ -1202,9 +1204,8 @@ let leaving = false;          // guards the hand-over animation
 // Eyes writes its own embed address: open it, go to its settings, turn off
 // "Show Interact Prompt on Load" (that is the "View 3D" button) along with
 // anything else unwanted, then "Copy Embed Code" and paste the address here.
-const SPACE_URL = "https://eyes.nasa.gov/apps/solar-system/#/earth?featured=false&detailPanel=false" +
-  "&logo=false&shareButton=false&collapseSettingsOptions=true&surfaceMapTiling=true&hd=true" +
-  "&minorMoons=true&heliosphere=true&lighting=natural";
+const SPACE_URL = "https://eyes.nasa.gov/apps/solar-system/#/earth?featured=false&logo=false" +
+  "&shareButton=false&surfaceMapTiling=true&hd=true&minorMoons=true&heliosphere=true&lighting=natural";
 
 // How Earth sits in Eyes, measured by eye once (open the map with #fit at the
 // end of the address; see fitMode below). zoom is the map zoom whose globe is
@@ -1213,7 +1214,7 @@ const SPACE_URL = "https://eyes.nasa.gov/apps/solar-system/#/earth?featured=fals
 // moves: "stars" if Eyes holds its camera against the stars (a sidereal day),
 // "sun" if it holds it against the Sun (a solar day). If the globe and Earth
 // line up when you calibrate but have drifted apart a day later, switch rate.
-const EYES_FIT = { zoom: 2, lon: 0, lat: 0, at: "2026-09-17T00:00:00Z", rate: "stars" };
+const EYES_FIT = { zoom: 0.8, lon: 0, lat: 0, at: "2026-09-17T00:00:00Z", rate: "stars" };
 const TURN = { stars: 360.9856473, sun: 360 };   // degrees a day
 
 // The globe's drawn radius in screen pixels, from MapLibre's own camera: the
@@ -1251,6 +1252,21 @@ function freeConstrain(lngLat, zoom) {
 
 function spaceFrame() { return document.getElementById("space"); }
 
+// Two ways back: a box in the top right corner, beside Eyes' own search, and
+// Earth itself — a circle the size the globe had when it handed over.
+function showBack(on) {
+  const back = document.getElementById("spaceBack");
+  if (back) back.hidden = !on;
+  const earth = document.getElementById("spaceEarth");
+  if (!earth) return;
+  if (on && earth.style) {
+    const d = Math.round(2 * globeRadiusPx(handoffZoom(), EYES_FIT.lat));
+    earth.style.width = d + "px";
+    earth.style.height = d + "px";
+  }
+  earth.hidden = !on;
+}
+
 // Loaded before it is needed: Eyes is a whole application, and a cold start in
 // the middle of the hand-over would show a black screen.
 function warmSpace() {
@@ -1284,8 +1300,7 @@ function leaveEarth() {
     leaving = false;
     const f = spaceFrame();
     if (f) { f.hidden = false; f.classList.add("on"); }
-    const bar = document.getElementById("spaceBar");
-    if (bar) bar.hidden = false;
+    showBack(true);
     const edge = document.getElementById("spaceEdge");
     if (edge) edge.hidden = false;
     const el = document.getElementById("map");
@@ -1306,8 +1321,7 @@ function backToMap() {
   AWAY = false;
   const f = spaceFrame();
   if (f) f.classList.remove("on");
-  const bar = document.getElementById("spaceBar");
-  if (bar) bar.hidden = true;
+  showBack(false);
   const edge = document.getElementById("spaceEdge");
   if (edge) edge.hidden = true;
   const el = document.getElementById("map");
@@ -1339,7 +1353,7 @@ function watchSpaceEdge() {
 // Zooming out past the globe is what leaves Earth. The map is stopped a little
 // below the hand-over size so the last turn of the wheel has somewhere to go.
 function watchForLeaving() {
-  const edge = () => handoffZoom() - 0.15;
+  const edge = () => handoffZoom() - 0.1;
   // Only a zoom-out the reader makes leaves Earth. Without this the map would
   // hand over as it opened, because it opens near the hand-over size.
   let wasAbove = false;
@@ -1361,7 +1375,7 @@ function setView(kind) {
   if (!VIEWS[kind]) return;
   VIEW = kind;
   if (typeof map.setProjection === "function") map.setProjection({ type: VIEWS[kind].projection });
-  if (typeof map.setMinZoom === "function") map.setMinZoom(VIEWS[kind].leave ? handoffZoom() - 0.15 : -1);
+  if (typeof map.setMinZoom === "function") map.setMinZoom(VIEWS[kind].leave ? handoffZoom() - 0.1 : -1);
   // The flat map is free of its own edges: drag it out into the stars.
   if (typeof map.setTransformConstrain === "function") {
     map.setTransformConstrain(VIEWS[kind].projection === "mercator" ? freeConstrain : null);
@@ -1405,6 +1419,122 @@ function fitMode() {
   });
   draw();
 }
+
+/* ---------- the news wires, on the map ---------- */
+
+// wire.js hands over the stories it is showing that name a place. The feeds
+// publish their own table of place coordinates; the map repos' wires give a
+// country code, placed here from this map's own boundary file. Stories at one
+// place become one mark, and clicking it lists them.
+const WIRE_COLOUR = "#9FAEB6";
+let wireAt = new Map();          // "lng,lat" -> the stories there
+let countryPoints = null;        // ISO -> [lng, lat], read once from the boundaries
+
+function wireDiamond() {
+  const s = 26, c = s / 2, r = 10;
+  if (typeof document.createElement !== "function") return null;
+  const cv = document.createElement("canvas");
+  if (!cv.getContext) return null;
+  cv.width = cv.height = s;
+  const ctx = cv.getContext("2d");
+  ctx.beginPath();
+  ctx.moveTo(c, c - r); ctx.lineTo(c + r, c); ctx.lineTo(c, c + r); ctx.lineTo(c - r, c); ctx.closePath();
+  ctx.fillStyle = "rgba(20,26,30,.72)";
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = WIRE_COLOUR;
+  ctx.stroke();
+  return ctx.getImageData(0, 0, s, s);
+}
+
+async function countryCentres() {
+  if (countryPoints) return countryPoints;
+  countryPoints = new Map();
+  try {
+    const r = await fetch(BOUNDARIES_URL);
+    const data = await r.json();
+    for (const f of data.features || []) {
+      const iso = (f.properties && (f.properties.iso_a2 || f.properties.ISO_A2 || f.properties.iso2 || f.properties.id)) || "";
+      if (!iso || iso.length !== 2) continue;
+      let minX = 180, maxX = -180, minY = 90, maxY = -90;
+      const walk = (co) => {
+        if (typeof co[0] === "number") {
+          minX = Math.min(minX, co[0]); maxX = Math.max(maxX, co[0]);
+          minY = Math.min(minY, co[1]); maxY = Math.max(maxY, co[1]);
+        } else co.forEach(walk);
+      };
+      walk(f.geometry.coordinates);
+      countryPoints.set(iso.toUpperCase(), [(minX + maxX) / 2, (minY + maxY) / 2]);
+    }
+  } catch (e) {
+    console.warn("[culprits] country places for the wires could not be read:", e.message || e);
+  }
+  return countryPoints;
+}
+
+function wireSource() {
+  if (!map.getSource("wire-news")) {
+    map.addSource("wire-news", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+    const img = wireDiamond();
+    if (img && map.addImage && !map.hasImage?.("wire-mark")) {
+      try { map.addImage("wire-mark", img, { pixelRatio: 2 }); } catch (e) { /* already there */ }
+    }
+    map.addLayer({
+      id: "wire-news", type: "symbol", source: "wire-news",
+      layout: { "icon-image": "wire-mark", "icon-allow-overlap": true,
+                "icon-size": ["interpolate", ["linear"], ["get", "n"], 1, 1.05, 12, 1.9] },
+    });
+    map.on("click", "wire-news", (e) => {
+      const f = e.features && e.features[0];
+      if (!f) return;
+      popupClaimedBy = e.originalEvent || e;
+      const list = wireAt.get(f.properties.k) || [];
+      const rows = list.slice(0, 8).map((s) =>
+        `<div class="meta" style="margin:5px 0 0">` +
+        (s.url ? `<a href="${escapeHtml(s.url)}" target="_blank" rel="noopener">${escapeHtml(s.title)}</a>`
+               : escapeHtml(s.title)) +
+        `<br>${escapeHtml([s.subject, s.outlet].filter(Boolean).join(" · "))}</div>`).join("");
+      new maplibregl.Popup({ closeButton: true, maxWidth: "300px" }).setLngLat(f.geometry.coordinates)
+        .setHTML(`<b>${escapeHtml(f.properties.place || "News wire")}</b>` +
+                 `<div class="meta">${list.length} ${list.length === 1 ? "story" : "stories"}</div>${rows}` +
+                 (list.length > 8 ? `<div class="meta">…and ${list.length - 8} more in the wires box.</div>` : ""))
+        .addTo(map);
+    });
+    map.on("mouseenter", "wire-news", () => { map.getCanvas().style.cursor = "pointer"; });
+    map.on("mouseleave", "wire-news", () => { map.getCanvas().style.cursor = ""; });
+  }
+  return map.getSource("wire-news");
+}
+
+async function showWireStories(stories) {
+  const src = wireSource();
+  if (!src) return;
+  const needsCountries = stories.some((s) => !s.at && s.iso);
+  const centres = needsCountries ? await countryCentres() : null;
+  wireAt = new Map();
+  for (const s of stories) {
+    const at = s.at || (centres && s.iso ? centres.get(String(s.iso).toUpperCase()) : null);
+    if (!at) continue;
+    const k = at[0].toFixed(3) + "," + at[1].toFixed(3);
+    if (!wireAt.has(k)) wireAt.set(k, []);
+    wireAt.get(k).push(Object.assign({ place: s.place }, s, { at }));
+  }
+  const features = [];
+  for (const [k, list] of wireAt) {
+    const [lng, lat] = k.split(",").map(Number);
+    features.push({ type: "Feature", geometry: { type: "Point", coordinates: [lng, lat] },
+                    properties: { k, n: list.length, place: list[0].place || "" } });
+  }
+  src.setData({ type: "FeatureCollection", features });
+}
+
+// wire.js calls this whenever what it shows changes, or the tick box moves.
+window.culpritsWire = {
+  show(stories) {
+    try { showWireStories(Array.isArray(stories) ? stories : []); }
+    catch (e) { console.warn("[culprits] wires on the map:", e.message || e); }
+  },
+};
 
 /* ---------- the sky the map sits in ---------- */
 
@@ -3367,8 +3497,10 @@ map.on("load", () => {
   watchSky();
   pullableBoxes();
   fitMode();
-  const back = document.getElementById("spaceBack");
-  if (back) back.addEventListener("click", backToMap);
+  for (const id of ["spaceBack", "spaceEarth"]) {
+    const b = document.getElementById(id);
+    if (b && b.addEventListener) b.addEventListener("click", backToMap);
+  }
   watchSpaceEdge();
   const roll = document.getElementById("panelRoll");
   if (roll) roll.addEventListener("click", () => {

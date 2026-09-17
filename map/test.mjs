@@ -1107,17 +1107,17 @@ console.log("\none world, and the globe");
   const frame = el("space");
   check("Eyes is not loaded while the map is being read", !frame.src);
   map.setZoom(4); map.fire("zoom");
-  map.setZoom(2.4); map.fire("zoom");
+  map.setZoom(1.5); map.fire("zoom");
   check("nearing the way out loads Eyes quietly, still hidden", /^https:\/\/eyes\.nasa\.gov\/apps\/solar-system\/#\/earth\?featured=false/.test(frame.src) && !(frame.classList.list || []).includes("on"));
   map.setZoom(-3); map.fire("zoom");
   await new Promise((r) => setTimeout(r, 1000));
   check("zooming out past the globe hands the screen over", (frame.classList.list || []).includes("on") &&
-        (el("map").classList.list || []).includes("away") && el("spaceBar").hidden === false);
+        (el("map").classList.list || []).includes("away") && el("spaceBack").hidden === false);
   check("the map is moved to Earth's own size and face first",
-        eased.length === 1 && eased[0].zoom === 2 && eased[0].bearing === 0 && Array.isArray(eased[0].center));
+        eased.length === 1 && eased[0].zoom === 0.8 && eased[0].bearing === 0 && Array.isArray(eased[0].center));
   el("spaceBack").fire("click", {});
   check("the bar brings the map back", !(frame.classList.list || []).includes("on") &&
-        !(el("map").classList.list || []).includes("away") && el("spaceBar").hidden === true);
+        !(el("map").classList.list || []).includes("away") && el("spaceBack").hidden === true);
   const change = (t) => panel.fire("change", { target: t });
   change({ name: "view", value: "flat" });
   check("the flat map is mercator, with no way out", projections.at(-1) === "mercator" && minZooms.at(-1) === -1);
@@ -1196,7 +1196,7 @@ console.log("\nthe boxes");
         /NavigationControl\([^)]*\), "bottom-right"\)/.test(src) &&
         /\.maplibregl-ctrl-bottom-right \.maplibregl-ctrl-group\{position:absolute;right:9px;bottom:26px/.test(index));
   check("Eyes opens without the View 3D prompt or its panels",
-        /detailPanel=false/.test(src) && /featured=false/.test(src) && !/embed=true/.test(src));
+        /featured=false/.test(src) && /logo=false/.test(src) && !/embed=true/.test(src));
   const pull = new Function(src.match(/function pullHeight[\s\S]*?\n}\n/)[0] + "; return pullHeight;")();
   check("pulling up makes a box that stands on the bottom taller", pull(200, -60, "top", 42, 900) === 260);
   check("pulling down makes one that hangs from the top taller", pull(200, 60, "bottom", 42, 900) === 260);
@@ -1216,10 +1216,10 @@ console.log("\ncoming back, and room to move");
   const wireSrc = fs.readFileSync(path.join(HERE, "wire.js"), "utf8");
   const fit = new Function(src.match(/const EYES_FIT[\s\S]*?\n};\n/)[0] +
                            src.match(/function handoffZoom[\s\S]*?\n/)[0] + "; return { EYES_FIT, handoffZoom };")();
-  check("the hand-over happens at the size Earth has in Eyes, measured at zoom 2",
-        fit.EYES_FIT.zoom === 2 && fit.handoffZoom() === 2);
+  check("the hand-over happens at the size Earth has in Eyes, ",
+        fit.EYES_FIT.zoom === 0.8 && fit.handoffZoom() === 0.8);
   check("the drop out of the map is a short one, not a zoom out to nothing",
-        /handoffZoom\(\) - 0\.15/.test(src) && !/handoffZoom\(\) - 0\.45/.test(src));
+        /handoffZoom\(\) - 0\.1/.test(src) && !/handoffZoom\(\) - 0\.45/.test(src));
   check("the way back is the screen's edge as well as the bar",
         /id="spaceEdge"/.test(index) && /\.space-edge \.se\{position:absolute;pointer-events:auto\}/.test(index) &&
         /edge\.addEventListener\("wheel"/.test(src) && /edge\.addEventListener\("dblclick"/.test(src));
@@ -1246,12 +1246,12 @@ console.log("\ncoming back, and room to move");
   map.getCenter = () => ({ lng: 12, lat: 24 });
   map.fire("load"); await new Promise((r) => setTimeout(r, 5));
   map.setZoom(4.5); map.fire("zoom");
-  map.setZoom(1.5); map.fire("zoom");
+  map.setZoom(0.4); map.fire("zoom");
   await new Promise((r) => setTimeout(r, 1000));
-  check("leaving eases to the hand-over size", eased.length === 1 && eased[0].zoom === 2);
+  check("leaving eases to the hand-over size", eased.length === 1 && eased[0].zoom === 0.8);
   el("spaceBack").fire("click", {});
   check("coming back zooms in again, to the view that was left",
-        eased.length === 2 && eased[1].zoom >= 2.6 && eased[1].duration >= 1000, JSON.stringify(eased.at(-1)));
+        eased.length === 2 && eased[1].zoom >= 1.4 && eased[1].duration >= 1000, JSON.stringify(eased.at(-1)));
 }
 
 
@@ -1283,9 +1283,35 @@ console.log("\nthe boxes down the left");
   panel.fire("click", { target: { id: "leave-earth" } });
   await new Promise((r) => setTimeout(r, 1000));
   check("Leave Earth works from the flat map, at any zoom",
-        el("spaceBar").hidden === false && projections.includes("vertical-perspective") && eased[0].zoom === 2);
+        el("spaceBack").hidden === false && projections.includes("vertical-perspective") && eased[0].zoom === 0.8);
   el("spaceBack").fire("click", {});
   check("coming back puts the flat map back", projections.at(-1) === "mercator" && eased.at(-1).zoom === 6);
+}
+
+
+console.log("\nthe wires on the map");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const wireSrc = fs.readFileSync(path.join(HERE, "wire.js"), "utf8");
+  const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("the wires box has a tick box for the map", /id="wireOnMap" checked/.test(wireSrc) &&
+        /\$onMap\.addEventListener\('change'/.test(wireSrc));
+  check("a story keeps where it is: coordinates from the feeds, a country code from the map wires",
+        /s\.at = findAt\(/.test(wireSrc) && /s\.iso = iso \|\| null/.test(wireSrc));
+  check("what the box shows is what the map draws", /toTheMap\(all\)/.test(wireSrc) && /toTheMap\(\[\]\)/.test(wireSrc) &&
+        /window\.culpritsWire\.show\(/.test(wireSrc));
+  check("the marks are diamonds of their own, not another dot",
+        /function wireDiamond/.test(src) && /"icon-image": "wire-mark"/.test(src) && /type: "symbol"/.test(src));
+  check("stories at one place become one mark that lists them",
+        /wireAt\.get\(f\.properties\.k\)/.test(src) && /\["get", "n"\]/.test(src));
+  check("the page itself does not scroll", /html,body\{margin:0;height:100%;overflow:hidden/.test(index));
+  check("the globe opens with room around it, clear of the hand-over",
+        /zoom: 1,/.test(src) && /EYES_FIT = \{ zoom: 0\.8/.test(src));
+  check("Eyes opens on the address from its own embed panel",
+        /surfaceMapTiling=true/.test(src) && !/detailPanel/.test(src) && !/collapseSettingsOptions/.test(src));
+  check("the bar is gone; the way back is a box and Earth itself",
+        !/space-bar/.test(index) && /id="spaceBack"/.test(index) && /id="spaceEarth"/.test(index) &&
+        /function showBack/.test(src) && /globeRadiusPx\(handoffZoom\(\)/.test(src));
 }
 
 console.log("\nlegibility");
