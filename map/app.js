@@ -671,6 +671,20 @@ function atlasWashRamp(z) {
   const t = z <= 6 ? 1 : z >= 13 ? 0.45 : 1 - (z - 6) * (0.55 / 7);
   return { t, sea: z <= 6 ? 1 : 0.7 };
 }
+// The screen rectangle the one world covers, in the GL canvas's own pixels,
+// bottom-left origin, clamped to the canvas: [x, y, width, height]. The washes
+// are a full-screen pass and are cut to this, so the empty space beside the
+// world is not tinted.
+const WORLD_EDGE_LAT = 85.0511287798066;
+function worldScissor(m, canvas) {
+  const scale = canvas.width / (canvas.clientWidth || canvas.width);
+  const pts = [[-180, WORLD_EDGE_LAT], [180, WORLD_EDGE_LAT], [180, -WORLD_EDGE_LAT], [-180, -WORLD_EDGE_LAT]]
+    .map((c) => m.project(c));
+  const xs = pts.map((p) => p.x * scale), ys = pts.map((p) => p.y * scale);
+  const x0 = Math.max(0, Math.floor(Math.min(...xs))), x1 = Math.min(canvas.width, Math.ceil(Math.max(...xs)));
+  const y0 = Math.max(0, Math.floor(Math.min(...ys))), y1 = Math.min(canvas.height, Math.ceil(Math.max(...ys)));
+  return [x0, canvas.height - y1, Math.max(0, x1 - x0), Math.max(0, y1 - y0)];
+}
 function hexRgb(h) {
   const n = parseInt(h.slice(1), 16);
   return [(n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255];
@@ -742,12 +756,16 @@ const atlasWashes = {
       multiply: [gl.ZERO, gl.SRC_COLOR],
       gain:     [gl.DST_COLOR, gl.ONE],
     };
+    const [sx, sy, sw, sh] = worldScissor(this.map, this.map.getCanvas());
+    gl.enable(gl.SCISSOR_TEST);
+    gl.scissor(sx, sy, sw, sh);
     for (const pass of atlasWashPasses(this.map.getZoom())) {
       const [src, dst] = func[pass.mode];
       gl.blendFuncSeparate(src, dst, gl.ZERO, gl.ONE);
       gl.uniform3f(this.uCol, pass.rgb[0], pass.rgb[1], pass.rgb[2]);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
+    gl.disable(gl.SCISSOR_TEST);
   },
 };
 
@@ -765,6 +783,8 @@ window.atlasTune = (next) => {
 
 const map = new maplibregl.Map({
   container: "map",
+  // One world. Repeated copies east and west read as more planet than there is.
+  renderWorldCopies: false,
   center: [12, 24],
   zoom: 1.6,
   attributionControl: { compact: true },

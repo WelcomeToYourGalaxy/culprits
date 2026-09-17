@@ -1036,6 +1036,22 @@ console.log("\nsite maps, each its own map");
         list && /2 places here/.test(list.html) && /Plaza/.test(list.html) && /Arena/.test(list.html) && /data-hit="1"/.test(list.html));
 }
 
+
+console.log("\none world");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const opts = src.slice(src.indexOf("const map = new maplibregl.Map({"), src.indexOf("style: {", src.indexOf("const map = new maplibregl.Map({")));
+  check("the world is not repeated east and west", /renderWorldCopies:\s*false/.test(opts));
+  const fn = new Function(src.match(/const WORLD_EDGE_LAT[\s\S]*?\nfunction worldScissor[\s\S]*?\n}\n/)[0] + "; return worldScissor;")();
+  // A 1000 × 500 CSS-pixel map drawn at 2× where the world spans x 200..800, y 0..500 and beyond.
+  const m = { project: ([lng, lat]) => ({ x: 500 + lng * (300 / 180), y: 250 - lat * (400 / 85.0511287798066) }) };
+  const canvas = { width: 2000, height: 1000, clientWidth: 1000 };
+  const [x, y, w, h] = fn(m, canvas);
+  check("the washes are cut to the world's width, in device pixels", x === 400 && w === 1200, JSON.stringify([x, y, w, h]));
+  check("…and to the canvas where the world runs off it", y === 0 && h === 1000, JSON.stringify([x, y, w, h]));
+  check("the wash pass turns the cut on and off again", /gl\.enable\(gl\.SCISSOR_TEST\)[\s\S]{0,400}gl\.disable\(gl\.SCISSOR_TEST\)/.test(src));
+}
+
 console.log("\nlegibility");
 {
   const { map } = run({ layersReady: "cerulean_slicks" });
