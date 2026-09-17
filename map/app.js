@@ -1349,8 +1349,9 @@ function addCoralLayer(cfg) {
   map.addSource(`${cfg.id}-tiles`, {
     type: "vector",
     tiles: [cfg.tiles.replace(/^https:\/\//, "coral://")],
-    // Web Mercator tiles of 256 pixels, as the Atlas's EPSG:900913 grid serves.
-    tileSize: 256,
+    // No tileSize: MapLibre only accepts 512 for vector tiles and throws on
+    // anything else, which silently left this layer unbuilt. A vector tile is
+    // not a picture of a fixed size, so the Atlas's grid is read correctly.
     minzoom: cfg.drawFrom, maxzoom: 16,
     attribution: cfg.attribution || "",
   });

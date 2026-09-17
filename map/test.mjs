@@ -919,6 +919,12 @@ console.log("\npartial answers");
 // --- coral reefs, live from the Atlas's own tiles ----------------------------
 console.log("\ncoral, live");
 {
+  // MapLibre throws on a vector source whose tileSize is not 512.
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const bad = [...src.matchAll(/type:\s*"vector"[\s\S]{0,400}?tileSize:\s*(\d+)/g)].filter((m) => m[1] !== "512");
+  check("no vector source declares a tile size MapLibre refuses", bad.length === 0, bad.map((m) => m[0].slice(0, 80)).join(" | "));
+}
+{
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const a = src.indexOf("function readTileLayers"), b = src.indexOf("// coral://");
   const readTileLayers = new Function(src.slice(a, b) + "\nreturn readTileLayers;")();
