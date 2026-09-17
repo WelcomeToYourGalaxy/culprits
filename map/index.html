@@ -14,6 +14,7 @@
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;background:var(--peat);color:var(--bone);font-family:var(--sans)}
   #map{position:absolute;inset:0}
+  .stars{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;background:#06080D}
   .space{position:fixed;inset:0;width:100%;height:100%;border:0;pointer-events:none;
          background:#000;opacity:0;transition:opacity .9s ease}
   .space[hidden]{display:none}
@@ -129,6 +130,8 @@
 </style>
 </head>
 <body>
+<!-- The sky the map sits in: drawn in app.js, behind everything. -->
+<canvas id="stars" class="stars" aria-hidden="true"></canvas>
 <!-- NASA's Eyes on the Solar System. Loaded as the map nears the hand-over
      point, and given the whole screen, and every click, once it is crossed. -->
 <iframe id="space" class="space" title="NASA's Eyes on the Solar System"

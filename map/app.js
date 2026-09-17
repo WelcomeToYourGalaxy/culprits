@@ -177,7 +177,7 @@ const CT_HISTORY = {
 };
 
 const LAYERS = [
-  { id:"owid_co2",             name:"National CO₂ emissions", unit:"Mt CO₂/yr", colour:"#8A5750", route:"country", ready:true },
+  { id:"owid_co2",             name:"National CO₂ emissions", unit:"Mt CO₂/yr", colour:"#8A5750", route:"country", ready:true, off:true },
   // Every row is ONE MONTH for one source, not one facility: 2021-01 through
   // 2026-06, 66 rows per source, confirmed from the harvest. Without a facet
   // the map stacks 66 coincident dots on every facility and the popup shows
@@ -343,7 +343,7 @@ const LAYERS = [
     facet: { property: "x_slaughter", label: "slaughter",
              values: ["yes","no","not stated"] },
     note: "Most of these are not slaughterhouses: farms, dairies, processors, transporters, hatcheries and zoos are registered animal-use sites too. Slaughter is marked yes or no only where a registry says; for most it says neither. Hollow points are placed at a town, not the site. Records with no position at all are not drawn." },
-  { id:"slavery_cases",        name:"Identified trafficking cases", unit:"identified cases", colour:"#7A6A72", route:"country", ready:true,
+  { id:"slavery_cases",        name:"Identified trafficking cases", unit:"identified cases", colour:"#7A6A72", route:"country", ready:true, off:true,
     note: "Detection, not prevalence. A country with a large count has organisations filing records; a country with none may have no one counting." },
 
   // ---- polygon layers: Cerulean and Allen Coral ---------------------------
@@ -1203,6 +1203,9 @@ let AWAY = false;             // true while Eyes has the screen
 let leaving = false;          // guards the hand-over animation
 
 // NASA's Eyes on the Solar System, centred on Earth, with its panels closed.
+// Eyes writes its own embed address: open it, go to its settings, turn off
+// "Show Interact Prompt on Load" (that is the "View 3D" button) along with
+// anything else unwanted, then "Copy Embed Code" and paste the address here.
 const SPACE_URL = "https://eyes.nasa.gov/apps/solar-system/#/earth?embed=true&logo=false&menu=false&featured=false";
 
 // How Earth sits in Eyes, measured by eye once (open the map with #fit at the
@@ -1322,6 +1325,7 @@ function setView(kind) {
   VIEW = kind;
   if (typeof map.setProjection === "function") map.setProjection({ type: VIEWS[kind].projection });
   if (typeof map.setMinZoom === "function") map.setMinZoom(VIEWS[kind].leave ? handoffZoom() - 0.45 : 0);
+  skyForView(VIEWS[kind].projection);
   if (!VIEWS[kind].leave && AWAY) backToMap();
   if (typeof map.triggerRepaint === "function") map.triggerRepaint();
 }
@@ -1359,6 +1363,110 @@ function fitMode() {
     draw();
   });
   draw();
+}
+
+/* ---------- the sky the map sits in ---------- */
+
+// Placed at random once, from a fixed seed, so the same sky comes back on
+// every redraw and every visit. Rendered behind the map: behind the globe, and
+// beyond the flat map's edges.
+function seededRandom(seed) {
+  let s = seed >>> 0;
+  return () => {
+    s = (s + 0x6D2B79F5) >>> 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// The map's own colours, dimmed: bone, pale slate, muted rose.
+const STAR_COLOURS = ["#D6D3C8", "#D6D3C8", "#D6D3C8", "#AEB9C4", "#B79A92"];
+const STAR_DENSITY = 1 / 7000;         // stars per square pixel
+
+function starField(width, height, seed) {
+  const rand = seededRandom(seed || 20260917);
+  const stars = [];
+  const n = Math.round(width * height * STAR_DENSITY);
+  for (let i = 0; i < n; i++) {
+    const bright = Math.pow(rand(), 2.2);            // many faint, a few bright
+    stars.push({
+      x: rand() * width, y: rand() * height,
+      r: 0.35 + bright * 1.15,
+      a: 0.16 + bright * 0.74,
+      c: STAR_COLOURS[Math.floor(rand() * STAR_COLOURS.length)],
+    });
+  }
+  return stars;
+}
+
+const sky = { stars: [], w: 0, h: 0, frame: 0 };
+
+function drawSky() {
+  sky.frame = 0;
+  const cv = document.getElementById("stars");
+  if (!cv || !cv.getContext) return;
+  const dpr = (typeof window !== "undefined" && window.devicePixelRatio) || 1;
+  const w = cv.clientWidth || 0, h = cv.clientHeight || 0;
+  if (!w || !h) return;
+  if (w !== sky.w || h !== sky.h) {
+    sky.w = w; sky.h = h;
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    sky.stars = starField(w, h);
+  }
+  const ctx = cv.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  // A distant field moves a little as the map is turned, and wraps round.
+  const c = typeof map.getCenter === "function" ? map.getCenter() : { lng: 0, lat: 0 };
+  const ox = ((-c.lng / 360) * w * 0.6 % w + w) % w;
+  const oy = ((c.lat / 90) * h * 0.15 % h + h) % h;
+  for (const s of sky.stars) {
+    const x = (s.x + ox) % w, y = (s.y + oy) % h;
+    ctx.globalAlpha = s.a;
+    ctx.fillStyle = s.c;
+    ctx.beginPath();
+    ctx.arc(x, y, s.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function skyRedraw() {
+  if (sky.frame) return;
+  sky.frame = (typeof requestAnimationFrame === "function")
+    ? requestAnimationFrame(drawSky) : setTimeout(drawSky, 16);
+}
+
+// The flat map's dark background would cover the whole screen, stars included.
+// Drawn as a fill over the world instead, under the imagery.
+function ensureWorldFill() {
+  if (map.getLayer("world-fill")) return;
+  map.addSource("world-box", { type: "geojson", data: { type: "Feature", properties: {},
+    geometry: { type: "Polygon", coordinates: [[[-180, -85.0511], [180, -85.0511],
+                                                [180, 85.0511], [-180, 85.0511], [-180, -85.0511]]] } } });
+  map.addLayer({ id: "world-fill", type: "fill", source: "world-box",
+                 paint: { "fill-color": "#0B1017" } }, map.getLayer("base") ? "base" : undefined);
+}
+
+// Globe: the background layer is drawn on the planet only, so it stays and the
+// fill is not needed. Flat map: the other way round.
+function skyForView(projection) {
+  const flat = projection === "mercator";
+  if (flat) ensureWorldFill();
+  const show = (id, on) => {
+    if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
+  };
+  show("bg", !flat);
+  show("world-fill", flat);
+  skyRedraw();
+}
+
+function watchSky() {
+  map.on("move", skyRedraw);
+  map.on("resize", skyRedraw);
+  if (typeof window !== "undefined" && window.addEventListener) window.addEventListener("resize", skyRedraw);
+  skyForView(VIEWS[VIEW].projection);
 }
 
 function viewPanelHtml() {
@@ -3164,6 +3272,7 @@ map.on("load", () => {
   setBasemap(BASEMAP);
   buildBasemapPanel();
   watchForLeaving();
+  watchSky();
   fitMode();
   const back = document.getElementById("spaceBack");
   if (back) back.addEventListener("click", backToMap);

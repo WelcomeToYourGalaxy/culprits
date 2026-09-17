@@ -1122,6 +1122,58 @@ console.log("\none world, and the globe");
   check("globe to flat uses MapLibre's own transition", projections.at(-1) === "globe");
 }
 
+
+console.log("\nthe sky, and what opens ticked");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const f = new Function(src.match(/function seededRandom[\s\S]*?\nfunction starField[\s\S]*?\n}\n/)[0] +
+                         "; return { starField, STAR_COLOURS };")();
+  const a = f.starField(1200, 800), b = f.starField(1200, 800);
+  check("the same sky comes back every time", a.length === b.length && a[7].x === b[7].x && a[7].c === b[7].c);
+  check("about one star per seven thousand pixels", Math.abs(a.length - (1200 * 800) / 7000) <= 1, String(a.length));
+  check("every star is on the canvas, dim to bright", a.every((s) => s.x >= 0 && s.x < 1200 && s.y >= 0 && s.y < 800 &&
+        s.r >= 0.35 && s.r <= 1.5 && s.a > 0.15 && s.a <= 0.9));
+  const hues = f.STAR_COLOURS.map((c) => {
+    const [r, g, bl] = [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+    const mx = Math.max(r, g, bl), mn = Math.min(r, g, bl);
+    let h = 0;
+    if (mx !== mn) {
+      h = mx === r ? ((g - bl) / (mx - mn)) % 6 : mx === g ? (bl - r) / (mx - mn) + 2 : (r - g) / (mx - mn) + 4;
+      h *= 60; if (h < 0) h += 360;
+    }
+    return { h, sat: mx ? (mx - mn) / mx : 0 };
+  });
+  check("no star is orange, yellow or neon", hues.every((x) => x.sat < 0.25 && !(x.sat > 0.12 && x.h >= 25 && x.h < 70)));
+  const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("the sky is drawn behind the map", index.indexOf('id="stars"') < index.indexOf('id="map"') &&
+        /\.stars\{[^}]*pointer-events:none/.test(index));
+}
+{
+  const { map } = run();
+  map.fire("load"); await new Promise((r) => setTimeout(r, 5));
+  const vis = (id) => (map.getLayer(id) ? (map.getLayer(id).layout || {}).visibility : null);
+  check("the flat map's dark is a fill over the world, so stars show beyond it",
+        !!map.getLayer("world-fill") === false || vis("world-fill") !== null);
+  map.layers.push({ id: "bg", type: "background", layout: {} });
+  const panelHtml = globalThis.document.getElementById("basemaps");
+  panelHtml.fire("change", { target: { name: "view", value: "flat" } });
+  check("on the flat map the world is filled and the screen background is off",
+        vis("world-fill") === "visible" && vis("bg") === "none");
+  panelHtml.fire("change", { target: { name: "view", value: "globe" } });
+  check("on the globe the background covers the planet again", vis("bg") === "visible" && vis("world-fill") === "none");
+}
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  // A layer marked off: true opens unticked and draws nothing until it is ticked.
+  const marked = (id) => new RegExp(`\\{ *id: *"${id}"[^\\n]*off: *true`).test(src) ||
+                          new RegExp(`\\{ *id:"${id}"[^\\n]*off:true`).test(src);
+  check("National CO₂ emissions opens unticked", marked("owid_co2"));
+  check("Identified trafficking cases opens unticked", marked("slavery_cases"));
+  check("the panel leaves those rows unticked", /\$\{cfg\.off \? "" : " checked"\} data-layer/.test(src));
+  check("and nothing is drawn for them until they are ticked",
+        /const visibility = new Map\(LAYERS\.filter\(\(c\) => c\.off\)/.test(src));
+}
+
 console.log("\nlegibility");
 {
   const { map } = run({ layersReady: "cerulean_slicks" });
