@@ -671,20 +671,6 @@ function atlasWashRamp(z) {
   const t = z <= 6 ? 1 : z >= 13 ? 0.45 : 1 - (z - 6) * (0.55 / 7);
   return { t, sea: z <= 6 ? 1 : 0.7 };
 }
-// The screen rectangle the one world covers, in the GL canvas's own pixels,
-// bottom-left origin, clamped to the canvas: [x, y, width, height]. The washes
-// are a full-screen pass and are cut to this, so the empty space beside the
-// world is not tinted.
-const WORLD_EDGE_LAT = 85.0511287798066;
-function worldScissor(m, canvas) {
-  const scale = canvas.width / (canvas.clientWidth || canvas.width);
-  const pts = [[-180, WORLD_EDGE_LAT], [180, WORLD_EDGE_LAT], [180, -WORLD_EDGE_LAT], [-180, -WORLD_EDGE_LAT]]
-    .map((c) => m.project(c));
-  const xs = pts.map((p) => p.x * scale), ys = pts.map((p) => p.y * scale);
-  const x0 = Math.max(0, Math.floor(Math.min(...xs))), x1 = Math.min(canvas.width, Math.ceil(Math.max(...xs)));
-  const y0 = Math.max(0, Math.floor(Math.min(...ys))), y1 = Math.min(canvas.height, Math.ceil(Math.max(...ys)));
-  return [x0, canvas.height - y1, Math.max(0, x1 - x0), Math.max(0, y1 - y0)];
-}
 function hexRgb(h) {
   const n = parseInt(h.slice(1), 16);
   return [(n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255];
@@ -707,48 +693,94 @@ function atlasWashPasses(z) {
   passes.push({ mode: "multiply", rgb: warm.map((c) => c < .5 ? 1 - aW * (1 - 2 * c) : 1) });
   return passes;
 }
+// The washes are drawn as a mesh over the world, not as one pass over the
+// screen: on a globe a screen pass would tint space too. MapLibre hands a
+// custom layer its own projection code (shaderData) and its uniforms
+// (defaultProjectionData); with them one mesh in Web Mercator coordinates
+// lands on the flat map and on the globe alike. The mesh is fine enough that
+// its straight edges follow the curve of the globe.
+const WASH_MESH = { cols: 96, rows: 64 };
+function washMesh({ cols, rows }) {
+  const v = [];
+  for (let j = 0; j < rows; j++) {
+    const y0 = j / rows, y1 = (j + 1) / rows;
+    for (let i = 0; i < cols; i++) {
+      const x0 = i / cols, x1 = (i + 1) / cols;
+      v.push(x0, y0, x1, y0, x0, y1, x1, y0, x1, y1, x0, y1);
+    }
+  }
+  return new Float32Array(v);
+}
 const atlasWashes = {
   id: "atlas-washes", type: "custom", renderingMode: "2d",
   onAdd(m, gl) {
+    this.map = m;
+    this.programs = new Map();        // one per projection variant MapLibre names
     try {
-      const sh = (type, src) => {
-        const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o);
-        if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o));
-        return o;
-      };
-      const p = gl.createProgram();
-      gl.attachShader(p, sh(gl.VERTEX_SHADER,
-        "attribute vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }"));
-      gl.attachShader(p, sh(gl.FRAGMENT_SHADER,
-        "precision mediump float; uniform vec3 c; void main(){ gl_FragColor = vec4(c, 1.0); }"));
-      gl.linkProgram(p);
-      if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
-      this.prog = p;
-      this.aPos = gl.getAttribLocation(p, "p");
-      this.uCol = gl.getUniformLocation(p, "c");
+      this.mesh = washMesh(WASH_MESH);
       this.buf = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, this.buf);
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-      this.map = m;
+      gl.bufferData(gl.ARRAY_BUFFER, this.mesh, gl.STATIC_DRAW);
     } catch (e) {
-      // A GPU that rejects the shader leaves the imagery ungraded by washes
-      // rather than taking the map down. Everything else still draws.
       this.failed = true;
       console.warn("[culprits] atlas washes unavailable:", e.message || e);
     }
   },
-  render(gl) {
-    if (this.failed || BASEMAP !== "atlas") return;
+  program(gl, shaderData) {
+    const key = shaderData.variantName;
+    if (this.programs.has(key)) return this.programs.get(key);
+    const sh = (type, src) => {
+      const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o);
+      if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o));
+      return o;
+    };
+    const p = gl.createProgram();
+    gl.attachShader(p, sh(gl.VERTEX_SHADER, `#version 300 es
+${shaderData.vertexShaderPrelude}
+${shaderData.define}
+in vec2 a_pos;
+void main() { gl_Position = projectTile(a_pos); }`));
+    gl.attachShader(p, sh(gl.FRAGMENT_SHADER, `#version 300 es
+precision mediump float;
+uniform vec3 c;
+out vec4 colour;
+void main() { colour = vec4(c, 1.0); }`));
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+    const u = (n) => gl.getUniformLocation(p, n);
+    const prog = { p, aPos: gl.getAttribLocation(p, "a_pos"), uCol: u("c"),
+      uMatrix: u("u_projection_matrix"), uFallback: u("u_projection_fallback_matrix"),
+      uTile: u("u_projection_tile_mercator_coords"), uClip: u("u_projection_clipping_plane"),
+      uTransition: u("u_projection_transition") };
+    this.programs.set(key, prog);
+    return prog;
+  },
+  render(gl, options) {
+    if (this.failed || BASEMAP !== "atlas" || !options || !options.shaderData) return;
+    let prog;
+    try { prog = this.program(gl, options.shaderData); }
+    catch (e) {
+      // A GPU that rejects the shader leaves the imagery ungraded by washes
+      // rather than taking the map down. Everything else still draws.
+      this.failed = true;
+      console.warn("[culprits] atlas washes unavailable:", e.message || e);
+      return;
+    }
     // MapLibre binds its own vertex array objects. Drawing with one still bound
     // would rewrite MapLibre's attribute state; unbind first. MapLibre marks its
     // GL state dirty around a custom layer and restores the rest itself.
     if (gl.bindVertexArray) gl.bindVertexArray(null);
-    else { const x = gl.getExtension("OES_vertex_array_object"); if (x) x.bindVertexArrayOES(null); }
     gl.disable(gl.DEPTH_TEST); gl.disable(gl.STENCIL_TEST); gl.disable(gl.CULL_FACE);
-    gl.useProgram(this.prog);
+    gl.useProgram(prog.p);
+    const d = options.defaultProjectionData;
+    if (prog.uMatrix) gl.uniformMatrix4fv(prog.uMatrix, false, d.mainMatrix);
+    if (prog.uFallback) gl.uniformMatrix4fv(prog.uFallback, false, d.fallbackMatrix);
+    if (prog.uTile) gl.uniform4f(prog.uTile, ...d.tileMercatorCoords);
+    if (prog.uClip) gl.uniform4f(prog.uClip, ...d.clippingPlane);
+    if (prog.uTransition) gl.uniform1f(prog.uTransition, d.projectionTransition);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.buf);
-    gl.enableVertexAttribArray(this.aPos);
-    gl.vertexAttribPointer(this.aPos, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(prog.aPos);
+    gl.vertexAttribPointer(prog.aPos, 2, gl.FLOAT, false, 0, 0);
     gl.enable(gl.BLEND);
     // Alpha is left as it was in every pass: these change colour, not coverage.
     const func = {
@@ -756,16 +788,13 @@ const atlasWashes = {
       multiply: [gl.ZERO, gl.SRC_COLOR],
       gain:     [gl.DST_COLOR, gl.ONE],
     };
-    const [sx, sy, sw, sh] = worldScissor(this.map, this.map.getCanvas());
-    gl.enable(gl.SCISSOR_TEST);
-    gl.scissor(sx, sy, sw, sh);
+    const count = this.mesh.length / 2;
     for (const pass of atlasWashPasses(this.map.getZoom())) {
       const [src, dst] = func[pass.mode];
       gl.blendFuncSeparate(src, dst, gl.ZERO, gl.ONE);
-      gl.uniform3f(this.uCol, pass.rgb[0], pass.rgb[1], pass.rgb[2]);
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      gl.uniform3f(prog.uCol, pass.rgb[0], pass.rgb[1], pass.rgb[2]);
+      gl.drawArrays(gl.TRIANGLES, 0, count);
     }
-    gl.disable(gl.SCISSOR_TEST);
   },
 };
 
@@ -790,6 +819,10 @@ const map = new maplibregl.Map({
   attributionControl: { compact: true },
   style: {
     version: 8,
+    // The opening view: a globe that flattens as you zoom in. See VIEWS.
+    projection: { type: "globe" },
+    // The atmosphere, at world view only; gone by the time the map is flat.
+    sky: { "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 1, 4, 0.8, 7, 0] },
     sources: {
       // Imagery, relief and labels as three layers, the way the Leaflet atlas
       // builds them. What this map documents is physical — a mine, a cleared
@@ -1153,6 +1186,62 @@ function setBasemap(kind) {
   if (typeof map.triggerRepaint === "function") map.triggerRepaint();
 }
 
+/* ---------- views: globe, globe to flat, flat; and space behind ---------- */
+
+// MapLibre's own projection names. "globe" is its globe that turns into the
+// flat map between zoom 10 and 12; "vertical-perspective" stays a globe.
+const VIEWS = {
+  "globe":      { projection: "vertical-perspective", space: true,
+                  nm: "Globe", un: "A globe at every zoom." },
+  "globe-flat": { projection: "globe", space: true,
+                  nm: "Globe to flat", un: "A globe at world view that flattens into the map as you zoom in." },
+  "flat":       { projection: "mercator", space: false,
+                  nm: "Flat map", un: "The flat map. Space stays off unless you tick it." },
+};
+let VIEW = "globe-flat";
+let SPACE = VIEWS[VIEW].space;
+
+// NASA's Eyes on the Solar System, centred on Earth, with its panels closed.
+// Change "earth" to another Eyes target (for example sc_voyager_1) to centre
+// the backdrop on something else.
+const SPACE_URL = "https://eyes.nasa.gov/apps/solar-system/#/earth?embed=true&logo=false&menu=false&featured=false";
+
+function setSpace(on) {
+  SPACE = !!on;
+  const frame = document.getElementById("space");
+  if (frame) {
+    // Loaded the first time it is shown, not with the page: it is a whole app.
+    if (SPACE && !frame.src) frame.src = SPACE_URL;
+    frame.hidden = !SPACE;
+  }
+  // On a globe the dark background is drawn on the planet only (it fills the
+  // caps beyond 85°), so it stays. On the flat map it fills the whole screen
+  // and would paint over space, so it goes while space shows.
+  const flat = VIEWS[VIEW].projection === "mercator";
+  if (map.getLayer("bg")) map.setLayoutProperty("bg", "visibility", SPACE && flat ? "none" : "visible");
+  const box = document.getElementById("space-toggle");
+  if (box) box.checked = SPACE;
+}
+
+function setView(kind) {
+  if (!VIEWS[kind]) return;
+  VIEW = kind;
+  if (typeof map.setProjection === "function") map.setProjection({ type: VIEWS[kind].projection });
+  setSpace(VIEWS[kind].space);
+  if (typeof map.triggerRepaint === "function") map.triggerRepaint();
+}
+
+function viewPanelHtml() {
+  return `<p class="bm-h">View</p>` + Object.entries(VIEWS).map(([k, v]) =>
+    `<label class="layer"><input type="radio" name="view" value="${k}"${k === VIEW ? " checked" : ""}>` +
+    `<span class="body"><span class="nm">${v.nm}</span><span class="un">${v.un}</span></span></label>`).join("") +
+    `<label class="layer"><input type="checkbox" id="space-toggle"${SPACE ? " checked" : ""}>` +
+    `<span class="body"><span class="nm">Space behind the map</span>` +
+    `<span class="un">NASA's Eyes on the Solar System, centred on Earth: real stars and the spacecraft ` +
+    `around Earth, live. A separate app: it does not turn with the globe.</span></span></label>` +
+    `<p class="bm-h" style="margin-top:10px">Basemap</p>`;
+}
+
 function buildBasemapPanel() {
   const box = document.getElementById("basemaps");
   if (!box) return;
@@ -1166,12 +1255,14 @@ function buildBasemapPanel() {
     ["outlines", "Country outlines",
      "Country shapes from this map's own boundary file. No imagery."],
   ];
-  box.innerHTML = `<p class="bm-h">Basemap</p>` + opts.map(([k, nm, un]) =>
+  box.innerHTML = viewPanelHtml() + opts.map(([k, nm, un]) =>
     `<label class="layer"><input type="radio" name="basemap" value="${k}"` +
     `${k === BASEMAP ? " checked" : ""}><span class="body"><span class="nm">${nm}</span>` +
     `<span class="un">${un}</span></span></label>`).join("");
   box.addEventListener("change", (e) => {
     if (e.target && e.target.name === "basemap") setBasemap(e.target.value);
+    if (e.target && e.target.name === "view") setView(e.target.value);
+    if (e.target && e.target.id === "space-toggle") setSpace(e.target.checked);
   });
 }
 
@@ -2940,6 +3031,7 @@ map.on("load", () => {
   try { addBasemapLayers(); } catch (e) { console.warn("[culprits] basemap layers:", e.message); }
   addLabelsOnTop();
   setBasemap(BASEMAP);
+  setSpace(SPACE);
   buildBasemapPanel();
   LAYERS.filter((c) => c.ready).forEach((cfg) => {
     try {

@@ -1037,19 +1037,46 @@ console.log("\nsite maps, each its own map");
 }
 
 
-console.log("\none world");
+console.log("\none world, and the globe");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  const opts = src.slice(src.indexOf("const map = new maplibregl.Map({"), src.indexOf("style: {", src.indexOf("const map = new maplibregl.Map({")));
+  const opts = src.slice(src.indexOf("const map = new maplibregl.Map({"), src.indexOf("layers: [", src.indexOf("const map = new maplibregl.Map({")));
   check("the world is not repeated east and west", /renderWorldCopies:\s*false/.test(opts));
-  const fn = new Function(src.match(/const WORLD_EDGE_LAT[\s\S]*?\nfunction worldScissor[\s\S]*?\n}\n/)[0] + "; return worldScissor;")();
-  // A 1000 × 500 CSS-pixel map drawn at 2× where the world spans x 200..800, y 0..500 and beyond.
-  const m = { project: ([lng, lat]) => ({ x: 500 + lng * (300 / 180), y: 250 - lat * (400 / 85.0511287798066) }) };
-  const canvas = { width: 2000, height: 1000, clientWidth: 1000 };
-  const [x, y, w, h] = fn(m, canvas);
-  check("the washes are cut to the world's width, in device pixels", x === 400 && w === 1200, JSON.stringify([x, y, w, h]));
-  check("…and to the canvas where the world runs off it", y === 0 && h === 1000, JSON.stringify([x, y, w, h]));
-  check("the wash pass turns the cut on and off again", /gl\.enable\(gl\.SCISSOR_TEST\)[\s\S]{0,400}gl\.disable\(gl\.SCISSOR_TEST\)/.test(src));
+  check("the map opens as a globe that flattens as you zoom in", /projection:\s*\{\s*type:\s*"globe"\s*\}/.test(opts));
+  check("an atmosphere at world view, gone by zoom 7", /"atmosphere-blend":\s*\["interpolate",\s*\["linear"\],\s*\["zoom"\]/.test(opts));
+  const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("MapLibre 5, the first version with a globe", /maplibre-gl@5\.\d+\.\d+\/dist\/maplibre-gl\.js/.test(index) && !/maplibre-gl@4/.test(index));
+  check("the space frame sits behind the map and cannot be clicked",
+        index.indexOf('id="space"') < index.indexOf('id="map"') && /\.space\{[^}]*pointer-events:none/.test(index));
+  const mesh = new Function(src.match(/const WASH_MESH[\s\S]*?\nfunction washMesh[\s\S]*?\n}\n/)[0] + "; return washMesh(WASH_MESH);")();
+  check("the washes are a mesh over the whole world, in mercator 0..1",
+        mesh.length === 96 * 64 * 12 && Math.min(...mesh) === 0 && Math.max(...mesh) === 1);
+  check("the washes are placed by MapLibre's projection code, not a screen pass",
+        /projectTile\(a_pos\)/.test(src) && /vertexShaderPrelude/.test(src) && !/gl_Position = vec4\(p, 0\.0, 1\.0\)/.test(src));
+}
+{
+  const { map, els } = run();
+  map.layers.push({ id: "bg", type: "background" });
+  const projections = [];
+  map.setProjection = (p) => projections.push(p.type);
+  map.fire("load"); await new Promise((r) => setTimeout(r, 5));
+  const panel = els.get("basemaps");
+  check("the panel offers the three views and space", /value="globe"/.test(panel.innerHTML) && /value="globe-flat" checked/.test(panel.innerHTML) &&
+        /value="flat"/.test(panel.innerHTML) && /id="space-toggle" checked/.test(panel.innerHTML));
+  const frame = els.get("space");
+  check("space shows with the opening globe, loaded from NASA's Eyes", frame.hidden === false && /^https:\/\/eyes\.nasa\.gov\/apps\/solar-system\/#\/earth\?embed=true/.test(frame.src));
+  check("on the globe the background stays: it covers only the planet", (map.getLayer("bg").layout || {}).visibility === "visible");
+  const change = (t) => panel.fire("change", { target: t });
+  change({ name: "view", value: "flat" });
+  check("the flat map is mercator, with space off", projections.at(-1) === "mercator" && frame.hidden === true);
+  const bgVis = () => (map.getLayer("bg").layout || {}).visibility;
+  check("the dark background returns without space", bgVis() === "visible");
+  change({ id: "space-toggle", checked: true });
+  check("space can be ticked on over the flat map, clearing the background there", frame.hidden === false && bgVis() === "none");
+  change({ name: "view", value: "globe" });
+  check("the globe view stays a globe at every zoom", projections.at(-1) === "vertical-perspective");
+  change({ name: "view", value: "globe-flat" });
+  check("globe to flat uses MapLibre's own transition", projections.at(-1) === "globe");
 }
 
 console.log("\nlegibility");
