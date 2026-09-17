@@ -885,8 +885,8 @@ map.on("error", (e) => {
   console.error("[culprits]", id || "map", msg, e.error || e);
 });
 
-map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
-map.addControl(new maplibregl.ScaleControl({ maxWidth: 110, unit: "metric" }), "bottom-right");
+map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
+map.addControl(new maplibregl.ScaleControl({ maxWidth: 110, unit: "metric" }), "bottom-left");
 
 /* ---------- pre-tiled layers ---------- */
 
@@ -1206,7 +1206,9 @@ let leaving = false;          // guards the hand-over animation
 // Eyes writes its own embed address: open it, go to its settings, turn off
 // "Show Interact Prompt on Load" (that is the "View 3D" button) along with
 // anything else unwanted, then "Copy Embed Code" and paste the address here.
-const SPACE_URL = "https://eyes.nasa.gov/apps/solar-system/#/earth?embed=true&logo=false&menu=false&featured=false";
+const SPACE_URL = "https://eyes.nasa.gov/apps/solar-system/#/earth?featured=false&detailPanel=false" +
+  "&logo=false&shareButton=false&collapseSettingsOptions=true&surfaceMapTiling=true&hd=true" +
+  "&minorMoons=true&heliosphere=true&lighting=natural";
 
 // How Earth sits in Eyes, measured by eye once (open the map with #fit at the
 // end of the address; see fitMode below). radius is Earth's drawn radius as a
@@ -1467,6 +1469,66 @@ function watchSky() {
   map.on("resize", skyRedraw);
   if (typeof window !== "undefined" && window.addEventListener) window.addEventListener("resize", skyRedraw);
   skyForView(VIEWS[VIEW].projection);
+}
+
+/* ---------- boxes that can be pulled open and shut ---------- */
+
+// Where a drag leaves a box. Dragging away from the edge the box is anchored
+// to makes it taller: down for the panel, which hangs from the top of the
+// window, up for the legend and the news wires, which stand on the bottom.
+function pullHeight(startHeight, dy, edge, min, max) {
+  const h = startHeight + (edge === "top" ? -dy : dy);
+  return Math.max(min, Math.min(max, h));
+}
+
+const PULL_MIN = 42;
+
+function makePullable(el, edge) {
+  if (!el || !el.dataset || el.dataset.pullable || typeof document.createElement !== "function") return;
+  el.dataset.pullable = "1";
+  const grip = document.createElement("div");
+  grip.className = "pull-grip";
+  grip.title = "Drag to pull this open or shut. Double-click to put it back.";
+  const place = () => {
+    if (grip.parentNode === el && (edge === "top" ? el.firstChild === grip : el.lastChild === grip)) return;
+    if (edge === "top") el.insertBefore(grip, el.firstChild); else el.appendChild(grip);
+  };
+  place();
+  // The legend and the wires rewrite their own contents; the grip goes back.
+  if (typeof MutationObserver === "function") new MutationObserver(place).observe(el, { childList: true });
+
+  let from = 0, height = 0;
+  const ceiling = () => Math.max(PULL_MIN + 20, (typeof window !== "undefined" ? window.innerHeight : 800) - 60);
+  const move = (e) => {
+    const y = e.clientY != null ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : from);
+    el.style.maxHeight = "none";
+    el.style.height = pullHeight(height, y - from, edge, PULL_MIN, ceiling()) + "px";
+  };
+  const stop = () => {
+    document.removeEventListener("pointermove", move);
+    document.removeEventListener("pointerup", stop);
+  };
+  grip.addEventListener("pointerdown", (e) => {
+    from = e.clientY;
+    height = el.getBoundingClientRect ? el.getBoundingClientRect().height : 0;
+    if (e.preventDefault) e.preventDefault();
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", stop);
+  });
+  grip.addEventListener("dblclick", () => { el.style.height = ""; el.style.maxHeight = ""; });
+}
+
+// The news wires box is built by wire.js, which runs after this file.
+function pullableBoxes() {
+  makePullable(document.querySelector(".panel"), "bottom");
+  makePullable(document.getElementById("legend"), "top");
+  let tries = 0;
+  const wireLater = () => {
+    const w = document.getElementById("wire");
+    if (w) { makePullable(w, "top"); return; }
+    if (++tries < 25 && typeof setTimeout === "function") setTimeout(wireLater, 300);
+  };
+  wireLater();
 }
 
 function viewPanelHtml() {
@@ -3273,6 +3335,7 @@ map.on("load", () => {
   buildBasemapPanel();
   watchForLeaving();
   watchSky();
+  pullableBoxes();
   fitMode();
   const back = document.getElementById("spaceBack");
   if (back) back.addEventListener("click", backToMap);

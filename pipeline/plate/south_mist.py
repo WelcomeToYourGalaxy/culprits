@@ -16,7 +16,6 @@ Run once from the repo root:  python3 pipeline/plate/south_mist.py
 """
 import numpy as np
 from PIL import Image
-from scipy.ndimage import uniform_filter, gaussian_filter
 
 import pathlib, sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
@@ -32,10 +31,31 @@ if (A[1060] > 0.3).mean() > 0.6:
 LINE = 950          # where the old straight edge begins
 END = 1200          # where the new mist reaches nothing: 250 rows, as in the north
 
-# 1. The painting itself runs to about row 995; below that the plate was padded
-#    with flat and blocky fill. So: painting down to 995, open sea below, blended
-#    over forty rows, with the sea toned to the painting's own water at its edge.
-PAINT_END = 995
+# 1. Below the old line the plate holds two things: the painting itself, which
+#    reaches different depths in different places (South America's tip, the sea
+#    creatures, the cartouche), and flat smears the plate was padded with. The
+#    painting is kept wherever it is real; only the smears are replaced, with
+#    open water from the plate itself, toned to the painting's own water.
+from scipy.ndimage import uniform_filter, gaussian_filter, binary_closing
+
+grey = rgb.mean(axis=2)
+across = np.pad(np.abs(np.diff(grey, axis=1)), ((0, 0), (0, 1)))
+painted = uniform_filter(across, size=(1, 21)) > 0.45      # smears vary by nothing across a row
+painted = binary_closing(painted, np.ones((3, 9)))
+real = np.zeros((H, W), bool)
+real[:LINE] = True
+for x in range(W):
+    r = LINE
+    while r < H - 1:
+        if painted[r, x]:
+            real[r, x] = True
+            r += 1
+        elif painted[r:r + 12, x].any():                   # a smooth patch inside the painting
+            real[r, x] = True
+            r += 1
+        else:
+            break
+
 patch = rgb[650:720, 120:230]             # open Pacific: the cleanest water on the plate, no lines or creatures
 def mirrored_tile(p, h, w):
     row = np.concatenate([p, p[:, ::-1]], axis=1)
@@ -43,15 +63,18 @@ def mirrored_tile(p, h, w):
     reps = (h // blk.shape[0] + 1, w // blk.shape[1] + 1, 1)
     return np.tile(blk, reps)[:h, :w]
 sea = mirrored_tile(patch, H - LINE, W)
-edge = rgb[960:PAINT_END]                               # the painting's last rows
-dark = edge.mean(axis=2) < np.percentile(edge.mean(axis=2), 60)   # water, not land
-tone = np.array([gaussian_filter1d_masked(edge[..., c], dark) for c in range(3)]) if False else None
+edge = rgb[960:995]                                        # the painting's water at the old line
+dark = edge.mean(axis=2) < np.percentile(edge.mean(axis=2), 60)
 water = np.array([np.median(edge[..., c][dark]) for c in range(3)])
 sea = sea - sea.reshape(-1, 3).mean(axis=0) + water
-rows_below = np.arange(LINE, H)
-w = np.clip((rows_below - (PAINT_END - 40)) / 40.0, 0, 1)[:, None, None]   # 0 = painting, 1 = sea
+keep = gaussian_filter(real[LINE:].astype(float), 6)[..., None]   # feathered, so no hard join
 fill = rgb.copy()
-fill[LINE:] = rgb[LINE:] * (1 - w) + sea * w
+fill[LINE:] = rgb[LINE:] * keep + sea * (1 - keep)
+# The plate's own padding down here is coarse in places (upscaled blocks around
+# the tip of South America). Softened with depth, which also reads as mist.
+soft = gaussian_filter(fill[LINE:], sigma=(2.0, 2.0, 0))
+depth = np.clip((np.arange(LINE, H) - 985) / 80.0, 0, 1)[:, None, None]
+fill[LINE:] = fill[LINE:] * (1 - depth) + soft * depth
 
 # 3. The edge: the northern mist, turned upside down and shifted half a world so
 #    it does not mirror the north, squeezed into LINE..END.

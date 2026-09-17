@@ -138,6 +138,7 @@ function run({ layersReady = null, fetchImpl = null } = {}) {
       // simply find no match.
       querySelector: () => null, querySelectorAll: () => [],
       dataset: {}, after() {}, replaceWith() {}, closest: () => null,
+      insertBefore() {}, getBoundingClientRect: () => ({ height: 200 }), style: {},
       // Enough of an element to be shown, hidden and faded: the hand-over to
       // Eyes works by adding classes and clearing `hidden`.
       hidden: true, style: {}, src: "",
@@ -148,13 +149,15 @@ function run({ layersReady = null, fetchImpl = null } = {}) {
         toggle(c, on) { on ? this.add(c) : this.remove(c); } },
     }), els.get(id)),
     // One object per selector, kept, so a layer's status line can be read back.
-    querySelector: (sel) => (states[sel] ||= { textContent: "" }),
+    querySelector: (sel) => (states[sel] ||= { textContent: "", dataset: {}, style: {},
+      appendChild() {}, insertBefore() {}, addEventListener() {}, getBoundingClientRect: () => ({ height: 200 }) }),
     // Closer to a real element than it was: the layer panel now builds nested
     // group rows, reads data-* attributes and inserts facet rows after a
     // checkbox, so a stub with only className and innerHTML made app.js look
     // broken when it was the harness that was thin.
     createElement: () => ({
-      className: "", innerHTML: "", dataset: {},
+      className: "", innerHTML: "", dataset: {}, style: {}, title: "",
+      addEventListener() {}, insertBefore() {}, getBoundingClientRect: () => ({ height: 200 }),
       appendChild() {}, after() {}, replaceWith() {},
       closest: () => null, querySelector: () => null, querySelectorAll: () => [],
     }),
@@ -1101,7 +1104,7 @@ console.log("\none world, and the globe");
   const frame = el("space");
   check("Eyes is not loaded while the map is being read", !frame.src);
   map.setZoom(2.4); map.fire("zoom");
-  check("nearing the way out loads Eyes quietly, still hidden", /^https:\/\/eyes\.nasa\.gov\/apps\/solar-system\/#\/earth\?embed=true/.test(frame.src) && !(frame.classList.list || []).includes("on"));
+  check("nearing the way out loads Eyes quietly, still hidden", /^https:\/\/eyes\.nasa\.gov\/apps\/solar-system\/#\/earth\?featured=false/.test(frame.src) && !(frame.classList.list || []).includes("on"));
   map.setZoom(-3); map.fire("zoom");
   await new Promise((r) => setTimeout(r, 1000));
   check("zooming out past the globe hands the screen over", (frame.classList.list || []).includes("on") &&
@@ -1172,6 +1175,35 @@ console.log("\nthe sky, and what opens ticked");
   check("the panel leaves those rows unticked", /\$\{cfg\.off \? "" : " checked"\} data-layer/.test(src));
   check("and nothing is drawn for them until they are ticked",
         /const visibility = new Map\(LAYERS\.filter\(\(c\) => c\.off\)/.test(src));
+}
+
+
+console.log("\nthe boxes");
+{
+  const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const wireSrc = fs.readFileSync(path.join(HERE, "wire.js"), "utf8");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("one width is declared for every box", /--box-w:\s*290px/.test(index) && /--zoom-w:\s*29px/.test(index));
+  check("the layer panel takes it", /\.panel\{[\s\S]{0,200}width:var\(--box-w\)/.test(index));
+  check("the news wires box takes it too, no longer 440px",
+        /width:min\(var\(--box-w,290px\),calc\(100vw - 18px\)\)/.test(wireSrc) && !/440px/.test(wireSrc));
+  check("the legend is narrowed by the zoom buttons and the gap",
+        /#legend\{[\s\S]{0,260}width:calc\(var\(--box-w\) - var\(--zoom-w\) - var\(--box-gap\)\)/.test(index) &&
+        /#legend\{position:absolute;right:calc\(9px \+ var\(--zoom-w\) \+ var\(--box-gap\)\)/.test(index));
+  check("the zoom buttons sit in the bottom right corner, level with the legend",
+        /NavigationControl\([^)]*\), "bottom-right"\)/.test(src) &&
+        /\.maplibregl-ctrl-bottom-right \.maplibregl-ctrl-group\{position:absolute;right:9px;bottom:26px/.test(index));
+  check("Eyes opens without the View 3D prompt or its panels",
+        /detailPanel=false/.test(src) && /featured=false/.test(src) && !/embed=true/.test(src));
+  const pull = new Function(src.match(/function pullHeight[\s\S]*?\n}\n/)[0] + "; return pullHeight;")();
+  check("pulling up makes a box that stands on the bottom taller", pull(200, -60, "top", 42, 900) === 260);
+  check("pulling down makes one that hangs from the top taller", pull(200, 60, "bottom", 42, 900) === 260);
+  check("a box cannot be pulled past the window or shut past its grip",
+        pull(200, 5000, "bottom", 42, 900) === 900 && pull(200, 5000, "top", 42, 900) === 42);
+  check("every box gets a grip", /makePullable\(document\.querySelector\("\.panel"\), "bottom"\)/.test(src) &&
+        /makePullable\(document\.getElementById\("legend"\), "top"\)/.test(src) && /getElementById\("wire"\)/.test(src) &&
+        /\.pull-grip\{[^}]*cursor:ns-resize/.test(index));
+  check("the scale bar no longer lies across the legend", /ScaleControl\([^)]*\), "bottom-left"\)/.test(src));
 }
 
 console.log("\nlegibility");

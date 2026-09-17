@@ -541,7 +541,7 @@ const num = (n) => Number(n).toLocaleString('en');
 
 const CSS = `
 .wire{position:absolute;right:9px;bottom:calc(26px + var(--wire-lift,0px));z-index:3;
-  width:min(440px,calc(100vw - 18px));display:flex;flex-direction:column;
+  width:min(var(--box-w,290px),calc(100vw - 18px));display:flex;flex-direction:column;
   background:rgba(31,28,21,.95);border:1px solid var(--rule,#322E27);color:var(--bone,#DCD6C6);
   font:13px/1.45 var(--sans,system-ui,sans-serif);backdrop-filter:blur(6px)}
 .wire.open{height:min(54vh,600px,calc(100% - 96px - var(--wire-lift,0px)))}

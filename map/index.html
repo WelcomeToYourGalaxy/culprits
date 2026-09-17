@@ -10,6 +10,9 @@
     --peat:#17150F; --peat2:#1F1C15; --bone:#DCD6C6; --dim:#948D7C;
     --rule:#322E27; --brick:#8F4E40; --moss:#62755F; --slate:#5C6E77;
     --sans:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
+    /* One width for the layer panel, the news wires box, and the legend and
+       zoom buttons side by side. */
+    --box-w:290px; --zoom-w:29px; --box-gap:6px;
   }
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;background:var(--peat);color:var(--bone);font-family:var(--sans)}
@@ -41,7 +44,7 @@
   .fit-box code{display:block;margin-top:6px;color:var(--dim);word-break:break-all}
 
   .panel{
-    position:absolute;top:16px;left:16px;width:290px;max-height:calc(100% - 32px);
+    position:absolute;top:16px;left:16px;width:var(--box-w);max-height:calc(100% - 32px);
     overflow:auto;background:rgba(31,28,21,.94);border:1px solid var(--rule);
     padding:16px 17px;font-size:13.5px;line-height:1.5;backdrop-filter:blur(6px);
   }
@@ -106,11 +109,25 @@
 
   /* Legend. Bottom right, above the attribution, narrow enough not to cover
      the map. Lists only what is switched on. */
-  #legend{position:absolute;right:9px;bottom:26px;z-index:2;max-width:236px;
+  #legend{position:absolute;right:calc(9px + var(--zoom-w) + var(--box-gap));bottom:26px;z-index:2;
+    width:calc(var(--box-w) - var(--zoom-w) - var(--box-gap));max-width:none;
     background:rgba(17,21,15,.88);border:1px solid var(--rule);border-radius:2px;
     padding:6px 8px;font-size:11px;line-height:1.35;color:var(--dim);
     max-height:42vh;overflow-y:auto}
   #legend[hidden]{display:none}
+  /* The zoom buttons, pinned to the legend's line rather than stacked above
+     the scale bar and the attribution. */
+  .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group{position:absolute;right:9px;bottom:26px;margin:0;z-index:3}
+
+  /* The grip each box is pulled by. */
+  .pull-grip{flex:none;height:9px;cursor:ns-resize;position:relative;touch-action:none}
+  .pull-grip::before{content:"";position:absolute;left:50%;top:50%;width:34px;height:2px;margin:-1px 0 0 -17px;
+    border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+  .pull-grip:hover::before{border-color:var(--dim)}
+  .panel,#legend{overflow:auto}
+  /* The grip stays on the box's edge while its contents scroll under it. */
+  .panel .pull-grip{position:sticky;bottom:0;margin-top:8px;background:rgba(31,28,21,.94)}
+  #legend .pull-grip{position:sticky;top:0;background:rgba(17,21,15,.88)}
   .lg-hd{color:var(--bone);font-size:10.5px;letter-spacing:.06em;
     text-transform:uppercase;margin-bottom:4px}
   .lg-row{display:flex;align-items:baseline;gap:6px;margin:2px 0}
