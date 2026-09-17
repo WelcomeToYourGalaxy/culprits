@@ -1280,7 +1280,7 @@ function warmSpace() {
 }
 
 function panelsAway(on) {
-  for (const sel of [".panel", "#legend", ".wire"]) {
+  for (const sel of [".left-col", "#legend", ".wire"]) {
     const el = document.querySelector(sel);
     if (el && el.classList) el.classList.toggle("away", on);
   }
@@ -1435,23 +1435,6 @@ const WIRE_COLOUR = "#9FAEB6";
 let wireAt = new Map();          // "lng,lat" -> the stories there
 let countryPoints = null;        // ISO -> [lng, lat], read once from the boundaries
 
-function wireDiamond() {
-  const s = 26, c = s / 2, r = 10;
-  if (typeof document.createElement !== "function") return null;
-  const cv = document.createElement("canvas");
-  if (!cv.getContext) return null;
-  cv.width = cv.height = s;
-  const ctx = cv.getContext("2d");
-  ctx.beginPath();
-  ctx.moveTo(c, c - r); ctx.lineTo(c + r, c); ctx.lineTo(c, c + r); ctx.lineTo(c - r, c); ctx.closePath();
-  ctx.fillStyle = "rgba(20,26,30,.72)";
-  ctx.fill();
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = WIRE_COLOUR;
-  ctx.stroke();
-  return ctx.getImageData(0, 0, s, s);
-}
-
 async function countryCentres() {
   if (countryPoints) return countryPoints;
   countryPoints = new Map();
@@ -1480,14 +1463,18 @@ async function countryCentres() {
 function wireSource() {
   if (!map.getSource("wire-news")) {
     map.addSource("wire-news", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-    const img = wireDiamond();
-    if (img && map.addImage && !map.hasImage?.("wire-mark")) {
-      try { map.addImage("wire-mark", img, { pixelRatio: 2 }); } catch (e) { /* already there */ }
-    }
     map.addLayer({
-      id: "wire-news", type: "symbol", source: "wire-news",
-      layout: { "icon-image": "wire-mark", "icon-allow-overlap": true,
-                "icon-size": ["interpolate", ["linear"], ["get", "n"], 1, 1.05, 12, 1.9] },
+      id: "wire-news", type: "circle", source: "wire-news",
+      paint: {
+        // A ring, not a disc: nothing else on this map is hollow and pale, so
+        // a story never reads as a site. It grows with how many are there.
+        "circle-color": "rgba(0,0,0,0)",
+        "circle-stroke-color": WIRE_COLOUR,
+        "circle-stroke-width": 1.4,
+        "circle-radius": ["interpolate", ["linear"], ["zoom"],
+          1, ["interpolate", ["linear"], ["get", "n"], 1, 4, 25, 9],
+          8, ["interpolate", ["linear"], ["get", "n"], 1, 6, 25, 15]],
+      },
     });
     map.on("click", "wire-news", (e) => {
       const f = e.features && e.features[0];
@@ -1696,22 +1683,17 @@ function makePullable(el, edge) {
 function pullableBoxes() {
   makePullable(document.querySelector(".panel"), "bottom");
   makePullable(document.getElementById("legend"), "top");
-  let tries = 0;
-  const wireLater = () => {
-    const w = document.getElementById("wire");
-    if (w) { makePullable(w, "top"); return; }
-    if (++tries < 25 && typeof setTimeout === "function") setTimeout(wireLater, 300);
-  };
-  wireLater();
+  // The wires box is not dragged: it opens and closes on its own caret.
 }
 
 // Names only: the settings box says what each one is, not what it does.
 function viewPanelHtml() {
-  return `<p class="bm-h">View</p>` + Object.entries(VIEWS).map(([k, v]) =>
-    `<label class="layer"><input type="radio" name="view" value="${k}"${k === VIEW ? " checked" : ""}>` +
-    `<span class="nm">${v.nm}</span></label>`).join("") +
-    `<button type="button" id="leave-earth" class="leave" title="Hands the screen to NASA's Eyes on ` +
-    `the Solar System. A bar at the top brings the map back.">Leave Earth &#8594;</button>` +
+  return `<p class="bm-h">View</p><div class="view-row"><div class="view-choices">` +
+    Object.entries(VIEWS).map(([k, v]) =>
+      `<label class="layer"><input type="radio" name="view" value="${k}"${k === VIEW ? " checked" : ""}>` +
+      `<span class="nm">${v.nm}</span></label>`).join("") +
+    `</div><button type="button" id="leave-earth" class="leave" title="Hands the screen to NASA's Eyes ` +
+    `on the Solar System. A box in the corner brings the map back.">Leave<br>Earth &#8594;</button></div>` +
     `<p class="bm-h">Basemap</p>`;
 }
 

@@ -1202,9 +1202,8 @@ console.log("\nthe boxes");
   check("pulling down makes one that hangs from the top taller", pull(200, 60, "bottom", 42, 900) === 260);
   check("a box cannot be pulled past the window or shut past its grip",
         pull(200, 5000, "bottom", 42, 900) === 900 && pull(200, 5000, "top", 42, 900) === 42);
-  check("every box gets a grip", /makePullable\(document\.querySelector\("\.panel"\), "bottom"\)/.test(src) &&
-        /makePullable\(document\.getElementById\("legend"\), "top"\)/.test(src) && /getElementById\("wire"\)/.test(src) &&
-        /\.pull-grip\{[^}]*cursor:ns-resize/.test(index));
+  check("the panel and the legend get a grip", /makePullable\(document\.querySelector\("\.panel"\), "bottom"\)/.test(src) &&
+        /makePullable\(document\.getElementById\("legend"\), "top"\)/.test(src) && /\.pull-grip\{[^}]*cursor:ns-resize/.test(index));
   check("the scale bar no longer lies across the legend", /ScaleControl\([^)]*\), "bottom-left"\)/.test(src));
 }
 
@@ -1300,8 +1299,8 @@ console.log("\nthe wires on the map");
         /s\.at = findAt\(/.test(wireSrc) && /s\.iso = iso \|\| null/.test(wireSrc));
   check("what the box shows is what the map draws", /toTheMap\(all\)/.test(wireSrc) && /toTheMap\(\[\]\)/.test(wireSrc) &&
         /window\.culpritsWire\.show\(/.test(wireSrc));
-  check("the marks are diamonds of their own, not another dot",
-        /function wireDiamond/.test(src) && /"icon-image": "wire-mark"/.test(src) && /type: "symbol"/.test(src));
+  check("the marks are rings of their own, not another dot",
+        /"circle-stroke-color": WIRE_COLOUR/.test(src) && /"circle-color": "rgba\(0,0,0,0\)"/.test(src));
   check("stories at one place become one mark that lists them",
         /wireAt\.get\(f\.properties\.k\)/.test(src) && /\["get", "n"\]/.test(src));
   check("the page itself does not scroll", /html,body\{margin:0;height:100%;overflow:hidden/.test(index));
@@ -1328,8 +1327,8 @@ console.log("\nreading the map");
         /<div class="panel-head">[\s\S]{0,200}id="panelRoll"/.test(index) &&
         !/title-box[\s\S]{0,120}panelRoll/.test(index) && /\.panel\.shut > \.panel-head\{display:flex\}/.test(index));
   check("the Subjects button takes the width", /#wirePickBtn\{width:100%/.test(wireSrc));
-  check("each subject's filters open by default", /state\.expanded\[id\] !== false/.test(wireSrc) &&
-        /state\.expanded\[t\.dataset\.expand\] === false/.test(wireSrc));
+  check("the filters are not folded away at all any more",
+        !/state\.expanded\[/.test(wireSrc) && /class="wire-filter"/.test(wireSrc));
   check("the time window sits with the filters, below them",
         wireSrc.indexOf("id=\"wireFilters") < wireSrc.indexOf("wire-when\"><label") &&
         /class="wire-when"><label for="wireWhen">Time<\/label>/.test(wireSrc));
@@ -1340,6 +1339,33 @@ console.log("\nreading the map");
   check("aggregate circles are fainter and softer at world view",
         /"circle-blur": \["interpolate", \["linear"\], \["zoom"\], 0, \.35/.test(src) &&
         /0,  \["\*", 0\.18 \* scale, MAGNITUDE_RADIUS\]/.test(src));
+}
+
+
+console.log("\nthe wires box, plainer");
+{
+  const wireSrc = fs.readFileSync(path.join(HERE, "wire.js"), "utf8");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("the map's boxes leave the screen in Eyes", /\[".left-col", "#legend", ".wire"\]/.test(src));
+  check("Leave Earth stands beside the two views", /<div class="view-row"><div class="view-choices">/.test(src) &&
+        /\.view-row\{display:flex/.test(index));
+  check("one list of subjects, with select all and clear all",
+        /SUBJECTS\.slice\(\)\.sort/.test(wireSrc) && !/Topic feeds<\/p>/.test(wireSrc) &&
+        /data-all="1">Select all/.test(wireSrc) && /data-none="1">Clear all/.test(wireSrc));
+  check("the Subjects button reads as a drop-down", /wire-subjects/.test(wireSrc) &&
+        /wire\.picking \.wire-subjects \.wire-caret\{transform:rotate\(90deg\)\}/.test(wireSrc));
+  check("one drop-down per filter, options under the subject they came from",
+        /const kinds = \[\]/.test(wireSrc) && /<optgroup label="/.test(wireSrc) &&
+        /esc\(id \+ '\|' \+ o\.value\)/.test(wireSrc));
+  check("the per-subject line of numbers is gone",
+        !/filters set/.test(wireSrc) && !/function subjectState/.test(wireSrc) && !/harvested /.test(wireSrc));
+  check("refresh clears the filters too", /\$refresh\.addEventListener\('click', \(\) => \{[\s\S]{0,120}state\.sel = \{\}/.test(wireSrc));
+  check("the tick box says what it does", /show them on the map</.test(wireSrc));
+  check("the wires box is not dragged", !/makePullable\(w, "top"\)/.test(src) && /makePullable\(document\.getElementById\("legend"\), "top"\)/.test(src));
+  check("stories are rings, sized by how many are there",
+        /id: "wire-news", type: "circle"/.test(src) && /"circle-stroke-color": WIRE_COLOUR/.test(src) &&
+        !/wireDiamond/.test(src));
 }
 
 console.log("\nlegibility");

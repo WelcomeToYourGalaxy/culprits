@@ -586,7 +586,14 @@ const CSS = `
 .wire-body{display:flex;flex-direction:column;min-height:0;flex:1}
 .wire-body[hidden]{display:none}
 .wire-tools{display:flex;flex-direction:column;gap:6px;padding:8px 10px;align-items:stretch}
-.wire-tools #wirePickBtn{width:100%;text-align:center;font-size:13px;padding:4px 8px}
+.wire-tools #wirePickBtn{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;
+  font-size:13px;padding:5px 8px}
+.wire.picking .wire-subjects .wire-caret{transform:rotate(90deg)}
+.wire-pickbar{display:flex;gap:6px;padding:4px 10px 2px}
+.wire-pickbar button{flex:1}
+.wire-filter{display:flex;align-items:center;gap:7px;padding:3px 10px;color:var(--dim,#948D7C);font-size:12px}
+.wire-filter select{flex:1;min-width:0}
+.wire-unread{padding:3px 10px;color:#B98A80;font-size:11.5px}
 .wire-tools input{width:100%;min-width:0;background:var(--peat,#17150F);border:1px solid var(--rule,#322E27);
   padding:3px 7px;border-radius:2px;font-size:12.5px}
 .wire-when{display:flex;align-items:center;gap:7px;padding:2px 10px 8px;color:var(--dim,#948D7C);font-size:12px}
@@ -648,12 +655,13 @@ function build() {
         '<span class="wire-caret" aria-hidden="true"></span>News wires</button>' +
       '<span class="wire-sum" id="wireSum" aria-live="polite"></span>' +
       '<label class="wire-onmap" title="Draw the stories that name a place on the map">' +
-        '<input type="checkbox" id="wireOnMap" checked> on the map</label>' +
+        '<input type="checkbox" id="wireOnMap" checked> show them on the map</label>' +
       '<button type="button" class="wire-btn" id="wireRefresh" hidden>Refresh</button>' +
     '</div>' +
     '<div class="wire-body" id="wireBody" hidden>' +
       '<div class="wire-tools">' +
-        '<button type="button" class="wire-btn" id="wirePickBtn" aria-expanded="false" aria-controls="wirePicker">Subjects</button>' +
+        '<button type="button" class="wire-btn wire-subjects" id="wirePickBtn" aria-expanded="false" aria-controls="wirePicker">' +
+          '<span class="wire-caret" aria-hidden="true"></span><span id="wirePickLabel">Subjects</span></button>' +
         '<input type="search" id="wireQ" placeholder="Search headlines" aria-label="Search headlines in the ticked subjects">' +
       '</div>' +
       '<div class="wire-picker" id="wirePicker" hidden></div>' +
@@ -683,7 +691,23 @@ function build() {
   $toggle.addEventListener('click', () => setOpen(!state.open));
   if ($onMap) $onMap.addEventListener('change', () => { state.onMap = $onMap.checked; save(); renderList(); });
   $pickBtn.addEventListener('click', () => { state.pickerOpen = !state.pickerOpen; renderPicker(); layout(); });
-  $refresh.addEventListener('click', () => state.picked.forEach((id) => load(id, true)));
+  $picker.addEventListener('click', (e) => {
+    const t = e.target.closest && e.target.closest('button');
+    if (!t || !t.dataset) return;
+    if (t.dataset.all) { state.picked = SUBJECTS.map((s) => s.id); state.picked.forEach((id) => load(id, false)); }
+    else if (t.dataset.none) { state.picked = []; }
+    else return;
+    state.shown = PAGE;
+    save();
+    renderData();
+  });
+  $refresh.addEventListener('click', () => {
+    state.sel = {};
+    state.shown = PAGE;
+    save();
+    state.picked.forEach((id) => load(id, true));
+    renderData();
+  });
   $when.addEventListener('change', () => { state.when = $when.value; state.shown = PAGE; save(); renderData(); });
   let qTimer = null;
   $q.addEventListener('input', () => {
@@ -707,15 +731,28 @@ function build() {
 
   $filters.addEventListener('change', (e) => {
     const t = e.target;
-    if (!t || !t.dataset || !t.dataset.sid) return;
-    const id = t.dataset.sid, key = t.dataset.key;
-    const entry = state.wires[id];
-    if (!entry || !entry.wire) return;
-    const f = entry.wire.facets.find((x) => x.key === key);
-    const sel = state.sel[id] = state.sel[id] || {};
-    if (t.value === '') delete sel[key];
-    else sel[key] = f && f.weight ? Number(t.value) : t.value;
-    descendants(entry.wire.facets, key).forEach((k) => { delete sel[k]; });
+    if (!t || !t.dataset || !t.dataset.key) return;
+    const key = t.dataset.key;
+    // One drop-down stands for every ticked subject: choosing an option sets it
+    // for the subject it came from and clears that filter on the others, so a
+    // row always says one thing.
+    state.picked.forEach((id) => {
+      const entry = state.wires[id];
+      if (!entry || !entry.wire) return;
+      const sel = state.sel[id] = state.sel[id] || {};
+      delete sel[key];
+      descendants(entry.wire.facets, key).forEach((k) => { delete sel[k]; });
+    });
+    if (t.value !== '') {
+      const cut = t.value.indexOf('|');
+      const id = t.value.slice(0, cut), value = t.value.slice(cut + 1);
+      const entry = state.wires[id];
+      if (entry && entry.wire) {
+        const f = entry.wire.facets.find((x) => x.key === key);
+        const sel = state.sel[id] = state.sel[id] || {};
+        sel[key] = f && f.weight ? Number(value) : value;
+      }
+    }
     state.shown = PAGE;
     save();
     renderData(t.id);
@@ -723,20 +760,7 @@ function build() {
 
   $filters.addEventListener('click', (e) => {
     const t = e.target.closest && e.target.closest('button');
-    if (!t) return;
-    if (t.dataset.expand) {
-      state.expanded[t.dataset.expand] = state.expanded[t.dataset.expand] === false;
-      save();
-      renderFilters(t.id);
-      layout();
-    } else if (t.dataset.clear) {
-      delete state.sel[t.dataset.clear];
-      state.shown = PAGE;
-      save();
-      renderData();
-    } else if (t.dataset.retry) {
-      load(t.dataset.retry, true);
-    }
+    if (t && t.dataset && t.dataset.retry) load(t.dataset.retry, true);
   });
 
   $list.addEventListener('click', (e) => {
@@ -874,69 +898,61 @@ function renderPicker() {
       '<span>' + esc(s.name) + '</span><span class="n">' + n + '</span></label>';
   };
   const focused = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.pick : null;
+  // One list, by name: which repository a wire lives in is not the reader's
+  // business, and two headings made it look like two kinds of thing.
+  const all = SUBJECTS.slice().sort((a, b) => a.name.localeCompare(b.name));
   $picker.innerHTML =
-    '<p class="wire-group">Topic feeds</p>' + FEEDS.map(row).join('') +
-    '<p class="wire-group">Wires inside the maps</p>' + MAPS.map(row).join('');
+    '<div class="wire-pickbar">' +
+      '<button type="button" class="wire-btn" data-all="1">Select all</button>' +
+      '<button type="button" class="wire-btn" data-none="1">Clear all</button>' +
+    '</div>' + all.map(row).join('');
   if (focused) { const el = $picker.querySelector('[data-pick="' + focused + '"]'); if (el) el.focus(); }
-}
-
-function subjectState(id) {
-  const e = state.wires[id];
-  if (!e || e.status === 'idle' || e.status === 'loading') return { text: 'Loading the wire', err: false };
-  if (!e.wire) return { text: 'Could not read the wire (' + e.error + ').', err: true };
-  const w = e.wire;
-  if (!w.stories.length) return { text: 'The wire file is empty.', err: false };
-  const shown = filterStories(w, state.sel[id], shared()).length;
-  const newest = w.stories.reduce((m, s) => (s.date != null && s.date > m ? s.date : m), 0);
-  let t = num(shown) + ' of ' + num(w.stories.length) + ' stories';
-  t += w.generated ? ', harvested ' + timeAgo(toMs(w.generated)).toLowerCase()
-                   : newest ? ', newest ' + timeAgo(newest).toLowerCase() : '';
-  if (e.error) t += '. Last refresh failed (' + e.error + ')';
-  return { text: t, err: !!e.error };
 }
 
 function renderFilters(focusId) {
   const active = focusId || (document.activeElement && box.contains(document.activeElement) ? document.activeElement.id : null);
   if (!state.picked.length) { $filters.innerHTML = ''; return; }
   const sh = shared();
-  $filters.innerHTML = state.picked.map((id) => {
-    const s = BY_ID[id];
+
+  // One row per kind of filter across every ticked subject. A subject that
+  // does not publish that field simply has no options under it.
+  const kinds = [];
+  const unread = [];
+  state.picked.forEach((id) => {
     const e = state.wires[id];
-    const st = subjectState(id);
-    const sel = state.sel[id] || {};
-    const setCount = Object.keys(sel).length;
-    const facets = e && e.wire ? e.wire.facets : [];
-    const open = state.expanded[id] !== false;   // open unless it was folded away
-    let grid = '';
-    if (facets.length) {
-      grid = facets.map((f) => {
-        const opts = optionsFor(e.wire, f, sel, sh);
-        if (!opts) return '';
-        const cur = sel[f.key];
-        const fid = 'wf-' + id + '-' + f.key;
-        return '<label for="' + fid + '">' + esc(f.label) +
-          '<select id="' + fid + '" data-sid="' + id + '" data-key="' + f.key + '"' + (cur != null ? ' class="set"' : '') + '>' +
-            '<option value="">' + (f.weight ? 'Any weight' : 'All') + '</option>' +
-            opts.map((o) => '<option value="' + esc(o.value) + '"' + (String(cur) === String(o.value) ? ' selected' : '') + '>' +
-              esc(o.label) + ' (' + num(o.count) + ')</option>').join('') +
-          '</select></label>';
-      }).join('');
+    if (!e || !e.wire) {
+      if (e && e.status === 'error') unread.push({ id, error: e.error });
+      return;
     }
-    const canFilter = facets.length > 0;
-    return '<div class="wire-subj' + (open ? ' expanded' : '') + '">' +
-      '<div class="wire-subj-head">' +
-        (canFilter
-          ? '<button type="button" class="wire-subj-name" id="wx-' + id + '" data-expand="' + id + '" aria-expanded="' + open + '">' +
-              '<span class="wire-caret" aria-hidden="true"></span>' + esc(s.name) + '</button>'
-          : '<span class="wire-subj-name">' + esc(s.name) + '</span>') +
-        '<span class="wire-subj-state' + (st.err ? ' err' : '') + '">' + esc(st.text) +
-          (setCount ? ', ' + setCount + (setCount === 1 ? ' filter set' : ' filters set') : '') + '</span>' +
-        (setCount ? '<button type="button" class="wire-btn" data-clear="' + id + '">Clear</button>' : '') +
-        (e && e.status === 'error' ? '<button type="button" class="wire-btn" data-retry="' + id + '">Try again</button>' : '') +
-      '</div>' +
-      (canFilter ? '<div class="wire-grid"' + (open ? '' : ' hidden') + '>' + grid + '</div>' : '') +
-    '</div>';
+    const sel = state.sel[id] || {};
+    e.wire.facets.forEach((f) => {
+      let k = kinds.find((x) => x.key === f.key);
+      if (!k) kinds.push(k = { key: f.key, label: f.label, subs: [] });
+      const opts = optionsFor(e.wire, f, sel, sh);
+      if (opts && opts.length) k.subs.push({ id, f, opts, cur: sel[f.key] });
+    });
+  });
+
+  const many = state.picked.length > 1;
+  const rows = kinds.filter((k) => k.subs.length).map((k) => {
+    const fid = 'wf-' + k.key;
+    const body = k.subs.map(({ id, f, opts, cur }) => {
+      const options = opts.map((o) =>
+        '<option value="' + esc(id + '|' + o.value) + '"' +
+        (cur != null && String(cur) === String(o.value) ? ' selected' : '') + '>' +
+        esc(o.label) + ' (' + num(o.count) + ')</option>').join('');
+      return many ? '<optgroup label="' + esc(BY_ID[id].name) + '">' + options + '</optgroup>' : options;
+    }).join('');
+    const set = k.subs.some((s) => s.cur != null);
+    return '<label class="wire-filter" for="' + fid + '">' + esc(k.label) +
+      '<select id="' + fid + '" data-key="' + k.key + '"' + (set ? ' class="set"' : '') + '>' +
+        '<option value="">All</option>' + body +
+      '</select></label>';
   }).join('');
+
+  $filters.innerHTML = rows + unread.map((u) =>
+    '<p class="wire-unread">' + esc(BY_ID[u.id].name) + ' could not be read (' + esc(String(u.error)) + '). ' +
+    '<button type="button" class="wire-btn" data-retry="' + u.id + '">Try again</button></p>').join('');
   if (active) { const el = document.getElementById(active); if (el && $filters.contains(el)) el.focus(); }
 }
 
