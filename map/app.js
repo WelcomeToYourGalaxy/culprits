@@ -1186,59 +1186,188 @@ function setBasemap(kind) {
   if (typeof map.triggerRepaint === "function") map.triggerRepaint();
 }
 
-/* ---------- views: globe, globe to flat, flat; and space behind ---------- */
+/* ---------- views, and the hand-over to NASA's Eyes ---------- */
 
 // MapLibre's own projection names. "globe" is its globe that turns into the
 // flat map between zoom 10 and 12; "vertical-perspective" stays a globe.
 const VIEWS = {
-  "globe":      { projection: "vertical-perspective", space: true,
-                  nm: "Globe", un: "A globe at every zoom." },
-  "globe-flat": { projection: "globe", space: true,
-                  nm: "Globe to flat", un: "A globe at world view that flattens into the map as you zoom in." },
-  "flat":       { projection: "mercator", space: false,
-                  nm: "Flat map", un: "The flat map. Space stays off unless you tick it." },
+  "globe":      { projection: "vertical-perspective", leave: true,
+                  nm: "Globe", un: "A globe at every zoom. Zoom out past it to leave Earth." },
+  "globe-flat": { projection: "globe", leave: true,
+                  nm: "Globe to flat", un: "A globe at world view that flattens into the map as you zoom in. Zoom out past it to leave Earth." },
+  "flat":       { projection: "mercator", leave: false,
+                  nm: "Flat map", un: "The flat map, with no way out to space." },
 };
 let VIEW = "globe-flat";
-let SPACE = VIEWS[VIEW].space;
+let AWAY = false;             // true while Eyes has the screen
+let leaving = false;          // guards the hand-over animation
 
 // NASA's Eyes on the Solar System, centred on Earth, with its panels closed.
-// Change "earth" to another Eyes target (for example sc_voyager_1) to centre
-// the backdrop on something else.
 const SPACE_URL = "https://eyes.nasa.gov/apps/solar-system/#/earth?embed=true&logo=false&menu=false&featured=false";
 
-function setSpace(on) {
-  SPACE = !!on;
-  const frame = document.getElementById("space");
-  if (frame) {
-    // Loaded the first time it is shown, not with the page: it is a whole app.
-    if (SPACE && !frame.src) frame.src = SPACE_URL;
-    frame.hidden = !SPACE;
+// How Earth sits in Eyes, measured by eye once (open the map with #fit at the
+// end of the address; see fitMode below). radius is Earth's drawn radius as a
+// share of the window's height. lon and lat are the point facing the camera at
+// the moment given by at. rate is how fast that point moves: "stars" if Eyes
+// holds its camera against the stars (a sidereal day), "sun" if it holds it
+// against the Sun (a solar day). If the globe and Earth line up when you
+// calibrate but have drifted apart a day later, switch rate.
+const EYES_FIT = { radius: 0.24, lon: 0, lat: 0, at: "2026-09-17T00:00:00Z", rate: "stars" };
+const TURN = { stars: 360.9856473, sun: 360 };   // degrees a day
+
+// The globe's drawn radius in screen pixels, from MapLibre's own camera: the
+// camera sits cameraToCenterDistance in front of the surface, the planet is
+// worldSize / 2π across (wider near the poles, as MapLibre scales it), and the
+// silhouette is where the line of sight grazes it.
+function globeRadiusPx(zoom, lat) {
+  const t = map.transform || {};
+  const c2c = t.cameraToCenterDistance || (1.5 * (map.getCanvas().clientHeight || 800));
+  const R = (512 * Math.pow(2, zoom)) / (2 * Math.PI) / Math.cos((lat || 0) * Math.PI / 180);
+  const D = c2c + R;                             // camera to the planet's centre
+  return c2c * R / Math.sqrt(D * D - R * R);
+}
+
+// The zoom at which the globe is exactly as big as Earth is in Eyes.
+function handoffZoom() {
+  const want = EYES_FIT.radius * (map.getCanvas().clientHeight || 800);
+  let lo = -4, hi = 6;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (globeRadiusPx(mid, EYES_FIT.lat) < want) lo = mid; else hi = mid;
   }
-  // On a globe the dark background is drawn on the planet only (it fills the
-  // caps beyond 85°), so it stays. On the flat map it fills the whole screen
-  // and would paint over space, so it goes while space shows.
-  const flat = VIEWS[VIEW].projection === "mercator";
-  if (map.getLayer("bg")) map.setLayoutProperty("bg", "visibility", SPACE && flat ? "none" : "visible");
-  const box = document.getElementById("space-toggle");
-  if (box) box.checked = SPACE;
+  return (lo + hi) / 2;
+}
+
+// The point on Earth facing Eyes' camera now, carried forward from the
+// calibration by Earth's own rate of turn.
+function eyesFacing(now) {
+  const days = ((now || Date.now()) - Date.parse(EYES_FIT.at)) / 86400000;
+  const lon = ((EYES_FIT.lon + TURN[EYES_FIT.rate] * days + 180) % 360 + 360) % 360 - 180;
+  return { lon, lat: EYES_FIT.lat };
+}
+
+function spaceFrame() { return document.getElementById("space"); }
+
+// Loaded before it is needed: Eyes is a whole application, and a cold start in
+// the middle of the hand-over would show a black screen.
+function warmSpace() {
+  const f = spaceFrame();
+  if (f && !f.src) { f.src = SPACE_URL; f.hidden = false; }
+}
+
+function panelsAway(on) {
+  for (const sel of [".panel", "#legend", ".wire"]) {
+    const el = document.querySelector(sel);
+    if (el && el.classList) el.classList.toggle("away", on);
+  }
+}
+
+function leaveEarth() {
+  if (AWAY || leaving || !VIEWS[VIEW].leave) return;
+  leaving = true;
+  warmSpace();
+  const to = eyesFacing(Date.now());
+  const done = () => {
+    AWAY = true;
+    leaving = false;
+    const f = spaceFrame();
+    if (f) { f.hidden = false; f.classList.add("on"); }
+    const bar = document.getElementById("spaceBar");
+    if (bar) bar.hidden = false;
+    const el = document.getElementById("map");
+    if (el && el.classList) el.classList.add("away");
+    panelsAway(true);
+  };
+  // Moved to Earth's own face and size first, then faded across.
+  if (typeof map.easeTo === "function") {
+    map.easeTo({ center: [to.lon, to.lat], zoom: handoffZoom(), bearing: 0, pitch: 0, duration: 900 });
+    setTimeout(done, 950);
+  } else {
+    done();
+  }
+}
+
+function backToMap() {
+  if (!AWAY) return;
+  AWAY = false;
+  const f = spaceFrame();
+  if (f) f.classList.remove("on");
+  const bar = document.getElementById("spaceBar");
+  if (bar) bar.hidden = true;
+  const el = document.getElementById("map");
+  if (el && el.classList) el.classList.remove("away");
+  panelsAway(false);
+  if (typeof map.triggerRepaint === "function") map.triggerRepaint();
+}
+
+// Zooming out past the globe is what leaves Earth. The map is stopped a little
+// below the hand-over size so the last turn of the wheel has somewhere to go.
+function watchForLeaving() {
+  const edge = () => handoffZoom() - 0.45;
+  const check = () => {
+    if (!VIEWS[VIEW].leave || AWAY || leaving) return;
+    const z = map.getZoom();
+    if (z < handoffZoom() + 1.2) warmSpace();
+    if (z <= edge() + 0.02) leaveEarth();
+  };
+  map.on("zoom", check);
+  map.on("moveend", check);
+  const setEdge = () => { if (typeof map.setMinZoom === "function") map.setMinZoom(VIEWS[VIEW].leave ? edge() : 0); };
+  map.on("resize", setEdge);
+  setEdge();
 }
 
 function setView(kind) {
   if (!VIEWS[kind]) return;
   VIEW = kind;
   if (typeof map.setProjection === "function") map.setProjection({ type: VIEWS[kind].projection });
-  setSpace(VIEWS[kind].space);
+  if (typeof map.setMinZoom === "function") map.setMinZoom(VIEWS[kind].leave ? handoffZoom() - 0.45 : 0);
+  if (!VIEWS[kind].leave && AWAY) backToMap();
   if (typeof map.triggerRepaint === "function") map.triggerRepaint();
+}
+
+// Lining the two up, once: open the map with #fit at the end of the address.
+// Eyes is held over the globe at half transparency; the arrow keys turn the
+// globe, +/- change its size, and the box prints the line to paste into
+// EYES_FIT above.
+function fitMode() {
+  if (typeof location === "undefined" || !/(^|[#&])fit\b/.test(location.hash || "")) return;
+  warmSpace();
+  const f = spaceFrame();
+  if (f) { f.hidden = false; f.classList.add("on"); f.style.opacity = ".5"; f.style.pointerEvents = "none"; }
+  const box = document.createElement("div");
+  box.className = "fit-box";
+  document.body.appendChild(box);
+  const state = { radius: EYES_FIT.radius, lon: map.getCenter().lng, lat: map.getCenter().lat };
+  const draw = () => {
+    EYES_FIT.radius = state.radius;
+    map.jumpTo({ center: [state.lon, state.lat], zoom: handoffZoom(), bearing: 0, pitch: 0 });
+    box.innerHTML = "Line the globe up with Earth behind it. Arrows turn it, + and &#8722; resize it." +
+      "<code>const EYES_FIT = { radius: " + state.radius.toFixed(4) + ", lon: " + state.lon.toFixed(2) +
+      ", lat: " + state.lat.toFixed(2) + ', at: "' + new Date().toISOString() + '", rate: "stars" };</code>';
+  };
+  window.addEventListener("keydown", (e) => {
+    const step = e.shiftKey ? 0.2 : 2;
+    if (e.key === "ArrowLeft") state.lon -= step;
+    else if (e.key === "ArrowRight") state.lon += step;
+    else if (e.key === "ArrowUp") state.lat = Math.min(85, state.lat + step);
+    else if (e.key === "ArrowDown") state.lat = Math.max(-85, state.lat - step);
+    else if (e.key === "+" || e.key === "=") state.radius *= 1.01;
+    else if (e.key === "-") state.radius /= 1.01;
+    else return;
+    e.preventDefault();
+    draw();
+  });
+  draw();
 }
 
 function viewPanelHtml() {
   return `<p class="bm-h">View</p>` + Object.entries(VIEWS).map(([k, v]) =>
     `<label class="layer"><input type="radio" name="view" value="${k}"${k === VIEW ? " checked" : ""}>` +
     `<span class="body"><span class="nm">${v.nm}</span><span class="un">${v.un}</span></span></label>`).join("") +
-    `<label class="layer"><input type="checkbox" id="space-toggle"${SPACE ? " checked" : ""}>` +
-    `<span class="body"><span class="nm">Space behind the map</span>` +
-    `<span class="un">NASA's Eyes on the Solar System, centred on Earth: real stars and the spacecraft ` +
-    `around Earth, live. A separate app: it does not turn with the globe.</span></span></label>` +
+    `<div class="layer leave-row"><button type="button" id="leave-earth" class="leave">Leave Earth &#8594;</button>` +
+    `<span class="un">Hands the screen to NASA's Eyes on the Solar System, working in full, with Earth ` +
+    `where this globe was. A bar at the top brings the map back.</span></div>` +
     `<p class="bm-h" style="margin-top:10px">Basemap</p>`;
 }
 
@@ -1259,10 +1388,12 @@ function buildBasemapPanel() {
     `<label class="layer"><input type="radio" name="basemap" value="${k}"` +
     `${k === BASEMAP ? " checked" : ""}><span class="body"><span class="nm">${nm}</span>` +
     `<span class="un">${un}</span></span></label>`).join("");
+  box.addEventListener("click", (e) => {
+    if (e.target && e.target.id === "leave-earth") leaveEarth();
+  });
   box.addEventListener("change", (e) => {
     if (e.target && e.target.name === "basemap") setBasemap(e.target.value);
     if (e.target && e.target.name === "view") setView(e.target.value);
-    if (e.target && e.target.id === "space-toggle") setSpace(e.target.checked);
   });
 }
 
@@ -3031,8 +3162,11 @@ map.on("load", () => {
   try { addBasemapLayers(); } catch (e) { console.warn("[culprits] basemap layers:", e.message); }
   addLabelsOnTop();
   setBasemap(BASEMAP);
-  setSpace(SPACE);
   buildBasemapPanel();
+  watchForLeaving();
+  fitMode();
+  const back = document.getElementById("spaceBack");
+  if (back) back.addEventListener("click", backToMap);
   LAYERS.filter((c) => c.ready).forEach((cfg) => {
     try {
       if (cfg.route === "worker") addLiveLayer(cfg);

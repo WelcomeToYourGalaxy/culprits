@@ -92,6 +92,11 @@ class FakeMap {
     l.filter = f;
   }
   getZoom() { return this.zoom; }
+  setZoom(z) { this.zoom = z; }
+  setMinZoom() {}
+  setProjection() {}
+  getCenter() { return { lng: 0, lat: 0 }; }
+  easeTo(o) { if (o && o.zoom != null) this.zoom = o.zoom; }
   getBounds() {
     return { getWest: () => 10, getSouth: () => 20, getEast: () => 11, getNorth: () => 21 };
   }
@@ -133,6 +138,14 @@ function run({ layersReady = null, fetchImpl = null } = {}) {
       // simply find no match.
       querySelector: () => null, querySelectorAll: () => [],
       dataset: {}, after() {}, replaceWith() {}, closest: () => null,
+      // Enough of an element to be shown, hidden and faded: the hand-over to
+      // Eyes works by adding classes and clearing `hidden`.
+      hidden: true, style: {}, src: "",
+      classList: { list: [],
+        add(c) { if (!this.list.includes(c)) this.list.push(c); },
+        remove(c) { this.list = this.list.filter((x) => x !== c); },
+        contains(c) { return this.list.includes(c); },
+        toggle(c, on) { on ? this.add(c) : this.remove(c); } },
     }), els.get(id)),
     // One object per selector, kept, so a layer's status line can be read back.
     querySelector: (sel) => (states[sel] ||= { textContent: "" }),
@@ -1046,8 +1059,9 @@ console.log("\none world, and the globe");
   check("an atmosphere at world view, gone by zoom 7", /"atmosphere-blend":\s*\["interpolate",\s*\["linear"\],\s*\["zoom"\]/.test(opts));
   const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   check("MapLibre 5, the first version with a globe", /maplibre-gl@5\.\d+\.\d+\/dist\/maplibre-gl\.js/.test(index) && !/maplibre-gl@4/.test(index));
-  check("the space frame sits behind the map and cannot be clicked",
-        index.indexOf('id="space"') < index.indexOf('id="map"') && /\.space\{[^}]*pointer-events:none/.test(index));
+  check("Eyes is silent until it is handed the screen, then takes every click",
+        /\.space\{[^}]*pointer-events:none/.test(index) && /\.space\.on\{[^}]*pointer-events:auto/.test(index) &&
+        /id="spaceBack"/.test(index));
   const mesh = new Function(src.match(/const WASH_MESH[\s\S]*?\nfunction washMesh[\s\S]*?\n}\n/)[0] + "; return washMesh(WASH_MESH);")();
   check("the washes are a mesh over the whole world, in mercator 0..1",
         mesh.length === 96 * 64 * 12 && Math.min(...mesh) === 0 && Math.max(...mesh) === 1);
@@ -1055,26 +1069,55 @@ console.log("\none world, and the globe");
         /projectTile\(a_pos\)/.test(src) && /vertexShaderPrelude/.test(src) && !/gl_Position = vec4\(p, 0\.0, 1\.0\)/.test(src));
 }
 {
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const radius = new Function("map", src.match(/function globeRadiusPx[\s\S]*?\n}\n/)[0] + "; return globeRadiusPx;")(
+    { transform: { cameraToCenterDistance: 1200 }, getCanvas: () => ({ clientHeight: 800 }), getZoom: () => 0 });
+  // Measured in a browser at 1200 × 800: 76, 144, 262 and 450 pixels.
+  const near = (z, px) => Math.abs(radius(z, 0) - px) <= 1.5;
+  check("the globe's drawn size is worked out, not guessed", near(0, 76) && near(1, 144) && near(2, 262.5) && near(3, 450.5),
+        [0, 1, 2, 3].map((z) => radius(z, 0).toFixed(1)).join(" "));
+  const facing = new Function(src.match(/const EYES_FIT[\s\S]*?\nfunction eyesFacing[\s\S]*?\n}\n/)[0] + "; return { eyesFacing, EYES_FIT };")();
+  const t0 = Date.parse(facing.EYES_FIT.at);
+  check("Earth's face is carried forward from the calibration", Math.abs(facing.eyesFacing(t0).lon - facing.EYES_FIT.lon) < 1e-6);
+  const aDay = facing.eyesFacing(t0 + 86400000).lon, anHour = facing.eyesFacing(t0 + 3600000).lon;
+  check("a day on turns it once round, an hour on by fifteen degrees",
+        Math.abs(aDay - facing.EYES_FIT.lon) < 1.1 && Math.abs(anHour - facing.EYES_FIT.lon - 15.04) < 0.1,
+        `${aDay.toFixed(2)} ${anHour.toFixed(2)}`);
+}
+{
   const { map, els } = run();
-  map.layers.push({ id: "bg", type: "background" });
   const projections = [];
   map.setProjection = (p) => projections.push(p.type);
+  const minZooms = [];
+  map.setMinZoom = (z) => minZooms.push(z);
+  const eased = [];
+  map.easeTo = (o) => eased.push(o);
   map.fire("load"); await new Promise((r) => setTimeout(r, 5));
   const panel = els.get("basemaps");
-  check("the panel offers the three views and space", /value="globe"/.test(panel.innerHTML) && /value="globe-flat" checked/.test(panel.innerHTML) &&
-        /value="flat"/.test(panel.innerHTML) && /id="space-toggle" checked/.test(panel.innerHTML));
-  const frame = els.get("space");
-  check("space shows with the opening globe, loaded from NASA's Eyes", frame.hidden === false && /^https:\/\/eyes\.nasa\.gov\/apps\/solar-system\/#\/earth\?embed=true/.test(frame.src));
-  check("on the globe the background stays: it covers only the planet", (map.getLayer("bg").layout || {}).visibility === "visible");
+  check("the panel offers the three views and the way out", /value="globe"/.test(panel.innerHTML) &&
+        /value="globe-flat" checked/.test(panel.innerHTML) && /value="flat"/.test(panel.innerHTML) &&
+        /id="leave-earth"/.test(panel.innerHTML));
+  const el = (id) => globalThis.document.getElementById(id);
+  const frame = el("space");
+  check("Eyes is not loaded while the map is being read", !frame.src);
+  map.setZoom(2.4); map.fire("zoom");
+  check("nearing the way out loads Eyes quietly, still hidden", /^https:\/\/eyes\.nasa\.gov\/apps\/solar-system\/#\/earth\?embed=true/.test(frame.src) && !(frame.classList.list || []).includes("on"));
+  map.setZoom(-3); map.fire("zoom");
+  await new Promise((r) => setTimeout(r, 1000));
+  check("zooming out past the globe hands the screen over", (frame.classList.list || []).includes("on") &&
+        (el("map").classList.list || []).includes("away") && el("spaceBar").hidden === false);
+  check("the map is moved to Earth's own size and face first",
+        eased.length === 1 && Math.abs(eased[0].zoom - (-0.6)) < 3 && eased[0].bearing === 0 && Array.isArray(eased[0].center));
+  el("spaceBack").fire("click", {});
+  check("the bar brings the map back", !(frame.classList.list || []).includes("on") &&
+        !(el("map").classList.list || []).includes("away") && el("spaceBar").hidden === true);
   const change = (t) => panel.fire("change", { target: t });
   change({ name: "view", value: "flat" });
-  check("the flat map is mercator, with space off", projections.at(-1) === "mercator" && frame.hidden === true);
-  const bgVis = () => (map.getLayer("bg").layout || {}).visibility;
-  check("the dark background returns without space", bgVis() === "visible");
-  change({ id: "space-toggle", checked: true });
-  check("space can be ticked on over the flat map, clearing the background there", frame.hidden === false && bgVis() === "none");
+  check("the flat map is mercator, with no way out", projections.at(-1) === "mercator" && minZooms.at(-1) === 0);
   change({ name: "view", value: "globe" });
   check("the globe view stays a globe at every zoom", projections.at(-1) === "vertical-perspective");
+  check("…and is stopped just past the hand-over size", minZooms.at(-1) > -4 && minZooms.at(-1) < 4,
+        String(minZooms.at(-1)));
   change({ name: "view", value: "globe-flat" });
   check("globe to flat uses MapLibre's own transition", projections.at(-1) === "globe");
 }
