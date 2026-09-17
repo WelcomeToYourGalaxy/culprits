@@ -1211,13 +1211,13 @@ const SPACE_URL = "https://eyes.nasa.gov/apps/solar-system/#/earth?featured=fals
   "&minorMoons=true&heliosphere=true&lighting=natural";
 
 // How Earth sits in Eyes, measured by eye once (open the map with #fit at the
-// end of the address; see fitMode below). radius is Earth's drawn radius as a
-// share of the window's height. lon and lat are the point facing the camera at
-// the moment given by at. rate is how fast that point moves: "stars" if Eyes
-// holds its camera against the stars (a sidereal day), "sun" if it holds it
-// against the Sun (a solar day). If the globe and Earth line up when you
-// calibrate but have drifted apart a day later, switch rate.
-const EYES_FIT = { radius: 0.24, lon: 0, lat: 0, at: "2026-09-17T00:00:00Z", rate: "stars" };
+// end of the address; see fitMode below). zoom is the map zoom whose globe is
+// the same size as Earth in Eyes — measured at 2. lon and lat are the point
+// facing the camera at the moment given by at. rate is how fast that point
+// moves: "stars" if Eyes holds its camera against the stars (a sidereal day),
+// "sun" if it holds it against the Sun (a solar day). If the globe and Earth
+// line up when you calibrate but have drifted apart a day later, switch rate.
+const EYES_FIT = { zoom: 2, lon: 0, lat: 0, at: "2026-09-17T00:00:00Z", rate: "stars" };
 const TURN = { stars: 360.9856473, sun: 360 };   // degrees a day
 
 // The globe's drawn radius in screen pixels, from MapLibre's own camera: the
@@ -1233,15 +1233,7 @@ function globeRadiusPx(zoom, lat) {
 }
 
 // The zoom at which the globe is exactly as big as Earth is in Eyes.
-function handoffZoom() {
-  const want = EYES_FIT.radius * (map.getCanvas().clientHeight || 800);
-  let lo = -4, hi = 6;
-  for (let i = 0; i < 40; i++) {
-    const mid = (lo + hi) / 2;
-    if (globeRadiusPx(mid, EYES_FIT.lat) < want) lo = mid; else hi = mid;
-  }
-  return (lo + hi) / 2;
-}
+function handoffZoom() { return EYES_FIT.zoom; }
 
 // The point on Earth facing Eyes' camera now, carried forward from the
 // calibration by Earth's own rate of turn.
@@ -1249,6 +1241,16 @@ function eyesFacing(now) {
   const days = ((now || Date.now()) - Date.parse(EYES_FIT.at)) / 86400000;
   const lon = ((EYES_FIT.lon + TURN[EYES_FIT.rate] * days + 180) % 360 + 360) % 360 - 180;
   return { lon, lat: EYES_FIT.lat };
+}
+
+// MapLibre holds the flat map so that it always fills the window, which is why
+// the drag stopped at the map's edges once the repeated copies were turned
+// off. This hands the camera back whatever it was given, so the chart can be
+// dragged and zoomed out into the stars around it.
+function freeConstrain(lngLat, zoom) {
+  const lat = Math.max(-89.9, Math.min(89.9, lngLat.lat));
+  const lng = Math.max(-540, Math.min(540, lngLat.lng));
+  return { center: new maplibregl.LngLat(lng, lat), zoom: zoom == null ? 0 : zoom };
 }
 
 function spaceFrame() { return document.getElementById("space"); }
@@ -1267,9 +1269,12 @@ function panelsAway(on) {
   }
 }
 
+let leftFrom = null;          // the view the map was at when Eyes took over
+
 function leaveEarth() {
   if (AWAY || leaving || !VIEWS[VIEW].leave) return;
   leaving = true;
+  leftFrom = { center: map.getCenter(), zoom: Math.max(map.getZoom(), handoffZoom() + 0.6) };
   warmSpace();
   const to = eyesFacing(Date.now());
   const done = () => {
@@ -1279,6 +1284,8 @@ function leaveEarth() {
     if (f) { f.hidden = false; f.classList.add("on"); }
     const bar = document.getElementById("spaceBar");
     if (bar) bar.hidden = false;
+    const edge = document.getElementById("spaceEdge");
+    if (edge) edge.hidden = false;
     const el = document.getElementById("map");
     if (el && el.classList) el.classList.add("away");
     panelsAway(true);
@@ -1299,16 +1306,36 @@ function backToMap() {
   if (f) f.classList.remove("on");
   const bar = document.getElementById("spaceBar");
   if (bar) bar.hidden = true;
+  const edge = document.getElementById("spaceEdge");
+  if (edge) edge.hidden = true;
   const el = document.getElementById("map");
   if (el && el.classList) el.classList.remove("away");
   panelsAway(false);
+  // The way in mirrors the way out: the globe appears at the size Earth had in
+  // Eyes, then grows back to the view that was left.
+  if (leftFrom && typeof map.easeTo === "function") {
+    map.jumpTo({ center: [eyesFacing(Date.now()).lon, EYES_FIT.lat], zoom: handoffZoom(), bearing: 0, pitch: 0 });
+    map.easeTo({ center: leftFrom.center, zoom: leftFrom.zoom, duration: 1400 });
+  }
   if (typeof map.triggerRepaint === "function") map.triggerRepaint();
+}
+
+// The wheel and the clicks in the middle of the screen belong to Eyes, which
+// is another site's frame: this page never sees them. The edge of the screen
+// is this page's own, so scrolling in there, or double-clicking, comes back.
+function watchSpaceEdge() {
+  const edge = document.getElementById("spaceEdge");
+  if (!edge || !edge.addEventListener) return;
+  edge.addEventListener("wheel", (e) => {
+    if (AWAY && e.deltaY < 0) { if (e.preventDefault) e.preventDefault(); backToMap(); }
+  }, { passive: false });
+  edge.addEventListener("dblclick", () => { if (AWAY) backToMap(); });
 }
 
 // Zooming out past the globe is what leaves Earth. The map is stopped a little
 // below the hand-over size so the last turn of the wheel has somewhere to go.
 function watchForLeaving() {
-  const edge = () => handoffZoom() - 0.45;
+  const edge = () => handoffZoom() - 0.15;
   const check = () => {
     if (!VIEWS[VIEW].leave || AWAY || leaving) return;
     const z = map.getZoom();
@@ -1317,7 +1344,7 @@ function watchForLeaving() {
   };
   map.on("zoom", check);
   map.on("moveend", check);
-  const setEdge = () => { if (typeof map.setMinZoom === "function") map.setMinZoom(VIEWS[VIEW].leave ? edge() : 0); };
+  const setEdge = () => { if (typeof map.setMinZoom === "function") map.setMinZoom(VIEWS[VIEW].leave ? edge() : -1); };
   map.on("resize", setEdge);
   setEdge();
 }
@@ -1326,7 +1353,11 @@ function setView(kind) {
   if (!VIEWS[kind]) return;
   VIEW = kind;
   if (typeof map.setProjection === "function") map.setProjection({ type: VIEWS[kind].projection });
-  if (typeof map.setMinZoom === "function") map.setMinZoom(VIEWS[kind].leave ? handoffZoom() - 0.45 : 0);
+  if (typeof map.setMinZoom === "function") map.setMinZoom(VIEWS[kind].leave ? handoffZoom() - 0.15 : -1);
+  // The flat map is free of its own edges: drag it out into the stars.
+  if (typeof map.setTransformConstrain === "function") {
+    map.setTransformConstrain(VIEWS[kind].projection === "mercator" ? freeConstrain : null);
+  }
   skyForView(VIEWS[kind].projection);
   if (!VIEWS[kind].leave && AWAY) backToMap();
   if (typeof map.triggerRepaint === "function") map.triggerRepaint();
@@ -1344,12 +1375,12 @@ function fitMode() {
   const box = document.createElement("div");
   box.className = "fit-box";
   document.body.appendChild(box);
-  const state = { radius: EYES_FIT.radius, lon: map.getCenter().lng, lat: map.getCenter().lat };
+  const state = { zoom: EYES_FIT.zoom, lon: map.getCenter().lng, lat: map.getCenter().lat };
   const draw = () => {
-    EYES_FIT.radius = state.radius;
+    EYES_FIT.zoom = state.zoom;
     map.jumpTo({ center: [state.lon, state.lat], zoom: handoffZoom(), bearing: 0, pitch: 0 });
     box.innerHTML = "Line the globe up with Earth behind it. Arrows turn it, + and &#8722; resize it." +
-      "<code>const EYES_FIT = { radius: " + state.radius.toFixed(4) + ", lon: " + state.lon.toFixed(2) +
+      "<code>const EYES_FIT = { zoom: " + state.zoom.toFixed(3) + ", lon: " + state.lon.toFixed(2) +
       ", lat: " + state.lat.toFixed(2) + ', at: "' + new Date().toISOString() + '", rate: "stars" };</code>';
   };
   window.addEventListener("keydown", (e) => {
@@ -1358,8 +1389,8 @@ function fitMode() {
     else if (e.key === "ArrowRight") state.lon += step;
     else if (e.key === "ArrowUp") state.lat = Math.min(85, state.lat + step);
     else if (e.key === "ArrowDown") state.lat = Math.max(-85, state.lat - step);
-    else if (e.key === "+" || e.key === "=") state.radius *= 1.01;
-    else if (e.key === "-") state.radius /= 1.01;
+    else if (e.key === "+" || e.key === "=") state.zoom += 0.05;
+    else if (e.key === "-") state.zoom -= 0.05;
     else return;
     e.preventDefault();
     draw();
@@ -3339,6 +3370,16 @@ map.on("load", () => {
   fitMode();
   const back = document.getElementById("spaceBack");
   if (back) back.addEventListener("click", backToMap);
+  watchSpaceEdge();
+  const roll = document.getElementById("panelRoll");
+  if (roll) roll.addEventListener("click", () => {
+    const panel = document.querySelector(".panel");
+    if (!panel || !panel.classList) return;
+    const shut = panel.classList.contains("shut");
+    panel.classList.toggle("shut", !shut);
+    roll.textContent = shut ? "\u25BE" : "\u25B4";
+    roll.setAttribute("aria-expanded", shut ? "true" : "false");
+  });
   LAYERS.filter((c) => c.ready).forEach((cfg) => {
     try {
       if (cfg.route === "worker") addLiveLayer(cfg);

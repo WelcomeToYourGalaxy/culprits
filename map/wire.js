@@ -544,7 +544,7 @@ const CSS = `
   width:min(var(--box-w,290px),calc(100vw - 18px));display:flex;flex-direction:column;
   background:rgba(31,28,21,.95);border:1px solid var(--rule,#322E27);color:var(--bone,#DCD6C6);
   font:13px/1.45 var(--sans,system-ui,sans-serif);backdrop-filter:blur(6px)}
-.wire.open{height:min(54vh,600px,calc(100% - 96px - var(--wire-lift,0px)))}
+.wire.open{height:calc(100vh - 42px - var(--wire-lift,0px))}
 .wire button,.wire select,.wire input{font:inherit;color:inherit}
 .wire :focus-visible{outline:2px solid var(--slate,#5C6E77);outline-offset:1px}
 .wire-bar{display:flex;align-items:center;gap:10px;padding:7px 10px 7px 8px}

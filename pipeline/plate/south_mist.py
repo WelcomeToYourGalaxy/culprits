@@ -87,6 +87,17 @@ lo = np.floor(rows).astype(int); hi = np.minimum(lo + 1, north.shape[0] - 1); t 
 mist[:END - LINE] = north[lo] * (1 - t)[:, None] + north[hi] * t[:, None]
 mist[:4] = np.maximum(mist[:4], 1.0)      # joins the painting above without a seam
 
+# Land below the old line — the tip of South America and the islands by it —
+# is drawn as solidly as the land above it, with the mist closing round it,
+# rather than being faded out with the water.
+low = rgb[LINE:1090]
+bright = low.mean(axis=2) > 95
+warm = (low[..., 0] - low[..., 2] > 5) | (low.mean(axis=2) > 150)
+land = np.zeros((H - LINE, W), bool)
+land[:1090 - LINE] = bright & warm & real[LINE:1090] & (A[LINE:1090] == 0)
+land = gaussian_filter(land.astype(float), 5)
+mist = np.maximum(mist, np.clip(land * 2.2, 0, 1))
+
 # 4. The compass rose, cartouche and sea creatures keep their own pixels exactly;
 #    only what was see-through around them now shows mist instead of imagery.
 out = im.copy()

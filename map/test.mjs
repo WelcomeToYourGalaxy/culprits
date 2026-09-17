@@ -97,6 +97,8 @@ class FakeMap {
   setProjection() {}
   getCenter() { return { lng: 0, lat: 0 }; }
   easeTo(o) { if (o && o.zoom != null) this.zoom = o.zoom; }
+  jumpTo(o) { if (o && o.zoom != null) this.zoom = o.zoom; }
+  setTransformConstrain() {}
   getBounds() {
     return { getWest: () => 10, getSouth: () => 20, getEast: () => 11, getNorth: () => 21 };
   }
@@ -1110,13 +1112,13 @@ console.log("\none world, and the globe");
   check("zooming out past the globe hands the screen over", (frame.classList.list || []).includes("on") &&
         (el("map").classList.list || []).includes("away") && el("spaceBar").hidden === false);
   check("the map is moved to Earth's own size and face first",
-        eased.length === 1 && Math.abs(eased[0].zoom - (-0.6)) < 3 && eased[0].bearing === 0 && Array.isArray(eased[0].center));
+        eased.length === 1 && eased[0].zoom === 2 && eased[0].bearing === 0 && Array.isArray(eased[0].center));
   el("spaceBack").fire("click", {});
   check("the bar brings the map back", !(frame.classList.list || []).includes("on") &&
         !(el("map").classList.list || []).includes("away") && el("spaceBar").hidden === true);
   const change = (t) => panel.fire("change", { target: t });
   change({ name: "view", value: "flat" });
-  check("the flat map is mercator, with no way out", projections.at(-1) === "mercator" && minZooms.at(-1) === 0);
+  check("the flat map is mercator, with no way out", projections.at(-1) === "mercator" && minZooms.at(-1) === -1);
   change({ name: "view", value: "globe" });
   check("the globe view stays a globe at every zoom", projections.at(-1) === "vertical-perspective");
   check("…and is stopped just past the hand-over size", minZooms.at(-1) > -4 && minZooms.at(-1) < 4,
@@ -1204,6 +1206,52 @@ console.log("\nthe boxes");
         /makePullable\(document\.getElementById\("legend"\), "top"\)/.test(src) && /getElementById\("wire"\)/.test(src) &&
         /\.pull-grip\{[^}]*cursor:ns-resize/.test(index));
   check("the scale bar no longer lies across the legend", /ScaleControl\([^)]*\), "bottom-left"\)/.test(src));
+}
+
+
+console.log("\ncoming back, and room to move");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const wireSrc = fs.readFileSync(path.join(HERE, "wire.js"), "utf8");
+  const fit = new Function(src.match(/const EYES_FIT[\s\S]*?\n};\n/)[0] +
+                           src.match(/function handoffZoom[\s\S]*?\n/)[0] + "; return { EYES_FIT, handoffZoom };")();
+  check("the hand-over happens at the size Earth has in Eyes, measured at zoom 2",
+        fit.EYES_FIT.zoom === 2 && fit.handoffZoom() === 2);
+  check("the drop out of the map is a short one, not a zoom out to nothing",
+        /handoffZoom\(\) - 0\.15/.test(src) && !/handoffZoom\(\) - 0\.45/.test(src));
+  check("the way back is the screen's edge as well as the bar",
+        /id="spaceEdge"/.test(index) && /\.space-edge \.se\{position:absolute;pointer-events:auto\}/.test(index) &&
+        /edge\.addEventListener\("wheel"/.test(src) && /edge\.addEventListener\("dblclick"/.test(src));
+  check("the flat map is handed its own camera back, so it can leave its edges",
+        /function freeConstrain/.test(src) && /setTransformConstrain\(VIEWS\[kind\]\.projection === "mercator" \? freeConstrain : null\)/.test(src));
+  const free = new Function("maplibregl", src.match(/function freeConstrain[\s\S]*?\n}\n/)[0] + "; return freeConstrain;")(
+    { LngLat: function (lng, lat) { return { lng, lat }; } });
+  check("a centre well past the map's edge is kept, not pulled back",
+        free({ lng: 260, lat: 40 }, 3).center.lng === 260 && free({ lng: 260, lat: 40 }, 3).zoom === 3);
+  check("…but not past the poles", free({ lng: 0, lat: 120 }, 3).center.lat === 89.9);
+  check("the flat map can be zoomed out until it floats", /setMinZoom\([\s\S]{0,70}: -1\)/.test(src));
+  check("the news wires box opens to the top of the map",
+        /\.wire\.open\{height:calc\(100vh - 42px - var\(--wire-lift,0px\)\)\}/.test(wireSrc));
+  check("the layer panel rolls up and down", /id="panelRoll"/.test(index) &&
+        /\.panel\.shut > \*\{display:none\}/.test(index) && /classList\.toggle\("shut"/.test(src));
+}
+{
+  const { map, els } = run();
+  const el = (id) => globalThis.document.getElementById(id);
+  const eased = [];
+  map.setProjection = () => {}; map.setMinZoom = () => {}; map.setTransformConstrain = () => {};
+  map.easeTo = (o) => { eased.push(o); if (o.zoom != null) map.zoom = o.zoom; };
+  map.jumpTo = (o) => { if (o.zoom != null) map.zoom = o.zoom; };
+  map.getCenter = () => ({ lng: 12, lat: 24 });
+  map.fire("load"); await new Promise((r) => setTimeout(r, 5));
+  map.setZoom(4.5);
+  map.setZoom(1.5); map.fire("zoom");
+  await new Promise((r) => setTimeout(r, 1000));
+  check("leaving eases to the hand-over size", eased.length === 1 && eased[0].zoom === 2);
+  el("spaceBack").fire("click", {});
+  check("coming back zooms in again, to the view that was left",
+        eased.length === 2 && eased[1].zoom >= 2.6 && eased[1].duration >= 1000, JSON.stringify(eased.at(-1)));
 }
 
 console.log("\nlegibility");
