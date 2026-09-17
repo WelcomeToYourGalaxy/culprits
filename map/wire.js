@@ -585,9 +585,12 @@ const CSS = `
 .wire-btn[aria-expanded="true"]{color:var(--peat,#17150F);background:var(--bone,#DCD6C6);border-color:var(--bone,#DCD6C6)}
 .wire-body{display:flex;flex-direction:column;min-height:0;flex:1}
 .wire-body[hidden]{display:none}
-.wire-tools{display:flex;gap:6px;padding:8px 10px;align-items:center}
-.wire-tools input{flex:1;min-width:0;background:var(--peat,#17150F);border:1px solid var(--rule,#322E27);
-  padding:2px 7px;border-radius:2px;font-size:12.5px}
+.wire-tools{display:flex;flex-direction:column;gap:6px;padding:8px 10px;align-items:stretch}
+.wire-tools #wirePickBtn{width:100%;text-align:center;font-size:13px;padding:4px 8px}
+.wire-tools input{width:100%;min-width:0;background:var(--peat,#17150F);border:1px solid var(--rule,#322E27);
+  padding:3px 7px;border-radius:2px;font-size:12.5px}
+.wire-when{display:flex;align-items:center;gap:7px;padding:2px 10px 8px;color:var(--dim,#948D7C);font-size:12px}
+.wire-when select{flex:1}
 .wire select{background:var(--peat,#17150F);border:1px solid var(--rule,#322E27);border-radius:2px;
   padding:1px 3px;font-size:12px;max-width:100%}
 .wire-picker{padding:2px 10px 8px;flex:1;min-height:0;overflow:auto}
@@ -652,12 +655,13 @@ function build() {
       '<div class="wire-tools">' +
         '<button type="button" class="wire-btn" id="wirePickBtn" aria-expanded="false" aria-controls="wirePicker">Subjects</button>' +
         '<input type="search" id="wireQ" placeholder="Search headlines" aria-label="Search headlines in the ticked subjects">' +
-        '<select id="wireWhen" aria-label="Time window">' +
-          WINDOWS.map((w) => '<option value="' + w.id + '">' + w.label + '</option>').join('') +
-        '</select>' +
       '</div>' +
       '<div class="wire-picker" id="wirePicker" hidden></div>' +
       '<div class="wire-filters" id="wireFilters"></div>' +
+      '<div class="wire-when"><label for="wireWhen">Time</label>' +
+        '<select id="wireWhen" aria-label="Time window">' +
+          WINDOWS.map((w) => '<option value="' + w.id + '">' + w.label + '</option>').join('') +
+        '</select></div>' +
       '<div class="wire-list" id="wireList"></div>' +
       '<div class="wire-foot">Headlines belong to their publishers. Filters use only what each file publishes.</div>' +
     '</div>';
@@ -721,7 +725,7 @@ function build() {
     const t = e.target.closest && e.target.closest('button');
     if (!t) return;
     if (t.dataset.expand) {
-      state.expanded[t.dataset.expand] = !state.expanded[t.dataset.expand];
+      state.expanded[t.dataset.expand] = state.expanded[t.dataset.expand] === false;
       save();
       renderFilters(t.id);
       layout();
@@ -902,7 +906,7 @@ function renderFilters(focusId) {
     const sel = state.sel[id] || {};
     const setCount = Object.keys(sel).length;
     const facets = e && e.wire ? e.wire.facets : [];
-    const open = !!state.expanded[id];
+    const open = state.expanded[id] !== false;   // open unless it was folded away
     let grid = '';
     if (facets.length) {
       grid = facets.map((f) => {

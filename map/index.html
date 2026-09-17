@@ -65,7 +65,12 @@
   .title-box h1{font-size:17px;font-weight:600;margin:0;letter-spacing:-.01em;flex:1}
   .p-roll{background:none;border:0;color:var(--dim);font-size:13px;line-height:1;cursor:pointer;padding:2px 4px}
   .p-roll:hover{color:var(--bone)}
-  .panel.shut{display:none}
+  .panel-head{position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;
+    background:rgba(31,28,21,.94);padding:1px 0 5px;color:var(--dim);font-size:11px;
+    letter-spacing:.06em;text-transform:uppercase}
+  .panel.shut{height:auto;max-height:none;overflow:hidden}
+  .panel.shut > *{display:none}
+  .panel.shut > .panel-head{display:flex}
 
   /* The settings box: names only, close together. */
   .ctrl-box .layer{padding:3px 0;gap:7px;border-top:none}
@@ -188,10 +193,13 @@
 <div class="left-col">
   <div class="title-box">
     <h1>The Culprits</h1>
-    <button class="p-roll" id="panelRoll" title="Roll the layer list up or down" aria-expanded="true">&#9662;</button>
   </div>
   <div id="basemaps" class="ctrl-box"></div>
   <div class="panel">
+    <div class="panel-head">
+      <span>Layers</span>
+      <button class="p-roll" id="panelRoll" title="Roll the layer list up or down" aria-expanded="true">&#9662;</button>
+    </div>
     <div id="layers"></div>
     <p class="note" id="note"></p>
   </div>

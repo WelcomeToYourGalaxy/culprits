@@ -817,8 +817,8 @@ console.log("\ncerulean, live");
         !!url && !/centerlines/.test(url) && /properties=id,slick_timestamp,/.test(url) && /slick_url$/.test(url), url);
   check("no date filter: every detection since 2023", !!url && !/datetime/.test(url));
   const fill = map.getLayer("cerulean_slicks-fill");
-  check("shapes draw from zoom 7, off the same zoom in the source",
-        fill && fill.minzoom === 7 && fill["source-layer"] === "default" && src.minzoom === 7);
+  check("shapes draw from zoom 6, off the same zoom in the source",
+        fill && fill.minzoom === 6 && fill["source-layer"] === "default" && src.minzoom === 6);
   check("nothing is counted while the layer is off",
         !fetched.some((u) => String(u).includes("cerulean")), fetched.filter((u) => String(u).includes("cerulean")).join(" "));
 }
@@ -848,7 +848,7 @@ console.log("\ncerulean, live");
   check("nothing is shaded at world view", !pts || pts.features.length === 0);
   check("nothing is marked at world view", !caps || caps.features.length === 0);
   const cap = map.getLayer("cerulean_slicks-cap");
-  check("the marking only shows where shapes are drawn", cap && cap.minzoom === 7);
+  check("the marking only shows where shapes are drawn", cap && cap.minzoom === 6);
   els.get("layers").fire("change", { target: { dataset: { layer: "cerulean_slicks" }, checked: false } });
   check("switching off hides the marking too", cap.layout?.visibility === "none");
 }
@@ -1234,7 +1234,7 @@ console.log("\ncoming back, and room to move");
   check("the news wires box opens to the top of the map",
         /\.wire\.open\{height:calc\(100vh - 42px - var\(--wire-lift,0px\)\)\}/.test(wireSrc));
   check("the layer panel rolls up and down", /id="panelRoll"/.test(index) &&
-        /\.panel\.shut\{display:none\}/.test(index) && /classList\.toggle\("shut"/.test(src));
+        /\.panel\.shut > \*\{display:none\}/.test(index) && /classList\.toggle\("shut"/.test(src));
 }
 {
   const { map, els } = run();
@@ -1261,8 +1261,8 @@ console.log("\nthe boxes down the left");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("the name, the settings and the layers are three boxes", /class="left-col"/.test(index) &&
         /<div class="title-box">/.test(index) && /id="basemaps" class="ctrl-box"/.test(index));
-  check("the name's box holds the caret that rolls the layer list",
-        /title-box[\s\S]{0,200}id="panelRoll"/.test(index) && /\.panel\.shut\{display:none\}/.test(index));
+  check("the layer box holds the caret that rolls it",
+        /panel-head[\s\S]{0,200}id="panelRoll"/.test(index) && /\.panel\.shut > \*\{display:none\}/.test(index));
   check("the zoom reading is off the page", !/id="zoomstate"/.test(index) && /const el = document\.getElementById\("zoomstate"\)/.test(src));
   check("only two views are offered", /"globe": \{ projection: "vertical-perspective"/.test(src) &&
         /"flat":  \{ projection: "mercator"/.test(src) && !/globe-flat/.test(src));
@@ -1312,6 +1312,34 @@ console.log("\nthe wires on the map");
   check("the bar is gone; the way back is a box and Earth itself",
         !/space-bar/.test(index) && /id="spaceBack"/.test(index) && /id="spaceEarth"/.test(index) &&
         /function showBack/.test(src) && /globeRadiusPx\(handoffZoom\(\)/.test(src));
+}
+
+
+console.log("\nreading the map");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const wireSrc = fs.readFileSync(path.join(HERE, "wire.js"), "utf8");
+  check("the imagery basemap is graded like the atlas's imagery",
+        /satellite: \{ "raster-brightness-min": ATLAS_TUNE\.lift/.test(src) &&
+        /for \(const k of \["atlas", "satellite"\]\)/.test(src));
+  check("and carries the same washes", /BASEMAP === "outlines" \|\| !options/.test(src));
+  check("the caret sits in the layer box, not the title box",
+        /<div class="panel-head">[\s\S]{0,200}id="panelRoll"/.test(index) &&
+        !/title-box[\s\S]{0,120}panelRoll/.test(index) && /\.panel\.shut > \.panel-head\{display:flex\}/.test(index));
+  check("the Subjects button takes the width", /#wirePickBtn\{width:100%/.test(wireSrc));
+  check("each subject's filters open by default", /state\.expanded\[id\] !== false/.test(wireSrc) &&
+        /state\.expanded\[t\.dataset\.expand\] === false/.test(wireSrc));
+  check("the time window sits with the filters, below them",
+        wireSrc.indexOf("id=\"wireFilters") < wireSrc.indexOf("wire-when\"><label") &&
+        /class="wire-when"><label for="wireWhen">Time<\/label>/.test(wireSrc));
+  check("slicks draw from zoom 6 and are counted from zoom 3",
+        /drawFrom: 6/.test(src) && /const COUNT_FROM = 3/.test(src) && /map\.getZoom\(\) < COUNT_FROM/.test(src));
+  check("the squares below the drawing zoom are a step finer than the view's tiles",
+        /const wide = map\.getZoom\(\) < cfg\.drawFrom;/.test(src) && /\+ \(wide \? 1 : 0\)/.test(src));
+  check("aggregate circles are fainter and softer at world view",
+        /"circle-blur": \["interpolate", \["linear"\], \["zoom"\], 0, \.35/.test(src) &&
+        /0,  \["\*", 0\.18 \* scale, MAGNITUDE_RADIUS\]/.test(src));
 }
 
 console.log("\nlegibility");

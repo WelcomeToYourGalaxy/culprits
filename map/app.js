@@ -359,14 +359,14 @@ const LAYERS = [
   // 21.4 MB with every field and 6.4 MB without centerlines (2.7 MB as the
   // browser downloads it). See CERULEAN below for the limits this works within.
   { id:"cerulean_slicks",      name:"Oil slicks (Cerulean)",   unit:"potential slicks, Sentinel-1", colour:"#5A5750", route:"cerulean", ready:true, off: true,
-    collection: "public.slick_plus", drawFrom: 7,
+    collection: "public.slick_plus", drawFrom: 6,
     // Every field the collection publishes except centerlines — a skeleton of
     // each slick nested inside it, which the map cannot draw and which was
     // most of every tile's weight. Geometry columns are never sent as fields.
     // Read from /queryables, not from documentation. If SkyTruth add a field it
     // will not appear until it is added here.
     properties: ["id", "slick_timestamp", "machine_confidence", "slick_confidence", "length", "area", "perimeter", "polsby_popper", "fill_factor", "aspect_ratio_factor", "cls", "orchestrator_run", "linearity", "s1_scene_id", "hitl_cls", "hitl_cls_name", "aoi_type_1_ids", "aoi_type_2_ids", "aoi_type_3_ids", "source_type_1_ids", "source_type_2_ids", "source_type_3_ids", "max_source_collated_score", "slick_url"],
-    note: "Potential slicks. SkyTruth state that oil cannot be definitively identified from radar alone, so every shape here is a detection awaiting review. Coverage is EEZs rather than the high seas. Every detection since January 2023, live. Wide out the panel gives the total number of detections; shapes draw from zoom 7, where a slick is large enough to see. From there, a square marked with a dashed edge holds more slicks than one tile can carry, and shows only some of them until you zoom in.",
+    note: "Potential slicks. SkyTruth state that oil cannot be definitively identified from radar alone, so every shape here is a detection awaiting review. Coverage is EEZs rather than the high seas. Every detection since January 2023, live. Below zoom 3 the panel gives the total number of detections; from zoom 3 each shaded square is counted live, and shapes draw from zoom 6, where a slick is large enough to see. From there, a square marked with a dashed edge holds more slicks than one tile can carry, and shows only some of them until you zoom in.",
     attribution: '<a href="https://cerulean.skytruth.org" target="_blank" rel="noopener">SkyTruth Cerulean</a>' },
   { id:"cerulean_sources",     name:"Slick sources (Cerulean)", unit:"candidate vessels and platforms", colour:"#6B5F58", route:"worker", ready:true, off: true,
     geometry:"polygon", maxAreaDeg2: 120,
@@ -408,9 +408,10 @@ maplibregl.addProtocol("pmtiles", protocol.tile);
 // no geometry) and any square over the cap is marked on the map.
 //
 // Measured off Durrës: 171,473 slicks in a zoom-3 tile, 13,138 at zoom 5,
-// 3,421 at zoom 7, 376 at zoom 9. That is why shapes draw from zoom 7 — the
-// first measured zoom under the cap. Denser seas may still exceed it at 7,
-// which is what the marking is for.
+// 3,421 at zoom 7, 376 at zoom 9 — about 7,000 at zoom 6, which is under the
+// cap, so shapes draw from zoom 6. Denser seas may still exceed it there, which
+// is what the marking is for. From zoom 3 to that point the squares are counted
+// instead: real numbers from the same API, one request each.
 // Raster tiles cut to a band of latitude, to the pixel.
 //
 // `bounds` on a raster source only decides which TILES are requested. A tile
@@ -633,10 +634,11 @@ const BASE_GRADE = {
   atlas: { "raster-brightness-min": ATLAS_TUNE.lift, "raster-brightness-max": 1,
            "raster-saturation": ATLAS_TUNE.sat, "raster-contrast": ATLAS_TUNE.con,
            "raster-hue-rotate": ATLAS_TUNE.hue },
-  // Unchanged from before the atlas existed.
-  satellite: { "raster-brightness-min": 0, "raster-brightness-max": .74,
-               "raster-saturation": -.22, "raster-contrast": .10,
-               "raster-hue-rotate": 0 },
+  // The same imagery, graded the same way: past the zoom where the plate has
+  // faded, the atlas basemap is this, so the two read as one photograph.
+  satellite: { "raster-brightness-min": ATLAS_TUNE.lift, "raster-brightness-max": 1,
+               "raster-saturation": ATLAS_TUNE.sat, "raster-contrast": ATLAS_TUNE.con,
+               "raster-hue-rotate": ATLAS_TUNE.hue },
 };
 let BASEMAP = "atlas";
 
@@ -756,7 +758,7 @@ void main() { colour = vec4(c, 1.0); }`));
     return prog;
   },
   render(gl, options) {
-    if (this.failed || BASEMAP !== "atlas" || !options || !options.shaderData) return;
+    if (this.failed || BASEMAP === "outlines" || !options || !options.shaderData) return;
     let prog;
     try { prog = this.program(gl, options.shaderData); }
     catch (e) {
@@ -803,9 +805,11 @@ void main() { colour = vec4(c, 1.0); }`));
 window.atlasTune = (next) => {
   if (!next) { console.log("[culprits] atlas tune", JSON.stringify(ATLAS_TUNE)); return ATLAS_TUNE; }
   for (const k of Object.keys(next)) if (k in ATLAS_TUNE) ATLAS_TUNE[k] = next[k];
-  Object.assign(BASE_GRADE.atlas, {
-    "raster-brightness-min": ATLAS_TUNE.lift, "raster-saturation": ATLAS_TUNE.sat,
-    "raster-contrast": ATLAS_TUNE.con, "raster-hue-rotate": ATLAS_TUNE.hue });
+  for (const k of ["atlas", "satellite"]) {
+    Object.assign(BASE_GRADE[k], {
+      "raster-brightness-min": ATLAS_TUNE.lift, "raster-saturation": ATLAS_TUNE.sat,
+      "raster-contrast": ATLAS_TUNE.con, "raster-hue-rotate": ATLAS_TUNE.hue });
+  }
   setBasemap(BASEMAP);
   return ATLAS_TUNE;
 };
@@ -1031,9 +1035,10 @@ async function addPmtilesLayer(cfg) {
     maxzoom: CLUSTER_MAXZOOM,
     paint: {
       "circle-color": cfg.colour,
-      "circle-opacity": .55,
       "circle-stroke-color": cfg.colour,
-      "circle-stroke-width": 1,
+      "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 0, .5, 5, 1],
+      "circle-blur": ["interpolate", ["linear"], ["zoom"], 0, .35, 5, 0],
+      "circle-opacity": ["interpolate", ["linear"], ["zoom"], 0, .34, 3, .45, 6, .55],
       // Two cases share this layer. Large sources are clustered, so _count is
       // how many sites a dot stands for. Small sources are not clustered, so
       // every _count is 1 and size must come from the magnitude instead —
@@ -1060,8 +1065,8 @@ async function addPmtilesLayer(cfg) {
         // merged into one blob over each continent — the global view carried
         // less information than an empty map. The relative sizes are untouched:
         // a big cluster is still visibly bigger than a small one at every zoom.
-        0,  ["*", 0.26 * scale, MAGNITUDE_RADIUS],
-        3,  ["*", 0.38 * scale, MAGNITUDE_RADIUS],
+        0,  ["*", 0.18 * scale, MAGNITUDE_RADIUS],
+        3,  ["*", 0.30 * scale, MAGNITUDE_RADIUS],
         6,  ["*", 0.60 * scale, MAGNITUDE_RADIUS],
         10, ["*", 1.00 * scale, MAGNITUDE_RADIUS],
       ],
@@ -2105,6 +2110,7 @@ const ceruleanCounts = new Map();     // "id z/x/y" -> { n, at }
 const ceruleanRun = new Map();        // id -> run number, so a late answer is dropped
 const COUNT_TTL_MS = 3600 * 1000;
 const COUNT_PARALLEL = 4;             // their server is slow; do not queue 30 at once
+const COUNT_FROM = 3;                 // wider than this, one total instead of squares
 
 async function ceruleanCount(cfg, z, x, y) {
   const key = `${cfg.id} ${z}/${x}/${y}`;
@@ -2149,20 +2155,22 @@ async function refreshCerulean(cfg) {
   const caps = map.getSource(`${cfg.id}-caps`);
   if (!counts || !caps) return;
 
-  // Wide out, no squares. At world view four squares covered the planet, each
+  // At world view there are no squares. Four of them covered the planet, each
   // shaded near full by tens of thousands of slicks — a grey wash with a cross
   // where their edges met — and each waited on Cerulean's slowest query. One
   // total says what is true at that scale without drawing anything misleading.
-  if (map.getZoom() < cfg.drawFrom) {
+  // From zoom 3 the squares are small enough to say something, and each is
+  // counted live rather than estimated.
+  if (map.getZoom() < COUNT_FROM) {
     const empty = { type: "FeatureCollection", features: [] };
     counts.setData(empty);
     caps.setData(empty);
     const total = ceruleanTotals.get(cfg.id);
     if (typeof total === "number") {
       setLayerState(cfg.id, `${total.toLocaleString()} potential slicks since January 2023 — ` +
-                            `zoom in to ${cfg.drawFrom} to draw them`);
+                            `zoom in to ${COUNT_FROM} to count them by area, ${cfg.drawFrom} to draw them`);
     } else {
-      setLayerState(cfg.id, `zoom in to ${cfg.drawFrom} to draw slicks`);
+      setLayerState(cfg.id, `zoom in to ${COUNT_FROM} to count them by area`);
       if (total === undefined) {
         ceruleanTotals.set(cfg.id, ceruleanTotal(cfg).then(
           (n) => { ceruleanTotals.set(cfg.id, n); refreshCerulean(cfg); },
@@ -2178,7 +2186,8 @@ async function refreshCerulean(cfg) {
   // a tile that was cut off. Past zoom 12 the squares stop shrinking, which
   // keeps the number of count requests down; a zoom-12 square is 10 km.
   const b = map.getBounds();
-  const z = Math.max(1, Math.min(12, Math.floor(map.getZoom())));
+  const wide = map.getZoom() < cfg.drawFrom;
+  const z = Math.max(1, Math.min(12, Math.floor(map.getZoom()) + (wide ? 1 : 0)));
   const [x0, y0] = tileIndex(z, Math.max(b.getWest(), -180), b.getNorth());
   const [x1, y1] = tileIndex(z, Math.min(b.getEast(), 180), b.getSouth());
   const cells = [];
