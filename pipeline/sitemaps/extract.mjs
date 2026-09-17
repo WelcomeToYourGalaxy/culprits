@@ -21,6 +21,13 @@
 //
 // Nothing here is specific to one map. A map that draws without Leaflet (a
 // chart, a canvas, D3) records nothing, and the output says so.
+//
+// Besides the places, the output carries what is needed to show each place the
+// way its own map shows it: the popup HTML as the map wrote it, the options it
+// was opened with, the marker's own size and colour, which named overlay (from
+// L.control.layers) it belongs to, every stylesheet the page carries — written
+// in the page or added by its scripts — and the page itself with its scripts
+// emptied, so the elements around the map can be found.
 
 import fs from "node:fs";
 import vm from "node:vm";
@@ -122,6 +129,13 @@ function textOf(html) {
 // ---------------------------------------------------------------------------
 
 const listeners = [];     // [type, fn] from window/document addEventListener
+const dynamicCss = [];    // stylesheets the page's scripts write at run time
+
+// A string a script hands the page that carries a stylesheet: kept.
+function catchCss(v) {
+  if (typeof v !== "string" || !/<style/i.test(v)) return;
+  for (const m of v.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)) dynamicCss.push(m[1]);
+}
 const observed = [];      // IntersectionObserver callbacks, fired once as visible
 
 function absorb(label) {
@@ -148,14 +162,24 @@ function absorb(label) {
       if (k === "checked") return true;
       return absorb(label + "." + String(k));
     },
-    set(t, k, v) { store.set(k, v); return true; },
-    apply() { return absorb(label + "()"); },
+    set(t, k, v) {
+      store.set(k, v);
+      if (label === "style-element" && (k === "textContent" || k === "innerHTML" || k === "innerText") && typeof v === "string") dynamicCss.push(v);
+      else catchCss(v);
+      return true;
+    },
+    apply(t, self, args) {
+      for (const a of args || []) catchCss(a);
+      if (/\.createElement$/.test(label) && String(args && args[0]).toLowerCase() === "style") return absorb("style-element");
+      return absorb(label + "()");
+    },
     construct() { return absorb("new " + label); },
     has() { return true; },
   });
 }
 
 const records = [];
+let mapContainer = null;  // the element L.map was built on, by id or selector
 
 function toLatLng(a, b) {
   if (typeof a === "number" && typeof b === "number") return [a, b];
@@ -182,8 +206,10 @@ function layerObject(rec) {
     _rec: rec,
     options: rec.options || {},
     feature: rec.props ? { properties: rec.props } : undefined,
-    bindPopup(c) { rec.popup = content(c, px); return px; },
-    bindTooltip(c) { rec.tooltip = content(c, px); return px; },
+    bindPopup(c, o) { rec.popup = content(c, px); rec.popupOptions = pickPopupOptions(o); return px; },
+    bindTooltip(c, o) { rec.tooltip = content(c, px); rec.tooltipOptions = pickPopupOptions(o); return px; },
+    addTo(target) { if (target && typeof target.__gid === "number") rec.group = target.__gid; return px; },
+    setIcon(icon) { rec.options = Object.assign({}, rec.options, { icon }); return px; },
     setPopupContent(c) { rec.popup = content(c, px); return px; },
     setTooltipContent(c) { rec.tooltip = content(c, px); return px; },
     getLatLng() { return rec.lat != null ? { lat: rec.lat, lng: rec.lon } : { lat: 0, lng: 0 }; },
@@ -203,6 +229,27 @@ function layerObject(rec) {
   return px;
 }
 
+function pickPopupOptions(o) {
+  if (!o || typeof o !== "object") return null;
+  const out = {};
+  for (const k of ["maxWidth", "minWidth", "maxHeight", "className"]) if (o[k] != null && typeof o[k] !== "object") out[k] = o[k];
+  return Object.keys(out).length ? out : null;
+}
+
+// The marker as its map draws it: circle size and colours, or its icon.
+function markerStyle(o) {
+  o = o || {};
+  const out = {};
+  for (const k of ["radius", "fillColor", "color", "weight", "opacity", "fillOpacity", "dashArray"]) if (o[k] != null && typeof o[k] !== "object") out[k] = o[k];
+  if (o.__metres) out.metres = true;
+  const ic = o.icon;
+  if (ic && ic.__icon) {
+    out.icon = { kind: ic.__icon };
+    for (const k of ["html", "className", "iconUrl", "iconSize"]) if (ic[k] != null) out.icon[k] = typeof ic[k] === "object" && !Array.isArray(ic[k]) ? content(ic[k]) : ic[k];
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 function record(kind, latlngs, options) {
   const rec = { kind, options: options || {} };
   if (kind === "point") { rec.lat = latlngs[0]; rec.lon = latlngs[1]; }
@@ -211,14 +258,25 @@ function record(kind, latlngs, options) {
   return layerObject(rec);
 }
 
+let groupCount = 0;
+const overlays = [];      // [{ name, group }] in the order the map's layer control lists them
+
+function joinGroup(layer, gid) {
+  if (Array.isArray(layer)) { layer.forEach((l) => joinGroup(l, gid)); return; }
+  try { if (layer && layer._rec && layer._rec.group == null) layer._rec.group = gid; } catch (e) { /* not a recorded layer */ }
+}
+
 function group() {
+  const gid = groupCount++;
   const g = {
-    addLayer() { return g; }, removeLayer() { return g; }, clearLayers() { return g; }, addTo() { return g; },
+    __gid: gid,
+    addLayer(l) { joinGroup(l, gid); return g; }, removeLayer() { return g; }, clearLayers() { return g; }, addTo() { return g; },
     eachLayer() { return g; }, getLayers() { return []; }, getBounds() { return absorb("bounds"); },
     on() { return g; }, off() { return g; }, remove() { return g; }, addLayers() { return g; },
     setStyle() { return g; }, bringToFront() { return g; }, hasLayer() { return false; },
     refreshClusters() { return g; },
   };
+  g.addLayers = (ls) => { joinGroup(ls, gid); return g; };
   return new Proxy(g, { get(t, k) { if (k in t) return t[k]; if (k === "then") return undefined; return () => g; } });
 }
 
@@ -241,9 +299,10 @@ function geoJSONLayer(data, opts) {
         if (!lyr || records.length === before) lyr = record("point", [ll.lat, ll.lng]);
         const rec = lyr._rec || records[records.length - 1];
         rec.props = f.properties || {};
+        if (rec.group == null) rec.group = gl.__gid;
       } else {
         const kind = /Polygon/.test(g.type) ? "polygon" : /LineString/.test(g.type) ? "line" : "other";
-        const rec = { kind, props: f.properties || {}, geometry: g, options: {} };
+        const rec = { kind, props: f.properties || {}, geometry: g, options: {}, group: gl.__gid };
         records.push(rec);
         lyr = layerObject(rec);
         if (typeof opts.style === "function") { try { lyr.setStyle(opts.style(f)); } catch (e) { /* style needs the page */ } }
@@ -259,10 +318,32 @@ function geoJSONLayer(data, opts) {
 
 const L = new Proxy({
   version: "1.9.4",
-  map: () => absorb("map"),
+  map: (el) => {
+    const id = typeof el === "string" ? el : el && [el.__wtygId, el.__wtygSel].find((v) => typeof v === "string");
+    if (id) mapContainer = id;
+    return absorb("map");
+  },
+  divIcon: (o) => Object.assign({ __icon: "div" }, o || {}),
+  icon: (o) => Object.assign({ __icon: "img" }, o || {}),
+  control: new Proxy(function () { return absorb("control"); }, {
+    get(t, k) {
+      if (k === "layers") return (base, over) => {
+        for (const [name, lyr] of Object.entries(over || {})) if (lyr && typeof lyr.__gid === "number") overlays.push({ name, group: lyr.__gid });
+        const c = new Proxy({}, { get(tt, kk) {
+          if (kk === "addOverlay") return (lyr, name) => { if (lyr && typeof lyr.__gid === "number") overlays.push({ name, group: lyr.__gid }); return c; };
+          if (kk === "then") return undefined;
+          return () => c;
+        } });
+        return c;
+      };
+      if (k === "then") return undefined;
+      return absorb("L.control." + String(k));
+    },
+  }),
   marker: (ll, o) => { const p = toLatLng(ll); return p ? record("point", p, o) : absorb("marker"); },
   circleMarker: (ll, o) => { const p = toLatLng(ll); return p ? record("point", p, o) : absorb("marker"); },
-  circle: (ll, o) => { const p = toLatLng(ll); return p ? record("point", p, o) : absorb("marker"); },
+  // L.circle's radius is in metres, not pixels; marked so it is not read as a dot size.
+  circle: (ll, o) => { const p = toLatLng(ll); return p ? record("point", p, Object.assign({}, o, { __metres: true })) : absorb("marker"); },
   polygon: (lls, o) => { const r = record("polygon", null, o); r._rec.geometry = { type: "Polygon", coordinates: lls, _leaflet: true }; return r; },
   polyline: (lls, o) => { const r = record("line", null, o); r._rec.geometry = { type: "LineString", coordinates: lls, _leaflet: true }; return r; },
   rectangle: (b, o) => { const r = record("polygon", null, o); r._rec.geometry = { type: "Rectangle", coordinates: b, _leaflet: true }; return r; },
@@ -307,13 +388,17 @@ async function main() {
   const document = absorb("document");
   const elementById = (id) => {
     const el = absorb("#" + id);
+    el.__wtygId = id;
     if (islands[id] != null) { el.textContent = islands[id]; el.innerHTML = islands[id]; }
     return el;
   };
   const docProxy = new Proxy(document, {
     get(t, k) {
       if (k === "getElementById") return elementById;
-      if (k === "querySelector") return (sel) => (/^#[\w-]+$/.test(sel) ? elementById(sel.slice(1)) : absorb(sel));
+      if (k === "querySelector") return (sel) => {
+        if (/^#[\w-]+$/.test(sel)) return elementById(sel.slice(1));
+        const el = absorb(sel); el.__wtygSel = sel; return el;
+      };
       if (k === "readyState") return "loading";
       return t[k];
     },
@@ -384,10 +469,25 @@ async function main() {
     features.push({
       kind: r.kind, lat: r.lat ?? null, lon: r.lon ?? null, geometry: r.kind === "point" ? null : r.geometry || null,
       popup: popup, popup_text: textOf(popup), tooltip: textOf(r.tooltip || ""), color: r.color, props: r.props || null,
+      popup_options: r.popupOptions || null, tooltip_html: r.tooltip || "", tooltip_options: r.tooltipOptions || null,
+      style: markerStyle(r.options), group: r.group ?? null,
     });
   }
   if (!features.length) notes.push(ran ? "the scripts ran but drew nothing through Leaflet" : "no scripts ran");
-  const out = JSON.stringify({ features, counts, notes });
+  const staticCss = [...html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1]);
+  const stylesheets = [...html.matchAll(/<link\b[^>]*rel\s*=\s*["']?stylesheet[^>]*>/gi)]
+    .map((m) => (m[0].match(/href\s*=\s*["']([^"']+)["']/i) || [])[1]).filter(Boolean)
+    .filter((h) => !/leaflet|markercluster/i.test(h)).map((h) => { try { return new URL(h, base).href; } catch (e) { return h; } });
+  const page = html.replace(/(<script\b[^>]*>)[\s\S]*?(<\/script>)/gi, "$1$2").replace(/(<style\b[^>]*>)[\s\S]*?(<\/style>)/gi, "$1$2");
+  const out = JSON.stringify({
+    features, counts, notes,
+    css: staticCss.concat(dynamicCss), stylesheets, map_container: mapContainer,
+    overlays, page: page.length < 4e6 ? page : page.slice(0, 4e6),
+    // Headings written as plain text anywhere in the page, scripts included: a
+    // map that builds its header in JavaScript still names itself there.
+    headings: [...html.matchAll(/<h([1-3])\b[^>]*>([^<]{2,160})<\/h\1>/gi)]
+      .filter((m) => !/\$\{|['"`]\s*\+|\+\s*['"`]/.test(m[2])).map((m) => ({ level: Number(m[1]), text: decodeEntities(m[2]).trim() })),
+  });
   if (spec.out) { fs.writeFileSync(spec.out, out); process.exit(0); }
   process.stdout.write(out, () => process.exit(0));
 }

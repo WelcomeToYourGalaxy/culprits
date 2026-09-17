@@ -100,7 +100,9 @@ class FakeMap {
 
 let popups = [];
 class FakePopup {
-  constructor() { this.html = null; }
+  constructor(opts) { this.html = null; this.opts = opts; }
+  getElement() { return { addEventListener() {} }; }
+  remove() {}
   setLngLat() { return this; }
   setHTML(h) { this.html = h; return this; }
   addTo() { popups.push(this); return this; }
@@ -975,6 +977,65 @@ console.log("\ncoral, live");
 }
 
 // --- what the wide views and the reefs look like --------------------------------
+
+console.log("\nsite maps, each its own map");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const block = src.slice(src.indexOf("const SITE_MAPS = {"), src.indexOf("const EXEC_MAP = {"));
+  const rows = [...block.matchAll(/\{ id: "([^"]+)"[^\n]*route: "sitemap"[^\n]*dataUrl: "([^"]+)"/g)];
+  check("the simple site maps use their own boxes", rows.length >= 20, String(rows.length));
+  check("each map's places file sits in the tile repo, named for the map",
+        rows.every(([, id, u]) => u.endsWith(`/sitemaps/${id}.places.geojson`) && u.startsWith("https://welcometoyourgalaxy.github.io/")));
+  check("the cartel map is one row again, lines included", !/site_cartel_lines/.test(block));
+}
+{
+  const places = { type: "FeatureCollection", name: "Test Map", overlays: [], features: [
+    { type: "Feature", geometry: { type: "Point", coordinates: [10, 20] }, properties: { k: "aaa", n: "Plaza", c: "#6A5A58", r: 8, p: 1 } },
+  ] };
+  const boxes = { name: "Test Map", css: ".wtyg-map-site_circus .circus-name{font-weight:600}", stylesheets: [],
+    chain: [{ tag: "div", class: "animal-fight-map" }, { tag: "div", id: "fightMap" }],
+    boxes: { aaa: { h: '<div class="circus-name">Carson &amp; Barnes</div>', o: { maxWidth: 320, className: "custom-popup" } } } };
+  const got = [];
+  const { map } = run({ fetchImpl: async (u) => { got.push(String(u)); return { ok: true, status: 200,
+    json: async () => (String(u).endsWith(".boxes.json") ? boxes : places) }; } });
+  const head = [];
+  globalThis.document.head = { appendChild: (el) => head.push(el) };
+  map.fire("load"); await new Promise((r) => setTimeout(r, 5));
+  const panel = globalThis.document.getElementById("layers");
+  panel.fire("change", { target: { dataset: { layer: "site_circus" }, checked: true } });
+  await new Promise((r) => setTimeout(r, 10));
+  check("ticking a site map loads its places, not its boxes",
+        got.some((u) => u.endsWith("site_circus.places.geojson")) && !got.some((u) => u.endsWith(".boxes.json")));
+  const pt = map.getLayer("site_circus-pt");
+  check("its places draw in the map's own colours and sizes",
+        pt && JSON.stringify(pt.paint["circle-color"]).includes('"c"') && JSON.stringify(pt.paint["circle-radius"]).includes('"r"'));
+  check("its lines and areas have layers too", !!map.getLayer("site_circus-line") && !!map.getLayer("site_circus-fill"));
+
+  let hitsAt = [{ layer: { id: "site_circus-pt" }, properties: places.features[0].properties, geometry: places.features[0].geometry }];
+  map.queryRenderedFeatures = () => hitsAt;
+  map.getLayoutProperty = () => "visible";
+  const ev = { lngLat: [10, 20], point: { x: 5, y: 5 }, originalEvent: {}, features: hitsAt };
+  map.fire("click:site_circus-pt", ev);
+  await new Promise((r) => setTimeout(r, 10));
+  const box = popups.at(-1);
+  check("a click opens the map's own box", box && /Carson &amp; Barnes/.test(box.html) && /class="circus-name"/.test(box.html));
+  check("the box is scoped to its map, inside the elements the map sits in",
+        /wtyg-map-site_circus/.test(box.html) && /class="animal-fight-map"/.test(box.html) && /data-wtyg-id="fightMap"/.test(box.html) && !/ id="fightMap"/.test(box.html));
+  check("the box opens with the map's own popup options", /max-width:320px/.test(box.html) && /leaflet-popup custom-popup/.test(box.html));
+  check("the map's stylesheet is added once, after Leaflet's defaults",
+        head.filter((el) => el.textContent && el.textContent.includes("circus-name")).length === 1 &&
+        head.findIndex((el) => (el.textContent || "").includes(".leaflet-popup-content-wrapper")) <
+        head.findIndex((el) => (el.textContent || "").includes("circus-name")));
+  check("boxes load on the first click", got.filter((u) => u.endsWith("site_circus.boxes.json")).length === 1);
+
+  hitsAt = [hitsAt[0], { layer: { id: "site_rodeo-pt" }, properties: { k: "bbb", n: "Arena", p: 1 }, geometry: { type: "Point", coordinates: [10, 20] } }];
+  map.fire("click:site_circus-pt", { ...ev, originalEvent: {}, features: hitsAt });
+  await new Promise((r) => setTimeout(r, 10));
+  const list = popups.at(-1);
+  check("several places at one spot give a short list first",
+        list && /2 places here/.test(list.html) && /Plaza/.test(list.html) && /Arena/.test(list.html) && /data-hit="1"/.test(list.html));
+}
+
 console.log("\nlegibility");
 {
   const { map } = run({ layersReady: "cerulean_slicks" });

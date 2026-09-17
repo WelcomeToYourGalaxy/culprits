@@ -27,5 +27,14 @@ for repo, consts in H["homes"].items():
                 if f.exists():
                     shutil.move(str(f), dest / sub / f.name)
                     moved += 1
+# The site maps' places and boxes.
+sm = root / "map/data/sitemaps"
+if sm.is_dir():
+    dest = root.parent / "culprits-tiles-more" / "sitemaps"
+    dest.mkdir(parents=True, exist_ok=True)
+    for f in sorted(sm.iterdir()):
+        if f.name.endswith((".places.geojson", ".boxes.json")):
+            shutil.move(str(f), dest / f.name)
+            moved += 1
 print(f"moved {moved} files")
 PY

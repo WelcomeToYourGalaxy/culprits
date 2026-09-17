@@ -1826,6 +1826,274 @@ async function addShapesLayer(cfg) {
   buildLegend();
 }
 
+/* ---------- the site's own maps, each shown as its own map ---------- */
+
+// Built by pipeline/sitemaps/build_boxes.py. Two files per map:
+//   <id>.places.geojson  every place, with the marker's own size and colour
+//                        (softened) and the overlay it belongs to, if any
+//   <id>.boxes.json      each place's popup as the map wrote it, the map's own
+//                        stylesheets scoped to its boxes, and the elements the
+//                        map sits inside on its page
+// The places load when the row is ticked. The boxes load on the first click.
+const SITEMAP_LAYERS = new Set();       // map layer ids, for the click list
+const sitemapBoxes = new Map();         // map id -> Promise of its boxes file
+
+function sitemapBoxesUrl(cfg) {
+  return cfg.dataUrl.replace(/\.places\.geojson$/, ".boxes.json");
+}
+
+async function addSitemapLayer(cfg) {
+  let data;
+  try {
+    const r = await fetch(cfg.dataUrl);
+    if (!r.ok) throw new Error(`${r.status} at ${cfg.dataUrl}`);
+    data = await r.json();
+  } catch (e) {
+    setLayerState(cfg.id, `not built yet (${e.message})`);
+    console.error(`[culprits] ${cfg.id}: ${e.message}`);
+    return;
+  }
+  const source = `${cfg.id}-places`;
+  map.addSource(source, { type: "geojson", data });
+  const colour = ["coalesce", ["get", "c"], cfg.colour];
+  map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source,
+    filter: ["match", ["geometry-type"], ["Polygon", "MultiPolygon"], true, false],
+    paint: { "fill-color": colour, "fill-opacity": 0.35 } });
+  map.addLayer({ id: `${cfg.id}-line`, type: "line", source,
+    filter: ["match", ["geometry-type"], ["LineString", "MultiLineString"], true, false],
+    paint: { "line-color": colour, "line-opacity": 0.8,
+             "line-width": ["min", ["coalesce", ["get", "w"], 2], 4] } });
+  map.addLayer({ id: `${cfg.id}-pt`, type: "circle", source,
+    filter: ["match", ["geometry-type"], ["Point", "MultiPoint"], true, false],
+    paint: {
+      "circle-color": colour,
+      // The map's own marker size, a little smaller at world zoom so a
+      // crowded map does not merge into one blot.
+      "circle-radius": ["interpolate", ["linear"], ["zoom"],
+        1, ["*", 0.6, ["coalesce", ["get", "r"], 6]],
+        6, ["coalesce", ["get", "r"], 6]],
+      "circle-stroke-color": ["coalesce", ["get", "s"], "#17150F"],
+      "circle-stroke-width": ["min", ["coalesce", ["get", "w"], 0.8], 3],
+      "circle-opacity": ["coalesce", ["get", "o"], 0.85],
+    } });
+  for (const kind of ["fill", "line", "pt"]) {
+    const id = `${cfg.id}-${kind}`;
+    SITEMAP_LAYERS.add(id);
+    map.on("click", id, (e) => openSitemapClick(e));
+    map.on("mouseenter", id, (e) => { map.getCanvas().style.cursor = "pointer"; showSitemapTooltip(e); });
+    map.on("mousemove", id, (e) => showSitemapTooltip(e));
+    map.on("mouseleave", id, () => { map.getCanvas().style.cursor = ""; hideSitemapTooltip(); });
+  }
+  // The map's own overlays (from its layer control), as chips under its row.
+  if (Array.isArray(data.overlays) && data.overlays.length) {
+    cfg.facet = { property: "ov", label: "layer", values: data.overlays };
+  }
+  const n = data.features.length;
+  setLayerState(cfg.id, `${n.toLocaleString()} ${cfg.unit}`);
+  applyVisibility(cfg.id);
+  buildLegend();
+}
+
+function loadSitemapBoxes(cfg) {
+  if (!sitemapBoxes.has(cfg.id)) {
+    const p = fetch(sitemapBoxesUrl(cfg))
+      .then((r) => { if (!r.ok) throw new Error(`${r.status} at ${sitemapBoxesUrl(cfg)}`); return r.json(); })
+      .then((b) => { injectSitemapStyles(cfg, b); return b; });
+    p.catch(() => sitemapBoxes.delete(cfg.id));   // a failed load may be retried
+    sitemapBoxes.set(cfg.id, p);
+  }
+  return sitemapBoxes.get(cfg.id);
+}
+
+function escapeHtml(s) {
+  return String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
+// Leaflet's own popup and tooltip rules, as every one of these maps loaded
+// them. The scope is wrapped in :where() so each rule keeps Leaflet's own
+// weight, and the map's stylesheet, added after, settles ties as it does on
+// the map's page. index.html's popup rules skip these boxes (patched there).
+const LEAFLET_BOX_CSS = `
+:where(.wtyg-leaflet) *{box-sizing:content-box}
+:where(.wtyg-leaflet) .leaflet-container{font-family:"Helvetica Neue",Arial,Helvetica,sans-serif;font-size:12px;font-size:.75rem;line-height:1.5}
+:where(.wtyg-leaflet) .leaflet-container a{color:#0078A8}
+:where(.wtyg-leaflet) .leaflet-popup{position:relative;text-align:center;margin-bottom:20px}
+:where(.wtyg-leaflet) .leaflet-popup-content-wrapper{padding:1px;text-align:left;border-radius:12px}
+:where(.wtyg-leaflet) .leaflet-popup-content{margin:13px 24px 13px 20px;line-height:1.3;font-size:13px;font-size:1.08333em;min-height:1px}
+:where(.wtyg-leaflet) .leaflet-popup-content p{margin:1.3em 0}
+:where(.wtyg-leaflet) .leaflet-popup-tip-container{width:40px;height:20px;position:absolute;left:50%;margin-top:-1px;margin-left:-20px;overflow:hidden;pointer-events:none}
+:where(.wtyg-leaflet) .leaflet-popup-tip{width:17px;height:17px;padding:1px;margin:-10px auto 0;pointer-events:auto;transform:rotate(45deg)}
+:where(.wtyg-leaflet) .leaflet-popup-content-wrapper,:where(.wtyg-leaflet) .leaflet-popup-tip{background:white;color:#333;box-shadow:0 3px 14px rgba(0,0,0,.4)}
+:where(.wtyg-leaflet) .leaflet-container a.leaflet-popup-close-button{position:absolute;top:0;right:0;border:none;text-align:center;width:24px;height:24px;font:16px/24px Tahoma,Verdana,sans-serif;color:#757575;text-decoration:none;background:transparent}
+:where(.wtyg-leaflet) .leaflet-container a.leaflet-popup-close-button:hover,:where(.wtyg-leaflet) .leaflet-container a.leaflet-popup-close-button:focus{color:#585858}
+:where(.wtyg-leaflet) .leaflet-popup-scrolled{overflow:auto}
+:where(.wtyg-leaflet) .leaflet-tooltip{position:relative;padding:6px;background-color:#fff;border:1px solid #fff;border-radius:3px;color:#222;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.maplibregl-popup.wtyg-box .maplibregl-popup-content,.maplibregl-popup.wtyg-tip .maplibregl-popup-content{background:none;border:0;padding:0;max-width:none;box-shadow:none;border-radius:0}
+.maplibregl-popup.wtyg-box .maplibregl-popup-tip,.maplibregl-popup.wtyg-tip .maplibregl-popup-tip{display:none}
+.wtyg-pick{font-size:12.5px}
+.wtyg-pick .hd{color:var(--dim);font-size:11px;letter-spacing:.06em;text-transform:uppercase;margin:0 0 5px}
+.wtyg-pick button{display:block;width:100%;text-align:left;font:inherit;background:none;color:var(--bone);border:0;border-top:1px solid var(--rule);padding:5px 0;cursor:pointer}
+.wtyg-pick button:first-of-type{border-top:0}
+.wtyg-pick button:hover .pl{text-decoration:underline}
+.wtyg-pick .mp{display:block;color:var(--dim);font-size:11.5px}
+`;
+
+let leafletBoxCssAdded = false;
+function ensureBoxCss() {
+  if (!leafletBoxCssAdded) { addStyle(LEAFLET_BOX_CSS, "leaflet-boxes"); leafletBoxCssAdded = true; }
+}
+function addStyle(text, key) {
+  if (!document.head || !document.createElement) return;
+  const el = document.createElement("style");
+  el.dataset.wtyg = key;
+  el.textContent = text;
+  document.head.appendChild(el);
+}
+
+function injectSitemapStyles(cfg, boxes) {
+  ensureBoxCss();
+  for (const href of boxes.stylesheets || []) {
+    if (!document.head || !document.createElement) break;
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = href;
+    document.head.appendChild(link);
+  }
+  addStyle(boxes.css || "", `map-${cfg.id}`);
+}
+
+// Layout only: the map's containers carry their colours and fonts into the box,
+// as they do on the map's page, but not their size, border or background.
+const NEUTRAL = "display:block;position:relative;inset:auto;width:auto;height:auto;min-width:0;min-height:0;" +
+  "max-width:none;max-height:none;margin:0;padding:0;border:0;border-radius:0;background:none;box-shadow:none;" +
+  "overflow:visible;transform:none;opacity:1;filter:none;backdrop-filter:none";
+
+function sitemapBoxHtml(cfg, boxes, box, tooltip) {
+  const chain = (boxes.chain && boxes.chain.length ? boxes.chain : [{ tag: "div" }]);
+  let open = `<div class="wtyg-map-${cfg.id} wtyg-leaflet" style="${NEUTRAL}">`;
+  let close = "</div>";
+  chain.forEach((el, i) => {
+    const last = i === chain.length - 1;
+    const cls = [el.class || "", last ? "leaflet-container" : ""].join(" ").trim();
+    open += `<div${cls ? ` class="${escapeHtml(cls)}"` : ""}${el.id ? ` data-wtyg-id="${escapeHtml(el.id)}"` : ""} style="${NEUTRAL}">`;
+    close = "</div>" + close;
+  });
+  let inner;
+  if (tooltip) {
+    const o = box.to || {};
+    inner = `<div class="leaflet-tooltip ${escapeHtml(o.className || "")}">${box.t}</div>`;
+  } else {
+    const o = box.o || {};
+    const maxW = Number(o.maxWidth) || 300, minW = Number(o.minWidth) || 50;
+    const maxH = Number(o.maxHeight) || 0;
+    inner = `<div class="leaflet-popup ${escapeHtml(o.className || "")}">` +
+      `<div class="leaflet-popup-content-wrapper">` +
+      `<div class="leaflet-popup-content${maxH ? " leaflet-popup-scrolled" : ""}" style="width:max-content;max-width:${maxW}px;min-width:${minW}px${maxH ? `;max-height:${maxH}px;overflow:auto` : ""}">${box.h}</div></div>` +
+      `<div class="leaflet-popup-tip-container"><div class="leaflet-popup-tip"></div></div>` +
+      `<a class="leaflet-popup-close-button" role="button" aria-label="Close popup" href="#close"><span aria-hidden="true">&#215;</span></a>` +
+      `</div>`;
+  }
+  return open + inner + close;
+}
+
+function sitemapHits(e) {
+  const layers = [...SITEMAP_LAYERS].filter((id) => map.getLayer(id) &&
+    (map.getLayoutProperty ? map.getLayoutProperty(id, "visibility") !== "none" : true));
+  const p = e.point || { x: 0, y: 0 };
+  const feats = map.queryRenderedFeatures
+    ? map.queryRenderedFeatures([[p.x - 4, p.y - 4], [p.x + 4, p.y + 4]], { layers })
+    : (e.features || []);
+  const seen = new Set(), hits = [];
+  for (const f of feats) {
+    const layer = (f.layer && f.layer.id) || "";
+    const mapId = layer.replace(/-(pt|line|fill)$/, "");
+    const k = f.properties && f.properties.k;
+    if (!k || seen.has(mapId + "|" + k)) continue;
+    seen.add(mapId + "|" + k);
+    const cfg = childById(mapId);
+    if (cfg) hits.push({ cfg, props: f.properties, geometry: f.geometry });
+  }
+  return hits;
+}
+
+function placeOf(hit, e) {
+  const g = hit.geometry;
+  return g && g.type === "Point" ? g.coordinates : e.lngLat;
+}
+
+async function openSitemapBox(hit, at) {
+  let boxes;
+  try { boxes = await loadSitemapBoxes(hit.cfg); }
+  catch (err) {
+    new maplibregl.Popup({ closeButton: true, maxWidth: "280px" }).setLngLat(at)
+      .setHTML(`<b>${escapeHtml(hit.cfg.name)}</b><div class="meta">This map's boxes could not be loaded (${escapeHtml(err.message)}).</div>`).addTo(map);
+    return;
+  }
+  const box = boxes.boxes && boxes.boxes[hit.props.k];
+  if (!box || !box.h) return;
+  hideSitemapTooltip();
+  const popup = new maplibregl.Popup({ closeButton: false, className: "wtyg-box", maxWidth: "none", anchor: "bottom", offset: 4 })
+    .setLngLat(at).setHTML(sitemapBoxHtml(hit.cfg, boxes, box, false)).addTo(map);
+  const el = popup.getElement && popup.getElement();
+  if (el) {
+    el.addEventListener("click", (ev) => {
+      const x = ev.target.closest && ev.target.closest(".leaflet-popup-close-button");
+      if (x) { ev.preventDefault(); popup.remove(); }
+    });
+  }
+}
+
+function openSitemapClick(e) {
+  const claim = e.originalEvent || e;
+  if (popupClaimedBy === claim) return;
+  let hits = sitemapHits(e).filter((h) => h.props.p);
+  // A place drawn over a line or an area is what the click meant, as on the
+  // maps themselves, where the marker sits on top.
+  if (hits.some((h) => h.geometry && h.geometry.type === "Point")) {
+    hits = hits.filter((h) => h.geometry && h.geometry.type === "Point");
+  }
+  if (!hits.length) return;
+  popupClaimedBy = claim;
+  ensureBoxCss();
+  if (hits.length === 1) { openSitemapBox(hits[0], placeOf(hits[0], e)); return; }
+  const rows = hits.map((h, i) =>
+    `<button type="button" data-hit="${i}"><span class="pl">${escapeHtml(h.props.n || "Unnamed place")}</span>` +
+    `<span class="mp">${escapeHtml(h.cfg.name)}</span></button>`).join("");
+  const list = new maplibregl.Popup({ closeButton: true, maxWidth: "280px" })
+    .setLngLat(e.lngLat).setHTML(`<div class="wtyg-pick"><div class="hd">${hits.length} places here</div>${rows}</div>`).addTo(map);
+  const el = list.getElement && list.getElement();
+  if (el) {
+    el.addEventListener("click", (ev) => {
+      const b = ev.target.closest && ev.target.closest("[data-hit]");
+      if (!b) return;
+      const hit = hits[Number(b.dataset.hit)];
+      list.remove();
+      openSitemapBox(hit, placeOf(hit, e));
+    });
+  }
+}
+
+// Leaflet shows a tooltip on hover; so does this, for places whose map gave one.
+let sitemapTip = null, sitemapTipKey = null;
+function hideSitemapTooltip() {
+  if (sitemapTip) sitemapTip.remove();
+  sitemapTip = null; sitemapTipKey = null;
+}
+async function showSitemapTooltip(e) {
+  const hit = sitemapHits(e).find((h) => h.props.t);
+  if (!hit) { hideSitemapTooltip(); return; }
+  const key = hit.cfg.id + "|" + hit.props.k;
+  if (key === sitemapTipKey) return;
+  sitemapTipKey = key;
+  let boxes;
+  try { boxes = await loadSitemapBoxes(hit.cfg); } catch (err) { return; }
+  const box = boxes.boxes && boxes.boxes[hit.props.k];
+  if (!box || !box.t || sitemapTipKey !== key) return;
+  if (sitemapTip) sitemapTip.remove();
+  sitemapTip = new maplibregl.Popup({ closeButton: false, closeOnClick: false, className: "wtyg-tip", maxWidth: "none", anchor: "bottom", offset: 8 })
+    .setLngLat(placeOf(hit, e)).setHTML(sitemapBoxHtml(hit.cfg, boxes, box, true)).addTo(map);
+}
+
 /* ---------- raster tile layers, via the Worker ---------- */
 
 // A continuous field rather than a set of located things. There is nothing to
@@ -2186,68 +2454,68 @@ function syncGroupBox(box, group) {
 // popup text are read from each map by pipeline/sitemaps/extract.mjs.
 const SITE_MAPS = {
   id: "site_maps",
-  name: "The site's other maps",
+  name: "The site's own maps",
   group: true,
   ready: true,
   children: [
-    { id: "site_animal_sacrifice", name: "Animal sacrifice sites", unit: "sites", colour: "#7A4F4A", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_animal_sacrifice.pmtiles",
+    { id: "site_animal_sacrifice", name: "Animal Sacrifice Map", unit: "sites", colour: "#7A4F4A", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_animal_sacrifice.places.geojson",
       note: "From the Destruction page's animal sacrifice map." },
-    { id: "site_animal_fighting", name: "Animal fighting venues", unit: "venues", colour: "#84594F", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_animal_fighting.pmtiles",
+    { id: "site_animal_fighting", name: "Animal Fighting Locations Map", unit: "venues", colour: "#84594F", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_animal_fighting.places.geojson",
       note: "From the Destruction page's animal fighting map (maps repo)." },
-    { id: "site_carbon_mapper_waste", name: "Methane plumes from waste sites (Carbon Mapper)", unit: "plume sources", colour: "#6D6A5E", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_carbon_mapper_waste.pmtiles",
+    { id: "site_carbon_mapper_waste", name: "Methane plumes from waste sites (Carbon Mapper)", unit: "plume sources", colour: "#6D6A5E", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_carbon_mapper_waste.places.geojson",
       note: "From the Destruction page's Carbon Mapper waste-sector map: the hotspots written into that map, not Carbon Mapper's live feed." },
-    { id: "site_forest500_soy", name: "Worst soy financiers (Forest 500)", unit: "financial institutions", colour: "#6B5B4E", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_forest500_soy.pmtiles",
+    { id: "site_forest500_soy", name: "Forest 500: Worst Soy Financial Institutions (2024)", unit: "financial institutions", colour: "#6B5B4E", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_forest500_soy.places.geojson",
       note: "From the Destruction page's Forest 500 map: institutions scoring 2 or less of 94 on soy policy, placed at their headquarters." },
-    { id: "site_china_grain", name: "China grain storage (Sinograin)", unit: "depots", colour: "#76705C", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_china_grain.pmtiles",
+    { id: "site_china_grain", name: "中国粮仓 China Grain Storage", unit: "depots", colour: "#76705C", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_china_grain.places.geojson",
       note: "From the Destruction page's China grain storage map. The page states 205 facilities; this layer carries the positions its map draws." },
-    { id: "site_soybean_companies", name: "Soy trading companies", unit: "offices", colour: "#6F7560", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_soybean_companies.pmtiles",
+    { id: "site_soybean_companies", name: "Soybean Companies", unit: "offices", colour: "#6F7560", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_soybean_companies.places.geojson",
       note: "From the Destruction page's soy companies map (maps repo)." },
-    { id: "site_secret_societies", name: "International military secret societies", unit: "organisations", colour: "#5E5A6E", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_secret_societies.pmtiles",
+    { id: "site_secret_societies", name: "International Military Secret Societies", unit: "organisations", colour: "#5E5A6E", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_secret_societies.places.geojson",
       note: "From the On-Planet Invasion page's secret societies map." },
-    { id: "site_ufo_pre1900", name: "Pre-1900 UFO and USO sightings", unit: "recorded sightings", colour: "#5F6B78", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_ufo_pre1900.pmtiles",
+    { id: "site_ufo_pre1900", name: "Pre-1900", unit: "recorded sightings", colour: "#5F6B78", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_ufo_pre1900.places.geojson",
       note: "From the Off-Planet Invasion page's historical sightings archive." },
-    { id: "site_central_banks", name: "Central banks", unit: "banks", colour: "#5C6570", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_central_banks.pmtiles",
+    { id: "site_central_banks", name: "Central Banks", unit: "banks", colour: "#5C6570", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_central_banks.places.geojson",
       note: "From the Suppression page's central banks map." },
-    { id: "site_banking_dynasties", name: "Banking dynasties", unit: "dynasty seats", colour: "#6A5D6B", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_banking_dynasties.pmtiles",
+    { id: "site_banking_dynasties", name: "Global Banking Dynasties", unit: "dynasty seats", colour: "#6A5D6B", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_banking_dynasties.places.geojson",
       note: "From the Suppression page's banking dynasties map." },
-    { id: "site_export_credit", name: "Export credit agencies", unit: "agencies", colour: "#5E6A63", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_export_credit.pmtiles",
+    { id: "site_export_credit", name: "Export Credit Agenciesof the World", unit: "agencies", colour: "#5E6A63", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_export_credit.places.geojson",
       note: "From the Suppression page's export credit agencies map. Its country shading is not carried here, only the agencies." },
-    { id: "site_wealth_atlas", name: "Richest dynasties and individuals", unit: "families and individuals", colour: "#735E57", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_wealth_atlas.pmtiles",
+    { id: "site_wealth_atlas", name: "The World's Richest Dynasties & Individuals", unit: "families and individuals", colour: "#735E57", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_wealth_atlas.places.geojson",
       note: "From the Suppression page's wealth atlas." },
-    { id: "site_food_system", name: "Who owns the food system", unit: "companies", colour: "#6E6A55", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_food_system.pmtiles",
+    { id: "site_food_system", name: "Who Owns the", unit: "companies", colour: "#6E6A55", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_food_system.places.geojson",
       note: "From the Suppression page's food system ownership map." },
-    { id: "site_world_advertising", name: "Advertising companies and owners", unit: "companies", colour: "#6C5F66", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_world_advertising.pmtiles",
+    { id: "site_world_advertising", name: "World Advertising 2026 — Companies & Owners", unit: "companies", colour: "#6C5F66", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_world_advertising.places.geojson",
       note: "From the Suppression page's World Advertising 2026 map." },
-    { id: "site_world_news", name: "News outlets and owners", unit: "outlets and owners", colour: "#626A6F", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_world_news.pmtiles",
+    { id: "site_world_news", name: "World News 2026 — Outlets & Owners", unit: "outlets and owners", colour: "#626A6F", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_world_news.places.geojson",
       note: "From the Suppression page's World News 2026 map." },
-    { id: "site_research_integrity", name: "Research integrity breaches", unit: "institutions and publishers", colour: "#5F6E6A", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_research_integrity.pmtiles",
+    { id: "site_research_integrity", name: "World Research Integrity 2026 — Who's Breaking Science", unit: "institutions and publishers", colour: "#5F6E6A", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_research_integrity.places.geojson",
       note: "From the Suppression page's research integrity map." },
-    { id: "site_world_entertainment", name: "Entertainment companies and owners", unit: "companies", colour: "#6D5E5A", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_world_entertainment.pmtiles",
+    { id: "site_world_entertainment", name: "World Entertainment 2026 — Companies & Owners", unit: "companies", colour: "#6D5E5A", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_world_entertainment.places.geojson",
       note: "From the Suppression page's World Entertainment 2026 map." },
-    { id: "site_eyes_network", name: "The network that tried to harness the eyes", unit: "places", colour: "#5B6360", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_eyes_network.pmtiles",
+    { id: "site_eyes_network", name: "The Network That Tried to Harness the Eyes to Harvest the World", unit: "places", colour: "#5B6360", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_eyes_network.places.geojson",
       note: "From the Suppression page's sports section network map." },
-    { id: "site_animal_tourism", name: "Animal tourism sites", unit: "locations", colour: "#7C6356", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_animal_tourism.pmtiles",
+    { id: "site_animal_tourism", name: "Animal Tourism Atlas", unit: "locations", colour: "#7C6356", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_animal_tourism.places.geojson",
       note: "From the Suppression page's animal tourism atlas." },
-    { id: "site_circus", name: "Circuses and animal shows", unit: "venues", colour: "#7A5E61", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_circus.pmtiles",
+    { id: "site_circus", name: "Global Circus & Animal Shows", unit: "venues", colour: "#7A5E61", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_circus.places.geojson",
       note: "From the Suppression page's circus map." },
-    { id: "site_animal_racing", name: "Animal racing and sports venues", unit: "venues", colour: "#7B6452", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_animal_racing.pmtiles",
+    { id: "site_animal_racing", name: "Global Animal Racing & Sports", unit: "venues", colour: "#7B6452", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_animal_racing.places.geojson",
       note: "From the Suppression page's animal racing map (maps repo)." },
-    { id: "site_rodeo", name: "Rodeos and charreadas", unit: "events and arenas", colour: "#80665A", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_rodeo.pmtiles",
+    { id: "site_rodeo", name: "Global Rodeo & Charreada Map", unit: "events and arenas", colour: "#80665A", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_rodeo.places.geojson",
       note: "From the Suppression page's rodeo and charreada map." },
-    { id: "site_enslaved_plants", name: "Unnecessary enslavement of plants", unit: "companies", colour: "#62705A", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_enslaved_plants.pmtiles",
+    { id: "site_enslaved_plants", name: "The Unnecessary Enslavement of Plants 2026", unit: "companies", colour: "#62705A", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_enslaved_plants.places.geojson",
       note: "From the Suppression page's plant enslavement map." },
-    { id: "site_enslaved_microbes", name: "Unnecessary enslavement of microorganisms", unit: "companies", colour: "#6A6E62", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_enslaved_microbes.pmtiles",
+    { id: "site_enslaved_microbes", name: "The Unnecessary Enslavement of Microorganisms 2026", unit: "companies", colour: "#6A6E62", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_enslaved_microbes.places.geojson",
       note: "From the Suppression page's microorganism enslavement map." },
-    { id: "site_insentient", name: "The insentient", unit: "companies", colour: "#66625E", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_insentient.pmtiles",
+    { id: "site_insentient", name: "The Insentient 2026", unit: "companies", colour: "#66625E", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_insentient.places.geojson",
       note: "From the Suppression page's map of industries built on things called insentient." },
-    { id: "site_subsistence_cultures", name: "Subsistence cultures", unit: "peoples", colour: "#5F7166", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_subsistence_cultures.pmtiles",
+    { id: "site_subsistence_cultures", name: "Global Subsistence Cultures", unit: "peoples", colour: "#5F7166", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_subsistence_cultures.places.geojson",
       note: "From the Suppression page's subsistence cultures map." },
-    { id: "site_self_sufficiency", name: "Citizen and local self-sufficiency programs", unit: "programs", colour: "#5E6F5B", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_self_sufficiency.pmtiles",
+    { id: "site_self_sufficiency", name: "Why some famous programs aren’t on this map", unit: "programs", colour: "#5E6F5B", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_self_sufficiency.places.geojson",
       note: "From the Solution page's self-sufficiency programs map." },
     { id: "site_environment_law", name: "Environmental law instruments", unit: "legal instruments", colour: "#5A6B72", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_environment_law.pmtiles",
       note: "From the Destruction page's environmental law map (enviro-atlas repo)." },
-    { id: "site_cartel_cells", name: "Cartel cells", unit: "cells and sites", colour: "#6A5A58", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_cartel_cells.pmtiles",
-      note: "From the Suppression page's cartel cells map (maps repo). Its 238 connecting lines are not drawn in this layer, only the places." },
+    { id: "site_cartel_cells", name: "Cartel cells", unit: "cells and sites", colour: "#6A5A58", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_cartel_cells.places.geojson",
+      note: "From the Suppression page's cartel cells map (maps repo), with its connecting lines." },
     { id: "enviro_law_by_country", name: "Environmental law by country and region (enviro-atlas)", unit: "countries", colour: "#5A6B72", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/enviro_law_by_country.geojson",
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
     { id: "site_earmarked_funding", name: "Earmarked funding to international organisations", unit: "countries", colour: "#6A5E66", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_earmarked_funding.geojson",
@@ -2257,8 +2525,6 @@ const SITE_MAPS = {
     { id: "site_settler_colonialism", name: "Settler colonialism and native displacement", unit: "territories", colour: "#6B5A52", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_settler_colonialism.geojson",
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
     { id: "site_social_spheres", name: "The social spheres (board and membership links)", unit: "links", colour: "#5E6068", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_social_spheres.geojson",
-      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
-    { id: "site_cartel_lines", name: "Cartel cells — connecting lines", unit: "links", colour: "#6A5A58", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_cartel_lines.geojson",
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
     { id: "site_environment_law_shapes", name: "Environmental law instruments — areas", unit: "areas", colour: "#5A6B72", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_environment_law_shapes.geojson",
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
@@ -2484,6 +2750,7 @@ function ensureLayer(cfg) {
   const build = cfg.route === "wmts"
     ? Promise.resolve().then(() => addWmtsLayer(cfg))
     : cfg.route === "shapes" ? addShapesLayer(cfg)
+    : cfg.route === "sitemap" ? addSitemapLayer(cfg)
     : addPmtilesLayer(cfg);
   build
     .then(() => {
@@ -2566,7 +2833,7 @@ function buildPanel() {
 
     const btn = e.target.closest(".chip");
     if (!btn) return;
-    const cfg = LAYERS.find((l) => l.id === btn.dataset.facet);
+    const cfg = LAYERS.find((l) => l.id === btn.dataset.facet) || childById(btn.dataset.facet);
     if (!cfg) return;
     const chosen = facetState.get(cfg.id) || new Set();
     if (btn.dataset.value === "") {

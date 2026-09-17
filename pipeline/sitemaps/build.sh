@@ -13,9 +13,11 @@ set -euo pipefail
 command -v node >/dev/null || { echo "node is needed: the maps' own scripts are run to read their places" >&2; exit 1; }
 command -v tippecanoe >/dev/null || { echo "tippecanoe is needed to build the tiles" >&2; exit 1; }
 
-# Every map layer: the site's own maps, then the accountability repos' files.
+# The accountability repos' files, plus the site maps still drawn from archives.
+# The other site maps are built as their own maps by build_boxes.py, below.
 ALL=$(python3 -c 'import json
-a=[m["id"] for m in json.load(open("pipeline/sitemaps/registry.json"))["maps"]]
+keep={"carbon_majors","site_environment_law"}
+a=[m["id"] for m in json.load(open("pipeline/sitemaps/registry.json"))["maps"] if m["id"] in keep]
 b=[l["id"] for l in json.load(open("pipeline/sitemaps/repo_layers.json"))["layers"]]
 print(",".join(a+b))')
 IDS="${1:-$ALL}"
@@ -64,4 +66,6 @@ for id in $(tr ',' ' ' <<< "$IDS"); do
 done
 echo "Building shapes (countries, regions, lines)…"
 python3 pipeline/shapes/build_shapes.py ${1:+"$1"}
+echo "Building the site's own maps (places and boxes)…"
+python3 pipeline/sitemaps/build_boxes.py ${1:+"$1"}
 echo "Done. New archives are in map/tiles/, shapes in map/data/shapes/."
