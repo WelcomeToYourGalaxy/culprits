@@ -1060,7 +1060,7 @@ console.log("\none world, and the globe");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const opts = src.slice(src.indexOf("const map = new maplibregl.Map({"), src.indexOf("layers: [", src.indexOf("const map = new maplibregl.Map({")));
   check("the world is not repeated east and west", /renderWorldCopies:\s*false/.test(opts));
-  check("the map opens as a globe that flattens as you zoom in", /projection:\s*\{\s*type:\s*"globe"\s*\}/.test(opts));
+  check("the map opens as a globe", /projection:\s*\{\s*type:\s*"vertical-perspective"\s*\}/.test(opts));
   check("an atmosphere at world view, gone by zoom 7", /"atmosphere-blend":\s*\["interpolate",\s*\["linear"\],\s*\["zoom"\]/.test(opts));
   const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   check("MapLibre 5, the first version with a globe", /maplibre-gl@5\.\d+\.\d+\/dist\/maplibre-gl\.js/.test(index) && !/maplibre-gl@4/.test(index));
@@ -1099,12 +1099,14 @@ console.log("\none world, and the globe");
   map.easeTo = (o) => eased.push(o);
   map.fire("load"); await new Promise((r) => setTimeout(r, 5));
   const panel = els.get("basemaps");
-  check("the panel offers the three views and the way out", /value="globe"/.test(panel.innerHTML) &&
-        /value="globe-flat" checked/.test(panel.innerHTML) && /value="flat"/.test(panel.innerHTML) &&
+  check("the settings box offers the two views and the way out", /value="globe" checked/.test(panel.innerHTML) &&
+        /value="flat"/.test(panel.innerHTML) && !/globe-flat/.test(panel.innerHTML) &&
         /id="leave-earth"/.test(panel.innerHTML));
+  check("no view, basemap or button carries a paragraph", !/class="un"/.test(panel.innerHTML));
   const el = (id) => globalThis.document.getElementById(id);
   const frame = el("space");
   check("Eyes is not loaded while the map is being read", !frame.src);
+  map.setZoom(4); map.fire("zoom");
   map.setZoom(2.4); map.fire("zoom");
   check("nearing the way out loads Eyes quietly, still hidden", /^https:\/\/eyes\.nasa\.gov\/apps\/solar-system\/#\/earth\?featured=false/.test(frame.src) && !(frame.classList.list || []).includes("on"));
   map.setZoom(-3); map.fire("zoom");
@@ -1123,8 +1125,6 @@ console.log("\none world, and the globe");
   check("the globe view stays a globe at every zoom", projections.at(-1) === "vertical-perspective");
   check("…and is stopped just past the hand-over size", minZooms.at(-1) > -4 && minZooms.at(-1) < 4,
         String(minZooms.at(-1)));
-  change({ name: "view", value: "globe-flat" });
-  check("globe to flat uses MapLibre's own transition", projections.at(-1) === "globe");
 }
 
 
@@ -1186,7 +1186,7 @@ console.log("\nthe boxes");
   const wireSrc = fs.readFileSync(path.join(HERE, "wire.js"), "utf8");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("one width is declared for every box", /--box-w:\s*290px/.test(index) && /--zoom-w:\s*29px/.test(index));
-  check("the layer panel takes it", /\.panel\{[\s\S]{0,200}width:var\(--box-w\)/.test(index));
+  check("the boxes down the left take it", /\.left-col\{[\s\S]{0,120}width:var\(--box-w\)/.test(index));
   check("the news wires box takes it too, no longer 440px",
         /width:min\(var\(--box-w,290px\),calc\(100vw - 18px\)\)/.test(wireSrc) && !/440px/.test(wireSrc));
   check("the legend is narrowed by the zoom buttons and the gap",
@@ -1234,7 +1234,7 @@ console.log("\ncoming back, and room to move");
   check("the news wires box opens to the top of the map",
         /\.wire\.open\{height:calc\(100vh - 42px - var\(--wire-lift,0px\)\)\}/.test(wireSrc));
   check("the layer panel rolls up and down", /id="panelRoll"/.test(index) &&
-        /\.panel\.shut > \*\{display:none\}/.test(index) && /classList\.toggle\("shut"/.test(src));
+        /\.panel\.shut\{display:none\}/.test(index) && /classList\.toggle\("shut"/.test(src));
 }
 {
   const { map, els } = run();
@@ -1245,13 +1245,47 @@ console.log("\ncoming back, and room to move");
   map.jumpTo = (o) => { if (o.zoom != null) map.zoom = o.zoom; };
   map.getCenter = () => ({ lng: 12, lat: 24 });
   map.fire("load"); await new Promise((r) => setTimeout(r, 5));
-  map.setZoom(4.5);
+  map.setZoom(4.5); map.fire("zoom");
   map.setZoom(1.5); map.fire("zoom");
   await new Promise((r) => setTimeout(r, 1000));
   check("leaving eases to the hand-over size", eased.length === 1 && eased[0].zoom === 2);
   el("spaceBack").fire("click", {});
   check("coming back zooms in again, to the view that was left",
         eased.length === 2 && eased[1].zoom >= 2.6 && eased[1].duration >= 1000, JSON.stringify(eased.at(-1)));
+}
+
+
+console.log("\nthe boxes down the left");
+{
+  const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the name, the settings and the layers are three boxes", /class="left-col"/.test(index) &&
+        /<div class="title-box">/.test(index) && /id="basemaps" class="ctrl-box"/.test(index));
+  check("the name's box holds the caret that rolls the layer list",
+        /title-box[\s\S]{0,200}id="panelRoll"/.test(index) && /\.panel\.shut\{display:none\}/.test(index));
+  check("the zoom reading is off the page", !/id="zoomstate"/.test(index) && /const el = document\.getElementById\("zoomstate"\)/.test(src));
+  check("only two views are offered", /"globe": \{ projection: "vertical-perspective"/.test(src) &&
+        /"flat":  \{ projection: "mercator"/.test(src) && !/globe-flat/.test(src));
+}
+{
+  const { map } = run();
+  const el = (id) => globalThis.document.getElementById(id);
+  const projections = [], eased = [];
+  map.setProjection = (p) => projections.push(p.type);
+  map.setMinZoom = () => {}; map.setTransformConstrain = () => {};
+  map.easeTo = (o) => { eased.push(o); if (o.zoom != null) map.zoom = o.zoom; };
+  map.jumpTo = (o) => { if (o.zoom != null) map.zoom = o.zoom; };
+  map.getCenter = () => ({ lng: 12, lat: 24 });
+  map.fire("load"); await new Promise((r) => setTimeout(r, 5));
+  const panel = el("basemaps");
+  panel.fire("change", { target: { name: "view", value: "flat" } });
+  map.setZoom(6);
+  panel.fire("click", { target: { id: "leave-earth" } });
+  await new Promise((r) => setTimeout(r, 1000));
+  check("Leave Earth works from the flat map, at any zoom",
+        el("spaceBar").hidden === false && projections.includes("vertical-perspective") && eased[0].zoom === 2);
+  el("spaceBack").fire("click", {});
+  check("coming back puts the flat map back", projections.at(-1) === "mercator" && eased.at(-1).zoom === 6);
 }
 
 console.log("\nlegibility");

@@ -50,20 +50,26 @@
            background:rgba(11,16,23,.9);border:1px solid var(--rule);color:var(--bone);font-size:12px}
   .fit-box code{display:block;margin-top:6px;color:var(--dim);word-break:break-all}
 
-  .panel{
-    position:absolute;top:16px;left:16px;width:var(--box-w);max-height:calc(100% - 32px);
-    overflow:auto;background:rgba(31,28,21,.94);border:1px solid var(--rule);
-    padding:16px 17px;font-size:13.5px;line-height:1.5;backdrop-filter:blur(6px);
-  }
-  .panel h1{font-size:17px;font-weight:600;margin:0 0 4px;letter-spacing:-.01em}
-  .p-roll{position:absolute;top:12px;right:12px;background:none;border:0;color:var(--dim);
-    font-size:13px;line-height:1;cursor:pointer;padding:2px 4px}
+  /* Three boxes down the left: the name, the settings, the layers. */
+  .left-col{position:absolute;top:16px;left:16px;width:var(--box-w);max-height:calc(100% - 32px);
+    display:flex;flex-direction:column;gap:8px;pointer-events:none}
+  .left-col > *{pointer-events:auto;background:rgba(31,28,21,.94);border:1px solid var(--rule);
+    font-size:13.5px;line-height:1.5;backdrop-filter:blur(6px)}
+  .title-box{display:flex;align-items:center;gap:8px;padding:9px 12px 10px}
+  .ctrl-box{padding:9px 12px 10px}
+  .panel{min-height:0;overflow:auto;padding:10px 13px 0;display:flex;flex-direction:column}
+  .title-box h1{font-size:17px;font-weight:600;margin:0;letter-spacing:-.01em;flex:1}
+  .p-roll{background:none;border:0;color:var(--dim);font-size:13px;line-height:1;cursor:pointer;padding:2px 4px}
   .p-roll:hover{color:var(--bone)}
-  .panel.shut{height:auto;max-height:none;overflow:hidden}
-  .panel.shut > *{display:none}
-  .panel.shut > h1,.panel.shut > .p-roll{display:block}
-  .panel .zoomstate{color:var(--dim);font-size:12.5px;margin:0 0 15px}
-  .panel .zoomstate b{color:var(--bone);font-weight:500}
+  .panel.shut{display:none}
+
+  /* The settings box: names only, close together. */
+  .ctrl-box .layer{padding:3px 0;gap:7px;border-top:none}
+  .ctrl-box .bm-h{margin:6px 0 2px}
+  .ctrl-box .bm-h:first-child{margin-top:0}
+  .ctrl-box .leave{margin:6px 0 2px;font:inherit;font-size:12.5px;color:var(--bone);background:none;
+    border:1px solid var(--rule);border-radius:3px;padding:3px 9px;cursor:pointer}
+  .ctrl-box .leave:hover{border-color:var(--bone)}
 
   .layer{display:flex;gap:9px;align-items:flex-start;padding:7px 0;
     border-top:1px solid var(--rule);cursor:pointer}
@@ -73,7 +79,6 @@
   .layer .nm{display:block}
   .layer .un{color:var(--dim);font-size:12px}
   .swatch{width:10px;height:10px;border-radius:50%;flex:none;margin:4px 0 0}
-  .basemaps{margin:0 0 14px;padding-bottom:6px;border-bottom:1px solid var(--rule)}
   .bm-h{margin:0 0 2px;color:var(--dim);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
   .pending-note{margin:14px 0 0;padding-top:12px;border-top:1px solid var(--rule);
     color:var(--dim);font-size:12px;line-height:1.45}
@@ -179,13 +184,16 @@
 </div>
 <div id="map"></div>
 
-<div class="panel">
-  <button class="p-roll" id="panelRoll" title="Roll the panel up or down" aria-expanded="true">&#9662;</button>
-  <h1>The Culprits</h1>
-  <p class="zoomstate" id="zoomstate">Reading the aggregate view.</p>
-  <div id="basemaps" class="basemaps"></div>
-  <div id="layers"></div>
-  <p class="note" id="note"></p>
+<div class="left-col">
+  <div class="title-box">
+    <h1>The Culprits</h1>
+    <button class="p-roll" id="panelRoll" title="Roll the layer list up or down" aria-expanded="true">&#9662;</button>
+  </div>
+  <div id="basemaps" class="ctrl-box"></div>
+  <div class="panel">
+    <div id="layers"></div>
+    <p class="note" id="note"></p>
+  </div>
 </div>
 
 <div id="legend" hidden></div>

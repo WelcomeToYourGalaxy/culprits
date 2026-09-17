@@ -815,12 +815,12 @@ const map = new maplibregl.Map({
   // One world. Repeated copies east and west read as more planet than there is.
   renderWorldCopies: false,
   center: [12, 24],
-  zoom: 1.6,
+  zoom: 2.9,
   attributionControl: { compact: true },
   style: {
     version: 8,
-    // The opening view: a globe that flattens as you zoom in. See VIEWS.
-    projection: { type: "globe" },
+    // The opening view: a globe. See VIEWS.
+    projection: { type: "vertical-perspective" },
     // The atmosphere, at world view only; gone by the time the map is flat.
     sky: { "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 1, 4, 0.8, 7, 0] },
     sources: {
@@ -1191,14 +1191,10 @@ function setBasemap(kind) {
 // MapLibre's own projection names. "globe" is its globe that turns into the
 // flat map between zoom 10 and 12; "vertical-perspective" stays a globe.
 const VIEWS = {
-  "globe":      { projection: "vertical-perspective", leave: true,
-                  nm: "Globe", un: "A globe at every zoom. Zoom out past it to leave Earth." },
-  "globe-flat": { projection: "globe", leave: true,
-                  nm: "Globe to flat", un: "A globe at world view that flattens into the map as you zoom in. Zoom out past it to leave Earth." },
-  "flat":       { projection: "mercator", leave: false,
-                  nm: "Flat map", un: "The flat map, with no way out to space." },
+  "globe": { projection: "vertical-perspective", leave: true, nm: "Globe" },
+  "flat":  { projection: "mercator", leave: false, nm: "Flat map" },
 };
-let VIEW = "globe-flat";
+let VIEW = "globe";
 let AWAY = false;             // true while Eyes has the screen
 let leaving = false;          // guards the hand-over animation
 
@@ -1272,9 +1268,15 @@ function panelsAway(on) {
 let leftFrom = null;          // the view the map was at when Eyes took over
 
 function leaveEarth() {
-  if (AWAY || leaving || !VIEWS[VIEW].leave) return;
+  if (AWAY || leaving) return;
   leaving = true;
-  leftFrom = { center: map.getCenter(), zoom: Math.max(map.getZoom(), handoffZoom() + 0.6) };
+  leftFrom = { center: map.getCenter(), zoom: Math.max(map.getZoom(), handoffZoom() + 0.6), view: VIEW };
+  // From the flat map the world becomes a globe first, so what fades out is
+  // the same Earth that fades in.
+  if (VIEWS[VIEW].projection === "mercator") {
+    if (typeof map.setProjection === "function") map.setProjection({ type: VIEWS.globe.projection });
+    if (typeof map.setTransformConstrain === "function") map.setTransformConstrain(null);
+  }
   warmSpace();
   const to = eyesFacing(Date.now());
   const done = () => {
@@ -1315,6 +1317,8 @@ function backToMap() {
   // Eyes, then grows back to the view that was left.
   if (leftFrom && typeof map.easeTo === "function") {
     map.jumpTo({ center: [eyesFacing(Date.now()).lon, EYES_FIT.lat], zoom: handoffZoom(), bearing: 0, pitch: 0 });
+    if (leftFrom.view && leftFrom.view !== VIEW) setView(leftFrom.view);
+    else if (leftFrom.view === "flat") setView("flat");
     map.easeTo({ center: leftFrom.center, zoom: leftFrom.zoom, duration: 1400 });
   }
   if (typeof map.triggerRepaint === "function") map.triggerRepaint();
@@ -1336,11 +1340,15 @@ function watchSpaceEdge() {
 // below the hand-over size so the last turn of the wheel has somewhere to go.
 function watchForLeaving() {
   const edge = () => handoffZoom() - 0.15;
+  // Only a zoom-out the reader makes leaves Earth. Without this the map would
+  // hand over as it opened, because it opens near the hand-over size.
+  let wasAbove = false;
   const check = () => {
     if (!VIEWS[VIEW].leave || AWAY || leaving) return;
     const z = map.getZoom();
+    if (z > edge() + 0.25) wasAbove = true;
     if (z < handoffZoom() + 1.2) warmSpace();
-    if (z <= edge() + 0.02) leaveEarth();
+    if (wasAbove && z <= edge() + 0.02) { wasAbove = false; leaveEarth(); }
   };
   map.on("zoom", check);
   map.on("moveend", check);
@@ -1562,33 +1570,23 @@ function pullableBoxes() {
   wireLater();
 }
 
+// Names only: the settings box says what each one is, not what it does.
 function viewPanelHtml() {
   return `<p class="bm-h">View</p>` + Object.entries(VIEWS).map(([k, v]) =>
     `<label class="layer"><input type="radio" name="view" value="${k}"${k === VIEW ? " checked" : ""}>` +
-    `<span class="body"><span class="nm">${v.nm}</span><span class="un">${v.un}</span></span></label>`).join("") +
-    `<div class="layer leave-row"><button type="button" id="leave-earth" class="leave">Leave Earth &#8594;</button>` +
-    `<span class="un">Hands the screen to NASA's Eyes on the Solar System, working in full, with Earth ` +
-    `where this globe was. A bar at the top brings the map back.</span></div>` +
-    `<p class="bm-h" style="margin-top:10px">Basemap</p>`;
+    `<span class="nm">${v.nm}</span></label>`).join("") +
+    `<button type="button" id="leave-earth" class="leave" title="Hands the screen to NASA's Eyes on ` +
+    `the Solar System. A bar at the top brings the map back.">Leave Earth &#8594;</button>` +
+    `<p class="bm-h">Basemap</p>`;
 }
 
 function buildBasemapPanel() {
   const box = document.getElementById("basemaps");
   if (!box) return;
-  const opts = [
-    ["atlas", "Painted atlas",
-     "A painted world chart at world view, fading into satellite imagery between " +
-     "zoom 3 and 5. The imagery is recoloured, not redrawn: every coastline is " +
-     "still Esri's photograph."],
-    ["satellite", "Satellite imagery",
-     "Esri World Imagery with relief, darkened so the layers read on top."],
-    ["outlines", "Country outlines",
-     "Country shapes from this map's own boundary file. No imagery."],
-  ];
-  box.innerHTML = viewPanelHtml() + opts.map(([k, nm, un]) =>
+  const opts = [["atlas", "Painted atlas"], ["satellite", "Satellite imagery"], ["outlines", "Country outlines"]];
+  box.innerHTML = viewPanelHtml() + opts.map(([k, nm]) =>
     `<label class="layer"><input type="radio" name="basemap" value="${k}"` +
-    `${k === BASEMAP ? " checked" : ""}><span class="body"><span class="nm">${nm}</span>` +
-    `<span class="un">${un}</span></span></label>`).join("");
+    `${k === BASEMAP ? " checked" : ""}><span class="nm">${nm}</span></label>`).join("");
   box.addEventListener("click", (e) => {
     if (e.target && e.target.id === "leave-earth") leaveEarth();
   });
@@ -3339,9 +3337,10 @@ function updateZoomState() {
   const z = map.getZoom();
   // The live layers need z8+, and "zoom in" is ambiguous without a number —
   // z8 is closer in than it feels, roughly a large country filling the screen.
-  document.getElementById("zoomstate").innerHTML = z < CLUSTER_MAXZOOM
-    ? `Zoom <b>${z.toFixed(1)}</b> — wide view.`
-    : `Zoom <b>${z.toFixed(1)}</b> — detail view.`;
+  // The line that said "Zoom 2.6 — wide view" is gone; this is kept for
+  // anything that still puts the reading on the page.
+  const el = document.getElementById("zoomstate");
+  if (el) el.innerHTML = `Zoom <b>${z.toFixed(1)}</b> — ${z < CLUSTER_MAXZOOM ? "wide" : "detail"} view.`;
 }
 
 // Esri and CARTO are third-party tile hosts. If one stops answering, the
