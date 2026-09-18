@@ -204,6 +204,8 @@ if (args.includes("--live") || dirAt !== -1) {
   const weight = c.facets.find((f) => f.key === "weight");
   check("the wire's notable mark is named on its option",
         W.optionsFor(c, weight, {}, ANY).some((o) => /notable mark/.test(o.label) && o.value === 3));
+  check("the score is named for what it counts", weight.label === "Substance score" &&
+        W.optionsFor(c, weight, {}, ANY).some((o) => /^At least \d+ points?\b/.test(o.label)));
   check("unplaced stories read as Not placed", c.stories[2].place === null &&
         W.optionsFor(c, c.facets.find((f) => f.key === "region"), {}, ANY).some((o) => o.label === "Not placed"));
   check("search runs over title and outlet", W.filterStories(c, {}, { q: "sohu", when: "all", now: NOW }).length === 1);

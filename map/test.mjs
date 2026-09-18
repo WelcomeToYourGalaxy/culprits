@@ -1120,7 +1120,7 @@ console.log("\none world, and the globe");
         !(el("map").classList.list || []).includes("away") && el("spaceBack").hidden === true);
   const change = (t) => panel.fire("change", { target: t });
   change({ name: "view", value: "flat" });
-  check("the flat map is mercator, with no way out", projections.at(-1) === "mercator" && minZooms.at(-1) === -1);
+  check("the flat map is mercator, with no way out", projections.at(-1) === "mercator" && minZooms.at(-1) === -2);
   change({ name: "view", value: "globe" });
   check("the globe view stays a globe at every zoom", projections.at(-1) === "vertical-perspective");
   check("…and is stopped just past the hand-over size", minZooms.at(-1) > -4 && minZooms.at(-1) < 4,
@@ -1189,10 +1189,12 @@ console.log("\nthe boxes");
   check("the boxes down the left take it", /\.left-col\{[\s\S]{0,120}width:var\(--box-w\)/.test(index));
   check("the news wires box takes it too, no longer 440px",
         /width:min\(var\(--box-w,290px\),calc\(100vw - 18px\)\)/.test(wireSrc) && !/440px/.test(wireSrc));
-  check("the legend is as wide as the wires box above it",
-        /#legend\{position:absolute;right:9px;bottom:26px;z-index:2;width:var\(--box-w\)/.test(index));
-  check("the zoom buttons are with the view choices",
-        /function moveZoomButtons/.test(src) && /\.view-zoom \.maplibregl-ctrl-group\{position:static/.test(index));
+  check("the legend and the zoom buttons together are as wide as the wires box",
+        /#legend\{position:absolute;right:calc\(9px \+ var\(--zoom-w\) \+ var\(--box-gap\)\)/.test(index) &&
+        /width:calc\(var\(--box-w\) - var\(--zoom-w\) - var\(--box-gap\)\)/.test(index));
+  check("the zoom buttons sit to the right of the legend",
+        /function moveZoomButtons/.test(src) && /getElementById\("zoombox"\)/.test(src) &&
+        /#zoombox\{position:absolute;right:9px;bottom:26px/.test(index) && /id="zoombox"/.test(index));
   check("Eyes opens without the View 3D prompt or its panels",
         /featured=false/.test(src) && /logo=false/.test(src) && !/embed=true/.test(src));
   const pull = new Function(src.match(/function pullHeight[\s\S]*?\n}\n/)[0] + "; return pullHeight;")();
@@ -1221,15 +1223,16 @@ console.log("\ncoming back, and room to move");
         /id="spaceEdge"/.test(index) && /\.space-edge \.se\{position:absolute;pointer-events:auto\}/.test(index) &&
         /edge\.addEventListener\("wheel"/.test(src) && /edge\.addEventListener\("dblclick"/.test(src));
   check("the flat map is handed its own camera back, so it can leave its edges",
-        /function freeConstrain/.test(src) && /setTransformConstrain\(VIEWS\[kind\]\.projection === "mercator" \? freeConstrain : null\)/.test(src));
+        /function freeConstrain/.test(src) && /setTransformConstrain\(proj === "mercator" \? freeConstrain : null\)/.test(src));
   const free = new Function("maplibregl", src.match(/function freeConstrain[\s\S]*?\n}\n/)[0] + "; return freeConstrain;")(
     { LngLat: function (lng, lat) { return { lng, lat }; } });
   check("a centre well past the map's edge is kept, not pulled back",
         free({ lng: 260, lat: 40 }, 3).center.lng === 260 && free({ lng: 260, lat: 40 }, 3).zoom === 3);
   check("…but not past the poles", free({ lng: 0, lat: 120 }, 3).center.lat === 89.9);
-  check("the flat map can be zoomed out until it floats", /setMinZoom\([\s\S]{0,70}: -1\)/.test(src));
-  check("the news wires box opens to the top of the map",
-        /\.wire\.open\{height:calc\(100vh - 42px - var\(--wire-lift,0px\)\)\}/.test(wireSrc));
+  check("the flat map can be zoomed out until it floats", /setMinZoom\([\s\S]{0,70}: -2\)/.test(src));
+  check("the news wires box hangs from the top, and opens down to the legend",
+        /\.wire\{position:absolute;right:9px;top:16px;/.test(wireSrc) &&
+        /\.wire\.open\{bottom:calc\(26px \+ var\(--wire-lift,0px\)\)\}/.test(wireSrc));
   check("the layer panel rolls up and down", /id="panelRoll"/.test(index) &&
         /\.panel\.shut > \*\{display:none\}/.test(index) && /classList\.toggle\("shut"/.test(src));
 }
@@ -1324,7 +1327,13 @@ console.log("\nreading the map");
   check("the caret sits in the layer box, not the title box",
         /<div class="panel-head">[\s\S]{0,200}id="panelRoll"/.test(index) &&
         !/title-box[\s\S]{0,120}panelRoll/.test(index) && /\.panel\.shut > \.panel-head\{display:flex\}/.test(index));
-  check("the Subjects button takes the width", /#wirePickBtn\{width:100%/.test(wireSrc));
+  check("Subjects is a drop-down row at the top of the filters", /class="wire-filter wire-subjrow"><span>Subjects<\/span>/.test(wireSrc) &&
+        wireSrc.indexOf("wire-subjrow") < wireSrc.indexOf('id="wireFilters"'));
+  check("Refresh sits inside the box, beside the search", /<div class="wire-search">[\s\S]{0,260}id="wireRefresh"/.test(wireSrc));
+  check("View and Basemap roll up on their own", /data-roll="\$\{key\}"/.test(src) && /sectHead\("View", "view"\)/.test(src) &&
+        /sectHead\("Basemap", "basemap"\)/.test(src) && /\.sect\.shut \.sect-body\{display:none\}/.test(index));
+  check("Climate TRACE draws fine, ringed points in its own colours", /if \(cfg\.fine\)/.test(src) &&
+        /"circle-stroke-color": "#0E0D0A"/.test(src) && /colour: CT_COLOURS\[id\]/.test(src));
   check("the filters are not folded away at all any more",
         !/state\.expanded\[/.test(wireSrc) && /class="wire-filter"/.test(wireSrc));
   check("the time window sits with the filters, below them",
@@ -1344,14 +1353,14 @@ console.log("\nthe wires box, plainer");
   const wireSrc = fs.readFileSync(path.join(HERE, "wire.js"), "utf8");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
-  check("the map's boxes leave the screen in Eyes", /\[".left-col", "#legend", ".wire"\]/.test(src));
+  check("the map's boxes leave the screen in Eyes", /\[".left-col", "#legend", ".wire", "#zoombox"\]/.test(src));
   check("Leave Earth stands beside the two views", /<div class="view-row"><div class="view-choices">/.test(src) &&
         /\.view-row\{display:flex/.test(index));
   check("one list of subjects, with select all and clear all",
         /SUBJECTS\.slice\(\)\.sort/.test(wireSrc) && !/Topic feeds<\/p>/.test(wireSrc) &&
         /data-all="1">Select all/.test(wireSrc) && /data-none="1">Clear all/.test(wireSrc));
-  check("the Subjects button reads as a drop-down", /wire-subjects/.test(wireSrc) &&
-        /wire\.picking \.wire-subjects \.wire-caret\{transform:rotate\(90deg\)\}/.test(wireSrc));
+  check("the Subjects button reads as a drop-down", /wire-dd wire-subjects/.test(wireSrc) &&
+        /\.wire-picker\{position:absolute/.test(wireSrc));
   check("one drop-down per filter, options under the subject they came from",
         /const kinds = \[\]/.test(wireSrc) && /<optgroup label="/.test(wireSrc) &&
         /esc\(id \+ '\|' \+ o\.value\)/.test(wireSrc));
@@ -1450,17 +1459,18 @@ console.log("\nthe view row, and terrain where it works");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   check("the boxes on the left actually fade out", /\.left-col\.away,\.panel\.away/.test(index));
-  check("terrain moves the view to the flat map",
-        /if \(TERRAIN_ON && VIEWS\[VIEW\]\.projection !== "mercator"\) setView\("flat"\)/.test(src) &&
-        /projection !== "mercator" && TERRAIN_ON\) setTerrain\(false\)/.test(src));
-  check("the tick box says where terrain works", /3D terrain \(flat map\)/.test(src));
-  check("the zoom buttons are moved into the view row",
+  check("terrain is drawn on a round Earth that flattens close up",
+        /return TERRAIN_ON \? "globe" : VIEWS\[kind \|\| VIEW\]\.projection/.test(src));
+  check("the map tilts to 85 degrees and rolls", /maxPitch: 85/.test(src) && /rollEnabled: true/.test(src));
+  check("the compass shows tilt and turn", /showCompass: true, visualizePitch: true/.test(src));
+  check("the whole-world button sits with the zoom buttons", /function addWorldButton/.test(src) &&
+        /#zoombox \.maplibregl-ctrl-group/.test(src) && /addWorldButton\(\);/.test(src));
+  check("the sky over a tilted map is dark slate", /"sky-color": "#1B242B"/.test(src));
+  check("the zoom buttons are moved into their own box",
         /function moveZoomButtons/.test(src) && /holder\.insertBefore\(group/.test(src) &&
-        /\.view-zoom \.maplibregl-ctrl-group\{position:static/.test(index) &&
         !/\.maplibregl-ctrl-bottom-right \.maplibregl-ctrl-group\{position:absolute/.test(index));
-  check("a globe button sits beside them", /id="to-globe"/.test(src) && /function outToTheGlobe/.test(src) &&
-        /zoom: OPENING_ZOOM, pitch: 0/.test(src));
-  check("the legend takes the full width again", /#legend\{position:absolute;right:9px;bottom:26px;z-index:2;width:var\(--box-w\)/.test(index));
+  check("Leave Earth sits alone to the right of the view choices", !/id="to-globe"/.test(src) &&
+        /\.ctrl-box \.leave\{flex:1 1 55%/.test(index));
 }
 {
   const { map } = run();
@@ -1474,10 +1484,12 @@ console.log("\nthe view row, and terrain where it works");
   map.fire("load"); await new Promise((r) => setTimeout(r, 5));
   const panel = globalThis.document.getElementById("basemaps");
   panel.fire("change", { target: { id: "terrain-toggle", checked: true } });
-  check("terrain on the globe takes you to the flat map first",
-        projections.at(-1) === "mercator" && terrains.at(-1) === "terrain-dem");
-  panel.fire("change", { target: { name: "view", value: "globe" } });
-  check("…and the globe puts it away again", !terrains.at(-1) && projections.at(-1) === "vertical-perspective");
+  check("terrain on draws the round globe that flattens close up",
+        projections.at(-1) === "globe" && terrains.at(-1) === "terrain-dem");
+  panel.fire("change", { target: { name: "view", value: "flat" } });
+  check("…and stays round at world scale from the flat map too", projections.at(-1) === "globe" && terrains.at(-1) === "terrain-dem");
+  panel.fire("change", { target: { id: "terrain-toggle", checked: false } });
+  check("terrain off gives the chosen view back", !terrains.at(-1) && projections.at(-1) === "mercator");
 }
 
 console.log("\nlegibility");

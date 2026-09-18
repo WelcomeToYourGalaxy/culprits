@@ -76,11 +76,15 @@
   .ctrl-box .layer{padding:3px 0;gap:7px;border-top:none}
   .ctrl-box .bm-h{margin:6px 0 2px}
   .ctrl-box .bm-h:first-child{margin-top:0}
+  .sect-head{display:flex;align-items:center;justify-content:space-between}
+  .sect-head .bm-h{margin:0}
+  .sect + .sect{margin-top:7px;padding-top:6px;border-top:1px solid var(--rule)}
+  .sect.shut .sect-body{display:none}
   .view-row{display:flex;align-items:stretch;gap:9px}
   .view-choices{flex:1;min-width:0}
-  .ctrl-box .leave{flex:0 0 auto;align-self:stretch;font:inherit;font-size:13px;line-height:1.25;
-    color:var(--bone);background:none;border:1px solid var(--rule);border-radius:3px;
-    padding:6px 12px;cursor:pointer}
+  .ctrl-box .leave{flex:1 1 55%;align-self:stretch;font:inherit;font-size:17px;font-weight:600;line-height:1.2;
+    color:var(--bone);background:rgba(92,110,119,.18);border:1px solid var(--slate);border-radius:3px;
+    padding:10px 14px;cursor:pointer;text-align:center}
   .ctrl-box .leave:hover{border-color:var(--bone)}
 
   .layer{display:flex;gap:9px;align-items:flex-start;padding:7px 0;
@@ -142,18 +146,23 @@
 
   /* Legend. Bottom right, above the attribution, narrow enough not to cover
      the map. Lists only what is switched on. */
-  #legend{position:absolute;right:9px;bottom:26px;z-index:2;width:var(--box-w);max-width:none;
+  #legend{position:absolute;right:calc(9px + var(--zoom-w) + var(--box-gap));bottom:26px;z-index:2;
+    width:calc(var(--box-w) - var(--zoom-w) - var(--box-gap));max-width:none;
     background:rgba(17,21,15,.88);border:1px solid var(--rule);border-radius:2px;
     padding:6px 8px;font-size:11px;line-height:1.35;color:var(--dim);
     max-height:42vh;overflow-y:auto}
   #legend[hidden]{display:none}
-  /* The zoom buttons live in the view row, beside the globe button. */
-  .view-zoom{display:flex;align-items:center;gap:6px}
-  .view-zoom .maplibregl-ctrl-group{position:static;margin:0;border-radius:3px;box-shadow:none;
-    border:1px solid var(--rule);background:rgba(23,21,15,.6)}
-  .view-zoom .maplibregl-ctrl-group button{width:26px;height:26px;background-color:transparent}
-  .view-zoom .maplibregl-ctrl-group button + button{border-top:1px solid var(--rule)}
-  .view-zoom .maplibregl-ctrl-icon{filter:invert(1) brightness(.86)}
+  /* The zoom buttons, to the right of the legend. The two together are as
+     wide as the news wires box above them. */
+  #zoombox{position:absolute;right:9px;bottom:26px;z-index:2;width:var(--zoom-w)}
+  #zoombox.away{opacity:0;pointer-events:none;transition:opacity .5s ease}
+  #zoombox .maplibregl-ctrl-group{position:static;margin:0;border-radius:2px;box-shadow:none;
+    border:1px solid var(--rule);background:rgba(17,21,15,.88)}
+  #zoombox .maplibregl-ctrl-group button{width:100%;height:27px;background-color:transparent}
+  #zoombox .maplibregl-ctrl-group button + button{border-top:1px solid var(--rule)}
+  #zoombox .maplibregl-ctrl-icon{filter:invert(1) brightness(.86)}
+  #zoombox .to-world{display:flex;align-items:center;justify-content:center;color:#DBD6CA;cursor:pointer}
+  #zoombox .to-world:hover{color:var(--bone)}
   .to-globe{font:inherit;font-size:12.5px;color:var(--bone);background:none;border:1px solid var(--rule);
     border-radius:3px;padding:4px 8px;cursor:pointer;white-space:nowrap}
   .to-globe:hover{border-color:var(--bone)}
@@ -218,6 +227,7 @@
 </div>
 
 <div id="legend" hidden></div>
+<div id="zoombox"></div>
 
 <div class="gm" id="gm" hidden>
   <div class="gm-bar">

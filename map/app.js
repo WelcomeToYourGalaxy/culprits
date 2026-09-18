@@ -83,12 +83,37 @@ const CT_FLU_BASE = "https://welcometoyourgalaxy.github.io/culprits-tiles-flu";
 
 // Shared shape. `base` null means the archive is in this repo, so addPmtilesLayer
 // resolves it against TILE_BASE as every other layer does.
+// One colour per subsector, so two ticked at once stay apart. Earthy and
+// muted; none orange or yellow.
+const CT_COLOURS = {
+  climate_trace_power: "#8F4E40", climate_trace_fossil_fuel_operations: "#6E5A6E",
+  climate_trace_manufacturing: "#5F7480", climate_trace_transportation: "#6C7F63",
+  climate_trace_buildings: "#8A7A6A", climate_trace_waste: "#6A5A4C",
+  climate_trace_ag_enteric_fermentation_cattle_operation: "#7C8F5E",
+  climate_trace_ag_manure_management_cattle_operation: "#5E8C7A",
+  climate_trace_ag_enteric_fermentation_cattle_pasture: "#8A9A6E",
+  climate_trace_ag_manure_left_on_pasture_cattle: "#4F6E5A",
+  climate_trace_ag_manure_applied_to_soils: "#9A8E78",
+  climate_trace_ag_synthetic_fertilizer_application: "#6E7E8A",
+  climate_trace_ag_rice_cultivation: "#6A8A8A",
+  climate_trace_ag_cropland_fires: "#8F5A4E",
+  climate_trace_ag_crop_residues: "#5A6B4A",
+  climate_trace_flu_forest_land_clearing: "#4E6A5E", climate_trace_flu_forest_land_degradation: "#6E8C6A",
+  climate_trace_flu_forest_land_fires: "#8F5A4E", climate_trace_flu_shrubgrass_fires: "#9A6E5E",
+  climate_trace_flu_wetland_fires: "#7E5A6A", climate_trace_flu_net_forest_land: "#3F5F55",
+  climate_trace_flu_net_shrubgrass: "#7A7458", climate_trace_flu_net_wetland: "#5E7A70",
+  climate_trace_flu_net_soil_organic_carbon: "#6A5A4C", climate_trace_flu_removals: "#5F7480",
+  climate_trace_flu_water_reservoirs: "#6A7F90",
+};
+
 function ctChild(id, label, base) {
   return {
     id,
     name: label,
     unit: "t CO\u2082e/yr (GWP-100)",
-    colour: "#8F4E40",
+    colour: CT_COLOURS[id] || "#8F4E40",
+    // Drawn as fine, sharp points with a dark rim at world view: see FINE_PAINT.
+    fine: true,
     route: "pmtiles",
     ready: true,
     lazy: true,
@@ -821,6 +846,10 @@ const map = new maplibregl.Map({
   container: "map",
   // One world. Repeated copies east and west read as more planet than there is.
   renderWorldCopies: false,
+  // Tilt and turn on every axis: right-drag (or Ctrl-drag) turns and tilts,
+  // Ctrl + right-drag rolls. Tilt goes to 85 degrees, near the horizon.
+  maxPitch: 85,
+  rollEnabled: true,
   center: [12, 24],
   zoom: OPENING_ZOOM,
   attributionControl: { compact: true },
@@ -829,7 +858,11 @@ const map = new maplibregl.Map({
     // The opening view: a globe. See VIEWS.
     projection: { type: "vertical-perspective" },
     // The atmosphere, at world view only; gone by the time the map is flat.
-    sky: { "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 1, 4, 0.8, 7, 0] },
+    // Tilted close up, the sky above the horizon is dark slate, not
+    // MapLibre's default bright blue.
+    sky: { "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 1, 4, 0.8, 7, 0],
+           "sky-color": "#1B242B", "horizon-color": "#46545B", "fog-color": "#46545B",
+           "sky-horizon-blend": 0.6, "horizon-fog-blend": 0.6, "fog-ground-blend": 0.7 },
     sources: {
       // Imagery, relief and labels as three layers, the way the Leaflet atlas
       // builds them. What this map documents is physical — a mine, a cleared
@@ -892,7 +925,9 @@ map.on("error", (e) => {
   console.error("[culprits]", id || "map", msg, e.error || e);
 });
 
-map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
+// The compass shows the turn and tilt, and a click on it stands the map
+// back upright facing north.
+map.addControl(new maplibregl.NavigationControl({ showCompass: true, visualizePitch: true, visualizeRoll: true }), "bottom-right");
 map.addControl(new maplibregl.ScaleControl({ maxWidth: 110, unit: "metric" }), "bottom-left");
 
 /* ---------- pre-tiled layers ---------- */
@@ -1029,6 +1064,34 @@ async function addPmtilesLayer(cfg) {
   // Aggregate view. tippecanoe summed `value` into the clustered features, so
   // radius can encode magnitude *within this layer* without claiming anything
   // about any other.
+  if (cfg.fine) {
+    // Climate TRACE: hundreds of thousands of points per layer. Translucent
+    // discs with a same-colour edge merged into one wash of colour at world
+    // view. Here each point is small, solid and ringed in near-black, so
+    // overlapping points stay separate marks; the largest are drawn last, on
+    // top. Size still follows magnitude, gently.
+    map.addLayer({
+      id: `${cfg.id}-agg`, type: "circle", source: src, "source-layer": owner,
+      ...(cfg.where ? { filter: cfg.where } : {}),
+      maxzoom: CLUSTER_MAXZOOM,
+      layout: { "circle-sort-key": ["coalesce", ["get", "value"], ["get", "_count"], 0] },
+      paint: {
+        "circle-color": cfg.colour,
+        "circle-opacity": .95,
+        "circle-blur": 0,
+        "circle-stroke-color": "#0E0D0A",
+        "circle-stroke-opacity": .9,
+        "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 0, .35, 5, .5, 8, .7],
+        "circle-radius": [
+          "interpolate", ["linear"], ["zoom"],
+          0, ["+", 0.8, ["*", 0.07 * scale, MAGNITUDE_RADIUS]],
+          3, ["+", 1.0, ["*", 0.13 * scale, MAGNITUDE_RADIUS]],
+          6, ["+", 1.4, ["*", 0.28 * scale, MAGNITUDE_RADIUS]],
+          8, ["+", 2.0, ["*", 0.45 * scale, MAGNITUDE_RADIUS]],
+        ],
+      },
+    });
+  } else
   map.addLayer({
     id: `${cfg.id}-agg`,
     type: "circle",
@@ -1286,7 +1349,7 @@ function warmSpace() {
 }
 
 function panelsAway(on) {
-  for (const sel of [".left-col", "#legend", ".wire"]) {
+  for (const sel of [".left-col", "#legend", ".wire", "#zoombox"]) {
     const el = document.querySelector(sel);
     if (el && el.classList) el.classList.toggle("away", on);
   }
@@ -1300,7 +1363,7 @@ function leaveEarth() {
   leftFrom = { center: map.getCenter(), zoom: Math.max(map.getZoom(), handoffZoom() + 0.6), view: VIEW };
   // From the flat map the world becomes a globe first, so what fades out is
   // the same Earth that fades in.
-  if (VIEWS[VIEW].projection === "mercator") {
+  if (drawnProjection() === "mercator") {
     if (typeof map.setProjection === "function") map.setProjection({ type: VIEWS.globe.projection });
     if (typeof map.setTransformConstrain === "function") map.setTransformConstrain(null);
   }
@@ -1377,23 +1440,30 @@ function watchForLeaving() {
   };
   map.on("zoom", check);
   map.on("moveend", check);
-  const setEdge = () => { if (typeof map.setMinZoom === "function") map.setMinZoom(VIEWS[VIEW].leave ? edge() : -1); };
+  const setEdge = () => { if (typeof map.setMinZoom === "function") map.setMinZoom(VIEWS[VIEW].leave ? edge() : -2); };
   map.on("resize", setEdge);
   setEdge();
+}
+
+// The projection actually drawn. With 3D terrain on, the planet is MapLibre's
+// "globe": round at world scale, flattening only close up (from about zoom
+// 10), which is the one projection that carries terrain on a round Earth.
+function drawnProjection(kind) {
+  return TERRAIN_ON ? "globe" : VIEWS[kind || VIEW].projection;
 }
 
 function setView(kind) {
   if (!VIEWS[kind]) return;
   VIEW = kind;
-  // The globe cannot carry terrain, so choosing it puts terrain away.
-  if (VIEWS[kind].projection !== "mercator" && TERRAIN_ON) setTerrain(false);
-  if (typeof map.setProjection === "function") map.setProjection({ type: VIEWS[kind].projection });
-  if (typeof map.setMinZoom === "function") map.setMinZoom(VIEWS[kind].leave ? handoffZoom() - 0.1 : -1);
+  const proj = drawnProjection(kind);
+  if (typeof map.setProjection === "function") map.setProjection({ type: proj });
+  // The flat map zooms out to MapLibre's floor, -2: the chart a small card in the stars.
+  if (typeof map.setMinZoom === "function") map.setMinZoom(VIEWS[kind].leave ? handoffZoom() - 0.1 : -2);
   // The flat map is free of its own edges: drag it out into the stars.
   if (typeof map.setTransformConstrain === "function") {
-    map.setTransformConstrain(VIEWS[kind].projection === "mercator" ? freeConstrain : null);
+    map.setTransformConstrain(proj === "mercator" ? freeConstrain : null);
   }
-  skyForView(VIEWS[kind].projection);
+  skyForView(proj);
   if (!VIEWS[kind].leave && AWAY) backToMap();
   if (typeof map.triggerRepaint === "function") map.triggerRepaint();
 }
@@ -1698,7 +1768,7 @@ function watchSky() {
   map.on("move", skyRedraw);
   map.on("resize", skyRedraw);
   if (typeof window !== "undefined" && window.addEventListener) window.addEventListener("resize", skyRedraw);
-  skyForView(VIEWS[VIEW].projection);
+  skyForView(drawnProjection());
 }
 
 /* ---------- boxes that can be pulled open and shut ---------- */
@@ -1774,14 +1844,15 @@ let TERRAIN_ON = false;
 function setTerrain(on) {
   TERRAIN_ON = !!on;
   if (typeof map.setTerrain !== "function") return;
-  // MapLibre draws terrain for the flat map. On the globe the planet renders
-  // as nothing at all, so switching terrain on moves the view with it.
-  if (TERRAIN_ON && VIEWS[VIEW].projection !== "mercator") setView("flat");
+  // Terrain is drawn on a round Earth (see drawnProjection): the flat map
+  // tilted at world scale stood on the screen like a slab.
+  setView(VIEW);
   if (TERRAIN_ON) {
     if (!map.getSource("terrain-dem")) map.addSource("terrain-dem", TERRAIN_SOURCE);
     map.setTerrain({ source: "terrain-dem", exaggeration: TERRAIN_EXAGGERATION });
-    // Flat on, height says nothing: the camera leans over so the ground reads.
-    if (typeof map.easeTo === "function" && map.getPitch && map.getPitch() < 25) {
+    // Close up, the camera leans over so the ground reads. At world scale it
+    // stays upright: the planet's own curve already shows it is round.
+    if (typeof map.easeTo === "function" && map.getPitch && map.getPitch() < 25 && map.getZoom() >= 6) {
       map.easeTo({ pitch: 55, duration: 700 });
     }
   } else {
@@ -1794,37 +1865,69 @@ function setTerrain(on) {
   if (box) box.checked = TERRAIN_ON;
 }
 
-// Out to the whole planet: the globe view at the zoom it opens on.
+// Out to the whole planet, in the view already chosen: on the globe (and with
+// terrain, which is drawn round) the zoom the map opens on; on the flat map the
+// zoom at which the whole chart fits the window.
 function outToTheGlobe() {
-  setView("globe");
-  const box = document.querySelector('input[name="view"][value="globe"]');
-  if (box) box.checked = true;
-  if (typeof map.easeTo === "function") {
-    map.easeTo({ zoom: OPENING_ZOOM, pitch: 0, bearing: 0, duration: 900 });
+  if (typeof map.easeTo !== "function") return;
+  const round = drawnProjection() !== "mercator";
+  let zoom = OPENING_ZOOM;
+  if (!round) {
+    const c = map.getCanvas ? map.getCanvas() : null;
+    const w = (c && c.clientWidth) || 1280, h = (c && c.clientHeight) || 800;
+    // The Mercator square is 512 px wide at zoom 0; fit it with a margin.
+    zoom = Math.log2(Math.min(w / 512, h / 512) * 0.92);
   }
+  map.easeTo({ center: [round ? map.getCenter().lng : 0, round ? 20 : 0], zoom,
+               pitch: 0, bearing: 0, roll: 0, duration: 900 });
 }
 
-// MapLibre puts its zoom buttons in a corner of the map. They belong with the
-// view choices, so the element is moved into the row once it exists.
+// The whole-world button, under + and − beside the legend.
+function addWorldButton() {
+  const group = document.querySelector("#zoombox .maplibregl-ctrl-group");
+  if (!group || !document.createElement || document.getElementById("to-globe")) return;
+  const b = document.createElement("button");
+  b.type = "button";
+  b.id = "to-globe";
+  b.className = "to-world";
+  b.title = "Out to the whole world";
+  b.setAttribute("aria-label", "Out to the whole world");
+  b.innerHTML = '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" fill="none" ' +
+    'stroke="currentColor" stroke-width="1.3"><circle cx="10" cy="10" r="7.2"/>' +
+    '<ellipse cx="10" cy="10" rx="3.2" ry="7.2"/><path d="M2.8 10h14.4M4 6.3h12M4 13.7h12"/></svg>';
+  b.addEventListener("click", outToTheGlobe);
+  group.appendChild(b);
+}
+
+// MapLibre puts its zoom buttons in a corner of the map. They belong to the
+// right of the legend, so the element is moved into its own box there.
 function moveZoomButtons() {
-  const holder = document.getElementById("view-zoom");
+  const holder = document.getElementById("zoombox");
   const group = document.querySelector(".maplibregl-ctrl-bottom-right .maplibregl-ctrl-group");
   if (holder && group && holder.insertBefore) holder.insertBefore(group, holder.firstChild);
+  addWorldButton();
+}
+
+// Each section of the settings box rolls up and down on its own caret.
+function sectHead(name, key) {
+  return `<div class="sect-head"><span class="bm-h">${name}</span>` +
+    `<button type="button" class="p-roll" data-roll="${key}" aria-expanded="true" ` +
+    `title="Roll ${name.toLowerCase()} up or down">&#9662;</button></div>`;
 }
 
 function viewPanelHtml() {
-  return `<p class="bm-h">View</p><div class="view-row"><div class="view-choices">` +
+  return `<div class="sect" data-sect="view">` + sectHead("View", "view") + `<div class="sect-body">` +
+    `<div class="view-row"><div class="view-choices">` +
     Object.entries(VIEWS).map(([k, v]) =>
       `<label class="layer"><input type="radio" name="view" value="${k}"${k === VIEW ? " checked" : ""}>` +
       `<span class="nm">${v.nm}</span></label>`).join("") +
-    `</div><div class="view-zoom" id="view-zoom">` +
-    `<button type="button" id="to-globe" class="to-globe" title="Out to the whole planet">Globe</button></div>` +
+    `</div>` +
     `<button type="button" id="leave-earth" class="leave" title="Hands the screen to NASA's Eyes ` +
     `on the Solar System. A box in the corner brings the map back.">Leave<br>Earth &#8594;</button></div>` +
     `<label class="layer"><input type="checkbox" id="terrain-toggle"${TERRAIN_ON ? " checked" : ""}` +
-    ` title="Ground height under the imagery. The flat map only: the globe cannot carry it.">` +
-    `<span class="nm">3D terrain (flat map)</span></label>` +
-    `<p class="bm-h">Basemap</p>`;
+    ` title="Ground height under the imagery, on a round Earth that flattens close up. Right-drag to tilt and turn.">` +
+    `<span class="nm">3D terrain</span></label></div></div>` +
+    `<div class="sect" data-sect="basemap">` + sectHead("Basemap", "basemap") + `<div class="sect-body">`;
 }
 
 function buildBasemapPanel() {
@@ -1833,8 +1936,17 @@ function buildBasemapPanel() {
   const opts = [["atlas", "Painted atlas"], ["satellite", "Satellite imagery"], ["outlines", "Country outlines"]];
   box.innerHTML = viewPanelHtml() + opts.map(([k, nm]) =>
     `<label class="layer"><input type="radio" name="basemap" value="${k}"` +
-    `${k === BASEMAP ? " checked" : ""}><span class="nm">${nm}</span></label>`).join("");
+    `${k === BASEMAP ? " checked" : ""}><span class="nm">${nm}</span></label>`).join("") + `</div></div>`;
   box.addEventListener("click", (e) => {
+    const roll = e.target && e.target.closest ? e.target.closest("[data-roll]") : null;
+    if (roll) {
+      const sect = roll.closest(".sect");
+      const shut = !sect.classList.contains("shut");
+      sect.classList.toggle("shut", shut);
+      roll.innerHTML = shut ? "&#9652;" : "&#9662;";
+      roll.setAttribute("aria-expanded", shut ? "false" : "true");
+      return;
+    }
     if (e.target && e.target.id === "leave-earth") leaveEarth();
     if (e.target && e.target.id === "to-globe") outToTheGlobe();
   });

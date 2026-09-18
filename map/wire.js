@@ -294,7 +294,7 @@ function readFeed(data) {
 
   const markKey = ['notable_score', 'documented_score', 'big_picture_score'].find((k) => typeof data[k] === 'number');
   if (items.some((i) => typeof i.p === 'number')) {
-    facets.push(facet('weight', 'Weight', { weight: true,
+    facets.push(facet('weight', 'Substance score', { weight: true,
       mark: markKey ? data[markKey] : null,
       markName: markKey ? markKey.replace(/_score$/, '').replace(/_/g, ' ') : null }));
   }
@@ -359,7 +359,7 @@ function readMapWire(cfg, data) {
     order: d.type === 'lang' || d.type === 'country' ? 'label' : d.type === 'days' ? 'numeric' : 'count',
     type: d.type || 'plain', field: d.field }));
   const weightOn = cfg.weight && items.some((i) => typeof i[cfg.weight] === 'number');
-  if (weightOn) facets.push(facet('weight', 'Weight', { weight: true, mark: null, markName: null }));
+  if (weightOn) facets.push(facet('weight', 'Substance score', { weight: true, mark: null, markName: null }));
 
   const stories = items.map((i, n) => {
     const s = { i: n, title: plainText(i.title), url: i.link || '', outlet: cfg.outlet ? (i[cfg.outlet] || '') : '',
@@ -481,7 +481,7 @@ function optionsFor(wire, f, sel, shared) {
     }
     return steps.map((v) => ({
       value: v,
-      label: 'At least ' + v + (f.mark === v ? ', the wire’s ' + f.markName + ' mark' : ''),
+      label: 'At least ' + v + (v === 1 ? ' point' : ' points') + (f.mark === v ? ', the wire’s ' + f.markName + ' mark' : ''),
       count: pool.filter((s) => s.w != null && s.w >= v).length
     }));
   }
@@ -561,14 +561,14 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) =>
 const num = (n) => Number(n).toLocaleString('en');
 
 const CSS = `
-.wire{position:absolute;right:9px;bottom:calc(26px + var(--wire-lift,0px));z-index:3;
+.wire{position:absolute;right:9px;top:16px;z-index:3;
   width:min(var(--box-w,290px),calc(100vw - 18px));display:flex;flex-direction:column;
   background:rgba(31,28,21,.95);border:1px solid var(--rule,#322E27);color:var(--bone,#DCD6C6);
   font:13px/1.45 var(--sans,system-ui,sans-serif);backdrop-filter:blur(6px)}
-.wire.open{height:calc(100vh - 42px - var(--wire-lift,0px))}
+.wire.open{bottom:calc(26px + var(--wire-lift,0px))}
 .wire button,.wire select,.wire input{font:inherit;color:inherit}
 .wire :focus-visible{outline:2px solid var(--slate,#5C6E77);outline-offset:1px}
-.wire-bar{display:flex;align-items:center;gap:10px;padding:7px 10px 7px 8px}
+.wire-bar{display:flex;align-items:center;gap:4px 10px;padding:7px 10px 7px 8px;flex-wrap:wrap}
 .wire.open .wire-bar{border-bottom:1px solid var(--rule,#322E27)}
 .wire-toggle{background:none;border:0;padding:2px 4px;cursor:pointer;font-weight:600;font-size:13.5px;
   display:flex;align-items:center;gap:7px}
@@ -586,28 +586,39 @@ const CSS = `
 .wire-body{display:flex;flex-direction:column;min-height:0;flex:1}
 .wire-body[hidden]{display:none}
 .wire-tools{display:flex;flex-direction:column;gap:6px;padding:8px 10px;align-items:stretch}
-.wire-tools #wirePickBtn{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;
-  font-size:13px;padding:5px 8px}
-.wire.picking .wire-subjects .wire-caret{transform:rotate(90deg)}
+.wire-search{display:flex;gap:6px;align-items:center}
+.wire-search input{flex:1}
+.wire-subjrow{position:relative}
+.wire-filter > span:first-child,.wire-filter > .wire-fl{flex:0 0 96px}
+.wire-dd{flex:1;min-width:0;display:flex;align-items:center;gap:6px;text-align:left;cursor:pointer;
+  background:var(--peat,#17150F);border:1px solid var(--rule,#322E27);border-radius:2px;padding:1px 6px;font-size:12px}
+.wire-dd .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wire-dd .wire-caret{transform:rotate(90deg)}
+.wire.picking .wire-dd .wire-caret{transform:rotate(-90deg)}
+.wire.picking .wire-dd{border-color:var(--dim,#948D7C)}
 .wire-pickbar{display:flex;gap:6px;padding:4px 10px 2px}
 .wire-pickbar button{flex:1}
 .wire-filter{display:flex;align-items:center;gap:7px;padding:3px 10px;color:var(--dim,#948D7C);font-size:12px}
 .wire-filter select{flex:1;min-width:0}
 .wire-unread{padding:3px 10px;color:#B98A80;font-size:11.5px}
+.wire-hint{margin:0;padding:0 10px 4px;color:var(--dim,#948D7C);font-size:11px;line-height:1.35}
 .wire-tools input{width:100%;min-width:0;background:var(--peat,#17150F);border:1px solid var(--rule,#322E27);
   padding:3px 7px;border-radius:2px;font-size:12.5px}
-.wire-when{display:flex;align-items:center;gap:7px;padding:2px 10px 8px;color:var(--dim,#948D7C);font-size:12px}
+.wire-when{display:flex;align-items:center;gap:7px;padding:3px 10px 8px;color:var(--dim,#948D7C);font-size:12px}
 .wire-when select{flex:1}
+.wire-when label{flex:0 0 96px}
 .wire select{background:var(--peat,#17150F);border:1px solid var(--rule,#322E27);border-radius:2px;
   padding:1px 3px;font-size:12px;max-width:100%}
-.wire-picker{padding:2px 10px 8px;flex:1;min-height:0;overflow:auto}
-.wire.picking .wire-filters,.wire.picking .wire-list{display:none}
+.wire-picker{position:absolute;left:10px;right:10px;top:100%;z-index:5;max-height:55vh;overflow:auto;
+  padding:2px 10px 8px;background:rgba(23,21,15,.99);border:1px solid var(--dim,#948D7C);border-top:0;
+  box-shadow:0 8px 18px rgba(0,0,0,.45)}
 .wire-picker[hidden]{display:none}
 .wire-group{color:var(--dim,#948D7C);font-size:11.5px;margin:6px 0 2px}
 .wire-pick{display:flex;align-items:baseline;gap:7px;padding:1px 0;cursor:pointer}
 .wire-pick input{accent-color:var(--moss,#62755F);margin:0}
 .wire-pick .n{color:var(--dim,#948D7C);font-size:11.5px;margin-left:auto}
-.wire-filters{max-height:38%;overflow:auto;flex:none}
+.wire-filters{flex:none}
+.wire-facets{max-height:34vh;overflow:auto}
 .wire-subj{border-top:1px solid var(--rule,#322E27);padding:5px 10px}
 .wire-subj:first-child{border-top:0}
 .wire-subj-head{display:flex;align-items:baseline;gap:8px}
@@ -632,7 +643,7 @@ const CSS = `
 .wire-empty{padding:14px 10px;color:var(--dim,#948D7C)}
 .wire-more{display:block;margin:8px auto 10px}
 .wire-foot{padding:4px 10px;color:var(--dim,#948D7C);font-size:11px;border-top:1px solid var(--rule,#322E27)}
-@media (max-width:560px){.wire.open{height:min(52vh,520px,calc(100% - 96px - var(--wire-lift,0px)))}.wire-grid{grid-template-columns:minmax(0,1fr)}
+@media (max-width:560px){.wire.open{bottom:auto;height:min(52vh,520px,calc(100% - 96px - var(--wire-lift,0px)))}.wire-grid{grid-template-columns:minmax(0,1fr)}
   .wire-tools{flex-wrap:wrap}.wire-tools input{flex:1 0 100%;order:3}.wire-foot{display:none}}
 @media (prefers-reduced-motion:reduce){.wire-caret{transition:none}}
 `;
@@ -656,16 +667,20 @@ function build() {
       '<span class="wire-sum" id="wireSum" aria-live="polite"></span>' +
       '<label class="wire-onmap" title="Draw the stories that name a place on the map">' +
         '<input type="checkbox" id="wireOnMap" checked> show them on the map</label>' +
-      '<button type="button" class="wire-btn" id="wireRefresh" hidden>Refresh</button>' +
     '</div>' +
     '<div class="wire-body" id="wireBody" hidden>' +
-      '<div class="wire-tools">' +
-        '<button type="button" class="wire-btn wire-subjects" id="wirePickBtn" aria-expanded="false" aria-controls="wirePicker">' +
-          '<span class="wire-caret" aria-hidden="true"></span><span id="wirePickLabel">Subjects</span></button>' +
+      '<div class="wire-tools"><div class="wire-search">' +
         '<input type="search" id="wireQ" placeholder="Search headlines" aria-label="Search headlines in the ticked subjects">' +
+        '<button type="button" class="wire-btn" id="wireRefresh" hidden title="Fetch the wires again and clear every choice">Refresh</button>' +
+      '</div></div>' +
+      '<div class="wire-filters">' +
+        '<div class="wire-filter wire-subjrow"><span>Subjects</span>' +
+          '<button type="button" class="wire-dd wire-subjects" id="wirePickBtn" aria-haspopup="true" aria-expanded="false" aria-controls="wirePicker">' +
+            '<span class="t" id="wirePickLabel">Choose</span><span class="wire-caret" aria-hidden="true"></span></button>' +
+          '<div class="wire-picker" id="wirePicker" hidden></div>' +
+        '</div>' +
+        '<div class="wire-facets" id="wireFilters"></div>' +
       '</div>' +
-      '<div class="wire-picker" id="wirePicker" hidden></div>' +
-      '<div class="wire-filters" id="wireFilters"></div>' +
       '<div class="wire-when"><label for="wireWhen">Time</label>' +
         '<select id="wireWhen" aria-label="Time window">' +
           WINDOWS.map((w) => '<option value="' + w.id + '">' + w.label + '</option>').join('') +
@@ -691,6 +706,12 @@ function build() {
   $toggle.addEventListener('click', () => setOpen(!state.open));
   if ($onMap) $onMap.addEventListener('change', () => { state.onMap = $onMap.checked; save(); renderList(); });
   $pickBtn.addEventListener('click', () => { state.pickerOpen = !state.pickerOpen; renderPicker(); layout(); });
+  document.addEventListener('click', (e) => {
+    if (!state.pickerOpen || !e.target || !e.target.closest || !document.contains(e.target)) return;
+    if (e.target.closest('#wirePicker') || e.target.closest('#wirePickBtn')) return;
+    state.pickerOpen = false;
+    renderPicker();
+  });
   $picker.addEventListener('click', (e) => {
     const t = e.target.closest && e.target.closest('button');
     if (!t || !t.dataset) return;
@@ -702,10 +723,17 @@ function build() {
     renderData();
   });
   $refresh.addEventListener('click', () => {
+    const had = state.picked.slice();
     state.sel = {};
+    state.picked = [];
+    state.pickerOpen = true;
+    state.when = 'all';
+    state.q = '';
+    $when.value = state.when;
+    $q.value = '';
     state.shown = PAGE;
     save();
-    state.picked.forEach((id) => load(id, true));
+    had.forEach((id) => load(id, true));   // fresh copies wait for the next ticks
     renderData();
   });
   $when.addEventListener('change', () => { state.when = $when.value; state.shown = PAGE; save(); renderData(); });
@@ -780,6 +808,8 @@ function build() {
   if (typeof ResizeObserver === 'function') {
     new ResizeObserver(layout).observe(box);
     if (legend) new ResizeObserver(layout).observe(legend);
+    const zoom = document.getElementById('zoombox');
+    if (zoom) new ResizeObserver(layout).observe(zoom);
   }
   window.addEventListener('resize', layout);
 
@@ -792,7 +822,10 @@ function layout() {
   const gm = document.getElementById('gm');
   const legend = document.getElementById('legend');
   let lift = gm && !gm.hidden ? gm.getBoundingClientRect().height : 0;
-  if (legend && !legend.hidden) lift += legend.getBoundingClientRect().height + 8;
+  const zoom = document.getElementById('zoombox');
+  const lh = legend && !legend.hidden ? legend.getBoundingClientRect().height : 0;
+  const zh = zoom ? zoom.getBoundingClientRect().height : 0;
+  if (lh || zh) lift += Math.max(lh, zh) + 8;
   document.documentElement.style.setProperty('--wire-lift', Math.round(lift) + 'px');
 }
 
@@ -885,7 +918,11 @@ function renderSum() {
 }
 
 function renderPicker() {
-  $pickBtn.textContent = state.picked.length ? 'Subjects (' + state.picked.length + ')' : 'Subjects';
+  const $lab = box.querySelector('#wirePickLabel');
+  if ($lab) $lab.textContent = !state.picked.length ? 'None ticked — choose'
+    : state.picked.length === 1 ? BY_ID[state.picked[0]].name
+    : state.picked.length === SUBJECTS.length ? 'All ' + SUBJECTS.length
+    : state.picked.length + ' of ' + SUBJECTS.length;
   $pickBtn.setAttribute('aria-expanded', String(state.pickerOpen));
   $picker.hidden = !state.pickerOpen;
   box.classList.toggle('picking', state.pickerOpen);   // the list waits while subjects are chosen
@@ -944,10 +981,13 @@ function renderFilters(focusId) {
       return many ? '<optgroup label="' + esc(BY_ID[id].name) + '">' + options + '</optgroup>' : options;
     }).join('');
     const set = k.subs.some((s) => s.cur != null);
-    return '<label class="wire-filter" for="' + fid + '">' + esc(k.label) +
+    const hint = k.key === 'weight'
+      ? '<p class="wire-hint">Points a story earns for what it contains: a decision, official papers, a figure, ' +
+        'a primary source. Not a measure of truth.</p>' : '';
+    return '<label class="wire-filter" for="' + fid + '"><span>' + esc(k.label) + '</span>' +
       '<select id="' + fid + '" data-key="' + k.key + '"' + (set ? ' class="set"' : '') + '>' +
         '<option value="">All</option>' + body +
-      '</select></label>';
+      '</select></label>' + hint;
   }).join('');
 
   $filters.innerHTML = rows + unread.map((u) =>
@@ -1007,7 +1047,7 @@ function renderList() {
     if (s.outlet) meta.push('<span>' + esc(s.outlet) + '</span>');
     meta.push('<span>' + esc(s.place || 'Not placed') + '</span>');
     meta.push('<span>' + esc(s.lang || 'Language not stated') + '</span>');
-    if (s.w != null) meta.push('<span>Weight ' + s.w + '</span>');
+    if (s.w != null) meta.push('<span>Substance ' + s.w + '</span>');
     meta.push('<span>' + timeAgo(s.date, sh.now) + '</span>');
     const tip = s.snippet && s.snippet !== s.title ? ' title="' + esc(s.snippet.slice(0, 300)) + '"' : '';
     return '<li class="wire-item">' +
