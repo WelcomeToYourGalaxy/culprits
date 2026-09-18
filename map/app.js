@@ -630,6 +630,9 @@ const ATLAS_TUNE = {
   sat: .15, con: .05, lift: .03, hue: -6,
   sea: .55, green: .30, warm: .22,
 };
+// The zoom the globe opens on, and the one the globe button returns to.
+const OPENING_ZOOM = 1;
+
 const BASE_GRADE = {
   atlas: { "raster-brightness-min": ATLAS_TUNE.lift, "raster-brightness-max": 1,
            "raster-saturation": ATLAS_TUNE.sat, "raster-contrast": ATLAS_TUNE.con,
@@ -819,7 +822,7 @@ const map = new maplibregl.Map({
   // One world. Repeated copies east and west read as more planet than there is.
   renderWorldCopies: false,
   center: [12, 24],
-  zoom: 1,
+  zoom: OPENING_ZOOM,
   attributionControl: { compact: true },
   style: {
     version: 8,
@@ -1382,6 +1385,8 @@ function watchForLeaving() {
 function setView(kind) {
   if (!VIEWS[kind]) return;
   VIEW = kind;
+  // The globe cannot carry terrain, so choosing it puts terrain away.
+  if (VIEWS[kind].projection !== "mercator" && TERRAIN_ON) setTerrain(false);
   if (typeof map.setProjection === "function") map.setProjection({ type: VIEWS[kind].projection });
   if (typeof map.setMinZoom === "function") map.setMinZoom(VIEWS[kind].leave ? handoffZoom() - 0.1 : -1);
   // The flat map is free of its own edges: drag it out into the stars.
@@ -1769,6 +1774,9 @@ let TERRAIN_ON = false;
 function setTerrain(on) {
   TERRAIN_ON = !!on;
   if (typeof map.setTerrain !== "function") return;
+  // MapLibre draws terrain for the flat map. On the globe the planet renders
+  // as nothing at all, so switching terrain on moves the view with it.
+  if (TERRAIN_ON && VIEWS[VIEW].projection !== "mercator") setView("flat");
   if (TERRAIN_ON) {
     if (!map.getSource("terrain-dem")) map.addSource("terrain-dem", TERRAIN_SOURCE);
     map.setTerrain({ source: "terrain-dem", exaggeration: TERRAIN_EXAGGERATION });
@@ -1786,15 +1794,36 @@ function setTerrain(on) {
   if (box) box.checked = TERRAIN_ON;
 }
 
+// Out to the whole planet: the globe view at the zoom it opens on.
+function outToTheGlobe() {
+  setView("globe");
+  const box = document.querySelector('input[name="view"][value="globe"]');
+  if (box) box.checked = true;
+  if (typeof map.easeTo === "function") {
+    map.easeTo({ zoom: OPENING_ZOOM, pitch: 0, bearing: 0, duration: 900 });
+  }
+}
+
+// MapLibre puts its zoom buttons in a corner of the map. They belong with the
+// view choices, so the element is moved into the row once it exists.
+function moveZoomButtons() {
+  const holder = document.getElementById("view-zoom");
+  const group = document.querySelector(".maplibregl-ctrl-bottom-right .maplibregl-ctrl-group");
+  if (holder && group && holder.insertBefore) holder.insertBefore(group, holder.firstChild);
+}
+
 function viewPanelHtml() {
   return `<p class="bm-h">View</p><div class="view-row"><div class="view-choices">` +
     Object.entries(VIEWS).map(([k, v]) =>
       `<label class="layer"><input type="radio" name="view" value="${k}"${k === VIEW ? " checked" : ""}>` +
       `<span class="nm">${v.nm}</span></label>`).join("") +
-    `</div><button type="button" id="leave-earth" class="leave" title="Hands the screen to NASA's Eyes ` +
+    `</div><div class="view-zoom" id="view-zoom">` +
+    `<button type="button" id="to-globe" class="to-globe" title="Out to the whole planet">Globe</button></div>` +
+    `<button type="button" id="leave-earth" class="leave" title="Hands the screen to NASA's Eyes ` +
     `on the Solar System. A box in the corner brings the map back.">Leave<br>Earth &#8594;</button></div>` +
-    `<label class="layer"><input type="checkbox" id="terrain-toggle"${TERRAIN_ON ? " checked" : ""}>` +
-    `<span class="nm">3D terrain</span></label>` +
+    `<label class="layer"><input type="checkbox" id="terrain-toggle"${TERRAIN_ON ? " checked" : ""}` +
+    ` title="Ground height under the imagery. The flat map only: the globe cannot carry it.">` +
+    `<span class="nm">3D terrain (flat map)</span></label>` +
     `<p class="bm-h">Basemap</p>`;
 }
 
@@ -1807,7 +1836,9 @@ function buildBasemapPanel() {
     `${k === BASEMAP ? " checked" : ""}><span class="nm">${nm}</span></label>`).join("");
   box.addEventListener("click", (e) => {
     if (e.target && e.target.id === "leave-earth") leaveEarth();
+    if (e.target && e.target.id === "to-globe") outToTheGlobe();
   });
+  moveZoomButtons();
   box.addEventListener("change", (e) => {
     if (e.target && e.target.name === "basemap") setBasemap(e.target.value);
     if (e.target && e.target.name === "view") setView(e.target.value);

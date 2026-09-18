@@ -1189,12 +1189,10 @@ console.log("\nthe boxes");
   check("the boxes down the left take it", /\.left-col\{[\s\S]{0,120}width:var\(--box-w\)/.test(index));
   check("the news wires box takes it too, no longer 440px",
         /width:min\(var\(--box-w,290px\),calc\(100vw - 18px\)\)/.test(wireSrc) && !/440px/.test(wireSrc));
-  check("the legend is narrowed by the zoom buttons and the gap",
-        /#legend\{[\s\S]{0,260}width:calc\(var\(--box-w\) - var\(--zoom-w\) - var\(--box-gap\)\)/.test(index) &&
-        /#legend\{position:absolute;right:calc\(9px \+ var\(--zoom-w\) \+ var\(--box-gap\)\)/.test(index));
-  check("the zoom buttons sit in the bottom right corner, level with the legend",
-        /NavigationControl\([^)]*\), "bottom-right"\)/.test(src) &&
-        /\.maplibregl-ctrl-bottom-right \.maplibregl-ctrl-group\{position:absolute;right:9px;bottom:26px/.test(index));
+  check("the legend is as wide as the wires box above it",
+        /#legend\{position:absolute;right:9px;bottom:26px;z-index:2;width:var\(--box-w\)/.test(index));
+  check("the zoom buttons are with the view choices",
+        /function moveZoomButtons/.test(src) && /\.view-zoom \.maplibregl-ctrl-group\{position:static/.test(index));
   check("Eyes opens without the View 3D prompt or its panels",
         /featured=false/.test(src) && /logo=false/.test(src) && !/embed=true/.test(src));
   const pull = new Function(src.match(/function pullHeight[\s\S]*?\n}\n/)[0] + "; return pullHeight;")();
@@ -1305,7 +1303,7 @@ console.log("\nthe wires on the map");
         /wireAt\.get\(f\.properties\.k\)/.test(src) && /\["get", "n"\]/.test(src));
   check("the page itself does not scroll", /html,body\{margin:0;height:100%;overflow:hidden/.test(index));
   check("the globe opens with room around it, clear of the hand-over",
-        /zoom: 1,/.test(src) && /EYES_FIT = \{ zoom: 0\.8/.test(src));
+        /const OPENING_ZOOM = 1;/.test(src) && /EYES_FIT = \{ zoom: 0\.8/.test(src));
   check("Eyes opens on the address from its own embed panel",
         /surfaceMapTiling=true/.test(src) && !/detailPanel/.test(src) && !/collapseSettingsOptions/.test(src));
   check("the bar is gone; the way back is a box and Earth itself",
@@ -1444,6 +1442,42 @@ console.log("\neach site map's own filters");
   check("the all chip puts the whole map back",
         JSON.stringify(map.getLayer("site_circus-pt").filter) ===
         JSON.stringify(["match", ["geometry-type"], ["Point", "MultiPoint"], true, false]));
+}
+
+
+console.log("\nthe view row, and terrain where it works");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("the boxes on the left actually fade out", /\.left-col\.away,\.panel\.away/.test(index));
+  check("terrain moves the view to the flat map",
+        /if \(TERRAIN_ON && VIEWS\[VIEW\]\.projection !== "mercator"\) setView\("flat"\)/.test(src) &&
+        /projection !== "mercator" && TERRAIN_ON\) setTerrain\(false\)/.test(src));
+  check("the tick box says where terrain works", /3D terrain \(flat map\)/.test(src));
+  check("the zoom buttons are moved into the view row",
+        /function moveZoomButtons/.test(src) && /holder\.insertBefore\(group/.test(src) &&
+        /\.view-zoom \.maplibregl-ctrl-group\{position:static/.test(index) &&
+        !/\.maplibregl-ctrl-bottom-right \.maplibregl-ctrl-group\{position:absolute/.test(index));
+  check("a globe button sits beside them", /id="to-globe"/.test(src) && /function outToTheGlobe/.test(src) &&
+        /zoom: OPENING_ZOOM, pitch: 0/.test(src));
+  check("the legend takes the full width again", /#legend\{position:absolute;right:9px;bottom:26px;z-index:2;width:var\(--box-w\)/.test(index));
+}
+{
+  const { map } = run();
+  const projections = [];
+  map.setProjection = (p) => projections.push(p.type);
+  map.setMinZoom = () => {}; map.setTransformConstrain = () => {};
+  const terrains = [];
+  map.setTerrain = (t) => terrains.push(t && t.source);
+  map.getPitch = () => 0;
+  map.easeTo = () => {};
+  map.fire("load"); await new Promise((r) => setTimeout(r, 5));
+  const panel = globalThis.document.getElementById("basemaps");
+  panel.fire("change", { target: { id: "terrain-toggle", checked: true } });
+  check("terrain on the globe takes you to the flat map first",
+        projections.at(-1) === "mercator" && terrains.at(-1) === "terrain-dem");
+  panel.fire("change", { target: { name: "view", value: "globe" } });
+  check("…and the globe puts it away again", !terrains.at(-1) && projections.at(-1) === "vertical-perspective");
 }
 
 console.log("\nlegibility");

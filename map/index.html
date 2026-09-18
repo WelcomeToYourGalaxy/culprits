@@ -24,7 +24,7 @@
   .space.on{opacity:1;pointer-events:auto}
   #map{transition:opacity .9s ease}
   #map.away{opacity:0;pointer-events:none}
-  .panel.away,#legend.away,.wire.away{opacity:0;pointer-events:none;transition:opacity .5s ease}
+  .left-col.away,.panel.away,#legend.away,.wire.away{opacity:0;pointer-events:none;transition:opacity .5s ease}
   /* Beside Eyes' own search button, top right. */
   .space-back{position:fixed;right:14px;top:14px;z-index:60;font:inherit;font-size:14px;
     color:var(--bone);background:rgba(11,16,23,.86);border:1px solid var(--rule);border-radius:4px;
@@ -142,15 +142,21 @@
 
   /* Legend. Bottom right, above the attribution, narrow enough not to cover
      the map. Lists only what is switched on. */
-  #legend{position:absolute;right:calc(9px + var(--zoom-w) + var(--box-gap));bottom:26px;z-index:2;
-    width:calc(var(--box-w) - var(--zoom-w) - var(--box-gap));max-width:none;
+  #legend{position:absolute;right:9px;bottom:26px;z-index:2;width:var(--box-w);max-width:none;
     background:rgba(17,21,15,.88);border:1px solid var(--rule);border-radius:2px;
     padding:6px 8px;font-size:11px;line-height:1.35;color:var(--dim);
     max-height:42vh;overflow-y:auto}
   #legend[hidden]{display:none}
-  /* The zoom buttons, pinned to the legend's line rather than stacked above
-     the scale bar and the attribution. */
-  .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group{position:absolute;right:9px;bottom:26px;margin:0;z-index:3}
+  /* The zoom buttons live in the view row, beside the globe button. */
+  .view-zoom{display:flex;align-items:center;gap:6px}
+  .view-zoom .maplibregl-ctrl-group{position:static;margin:0;border-radius:3px;box-shadow:none;
+    border:1px solid var(--rule);background:rgba(23,21,15,.6)}
+  .view-zoom .maplibregl-ctrl-group button{width:26px;height:26px;background-color:transparent}
+  .view-zoom .maplibregl-ctrl-group button + button{border-top:1px solid var(--rule)}
+  .view-zoom .maplibregl-ctrl-icon{filter:invert(1) brightness(.86)}
+  .to-globe{font:inherit;font-size:12.5px;color:var(--bone);background:none;border:1px solid var(--rule);
+    border-radius:3px;padding:4px 8px;cursor:pointer;white-space:nowrap}
+  .to-globe:hover{border-color:var(--bone)}
 
   /* The grip each box is pulled by. */
   .pull-grip{flex:none;height:9px;cursor:ns-resize;position:relative;touch-action:none}
