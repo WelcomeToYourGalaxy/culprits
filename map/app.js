@@ -2790,7 +2790,10 @@ function addCoralLayer(cfg) {
     // No tileSize: MapLibre only accepts 512 for vector tiles and throws on
     // anything else, which silently left this layer unbuilt. A vector tile is
     // not a picture of a fixed size, so the Atlas's grid is read correctly.
-    minzoom: cfg.drawFrom, maxzoom: 16,
+    // MapLibre counts a vector square as 512 pixels, so at map zoom 12 it asks
+    // for zoom-11 squares: the Atlas's squares are asked from one level lower,
+    // or nothing would draw until zoom 13.
+    minzoom: cfg.drawFrom - 1, maxzoom: 16,
     attribution: cfg.attribution || "",
   });
   addCoralShapes(cfg, false);
@@ -2808,11 +2811,21 @@ function addCoralLayer(cfg) {
       setLayerState(cfg.id, `zoom in to ${cfg.drawFrom} — the Atlas cannot draw reefs over a wider area`);
       return;
     }
-    if ((visibility.get(cfg.id) || "visible") !== "visible") return;
+    if ((visibility.get(cfg.id) || "visible") !== "visible") {
+      setLayerState(cfg.id, "tick this row to draw the reefs here");
+      return;
+    }
     const failed = coralFailures.get(cfg.id) || 0;
-    const loaded = typeof map.querySourceFeatures === "function"
-      ? map.querySourceFeatures(`${cfg.id}-tiles`, { sourceLayer: cfg.sourceLayer }).length : 0;
-    const loading = typeof map.isSourceLoaded === "function" && !map.isSourceLoaded(`${cfg.id}-tiles`);
+    let loaded = 0, loading = false;
+    try {
+      loaded = typeof map.querySourceFeatures === "function"
+        ? map.querySourceFeatures(`${cfg.id}-tiles`, { sourceLayer: cfg.sourceLayer }).length : 0;
+      loading = typeof map.isSourceLoaded === "function" && !map.isSourceLoaded(`${cfg.id}-tiles`);
+    } catch (e) {
+      console.warn(`[culprits] ${cfg.id}: ${e.message}`);
+      setLayerState(cfg.id, `could not read the Atlas's squares (${e.message})`);
+      return;
+    }
     let text = loaded ? `${loaded.toLocaleString()} reef patches loaded here`
              : loading ? "loading from the Atlas — squares can take 20 seconds"
              : "no mapped reef in this view";

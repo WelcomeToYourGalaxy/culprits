@@ -964,7 +964,8 @@ console.log("\ncoral, live");
         /TILEMATRIX=EPSG:900913:\{z\}&TILEROW=\{y\}&TILECOL=\{x\}/.test(s2.tiles[0]), s2 && s2.tiles[0]);
   check("no Worker request is made for coral", !fetched.some((u) => String(u).includes("/allen_coral?")));
   const fill = map.getLayer("allen_coral-fill");
-  check("shapes draw from zoom 12", fill && fill.minzoom === 12 && s2.minzoom === 12);
+  check("shapes draw from zoom 12", fill && fill.minzoom === 12);
+  check("…from squares asked one level lower, as MapLibre reads vector squares at 512 pixels", s2.minzoom === 11);
   check("wider out the layer says why it is empty",
         /zoom in to 12/.test((states['[data-state="allen_coral"]'] || {}).textContent || ""));
 
@@ -1654,6 +1655,14 @@ console.log("\nlive maps from the Destruction page, batch 1");
   check("SoilGrids offers every property it publishes at the top depth", (src.match(/_0-5cm_mean/g) || []).length === 10);
   check("the wastewater model offers its five layers", (src.match(/mazu\.nceas\.ucsb\.edu\/wastewater\//g) || []).length === 5);
   check("a picture that fails says so on its row", /the source did not answer for \$\{failed\} square/.test(src));
+}
+
+console.log("\ncoral, the row's line");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("an unticked row says to tick it rather than keeping old text", /tick this row to draw the reefs here/.test(src));
+  check("a failure reading the squares is said on the row and in the console",
+        /could not read the Atlas's squares/.test(src) && src.includes("console.warn(`[culprits] ${cfg.id}: ${e.message}`)"));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

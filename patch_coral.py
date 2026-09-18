@@ -1,48 +1,83 @@
 #!/usr/bin/env python3
 """
-Fixes the coral reef layer.
+Coral reefs: make the row say what is happening, and ask for the right squares.
 
-MapLibre refuses a vector tile source with any tile size but 512 — addSource
-throws "vector tile sources must have a tileSize of 512" — and the coral source
-declared 256. The layer was never added at all. The Atlas's tiles were fine
-throughout: measured 16 September, tile 13/7412/4472 off Cairns answered in
-2.6 s with 280 KB and the layer named benthic_data_verbose.
-
-Also adds a test so no vector source can declare another size again; the test
-stub accepted 256 silently, which is how this passed.
+1. MapLibre treats every vector square as 512 pixels wide, so at map zoom 12 it
+   asks for zoom-11 squares, which the layer refused (it only allowed 12 and up).
+   The Atlas's squares are now asked from one level lower, so reefs start to
+   draw at zoom 12 as the row says.
+2. The row's line no longer sticks on "zoom in to 12". Zoomed in with the row
+   unticked it says to tick it; if reading the squares fails, it says so and the
+   console names the error, instead of the line silently keeping its old text.
 
 Run from the repo root:  python3 patch_coral.py
 """
 import pathlib, sys
 
 ROOT = pathlib.Path(__file__).resolve().parent
-APP, TEST = ROOT / "map" / "app.js", ROOT / "map" / "test.mjs"
-app, test = APP.read_text(encoding="utf-8"), TEST.read_text(encoding="utf-8")
+APP = ROOT / "map" / "app.js"
+app = APP.read_text(encoding="utf-8")
+if "the Atlas's squares are asked from one level lower" in app:
+    sys.exit("Already applied - nothing to do.")
 
-old = """    // Web Mercator tiles of 256 pixels, as the Atlas's EPSG:900913 grid serves.
-    tileSize: 256,
-"""
-new = """    // No tileSize: MapLibre only accepts 512 for vector tiles and throws on
-    // anything else, which silently left this layer unbuilt. A vector tile is
-    // not a picture of a fixed size, so the Atlas's grid is read correctly.
-"""
-if new in app:
-    sys.exit("app.js already has the coral fix — nothing to do.")
-if app.count(old) != 1:
-    sys.exit("Could not find the coral tile size in map/app.js. Nothing was written.")
-app = app.replace(old, new)
 
-anchor = 'console.log("\\ncoral, live");'
-if test.count(anchor) != 1:
-    sys.exit("Could not find the coral tests in map/test.mjs. Nothing was written.")
-test = test.replace(anchor, anchor + """
+def once(old, new):
+    global app
+    if app.count(old) != 1:
+        sys.exit(f"Could not find the expected text in map/app.js ({old.strip()[:70]!r}). Nothing was written.")
+    app = app.replace(old, new)
+
+
+once("""    // not a picture of a fixed size, so the Atlas's grid is read correctly.
+    minzoom: cfg.drawFrom, maxzoom: 16,""",
+"""    // not a picture of a fixed size, so the Atlas's grid is read correctly.
+    // MapLibre counts a vector square as 512 pixels, so at map zoom 12 it asks
+    // for zoom-11 squares: the Atlas's squares are asked from one level lower,
+    // or nothing would draw until zoom 13.
+    minzoom: cfg.drawFrom - 1, maxzoom: 16,""")
+
+once("""    if ((visibility.get(cfg.id) || "visible") !== "visible") return;
+    const failed = coralFailures.get(cfg.id) || 0;
+    const loaded = typeof map.querySourceFeatures === "function"
+      ? map.querySourceFeatures(`${cfg.id}-tiles`, { sourceLayer: cfg.sourceLayer }).length : 0;
+    const loading = typeof map.isSourceLoaded === "function" && !map.isSourceLoaded(`${cfg.id}-tiles`);""",
+"""    if ((visibility.get(cfg.id) || "visible") !== "visible") {
+      setLayerState(cfg.id, "tick this row to draw the reefs here");
+      return;
+    }
+    const failed = coralFailures.get(cfg.id) || 0;
+    let loaded = 0, loading = false;
+    try {
+      loaded = typeof map.querySourceFeatures === "function"
+        ? map.querySourceFeatures(`${cfg.id}-tiles`, { sourceLayer: cfg.sourceLayer }).length : 0;
+      loading = typeof map.isSourceLoaded === "function" && !map.isSourceLoaded(`${cfg.id}-tiles`);
+    } catch (e) {
+      console.warn(`[culprits] ${cfg.id}: ${e.message}`);
+      setLayerState(cfg.id, `could not read the Atlas's squares (${e.message})`);
+      return;
+    }""")
+
+TEST = ROOT / "map" / "test.mjs"
+test = TEST.read_text(encoding="utf-8")
+old_t = '  check("shapes draw from zoom 12", fill && fill.minzoom === 12 && s2.minzoom === 12);'
+new_t = ('  check("shapes draw from zoom 12", fill && fill.minzoom === 12);\n'
+         '  check("…from squares asked one level lower, as MapLibre reads vector squares at 512 pixels", s2.minzoom === 11);')
+if test.count(old_t) != 1:
+    sys.exit("Could not find the coral zoom test in map/test.mjs. Nothing was written.")
+test = test.replace(old_t, new_t)
+EXTRA = r'''
+console.log("\ncoral, the row's line");
 {
-  // MapLibre throws on a vector source whose tileSize is not 512.
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  const bad = [...src.matchAll(/type:\\s*"vector"[\\s\\S]{0,400}?tileSize:\\s*(\\d+)/g)].filter((m) => m[1] !== "512");
-  check("no vector source declares a tile size MapLibre refuses", bad.length === 0, bad.map((m) => m[0].slice(0, 80)).join(" | "));
-}""")
-
+  check("an unticked row says to tick it rather than keeping old text", /tick this row to draw the reefs here/.test(src));
+  check("a failure reading the squares is said on the row and in the console",
+        /could not read the Atlas's squares/.test(src) && src.includes("console.warn(`[culprits] ${cfg.id}: ${e.message}`)"));
+}
+'''
+anchor_t = '\nconsole.log(`\\n${pass} passed'
+if test.count(anchor_t) != 1:
+    sys.exit("Could not find the end of map/test.mjs. Nothing was written.")
+test = test.replace(anchor_t, EXTRA + anchor_t)
 APP.write_text(app, encoding="utf-8")
 TEST.write_text(test, encoding="utf-8")
-print("Coral fixed in map/app.js; test added to map/test.mjs.")
+print("Coral fixed. Test with: node map/test.mjs")
