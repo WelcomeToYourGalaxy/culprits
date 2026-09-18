@@ -1189,12 +1189,12 @@ console.log("\nthe boxes");
   check("the boxes down the left take it", /\.left-col\{[\s\S]{0,120}width:var\(--box-w\)/.test(index));
   check("the news wires box takes it too, no longer 440px",
         /width:min\(var\(--box-w,290px\),calc\(100vw - 18px\)\)/.test(wireSrc) && !/440px/.test(wireSrc));
-  check("the legend and the zoom buttons together are as wide as the wires box",
-        /#legend\{position:absolute;right:calc\(9px \+ var\(--zoom-w\) \+ var\(--box-gap\)\)/.test(index) &&
-        /width:calc\(var\(--box-w\) - var\(--zoom-w\) - var\(--box-gap\)\)/.test(index));
-  check("the zoom buttons sit to the right of the legend",
-        /function moveZoomButtons/.test(src) && /getElementById\("zoombox"\)/.test(src) &&
-        /#zoombox\{position:absolute;right:9px;bottom:26px/.test(index) && /id="zoombox"/.test(index));
+  check("the legend is as wide as the wires box",
+        /#legend\{position:absolute;right:9px;bottom:26px;z-index:2;width:var\(--box-w\)/.test(index));
+  check("the zoom buttons are back in the view row, two by two",
+        /function moveZoomButtons/.test(src) && /getElementById\("view-zoom"\)/.test(src) &&
+        /<div class="view-zoom" id="view-zoom"><\/div>/.test(src) &&
+        /grid-template-columns:26px 26px/.test(index) && !/id="zoombox"/.test(index));
   check("Eyes opens without the View 3D prompt or its panels",
         /featured=false/.test(src) && /logo=false/.test(src) && !/embed=true/.test(src));
   const pull = new Function(src.match(/function pullHeight[\s\S]*?\n}\n/)[0] + "; return pullHeight;")();
@@ -1262,7 +1262,7 @@ console.log("\nthe boxes down the left");
   check("the name, the settings and the layers are three boxes", /class="left-col"/.test(index) &&
         /<div class="title-box">/.test(index) && /id="basemaps" class="ctrl-box"/.test(index));
   check("the layer box holds the caret that rolls it",
-        /panel-head[\s\S]{0,200}id="panelRoll"/.test(index) && /\.panel\.shut > \*\{display:none\}/.test(index));
+        /panel-head[\s\S]{0,500}id="panelRoll"/.test(index) && /\.panel\.shut > \*\{display:none\}/.test(index));
   check("the zoom reading is off the page", !/id="zoomstate"/.test(index) && /const el = document\.getElementById\("zoomstate"\)/.test(src));
   check("only two views are offered", /"globe": \{ projection: "vertical-perspective"/.test(src) &&
         /"flat":  \{ projection: "mercator"/.test(src) && !/globe-flat/.test(src));
@@ -1300,8 +1300,16 @@ console.log("\nthe wires on the map");
         /s\.at = findAt\(/.test(wireSrc) && /s\.iso = iso \|\| null/.test(wireSrc));
   check("what the box shows is what the map draws", /toTheMap\(all\)/.test(wireSrc) && /toTheMap\(\[\]\)/.test(wireSrc) &&
         /window\.culpritsWire\.show\(/.test(wireSrc));
-  check("the marks are rings of their own, not another dot",
-        /"circle-stroke-color": WIRE_COLOUR/.test(src) && /"circle-color": "rgba\(0,0,0,0\)"/.test(src));
+  check("a news mark is a light dot with a dark rim inside a light ring",
+        /id: "wire-news-ring"/.test(src) && /"circle-color": WIRE_COLOUR, "circle-radius": r\(0\)/.test(src) &&
+        /"circle-stroke-color": WIRE_RIM/.test(src));
+  check("the news marks are kept above every other layer", /function wireOnTop\(\)/.test(src) &&
+        /map\.on\("styledata", wireOnTop\)/.test(src) && /map\.moveLayer\("wire-news"\)/.test(src));
+  check("story titles in its box are light text", /className: "wire-pop"/.test(src) && /\.wire-pop a\{color:#F2EEE6/.test(index));
+  check("every layer can be ticked or unticked at once", /id="layersAllOn"/.test(index) && /id="layersAllOff"/.test(index) &&
+        /const setAll = \(on\) =>/.test(src));
+  check("Cerulean points read the whole record live, by id", /pointsCollection: "public\.slick_plus"/.test(src) &&
+        /items\/\$\{encodeURIComponent\(p\.id\)\}\?bbox-only=true/.test(src));
   check("stories at one place become one mark that lists them",
         /wireAt\.get\(f\.properties\.k\)/.test(src) && /\["get", "n"\]/.test(src));
   check("the page itself does not scroll", /html,body\{margin:0;height:100%;overflow:hidden/.test(index));
@@ -1309,8 +1317,8 @@ console.log("\nthe wires on the map");
         /const OPENING_ZOOM = 1;/.test(src) && /EYES_FIT = \{ zoom: 0\.8/.test(src));
   check("Eyes opens on the address from its own embed panel",
         /surfaceMapTiling=true/.test(src) && !/detailPanel/.test(src) && !/collapseSettingsOptions/.test(src));
-  check("the bar is gone; the way back is a box and Earth itself",
-        !/space-bar/.test(index) && /id="spaceBack"/.test(index) && /id="spaceEarth"/.test(index) &&
+  check("the bar is gone; the way back is the box, and no circle over Eyes",
+        !/space-bar/.test(index) && /id="spaceBack"/.test(index) && !/id="spaceEarth"/.test(index) &&
         /function showBack/.test(src) && /globeRadiusPx\(handoffZoom\(\)/.test(src));
 }
 
@@ -1325,15 +1333,20 @@ console.log("\nreading the map");
         /for \(const k of \["atlas", "satellite"\]\)/.test(src));
   check("and carries the same washes", /BASEMAP === "outlines" \|\| !options/.test(src));
   check("the caret sits in the layer box, not the title box",
-        /<div class="panel-head">[\s\S]{0,200}id="panelRoll"/.test(index) &&
+        /<div class="panel-head">[\s\S]{0,500}id="panelRoll"/.test(index) &&
         !/title-box[\s\S]{0,120}panelRoll/.test(index) && /\.panel\.shut > \.panel-head\{display:flex\}/.test(index));
   check("Subjects is a drop-down row at the top of the filters", /class="wire-filter wire-subjrow"><span>Subjects<\/span>/.test(wireSrc) &&
         wireSrc.indexOf("wire-subjrow") < wireSrc.indexOf('id="wireFilters"'));
   check("Refresh sits inside the box, beside the search", /<div class="wire-search">[\s\S]{0,260}id="wireRefresh"/.test(wireSrc));
   check("View and Basemap roll up on their own", /data-roll="\$\{key\}"/.test(src) && /sectHead\("View", "view"\)/.test(src) &&
         /sectHead\("Basemap", "basemap"\)/.test(src) && /\.sect\.shut \.sect-body\{display:none\}/.test(index));
-  check("Climate TRACE draws fine, ringed points in its own colours", /if \(cfg\.fine\)/.test(src) &&
-        /"circle-stroke-color": "#0E0D0A"/.test(src) && /colour: CT_COLOURS\[id\]/.test(src));
+  check("Climate TRACE draws plain dots, one size per zoom, in its own colours", /if \(cfg\.fine\)/.test(src) &&
+        /"circle-radius": \["interpolate", \["linear"\], \["zoom"\], 0, 1\.2, 3, 1\.7, 6, 2\.4, 8, 3\]/.test(src) &&
+        /colour: CT_COLOURS\[id\]/.test(src) && !/circle-sort-key/.test(src));
+  check("the map draws at most 1.5 pixels per pixel, with no fades", /pixelRatio: Math\.min\(/.test(src) && /fadeDuration: 0/.test(src));
+  check("terrain heights stop at zoom 12, and the Esri relief is put away under them",
+        /encoding: "terrarium", tileSize: 256, maxzoom: 12/.test(src) && /show\("hillshade", imagery && !TERRAIN_ON\)/.test(src));
+  check("the outlines gain OpenStreetMap detail closer in", /dark_nolabels/.test(src) && /show\("outline-detail", !imagery\)/.test(src));
   check("the filters are not folded away at all any more",
         !/state\.expanded\[/.test(wireSrc) && /class="wire-filter"/.test(wireSrc));
   check("the time window sits with the filters, below them",
@@ -1370,7 +1383,7 @@ console.log("\nthe wires box, plainer");
   check("the tick box says what it does", /show them on the map</.test(wireSrc));
   check("the wires box is not dragged", !/makePullable\(w, "top"\)/.test(src) && /makePullable\(document\.getElementById\("legend"\), "top"\)/.test(src));
   check("stories are rings, sized by how many are there",
-        /id: "wire-news", type: "circle"/.test(src) && /"circle-stroke-color": WIRE_COLOUR/.test(src) &&
+        /id: "wire-news", type: "circle"/.test(src) && /\["get", "n"\], 1, 2\.8 \+ add/.test(src) &&
         !/wireDiamond/.test(src));
 }
 
@@ -1464,7 +1477,7 @@ console.log("\nthe view row, and terrain where it works");
   check("the map tilts to 85 degrees and rolls", /maxPitch: 85/.test(src) && /rollEnabled: true/.test(src));
   check("the compass shows tilt and turn", /showCompass: true, visualizePitch: true/.test(src));
   check("the whole-world button sits with the zoom buttons", /function addWorldButton/.test(src) &&
-        /#zoombox \.maplibregl-ctrl-group/.test(src) && /addWorldButton\(\);/.test(src));
+        /#view-zoom \.maplibregl-ctrl-group/.test(src) && /addWorldButton\(\);/.test(src));
   check("the sky over a tilted map is dark slate", /"sky-color": "#1B242B"/.test(src));
   check("the zoom buttons are moved into their own box",
         /function moveZoomButtons/.test(src) && /holder\.insertBefore\(group/.test(src) &&

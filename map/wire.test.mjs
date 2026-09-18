@@ -237,5 +237,14 @@ if (args.includes("--live") || dirAt !== -1) {
   check("subject ids are unique", new Set(W.SUBJECTS.map((s) => s.id)).size === 33);
 }
 
+{
+  const src = fs.readFileSync(new URL('./wire.js', import.meta.url), 'utf8');
+  check("the score and the feeds' bookkeeping are not offered as filters",
+        /const HIDDEN_ROWS = new Set\(\['Substance score', 'Direction', 'Why it was kept', 'Search feed', 'Search widened to'\]\)/.test(src));
+  check("Country comes before Region", /ROW_ORDER = \['Topic', 'Country', 'Region'/.test(src));
+  check("a Source filter names each story's outlet", /facet\('outlet', 'Source'/.test(src));
+  check("the line beside the title is gone", /\.wire-sum\{display:none\}/.test(src));
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

@@ -386,7 +386,7 @@ const LAYERS = [
   { id:"cerulean_slicks",      name:"Oil slicks (Cerulean)",   unit:"potential slicks, Sentinel-1", colour:"#5A5750", route:"cerulean", ready:true, off: true,
     collection: "public.slick_plus", drawFrom: 6,
     // Every slick as a point, below drawFrom: pipeline/cerulean/harvest_points.py.
-    points: "cerulean_slick_points", pointsUntil: 6, pointsColour: "#8A9AA2",
+    points: "cerulean_slick_points", pointsUntil: 6, pointsColour: "#8A9AA2", pointsCollection: "public.slick_plus",
     // Every field the collection publishes except centerlines — a skeleton of
     // each slick nested inside it, which the map cannot draw and which was
     // most of every tile's weight. Geometry columns are never sent as fields.
@@ -397,7 +397,7 @@ const LAYERS = [
     attribution: '<a href="https://cerulean.skytruth.org" target="_blank" rel="noopener">SkyTruth Cerulean</a>' },
   { id:"cerulean_sources",     name:"Slick sources (Cerulean)", unit:"candidate vessels and platforms", colour:"#6B5F58", route:"worker", ready:true, off: true,
     geometry:"polygon", maxAreaDeg2: 120,
-    points: "cerulean_source_points", pointsUntil: 8, pointsColour: "#9A8078",
+    points: "cerulean_source_points", pointsUntil: 8, pointsColour: "#9A8078", pointsCollection: "public.source_plus",
     note: "Candidates, ranked. The score is an estimated likelihood on a -5 to +5 scale, not a finding, and vessel identity lags up to 72 hours behind the detection. This layer names parties and must read as a question rather than an answer.",
     attribution: '<a href="https://cerulean.skytruth.org" target="_blank" rel="noopener">SkyTruth Cerulean</a>' },
   // Straight from the Atlas's own vector tiles, not through the Worker.
@@ -849,6 +849,10 @@ const map = new maplibregl.Map({
   container: "map",
   // One world. Repeated copies east and west read as more planet than there is.
   renderWorldCopies: false,
+  // Speed. A Retina screen draws four pixels for every one; capped at 1.5 the
+  // map draws about half as many, and the dots stay sharp. No cross-fades.
+  pixelRatio: Math.min((typeof window !== "undefined" && window.devicePixelRatio) || 1, 1.5),
+  fadeDuration: 0,
   // Tilt and turn on every axis: right-drag (or Ctrl-drag) turns and tilts,
   // Ctrl + right-drag rolls. Tilt goes to 85 degrees, near the horizon.
   maxPitch: 85,
@@ -1068,30 +1072,19 @@ async function addPmtilesLayer(cfg) {
   // radius can encode magnitude *within this layer* without claiming anything
   // about any other.
   if (cfg.fine) {
-    // Climate TRACE: hundreds of thousands of points per layer. Translucent
-    // discs with a same-colour edge merged into one wash of colour at world
-    // view. Here each point is small, solid and ringed in near-black, so
-    // overlapping points stay separate marks; the largest are drawn last, on
-    // top. Size still follows magnitude, gently.
+    // Climate TRACE: hundreds of thousands of points per layer. Plain dots,
+    // one size at each zoom, no rim: sized by magnitude or ringed they read as
+    // bubbles. The size of an emission is in the popup, not in the dot.
     map.addLayer({
       id: `${cfg.id}-agg`, type: "circle", source: src, "source-layer": owner,
       ...(cfg.where ? { filter: cfg.where } : {}),
       maxzoom: CLUSTER_MAXZOOM,
-      layout: { "circle-sort-key": ["coalesce", ["get", "value"], ["get", "_count"], 0] },
       paint: {
         "circle-color": cfg.colour,
-        "circle-opacity": .95,
+        "circle-opacity": .9,
         "circle-blur": 0,
-        "circle-stroke-color": "#0E0D0A",
-        "circle-stroke-opacity": .9,
-        "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 0, .35, 5, .5, 8, .7],
-        "circle-radius": [
-          "interpolate", ["linear"], ["zoom"],
-          0, ["+", 0.8, ["*", 0.07 * scale, MAGNITUDE_RADIUS]],
-          3, ["+", 1.0, ["*", 0.13 * scale, MAGNITUDE_RADIUS]],
-          6, ["+", 1.4, ["*", 0.28 * scale, MAGNITUDE_RADIUS]],
-          8, ["+", 2.0, ["*", 0.45 * scale, MAGNITUDE_RADIUS]],
-        ],
+        "circle-stroke-width": 0,
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 1.2, 3, 1.7, 6, 2.4, 8, 3],
       },
     });
   } else
@@ -1234,6 +1227,20 @@ function addOutlineLayers() {
   ensureBoundaries();
   map.addLayer({ id: "outline-land", type: "fill", source: "boundaries",
                  paint: { "fill-color": "#202825" } }, "atlas-washes");
+  // Closer in, the plain shapes give nothing to find a place by. CARTO's dark
+  // OpenStreetMap basemap (roads, rivers, towns, parks, no names; the names
+  // come from the labels layer) fades in between zoom 3.5 and 6, dimmed and
+  // cooled toward this map's own dark.
+  if (!map.getSource("outline-detail")) {
+    map.addSource("outline-detail", { type: "raster", tileSize: 256,
+      tiles: ["https://a.basemaps.cartocdn.com/rastertiles/dark_nolabels/{z}/{x}/{y}@2x.png",
+              "https://b.basemaps.cartocdn.com/rastertiles/dark_nolabels/{z}/{x}/{y}@2x.png"],
+      attribution: "© OpenStreetMap contributors, © CARTO" });
+  }
+  map.addLayer({ id: "outline-detail", type: "raster", source: "outline-detail", minzoom: 3.5,
+                 paint: { "raster-opacity": ["interpolate", ["linear"], ["zoom"], 3.5, 0, 6, 1],
+                          "raster-saturation": -.35, "raster-brightness-max": .92,
+                          "raster-contrast": .12, "raster-fade-duration": 0 } }, "atlas-washes");
   map.addLayer({ id: "outline-line", type: "line", source: "boundaries",
                  paint: { "line-color": "rgba(214,211,200,.17)",
                           "line-width": ["interpolate", ["linear"], ["zoom"], 3, .6, 4, .9] } },
@@ -1248,9 +1255,10 @@ function setBasemap(kind) {
   const imagery = kind !== "outlines";
   if (!imagery) addOutlineLayers();
   show("base", imagery);
-  show("hillshade", imagery);
+  show("hillshade", imagery && !TERRAIN_ON);
   show("atlas-plate", kind === "atlas");
   show("outline-land", !imagery);
+  show("outline-detail", !imagery);
   show("outline-line", !imagery);
   if (imagery && map.getLayer("base")) {
     for (const [k, v] of Object.entries(BASE_GRADE[kind])) map.setPaintProperty("base", k, v);
@@ -1517,7 +1525,11 @@ function fitMode() {
 // publish their own table of place coordinates; the map repos' wires give a
 // country code, placed here from this map's own boundary file. Stories at one
 // place become one mark, and clicking it lists them.
-const WIRE_COLOUR = "#9FAEB6";
+// A news mark reads on the painted atlas, on imagery and on the outlines alike:
+// a near-white dot with a near-black rim, inside a thin light ring. No data
+// layer on the map uses a rim or a ring, so a mark never reads as a site.
+const WIRE_COLOUR = "#F2EEE6";
+const WIRE_RIM = "#0D0C09";
 let wireAt = new Map();          // "lng,lat" -> the stories there
 let countryPoints = null;        // ISO -> [lng, lat], read once from the boundaries
 
@@ -1549,18 +1561,18 @@ async function countryCentres() {
 function wireSource() {
   if (!map.getSource("wire-news")) {
     map.addSource("wire-news", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+    const r = (add) => ["interpolate", ["linear"], ["zoom"],
+      1, ["interpolate", ["linear"], ["get", "n"], 1, 2.8 + add, 25, 5 + add],
+      8, ["interpolate", ["linear"], ["get", "n"], 1, 3.6 + add, 25, 7 + add]];
+    map.addLayer({
+      id: "wire-news-ring", type: "circle", source: "wire-news",
+      paint: { "circle-color": "rgba(0,0,0,0)", "circle-radius": r(3.2),
+               "circle-stroke-color": "rgba(242,238,230,.8)", "circle-stroke-width": 1 },
+    });
     map.addLayer({
       id: "wire-news", type: "circle", source: "wire-news",
-      paint: {
-        // A ring, not a disc: nothing else on this map is hollow and pale, so
-        // a story never reads as a site. It grows with how many are there.
-        "circle-color": "rgba(0,0,0,0)",
-        "circle-stroke-color": WIRE_COLOUR,
-        "circle-stroke-width": 1.4,
-        "circle-radius": ["interpolate", ["linear"], ["zoom"],
-          1, ["interpolate", ["linear"], ["get", "n"], 1, 4, 25, 9],
-          8, ["interpolate", ["linear"], ["get", "n"], 1, 6, 25, 15]],
-      },
+      paint: { "circle-color": WIRE_COLOUR, "circle-radius": r(0),
+               "circle-stroke-color": WIRE_RIM, "circle-stroke-width": 1.6 },
     });
     map.on("click", "wire-news", (e) => {
       const f = e.features && e.features[0];
@@ -1572,16 +1584,28 @@ function wireSource() {
         (s.url ? `<a href="${escapeHtml(s.url)}" target="_blank" rel="noopener">${escapeHtml(s.title)}</a>`
                : escapeHtml(s.title)) +
         `<br>${escapeHtml([s.subject, s.outlet].filter(Boolean).join(" · "))}</div>`).join("");
-      new maplibregl.Popup({ closeButton: true, maxWidth: "300px" }).setLngLat(f.geometry.coordinates)
+      new maplibregl.Popup({ closeButton: true, maxWidth: "300px", className: "wire-pop" }).setLngLat(f.geometry.coordinates)
         .setHTML(`<b>${escapeHtml(f.properties.place || "News wire")}</b>` +
                  `<div class="meta">${list.length} ${list.length === 1 ? "story" : "stories"}</div>${rows}` +
                  (list.length > 8 ? `<div class="meta">…and ${list.length - 8} more in the wires box.</div>` : ""))
         .addTo(map);
     });
+    map.on("styledata", wireOnTop);
     map.on("mouseenter", "wire-news", () => { map.getCanvas().style.cursor = "pointer"; });
     map.on("mouseleave", "wire-news", () => { map.getCanvas().style.cursor = ""; });
   }
   return map.getSource("wire-news");
+}
+
+// The news marks stay on top of everything, the painted plate included: the
+// box is made before the basemap and the layers, which would otherwise all be
+// drawn over it.
+function wireOnTop() {
+  if (!map.getLayer("wire-news") || typeof map.moveLayer !== "function") return;
+  const order = typeof map.getLayersOrder === "function" ? map.getLayersOrder() : null;
+  if (order && order[order.length - 1] === "wire-news" && order[order.length - 2] === "wire-news-ring") return;
+  map.moveLayer("wire-news-ring");
+  map.moveLayer("wire-news");
 }
 
 async function showWireStories(stories) {
@@ -1604,6 +1628,7 @@ async function showWireStories(stories) {
                     properties: { k, n: list.length, place: list[0].place || "" } });
   }
   src.setData({ type: "FeatureCollection", features });
+  wireOnTop();
 }
 
 // wire.js calls this whenever what it shows changes, or the tick box moves.
@@ -1843,7 +1868,9 @@ function pullableBoxes() {
 const TERRAIN_SOURCE = {
   type: "raster-dem",
   tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
-  encoding: "terrarium", tileSize: 256, maxzoom: 15,
+  // Heights stop at zoom 12 and are stretched beyond it: past that the extra
+  // detail is metres, and every tile toward a tilted horizon cost a download.
+  encoding: "terrarium", tileSize: 256, maxzoom: 12,
   attribution: '<a href="https://registry.opendata.aws/terrain-tiles/" target="_blank" rel="noopener">AWS Terrain Tiles</a>',
 };
 const TERRAIN_EXAGGERATION = 1.4;
@@ -1855,6 +1882,11 @@ function setTerrain(on) {
   // Terrain is drawn on a round Earth (see drawnProjection): the flat map
   // tilted at world scale stood on the screen like a slab.
   setView(VIEW);
+  // The Esri relief layer is a second set of tiles to fetch; with real
+  // heights under the imagery it is put away.
+  if (map.getLayer("hillshade")) {
+    map.setLayoutProperty("hillshade", "visibility", !TERRAIN_ON && BASEMAP !== "outlines" ? "visible" : "none");
+  }
   if (TERRAIN_ON) {
     if (!map.getSource("terrain-dem")) map.addSource("terrain-dem", TERRAIN_SOURCE);
     map.setTerrain({ source: "terrain-dem", exaggeration: TERRAIN_EXAGGERATION });
@@ -1892,7 +1924,7 @@ function outToTheGlobe() {
 
 // The whole-world button, under + and − beside the legend.
 function addWorldButton() {
-  const group = document.querySelector("#zoombox .maplibregl-ctrl-group");
+  const group = document.querySelector("#view-zoom .maplibregl-ctrl-group");
   if (!group || !document.createElement || document.getElementById("to-globe")) return;
   const b = document.createElement("button");
   b.type = "button";
@@ -1907,10 +1939,10 @@ function addWorldButton() {
   group.appendChild(b);
 }
 
-// MapLibre puts its zoom buttons in a corner of the map. They belong to the
-// right of the legend, so the element is moved into its own box there.
+// MapLibre puts its zoom buttons in a corner of the map. They belong in the
+// view row, so the element is moved there once it exists.
 function moveZoomButtons() {
-  const holder = document.getElementById("zoombox");
+  const holder = document.getElementById("view-zoom");
   const group = document.querySelector(".maplibregl-ctrl-bottom-right .maplibregl-ctrl-group");
   if (holder && group && holder.insertBefore) holder.insertBefore(group, holder.firstChild);
   addWorldButton();
@@ -1929,7 +1961,7 @@ function viewPanelHtml() {
     Object.entries(VIEWS).map(([k, v]) =>
       `<label class="layer"><input type="radio" name="view" value="${k}"${k === VIEW ? " checked" : ""}>` +
       `<span class="nm">${v.nm}</span></label>`).join("") +
-    `</div>` +
+    `</div><div class="view-zoom" id="view-zoom"></div>` +
     `<button type="button" id="leave-earth" class="leave" title="Hands the screen to NASA's Eyes ` +
     `on the Solar System. A box in the corner brings the map back.">Leave<br>Earth &#8594;</button></div>` +
     `<div class="terrain-row"><label class="layer"><input type="checkbox" id="terrain-toggle"${TERRAIN_ON ? " checked" : ""}` +
@@ -2257,12 +2289,9 @@ async function addPointOverview(cfg) {
   map.addLayer({
     id: `${cfg.id}-pt`, type: "circle", source: src, "source-layer": cfg.points,
     maxzoom: cfg.pointsUntil,
-    layout: { "circle-sort-key": ["coalesce", ["get", "_count"], 1] },
     paint: {
       "circle-color": cfg.pointsColour || cfg.colour,
-      "circle-opacity": .95, "circle-blur": 0,
-      "circle-stroke-color": "#0E0D0A", "circle-stroke-opacity": .9,
-      "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 0, .35, 6, .6],
+      "circle-opacity": .9, "circle-blur": 0, "circle-stroke-width": 0,
       "circle-radius": ["interpolate", ["linear"], ["zoom"],
         0, ["+", 0.9, ["*", 0.35, ["log10", ["coalesce", ["get", "_count"], 1]]]],
         4, ["+", 1.4, ["*", 0.6, ["log10", ["coalesce", ["get", "_count"], 1]]]],
@@ -2270,15 +2299,37 @@ async function addPointOverview(cfg) {
     },
   });
   cfg._points = true;
-  bindHtmlPopup(`${cfg.id}-pt`, (p) => {
+  // The points carry only an id; a click asks Cerulean for the whole record,
+  // so every field it publishes is shown and the points file stays small.
+  map.on("click", `${cfg.id}-pt`, async (e) => {
+    const claim = e.originalEvent || e;
+    if (popupClaimedBy === claim) return;
+    popupClaimedBy = claim;
+    const p = (e.features && e.features[0] && e.features[0].properties) || {};
     const n = Number(p._count || 1);
-    if (n > 1) return `<b>${n.toLocaleString()} records here</b><div class="meta">Points this close are ` +
-      `merged at this zoom. Zoom in to see each one.</div>`;
-    const rows = Object.keys(p).filter((k) => k !== "_count" && p[k] !== null && p[k] !== "")
-      .map((k) => `${k.replace(/_/g, " ")}: ${p[k]}`).join("<br>");
-    return `<b>${cfg.name}</b><div class="meta">${rows}</div>` +
-      `<div class="meta">Placed at the middle of the record's extent. Zoom in for its shape.</div>`;
+    const pop = new maplibregl.Popup({ closeButton: true, maxWidth: "300px" }).setLngLat(e.lngLat);
+    if (n > 1 || p.id == null) {
+      pop.setHTML(`<b>${n.toLocaleString()} records here</b><div class="meta">Points this close are ` +
+        `merged at this zoom. Zoom in to see each one.</div>`).addTo(map);
+      return;
+    }
+    pop.setHTML(`<b>${cfg.name}</b><div class="meta">Reading the record from Cerulean…</div>`).addTo(map);
+    try {
+      const r = await fetch(`${CERULEAN}/collections/${cfg.pointsCollection}/items/${encodeURIComponent(p.id)}?bbox-only=true`);
+      if (!r.ok) throw new Error(`${r.status}`);
+      const rec = (await r.json()).properties || {};
+      const rows = Object.keys(rec).filter((k) => !/centerline/i.test(k) && rec[k] !== null && rec[k] !== "")
+        .map((k) => `${k.replace(/_/g, " ")}: ${typeof rec[k] === "object" ? JSON.stringify(rec[k]) : rec[k]}`).join("<br>");
+      pop.setHTML(`<b>${cfg.name}</b><div class="meta">${rows}</div>` +
+        (rec.slick_url ? `<div class="meta"><a href="${rec.slick_url}" target="_blank" rel="noopener">Open in Cerulean</a></div>` : "") +
+        `<div class="meta">Placed at the middle of the record's extent. Zoom in for its shape.</div>`);
+    } catch (err) {
+      pop.setHTML(`<b>${cfg.name}</b><div class="meta">Record ${p.id}. Cerulean did not answer (${err.message}); ` +
+        `zoom in to read it from the shapes.</div>`);
+    }
   });
+  map.on("mouseenter", `${cfg.id}-pt`, () => (map.getCanvas().style.cursor = "pointer"));
+  map.on("mouseleave", `${cfg.id}-pt`, () => (map.getCanvas().style.cursor = ""));
   applyVisibility(cfg.id);
   if (cfg.route === "cerulean") refreshCerulean(cfg).catch(() => {});
 }
@@ -3993,6 +4044,22 @@ map.on("load", () => {
     if (b && b.addEventListener) b.addEventListener("click", backToMap);
   }
   watchSpaceEdge();
+  // All on / All off: each row ticked or unticked as if clicked, so every
+  // layer loads, or puts itself away, the ordinary way.
+  const setAll = (on) => {
+    const box = document.getElementById("layers");
+    if (!box || !box.querySelectorAll) return;
+    box.querySelectorAll("input[data-layer]").forEach((el) => {
+      if (el.checked === on) return;
+      el.checked = on;
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    box.querySelectorAll("input[data-group]").forEach((el) => { el.checked = on; el.indeterminate = false; });
+  };
+  for (const [id, on] of [["layersAllOn", true], ["layersAllOff", false]]) {
+    const b = document.getElementById(id);
+    if (b && b.addEventListener) b.addEventListener("click", () => setAll(on));
+  }
   const roll = document.getElementById("panelRoll");
   if (roll) roll.addEventListener("click", () => {
     const panel = document.querySelector(".panel");

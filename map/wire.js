@@ -233,6 +233,16 @@ function put(story, key, values) {
 }
 
 function finish(facets, stories, generated) {
+  // Source: the outlet each story names, more exact than who reports it.
+  // Left out where another filter already says exactly this.
+  stories.forEach((s) => put(s, 'outlet', s.outlet ? [s.outlet] : []));
+  const same = facets.some((f) => !f.weight && stories.every((s) =>
+    (s.v[f.key] || [NONE]).join('|') === s.v.outlet.join('|')));
+  if (!same) {
+    const src = facet('outlet', 'Source', { order: 'label', none: 'Not named' });
+    stories.forEach((s) => s.v.outlet.forEach((x) => { if (x !== NONE) src.labels[x] = x; }));
+    facets.push(src);
+  }
   facets.forEach((f) => {
     if (f.weight) {
       f.values = Array.from(new Set(stories.map((s) => s.w).filter((w) => w != null))).sort((a, b) => a - b);
@@ -575,7 +585,8 @@ const CSS = `
 .wire-caret{display:inline-block;width:0;height:0;border-left:5px solid var(--dim,#948D7C);
   border-top:4px solid transparent;border-bottom:4px solid transparent;transition:transform .12s}
 .wire.open .wire-caret{transform:rotate(90deg)}
-.wire-sum{color:var(--dim,#948D7C);font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.wire-sum{display:none}
+.wire-onmap{margin-left:auto}
 .wire-onmap{display:flex;align-items:center;gap:5px;color:var(--dim,#948D7C);font-size:12px;
   white-space:nowrap;cursor:pointer}
 .wire-onmap input{accent-color:var(--moss,#62755F)}
@@ -946,6 +957,13 @@ function renderPicker() {
   if (focused) { const el = $picker.querySelector('[data-pick="' + focused + '"]'); if (el) el.focus(); }
 }
 
+// Read by the box but not offered as filters: the score, the feeds' own
+// bookkeeping (which search found a story, how far it was widened, why it
+// was kept), and the escalation label. Time covers how recent a story is.
+const HIDDEN_ROWS = new Set(['Substance score', 'Direction', 'Why it was kept', 'Search feed', 'Search widened to']);
+const ROW_ORDER = ['Topic', 'Country', 'Region', 'Within', 'Place', 'Who reports it', 'Source', 'Language'];
+function rowRank(label) { const i = ROW_ORDER.indexOf(label); return i === -1 ? ROW_ORDER.length : i; }
+
 function renderFilters(focusId) {
   const active = focusId || (document.activeElement && box.contains(document.activeElement) ? document.activeElement.id : null);
   if (!state.picked.length) { $filters.innerHTML = ''; return; }
@@ -963,6 +981,7 @@ function renderFilters(focusId) {
     }
     const sel = state.sel[id] || {};
     e.wire.facets.forEach((f) => {
+      if (f.weight || HIDDEN_ROWS.has(f.label)) return;
       let k = kinds.find((x) => x.key === f.key);
       if (!k) kinds.push(k = { key: f.key, label: f.label, subs: [] });
       const opts = optionsFor(e.wire, f, sel, sh);
@@ -971,6 +990,7 @@ function renderFilters(focusId) {
   });
 
   const many = state.picked.length > 1;
+  kinds.sort((a, b) => rowRank(a.label) - rowRank(b.label));
   const rows = kinds.filter((k) => k.subs.length).map((k) => {
     const fid = 'wf-' + k.key;
     const body = k.subs.map(({ id, f, opts, cur }) => {
@@ -981,9 +1001,7 @@ function renderFilters(focusId) {
       return many ? '<optgroup label="' + esc(BY_ID[id].name) + '">' + options + '</optgroup>' : options;
     }).join('');
     const set = k.subs.some((s) => s.cur != null);
-    const hint = k.key === 'weight'
-      ? '<p class="wire-hint">Points a story earns for what it contains: a decision, official papers, a figure, ' +
-        'a primary source. Not a measure of truth.</p>' : '';
+    const hint = '';
     return '<label class="wire-filter" for="' + fid + '"><span>' + esc(k.label) + '</span>' +
       '<select id="' + fid + '" data-key="' + k.key + '"' + (set ? ' class="set"' : '') + '>' +
         '<option value="">All</option>' + body +
@@ -1047,7 +1065,6 @@ function renderList() {
     if (s.outlet) meta.push('<span>' + esc(s.outlet) + '</span>');
     meta.push('<span>' + esc(s.place || 'Not placed') + '</span>');
     meta.push('<span>' + esc(s.lang || 'Language not stated') + '</span>');
-    if (s.w != null) meta.push('<span>Substance ' + s.w + '</span>');
     meta.push('<span>' + timeAgo(s.date, sh.now) + '</span>');
     const tip = s.snippet && s.snippet !== s.title ? ' title="' + esc(s.snippet.slice(0, 300)) + '"' : '';
     return '<li class="wire-item">' +

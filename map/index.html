@@ -71,6 +71,10 @@
   .panel.shut{height:auto;max-height:none;overflow:hidden}
   .panel.shut > *{display:none}
   .panel.shut > .panel-head{display:flex}
+  .all-btns{display:flex;gap:4px;margin-left:auto;margin-right:6px;text-transform:none;letter-spacing:0}
+  /* Story titles in a news mark's box: plain light text, not link purple. */
+  .wire-pop a{color:#F2EEE6;text-decoration:none}
+  .wire-pop a:hover{text-decoration:underline;text-decoration-color:var(--dim)}
 
   /* The settings box: names only, close together. */
   .ctrl-box .layer{padding:3px 0;gap:7px;border-top:none}
@@ -153,23 +157,25 @@
 
   /* Legend. Bottom right, above the attribution, narrow enough not to cover
      the map. Lists only what is switched on. */
-  #legend{position:absolute;right:calc(9px + var(--zoom-w) + var(--box-gap));bottom:26px;z-index:2;
-    width:calc(var(--box-w) - var(--zoom-w) - var(--box-gap));max-width:none;
+  #legend{position:absolute;right:9px;bottom:26px;z-index:2;width:var(--box-w);max-width:none;
     background:rgba(17,21,15,.88);border:1px solid var(--rule);border-radius:2px;
     padding:6px 8px;font-size:11px;line-height:1.35;color:var(--dim);
     max-height:42vh;overflow-y:auto}
   #legend[hidden]{display:none}
-  /* The zoom buttons, to the right of the legend. The two together are as
-     wide as the news wires box above them. */
-  #zoombox{position:absolute;right:9px;bottom:26px;z-index:2;width:var(--zoom-w)}
-  #zoombox.away{opacity:0;pointer-events:none;transition:opacity .5s ease}
-  #zoombox .maplibregl-ctrl-group{position:static;margin:0;border-radius:2px;box-shadow:none;
-    border:1px solid var(--rule);background:rgba(17,21,15,.88)}
-  #zoombox .maplibregl-ctrl-group button{width:100%;height:27px;background-color:transparent}
-  #zoombox .maplibregl-ctrl-group button + button{border-top:1px solid var(--rule)}
-  #zoombox .maplibregl-ctrl-icon{filter:invert(1) brightness(.86)}
-  #zoombox .to-world{display:flex;align-items:center;justify-content:center;color:#DBD6CA;cursor:pointer}
-  #zoombox .to-world:hover{color:var(--bone)}
+  /* Zoom in, zoom out, the compass and the whole-world button: two by two,
+     in the view row between the view choices and Leave Earth. */
+  .view-zoom{flex:0 0 auto;align-self:center}
+  .view-row .view-choices{flex:0 0 auto}
+  .view-row .leave{flex:1 1 auto!important;min-width:0}
+  .view-zoom .maplibregl-ctrl-group{position:static;margin:0;display:grid;grid-template-columns:26px 26px;
+    border-radius:3px;box-shadow:none;border:1px solid var(--rule);background:rgba(23,21,15,.6);overflow:hidden}
+  .view-zoom .maplibregl-ctrl-group button{width:26px;height:26px;background-color:transparent;
+    border:0;border-top:0!important}
+  .view-zoom .maplibregl-ctrl-group button:nth-child(odd){border-right:1px solid var(--rule)}
+  .view-zoom .maplibregl-ctrl-group button:nth-child(n+3){border-top:1px solid var(--rule)!important}
+  .view-zoom .maplibregl-ctrl-icon{filter:invert(1) brightness(.86)}
+  .view-zoom .to-world{display:flex;align-items:center;justify-content:center;color:#DBD6CA;cursor:pointer}
+  .view-zoom .to-world:hover{color:var(--bone)}
   .to-globe{font:inherit;font-size:12.5px;color:var(--bone);background:none;border:1px solid var(--rule);
     border-radius:3px;padding:4px 8px;cursor:pointer;white-space:nowrap}
   .to-globe:hover{border-color:var(--bone)}
@@ -214,8 +220,6 @@
   <div class="se t"></div><div class="se b"></div><div class="se l"></div><div class="se r"></div>
 </div>
 <button class="space-back" id="spaceBack" hidden>&#8592; Back to the map</button>
-<!-- Earth itself, at the size the globe had: clicking it comes back too. -->
-<button class="space-earth" id="spaceEarth" hidden title="Back to the map"><span>Back to the map</span></button>
 <div id="map"></div>
 
 <div class="left-col">
@@ -226,6 +230,7 @@
   <div class="panel">
     <div class="panel-head">
       <span>Layers</span>
+      <span class="all-btns"><button type="button" class="chip" id="layersAllOn" title="Tick every layer">All on</button><button type="button" class="chip" id="layersAllOff" title="Untick every layer">All off</button></span>
       <button class="p-roll" id="panelRoll" title="Roll the layer list up or down" aria-expanded="true">&#9662;</button>
     </div>
     <div id="layers"></div>
@@ -234,7 +239,6 @@
 </div>
 
 <div id="legend" hidden></div>
-<div id="zoombox"></div>
 
 <div class="gm" id="gm" hidden>
   <div class="gm-bar">
