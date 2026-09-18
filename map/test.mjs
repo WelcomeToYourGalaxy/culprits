@@ -1577,5 +1577,26 @@ console.log("\ncerulean points, the fit, and how to tilt");
         /<b>Trackpad<\/b>/.test(src) && /Same on Mac and Windows/.test(src));
 }
 
+console.log("\nother organisations' maps: PalmWatch");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("PalmWatch is one row in its own group", /const OTHER_MAPS = \{[\s\S]*id: "palmwatch"[^\n]*route: "sitemap"/.test(src) &&
+        /const GROUPS = \[[^\]]*OTHER_MAPS\]/.test(src));
+  check("its copy is served from GitHub, not the Worker",
+        /id: "palmwatch"[^\n]*dataUrl: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/sitemaps\/palmwatch\.places\.geojson"/.test(src));
+  check("its note says the catchment is modelled, not a boundary", /modelled sourcing area, not a property boundary/.test(src));
+  check("a colour chip is handled before the filter chips",
+        src.indexOf("if (btn.dataset.smc)") > 0 && src.indexOf("if (btn.dataset.smc)") < src.indexOf("if (btn.dataset.sm) {"));
+  const body = src.slice(src.indexOf("function colouringExpression("), src.indexOf("function colouringLegend("));
+  const colouringExpression = new Function("return " + body)();
+  const loss = { k: "loss", prop: "l{year}", year: 2025, breaks: [0.25, 1.5], colours: ["#a", "#b", "#c"] };
+  const e = colouringExpression(loss, 2019);
+  check("the chosen year picks that year's value", JSON.stringify(e).includes('"l2019"'));
+  check("breaks step up as PalmWatch's do", JSON.stringify(e[2]) === JSON.stringify(["step", ["to-number", ["get", "l2019"], 0], "#a", 0.25, "#b", 1.5, "#c"]));
+  const s = colouringExpression({ k: "cur", prop: "cur", scores: [1, 2], colours: ["#x", "#y"] });
+  check("a score is matched value by value", s[0] === "match" && s.includes("#x") && s.includes("#y"));
+  check("the colours carry no orange or yellow", !/#(F[0-9A-F]{2}[0-9A-F]{3}|FF[A-F0-9]{2}00)/i.test(body));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

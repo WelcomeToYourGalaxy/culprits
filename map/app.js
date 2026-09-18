@@ -1778,6 +1778,84 @@ function sitemapChipClicked(btn) {
   applySitemapFilters(btn.dataset.sm);
 }
 
+/* ---------- a site map coloured by a chosen value ---------- */
+// Some maps colour their areas by a value the reader chooses (PalmWatch: tree
+// cover loss in a chosen year, or one of three scores). The places file lists
+// those choices as "colourings"; the row under the map offers them as chips,
+// with a year menu where the value is per year, and a legend for the one shown.
+const sitemapColourings = new Map();
+
+function colouringExpression(c, year) {
+  const prop = String(c.prop || c.k).replace("{year}", year != null ? year : (c.year != null ? c.year : ""));
+  if (Array.isArray(c.scores)) {
+    const pairs = [];
+    c.scores.forEach((s, i) => pairs.push(s, c.colours[i]));
+    return ["match", ["to-number", ["get", prop], -1], ...pairs, "#8C877E"];
+  }
+  const expr = ["step", ["to-number", ["get", prop], 0], c.colours[0]];
+  (c.breaks || []).forEach((b, i) => expr.push(b, c.colours[i + 1]));
+  return ["case", ["has", prop], expr, "#8C877E"];
+}
+
+function colouringLegend(c) {
+  return c.colours.map((col, i) =>
+    `<span class="sm-key"><i style="background:${col}"></i>${escapeHtml((c.labels || [])[i] || "")}</span>`).join("");
+}
+
+function sitemapColourRow(cfg) {
+  const state = sitemapColourings.get(cfg.id);
+  const box = document.getElementById("layers");
+  if (!state || !box || !box.querySelector || !document.createElement) return;
+  const row = box.querySelector(`[data-layer="${cfg.id}"]`);
+  const anchor = row && row.closest ? row.closest("label") : null;
+  if (!anchor || box.querySelector(`.facet[data-colour-for="${cfg.id}"]`)) return;
+  const el = document.createElement("div");
+  el.className = "facet sm-colour";
+  el.dataset.colourFor = cfg.id;
+  if (anchor.after) anchor.after(el);
+  renderColourRow(cfg.id);
+}
+
+function renderColourRow(id) {
+  const state = sitemapColourings.get(id);
+  const box = document.getElementById("layers");
+  const el = box && box.querySelector && box.querySelector(`.facet[data-colour-for="${id}"]`);
+  if (!state || !el) return;
+  const c = state.list[state.pick];
+  const year = state.year[c.k] != null ? state.year[c.k] : c.year;
+  el.innerHTML = `<span class="chip reset">Colour by:</span>` +
+    state.list.map((o, i) =>
+      `<button type="button" class="chip${i === state.pick ? " on" : ""}" data-smc="${id}" data-ci="${i}">${escapeHtml(o.label)}</button>`).join("") +
+    (Array.isArray(c.years) && c.years.length
+      ? `<select class="sm-year" data-smy="${id}" aria-label="Year">` +
+        c.years.map((y) => `<option value="${y}"${y === year ? " selected" : ""}>${y}</option>`).join("") + `</select>`
+      : "") +
+    `<div class="sm-legend">${colouringLegend(c)}</div>`;
+  const sel = el.querySelector && el.querySelector("select");
+  if (sel && sel.addEventListener) sel.addEventListener("change", () => {
+    state.year[c.k] = Number(sel.value);
+    applySitemapColouring(id);
+  });
+}
+
+function applySitemapColouring(id) {
+  const state = sitemapColourings.get(id);
+  if (!state || !map.getLayer(`${id}-fill`)) return;
+  const c = state.list[state.pick];
+  const year = state.year[c.k] != null ? state.year[c.k] : c.year;
+  map.setPaintProperty(`${id}-fill`, "fill-color", colouringExpression(c, year));
+  map.setPaintProperty(`${id}-fill`, "fill-opacity", 0.6);
+  map.setPaintProperty(`${id}-fill`, "fill-outline-color", "#1D1B17");
+}
+
+function sitemapColourClicked(btn) {
+  const state = sitemapColourings.get(btn.dataset.smc);
+  if (!state) return;
+  state.pick = Number(btn.dataset.ci) || 0;
+  renderColourRow(btn.dataset.smc);
+  applySitemapColouring(btn.dataset.smc);
+}
+
 /* ---------- the sky the map sits in ---------- */
 
 // Placed at random once, from a fixed seed, so the same sky comes back on
@@ -2968,6 +3046,11 @@ async function addSitemapLayer(cfg) {
     });
     sitemapChipRows(cfg);
   }
+  if (Array.isArray(data.colourings) && data.colourings.length) {
+    sitemapColourings.set(cfg.id, { list: data.colourings, pick: 0, year: {} });
+    sitemapColourRow(cfg);
+    applySitemapColouring(cfg.id);
+  }
   for (const kind of ["fill", "line", "pt"]) {
     const id = `${cfg.id}-${kind}`;
     SITEMAP_LAYERS.add(id);
@@ -3826,7 +3909,18 @@ const GMO_MAP = {
   ],
 };
 
-const GROUPS = [CT_SECTORS, CT_AGRICULTURE, CT_FORESTRY, CT_HISTORY, SITE_MAPS, EXEC_MAP, MONEY_MAP, LEGAL_MAP, LEG_MAP, JUD_MAP, MORE_MAPS, GMO_MAP];
+const OTHER_MAPS = {
+  id: "other_org_maps",
+  name: "Other organisations' maps",
+  group: true,
+  ready: true,
+  children: [
+    { id: "palmwatch", name: "PalmWatch", unit: "palm oil mills", colour: "#87544A", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/palmwatch.places.geojson",
+      note: "PalmWatch (Inclusive Development International and the University of Chicago Data Science Institute), reread from PalmWatch every day. Each area is a mill's modelled sourcing area, not a property boundary; tree cover loss inside it is not measured as that mill's own clearing." },
+  ],
+};
+
+const GROUPS = [CT_SECTORS, CT_AGRICULTURE, CT_FORESTRY, CT_HISTORY, SITE_MAPS, EXEC_MAP, MONEY_MAP, LEGAL_MAP, LEG_MAP, JUD_MAP, MORE_MAPS, GMO_MAP, OTHER_MAPS];
 function childById(id) {
   for (const g of GROUPS) {
     const hit = g.children.find((c) => c.id === id);
@@ -3960,6 +4054,7 @@ const LAYER_KIND = {
   site_social_spheres: ["human", "upstream"],
   site_cartel_cells: ["human", "upstream"],
   site_indigenous_conflicts: ["human", "downstream"],
+  palmwatch: ["plant", "downstream"],
   site_environment_law: ["human", "upstream"],
   site_environment_law_shapes: ["human", "upstream"],
   enviro_law_by_country: ["human", "upstream"],
@@ -4107,6 +4202,7 @@ function buildPanel() {
 
     const btn = e.target.closest(".chip");
     if (!btn) return;
+    if (btn.dataset.smc) { sitemapColourClicked(btn); return; }
     if (btn.dataset.sm) { sitemapChipClicked(btn); return; }
     const cfg = LAYERS.find((l) => l.id === btn.dataset.facet) || childById(btn.dataset.facet);
     if (!cfg) return;
