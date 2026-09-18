@@ -61,11 +61,39 @@ ROW = f'''    {{ id: "trase", name: "Trase: deforestation and supply-chain measu
       attribution: "Trase (CC BY 4.0)",
       note: "Trase's own measures for every country, region level and year it publishes. Region shapes are read live from Trase; the values come from a copy reread weekly, because Trase does not let other sites read them." }},
 '''
-once('''    { id: "unep_coral",''', ROW + '''    { id: "unep_coral",''')
-once('  unep_coral: ["animal", "downstream"],\n', '  unep_coral: ["animal", "downstream"],\n  trase: ["plant", "downstream"],\n')
+FAC_ROWS = '''    { id: "trase_fac_brazil", name: "Trase facilities: Brazil slaughterhouses and animal-product facilities", unit: "facilities", colour: "#7A4F4A", route: "trasefac", ready: true, lazy: true,
+      facilityType: "brazil-facilities", file: "2026-05-07-br_beef_logistics_map_v6.geo.json", manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json",
+      note: "Trase's facilities map, read live from Trase's own file. Trase dates its file names; the weekly reread finds the current one." },
+    { id: "trase_fac_silos", name: "Trase facilities: Brazil soy silos and storage", unit: "silos", colour: "#6F7560", route: "trasefac", ready: true, lazy: true,
+      facilityType: "brazil-silos", file: "silos_consolidated_capacity_website_brazil_2024_2_post.geo.json", manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json",
+      note: "Trase's facilities map, read live from Trase's own file. Trase dates its file names; the weekly reread finds the current one." },
+    { id: "trase_fac_cocoa", name: "Trase facilities: C\u00f4te d'Ivoire cocoa cooperatives", unit: "cooperatives", colour: "#6B5A4A", route: "trasefac", ready: true, lazy: true,
+      facilityType: "cote-d-ivoire-cocoa-cooperatives", file: "IC2B_coopyear_clean.geo.json", manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json",
+      note: "Trase's facilities map, read live from Trase's own file. Trase dates its file names; the weekly reread finds the current one." },
+    { id: "trase_fac_palm", name: "Trase facilities: Indonesia palm oil mills", unit: "mills", colour: "#87544A", route: "trasefac", ready: true, lazy: true,
+      facilityType: "indonesia-palm-oil-mills", file: "IDN_PO_mills_clean.geo.json", manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json",
+      note: "Trase's facilities map, read live from Trase's own file. Trase dates its file names; the weekly reread finds the current one." },
+    { id: "trase_fac_pulpmills", name: "Trase facilities: Indonesia wood pulp mills", unit: "mills", colour: "#6A5E58", route: "trasefac", ready: true, lazy: true,
+      facilityType: "indonesia-wood-pulp-mills", file: "id_wood_mills_facilities_v2026_02_10.geo.json", manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json",
+      note: "Trase's facilities map, read live from Trase's own file. Trase dates its file names; the weekly reread finds the current one." },
+    { id: "trase_fac_conc_2015", name: "Trase facilities: Indonesia wood pulp concessions, 2015\u20132019", unit: "concessions", colour: "#5F6E5C", route: "trasefac", ready: true, lazy: true,
+      facilityType: "indonesia-wood-pulp-concessions-2015-2019", file: "indonesia_wood_pulp_concessions_2015_2019_v2026_02_20.geo.json", manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json",
+      note: "Trase's facilities map, read live from Trase's own file. Trase dates its file names; the weekly reread finds the current one." },
+    { id: "trase_fac_conc_2020", name: "Trase facilities: Indonesia wood pulp concessions, 2020\u20132022", unit: "concessions", colour: "#5F6E5C", route: "trasefac", ready: true, lazy: true,
+      facilityType: "indonesia-wood-pulp-concessions-2020-2022", file: "indonesia_wood_pulp_concessions_2020_2022_v2026_02_20.geo.json", manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json",
+      note: "Trase's facilities map, read live from Trase's own file. Trase dates its file names; the weekly reread finds the current one." },
+    { id: "trase_fac_conc_2023", name: "Trase facilities: Indonesia wood pulp concessions, 2023\u20132024", unit: "concessions", colour: "#5F6E5C", route: "trasefac", ready: true, lazy: true,
+      facilityType: "indonesia-wood-pulp-concessions-2023-2024", file: "indonesia_wood_pulp_concessions_2023_2024_v2026_02_20.geo.json", manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json",
+      note: "Trase's facilities map, read live from Trase's own file. Trase dates its file names; the weekly reread finds the current one." },
+'''
+once('''    { id: "unep_coral",''', ROW + FAC_ROWS + '''    { id: "unep_coral",''')
+once('  unep_coral: ["animal", "downstream"],\n', '  unep_coral: ["animal", "downstream"],\n  trase: ["plant", "downstream"],\n  trase_fac_brazil: ["animal", "downstream"],\n  trase_fac_silos: ["plant", "upstream"],\n  trase_fac_cocoa: ["plant", "upstream"],\n  trase_fac_palm: ["plant", "upstream"],\n  trase_fac_pulpmills: ["plant", "upstream"],\n  trase_fac_conc_2015: ["plant", "downstream"],\n  trase_fac_conc_2020: ["plant", "downstream"],\n  trase_fac_conc_2023: ["plant", "downstream"],\n')
 once('''    : cfg.route === "rasterlive" ? Promise.resolve().then(() => addRasterChoiceLayer(cfg))''',
      '''    : cfg.route === "rasterlive" ? Promise.resolve().then(() => addRasterChoiceLayer(cfg))
-    : cfg.route === "trase" ? addTraseLayer(cfg)''')
+    : cfg.route === "trase" ? addTraseLayer(cfg)
+    : cfg.route === "trasefac" ? addLivePlacesLayer(cfg)''')
+once('''        : cfg.route === "kml" ? await readKml(cfg)''', '''        : cfg.route === "kml" ? await readKml(cfg)
+        : cfg.route === "trasefac" ? await readTraseFacilities(cfg)''')
 
 JS = r'''/* ---------- Trase: a measure per region, chosen as on Trase's own map ---------- */
 const TRASE_RAMPS = {
@@ -227,6 +255,32 @@ function traseBox(cfg, props) {
     `<div class="meta"><a href="https://trase.earth/explore/spatial-data/map?country=${encodeURIComponent(p.country)}" target="_blank" rel="noopener">Open on Trase</a></div>`;
 }
 
+// Trase's facilities maps: the file for each is found in the weekly manifest
+// (Trase dates its file names), then read live from Trase.
+async function readTraseFacilities(cfg) {
+  let file = cfg.file, base = "https://resources.trase.earth/data/facilities-data/";
+  try {
+    const m = await traseJson(cfg.manifest);
+    const hit = (m.types || []).find((t) => t.id === cfg.facilityType);
+    if (hit && hit.file) { file = hit.file; base = m.base || base; }
+  } catch (e) { /* the manifest is not built yet: use the file known when this was written */ }
+  const gj = await getJson(base + file);
+  const items = [];
+  (gj.features || []).forEach((f, i) => {
+    const p = f.properties || {};
+    const keys = Object.keys(p);
+    const nameKey = keys.find((k) => /(^|_)(name|nome|razao|mill|coop|company|facility)(_|$)/i.test(k) && typeof p[k] === "string" && p[k]);
+    const groupKey = keys.find((k) => /commodit/i.test(k)) || keys.find((k) => /^(type|facility_type|tipo)$/i.test(k));
+    const rows = keys.filter((k) => p[k] !== null && p[k] !== "" && typeof p[k] !== "object")
+      .map((k) => `<tr><th style="text-align:left;padding-right:8px;vertical-align:top">${escapeHtml(k.replace(/_/g, " "))}</th><td>${escapeHtml(p[k])}</td></tr>`).join("");
+    items.push({ geometry: f.geometry, key: `f${i}`, name: nameKey ? p[nameKey] : "", group: groupKey ? String(p[groupKey] ?? "") : "",
+      colour: null, h: `<div style="font:13px/1.4 system-ui,sans-serif;max-width:340px">` +
+        (nameKey ? `<h4 style="margin:0 0 6px">${escapeHtml(p[nameKey])}</h4>` : "") +
+        `<table>${rows}</table><div style="margin-top:6px;font-size:11px">Trase (CC BY 4.0)</div></div>` });
+  });
+  return { title: cfg.name, items };
+}
+
 /* ---------- the sky the map sits in ---------- */'''
 once("/* ---------- the sky the map sits in ---------- */", JS)
 
@@ -247,6 +301,9 @@ console.log("\nTrase, and coral at world zoom");
         /tint:\/\/\$\{CORAL_CLASSES\["Coral\/Algae"\]\.slice\(1\)\}\/data-gis\.unep-wcmc\.org/.test(src));
   check("…and the row says whose map it is", /UNEP-WCMC's reef map at this width/.test(src));
   check("the switch reaches the world layer", /`\$\{id\}-world`/.test(src));
+  check("each Trase facilities map is a row, read live from Trase's own file",
+        (src.match(/route: "trasefac"/g) || []).length === 8 && /resources\.trase\.earth\/data\/facilities-data\//.test(src));
+  check("…with the current file found in the weekly manifest", /facilityType: "brazil-silos"/.test(src) && /async function readTraseFacilities/.test(src));
 }
 '''
 anchor_t = '\nconsole.log(`\\n${pass} passed'
