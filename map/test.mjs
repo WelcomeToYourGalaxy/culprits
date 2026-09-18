@@ -1679,5 +1679,23 @@ console.log("\ncoral at every zoom");
         /Global_Distribution_of_Coral_Reefs\/MapServer/.test(src));
 }
 
+console.log("\nTrase, and coral at world zoom");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("Trase is one row with its own menus", /id: "trase"[^\n]*route: "trase"/.test(src) && /data-tr="metric"/.test(src) && /data-tr="year"/.test(src));
+  check("its shapes are read live from Trase", /regions: "https:\/\/resources\.trase\.earth\/data\/trase-regions"/.test(src));
+  check("its values come from the weekly GitHub copy", /catalogue: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/trase\/catalogue\.json"/.test(src));
+  const slug = new Function(src.slice(src.indexOf("function traseSlug("), src.indexOf("// Five steps from the values")) + "; return traseSlug;")();
+  check("Trase's country names match its slugs", slug("COTE D'IVOIRE") === "cote-d-ivoire" && slug("BRAZIL") === "brazil");
+  const br = new Function(src.slice(src.indexOf("function traseBreaks("), src.indexOf("function traseFormat(")) + "; return traseBreaks;")();
+  check("steps come from the values themselves", JSON.stringify(br([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])) === "[3,5,7,9]");
+  check("the ramps carry no orange or yellow", !/#(F[A-F0-9]{5}|E[6-9A-F][0-9A-F]{2}[0-4][0-9A-F])/i.test(src.slice(src.indexOf("const TRASE_RAMPS"), src.indexOf("const traseCache"))));
+  check("wider than zoom 6, coral shows UNEP-WCMC's map in the Atlas colour",
+        /id: `\$\{cfg\.id\}-world`, type: "raster", source: `\$\{cfg\.id\}-globe`, maxzoom: CORAL_ATLAS_PICTURE_FROM/.test(src) &&
+        /tint:\/\/\$\{CORAL_CLASSES\["Coral\/Algae"\]\.slice\(1\)\}\/data-gis\.unep-wcmc\.org/.test(src));
+  check("…and the row says whose map it is", /UNEP-WCMC's reef map at this width/.test(src));
+  check("the switch reaches the world layer", /`\$\{id\}-world`/.test(src));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
