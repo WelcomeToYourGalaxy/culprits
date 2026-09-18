@@ -1520,5 +1520,35 @@ console.log("\nlegibility");
   check("no reef class is orange or yellow", bad.length === 0, JSON.stringify(bad));
 }
 
+console.log("\ncerulean points, the fit, and how to tilt");
+{
+  const fetchImpl = async (u, o) => {
+    fetched.push(u);
+    if (o && o.method === "HEAD" && String(u).includes("cerulean_slick_points")) {
+      return { ok: true, status: 200, headers: { get: (h) => (h === "content-length" ? "4096" : null) } };
+    }
+    if (String(u).includes("limit=0")) return { ok: true, status: 200, json: async () => ({ numberMatched: 5 }) };
+    return { ok: true, status: 200, json: async () => ({}) };
+  };
+  const { map, els } = run({ layersReady: "cerulean_slicks", fetchImpl });
+  map.fire("load"); await new Promise((r) => setTimeout(r, 5));
+  check("the points file is not asked for while the layer is off",
+        !fetched.some((u) => String(u).includes("cerulean_slick_points")));
+  els.get("layers").fire("change", { target: { dataset: { layer: "cerulean_slicks" }, checked: true } });
+  await new Promise((r) => setTimeout(r, 20));
+  const pt = map.getLayer("cerulean_slicks-pt");
+  check("switched on, every slick is drawn as a point below the shapes", pt && pt.type === "circle" && pt.maxzoom === 6);
+  const counts = map.sources.get("cerulean_slicks-counts")._data;
+  check("…and the counted squares are not drawn", !counts || counts.features.length === 0);
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the slick sources get points too", /points: "cerulean_source_points", pointsUntil: 8/.test(src));
+  check("the harvester exists and asks for boxes, not shapes",
+        /"bbox-only": "true"/.test(fs.readFileSync(path.join(HERE, "..", "pipeline", "cerulean", "harvest_points.py"), "utf8")));
+  check("the fit carries the measured numbers and a turn",
+        /const EYES_FIT = \{ zoom: 0\.8, lon: -108, lat: 66, bearing: 0,/.test(src) && /e\.key === "\["/.test(src));
+  check("how to tilt sits beside the terrain box", /class="terrain-row"/.test(src) && /<b>Mouse<\/b>/.test(src) &&
+        /<b>Trackpad<\/b>/.test(src) && /Same on Mac and Windows/.test(src));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

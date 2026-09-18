@@ -80,6 +80,13 @@
   .sect-head .bm-h{margin:0}
   .sect + .sect{margin-top:7px;padding-top:6px;border-top:1px solid var(--rule)}
   .sect.shut .sect-body{display:none}
+  /* How to tilt: small notes to the right of the terrain tick box. */
+  .terrain-row{display:flex;gap:8px;align-items:flex-start;margin-top:4px}
+  .terrain-row > .layer{flex:0 0 auto}
+  .how-boxes{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+  .how{margin:0;padding:3px 6px;border:1px solid var(--rule);border-radius:2px;
+    color:var(--dim);font-size:10.5px;line-height:1.35}
+  .how b{color:var(--bone);font-weight:600;margin-right:3px}
   .view-row{display:flex;align-items:stretch;gap:9px}
   .view-choices{flex:1;min-width:0}
   .ctrl-box .leave{flex:1 1 55%;align-self:stretch;font:inherit;font-size:17px;font-weight:600;line-height:1.2;

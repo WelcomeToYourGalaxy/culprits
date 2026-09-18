@@ -385,6 +385,8 @@ const LAYERS = [
   // browser downloads it). See CERULEAN below for the limits this works within.
   { id:"cerulean_slicks",      name:"Oil slicks (Cerulean)",   unit:"potential slicks, Sentinel-1", colour:"#5A5750", route:"cerulean", ready:true, off: true,
     collection: "public.slick_plus", drawFrom: 6,
+    // Every slick as a point, below drawFrom: pipeline/cerulean/harvest_points.py.
+    points: "cerulean_slick_points", pointsUntil: 6, pointsColour: "#8A9AA2",
     // Every field the collection publishes except centerlines — a skeleton of
     // each slick nested inside it, which the map cannot draw and which was
     // most of every tile's weight. Geometry columns are never sent as fields.
@@ -395,6 +397,7 @@ const LAYERS = [
     attribution: '<a href="https://cerulean.skytruth.org" target="_blank" rel="noopener">SkyTruth Cerulean</a>' },
   { id:"cerulean_sources",     name:"Slick sources (Cerulean)", unit:"candidate vessels and platforms", colour:"#6B5F58", route:"worker", ready:true, off: true,
     geometry:"polygon", maxAreaDeg2: 120,
+    points: "cerulean_source_points", pointsUntil: 8, pointsColour: "#9A8078",
     note: "Candidates, ranked. The score is an estimated likelihood on a -5 to +5 scale, not a finding, and vessel identity lags up to 72 hours behind the detection. This layer names parties and must read as a question rather than an answer.",
     attribution: '<a href="https://cerulean.skytruth.org" target="_blank" rel="noopener">SkyTruth Cerulean</a>' },
   // Straight from the Atlas's own vector tiles, not through the Worker.
@@ -1288,7 +1291,9 @@ const SPACE_URL = "https://eyes.nasa.gov/apps/solar-system/#/earth?featured=fals
 // moves: "stars" if Eyes holds its camera against the stars (a sidereal day),
 // "sun" if it holds it against the Sun (a solar day). If the globe and Earth
 // line up when you calibrate but have drifted apart a day later, switch rate.
-const EYES_FIT = { zoom: 0.8, lon: 0, lat: 0, at: "2026-09-17T00:00:00Z", rate: "stars" };
+// Measured by the Commander with #fit on 18 September 2026. bearing turns the
+// globe on the screen, for Earth's axis leaning sideways in Eyes.
+const EYES_FIT = { zoom: 0.8, lon: -108, lat: 66, bearing: 0, at: "2026-09-18T01:14:17.620Z", rate: "stars" };
 const TURN = { stars: 360.9856473, sun: 360 };   // degrees a day
 
 // The globe's drawn radius in screen pixels, from MapLibre's own camera: the
@@ -1383,7 +1388,7 @@ function leaveEarth() {
   };
   // Moved to Earth's own face and size first, then faded across.
   if (typeof map.easeTo === "function") {
-    map.easeTo({ center: [to.lon, to.lat], zoom: handoffZoom(), bearing: 0, pitch: 0, duration: 900 });
+    map.easeTo({ center: [to.lon, to.lat], zoom: handoffZoom(), bearing: EYES_FIT.bearing || 0, pitch: 0, roll: 0, duration: 900 });
     setTimeout(done, 950);
   } else {
     done();
@@ -1404,7 +1409,7 @@ function backToMap() {
   // The way in mirrors the way out: the globe appears at the size Earth had in
   // Eyes, then grows back to the view that was left.
   if (leftFrom && typeof map.easeTo === "function") {
-    map.jumpTo({ center: [eyesFacing(Date.now()).lon, EYES_FIT.lat], zoom: handoffZoom(), bearing: 0, pitch: 0 });
+    map.jumpTo({ center: [eyesFacing(Date.now()).lon, EYES_FIT.lat], zoom: handoffZoom(), bearing: EYES_FIT.bearing || 0, pitch: 0 });
     if (leftFrom.view && leftFrom.view !== VIEW) setView(leftFrom.view);
     else if (leftFrom.view === "flat") setView("flat");
     map.easeTo({ center: leftFrom.center, zoom: leftFrom.zoom, duration: 1400 });
@@ -1480,13 +1485,14 @@ function fitMode() {
   const box = document.createElement("div");
   box.className = "fit-box";
   document.body.appendChild(box);
-  const state = { zoom: EYES_FIT.zoom, lon: map.getCenter().lng, lat: map.getCenter().lat };
+  const state = { zoom: EYES_FIT.zoom, lon: EYES_FIT.lon, lat: EYES_FIT.lat, bearing: EYES_FIT.bearing || 0 };
   const draw = () => {
     EYES_FIT.zoom = state.zoom;
-    map.jumpTo({ center: [state.lon, state.lat], zoom: handoffZoom(), bearing: 0, pitch: 0 });
+    map.jumpTo({ center: [state.lon, state.lat], zoom: handoffZoom(), bearing: state.bearing, pitch: 0 });
     box.innerHTML = "Line the globe up with Earth behind it. Arrows turn it, + and &#8722; resize it." +
       "<code>const EYES_FIT = { zoom: " + state.zoom.toFixed(3) + ", lon: " + state.lon.toFixed(2) +
-      ", lat: " + state.lat.toFixed(2) + ', at: "' + new Date().toISOString() + '", rate: "stars" };</code>';
+      ", lat: " + state.lat.toFixed(2) + ", bearing: " + state.bearing.toFixed(1) +
+      ', at: "' + new Date().toISOString() + '", rate: "stars" };</code>';
   };
   window.addEventListener("keydown", (e) => {
     const step = e.shiftKey ? 0.2 : 2;
@@ -1496,6 +1502,8 @@ function fitMode() {
     else if (e.key === "ArrowDown") state.lat = Math.max(-85, state.lat - step);
     else if (e.key === "+" || e.key === "=") state.zoom += 0.05;
     else if (e.key === "-") state.zoom -= 0.05;
+    else if (e.key === "[" || e.key === "{") state.bearing -= step;
+    else if (e.key === "]" || e.key === "}") state.bearing += step;
     else return;
     e.preventDefault();
     draw();
@@ -1924,9 +1932,14 @@ function viewPanelHtml() {
     `</div>` +
     `<button type="button" id="leave-earth" class="leave" title="Hands the screen to NASA's Eyes ` +
     `on the Solar System. A box in the corner brings the map back.">Leave<br>Earth &#8594;</button></div>` +
-    `<label class="layer"><input type="checkbox" id="terrain-toggle"${TERRAIN_ON ? " checked" : ""}` +
-    ` title="Ground height under the imagery, on a round Earth that flattens close up. Right-drag to tilt and turn.">` +
-    `<span class="nm">3D terrain</span></label></div></div>` +
+    `<div class="terrain-row"><label class="layer"><input type="checkbox" id="terrain-toggle"${TERRAIN_ON ? " checked" : ""}` +
+    ` title="Ground height under the imagery, on a round Earth that flattens close up.">` +
+    `<span class="nm">3D terrain</span></label>` +
+    `<div class="how-boxes">` +
+    `<p class="how"><b>Mouse</b> Right-drag: tilt and turn. Ctrl + right-drag: roll.</p>` +
+    `<p class="how"><b>Trackpad</b> Ctrl + drag: tilt and turn. Ctrl + two-finger click, then drag: roll.</p>` +
+    `<p class="how">Same on Mac and Windows. Keys: Shift + arrows.</p>` +
+    `</div></div></div></div>` +
     `<div class="sect" data-sect="basemap">` + sectHead("Basemap", "basemap") + `<div class="sect-body">`;
 }
 
@@ -2227,6 +2240,49 @@ function addCoralShapes(cfg, replace) {
 
 /* ---------- Cerulean, live from its own tiles ---------- */
 
+// Every record as a point, for the zooms where the live shapes are not drawn.
+// Built by pipeline/cerulean/harvest_points.py. A merged point says how many
+// records it stands for and, like the other layers, withholds the rest.
+async function addPointOverview(cfg) {
+  const url = `${TILE_BASE}/${cfg.points}.pmtiles`;
+  const head = await fetch(url, { method: "HEAD" }).catch(() => null);
+  const size = head && head.headers && head.headers.get ? Number(head.headers.get("content-length")) : 0;
+  if (!head || !head.ok || !(size > 0)) {
+    console.warn(`[culprits] ${cfg.id}: no ${cfg.points}.pmtiles yet — run pipeline/cerulean/harvest_points.py`);
+    return;
+  }
+  const src = `${cfg.id}-points`;
+  if (map.getSource(src)) return;
+  map.addSource(src, { type: "vector", url: `pmtiles://${url}` });
+  map.addLayer({
+    id: `${cfg.id}-pt`, type: "circle", source: src, "source-layer": cfg.points,
+    maxzoom: cfg.pointsUntil,
+    layout: { "circle-sort-key": ["coalesce", ["get", "_count"], 1] },
+    paint: {
+      "circle-color": cfg.pointsColour || cfg.colour,
+      "circle-opacity": .95, "circle-blur": 0,
+      "circle-stroke-color": "#0E0D0A", "circle-stroke-opacity": .9,
+      "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 0, .35, 6, .6],
+      "circle-radius": ["interpolate", ["linear"], ["zoom"],
+        0, ["+", 0.9, ["*", 0.35, ["log10", ["coalesce", ["get", "_count"], 1]]]],
+        4, ["+", 1.4, ["*", 0.6, ["log10", ["coalesce", ["get", "_count"], 1]]]],
+        8, ["+", 2.4, ["*", 0.9, ["log10", ["coalesce", ["get", "_count"], 1]]]]],
+    },
+  });
+  cfg._points = true;
+  bindHtmlPopup(`${cfg.id}-pt`, (p) => {
+    const n = Number(p._count || 1);
+    if (n > 1) return `<b>${n.toLocaleString()} records here</b><div class="meta">Points this close are ` +
+      `merged at this zoom. Zoom in to see each one.</div>`;
+    const rows = Object.keys(p).filter((k) => k !== "_count" && p[k] !== null && p[k] !== "")
+      .map((k) => `${k.replace(/_/g, " ")}: ${p[k]}`).join("<br>");
+    return `<b>${cfg.name}</b><div class="meta">${rows}</div>` +
+      `<div class="meta">Placed at the middle of the record's extent. Zoom in for its shape.</div>`;
+  });
+  applyVisibility(cfg.id);
+  if (cfg.route === "cerulean") refreshCerulean(cfg).catch(() => {});
+}
+
 function addCeruleanLayer(cfg) {
   const base = CERULEAN.replace(/^https:\/\//, "cerulean://");
   map.addSource(`${cfg.id}-tiles`, {
@@ -2388,6 +2444,14 @@ async function refreshCerulean(cfg) {
   // total says what is true at that scale without drawing anything misleading.
   // From zoom 3 the squares are small enough to say something, and each is
   // counted live rather than estimated.
+  // With every slick drawn as a point, the counted squares are not needed.
+  if (cfg._points && map.getZoom() < cfg.drawFrom) {
+    const empty = { type: "FeatureCollection", features: [] };
+    counts.setData(empty);
+    caps.setData(empty);
+    setLayerState(cfg.id, `every detection as a point — shapes draw from zoom ${cfg.drawFrom}`);
+    return;
+  }
   if (map.getZoom() < COUNT_FROM) {
     const empty = { type: "FeatureCollection", features: [] };
     counts.setData(empty);
@@ -3148,6 +3212,11 @@ function applyVisibility(id) {
     if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", vis);
   });
   const cfg = LAYERS.find((l) => l.id === id);
+  // The points file is asked for the first time the layer is switched on.
+  if (cfg && cfg.points && vis === "visible" && !cfg._pointsTried) {
+    cfg._pointsTried = true;
+    addPointOverview(cfg).catch((e) => console.warn(`[culprits] ${cfg.id} points: ${e.message}`));
+  }
   if (cfg && cfg.route === "cerulean" && vis === "visible") {
     refreshCerulean(cfg).catch((e) => setLayerState(id, `unavailable (${e.message})`));
   }
