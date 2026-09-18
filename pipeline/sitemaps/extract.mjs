@@ -469,7 +469,7 @@ async function main() {
     Chart: absorb("Chart"), d3: absorb("d3"), topojson: absorb("topojson"), $: absorb("$"), jQuery: absorb("jQuery"),
     atob: (s) => Buffer.from(s, "base64").toString("binary"),
     btoa: (s) => Buffer.from(s, "binary").toString("base64"),
-    TextDecoder, TextEncoder, URL, URLSearchParams, Blob, Image: class {}, Uint8Array, ArrayBuffer,
+    TextDecoder, TextEncoder, URL, URLSearchParams, Blob, Image: class {}, Option: class { constructor(text = "", value = "") { this.text = text; this.value = value; this.textContent = text; } }, Uint8Array, ArrayBuffer,
     DecompressionStream: globalThis.DecompressionStream, Response,
     alert() {}, confirm: () => true, prompt: () => "",
     addEventListener: (type, cb) => { if (typeof cb === "function") listeners.push([type, cb]); },

@@ -258,6 +258,14 @@
    "colour": "#6A5A58",
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/suppression_embed_24_leaflet-map.html",
    "note": "From the Suppression page's cartel cells map (maps repo). Its 238 connecting lines are not drawn in this layer, only the places."
+  },
+  {
+   "id": "site_indigenous_conflicts",
+   "name": "Indigenous Environmental Conflicts",
+   "unit": "conflicts",
+   "colour": "#6B5A4A",
+   "note": "From local-map's Indigenous Environmental Conflicts map (local-map repo).",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/local-map/main/indigenous_conflicts_map_REAL.html"
   }
  ]
 }
