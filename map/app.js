@@ -1233,11 +1233,13 @@ function OUTLINE_DETAIL(map) {
   const road = (w) => ["interpolate", ["exponential", 1.4], ["zoom"], 5, w * .3, 10, w, 16, w * 6];
   const kind = (list) => ["match", ["get", "class"], list, true, false];
   return [
-    { id: "outline-relief", type: "hillshade", source: "outline-dem", minzoom: 3,
+    { id: "outline-relief", type: "hillshade", source: "outline-dem", minzoom: 3.5,
       paint: { "hillshade-exaggeration": .45, "hillshade-shadow-color": "#050504",
                "hillshade-highlight-color": "#4A4A40", "hillshade-accent-color": "#15150F" } },
+    // Solid, in the sea's own colour, over the relief: the elevation tiles
+    // carry the sea floor too, and its shading read as texture on the water.
     { id: "outline-water", type: "fill", source: "osm", "source-layer": "water", minzoom: 3.5,
-      paint: { "fill-color": "#101820", "fill-opacity": fade(1) } },
+      paint: { "fill-color": "#0B1017", "fill-opacity": 1 } },
     { id: "outline-green", type: "fill", source: "osm", "source-layer": "landcover", minzoom: 5,
       filter: kind(["wood", "forest", "grass", "wetland", "farmland"]),
       paint: { "fill-color": ["match", ["get", "class"], ["wood", "forest"], "#1C2A20", "wetland", "#1B2624", "#212720"],
@@ -1616,22 +1618,46 @@ function wireSource() {
       if (!f) return;
       popupClaimedBy = e.originalEvent || e;
       const list = wireAt.get(f.properties.k) || [];
-      const rows = list.slice(0, 8).map((s) =>
-        `<div class="meta" style="margin:5px 0 0">` +
-        (s.url ? `<a href="${escapeHtml(s.url)}" target="_blank" rel="noopener">${escapeHtml(s.title)}</a>`
-               : escapeHtml(s.title)) +
-        `<br>${escapeHtml([s.subject, s.outlet].filter(Boolean).join(" · "))}</div>`).join("");
-      new maplibregl.Popup({ closeButton: true, maxWidth: "300px", className: "wire-pop" }).setLngLat(f.geometry.coordinates)
+      const pop = new maplibregl.Popup({ closeButton: true, maxWidth: "320px", className: "wire-pop" })
+        .setLngLat(f.geometry.coordinates)
         .setHTML(`<b>${escapeHtml(f.properties.place || "News wire")}</b>` +
-                 `<div class="meta">${list.length} ${list.length === 1 ? "story" : "stories"}</div>${rows}` +
-                 (list.length > 8 ? `<div class="meta">…and ${list.length - 8} more in the wires box.</div>` : ""))
+                 `<div class="meta">${list.length} ${list.length === 1 ? "story" : "stories"}</div>` +
+                 (list.length > 1 ? `<label class="wire-pop-sort">Sort by <select>` +
+                   WIRE_SORTS.map(([k, nm]) => `<option value="${k}">${nm}</option>`).join("") +
+                   `</select></label>` : "") +
+                 `<div class="wire-pop-list">${wirePopRows(list, "new")}</div>`)
         .addTo(map);
+      const el = pop.getElement && pop.getElement();
+      const sel = el && el.querySelector(".wire-pop-sort select");
+      if (sel) sel.addEventListener("change", () => {
+        el.querySelector(".wire-pop-list").innerHTML = wirePopRows(list, sel.value);
+      });
     });
     map.on("styledata", wireOnTop);
     map.on("mouseenter", "wire-news", () => { map.getCanvas().style.cursor = "pointer"; });
     map.on("mouseleave", "wire-news", () => { map.getCanvas().style.cursor = ""; });
   }
   return map.getSource("wire-news");
+}
+
+// Every story at a mark, in the order chosen in its box.
+const WIRE_SORTS = [["new", "Newest first"], ["old", "Oldest first"], ["subject", "Subject"],
+                    ["outlet", "News source"], ["title", "Headline A–Z"]];
+function wirePopRows(list, by) {
+  const t = (s) => (s.date == null ? -Infinity : s.date);
+  const txt = (v) => String(v || "\uffff").toLocaleLowerCase();
+  const sorted = list.slice().sort((a, b) =>
+    by === "old" ? t(a) - t(b) :
+    by === "subject" ? txt(a.subject).localeCompare(txt(b.subject)) || t(b) - t(a) :
+    by === "outlet" ? txt(a.outlet).localeCompare(txt(b.outlet)) || t(b) - t(a) :
+    by === "title" ? txt(a.title).localeCompare(txt(b.title)) :
+    t(b) - t(a));
+  return sorted.map((s) =>
+    `<div class="meta" style="margin:6px 0 0">` +
+    (s.url ? `<a href="${escapeHtml(s.url)}" target="_blank" rel="noopener">${escapeHtml(s.title)}</a>`
+           : escapeHtml(s.title)) +
+    `<br>${escapeHtml([s.subject, s.outlet, s.date != null ? new Date(s.date).toLocaleDateString() : ""]
+      .filter(Boolean).join(" · "))}</div>`).join("");
 }
 
 // The news marks stay on top of everything, the painted plate included: the
@@ -1669,12 +1695,27 @@ async function showWireStories(stories) {
 }
 
 // wire.js calls this whenever what it shows changes, or the tick box moves.
+// The wires can arrive before the map has finished loading, and a source added
+// then is refused; the latest list is kept and drawn as soon as the map is
+// ready. wire.js also leaves its list on window.__wirePending if it ran first.
+let wirePending = null;
+function wireFlush() {
+  if (!wirePending || !(map.isStyleLoaded && map.isStyleLoaded()) && !map.loaded()) return;
+  const stories = wirePending;
+  wirePending = null;
+  showWireStories(stories).catch((e) => console.warn("[culprits] wires on the map:", e.message || e));
+}
 window.culpritsWire = {
   show(stories) {
-    try { showWireStories(Array.isArray(stories) ? stories : []); }
-    catch (e) { console.warn("[culprits] wires on the map:", e.message || e); }
+    wirePending = Array.isArray(stories) ? stories : [];
+    try { wireFlush(); } catch (e) { console.warn("[culprits] wires on the map:", e.message || e); }
   },
 };
+(map.once || map.on).call(map, "load", () => {
+  if (!wirePending && Array.isArray(window.__wirePending)) wirePending = window.__wirePending;
+  wireFlush();
+});
+map.on("idle", wireFlush);
 
 /* ---------- each site map's own filters ---------- */
 
@@ -2056,7 +2097,7 @@ function moveZoomButtons() {
     const wrap = document.createElement("div");
     wrap.className = "maplibregl-ctrl maplibregl-ctrl-group";
     wrap.appendChild(compass);
-    spot.appendChild(wrap);
+    spot.insertBefore(wrap, spot.firstChild);
   }
 }
 
@@ -2082,7 +2123,8 @@ function viewPanelHtml() {
     `<div class="terrain-row"><div class="terrain-left"><label class="layer"><input type="checkbox" id="terrain-toggle"${TERRAIN_ON ? " checked" : ""}` +
     ` title="Ground height under the imagery, on a round Earth that flattens close up.">` +
     `<span class="nm">3D terrain</span></label>` +
-    `<div class="compass-holder" id="compass-holder" title="Click to stand the map upright, facing north"></div></div>` +
+    `<div class="compass-holder" id="compass-holder" title="Click to stand the map upright, facing north">` +
+    `<span class="compass-cap">Click: north up, level</span></div></div>` +
     `<div class="how-boxes">` +
     `<p class="how"><b>Mouse</b> Right-drag: tilt and turn. Ctrl + right-drag: roll.</p>` +
     `<p class="how"><b>Trackpad</b> Ctrl + drag: tilt and turn. Ctrl + two-finger click, then drag: roll.</p>` +

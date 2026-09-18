@@ -1305,6 +1305,14 @@ console.log("\nthe wires on the map");
         /"circle-stroke-color": WIRE_RIM/.test(src));
   check("the news marks are kept above every other layer", /function wireOnTop\(\)/.test(src) &&
         /map\.on\("styledata", wireOnTop\)/.test(src) && /map\.moveLayer\("wire-news"\)/.test(src));
+  check("the stories at a mark are all listed and can be sorted", /const WIRE_SORTS = \[\["new", "Newest first"\]/.test(src) &&
+        /function wirePopRows\(list, by\)/.test(src) && /\.wire-pop-list\{max-height:260px;overflow:auto/.test(index));
+  check("stories that arrive before the map has loaded are drawn once it has", /function wireFlush\(\)/.test(src) &&
+        /window\.__wirePending/.test(src) && /map\.on\("idle", wireFlush\)/.test(src));
+  check("the outlines' sea is solid, with no relief on it", /"fill-color": "#0B1017", "fill-opacity": 1/.test(src) &&
+        /type: "hillshade", source: "outline-dem", minzoom: 3\.5/.test(src));
+  check("the compass sits lower, centred, with a caption", /class="compass-cap">Click: north up, level</.test(src) &&
+        /\.compass-holder\{display:flex;flex-direction:column;align-items:center;gap:3px;margin-top:14px\}/.test(index));
   check("story titles in its box are light text", /className: "wire-pop"/.test(src) && /\.wire-pop a\{color:#F2EEE6/.test(index));
   check("every layer can be ticked or unticked at once", /id="layersAllOn"/.test(index) && /id="layersAllOff"/.test(index) &&
         /const setAll = \(on\) =>/.test(src));

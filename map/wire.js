@@ -1015,12 +1015,14 @@ function renderFilters(focusId) {
 
 // The stories now showing, handed to the map. Off when the box is unticked.
 function toTheMap(all) {
-  if (!window.culpritsWire) return;
   const on = !$onMap || $onMap.checked;
-  window.culpritsWire.show(on ? all.map(({ s, id }) => ({
+  const list = on ? all.map(({ s, id }) => ({
     title: s.title, url: s.url, outlet: s.outlet, place: s.place, date: s.date,
     subject: BY_ID[id] ? BY_ID[id].name : id, at: s.at || null, iso: s.iso || null,
-  })) : []);
+  })) : [];
+  // If the map's script has not run yet, leave the list where it will look.
+  if (window.culpritsWire) window.culpritsWire.show(list);
+  else window.__wirePending = list;
 }
 
 function renderList() {
