@@ -1632,5 +1632,29 @@ console.log("\nthe USDA explorers, live");
   check("…and on the outline layer, the sub-region's name", g.includes("<b>Paraná</b>"));
 }
 
+console.log("\nlive maps from the Destruction page, batch 1");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  for (const id of ["wreckers_umap", "mymaps_chlorine", "mymaps_trees", "fractracker_refineries", "arcgis_ym8xk",
+                    "arcgis_materialresearch", "glad_loss", "soilgrids", "wastewater"]) {
+    check(`${id} is a row in Other organisations' maps`, new RegExp(`id: "${id}"`).test(src));
+  }
+  check("none of them goes through the Worker", !/id: "(wreckers_umap|mymaps_|fractracker|arcgis_|glad_loss|soilgrids|wastewater)[^\n]*WORKER/.test(src));
+  check("the places are drawn by the site maps' own code", /await addSitemapLayer\(cfg, data\)/.test(src) &&
+        /async function addSitemapLayer\(cfg, given\)/.test(src));
+  check("every place can be clicked and named in a pick-list", /properties: \{ k: it\.key, p: 1, t: it\.name \? 1 : 0, n: it\.name/.test(src));
+  const soft = new Function(src.slice(src.indexOf("function softColour("), src.indexOf("function relabelRow(")) + "; return softColour;")();
+  check("a source's bright colour is moved toward the atlas's range", soft("#FF0000", "#000") === "#d72320");
+  check("a named colour is left as the source wrote it", soft("DarkRed", "#000") === "DarkRed");
+  const fill = new Function(src.slice(src.indexOf("function arcgisFill("), src.indexOf("function arcgisPopupHtml(")) + "; return arcgisFill;")();
+  check("an ArcGIS popup title fills its fields", fill("{NAME} ({CAP} bpd)", { NAME: "Jamnagar", CAP: 1240000 }) === "Jamnagar (1240000 bpd)");
+  const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const umapText = new Function("escapeHtml", src.slice(src.indexOf("function umapText("), src.indexOf("async function readUmap(")) + "; return umapText;")(esc);
+  check("uMap links and bold are kept", umapText("**Shell**\n[[https://x.org|site]]") === '<b>Shell</b><br><a href="https://x.org" target="_blank" rel="noopener">site</a>');
+  check("SoilGrids offers every property it publishes at the top depth", (src.match(/_0-5cm_mean/g) || []).length === 10);
+  check("the wastewater model offers its five layers", (src.match(/mazu\.nceas\.ucsb\.edu\/wastewater\//g) || []).length === 5);
+  check("a picture that fails says so on its row", /the source did not answer for \$\{failed\} square/.test(src));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
