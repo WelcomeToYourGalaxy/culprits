@@ -1222,25 +1222,62 @@ function addBasemapLayers() {
 // Drawn under the washes and plate, which are both off while it shows. Added
 // the first time outlines are chosen, not on load: the boundary file is 1.7 MB
 // and most readers never open this basemap.
+const OFM = "https://tiles.openfreemap.org/planet";
+const OUTLINE_IDS = ["outline-relief", "outline-water", "outline-green", "outline-town", "outline-waterway",
+                     "outline-rail", "outline-road-minor", "outline-road", "outline-road-major", "outline-buildings"];
+function OUTLINE_DETAIL(map) {
+  if (!map.getSource("osm")) map.addSource("osm", { type: "vector", url: OFM,
+    attribution: '<a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> © OpenStreetMap contributors' });
+  if (!map.getSource("outline-dem")) map.addSource("outline-dem", Object.assign({}, TERRAIN_SOURCE));
+  const fade = (a) => ["interpolate", ["linear"], ["zoom"], 3.5, 0, 6, a];
+  const road = (w) => ["interpolate", ["exponential", 1.4], ["zoom"], 5, w * .3, 10, w, 16, w * 6];
+  const kind = (list) => ["match", ["get", "class"], list, true, false];
+  return [
+    { id: "outline-relief", type: "hillshade", source: "outline-dem", minzoom: 3,
+      paint: { "hillshade-exaggeration": .45, "hillshade-shadow-color": "#050504",
+               "hillshade-highlight-color": "#4A4A40", "hillshade-accent-color": "#15150F" } },
+    { id: "outline-water", type: "fill", source: "osm", "source-layer": "water", minzoom: 3.5,
+      paint: { "fill-color": "#101820", "fill-opacity": fade(1) } },
+    { id: "outline-green", type: "fill", source: "osm", "source-layer": "landcover", minzoom: 5,
+      filter: kind(["wood", "forest", "grass", "wetland", "farmland"]),
+      paint: { "fill-color": ["match", ["get", "class"], ["wood", "forest"], "#1C2A20", "wetland", "#1B2624", "#212720"],
+               "fill-opacity": fade(.8) } },
+    { id: "outline-town", type: "fill", source: "osm", "source-layer": "landuse", minzoom: 6,
+      filter: kind(["residential", "commercial", "industrial", "retail", "suburb", "neighbourhood"]),
+      paint: { "fill-color": ["match", ["get", "class"], "industrial", "#2A2826", "#262625"], "fill-opacity": fade(.9) } },
+    { id: "outline-waterway", type: "line", source: "osm", "source-layer": "waterway", minzoom: 6,
+      paint: { "line-color": "#22323C", "line-width": road(.9) } },
+    { id: "outline-rail", type: "line", source: "osm", "source-layer": "transportation", minzoom: 9,
+      filter: kind(["rail", "transit"]),
+      paint: { "line-color": "#46494A", "line-width": 1, "line-dasharray": [3, 2] } },
+    { id: "outline-road-minor", type: "line", source: "osm", "source-layer": "transportation", minzoom: 11,
+      filter: kind(["minor", "service", "track", "street", "street_limited"]),
+      paint: { "line-color": "#34373A", "line-width": road(.45) } },
+    { id: "outline-road", type: "line", source: "osm", "source-layer": "transportation", minzoom: 7,
+      filter: kind(["secondary", "tertiary"]),
+      paint: { "line-color": "#44484A", "line-width": road(.6) } },
+    { id: "outline-road-major", type: "line", source: "osm", "source-layer": "transportation", minzoom: 4,
+      filter: kind(["motorway", "trunk", "primary"]),
+      paint: { "line-color": "#5E6264", "line-width": road(.8), "line-opacity": fade(1) } },
+    { id: "outline-buildings", type: "fill-extrusion", source: "osm", "source-layer": "building", minzoom: 13,
+      paint: { "fill-extrusion-color": "#34383A",
+               "fill-extrusion-height": ["coalesce", ["get", "render_height"], 6],
+               "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
+               "fill-extrusion-opacity": ["interpolate", ["linear"], ["zoom"], 13, 0, 14, .9] } },
+  ];
+}
+
 function addOutlineLayers() {
   if (map.getLayer("outline-land")) return;
   ensureBoundaries();
   map.addLayer({ id: "outline-land", type: "fill", source: "boundaries",
                  paint: { "fill-color": "#202825" } }, "atlas-washes");
-  // Closer in, the plain shapes give nothing to find a place by. CARTO's dark
-  // OpenStreetMap basemap (roads, rivers, towns, parks, no names; the names
-  // come from the labels layer) fades in between zoom 3.5 and 6, dimmed and
-  // cooled toward this map's own dark.
-  if (!map.getSource("outline-detail")) {
-    map.addSource("outline-detail", { type: "raster", tileSize: 256,
-      tiles: ["https://a.basemaps.cartocdn.com/rastertiles/dark_nolabels/{z}/{x}/{y}@2x.png",
-              "https://b.basemaps.cartocdn.com/rastertiles/dark_nolabels/{z}/{x}/{y}@2x.png"],
-      attribution: "© OpenStreetMap contributors, © CARTO" });
-  }
-  map.addLayer({ id: "outline-detail", type: "raster", source: "outline-detail", minzoom: 3.5,
-                 paint: { "raster-opacity": ["interpolate", ["linear"], ["zoom"], 3.5, 0, 6, 1],
-                          "raster-saturation": -.35, "raster-brightness-max": .92,
-                          "raster-contrast": .12, "raster-fade-duration": 0 } }, "atlas-washes");
+  // Closer in, the plain shapes give nothing to find a place by. OpenStreetMap
+  // from OpenFreeMap (vector tiles: free, no key, no limits), drawn here in this
+  // map's own muted darks: relief shading from the elevation tiles, water,
+  // woods and parks, towns, roads and rail, and from zoom 13 every building
+  // raised to its mapped height. Names come from the labels layer.
+  for (const l of OUTLINE_DETAIL(map)) map.addLayer(l, "atlas-washes");
   map.addLayer({ id: "outline-line", type: "line", source: "boundaries",
                  paint: { "line-color": "rgba(214,211,200,.17)",
                           "line-width": ["interpolate", ["linear"], ["zoom"], 3, .6, 4, .9] } },
@@ -1258,7 +1295,7 @@ function setBasemap(kind) {
   show("hillshade", imagery && !TERRAIN_ON);
   show("atlas-plate", kind === "atlas");
   show("outline-land", !imagery);
-  show("outline-detail", !imagery);
+  OUTLINE_IDS.forEach((id) => show(id, !imagery));
   show("outline-line", !imagery);
   if (imagery && map.getLayer("base")) {
     for (const [k, v] of Object.entries(BASE_GRADE[kind])) map.setPaintProperty("base", k, v);
@@ -1859,6 +1896,88 @@ function pullableBoxes() {
 }
 
 // Names only: the settings box says what each one is, not what it does.
+/* ---------- Climate TRACE as columns ---------- */
+
+// Each emitting asset as a column whose height follows its emissions, the way
+// Climate TRACE's own map draws them. MapLibre raises polygons, not points, so
+// every point in the loaded tiles gets a small square footprint here, rebuilt
+// when the map stops moving. Height is by the square root of the emissions, so
+// the largest sources stand tall without flattening the rest to nothing, and
+// it scales with zoom so the columns keep their size on the screen.
+const COLUMN_MAX = 15000;       // columns at once, the largest first
+const COLUMN_PX = 1.5;          // half the footprint, in screen pixels
+const COLUMN_TALL = 0.03;       // screen pixels of height per √(t CO₂e)
+let columnsTimer = null;
+
+function ctColumnCfgs() {
+  return [CT_SECTORS, CT_AGRICULTURE, CT_FORESTRY].flatMap((g) => g.children)
+    .filter((c) => created.has(c.id) && (visibility.get(c.id) || "visible") === "visible" &&
+                   map.getSource(`${c.sourceOf || c.id}-src`));
+}
+
+function scheduleColumns() {
+  clearTimeout(columnsTimer);
+  columnsTimer = setTimeout(buildColumns, 250);
+}
+
+function buildColumns() {
+  const src = map.getSource("ct-columns");
+  if (!src || typeof map.querySourceFeatures !== "function") return;
+  const z = map.getZoom();
+  const mPerPx = 40075016 / (512 * Math.pow(2, z));   // metres per screen pixel at the equator
+  const rows = [];
+  for (const cfg of ctColumnCfgs()) {
+    const owner = cfg.sourceOf || cfg.id;
+    const filter = map.getLayer(`${cfg.id}-agg`) ? map.getFilter(`${cfg.id}-agg`) : null;
+    const seen = new Set();
+    for (const f of map.querySourceFeatures(`${owner}-src`, { sourceLayer: owner, ...(filter ? { filter } : {}) })) {
+      if (!f.geometry || f.geometry.type !== "Point") continue;
+      const [lng, lat] = f.geometry.coordinates;
+      const key = `${f.properties.id}|${lng.toFixed(4)}|${lat.toFixed(4)}`;
+      if (seen.has(key)) continue;          // a point on a tile edge comes back twice
+      seen.add(key);
+      rows.push({ lng, lat, v: Math.max(0, Number(f.properties.value) || 0), cfg, p: f.properties });
+    }
+  }
+  rows.sort((a, b) => b.v - a.v);
+  const half = COLUMN_PX * mPerPx;
+  const features = rows.slice(0, COLUMN_MAX).map(({ lng, lat, v, cfg, p }) => {
+    const dLat = half / 111320, dLng = half / (111320 * Math.max(.05, Math.cos(lat * Math.PI / 180)));
+    return { type: "Feature",
+      properties: Object.assign({}, p, { colour: cfg.colour, layerName: cfg.name,
+        h: Math.max(mPerPx * 1.5, Math.sqrt(v) * COLUMN_TALL * mPerPx) }),
+      geometry: { type: "Polygon", coordinates: [[[lng - dLng, lat - dLat], [lng + dLng, lat - dLat],
+        [lng + dLng, lat + dLat], [lng - dLng, lat + dLat], [lng - dLng, lat - dLat]]] } };
+  });
+  src.setData({ type: "FeatureCollection", features });
+  if (rows.length > COLUMN_MAX) console.info(`[culprits] Climate TRACE: the ${COLUMN_MAX.toLocaleString()} largest of ` +
+    `${rows.length.toLocaleString()} sources in view are raised as columns; the rest stay as dots.`);
+}
+
+function addColumnLayer() {
+  if (map.getSource("ct-columns")) return;
+  map.addSource("ct-columns", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+  map.addLayer({ id: "ct-columns", type: "fill-extrusion", source: "ct-columns",
+    paint: { "fill-extrusion-color": ["get", "colour"], "fill-extrusion-height": ["get", "h"],
+             "fill-extrusion-base": 0, "fill-extrusion-opacity": .92,
+             "fill-extrusion-vertical-gradient": true } });
+  bindHtmlPopup("ct-columns", (p) => {
+    const n = Number(p._count || 1);
+    const v = Number(p.value);
+    return `<b>${escapeHtml(n > 1 ? `${n.toLocaleString()} sources here` : (p.name || "Emitting asset"))}</b>` +
+      `<div class="meta">${escapeHtml(p.layerName || "")}</div>` +
+      (isFinite(v) ? `<div class="meta">${Math.round(v).toLocaleString()} t CO\u2082e/yr (GWP-100)` +
+        (n > 1 ? ", together" : "") + `</div>` : "") +
+      (n > 1 ? "" : ["x_asset_definition", "x_period", "x_capacity", "x_capacity_units", "x_gas"]
+        .filter((k) => p[k] != null && p[k] !== "")
+        .map((k) => `<div class="meta">${k.replace(/^x_/, "").replace(/_/g, " ")}: ${escapeHtml(String(p[k]))}</div>`).join(""));
+  });
+  map.on("moveend", scheduleColumns);
+  map.on("sourcedata", (e) => {
+    if (e && e.sourceId && /^climate_trace/.test(e.sourceId) && e.isSourceLoaded) scheduleColumns();
+  });
+}
+
 /* ---------- 3D terrain ---------- */
 
 // Ground height, draped under the imagery. Mapzen's terrarium tiles on AWS
@@ -1922,22 +2041,6 @@ function outToTheGlobe() {
                pitch: 0, bearing: 0, roll: 0, duration: 900 });
 }
 
-// The whole-world button, under + and − beside the legend.
-function addWorldButton() {
-  const group = document.querySelector("#view-zoom .maplibregl-ctrl-group");
-  if (!group || !document.createElement || document.getElementById("to-globe")) return;
-  const b = document.createElement("button");
-  b.type = "button";
-  b.id = "to-globe";
-  b.className = "to-world";
-  b.title = "Out to the whole world";
-  b.setAttribute("aria-label", "Out to the whole world");
-  b.innerHTML = '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" fill="none" ' +
-    'stroke="currentColor" stroke-width="1.3"><circle cx="10" cy="10" r="7.2"/>' +
-    '<ellipse cx="10" cy="10" rx="3.2" ry="7.2"/><path d="M2.8 10h14.4M4 6.3h12M4 13.7h12"/></svg>';
-  b.addEventListener("click", outToTheGlobe);
-  group.appendChild(b);
-}
 
 // MapLibre puts its zoom buttons in a corner of the map. They belong in the
 // view row, so the element is moved there once it exists.
@@ -1945,7 +2048,16 @@ function moveZoomButtons() {
   const holder = document.getElementById("view-zoom");
   const group = document.querySelector(".maplibregl-ctrl-bottom-right .maplibregl-ctrl-group");
   if (holder && group && holder.insertBefore) holder.insertBefore(group, holder.firstChild);
-  addWorldButton();
+  // The compass goes under the 3D terrain tick box, beside the notes on how
+  // to tilt. MapLibre keeps its own hold on the button, so it still turns.
+  const compass = group && group.querySelector ? group.querySelector(".maplibregl-ctrl-compass") : null;
+  const spot = document.getElementById("compass-holder");
+  if (compass && spot && spot.appendChild) {
+    const wrap = document.createElement("div");
+    wrap.className = "maplibregl-ctrl maplibregl-ctrl-group";
+    wrap.appendChild(compass);
+    spot.appendChild(wrap);
+  }
 }
 
 // Each section of the settings box rolls up and down on its own caret.
@@ -1962,11 +2074,15 @@ function viewPanelHtml() {
       `<label class="layer"><input type="radio" name="view" value="${k}"${k === VIEW ? " checked" : ""}>` +
       `<span class="nm">${v.nm}</span></label>`).join("") +
     `</div><div class="view-zoom" id="view-zoom"></div>` +
+    `<div class="view-go">` +
+    `<button type="button" id="to-globe" class="snap" title="Out to the whole world, in the view you are in">` +
+    `Snap back to global scale</button>` +
     `<button type="button" id="leave-earth" class="leave" title="Hands the screen to NASA's Eyes ` +
-    `on the Solar System. A box in the corner brings the map back.">Leave<br>Earth &#8594;</button></div>` +
-    `<div class="terrain-row"><label class="layer"><input type="checkbox" id="terrain-toggle"${TERRAIN_ON ? " checked" : ""}` +
+    `on the Solar System. A box in the corner brings the map back.">Leave Earth &#8594;</button></div></div>` +
+    `<div class="terrain-row"><div class="terrain-left"><label class="layer"><input type="checkbox" id="terrain-toggle"${TERRAIN_ON ? " checked" : ""}` +
     ` title="Ground height under the imagery, on a round Earth that flattens close up.">` +
     `<span class="nm">3D terrain</span></label>` +
+    `<div class="compass-holder" id="compass-holder" title="Click to stand the map upright, facing north"></div></div>` +
     `<div class="how-boxes">` +
     `<p class="how"><b>Mouse</b> Right-drag: tilt and turn. Ctrl + right-drag: roll.</p>` +
     `<p class="how"><b>Trackpad</b> Ctrl + drag: tilt and turn. Ctrl + two-finger click, then drag: roll.</p>` +
@@ -3263,6 +3379,7 @@ function applyVisibility(id) {
     if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", vis);
   });
   const cfg = LAYERS.find((l) => l.id === id);
+  if (/^climate_trace/.test(id)) scheduleColumns();
   // The points file is asked for the first time the layer is switched on.
   if (cfg && cfg.points && vis === "visible" && !cfg._pointsTried) {
     cfg._pointsTried = true;
@@ -4038,6 +4155,7 @@ map.on("load", () => {
   watchForLeaving();
   watchSky();
   pullableBoxes();
+  addColumnLayer();
   fitMode();
   for (const id of ["spaceBack", "spaceEarth"]) {
     const b = document.getElementById(id);

@@ -166,13 +166,22 @@
      in the view row between the view choices and Leave Earth. */
   .view-zoom{flex:0 0 auto;align-self:center}
   .view-row .view-choices{flex:0 0 auto}
-  .view-row .leave{flex:1 1 auto!important;min-width:0}
-  .view-zoom .maplibregl-ctrl-group{position:static;margin:0;display:grid;grid-template-columns:26px 26px;
+  /* Snap back over Leave Earth, to the right of the zoom buttons. */
+  .view-go{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:4px}
+  .view-go .snap{font:inherit;font-size:11.5px;line-height:1.2;color:var(--bone);background:none;
+    border:1px solid var(--rule);border-radius:3px;padding:4px 6px;cursor:pointer}
+  .view-go .snap:hover{border-color:var(--bone)}
+  .view-go .leave{flex:1 1 auto!important;min-width:0;font-size:15px!important;padding:6px 8px!important}
+  .terrain-left{flex:0 0 auto;display:flex;flex-direction:column;gap:6px}
+  .compass-holder .maplibregl-ctrl-group{margin:0 0 0 22px;border-radius:3px;box-shadow:none;
+    border:1px solid var(--rule);background:rgba(23,21,15,.6);display:inline-block}
+  .compass-holder button{width:30px;height:30px;background-color:transparent}
+  .compass-holder .maplibregl-ctrl-icon{filter:invert(1) brightness(.86)}
+  .view-zoom .maplibregl-ctrl-group{position:static;margin:0;display:grid;grid-template-columns:26px;
     border-radius:3px;box-shadow:none;border:1px solid var(--rule);background:rgba(23,21,15,.6);overflow:hidden}
   .view-zoom .maplibregl-ctrl-group button{width:26px;height:26px;background-color:transparent;
     border:0;border-top:0!important}
-  .view-zoom .maplibregl-ctrl-group button:nth-child(odd){border-right:1px solid var(--rule)}
-  .view-zoom .maplibregl-ctrl-group button:nth-child(n+3){border-top:1px solid var(--rule)!important}
+  .view-zoom .maplibregl-ctrl-group button + button{border-top:1px solid var(--rule)!important}
   .view-zoom .maplibregl-ctrl-icon{filter:invert(1) brightness(.86)}
   .view-zoom .to-world{display:flex;align-items:center;justify-content:center;color:#DBD6CA;cursor:pointer}
   .view-zoom .to-world:hover{color:var(--bone)}

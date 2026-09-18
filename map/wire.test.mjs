@@ -242,7 +242,7 @@ if (args.includes("--live") || dirAt !== -1) {
   check("the score and the feeds' bookkeeping are not offered as filters",
         /const HIDDEN_ROWS = new Set\(\['Substance score', 'Direction', 'Why it was kept', 'Search feed', 'Search widened to'\]\)/.test(src));
   check("Country comes before Region", /ROW_ORDER = \['Topic', 'Country', 'Region'/.test(src));
-  check("a Source filter names each story's outlet", /facet\('outlet', 'Source'/.test(src));
+  check("a Source filter names each story's outlet", /facet\('outlet', 'News source'/.test(src));
   check("the line beside the title is gone", /\.wire-sum\{display:none\}/.test(src));
 }
 

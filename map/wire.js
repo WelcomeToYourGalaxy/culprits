@@ -239,7 +239,7 @@ function finish(facets, stories, generated) {
   const same = facets.some((f) => !f.weight && stories.every((s) =>
     (s.v[f.key] || [NONE]).join('|') === s.v.outlet.join('|')));
   if (!same) {
-    const src = facet('outlet', 'Source', { order: 'label', none: 'Not named' });
+    const src = facet('outlet', 'News source', { order: 'label', none: 'Not named' });
     stories.forEach((s) => s.v.outlet.forEach((x) => { if (x !== NONE) src.labels[x] = x; }));
     facets.push(src);
   }
@@ -697,7 +697,6 @@ function build() {
           WINDOWS.map((w) => '<option value="' + w.id + '">' + w.label + '</option>').join('') +
         '</select></div>' +
       '<div class="wire-list" id="wireList"></div>' +
-      '<div class="wire-foot">Headlines belong to their publishers. Filters use only what each file publishes.</div>' +
     '</div>';
   document.body.appendChild(box);
 
@@ -961,7 +960,7 @@ function renderPicker() {
 // bookkeeping (which search found a story, how far it was widened, why it
 // was kept), and the escalation label. Time covers how recent a story is.
 const HIDDEN_ROWS = new Set(['Substance score', 'Direction', 'Why it was kept', 'Search feed', 'Search widened to']);
-const ROW_ORDER = ['Topic', 'Country', 'Region', 'Within', 'Place', 'Who reports it', 'Source', 'Language'];
+const ROW_ORDER = ['Topic', 'Country', 'Region', 'Within', 'Place', 'Who reports it', 'News source', 'Language'];
 function rowRank(label) { const i = ROW_ORDER.indexOf(label); return i === -1 ? ROW_ORDER.length : i; }
 
 function renderFilters(focusId) {

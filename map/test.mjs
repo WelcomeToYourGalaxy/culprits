@@ -1191,10 +1191,10 @@ console.log("\nthe boxes");
         /width:min\(var\(--box-w,290px\),calc\(100vw - 18px\)\)/.test(wireSrc) && !/440px/.test(wireSrc));
   check("the legend is as wide as the wires box",
         /#legend\{position:absolute;right:9px;bottom:26px;z-index:2;width:var\(--box-w\)/.test(index));
-  check("the zoom buttons are back in the view row, two by two",
+  check("the zoom buttons are back in the view row, one above the other",
         /function moveZoomButtons/.test(src) && /getElementById\("view-zoom"\)/.test(src) &&
         /<div class="view-zoom" id="view-zoom"><\/div>/.test(src) &&
-        /grid-template-columns:26px 26px/.test(index) && !/id="zoombox"/.test(index));
+        /grid-template-columns:26px;/.test(index) && !/id="zoombox"/.test(index));
   check("Eyes opens without the View 3D prompt or its panels",
         /featured=false/.test(src) && /logo=false/.test(src) && !/embed=true/.test(src));
   const pull = new Function(src.match(/function pullHeight[\s\S]*?\n}\n/)[0] + "; return pullHeight;")();
@@ -1346,7 +1346,13 @@ console.log("\nreading the map");
   check("the map draws at most 1.5 pixels per pixel, with no fades", /pixelRatio: Math\.min\(/.test(src) && /fadeDuration: 0/.test(src));
   check("terrain heights stop at zoom 12, and the Esri relief is put away under them",
         /encoding: "terrarium", tileSize: 256, maxzoom: 12/.test(src) && /show\("hillshade", imagery && !TERRAIN_ON\)/.test(src));
-  check("the outlines gain OpenStreetMap detail closer in", /dark_nolabels/.test(src) && /show\("outline-detail", !imagery\)/.test(src));
+  check("the outlines gain OpenStreetMap detail, relief and buildings closer in, with no key",
+        /const OFM = "https:\/\/tiles\.openfreemap\.org\/planet"/.test(src) && !/dark_nolabels/.test(src) &&
+        /type: "hillshade", source: "outline-dem"/.test(src) && /"source-layer": "building", minzoom: 13/.test(src) &&
+        /OUTLINE_IDS\.forEach\(\(id\) => show\(id, !imagery\)\)/.test(src));
+  check("Climate TRACE sources stand as columns by their emissions", /type: "fill-extrusion", source: "ct-columns"/.test(src) &&
+        /Math\.sqrt\(v\) \* COLUMN_TALL \* mPerPx/.test(src) && /addColumnLayer\(\);/.test(src));
+  check("the compass sits under the 3D terrain box", /id="compass-holder"/.test(src) && /querySelector\("\.maplibregl-ctrl-compass"\)/.test(src));
   check("the filters are not folded away at all any more",
         !/state\.expanded\[/.test(wireSrc) && /class="wire-filter"/.test(wireSrc));
   check("the time window sits with the filters, below them",
@@ -1476,14 +1482,14 @@ console.log("\nthe view row, and terrain where it works");
         /return TERRAIN_ON \? "globe" : VIEWS\[kind \|\| VIEW\]\.projection/.test(src));
   check("the map tilts to 85 degrees and rolls", /maxPitch: 85/.test(src) && /rollEnabled: true/.test(src));
   check("the compass shows tilt and turn", /showCompass: true, visualizePitch: true/.test(src));
-  check("the whole-world button sits with the zoom buttons", /function addWorldButton/.test(src) &&
-        /#view-zoom \.maplibregl-ctrl-group/.test(src) && /addWorldButton\(\);/.test(src));
+  check("Snap back to global scale sits over Leave Earth", /id="to-globe" class="snap"/.test(src) &&
+        /Snap back to global scale<\/button>/.test(src) && /function outToTheGlobe/.test(src));
   check("the sky over a tilted map is dark slate", /"sky-color": "#1B242B"/.test(src));
   check("the zoom buttons are moved into their own box",
         /function moveZoomButtons/.test(src) && /holder\.insertBefore\(group/.test(src) &&
         !/\.maplibregl-ctrl-bottom-right \.maplibregl-ctrl-group\{position:absolute/.test(index));
-  check("Leave Earth sits alone to the right of the view choices", !/id="to-globe"/.test(src) &&
-        /\.ctrl-box \.leave\{flex:1 1 55%/.test(index));
+  check("Snap back, Leave Earth and the zoom buttons all sit right of the view choices",
+        /<div class="view-go">/.test(src) && /\.view-go\{flex:1 1 auto/.test(index));
 }
 {
   const { map } = run();
