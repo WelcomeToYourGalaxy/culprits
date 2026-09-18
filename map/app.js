@@ -1856,6 +1856,60 @@ function sitemapColourClicked(btn) {
   applySitemapColouring(btn.dataset.smc);
 }
 
+/* ---------- a live ArcGIS map server (USDA's Commodity Explorers) ---------- */
+// The server draws each square of the map as the view moves, and answers what
+// is at a clicked spot, as the explorers' own pages ask it. Nothing is copied.
+// Its colours are the server's; they are muted a little to sit with the atlas.
+function addArcgisLayer(cfg) {
+  const src = `${cfg.id}-img`;
+  map.addSource(src, { type: "raster", tileSize: 256, attribution: cfg.attribution || "",
+    tiles: [`${cfg.service}/export?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857&size=256,256` +
+            `&format=png32&transparent=true&dpi=96&f=image`] });
+  map.addLayer({ id: `${cfg.id}-raster`, type: "raster", source: src,
+    paint: { "raster-opacity": 0.8, "raster-saturation": -0.45 } });
+  map.on("click", (e) => {
+    if ((visibility.get(cfg.id) || "visible") !== "visible" || !map.getLayer(`${cfg.id}-raster`)) return;
+    if (map.getLayoutProperty(`${cfg.id}-raster`, "visibility") === "none") return;
+    arcgisIdentify(cfg, e.lngLat).then((html) => {
+      if (html) new maplibregl.Popup({ closeButton: true, maxWidth: "300px" }).setLngLat(e.lngLat).setHTML(html).addTo(map);
+    }).catch((err) => console.warn(`[culprits] ${cfg.id}: ${err.message}`));
+  });
+  setLayerState(cfg.id, "live from USDA");
+  applyVisibility(cfg.id);
+  buildLegend();
+}
+
+async function arcgisIdentify(cfg, at) {
+  const b = map.getBounds(), c = map.getCanvas();
+  const q = new URLSearchParams({ geometry: `${at.lng},${at.lat}`, geometryType: "esriGeometryPoint", sr: "4326",
+    layers: "top", tolerance: "3", returnGeometry: "false", f: "json",
+    mapExtent: [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].join(","),
+    imageDisplay: `${c.clientWidth || 800},${c.clientHeight || 600},96` });
+  const r = await fetch(`${cfg.service}/identify?${q}`);
+  if (!r.ok) throw new Error(`${r.status} from USDA`);
+  const data = await r.json();
+  const hits = (data && data.results) || [];
+  if (!hits.length) return "";
+  return hits.map((h) => arcgisBox(cfg, h)).join("<hr>");
+}
+
+// The explorers' own boxes: the crop and country with the sub-region and its
+// rank on the percentage layer, the sub-region's name on the outline layer.
+function arcgisBox(cfg, hit) {
+  const a = hit.attributes || {};
+  const get = (k) => a[k] != null ? a[k] : a[Object.keys(a).find((x) => x.toLowerCase() === k) || ""];
+  if (hit.layerName === `${cfg.crop} Percentage`) {
+    return `<b>${escapeHtml(cfg.crop)} - ${escapeHtml(get("cntryname") || "")}</b>` +
+      `<div class="meta">Sub Region: ${escapeHtml(get("name") || "")}<br>Rank: ${escapeHtml(get("rank") || "")}</div>`;
+  }
+  if (hit.layerName === "Crop Explorer Subregions") {
+    return `<b>${escapeHtml(get("name") || "")}</b><div class="meta">Sub Region: ${escapeHtml(get("name") || "")}</div>`;
+  }
+  const rows = Object.entries(a).filter(([k, v]) => v !== "" && v != null && !/^(objectid|shape|fid)/i.test(k) && v !== "Null")
+    .map(([k, v]) => `${escapeHtml(k)}: ${escapeHtml(v)}`);
+  return `<b>${escapeHtml(hit.layerName || cfg.name)}</b>` + (rows.length ? `<div class="meta">${rows.join("<br>")}</div>` : "");
+}
+
 /* ---------- the sky the map sits in ---------- */
 
 // Placed at random once, from a fixed seed, so the same sky comes back on
@@ -2652,8 +2706,16 @@ function bindHtmlPopup(layerId, html) {
     const claim = e.originalEvent || e;
     if (popupClaimedBy === claim) return;
     popupClaimedBy = claim;
-    new maplibregl.Popup({ closeButton: true, maxWidth: "300px" })
-      .setLngLat(e.lngLat).setHTML(html(e.features[0].properties)).addTo(map);
+    const out = html(e.features[0].properties);
+    const pop = new maplibregl.Popup({ closeButton: true, maxWidth: "300px" }).setLngLat(e.lngLat);
+    if (out && typeof out.then === "function") {
+      // The box's long text is fetched on this first click; say so meanwhile.
+      pop.setHTML(`<div class="meta">loading\u2026</div>`).addTo(map);
+      out.then((h) => pop.setHTML(h))
+        .catch((err) => pop.setHTML(`<div class="meta">could not load this box (${shapeText(err.message)})</div>`));
+    } else {
+      pop.setHTML(out).addTo(map);
+    }
   });
   map.on("mouseenter", layerId, () => (map.getCanvas().style.cursor = "pointer"));
   map.on("mouseleave", layerId, () => (map.getCanvas().style.cursor = ""));
@@ -2961,7 +3023,7 @@ async function addShapesLayer(cfg) {
     filter: ["match", ["geometry-type"], ["Point", "MultiPoint"], true, false],
     paint: { "circle-color": colour, "circle-radius": 4,
              "circle-stroke-width": 0.6, "circle-stroke-color": "#17150F" } });
-  const popup = (p) => {
+  const render = (p) => {
     const title = p.name || p.country || p.title || cfg.name;
     const skip = new Set(["name", "country", "title", "list", "from_the_map", "entries"]);
     const rows = Object.entries(p).filter(([k, v]) => !k.startsWith("_") && !skip.has(k) && v !== "" && v != null)
@@ -2976,12 +3038,27 @@ async function addShapesLayer(cfg) {
         shown.join("<br>") + (list.length > 40 ? `<br>…and ${(list.length - 40).toLocaleString()} more in the source file` : "") +
         `</div>` : "");
   };
+  // A layer built with its long text kept apart reads it on the first click.
+  const popup = (p) => (data.details && p._k != null
+    ? loadShapeDetails(url).then((d) => render(Object.assign({}, p, d[p._k] || {})))
+    : render(p));
   bindHtmlPopup(`${cfg.id}-fill`, popup);
   bindHtmlPopup(`${cfg.id}-line`, popup);
   bindHtmlPopup(`${cfg.id}-pt`, popup);
   setLayerState(cfg.id, `${data.features.length.toLocaleString()} ${cfg.unit}`);
   applyVisibility(cfg.id);
   buildLegend();
+}
+
+const shapeDetails = new Map();
+function loadShapeDetails(url) {
+  const at = url.replace(/\.geojson$/, ".details.json");
+  if (!shapeDetails.has(at)) {
+    const p = fetch(at).then((r) => { if (!r.ok) throw new Error(`${r.status} at ${at}`); return r.json(); });
+    p.catch(() => shapeDetails.delete(at));   // a failed load may be retried
+    shapeDetails.set(at, p);
+  }
+  return shapeDetails.get(at);
 }
 
 /* ---------- the site's own maps, each shown as its own map ---------- */
@@ -3917,6 +3994,12 @@ const OTHER_MAPS = {
   children: [
     { id: "palmwatch", name: "PalmWatch", unit: "palm oil mills", colour: "#87544A", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/palmwatch.places.geojson",
       note: "PalmWatch (Inclusive Development International and the University of Chicago Data Science Institute), reread from PalmWatch every day. Each area is a mill's modelled sourcing area, not a property boundary; tree cover loss inside it is not measured as that mill's own clearing." },
+    { id: "usda_soybean", name: "Soybean Map Explorer", unit: "soybean growing areas", colour: "#6F7560", route: "arcgis", ready: true, lazy: true,
+      crop: "Soybean", service: "https://gis.ipad.fas.usda.gov/arcgis/rest/services/CommodityExplorerSoybean/MapServer", attribution: "USDA Foreign Agricultural Service",
+      note: "Drawn live by USDA's Commodity Explorer map server each time the map moves; a click asks USDA what is there." },
+    { id: "usda_corn", name: "Corn Map Explorer", unit: "corn growing areas", colour: "#76705C", route: "arcgis", ready: true, lazy: true,
+      crop: "Corn", service: "https://gis.ipad.fas.usda.gov/arcgis/rest/services/CommodityExplorerCorn/MapServer", attribution: "USDA Foreign Agricultural Service",
+      note: "Drawn live by USDA's Commodity Explorer map server each time the map moves; a click asks USDA what is there." },
   ],
 };
 
@@ -3945,6 +4028,7 @@ function ensureLayer(cfg) {
     ? Promise.resolve().then(() => addWmtsLayer(cfg))
     : cfg.route === "shapes" ? addShapesLayer(cfg)
     : cfg.route === "sitemap" ? addSitemapLayer(cfg)
+    : cfg.route === "arcgis" ? Promise.resolve().then(() => addArcgisLayer(cfg))
     : addPmtilesLayer(cfg);
   build
     .then(() => {
@@ -4055,6 +4139,8 @@ const LAYER_KIND = {
   site_cartel_cells: ["human", "upstream"],
   site_indigenous_conflicts: ["human", "downstream"],
   palmwatch: ["plant", "downstream"],
+  usda_soybean: ["plant", "downstream"],
+  usda_corn: ["plant", "downstream"],
   site_environment_law: ["human", "upstream"],
   site_environment_law_shapes: ["human", "upstream"],
   enviro_law_by_country: ["human", "upstream"],

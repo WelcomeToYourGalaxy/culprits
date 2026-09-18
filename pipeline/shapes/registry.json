@@ -207,9 +207,8 @@
    "name": "Settler colonialism and native displacement",
    "unit": "territories",
    "colour": "#6B5A52",
-   "page": "on-planet-invasion",
-   "block": "indigenousnavigator",
-   "decode": "base64-iframe"
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/on-planet-invasion_embed_17_leaflet-map.html",
+   "note": ""
   },
   {
    "id": "site_social_spheres",
@@ -244,12 +243,12 @@
    "id": "site_export_credit_shading",
    "group": "SITE_MAPS",
    "kind": "extract",
-   "page": "suppression",
-   "block": "<title>Export Credit Agencies",
    "shapes_only": true,
    "name": "Export credit agencies — country shading",
    "unit": "countries",
-   "colour": "#5E6A63"
+   "colour": "#5E6A63",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_export_credit.html",
+   "note": ""
   },
   {
    "id": "gov_official_map",

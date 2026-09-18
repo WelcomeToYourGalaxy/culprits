@@ -22,7 +22,8 @@ for repo, consts in H["homes"].items():
             continue
         block = app[app.index(head):app.index("\n  ],\n};", app.index(head))]
         for id_ in __import__("re").findall(r'\{ id: "([^"]+)"', block):
-            for src, sub, ext in ((root / "map/tiles", "tiles", ".pmtiles"), (root / "map/data/shapes", "shapes", ".geojson")):
+            for src, sub, ext in ((root / "map/tiles", "tiles", ".pmtiles"), (root / "map/data/shapes", "shapes", ".geojson"),
+                                  (root / "map/data/shapes", "shapes", ".details.json")):
                 f = src / f"{id_}{ext}"
                 if f.exists():
                     shutil.move(str(f), dest / sub / f.name)

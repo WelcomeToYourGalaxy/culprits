@@ -172,7 +172,8 @@ function run({ layersReady = null, fetchImpl = null } = {}) {
     // Recorded so a protocol handler can be exercised directly.
     addProtocol(name, fn) { (globalThis.__protocols ||= {})[name] = fn; },
   };
-  globalThis.pmtiles = { Protocol: function () { return { tile: () => {} }; } };
+  globalThis.pmtiles = { Protocol: function () { return { tile: () => {}, add: () => {} }; },
+    PMTiles: function (url) { this.url = url; this.getMetadata = async () => ({}); this.getHeader = async () => ({}); } };
   globalThis.document.baseURI = "https://example.test/culprits/";
   globalThis.fetch = fetchImpl || (async (u) => {
     fetched.push(u);
@@ -1596,6 +1597,39 @@ console.log("\nother organisations' maps: PalmWatch");
   const s = colouringExpression({ k: "cur", prop: "cur", scores: [1, 2], colours: ["#x", "#y"] });
   check("a score is matched value by value", s[0] === "match" && s.includes("#x") && s.includes("#y"));
   check("the colours carry no orange or yellow", !/#(F[0-9A-F]{2}[0-9A-F]{3}|FF[A-F0-9]{2}00)/i.test(body));
+}
+
+console.log("\nheavy shape layers, lighter");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const b = fs.readFileSync(path.join(HERE, "..", "pipeline", "shapes", "build_shapes.py"), "utf8");
+  check("the builder keeps long text in a details file", /\.details\.json/.test(b) && /"details": bool\(details\)/.test(b));
+  check("…and drops no field: what leaves the shape goes to the details", /details\[str\(i\)\] = heavy/.test(b));
+  check("the map reads the details on the first click, once per layer",
+        /function loadShapeDetails\(/.test(src) && /shapeDetails\.has\(at\)/.test(src));
+  check("a box waits for its details rather than showing without them",
+        /typeof out\.then === "function"/.test(src) && /loading\\u2026/.test(src));
+  check("the mover carries the details file", /\.details\.json/.test(fs.readFileSync(path.join(HERE, "..", "pipeline", "sitemaps", "move_to_tile_repos.sh"), "utf8")));
+}
+
+console.log("\nthe USDA explorers, live");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("both explorers are rows in Other organisations' maps",
+        /id: "usda_soybean"[^\n]*route: "arcgis"/.test(src) && /id: "usda_corn"[^\n]*route: "arcgis"/.test(src));
+  check("they read USDA's own map servers, not the Worker or a copy",
+        /CommodityExplorerSoybean\/MapServer/.test(src) && /CommodityExplorerCorn\/MapServer/.test(src) &&
+        !/usda_[a-z]+[^\n]*WORKER/.test(src));
+  check("the map image is asked square by square as the view moves", /\/export\?bbox=\{bbox-epsg-3857\}/.test(src));
+  check("a tick creates the layer through the usual lazy path", /cfg\.route === "arcgis" \? Promise\.resolve\(\)\.then\(\(\) => addArcgisLayer\(cfg\)\)/.test(src));
+  const body = src.slice(src.indexOf("function arcgisBox("), src.indexOf("/* ---------- the sky the map sits in"));
+  const escapeHtml = (s) => String(s);
+  const arcgisBox = new Function("escapeHtml", body + "; return arcgisBox;")(escapeHtml);
+  const cfg = { crop: "Soybean", name: "Soybean Map Explorer" };
+  const h = arcgisBox(cfg, { layerName: "Soybean Percentage", attributes: { cntryname: "Brazil", name: "Mato Grosso", rank: 1 } });
+  check("a click on the crop layer opens the explorer's own box", h.includes("Soybean - Brazil") && h.includes("Sub Region: Mato Grosso") && h.includes("Rank: 1"));
+  const g = arcgisBox(cfg, { layerName: "Crop Explorer Subregions", attributes: { name: "Paraná" } });
+  check("…and on the outline layer, the sub-region's name", g.includes("<b>Paraná</b>"));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

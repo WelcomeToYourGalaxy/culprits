@@ -63,8 +63,7 @@
    "unit": "organisations",
    "colour": "#5E5A6E",
    "note": "From the On-Planet Invasion page's secret societies map.",
-   "page": "on-planet-invasion",
-   "block": "powerTimelineChart"
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_secret_societies.html"
   },
   {
    "id": "site_ufo_pre1900",
@@ -72,9 +71,7 @@
    "unit": "recorded sightings",
    "colour": "#5F6B78",
    "note": "From the Off-Planet Invasion page's historical sightings archive.",
-   "page": "off-planet-invasion",
-   "block": "I made this map with Claude AI",
-   "decode": "base64-iframe"
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_ufo_pre1900.html"
   },
   {
    "id": "site_central_banks",
@@ -98,8 +95,7 @@
    "unit": "agencies",
    "colour": "#5E6A63",
    "note": "From the Suppression page's export credit agencies map. Its country shading is not carried here, only the agencies.",
-   "page": "suppression",
-   "block": "<title>Export Credit Agencies"
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_export_credit.html"
   },
   {
    "id": "site_wealth_atlas",
@@ -107,8 +103,7 @@
    "unit": "families and individuals",
    "colour": "#735E57",
    "note": "From the Suppression page's wealth atlas.",
-   "page": "suppression",
-   "block": "<title>Global Wealth Atlas"
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_wealth_atlas.html"
   },
   {
    "id": "site_food_system",
@@ -116,8 +111,7 @@
    "unit": "companies",
    "colour": "#6E6A55",
    "note": "From the Suppression page's food system ownership map.",
-   "page": "suppression",
-   "block": "<title>Who Owns the Food System"
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_food_system.html"
   },
   {
    "id": "site_world_advertising",
@@ -125,8 +119,7 @@
    "unit": "companies",
    "colour": "#6C5F66",
    "note": "From the Suppression page's World Advertising 2026 map.",
-   "page": "suppression",
-   "block": "<title>World Advertising 2026"
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_world_advertising.html"
   },
   {
    "id": "site_world_news",
@@ -134,8 +127,7 @@
    "unit": "outlets and owners",
    "colour": "#626A6F",
    "note": "From the Suppression page's World News 2026 map.",
-   "page": "suppression",
-   "block": "<title>World News 2026"
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_world_news.html"
   },
   {
    "id": "site_research_integrity",
@@ -143,8 +135,7 @@
    "unit": "institutions and publishers",
    "colour": "#5F6E6A",
    "note": "From the Suppression page's research integrity map.",
-   "page": "suppression",
-   "block": "<title>World Research Integrity 2026"
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_research_integrity.html"
   },
   {
    "id": "site_world_entertainment",
@@ -152,8 +143,7 @@
    "unit": "companies",
    "colour": "#6D5E5A",
    "note": "From the Suppression page's World Entertainment 2026 map.",
-   "page": "suppression",
-   "block": "<title>World Entertainment 2026"
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_world_entertainment.html"
   },
   {
    "id": "site_eyes_network",
@@ -161,9 +151,7 @@
    "unit": "places",
    "colour": "#5B6360",
    "note": "From the Suppression page's sports section network map.",
-   "page": "suppression",
-   "block": "metaMapFrame",
-   "decode": "base64-script"
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_eyes_network.html"
   },
   {
    "id": "site_animal_tourism",
@@ -195,9 +183,7 @@
    "unit": "events and arenas",
    "colour": "#80665A",
    "note": "From the Suppression page's rodeo and charreada map.",
-   "page": "suppression",
-   "block": "above rundowns cover",
-   "decode": "base64-iframe"
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_rodeo.html"
   },
   {
    "id": "site_enslaved_plants",
@@ -205,8 +191,7 @@
    "unit": "companies",
    "colour": "#62705A",
    "note": "From the Suppression page's plant enslavement map.",
-   "page": "suppression",
-   "block": "<title>The Unnecessary Enslavement of Plants"
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_enslaved_plants.html"
   },
   {
    "id": "site_enslaved_microbes",
@@ -214,8 +199,7 @@
    "unit": "companies",
    "colour": "#6A6E62",
    "note": "From the Suppression page's microorganism enslavement map.",
-   "page": "suppression",
-   "block": "<title>The Unnecessary Enslavement of Microorganisms"
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_enslaved_microbes.html"
   },
   {
    "id": "site_insentient",
@@ -223,8 +207,7 @@
    "unit": "companies",
    "colour": "#66625E",
    "note": "From the Suppression page's map of industries built on things called insentient.",
-   "page": "suppression",
-   "block": "<title>The Insentient 2026"
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_insentient.html"
   },
   {
    "id": "site_subsistence_cultures",
@@ -240,8 +223,7 @@
    "unit": "programs",
    "colour": "#5E6F5B",
    "note": "From the Solution page's self-sufficiency programs map.",
-   "page": "solution",
-   "block": "Self-Sufficiency Programs 2026"
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_self_sufficiency.html"
   },
   {
    "id": "site_environment_law",

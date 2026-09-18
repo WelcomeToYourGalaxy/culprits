@@ -377,9 +377,29 @@ def main():
         if not feats:
             print(f"  wait  {e['id']}: nothing to draw")
             continue
+        # Long text (per-country lists, the map's own words) goes in a second
+        # file that the map fetches on the first click, so ticking the layer
+        # only downloads the shapes. Every field is kept.
+        details = {}
+        for i, f in enumerate(feats):
+            props = f.get("properties") or {}
+            heavy = {k: v for k, v in props.items()
+                     if k in ("list", "from_the_map") or (isinstance(v, str) and len(v) > 300)}
+            if heavy:
+                details[str(i)] = heavy
+                light = {k: v for k, v in props.items() if k not in heavy}
+                light["_k"] = str(i)
+                if "list" in heavy and "entries" not in light:
+                    light["entries"] = len(str(heavy["list"]).split("\n"))
+                f["properties"] = light
         path = OUT / f"{e['id']}.geojson"
-        path.write_text(json.dumps({"type": "FeatureCollection", "features": feats},
+        path.write_text(json.dumps({"type": "FeatureCollection", "details": bool(details), "features": feats},
                                    ensure_ascii=False, separators=(",", ":")))
+        dpath = OUT / f"{e['id']}.details.json"
+        if details:
+            dpath.write_text(json.dumps(details, ensure_ascii=False, separators=(",", ":")))
+        elif dpath.exists():
+            dpath.unlink()
         kinds = {}
         for f in feats:
             kinds[f["geometry"]["type"]] = kinds.get(f["geometry"]["type"], 0) + 1
