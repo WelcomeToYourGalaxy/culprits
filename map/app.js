@@ -419,7 +419,7 @@ const LAYERS = [
     // GeoServer names the layer inside each tile. This is the expected name; if a
     // tile says otherwise the layer re-reads it from the tile (see readTileLayers).
     sourceLayer: "benthic_data_verbose",
-    note: "Mapped between 32°N and 32°S only, which is the product's stated extent and not an absence of reefs elsewhere. Benthic zones to 10 m depth. The Atlas draws its shapes only for small areas, so they appear from zoom 12; wider out this layer is empty by necessity, not because there are no reefs.",
+    note: "Mapped between 32°N and 32°S only, which is the product's stated extent and not an absence of reefs elsewhere. Benthic zones to 10 m depth. The Atlas draws its shapes only for small areas, so they appear from zoom 12; wider out the layer shows the Atlas's own picture of the same reefs instead.",
     attribution: '<a href="https://allencoralatlas.org" target="_blank" rel="noopener">Allen Coral Atlas</a> (CC BY 4.0)' },
 ];
 
@@ -496,6 +496,32 @@ function recolorAlerts(px, rgb) {
 }
 
 // latclip://<south>,<north>[,<RRGGBB>]/<https URL without the scheme>
+maplibregl.addProtocol("tint", async (params, abortController) => {
+  const m = params.url.match(/^tint:\/\/([0-9A-Fa-f]{6})\/(.*)$/);
+  const r = await fetch("https://" + m[2], { signal: abortController && abortController.signal });
+  if (!r.ok) throw new Error(`${r.status}`);
+  const buf = await r.arrayBuffer();
+  const bmp = await createImageBitmap(new Blob([buf]));
+  const canvas = typeof OffscreenCanvas !== "undefined"
+    ? new OffscreenCanvas(bmp.width, bmp.height)
+    : Object.assign(document.createElement("canvas"), { width: bmp.width, height: bmp.height });
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(bmp, 0, 0);
+  const img = ctx.getImageData(0, 0, bmp.width, bmp.height);
+  tintPixels(img.data, [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16)));
+  ctx.putImageData(img, 0, 0);
+  const blob = canvas.convertToBlob
+    ? await canvas.convertToBlob({ type: "image/png" })
+    : await new Promise((res) => canvas.toBlob(res, "image/png"));
+  return { data: await blob.arrayBuffer() };
+});
+function tintPixels(d, rgb) {
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] === 0) continue;
+    d[i] = rgb[0]; d[i + 1] = rgb[1]; d[i + 2] = rgb[2];
+  }
+}
+
 maplibregl.addProtocol("latclip", async (params, abortController) => {
   const m = params.url.match(/^latclip:\/\/(-?[\d.]+),(-?[\d.]+)(?:,([0-9A-Fa-f]{6}))?\/(.*)$/);
   const url = "https://" + m[4];
@@ -1874,7 +1900,7 @@ function addArcgisLayer(cfg) {
       if (html) new maplibregl.Popup({ closeButton: true, maxWidth: "300px" }).setLngLat(e.lngLat).setHTML(html).addTo(map);
     }).catch((err) => console.warn(`[culprits] ${cfg.id}: ${err.message}`));
   });
-  setLayerState(cfg.id, "live from USDA");
+  setLayerState(cfg.id, `live from ${cfg.attribution || "the source"}`);
   applyVisibility(cfg.id);
   buildLegend();
 }
@@ -2797,6 +2823,14 @@ function addCoralLayer(cfg) {
     attribution: cfg.attribution || "",
   });
   addCoralShapes(cfg, false);
+  // Wider out, the Atlas's own picture of the same reefs, from its map server,
+  // in the coral colour (the server draws them black).
+  map.addSource(`${cfg.id}-wide`, { type: "raster", tileSize: 256, attribution: cfg.attribution || "",
+    tiles: [`tint://${CORAL_CLASSES["Coral/Algae"].slice(1)}/allencoralatlas.org/geoserver/ows?SERVICE=WMS&VERSION=1.1.1` +
+            `&REQUEST=GetMap&LAYERS=coral-atlas:benthic_data_verbose&STYLES=&SRS=EPSG:3857&BBOX={bbox-epsg-3857}` +
+            `&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=true`] });
+  map.addLayer({ id: `${cfg.id}-raster`, type: "raster", source: `${cfg.id}-wide`, maxzoom: cfg.drawFrom,
+    layout: { visibility: "none" }, paint: { "raster-opacity": 0.9 } });
   bindHtmlPopup(`${cfg.id}-fill`, (p) =>
     `<b>${p.class_name || "Unclassified"}</b>` +
     (p.area_sqkm != null
@@ -2808,7 +2842,7 @@ function addCoralLayer(cfg) {
   // still loading, or squares the Atlas failed to answer.
   const state = () => {
     if (map.getZoom() < cfg.drawFrom) {
-      setLayerState(cfg.id, `zoom in to ${cfg.drawFrom} — the Atlas cannot draw reefs over a wider area`);
+      setLayerState(cfg.id, `the Atlas's picture of the reefs — zoom in to ${cfg.drawFrom} for each habitat zone and its box`);
       return;
     }
     if ((visibility.get(cfg.id) || "visible") !== "visible") {
@@ -4313,6 +4347,10 @@ const OTHER_MAPS = {
     { id: "usda_corn", name: "Corn Map Explorer", unit: "corn growing areas", colour: "#76705C", route: "arcgis", ready: true, lazy: true,
       crop: "Corn", service: "https://gis.ipad.fas.usda.gov/arcgis/rest/services/CommodityExplorerCorn/MapServer", attribution: "USDA Foreign Agricultural Service",
       note: "Drawn live by USDA's Commodity Explorer map server each time the map moves; a click asks USDA what is there." },
+    { id: "unep_coral", name: "Warm-water coral reefs (UNEP-WCMC)", unit: "reef areas", colour: "#B06F6A", route: "arcgis", ready: true, lazy: true,
+      service: "https://data-gis.unep-wcmc.org/server/rest/services/HabitatsAndBiotopes/Global_Distribution_of_Coral_Reefs/MapServer",
+      attribution: "UNEP-WCMC, WorldFish Centre, WRI, TNC",
+      note: "UNEP-WCMC's Global Distribution of Warm-water Coral Reefs, drawn live by its own map server at every zoom; a click asks it what is there." },
     { id: "wreckers_umap", name: "Wreckers of the Earth (Corporate Watch)", unit: "companies and sites", colour: "#6E5A55", route: "umap", ready: true, lazy: true,
       umap: "https://umap.openstreetmap.fr/en", umapId: 409815,
       note: "Read live from Corporate Watch's uMap each time it is ticked, with its own layers, colours and popups." },
@@ -4503,6 +4541,7 @@ const LAYER_KIND = {
   palmwatch: ["plant", "downstream"],
   usda_soybean: ["plant", "downstream"],
   usda_corn: ["plant", "downstream"],
+  unep_coral: ["animal", "downstream"],
   wreckers_umap: ["insentient", "upstream"],
   mymaps_chlorine: ["insentient", "upstream"],
   mymaps_trees: ["plant", "downstream"],

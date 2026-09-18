@@ -1665,5 +1665,19 @@ console.log("\ncoral, the row's line");
         /could not read the Atlas's squares/.test(src) && src.includes("console.warn(`[culprits] ${cfg.id}: ${e.message}`)"));
 }
 
+console.log("\ncoral at every zoom");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("wider than 12, the Atlas's own picture is drawn", /allencoralatlas\.org\/geoserver\/ows\?SERVICE=WMS/.test(src) &&
+        /id: `\$\{cfg\.id\}-raster`, type: "raster", source: `\$\{cfg\.id\}-wide`, maxzoom: cfg\.drawFrom/.test(src));
+  check("…in the coral colour, not the server's black", /tint:\/\/\$\{CORAL_CLASSES\["Coral\/Algae"\]\.slice\(1\)\}/.test(src));
+  const tint = new Function(src.slice(src.indexOf("function tintPixels("), src.indexOf('maplibregl.addProtocol("latclip"')) + "; return tintPixels;")();
+  const d = new Uint8ClampedArray([0, 0, 0, 255, 0, 0, 0, 0]);
+  tint(d, [176, 111, 106]);
+  check("drawn pixels take the colour, empty ones stay empty", d[0] === 176 && d[3] === 255 && d[4] === 0 && d[7] === 0);
+  check("UNEP-WCMC's reefs are a row of their own, live", /id: "unep_coral"[^\n]*route: "arcgis"/.test(src) &&
+        /Global_Distribution_of_Coral_Reefs\/MapServer/.test(src));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
