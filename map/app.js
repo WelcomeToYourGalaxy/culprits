@@ -1531,6 +1531,67 @@ window.culpritsWire = {
   },
 };
 
+/* ---------- each site map's own filters ---------- */
+
+// Built by pipeline/sitemaps/build_boxes.py from the map's own controls. A
+// place carries the values it matched as "|a|b|", so a chip is a substring
+// test and a place can belong to more than one.
+const sitemapFilters = new Map();     // map id -> { filters, picked: [Set], base: {layerId: filter} }
+
+function sitemapChipRows(cfg) {
+  const state = sitemapFilters.get(cfg.id);
+  const box = document.getElementById("layers");
+  if (!state || !box || !box.querySelector) return;
+  const row = box.querySelector(`[data-layer="${cfg.id}"]`);
+  const anchor = row && row.closest ? row.closest("label") : null;
+  if (!anchor || !document.createElement) return;
+  state.filters.forEach((f, i) => {
+    if (box.querySelector(`.facet[data-for="${cfg.id}-${i}"]`)) return;
+    const el = document.createElement("div");
+    el.className = "facet";
+    el.dataset.for = `${cfg.id}-${i}`;
+    el.innerHTML = `<span class="chip reset" data-sm="${cfg.id}" data-fi="${i}" data-k="">${f.label}: all</span>` +
+      f.values.map((v) =>
+        `<button type="button" class="chip" data-sm="${cfg.id}" data-fi="${i}" data-k="${escapeHtml(v.k)}">` +
+        `${escapeHtml(v.label)} (${v.n.toLocaleString()})</button>`).join("");
+    if (anchor.after) anchor.after(el);
+  });
+}
+
+// A chip narrows what the map draws; an empty set means the whole map.
+function applySitemapFilters(id) {
+  const state = sitemapFilters.get(id);
+  if (!state) return;
+  const conditions = [];
+  state.picked.forEach((set) => {
+    if (!set.size) return;
+    conditions.push(["any", ...[...set].map((k) => ["in", `|${k}|`, ["coalesce", ["get", "f"], ""]])]);
+  });
+  for (const [layerId, base] of Object.entries(state.base)) {
+    if (!map.getLayer(layerId)) continue;
+    map.setFilter(layerId, conditions.length ? ["all", base, ...conditions] : base);
+  }
+}
+
+function sitemapChipClicked(btn) {
+  const state = sitemapFilters.get(btn.dataset.sm);
+  if (!state) return;
+  const set = state.picked[Number(btn.dataset.fi)];
+  if (!set) return;
+  if (!btn.dataset.k) set.clear();
+  else if (set.has(btn.dataset.k)) set.delete(btn.dataset.k);
+  else set.add(btn.dataset.k);
+  const box = document.getElementById("layers");
+  const row = box && box.querySelector(`.facet[data-for="${btn.dataset.sm}-${btn.dataset.fi}"]`);
+  if (row && row.querySelectorAll) {
+    for (const chip of row.querySelectorAll("[data-k]")) {
+      const on = chip.dataset.k ? set.has(chip.dataset.k) : set.size === 0;
+      if (chip.classList) chip.classList.toggle("on", on);
+    }
+  }
+  applySitemapFilters(btn.dataset.sm);
+}
+
 /* ---------- the sky the map sits in ---------- */
 
 // Placed at random once, from a fixed seed, so the same sky comes back on
@@ -2479,6 +2540,18 @@ async function addSitemapLayer(cfg) {
       "circle-stroke-width": ["min", ["coalesce", ["get", "w"], 0.8], 3],
       "circle-opacity": ["coalesce", ["get", "o"], 0.85],
     } });
+  if (Array.isArray(data.filters) && data.filters.length) {
+    sitemapFilters.set(cfg.id, {
+      filters: data.filters,
+      picked: data.filters.map(() => new Set()),
+      base: {
+        [`${cfg.id}-fill`]: ["match", ["geometry-type"], ["Polygon", "MultiPolygon"], true, false],
+        [`${cfg.id}-line`]: ["match", ["geometry-type"], ["LineString", "MultiLineString"], true, false],
+        [`${cfg.id}-pt`]: ["match", ["geometry-type"], ["Point", "MultiPoint"], true, false],
+      },
+    });
+    sitemapChipRows(cfg);
+  }
   for (const kind of ["fill", "line", "pt"]) {
     const id = `${cfg.id}-${kind}`;
     SITEMAP_LAYERS.add(id);
@@ -3609,6 +3682,7 @@ function buildPanel() {
 
     const btn = e.target.closest(".chip");
     if (!btn) return;
+    if (btn.dataset.sm) { sitemapChipClicked(btn); return; }
     const cfg = LAYERS.find((l) => l.id === btn.dataset.facet) || childById(btn.dataset.facet);
     if (!cfg) return;
     const chosen = facetState.get(cfg.id) || new Set();

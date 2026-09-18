@@ -229,6 +229,44 @@ function layerObject(rec) {
   return px;
 }
 
+// A map's own filter controls, read from its markup. Nothing is invented: a
+// control appears here only if the map writes one, with the value the map
+// filters on and the words the map puts on it.
+const CONTROL_ATTRS = ["data-filter", "data-cat", "data-category", "data-type", "data-kind", "data-group", "data-sport", "data-layer"];
+function readControls(html) {
+  const out = [];
+  const clean = (t) => decodeEntities(String(t || "").replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim();
+  // Checkboxes: <label>…<input type="checkbox" value="x">Label</label>
+  for (const m of html.matchAll(/<label[^>]*>([\s\S]{0,400}?)<\/label>/gi)) {
+    const inner = m[1];
+    const box = inner.match(/<input[^>]*type\s*=\s*["']?checkbox["']?[^>]*>/i);
+    if (!box) continue;
+    const value = (box[0].match(/value\s*=\s*["']([^"']+)["']/i) || [])[1];
+    if (!value) continue;
+    const cls = (box[0].match(/class\s*=\s*["']([^"']*)["']/i) || [])[1] || "checkbox";
+    const label = clean(inner.replace(box[0], ""));
+    out.push({ group: "class:" + cls.trim().split(/\s+/)[0], value, label: label || value, kind: "checkbox" });
+  }
+  // Buttons and anything else carrying a category in a data attribute.
+  for (const attr of CONTROL_ATTRS) {
+    const re = new RegExp("<(button|a|span|div|li)([^>]*\\b" + attr + "\\s*=\\s*[\"']([^\"']+)[\"'][^>]*)>([\\s\\S]{0,200}?)<\\/\\1>", "gi");
+    for (const m of html.matchAll(re)) {
+      const value = m[3];
+      const label = clean(m[4]);
+      if (!value || /\$\{|['\"`]\s*\+/.test(value)) continue;
+      out.push({ group: attr, value, label: label || value, kind: "button" });
+    }
+  }
+  // Each control once, in the order the map writes them.
+  const seen = new Set();
+  return out.filter((c) => {
+    const k = c.group + "|" + c.value;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  }).slice(0, 120);
+}
+
 function pickPopupOptions(o) {
   if (!o || typeof o !== "object") return null;
   const out = {};
@@ -483,6 +521,11 @@ async function main() {
     features, counts, notes,
     css: staticCss.concat(dynamicCss), stylesheets, map_container: mapContainer,
     overlays, page: page.length < 4e6 ? page : page.slice(0, 4e6),
+    // The map's own filter controls, wherever they are written — in the page or
+    // inside a script that builds them. A control is a checkbox with a value,
+    // or a button carrying a category in a data attribute. The label is what
+    // the map shows beside or inside it.
+    controls: readControls(html),
     // Headings written as plain text anywhere in the page, scripts included: a
     // map that builds its header in JavaScript still names itself there.
     headings: [...html.matchAll(/<h([1-3])\b[^>]*>([^<]{2,160})<\/h\1>/gi)]

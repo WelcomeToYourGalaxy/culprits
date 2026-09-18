@@ -391,6 +391,63 @@ def page_facts(page, container, headings, registry_name):
     return chain, html.unescape(name)
 
 
+# ------------------------------------------------------------------ the map's own filters
+
+# What the map calls each kind of control. The values and their words come from
+# the map itself; only this heading is chosen here, because the markup does not
+# carry one.
+GROUP_LABELS = {"data-cat": "Category", "data-category": "Category", "data-type": "Type",
+                "data-kind": "Kind", "data-group": "Group", "data-filter": "Filter",
+                "data-sport": "Sport", "data-layer": "Layer"}
+CATCH_ALL = re.compile(r"^(all|any|everything|show all|all shows|all sports|all sites|all types)$", re.I)
+
+
+def haystack(f):
+    st = f.get("style") or {}
+    icon = st.get("icon") or {}
+    parts = [f.get("popup") or "", f.get("tooltip_html") or "", json.dumps(f.get("props") or {}),
+             str(icon.get("className") or ""), str(icon.get("html") or "")]
+    return " ".join(parts).lower()
+
+
+def matches(value, hay):
+    v = re.escape(str(value).lower())
+    return re.search(r"(?<![a-z0-9])" + v + r"(?![a-z0-9])", hay) is not None
+
+
+def map_filters(data, features, idents):
+    """Each control group the map writes, kept only if its values actually sort
+    this map's places: at least two values that match something, and at least
+    half the places matched. Nothing is invented and nothing is renamed."""
+    controls = data.get("controls") or []
+    groups = {}
+    for c in controls:
+        groups.setdefault(c["group"], []).append(c)
+    hays = [haystack(f) for f in features]
+    out, marks = [], [set() for _ in features]
+    for group, items in groups.items():
+        vals = [c for c in items if not CATCH_ALL.match(c["value"]) and not CATCH_ALL.match(c["label"])]
+        if len(vals) < 2:
+            continue
+        hits = {c["value"]: [i for i, h in enumerate(hays) if matches(c["value"], h)] for c in vals}
+        # A value that catches nearly everything is a heading, not a category.
+        hits = {k: v for k, v in hits.items() if len(v) <= 0.85 * len(features)}
+        used = {k: v for k, v in hits.items() if v}
+        covered = len({i for v in used.values() for i in v})
+        if len(used) < 2 or covered < 0.5 * max(1, len(features)):
+            continue
+        values = []
+        for c in vals:
+            rows = used.get(c["value"])
+            if not rows:
+                continue
+            values.append({"k": c["value"], "label": c["label"], "n": len(rows)})
+            for i in rows:
+                marks[i].add(c["value"])
+        out.append({"label": GROUP_LABELS.get(group, "Type"), "values": values})
+    return out, marks
+
+
 # ------------------------------------------------------------------ one map
 
 def build(m):
@@ -407,14 +464,17 @@ def build(m):
             sheets.append(h)
     chain, name = page_facts(data.get("page"), data.get("map_container"), data.get("headings"), m["name"])
 
+    filters, marks = map_filters(data, data["features"], None)
     overlays = data.get("overlays") or []
     order = {}
     for k, o in enumerate(overlays):
         order.setdefault(o["group"], k)
     places, boxes, seen = [], {}, set()
+    row = -1
     drawn = {"point": 0, "line": 0, "polygon": 0}
     skipped = 0
     for f in data["features"]:
+        row += 1
         geom = geometry_of(f)
         if not geom:
             skipped += 1
@@ -430,6 +490,8 @@ def build(m):
         label = _sitemap.name_of(f)
         if label:
             props["n"] = label[:140]
+        if marks[row]:
+            props["f"] = "|" + "|".join(sorted(marks[row])) + "|"
         if f.get("group") in order:
             props["ov"] = overlays[order[f["group"]]]["name"]
         box = {}
@@ -451,13 +513,17 @@ def build(m):
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / f"{m['id']}.places.geojson").write_text(json.dumps({
         "type": "FeatureCollection", "name": name, "overlays": [o["name"] for o in overlays],
-        "features": places}, separators=(",", ":")))
+        "filters": filters, "features": places}, separators=(",", ":")))
     (OUT / f"{m['id']}.boxes.json").write_text(json.dumps({
         "name": name, "page": m.get("url") or m.get("page"), "css": css, "stylesheets": sheets,
         "chain": chain, "boxes": boxes}, separators=(",", ":")))
     extra = f", {skipped} not drawable" if skipped else ""
+    if not filters and (data.get("controls") or []):
+        kinds = sorted({c["group"] for c in data["controls"]})
+        print(f"  note  {m['id']}: its controls ({', '.join(kinds)}) do not sort its places; no filter added")
+    filt = "".join(f", {f['label'].lower()} filter ({len(f['values'])})" for f in filters)
     print(f"  ok    {m['id']:<26} {name!r}: {drawn['point']} places, {drawn['line']} lines, "
-          f"{drawn['polygon']} areas, {len(boxes)} boxes{extra}")
+          f"{drawn['polygon']} areas, {len(boxes)} boxes{extra}{filt}")
     return name
 
 

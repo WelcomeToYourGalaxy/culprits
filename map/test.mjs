@@ -1410,6 +1410,42 @@ console.log("\nterrain, and the two labels");
         !/applyKindFilter[\s\S]{0,400}setLayoutProperty/.test(src) && /\.kinds \.facet\{padding:0 0 6px\}/.test(index));
 }
 
+
+console.log("\neach site map's own filters");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("a map's filters come from its own places file", /Array\.isArray\(data\.filters\)/.test(src) &&
+        /sitemapFilters\.set\(cfg\.id/.test(src));
+  check("a chip is a substring test, so a place can belong to more than one",
+        /\["in", `\|\$\{k\}\|`, \["coalesce", \["get", "f"\], ""\]\]/.test(src));
+  check("the chips sit under the map's own row",
+        /el\.dataset\.for = `\$\{cfg\.id\}-\$\{i\}`/.test(src) && /anchor\.after\(el\)/.test(src));
+}
+{
+  const places = { type: "FeatureCollection", name: "Test Map", overlays: [],
+    filters: [{ label: "Category", values: [{ k: "circus", label: "Circuses", n: 2 }, { k: "marine", label: "Marine Shows", n: 1 }] }],
+    features: [
+      { type: "Feature", geometry: { type: "Point", coordinates: [10, 20] }, properties: { k: "a", n: "One", f: "|circus|" } },
+      { type: "Feature", geometry: { type: "Point", coordinates: [11, 21] }, properties: { k: "b", n: "Two", f: "|marine|" } },
+    ] };
+  const { map } = run({ fetchImpl: async (u) => ({ ok: true, status: 200, json: async () => places }) });
+  map.fire("load"); await new Promise((r) => setTimeout(r, 5));
+  const panel = globalThis.document.getElementById("layers");
+  panel.fire("change", { target: { dataset: { layer: "site_circus" }, checked: true } });
+  await new Promise((r) => setTimeout(r, 10));
+  const pt = map.getLayer("site_circus-pt");
+  check("the map draws everything until a chip is ticked",
+        JSON.stringify(pt.filter) === JSON.stringify(["match", ["geometry-type"], ["Point", "MultiPoint"], true, false]));
+  panel.fire("click", { target: { closest: (s) => (s === ".chip" ? { dataset: { sm: "site_circus", fi: "0", k: "circus" } } : null) } });
+  const f = map.getLayer("site_circus-pt").filter;
+  check("ticking one narrows the map to it", JSON.stringify(f).includes('["in","|circus|"'), JSON.stringify(f));
+  check("…and leaves the map's own geometry filter in place", Array.isArray(f) && f[0] === "all");
+  panel.fire("click", { target: { closest: (s) => (s === ".chip" ? { dataset: { sm: "site_circus", fi: "0", k: "" } } : null) } });
+  check("the all chip puts the whole map back",
+        JSON.stringify(map.getLayer("site_circus-pt").filter) ===
+        JSON.stringify(["match", ["geometry-type"], ["Point", "MultiPoint"], true, false]));
+}
+
 console.log("\nlegibility");
 {
   const { map } = run({ layersReady: "cerulean_slicks" });
