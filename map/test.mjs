@@ -1809,5 +1809,18 @@ console.log("\nthe Social Spheres, its own map");
   check("a click opens the map's own card through its own code", /openNode\(\$\{JSON\.stringify\(id\)\}\)/.test(src) && /srcdoc = html/.test(src));
 }
 
+console.log("\nbuilding types, one layer");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const o = new Function(body + "; return { PANEL_ORDER, PANEL_REMOVED };")();
+  check("Building types is one row", o.PANEL_ORDER.includes("building_types") && !o.PANEL_ORDER.includes("fin_bank"));
+  check("…and the forty separate rows are out of the box", ["fin_bank", "jud_courts", "activist_prisons", "slavery_facilities"].every((i) => o.PANEL_REMOVED.has(i)));
+  const cols = new Function(src.slice(src.indexOf("function buildingColours("), src.indexOf("async function addBuildingTypesLayer(")) + "; return buildingColours;")();
+  const c = cols(["Banks", "Courts", "Police stations"]);
+  check("each type gets its own muted colour", new Set(Object.values(c)).size === 3 && Object.values(c).every((v) => /hsl\(\d+, 18%/.test(v)));
+  check("no type is coloured yellow or orange", Object.values(cols(Array.from({ length: 40 }, (_, i) => "t" + i))).every((v) => { const h = Number(/hsl\((\d+)/.exec(v)[1]); return !(h > 20 && h < 90); }));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

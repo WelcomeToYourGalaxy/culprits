@@ -2868,6 +2868,68 @@ async function addSpheresLayer(cfg) {
   buildLegend();
 }
 
+/* ---------- Building types: one layer, a chip per type ---------- */
+// Muted colours, one per type, skipping the yellows and oranges.
+function buildingColours(types) {
+  const hues = [0, 350, 335, 320, 300, 280, 265, 250, 235, 220, 205, 190, 175, 160, 145, 130, 115, 100, 12, 342];
+  const out = {};
+  types.forEach((t, i) => {
+    const h = hues[i % hues.length], l = 42 + (Math.floor(i / hues.length) % 3) * 8;
+    out[t] = `hsl(${h}, 18%, ${l}%)`;
+  });
+  return out;
+}
+async function addBuildingTypesLayer(cfg) {
+  let summary;
+  try { summary = await getJson(cfg.summaryUrl); }
+  catch (e) { setLayerState(cfg.id, `not built yet (${e.message})`); return; }
+  const types = Object.keys(summary.types || {});
+  const colours = buildingColours(types);
+  const colour = ["match", ["get", "type"]];
+  for (const t of types) colour.push(t, colours[t]);
+  colour.push(cfg.colour);
+  const src = `${cfg.id}-pm`;
+  map.addSource(src, { type: "vector", url: `pmtiles://${cfg.archiveUrl}` });
+  map.addLayer({ id: `${cfg.id}-pt`, type: "circle", source: src, "source-layer": "buildings",
+    paint: { "circle-color": colour, "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 1.6, 10, 4, 15, 6],
+             "circle-stroke-color": "#17150F", "circle-stroke-width": 0.5, "circle-opacity": 0.9 } });
+  bindHtmlPopup(`${cfg.id}-pt`, (p) => {
+    const skip = new Set(["type", "name", "sources", "merged"]);
+    const rows = Object.keys(p).filter((k) => !skip.has(k) && p[k] !== "" && p[k] != null).map((k) => {
+      const v = String(p[k]);
+      return `${escapeHtml(k.replace(/_/g, " "))}: ` + (/^https?:\/\//.test(v)
+        ? `<a href="${escapeHtml(v)}" target="_blank" rel="noopener">${escapeHtml(v.length > 60 ? v.slice(0, 57) + "\u2026" : v)}</a>` : escapeHtml(v));
+    });
+    return `<b>${escapeHtml(p.name || "Unnamed in the source")}</b><div class="meta">${escapeHtml(p.type)}</div>` +
+      (rows.length ? `<div class="meta">${rows.join("<br>")}</div>` : "") +
+      `<div class="meta">From: ${escapeHtml(p.sources || "")}${Number(p.merged) > 1 ? ` (${p.merged} files describe this place; merged)` : ""}</div>`;
+  });
+  // A chip per type, with its count; none picked means every type.
+  const picked = new Set();
+  const row = document.querySelector(`[data-layer="${cfg.id}"]`);
+  const anchor = row && row.closest ? row.closest("label") : null;
+  if (anchor && anchor.after && document.createElement) {
+    const el = document.createElement("div");
+    el.className = "facet";
+    el.innerHTML = `<span class="chip reset" data-bt="">All types</span>` + types.map((t) =>
+      `<button type="button" class="chip" data-bt="${escapeHtml(t)}"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;` +
+      `background:${colours[t]};margin-right:4px"></i>${escapeHtml(t)} (${Number(summary.types[t]).toLocaleString()})</button>`).join("");
+    el.addEventListener("click", (e) => {
+      const b = e.target.closest && e.target.closest("[data-bt]");
+      if (!b) return;
+      e.stopPropagation();
+      const t = b.dataset.bt;
+      if (!t) picked.clear(); else if (picked.has(t)) picked.delete(t); else picked.add(t);
+      for (const c of el.querySelectorAll("[data-bt]")) c.classList.toggle("on", c.dataset.bt ? picked.has(c.dataset.bt) : picked.size === 0);
+      map.setFilter(`${cfg.id}-pt`, picked.size ? ["in", ["get", "type"], ["literal", [...picked]]] : null);
+    });
+    anchor.after(el);
+  }
+  setLayerState(cfg.id, `${Number(summary.places).toLocaleString()} places in ${types.length} types (from ${Number(summary.rows).toLocaleString()} file rows)`);
+  applyVisibility(cfg.id);
+  buildLegend();
+}
+
 /* ---------- the sky the map sits in ---------- */
 
 // Placed at random once, from a fixed seed, so the same sky comes back on
@@ -5101,6 +5163,9 @@ const OTHER_MAPS = {
       pageBase: "https://atlas-for-the-end-of-the-world.com/hotspot_cities/", positions: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/atlas/cities.json",
       cities: [["antananarivo", "Antananarivo, Madagascar"], ["auckland", "Auckland, New Zealand"], ["baku", "Baku, Azerbaijan"], ["bogota", "Bogotá, Colombia"], ["brasilia", "Brasília, Brazil"], ["cape_town", "Cape Town, South Africa"], ["chengdu", "Chengdu, China"], ["colombo", "Colombo, Sri Lanka"], ["dar_es_salaam", "Dar es Salaam, Tanzania"], ["davao", "Davao, Philippines"], ["durban", "Durban, South Africa"], ["esfahan", "Esfahan, Iran"], ["guadalajara", "Guadalajara, Mexico"], ["guayaquil", "Guayaquil, Ecuador"], ["hongknog_shenzhen_quangzhou", "Hongkong-Shenzhen-Guangzhou, China"], ["honolulu", "Honolulu, United States"], ["houston", "Houston, United States"], ["jakarta", "Jakarta, Indonesia"], ["lagos", "Lagos, Nigeria"], ["los_angeles", "Los Angeles, United States"], ["makassar", "Makassar, Indonesia"], ["mecca", "Mecca, Saudi Arabia"], ["mexico_city", "Mexico City, Mexico"], ["nairobi", "Nairobi, Kenya"], ["osaka", "Osaka, Japan"], ["perth", "Perth, Australia"], ["port-au-prince", "Port-au-Prince, Haiti"], ["rawalpindi", "Rawalpindi, Pakistan"], ["santiago", "Santiago, Chile"], ["sao_paulo", "São Paulo, Brazil"], ["sydney", "Sydney, Australia"], ["tashkent", "Tashkent, Uzbekistan"], ["tel_aviv", "Tel Aviv, Israel"]],
       note: "The Atlas's 33 hotspot cities; each is placed from its name through a weekly OpenStreetMap lookup, and its box links the Atlas's own page." },
+    { id: "building_types", name: "Building types", unit: "places", colour: "#6A6258", route: "buildings", ready: true, lazy: true,
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/building_types.pmtiles", summaryUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/building_types.json",
+      note: "Every building in the executive, financial, legal, legislative, judicial, anti-slavery and activist-rights maps' files, one record per place: where two files describe the same place, the fuller record leads and every field the other adds is kept." },
     { id: "wreckers_umap", name: "Wreckers of the Earth (Corporate Watch)", unit: "companies and sites", colour: "#6E5A55", route: "umap", ready: true, lazy: true,
       umap: "https://umap.openstreetmap.fr/en", umapId: 409815,
       note: "Read live from Corporate Watch's uMap each time it is ticked, with its own layers, colours and popups." },
@@ -5181,6 +5246,7 @@ function ensureLayer(cfg) {
     : cfg.route === "rasterlive" ? Promise.resolve().then(() => addRasterChoiceLayer(cfg))
     : cfg.route === "trase" ? addTraseLayer(cfg)
     : cfg.route === "pmshapes" ? Promise.resolve().then(() => addPmShapesLayer(cfg))
+    : cfg.route === "buildings" ? addBuildingTypesLayer(cfg)
     : cfg.route === "spheres" ? addSpheresLayer(cfg)
     : ["ejatlas", "geojsonlive", "wpgmza", "atlascities", "trasefac"].includes(cfg.route) ? addLivePlacesLayer(cfg)
     : cfg.route === "wmsmenu" ? addWmsMenuLayer(cfg)
@@ -5300,6 +5366,7 @@ const LAYER_KIND = {
   unep_coral: ["animal", "downstream"],
   trase_measures: ["plant", "downstream"],
   mines_global: ["insentient", "downstream"],
+  building_types: ["human", "upstream"],
   ejatlas: ["human", "downstream"],
   seas_of_plastic: ["animal", "downstream"],
   final_nail: ["animal", "downstream"],
@@ -5821,18 +5888,10 @@ const PANEL_ORDER = [
   { h: 2, t: "Of microscopics" }, "site_enslaved_microbes",
   { h: 2, t: "Of the \u201cinsentient\u201d" }, "site_insentient",
 
-  { h: 1, t: "Building types" },
-  { note: "Being combined into one layer, with duplicate places merged." },
-  "fin_bank", "fin_centralbank", "fin_taxoffice", "fin_govfinance", "fin_financial", "fin_exchange", "fin_insurance",
-  "fin_accountant", "fin_remittance", "fin_stockexchange", "fin_auditoffice", "fin_devbank", "fin_mint",
-  "legal_publicdefender", "legal_immigration", "legal_probation", "legal_juvenile",
-  "leg_parliament", "leg_audit", "leg_electoral", "leg_ombudsman", "leg_council",
-  "exec_firestation", "exec_townhall", "leg_townhall", "exec_govoffice", "exec_ministry", "exec_diplomatic", "exec_border",
-  "jud_courts", "legal_courthouse", "slavery_facilities", "activist_courts",
-  "exec_police", "legal_police", "activist_police",
-  "exec_prison", "legal_prison", "jud_prisons", "activist_prisons",
+  { h: 1, t: "Building types" }, "building_types",
 ];
 const PANEL_REMOVED = new Set([
+  "fin_bank", "fin_centralbank", "fin_taxoffice", "fin_govfinance", "fin_financial", "fin_exchange", "fin_insurance", "fin_accountant", "fin_remittance", "fin_stockexchange", "fin_auditoffice", "fin_devbank", "fin_mint", "legal_publicdefender", "legal_immigration", "legal_probation", "legal_juvenile", "leg_parliament", "leg_audit", "leg_electoral", "leg_ombudsman", "leg_council", "exec_firestation", "exec_townhall", "leg_townhall", "exec_govoffice", "exec_ministry", "exec_diplomatic", "exec_border", "jud_courts", "legal_courthouse", "slavery_facilities", "activist_courts", "exec_police", "legal_police", "activist_police", "exec_prison", "legal_prison", "jud_prisons", "activist_prisons",
   "site_ufo_pre1900", "site_subsistence_cultures", "site_self_sufficiency", "slavery_trackers",
   "site_environment_law", "enviro_law_by_country", "site_environment_law_shapes", "gov_official_map",
   "group:executive_map_layers", "group:money_map_layers", "group:legal_map_layers",
