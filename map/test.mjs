@@ -1822,5 +1822,23 @@ console.log("\nbuilding types, one layer");
   check("no type is coloured yellow or orange", Object.values(cols(Array.from({ length: 40 }, (_, i) => "t" + i))).every((v) => { const h = Number(/hsl\((\d+)/.exec(v)[1]); return !(h > 20 && h < 90); }));
 }
 
+console.log("\nyour 22 live monitors");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("all 22 monitors are rows", (src.match(/route: "monitor"/g) || []).length === 22);
+  check("each reads its own repo's wire, live", /raw\.githubusercontent\.com\/\$\{cfg\.repo\}\/main\/\$\{cfg\.wire\}/.test(src));
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const order = new Function(body + "; return PANEL_ORDER;")();
+  const after = (t, id) => order.indexOf(id) === order.findIndex((x) => x && x.t === t) + 1;
+  check("each monitor sits under its heading", after("Law enforcement", "monitor_police") && after("Sports", "monitor_sports") &&
+        after("Pre-birth frontlines", "monitor_abortion") && order.includes("monitor_space"));
+  const cols = new Function(src.slice(src.indexOf("function monitorColours("), src.indexOf("// Its popup styles")) + "; return monitorColours;")();
+  check("a monitor's own topic colours are read from its page", cols("const TOPIC_COLOR = {\n  ownership: '#b3877e', // clay\n  jobs: '#bf8b87'\n};").jobs === "#bf8b87");
+  const place = new Function(src.slice(src.indexOf("function monitorPlace("), src.indexOf("async function addMonitorLayer(")) + "; return monitorPlace;")();
+  const geo = [{ id: "africa", label: "Africa", subs: [{ id: "africa-e", label: "East Africa", places: [{ id: "ke", label: "Kenya" }] }] }];
+  check("a story is named by the most specific place it has", place({ pl: ["ke"], sr: ["africa-e"], w: ["africa"] }, geo) === "Kenya" &&
+        place({ pl: ["unlocated"], sr: ["africa-e"] }, geo) === "East Africa");
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

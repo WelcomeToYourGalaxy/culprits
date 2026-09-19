@@ -2930,6 +2930,109 @@ async function addBuildingTypesLayer(cfg) {
   buildLegend();
 }
 
+/* ---------- your live monitors, each its own layer ---------- */
+const monitorCache = new Map();
+async function monitorPage(cfg) {
+  if (!monitorCache.has(cfg.repo)) {
+    const p = fetch(`https://raw.githubusercontent.com/${cfg.repo}/main/index.html`).then((r) => r.ok ? r.text() : "");
+    monitorCache.set(cfg.repo, p);
+  }
+  return monitorCache.get(cfg.repo);
+}
+// The monitor's own topic colours, read from its page.
+function monitorColours(html) {
+  const m = /const TOPIC_COLOR = \{([\s\S]*?)\};/.exec(html || "");
+  const out = {};
+  if (m) for (const [, k, c] of m[1].matchAll(/([\w-]+)\s*:\s*'(#[0-9a-fA-F]{6})'/g)) out[k] = c;
+  return out;
+}
+// Its popup styles, scoped to its boxes here.
+function monitorPopupCss(html) {
+  return (String(html || "").match(/\.nw-pop[^{]*\{[^}]*\}/g) || []).map((r) => ".monitor-pop " + r).join("\n") +
+    "\n.monitor-pop{--flag:#e8e2d6;--ink-faint:#9a9384}.monitor-pop a{display:block;color:#F2EEE6;text-decoration:none;margin:4px 0}" +
+    ".monitor-pop a:hover{text-decoration:underline}";
+}
+function monitorPlace(item, geo) {
+  const ids = [...(item.pl || []), ...(item.sr || []), ...(item.w || [])].filter((p) => p && p !== "unlocated");
+  for (const id of ids) for (const r of geo || []) {
+    if (r.id === id) return r.label;
+    for (const sb of r.subs || []) {
+      if (sb.id === id) return sb.label;
+      for (const pl of sb.places || []) if (pl.id === id) return pl.label;
+    }
+  }
+  return "";
+}
+async function addMonitorLayer(cfg) {
+  let data, html;
+  try {
+    [html, data] = await Promise.all([monitorPage(cfg),
+      getJson(`https://raw.githubusercontent.com/${cfg.repo}/main/${cfg.wire}?t=${Date.now()}`, 60000)
+        .catch(() => getJson(`https://cdn.jsdelivr.net/gh/${cfg.repo}@main/${cfg.wire}`, 60000))]);
+  } catch (e) { setLayerState(cfg.id, `the monitor did not answer (${e.message})`); return; }
+  const colours = monitorColours(html);
+  if (!document.getElementById("monitor-pop-css") && document.createElement) {
+    const st = document.createElement("style");
+    st.id = "monitor-pop-css";
+    st.textContent = monitorPopupCss(html);
+    document.head.appendChild(st);
+  }
+  const notable = data.notable_score || 3;
+  const feats = (data.items || []).filter((i) => Array.isArray(i.ll) && i.ll.length === 2).map((i) => ({ type: "Feature",
+    geometry: { type: "Point", coordinates: [i.ll[1], i.ll[0]] },
+    properties: { t: i.t || "", u: i.u || "", o: i.o || "", x: ((i.x || [])[0]) || "", c: colours[(i.x || [])[0]] || "#a49f98",
+                  big: (i.p || 0) >= notable ? 1 : 0, pa: i.pa ? 1 : 0, place: monitorPlace(i, data.geo) } }));
+  map.addSource(`${cfg.id}-src`, { type: "geojson", data: { type: "FeatureCollection", features: feats } });
+  map.addLayer({ id: `${cfg.id}-pt`, type: "circle", source: `${cfg.id}-src`,
+    paint: { "circle-color": ["get", "c"], "circle-stroke-color": "#131311", "circle-stroke-width": 0.8,
+             "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, ["case", ["==", ["get", "big"], 1], 3.4, 2.6], 6, ["case", ["==", ["get", "big"], 1], 6.5, 5]],
+             "circle-opacity": ["case", ["==", ["get", "pa"], 1], 0.7, 1] } });
+  map.on("click", `${cfg.id}-pt`, (e) => {
+    popupClaimedBy = e.originalEvent || e;
+    const p = e.point;
+    const group = map.queryRenderedFeatures([[p.x - 9, p.y - 9], [p.x + 9, p.y + 9]], { layers: [`${cfg.id}-pt`] });
+    const seen = new Set(), items = [];
+    for (const f of group) { if (!seen.has(f.properties.u)) { seen.add(f.properties.u); items.push(f.properties); } }
+    const places = [...new Set(items.map((i) => i.place).filter(Boolean))];
+    const head = `<div class="nw-pop-place">${escapeHtml(places.slice(0, 3).join(" \u00b7 "))}` +
+      (items.length > 1 ? ` \u00b7 ${items.length} stories here` : "") + `</div>`;
+    const rows = items.slice(0, 20).map((i, n) => `<a href="${escapeHtml(i.u)}" target="_blank" rel="noopener noreferrer"` +
+      (n === 0 && items.length > 1 ? ` class="nw-pop-first"` : "") + `>${escapeHtml(i.t)}` +
+      `<span class="nw-pop-src">${escapeHtml(i.o)}${places.length > 1 && i.place ? " \u00b7 " + escapeHtml(i.place) : ""}</span></a>`).join("");
+    const more = items.length > 20 ? `<div class="nw-pop-place">and ${items.length - 20} more</div>` : "";
+    new maplibregl.Popup({ maxWidth: "300px", className: "monitor-pop" }).setLngLat(e.lngLat).setHTML(head + rows + more).addTo(map);
+  });
+  map.on("mouseenter", `${cfg.id}-pt`, () => { map.getCanvas().style.cursor = "pointer"; });
+  map.on("mouseleave", `${cfg.id}-pt`, () => { map.getCanvas().style.cursor = ""; });
+  // A chip per topic, in its own colour.
+  const topics = (data.topics || []).filter((t) => feats.some((f) => f.properties.x === t.id));
+  const row = document.querySelector(`[data-layer="${cfg.id}"]`);
+  const anchor = row && row.closest ? row.closest("label") : null;
+  if (topics.length > 1 && anchor && anchor.after) {
+    const picked = new Set();
+    const el = document.createElement("div");
+    el.className = "facet";
+    el.innerHTML = `<span class="chip reset" data-mt="">All topics</span>` + topics.map((t) =>
+      `<button type="button" class="chip" data-mt="${escapeHtml(t.id)}"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;` +
+      `background:${colours[t.id] || "#a49f98"};margin-right:4px"></i>${escapeHtml(t.label)}</button>`).join("");
+    el.addEventListener("click", (ev) => {
+      const b = ev.target.closest && ev.target.closest("[data-mt]");
+      if (!b) return;
+      ev.stopPropagation();
+      const t = b.dataset.mt;
+      if (!t) picked.clear(); else if (picked.has(t)) picked.delete(t); else picked.add(t);
+      for (const c of el.querySelectorAll("[data-mt]")) c.classList.toggle("on", c.dataset.mt ? picked.has(c.dataset.mt) : picked.size === 0);
+      map.setFilter(`${cfg.id}-pt`, picked.size ? ["in", ["get", "x"], ["literal", [...picked]]] : null);
+    });
+    anchor.after(el);
+  }
+  const unplaced = (data.items || []).length - feats.length;
+  setLayerState(cfg.id, `${feats.length.toLocaleString()} stories placed` + (unplaced ? ` (${unplaced.toLocaleString()} have no place)` : "") +
+    (data.generated ? ` \u00b7 updated ${String(data.generated).slice(0, 16).replace("T", " ")}` : ""));
+  applyVisibility(cfg.id);
+  buildLegend();
+}
+
 /* ---------- the sky the map sits in ---------- */
 
 // Placed at random once, from a fixed seed, so the same sky comes back on
@@ -5166,6 +5269,72 @@ const OTHER_MAPS = {
     { id: "building_types", name: "Building types", unit: "places", colour: "#6A6258", route: "buildings", ready: true, lazy: true,
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/building_types.pmtiles", summaryUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/building_types.json",
       note: "Every building in the executive, financial, legal, legislative, judicial, anti-slavery and activist-rights maps' files, one record per place: where two files describe the same place, the fuller record leads and every field the other adds is kept." },
+    { id: "monitor_abortion", name: "Abortion — law, access and outcomes worldwide", unit: "stories", colour: "#8A857B", route: "monitor", ready: true, lazy: true,
+      repo: "WelcomeToYourGalaxy/abortion-feed", wire: "wire_abortion.json",
+      note: "Your live monitor, read from its own repo each time it is ticked: its stories where it places them, in its own topic colours, with its own box." },
+    { id: "monitor_invasion", name: "Invasion of Non-Humans — worldwide", unit: "stories", colour: "#8A857B", route: "monitor", ready: true, lazy: true,
+      repo: "WelcomeToYourGalaxy/invasion-feed", wire: "wire_invasion.json",
+      note: "Your live monitor, read from its own repo each time it is ticked: its stories where it places them, in its own topic colours, with its own box." },
+    { id: "monitor_indigenous", name: "Invasion of Native Peoples — worldwide", unit: "stories", colour: "#8A857B", route: "monitor", ready: true, lazy: true,
+      repo: "WelcomeToYourGalaxy/indigenous-feed", wire: "wire_indigenous.json",
+      note: "Your live monitor, read from its own repo each time it is ticked: its stories where it places them, in its own topic colours, with its own box." },
+    { id: "monitor_conflict", name: "The Conflict Wire — worldwide", unit: "stories", colour: "#8A857B", route: "monitor", ready: true, lazy: true,
+      repo: "WelcomeToYourGalaxy/conflict-feed", wire: "wire_conflict.json",
+      note: "Your live monitor, read from its own repo each time it is ticked: its stories where it places them, in its own topic colours, with its own box." },
+    { id: "monitor_space", name: "The Space Front — live monitor", unit: "stories", colour: "#8A857B", route: "monitor", ready: true, lazy: true,
+      repo: "WelcomeToYourGalaxy/space-feed", wire: "wire_space.json",
+      note: "Your live monitor, read from its own repo each time it is ticked: its stories where it places them, in its own topic colours, with its own box." },
+    { id: "monitor_neo", name: "Impact Watch — near-Earth objects, worldwide", unit: "stories", colour: "#8A857B", route: "monitor", ready: true, lazy: true,
+      repo: "WelcomeToYourGalaxy/neo-feed", wire: "wire_neo.json",
+      note: "Your live monitor, read from its own repo each time it is ticked: its stories where it places them, in its own topic colours, with its own box." },
+    { id: "monitor_uap", name: "The Unidentified — UAP, worldwide", unit: "stories", colour: "#8A857B", route: "monitor", ready: true, lazy: true,
+      repo: "WelcomeToYourGalaxy/uap-feed", wire: "wire_uap.json",
+      note: "Your live monitor, read from its own repo each time it is ticked: its stories where it places them, in its own topic colours, with its own box." },
+    { id: "monitor_environment", name: "The Frontline — environmental destruction, worldwide", unit: "stories", colour: "#8A857B", route: "monitor", ready: true, lazy: true,
+      repo: "WelcomeToYourGalaxy/environment-feed", wire: "wire_env.json",
+      note: "Your live monitor, read from its own repo each time it is ticked: its stories where it places them, in its own topic colours, with its own box." },
+    { id: "monitor_resource", name: "Control of Resources — money, debt, land and the routes between", unit: "stories", colour: "#8A857B", route: "monitor", ready: true, lazy: true,
+      repo: "WelcomeToYourGalaxy/resource-feed", wire: "wire_resource.json",
+      note: "Your live monitor, read from its own repo each time it is ticked: its stories where it places them, in its own topic colours, with its own box." },
+    { id: "monitor_inequality", name: "Inequality — who owns, who is priced out, and who carries the loss", unit: "stories", colour: "#8A857B", route: "monitor", ready: true, lazy: true,
+      repo: "WelcomeToYourGalaxy/inequality-feed", wire: "wire_inequality.json",
+      note: "Your live monitor, read from its own repo each time it is ticked: its stories where it places them, in its own topic colours, with its own box." },
+    { id: "monitor_school", name: "School — who owns it, who writes it, and what it is for", unit: "stories", colour: "#8A857B", route: "monitor", ready: true, lazy: true,
+      repo: "WelcomeToYourGalaxy/school-feed", wire: "wire_school.json",
+      note: "Your live monitor, read from its own repo each time it is ticked: its stories where it places them, in its own topic colours, with its own box." },
+    { id: "monitor_police", name: "Law enforcement — duty, force, surveillance and what you may refuse", unit: "stories", colour: "#8A857B", route: "monitor", ready: true, lazy: true,
+      repo: "WelcomeToYourGalaxy/police-feed", wire: "wire_police.json",
+      note: "Your live monitor, read from its own repo each time it is ticked: its stories where it places them, in its own topic colours, with its own box." },
+    { id: "monitor_discrimination", name: "Discrimination — who is treated unequally, and what is done about it", unit: "stories", colour: "#8A857B", route: "monitor", ready: true, lazy: true,
+      repo: "WelcomeToYourGalaxy/discrimination-feed", wire: "wire_discrimination.json",
+      note: "Your live monitor, read from its own repo each time it is ticked: its stories where it places them, in its own topic colours, with its own box." },
+    { id: "monitor_voter", name: "Voter suppression — who paid, who was kept out, and who counted", unit: "stories", colour: "#8A857B", route: "monitor", ready: true, lazy: true,
+      repo: "WelcomeToYourGalaxy/voter-feed", wire: "wire_voter.json",
+      note: "Your live monitor, read from its own repo each time it is ticked: its stories where it places them, in its own topic colours, with its own box." },
+    { id: "monitor_lobbying", name: "Lobbying — who paid whom to shape the law, and through what register", unit: "stories", colour: "#8A857B", route: "monitor", ready: true, lazy: true,
+      repo: "WelcomeToYourGalaxy/lobbying-feed", wire: "wire_lobbying.json",
+      note: "Your live monitor, read from its own repo each time it is ticked: its stories where it places them, in its own topic colours, with its own box." },
+    { id: "monitor_food", name: "Food and drink — who owns it, who funds what is said about it, and what the label certifies", unit: "stories", colour: "#8A857B", route: "monitor", ready: true, lazy: true,
+      repo: "WelcomeToYourGalaxy/food-feed", wire: "wire_food.json",
+      note: "Your live monitor, read from its own repo each time it is ticked: its stories where it places them, in its own topic colours, with its own box." },
+    { id: "monitor_medical", name: "The medical industry — who pays the prescriber, and what the safety data shows", unit: "stories", colour: "#8A857B", route: "monitor", ready: true, lazy: true,
+      repo: "WelcomeToYourGalaxy/medical-feed", wire: "wire_medical.json",
+      note: "Your live monitor, read from its own repo each time it is ticked: its stories where it places them, in its own topic colours, with its own box." },
+    { id: "monitor_advertising", name: "The advertising industries — how attention is taken, and under what rules", unit: "stories", colour: "#8A857B", route: "monitor", ready: true, lazy: true,
+      repo: "WelcomeToYourGalaxy/advertising-feed", wire: "wire_advertising.json",
+      note: "Your live monitor, read from its own repo each time it is ticked: its stories where it places them, in its own topic colours, with its own box." },
+    { id: "monitor_news", name: "The news industry — who owns it, what replaced the reporting, and who pays to pollute it", unit: "stories", colour: "#8A857B", route: "monitor", ready: true, lazy: true,
+      repo: "WelcomeToYourGalaxy/news-feed", wire: "wire_news.json",
+      note: "Your live monitor, read from its own repo each time it is ticked: its stories where it places them, in its own topic colours, with its own box." },
+    { id: "monitor_science", name: "Science — what is wrong with the published record, and what catches it", unit: "stories", colour: "#8A857B", route: "monitor", ready: true, lazy: true,
+      repo: "WelcomeToYourGalaxy/science-feed", wire: "wire_science.json",
+      note: "Your live monitor, read from its own repo each time it is ticked: its stories where it places them, in its own topic colours, with its own box." },
+    { id: "monitor_entertainment", name: "The entertainment industries — who controls the bottleneck, and how deep the measurement goes", unit: "stories", colour: "#8A857B", route: "monitor", ready: true, lazy: true,
+      repo: "WelcomeToYourGalaxy/entertainment-feed", wire: "wire_entertainment.json",
+      note: "Your live monitor, read from its own repo each time it is ticked: its stories where it places them, in its own topic colours, with its own box." },
+    { id: "monitor_sports", name: "The sports industry — who takes the money, who carries the cost, and who is governing it", unit: "stories", colour: "#8A857B", route: "monitor", ready: true, lazy: true,
+      repo: "WelcomeToYourGalaxy/sports-feed", wire: "wire_sports.json",
+      note: "Your live monitor, read from its own repo each time it is ticked: its stories where it places them, in its own topic colours, with its own box." },
     { id: "wreckers_umap", name: "Wreckers of the Earth (Corporate Watch)", unit: "companies and sites", colour: "#6E5A55", route: "umap", ready: true, lazy: true,
       umap: "https://umap.openstreetmap.fr/en", umapId: 409815,
       note: "Read live from Corporate Watch's uMap each time it is ticked, with its own layers, colours and popups." },
@@ -5246,6 +5415,7 @@ function ensureLayer(cfg) {
     : cfg.route === "rasterlive" ? Promise.resolve().then(() => addRasterChoiceLayer(cfg))
     : cfg.route === "trase" ? addTraseLayer(cfg)
     : cfg.route === "pmshapes" ? Promise.resolve().then(() => addPmShapesLayer(cfg))
+    : cfg.route === "monitor" ? addMonitorLayer(cfg)
     : cfg.route === "buildings" ? addBuildingTypesLayer(cfg)
     : cfg.route === "spheres" ? addSpheresLayer(cfg)
     : ["ejatlas", "geojsonlive", "wpgmza", "atlascities", "trasefac"].includes(cfg.route) ? addLivePlacesLayer(cfg)
@@ -5366,6 +5536,28 @@ const LAYER_KIND = {
   unep_coral: ["animal", "downstream"],
   trase_measures: ["plant", "downstream"],
   mines_global: ["insentient", "downstream"],
+  monitor_abortion: ["human", "downstream"],
+  monitor_invasion: ["animal", "downstream"],
+  monitor_indigenous: ["human", "downstream"],
+  monitor_conflict: ["human", "downstream"],
+  monitor_space: ["insentient", "upstream"],
+  monitor_neo: ["insentient", "downstream"],
+  monitor_uap: ["insentient", "downstream"],
+  monitor_environment: ["plant", "downstream"],
+  monitor_resource: ["human", "upstream"],
+  monitor_inequality: ["human", "upstream"],
+  monitor_school: ["human", "upstream"],
+  monitor_police: ["human", "upstream"],
+  monitor_discrimination: ["human", "downstream"],
+  monitor_voter: ["human", "upstream"],
+  monitor_lobbying: ["human", "upstream"],
+  monitor_food: ["human", "upstream"],
+  monitor_medical: ["human", "upstream"],
+  monitor_advertising: ["human", "upstream"],
+  monitor_news: ["human", "upstream"],
+  monitor_science: ["human", "upstream"],
+  monitor_entertainment: ["human", "upstream"],
+  monitor_sports: ["human", "upstream"],
   building_types: ["human", "upstream"],
   ejatlas: ["human", "downstream"],
   seas_of_plastic: ["animal", "downstream"],
@@ -5821,18 +6013,18 @@ map.on("load", buildLegend);
 // PANEL_REMOVED are taken out of the box.
 const PANEL_ORDER = [
   { h: 1, t: "On-planet invasion" },
-  { h: 2, t: "Pre-birth frontlines" }, "gmo_releases",
+  { h: 2, t: "Pre-birth frontlines" }, "monitor_abortion", "gmo_releases",
   { h: 2, t: "Post-birth invasion" },
-  { h: 3, t: "Invasion of nonhumans" }, "group:gmo_map_layers",
-  { h: 3, t: "Invasion of humans" }, "site_settler_colonialism", "site_indigenous_conflicts",
-  { h: 3, t: "Of countries by countries" }, "site_secret_societies", "gm",
+  { h: 3, t: "Invasion of nonhumans" }, "monitor_invasion", "group:gmo_map_layers",
+  { h: 3, t: "Invasion of humans" }, "monitor_indigenous", "site_settler_colonialism", "site_indigenous_conflicts",
+  { h: 3, t: "Of countries by countries" }, "monitor_conflict", "site_secret_societies", "gm",
   { h: 2, t: "Post-life invasion" }, "remains_records", "remains_findings", "remains_cemeteries",
 
   { h: 1, t: "Off-planet invasion" },
-  { note: "The space industry, launch sites and the other maps from the site's Off-Planet Invasion page come here." },
+  "monitor_space", "monitor_neo", "monitor_uap",
 
   { h: 1, t: "Destruction" },
-  { h: 2, t: "Of the planet" },
+  { h: 2, t: "Of the planet" }, "monitor_environment",
   { h: 3, t: "Climate" }, "group:climate_trace_sectors", "group:climate_trace_agriculture", "group:climate_trace_forestry",
     "gem_coal", "carbon_bombs", "power_plants", "fertilizer_facilities", "site_carbon_mapper_waste", "site_china_grain",
     "usda_soybean", "usda_corn", "wastewater",
@@ -5856,30 +6048,30 @@ const PANEL_ORDER = [
   { h: 1, t: "Suppression" },
   { h: 2, t: "Of humans" },
   { h: 3, t: "Physical suppression" },
-  { h: 4, t: "Control of physical resources" }, "site_central_banks", "site_banking_dynasties", "site_export_credit", "site_wealth_atlas",
+  { h: 4, t: "Control of physical resources" }, "monitor_resource", "site_central_banks", "site_banking_dynasties", "site_export_credit", "site_wealth_atlas",
     "site_export_credit_shading", "site_earmarked_funding", "site_trade_profits", "site_social_spheres",
-  { h: 4, t: "Economic inequality within it" },
-  { h: 5, t: "School" },
-  { h: 4, t: "Law enforcement" },
+  { h: 4, t: "Economic inequality within it" }, "monitor_inequality",
+  { h: 5, t: "School" }, "monitor_school",
+  { h: 4, t: "Law enforcement" }, "monitor_police",
   { h: 4, t: "Courts and corrections" },
-  { h: 4, t: "Discrimination" },
+  { h: 4, t: "Discrimination" }, "monitor_discrimination",
   { h: 4, t: "Slavery" }, "slavery_sites", "slavery_ports", "slavery_routes", "slavery_determinations", "slavery_enforcement",
   { h: 5, t: "National shading" }, "slavery_cases", "slavery_prevalence",
   { h: 3, t: "Suppression by \u201crepresentation\u201d within it" },
   { h: 4, t: "Politics as a front" },
-  { h: 5, t: "Voter suppression" },
+  { h: 5, t: "Voter suppression" }, "monitor_voter",
   { h: 5, t: "Representation as presentation" },
-  { h: 5, t: "For money-written-law" },
-  { h: 4, t: "The food and drink industries" },
-  { h: 4, t: "The medical industry" },
+  { h: 5, t: "For money-written-law" }, "monitor_lobbying",
+  { h: 4, t: "The food and drink industries" }, "monitor_food",
+  { h: 4, t: "The medical industry" }, "monitor_medical",
   { h: 3, t: "Suppression by information" },
-  { h: 4, t: "The advertising industries" }, "site_world_advertising",
-  { h: 4, t: "The news industry" }, "site_world_news",
-  { h: 4, t: "The entertainment industries" }, "site_world_entertainment",
-  { h: 4, t: "Science" }, "site_research_integrity",
+  { h: 4, t: "The advertising industries" }, "monitor_advertising", "site_world_advertising",
+  { h: 4, t: "The news industry" }, "monitor_news", "site_world_news",
+  { h: 4, t: "The entertainment industries" }, "monitor_entertainment", "site_world_entertainment",
+  { h: 4, t: "Science" }, "monitor_science", "site_research_integrity",
   { h: 3, t: "Suppression by social molds" },
   { h: 4, t: "Religion and spirituality" },
-  { h: 4, t: "Sports" }, "site_eyes_network",
+  { h: 4, t: "Sports" }, "monitor_sports", "site_eyes_network",
   { h: 4, t: "Holidays" },
   { h: 4, t: "Sex" },
   { h: 4, t: "Drugs" }, "capture_map", "site_cartel_cells",

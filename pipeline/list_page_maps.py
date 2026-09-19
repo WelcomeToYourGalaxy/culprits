@@ -7,6 +7,7 @@ files or frames it loads.
 
 Run from the culprits repo root:
   python3 pipeline/list_page_maps.py off-planet-invasion
+  python3 pipeline/list_page_maps.py all          every page in the record
 """
 import base64, html, os, pathlib, re, sys
 
@@ -76,4 +77,10 @@ def main(page):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "off-planet-invasion")
+    arg = sys.argv[1] if len(sys.argv) > 1 else "off-planet-invasion"
+    if arg == "all":
+        for f in sorted(record().glob("*.html")):
+            print(f"\n\n########## {f.stem} ##########")
+            main(f.stem)
+    else:
+        main(arg)
