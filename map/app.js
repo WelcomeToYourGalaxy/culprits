@@ -1427,7 +1427,7 @@ function warmSpace() {
 }
 
 function panelsAway(on) {
-  for (const sel of [".left-col", "#legend", ".wire", "#zoombox"]) {
+  for (const sel of [".left-col", ".right-col", "#legend", ".wire", "#zoombox"]) {
     const el = document.querySelector(sel);
     if (el && el.classList) el.classList.toggle("away", on);
   }
@@ -5362,7 +5362,7 @@ const PANEL_ORDER = [
   { h: 3, t: "Of the insentient" }, "site_insentient",
 
   { h: 1, t: "Building types" },
-  { h: 4, t: "Being combined into one layer, with duplicate places merged" },
+  { note: "Being combined into one layer, with duplicate places merged." },
   "fin_bank", "fin_centralbank", "fin_taxoffice", "fin_govfinance", "fin_financial", "fin_exchange", "fin_insurance",
   "fin_accountant", "fin_remittance", "fin_stockexchange", "fin_auditoffice", "fin_devbank", "fin_mint",
   "legal_publicdefender", "legal_immigration", "legal_probation", "legal_juvenile",
@@ -5400,16 +5400,44 @@ function arrangePanel() {
   box.dataset.arranged = "1";
   const frag = document.createDocumentFragment();
   const placed = new Set();
+  // Each heading is a section that folds; the rows under it go in its body,
+  // nested by level. Every section starts folded shut.
+  const stack = [{ level: 0, body: frag }];
   const heading = (h, t) => {
-    const el = document.createElement("div");
-    el.className = `panel-h panel-h${h}`;
-    el.textContent = t;
-    return el;
+    while (stack.length > 1 && stack[stack.length - 1].level >= h) stack.pop();
+    const sec = document.createElement("div");
+    sec.className = `toc-sec toc-l${h}`;
+    const head = document.createElement("button");
+    head.type = "button";
+    head.className = `toc-head panel-h panel-h${h}`;
+    head.setAttribute("aria-expanded", "false");
+    head.innerHTML = `<span class="toc-arrow">\u25B8</span><span class="toc-t">${escapeHtml(t)}</span><span class="toc-n"></span>`;
+    const body = document.createElement("div");
+    body.className = "toc-body";
+    body.hidden = true;
+    head.addEventListener("click", (e) => {
+      e.preventDefault();
+      body.hidden = !body.hidden;
+      head.setAttribute("aria-expanded", String(!body.hidden));
+    });
+    sec.appendChild(head);
+    sec.appendChild(body);
+    stack[stack.length - 1].body.appendChild(sec);
+    stack.push({ level: h, body });
+    return sec;
   };
+  const into = () => stack[stack.length - 1].body;
   for (const item of PANEL_ORDER) {
-    if (typeof item === "object") { frag.appendChild(heading(item.h, item.t)); continue; }
+    if (typeof item === "object" && item.note) {
+      const n = document.createElement("div");
+      n.className = "toc-note";
+      n.textContent = item.note;
+      into().appendChild(n);
+      continue;
+    }
+    if (typeof item === "object") { heading(item.h, item.t); continue; }
     const nodes = panelNodes(box, item);
-    nodes.forEach((n) => frag.appendChild(n));
+    nodes.forEach((n) => into().appendChild(n));
     if (nodes.length) placed.add(item);
   }
   // Removed rows go into a hidden holder, so code that looks them up still finds them.
@@ -5428,7 +5456,18 @@ function arrangePanel() {
   }
   const tail = [...box.children];
   box.insertBefore(frag, box.children[1] || null);
-  if (rest.childNodes.length) { box.appendChild(heading(1, "Not yet placed")); box.appendChild(rest); }
+  if (rest.childNodes.length) {
+    stack.length = 1;
+    const sec = heading(1, "Not yet placed");
+    box.appendChild(sec);
+    sec.querySelector(".toc-body").appendChild(rest);
+  }
+  // Beside each heading, how many layers are inside it.
+  for (const sec of box.querySelectorAll(".toc-sec")) {
+    const n = sec.querySelectorAll("[data-layer], [data-gm]").length;
+    const el = sec.querySelector(".toc-n");
+    if (el) el.textContent = n ? String(n) : "none yet";
+  }
   tail.filter((el) => el.classList && el.classList.contains("pending-note")).forEach((el) => box.appendChild(el));
   box.appendChild(gone);
   if (!document.getElementById("panel-h-style")) {
@@ -5443,6 +5482,27 @@ function arrangePanel() {
   }
 }
 map.on("load", () => setTimeout(arrangePanel, 0));
+
+// The layers box runs down to the "Showing" box; the news wires box starts
+// under the view box. Both follow those boxes' heights as they change.
+function trackBoxHeights() {
+  const root = document.documentElement;
+  const legend = document.getElementById("legend");
+  const view = document.getElementById("basemaps");
+  if (!root || !root.style || typeof ResizeObserver === "undefined") return;
+  const set = () => {
+    const lh = legend && !legend.hidden ? legend.getBoundingClientRect().height : 0;
+    root.style.setProperty("--legend-h", lh ? Math.round(lh + 8) + "px" : "0px");
+    const vh = view ? view.getBoundingClientRect().height : 0;
+    root.style.setProperty("--wire-top", Math.round(16 + vh + 8) + "px");
+  };
+  const ro = new ResizeObserver(set);
+  if (legend) ro.observe(legend);
+  if (view) ro.observe(view);
+  if (legend && typeof MutationObserver !== "undefined") new MutationObserver(set).observe(legend, { attributes: true, attributeFilter: ["hidden"] });
+  set();
+}
+map.on("load", () => setTimeout(trackBoxHeights, 0));
 
 map.on("moveend", () => { clearTimeout(gmTimer); gmTimer = setTimeout(gmSync, 900); });
 

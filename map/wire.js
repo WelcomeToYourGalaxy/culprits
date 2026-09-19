@@ -571,7 +571,7 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) =>
 const num = (n) => Number(n).toLocaleString('en');
 
 const CSS = `
-.wire{position:absolute;right:9px;top:16px;z-index:3;
+.wire{position:absolute;right:9px;top:var(--wire-top,16px);z-index:3;
   width:min(var(--box-w,290px),calc(100vw - 18px));display:flex;flex-direction:column;
   background:rgba(31,28,21,.95);border:1px solid var(--rule,#322E27);color:var(--bone,#DCD6C6);
   font:13px/1.45 var(--sans,system-ui,sans-serif);backdrop-filter:blur(6px)}
@@ -835,7 +835,8 @@ function layout() {
   const zoom = document.getElementById('zoombox');
   const lh = legend && !legend.hidden ? legend.getBoundingClientRect().height : 0;
   const zh = zoom ? zoom.getBoundingClientRect().height : 0;
-  if (lh || zh) lift += Math.max(lh, zh) + 8;
+  // The legend now sits bottom left, under the layers box, so only the zoom box lifts the wires.
+  if (zh) lift += zh + 8;
   document.documentElement.style.setProperty('--wire-lift', Math.round(lift) + 'px');
 }
 

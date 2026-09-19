@@ -1192,7 +1192,7 @@ console.log("\nthe boxes");
   check("the news wires box takes it too, no longer 440px",
         /width:min\(var\(--box-w,290px\),calc\(100vw - 18px\)\)/.test(wireSrc) && !/440px/.test(wireSrc));
   check("the legend is as wide as the wires box",
-        /#legend\{position:absolute;right:9px;bottom:26px;z-index:2;width:var\(--box-w\)/.test(index));
+        /#legend\{position:absolute;left:16px;bottom:16px;z-index:2;width:var\(--box-w\)/.test(index));
   check("the zoom buttons are back in the view row, one above the other",
         /function moveZoomButtons/.test(src) && /getElementById\("view-zoom"\)/.test(src) &&
         /<div class="view-zoom" id="view-zoom"><\/div>/.test(src) &&
@@ -1233,7 +1233,7 @@ console.log("\ncoming back, and room to move");
   check("…but not past the poles", free({ lng: 0, lat: 120 }, 3).center.lat === 89.9);
   check("the flat map can be zoomed out until it floats", /setMinZoom\([\s\S]{0,70}: -2\)/.test(src));
   check("the news wires box hangs from the top, and opens down to the legend",
-        /\.wire\{position:absolute;right:9px;top:16px;/.test(wireSrc) &&
+        /\.wire\{position:absolute;right:9px;top:var\(--wire-top,16px\);/.test(wireSrc) &&
         /\.wire\.open\{bottom:calc\(26px \+ var\(--wire-lift,0px\)\)\}/.test(wireSrc));
   check("the layer panel rolls up and down", /id="panelRoll"/.test(index) &&
         /\.panel\.shut > \*\{display:none\}/.test(index) && /classList\.toggle\("shut"/.test(src));
@@ -1261,8 +1261,8 @@ console.log("\nthe boxes down the left");
 {
   const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("the name, the settings and the layers are three boxes", /class="left-col"/.test(index) &&
-        /<div class="title-box">/.test(index) && /id="basemaps" class="ctrl-box"/.test(index));
+  check("the settings box is on the right and the layers box on the left", /class="left-col"/.test(index) &&
+        !/<div class="title-box">/.test(index) && /class="right-col">\s*<div id="basemaps" class="ctrl-box"/.test(index));
   check("the layer box holds the caret that rolls it",
         /panel-head[\s\S]{0,500}id="panelRoll"/.test(index) && /\.panel\.shut > \*\{display:none\}/.test(index));
   check("the zoom reading is off the page", !/id="zoomstate"/.test(index) && /const el = document\.getElementById\("zoomstate"\)/.test(src));
@@ -1382,7 +1382,7 @@ console.log("\nthe wires box, plainer");
   const wireSrc = fs.readFileSync(path.join(HERE, "wire.js"), "utf8");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
-  check("the map's boxes leave the screen in Eyes", /\[".left-col", "#legend", ".wire", "#zoombox"\]/.test(src));
+  check("the map's boxes leave the screen in Eyes", /\[".left-col", ".right-col", "#legend", ".wire", "#zoombox"\]/.test(src));
   check("Leave Earth stands beside the two views", /<div class="view-row"><div class="view-choices">/.test(src) &&
         /\.view-row\{display:flex/.test(index));
   check("one list of subjects, with select all and clear all",
@@ -1738,6 +1738,21 @@ console.log("\ncolumns close in, a reload button, mines");
   check("…and comes back to the same view", /sessionStorage\.getItem\("culprits-view"\)/.test(src));
   check("mines worldwide is a row, drawn from the tiles repo", /id: "mines_global"[^\n]*route: "pmshapes"/.test(src) &&
         /tiles\/mining_polygons\.pmtiles/.test(src));
+}
+
+console.log("\nthe screen, rearranged");
+{
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const wire = fs.readFileSync(path.join(HERE, "wire.js"), "utf8");
+  check("the title box is gone", !/class="title-box"/.test(html));
+  check("the view and basemap box sits top right", /<div class="right-col">\s*<div id="basemaps"/.test(html));
+  check("the wires box starts under it", /top:var\(--wire-top,16px\)/.test(wire) && /--wire-top/.test(src));
+  check("the Showing box sits bottom left", /#legend\{position:absolute;left:16px;bottom:16px/.test(html));
+  check("the layers box runs down to it", /bottom:calc\(16px \+ var\(--legend-h,0px\)\)/.test(html));
+  check("every heading starts folded shut", /body\.hidden = true;/.test(src) && /aria-expanded", "false"/.test(src));
+  check("each heading shows how many layers it holds", /toc-n/.test(src));
+  check("leaving for space hides the right box too", /"\.right-col", "#legend"/.test(src));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
