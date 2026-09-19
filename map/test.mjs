@@ -1877,5 +1877,11 @@ console.log("\nthe space industry map");
   check("its boxes are the ones its copy carries", /p\._html \? boxOpen \+ p\._html/.test(src));
 }
 
+console.log("\nthe Suppression page's two Google My Maps maps");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("both are rows, read live from their own files", /mid=1vrnqSW4cWWdnjz6cJ-qFMmd0zbJzYd6V&forcekml=1/.test(src) && /mid=1seBCggQGg1tcRYpqpZ5ZKJaxHs4&forcekml=1/.test(src));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
