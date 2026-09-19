@@ -1870,5 +1870,12 @@ console.log("\nlaunch sites and upcoming launches");
   check("a pad's position is read", JSON.stringify(pad({ latitude: "28.56", longitude: "-80.57" }).coordinates) === "[-80.57,28.56]" && pad({}) === null);
 }
 
+console.log("\nthe space industry map");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("it is a row under Off-planet invasion", /id: "space_industry"/.test(src) && /"space_industry", "ll2_pads"/.test(src));
+  check("its boxes are the ones its copy carries", /p\._html \? boxOpen \+ p\._html/.test(src));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

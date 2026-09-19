@@ -2624,8 +2624,10 @@ async function readGeojsonFiles(cfg) {
     (gj.features || []).forEach((ft, i) => {
       const p = ft.properties || {};
       const name = p.name || p.Name || p.title || p.Source || (p.TripId != null ? `Trip ${p.TripId}` : "") || p.Ocean || f.label;
-      items.push({ geometry: ft.geometry, key: `${f.label}:${i}`, name: String(name), group: f.label,
-        h: boxOpen + `<h4 style="margin:0 0 6px">${escapeHtml(name)}</h4><table>${fieldRows(p)}</table></div>` });
+      items.push({ geometry: ft.geometry, key: `${f.label}:${i}`, name: String(name), group: p.group != null ? String(p.group) : f.label,
+        // A copy that carries its source's own box (_html) shows that; otherwise every field.
+        h: p._html ? boxOpen + p._html + `</div>`
+          : boxOpen + `<h4 style="margin:0 0 6px">${escapeHtml(name)}</h4><table>${fieldRows(p)}</table></div>` });
     });
   }
   return { title: cfg.name, items };
@@ -5392,6 +5394,9 @@ const OTHER_MAPS = {
     { id: "ll2_upcoming", name: "Upcoming launches (Launch Library 2)", unit: "launches", colour: "#6E5A6E", route: "ll2", ready: true, lazy: true,
       what: "upcoming", copy: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ll2/upcoming.json",
       note: "Every scheduled launch in Launch Library 2, placed at its pad, read live." },
+    { id: "space_industry", name: "The space industry (openmaps.space)", unit: "places", colour: "#5E6070", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Places", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/openmaps/space_industry.geojson" }],
+      note: "openmaps.space's space industry map: every place it lists, with the organisations there, copied daily from its own data file." },
     { id: "wreckers_umap", name: "Wreckers of the Earth (Corporate Watch)", unit: "companies and sites", colour: "#6E5A55", route: "umap", ready: true, lazy: true,
       umap: "https://umap.openstreetmap.fr/en", umapId: 409815,
       note: "Read live from Corporate Watch's uMap each time it is ticked, with its own layers, colours and popups." },
@@ -5594,6 +5599,7 @@ const LAYER_KIND = {
   unep_coral: ["animal", "downstream"],
   trase_measures: ["plant", "downstream"],
   mines_global: ["insentient", "downstream"],
+  space_industry: ["insentient", "upstream"],
   ll2_pads: ["insentient", "upstream"],
   ll2_upcoming: ["insentient", "upstream"],
   owid_interest: ["human", "upstream"],
@@ -6062,7 +6068,7 @@ const PANEL_ORDER = [
   { h: 2, t: "Post-life invasion" }, "remains_records", "remains_findings", "remains_cemeteries",
 
   { h: 1, t: "Off-planet invasion" },
-  "ll2_pads", "ll2_upcoming",
+  "space_industry", "ll2_pads", "ll2_upcoming",
 
   { h: 1, t: "Destruction" },
   { h: 2, t: "Of the planet" },
