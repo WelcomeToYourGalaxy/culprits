@@ -2451,6 +2451,31 @@ function traseBox(cfg, props) {
     `<div class="meta"><a href="https://trase.earth/explore/spatial-data/map?country=${encodeURIComponent(p.country)}" target="_blank" rel="noopener">Open on Trase</a></div>`;
 }
 
+/* ---------- outlines from a PMTiles archive (points wider out) ---------- */
+function addPmShapesLayer(cfg) {
+  const src = `${cfg.id}-pm`;
+  map.addSource(src, { type: "vector", url: `pmtiles://${cfg.archiveUrl}`, attribution: cfg.attribution || "" });
+  map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source: src, "source-layer": cfg.polygonLayer,
+    paint: { "fill-color": cfg.colour, "fill-opacity": 0.55, "fill-outline-color": "#1D1B17" } });
+  map.addLayer({ id: `${cfg.id}-pt`, type: "circle", source: src, "source-layer": cfg.pointLayer,
+    paint: { "circle-color": cfg.colour, "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 1.4, 6, 3],
+             "circle-stroke-color": "#17150F", "circle-stroke-width": 0.4, "circle-opacity": 0.85 } });
+  const box = (p) => {
+    const loss = Object.keys(p).filter((k) => /(19|20)\d\d/.test(k) && isFinite(Number(p[k])))
+      .sort().map((k) => `${escapeHtml(k.replace(/_/g, " "))}: ${Number(p[k]).toLocaleString(undefined, { maximumFractionDigits: 3 })}`);
+    const rest = Object.keys(p).filter((k) => !/(19|20)\d\d/.test(k) && p[k] !== "" && p[k] != null)
+      .map((k) => `${escapeHtml(k.replace(/_/g, " "))}: ${escapeHtml(k === "area" ? Number(p[k]).toLocaleString(undefined, { maximumFractionDigits: 3 }) + " km\u00b2" : p[k])}`);
+    return `<b>Mine${p.country ? " \u2014 " + escapeHtml(p.country) : ""}</b><div class="meta">${rest.join("<br>")}</div>` +
+      (loss.length ? `<div class="meta">Tree cover loss inside it:<br>${loss.join("<br>")}</div>` : "") +
+      `<div class="meta">Maus et al. 2022 and OpenStreetMap, merged by WU Vienna (ODbL)</div>`;
+  };
+  bindHtmlPopup(`${cfg.id}-fill`, box);
+  bindHtmlPopup(`${cfg.id}-pt`, box);
+  setLayerState(cfg.id, "points wider out, outlines from zoom 7");
+  applyVisibility(cfg.id);
+  buildLegend();
+}
+
 /* ---------- the sky the map sits in ---------- */
 
 // Placed at random once, from a fixed seed, so the same sky comes back on
@@ -2619,7 +2644,9 @@ function pullableBoxes() {
 // the largest sources stand tall without flattening the rest to nothing, and
 // it scales with zoom so the columns keep their size on the screen.
 const COLUMN_MAX = 15000;       // columns at once, the largest first
-const COLUMN_PX = 1.5;          // half the footprint, in screen pixels
+const COLUMN_PX = 1.5;          // half the footprint, in screen pixels, at world view
+const COLUMN_PX_MAX = 14;       // half the footprint at most, close in
+const COLUMN_GROW = 1.35;       // footprint growth per zoom level past 3
 const COLUMN_TALL = 0.03;       // screen pixels of height per √(t CO₂e)
 let columnsTimer = null;
 
@@ -2654,18 +2681,52 @@ function buildColumns() {
     }
   }
   rows.sort((a, b) => b.v - a.v);
-  const half = COLUMN_PX * mPerPx;
-  const features = rows.slice(0, COLUMN_MAX).map(({ lng, lat, v, cfg, p }) => {
+  const kept = rows.slice(0, COLUMN_MAX);
+  const halves = columnHalves(kept, z);
+  const grow = Math.sqrt(halves.want / COLUMN_PX);
+  const features = kept.map(({ lng, lat, v, cfg, p }, i) => {
+    const half = halves.px[i] * mPerPx;
     const dLat = half / 111320, dLng = half / (111320 * Math.max(.05, Math.cos(lat * Math.PI / 180)));
     return { type: "Feature",
       properties: Object.assign({}, p, { colour: cfg.colour, layerName: cfg.name,
-        h: Math.max(mPerPx * 1.5, Math.sqrt(v) * COLUMN_TALL * mPerPx) }),
+        h: Math.max(mPerPx * 1.5, Math.sqrt(v) * COLUMN_TALL * mPerPx * grow) }),
       geometry: { type: "Polygon", coordinates: [[[lng - dLng, lat - dLat], [lng + dLng, lat - dLat],
         [lng + dLng, lat + dLat], [lng - dLng, lat + dLat], [lng - dLng, lat - dLat]]] } };
   });
   src.setData({ type: "FeatureCollection", features });
   if (rows.length > COLUMN_MAX) console.info(`[culprits] Climate TRACE: the ${COLUMN_MAX.toLocaleString()} largest of ` +
     `${rows.length.toLocaleString()} sources in view are raised as columns; the rest stay as dots.`);
+}
+
+// Half the footprint of each column, in screen pixels: larger as the map zooms
+// in, but never more than just under half the distance to the nearest other
+// column, so neighbours cannot overlap. Neighbours are found on a grid of cells
+// one full footprint wide.
+function columnHalves(rows, z) {
+  const want = Math.min(COLUMN_PX_MAX, COLUMN_PX * Math.pow(COLUMN_GROW, Math.max(0, z - 3)));
+  const px = rows.map(() => want);
+  if (typeof map.project !== "function" || rows.length < 2 || want <= COLUMN_PX) return { want, px };
+  const pts = rows.map((r) => map.project([r.lng, r.lat]));
+  const cell = want * 2, grid = new Map();
+  pts.forEach((q, i) => {
+    const k = `${Math.floor(q.x / cell)}|${Math.floor(q.y / cell)}`;
+    if (!grid.has(k)) grid.set(k, []);
+    grid.get(k).push(i);
+  });
+  pts.forEach((q, i) => {
+    const cx = Math.floor(q.x / cell), cy = Math.floor(q.y / cell);
+    let near = Infinity;
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+      for (const j of grid.get(`${cx + dx}|${cy + dy}`) || []) {
+        if (j === i) continue;
+        const d = Math.max(Math.abs(pts[j].x - q.x), Math.abs(pts[j].y - q.y));
+        if (d < near) near = d;
+      }
+    }
+    // Squares: they meet when the larger of the two distances is two halves.
+    if (near < Infinity) px[i] = Math.max(COLUMN_PX, Math.min(want, near * 0.45));
+  });
+  return { want, px };
 }
 
 function addColumnLayer() {
@@ -2758,10 +2819,40 @@ function outToTheGlobe() {
 
 // MapLibre puts its zoom buttons in a corner of the map. They belong in the
 // view row, so the element is moved there once it exists.
+if (typeof map.once === "function") map.once("load", () => {
+  try {
+    const v = sessionStorage.getItem("culprits-view");
+    if (!v) return;
+    sessionStorage.removeItem("culprits-view");
+    const [lng, lat, z] = v.split(",").map(Number);
+    if ([lng, lat, z].every(isFinite)) map.jumpTo({ center: [lng, lat], zoom: z });
+  } catch (e) { /* no saved view */ }
+});
+
 function moveZoomButtons() {
   const holder = document.getElementById("view-zoom");
   const group = document.querySelector(".maplibregl-ctrl-bottom-right .maplibregl-ctrl-group");
   if (holder && group && holder.insertBefore) holder.insertBefore(group, holder.firstChild);
+  // Beside the zoom buttons: reload the whole map on the same view, for when it gets stuck.
+  if (holder && holder.appendChild && document.createElement && !document.getElementById("reload-map")) {
+    const b = document.createElement("button");
+    b.id = "reload-map";
+    b.type = "button";
+    b.title = "Reload the map (if it gets stuck)";
+    b.setAttribute("aria-label", "Reload the map");
+    b.textContent = "\u21bb";
+    b.style.cssText = "margin-left:6px;width:29px;height:29px;border-radius:4px;border:0;cursor:pointer;" +
+      "background:#fff;color:#333;font:17px/29px system-ui,sans-serif;box-shadow:0 0 0 2px rgba(0,0,0,.1)";
+    b.addEventListener("click", () => {
+      try {
+        const c = map.getCenter();
+        const view = `${c.lng.toFixed(4)},${c.lat.toFixed(4)},${map.getZoom().toFixed(2)}`;
+        sessionStorage.setItem("culprits-view", view);
+      } catch (e) { /* the view is not kept; the page still reloads */ }
+      location.reload();
+    });
+    holder.appendChild(b);
+  }
   // The compass goes under the 3D terrain tick box, beside the notes on how
   // to tilt. MapLibre keeps its own hold on the button, so it still turns.
   const compass = group && group.querySelector ? group.querySelector(".maplibregl-ctrl-compass") : null;
@@ -4582,6 +4673,10 @@ const OTHER_MAPS = {
       service: "https://data-gis.unep-wcmc.org/server/rest/services/HabitatsAndBiotopes/Global_Distribution_of_Coral_Reefs/MapServer",
       attribution: "UNEP-WCMC, WorldFish Centre, WRI, TNC",
       note: "UNEP-WCMC's Global Distribution of Warm-water Coral Reefs, drawn live by its own map server at every zoom; a click asks it what is there." },
+    { id: "mines_global", name: "Mines worldwide (Maus et al. 2022 + OpenStreetMap)", unit: "mine outlines", colour: "#6E5E52", route: "pmshapes", ready: true, lazy: true,
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/mining_polygons.pmtiles", polygonLayer: "mines", pointLayer: "mine_points",
+      attribution: "Maus et al. 2022; OpenStreetMap contributors; merged by WU Vienna 2024 (ODbL)",
+      note: "192,584 mine outlines: Maus et al.'s satellite-traced mining areas merged with OpenStreetMap's mines and quarries (Zenodo 7307210, ODbL), with the tree cover loss inside each from 2000 to 2019. Points wider out, outlines from zoom 7." },
     { id: "wreckers_umap", name: "Wreckers of the Earth (Corporate Watch)", unit: "companies and sites", colour: "#6E5A55", route: "umap", ready: true, lazy: true,
       umap: "https://umap.openstreetmap.fr/en", umapId: 409815,
       note: "Read live from Corporate Watch's uMap each time it is ticked, with its own layers, colours and popups." },
@@ -4661,6 +4756,7 @@ function ensureLayer(cfg) {
     : cfg.route === "umap" || cfg.route === "kml" || cfg.route === "arcgisapp" ? addLivePlacesLayer(cfg)
     : cfg.route === "rasterlive" ? Promise.resolve().then(() => addRasterChoiceLayer(cfg))
     : cfg.route === "trase" ? addTraseLayer(cfg)
+    : cfg.route === "pmshapes" ? Promise.resolve().then(() => addPmShapesLayer(cfg))
     : addPmtilesLayer(cfg);
   build
     .then(() => {
@@ -4775,6 +4871,7 @@ const LAYER_KIND = {
   usda_corn: ["plant", "downstream"],
   unep_coral: ["animal", "downstream"],
   trase_measures: ["plant", "downstream"],
+  mines_global: ["insentient", "downstream"],
   wreckers_umap: ["insentient", "upstream"],
   mymaps_chlorine: ["insentient", "upstream"],
   mymaps_trees: ["plant", "downstream"],

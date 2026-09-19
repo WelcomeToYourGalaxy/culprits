@@ -1723,5 +1723,22 @@ console.log("\nthe layers box, in the chosen order");
   check("an ArcGIS request gives up rather than hanging", /no answer in \$\{Math\.round\(ms \/ 1000\)\} s/.test(src));
 }
 
+console.log("\ncolumns close in, a reload button, mines");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("function columnHalves("), src.indexOf("function addColumnLayer("));
+  const fakeMap = { project: ([x, y]) => ({ x: x * 100, y: y * 100 }) };
+  const halves = new Function("map", "COLUMN_PX", "COLUMN_PX_MAX", "COLUMN_GROW", body + "; return columnHalves;")(fakeMap, 1.5, 14, 1.35);
+  const far = halves([{ lng: 0, lat: 0 }, { lng: 5, lat: 5 }], 12);
+  check("close in, a lone column grows past its world-view size", far.px[0] > 1.5 && far.px[0] <= 14);
+  const near = halves([{ lng: 0, lat: 0 }, { lng: 0.1, lat: 0 }], 12);
+  check("…but never so wide that it meets its neighbour", near.px[0] * 2 < 10 && near.px[1] * 2 < 10);
+  check("at world view columns keep their old size", halves([{ lng: 0, lat: 0 }, { lng: 1, lat: 1 }], 2).want === 1.5);
+  check("a reload button sits beside the zoom buttons", /id = "reload-map"/.test(src) && /location\.reload\(\)/.test(src));
+  check("…and comes back to the same view", /sessionStorage\.getItem\("culprits-view"\)/.test(src));
+  check("mines worldwide is a row, drawn from the tiles repo", /id: "mines_global"[^\n]*route: "pmshapes"/.test(src) &&
+        /tiles\/mining_polygons\.pmtiles/.test(src));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
