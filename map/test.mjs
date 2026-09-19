@@ -1923,5 +1923,14 @@ console.log("\nClimate TRACE air pollution");
   check("a source's box gives its figures and rank", h.includes("807.3") && h.includes("used 62%") && h.includes("2025: 418"));
 }
 
+console.log("\nGlobal Trade Alert");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("it is a row under Control of physical resources", /id: "gta_acts"/.test(src) && /"rte_trade", "gta_acts",/.test(src));
+  const nameOf = new Function(src.slice(src.indexOf("function gtaNameOf("), src.indexOf("async function addGtaLayer(")) + "; return gtaNameOf;")();
+  const known = new Set(["Italy", "United States of America"]);
+  check("a shape is joined by whichever field names the country", nameOf({ NAME: "Italy" }, known) === "Italy" && nameOf({ label: "United States of America" }, known) === "United States of America" && nameOf({ name: "Atlantis" }, known) === null);
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

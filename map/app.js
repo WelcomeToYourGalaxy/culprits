@@ -3418,6 +3418,67 @@ async function addCtAirLayer(cfg) {
   buildLegend();
 }
 
+/* ---------- Global Trade Alert: state acts by country ---------- */
+const GTA_EVAL = { Red: "#8F4E40", Amber: "#8A7560", Green: "#62755F" };
+// The country a shape stands for: whichever of its fields names a country in the data.
+function gtaNameOf(props, known) {
+  for (const k of ["name", "NAME", "name_long", "admin", "ADMIN", "name_en", "country", "Country"]) if (props[k] && known.has(props[k])) return props[k];
+  return Object.values(props).find((v) => typeof v === "string" && known.has(v)) || null;
+}
+async function addGtaLayer(cfg) {
+  let data, shapes;
+  try { [data, shapes] = await Promise.all([getJson(cfg.data, 60000), getJson(cfg.shapes, 60000).catch(() => getJson(BOUNDARIES_URL))]); }
+  catch (e) { setLayerState(cfg.id, `not built yet (${e.message})`); return; }
+  const C = data.countries || {};
+  const known = new Set(Object.keys(C));
+  const feats = (shapes.features || []).map((f) => ({ type: "Feature", geometry: f.geometry, properties: { gta: gtaNameOf(f.properties || {}, known), name: (f.properties || {}).name || "" } }));
+  map.addSource(`${cfg.id}-src`, { type: "geojson", data: { type: "FeatureCollection", features: feats } });
+  map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source: `${cfg.id}-src`, paint: { "fill-color": "rgba(0,0,0,0)", "fill-opacity": 0.75 } });
+  map.addLayer({ id: `${cfg.id}-line`, type: "line", source: `${cfg.id}-src`, paint: { "line-color": "#1D1B17", "line-width": 0.3, "line-opacity": 0.5 } });
+  const ramp = OWID_RAMP;
+  const shade = (measure) => {
+    const vals = Object.values(C).map((c) => c[measure] || 0).filter((v) => v > 0);
+    const breaks = owidBreaks(vals);
+    const expr = ["match", ["coalesce", ["get", "gta"], ""]];
+    for (const [nm, c] of Object.entries(C)) {
+      const v = c[measure] || 0;
+      if (!v) continue;
+      let i = 0; while (i < breaks.length && v >= breaks[i]) i++;
+      expr.push(nm, ramp[Math.min(i + (4 - breaks.length), 4)]);
+    }
+    expr.push("rgba(0,0,0,0)");
+    map.setPaintProperty(`${cfg.id}-fill`, "fill-color", expr.length > 3 ? expr : "rgba(0,0,0,0)");
+  };
+  bindHtmlPopup(`${cfg.id}-fill`, (p) => {
+    const c = C[p.gta];
+    if (!c) return `<b>${escapeHtml(p.name)}</b><div class="meta">No state acts named for this country.</div>`;
+    const dot = (e) => e ? `<i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${GTA_EVAL[e] || "#777"};margin-right:4px"></i>` : "";
+    return `<b>${escapeHtml(p.gta)}</b>` +
+      `<div class="meta">${c.total.toLocaleString()} state acts: ${dot("Red")}${c.red.toLocaleString()} Red, ${dot("Amber")}${c.amber.toLocaleString()} Amber, ` +
+      `${dot("Green")}${c.green.toLocaleString()} Green; ${c.in_force.toLocaleString()} with a measure in force</div>` +
+      `<div class="meta">Commonest: ${Object.entries(c.types || {}).slice(0, 6).map(([t, n]) => `${escapeHtml(t)} (${n})`).join(", ")}</div>` +
+      `<div class="meta" style="max-height:220px;overflow:auto">${(c.latest || []).map((a) => `<div style="margin:5px 0">${dot(a.eval)}<b>${escapeHtml(a.date || "")}</b> ` +
+        `${escapeHtml(a.title)}<br><span style="font-size:11px">${escapeHtml(a.text || "")}</span></div>`).join("")}</div>` +
+      `<div class="meta">Global Trade Alert</div>`;
+  });
+  const row = document.querySelector(`[data-layer="${cfg.id}"]`);
+  const anchor = row && row.closest ? row.closest("label") : null;
+  if (anchor && anchor.after) {
+    const el = document.createElement("div");
+    el.className = "facet";
+    el.innerHTML = `<select aria-label="Shade by"><option value="total">All state acts</option><option value="red">Rated Red</option>` +
+      `<option value="amber">Rated Amber</option><option value="green">Rated Green</option><option value="in_force">With a measure in force</option></select>`;
+    el.querySelector("select").addEventListener("change", (e) => shade(e.target.value));
+    anchor.after(el);
+  }
+  shade("total");
+  const placed = new Set(feats.map((f) => f.properties.gta).filter(Boolean));
+  setLayerState(cfg.id, `${Number(data.acts || 0).toLocaleString()} state acts by ${known.size} countries` +
+    (known.size > placed.size ? ` (${known.size - placed.size} names not on the shapes)` : ""));
+  applyVisibility(cfg.id);
+  buildLegend();
+}
+
 /* ---------- the sky the map sits in ---------- */
 
 // Placed at random once, from a fixed seed, so the same sky comes back on
@@ -5696,6 +5757,9 @@ const OTHER_MAPS = {
       attribution: "Climate TRACE; GHSL population", maxzoom: 12,
       choices: [{ label: "Population", tiles: "https://tiles.climatetrace.org/ghsl-pop-1km/all/{z}/{x}/{y}.png" }],
       note: "The population layer Climate TRACE's air-pollution pages draw underneath, read live." },
+    { id: "gta_acts", name: "Global Trade Alert: state acts by country", unit: "state acts", colour: "#8A6356", route: "gta", ready: true, lazy: true,
+      data: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gta/countries.json", shapes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gta/world.geojson",
+      note: "Every state act in Global Trade Alert's database, summed by the country that took it, from a daily copy." },
     { id: "wreckers_umap", name: "Wreckers of the Earth (Corporate Watch)", unit: "companies and sites", colour: "#6E5A55", route: "umap", ready: true, lazy: true,
       umap: "https://umap.openstreetmap.fr/en", umapId: 409815,
       note: "Read live from Corporate Watch's uMap each time it is ticked, with its own layers, colours and popups." },
@@ -5776,6 +5840,7 @@ function ensureLayer(cfg) {
     : cfg.route === "rasterlive" ? Promise.resolve().then(() => addRasterChoiceLayer(cfg))
     : cfg.route === "trase" ? addTraseLayer(cfg)
     : cfg.route === "pmshapes" ? Promise.resolve().then(() => addPmShapesLayer(cfg))
+    : cfg.route === "gta" ? addGtaLayer(cfg)
     : cfg.route === "ctair" ? addCtAirLayer(cfg)
     : cfg.route === "gsn" ? addGsnLayer(cfg)
     : cfg.route === "companion" ? Promise.resolve().then(() => addCompanion(cfg))
@@ -5902,6 +5967,7 @@ const LAYER_KIND = {
   unep_coral: ["animal", "downstream"],
   trase_measures: ["plant", "downstream"],
   mines_global: ["insentient", "downstream"],
+  gta_acts: ["human", "upstream"],
   ct_air: ["human", "downstream"],
   ct_pop: ["human", "downstream"],
   gsn: ["plant", "downstream"],
@@ -6408,7 +6474,7 @@ const PANEL_ORDER = [
   { h: 3, t: "Physical suppression" },
   { h: 4, t: "Control of physical resources" }, "site_central_banks", "site_banking_dynasties", "site_export_credit", "site_wealth_atlas",
     "site_export_credit_shading", "site_earmarked_funding", "site_trade_profits", "site_social_spheres",
-    "owid_interest", "owid_corptax", "owid_aid", "rte_trade",
+    "owid_interest", "owid_corptax", "owid_aid", "rte_trade", "gta_acts",
   { h: 4, t: "Economic inequality within it" },
   { h: 5, t: "School" },
   { h: 4, t: "Law enforcement" },
