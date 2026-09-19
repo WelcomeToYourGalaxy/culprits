@@ -1883,5 +1883,15 @@ console.log("\nthe Suppression page's two Google My Maps maps");
   check("both are rows, read live from their own files", /mid=1vrnqSW4cWWdnjz6cJ-qFMmd0zbJzYd6V&forcekml=1/.test(src) && /mid=1seBCggQGg1tcRYpqpZ5ZKJaxHs4&forcekml=1/.test(src));
 }
 
+console.log("\nresource trade flows");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("it is a row under Control of physical resources", /id: "rte_trade"/.test(src) && /"owid_aid", "rte_trade",/.test(src));
+  check("read live, with the daily copy when it cannot be", /api\.resourcetrade\.earth\/api\/rt\/2\.7/.test(src) && /cfg\._fromCopy = true/.test(src));
+  const arc = new Function(src.slice(src.indexOf("function rteArc("), src.indexOf("async function addRteLayer(")) + "; return rteArc;")();
+  const a = arc([0, 0], [10, 0]);
+  check("a flow runs from exporter to importer on a curve", a[0][0] === 0 && a[a.length - 1][0] === 10 && a[12][1] !== 0);
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

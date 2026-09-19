@@ -3143,6 +3143,72 @@ async function readLaunchLibrary(cfg) {
   return { title: cfg.name, items, note };
 }
 
+/* ---------- Resource Trade Earth: trade flows between countries ---------- */
+async function rteGet(cfg, live, copy) {
+  try { return await getJson(`${cfg.api}${live}`, 40000); }
+  catch (e) { cfg._fromCopy = true; return getJson(`${cfg.copy}/${copy}`, 40000); }
+}
+// A gentle curve from exporter to importer, so flows between the same pair in
+// each direction do not lie on top of each other.
+function rteArc(a, b, steps = 24) {
+  const [x1, y1] = a, [x2, y2] = b;
+  const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, dx = x2 - x1, dy = y2 - y1;
+  const cx = mx - dy * 0.18, cy = my + dx * 0.18;
+  const out = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps, u = 1 - t;
+    out.push([u * u * x1 + 2 * u * t * cx + t * t * x2, u * u * y1 + 2 * u * t * cy + t * t * y2]);
+  }
+  return out;
+}
+async function addRteLayer(cfg) {
+  let models;
+  try { models = await rteGet(cfg, "/models", "models.json"); }
+  catch (e) { setLayerState(cfg.id, `resourcetrade.earth did not answer (${e.message})`); return; }
+  const C = new Map((models.countries || []).filter((c) => c.lat != null && c.lng != null).map((c) => [c.id, c]));
+  const years = (models.years || []).map((y) => Number(y.id)).sort((a, b) => b - a);
+  map.addSource(`${cfg.id}-src`, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+  map.addLayer({ id: `${cfg.id}-line`, type: "line", source: `${cfg.id}-src`, layout: { "line-cap": "round" },
+    paint: { "line-color": cfg.colour, "line-opacity": 0.75,
+             "line-width": ["interpolate", ["linear"], ["get", "share"], 0, 0.8, 1, 7] } });
+  const draw = async (year) => {
+    setLayerState(cfg.id, `reading ${year}\u2026`);
+    let j;
+    try { j = await rteGet(cfg, `/trades?year=${year}&autozoom=1`, `trades_${year}.json`); }
+    catch (e) { setLayerState(cfg.id, `no flows could be read for ${year}`); return; }
+    const rows = (j.main || []).filter((r) => C.has(r.exporter) && C.has(r.importer));
+    const max = Math.max(1, ...rows.map((r) => Number(r.value) || 0));
+    const feats = rows.map((r) => {
+      const a = C.get(r.exporter), b = C.get(r.importer);
+      return { type: "Feature", geometry: { type: "LineString", coordinates: rteArc([a.lng, a.lat], [b.lng, b.lat]) },
+        properties: { from: a.name, to: b.name, value: r.value, weight: r.weight, co2: r.env_co2, year: r.year,
+                      share: Math.sqrt((Number(r.value) || 0) / max), ex: r.exporter, im: r.importer } };
+    });
+    map.getSource(`${cfg.id}-src`).setData({ type: "FeatureCollection", features: feats });
+    const left = (j.main || []).length - rows.length;
+    setLayerState(cfg.id, `${feats.length} largest flows of ${Number(j.total || 0).toLocaleString()} in ${year}` +
+      (left ? ` (${left} to or from unplaced areas)` : "") + (cfg._fromCopy ? " \u00b7 from today's copy" : ""));
+  };
+  const n = (v) => (v == null ? "\u2014" : Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 }));
+  bindHtmlPopup(`${cfg.id}-line`, (p) => `<b>${escapeHtml(p.from)} \u2192 ${escapeHtml(p.to)}</b>` +
+    `<div class="meta">${escapeHtml(String(p.year))}</div>` +
+    `<div class="meta">Trade value: ${n(p.value)}<br>Weight: ${n(p.weight)}<br>CO\u2082: ${n(p.co2)}</div>` +
+    `<div class="meta">Figures as resourcetrade.earth publishes them (its units are on its site).</div>` +
+    `<div class="meta"><a href="https://resourcetrade.earth/?year=${p.year}&exporter=${p.ex}&importer=${p.im}" target="_blank" rel="noopener">Open on resourcetrade.earth</a></div>`);
+  const row = document.querySelector(`[data-layer="${cfg.id}"]`);
+  const anchor = row && row.closest ? row.closest("label") : null;
+  if (anchor && anchor.after) {
+    const el = document.createElement("div");
+    el.className = "facet";
+    el.innerHTML = `<select aria-label="Year">${years.map((y) => `<option value="${y}">${y}</option>`).join("")}</select>`;
+    el.querySelector("select").addEventListener("change", (e) => draw(Number(e.target.value)));
+    anchor.after(el);
+  }
+  await draw(years[0]);
+  applyVisibility(cfg.id);
+  buildLegend();
+}
+
 /* ---------- the sky the map sits in ---------- */
 
 // Placed at random once, from a fixed seed, so the same sky comes back on
@@ -5403,6 +5469,9 @@ const OTHER_MAPS = {
     { id: "mymaps_supp_b", name: "Google My Maps map (Suppression page)", unit: "placemarks", colour: "#6A5E66", route: "kml", ready: true, lazy: true,
       kml: "https://www.google.com/maps/d/kml?mid=1seBCggQGg1tcRYpqpZ5ZKJaxHs4&forcekml=1",
       note: "Read live from the map's Google My Maps file; the row takes the map's own title once it loads." },
+    { id: "rte_trade", name: "Resource trade flows (resourcetrade.earth, Chatham House)", unit: "trade flows", colour: "#8A6356", route: "rte", ready: true, lazy: true,
+      api: "https://api.resourcetrade.earth/api/rt/2.7", copy: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/rte",
+      note: "The largest natural-resource trade flows between countries, read live from resourcetrade.earth (a daily copy stands in if it cannot be read)." },
     { id: "wreckers_umap", name: "Wreckers of the Earth (Corporate Watch)", unit: "companies and sites", colour: "#6E5A55", route: "umap", ready: true, lazy: true,
       umap: "https://umap.openstreetmap.fr/en", umapId: 409815,
       note: "Read live from Corporate Watch's uMap each time it is ticked, with its own layers, colours and popups." },
@@ -5483,6 +5552,7 @@ function ensureLayer(cfg) {
     : cfg.route === "rasterlive" ? Promise.resolve().then(() => addRasterChoiceLayer(cfg))
     : cfg.route === "trase" ? addTraseLayer(cfg)
     : cfg.route === "pmshapes" ? Promise.resolve().then(() => addPmShapesLayer(cfg))
+    : cfg.route === "rte" ? addRteLayer(cfg)
     : cfg.route === "ll2" ? addLivePlacesLayer(cfg)
     : cfg.route === "owidgrapher" ? addOwidGrapherLayer(cfg)
     : cfg.route === "buildings" ? addBuildingTypesLayer(cfg)
@@ -5605,6 +5675,7 @@ const LAYER_KIND = {
   unep_coral: ["animal", "downstream"],
   trase_measures: ["plant", "downstream"],
   mines_global: ["insentient", "downstream"],
+  rte_trade: ["insentient", "upstream"],
   mymaps_supp_a: ["human", "upstream"],
   mymaps_supp_b: ["human", "upstream"],
   space_industry: ["insentient", "upstream"],
@@ -6105,7 +6176,7 @@ const PANEL_ORDER = [
   { h: 3, t: "Physical suppression" },
   { h: 4, t: "Control of physical resources" }, "site_central_banks", "site_banking_dynasties", "site_export_credit", "site_wealth_atlas",
     "site_export_credit_shading", "site_earmarked_funding", "site_trade_profits", "site_social_spheres",
-    "owid_interest", "owid_corptax", "owid_aid",
+    "owid_interest", "owid_corptax", "owid_aid", "rte_trade",
   { h: 4, t: "Economic inequality within it" },
   { h: 5, t: "School" },
   { h: 4, t: "Law enforcement" },
