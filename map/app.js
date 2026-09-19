@@ -3480,6 +3480,141 @@ async function addGtaLayer(cfg) {
   buildLegend();
 }
 
+/* ---------- an ArcGIS map service drawn as pictures, its layers as chips (EPA Envirofacts) ---------- */
+async function addArcgisDynLayer(cfg) {
+  let info;
+  try { info = await getJson(`${cfg.service}?f=json`, 30000); }
+  catch (e) { setLayerState(cfg.id, `the service did not answer (${e.message})`); return; }
+  const layers = (info.layers || []).filter((l) => !l.subLayerIds);
+  const on = new Set(layers.map((l) => l.id));
+  const tilesFor = () => [`${cfg.service}/export?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857&size=256,256&format=png32&transparent=true` +
+    `&layers=show:${[...on].join(",") || "-1"}&dpi=96&f=image`];
+  const src = `${cfg.id}-img`;
+  map.addSource(src, { type: "raster", tileSize: 256, minzoom: Math.floor(cfg.minzoom || 0), tiles: tilesFor(), attribution: cfg.attribution || "" });
+  map.addLayer({ id: `${cfg.id}-raster`, type: "raster", source: src, minzoom: cfg.minzoom || 0 });
+  const row = document.querySelector(`[data-layer="${cfg.id}"]`);
+  const anchor = row && row.closest ? row.closest("label") : null;
+  if (anchor && anchor.after) {
+    const el = document.createElement("div");
+    el.className = "facet";
+    el.innerHTML = layers.map((l) => `<button type="button" class="chip on" data-dl="${l.id}">${escapeHtml(l.name)}</button>`).join("");
+    el.addEventListener("click", (e) => {
+      const b = e.target.closest && e.target.closest("[data-dl]");
+      if (!b) return;
+      e.stopPropagation();
+      const id = Number(b.dataset.dl);
+      if (on.has(id)) on.delete(id); else on.add(id);
+      b.classList.toggle("on", on.has(id));
+      const s = map.getSource(src);
+      if (s && s.setTiles) s.setTiles(tilesFor());
+    });
+    anchor.after(el);
+  }
+  map.on("click", async (e) => {
+    if ((visibility.get(cfg.id) || "visible") !== "visible" || !map.getLayer(`${cfg.id}-raster`) || map.getZoom() < (cfg.minzoom || 0) || !on.size) return;
+    const b = map.getBounds(), c = map.getCanvas();
+    const q = `${cfg.service}/identify?geometry=${e.lngLat.lng},${e.lngLat.lat}&geometryType=esriGeometryPoint&sr=4326` +
+      `&layers=visible:${[...on].join(",")}&tolerance=6&mapExtent=${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}` +
+      `&imageDisplay=${c.clientWidth},${c.clientHeight},96&returnGeometry=false&f=json`;
+    try {
+      const j = await getJson(q, 20000);
+      const hits = (j.results || []).slice(0, 8);
+      if (!hits.length) return;
+      new maplibregl.Popup({ maxWidth: "340px" }).setLngLat(e.lngLat).setHTML(hits.map((h) =>
+        `<b>${escapeHtml(h.value || (h.attributes && h.attributes.PRIMARY_NAME) || "")}</b><div class="meta">${escapeHtml(h.layerName || "")}</div>` +
+        `<table class="meta">${fieldRows(Object.fromEntries(Object.entries(h.attributes || {}).filter(([k, v]) => v !== "Null" && !/^(OBJECTID|Shape)$/i.test(k))))}</table>`).join("<hr>") +
+        `<div class="meta">US EPA Envirofacts</div>`).addTo(map);
+    } catch (err) { /* nothing there */ }
+  });
+  setLayerState(cfg.id, `${layers.length} kinds of facility \u00b7 drawn from about state level in`);
+  applyVisibility(cfg.id);
+  buildLegend();
+}
+
+/* ---------- Giga: school mapping by country ---------- */
+async function addGigaLayer(cfg) {
+  let data;
+  try { data = await getJson(cfg.data, 60000); }
+  catch (e) { setLayerState(cfg.id, `not built yet (${e.message})`); return; }
+  const C = new Map((data.countries || []).map((c) => [c.iso3_format, c]));
+  const shapes = await getJson(BOUNDARIES_URL);
+  map.addSource(`${cfg.id}-src`, { type: "geojson", data: { type: "FeatureCollection", features: shapes.features.filter((f) => C.has(f.properties.iso3)) } });
+  map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source: `${cfg.id}-src`, paint: { "fill-color": "rgba(0,0,0,0)", "fill-opacity": 0.75 } });
+  map.addLayer({ id: `${cfg.id}-line`, type: "line", source: `${cfg.id}-src`, paint: { "line-color": "#1D1B17", "line-width": 0.3, "line-opacity": 0.5 } });
+  const shade = (m) => {
+    const expr = ["match", ["get", "iso3"]];
+    const val = (c) => m === "schools" ? (c.entity_counts || {}).school || 0 : m === "share" ? c.schools_with_data_percentage || 0 : null;
+    if (m === "schools" || m === "share") {
+      const breaks = owidBreaks([...C.values()].map(val).filter((v) => v > 0));
+      for (const [iso, c] of C) { const v = val(c); if (!v) continue; let i = 0; while (i < breaks.length && v >= breaks[i]) i++; expr.push(iso, OWID_RAMP[Math.min(i + (4 - breaks.length), 4)]); }
+    } else {
+      const cats = [...new Set([...C.values()].map((c) => c[m]).filter(Boolean))].sort();
+      const pal = ["#3F5663", "#8A9DA6", "#B3C0C6", "#CDAEA4", "#8C5548", "#62755F"];
+      for (const [iso, c] of C) if (c[m]) expr.push(iso, pal[cats.indexOf(c[m]) % pal.length]);
+    }
+    expr.push("rgba(0,0,0,0)");
+    map.setPaintProperty(`${cfg.id}-fill`, "fill-color", expr.length > 3 ? expr : "rgba(0,0,0,0)");
+  };
+  bindHtmlPopup(`${cfg.id}-fill`, (p) => {
+    const c = C.get(p.iso3);
+    if (!c) return "";
+    const pretty = (s) => String(s || "\u2014").replace(/_/g, " ");
+    return (c.flag ? `<img src="${escapeHtml(c.flag)}" style="height:18px;margin-right:6px;vertical-align:middle">` : "") + `<b>${escapeHtml(c.name)}</b>` +
+      `<div class="meta">Schools mapped: ${Number((c.entity_counts || {}).school || 0).toLocaleString()}` +
+      ((c.entity_counts || {}).health ? `; health facilities: ${Number(c.entity_counts.health).toLocaleString()}` : "") + `</div>` +
+      `<div class="meta">With connectivity data: ${Number(c.schools_with_data_percentage || 0).toLocaleString(undefined, { maximumFractionDigits: 1 })}%</div>` +
+      `<div class="meta">Connectivity data: ${escapeHtml(pretty(c.connectivity_availability))}; coverage data: ${escapeHtml(pretty(c.coverage_availability))}</div>` +
+      (c.data_source ? `<div class="meta">Data source: ${escapeHtml(c.data_source)}</div>` : "") +
+      (c.date_schools_mapped ? `<div class="meta">Mapped: ${escapeHtml(c.date_schools_mapped)}</div>` : "") +
+      `<div class="meta">Giga (UNICEF and ITU)</div>`;
+  });
+  const row = document.querySelector(`[data-layer="${cfg.id}"]`);
+  const anchor = row && row.closest ? row.closest("label") : null;
+  if (anchor && anchor.after) {
+    const el = document.createElement("div");
+    el.className = "facet";
+    el.innerHTML = `<select aria-label="Shade by"><option value="schools">Schools mapped</option><option value="share">Share with connectivity data</option>` +
+      `<option value="connectivity_availability">Connectivity data</option><option value="coverage_availability">Coverage data</option></select>`;
+    el.querySelector("select").addEventListener("change", (e) => shade(e.target.value));
+    anchor.after(el);
+  }
+  shade("schools");
+  const w = data.world && data.world.school;
+  setLayerState(cfg.id, `${C.size} countries` + (w ? ` \u00b7 ${Number(w.entities_total).toLocaleString()} schools mapped worldwide` : ""));
+  applyVisibility(cfg.id);
+  buildLegend();
+}
+
+/* ---------- Trase facilities, from Trase's own menu ---------- */
+async function addTraseFacMenu(cfg) {
+  const src = `${cfg.id}-src`;
+  map.addSource(src, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+  map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source: src, filter: ["==", ["geometry-type"], "Polygon"], paint: { "fill-color": cfg.colour, "fill-opacity": 0.45 } });
+  map.addLayer({ id: `${cfg.id}-line`, type: "line", source: src, filter: ["!=", ["geometry-type"], "Point"], paint: { "line-color": "#1D1B17", "line-width": 0.5 } });
+  map.addLayer({ id: `${cfg.id}-pt`, type: "circle", source: src, filter: ["==", ["geometry-type"], "Point"], paint: { "circle-color": cfg.colour, "circle-radius": 4 } });
+  for (const l of [`${cfg.id}-fill`, `${cfg.id}-pt`]) bindHtmlPopup(l, (p) => p.h || "");
+  const show = async (type) => {
+    setLayerState(cfg.id, "reading Trase\u2026");
+    try {
+      const got = await readTraseFacilities({ ...cfg, facilityType: type });
+      map.getSource(src).setData({ type: "FeatureCollection", features: got.items.map((it) => ({ type: "Feature", geometry: it.geometry, properties: { h: it.h } })) });
+      setLayerState(cfg.id, `${got.items.length.toLocaleString()} ${cfg.types.find((t) => t[0] === type)[1]}`);
+    } catch (e) { setLayerState(cfg.id, `Trase did not answer (${e.message})`); }
+  };
+  const row = document.querySelector(`[data-layer="${cfg.id}"]`);
+  const anchor = row && row.closest ? row.closest("label") : null;
+  if (anchor && anchor.after) {
+    const el = document.createElement("div");
+    el.className = "facet";
+    el.innerHTML = `<select aria-label="Facilities">${cfg.types.map(([k, l]) => `<option value="${k}">${escapeHtml(l)}</option>`).join("")}</select>`;
+    el.querySelector("select").addEventListener("change", (e) => show(e.target.value));
+    anchor.after(el);
+  }
+  await show(cfg.types[0][0]);
+  applyVisibility(cfg.id);
+  buildLegend();
+}
+
 /* ---------- the sky the map sits in ---------- */
 
 // Placed at random once, from a fixed seed, so the same sky comes back on
@@ -5800,9 +5935,10 @@ const OTHER_MAPS = {
     { id: "gpw_map", name: "Global Plastic Watch", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://globalplasticwatch.org/map",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "epa_widget", name: "EPA emissions widget", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
-      page: "https://www.epa.gov/sites/production/files/widgets/ef-multisystem.html",
-      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "epa_widget", name: "EPA Envirofacts facilities (the multisystem widget)", unit: "facilities", colour: "#6A6258", route: "arcgisdyn", ready: true, lazy: true,
+      service: "https://geopub.epa.gov/arcgis/rest/services/EMEF/efpoints/MapServer", minzoom: 6.5,
+      attribution: "US EPA Envirofacts",
+      note: "The facility points behind EPA's Envirofacts multisystem widget, drawn live from EPA's EnviroMapper service; EPA draws them from about state level in." },
     { id: "eip_inventory", name: "Environmental Integrity Project: state emissions inventory", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://environmentalintegrity.org/state-emissions-inventory/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
@@ -5857,6 +5993,22 @@ const OTHER_MAPS = {
     { id: "gsn_rankings", name: "Global Safety Net: country rankings", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://www.globalsafetynet.app/rankings/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "giga_countries", name: "Giga: school mapping by country", unit: "countries", colour: "#627A86", route: "giga", ready: true, lazy: true,
+      data: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/giga/countries.json",
+      note: "Giga's own figures for every country on its map, copied daily (its service does not let other sites read it)." },
+    { id: "trase_facilities", name: "Trase: facilities", unit: "facilities", colour: "#62755F", route: "trasefacmenu", ready: true, lazy: true,
+      manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json",
+      types: [["brazil-facilities", "Brazil: slaughterhouses and animal-product facilities"], ["brazil-silos", "Brazil: soy silos and storage"],
+              ["cote-d-ivoire-cocoa-cooperatives", "C\u00f4te d'Ivoire: cocoa cooperatives"], ["indonesia-palm-oil-mills", "Indonesia: palm oil mills"],
+              ["indonesia-wood-pulp-mills", "Indonesia: wood pulp mills"], ["indonesia-wood-pulp-concessions-2015-2019", "Indonesia: wood pulp concessions, 2015\u20132019"],
+              ["indonesia-wood-pulp-concessions-2020-2022", "Indonesia: wood pulp concessions, 2020\u20132022"], ["indonesia-wood-pulp-concessions-2023-2024", "Indonesia: wood pulp concessions, 2023\u20132024"]],
+      note: "Trase's facilities maps, chosen from its own menu, read live from Trase's files (CC BY 4.0)." },
+    { id: "biosignature", name: "Biosignature Evidence Assessment", unit: "opens it in a panel", colour: "#5E6070", route: "companion", ready: true, lazy: true,
+      page: "https://welcometoyourgalaxy.github.io/maps/off-planet-invasion_embed_13_large-script.html",
+      note: "Your own assessment from the Off-Planet Invasion page, whole, in the panel along the bottom." },
+    { id: "leverage_chart", name: "The Leverage Chart", unit: "opens it in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://welcometoyourgalaxy.github.io/maps/leverage-chart.html",
+      note: "Your own chart from the Solution page, whole, in the panel along the bottom." },
     { id: "wreckers_umap", name: "Wreckers of the Earth (Corporate Watch)", unit: "companies and sites", colour: "#6E5A55", route: "umap", ready: true, lazy: true,
       umap: "https://umap.openstreetmap.fr/en", umapId: 409815,
       note: "Read live from Corporate Watch's uMap each time it is ticked, with its own layers, colours and popups." },
@@ -5937,6 +6089,9 @@ function ensureLayer(cfg) {
     : cfg.route === "rasterlive" ? Promise.resolve().then(() => addRasterChoiceLayer(cfg))
     : cfg.route === "trase" ? addTraseLayer(cfg)
     : cfg.route === "pmshapes" ? Promise.resolve().then(() => addPmShapesLayer(cfg))
+    : cfg.route === "arcgisdyn" ? addArcgisDynLayer(cfg)
+    : cfg.route === "giga" ? addGigaLayer(cfg)
+    : cfg.route === "trasefacmenu" ? addTraseFacMenu(cfg)
     : cfg.route === "gta" ? addGtaLayer(cfg)
     : cfg.route === "ctair" ? addCtAirLayer(cfg)
     : cfg.route === "gsn" ? addGsnLayer(cfg)
@@ -6064,6 +6219,10 @@ const LAYER_KIND = {
   unep_coral: ["animal", "downstream"],
   trase_measures: ["plant", "downstream"],
   mines_global: ["insentient", "downstream"],
+  giga_countries: ["human", "upstream"],
+  trase_facilities: ["plant", "upstream"],
+  biosignature: ["insentient", "downstream"],
+  leverage_chart: ["human", "upstream"],
   cfr_tracker: ["human", "upstream"],
   tableau_zsf: ["human", "upstream"],
   troutwood: ["human", "upstream"],
@@ -6564,28 +6723,28 @@ const PANEL_ORDER = [
   { h: 2, t: "Pre-birth frontlines" }, "gmo_releases", "group:gmo_map_layers",
   { h: 2, t: "Post-birth invasion" },
   { h: 3, t: "Invasion of nonhumans" },
-  { h: 3, t: "Invasion of humans" }, "site_settler_colonialism", "site_indigenous_conflicts",
+  { h: 3, t: "Invasion of humans" }, "site_settler_colonialism", "site_indigenous_conflicts", "ejatlas",
   { h: 3, t: "Of countries by countries" }, "site_secret_societies", "gm",
   { h: 2, t: "Post-life invasion" }, "remains_records", "remains_findings", "remains_cemeteries",
 
   { h: 1, t: "Off-planet invasion" },
-  "space_industry", "ll2_pads", "ll2_upcoming", "wrf", "nsf_launches", "nsf_locations", "esa_risk",
+  "space_industry", "ll2_pads", "ll2_upcoming", "wrf", "nsf_launches", "nsf_locations", "esa_risk", "biosignature",
 
   { h: 1, t: "Destruction" },
-  { h: 2, t: "Of the planet" },
+  { h: 2, t: "Of the planet" }, "atlas_hotspots", "atlas_cities",
   { h: 3, t: "Climate" }, "group:climate_trace_sectors", "group:climate_trace_agriculture", "group:climate_trace_forestry",
     "gem_coal", "carbon_bombs", "power_plants", "fertilizer_facilities", "site_carbon_mapper_waste", "site_china_grain",
-    "usda_soybean", "usda_corn", "wastewater",
+    "usda_soybean", "usda_corn", "wastewater", "group:ct_history",
   { h: 4, t: "National shading" }, "owid_co2",
   { h: 4, t: "Air pollution" }, "ct_air", "ct_pop",
   { h: 3, t: "Toxic pollution" }, "epa_tri", "epa_tri_sites", "epa_widget", "eip_inventory", "hydrofate",
-  { h: 3, t: "Plastics" }, "mymaps_chlorine", "arcgis_ym8xk", "arcgis_materialresearch", "pirg_plastic", "bffp_audit", "gpw_map",
-  { h: 3, t: "Deforestation" }, "gfw", "gfw_dist", "gfw_dist_year", "glad_loss", "palmwatch", "soilgrids",
+  { h: 3, t: "Plastics" }, "mymaps_chlorine", "arcgis_ym8xk", "arcgis_materialresearch", "pirg_plastic", "bffp_audit", "gpw_map", "seas_of_plastic", "coastal_cleanup",
+  { h: 3, t: "Deforestation" }, "gfw", "gfw_dist", "gfw_dist_year", "glad_loss", "palmwatch", "soilgrids", "trase_measures", "trase_facilities", "nusantara", "gfw_catalogue", "gsn", "gsn_rankings",
   { h: 3, t: "Agriculture" },
   { h: 4, t: "National shading" }, "land_matrix",
   { h: 4, t: "Slaughterhouses" }, "abattoir_facilities", "cultivated_meat_laws",
-  { h: 3, t: "Oceans" }, "fishing", "slavery_fishing", "cerulean_slicks", "cerulean_sources", "allen_coral", "skytruth_monitor", "skytruth_voc",
-  { h: 3, t: "Construction" }, "local_projects", "live_projects_app",
+  { h: 3, t: "Oceans" }, "fishing", "slavery_fishing", "cerulean_slicks", "cerulean_sources", "allen_coral", "skytruth_monitor", "skytruth_voc", "unep_coral",
+  { h: 3, t: "Construction" }, "local_projects", "live_projects_app", "mines_global",
   { h: 3, t: "Culprits upstream" },
   { h: 4, t: "Emissions" }, "carbon_majors", "soy_organizations", "fractracker_refineries", "bocc",
   { h: 4, t: "Deforestation" }, "site_forest500_soy", "site_soybean_companies", "dff",
@@ -6625,7 +6784,7 @@ const PANEL_ORDER = [
   { h: 4, t: "Holidays" },
   { h: 4, t: "Sex" },
   { h: 4, t: "Drugs" }, "capture_map", "site_cartel_cells",
-  { h: 2, t: "Of animals" }, "site_animal_fighting", "site_animal_tourism", "site_circus", "site_animal_racing", "site_rodeo",
+  { h: 2, t: "Of animals" }, "site_animal_fighting", "site_animal_tourism", "site_circus", "site_animal_racing", "site_rodeo", "final_nail",
   { h: 2, t: "Of plants" }, "site_enslaved_plants", "mymaps_trees",
   { h: 2, t: "Of microscopics" }, "site_enslaved_microbes",
   { h: 2, t: "Of the \u201cinsentient\u201d" }, "site_insentient",

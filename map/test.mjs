@@ -1943,5 +1943,15 @@ console.log("\noutside pages whole, in the panel");
   check("each sits under its heading", order.indexOf("bocc") > order.findIndex((x) => x && x.t === "Emissions") && order.indexOf("esa_risk") > order.findIndex((x) => x && x.t === "Off-planet invasion"));
 }
 
+console.log("\nwhat was still open");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the EPA widget's facilities are drawn live from EPA's service", /id: "epa_widget"[^\n]*route: "arcgisdyn"/.test(src) && /EMEF\/efpoints\/MapServer/.test(src) && /\/identify\?geometry=/.test(src));
+  check("Giga by country, Trase facilities, and two of your own are rows", ["giga_countries", "trase_facilities", "biosignature", "leverage_chart"].every((i) => new RegExp(`id: "${i}"`).test(src)));
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const order = new Function(body + "; return PANEL_ORDER;")();
+  check("the waiting rows are placed", ["ejatlas", "trase_measures", "nusantara", "gfw_catalogue", "gsn", "seas_of_plastic", "coastal_cleanup", "unep_coral", "mines_global", "atlas_hotspots", "final_nail", "group:ct_history"].every((i) => order.includes(i)));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
