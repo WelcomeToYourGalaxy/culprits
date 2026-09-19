@@ -2349,8 +2349,7 @@ async function readArcgisApp(cfg) {
 function addRasterChoiceLayer(cfg) {
   const src = `${cfg.id}-img`;
   cfg._pick = cfg._pick || 0;
-  map.addSource(src, { type: "raster", tileSize: 256, maxzoom: cfg.maxzoom || 12,
-    attribution: cfg.attribution || "", tiles: [cfg.choices[cfg._pick].tiles] });
+  map.addSource(src, rasterChoiceSource(cfg));
   map.addLayer({ id: `${cfg.id}-raster`, type: "raster", source: src,
     paint: { "raster-opacity": 0.8, "raster-saturation": -0.35 } });
   let failed = 0;
@@ -2364,6 +2363,13 @@ function addRasterChoiceLayer(cfg) {
   setLayerState(cfg.id, `${cfg.choices[cfg._pick].label} \u00b7 live`);
   applyVisibility(cfg.id);
   buildLegend();
+}
+// A choice is live squares (tiles) or a PMTiles copy (archive).
+function rasterChoiceSource(cfg) {
+  const ch = cfg.choices[cfg._pick];
+  return ch.archive
+    ? { type: "raster", tileSize: 256, url: `pmtiles://${ch.archive}`, attribution: cfg.attribution || "" }
+    : { type: "raster", tileSize: 256, maxzoom: cfg.maxzoom || 12, attribution: cfg.attribution || "", tiles: [ch.tiles] };
 }
 function rasterChoiceRow(cfg) {
   const box = document.getElementById("layers");
@@ -2382,7 +2388,18 @@ function rasterChoiceClicked(btn) {
   if (!cfg) return;
   cfg._pick = Number(btn.dataset.ri) || 0;
   const s = map.getSource(`${cfg.id}-img`);
-  if (s && s.setTiles) s.setTiles([cfg.choices[cfg._pick].tiles]);
+  if (cfg.choices[cfg._pick].archive || !(s && s.setTiles)) {
+    // A copy is its own archive: the source is replaced, in the same place in the drawing order.
+    const order = map.getStyle().layers.map((l) => l.id);
+    const at = order.indexOf(`${cfg.id}-raster`);
+    const before = at >= 0 ? order[at + 1] : undefined;
+    const paint = { "raster-opacity": map.getPaintProperty(`${cfg.id}-raster`, "raster-opacity") ?? 0.8, "raster-saturation": -0.35 };
+    if (map.getLayer(`${cfg.id}-raster`)) map.removeLayer(`${cfg.id}-raster`);
+    if (s) map.removeSource(`${cfg.id}-img`);
+    map.addSource(`${cfg.id}-img`, rasterChoiceSource(cfg));
+    map.addLayer({ id: `${cfg.id}-raster`, type: "raster", source: `${cfg.id}-img`, paint }, before && map.getLayer(before) ? before : undefined);
+    applyVisibility(cfg.id);
+  } else s.setTiles([cfg.choices[cfg._pick].tiles]);
   const box = document.getElementById("layers");
   const row = box && box.querySelector(`.facet[data-raster-for="${cfg.id}"]`);
   if (row) for (const c of row.querySelectorAll("[data-ri]")) c.classList.toggle("on", Number(c.dataset.ri) === cfg._pick);
@@ -2892,10 +2909,57 @@ function spheresCard(cfg, html, id) {
   wrap._pending = id;
   spheresOpen(id);
 }
-function spheresOpen(id) {
+// What to open: a body's id, or { fn: "openPerson" | "openSector", arg } - the map's own functions.
+function spheresOpen(what) {
   const w = spheresFrame && spheresFrame.contentWindow;
-  if (!id || !w || !w.document || w.document.readyState !== "complete") return;
-  try { w.eval(`openNode(${JSON.stringify(id)})`); } catch (e) { console.warn("[culprits] social spheres card:", e.message); }
+  if (!what || !w || !w.document || w.document.readyState !== "complete") return;
+  const fn = typeof what === "string" ? "openNode" : what.fn;
+  if (!["openNode", "openPerson", "openSector"].includes(fn)) return;
+  const arg = typeof what === "string" ? what : what.arg;
+  try { w.eval(`${fn}(${JSON.stringify(arg)})`); } catch (e) { console.warn("[culprits] social spheres card:", e.message); }
+}
+function spheresLabels(html) {
+  const m = /const KINDLABEL=\{([^;]*)\};/.exec(html || "");
+  const out = {};
+  if (m) for (const [, k, v] of m[1].matchAll(/(\w+):"([^"]*)"/g)) out[k] = v;
+  return out;
+}
+function spheresControls(cfg, html, D, kinds) {
+  const row = document.querySelector(`[data-layer="${cfg.id}"]`);
+  const anchor = row && row.closest ? row.closest("label") : null;
+  if (!anchor || !anchor.after || !document.createElement) return;
+  const labels = spheresLabels(html);
+  const used = [...new Set(D.nodes.map((n) => n.kind))];
+  const picked = new Set();
+  const el = document.createElement("div");
+  el.className = "facet";
+  const people = (D.people || []).slice().sort((a, b) => a.name.localeCompare(b.name));
+  const sectors = (D.sectors || []).map((s) => s.name).sort();
+  el.innerHTML = `<span class="chip reset" data-sk="">All kinds</span>` + used.map((k) =>
+      `<button type="button" class="chip" data-sk="${escapeHtml(k)}"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;` +
+      `background:${kinds[k] || cfg.colour};margin-right:4px"></i>${escapeHtml(labels[k] || k)}</button>`).join("") +
+    `<input list="${cfg.id}-people" placeholder="Find a person" aria-label="Find a person" style="flex:1 1 100%;margin-top:4px;font:inherit;` +
+      `color:var(--bone);background:var(--peat,#17150F);border:1px solid var(--rule);border-radius:2px;padding:2px 5px">` +
+    `<datalist id="${cfg.id}-people">${people.map((p) => `<option value="${escapeHtml(p.name)}"></option>`).join("")}</datalist>` +
+    (sectors.length ? `<select aria-label="Sector" style="flex:1 1 100%;margin-top:4px"><option value="">Sector\u2026</option>` +
+      sectors.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("") + `</select>` : "");
+  el.addEventListener("click", (e) => {
+    const b = e.target.closest && e.target.closest("[data-sk]");
+    if (!b) return;
+    e.stopPropagation();
+    const k = b.dataset.sk;
+    if (!k) picked.clear(); else if (picked.has(k)) picked.delete(k); else picked.add(k);
+    for (const c of el.querySelectorAll("[data-sk]")) c.classList.toggle("on", c.dataset.sk ? picked.has(c.dataset.sk) : picked.size === 0);
+    map.setFilter(`${cfg.id}-pt`, picked.size ? ["in", ["get", "kind"], ["literal", [...picked]]] : null);
+  });
+  const find = el.querySelector("input");
+  find.addEventListener("change", () => {
+    const p = people.find((x) => x.name === find.value);
+    if (p) spheresCard(cfg, html, { fn: "openPerson", arg: p.id });
+  });
+  const sec = el.querySelector("select");
+  if (sec) sec.addEventListener("change", () => { if (sec.value) spheresCard(cfg, html, { fn: "openSector", arg: sec.value }); });
+  anchor.after(el);
 }
 
 async function addSpheresLayer(cfg) {
@@ -2910,7 +2974,7 @@ async function addSpheresLayer(cfg) {
   const kinds = spheresKinds(html);
   const N = new Map(D.nodes.map((n) => [n.id, n]));
   const pts = D.nodes.map((n) => ({ type: "Feature", geometry: { type: "Point", coordinates: [n.lng, n.lat] },
-    properties: { id: n.id, name: n.name, c: kinds[n.kind] || cfg.colour, linked: n.linked ? 1 : 0 } }));
+    properties: { id: n.id, name: n.name, kind: n.kind, c: kinds[n.kind] || cfg.colour, linked: n.linked ? 1 : 0 } }));
   const lines = (D.edges || []).filter((e) => N.has(e.a) && N.has(e.b)).map((e) => ({ type: "Feature",
     geometry: { type: "LineString", coordinates: [[N.get(e.a).lng, N.get(e.a).lat], [N.get(e.b).lng, N.get(e.b).lat]] },
     properties: { w: e.w || 1, a: N.get(e.a).name, b: N.get(e.b).name, n: (e.via || []).length } }));
@@ -2930,6 +2994,7 @@ async function addSpheresLayer(cfg) {
   bindHtmlPopup(`${cfg.id}-line`, (p) => `<b>${escapeHtml(p.a)} \u2194 ${escapeHtml(p.b)}</b><div class="meta">${Number(p.n || p.w)} people sit in both</div>`);
   map.on("mouseenter", `${cfg.id}-pt`, () => { map.getCanvas().style.cursor = "pointer"; });
   map.on("mouseleave", `${cfg.id}-pt`, () => { map.getCanvas().style.cursor = ""; });
+  spheresControls(cfg, html, D, kinds);
   setLayerState(cfg.id, `${D.nodes.length} bodies, ${(D.people || []).length.toLocaleString()} people, ${lines.length} links`);
   applyVisibility(cfg.id);
   buildLegend();
@@ -3207,6 +3272,49 @@ async function addRteLayer(cfg) {
   await draw(years[0]);
   applyVisibility(cfg.id);
   buildLegend();
+}
+
+/* ---------- a whole map of the site's own, in a panel that follows this one ---------- */
+// The page is on the same site, so this map can move it to the same place. Its
+// Leaflet zoom is one more than this map's (512-pixel tiles here, 256 there).
+const companions = new Map();
+function companionSync(cfg) {
+  const c = companions.get(cfg.id);
+  if (!c || c.el.hidden || !c.follow.checked) return;
+  try {
+    const w = c.frame.contentWindow, ctr = map.getCenter();
+    w.eval(`map.setView([${ctr.lat}, ${ctr.lng}], ${Math.round(map.getZoom() + 1)}, { animate: false })`);
+  } catch (e) { /* the page is still loading */ }
+}
+function addCompanion(cfg) {
+  let c = companions.get(cfg.id);
+  if (!c) {
+    const el = document.createElement("div");
+    el.className = "companion";
+    el.style.cssText = "position:fixed;left:0;right:0;bottom:0;height:46vh;z-index:40;display:flex;flex-direction:column;" +
+      "background:var(--peat,#17150F);border-top:1px solid var(--rule,#322E27)";
+    el.innerHTML = `<div style="display:flex;align-items:center;gap:11px;padding:6px 12px;font-size:12.5px;color:var(--dim)">` +
+      `<span style="color:var(--bone)">${escapeHtml(cfg.name)}</span>` +
+      `<label style="display:flex;gap:5px;align-items:center;cursor:pointer"><input type="checkbox" checked> follow this map</label>` +
+      `<a href="${escapeHtml(cfg.page)}" target="_blank" rel="noopener" style="color:var(--slate,#8A9DA6)">open \u2197</a>` +
+      `<span style="margin-left:auto"></span><button type="button" style="font:inherit;background:none;color:var(--dim);border:1px solid var(--rule);` +
+      `border-radius:2px;padding:1px 7px;cursor:pointer">close</button></div>` +
+      `<iframe title="${escapeHtml(cfg.name)}" style="flex:1;width:100%;border:0"></iframe>`;
+    document.body.appendChild(el);
+    const frame = el.querySelector("iframe");
+    c = { el, frame, follow: el.querySelector("input") };
+    companions.set(cfg.id, c);
+    el.querySelector("button").addEventListener("click", () => {
+      const cb = document.querySelector(`[data-layer="${cfg.id}"]`);
+      if (cb) { cb.checked = false; cb.dispatchEvent(new Event("change", { bubbles: true })); }
+    });
+    frame.addEventListener("load", () => setTimeout(() => companionSync(cfg), 800));
+    c.follow.addEventListener("change", () => companionSync(cfg));
+    map.on("moveend", () => companionSync(cfg));
+    frame.src = cfg.page;
+  }
+  setLayerState(cfg.id, "open along the bottom of the screen");
+  applyVisibility(cfg.id);
 }
 
 /* ---------- the sky the map sits in ---------- */
@@ -4984,6 +5092,8 @@ function applyVisibility(id) {
     cfg._pointsTried = true;
     addPointOverview(cfg).catch((e) => console.warn(`[culprits] ${cfg.id} points: ${e.message}`));
   }
+  const comp = typeof companions !== "undefined" && companions.get(id);
+  if (comp) { comp.el.hidden = vis !== "visible"; if (vis === "visible") companionSync(childById(id) || cfg); }
   const extra = (cfg || childById(id) || {})._layerIds;
   if (extra) for (const l of extra) if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", vis);
   if (cfg && cfg.route === "cerulean" && vis === "visible") {
@@ -5472,6 +5582,9 @@ const OTHER_MAPS = {
     { id: "rte_trade", name: "Resource trade flows (resourcetrade.earth, Chatham House)", unit: "trade flows", colour: "#8A6356", route: "rte", ready: true, lazy: true,
       api: "https://api.resourcetrade.earth/api/rt/2.7", copy: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/rte",
       note: "The largest natural-resource trade flows between countries, read live from resourcetrade.earth (a daily copy stands in if it cannot be read)." },
+    { id: "live_projects_app", name: "Live Projects to Resist (its whole map)", unit: "opens its own map in a panel", colour: "#6E7B84", route: "companion", ready: true, lazy: true,
+      page: "https://welcometoyourgalaxy.github.io/local-map/",
+      note: "The Live Global Project Map itself, in a panel along the bottom that follows this map's view: its country guides and how-to PDFs, lenses, trackers, regions, project cards, overlays and history." },
     { id: "wreckers_umap", name: "Wreckers of the Earth (Corporate Watch)", unit: "companies and sites", colour: "#6E5A55", route: "umap", ready: true, lazy: true,
       umap: "https://umap.openstreetmap.fr/en", umapId: 409815,
       note: "Read live from Corporate Watch's uMap each time it is ticked, with its own layers, colours and popups." },
@@ -5512,13 +5625,13 @@ const OTHER_MAPS = {
     { id: "wastewater", name: "Global Wastewater Model (Tuholske et al.)", unit: "nitrogen from human wastewater", colour: "#5E7377", route: "rasterlive", ready: true, lazy: true,
       attribution: "Tuholske et al. 2021, Global Wastewater Model", maxzoom: 10,
       choices: [
-        { label: "Nitrogen in all wastewater", tiles: "https://mazu.nceas.ucsb.edu/wastewater/N_effluent/{z}/{x}/{y}.png" },
-        { label: "From sewage treatment", tiles: "https://mazu.nceas.ucsb.edu/wastewater/N_effluent_treated/{z}/{x}/{y}.png" },
-        { label: "From septic systems", tiles: "https://mazu.nceas.ucsb.edu/wastewater/N_effluent_septic/{z}/{x}/{y}.png" },
-        { label: "Untreated (open defecation)", tiles: "https://mazu.nceas.ucsb.edu/wastewater/N_effluent_open/{z}/{x}/{y}.png" },
-        { label: "Coastal nitrogen plumes", tiles: "https://mazu.nceas.ucsb.edu/wastewater/N_plumes/{z}/{x}/{y}.png" }
+        { label: "Nitrogen in all wastewater", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_N_effluent.pmtiles" },
+        { label: "From sewage treatment", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_N_effluent_treated.pmtiles" },
+        { label: "From septic systems", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_N_effluent_septic.pmtiles" },
+        { label: "Untreated (open defecation)", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_N_effluent_open.pmtiles" },
+        { label: "Coastal nitrogen plumes", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_N_plumes.pmtiles" }
       ],
-      note: "The model's published tiles, read live. Each chip is one of the model's own layers." },
+      note: "The model's own published pictures, from a GitHub copy (its server does not let other sites draw them). Each chip is one of the model's own layers." },
   ],
 };
 
@@ -5552,6 +5665,7 @@ function ensureLayer(cfg) {
     : cfg.route === "rasterlive" ? Promise.resolve().then(() => addRasterChoiceLayer(cfg))
     : cfg.route === "trase" ? addTraseLayer(cfg)
     : cfg.route === "pmshapes" ? Promise.resolve().then(() => addPmShapesLayer(cfg))
+    : cfg.route === "companion" ? Promise.resolve().then(() => addCompanion(cfg))
     : cfg.route === "rte" ? addRteLayer(cfg)
     : cfg.route === "ll2" ? addLivePlacesLayer(cfg)
     : cfg.route === "owidgrapher" ? addOwidGrapherLayer(cfg)
@@ -5675,6 +5789,7 @@ const LAYER_KIND = {
   unep_coral: ["animal", "downstream"],
   trase_measures: ["plant", "downstream"],
   mines_global: ["insentient", "downstream"],
+  live_projects_app: ["human", "downstream"],
   rte_trade: ["insentient", "upstream"],
   mymaps_supp_a: ["human", "upstream"],
   mymaps_supp_b: ["human", "upstream"],
@@ -6162,7 +6277,7 @@ const PANEL_ORDER = [
   { h: 4, t: "National shading" }, "land_matrix",
   { h: 4, t: "Slaughterhouses" }, "abattoir_facilities", "cultivated_meat_laws",
   { h: 3, t: "Oceans" }, "fishing", "slavery_fishing", "cerulean_slicks", "cerulean_sources", "allen_coral",
-  { h: 3, t: "Construction" }, "local_projects",
+  { h: 3, t: "Construction" }, "local_projects", "live_projects_app",
   { h: 3, t: "Culprits upstream" },
   { h: 4, t: "Emissions" }, "carbon_majors", "soy_organizations", "fractracker_refineries",
   { h: 4, t: "Deforestation" }, "site_forest500_soy", "site_soybean_companies",

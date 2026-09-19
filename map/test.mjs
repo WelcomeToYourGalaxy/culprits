@@ -1653,7 +1653,7 @@ console.log("\nlive maps from the Destruction page, batch 1");
   const umapText = new Function("escapeHtml", src.slice(src.indexOf("function umapText("), src.indexOf("async function readUmap(")) + "; return umapText;")(esc);
   check("uMap links and bold are kept", umapText("**Shell**\n[[https://x.org|site]]") === '<b>Shell</b><br><a href="https://x.org" target="_blank" rel="noopener">site</a>');
   check("SoilGrids offers every property it publishes at the top depth", (src.match(/_0-5cm_mean/g) || []).length === 10);
-  check("the wastewater model offers its five layers", (src.match(/mazu\.nceas\.ucsb\.edu\/wastewater\//g) || []).length === 5);
+  check("the wastewater model offers its five layers", (src.match(/tiles\/wastewater_N_[a-z_]+\.pmtiles/g) || []).length === 5);
   check("a picture that fails says so on its row", /the source did not answer for \$\{failed\} square/.test(src));
 }
 
@@ -1806,7 +1806,7 @@ console.log("\nthe Social Spheres, its own map");
   check("its data is read whole, even with braces inside its text", d.nodes[0].what === "a } brace in text");
   const kinds = new Function(src.slice(src.indexOf("function spheresKinds("), src.indexOf("let spheresFrame")) + "; return spheresKinds;")();
   check("its own colours are kept", kinds("const KIND={assoc:{c:'#D6BC82'},club:{c:'#C79A55'}};").club === "#C79A55");
-  check("a click opens the map's own card through its own code", /openNode\(\$\{JSON\.stringify\(id\)\}\)/.test(src) && /srcdoc = html/.test(src));
+  check("a click opens the map's own card through its own code", /w\.eval\(`\$\{fn\}\(\$\{JSON\.stringify\(arg\)\}\)`\)/.test(src) && /srcdoc = html/.test(src));
 }
 
 console.log("\nbuilding types, one layer");
@@ -1891,6 +1891,16 @@ console.log("\nresource trade flows");
   const arc = new Function(src.slice(src.indexOf("function rteArc("), src.indexOf("async function addRteLayer(")) + "; return rteArc;")();
   const a = arc([0, 0], [10, 0]);
   check("a flow runs from exporter to importer on a curve", a[0][0] === 0 && a[a.length - 1][0] === 10 && a[12][1] !== 0);
+}
+
+console.log("\nSocial Spheres controls; Live Projects to Resist whole; wastewater from its copy");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const lab = new Function(src.slice(src.indexOf("function spheresLabels("), src.indexOf("function spheresControls(")) + "; return spheresLabels;")();
+  check("the Social Spheres' own kind names are read", lab('const KINDLABEL={assoc:"Association & commission",club:"Club"};').club === "Club");
+  check("a person or sector opens through the map's own functions only", /\["openNode", "openPerson", "openSector"\]\.includes\(fn\)/.test(src));
+  check("Live Projects to Resist opens whole, following this map", /id: "live_projects_app"/.test(src) && /map\.setView\(\[\$\{ctr\.lat\}/.test(src));
+  check("the wastewater layers read the GitHub copy", (src.match(/tiles\/wastewater_N_[a-z_]+\.pmtiles/g) || []).length === 5 && !/mazu\.nceas\.ucsb\.edu/.test(src));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
