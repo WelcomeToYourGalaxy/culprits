@@ -1755,5 +1755,26 @@ console.log("\nthe screen, rearranged");
   check("leaving for space hides the right box too", /"\.right-col", "#legend"/.test(src));
 }
 
+console.log("\nlive maps, batch 2");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  for (const id of ["ejatlas", "seas_of_plastic", "final_nail", "nusantara", "gfw_catalogue", "coastal_cleanup", "atlas_hotspots", "atlas_cities"]) {
+    check(`${id} is a row`, new RegExp(`id: "${id}"`).test(src));
+  }
+  check("the Trase facilities rows have their own reader again", /async function readTraseFacilities\(/.test(src) &&
+        /cfg\.route === "trasefac" \? await readTraseFacilities\(cfg\)/.test(src));
+  const body = src.slice(src.indexOf("function atlasWords("), src.indexOf("function linkAtlasPdfs("));
+  const pdfFor = new Function(body + "; return atlasPdfFor;")();
+  const cfg = { pdfs: [["madagascar", "Madagascar & The Indian Ocean Islands"], ["western_ghats_sri_lanka", "Western Ghats & Sri Lanka"], ["himalaya", "Himalaya"]] };
+  check("a hotspot finds its Atlas PDF by name", (pdfFor(cfg, "Madagascar and the Indian Ocean Islands") || [])[0] === "madagascar" &&
+        (pdfFor(cfg, "Western Ghats and Sri Lanka") || [])[0] === "western_ghats_sri_lanka");
+  check("…and one the Atlas has no PDF for finds none", pdfFor(cfg, "Irano-Anatolian") === null);
+  const p = new Function(src.slice(src.indexOf("function pointOf("), src.indexOf("// EJAtlas: its conflicts")) + "; return pointOf;")();
+  check("a record's position is found under its usual names", JSON.stringify(p({ lat: "1.5", lon: "2" }).coordinates) === "[2,1.5]" &&
+        JSON.stringify(p({ point: { type: "Point", coordinates: [3, 4] } }).coordinates) === "[3,4]");
+  check("the Nusantara menu lists every layer its server publishes", /REQUEST=GetCapabilities/.test(src) && /REQUEST=GetFeatureInfo/.test(src));
+  check("the GFW menu reads the whole catalogue and each dataset's tiles", /datasets\?page\[size\]=100/.test(src) && /vector tile cache/.test(src));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
