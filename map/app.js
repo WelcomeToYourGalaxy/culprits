@@ -3356,6 +3356,68 @@ async function addGsnLayer(cfg) {
   setLayerState(cfg.id, `${list.length} layers \u2014 tick the ones to show`);
 }
 
+/* ---------- Climate TRACE air pollution: sources, plumes, every pollutant ---------- */
+const CT_GASES = [["pm2_5", "PM2.5"], ["bc", "Black carbon"], ["oc", "Organic carbon"], ["so2", "SO\u2082"], ["vocs", "VOCs"],
+  ["co", "CO"], ["nh3", "Ammonia"], ["nox", "NOx"], ["co2e_100yr", "CO\u2082e (100-year)"]];
+function ctAssetHtml(a, gas) {
+  const t = a.totals || {};
+  const n = (v, d = 0) => (v == null ? "\u2014" : Number(v).toLocaleString(undefined, { maximumFractionDigits: d }));
+  const ranks = (a.subsectorRanks || []).slice(-1)[0];
+  return `<div class="meta">${escapeHtml([a.type, (a.subsector || "").replace(/-/g, " "), (a.location && a.location.country) || ""].filter(Boolean).join(" \u00b7 "))}</div>` +
+    `<div class="meta"><b>${escapeHtml((CT_GASES.find((g) => g[0] === gas) || [gas, gas])[1])}:</b> ${n(t.value, 1)} t a year</div>` +
+    (t.capacity ? `<div class="meta">Capacity: ${n(t.capacity)} ${escapeHtml(t.capacityUnits || "")}` +
+      (t.capacityFactor != null ? ` (used ${n(t.capacityFactor * 100)}%)` : "") + `</div>` : "") +
+    (t.activity ? `<div class="meta">Activity: ${n(t.activity)} ${escapeHtml(t.activityUnits || "")}</div>` : "") +
+    (t.emissionsFactor ? `<div class="meta">Rate: ${n(t.emissionsFactor, 5)} ${escapeHtml(t.emissionsFactorUnits || "")}</div>` : "") +
+    (ranks ? `<div class="meta">Rank in its sector, ${ranks.year}: ${n(ranks.rank)}</div>` : "");
+}
+async function addCtAirLayer(cfg) {
+  let gj;
+  try { gj = await getJson(cfg.list, 60000); }
+  catch (e) { setLayerState(cfg.id, `not built yet (${e.message})`); return; }
+  const src = `${cfg.id}-src`;
+  map.addSource(src, { type: "geojson", data: gj });
+  map.addSource(`${cfg.id}-plume`, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+  map.addLayer({ id: `${cfg.id}-line`, type: "line", source: `${cfg.id}-plume`, layout: { "line-cap": "round" },
+    paint: { "line-color": "#B8A79E", "line-width": 1.6, "line-opacity": 0.8 } });
+  map.addLayer({ id: `${cfg.id}-pt`, type: "circle", source: src,
+    paint: { "circle-color": cfg.colour, "circle-opacity": 0.9,
+             "circle-radius": ["interpolate", ["linear"], ["sqrt", ["max", 0, ["to-number", ["get", "pm25_kg_hr"], 0]]], 0, 2.5, 10, 9] } });
+  let gas = "pm2_5";
+  map.on("click", `${cfg.id}-pt`, async (e) => {
+    const f = e.features && e.features[0];
+    if (!f) return;
+    popupClaimedBy = e.originalEvent || e;
+    const p = f.properties;
+    const pop = new maplibregl.Popup({ maxWidth: "320px" }).setLngLat(f.geometry.coordinates).setHTML(
+      `<b>${escapeHtml(p.name)}</b>` +
+      `<div class="meta">PM2.5: ${Number(p.pm25_kg_hr || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} kg an hour (monthly average)</div>` +
+      `<div class="meta"><select aria-label="Pollutant">${CT_GASES.map(([k, l]) => `<option value="${k}"${k === gas ? " selected" : ""}>${l}</option>`).join("")}</select></div>` +
+      `<div class="ct-air-figs meta">Reading Climate TRACE\u2026</div>` +
+      (p.area ? `<div class="meta"><a href="https://climatetrace.org/air-pollution/${encodeURIComponent(p.area)}" target="_blank" rel="noopener">Its city air-pollution page</a></div>` : "") +
+      `<div class="meta">Climate TRACE (CC BY 4.0)</div>`).addTo(map);
+    const el = pop.getElement();
+    const figs = async () => {
+      const box = el.querySelector(".ct-air-figs");
+      try {
+        const a = await getJson(`https://api.c10e.org/v7/app/asset/${encodeURIComponent(p.id)}?gas=${gas}&years=2024`, 30000);
+        box.innerHTML = ctAssetHtml(a, gas);
+      } catch (err) { box.textContent = `Climate TRACE did not answer (${err.message})`; }
+    };
+    el.querySelector("select").addEventListener("change", (ev) => { gas = ev.target.value; figs(); });
+    figs();
+    if (p.plume) {
+      try { map.getSource(`${cfg.id}-plume`).setData(await getJson(`https://plumes.climatetrace.org/${p.plume}`, 30000)); }
+      catch (err) { /* no plume for this date */ }
+    }
+  });
+  map.on("mouseenter", `${cfg.id}-pt`, () => { map.getCanvas().style.cursor = "pointer"; });
+  map.on("mouseleave", `${cfg.id}-pt`, () => { map.getCanvas().style.cursor = ""; });
+  setLayerState(cfg.id, `${(gj.features || []).length.toLocaleString()} sources \u00b7 click one for its plume and pollutants`);
+  applyVisibility(cfg.id);
+  buildLegend();
+}
+
 /* ---------- the sky the map sits in ---------- */
 
 // Placed at random once, from a fixed seed, so the same sky comes back on
@@ -5627,6 +5689,13 @@ const OTHER_MAPS = {
     { id: "gsn", name: "Global Safety Net (One Earth)", unit: "layers", colour: "#406F2F", route: "gsn", ready: true, lazy: true,
       api: "https://api.gsn.naturedatalab.org/geo-analysis/layers",
       note: "Every layer the Global Safety Net viewer offers, drawn live from its own map service in its own colours." },
+    { id: "ct_air", name: "Climate TRACE: urban air-pollution sources and their plumes", unit: "sources", colour: "#7A5A55", route: "ctair", ready: true, lazy: true,
+      list: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/sources.geojson",
+      note: "The sources Climate TRACE's city air-pollution pages cover; a click draws the source's modelled plume and gives its figures for every pollutant, read live." },
+    { id: "ct_pop", name: "Population density (Climate TRACE, GHSL 1 km)", unit: "people per square km", colour: "#6A6258", route: "rasterlive", ready: true, lazy: true,
+      attribution: "Climate TRACE; GHSL population", maxzoom: 12,
+      choices: [{ label: "Population", tiles: "https://tiles.climatetrace.org/ghsl-pop-1km/all/{z}/{x}/{y}.png" }],
+      note: "The population layer Climate TRACE's air-pollution pages draw underneath, read live." },
     { id: "wreckers_umap", name: "Wreckers of the Earth (Corporate Watch)", unit: "companies and sites", colour: "#6E5A55", route: "umap", ready: true, lazy: true,
       umap: "https://umap.openstreetmap.fr/en", umapId: 409815,
       note: "Read live from Corporate Watch's uMap each time it is ticked, with its own layers, colours and popups." },
@@ -5707,6 +5776,7 @@ function ensureLayer(cfg) {
     : cfg.route === "rasterlive" ? Promise.resolve().then(() => addRasterChoiceLayer(cfg))
     : cfg.route === "trase" ? addTraseLayer(cfg)
     : cfg.route === "pmshapes" ? Promise.resolve().then(() => addPmShapesLayer(cfg))
+    : cfg.route === "ctair" ? addCtAirLayer(cfg)
     : cfg.route === "gsn" ? addGsnLayer(cfg)
     : cfg.route === "companion" ? Promise.resolve().then(() => addCompanion(cfg))
     : cfg.route === "rte" ? addRteLayer(cfg)
@@ -5832,6 +5902,8 @@ const LAYER_KIND = {
   unep_coral: ["animal", "downstream"],
   trase_measures: ["plant", "downstream"],
   mines_global: ["insentient", "downstream"],
+  ct_air: ["human", "downstream"],
+  ct_pop: ["human", "downstream"],
   gsn: ["plant", "downstream"],
   live_projects_app: ["human", "downstream"],
   rte_trade: ["insentient", "upstream"],
@@ -6314,6 +6386,7 @@ const PANEL_ORDER = [
     "gem_coal", "carbon_bombs", "power_plants", "fertilizer_facilities", "site_carbon_mapper_waste", "site_china_grain",
     "usda_soybean", "usda_corn", "wastewater",
   { h: 4, t: "National shading" }, "owid_co2",
+  { h: 4, t: "Air pollution" }, "ct_air", "ct_pop",
   { h: 3, t: "Toxic pollution" }, "epa_tri", "epa_tri_sites",
   { h: 3, t: "Plastics" }, "mymaps_chlorine", "arcgis_ym8xk", "arcgis_materialresearch",
   { h: 3, t: "Deforestation" }, "gfw", "gfw_dist", "gfw_dist_year", "glad_loss", "palmwatch", "soilgrids",
