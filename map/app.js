@@ -3280,7 +3280,7 @@ async function addRteLayer(cfg) {
 const companions = new Map();
 function companionSync(cfg) {
   const c = companions.get(cfg.id);
-  if (!c || c.el.hidden || !c.follow.checked) return;
+  if (!c || c.el.hidden || !c.follow || !c.follow.checked) return;
   try {
     const w = c.frame.contentWindow, ctr = map.getCenter();
     w.eval(`map.setView([${ctr.lat}, ${ctr.lng}], ${Math.round(map.getZoom() + 1)}, { animate: false })`);
@@ -3295,21 +3295,22 @@ function addCompanion(cfg) {
       "background:var(--peat,#17150F);border-top:1px solid var(--rule,#322E27)";
     el.innerHTML = `<div style="display:flex;align-items:center;gap:11px;padding:6px 12px;font-size:12.5px;color:var(--dim)">` +
       `<span style="color:var(--bone)">${escapeHtml(cfg.name)}</span>` +
-      `<label style="display:flex;gap:5px;align-items:center;cursor:pointer"><input type="checkbox" checked> follow this map</label>` +
+      (cfg.follow ? `<label style="display:flex;gap:5px;align-items:center;cursor:pointer"><input type="checkbox" checked> follow this map</label>`
+        : `<span style="font-size:11.5px">If this stays blank, the site does not allow being shown inside another page: use open \u2197</span>`) +
       `<a href="${escapeHtml(cfg.page)}" target="_blank" rel="noopener" style="color:var(--slate,#8A9DA6)">open \u2197</a>` +
       `<span style="margin-left:auto"></span><button type="button" style="font:inherit;background:none;color:var(--dim);border:1px solid var(--rule);` +
       `border-radius:2px;padding:1px 7px;cursor:pointer">close</button></div>` +
       `<iframe title="${escapeHtml(cfg.name)}" style="flex:1;width:100%;border:0"></iframe>`;
     document.body.appendChild(el);
     const frame = el.querySelector("iframe");
-    c = { el, frame, follow: el.querySelector("input") };
+    c = { el, frame, follow: el.querySelector("input[type=checkbox]") };
     companions.set(cfg.id, c);
     el.querySelector("button").addEventListener("click", () => {
       const cb = document.querySelector(`[data-layer="${cfg.id}"]`);
       if (cb) { cb.checked = false; cb.dispatchEvent(new Event("change", { bubbles: true })); }
     });
     frame.addEventListener("load", () => setTimeout(() => companionSync(cfg), 800));
-    c.follow.addEventListener("change", () => companionSync(cfg));
+    if (c.follow) c.follow.addEventListener("change", () => companionSync(cfg));
     map.on("moveend", () => companionSync(cfg));
     frame.src = cfg.page;
   }
@@ -5255,7 +5256,19 @@ function applyVisibility(id) {
     addPointOverview(cfg).catch((e) => console.warn(`[culprits] ${cfg.id} points: ${e.message}`));
   }
   const comp = typeof companions !== "undefined" && companions.get(id);
-  if (comp) { comp.el.hidden = vis !== "visible"; if (vis === "visible") companionSync(childById(id) || cfg); }
+  if (comp) {
+    comp.el.hidden = vis !== "visible";
+    if (vis === "visible") {
+      // One panel at a time: opening one closes any other.
+      for (const [oid, oc] of companions) {
+        if (oid === id || oc.el.hidden) continue;
+        const cb = document.querySelector(`[data-layer="${oid}"]`);
+        if (cb && cb.checked) { cb.checked = false; cb.dispatchEvent(new Event("change", { bubbles: true })); }
+        else oc.el.hidden = true;
+      }
+      companionSync(childById(id) || cfg);
+    }
+  }
   const extra = (cfg || childById(id) || {})._layerIds;
   if (extra) for (const l of extra) if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", vis);
   if (cfg && cfg.route === "cerulean" && vis === "visible") {
@@ -5745,7 +5758,7 @@ const OTHER_MAPS = {
       api: "https://api.resourcetrade.earth/api/rt/2.7", copy: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/rte",
       note: "The largest natural-resource trade flows between countries, read live from resourcetrade.earth (a daily copy stands in if it cannot be read)." },
     { id: "live_projects_app", name: "Live Projects to Resist (its whole map)", unit: "opens its own map in a panel", colour: "#6E7B84", route: "companion", ready: true, lazy: true,
-      page: "https://welcometoyourgalaxy.github.io/local-map/",
+      page: "https://welcometoyourgalaxy.github.io/local-map/", follow: true,
       note: "The Live Global Project Map itself, in a panel along the bottom that follows this map's view: its country guides and how-to PDFs, lenses, trackers, regions, project cards, overlays and history." },
     { id: "gsn", name: "Global Safety Net (One Earth)", unit: "layers", colour: "#406F2F", route: "gsn", ready: true, lazy: true,
       api: "https://api.gsn.naturedatalab.org/geo-analysis/layers",
@@ -5760,6 +5773,90 @@ const OTHER_MAPS = {
     { id: "gta_acts", name: "Global Trade Alert: state acts by country", unit: "state acts", colour: "#8A6356", route: "gta", ready: true, lazy: true,
       data: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gta/countries.json", shapes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gta/world.geojson",
       note: "Every state act in Global Trade Alert's database, summed by the country that took it, from a daily copy." },
+    { id: "cfr_tracker", name: "CFR Global Monetary Policy Tracker (Tableau)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://public.tableau.com/views/CFRGlobalMonetaryPolicyTrackerNEW/GlobalMonetaryPolicyTracker?:showVizHome=no&:embed=y",
+      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "tableau_zsf", name: "Tableau dashboard (Suppression page)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://public.tableau.com/shared/ZSF724HPQ?:showVizHome=no&:embed=y",
+      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "troutwood", name: "Troutwood map", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://map.troutwood.com/",
+      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "ect_secrets", name: "Energy Charter Treaty's Dirty Secrets", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://energy-charter-dirty-secrets.org/",
+      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "isds_tracker", name: "Global ISDS Tracker", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://www.globalisdstracker.org/database/",
+      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "giga_schools", name: "Giga: school connectivity map", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://maps.giga.global/map",
+      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "pirg_plastic", name: "Where is plastic produced? (PIRG)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://pirg.org/resources/where-is-plastic-produced/",
+      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "bffp_audit", name: "Break Free From Plastic brand audit 2023", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://brandaudit.breakfreefromplastic.org/brand-audit-2023/",
+      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "gpw_map", name: "Global Plastic Watch", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://globalplasticwatch.org/map",
+      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "epa_widget", name: "EPA emissions widget", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://www.epa.gov/sites/production/files/widgets/ef-multisystem.html",
+      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "eip_inventory", name: "Environmental Integrity Project: state emissions inventory", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://environmentalintegrity.org/state-emissions-inventory/",
+      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "hydrofate", name: "HydroFATE map", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://hydrofate.org/map/",
+      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "bocc", name: "Banking on Climate Chaos", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://www.bankingonclimatechaos.org/?bank=JPMorgan%20Chase#fulldata-panel",
+      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "dff", name: "Deforestation Free Funds", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://deforestationfreefunds.org",
+      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "fortune500", name: "Fortune Global 500 (2024)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://interactives.fortune.com/global_500_2024/dashboard/index.html",
+      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "theyrule", name: "They Rule", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://theyrule.net/",
+      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "pe_bankrolling", name: "Portfolio Earth: Bankrolling Extinction", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://portfolio.earth/campaigns/bankrolling-extinction/",
+      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "pe_subsidising", name: "Portfolio Earth: Subsidising Extinction", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://portfolio.earth/campaigns/subsidising-extinction/",
+      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "powerbi_report", name: "Power BI report (Destruction page)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://app.powerbi.com/view?r=eyJrIjoiZGJmNGIwODgtMTgyMS00NmVlLWJmNWUtZTAzZDBlMmQ1ODI2IiwidCI6IjBiMzNkZjAwLTYzNGMtNDBlYy1iOGQ5LTZhMGI2MjYyNmU1ZCJ9",
+      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "scribd_doc", name: "Scribd document (Destruction page)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://www.scribd.com/embeds/401203705/content?start_page=1&view_mode=scroll&access_key=key-9NzI5oK8PppZP3Bfluct",
+      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "skytruth_monitor", name: "SkyTruth Monitor", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://monitor.skytruth.org/",
+      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "skytruth_voc", name: "SkyTruth Monitor: vessels of concern", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://monitor.skytruth.org/issue/vessels-of-concern",
+      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "wrf", name: "When Rockets Fly", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://whenrocketsfly.com/",
+      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "nsf_launches", name: "Next Spaceflight: launches", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://nextspaceflight.com/launches/",
+      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "nsf_locations", name: "Next Spaceflight: launch sites", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://nextspaceflight.com/locations/",
+      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "esa_risk", name: "ESA near-Earth-object risk list", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://neo.ssa.esa.int/risk-list-plots",
+      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "acgf", name: "ACGF", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://acgf.org/index.htm",
+      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "gsn_rankings", name: "Global Safety Net: country rankings", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://www.globalsafetynet.app/rankings/",
+      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
     { id: "wreckers_umap", name: "Wreckers of the Earth (Corporate Watch)", unit: "companies and sites", colour: "#6E5A55", route: "umap", ready: true, lazy: true,
       umap: "https://umap.openstreetmap.fr/en", umapId: 409815,
       note: "Read live from Corporate Watch's uMap each time it is ticked, with its own layers, colours and popups." },
@@ -5967,6 +6064,34 @@ const LAYER_KIND = {
   unep_coral: ["animal", "downstream"],
   trase_measures: ["plant", "downstream"],
   mines_global: ["insentient", "downstream"],
+  cfr_tracker: ["human", "upstream"],
+  tableau_zsf: ["human", "upstream"],
+  troutwood: ["human", "upstream"],
+  ect_secrets: ["human", "upstream"],
+  isds_tracker: ["human", "upstream"],
+  giga_schools: ["human", "upstream"],
+  pirg_plastic: ["insentient", "upstream"],
+  bffp_audit: ["insentient", "upstream"],
+  gpw_map: ["insentient", "downstream"],
+  epa_widget: ["insentient", "downstream"],
+  eip_inventory: ["insentient", "downstream"],
+  hydrofate: ["insentient", "downstream"],
+  bocc: ["human", "upstream"],
+  dff: ["plant", "upstream"],
+  fortune500: ["human", "upstream"],
+  theyrule: ["human", "upstream"],
+  pe_bankrolling: ["animal", "upstream"],
+  pe_subsidising: ["animal", "upstream"],
+  powerbi_report: ["human", "upstream"],
+  scribd_doc: ["human", "upstream"],
+  skytruth_monitor: ["animal", "downstream"],
+  skytruth_voc: ["animal", "downstream"],
+  wrf: ["insentient", "upstream"],
+  nsf_launches: ["insentient", "upstream"],
+  nsf_locations: ["insentient", "upstream"],
+  esa_risk: ["insentient", "downstream"],
+  acgf: ["human", "upstream"],
+  gsn_rankings: ["plant", "downstream"],
   gta_acts: ["human", "upstream"],
   ct_air: ["human", "downstream"],
   ct_pop: ["human", "downstream"],
@@ -6444,7 +6569,7 @@ const PANEL_ORDER = [
   { h: 2, t: "Post-life invasion" }, "remains_records", "remains_findings", "remains_cemeteries",
 
   { h: 1, t: "Off-planet invasion" },
-  "space_industry", "ll2_pads", "ll2_upcoming",
+  "space_industry", "ll2_pads", "ll2_upcoming", "wrf", "nsf_launches", "nsf_locations", "esa_risk",
 
   { h: 1, t: "Destruction" },
   { h: 2, t: "Of the planet" },
@@ -6453,19 +6578,19 @@ const PANEL_ORDER = [
     "usda_soybean", "usda_corn", "wastewater",
   { h: 4, t: "National shading" }, "owid_co2",
   { h: 4, t: "Air pollution" }, "ct_air", "ct_pop",
-  { h: 3, t: "Toxic pollution" }, "epa_tri", "epa_tri_sites",
-  { h: 3, t: "Plastics" }, "mymaps_chlorine", "arcgis_ym8xk", "arcgis_materialresearch",
+  { h: 3, t: "Toxic pollution" }, "epa_tri", "epa_tri_sites", "epa_widget", "eip_inventory", "hydrofate",
+  { h: 3, t: "Plastics" }, "mymaps_chlorine", "arcgis_ym8xk", "arcgis_materialresearch", "pirg_plastic", "bffp_audit", "gpw_map",
   { h: 3, t: "Deforestation" }, "gfw", "gfw_dist", "gfw_dist_year", "glad_loss", "palmwatch", "soilgrids",
   { h: 3, t: "Agriculture" },
   { h: 4, t: "National shading" }, "land_matrix",
   { h: 4, t: "Slaughterhouses" }, "abattoir_facilities", "cultivated_meat_laws",
-  { h: 3, t: "Oceans" }, "fishing", "slavery_fishing", "cerulean_slicks", "cerulean_sources", "allen_coral",
+  { h: 3, t: "Oceans" }, "fishing", "slavery_fishing", "cerulean_slicks", "cerulean_sources", "allen_coral", "skytruth_monitor", "skytruth_voc",
   { h: 3, t: "Construction" }, "local_projects", "live_projects_app",
   { h: 3, t: "Culprits upstream" },
-  { h: 4, t: "Emissions" }, "carbon_majors", "soy_organizations", "fractracker_refineries",
-  { h: 4, t: "Deforestation" }, "site_forest500_soy", "site_soybean_companies",
+  { h: 4, t: "Emissions" }, "carbon_majors", "soy_organizations", "fractracker_refineries", "bocc",
+  { h: 4, t: "Deforestation" }, "site_forest500_soy", "site_soybean_companies", "dff",
   { h: 4, t: "Food generally" }, "site_food_system",
-  { h: 4, t: "Generally" }, "wreckers_umap",
+  { h: 4, t: "Generally" }, "wreckers_umap", "fortune500", "theyrule", "pe_bankrolling", "pe_subsidising", "powerbi_report", "scribd_doc",
   { h: 2, t: "Of groups" },
   { h: 2, t: "Of individuals" }, "site_animal_sacrifice",
 
@@ -6474,9 +6599,9 @@ const PANEL_ORDER = [
   { h: 3, t: "Physical suppression" },
   { h: 4, t: "Control of physical resources" }, "site_central_banks", "site_banking_dynasties", "site_export_credit", "site_wealth_atlas",
     "site_export_credit_shading", "site_earmarked_funding", "site_trade_profits", "site_social_spheres",
-    "owid_interest", "owid_corptax", "owid_aid", "rte_trade", "gta_acts",
+    "owid_interest", "owid_corptax", "cfr_tracker", "tableau_zsf", "troutwood", "ect_secrets", "isds_tracker", "owid_aid", "rte_trade", "gta_acts",
   { h: 4, t: "Economic inequality within it" },
-  { h: 5, t: "School" },
+  { h: 5, t: "School" }, "giga_schools",
   { h: 4, t: "Law enforcement" },
   { h: 4, t: "Courts and corrections" },
   { h: 4, t: "Discrimination" },
