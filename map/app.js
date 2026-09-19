@@ -2072,6 +2072,7 @@ async function addLivePlacesLayer(cfg) {
   try {
     got = cfg.route === "umap" ? await readUmap(cfg)
         : cfg.route === "kml" ? await readKml(cfg)
+        : cfg.route === "ll2" ? await readLaunchLibrary(cfg)
         : cfg.route === "ejatlas" ? await readEjatlas(cfg)
         : cfg.route === "geojsonlive" ? await readGeojsonFiles(cfg)
         : cfg.route === "wpgmza" ? await readWpgmza(cfg)
@@ -3073,6 +3074,71 @@ async function addOwidGrapherLayer(cfg) {
   draw("latest");
   applyVisibility(cfg.id);
   buildLegend();
+}
+
+/* ---------- Launch Library 2: launch sites and upcoming launches ---------- */
+const LL2 = "https://ll.thespacedevs.com/2.3.0";
+async function ll2All(path) {
+  const out = [];
+  let url = `${LL2}${path}${path.includes("?") ? "&" : "?"}limit=100&mode=detailed`;
+  for (let i = 0; url && i < 6; i++) {
+    const r = await fetch(url);
+    if (r.status === 429) throw new Error("rate");
+    if (!r.ok) throw new Error(`${r.status}`);
+    const j = await r.json();
+    out.push(...(j.results || []));
+    url = j.next;
+  }
+  return out;
+}
+function ll2Img(x) { return x && (typeof x === "string" ? x : x.image_url || x.thumbnail_url) || ""; }
+function ll2Pad(p, extra) {
+  const lat = Number(p.latitude), lng = Number(p.longitude);
+  if (!isFinite(lat) || !isFinite(lng)) return null;
+  return { type: "Point", coordinates: [lng, lat] };
+}
+async function readLaunchLibrary(cfg) {
+  let rows, note = "";
+  try { rows = await ll2All(cfg.what === "pads" ? "/pads/" : "/launches/upcoming/"); }
+  catch (e) {
+    rows = (await getJson(cfg.copy)).results || [];
+    note = e.message === "rate" ? "Launch Library's hourly limit was reached; showing today's copy" : `Launch Library did not answer; showing today's copy`;
+  }
+  const items = [];
+  for (const r of rows) {
+    if (cfg.what === "pads") {
+      const g = ll2Pad(r);
+      if (!g) continue;
+      const loc = r.location || {};
+      const country = (loc.country && loc.country.name) || loc.country_code || r.country_code || "";
+      items.push({ geometry: g, key: `p${r.id}`, name: r.name || "", group: country,
+        h: boxOpen + `<h4 style="margin:0 0 6px">${escapeHtml(r.name || "")}</h4>` +
+          `<div>${escapeHtml(loc.name || "")}${country ? " \u00b7 " + escapeHtml(country) : ""}</div>` +
+          (r.total_launch_count != null ? `<div>${Number(r.total_launch_count).toLocaleString()} launches` +
+            (r.orbital_launch_attempt_count != null ? `, ${Number(r.orbital_launch_attempt_count).toLocaleString()} orbital attempts` : "") + `</div>` : "") +
+          (r.description ? `<p>${escapeHtml(r.description)}</p>` : "") +
+          (r.wiki_url ? `<p><a href="${escapeHtml(r.wiki_url)}" target="_blank" rel="noopener">About this site</a></p>` : "") +
+          (r.map_url ? `<p><a href="${escapeHtml(r.map_url)}" target="_blank" rel="noopener">On a map</a></p>` : "") +
+          `<div style="font-size:11px">Launch Library 2, The Space Devs</div></div>` });
+    } else {
+      const pad = r.pad || {};
+      const g = ll2Pad(pad);
+      if (!g) continue;
+      const lsp = (r.launch_service_provider && r.launch_service_provider.name) || "";
+      const rocket = (r.rocket && r.rocket.configuration && (r.rocket.configuration.full_name || r.rocket.configuration.name)) || "";
+      const m = r.mission || {};
+      const when = r.net ? new Date(r.net) : null;
+      items.push({ geometry: g, key: `l${r.id}`, name: r.name || "", group: (r.status && r.status.name) || "",
+        h: boxOpen + (ll2Img(r.image) ? `<img src="${escapeHtml(ll2Img(r.image))}" style="max-width:100%;margin-bottom:6px">` : "") +
+          `<h4 style="margin:0 0 6px">${escapeHtml(r.name || "")}</h4>` +
+          `<div>${when ? escapeHtml(when.toUTCString().replace(" GMT", " UTC")) : ""}${r.status ? " \u00b7 " + escapeHtml(r.status.name) : ""}</div>` +
+          `<div>${escapeHtml([rocket, lsp].filter(Boolean).join(" \u00b7 "))}</div>` +
+          `<div>${escapeHtml(pad.name || "")}${pad.location ? ", " + escapeHtml(pad.location.name || "") : ""}</div>` +
+          (m.name ? `<p><b>${escapeHtml(m.name)}</b>${m.orbit && m.orbit.name ? " \u2192 " + escapeHtml(m.orbit.name) : ""}<br>${escapeHtml(m.description || "")}</p>` : "") +
+          `<div style="font-size:11px">Launch Library 2, The Space Devs</div></div>` });
+    }
+  }
+  return { title: cfg.name, items, note };
 }
 
 /* ---------- the sky the map sits in ---------- */
@@ -5320,6 +5386,12 @@ const OTHER_MAPS = {
     { id: "owid_aid", name: "Foreign aid received as a share of national income (Our World in Data)", unit: "% of income", colour: "#6E5F52", route: "owidgrapher", ready: true, lazy: true,
       slug: "foreign-aid-received-as-a-share-of-national-income-net",
       note: "Read live from Our World in Data each time it is ticked; the chart's own data, by country and year." },
+    { id: "ll2_pads", name: "Launch sites (Launch Library 2)", unit: "launch pads", colour: "#5E6070", route: "ll2", ready: true, lazy: true,
+      what: "pads", copy: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ll2/pads.json",
+      note: "Every launch pad in Launch Library 2, The Space Devs' open database, read live." },
+    { id: "ll2_upcoming", name: "Upcoming launches (Launch Library 2)", unit: "launches", colour: "#6E5A6E", route: "ll2", ready: true, lazy: true,
+      what: "upcoming", copy: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ll2/upcoming.json",
+      note: "Every scheduled launch in Launch Library 2, placed at its pad, read live." },
     { id: "wreckers_umap", name: "Wreckers of the Earth (Corporate Watch)", unit: "companies and sites", colour: "#6E5A55", route: "umap", ready: true, lazy: true,
       umap: "https://umap.openstreetmap.fr/en", umapId: 409815,
       note: "Read live from Corporate Watch's uMap each time it is ticked, with its own layers, colours and popups." },
@@ -5400,6 +5472,7 @@ function ensureLayer(cfg) {
     : cfg.route === "rasterlive" ? Promise.resolve().then(() => addRasterChoiceLayer(cfg))
     : cfg.route === "trase" ? addTraseLayer(cfg)
     : cfg.route === "pmshapes" ? Promise.resolve().then(() => addPmShapesLayer(cfg))
+    : cfg.route === "ll2" ? addLivePlacesLayer(cfg)
     : cfg.route === "owidgrapher" ? addOwidGrapherLayer(cfg)
     : cfg.route === "buildings" ? addBuildingTypesLayer(cfg)
     : cfg.route === "spheres" ? addSpheresLayer(cfg)
@@ -5521,6 +5594,8 @@ const LAYER_KIND = {
   unep_coral: ["animal", "downstream"],
   trase_measures: ["plant", "downstream"],
   mines_global: ["insentient", "downstream"],
+  ll2_pads: ["insentient", "upstream"],
+  ll2_upcoming: ["insentient", "upstream"],
   owid_interest: ["human", "upstream"],
   owid_corptax: ["human", "upstream"],
   owid_aid: ["human", "upstream"],
@@ -5987,7 +6062,7 @@ const PANEL_ORDER = [
   { h: 2, t: "Post-life invasion" }, "remains_records", "remains_findings", "remains_cemeteries",
 
   { h: 1, t: "Off-planet invasion" },
-  { note: "The space industry, launch sites and the other maps from the site's Off-Planet Invasion page come here." },
+  "ll2_pads", "ll2_upcoming",
 
   { h: 1, t: "Destruction" },
   { h: 2, t: "Of the planet" },

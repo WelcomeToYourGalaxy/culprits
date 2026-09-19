@@ -1861,5 +1861,14 @@ console.log("\nrow tools; easier-to-see points; monitors back in the wires box o
   check("each row has move and transparency tools", /data-mv="up"/.test(src) && /type="range" min="10" max="100"/.test(src) && /map\.moveLayer\(id, before\)/.test(src));
 }
 
+console.log("\nlaunch sites and upcoming launches");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("both are rows under Off-planet invasion", /id: "ll2_pads"/.test(src) && /id: "ll2_upcoming"/.test(src) && /"ll2_pads", "ll2_upcoming",/.test(src));
+  check("read live from Launch Library 2, with the daily copy when its hourly limit is used", /ll\.thespacedevs\.com\/2\.3\.0/.test(src) && /hourly limit was reached/.test(src));
+  const pad = new Function(src.slice(src.indexOf("function ll2Pad("), src.indexOf("async function readLaunchLibrary(")) + "; return ll2Pad;")();
+  check("a pad's position is read", JSON.stringify(pad({ latitude: "28.56", longitude: "-80.57" }).coordinates) === "[-80.57,28.56]" && pad({}) === null);
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
