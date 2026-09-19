@@ -6294,8 +6294,8 @@ const LAYER_KIND = {
   gsn: ["plant", "downstream"],
   live_projects_app: ["human", "downstream"],
   rte_trade: ["insentient", "upstream"],
-  mymaps_supp_a: ["human", "upstream"],
-  mymaps_supp_b: ["human", "upstream"],
+  mymaps_supp_a: ["animal", "downstream"],
+  mymaps_supp_b: ["animal", "downstream"],
   space_industry: ["insentient", "upstream"],
   ll2_pads: ["insentient", "upstream"],
   ll2_upcoming: ["insentient", "upstream"],
@@ -6821,7 +6821,7 @@ const PANEL_ORDER = [
   { h: 4, t: "Holidays" },
   { h: 4, t: "Sex" },
   { h: 4, t: "Drugs" }, "capture_map", "site_cartel_cells",
-  { h: 2, t: "Of animals" }, "site_animal_fighting", "site_animal_tourism", "site_circus", "site_animal_racing", "site_rodeo", "final_nail",
+  { h: 2, t: "Of animals" }, "site_animal_fighting", "site_animal_tourism", "site_circus", "site_animal_racing", "site_rodeo", "final_nail", "mymaps_supp_a", "mymaps_supp_b",
   { h: 2, t: "Of plants" }, "site_enslaved_plants", "mymaps_trees",
   { h: 2, t: "Of microscopics" }, "site_enslaved_microbes",
   { h: 2, t: "Of the \u201cinsentient\u201d" }, "site_insentient",
@@ -6829,6 +6829,7 @@ const PANEL_ORDER = [
   { h: 1, t: "Building types" }, "building_types",
 ];
 const PANEL_REMOVED = new Set([
+  "leverage_chart",
   "fin_bank", "fin_centralbank", "fin_taxoffice", "fin_govfinance", "fin_financial", "fin_exchange", "fin_insurance", "fin_accountant", "fin_remittance", "fin_stockexchange", "fin_auditoffice", "fin_devbank", "fin_mint", "legal_publicdefender", "legal_immigration", "legal_probation", "legal_juvenile", "leg_parliament", "leg_audit", "leg_electoral", "leg_ombudsman", "leg_council", "exec_firestation", "exec_townhall", "leg_townhall", "exec_govoffice", "exec_ministry", "exec_diplomatic", "exec_border", "jud_courts", "legal_courthouse", "slavery_facilities", "activist_courts", "exec_police", "legal_police", "activist_police", "exec_prison", "legal_prison", "jud_prisons", "activist_prisons",
   "site_ufo_pre1900", "site_subsistence_cultures", "site_self_sufficiency", "slavery_trackers",
   "site_environment_law", "enviro_law_by_country", "site_environment_law_shapes", "gov_official_map",

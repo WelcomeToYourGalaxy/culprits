@@ -1960,5 +1960,15 @@ console.log("\nvessels of concern drawn; the oil-slick archive");
   check("the slick archive is a row beside the live slicks", /id: "slick_archive"/.test(src) && /"cerulean_sources", "slick_archive",/.test(src));
 }
 
+console.log("\nzoos and pet industry placed");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const o = new Function(body + "; return { PANEL_ORDER, PANEL_REMOVED };")();
+  const animals = o.PANEL_ORDER.findIndex((x) => x && x.t === "Of animals");
+  check("both My Maps maps sit under Of animals", o.PANEL_ORDER.indexOf("mymaps_supp_a") > animals && o.PANEL_ORDER.indexOf("mymaps_supp_b") > animals);
+  check("the Leverage Chart is out of the box", o.PANEL_REMOVED.has("leverage_chart"));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
