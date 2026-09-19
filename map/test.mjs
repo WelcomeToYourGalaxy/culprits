@@ -1970,5 +1970,11 @@ console.log("\nzoos and pet industry placed");
   check("the Leverage Chart is out of the box", o.PANEL_REMOVED.has("leverage_chart"));
 }
 
+console.log("\nACGF placed");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("ACGF sits under Agriculture", /\{ h: 3, t: "Agriculture" \}, "acgf",/.test(src));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

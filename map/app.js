@@ -6777,7 +6777,7 @@ const PANEL_ORDER = [
   { h: 3, t: "Toxic pollution" }, "epa_tri", "epa_tri_sites", "epa_widget", "eip_inventory", "hydrofate",
   { h: 3, t: "Plastics" }, "mymaps_chlorine", "arcgis_ym8xk", "arcgis_materialresearch", "pirg_plastic", "bffp_audit", "gpw_map", "seas_of_plastic", "coastal_cleanup",
   { h: 3, t: "Deforestation" }, "gfw", "gfw_dist", "gfw_dist_year", "glad_loss", "palmwatch", "soilgrids", "trase_measures", "trase_facilities", "nusantara", "gfw_catalogue", "gsn", "gsn_rankings",
-  { h: 3, t: "Agriculture" },
+  { h: 3, t: "Agriculture" }, "acgf",
   { h: 4, t: "National shading" }, "land_matrix",
   { h: 4, t: "Slaughterhouses" }, "abattoir_facilities", "cultivated_meat_laws",
   { h: 3, t: "Oceans" }, "fishing", "slavery_fishing", "cerulean_slicks", "cerulean_sources", "slick_archive", "allen_coral", "skytruth_monitor", "skytruth_voc", "unep_coral",
