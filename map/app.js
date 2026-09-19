@@ -1648,22 +1648,49 @@ function wireSource() {
         .setLngLat(f.geometry.coordinates)
         .setHTML(`<b>${escapeHtml(f.properties.place || "News wire")}</b>` +
                  `<div class="meta">${list.length} ${list.length === 1 ? "story" : "stories"}</div>` +
-                 (list.length > 1 ? `<label class="wire-pop-sort">Sort by <select>` +
-                   WIRE_SORTS.map(([k, nm]) => `<option value="${k}">${nm}</option>`).join("") +
-                   `</select></label>` : "") +
+                 (list.length > 1 ? wirePopFilters(list) : "") +
                  `<div class="wire-pop-list">${wirePopRows(list, "new")}</div>`)
         .addTo(map);
       const el = pop.getElement && pop.getElement();
-      const sel = el && el.querySelector(".wire-pop-sort select");
-      if (sel) sel.addEventListener("change", () => {
-        el.querySelector(".wire-pop-list").innerHTML = wirePopRows(list, sel.value);
-      });
+      const redraw = () => {
+        const f = {};
+        for (const c of el.querySelectorAll("[data-wf]")) f[c.dataset.wf] = c.value;
+        const shown = wirePopPick(list, f);
+        el.querySelector(".wire-pop-list").innerHTML = shown.length ? wirePopRows(shown, f.order || "new")
+          : `<div class="meta">No story matches these filters.</div>`;
+        const n = el.querySelector(".wire-pop-n");
+        if (n) n.textContent = shown.length === list.length ? "" : `${shown.length} of ${list.length} shown`;
+      };
+      if (el) for (const c of el.querySelectorAll("[data-wf]")) c.addEventListener(c.tagName === "INPUT" ? "input" : "change", redraw);
     });
     map.on("styledata", wireOnTop);
     map.on("mouseenter", "wire-news", () => { map.getCanvas().style.cursor = "pointer"; });
     map.on("mouseleave", "wire-news", () => { map.getCanvas().style.cursor = ""; });
   }
   return map.getSource("wire-news");
+}
+
+// The box's filters: a menu for each subject and source, a search for the
+// headline, and the order.
+function wirePopFilters(list) {
+  const opts = (key) => [...new Set(list.map((s) => s[key]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
+  const menu = (key, label) => {
+    const vals = opts(key);
+    return vals.length > 1
+      ? `<label class="wire-pop-sort">${label} <select data-wf="${key}"><option value="">All</option>` +
+        vals.map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("") + `</select></label>` : "";
+  };
+  return menu("subject", "Subject") + menu("outlet", "Source") +
+    `<label class="wire-pop-sort">Headline <input data-wf="title" type="search" placeholder="words in the headline" ` +
+    `style="flex:1;font:inherit;color:var(--bone);background:var(--peat,#17150F);border:1px solid var(--rule);border-radius:2px;padding:1px 4px"></label>` +
+    `<label class="wire-pop-sort">Order <select data-wf="order">` +
+    WIRE_SORTS.map(([k, nm]) => `<option value="${k}">${nm}</option>`).join("") + `</select></label>` +
+    `<div class="meta wire-pop-n"></div>`;
+}
+function wirePopPick(list, f) {
+  const words = String(f.title || "").toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  return list.filter((s) => (!f.subject || s.subject === f.subject) && (!f.outlet || s.outlet === f.outlet) &&
+    words.every((w) => String(s.title || "").toLocaleLowerCase().includes(w)));
 }
 
 // Every story at a mark, in the order chosen in its box.
@@ -2744,6 +2771,101 @@ async function addGfwMenuLayer(cfg) {
       setLayerState(cfg.id, `${d.title}: ${e.message}`);
     }
   });
+}
+
+/* ---------- The Social Spheres: its bodies on the map, its own card on a click ---------- */
+// The map's data is read from its own page; the card is the page itself, loaded
+// once into a frame of the same origin (srcdoc) with everything but its card
+// hidden, and asked to open a body with its own openNode().
+function spheresData(html) {
+  const at = html.indexOf("const DATA = ");
+  if (at < 0) throw new Error("the page no longer carries its DATA");
+  let i = html.indexOf("{", at), depth = 0, inStr = false, esc = false;
+  for (let j = i; j < html.length; j++) {
+    const ch = html[j];
+    if (inStr) { if (esc) esc = false; else if (ch === "\\") esc = true; else if (ch === '"') inStr = false; continue; }
+    if (ch === '"') inStr = true;
+    else if (ch === "{") depth++;
+    else if (ch === "}" && --depth === 0) return JSON.parse(html.slice(i, j + 1));
+  }
+  throw new Error("the page's DATA could not be read");
+}
+function spheresKinds(html) {
+  const m = /const KIND=\{([^;]*)\};/.exec(html);
+  const out = {};
+  if (m) for (const [, k, c] of m[1].matchAll(/(\w+):\{c:'(#[0-9A-Fa-f]{6})'\}/g)) out[k] = c;
+  return out;
+}
+let spheresFrame = null;
+function spheresCard(cfg, html, id) {
+  let wrap = document.getElementById("spheres-card");
+  if (!wrap) {
+    wrap = document.createElement("div");
+    wrap.id = "spheres-card";
+    wrap.style.cssText = "position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(760px,92vw);height:min(82vh,900px);" +
+      "z-index:70;border:1px solid var(--rule);box-shadow:0 10px 40px rgba(0,0,0,.6);background:#EDE6D6";
+    spheresFrame = document.createElement("iframe");
+    spheresFrame.title = "The Social Spheres";
+    spheresFrame.style.cssText = "width:100%;height:100%;border:0;display:block";
+    const hide = "<style>body>*:not(#card):not(#scrim){display:none!important}" +
+      "#card{position:fixed!important;inset:0!important;left:0!important;top:0!important;width:100%!important;height:100%!important;" +
+      "max-width:none!important;max-height:none!important;transform:none!important;display:flex!important}" +
+      "#scrim{display:none!important}#recentre,.rsz{display:none!important}</style>";
+    spheresFrame.srcdoc = html.replace("</head>", hide + "</head>");
+    wrap.appendChild(spheresFrame);
+    document.body.appendChild(wrap);
+    spheresFrame.addEventListener("load", () => {
+      const d = spheresFrame.contentDocument;
+      const shut = d && d.getElementById("shut");
+      if (shut) shut.addEventListener("click", () => { wrap.hidden = true; });
+      spheresOpen(wrap._pending);
+    });
+  }
+  wrap.hidden = false;
+  wrap._pending = id;
+  spheresOpen(id);
+}
+function spheresOpen(id) {
+  const w = spheresFrame && spheresFrame.contentWindow;
+  if (!id || !w || !w.document || w.document.readyState !== "complete") return;
+  try { w.eval(`openNode(${JSON.stringify(id)})`); } catch (e) { console.warn("[culprits] social spheres card:", e.message); }
+}
+
+async function addSpheresLayer(cfg) {
+  let html;
+  try {
+    const r = await fetch(cfg.page);
+    if (!r.ok) throw new Error(`${r.status}`);
+    html = await r.text();
+  } catch (e) { setLayerState(cfg.id, `the map's page could not be read (${e.message})`); return; }
+  let D;
+  try { D = spheresData(html); } catch (e) { setLayerState(cfg.id, e.message); return; }
+  const kinds = spheresKinds(html);
+  const N = new Map(D.nodes.map((n) => [n.id, n]));
+  const pts = D.nodes.map((n) => ({ type: "Feature", geometry: { type: "Point", coordinates: [n.lng, n.lat] },
+    properties: { id: n.id, name: n.name, c: kinds[n.kind] || cfg.colour, linked: n.linked ? 1 : 0 } }));
+  const lines = (D.edges || []).filter((e) => N.has(e.a) && N.has(e.b)).map((e) => ({ type: "Feature",
+    geometry: { type: "LineString", coordinates: [[N.get(e.a).lng, N.get(e.a).lat], [N.get(e.b).lng, N.get(e.b).lat]] },
+    properties: { w: e.w || 1, a: N.get(e.a).name, b: N.get(e.b).name, n: (e.via || []).length } }));
+  map.addSource(`${cfg.id}-lines`, { type: "geojson", data: { type: "FeatureCollection", features: lines } });
+  map.addSource(`${cfg.id}-places`, { type: "geojson", data: { type: "FeatureCollection", features: pts } });
+  map.addLayer({ id: `${cfg.id}-line`, type: "line", source: `${cfg.id}-lines`,
+    paint: { "line-color": "#B6A488", "line-opacity": 0.45, "line-width": ["interpolate", ["linear"], ["get", "w"], 1, 0.6, 20, 3] } });
+  map.addLayer({ id: `${cfg.id}-pt`, type: "circle", source: `${cfg.id}-places`,
+    paint: { "circle-color": ["get", "c"], "circle-radius": 6, "circle-stroke-color": "#07100C", "circle-stroke-width": 1.2,
+             "circle-opacity": ["case", ["==", ["get", "linked"], 1], 1, 0.5] } });
+  map.on("click", `${cfg.id}-pt`, (e) => {
+    const f = e.features && e.features[0];
+    if (!f) return;
+    popupClaimedBy = e.originalEvent || e;
+    spheresCard(cfg, html, f.properties.id);
+  });
+  bindHtmlPopup(`${cfg.id}-line`, (p) => `<b>${escapeHtml(p.a)} \u2194 ${escapeHtml(p.b)}</b><div class="meta">${Number(p.n || p.w)} people sit in both</div>`);
+  map.on("mouseenter", `${cfg.id}-pt`, () => { map.getCanvas().style.cursor = "pointer"; });
+  map.on("mouseleave", `${cfg.id}-pt`, () => { map.getCanvas().style.cursor = ""; });
+  setLayerState(cfg.id, `${D.nodes.length} bodies, ${(D.people || []).length.toLocaleString()} people, ${lines.length} links`);
+  applyVisibility(cfg.id);
+  buildLegend();
 }
 
 /* ---------- the sky the map sits in ---------- */
@@ -4720,8 +4842,9 @@ const SITE_MAPS = {
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
     { id: "site_settler_colonialism", name: "Settler colonialism and native displacement", unit: "territories", colour: "#6B5A52", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_settler_colonialism.geojson",
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
-    { id: "site_social_spheres", name: "The social spheres (board and membership links)", unit: "links", colour: "#5E6068", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_social_spheres.geojson",
-      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+    { id: "site_social_spheres", name: "The Social Spheres", unit: "bodies and the people between them", colour: "#5E6068", route: "spheres", ready: true, lazy: true,
+      page: "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/social_spheres.html",
+      note: "Read live from the map's own page in the maps repo; a click opens the map's own card, run by its own code." },
     { id: "site_environment_law_shapes", name: "Environmental law instruments — areas", unit: "areas", colour: "#5A6B72", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_environment_law_shapes.geojson",
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
     { id: "site_export_credit_shading", name: "Export credit agencies — country shading", unit: "countries", colour: "#5E6A63", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_export_credit_shading.geojson",
@@ -5058,6 +5181,7 @@ function ensureLayer(cfg) {
     : cfg.route === "rasterlive" ? Promise.resolve().then(() => addRasterChoiceLayer(cfg))
     : cfg.route === "trase" ? addTraseLayer(cfg)
     : cfg.route === "pmshapes" ? Promise.resolve().then(() => addPmShapesLayer(cfg))
+    : cfg.route === "spheres" ? addSpheresLayer(cfg)
     : ["ejatlas", "geojsonlive", "wpgmza", "atlascities", "trasefac"].includes(cfg.route) ? addLivePlacesLayer(cfg)
     : cfg.route === "wmsmenu" ? addWmsMenuLayer(cfg)
     : cfg.route === "gfwmenu" ? addGfwMenuLayer(cfg)
@@ -5637,6 +5761,9 @@ const PANEL_ORDER = [
   { h: 3, t: "Of countries by countries" }, "site_secret_societies", "gm",
   { h: 2, t: "Post-life invasion" }, "remains_records", "remains_findings", "remains_cemeteries",
 
+  { h: 1, t: "Off-planet invasion" },
+  { note: "The space industry, launch sites and the other maps from the site's Off-Planet Invasion page come here." },
+
   { h: 1, t: "Destruction" },
   { h: 2, t: "Of the planet" },
   { h: 3, t: "Climate" }, "group:climate_trace_sectors", "group:climate_trace_agriculture", "group:climate_trace_forestry",
@@ -5660,18 +5787,39 @@ const PANEL_ORDER = [
   { h: 2, t: "Of individuals" }, "site_animal_sacrifice",
 
   { h: 1, t: "Suppression" },
-  { h: 2, t: "Economically" }, "site_central_banks", "site_banking_dynasties", "site_export_credit", "site_wealth_atlas",
+  { h: 2, t: "Of humans" },
+  { h: 3, t: "Physical suppression" },
+  { h: 4, t: "Control of physical resources" }, "site_central_banks", "site_banking_dynasties", "site_export_credit", "site_wealth_atlas",
     "site_export_credit_shading", "site_earmarked_funding", "site_trade_profits", "site_social_spheres",
-  { h: 2, t: "Slavery" },
-  { h: 3, t: "Of humans" }, "slavery_sites", "slavery_ports", "slavery_routes", "slavery_determinations", "slavery_enforcement",
-  { h: 4, t: "National shading" }, "slavery_cases", "slavery_prevalence",
-  { h: 3, t: "With information" }, "site_world_advertising", "site_world_news", "site_research_integrity", "site_world_entertainment",
-  { h: 3, t: "Metaphysically" }, "site_eyes_network",
-  { h: 3, t: "Socially" }, "capture_map", "site_cartel_cells",
-  { h: 3, t: "Of animals" }, "site_animal_fighting", "site_animal_tourism", "site_circus", "site_animal_racing", "site_rodeo",
-  { h: 3, t: "Of plants" }, "site_enslaved_plants",
-  { h: 3, t: "Of microorganisms" }, "site_enslaved_microbes",
-  { h: 3, t: "Of the insentient" }, "site_insentient",
+  { h: 4, t: "Economic inequality within it" },
+  { h: 5, t: "School" },
+  { h: 4, t: "Law enforcement" },
+  { h: 4, t: "Courts and corrections" },
+  { h: 4, t: "Discrimination" },
+  { h: 4, t: "Slavery" }, "slavery_sites", "slavery_ports", "slavery_routes", "slavery_determinations", "slavery_enforcement",
+  { h: 5, t: "National shading" }, "slavery_cases", "slavery_prevalence",
+  { h: 3, t: "Suppression by \u201crepresentation\u201d within it" },
+  { h: 4, t: "Politics as a front" },
+  { h: 5, t: "Voter suppression" },
+  { h: 5, t: "Representation as presentation" },
+  { h: 5, t: "For money-written-law" },
+  { h: 4, t: "The food and drink industries" },
+  { h: 4, t: "The medical industry" },
+  { h: 3, t: "Suppression by information" },
+  { h: 4, t: "The advertising industries" }, "site_world_advertising",
+  { h: 4, t: "The news industry" }, "site_world_news",
+  { h: 4, t: "The entertainment industries" }, "site_world_entertainment",
+  { h: 4, t: "Science" }, "site_research_integrity",
+  { h: 3, t: "Suppression by social molds" },
+  { h: 4, t: "Religion and spirituality" },
+  { h: 4, t: "Sports" }, "site_eyes_network",
+  { h: 4, t: "Holidays" },
+  { h: 4, t: "Sex" },
+  { h: 4, t: "Drugs" }, "capture_map", "site_cartel_cells",
+  { h: 2, t: "Of animals" }, "site_animal_fighting", "site_animal_tourism", "site_circus", "site_animal_racing", "site_rodeo",
+  { h: 2, t: "Of plants" }, "site_enslaved_plants",
+  { h: 2, t: "Of microscopics" }, "site_enslaved_microbes",
+  { h: 2, t: "Of the \u201cinsentient\u201d" }, "site_insentient",
 
   { h: 1, t: "Building types" },
   { note: "Being combined into one layer, with duplicate places merged." },
@@ -5789,7 +5937,8 @@ function arrangePanel() {
       ".panel-h1{font-size:12px;letter-spacing:.12em;text-transform:uppercase;border-top:1px solid rgba(255,255,255,.18);padding-top:8px;font-weight:700}" +
       ".panel-h2{font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.85;padding-left:4px;font-weight:600}" +
       ".panel-h3{font-size:11px;opacity:.8;padding-left:10px;font-weight:600}" +
-      ".panel-h4{font-size:10.5px;opacity:.7;padding-left:16px;font-style:italic}";
+      ".panel-h4{font-size:10.5px;opacity:.7;padding-left:16px;font-style:italic}" +
+      ".panel-h5{font-size:10.5px;opacity:.62;padding-left:22px}";
     document.head.appendChild(st);
   }
 }

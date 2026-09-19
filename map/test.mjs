@@ -1708,7 +1708,7 @@ console.log("\nthe layers box, in the chosen order");
   check("no layer is placed twice", new Set(ids).size === ids.length);
   check("nothing is both placed and removed", ids.every((id) => !order.PANEL_REMOVED.has(id)));
   const heads = order.PANEL_ORDER.filter((x) => typeof x === "object" && x.h === 1).map((x) => x.t);
-  check("the three sections come first, in order", heads.slice(0, 3).join("|") === "On-planet invasion|Destruction|Suppression");
+  check("the four sections come first, in order", heads.slice(0, 4).join("|") === "On-planet invasion|Off-planet invasion|Destruction|Suppression");
   check("unplaced layers get their own heading, not the bin", /heading\(1, "Not yet placed"\)/.test(src));
   check("removed rows stay findable by the code", /gone\.hidden = true/.test(src));
   check("the Trase row no longer shares an id", (src.match(/id: ?"trase"/g) || []).length === 1);
@@ -1774,6 +1774,39 @@ console.log("\nlive maps, batch 2");
         JSON.stringify(p({ point: { type: "Point", coordinates: [3, 4] } }).coordinates) === "[3,4]");
   check("the Nusantara menu lists every layer its server publishes", /REQUEST=GetCapabilities/.test(src) && /REQUEST=GetFeatureInfo/.test(src));
   check("the GFW menu reads the whole catalogue and each dataset's tiles", /datasets\?page\[size\]=100/.test(src) && /vector tile cache/.test(src));
+}
+
+console.log("\nsuppression in the given order; news box filters");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const order = new Function(body + "; return PANEL_ORDER;")();
+  const at = (t) => order.findIndex((x) => x && x.t === t);
+  check("Off-planet invasion is its own section", at("Off-planet invasion") > at("On-planet invasion") && at("Off-planet invasion") < at("Destruction"));
+  check("Suppression opens on Of humans, then its four kinds in order",
+        at("Of humans") < at("Physical suppression") && at("Physical suppression") < at("Suppression by \u201crepresentation\u201d within it") &&
+        at("Suppression by \u201crepresentation\u201d within it") < at("Suppression by information") && at("Suppression by information") < at("Suppression by social molds"));
+  check("Economically is now Control of physical resources", at("Economically") === -1 && at("Control of physical resources") > at("Physical suppression"));
+  check("the other beings follow Of humans", at("Of animals") > at("Suppression by social molds") && at("Of microscopics") > at("Of plants"));
+  const pick = new Function(src.slice(src.indexOf("function wirePopPick("), src.indexOf("// Every story at a mark")) + "; return wirePopPick;")();
+  const list = [{ subject: "Slavery", outlet: "AP", title: "Brick kilns raided" }, { subject: "Voting", outlet: "AP", title: "Polls close" },
+                { subject: "Slavery", outlet: "BBC", title: "Fishing crews freed" }];
+  check("a news box filters by subject", pick(list, { subject: "Slavery" }).length === 2);
+  check("…by source", pick(list, { outlet: "BBC" }).length === 1);
+  check("…and by words in the headline", pick(list, { title: "kilns" }).length === 1 && pick(list, { title: "" }).length === 3);
+}
+
+console.log("\nthe Social Spheres, its own map");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the Social Spheres is one row, read live from its own page", /id: "site_social_spheres", name: "The Social Spheres"[^\n]*route: "spheres"/.test(src) &&
+        /maps\/main\/social_spheres\.html/.test(src));
+  const read = new Function(src.slice(src.indexOf("function spheresData("), src.indexOf("function spheresKinds(")) + "; return spheresData;")();
+  const d = read('<script>const DATA = {"nodes":[{"id":"a","what":"a } brace in text"}],"edges":[]};\nconst KIND={};</script>');
+  check("its data is read whole, even with braces inside its text", d.nodes[0].what === "a } brace in text");
+  const kinds = new Function(src.slice(src.indexOf("function spheresKinds("), src.indexOf("let spheresFrame")) + "; return spheresKinds;")();
+  check("its own colours are kept", kinds("const KIND={assoc:{c:'#D6BC82'},club:{c:'#C79A55'}};").club === "#C79A55");
+  check("a click opens the map's own card through its own code", /openNode\(\$\{JSON\.stringify\(id\)\}\)/.test(src) && /srcdoc = html/.test(src));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
