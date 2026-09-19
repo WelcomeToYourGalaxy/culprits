@@ -1682,7 +1682,7 @@ console.log("\ncoral at every zoom");
 console.log("\nTrase, and coral at world zoom");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("Trase is one row with its own menus", /id: "trase"[^\n]*route: "trase"/.test(src) && /data-tr="metric"/.test(src) && /data-tr="year"/.test(src));
+  check("Trase is one row with its own menus", /id: "trase_measures"[^\n]*route: "trase"/.test(src) && /data-tr="metric"/.test(src) && /data-tr="year"/.test(src));
   check("its shapes are read live from Trase", /regions: "https:\/\/resources\.trase\.earth\/data\/trase-regions"/.test(src));
   check("its values come from the weekly GitHub copy", /catalogue: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/trase\/catalogue\.json"/.test(src));
   const slug = new Function(src.slice(src.indexOf("function traseSlug("), src.indexOf("// Five steps from the values")) + "; return traseSlug;")();
@@ -1695,6 +1695,32 @@ console.log("\nTrase, and coral at world zoom");
         /tint:\/\/\$\{CORAL_CLASSES\["Coral\/Algae"\]\.slice\(1\)\}\/data-gis\.unep-wcmc\.org/.test(src));
   check("…and the row says whose map it is", /UNEP-WCMC's reef map at this width/.test(src));
   check("the switch reaches the world layer", /`\$\{id\}-world`/.test(src));
+}
+
+console.log("\nthe layers box, in the chosen order");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const order = new Function(body + "; return { PANEL_ORDER, PANEL_REMOVED };")();
+  const ids = order.PANEL_ORDER.filter((x) => typeof x === "string" && !x.startsWith("group:") && x !== "gm");
+  check("every id in the order is a real layer", ids.every((id) => new RegExp(`id: ?"${id}"`).test(src)),
+        ids.filter((id) => !new RegExp(`id: ?"${id}"`).test(src)).join(", "));
+  check("no layer is placed twice", new Set(ids).size === ids.length);
+  check("nothing is both placed and removed", ids.every((id) => !order.PANEL_REMOVED.has(id)));
+  const heads = order.PANEL_ORDER.filter((x) => typeof x === "object" && x.h === 1).map((x) => x.t);
+  check("the three sections come first, in order", heads.slice(0, 3).join("|") === "On-planet invasion|Destruction|Suppression");
+  check("unplaced layers get their own heading, not the bin", /heading\(1, "Not yet placed"\)/.test(src));
+  check("removed rows stay findable by the code", /gone\.hidden = true/.test(src));
+  check("the Trase row no longer shares an id", (src.match(/id: ?"trase"/g) || []).length === 1);
+  const esc = (s) => String(s);
+  const umapText = new Function("escapeHtml", src.slice(src.indexOf("function umapText("), src.indexOf("// A uMap popup template")) + "; return umapText;")(esc);
+  const umapPopup = new Function("umapText", src.slice(src.indexOf("function umapPopup("), src.indexOf("async function readUmap(")) + "; return umapPopup;")(umapText);
+  const h = umapPopup("# {name}\n*{address}*\n\n{sector}\n\n{description}", { name: "Shell", address: "Belvedere Rd", sector: "Oil", description: "HQ" });
+  check("a uMap box follows the map's own template", h.includes("<h3") && h.includes("Shell") && h.includes("<i>Belvedere Rd</i>") && h.includes("Oil"));
+  check("uMap layers are found where the map says they are", /props\.urls && \(props\.urls\.datalayer_view/.test(src));
+  check("My Maps places given only as an address are placed from the weekly lookup, and say so",
+        /geocode_\$\{mid\}\.json/.test(src) && /Position found from its address/.test(src));
+  check("an ArcGIS request gives up rather than hanging", /no answer in \$\{Math\.round\(ms \/ 1000\)\} s/.test(src));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
