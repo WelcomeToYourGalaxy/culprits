@@ -3615,6 +3615,38 @@ async function addTraseFacMenu(cfg) {
   buildLegend();
 }
 
+/* ---------- the daily oil-slick archive, by month ---------- */
+async function addSlickArchive(cfg) {
+  let index;
+  try { index = await getJson(`${cfg.base}/index.json`, 30000); }
+  catch (e) { setLayerState(cfg.id, `not built yet (${e.message})`); return; }
+  const months = Object.keys(index).sort().reverse();
+  const src = `${cfg.id}-src`;
+  map.addSource(src, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+  map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source: src, paint: { "fill-color": "#1D1B17", "fill-opacity": 0.55 } });
+  map.addLayer({ id: `${cfg.id}-line`, type: "line", source: src, paint: { "line-color": "#B8A79E", "line-width": 1 } });
+  bindHtmlPopup(`${cfg.id}-fill`, (p) => `<b>Oil slick</b><table class="meta">${fieldRows(p)}</table><div class="meta">SkyTruth Cerulean, kept daily</div>`);
+  const show = async (m) => {
+    setLayerState(cfg.id, `reading ${m}\u2026`);
+    try {
+      map.getSource(src).setData(await getJson(`${cfg.base}/${m}.geojson`, 60000));
+      setLayerState(cfg.id, `${Number(index[m]).toLocaleString()} slicks in ${m} \u00b7 ${months.length} months kept`);
+    } catch (e) { setLayerState(cfg.id, `${m} could not be read (${e.message})`); }
+  };
+  const row = document.querySelector(`[data-layer="${cfg.id}"]`);
+  const anchor = row && row.closest ? row.closest("label") : null;
+  if (anchor && anchor.after) {
+    const el = document.createElement("div");
+    el.className = "facet";
+    el.innerHTML = `<select aria-label="Month">${months.map((m) => `<option value="${m}">${m} (${Number(index[m]).toLocaleString()})</option>`).join("")}</select>`;
+    el.querySelector("select").addEventListener("change", (e) => show(e.target.value));
+    anchor.after(el);
+  }
+  if (months.length) await show(months[0]);
+  applyVisibility(cfg.id);
+  buildLegend();
+}
+
 /* ---------- the sky the map sits in ---------- */
 
 // Placed at random once, from a fixed seed, so the same sky comes back on
@@ -5972,9 +6004,12 @@ const OTHER_MAPS = {
     { id: "skytruth_monitor", name: "SkyTruth Monitor", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://monitor.skytruth.org/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "skytruth_voc", name: "SkyTruth Monitor: vessels of concern", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
-      page: "https://monitor.skytruth.org/issue/vessels-of-concern",
-      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "skytruth_voc", name: "SkyTruth Monitor: vessels of concern", unit: "alerts, last 30 days", colour: "#5E7377", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Vessels of concern", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/vessels_of_concern.geojson" }],
+      note: "SkyTruth Monitor's vessels-of-concern alerts for the whole world over the last 30 days, from a daily copy of its own service." },
+    { id: "slick_archive", name: "Oil slick archive (Cerulean, kept daily)", unit: "slicks by month", colour: "#5A5750", route: "slickarchive", ready: true, lazy: true,
+      base: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/cerulean_archive",
+      note: "Every Cerulean slick kept by month from a daily copy, so they stay on the map whatever happens to the live service." },
     { id: "wrf", name: "When Rockets Fly", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://whenrocketsfly.com/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
@@ -6089,6 +6124,7 @@ function ensureLayer(cfg) {
     : cfg.route === "rasterlive" ? Promise.resolve().then(() => addRasterChoiceLayer(cfg))
     : cfg.route === "trase" ? addTraseLayer(cfg)
     : cfg.route === "pmshapes" ? Promise.resolve().then(() => addPmShapesLayer(cfg))
+    : cfg.route === "slickarchive" ? addSlickArchive(cfg)
     : cfg.route === "arcgisdyn" ? addArcgisDynLayer(cfg)
     : cfg.route === "giga" ? addGigaLayer(cfg)
     : cfg.route === "trasefacmenu" ? addTraseFacMenu(cfg)
@@ -6219,6 +6255,7 @@ const LAYER_KIND = {
   unep_coral: ["animal", "downstream"],
   trase_measures: ["plant", "downstream"],
   mines_global: ["insentient", "downstream"],
+  slick_archive: ["animal", "downstream"],
   giga_countries: ["human", "upstream"],
   trase_facilities: ["plant", "upstream"],
   biosignature: ["insentient", "downstream"],
@@ -6743,7 +6780,7 @@ const PANEL_ORDER = [
   { h: 3, t: "Agriculture" },
   { h: 4, t: "National shading" }, "land_matrix",
   { h: 4, t: "Slaughterhouses" }, "abattoir_facilities", "cultivated_meat_laws",
-  { h: 3, t: "Oceans" }, "fishing", "slavery_fishing", "cerulean_slicks", "cerulean_sources", "allen_coral", "skytruth_monitor", "skytruth_voc", "unep_coral",
+  { h: 3, t: "Oceans" }, "fishing", "slavery_fishing", "cerulean_slicks", "cerulean_sources", "slick_archive", "allen_coral", "skytruth_monitor", "skytruth_voc", "unep_coral",
   { h: 3, t: "Construction" }, "local_projects", "live_projects_app", "mines_global",
   { h: 3, t: "Culprits upstream" },
   { h: 4, t: "Emissions" }, "carbon_majors", "soy_organizations", "fractracker_refineries", "bocc",

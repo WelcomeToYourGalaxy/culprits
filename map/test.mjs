@@ -1953,5 +1953,12 @@ console.log("\nwhat was still open");
   check("the waiting rows are placed", ["ejatlas", "trase_measures", "nusantara", "gfw_catalogue", "gsn", "seas_of_plastic", "coastal_cleanup", "unep_coral", "mines_global", "atlas_hotspots", "final_nail", "group:ct_history"].every((i) => order.includes(i)));
 }
 
+console.log("\nvessels of concern drawn; the oil-slick archive");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("vessels of concern are drawn from the daily copy", /id: "skytruth_voc"[^\n]*route: "geojsonlive"/.test(src) && /skytruth\/vessels_of_concern\.geojson/.test(src));
+  check("the slick archive is a row beside the live slicks", /id: "slick_archive"/.test(src) && /"cerulean_sources", "slick_archive",/.test(src));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
