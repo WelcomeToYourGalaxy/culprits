@@ -3033,6 +3033,87 @@ async function addMonitorLayer(cfg) {
   buildLegend();
 }
 
+/* ---------- Our World in Data charts as country shading ---------- */
+const OWID_RAMP = ["#E3D9CF", "#C9B3A5", "#AC8A7B", "#8A6356", "#5F3F36"];
+function owidParse(csv) {
+  const lines = csv.trim().split(/\r?\n/);
+  const split = (l) => { const out = []; let cur = "", q = false;
+    for (const ch of l) { if (ch === '"') q = !q; else if (ch === "," && !q) { out.push(cur); cur = ""; } else cur += ch; }
+    out.push(cur); return out; };
+  const head = split(lines[0]).map((h) => h.trim().toLowerCase());
+  const ci = head.indexOf("code"), yi = head.indexOf("year");
+  const vi = head.length - 1;
+  const rows = [];
+  for (const l of lines.slice(1)) {
+    const c = split(l);
+    const v = Number(c[vi]);
+    if (!c[ci] || c[ci].startsWith("OWID") || !isFinite(v) || c[vi] === "") continue;
+    rows.push({ iso3: c[ci], name: c[head.indexOf("entity")], year: Number(c[yi]), v });
+  }
+  return rows;
+}
+function owidPick(rows, year) {
+  const by = new Map();
+  for (const r of rows) {
+    if (year !== "latest" && r.year !== Number(year)) continue;
+    const had = by.get(r.iso3);
+    if (!had || r.year > had.year) by.set(r.iso3, r);
+  }
+  return by;
+}
+function owidBreaks(values) {
+  const v = values.slice().sort((a, b) => a - b);
+  if (!v.length) return [];
+  const q = (p) => v[Math.min(v.length - 1, Math.floor(p * v.length))];
+  return [...new Set([q(0.2), q(0.4), q(0.6), q(0.8)])];
+}
+async function addOwidGrapherLayer(cfg) {
+  let rows, meta = {};
+  try {
+    const r = await fetch(`https://ourworldindata.org/grapher/${cfg.slug}.csv?v=1&csvType=full&useColumnShortNames=true`);
+    if (!r.ok) throw new Error(`${r.status}`);
+    rows = owidParse(await r.text());
+    try { meta = await getJson(`https://ourworldindata.org/grapher/${cfg.slug}.metadata.json?v=1&csvType=full&useColumnShortNames=true`); } catch (e) { /* the chart's title is enough */ }
+  } catch (e) { setLayerState(cfg.id, `Our World in Data did not answer (${e.message})`); return; }
+  const shapes = await getJson(BOUNDARIES_URL);
+  const years = [...new Set(rows.map((r) => r.year))].sort((a, b) => b - a);
+  map.addSource(`${cfg.id}-src`, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+  map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source: `${cfg.id}-src`,
+    paint: { "fill-color": ["coalesce", ["get", "_c"], "rgba(0,0,0,0)"], "fill-opacity": 0.75 } });
+  map.addLayer({ id: `${cfg.id}-line`, type: "line", source: `${cfg.id}-src`, paint: { "line-color": "#1D1B17", "line-width": 0.3, "line-opacity": 0.5 } });
+  const title = (meta.chart && meta.chart.title) || cfg.name;
+  const unit = (() => { const c = meta.columns && Object.values(meta.columns)[0]; return (c && (c.shortUnit || c.unit)) || ""; })();
+  const draw = (year) => {
+    const pick = owidPick(rows, year);
+    const breaks = owidBreaks([...pick.values()].map((r) => r.v));
+    const colourOf = (v) => { let i = 0; while (i < breaks.length && v >= breaks[i]) i++; return OWID_RAMP[Math.min(i + (4 - breaks.length), 4)]; };
+    const feats = shapes.features.map((f) => {
+      const r = pick.get(f.properties.iso3);
+      return { type: "Feature", geometry: f.geometry, properties: { name: f.properties.name, v: r ? r.v : null, year: r ? r.year : null, _c: r ? colourOf(r.v) : null } };
+    });
+    map.getSource(`${cfg.id}-src`).setData({ type: "FeatureCollection", features: feats });
+    setLayerState(cfg.id, `${pick.size} countries \u00b7 ${year === "latest" ? "latest year for each" : year}`);
+  };
+  bindHtmlPopup(`${cfg.id}-fill`, (p) => `<b>${escapeHtml(p.name)}</b>` +
+    `<div class="meta">${escapeHtml(title)}</div>` +
+    `<div class="meta">${p.v === null || p.v === "null" ? "No figure" : Number(p.v).toLocaleString(undefined, { maximumFractionDigits: 2 }) + " " + escapeHtml(unit)}` +
+    `${p.year && p.year !== "null" ? ` (${p.year})` : ""}</div>` +
+    `<div class="meta"><a href="https://ourworldindata.org/grapher/${cfg.slug}" target="_blank" rel="noopener">Open the chart on Our World in Data</a></div>`);
+  const row = document.querySelector(`[data-layer="${cfg.id}"]`);
+  const anchor = row && row.closest ? row.closest("label") : null;
+  if (anchor && anchor.after) {
+    const el = document.createElement("div");
+    el.className = "facet";
+    el.innerHTML = `<select aria-label="Year"><option value="latest">Latest for each country</option>` +
+      years.map((y) => `<option value="${y}">${y}</option>`).join("") + `</select>`;
+    el.querySelector("select").addEventListener("change", (e) => draw(e.target.value));
+    anchor.after(el);
+  }
+  draw("latest");
+  applyVisibility(cfg.id);
+  buildLegend();
+}
+
 /* ---------- the sky the map sits in ---------- */
 
 // Placed at random once, from a fixed seed, so the same sky comes back on
@@ -5335,6 +5416,15 @@ const OTHER_MAPS = {
     { id: "monitor_sports", name: "The sports industry — who takes the money, who carries the cost, and who is governing it", unit: "stories", colour: "#8A857B", route: "monitor", ready: true, lazy: true,
       repo: "WelcomeToYourGalaxy/sports-feed", wire: "wire_sports.json",
       note: "Your live monitor, read from its own repo each time it is ticked: its stories where it places them, in its own topic colours, with its own box." },
+    { id: "owid_interest", name: "Share of government spending going to interest payments (Our World in Data)", unit: "% of spending", colour: "#6E5F52", route: "owidgrapher", ready: true, lazy: true,
+      slug: "share-of-government-expenditure-going-to-interest-payments",
+      note: "Read live from Our World in Data each time it is ticked; the chart's own data, by country and year." },
+    { id: "owid_corptax", name: "Statutory corporate income tax rate (Our World in Data)", unit: "% rate", colour: "#6E5F52", route: "owidgrapher", ready: true, lazy: true,
+      slug: "statutory-corporate-income-tax-rate",
+      note: "Read live from Our World in Data each time it is ticked; the chart's own data, by country and year." },
+    { id: "owid_aid", name: "Foreign aid received as a share of national income (Our World in Data)", unit: "% of income", colour: "#6E5F52", route: "owidgrapher", ready: true, lazy: true,
+      slug: "foreign-aid-received-as-a-share-of-national-income-net",
+      note: "Read live from Our World in Data each time it is ticked; the chart's own data, by country and year." },
     { id: "wreckers_umap", name: "Wreckers of the Earth (Corporate Watch)", unit: "companies and sites", colour: "#6E5A55", route: "umap", ready: true, lazy: true,
       umap: "https://umap.openstreetmap.fr/en", umapId: 409815,
       note: "Read live from Corporate Watch's uMap each time it is ticked, with its own layers, colours and popups." },
@@ -5415,6 +5505,7 @@ function ensureLayer(cfg) {
     : cfg.route === "rasterlive" ? Promise.resolve().then(() => addRasterChoiceLayer(cfg))
     : cfg.route === "trase" ? addTraseLayer(cfg)
     : cfg.route === "pmshapes" ? Promise.resolve().then(() => addPmShapesLayer(cfg))
+    : cfg.route === "owidgrapher" ? addOwidGrapherLayer(cfg)
     : cfg.route === "monitor" ? addMonitorLayer(cfg)
     : cfg.route === "buildings" ? addBuildingTypesLayer(cfg)
     : cfg.route === "spheres" ? addSpheresLayer(cfg)
@@ -5536,6 +5627,9 @@ const LAYER_KIND = {
   unep_coral: ["animal", "downstream"],
   trase_measures: ["plant", "downstream"],
   mines_global: ["insentient", "downstream"],
+  owid_interest: ["human", "upstream"],
+  owid_corptax: ["human", "upstream"],
+  owid_aid: ["human", "upstream"],
   monitor_abortion: ["human", "downstream"],
   monitor_invasion: ["animal", "downstream"],
   monitor_indigenous: ["human", "downstream"],
@@ -6013,9 +6107,9 @@ map.on("load", buildLegend);
 // PANEL_REMOVED are taken out of the box.
 const PANEL_ORDER = [
   { h: 1, t: "On-planet invasion" },
-  { h: 2, t: "Pre-birth frontlines" }, "monitor_abortion", "gmo_releases",
+  { h: 2, t: "Pre-birth frontlines" }, "monitor_abortion", "gmo_releases", "group:gmo_map_layers",
   { h: 2, t: "Post-birth invasion" },
-  { h: 3, t: "Invasion of nonhumans" }, "monitor_invasion", "group:gmo_map_layers",
+  { h: 3, t: "Invasion of nonhumans" }, "monitor_invasion",
   { h: 3, t: "Invasion of humans" }, "monitor_indigenous", "site_settler_colonialism", "site_indigenous_conflicts",
   { h: 3, t: "Of countries by countries" }, "monitor_conflict", "site_secret_societies", "gm",
   { h: 2, t: "Post-life invasion" }, "remains_records", "remains_findings", "remains_cemeteries",
@@ -6050,6 +6144,7 @@ const PANEL_ORDER = [
   { h: 3, t: "Physical suppression" },
   { h: 4, t: "Control of physical resources" }, "monitor_resource", "site_central_banks", "site_banking_dynasties", "site_export_credit", "site_wealth_atlas",
     "site_export_credit_shading", "site_earmarked_funding", "site_trade_profits", "site_social_spheres",
+    "owid_interest", "owid_corptax", "owid_aid",
   { h: 4, t: "Economic inequality within it" }, "monitor_inequality",
   { h: 5, t: "School" }, "monitor_school",
   { h: 4, t: "Law enforcement" }, "monitor_police",

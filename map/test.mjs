@@ -1840,5 +1840,22 @@ console.log("\nyour 22 live monitors");
         place({ pl: ["unlocated"], sr: ["africa-e"] }, geo) === "East Africa");
 }
 
+console.log("\nOur World in Data shading; the genetic engineering map moved");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const order = new Function(body + "; return PANEL_ORDER;")();
+  const pre = order.findIndex((x) => x && x.t === "Pre-birth frontlines"), post = order.findIndex((x) => x && x.t === "Post-birth invasion");
+  const g = order.indexOf("group:gmo_map_layers");
+  check("the Genetic engineering map is under Pre-birth frontlines", g > pre && g < post);
+  const parse = new Function(src.slice(src.indexOf("function owidParse("), src.indexOf("function owidBreaks(")) + "; return [owidParse, owidPick];")();
+  const rows = parse[0]('Entity,Code,Year,gc_xpn\nKenya,KEN,2020,10.5\nKenya,KEN,2022,12\n"Korea, South",KOR,2021,3\nWorld,OWID_WRL,2022,9\nX,XXX,2021,\n');
+  check("a chart's rows are read, aggregates and blanks left out", rows.length === 3 && rows[2].name === "Korea, South");
+  const latest = parse[1](rows, "latest"), y2020 = parse[1](rows, "2020");
+  check("latest takes each country's most recent year", latest.get("KEN").year === 2022 && latest.get("KOR").year === 2021);
+  check("a single year takes only that year", y2020.size === 1 && y2020.get("KEN").v === 10.5);
+  check("the three charts are rows", ["owid_interest", "owid_corptax", "owid_aid"].every((i) => new RegExp(`id: "${i}"`).test(src)));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
