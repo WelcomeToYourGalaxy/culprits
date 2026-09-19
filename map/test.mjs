@@ -1903,5 +1903,14 @@ console.log("\nSocial Spheres controls; Live Projects to Resist whole; wastewate
   check("the wastewater layers read the GitHub copy", (src.match(/tiles\/wastewater_N_[a-z_]+\.pmtiles/g) || []).length === 5 && !/mazu\.nceas\.ucsb\.edu/.test(src));
 }
 
+console.log("\nGlobal Safety Net");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const shown = new Function(src.slice(src.indexOf("function gsnShown("), src.indexOf("async function addGsnLayer(")) + "; return gsnShown;")();
+  const list = [{ id: 1, gee_tile_url: "u" }, { id: 26, gee_tile_url: "u", is_hidden: "True" }, { id: 7, gee_tile_url: "u", is_multilayer: "True" }, { id: 9 }];
+  check("the viewer's own layers are offered, its hidden helpers are not", shown(list).map((l) => l.id).join() === "1,7");
+  check("each is drawn from the fresh address its list gives", /\$\{l\.gee_tile_url\}\/tiles\/\{z\}\/\{x\}\/\{y\}/.test(src));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

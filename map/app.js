@@ -3317,6 +3317,45 @@ function addCompanion(cfg) {
   applyVisibility(cfg.id);
 }
 
+/* ---------- Global Safety Net: its viewer's layers, ticked one by one ---------- */
+function gsnShown(list) {
+  return (list || []).filter((l) => l.gee_tile_url && !(l.is_hidden === true || l.is_hidden === "True"));
+}
+async function addGsnLayer(cfg) {
+  let list;
+  try { list = gsnShown(await getJson(cfg.api, 40000)); }
+  catch (e) { setLayerState(cfg.id, `Global Safety Net did not answer (${e.message})`); return; }
+  cfg._layerIds = [];
+  const row = document.querySelector(`[data-layer="${cfg.id}"]`);
+  const anchor = row && row.closest ? row.closest("label") : null;
+  if (anchor && anchor.after) {
+    const el = document.createElement("div");
+    el.className = "facet";
+    el.style.cssText = "display:block;max-height:220px;overflow:auto";
+    el.innerHTML = list.map((l) => `<label title="${escapeHtml(l.description || "")}" style="display:flex;gap:6px;align-items:center;font-size:12px;margin:2px 0;cursor:pointer">` +
+      `<input type="checkbox" data-gsn="${escapeHtml(String(l.id))}"><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${escapeHtml(l.colour || "#777")}"></i>` +
+      `${escapeHtml(l.name)}</label>`).join("");
+    el.addEventListener("change", (e) => {
+      const cb = e.target;
+      if (!cb.dataset || !cb.dataset.gsn) return;
+      e.stopPropagation();
+      const l = list.find((x) => String(x.id) === cb.dataset.gsn);
+      const id = `${cfg.id}-r-${l.id}`;
+      if (cb.checked && !map.getLayer(id)) {
+        map.addSource(id, { type: "raster", tileSize: 256, tiles: [`${l.gee_tile_url}/tiles/{z}/{x}/{y}`],
+          attribution: "Global Safety Net, One Earth / Nature Data Lab" });
+        map.addLayer({ id, type: "raster", source: id, paint: { "raster-opacity": 0.85 } });
+        cfg._layerIds.push(id);
+      }
+      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", cb.checked && (visibility.get(cfg.id) || "visible") === "visible" ? "visible" : "none");
+      const on = el.querySelectorAll("input:checked").length;
+      setLayerState(cfg.id, `${on} of ${list.length} layers shown` + (cb.checked && l.description ? ` \u00b7 ${l.name}: ${l.description.slice(0, 140)}` : ""));
+    });
+    anchor.after(el);
+  }
+  setLayerState(cfg.id, `${list.length} layers \u2014 tick the ones to show`);
+}
+
 /* ---------- the sky the map sits in ---------- */
 
 // Placed at random once, from a fixed seed, so the same sky comes back on
@@ -5585,6 +5624,9 @@ const OTHER_MAPS = {
     { id: "live_projects_app", name: "Live Projects to Resist (its whole map)", unit: "opens its own map in a panel", colour: "#6E7B84", route: "companion", ready: true, lazy: true,
       page: "https://welcometoyourgalaxy.github.io/local-map/",
       note: "The Live Global Project Map itself, in a panel along the bottom that follows this map's view: its country guides and how-to PDFs, lenses, trackers, regions, project cards, overlays and history." },
+    { id: "gsn", name: "Global Safety Net (One Earth)", unit: "layers", colour: "#406F2F", route: "gsn", ready: true, lazy: true,
+      api: "https://api.gsn.naturedatalab.org/geo-analysis/layers",
+      note: "Every layer the Global Safety Net viewer offers, drawn live from its own map service in its own colours." },
     { id: "wreckers_umap", name: "Wreckers of the Earth (Corporate Watch)", unit: "companies and sites", colour: "#6E5A55", route: "umap", ready: true, lazy: true,
       umap: "https://umap.openstreetmap.fr/en", umapId: 409815,
       note: "Read live from Corporate Watch's uMap each time it is ticked, with its own layers, colours and popups." },
@@ -5665,6 +5707,7 @@ function ensureLayer(cfg) {
     : cfg.route === "rasterlive" ? Promise.resolve().then(() => addRasterChoiceLayer(cfg))
     : cfg.route === "trase" ? addTraseLayer(cfg)
     : cfg.route === "pmshapes" ? Promise.resolve().then(() => addPmShapesLayer(cfg))
+    : cfg.route === "gsn" ? addGsnLayer(cfg)
     : cfg.route === "companion" ? Promise.resolve().then(() => addCompanion(cfg))
     : cfg.route === "rte" ? addRteLayer(cfg)
     : cfg.route === "ll2" ? addLivePlacesLayer(cfg)
@@ -5789,6 +5832,7 @@ const LAYER_KIND = {
   unep_coral: ["animal", "downstream"],
   trase_measures: ["plant", "downstream"],
   mines_global: ["insentient", "downstream"],
+  gsn: ["plant", "downstream"],
   live_projects_app: ["human", "downstream"],
   rte_trade: ["insentient", "upstream"],
   mymaps_supp_a: ["human", "upstream"],
