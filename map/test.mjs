@@ -1822,24 +1822,6 @@ console.log("\nbuilding types, one layer");
   check("no type is coloured yellow or orange", Object.values(cols(Array.from({ length: 40 }, (_, i) => "t" + i))).every((v) => { const h = Number(/hsl\((\d+)/.exec(v)[1]); return !(h > 20 && h < 90); }));
 }
 
-console.log("\nyour 22 live monitors");
-{
-  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("all 22 monitors are rows", (src.match(/route: "monitor"/g) || []).length === 22);
-  check("each reads its own repo's wire, live", /raw\.githubusercontent\.com\/\$\{cfg\.repo\}\/main\/\$\{cfg\.wire\}/.test(src));
-  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
-  const order = new Function(body + "; return PANEL_ORDER;")();
-  const after = (t, id) => order.indexOf(id) === order.findIndex((x) => x && x.t === t) + 1;
-  check("each monitor sits under its heading", after("Law enforcement", "monitor_police") && after("Sports", "monitor_sports") &&
-        after("Pre-birth frontlines", "monitor_abortion") && order.includes("monitor_space"));
-  const cols = new Function(src.slice(src.indexOf("function monitorColours("), src.indexOf("// Its popup styles")) + "; return monitorColours;")();
-  check("a monitor's own topic colours are read from its page", cols("const TOPIC_COLOR = {\n  ownership: '#b3877e', // clay\n  jobs: '#bf8b87'\n};").jobs === "#bf8b87");
-  const place = new Function(src.slice(src.indexOf("function monitorPlace("), src.indexOf("async function addMonitorLayer(")) + "; return monitorPlace;")();
-  const geo = [{ id: "africa", label: "Africa", subs: [{ id: "africa-e", label: "East Africa", places: [{ id: "ke", label: "Kenya" }] }] }];
-  check("a story is named by the most specific place it has", place({ pl: ["ke"], sr: ["africa-e"], w: ["africa"] }, geo) === "Kenya" &&
-        place({ pl: ["unlocated"], sr: ["africa-e"] }, geo) === "East Africa");
-}
-
 console.log("\nOur World in Data shading; the genetic engineering map moved");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
@@ -1855,6 +1837,28 @@ console.log("\nOur World in Data shading; the genetic engineering map moved");
   check("latest takes each country's most recent year", latest.get("KEN").year === 2022 && latest.get("KOR").year === 2021);
   check("a single year takes only that year", y2020.size === 1 && y2020.get("KEN").v === 10.5);
   check("the three charts are rows", ["owid_interest", "owid_corptax", "owid_aid"].every((i) => new RegExp(`id: "${i}"`).test(src)));
+}
+
+console.log("\nrow tools; easier-to-see points; monitors back in the wires box only");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the monitor layers are gone", !/monitor_/.test(src) && !/route: "monitor"/.test(src));
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const order = new Function(body + "; return PANEL_ORDER;")();
+  const plants = order.findIndex((x) => x && x.t === "Of plants");
+  check("the Christmas tree map is under Suppression, Of plants", order.indexOf("mymaps_trees") === plants + 2);
+  const hook = src.slice(src.indexOf("const POINT_MIN"), src.indexOf("const OPACITY_PROPS"));
+  const [mapOutputs, boostOne, legibleCircle] = new Function(hook + "; return [mapOutputs, boostOne, legibleCircle];")();
+  check("a small fixed point grows to a visible size", boostOne(1.4) === 3.2 && Math.abs(boostOne(6) - 7.2) < 1e-9);
+  const z = mapOutputs(["interpolate", ["linear"], ["zoom"], 1, 1.5, 8, 6], boostOne);
+  check("…and so does each stop of a zoom scale", z[4] === 3.2 && z[6] > 7);
+  const L = { id: "x-pt", type: "circle", paint: { "circle-color": "#555", "circle-radius": 2 } };
+  legibleCircle(L);
+  check("points get a light rim", /242,238,230/.test(L.paint["circle-stroke-color"]) && L.paint["circle-stroke-width"] === 1);
+  const ring = { id: "r", type: "circle", paint: { "circle-color": "rgba(0,0,0,0)", "circle-radius": 5 } };
+  legibleCircle(ring);
+  check("hollow rings keep their own drawing", ring.paint["circle-radius"] === 5);
+  check("each row has move and transparency tools", /data-mv="up"/.test(src) && /type="range" min="10" max="100"/.test(src) && /map\.moveLayer\(id, before\)/.test(src));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
