@@ -2066,7 +2066,9 @@ console.log("\nNusantara Atlas and Global Forest Watch, by category");
   check("mangrove extent is Land Cover", categoryOf("Global mangrove extent", G) === "Land Cover");
   check("a layer no rule claims goes under Other, not away", categoryOf("xyz 123", G) === "Other");
   check("Global Forest Watch uses the category chips", (src.match(/categoryMenu\(menu, /g) || []).length === 1);
-  check("Nusantara lists every layer under its category, indented, any number ticked", /menu\.className = "facet ns-list"/.test(src) && /class="ns-row"/.test(src) && /#layers \.ns-row\{/.test(src));
+  // Superseded: Nusantara's layers are rows of the box itself now, filed by
+  // what they show, not a list inside one row.
+  check("Nusantara's layers are rows of the box, filed by subject", /catalogueRows\(cfg, items\);/.test(src) && !/menu\.className = "facet ns-list"/.test(src));
 }
 
 console.log("\nEPA facilities at every zoom");
@@ -2140,7 +2142,7 @@ console.log("\nthe showing box, the queue, and menus that draw");
   check("a heading's tick sits at the end of its line", /line\.appendChild\(head\);\n\s*line\.appendChild\(all\);/.test(src));
   check("layers are built three at a time, and a waiting row says so",
         /const QUEUE_AT_ONCE = 3/.test(src) && /waiting behind \$\{i \+ 1\} other layer/.test(src) && /queueBuild\(cfg\.id, \(\) => \{/.test(src));
-  check("a menu's own ticks turn the row above them on", /function showRowFor\(id\)/.test(src) && /if \(cb\.checked\) showRowFor\(cfg\.id\)/.test(src) && /if \(pick\) showRowFor\(cfg\.id\)/.test(src));
+  check("a catalogue row turns the row it belongs to on", /function showRowFor\(id\)/.test(src) && /showRowFor\(cfg\.id\);\n\s*on\.add\(i\);/.test(src) && /if \(pick\) showRowFor\(cfg\.id\)/.test(src));
 }
 
 console.log("\ntitles in one ink, sources named");
@@ -2581,6 +2583,29 @@ console.log("\na row can sit under more than one subject");
           .every((t) => at(t) > at("Of the planet") && at(t) < at("Of groups")));
   check("Base and reference is its own section, beside Buildings", at("Base and reference") < at("Buildings") &&
         order[at("Base and reference")].h === 1);
+}
+
+console.log("\nNusantara's layers spread through the box");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const places = new Function(src.slice(src.indexOf("const CATALOGUE_PLACES = ["), src.indexOf("// The body of the heading a path names")) + "; return cataloguePlaces;")();
+  check("a layer goes under every subject its words answer to",
+        places("Mining concessions Indonesia").includes("Destruction > Of the planet > Mining") &&
+        places("Mining concessions Indonesia").includes("Destruction > Of the planet > Land held under permit"));
+  check("fire alerts are fire and deforestation is deforestation",
+        places("Fire alerts, VIIRS")[0] === "Destruction > Of the planet > Deforestation" ||
+        places("Fire alerts, VIIRS").includes("Destruction > Of the planet > Fire"));
+  check("customary forest is land and territory, not forest cover",
+        places("Customary forest (hutan adat)").includes("Suppression > Of humans > Land and territory"));
+  check("boundaries and relief are base and reference",
+        places("Province boundaries").includes("Base and reference") &&
+        places("Hillshade relief").includes("Base and reference"));
+  check("a layer no rule claims waits in Not yet placed rather than being invented a home",
+        places("qqqq zzzz")[0] === "Not yet placed");
+  check("a heading nothing answers to is not made up", /function sectionBody\(box, path\)/.test(src) && /if \(!found\) return null;/.test(src));
+  check("a second home ticks the first, and the first ticks its copies",
+        /const copied = t\.dataset\.catCopy;/.test(src) && /querySelectorAll\(`\[data-cat-copy="\$\{key\}"\]`\)/.test(src));
+  check("each row says it is live and links its source", /class="live"/.test(src) && /\$\{siteLink\(cfg\.id\)\}<\/span>/.test(src));
 }
 
 console.log("\nGlobal Safety Net fixes; My Maps titles");
