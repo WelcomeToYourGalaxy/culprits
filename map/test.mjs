@@ -1338,9 +1338,9 @@ console.log("\nreading the map");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   const wireSrc = fs.readFileSync(path.join(HERE, "wire.js"), "utf8");
-  check("the imagery basemap is graded like the atlas's imagery",
-        /satellite: \{ "raster-brightness-min": ATLAS_TUNE\.lift/.test(src) &&
-        /for \(const k of \["atlas", "satellite"\]\)/.test(src));
+  check("the Satellite basemap has its own livelier grade; the atlas keeps its own",
+        /satellite: \{ "raster-brightness-min": 0\.02, "raster-brightness-max": 1,\n\s*"raster-saturation": 0\.38/.test(src) &&
+        /atlas: \{ "raster-brightness-min": ATLAS_TUNE\.lift/.test(src));
   check("and carries the same washes", /BASEMAP === "outlines" \|\| !options/.test(src));
   check("the caret sits in the layer box, not the title box",
         /<div class="panel-head">[\s\S]{0,500}id="panelRoll"/.test(index) &&
@@ -2066,6 +2066,17 @@ console.log("\nMy Maps addresses from data fields");
   check("a place's own address comes first", f(" 2 Elm St ", [["Address", "x"]]) === "2 Elm St");
   check("else its Address, City and State fields, joined", f("", [["Company", "Acme"], ["Address", "1 Main St"], ["City", "Topeka"], ["State", "KS"]]) === "1 Main St, Topeka, KS");
   check("a place with neither has no address", f("", [["Notes", "x"]]) === "");
+}
+
+console.log("\nthe Satellite basemap as a planetary-defence view; folding a row's boxes");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("only the Satellite basemap turns the defence view on", /defenceMode\(kind === "satellite"\);/.test(src));
+  check("threat pulses sit under the real points of ticked Destruction layers only", /t\.textContent\.trim\(\) !== "Destruction"/.test(src) && /l\.type !== "circle"/.test(src) && /map\.addLayer\(spec, lid\)/.test(src));
+  check("the threat colour is a red, with no orange, yellow or neon", /threat: "#B8473E"/.test(src));
+  check("the frame takes no clicks and stops moving for reduced motion", /#defence-hud\{position:absolute;inset:0;pointer-events:none/.test(index) && /prefers-reduced-motion: reduce\)\{#defence-hud \.scan/.test(index));
+  check("each ticked row with boxes under it has a fold button", /f\.className = "fold";/.test(src) && /has\(\+ \.facet\) \.fold\{display:inline-block\}/.test(src));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

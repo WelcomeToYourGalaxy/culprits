@@ -715,11 +715,12 @@ const BASE_GRADE = {
   atlas: { "raster-brightness-min": ATLAS_TUNE.lift, "raster-brightness-max": 1,
            "raster-saturation": ATLAS_TUNE.sat, "raster-contrast": ATLAS_TUNE.con,
            "raster-hue-rotate": ATLAS_TUNE.hue },
-  // The same imagery, graded the same way: past the zoom where the plate has
-  // faded, the atlas basemap is this, so the two read as one photograph.
-  satellite: { "raster-brightness-min": ATLAS_TUNE.lift, "raster-brightness-max": 1,
-               "raster-saturation": ATLAS_TUNE.sat, "raster-contrast": ATLAS_TUNE.con,
-               "raster-hue-rotate": ATLAS_TUNE.hue },
+  // The Satellite imagery basemap on its own (not the imagery under the painted
+  // atlas, which keeps the atlas grade): graded livelier, so forest reads green
+  // and water blue. Part of the planetary-defence look (see DEFENCE below).
+  satellite: { "raster-brightness-min": 0.02, "raster-brightness-max": 1,
+               "raster-saturation": 0.38, "raster-contrast": 0.14,
+               "raster-hue-rotate": 0 },
 };
 let BASEMAP = "atlas";
 
@@ -1423,8 +1424,137 @@ function setBasemap(kind) {
       ? ["interpolate", ["linear"], ["zoom"], PLATE.fadeIn, 0, PLATE.fadeOut, .92]
       : .92);
   }
+  defenceMode(kind === "satellite");
   if (typeof map.triggerRepaint === "function") map.triggerRepaint();
 }
+
+/* ---------- the Satellite basemap as a planetary-defence view ---------- */
+// Only on the Satellite imagery basemap. The imagery stays the photograph; on
+// top of it:
+//   - a livelier grade (BASE_GRADE.satellite) and a teal atmosphere;
+//   - a thin frame at the screen's edges, a faint vignette and a slow scan line
+//     (index.html, #defence-hud), none of which take clicks;
+//   - every ticked layer under Destruction whose places are points gets a slow
+//     red pulse beneath its own points: a threat zone at each real site, never a
+//     place the layer does not give;
+//   - Global Safety Net's areas (the places identified for protection) breathe
+//     slowly brighter and back;
+//   - a click answers with a ring where it landed.
+// Nothing is invented: no scores, no places, no numbers. Motion stops for
+// anyone whose system asks for reduced motion.
+const DEFENCE = {
+  threat: "#B8473E",
+  sky: { "sky-color": "#0B1A22", "horizon-color": "#2F8F93", "fog-color": "#2F8F93",
+         "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 1, 4, 0.85, 7, 0] },
+  guard: ["gsn"],
+  maxPulsing: 16,
+};
+let DEFENCE_ON = false, defenceTimer = null, defenceSky = null;
+const reducedMotion = () => typeof window !== "undefined" && window.matchMedia &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+function destructionRows() {
+  const out = [];
+  if (typeof document === "undefined" || !document.querySelectorAll) return out;
+  for (const sec of document.querySelectorAll("#layers .toc-sec.toc-l1")) {
+    const t = sec.querySelector(".toc-t");
+    if (!t || t.textContent.trim() !== "Destruction") continue;
+    for (const i of sec.querySelectorAll("[data-layer]")) if (i.checked) out.push(i.dataset.layer);
+  }
+  return out;
+}
+function defenceHalos() {
+  const ids = [];
+  for (const row of destructionRows()) {
+    for (const lid of layersOfRow(row)) {
+      if (lid.endsWith("-halo")) continue;
+      const l = map.getLayer(lid);
+      if (!l || l.type !== "circle" || map.getLayoutProperty(lid, "visibility") === "none") continue;
+      ids.push(lid);
+      if (ids.length >= DEFENCE.maxPulsing) return ids;
+    }
+  }
+  return ids;
+}
+function ensureHalo(lid) {
+  const hid = `${lid}-halo`;
+  if (map.getLayer(hid)) return hid;
+  const l = map.getLayer(lid);
+  const spec = { id: hid, type: "circle", source: l.source,
+    paint: { "circle-color": DEFENCE.threat, "circle-blur": 0.85, "circle-opacity": 0,
+             "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 6, 8, 11, 14, 16] } };
+  if (l.sourceLayer) spec["source-layer"] = l.sourceLayer;
+  // Only at the zooms its layer draws at.
+  if (l.minzoom != null) spec.minzoom = l.minzoom;
+  if (l.maxzoom != null) spec.maxzoom = l.maxzoom;
+  const filter = map.getFilter(lid);
+  if (filter) spec.filter = filter;
+  try { map.addLayer(spec, lid); } catch (e) { return null; }
+  return hid;
+}
+function defenceTick() {
+  if (!DEFENCE_ON) return;
+  const t = (Date.now() % 2800) / 2800;           // one pulse every 2.8 s
+  const still = reducedMotion();
+  const live = new Set();
+  for (const lid of defenceHalos()) {
+    const hid = ensureHalo(lid);
+    if (!hid) continue;
+    live.add(hid);
+    map.setLayoutProperty(hid, "visibility", "visible");
+    const f = map.getFilter(lid);
+    map.setFilter(hid, f || null);
+    const grow = still ? 0.5 : t;
+    map.setPaintProperty(hid, "circle-opacity", still ? 0.28 : 0.42 * (1 - grow));
+    map.setPaintProperty(hid, "circle-radius", ["interpolate", ["linear"], ["zoom"],
+      1, 3 + 7 * grow, 8, 6 + 10 * grow, 14, 9 + 14 * grow]);
+  }
+  for (const l of map.getStyle().layers || []) {
+    if (l.id.endsWith("-halo") && !live.has(l.id)) map.setLayoutProperty(l.id, "visibility", "none");
+  }
+  for (const row of DEFENCE.guard) {
+    if ((visibility.get(row) || "none") !== "visible") continue;
+    const k = still ? 0.5 : 0.5 + 0.5 * Math.sin(Date.now() / 1400);
+    for (const lid of layersOfRow(row)) {
+      const l = map.getLayer(lid);
+      if (l && l.type === "raster") map.setPaintProperty(lid, "raster-brightness-min", 0.05 + 0.13 * k);
+    }
+  }
+}
+function defenceMode(on) {
+  if (!map || typeof map.getStyle !== "function") return;
+  DEFENCE_ON = on;
+  const hud = typeof document !== "undefined" && document.getElementById ? document.getElementById("defence-hud") : null;
+  if (hud) hud.hidden = !on;
+  if (typeof map.setSky === "function") {
+    if (on) {
+      if (!defenceSky && typeof map.getSky === "function") defenceSky = map.getSky();
+      map.setSky(Object.assign({}, defenceSky || {}, DEFENCE.sky));
+    } else if (defenceSky) { map.setSky(defenceSky); defenceSky = null; }
+  }
+  if (on && !defenceTimer) defenceTimer = setInterval(defenceTick, 90);
+  if (!on && defenceTimer) {
+    clearInterval(defenceTimer);
+    defenceTimer = null;
+    for (const l of (map.getStyle() && map.getStyle().layers) || []) {
+      if (l.id.endsWith("-halo")) map.setLayoutProperty(l.id, "visibility", "none");
+    }
+    for (const row of DEFENCE.guard) for (const lid of layersOfRow(row)) {
+      const l = map.getLayer(lid);
+      if (l && l.type === "raster") map.setPaintProperty(lid, "raster-brightness-min", 0);
+    }
+  }
+}
+if (typeof map.on === "function") map.on("click", (e) => {
+  if (!DEFENCE_ON || reducedMotion() || typeof document === "undefined") return;
+  const box = map.getContainer && map.getContainer();
+  if (!box || !box.appendChild) return;
+  const ring = document.createElement("div");
+  ring.className = "defence-ping";
+  ring.style.left = `${e.point.x}px`;
+  ring.style.top = `${e.point.y}px`;
+  box.appendChild(ring);
+  setTimeout(() => ring.remove(), 1000);
+});
 
 /* ---------- views, and the hand-over to NASA's Eyes ---------- */
 
@@ -7141,6 +7271,26 @@ function addRowTools(box) {
   for (const lead of box.querySelectorAll("label.layer, .group > .layer.parent")) {
     if (lead.closest("[data-removed]") || lead.querySelector(".grip")) continue;
     if (!lead.querySelector("[data-layer], [data-group]")) continue;
+    // A ticked row's boxes underneath it (its sources, kinds, transparency)
+    // fold away and back with this.
+    if (lead.tagName === "LABEL" && !lead.querySelector(".fold")) {
+      const f = document.createElement("button");
+      f.type = "button";
+      f.className = "fold";
+      f.title = "Hide or show this layer's boxes";
+      f.setAttribute("aria-label", "Hide or show this layer's boxes");
+      f.textContent = "\u25B4";
+      f.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const folded = !lead.classList.contains("folded");
+        lead.classList.toggle("folded", folded);
+        rowNodes(lead).slice(1).forEach((n) => n.classList.toggle("fold-hide", folded));
+        f.textContent = folded ? "\u25BE" : "\u25B4";
+        f.setAttribute("aria-expanded", String(!folded));
+      });
+      lead.appendChild(f);
+    }
     const g = document.createElement("span");
     g.className = "grip";
     g.title = "Drag to move this layer above or below the others";
@@ -7292,6 +7442,10 @@ function arrangePanel() {
       ".panel-h4{font-size:10.5px;opacity:.7;padding-left:16px;font-style:italic}" +
       ".panel-h5{font-size:10.5px;opacity:.62;padding-left:22px}" +
       "#layers label.layer,#layers .group>.layer.parent{cursor:grab;user-select:none}" +
+      "#layers .fold{display:none;margin-left:auto;padding:0 4px;border:0;background:none;color:var(--dim);cursor:pointer;font-size:11px;line-height:1}" +
+      "#layers label.layer:has(> input:checked):has(+ .facet) .fold{display:inline-block}" +
+      "#layers label.layer:has(> input:checked):has(+ .facet) .grip{margin-left:0}" +
+      "#layers .facet.fold-hide{display:none}" +
       "#layers .grip{margin-left:auto;padding:0 2px 0 6px;color:var(--dim);opacity:.55;cursor:grab;touch-action:none;font-size:13px;line-height:1}" +
       "#layers .dragging{opacity:.45}" +
       "#layers .drop-above{box-shadow:0 -2px 0 0 #8A9DA6}#layers .drop-below{box-shadow:0 2px 0 0 #8A9DA6}";

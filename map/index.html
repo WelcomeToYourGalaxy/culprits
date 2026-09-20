@@ -47,6 +47,25 @@
   #layers .layer.parent .un{display:block}
   #layers .facet{padding:1px 0 5px 22px}
   #layers .kids{margin:0 0 2px 9px}
+  /* The Satellite basemap's planetary-defence frame (see DEFENCE in app.js).
+     Thin corner brackets, a faint vignette and a slow scan line; none of it
+     takes clicks or covers the middle of the map. */
+  #defence-hud{position:absolute;inset:0;pointer-events:none;z-index:1;
+    background:radial-gradient(ellipse at center, rgba(0,0,0,0) 62%, rgba(4,16,22,.38) 100%)}
+  #defence-hud[hidden]{display:none}
+  #defence-hud .br{position:absolute;width:38px;height:38px;border:1.5px solid rgba(63,167,163,.55)}
+  #defence-hud .tl{top:10px;left:calc(var(--box-w) + 32px);border-right:0;border-bottom:0}
+  #defence-hud .tr{top:10px;right:calc(var(--box-w) + 24px);border-left:0;border-bottom:0}
+  #defence-hud .bl{bottom:34px;left:calc(var(--box-w) + 32px);border-right:0;border-top:0}
+  #defence-hud .bre{bottom:34px;right:calc(var(--box-w) + 24px);border-left:0;border-top:0}
+  #defence-hud .scan{position:absolute;left:0;right:0;height:2px;top:0;
+    background:linear-gradient(90deg, rgba(63,167,163,0), rgba(63,167,163,.28), rgba(63,167,163,0));
+    animation:defence-scan 11s linear infinite}
+  @keyframes defence-scan{from{top:0}to{top:100%}}
+  .defence-ping{position:absolute;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;
+    border:1.5px solid rgba(63,167,163,.85);pointer-events:none;z-index:2;animation:defence-ping .95s ease-out forwards}
+  @keyframes defence-ping{to{transform:scale(6);opacity:0}}
+  @media (prefers-reduced-motion: reduce){#defence-hud .scan,.defence-ping{animation:none;display:none}}
   /* The layers box rolls up whole: the box shrinks to its heading. */
   .left-col .panel.shut{flex:0 0 auto;height:auto !important}
   /* A page panel sets display:flex, which would otherwise override hidden. */
@@ -283,6 +302,7 @@
      there and clickable from the first moment, before the map has loaded and
      even if the map's script is slow or has failed. Once the view box exists
      it is moved beside the zoom buttons. -->
+<div id="defence-hud" hidden><i class="br tl"></i><i class="br tr"></i><i class="br bl"></i><i class="br bre"></i><i class="scan"></i></div>
 <div class="reload-wrap reload-early" id="reload-wrap">
   <button type="button" id="reload-map" aria-label="Reload the map"
           onclick="try{var v=window.__culpritsView;if(v)sessionStorage.setItem('culprits-view',v)}catch(e){}location.reload()">&#8635;</button>
