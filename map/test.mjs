@@ -2127,5 +2127,12 @@ console.log("\nGuerillamap panel, Pollution, the releases split");
         kids.every((k) => o.PANEL_ORDER.includes(k) && new RegExp(`id:"${k}", sourceOf:"gmo_releases"`).test(src)));
 }
 
+console.log("\nHydroWASTE on the map; the EIP and HydroFATE page rows gone");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("HydroWASTE's plants are drawn from their own archive", /id:"hydrowaste", +name:"Wastewater treatment plants \(HydroWASTE\)"[^\n]*route:"pmtiles"/.test(src) && fs.existsSync(path.join(HERE, "tiles", "hydrowaste.pmtiles")));
+  check("the Environmental Integrity Project and HydroFATE page rows are gone", !/id: "eip_inventory"/.test(src) && !/id: "hydrofate"/.test(src));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
