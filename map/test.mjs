@@ -1789,7 +1789,8 @@ console.log("\nsuppression in the given order; news box filters");
         at("Of humans") < at("Physical suppression") && at("Physical suppression") < at("Suppression by \u201crepresentation\u201d within it") &&
         at("Suppression by \u201crepresentation\u201d within it") < at("Suppression by information") && at("Suppression by information") < at("Suppression by social molds"));
   check("Economically is now Control of physical resources", at("Economically") === -1 && at("Control of physical resources") > at("Physical suppression"));
-  check("the other beings follow Of humans", at("Of animals") > at("Suppression by social molds") && at("Of microscopics") > at("Of plants"));
+  const last = (x) => order.map((y) => y && y.t).lastIndexOf(x);
+  check("the other beings follow Of humans", last("Of animals") > at("Suppression by social molds") && last("Of microscopics") > last("Of plants"));
   const pick = new Function(src.slice(src.indexOf("function wirePopPick("), src.indexOf("// Every story at a mark")) + "; return wirePopPick;")();
   const list = [{ subject: "Slavery", outlet: "AP", title: "Brick kilns raided" }, { subject: "Voting", outlet: "AP", title: "Polls close" },
                 { subject: "Slavery", outlet: "BBC", title: "Fishing crews freed" }];
@@ -1847,7 +1848,7 @@ console.log("\nrow tools; easier-to-see points; monitors back in the wires box o
   check("the monitor layers are gone", !/monitor_/.test(src) && !/route: "monitor"/.test(src));
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
   const order = new Function(body + "; return PANEL_ORDER;")();
-  const plants = order.findIndex((x) => x && x.t === "Of plants");
+  const plants = order.map((x) => x && x.t).lastIndexOf("Of plants");
   check("the Christmas tree map is under Suppression, Of plants", order.indexOf("mymaps_trees") === plants + 2);
   const hook = src.slice(src.indexOf("const POINT_MIN"), src.indexOf("const OPACITY_PROPS"));
   const [mapOutputs, boostOne, legibleCircle] = new Function(hook + "; return [mapOutputs, boostOne, legibleCircle];")();
@@ -1875,7 +1876,7 @@ console.log("\nlaunch sites and upcoming launches");
 console.log("\nthe space industry map");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("it is a row under Off-planet invasion", /id: "space_industry"/.test(src) && /"space_industry", "ll2_pads"/.test(src));
+  check("it is a row under Off-planet invasion", /id: "space_industry"/.test(src) && /\{ h: 3, t: "The space industry" \}, "space_industry"/.test(src));
   check("its boxes are the ones its copy carries", /p\._html \? boxOpen \+ p\._html/.test(src));
 }
 
@@ -2082,6 +2083,25 @@ console.log("\nthe Satellite basemap as a planetary-defence view; folding a row'
   check("the threat colour is a red, with no orange, yellow or neon", /threat: "#B8473E"/.test(src));
   check("the frame takes no clicks and stops moving for reduced motion", /#defence-hud\{position:absolute;inset:0;pointer-events:none/.test(index) && /prefers-reduced-motion: reduce\)\{#defence-hud \.scan/.test(index));
   check("each ticked row with boxes under it has a fold button", /f\.className = "fold";/.test(src) && /has\(\+ \.facet\) \.fold\{display:inline-block\}/.test(src));
+}
+
+console.log("\nOff-planet sections, Of groups, names, launch links, drag bar, markers, headings");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const order = new Function(body + "; return PANEL_ORDER;")();
+  const at = (t) => order.findIndex((x) => x && x.t === t);
+  check("Off-planet has To Earth and From Earth, with their four sections and one empty",
+        at("To Earth") < at("Near-Earth object impacts") && at("Unidentified aerial phenomena") < at("From Earth") &&
+        at("From Earth") < at("The space industry") && at("Space launches") < at("Protecting extraterrestrial life"));
+  check("Fur Farms (Final Nail) is under Destruction, Of groups, Of animals", order.indexOf("final_nail") === at("Of animals") + 1 && at("Of animals") > at("Of groups") && /name: "Fur Farms \(Final Nail\)"/.test(src));
+  check("Pet Food Companies is under The pet industry", order.indexOf("mymaps_supp_a") === at("The pet industry") + 1 && /name: "Pet Food Companies"/.test(src));
+  check("each upcoming launch links to its own pages", /spacelaunchnow\.me\/launch\//.test(src) && /r\.info_urls/.test(src) && /ll2Links\(r\)/.test(src));
+  check("page panels have a drag bar", /class="c-grab"/.test(src) && /ns-resize/.test(src));
+  check("every point layer gets a geometric marker; the round one stays for clicks", /function addHud\(/.test(src) && /paint\(layer\.id, "circle-opacity", 0\)/.test(src));
+  check("the zoom-8 note is gone", !/every layer shows summed totals/.test(src));
+  const tc = new Function(src.slice(src.indexOf("const TITLE_SMALL"), src.indexOf("function pinBuildings(")) + "; return titleCase;")();
+  check("headings are in title case", tc("Suppression by \u201crepresentation\u201d within it") === "Suppression by \u201cRepresentation\u201d Within It" && tc("Of the planet") === "Of the Planet" && tc("For money-written-law") === "For Money-Written-Law");
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
