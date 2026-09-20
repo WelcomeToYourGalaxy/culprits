@@ -2056,6 +2056,21 @@ console.log("\nEPA facilities at every zoom");
   check("the kind buttons also filter the copy", /map\.setFilter\(`\$\{cfg\.id\}-pts`, ptsFilter\(\)\)/.test(src));
 }
 
+console.log("\nthe showing box, the queue, and menus that draw");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("every line in the showing box has its own tick, left of its colour",
+        /<input type="checkbox" class="lg-on" data-lg=/.test(src) && /\.lg-on\{flex:0 0 auto/.test(index) &&
+        src.indexOf('class="lg-on"') < src.indexOf('class="lg-sw"'));
+  check("unticking there unticks the row in the layers box, not the map directly",
+        /const row = document\.querySelector\(`\[data-layer="\$\{i\.dataset\.lg\}"\]`\)/.test(src) && /row\.dispatchEvent\(new Event\("change"/.test(src));
+  check("a heading's tick sits at the end of its line", /line\.appendChild\(head\);\n\s*line\.appendChild\(all\);/.test(src));
+  check("layers are built three at a time, and a waiting row says so",
+        /const QUEUE_AT_ONCE = 3/.test(src) && /waiting behind \$\{i \+ 1\} other layer/.test(src) && /queueBuild\(cfg\.id, \(\) => \{/.test(src));
+  check("a menu's own ticks turn the row above them on", /function showRowFor\(id\)/.test(src) && /if \(cb\.checked\) showRowFor\(cfg\.id\)/.test(src) && /if \(pick\) showRowFor\(cfg\.id\)/.test(src));
+}
+
 console.log("\ntitles in one ink, sources named");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");

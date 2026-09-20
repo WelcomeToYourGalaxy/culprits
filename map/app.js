@@ -3302,6 +3302,22 @@ function categoryMenu(el, items, rules, label, onPick, placeholder) {
   draw();
 }
 
+// Turn a row on from inside one of its own menus: the row's own box is ticked,
+// so the layers box still holds the truth and everything that follows from a
+// tick happens exactly as it does when the box is clicked.
+function showRowFor(id) {
+  if ((visibility.get(id) || "none") === "visible") return;
+  const box = typeof document !== "undefined" && document.querySelector
+    ? document.querySelector(`[data-layer="${id}"]`) : null;
+  if (box && !box.checked) {
+    box.checked = true;
+    if (typeof box.dispatchEvent === "function" && typeof Event === "function") box.dispatchEvent(new Event("change", { bubbles: true }));
+  } else {
+    visibility.set(id, "visible");
+    applyVisibility(id);
+  }
+}
+
 /* ---------- a map server's whole layer list, as a menu (Nusantara Atlas) ---------- */
 async function addWmsMenuLayer(cfg) {
   const layers = [];
@@ -3351,6 +3367,10 @@ async function addWmsMenuLayer(cfg) {
     const cb = e.target.closest && e.target.closest("[data-ns]");
     if (!cb) return;
     e.stopPropagation();
+    // Ticking a layer in the list turns the row above it on as well. Without
+    // that, the list ticks did nothing until the row itself was ticked, which
+    // reads as a broken menu rather than a rule.
+    if (cb.checked) showRowFor(cfg.id);
     const i = Number(cb.dataset.ns);
     if (cb.checked) {
       on.add(i);
@@ -3418,6 +3438,9 @@ async function addGfwMenuLayer(cfg) {
   };
   categoryMenu(menu, items, GFW_CATEGORIES, "Dataset", async (pick) => {
     clear();
+    // Choosing a dataset turns the row on, so the choice draws rather than
+    // waiting on a second tick.
+    if (pick) showRowFor(cfg.id);
     const d = pick == null ? null : items[pick];
     if (!d) return;
     setLayerState(cfg.id, `${d.title}: finding its tiles\u2026`);
@@ -6080,8 +6103,13 @@ function buildLegend() {
   if (!shown.length) { box.hidden = true; return; }
   box.hidden = false;
 
+  // Each line takes a tick of its own, left of its colour, so a layer can be
+  // put away from the box that says it is showing rather than by finding its
+  // row again in the layers list.
   const rows = shown.map((c) =>
-    `<div class="lg-row"><span class="lg-sw" style="background:${c.colour}"></span>` +
+    `<div class="lg-row"><input type="checkbox" class="lg-on" data-lg="${escapeHtml(c.id)}" checked ` +
+    `aria-label="Hide ${escapeHtml(c.name)}" title="Hide this layer">` +
+    `<span class="lg-sw" style="background:${c.colour}"></span>` +
     `<span class="lg-nm">${c.name}</span>` +
     `<span class="lg-un">${c.unit || ""}</span></div>`).join("");
 
@@ -6091,6 +6119,19 @@ function buildLegend() {
     `<div class="lg-row"><span class="lg-sw lg-hollow"></span>` +
     `<span class="lg-nm">hollow</span>` +
     `<span class="lg-un">no site coordinate published</span></div>`;
+  // The layers box holds the truth; unticking here unticks the row there, and
+  // everything that follows from that happens as it always did.
+  if (!box.dataset.wired) {
+    box.dataset.wired = "1";
+    box.addEventListener("change", (e) => {
+      const i = e.target && e.target.closest && e.target.closest("[data-lg]");
+      if (!i) return;
+      const row = document.querySelector(`[data-layer="${i.dataset.lg}"]`);
+      if (!row) return;
+      row.checked = i.checked;
+      row.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  }
 }
 
 /* ---------- shared ---------- */
@@ -6982,6 +7023,34 @@ function childById(id) {
 // failure marks the row rather than throwing into the change handler, where an
 // unhandled rejection would leave the box ticked and nothing on the map.
 const created = new Set();
+// Layers are built a few at a time, not all at once.
+//
+// Ticking a heading turns on everything under it, which can be thirty layers.
+// Fired together they open thirty archives and thirty live services in one
+// breath: the browser holds most of them in a queue anyway, the map stalls
+// while they arrive, and the slowest source delays every other. Three at a
+// time keeps the map answering and lets the first layers draw while the rest
+// wait their turn. The row says where it is in the queue, so a layer that has
+// not drawn yet does not read as a layer that failed.
+const QUEUE_AT_ONCE = 3;
+let queueRunning = 0;
+const queueWaiting = [];
+function queueNext() {
+  while (queueRunning < QUEUE_AT_ONCE && queueWaiting.length) {
+    const next = queueWaiting.shift();
+    queueRunning++;
+    setLayerState(next.id, "loading\u2026");
+    Promise.resolve().then(next.job).then(next.done, next.fail)
+      .then(() => { queueRunning--; queueNext(); });
+  }
+  queueWaiting.forEach((w, i) => setLayerState(w.id, `waiting behind ${i + 1} other layer${i ? "s" : ""}\u2026`));
+}
+function queueBuild(id, job) {
+  return new Promise((done, fail) => {
+    queueWaiting.push({ id, job, done, fail });
+    queueNext();
+  });
+}
 function ensureLayer(cfg) {
   if (created.has(cfg.id)) return;
   created.add(cfg.id);
@@ -6990,35 +7059,37 @@ function ensureLayer(cfg) {
   // not all PMTiles — the livestock species are WMTS — and calling the archive
   // builder for a tile layer would fail on a URL that was never meant to be an
   // archive. addWmtsLayer is synchronous, so it is wrapped to keep one shape.
-  const build = cfg.route === "wmts"
+  queueBuild(cfg.id, () => {
+    const build = cfg.route === "wmts"
     ? Promise.resolve().then(() => addWmtsLayer(cfg))
-    : cfg.route === "shapes" ? addShapesLayer(cfg)
-    : cfg.route === "sitemap" ? addSitemapLayer(cfg)
-    : cfg.route === "arcgis" ? Promise.resolve().then(() => addArcgisLayer(cfg))
-    : cfg.route === "umap" || cfg.route === "kml" || cfg.route === "arcgisapp" ? addLivePlacesLayer(cfg)
-    : cfg.route === "rasterlive" ? Promise.resolve().then(() => addRasterChoiceLayer(cfg))
-    : cfg.route === "trase" ? addTraseLayer(cfg)
-    : cfg.route === "pmshapes" ? Promise.resolve().then(() => addPmShapesLayer(cfg))
-    : cfg.route === "slickarchive" ? addSlickArchive(cfg)
-    : cfg.route === "cafo" ? Promise.resolve().then(() => addCafoLayer(cfg))
-    : cfg.route === "glw" ? Promise.resolve().then(() => addGlwLayer(cfg))
-    : cfg.route === "arcgisdyn" ? addArcgisDynLayer(cfg)
-    : cfg.route === "giga" ? addGigaLayer(cfg)
-    : cfg.route === "trasefacmenu" ? addTraseFacMenu(cfg)
-    : cfg.route === "gta" ? addGtaLayer(cfg)
-    : cfg.route === "ctair" ? addCtAirLayer(cfg)
-    : cfg.route === "gsn" ? addGsnLayer(cfg)
-    : cfg.route === "companion" ? Promise.resolve().then(() => addCompanion(cfg))
-    : cfg.route === "rte" ? addRteLayer(cfg)
-    : cfg.route === "ll2" ? addLivePlacesLayer(cfg)
-    : cfg.route === "owidgrapher" ? addOwidGrapherLayer(cfg)
-    : cfg.route === "buildings" ? addBuildingTypesLayer(cfg)
-    : cfg.route === "spheres" ? addSpheresLayer(cfg)
-    : ["ejatlas", "geojsonlive", "wpgmza", "atlascities", "trasefac"].includes(cfg.route) ? addLivePlacesLayer(cfg)
-    : cfg.route === "wmsmenu" ? addWmsMenuLayer(cfg)
-    : cfg.route === "gfwmenu" ? addGfwMenuLayer(cfg)
-    : addPmtilesLayer(cfg);
-  build
+      : cfg.route === "shapes" ? addShapesLayer(cfg)
+      : cfg.route === "sitemap" ? addSitemapLayer(cfg)
+      : cfg.route === "arcgis" ? Promise.resolve().then(() => addArcgisLayer(cfg))
+      : cfg.route === "umap" || cfg.route === "kml" || cfg.route === "arcgisapp" ? addLivePlacesLayer(cfg)
+      : cfg.route === "rasterlive" ? Promise.resolve().then(() => addRasterChoiceLayer(cfg))
+      : cfg.route === "trase" ? addTraseLayer(cfg)
+      : cfg.route === "pmshapes" ? Promise.resolve().then(() => addPmShapesLayer(cfg))
+      : cfg.route === "slickarchive" ? addSlickArchive(cfg)
+      : cfg.route === "cafo" ? Promise.resolve().then(() => addCafoLayer(cfg))
+      : cfg.route === "glw" ? Promise.resolve().then(() => addGlwLayer(cfg))
+      : cfg.route === "arcgisdyn" ? addArcgisDynLayer(cfg)
+      : cfg.route === "giga" ? addGigaLayer(cfg)
+      : cfg.route === "trasefacmenu" ? addTraseFacMenu(cfg)
+      : cfg.route === "gta" ? addGtaLayer(cfg)
+      : cfg.route === "ctair" ? addCtAirLayer(cfg)
+      : cfg.route === "gsn" ? addGsnLayer(cfg)
+      : cfg.route === "companion" ? Promise.resolve().then(() => addCompanion(cfg))
+      : cfg.route === "rte" ? addRteLayer(cfg)
+      : cfg.route === "ll2" ? addLivePlacesLayer(cfg)
+      : cfg.route === "owidgrapher" ? addOwidGrapherLayer(cfg)
+      : cfg.route === "buildings" ? addBuildingTypesLayer(cfg)
+      : cfg.route === "spheres" ? addSpheresLayer(cfg)
+      : ["ejatlas", "geojsonlive", "wpgmza", "atlascities", "trasefac"].includes(cfg.route) ? addLivePlacesLayer(cfg)
+      : cfg.route === "wmsmenu" ? addWmsMenuLayer(cfg)
+      : cfg.route === "gfwmenu" ? addGfwMenuLayer(cfg)
+      : addPmtilesLayer(cfg);
+    return build;
+  })
     .then(() => {
       const box = document.getElementById("layers");
       if (cfg.facet) {
@@ -8031,8 +8102,8 @@ function arrangePanel() {
       }
       syncHeadingBoxes(document.getElementById("layers"));
     });
-    line.appendChild(all);
     line.appendChild(head);
+    line.appendChild(all);
     sec.appendChild(line);
     sec.appendChild(body);
     stack[stack.length - 1].body.appendChild(sec);

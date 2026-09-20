@@ -83,6 +83,24 @@ Worker: `https://culprits-proxy.welcometoyourgalaxy.workers.dev`
 
 ---
 
+## Layers are built three at a time
+
+Ticking a heading turns on everything under it, which can be thirty layers.
+Fired together they open thirty archives and live services in one breath: the
+browser queues most of them anyway, the map stalls while they arrive, and the
+slowest source holds up every other. `queueBuild` in `ensureLayer` runs three
+at a time and the rest say what they are waiting behind, so a layer that has
+not drawn yet does not read as one that failed. Nothing changed about the
+opening view: every layer still starts unticked, so a first load fetches the
+basemap, the boundaries and nothing else.
+
+A menu inside a row - Nusantara's layer list, the Global Forest Watch
+catalogue - turns its row on when something in it is ticked (`showRowFor`). Its
+ticks used to do nothing until the row itself was ticked, which reads as a
+broken menu.
+
+---
+
 ## Two sources that need work, written down so they are not lost
 
 **The Global Wastewater Model (Tuholske et al. 2021).** Its row reads copies in
