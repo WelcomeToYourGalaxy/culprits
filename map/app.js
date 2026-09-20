@@ -1387,6 +1387,15 @@ function OUTLINE_DETAIL(map) {
 function addOutlineLayers() {
   if (map.getLayer("outline-land")) return;
   ensureBoundaries();
+  // The sea, as one sheet the size of the world, so the outline map is a card
+  // with edges, dragged out into the stars like the satellite map, rather than
+  // continents floating on them.
+  if (!map.getSource("outline-ocean")) {
+    map.addSource("outline-ocean", { type: "geojson", data: { type: "Feature", properties: {},
+      geometry: { type: "Polygon", coordinates: [[[-180, -85.06], [180, -85.06], [180, 85.06], [-180, 85.06], [-180, -85.06]]] } } });
+  }
+  map.addLayer({ id: "outline-ocean", type: "fill", source: "outline-ocean",
+                 paint: { "fill-color": "#141C1F", "fill-antialias": false } }, "atlas-washes");
   map.addLayer({ id: "outline-land", type: "fill", source: "boundaries",
                  paint: { "fill-color": "#202825" } }, "atlas-washes");
   // Closer in, the plain shapes give nothing to find a place by. OpenStreetMap
@@ -1411,6 +1420,7 @@ function setBasemap(kind) {
   show("base", imagery);
   show("hillshade", imagery && !TERRAIN_ON);
   show("atlas-plate", kind === "atlas");
+  show("outline-ocean", !imagery);
   show("outline-land", !imagery);
   OUTLINE_IDS.forEach((id) => show(id, !imagery));
   show("outline-line", !imagery);
@@ -3328,15 +3338,16 @@ async function addBuildingTypesLayer(cfg) {
   catch (e) { setLayerState(cfg.id, `not built yet (${e.message})`); return; }
   const types = Object.keys(summary.types || {});
   const colours = buildingColours(types);
-  const colour = ["match", ["get", "type"]];
-  for (const t of types) colour.push(t, colours[t]);
-  colour.push(cfg.colour);
-  const src = `${cfg.id}-pm`;
-  map.addSource(src, { type: "vector", url: `pmtiles://${cfg.archiveUrl}` });
-  map.addLayer({ id: `${cfg.id}-pt`, type: "circle", source: src, "source-layer": "buildings",
-    paint: { "circle-color": colour, "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 1.6, 10, 4, 15, 6],
-             "circle-stroke-color": "#17150F", "circle-stroke-width": 0.5, "circle-opacity": 0.9 } });
-  bindHtmlPopup(`${cfg.id}-pt`, (p) => {
+  const files = summary.files || {};
+  const base = cfg.summaryUrl.replace(/[^/]+$/, "");
+  // Each kind is its own archive (see scripts/building_types.py in
+  // culprits-tiles-more), loaded when its line is ticked. An older build with
+  // one archive for every kind is still read, filtered by kind.
+  const single = !Object.keys(files).length;
+  const on = cfg._kinds = cfg._kinds || Object.fromEntries(types.map((t) => [t, true]));
+  const layerId = (i) => `${cfg.id}-k${i}`;
+  cfg._layerIds = types.map((t, i) => layerId(i));
+  const popup = (p) => {
     const skip = new Set(["type", "name", "sources", "merged"]);
     const rows = Object.keys(p).filter((k) => !skip.has(k) && p[k] !== "" && p[k] != null).map((k) => {
       const v = String(p[k]);
@@ -3346,29 +3357,62 @@ async function addBuildingTypesLayer(cfg) {
     return `<b>${escapeHtml(p.name || "Unnamed in the source")}</b><div class="meta">${escapeHtml(p.type)}</div>` +
       (rows.length ? `<div class="meta">${rows.join("<br>")}</div>` : "") +
       `<div class="meta">From: ${escapeHtml(p.sources || "")}${Number(p.merged) > 1 ? ` (${p.merged} files describe this place; merged)` : ""}</div>`;
-  });
-  // A drop-down of every kind of building, with its count and colour.
+  };
+  const ensure = (t, i) => {
+    const id = layerId(i);
+    if (map.getLayer(id)) return id;
+    const src = single ? `${cfg.id}-pm` : `${cfg.id}-src${i}`;
+    if (!map.getSource(src)) {
+      if (!single && !files[t]) return null;
+      map.addSource(src, { type: "vector", url: `pmtiles://${single ? cfg.archiveUrl : base + files[t]}` });
+    }
+    map.addLayer(Object.assign({ id, type: "circle", source: src, "source-layer": "buildings",
+      layout: { visibility: "none" },
+      paint: { "circle-color": colours[t], "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 1.6, 10, 4, 15, 6],
+               "circle-stroke-color": "#17150F", "circle-stroke-width": 0.5, "circle-opacity": 0.9 } },
+      single ? { filter: ["==", ["get", "type"], t] } : {}));
+    bindHtmlPopup(id, popup);
+    return id;
+  };
+  const apply = (vis) => {
+    types.forEach((t, i) => {
+      const want = vis === "visible" && on[t];
+      const id = want ? ensure(t, i) : layerId(i);
+      if (id && map.getLayer(id)) map.setLayoutProperty(id, "visibility", want ? "visible" : "none");
+    });
+  };
+  cfg.afterVisibility = apply;
+  // Each kind as its own line, the way other layers list their kinds: a tick,
+  // its colour and its count, close together.
   const row = document.querySelector(`[data-layer="${cfg.id}"]`);
   const anchor = row && row.closest ? row.closest("label") : null;
-  if (anchor && anchor.after && document.createElement) {
+  if (anchor && anchor.after && document.createElement && !document.querySelector(`[data-kinds="${cfg.id}"]`)) {
     const el = document.createElement("div");
-    el.className = "facet";
-    el.style.alignItems = "center";
-    el.innerHTML = `<i class="bt-dot" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${cfg.colour};flex:none"></i>` +
-      `<select aria-label="Kind of building" style="flex:1;min-width:0;max-width:100%">` +
-      `<option value="">Every kind (${Number(summary.places).toLocaleString()})</option>` +
-      types.map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)} (${Number(summary.types[t]).toLocaleString()})</option>`).join("") +
-      `</select>`;
-    const sel = el.querySelector("select");
-    sel.addEventListener("click", (e) => e.stopPropagation());
-    sel.addEventListener("change", () => {
-      const t = sel.value;
-      el.querySelector(".bt-dot").style.background = t ? colours[t] : cfg.colour;
-      map.setFilter(`${cfg.id}-pt`, t ? ["==", ["get", "type"], t] : null);
+    el.className = "facet bt-kinds";
+    el.dataset.kinds = cfg.id;
+    el.innerHTML = `<div class="bt-all"><button type="button" class="chip" data-bt="all">all</button>` +
+      `<button type="button" class="chip" data-bt="none">none</button></div>` +
+      types.map((t) => `<label class="bt-kind"><input type="checkbox" data-bt-kind="${escapeHtml(t)}"${on[t] ? " checked" : ""}>` +
+        `<i style="background:${colours[t]}"></i><span>${escapeHtml(t)}</span>` +
+        `<em>${Number(summary.types[t]).toLocaleString()}</em></label>`).join("");
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const b = e.target.closest && e.target.closest("[data-bt]");
+      if (!b) return;
+      const all = b.dataset.bt === "all";
+      types.forEach((t) => { on[t] = all; });
+      el.querySelectorAll("[data-bt-kind]").forEach((i) => { i.checked = all; });
+      apply(visibility.get(cfg.id) || "none");
+    });
+    el.addEventListener("change", (e) => {
+      const i = e.target.closest && e.target.closest("[data-bt-kind]");
+      if (!i) return;
+      on[i.dataset.btKind] = i.checked;
+      apply(visibility.get(cfg.id) || "none");
     });
     anchor.after(el);
   }
-  setLayerState(cfg.id, `${Number(summary.places).toLocaleString()} places in ${types.length} types (from ${Number(summary.rows).toLocaleString()} file rows)`);
+  setLayerState(cfg.id, `${Number(summary.places).toLocaleString()} places in ${types.length} kinds (from ${Number(summary.rows).toLocaleString()} file rows)`);
   applyVisibility(cfg.id);
   buildLegend();
 }
@@ -5785,8 +5829,10 @@ function applyVisibility(id) {
   const extra = (cfg || childById(id) || {})._layerIds;
   if (extra) for (const l of extra) if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", vis);
   // A row that carries another source inside it switches that one with it.
-  if (cfg && cfg.linked) for (const l of cfg.linked) { visibility.set(l, vis); if (l !== id) applyVisibility(l); }
-  if (cfg && typeof cfg.afterVisibility === "function") cfg.afterVisibility(vis);
+  // (Rows inside a group, such as Buildings, are found by childById.)
+  const rc = cfg || (typeof childById === "function" ? childById(id) : null);
+  if (rc && rc.linked) for (const l of rc.linked) { visibility.set(l, vis); if (l !== id) applyVisibility(l); }
+  if (rc && typeof rc.afterVisibility === "function") rc.afterVisibility(vis);
   if (cfg && cfg.route === "cerulean" && vis === "visible") {
     refreshCerulean(cfg).catch((e) => setLayerState(id, `unavailable (${e.message})`));
   }
@@ -6792,14 +6838,6 @@ function buildPanel() {
 
   applyKindFilter();
 
-  const pending = LAYERS.filter((c) => !c.ready);
-  if (pending.length) {
-    const el = document.createElement("p");
-    el.className = "pending-note";
-    el.textContent = `${pending.length} more sources in progress: ` +
-      pending.map((c) => c.name).join(", ") + ".";
-    box.appendChild(el);
-  }
 
   box.addEventListener("click", (e) => {
     // Disclosure triangles first. A button emits click, not change, so this is
@@ -7355,6 +7393,20 @@ function rowDragging(box) {
   box.addEventListener("click", (e) => { if (swallowClick) { e.preventDefault(); e.stopPropagation(); swallowClick = false; } }, true);
 }
 
+// Buildings sits at the foot of the layers box, held there while the rest
+// scrolls above it, rather than as the last of the sections. It stays inside
+// the box, so its rows keep every tool the others have.
+function pinBuildings(box) {
+  const sec = [...box.querySelectorAll(".toc-sec.toc-l1")].find((x) => {
+    const t = x.querySelector(".toc-t");
+    return t && t.textContent.trim() === "Buildings";
+  });
+  if (!sec) return;
+  sec.classList.add("toc-pinned");
+  const gone = box.querySelector("[data-removed]");
+  if (gone && gone.after) gone.after(sec); else box.appendChild(sec);
+}
+
 function arrangePanel() {
   const box = document.getElementById("layers");
   if (!box || !box.querySelector || typeof document.createDocumentFragment !== "function" || !box.dataset || box.dataset.arranged) return;
@@ -7431,6 +7483,7 @@ function arrangePanel() {
   }
   tail.filter((el) => el.classList && el.classList.contains("pending-note")).forEach((el) => box.appendChild(el));
   box.appendChild(gone);
+  pinBuildings(box);
   addRowTools(box);
   if (!document.getElementById("panel-h-style")) {
     const st = document.createElement("style");
@@ -7448,6 +7501,13 @@ function arrangePanel() {
       "#layers .facet.fold-hide{display:none}" +
       "#layers .grip{margin-left:auto;padding:0 2px 0 6px;color:var(--dim);opacity:.55;cursor:grab;touch-action:none;font-size:13px;line-height:1}" +
       "#layers .dragging{opacity:.45}" +
+      "#layers .toc-pinned{position:sticky;bottom:14px;z-index:2;background:#1F1C15;box-shadow:0 -6px 8px -4px rgba(0,0,0,.5);max-height:45vh;overflow:auto;margin-top:6px}" +
+      "#layers .bt-kinds{display:block;padding:2px 0 6px 22px}" +
+      "#layers .bt-all{display:flex;gap:4px;margin:2px 0 4px}" +
+      "#layers .bt-kind{display:flex;align-items:center;gap:6px;margin:2px 0;font-size:12px;line-height:1.3;cursor:pointer}" +
+      "#layers .bt-kind input{margin:0}" +
+      "#layers .bt-kind i{width:10px;height:10px;border-radius:2px;flex:none}" +
+      "#layers .bt-kind em{margin-left:auto;font-style:normal;color:var(--dim);font-size:11px}" +
       "#layers .drop-above{box-shadow:0 -2px 0 0 #8A9DA6}#layers .drop-below{box-shadow:0 2px 0 0 #8A9DA6}";
     document.head.appendChild(st);
   }

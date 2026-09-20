@@ -2047,7 +2047,12 @@ console.log("\nBuildings");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("the row and its heading are called Buildings", /id: "building_types", name: "Buildings"/.test(src) && /\{ h: 1, t: "Buildings" \}/.test(src));
-  check("each kind of building is in one drop-down, with its count", /aria-label="Kind of building"/.test(src) && /Every kind \(/.test(src));
+  check("each kind of building is its own line, with its colour and count, not a drop-down",
+        !/aria-label="Kind of building"/.test(src) && /class="bt-kind"><input type="checkbox" data-bt-kind=/.test(src));
+  check("each kind is its own archive, loaded when ticked; an older single archive still reads", /files\[t\]/.test(src) && /const single = !Object\.keys\(files\)\.length/.test(src));
+  check("Buildings is held at the foot of the layers box", /sec\.classList\.add\("toc-pinned"\)/.test(src) && /#layers \.toc-pinned\{position:sticky;bottom:14px/.test(src));
+  check("the sources-in-progress line is gone", !/more sources in progress/.test(src));
+  check("the outline map has a sea sheet, so it is a card in the stars", /id: "outline-ocean", type: "fill"/.test(src) && /show\("outline-ocean", !imagery\)/.test(src));
 }
 
 console.log("\nlayer rows laid out like Global Safety Net's list");
