@@ -169,13 +169,16 @@ one if a row has it.
 
 ---
 
-## Headings are menus, not controls
+## Heading ticks
 
-No tick on a heading. A heading is a way through the list: its arrow opens it
-and the rows inside it are what can be turned on. The bulk tick that was there
-briefly also invited turning on thirty layers at once, which is a minute of
-loading and a map nobody can read. The build queue below stays, because a row
-can still be ticked faster than its archives arrive.
+Every heading and sub-heading carries a tick at the end of its line. It turns
+on every layer under it, sub-headings included, and unticking it turns them all
+off again and clears any group boxes inside it. `syncHeadingBoxes` keeps it
+reading all, none or part-way from the layers themselves. Opening a heading and
+turning its layers on are separate actions, so opening one loads nothing.
+
+They were taken out once and put back: a heading with thirty layers under it
+does load thirty layers, which is what the build queue below is for.
 
 ---
 

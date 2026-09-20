@@ -8043,6 +8043,22 @@ const PANEL_REMOVED = new Set([
   "leg_municipal", "leg_municipal_recover", "leg_laws",
 ]);
 
+// A heading's tick reads its layers, never the other way round: all on, none
+// on, or part-way, which is the only honest rendering of a heading holding
+// some ticked rows.
+function syncHeadingBoxes(box) {
+  if (!box || !box.querySelectorAll) return;
+  for (const sec of box.querySelectorAll(".toc-sec")) {
+    const all = sec.querySelector(".toc-all");
+    if (!all) continue;
+    const boxes = [...sec.querySelectorAll("[data-layer]")];
+    const on = boxes.filter((i) => i.checked).length;
+    all.checked = boxes.length > 0 && on === boxes.length;
+    all.indeterminate = on > 0 && on < boxes.length;
+    all.disabled = boxes.length === 0;
+  }
+}
+
 function panelNodes(box, key) {
   let lead = null;
   if (key === "gm") { const i = box.querySelector("[data-gm]"); lead = i && i.closest("label"); }
@@ -8286,11 +8302,35 @@ function arrangePanel() {
       body.hidden = !body.hidden;
       head.setAttribute("aria-expanded", String(!body.hidden));
     });
-    // No tick on a heading. A heading is a way through the list, not a layer:
-    // its arrow opens it and the rows inside it are what can be turned on.
-    // A tick here also invited turning on thirty layers with one click, which
-    // is a minute of loading and a map nobody can read.
+    // Every heading takes its own tick, at the end of its line: it turns on
+    // every layer under it, sub-headings included, and unticking it turns all
+    // of them off again. It sits beside the heading rather than inside it, so
+    // opening a heading and turning its layers on stay separate actions - the
+    // same reason a group's arrow and its box are separate. A heading with
+    // many layers under it loads all of them, which the build queue paces.
+    const all = document.createElement("input");
+    all.type = "checkbox";
+    all.className = "toc-all";
+    all.title = "Show or hide every layer under this heading";
+    all.setAttribute("aria-label", `Show or hide every layer under ${titleCase(t)}`);
+    all.addEventListener("click", (e) => e.stopPropagation());
+    all.addEventListener("change", () => {
+      const on = all.checked;
+      for (const i of body.querySelectorAll("[data-layer]")) {
+        if (i.checked === on) continue;
+        i.checked = on;
+        if (typeof i.dispatchEvent === "function" && typeof Event === "function") i.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      // A group's own box follows its children rather than being left ticked
+      // over layers that are no longer drawn.
+      for (const g of body.querySelectorAll("[data-group]")) {
+        g.checked = on;
+        g.indeterminate = false;
+      }
+      syncHeadingBoxes(document.getElementById("layers"));
+    });
     line.appendChild(head);
+    line.appendChild(all);
     sec.appendChild(line);
     sec.appendChild(body);
     stack[stack.length - 1].body.appendChild(sec);
@@ -8333,6 +8373,10 @@ function arrangePanel() {
     box.appendChild(sec);
     sec.querySelector(".toc-body").appendChild(rest);
   }
+  syncHeadingBoxes(box);
+  box.addEventListener("change", (e) => {
+    if (e && e.target && e.target.dataset && (e.target.dataset.layer || e.target.dataset.group)) syncHeadingBoxes(box);
+  });
   // Beside each heading, how many layers are inside it.
   for (const sec of box.querySelectorAll(".toc-sec")) {
     const n = sec.querySelectorAll("[data-layer], [data-gm]").length;
@@ -8348,6 +8392,8 @@ function arrangePanel() {
     st.id = "panel-h-style";
     st.textContent = ".toc-line{display:flex;align-items:center;gap:6px}" +
       ".toc-line .toc-head{flex:1;text-align:left}" +
+      ".toc-all{flex:none;accent-color:#8A9DA6;cursor:pointer}" +
+      ".toc-all:disabled{opacity:.3;cursor:default}" +
       ".panel-h{margin:10px 0 4px;color:var(--ink,#e8e2d6)}" +
       ".panel-h1{font-size:12px;letter-spacing:.12em;text-transform:uppercase;border-top:1px solid rgba(255,255,255,.18);padding-top:8px;font-weight:700}" +
       ".panel-h2{font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.85;padding-left:4px;font-weight:600}" +

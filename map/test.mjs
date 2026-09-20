@@ -2109,7 +2109,7 @@ console.log("\nthe showing box, the queue, and menus that draw");
         src.indexOf('class="lg-on"') < src.indexOf('class="lg-sw"'));
   check("unticking there unticks the row in the layers box, not the map directly",
         /const row = document\.querySelector\(`\[data-layer="\$\{i\.dataset\.lg\}"\]`\)/.test(src) && /row\.dispatchEvent\(new Event\("change"/.test(src));
-  check("a heading's line holds its arrow and title and nothing else", /line\.appendChild\(head\);\n\s*sec\.appendChild\(line\);/.test(src));
+  check("a heading's tick sits at the end of its line", /line\.appendChild\(head\);\n\s*line\.appendChild\(all\);/.test(src));
   check("layers are built three at a time, and a waiting row says so",
         /const QUEUE_AT_ONCE = 3/.test(src) && /waiting behind \$\{i \+ 1\} other layer/.test(src) && /queueBuild\(cfg\.id, \(\) => \{/.test(src));
   check("a menu's own ticks turn the row above them on", /function showRowFor\(id\)/.test(src) && /if \(cb\.checked\) showRowFor\(cfg\.id\)/.test(src) && /if \(pick\) showRowFor\(cfg\.id\)/.test(src));
@@ -2154,8 +2154,14 @@ console.log("\nheading ticks, chips in words, a named archive");
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
   const order = new Function(body + "; return PANEL_ORDER;")();
   const at = (t) => order.findIndex((x) => x && x.t === t);
-  check("a heading is a way through the list, not a control: no tick on it",
-        !/toc-all/.test(src) && !/syncHeadingBoxes/.test(src));
+  check("every heading takes a tick that shows or hides everything under it",
+        /all\.className = "toc-all"/.test(src) && /for \(const i of body\.querySelectorAll\("\[data-layer\]"\)\)/.test(src));
+  check("unticking a heading clears its layers and its groups' boxes too",
+        /for \(const g of body\.querySelectorAll\("\[data-group\]"\)\) \{\n\s*g\.checked = on;/.test(src));
+  check("the tick reads its layers: all, none or part-way",
+        /function syncHeadingBoxes\(box\)/.test(src) && /all\.indeterminate = on > 0 && on < boxes\.length/.test(src));
+  check("opening a heading and turning its layers on are separate controls",
+        /all\.addEventListener\("click", \(e\) => e\.stopPropagation\(\)\)/.test(src));
   check("the slaughter chips say what the registry said", /"registry does not say"/.test(src) && /labels\[v\] \|\| v/.test(src));
   check("an archive that will not load names the file it asked for", /archive missing \(\$\{e\.message\}\) \\u2014 \$\{url\}/.test(src));
   check("the three meat rows sit together under Meat", ["abattoir_facilities", "abattoir_cafo", "abattoir_glw"].every((i) => order.indexOf(i) > at("Meat") && order.indexOf(i) < at("Oceans")));
