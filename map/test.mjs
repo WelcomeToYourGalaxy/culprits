@@ -638,7 +638,8 @@ console.log("\nmap wiring");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const rows = (src.match(/function groupRows[\s\S]*?\n}/) || [])[0] || "";
   check("children start hidden", /kids\.hidden = true/.test(rows));
-  check("the parent carries a disclosure control", /data-disc=/.test(rows));
+  check("the parent carries one control, the arrow at the end of the row, not a triangle before the title too",
+        !/data-disc=/.test(rows) && /const group = lead\.classList\.contains\("parent"\)/.test(src));
 
   // Opening a group must not load anything, and loading must not require
   // opening — so the triangle touches no layer state at all.
@@ -892,11 +893,12 @@ console.log("\ntropics clip");
   check("the one world tile loses both poles and keeps the band",
         world.length === 2 && world[0][0] === 0 && world[1][1] === 256);
 
-  const { map } = run({ layersReady: "gfw" });
-  map.fire("load"); await new Promise((r) => setTimeout(r, 5));
-  const url = map.sources.get("gfw-tiles")?.tiles?.[0] || "";
+  // The tropics row is a child of the alerts group now, so it is built on the
+  // first tick rather than at load; what it builds is checked on the config and
+  // the tile path it goes through.
   check("the tropics layer loads through the clip, cut at its own bounds",
-        url.startsWith("latclip://-30,30,8A4F46/") && url.includes("/gfw_tile/{z}/{x}/{y}"), url);
+        /id:"gfw",[\s\S]{0,400}clipToBounds: true/.test(src) && /recolor: "#8A4F46"/.test(src) &&
+        /`latclip:\/\/\$\{cfg\.clipToBounds && cfg\.bounds \? cfg\.bounds\[1\] : -90\},`/.test(src) && /gfw_tile/.test(src));
   const ra = src.indexOf("function recolorAlerts"), rb = src.indexOf("// latclip://<south>");
   const recolorAlerts = new Function(src.slice(ra, rb) + "; return recolorAlerts;")();
   const scattered = new Uint8ClampedArray(400 * 4);
@@ -2054,6 +2056,27 @@ console.log("\nEPA facilities at every zoom");
   check("the kind buttons also filter the copy", /map\.setFilter\(`\$\{cfg\.id\}-pts`, ptsFilter\(\)\)/.test(src));
 }
 
+console.log("\nthe hotspot outlines arrive coarser");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("a layer can ask its server for outlines at a stated precision", /async function arcgisQueryAll\(url, coarse\)/.test(src) &&
+        /coarse \? `&maxAllowableOffset=\$\{coarse\}&geometryPrecision=4` : ""/.test(src));
+  check("the hotspots ask for about a kilometre, and the row says so", /coarse: 0\.01,/.test(src) && /at about a kilometre's precision rather than the survey's own/.test(src));
+  check("layers that did not ask still get the survey's own precision", /arcgisQueryAll\(l\.url\.replace\(\/\\\/\$\/, ""\), cfg\.coarse\)/.test(src));
+}
+
+console.log("\nGlobal Forest Watch's own rows together");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const order = new Function(body + "; return PANEL_ORDER;")();
+  const at = (t) => order.findIndex((x) => x && x.t === t);
+  check("the alerts, the tree cover loss and the catalogue sit under one Global Forest Watch heading",
+        ["glad_loss", "group:forest_alerts", "gfw_catalogue"].every((i) => order.indexOf(i) > at("Global Forest Watch")) &&
+        at("Global Forest Watch") > at("Deforestation"));
+  check("Global Forest Change is still listed above the alerts", order.indexOf("glad_loss") < order.indexOf("group:forest_alerts"));
+}
+
 console.log("\nheading ticks, chips in words, a named archive");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
@@ -2090,14 +2113,16 @@ console.log("\nrows gathered, moved and renamed");
   check("HydroWASTE sits under Wastewater", at("Wastewater") > at("Pollution") && order.indexOf("hydrowaste") === at("Wastewater") + 1);
   check("PalmWatch sits under Agriculture", order.indexOf("palmwatch") > at("Agriculture") && order.indexOf("palmwatch") < at("Meat"));
   check("the three alert layers are one row, and each line names the system that saw it",
-        /children: rowsById\("gfw", "gfw_dist", "gfw_dist_year"\)/.test(src) &&
+        /const FOREST_ALERTS = \{[\s\S]{0,4000}id:"gfw_dist_year"/.test(src) &&
         /name: "Live deforestation and disturbance alerts \(Global Forest Watch\)"/.test(src) &&
         /GLAD-L, GLAD-S2 and RADD/.test(src) && (src.match(/DIST-ALERT/g) || []).length >= 2 &&
         ["gfw", "gfw_dist", "gfw_dist_year"].every((i) => !order.includes(i)));
   check("Global Forest Change is drawn above the alerts", order.indexOf("glad_loss") < order.indexOf("group:forest_alerts"));
   check("Trase is one row, its two layers named without the prefix",
-        /name: "Trase deforestation data"/.test(src) && /TRASE_DATA\.children = \["trase_measures", "trase_facilities"\]\.map\(childById\)/.test(src) &&
+        /name: "Trase deforestation data"/.test(src) && /const TRASE_DATA = \{[\s\S]{0,4000}id: "trase_facilities"/.test(src) &&
         !/name: "Trase: /.test(src));
+  check("a group owns its children, so no row is rendered twice and none falls into Not yet placed",
+        !/rowsById/.test(src) && (src.match(/id:"gfw_dist_year"/g) || []).length === 1 && (src.match(/id: "trase_measures"/g) || []).length === 1);
   check("unticking a row takes its boxes with it",
         /rowNodes\(lead\)\.slice\(1\)\.forEach\(\(n\) => n\.classList\.toggle\("fold-hide", !input\.checked\)\)/.test(src));
 }

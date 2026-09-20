@@ -83,6 +83,21 @@ Worker: `https://culprits-proxy.welcometoyourgalaxy.workers.dev`
 
 ---
 
+## A group owns its children
+
+Gathering a group's children by reference from LAYERS was tried and was wrong:
+each child was rendered twice, once where it was defined and once inside the
+group, and the copy nobody had placed fell into "Not yet placed" at the foot of
+the box. A group's children are defined inside the group and nowhere else. They
+are lazy, so they build on the first tick, which is how every other group's
+children already worked.
+
+Group rows carry one control, the arrow at the end that every row now has. The
+triangle that used to sit before the title is gone; `toggleGroup` still updates
+one if a row has it.
+
+---
+
 ## Bulk ticks, and the abattoir atlas's three rows
 
 Every heading carries its own tick, beside the heading rather than inside it,
