@@ -284,6 +284,7 @@
   },
   {
    "id": "love_guides",
+   "retired": true,
    "group": "MORE_MAPS",
    "kind": "country_docs",
    "page": "https://welcometoyourgalaxy.github.io/local-map/index.html",

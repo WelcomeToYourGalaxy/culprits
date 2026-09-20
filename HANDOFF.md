@@ -83,6 +83,21 @@ Worker: `https://culprits-proxy.welcometoyourgalaxy.workers.dev`
 
 ---
 
+## Bulk ticks, and the abattoir atlas's three rows
+
+Every heading carries its own tick, beside the heading rather than inside it,
+which shows or hides every layer under it including sub-headings;
+`syncHeadingBoxes` keeps it reading all, none or part-way from the layers
+themselves. Ticking a heading with many layers under it loads all of them.
+
+The abattoir atlas's three parts are three rows under Meat rather than chip
+buttons inside one row: the registered facilities, Climate TRACE's modelled
+confined animal feeding operations (`route:"cafo"`), and FAO's modelled
+livestock density grid (`route:"glw"`). They answer different questions, and a
+reader ticking slaughterhouses should not get a model's estimate with it.
+
+---
+
 ## What the alert rows actually are
 
 The three live-alert rows are Global Forest Watch products, served by GFW's own
@@ -142,10 +157,12 @@ by `build_shapes.py`). Its project cards are the same records as
 `local_projects`, so that row stands and nothing is drawn twice, and its Earth
 First! archive is text with no positions, so nothing of it is placed.
 
-Its wire and its country tracker lists were rows here briefly and are not any
-more: the wire belongs in the wires box, and the tracker lists were taken off
-at the owner's request. `love_trackers` is marked retired in the shapes
-registry and its published files are removed by `scripts/retire.py`.
+Nothing of it is a row here any more. The wire belongs in the wires box, and
+the tracker lists and the country guides were taken off at the owner's request;
+its project cards were always the Development projects row. `love_trackers` and
+`love_guides` are marked retired in the shapes registry and their published
+files are removed by `scripts/retire.py`. The `country_docs` kind stays, unused
+until something wants it.
 
 `love_guides` uses the `country_docs` kind, which reads the ISO3 index inside
 the map's own page (`LKA:{file:'srilanka.md',pdf:'...'}`) rather than GitHub's

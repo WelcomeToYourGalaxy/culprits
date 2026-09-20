@@ -1905,10 +1905,9 @@ console.log("\nSocial Spheres controls; Live Projects to Resist whole; wastewate
   const lab = new Function(src.slice(src.indexOf("function spheresLabels("), src.indexOf("function spheresControls(")) + "; return spheresLabels;")();
   check("the Social Spheres' own kind names are read", lab('const KINDLABEL={assoc:"Association & commission",club:"Club"};').club === "Club");
   check("a person or sector opens through the map's own functions only", /\["openNode", "openPerson", "openSector"\]\.includes\(fn\)/.test(src));
-  check("Live Projects to Resist is drawn on this map, not opened beside it",
-        !/id: "live_projects_app"/.test(src) && /id: "love_guides"/.test(src));
-  check("its wire stays in the wires box and its tracker lists are gone from the map",
-        !/id: "love_wire"/.test(src) && !/id: "love_trackers"/.test(src));
+  check("Live Projects to Resist has no rows of its own; its projects are the Development projects row",
+        ["live_projects_app", "love_wire", "love_trackers", "love_guides"].every((i) => !new RegExp(`id: "${i}"`).test(src)) &&
+        /id:"local_projects"/.test(src));
   check("its project cards are not drawn a second time", (src.match(/id:\s*"local_projects"/g) || []).length === 1);
   check("the wastewater layers read the GitHub copy", (src.match(/tiles\/wastewater_N_[a-z_]+\.pmtiles/g) || []).length === 5 && !/mazu\.nceas\.ucsb\.edu/.test(src));
 }
@@ -2011,7 +2010,10 @@ console.log("\nchanges of 19 September");
   check("coral is one row", o.PANEL_REMOVED.has("unep_coral") && pos("allen_coral") > 0);
   check("mines are merged into counted points wider out", /mines here<\/b>/.test(src) && /"point_count"\], 1\]\]\]\],\n\s*6,/.test(src));
   check("alerts are grown and lightened wider out", /function recolorAlerts\(px, rgb, z, w\)/.test(src) && /recolorAlerts\(img\.data, tint, z, bmp\.width\)/.test(src));
-  check("the Slaughterhouses row carries the atlas's modelled facilities and livestock grid", /parts: true,/.test(src) && /abattoir_cafo\.pmtiles/.test(src) && /style=default/.test(src) && /TileCol=\{x\}&TileRow=\{y\}/.test(src));
+  check("the atlas's two modelled sets are rows of their own, beside the registered facilities",
+        !/parts: true,/.test(src) && /id:"abattoir_cafo"[^\n]*route:"cafo"/.test(src) && /id:"abattoir_glw"[^\n]*route:"glw"/.test(src) &&
+        /abattoir_cafo\.pmtiles/.test(src) && /style=default/.test(src) && /TileCol=\{x\}&TileRow=\{y\}/.test(src) &&
+        /name:"Registered animal-use facilities/.test(src));
   check("a page panel's close button hides it", /\.companion\[hidden\]\{display:none !important\}/.test(index));
   // The alert growing, run on a tiny tile.
   const fnSrc = src.slice(src.indexOf("function recolorAlerts("), src.indexOf("// latclip://"));
@@ -2050,6 +2052,21 @@ console.log("\nEPA facilities at every zoom");
   check("wider out, the EPA row draws the weekly copy of every point", /epa_efpoints\.pmtiles/.test(src) && /id: `\$\{cfg\.id\}-pts`, type: "circle"/.test(src) && /maxzoom: cfg\.minzoom \|\| 22/.test(src));
   check("a point's full record is asked of EPA on click", /\/query\?objectIds=\$\{encodeURIComponent\(p\._oid\)\}&outFields=\*/.test(src));
   check("the kind buttons also filter the copy", /map\.setFilter\(`\$\{cfg\.id\}-pts`, ptsFilter\(\)\)/.test(src));
+}
+
+console.log("\nheading ticks, chips in words, a named archive");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const order = new Function(body + "; return PANEL_ORDER;")();
+  const at = (t) => order.findIndex((x) => x && x.t === t);
+  check("every heading takes a tick that shows or hides everything under it",
+        /all\.className = "toc-all"/.test(src) && /for \(const i of body\.querySelectorAll\("\[data-layer\]"\)\)/.test(src));
+  check("the tick reads its layers: all, none or part-way", /function syncHeadingBoxes\(box\)/.test(src) && /all\.indeterminate = on > 0 && on < boxes\.length/.test(src));
+  check("opening a heading and turning its layers on are separate controls", /all\.addEventListener\("click", \(e\) => e\.stopPropagation\(\)\)/.test(src));
+  check("the slaughter chips say what the registry said", /"registry does not say"/.test(src) && /labels\[v\] \|\| v/.test(src));
+  check("an archive that will not load names the file it asked for", /archive missing \(\$\{e\.message\}\) \\u2014 \$\{url\}/.test(src));
+  check("the three meat rows sit together under Meat", ["abattoir_facilities", "abattoir_cafo", "abattoir_glw"].every((i) => order.indexOf(i) > at("Meat") && order.indexOf(i) < at("Oceans")));
 }
 
 console.log("\nthe slick archive reads tiles where they exist");
@@ -2092,8 +2109,9 @@ console.log("\nthe layers box, as asked for");
   const o = new Function(body + "; return { PANEL_ORDER, PANEL_REMOVED };")();
   const at = (t) => o.PANEL_ORDER.findIndex((x) => x && x.t === t);
   const between = (id, a, b) => o.PANEL_ORDER.indexOf(id) > at(a) && o.PANEL_ORDER.indexOf(id) < at(b);
-  check("both fishing layers sit under Fishing, under Oceans", at("Oceans") < at("Fishing") &&
-        ["fishing", "slavery_fishing"].every((i) => between(i, "Fishing", "Oil slicks")));
+  check("the fishing-effort layer sits under Fishing, under Oceans, and the modelled one under Slavery",
+        at("Oceans") < at("Fishing") && between("fishing", "Fishing", "Oil slicks") &&
+        o.PANEL_ORDER.indexOf("slavery_fishing") > at("Slavery"));
   check("the reefs sit under Biodiversity loss, with the Global Safety Net at the top of it",
         between("allen_coral", "Biodiversity loss", "Mining") &&
         o.PANEL_ORDER[at("Biodiversity loss") + 1] === "gsn");
@@ -2116,7 +2134,7 @@ console.log("\nLive Projects to Resist, drawn here");
   const out = rows([{ name: "a", lat: 12, lng: 34 }, { name: "b", lat: "", lng: "" }, { name: "c", latitude: -1, longitude: 2 }]);
   check("a story with a position becomes a point, keeping its fields", out.length === 2 && out[0].geometry.coordinates[0] === 34 && out[0].properties.name === "a");
   check("a story with no position is left out rather than placed at 0,0", !out.some((f) => f.properties.name === "b"));
-  check("the guides sit under Construction, after the projects themselves", /\{ h: 3, t: "Construction" \}, "local_projects", "love_guides"/.test(src));
+  check("Construction holds the projects themselves", /\{ h: 3, t: "Construction" \}, "local_projects",/.test(src));
 }
 
 console.log("\nBuildings");
@@ -2240,9 +2258,10 @@ console.log("\nACGF removed; oil slicks grouped; the slick archive seen from afa
   const o = new Function(body + "; return { PANEL_ORDER, PANEL_REMOVED };")();
   const at = (t) => o.PANEL_ORDER.findIndex((x) => x && x.t === t);
   check("ACGF is removed", o.PANEL_REMOVED.has("acgf") && !o.PANEL_ORDER.includes("acgf"));
-  check("the slick layers sit under Oil slicks, in Marine slicks and Terrestrial slicks", at("Oil slicks") < at("Marine slicks") &&
-        ["cerulean_slicks", "cerulean_sources", "slick_archive", "skytruth_voc"].every((i) => o.PANEL_ORDER.indexOf(i) > at("Marine slicks") && o.PANEL_ORDER.indexOf(i) < at("Terrestrial slicks")) &&
-        o.PANEL_ORDER.indexOf("skytruth_monitor") > at("Terrestrial slicks") && o.PANEL_ORDER.indexOf("skytruth_monitor") < at("Construction"));
+  check("Terrestrial slicks comes first, then Marine slicks with the four marine rows",
+        at("Oil slicks") < at("Terrestrial slicks") && at("Terrestrial slicks") < at("Marine slicks") &&
+        o.PANEL_ORDER.indexOf("skytruth_monitor") > at("Terrestrial slicks") && o.PANEL_ORDER.indexOf("skytruth_monitor") < at("Marine slicks") &&
+        ["cerulean_slicks", "cerulean_sources", "slick_archive", "skytruth_voc"].every((i) => o.PANEL_ORDER.indexOf(i) > at("Marine slicks") && o.PANEL_ORDER.indexOf(i) < at("Construction")));
   check("the slick archive draws a point per slick wider out", /id: `\$\{cfg\.id\}-pt`, type: "circle", source: `\$\{src\}-pt`, maxzoom: 7/.test(src));
 }
 
