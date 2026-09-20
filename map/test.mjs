@@ -2104,5 +2104,14 @@ console.log("\nOff-planet sections, Of groups, names, launch links, drag bar, ma
   check("headings are in title case", tc("Suppression by \u201crepresentation\u201d within it") === "Suppression by \u201cRepresentation\u201d Within It" && tc("Of the planet") === "Of the Planet" && tc("For money-written-law") === "For Money-Written-Law");
 }
 
+console.log("\nfull shape words; place lists only where markers overlap");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const bs = fs.readFileSync(path.join(HERE, "..", "pipeline", "shapes", "build_shapes.py"), "utf8");
+  check("a shape's box shows every field in full", /\/\/ every field, in full/.test(src) && !/\.slice\(0, 16\)\.map\(\(\[k, v\]\)/.test(src));
+  check("shapes whose words live in the page's records take them", /def attach_page_data\(e, feats\)/.test(bs) && /attach_page_data\(e, feats\)\n    return feats/.test(bs));
+  check("close in, a click opens the nearest place instead of a list", /const PICK_SPLIT_ZOOM = 6;/.test(src) && /map\.getZoom\(\) >= PICK_SPLIT_ZOOM/.test(src));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

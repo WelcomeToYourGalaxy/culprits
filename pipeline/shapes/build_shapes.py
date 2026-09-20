@@ -294,7 +294,79 @@ def from_extract(e):
         if c:
             props["_map_colour"] = c
         feats.append({"type": "Feature", "geometry": geom, "properties": props})
+    attach_page_data(e, feats)
     return feats, []
+
+
+# Some maps write a shape's words only when it is clicked, from a list of
+# records in the page (a name, an explanation, sources, and the shape's own
+# corner points). The extraction sees the shapes but not those words, so the
+# records are read here and each shape takes every field of the record whose
+# corner points it has.
+PAGE_ARRAYS_JS = r"""
+const fs = require("fs"), vm = require("vm");
+const html = fs.readFileSync(process.argv[1], "utf8");
+const out = {};
+const re = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*\[/g;
+let m;
+while ((m = re.exec(html))) {
+  let i = re.lastIndex - 1, depth = 0, q = null, esc = false, j = i;
+  for (; j < html.length; j++) {
+    const c = html[j], n = html[j + 1];
+    if (q) { if (esc) esc = false; else if (c === "\\") esc = true; else if (c === q) q = null; continue; }
+    if (c === "/" && n === "/") { j = html.indexOf("\n", j); if (j < 0) break; continue; }
+    if (c === "/" && n === "*") { j = html.indexOf("*/", j) + 1; continue; }
+    if (c === '"' || c === "'" || c === "`") { q = c; continue; }
+    if (c === "[" || c === "{") depth++;
+    if (c === "]" || c === "}") { depth--; if (depth === 0) break; }
+  }
+  try {
+    const v = vm.runInNewContext("(" + html.slice(i, j + 1) + ")", {}, { timeout: 2000 });
+    if (Array.isArray(v) && v.length && v.every((x) => x && typeof x === "object" && !Array.isArray(x))) out[m[1]] = v;
+  } catch (e) { /* not a plain list */ }
+}
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+def attach_page_data(e, feats):
+    if "url" not in e or not any(f["geometry"]["type"] != "Point" and set(f["properties"]) <= {"_map_colour"} for f in feats):
+        return
+    try:
+        html_text = requests.get(e["url"], headers=UA, timeout=60).text
+    except Exception as ex:  # noqa: BLE001
+        print(f"  {e['id']}: note: the page's records could not be read ({ex})")
+        return
+    with tempfile.NamedTemporaryFile("w", suffix=".html", delete=False, encoding="utf-8") as fh:
+        fh.write(html_text)
+    try:
+        arrays = json.loads(subprocess.run(["node", "-e", PAGE_ARRAYS_JS, fh.name], capture_output=True,
+                                           text=True, timeout=120).stdout or "{}")
+    finally:
+        os.unlink(fh.name)
+    key = lambda pts: tuple((round(a, 3), round(b, 3)) for a, b in pts[:4])
+    records = {}
+    for rows in arrays.values():
+        for r in rows:
+            for k, v in r.items():
+                if isinstance(v, list) and len(v) >= 3 and all(isinstance(p, list) and len(p) == 2 for p in v):
+                    records[key([(p[1], p[0]) for p in v])] = (k, r)     # [lat, lng] -> [lng, lat]
+                    records.setdefault(key([(p[0], p[1]) for p in v]), (k, r))
+    n = 0
+    for f in feats:
+        g = f["geometry"]
+        rings = g["coordinates"] if g["type"] == "Polygon" else [p[0] for p in g["coordinates"]] if g["type"] == "MultiPolygon" else [g["coordinates"]] if g["type"] == "LineString" else []
+        for ring in (rings if g["type"] != "Polygon" else [rings[0]]):
+            hit = records.get(key(ring))
+            if hit:
+                ck, r = hit
+                for k, v in r.items():
+                    if k != ck and not isinstance(v, (list, dict)):
+                        f["properties"][k] = v
+                n += 1
+                break
+    if n:
+        print(f"  {e['id']}: the words of {n} shapes read from the page's own records")
 
 
 def leaflet_geometry(g):

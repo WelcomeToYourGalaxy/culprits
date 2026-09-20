@@ -5499,7 +5499,7 @@ async function addShapesLayer(cfg) {
     const title = p.name || p.country || p.title || cfg.name;
     const skip = new Set(["name", "country", "title", "list", "from_the_map", "entries"]);
     const rows = Object.entries(p).filter(([k, v]) => !k.startsWith("_") && !skip.has(k) && v !== "" && v != null)
-      .slice(0, 16).map(([k, v]) => `${shapeText(k.replace(/[_.]/g, " "))}: ${shapeText(v).slice(0, 400)}`);
+      .map(([k, v]) => `${shapeText(k.replace(/[_.]/g, " "))}: ${shapeText(v)}`);   // every field, in full
     const said = p.from_the_map ? shapeText(p.from_the_map).slice(0, 1200) : "";
     const list = p.list ? String(p.list).split("\n") : [];
     const shown = list.slice(0, 40).map((l) => shapeText(l).slice(0, 300));
@@ -5767,6 +5767,7 @@ async function openSitemapBox(hit, at) {
   }
 }
 
+const PICK_SPLIT_ZOOM = 6;
 function openSitemapClick(e) {
   const claim = e.originalEvent || e;
   if (popupClaimedBy === claim) return;
@@ -5777,6 +5778,17 @@ function openSitemapClick(e) {
     hits = hits.filter((h) => h.geometry && h.geometry.type === "Point");
   }
   if (!hits.length) return;
+  // A list of places is offered only where their markers sit on top of one
+  // another: wide out, where nearby places merge on the screen. From zoom
+  // PICK_SPLIT_ZOOM they have come apart, so the click opens the place nearest
+  // to it; only places at the very same spot still share a list.
+  if (hits.length > 1 && map.getZoom() >= PICK_SPLIT_ZOOM && e.point && map.project) {
+    const px = (h) => { const g = h.geometry; if (!g || g.type !== "Point") return null; const q = map.project(g.coordinates); return [q.x, q.y]; };
+    const d = (h) => { const q = px(h); return q ? Math.hypot(q[0] - e.point.x, q[1] - e.point.y) : 1e9; };
+    hits.sort((a, b) => d(a) - d(b));
+    const first = px(hits[0]);
+    hits = first ? hits.filter((h) => { const q = px(h); return q && Math.hypot(q[0] - first[0], q[1] - first[1]) < 1.5; }) : [hits[0]];
+  }
   popupClaimedBy = claim;
   ensureBoxCss();
   if (hits.length === 1) { openSitemapBox(hits[0], placeOf(hits[0], e)); return; }
