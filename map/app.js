@@ -5741,6 +5741,15 @@ async function addSitemapLayer(cfg, given) {
     filter: ["match", ["geometry-type"], ["LineString", "MultiLineString"], true, false],
     paint: { "line-color": colour, "line-opacity": 0.8,
              "line-width": ["min", ["coalesce", ["get", "w"], 2], 4] } });
+  // An area on a world map is often a fraction of a pixel. PalmWatch's mill
+  // concessions are tens of hectares: at the widest view they drew as nothing.
+  // So an area also gets an edge, which shows as a mark even where the fill is
+  // smaller than a pixel. Nothing is added: the edge is the area's own
+  // boundary and carries the area's own record.
+  map.addLayer({ id: `${cfg.id}-edge`, type: "line", source,
+    filter: ["match", ["geometry-type"], ["Polygon", "MultiPolygon"], true, false],
+    paint: { "line-color": colour, "line-opacity": 0.9,
+             "line-width": ["interpolate", ["linear"], ["zoom"], 1, 0.8, 8, 1.2] } });
   map.addLayer({ id: `${cfg.id}-pt`, type: "circle", source,
     filter: ["match", ["geometry-type"], ["Point", "MultiPoint"], true, false],
     paint: {
@@ -5754,6 +5763,28 @@ async function addSitemapLayer(cfg, given) {
       "circle-stroke-width": ["min", ["coalesce", ["get", "w"], 0.8], 3],
       "circle-opacity": ["coalesce", ["get", "o"], 0.85],
     } });
+  // The middle of each area, drawn wider out than an area can be seen at.
+  const areas = (data.features || []).filter((f) => f.geometry && /Polygon$/.test(f.geometry.type));
+  if (areas.length) {
+    const middleOf = (g) => {
+      const pts = [];
+      const walk = (c) => { if (c && typeof c[0] === "number") pts.push(c); else if (Array.isArray(c)) c.forEach(walk); };
+      walk(g.coordinates);
+      if (!pts.length) return null;
+      return [pts.reduce((a, q) => a + q[0], 0) / pts.length, pts.reduce((a, q) => a + q[1], 0) / pts.length];
+    };
+    const feats = [];
+    for (const f of areas) {
+      const at = middleOf(f.geometry);
+      if (at) feats.push({ type: "Feature", properties: f.properties || {}, geometry: { type: "Point", coordinates: at } });
+    }
+    map.addSource(`${cfg.id}-areapt-src`, { type: "geojson", data: { type: "FeatureCollection", features: feats } });
+    map.addLayer({ id: `${cfg.id}-areapt`, type: "circle", source: `${cfg.id}-areapt-src`,
+      maxzoom: cfg.areasFrom || 7,
+      paint: { "circle-color": colour, "circle-opacity": 0.85,
+               "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 2.2, 6, 3.6],
+               "circle-stroke-color": "#17150F", "circle-stroke-width": 0.5 } });
+  }
   if (Array.isArray(data.filters) && data.filters.length) {
     sitemapFilters.set(cfg.id, {
       filters: data.filters,
@@ -5762,6 +5793,7 @@ async function addSitemapLayer(cfg, given) {
         [`${cfg.id}-fill`]: ["match", ["geometry-type"], ["Polygon", "MultiPolygon"], true, false],
         [`${cfg.id}-line`]: ["match", ["geometry-type"], ["LineString", "MultiLineString"], true, false],
         [`${cfg.id}-pt`]: ["match", ["geometry-type"], ["Point", "MultiPoint"], true, false],
+        [`${cfg.id}-edge`]: ["match", ["geometry-type"], ["Polygon", "MultiPolygon"], true, false],
       },
     });
     sitemapChipRows(cfg);
@@ -5771,8 +5803,9 @@ async function addSitemapLayer(cfg, given) {
     sitemapColourRow(cfg);
     applySitemapColouring(cfg.id);
   }
-  for (const kind of ["fill", "line", "pt"]) {
+  for (const kind of ["fill", "line", "pt", "edge", "areapt"]) {
     const id = `${cfg.id}-${kind}`;
+    if (!map.getLayer(id)) continue;
     SITEMAP_LAYERS.add(id);
     map.on("click", id, (e) => openSitemapClick(e));
     map.on("mouseenter", id, (e) => { map.getCanvas().style.cursor = "pointer"; showSitemapTooltip(e); });
@@ -7820,22 +7853,6 @@ const PANEL_REMOVED = new Set([
   "leg_municipal", "leg_municipal_recover", "leg_laws",
 ]);
 
-// A heading's tick reads its layers, never the other way round: all on, none
-// on, or part-way, which is the only honest rendering of a heading holding
-// some ticked rows.
-function syncHeadingBoxes(box) {
-  if (!box || !box.querySelectorAll) return;
-  for (const sec of box.querySelectorAll(".toc-sec")) {
-    const all = sec.querySelector(".toc-all");
-    if (!all) continue;
-    const boxes = [...sec.querySelectorAll("[data-layer]")];
-    const on = boxes.filter((i) => i.checked).length;
-    all.checked = boxes.length > 0 && on === boxes.length;
-    all.indeterminate = on > 0 && on < boxes.length;
-    all.disabled = boxes.length === 0;
-  }
-}
-
 function panelNodes(box, key) {
   let lead = null;
   if (key === "gm") { const i = box.querySelector("[data-gm]"); lead = i && i.closest("label"); }
@@ -8079,31 +8096,11 @@ function arrangePanel() {
       body.hidden = !body.hidden;
       head.setAttribute("aria-expanded", String(!body.hidden));
     });
-    // Every heading takes its own tick, which shows or hides every layer under
-    // it, sub-headings included. It sits beside the heading rather than inside
-    // it, so opening a heading and turning its layers on stay separate
-    // actions - the same reason a group's triangle and its box are separate.
-    // Ticking a heading with many layers under it loads all of them, which is
-    // why the tick says so.
-    const line = document.createElement("div");
-    line.className = "toc-line";
-    const all = document.createElement("input");
-    all.type = "checkbox";
-    all.className = "toc-all";
-    all.title = "Show or hide every layer under this heading";
-    all.setAttribute("aria-label", `Show or hide every layer under ${titleCase(t)}`);
-    all.addEventListener("click", (e) => e.stopPropagation());
-    all.addEventListener("change", () => {
-      const on = all.checked;
-      for (const i of body.querySelectorAll("[data-layer]")) {
-        if (i.checked === on) continue;
-        i.checked = on;
-        if (typeof i.dispatchEvent === "function" && typeof Event === "function") i.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-      syncHeadingBoxes(document.getElementById("layers"));
-    });
+    // No tick on a heading. A heading is a way through the list, not a layer:
+    // its arrow opens it and the rows inside it are what can be turned on.
+    // A tick here also invited turning on thirty layers with one click, which
+    // is a minute of loading and a map nobody can read.
     line.appendChild(head);
-    line.appendChild(all);
     sec.appendChild(line);
     sec.appendChild(body);
     stack[stack.length - 1].body.appendChild(sec);
@@ -8146,10 +8143,6 @@ function arrangePanel() {
     box.appendChild(sec);
     sec.querySelector(".toc-body").appendChild(rest);
   }
-  syncHeadingBoxes(box);
-  box.addEventListener("change", (e) => {
-    if (e && e.target && e.target.dataset && e.target.dataset.layer) syncHeadingBoxes(box);
-  });
   // Beside each heading, how many layers are inside it.
   for (const sec of box.querySelectorAll(".toc-sec")) {
     const n = sec.querySelectorAll("[data-layer], [data-gm]").length;
@@ -8165,8 +8158,6 @@ function arrangePanel() {
     st.id = "panel-h-style";
     st.textContent = ".toc-line{display:flex;align-items:center;gap:6px}" +
       ".toc-line .toc-head{flex:1;text-align:left}" +
-      ".toc-all{flex:none;accent-color:#8A9DA6;cursor:pointer}" +
-      ".toc-all:disabled{opacity:.3;cursor:default}" +
       ".panel-h{margin:10px 0 4px;color:var(--ink,#e8e2d6)}" +
       ".panel-h1{font-size:12px;letter-spacing:.12em;text-transform:uppercase;border-top:1px solid rgba(255,255,255,.18);padding-top:8px;font-weight:700}" +
       ".panel-h2{font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.85;padding-left:4px;font-weight:600}" +

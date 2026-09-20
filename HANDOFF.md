@@ -101,6 +101,17 @@ broken menu.
 
 ---
 
+## Areas at the world view
+
+A sitemap layer's areas get an edge as well as a fill, and a point at each
+area's middle below zoom 7 (`areasFrom` to change it). PalmWatch's mill
+concessions are tens of hectares, which is a fraction of a pixel at the world
+view: the fill drew nothing and the layer read as broken. Nothing is added -
+the edge is the area's own boundary, the point sits inside it, and both carry
+that area's own record, so a click says the same wherever it lands.
+
+---
+
 ## Two sources that need work, written down so they are not lost
 
 **The Global Wastewater Model (Tuholske et al. 2021).** Its row reads copies in
@@ -135,12 +146,17 @@ one if a row has it.
 
 ---
 
-## Bulk ticks, and the abattoir atlas's three rows
+## Headings are menus, not controls
 
-Every heading carries its own tick, beside the heading rather than inside it,
-which shows or hides every layer under it including sub-headings;
-`syncHeadingBoxes` keeps it reading all, none or part-way from the layers
-themselves. Ticking a heading with many layers under it loads all of them.
+No tick on a heading. A heading is a way through the list: its arrow opens it
+and the rows inside it are what can be turned on. The bulk tick that was there
+briefly also invited turning on thirty layers at once, which is a minute of
+loading and a map nobody can read. The build queue below stays, because a row
+can still be ticked faster than its archives arrive.
+
+---
+
+## The abattoir atlas's three rows
 
 The abattoir atlas's three parts are three rows under Meat rather than chip
 buttons inside one row: the registered facilities, Climate TRACE's modelled
