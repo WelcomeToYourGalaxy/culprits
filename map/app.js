@@ -1611,11 +1611,12 @@ function watchForLeaving() {
   setEdge();
 }
 
-// The projection actually drawn. With 3D terrain on, the planet is MapLibre's
-// "globe": round at world scale, flattening only close up (from about zoom
-// 10), which is the one projection that carries terrain on a round Earth.
+// The projection actually drawn. 3D terrain is drawn on either view: on the
+// globe it needs MapLibre's "globe" (round at world scale, flattening close
+// up), the one round projection that carries terrain; the flat map stays flat.
 function drawnProjection(kind) {
-  return TERRAIN_ON ? "globe" : VIEWS[kind || VIEW].projection;
+  const p = VIEWS[kind || VIEW].projection;
+  return TERRAIN_ON && p !== "mercator" ? "globe" : p;
 }
 
 function setView(kind) {
@@ -3205,24 +3206,24 @@ async function addBuildingTypesLayer(cfg) {
       (rows.length ? `<div class="meta">${rows.join("<br>")}</div>` : "") +
       `<div class="meta">From: ${escapeHtml(p.sources || "")}${Number(p.merged) > 1 ? ` (${p.merged} files describe this place; merged)` : ""}</div>`;
   });
-  // A chip per type, with its count; none picked means every type.
-  const picked = new Set();
+  // A drop-down of every kind of building, with its count and colour.
   const row = document.querySelector(`[data-layer="${cfg.id}"]`);
   const anchor = row && row.closest ? row.closest("label") : null;
   if (anchor && anchor.after && document.createElement) {
     const el = document.createElement("div");
     el.className = "facet";
-    el.innerHTML = `<span class="chip reset" data-bt="">All types</span>` + types.map((t) =>
-      `<button type="button" class="chip" data-bt="${escapeHtml(t)}"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;` +
-      `background:${colours[t]};margin-right:4px"></i>${escapeHtml(t)} (${Number(summary.types[t]).toLocaleString()})</button>`).join("");
-    el.addEventListener("click", (e) => {
-      const b = e.target.closest && e.target.closest("[data-bt]");
-      if (!b) return;
-      e.stopPropagation();
-      const t = b.dataset.bt;
-      if (!t) picked.clear(); else if (picked.has(t)) picked.delete(t); else picked.add(t);
-      for (const c of el.querySelectorAll("[data-bt]")) c.classList.toggle("on", c.dataset.bt ? picked.has(c.dataset.bt) : picked.size === 0);
-      map.setFilter(`${cfg.id}-pt`, picked.size ? ["in", ["get", "type"], ["literal", [...picked]]] : null);
+    el.style.alignItems = "center";
+    el.innerHTML = `<i class="bt-dot" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${cfg.colour};flex:none"></i>` +
+      `<select aria-label="Kind of building" style="flex:1;min-width:0;max-width:100%">` +
+      `<option value="">Every kind (${Number(summary.places).toLocaleString()})</option>` +
+      types.map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)} (${Number(summary.types[t]).toLocaleString()})</option>`).join("") +
+      `</select>`;
+    const sel = el.querySelector("select");
+    sel.addEventListener("click", (e) => e.stopPropagation());
+    sel.addEventListener("change", () => {
+      const t = sel.value;
+      el.querySelector(".bt-dot").style.background = t ? colours[t] : cfg.colour;
+      map.setFilter(`${cfg.id}-pt`, t ? ["==", ["get", "type"], t] : null);
     });
     anchor.after(el);
   }
@@ -4150,8 +4151,6 @@ let TERRAIN_ON = false;
 function setTerrain(on) {
   TERRAIN_ON = !!on;
   if (typeof map.setTerrain !== "function") return;
-  // Terrain is drawn on a round Earth (see drawnProjection): the flat map
-  // tilted at world scale stood on the screen like a slab.
   setView(VIEW);
   // The Esri relief layer is a second set of tiles to fetch; with real
   // heights under the imagery it is put away.
@@ -4196,6 +4195,12 @@ function outToTheGlobe() {
 
 // MapLibre puts its zoom buttons in a corner of the map. They belong in the
 // view row, so the element is moved there once it exists.
+if (typeof map.on === "function") map.on("moveend", () => {
+  try {
+    const c = map.getCenter();
+    window.__culpritsView = `${c.lng.toFixed(4)},${c.lat.toFixed(4)},${map.getZoom().toFixed(2)}`;
+  } catch (e) { /* the view is not kept; the page still reloads */ }
+});
 if (typeof map.once === "function") map.once("load", () => {
   try {
     const v = sessionStorage.getItem("culprits-view");
@@ -4210,25 +4215,14 @@ function moveZoomButtons() {
   const holder = document.getElementById("view-zoom");
   const group = document.querySelector(".maplibregl-ctrl-bottom-right .maplibregl-ctrl-group");
   if (holder && group && holder.insertBefore) holder.insertBefore(group, holder.firstChild);
-  // Beside the zoom buttons: reload the whole map on the same view, for when it gets stuck.
-  if (holder && holder.appendChild && document.createElement && !document.getElementById("reload-map")) {
-    const b = document.createElement("button");
-    b.id = "reload-map";
-    b.type = "button";
-    b.title = "Reload the map (if it gets stuck)";
-    b.setAttribute("aria-label", "Reload the map");
-    b.textContent = "\u21bb";
-    b.style.cssText = "margin-left:6px;width:29px;height:29px;border-radius:4px;border:0;cursor:pointer;" +
-      "background:#fff;color:#333;font:17px/29px system-ui,sans-serif;box-shadow:0 0 0 2px rgba(0,0,0,.1)";
-    b.addEventListener("click", () => {
-      try {
-        const c = map.getCenter();
-        const view = `${c.lng.toFixed(4)},${c.lat.toFixed(4)},${map.getZoom().toFixed(2)}`;
-        sessionStorage.setItem("culprits-view", view);
-      } catch (e) { /* the view is not kept; the page still reloads */ }
-      location.reload();
-    });
-    holder.appendChild(b);
+  // The reload button is in the page itself (index.html), clickable before the
+  // map loads; it moves under the Globe and Flat map choices here. The view it keeps is
+  // written as the map moves, so a click needs nothing from this script.
+  const wrap = document.getElementById("reload-wrap");
+  const under = document.querySelector(".view-choices");
+  if (under && wrap && under.appendChild && wrap.parentNode !== under) {
+    under.appendChild(wrap);
+    if (wrap.classList) wrap.classList.remove("reload-early");
   }
   // The compass goes under the 3D terrain tick box, beside the notes on how
   // to tilt. MapLibre keeps its own hold on the button, so it still turns.
@@ -4262,7 +4256,7 @@ function viewPanelHtml() {
     `<button type="button" id="leave-earth" class="leave" title="Hands the screen to NASA's Eyes ` +
     `on the Solar System. A box in the corner brings the map back.">Leave Earth &#8594;</button></div></div>` +
     `<div class="terrain-row"><div class="terrain-left"><label class="layer"><input type="checkbox" id="terrain-toggle"${TERRAIN_ON ? " checked" : ""}` +
-    ` title="Ground height under the imagery, on a round Earth that flattens close up.">` +
+    ` title="Ground height under the imagery, on the globe or the flat map.">` +
     `<span class="nm">3D terrain</span></label>` +
     `<div class="compass-holder" id="compass-holder" title="Click to stand the map upright, facing north">` +
     `<span class="compass-cap">Click: north up, level</span></div></div>` +
@@ -6108,7 +6102,7 @@ const OTHER_MAPS = {
       pageBase: "https://atlas-for-the-end-of-the-world.com/hotspot_cities/", positions: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/atlas/cities.json",
       cities: [["antananarivo", "Antananarivo, Madagascar"], ["auckland", "Auckland, New Zealand"], ["baku", "Baku, Azerbaijan"], ["bogota", "Bogotá, Colombia"], ["brasilia", "Brasília, Brazil"], ["cape_town", "Cape Town, South Africa"], ["chengdu", "Chengdu, China"], ["colombo", "Colombo, Sri Lanka"], ["dar_es_salaam", "Dar es Salaam, Tanzania"], ["davao", "Davao, Philippines"], ["durban", "Durban, South Africa"], ["esfahan", "Esfahan, Iran"], ["guadalajara", "Guadalajara, Mexico"], ["guayaquil", "Guayaquil, Ecuador"], ["hongknog_shenzhen_quangzhou", "Hongkong-Shenzhen-Guangzhou, China"], ["honolulu", "Honolulu, United States"], ["houston", "Houston, United States"], ["jakarta", "Jakarta, Indonesia"], ["lagos", "Lagos, Nigeria"], ["los_angeles", "Los Angeles, United States"], ["makassar", "Makassar, Indonesia"], ["mecca", "Mecca, Saudi Arabia"], ["mexico_city", "Mexico City, Mexico"], ["nairobi", "Nairobi, Kenya"], ["osaka", "Osaka, Japan"], ["perth", "Perth, Australia"], ["port-au-prince", "Port-au-Prince, Haiti"], ["rawalpindi", "Rawalpindi, Pakistan"], ["santiago", "Santiago, Chile"], ["sao_paulo", "São Paulo, Brazil"], ["sydney", "Sydney, Australia"], ["tashkent", "Tashkent, Uzbekistan"], ["tel_aviv", "Tel Aviv, Israel"]],
       note: "The Atlas's 33 hotspot cities; each is placed from its name through a weekly OpenStreetMap lookup, and its box links the Atlas's own page." },
-    { id: "building_types", name: "Building types", unit: "places", colour: "#6A6258", route: "buildings", ready: true, lazy: true,
+    { id: "building_types", name: "Buildings", unit: "places", colour: "#6A6258", route: "buildings", ready: true, lazy: true,
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/building_types.pmtiles", summaryUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/building_types.json",
       note: "Every building in the executive, financial, legal, legislative, judicial, anti-slavery and activist-rights maps' files, one record per place: where two files describe the same place, the fuller record leads and every field the other adds is kept." },
     { id: "owid_interest", name: "Share of government spending going to interest payments (Our World in Data)", unit: "% of spending", colour: "#6E5F52", route: "owidgrapher", ready: true, lazy: true,
@@ -7036,7 +7030,7 @@ const PANEL_ORDER = [
   { h: 1, t: "Off-planet invasion" },
   "space_industry", "ll2_pads", "ll2_upcoming", "wrf", "nsf_launches", "esa_risk", "biosignature",
 
-  { h: 1, t: "Building types" }, "building_types",
+  { h: 1, t: "Buildings" }, "building_types",
 ];
 const PANEL_REMOVED = new Set([
   "leverage_chart",

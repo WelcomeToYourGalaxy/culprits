@@ -457,6 +457,8 @@ function descendants(facets, key) {
 }
 
 function matches(story, facets, sel, skip) {
+  // A subject with no such field at all has nothing that fits a filter on it.
+  if (sel && sel.__blocked && Object.keys(sel.__blocked).some((k) => !(skip && skip.has(k)))) return false;
   for (const f of facets) {
     if (skip && skip.has(f.key)) continue;
     const want = sel[f.key];
@@ -527,7 +529,37 @@ function timeAgo(ms, now) {
   return d < 30 ? d + ' d ago' : new Date(ms).toISOString().slice(0, 10);
 }
 
-const core = { ORG, FEEDS, MAPS, SUBJECTS, WINDOWS, NONE, readWire, filterStories, optionsFor,
+// A filter row is one choice for every ticked subject, kept by its label
+// ("Africa", "English"): each subject is filtered to its own value with that
+// label, and a subject without it shows nothing. Before, the choice reached
+// only the subject its option came from, and every other subject's stories
+// still showed, so the filters looked as if they did nothing.
+const NO_MATCH = '\u0000no-match';
+function labelOf(f, x) { return x === NONE ? f.none : (f.labels[x] || x); }
+function valueForLabel(wire, f, label) {
+  if (!f._byLabel) {
+    const m = new Map();
+    wire.stories.forEach((s) => (s.v[f.key] || [NONE]).forEach((x) => { const l = labelOf(f, x); if (!m.has(l)) m.set(l, x); }));
+    f._byLabel = m;
+  }
+  return f._byLabel.has(label) ? f._byLabel.get(label) : undefined;
+}
+function selFromCross(wire, cross) {
+  const sel = {};
+  Object.keys(cross || {}).forEach((key) => {
+    const label = cross[key];
+    const f = wire.facets.find((x) => x.key === key);
+    if (f) { const v = valueForLabel(wire, f, label); sel[key] = v === undefined ? NO_MATCH : v; return; }
+    // Left out of the filters because every story shares one value: kept when
+    // that one value is the one chosen.
+    const one = wire.stories.length && wire.stories[0].v[key] ? wire.stories[0].v[key][0] : undefined;
+    const names = one == null ? [] : [String(one), languageName(one), countryName(one)];
+    if (names.indexOf(label) === -1) (sel.__blocked = sel.__blocked || {})[key] = true;
+  });
+  return sel;
+}
+
+const core = { ORG, FEEDS, MAPS, SUBJECTS, WINDOWS, NONE, NO_MATCH, readWire, filterStories, optionsFor, selFromCross,
                valuesOf, descendants, countryName, languageName, plainText, toMs, timeAgo };
 
 if (typeof module === 'object' && module.exports) module.exports = core;
@@ -544,7 +576,7 @@ const PAGE = 60;
 const REFRESH_MS = 30 * 60000;
 
 const state = {
-  open: true, picked: [], when: 'all', q: '', sel: {}, expanded: {},
+  open: true, picked: [], when: 'all', q: '', sel: {}, cross: {}, expanded: {},
   pickerOpen: false, shown: PAGE, wires: {}   // wires[id] = { status, error, loadedAt, wire }
 };
 
@@ -554,7 +586,7 @@ try {
     // Opens every visit: the box is part of the front page, not a drawer.
     state.picked = (saved.picked || []).filter((id) => BY_ID[id]);
     state.when = WINDOWS.some((w) => w.id === saved.when) ? saved.when : 'all';
-    state.sel = saved.sel || {};
+    state.cross = saved.cross || {};
     state.expanded = saved.expanded || {};
   }
 } catch (e) { /* storage blocked: start fresh */ }
@@ -562,7 +594,7 @@ try {
 function save() {
   try {
     localStorage.setItem(STORE, JSON.stringify({ open: state.open, picked: state.picked, when: state.when,
-      sel: state.sel, expanded: state.expanded }));
+      cross: state.cross, expanded: state.expanded }));
   } catch (e) { /* storage blocked: nothing to keep */ }
 }
 
@@ -735,6 +767,7 @@ function build() {
   $refresh.addEventListener('click', () => {
     const had = state.picked.slice();
     state.sel = {};
+    state.cross = {};
     state.picked = [];
     state.pickerOpen = true;
     state.when = 'all';
@@ -771,26 +804,15 @@ function build() {
     const t = e.target;
     if (!t || !t.dataset || !t.dataset.key) return;
     const key = t.dataset.key;
-    // One drop-down stands for every ticked subject: choosing an option sets it
-    // for the subject it came from and clears that filter on the others, so a
-    // row always says one thing.
+    // One choice for every ticked subject (see selFromCross). Choosing a
+    // region clears the rows that drill down inside it.
+    delete state.cross[key];
     state.picked.forEach((id) => {
       const entry = state.wires[id];
-      if (!entry || !entry.wire) return;
-      const sel = state.sel[id] = state.sel[id] || {};
-      delete sel[key];
-      descendants(entry.wire.facets, key).forEach((k) => { delete sel[k]; });
+      if (entry && entry.wire) descendants(entry.wire.facets, key).forEach((k) => { delete state.cross[k]; });
     });
-    if (t.value !== '') {
-      const cut = t.value.indexOf('|');
-      const id = t.value.slice(0, cut), value = t.value.slice(cut + 1);
-      const entry = state.wires[id];
-      if (entry && entry.wire) {
-        const f = entry.wire.facets.find((x) => x.key === key);
-        const sel = state.sel[id] = state.sel[id] || {};
-        sel[key] = f && f.weight ? Number(value) : value;
-      }
-    }
+    if (t.value !== '') state.cross[key] = t.value;
+    applyCross();
     state.shown = PAGE;
     save();
     renderData(t.id);
@@ -895,15 +917,20 @@ async function load(id, force) {
       console.warn('[culprits] wire ' + id + ' did not parse:', e);
     }
   }
-  // Drop saved filter values the fresh file no longer carries.
-  if (entry.wire && state.sel[id]) {
-    const keys = new Set(entry.wire.facets.map((f) => f.key));
-    Object.keys(state.sel[id]).forEach((k) => { if (!keys.has(k)) delete state.sel[id][k]; });
-  }
+  applyCross();
   renderData();
 }
 
 function shared() { return { q: state.q, when: state.when, now: Date.now() }; }
+
+// Each ticked subject's own filter values, from the one set of choices.
+function applyCross() {
+  state.cross = state.cross || {};
+  Object.keys(state.wires).forEach((id) => {
+    const e = state.wires[id];
+    if (e && e.wire) state.sel[id] = selFromCross(e.wire, state.cross);
+  });
+}
 
 function render() { renderPicker(); renderData(); }
 
@@ -993,14 +1020,15 @@ function renderFilters(focusId) {
   kinds.sort((a, b) => rowRank(a.label) - rowRank(b.label));
   const rows = kinds.filter((k) => k.subs.length).map((k) => {
     const fid = 'wf-' + k.key;
-    const body = k.subs.map(({ id, f, opts, cur }) => {
-      const options = opts.map((o) =>
-        '<option value="' + esc(id + '|' + o.value) + '"' +
-        (cur != null && String(cur) === String(o.value) ? ' selected' : '') + '>' +
-        esc(o.label) + ' (' + num(o.count) + ')</option>').join('');
-      return many ? '<optgroup label="' + esc(BY_ID[id].name) + '">' + options + '</optgroup>' : options;
-    }).join('');
-    const set = k.subs.some((s) => s.cur != null);
+    // The same value from several subjects is one option, its counts added.
+    const merged = new Map();
+    k.subs.forEach(({ opts }) => opts.forEach((o) => merged.set(o.label, (merged.get(o.label) || 0) + o.count)));
+    const cur = state.cross[k.key];
+    if (cur != null && !merged.has(cur)) merged.set(cur, 0);
+    const body = Array.from(merged.keys()).map((l) =>
+      '<option value="' + esc(l) + '"' + (cur === l ? ' selected' : '') + '>' +
+      esc(l) + ' (' + num(merged.get(l)) + ')</option>').join('');
+    const set = cur != null;
     const hint = '';
     return '<label class="wire-filter" for="' + fid + '"><span>' + esc(k.label) + '</span>' +
       '<select id="' + fid + '" data-key="' + k.key + '"' + (set ? ' class="set"' : '') + '>' +

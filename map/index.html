@@ -26,6 +26,29 @@
   #map.away{opacity:0;pointer-events:none}
   .left-col.away,.panel.away,#legend.away,.wire.away{opacity:0;pointer-events:none;transition:opacity .5s ease}
   /* Beside Eyes' own search button, top right. */
+  .reload-wrap{display:flex;align-items:center;gap:6px;padding:4px 8px;font-size:11.5px;color:var(--dim)}
+  .reload-early{position:absolute;top:16px;right:9px;z-index:4;background:rgba(31,28,21,.94);border:1px solid var(--rule)}
+  .view-choices .reload-wrap{padding:8px 0 0;background:none;border:0}
+  /* A row's tools and chips stay put away while it is unticked. */
+  .facet[hidden]{display:none}
+  #reload-map{width:26px;height:26px;border-radius:4px;border:0;cursor:pointer;flex:none;
+    background:#fff;color:#333;font:16px/26px system-ui,sans-serif;box-shadow:0 0 0 2px rgba(0,0,0,.1)}
+  .reload-cap{line-height:1.2;max-width:90px}
+  /* Layer rows in the layers box, laid out like Global Safety Net's own list:
+     a small square of the layer's colour, the name, little space between. A
+     row's line of detail (its count, or why it is empty) shows once it is ticked. */
+  #layers .layer{gap:6px;padding:2px 0;border-top:none;font-size:12px;line-height:1.35;align-items:center}
+  #layers .layer input{margin:0}
+  #layers .swatch{width:10px;height:10px;border-radius:2px;margin:0}
+  #layers .layer .un{display:none;font-size:11px;line-height:1.3}
+  #layers .layer:has(> input:checked){align-items:flex-start}
+  #layers .layer:has(> input:checked) > input,#layers .layer:has(> input:checked) > .swatch{margin-top:2px}
+  #layers .layer:has(> input:checked) .un{display:block}
+  #layers .layer.parent .un{display:block}
+  #layers .facet{padding:1px 0 5px 22px}
+  #layers .kids{margin:0 0 2px 9px}
+  /* The layers box rolls up whole: the box shrinks to its heading. */
+  .left-col .panel.shut{flex:0 0 auto;height:auto !important}
   /* A page panel sets display:flex, which would otherwise override hidden. */
   .companion[hidden]{display:none !important}
   .space-back{position:fixed;right:14px;top:14px;z-index:60;font:inherit;font-size:14px;
@@ -256,6 +279,15 @@
 <button class="space-back" id="spaceBack" hidden>&#8592; Back to the map</button>
 <div id="map"></div>
 
+<!-- The reload button is plain page markup with its own handler, so it is
+     there and clickable from the first moment, before the map has loaded and
+     even if the map's script is slow or has failed. Once the view box exists
+     it is moved beside the zoom buttons. -->
+<div class="reload-wrap reload-early" id="reload-wrap">
+  <button type="button" id="reload-map" aria-label="Reload the map"
+          onclick="try{var v=window.__culpritsView;if(v)sessionStorage.setItem('culprits-view',v)}catch(e){}location.reload()">&#8635;</button>
+  <span class="reload-cap">Reload if the map gets stuck</span>
+</div>
 <div class="right-col">
   <div id="basemaps" class="ctrl-box"></div>
 </div>

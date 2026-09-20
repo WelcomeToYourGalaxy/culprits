@@ -246,5 +246,22 @@ if (args.includes("--live") || dirAt !== -1) {
   check("the line beside the title is gone", /\.wire-sum\{display:none\}/.test(src));
 }
 
+{
+  // A filter row is one choice across every ticked subject, kept by its label.
+  const fs2 = (key, labels) => ({ key, label: key, labels, none: "Not placed" });
+  const food = { facets: [fs2("region", { af: "Africa", eu: "Europe" })],
+    stories: [{ v: { region: ["af"] } }, { v: { region: ["eu"] } }] };
+  const police = { facets: [fs2("region", { AFR: "Africa" })], stories: [{ v: { region: ["AFR"] } }, { v: { region: ["__none__"] } }] };
+  const space = { facets: [], stories: [{ v: {} }] };
+  const cross = { region: "Africa" };
+  const a = W.selFromCross(food, cross), b = W.selFromCross(police, cross), c = W.selFromCross(space, cross);
+  check("choosing Africa filters each subject to its own value labelled Africa", a.region === "af" && b.region === "AFR");
+  check("a subject with no region at all shows nothing under a region filter", !!(c.__blocked && c.__blocked.region));
+  const euOnly = { facets: [fs2("region", { eu: "Europe" })], stories: [{ v: { region: ["eu"] } }] };
+  check("a subject without that value shows nothing", W.selFromCross(euOnly, cross).region === W.NO_MATCH);
+  const allEnglish = { facets: [], stories: [{ v: { lang: ["en"] } }] };
+  check("a subject whose every story is in the chosen language is kept", !W.selFromCross(allEnglish, { lang: W.languageName("en") }).__blocked);
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

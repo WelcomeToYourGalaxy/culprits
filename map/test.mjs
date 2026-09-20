@@ -1390,9 +1390,8 @@ console.log("\nthe wires box, plainer");
         /data-all="1">Select all/.test(wireSrc) && /data-none="1">Clear all/.test(wireSrc));
   check("the Subjects button reads as a drop-down", /wire-dd wire-subjects/.test(wireSrc) &&
         /\.wire-picker\{position:absolute/.test(wireSrc));
-  check("one drop-down per filter, options under the subject they came from",
-        /const kinds = \[\]/.test(wireSrc) && /<optgroup label="/.test(wireSrc) &&
-        /esc\(id \+ '\|' \+ o\.value\)/.test(wireSrc));
+  check("one drop-down per filter, the same value from every subject as one option",
+        /const kinds = \[\]/.test(wireSrc) && !/<optgroup label="/.test(wireSrc) && /merged\.set\(o\.label/.test(wireSrc));
   check("the per-subject line of numbers is gone",
         !/filters set/.test(wireSrc) && !/function subjectState/.test(wireSrc) && !/harvested /.test(wireSrc));
   check("refresh clears the filters too", /\$refresh\.addEventListener\('click', \(\) => \{[\s\S]{0,120}state\.sel = \{\}/.test(wireSrc));
@@ -1488,8 +1487,8 @@ console.log("\nthe view row, and terrain where it works");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   check("the boxes on the left actually fade out", /\.left-col\.away,\.panel\.away/.test(index));
-  check("terrain is drawn on a round Earth that flattens close up",
-        /return TERRAIN_ON \? "globe" : VIEWS\[kind \|\| VIEW\]\.projection/.test(src));
+  check("terrain is drawn on the globe view round, and on the flat map flat",
+        /return TERRAIN_ON && p !== "mercator" \? "globe" : p;/.test(src));
   check("the map tilts to 85 degrees and rolls", /maxPitch: 85/.test(src) && /rollEnabled: true/.test(src));
   check("the compass shows tilt and turn", /showCompass: true, visualizePitch: true/.test(src));
   check("Snap back to global scale sits over Leave Earth", /id="to-globe" class="snap"/.test(src) &&
@@ -1513,10 +1512,9 @@ console.log("\nthe view row, and terrain where it works");
   map.fire("load"); await new Promise((r) => setTimeout(r, 5));
   const panel = globalThis.document.getElementById("basemaps");
   panel.fire("change", { target: { id: "terrain-toggle", checked: true } });
-  check("terrain on draws the round globe that flattens close up",
-        projections.at(-1) === "globe" && terrains.at(-1) === "terrain-dem");
+  check("terrain on draws on the globe", projections.at(-1) === "globe" && terrains.at(-1) === "terrain-dem");
   panel.fire("change", { target: { name: "view", value: "flat" } });
-  check("…and stays round at world scale from the flat map too", projections.at(-1) === "globe" && terrains.at(-1) === "terrain-dem");
+  check("…and on the flat map, which stays flat", projections.at(-1) === "mercator" && terrains.at(-1) === "terrain-dem");
   panel.fire("change", { target: { id: "terrain-toggle", checked: false } });
   check("terrain off gives the chosen view back", !terrains.at(-1) && projections.at(-1) === "mercator");
 }
@@ -1734,7 +1732,11 @@ console.log("\ncolumns close in, a reload button, mines");
   const near = halves([{ lng: 0, lat: 0 }, { lng: 0.1, lat: 0 }], 12);
   check("…but never so wide that it meets its neighbour", near.px[0] * 2 < 10 && near.px[1] * 2 < 10);
   check("at world view columns keep their old size", halves([{ lng: 0, lat: 0 }, { lng: 1, lat: 1 }], 2).want === 1.5);
-  check("a reload button sits beside the zoom buttons", /id = "reload-map"/.test(src) && /location\.reload\(\)/.test(src));
+  const html2 = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("a reload button is in the page from the start, with its own handler and its words beside it",
+        /id="reload-map"[\s\S]{0,200}onclick="[^"]*location\.reload\(\)"/.test(html2) && /class="reload-cap">Reload if the map gets stuck</.test(html2));
+  check("…and moves under the view choices once they exist", /under\.appendChild\(wrap\)/.test(src));
+  check("…keeping the view as the map moves", /window\.__culpritsView = /.test(src));
   check("…and comes back to the same view", /sessionStorage\.getItem\("culprits-view"\)/.test(src));
   check("mines worldwide is a row, drawn from the tiles repo", /id: "mines_global"[^\n]*route: "pmshapes"/.test(src) &&
         /tiles\/mining_polygons\.pmtiles/.test(src));
@@ -1782,7 +1784,7 @@ console.log("\nsuppression in the given order; news box filters");
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
   const order = new Function(body + "; return PANEL_ORDER;")();
   const at = (t) => order.findIndex((x) => x && x.t === t);
-  check("Off-planet invasion is its own section, after Suppression", at("Off-planet invasion") > at("Suppression") && at("Off-planet invasion") < at("Building types"));
+  check("Off-planet invasion is its own section, after Suppression", at("Off-planet invasion") > at("Suppression") && at("Off-planet invasion") < at("Buildings"));
   check("Suppression opens on Of humans, then its four kinds in order",
         at("Of humans") < at("Physical suppression") && at("Physical suppression") < at("Suppression by \u201crepresentation\u201d within it") &&
         at("Suppression by \u201crepresentation\u201d within it") < at("Suppression by information") && at("Suppression by information") < at("Suppression by social molds"));
@@ -2039,6 +2041,21 @@ console.log("\nEPA facilities at every zoom");
   check("wider out, the EPA row draws the weekly copy of every point", /epa_efpoints\.pmtiles/.test(src) && /id: `\$\{cfg\.id\}-pts`, type: "circle"/.test(src) && /maxzoom: cfg\.minzoom \|\| 22/.test(src));
   check("a point's full record is asked of EPA on click", /\/query\?objectIds=\$\{encodeURIComponent\(p\._oid\)\}&outFields=\*/.test(src));
   check("the kind buttons also filter the copy", /map\.setFilter\(`\$\{cfg\.id\}-pts`, ptsFilter\(\)\)/.test(src));
+}
+
+console.log("\nBuildings");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the row and its heading are called Buildings", /id: "building_types", name: "Buildings"/.test(src) && /\{ h: 1, t: "Buildings" \}/.test(src));
+  check("each kind of building is in one drop-down, with its count", /aria-label="Kind of building"/.test(src) && /Every kind \(/.test(src));
+}
+
+console.log("\nlayer rows laid out like Global Safety Net's list");
+{
+  const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("rows are small, tight and led by a colour square", /#layers \.layer\{gap:6px;padding:2px 0;border-top:none;font-size:12px/.test(index) && /#layers \.swatch\{width:10px;height:10px;border-radius:2px/.test(index));
+  check("a row's detail line shows once it is ticked", /#layers \.layer:has\(> input:checked\) \.un\{display:block\}/.test(index));
+  check("the layers box rolls up whole", /\.left-col \.panel\.shut\{flex:0 0 auto;height:auto !important\}/.test(index));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
