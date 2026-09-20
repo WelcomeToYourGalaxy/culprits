@@ -8302,6 +8302,8 @@ function arrangePanel() {
       body.hidden = !body.hidden;
       head.setAttribute("aria-expanded", String(!body.hidden));
     });
+    const line = document.createElement("div");
+    line.className = "toc-line";
     // Every heading takes its own tick, at the end of its line: it turns on
     // every layer under it, sub-headings included, and unticking it turns all
     // of them off again. It sits beside the heading rather than inside it, so
