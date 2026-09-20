@@ -83,6 +83,25 @@ Worker: `https://culprits-proxy.welcometoyourgalaxy.workers.dev`
 
 ---
 
+## Two sources that need work, written down so they are not lost
+
+**The Global Wastewater Model (Tuholske et al. 2021).** Its row reads copies in
+culprits-tiles-more built by `scripts/wastewater.py` from
+`mazu.nceas.ucsb.edu/wastewater`, and that server no longer answers, so the
+archives were never built and the row draws nothing. The data itself is alive:
+the paper's final rasters are on the Knowledge Network for Biocomplexity at
+doi:10.5063/F76B09, with the code at OHI-Science/GlobalWasteWater. Rebuilding
+means fetching those GeoTIFFs and tiling them rather than copying someone
+else's picture squares.
+
+**Carbon Mapper.** The row here is the set of waste-site plumes from our own
+page, which is a fraction of what Carbon Mapper publish, and it draws each as a
+point where their own viewer draws the plume's shape. Their public API is the
+way to both: the plume records carry their footprints, so a route that reads it
+would give the shapes and the rest of the catalogue at once.
+
+---
+
 ## A group owns its children
 
 Gathering a group's children by reference from LAYERS was tried and was wrong:

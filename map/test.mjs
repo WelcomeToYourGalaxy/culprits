@@ -2056,6 +2056,18 @@ console.log("\nEPA facilities at every zoom");
   check("the kind buttons also filter the copy", /map\.setFilter\(`\$\{cfg\.id\}-pts`, ptsFilter\(\)\)/.test(src));
 }
 
+console.log("\ntitles in one ink, sources named");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("a child row's title reads in the same ink as any other", /\.layer\.child \.nm\{color:inherit\}/.test(index));
+  check("the refinery row names who made the map and credits them on it",
+        /name: "Global Oil Refinery Complexes \(FracTracker Alliance\)"/.test(src) &&
+        /id: "fractracker_refineries"[\s\S]{0,400}fractracker\.org/.test(src));
+  check("the Carbon Mapper row says it is the set from our own page, not their whole catalogue",
+        /Methane plumes from waste sites \\u2014 the set on our own page \(Carbon Mapper\)/.test(src));
+}
+
 console.log("\nthe hotspot outlines arrive coarser");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");

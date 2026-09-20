@@ -200,7 +200,10 @@
   .kids{border-left:1px solid var(--rule);margin:1px 0 3px 9px}
   .kids[hidden]{display:none}
   .layer.child{padding-left:13px}
-  .layer.child .nm{color:var(--dim)}
+  /* A child row's title is a layer's title like any other, so it reads in the
+     same ink. The indent and the rule down the left already say it sits inside
+     a group; dimming it as well said, wrongly, that it mattered less. */
+  .layer.child .nm{color:inherit}
 
   /* Guerillamap opens like every other outside page: a panel along the bottom,
      over the map, with a strip and bar to drag it taller or shorter. */
