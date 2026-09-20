@@ -1976,7 +1976,7 @@ console.log("\nzoos and pet industry placed");
 console.log("\nACGF placed");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("ACGF sits under Agriculture", /\{ h: 3, t: "Agriculture" \}, "acgf",/.test(src));
+  // ACGF was removed on 20 September (see "ACGF is removed").
 }
 
 console.log("\nchanges of 19 September");
@@ -2150,6 +2150,18 @@ console.log("\nAtlas cities zoom in when clicked");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("clicking a city from further out zooms in to it, then opens its box", /route: "atlascities", zoomTo: 9,/.test(src) && /map\.flyTo\(\{ center: at, zoom: z, duration: 1600 \}\)/.test(src));
+}
+
+console.log("\nACGF removed; oil slicks grouped; the slick archive seen from afar");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const o = new Function(body + "; return { PANEL_ORDER, PANEL_REMOVED };")();
+  const at = (t) => o.PANEL_ORDER.findIndex((x) => x && x.t === t);
+  check("ACGF is removed", o.PANEL_REMOVED.has("acgf") && !o.PANEL_ORDER.includes("acgf"));
+  check("the three slick layers sit under Oil slicks, Marine oil slicks", at("Oil slicks") < at("Marine oil slicks") &&
+        ["cerulean_slicks", "cerulean_sources", "slick_archive"].every((i) => o.PANEL_ORDER.indexOf(i) > at("Marine oil slicks")) && o.PANEL_ORDER.indexOf("slick_archive") < at("Construction"));
+  check("the slick archive draws a point per slick wider out", /id: `\$\{cfg\.id\}-pt`, type: "circle", source: `\$\{src\}-pt`, maxzoom: 7/.test(src));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
