@@ -41,6 +41,10 @@
   #layers .layer input{margin:0}
   #layers .swatch{width:10px;height:10px;border-radius:2px;margin:0}
   #layers .layer .un{display:none;font-size:11px;line-height:1.3}
+  /* The source's own site, beside the title. A link inside a label is not
+     passed on to the tick, so opening it does not turn the layer on. */
+  #layers .nm .src{margin-left:5px;color:var(--dim);text-decoration:none;font-size:10.5px;opacity:.7}
+  #layers .nm .src:hover{color:var(--bone);opacity:1}
   #layers .layer:has(> input:checked){align-items:flex-start}
   #layers .layer:has(> input:checked){padding:2px 0}
   #layers .layer:has(> input:checked) > input,#layers .layer:has(> input:checked) > .swatch{margin-top:2px}

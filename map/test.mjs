@@ -2438,6 +2438,44 @@ console.log("\nNusantara's layers say what they show");
         /title: NUSANTARA_NAMES\[id\] \|\| \(tt && tt\.textContent\) \|\| id/.test(src));
 }
 
+console.log("\neach row links the site it is read from");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const sites = new Function(src.slice(src.indexOf("const LAYER_SITE = {"), src.indexOf("function siteLink(")) + "; return LAYER_SITE;")();
+  check("most rows carry a site", Object.keys(sites).length > 90 &&
+        Object.values(sites).every((u) => /^https?:\/\//.test(u) && !u.includes("{")));
+  check("your own rows point at the repo or page they are read from",
+        /github\.com\/WelcomeToYourGalaxy\//.test(sites.gmo_cultivation || "") &&
+        /github\.com\/WelcomeToYourGalaxy\/anti-slavery-map/.test(sites.slavery_ports || ""));
+  check("Trase's rows point at Trase", /trase\.earth/.test(sites.trase_palm_indonesia || ""));
+  check("the link is drawn beside the title, on a row and on a group's child",
+        /<span class="nm">\$\{cfg\.name\}\$\{siteLink\(cfg\.id\)\}<\/span>/.test(src) &&
+        /<span class="nm">\$\{child\.name\}\$\{siteLink\(child\.id\)\}<\/span>/.test(src));
+  check("a row with no site shows no link rather than a guessed one",
+        /const u = LAYER_SITE\[id\];\n  if \(!u\) return "";/.test(src) && /#layers \.nm \.src\{/.test(index));
+  check("titles that named no source say so now",
+        /name:"Coal plant units \(GEM Global Coal Plant Tracker\)"/.test(src) &&
+        /name: "Genetic-engineering cultivation \(Genetic engineering map\)"/.test(src));
+}
+
+console.log("\nbuildings stand up with the terrain");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("const BUILDINGS_SOURCE ="), src.indexOf("function setTerrain("));
+  check("real footprints, from a source that needs no key",
+        /url: "https:\/\/tiles\.openfreemap\.org\/planet"/.test(body) && /"source-layer": "building"/.test(body) &&
+        /type: "fill-extrusion"/.test(body));
+  check("each is raised to the height the source records, and one without a height is left out",
+        /\["get", "render_height"\]/.test(body) && /\["has", "render_height"\]/.test(body));
+  check("only close in, and only while the ground is tilted",
+        /minzoom: BUILDINGS_ZOOM/.test(body) && /const BUILDINGS_ZOOM = 15;/.test(body) &&
+        /setBuildings3D\(TERRAIN_ON\);/.test(src));
+  check("OpenStreetMap and the two that serve it are credited",
+        /openstreetmap\.org\/copyright/.test(body) && /openmaptiles\.org/.test(body) && /openfreemap\.org/.test(body));
+  check("nothing orange, yellow or neon in the walls", /"fill-extrusion-color": "#7C7468"/.test(body));
+}
+
 console.log("\nGlobal Safety Net fixes; My Maps titles");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
