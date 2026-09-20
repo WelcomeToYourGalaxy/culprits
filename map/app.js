@@ -3411,6 +3411,7 @@ function columnEdge() {
 // all of it.
 const CARBON_PLUME_ZOOM = 10;     // from here in, the plumes' own pictures
 const CARBON_PLUME_PAGES = 10;    // 1,000 plumes a page
+const CARBON_PAGES_AT_ONCE = 3;    // after the first, which is drawn on its own
 const CARBON_PICTURES_AT_ONCE = 40;
 async function addCarbonMapperLayer(cfg) {
   const src = `${cfg.id}-src`;
@@ -3436,41 +3437,66 @@ async function addCarbonMapperLayer(cfg) {
     `<div class="meta">Carbon Mapper data platform</div>`);
 
   let held = [];
+  // One plume, as this map keeps it. Every field the catalogue gives that the
+  // box shows is carried; nothing is worked out here.
+  const asFeature = (it) => {
+    const g = it.geometry_json || it.geometry;
+    const at = g && g.coordinates;
+    if (!at || !isFinite(Number(at[0])) || !isFinite(Number(at[1]))) return null;
+    return { type: "Feature", geometry: { type: "Point", coordinates: [Number(at[0]), Number(at[1])] },
+      properties: {
+        plume_id: it.plume_id || it.id || "", gas: it.gas || "",
+        seen: it.scene_timestamp || it.datetime || "", instrument: it.instrument || "",
+        platform: it.platform || "", quality: it.plume_quality || "",
+        sector: it.sector || (it.source && it.source.sector) || "",
+        emission: it.emission_auto != null ? it.emission_auto : it.emission,
+        emission_uncertainty: it.emission_uncertainty_auto != null ? it.emission_uncertainty_auto : it.emission_uncertainty,
+        wind_speed: it.wind_speed_avg_auto, wind_direction: it.wind_direction_avg_auto,
+        collection: it.collection || "",
+        picture: it.plume_png || it.plume_rgb_png || "",
+        bounds: Array.isArray(it.plume_bounds) && it.plume_bounds.length === 4 ? it.plume_bounds.join(",") : "",
+      } };
+  };
+  // Ten pages of a thousand detailed records, read one after another, with
+  // nothing on the map until the last one landed: that was the wait. Now the
+  // first page is read on its own and drawn as soon as it arrives, and the
+  // rest follow CARBON_PAGES_AT_ONCE at a time, each batch drawn as it lands.
+  // The row says how many are held and that it is still reading, so a part-read
+  // map never reads as the whole catalogue.
   const read = async () => {
     const feats = [];
     let total = null;
-    for (let page = 0; page < CARBON_PLUME_PAGES; page++) {
-      setLayerState(cfg.id, `reading Carbon Mapper, page ${page + 1}\u2026`);
-      let j;
-      try { j = await getJson(`${CARBON_API}?sort=desc&limit=1000&offset=${page * 1000}`, 60000); }
-      catch (e) { if (!feats.length) { setLayerState(cfg.id, `Carbon Mapper did not answer (${e.message})`); return; } break; }
-      const items = j.items || j.features || [];
-      if (total === null && j.total_count != null) total = Number(j.total_count);
-      for (const it of items) {
-        const g = it.geometry_json || it.geometry;
-        const at = g && g.coordinates;
-        if (!at || !isFinite(Number(at[0])) || !isFinite(Number(at[1]))) continue;
-        feats.push({ type: "Feature", geometry: { type: "Point", coordinates: [Number(at[0]), Number(at[1])] },
-          properties: {
-            plume_id: it.plume_id || it.id || "", gas: it.gas || "",
-            seen: it.scene_timestamp || it.datetime || "", instrument: it.instrument || "",
-            platform: it.platform || "", quality: it.plume_quality || "",
-            sector: it.sector || (it.source && it.source.sector) || "",
-            emission: it.emission_auto != null ? it.emission_auto : it.emission,
-            emission_uncertainty: it.emission_uncertainty_auto != null ? it.emission_uncertainty_auto : it.emission_uncertainty,
-            wind_speed: it.wind_speed_avg_auto, wind_direction: it.wind_direction_avg_auto,
-            collection: it.collection || "",
-            picture: it.plume_png || it.plume_rgb_png || "",
-            bounds: Array.isArray(it.plume_bounds) && it.plume_bounds.length === 4 ? it.plume_bounds.join(",") : "",
-          } });
+    const draw = (done) => {
+      held = feats;
+      if (map.getSource(src)) map.getSource(src).setData({ type: "FeatureCollection", features: feats });
+      setLayerState(cfg.id, `${feats.length.toLocaleString()} plumes` +
+        (total ? ` of ${total.toLocaleString()} published` : "") +
+        (done ? ` \u00b7 their own pictures from zoom ${CARBON_PLUME_ZOOM}` : ", still reading\u2026"));
+    };
+    let page = 0, ended = false;
+    while (page < CARBON_PLUME_PAGES && !ended) {
+      const batch = [];
+      for (let k = 0; k < (feats.length ? CARBON_PAGES_AT_ONCE : 1) && page + k < CARBON_PLUME_PAGES; k++) batch.push(page + k);
+      let got;
+      try {
+        got = await Promise.all(batch.map((n) =>
+          getJson(`${CARBON_API}?sort=desc&limit=1000&offset=${n * 1000}`, 60000)));
+      } catch (e) {
+        if (!feats.length) { setLayerState(cfg.id, `Carbon Mapper did not answer (${e.message})`); return; }
+        break;
       }
-      if (items.length < 1000) break;
+      for (const j of got) {
+        const items = j.items || j.features || [];
+        if (total === null && j.total_count != null) total = Number(j.total_count);
+        for (const it of items) {
+          const f = asFeature(it);
+          if (f) feats.push(f);
+        }
+        if (items.length < 1000) ended = true;
+      }
+      page += batch.length;
+      draw(ended || page >= CARBON_PLUME_PAGES);
     }
-    held = feats;
-    if (map.getSource(src)) map.getSource(src).setData({ type: "FeatureCollection", features: feats });
-    setLayerState(cfg.id, `${feats.length.toLocaleString()} plumes` +
-      (total ? ` of ${total.toLocaleString()} published` : "") +
-      ` \u00b7 their own pictures from zoom ${CARBON_PLUME_ZOOM}`);
   };
 
   // Each plume's own picture, at the bounds Carbon Mapper give for it. Only
@@ -5204,10 +5230,16 @@ function moveZoomButtons() {
   const group = document.querySelector(".maplibregl-ctrl-bottom-right .maplibregl-ctrl-group");
   if (holder && group && holder.insertBefore) holder.insertBefore(group, holder.firstChild);
   // The reload button is in the page itself (index.html), clickable before the
-  // map loads; it moves under the Globe and Flat map choices here. The view it keeps is
+  // map loads; it moves into the right column here. The view it keeps is
   // written as the map moves, so a click needs nothing from this script.
+  //
+  // It sits as its own row under the settings box, not inside it. Inside, it
+  // was the last thing in a box that scrolls and stops at 48vh, so on a short
+  // window the button and its words were cut off at the bottom edge. As a row
+  // of its own it is never clipped, and because it is in the column's flow
+  // rather than floating over it, it covers nothing either.
   const wrap = document.getElementById("reload-wrap");
-  const under = document.querySelector(".view-choices");
+  const under = document.querySelector(".right-col");
   if (under && wrap && under.appendChild && wrap.parentNode !== under) {
     under.appendChild(wrap);
     if (wrap.classList) wrap.classList.remove("reload-early");

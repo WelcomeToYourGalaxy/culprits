@@ -2099,7 +2099,15 @@ console.log("\nCarbon Mapper's plumes, from their own platform");
         /const CARBON_API = `\$\{WORKER\}\/carbonmapper`;/.test(src) &&
         o.PANEL_ORDER.includes("carbon_plumes") && o.PANEL_REMOVED.has("site_carbon_mapper_waste"));
   check("it pages through the catalogue and says how much of it is held",
-        /offset=\$\{page \* 1000\}/.test(src) && /of \$\{total\.toLocaleString\(\)\} published/.test(src));
+        /offset=\$\{n \* 1000\}/.test(src) && /of \$\{total\.toLocaleString\(\)\} published/.test(src));
+  // The first page is read alone and drawn at once; the rest follow a few at a
+  // time, each batch drawn as it lands, and the row says it is still reading.
+  check("the plumes are drawn as they arrive, not after the last page",
+        /const CARBON_PAGES_AT_ONCE = 3;/.test(src) &&
+        /feats\.length \? CARBON_PAGES_AT_ONCE : 1/.test(src) &&
+        /await Promise\.all\(batch\.map\(/.test(src) &&
+        /draw\(ended \|\| page >= CARBON_PLUME_PAGES\)/.test(src) &&
+        /, still reading/.test(src));
   check("closer in, each plume draws its own picture at the bounds Carbon Mapper give it",
         /const CARBON_PLUME_ZOOM = 10/.test(src) && /type: "image", url: p\.picture/.test(src) &&
         /coordinates: \[\[w, n\], \[e2, n\], \[e2, s2\], \[w, s2\]\]/.test(src));
@@ -2474,6 +2482,19 @@ console.log("\nbuildings stand up with the terrain");
   check("OpenStreetMap and the two that serve it are credited",
         /openstreetmap\.org\/copyright/.test(body) && /openmaptiles\.org/.test(body) && /openfreemap\.org/.test(body));
   check("nothing orange, yellow or neon in the walls", /"fill-extrusion-color": "#7C7468"/.test(body));
+}
+
+console.log("\nthe reload row is not clipped, and covers nothing");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("it moves into the right column, not inside the box that scrolls",
+        /const under = document\.querySelector\("\.right-col"\);/.test(src) && /under\.appendChild\(wrap\)/.test(src));
+  check("it keeps its height while the settings box scrolls in what is left",
+        /\.right-col > \.reload-wrap\{flex:0 0 auto;[^}]*overflow:visible\}/.test(index) &&
+        /\.right-col > #basemaps\{flex:0 1 auto;min-height:0\}/.test(index));
+  check("in the column's flow, so it sits over nothing", !/\.view-choices \.reload-wrap/.test(index));
+  check("its words are given the room to wrap", /\.reload-cap\{line-height:1\.2;max-width:none/.test(index));
 }
 
 console.log("\nGlobal Safety Net fixes; My Maps titles");

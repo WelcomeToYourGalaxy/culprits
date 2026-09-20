@@ -28,12 +28,15 @@
   /* Beside Eyes' own search button, top right. */
   .reload-wrap{display:flex;align-items:center;gap:6px;padding:4px 8px;font-size:11.5px;color:var(--dim)}
   .reload-early{position:absolute;top:16px;right:9px;z-index:4;background:rgba(31,28,21,.94);border:1px solid var(--rule)}
-  .view-choices .reload-wrap{padding:8px 0 0;background:none;border:0}
+  /* Its own row under the settings box: it keeps its height whatever the
+     box above does, and the box above scrolls within what is left. */
+  .right-col > .reload-wrap{flex:0 0 auto;margin-top:6px;padding:5px 9px;overflow:visible}
+  .right-col > #basemaps{flex:0 1 auto;min-height:0}
   /* A row's tools and chips stay put away while it is unticked. */
   .facet[hidden]{display:none}
   #reload-map{width:26px;height:26px;border-radius:4px;border:0;cursor:pointer;flex:none;
     background:#fff;color:#333;font:16px/26px system-ui,sans-serif;box-shadow:0 0 0 2px rgba(0,0,0,.1)}
-  .reload-cap{line-height:1.2;max-width:90px}
+  .reload-cap{line-height:1.2;max-width:none;flex:1;min-width:0}
   /* Layer rows in the layers box, laid out like Global Safety Net's own list:
      a small square of the layer's colour, the name, little space between. A
      row's line of detail (its count, or why it is empty) shows once it is ticked. */
