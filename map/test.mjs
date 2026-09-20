@@ -2183,7 +2183,7 @@ console.log("\nheading ticks, chips in words, a named archive");
   const order = new Function(body + "; return PANEL_ORDER;")();
   const at = (t) => order.findIndex((x) => x && x.t === t);
   check("every heading takes a tick that shows or hides everything under it",
-        /all\.className = "toc-all"/.test(src) && /for \(const i of body\.querySelectorAll\("\[data-layer\]"\)\)/.test(src));
+        /all\.className = "toc-all"/.test(src) && /for \(const i of body\.querySelectorAll\("\[data-layer\], \[data-copy\]"\)\)/.test(src));
   check("unticking a heading clears its layers and its groups' boxes too",
         /for \(const g of body\.querySelectorAll\("\[data-group\]"\)\) \{\n\s*g\.checked = on;/.test(src));
   check("the tick reads its layers: all, none or part-way",
@@ -2550,6 +2550,37 @@ console.log("\nlive rows say so; the grips read as handles; a shut box stops scr
   const at = (t) => order.findIndex((x) => x && x.t === t);
   const kinds = order.map((x, i) => (x && x.h === 3 && ["Of humans", "Of animals", "Of plants", "Of microscopics"].includes(x.t) ? i : -1)).filter((i) => i > at("Of individuals"));
   check("Of individuals holds the same kinds as Of groups", kinds.length === 4);
+}
+
+console.log("\na row can sit under more than one subject");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("a second naming makes a copy, not a second row",
+        /if \(placed\.has\(item\)\) \{\n\s*const copy = copyRow\(leads\.get\(item\), item\);/.test(src) &&
+        /function copyRow\(lead, id\)/.test(src));
+  // The row has been moved into the fragment being built by the time a second
+  // naming comes round, so it is kept rather than looked for in the box.
+  check("the copy is taken from the row itself, wherever it has got to",
+        /const leads = new Map\(\);/.test(src) && /leads\.set\(item, nodes\[0\]\)/.test(src));
+  check("a copy carries data-copy, so nothing that drives layers counts it twice",
+        /input\.removeAttribute\("data-layer"\);\n\s*input\.dataset\.copy = id;/.test(src));
+  check("ticking a copy ticks the row it copies, and the row ticks its copies",
+        /const copied = e\.target\.dataset && e\.target\.dataset\.copy;/.test(src) &&
+        /syncCopies\(box, id, e\.target\.checked\);/.test(src));
+  check("a copy leaves the row's own tools with the row", /for \(const tool of copy\.querySelectorAll\("\.grip, \.fold"\)\) tool\.remove\(\);/.test(src));
+  check("headings count copies in the number beside them",
+        /sec\.querySelectorAll\("\[data-layer\], \[data-copy\], \[data-gm\]"\)\.length/.test(src));
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("const PANEL_REMOVED"));
+  const order = new Function(body + "; return PANEL_ORDER;")();
+  const at = (t) => order.findIndex((x) => x && x.t === t);
+  check("the eight new headings are in, in the order's own style",
+        ["Fire", "Forest and land cover", "Land held under permit", "Spatial plans", "Peatland",
+         "Surface water", "Base and reference", "Land and territory"].every((t) => at(t) > -1));
+  check("the planet's new headings sit under Of the planet, before Of groups",
+        ["Fire", "Forest and land cover", "Land held under permit", "Spatial plans", "Peatland", "Surface water"]
+          .every((t) => at(t) > at("Of the planet") && at(t) < at("Of groups")));
+  check("Base and reference is its own section, beside Buildings", at("Base and reference") < at("Buildings") &&
+        order[at("Base and reference")].h === 1);
 }
 
 console.log("\nGlobal Safety Net fixes; My Maps titles");

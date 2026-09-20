@@ -7982,8 +7982,21 @@ function buildPanel() {
       return;
     }
 
+    // A copy has no layer of its own: it ticks the row it copies, and
+    // everything follows from there as if the row had been clicked.
+    const copied = e.target.dataset && e.target.dataset.copy;
+    if (copied) {
+      const real = box.querySelector(`[data-layer="${copied}"]`);
+      if (real && real.checked !== e.target.checked) {
+        real.checked = e.target.checked;
+        if (typeof real.dispatchEvent === "function" && typeof Event === "function") real.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      return;
+    }
+
     const id = e.target.dataset.layer;
     if (!id) return;
+    syncCopies(box, id, e.target.checked);
     // Remembered, because layers load asynchronously: a toggle flipped before
     // its archive arrives would otherwise be lost and the layer would appear.
     visibility.set(id, e.target.checked ? "visible" : "none");
@@ -8442,10 +8455,16 @@ const PANEL_ORDER = [
   { h: 3, t: "Pollution" }, "epa_tri_sites", "epa_widget",
   { h: 4, t: "Wastewater" }, "hydrowaste",
   { h: 4, t: "Plastics" }, "mymaps_chlorine", "arcgis_ym8xk", "arcgis_materialresearch", "pirg_plastic", "gpw_map", "seas_of_plastic", "coastal_cleanup",
+  { h: 3, t: "Fire" },
+  { h: 3, t: "Forest and land cover" },
   { h: 3, t: "Deforestation" }, "soilgrids", "trase_measures", "trase_pulp_indonesia",
     "trase_pulp_concessions_2015", "trase_pulp_concessions_2020", "trase_pulp_concessions_2023", "nusantara",
   { h: 4, t: "Global Forest Watch" }, "glad_loss", "group:forest_alerts", "gfw_catalogue",
   { h: 3, t: "Biodiversity loss" }, "gsn", "gsn_rankings", "allen_coral", "atlas_hotspots", "atlas_cities", "pe_subsidising", "powerbi_report",
+  { h: 3, t: "Land held under permit" },
+  { h: 3, t: "Spatial plans" },
+  { h: 3, t: "Peatland" },
+  { h: 3, t: "Surface water" },
   { h: 3, t: "Mining" }, "mines_global",
   { h: 3, t: "Meat and agriculture" },
   { h: 4, t: "Agriculture" }, "land_matrix", "palmwatch", "trase_palm_indonesia", "trase_silos_brazil", "trase_cocoa_ivory",
@@ -8475,6 +8494,7 @@ const PANEL_ORDER = [
 
   { h: 1, t: "Suppression" },
   { h: 2, t: "Of humans" },
+  { h: 3, t: "Land and territory" },
   { h: 3, t: "Physical suppression" },
   { h: 4, t: "Control of physical resources" }, "site_central_banks", "site_banking_dynasties", "site_export_credit", "site_wealth_atlas",
     "site_earmarked_funding", "site_trade_profits", "site_social_spheres",
@@ -8519,6 +8539,7 @@ const PANEL_ORDER = [
   { h: 3, t: "Space launches" }, "ll2_pads", "ll2_upcoming",
   { h: 3, t: "Protecting extraterrestrial life" }, "biosignature",
 
+  { h: 1, t: "Base and reference" },
   { h: 1, t: "Buildings" }, "building_types",
 ];
 const PANEL_REMOVED = new Set([
@@ -8563,6 +8584,30 @@ function syncHeadingBoxes(box) {
     all.indeterminate = on > 0 && on < boxes.length;
     all.disabled = boxes.length === 0;
   }
+}
+
+// A second home for a row already placed elsewhere. The copy is the row's own
+// markup with its tick renamed, so it cannot be mistaken for the row itself by
+// anything that reads [data-layer]; its chips and menus stay with the original,
+// which is where a row's own controls belong.
+function copyRow(lead, id) {
+  if (!lead || typeof lead.cloneNode !== "function") return null;
+  const first = lead.querySelector ? lead.querySelector("[data-layer]") : null;
+  const copy = lead.cloneNode(true);
+  copy.classList.add("layer-copy");
+  const input = copy.querySelector("[data-layer]");
+  if (input) {
+    input.removeAttribute("data-layer");
+    input.dataset.copy = id;
+    input.checked = first.checked;
+  }
+  for (const tool of copy.querySelectorAll(".grip, .fold")) tool.remove();
+  return copy;
+}
+
+// Every copy of a row reads what the row reads.
+function syncCopies(box, id, on) {
+  for (const i of box.querySelectorAll(`[data-copy="${id}"]`)) i.checked = on;
 }
 
 function panelNodes(box, key) {
@@ -8788,6 +8833,9 @@ function arrangePanel() {
   box.dataset.arranged = "1";
   const frag = document.createDocumentFragment();
   const placed = new Set();
+  // The row itself, kept so a second naming can copy it: by then it has been
+  // moved into the fragment being built and is no longer found in the box.
+  const leads = new Map();
   // Each heading is a section that folds; the rows under it go in its body,
   // nested by level. Every section starts folded shut.
   const stack = [{ level: 0, body: frag }];
@@ -8824,7 +8872,7 @@ function arrangePanel() {
     all.addEventListener("click", (e) => e.stopPropagation());
     all.addEventListener("change", () => {
       const on = all.checked;
-      for (const i of body.querySelectorAll("[data-layer]")) {
+      for (const i of body.querySelectorAll("[data-layer], [data-copy]")) {
         if (i.checked === on) continue;
         i.checked = on;
         if (typeof i.dispatchEvent === "function" && typeof Event === "function") i.dispatchEvent(new Event("change", { bubbles: true }));
@@ -8855,9 +8903,19 @@ function arrangePanel() {
       continue;
     }
     if (typeof item === "object") { heading(item.h, item.t); continue; }
+    // A layer that belongs to two subjects is named twice in the order. The
+    // first naming moves the row itself; every later one gets a copy that
+    // mirrors it - tick either and the layer is drawn once, and both read the
+    // same. Copies carry data-copy rather than data-layer, so nothing that
+    // counts or drives layers sees a row twice.
+    if (placed.has(item)) {
+      const copy = copyRow(leads.get(item), item);
+      if (copy) into().appendChild(copy);
+      continue;
+    }
     const nodes = panelNodes(box, item);
     nodes.forEach((n) => into().appendChild(n));
-    if (nodes.length) placed.add(item);
+    if (nodes.length) { placed.add(item); leads.set(item, nodes[0]); }
   }
   // Removed rows go into a hidden holder, so code that looks them up still finds them.
   const gone = document.createElement("div");
@@ -8887,7 +8945,7 @@ function arrangePanel() {
   });
   // Beside each heading, how many layers are inside it.
   for (const sec of box.querySelectorAll(".toc-sec")) {
-    const n = sec.querySelectorAll("[data-layer], [data-gm]").length;
+    const n = sec.querySelectorAll("[data-layer], [data-copy], [data-gm]").length;
     const el = sec.querySelector(".toc-n");
     if (el) el.textContent = n ? String(n) : "none yet";
   }
