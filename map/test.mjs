@@ -2056,6 +2056,25 @@ console.log("\nEPA facilities at every zoom");
   check("the kind buttons also filter the copy", /map\.setFilter\(`\$\{cfg\.id\}-pts`, ptsFilter\(\)\)/.test(src));
 }
 
+console.log("\nCarbon Mapper's plumes, from their own platform");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const o = new Function(body + "; return { PANEL_ORDER, PANEL_REMOVED };")();
+  check("the row reads Carbon Mapper's catalogue, not the handful on our own page",
+        /const CARBON_API = "https:\/\/api\.carbonmapper\.org\/api\/v1\/catalog\/plumes\/annotated"/.test(src) &&
+        o.PANEL_ORDER.includes("carbon_plumes") && o.PANEL_REMOVED.has("site_carbon_mapper_waste"));
+  check("it pages through the catalogue and says how much of it is held",
+        /offset=\$\{page \* 1000\}/.test(src) && /of \$\{total\.toLocaleString\(\)\} published/.test(src));
+  check("closer in, each plume draws its own picture at the bounds Carbon Mapper give it",
+        /const CARBON_PLUME_ZOOM = 10/.test(src) && /type: "image", url: p\.picture/.test(src) &&
+        /coordinates: \[\[w, n\], \[e2, n\], \[e2, s2\], \[w, s2\]\]/.test(src));
+  check("only the pictures on screen are drawn, and only so many at once",
+        /const CARBON_PICTURES_AT_ONCE = 40/.test(src) && /if \(wanted\.size >= CARBON_PICTURES_AT_ONCE\) break;/.test(src));
+  check("a plume's box says the rate was measured at that moment, not the source's own",
+        /not the source's overall rate/.test(src));
+}
+
 console.log("\nareas findable from the world view");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");

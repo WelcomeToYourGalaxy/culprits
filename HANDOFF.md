@@ -123,11 +123,16 @@ doi:10.5063/F76B09, with the code at OHI-Science/GlobalWasteWater. Rebuilding
 means fetching those GeoTIFFs and tiling them rather than copying someone
 else's picture squares.
 
-**Carbon Mapper.** The row here is the set of waste-site plumes from our own
-page, which is a fraction of what Carbon Mapper publish, and it draws each as a
-point where their own viewer draws the plume's shape. Their public API is the
-way to both: the plume records carry their footprints, so a route that reads it
-would give the shapes and the rest of the catalogue at once.
+**Carbon Mapper — done, but unconfirmed in a browser.** `route:"carbonmapper"`
+reads `api.carbonmapper.org/api/v1/catalog/plumes/annotated`, ten pages of a
+thousand, newest first, and says how many of `total_count` it is holding. Each
+plume is a point sized by `emission_auto`; from zoom 10 the plume's own picture
+(`plume_png`) is laid on the map at `plume_bounds`, forty at a time, only where
+they are on screen. Built from the shape Carbon Mapper document in their
+product guide, not from a live call: this sandbox cannot reach their API, so
+the first real test is a browser. If the fields come back named differently the
+row will say the platform did not answer, or draw points with thin boxes, and
+the mapping in `addCarbonMapperLayer` is the place to fix it.
 
 ---
 
