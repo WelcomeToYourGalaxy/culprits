@@ -1906,7 +1906,9 @@ console.log("\nSocial Spheres controls; Live Projects to Resist whole; wastewate
   check("the Social Spheres' own kind names are read", lab('const KINDLABEL={assoc:"Association & commission",club:"Club"};').club === "Club");
   check("a person or sector opens through the map's own functions only", /\["openNode", "openPerson", "openSector"\]\.includes\(fn\)/.test(src));
   check("Live Projects to Resist is drawn on this map, not opened beside it",
-        !/id: "live_projects_app"/.test(src) && ["love_wire", "love_trackers", "love_guides"].every((i) => new RegExp(`id: "${i}"`).test(src)));
+        !/id: "live_projects_app"/.test(src) && /id: "love_guides"/.test(src));
+  check("its wire stays in the wires box and its tracker lists are gone from the map",
+        !/id: "love_wire"/.test(src) && !/id: "love_trackers"/.test(src));
   check("its project cards are not drawn a second time", (src.match(/id:\s*"local_projects"/g) || []).length === 1);
   check("the wastewater layers read the GitHub copy", (src.match(/tiles\/wastewater_N_[a-z_]+\.pmtiles/g) || []).length === 5 && !/mazu\.nceas\.ucsb\.edu/.test(src));
 }
@@ -2050,6 +2052,16 @@ console.log("\nEPA facilities at every zoom");
   check("the kind buttons also filter the copy", /map\.setFilter\(`\$\{cfg\.id\}-pts`, ptsFilter\(\)\)/.test(src));
 }
 
+console.log("\nthe slick archive reads tiles where they exist");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the month list of archives is read, and a missing one is not fatal",
+        /getJson\(`\$\{cfg\.base\}\/tiles\.json`/.test(src) && /catch \(e\) \{ \/\* none tiled yet \*\//.test(src));
+  check("a tiled month draws through a vector source, shapes from zoom 7 and points below",
+        /url: `pmtiles:\/\/\$\{url\}`/.test(src) && /"source-layer": "slicks", minzoom: 7/.test(src) && /"source-layer": "slick_points", maxzoom: 7/.test(src));
+  check("a month with no archive still reads its plain file", /if \(tiled\[m\]\) \{ showTiled\(m\); return; \}/.test(src) && /getJson\(`\$\{cfg\.base\}\/\$\{m\}\.geojson`, 60000\)/.test(src));
+}
+
 console.log("\nrows gathered, moved and renamed");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
@@ -2104,7 +2116,7 @@ console.log("\nLive Projects to Resist, drawn here");
   const out = rows([{ name: "a", lat: 12, lng: 34 }, { name: "b", lat: "", lng: "" }, { name: "c", latitude: -1, longitude: 2 }]);
   check("a story with a position becomes a point, keeping its fields", out.length === 2 && out[0].geometry.coordinates[0] === 34 && out[0].properties.name === "a");
   check("a story with no position is left out rather than placed at 0,0", !out.some((f) => f.properties.name === "b"));
-  check("the three rows sit under Construction, after the projects themselves", /\{ h: 3, t: "Construction" \}, "local_projects", "love_wire", "love_trackers", "love_guides"/.test(src));
+  check("the guides sit under Construction, after the projects themselves", /\{ h: 3, t: "Construction" \}, "local_projects", "love_guides"/.test(src));
 }
 
 console.log("\nBuildings");

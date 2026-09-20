@@ -274,6 +274,7 @@
   },
   {
    "id": "love_trackers",
+   "retired": true,
    "group": "MORE_MAPS",
    "kind": "tree",
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/local-map/main/trackerdata.json",

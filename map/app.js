@@ -4369,6 +4369,12 @@ async function addSlickArchive(cfg) {
   try { index = await getJson(`${cfg.base}/index.json`, 30000); }
   catch (e) { setLayerState(cfg.id, `not built yet (${e.message})`); return; }
   const months = Object.keys(index).sort().reverse();
+  // A month as an archive where the daily job has tiled it, and as the plain
+  // file where it has not. A busy month is 58 MB of GeoJSON, which is a minute
+  // of waiting and often a failure - "could not be read" was that. From an
+  // archive the map fetches only the squares on screen.
+  let tiled = {};
+  try { tiled = await getJson(`${cfg.base}/tiles.json`, 30000); } catch (e) { /* none tiled yet */ }
   const src = `${cfg.id}-src`;
   map.addSource(src, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
   map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source: src, paint: { "fill-color": "#1D1B17", "fill-opacity": 0.55 } });
@@ -4389,12 +4395,42 @@ async function addSlickArchive(cfg) {
     const x = pts.reduce((a, p) => a + p[0], 0) / pts.length, y = pts.reduce((a, p) => a + p[1], 0) / pts.length;
     return { type: "Feature", properties: f.properties || {}, geometry: { type: "Point", coordinates: [x, y] } };
   }).filter(Boolean) });
+  // The tiled form draws through its own pair of layers, so the plain-file
+  // pair can stay exactly as it was; only one pair is ever shown.
+  const tsrc = `${cfg.id}-pm`;
+  let tiledNow = null;
+  const showTiled = (m) => {
+    const url = `${cfg.base}/${tiled[m]}`;
+    if (tiledNow !== url) {
+      ["-tfill", "-tline", "-tpt"].forEach((suffix) => { if (map.getLayer(cfg.id + suffix)) map.removeLayer(cfg.id + suffix); });
+      if (map.getSource(tsrc)) map.removeSource(tsrc);
+      map.addSource(tsrc, { type: "vector", url: `pmtiles://${url}` });
+      map.addLayer({ id: `${cfg.id}-tfill`, type: "fill", source: tsrc, "source-layer": "slicks", minzoom: 7,
+        paint: { "fill-color": "#1D1B17", "fill-opacity": 0.55 } });
+      map.addLayer({ id: `${cfg.id}-tline`, type: "line", source: tsrc, "source-layer": "slicks", minzoom: 7,
+        paint: { "line-color": "#B8A79E", "line-width": 1 } });
+      map.addLayer({ id: `${cfg.id}-tpt`, type: "circle", source: tsrc, "source-layer": "slick_points", maxzoom: 7,
+        paint: { "circle-color": "#B8A79E", "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 2.2, 6, 3.6],
+                 "circle-stroke-color": "#1D1B17", "circle-stroke-width": 0.5, "circle-opacity": 0.9 } });
+      bindHtmlPopup(`${cfg.id}-tfill`, (p) => `<b>Oil slick</b><table class="meta">${fieldRows(p)}</table><div class="meta">SkyTruth Cerulean, kept daily</div>`);
+      bindHtmlPopup(`${cfg.id}-tpt`, (p) => `<b>Oil slick</b><table class="meta">${fieldRows(p)}</table><div class="meta">SkyTruth Cerulean, kept daily \u00b7 zoom in for its shape</div>`);
+      tiledNow = url;
+    }
+    map.getSource(src).setData({ type: "FeatureCollection", features: [] });
+    map.getSource(`${src}-pt`).setData({ type: "FeatureCollection", features: [] });
+    applyVisibility(cfg.id);
+    setLayerState(cfg.id, `${Number(index[m]).toLocaleString()} slicks in ${m} \u00b7 ${months.length} months kept`);
+  };
   const show = async (m) => {
+    if (tiled[m]) { showTiled(m); return; }
     setLayerState(cfg.id, `reading ${m}\u2026`);
     try {
       const gj = await getJson(`${cfg.base}/${m}.geojson`, 60000);
       map.getSource(src).setData(gj);
       map.getSource(`${src}-pt`).setData(middles(gj));
+      ["-tfill", "-tline", "-tpt"].forEach((suffix) => {
+        if (map.getLayer(cfg.id + suffix)) map.setLayoutProperty(cfg.id + suffix, "visibility", "none");
+      });
       setLayerState(cfg.id, `${Number(index[m]).toLocaleString()} slicks in ${m} \u00b7 ${months.length} months kept`);
     } catch (e) { setLayerState(cfg.id, `${m} could not be read (${e.message})`); }
   };
@@ -6739,16 +6775,10 @@ const OTHER_MAPS = {
     // Live Projects to Resist, drawn on this map rather than opened in a panel
     // beside it. Its project cards are the Development projects row already
     // under Construction, from the same records, so they are not drawn twice;
-    // what the panel added over that row is here as three more rows. Its Earth
-    // First! archive is text sections with no positions, so there is nothing
-    // to place and none is invented.
-    { id: "love_wire", name: "Resistance news placed where it happened (Live Projects to Resist)", unit: "stories", colour: "#6E7B84", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Live Projects to Resist wire", url: "https://welcometoyourgalaxy.github.io/local-map/wire_geo.json" }],
-      nameFrom: ["title"],
-      note: "The map's own news wire, read live from it. Each story sits where that map matched it, by name rather than by a coordinate in the story, so a box shows what it matched on and how strongly; a weak match can put a story in the wrong country." },
-    { id: "love_trackers", name: "Who to enlist against a project, by country (Live Projects to Resist)", unit: "countries", colour: "#6E7B84", route: "shapes", ready: true, lazy: true,
-      dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/love_trackers.geojson",
-      note: "The map's country lists of firms, funds and bodies to bring in against a project, rebuilt daily from the map itself." },
+    // what it adds over that row is its country guides, below. Its news wire
+    // belongs in the wires box and is read there, not as places on the map,
+    // and its Earth First! archive is text sections with no positions, so
+    // there is nothing of it to place.
     { id: "love_guides", name: "Community resistance how-to guides, by country (Live Projects to Resist)", unit: "countries", colour: "#7B8472", route: "shapes", ready: true, lazy: true,
       dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/love_guides.geojson",
       note: "One guide per country, linked from the country it is written for: the how-to as a PDF, as a page, and to download. Seven of the map's entries have no outline in the boundaries file and are named in the build log rather than dropped quietly." },
@@ -7153,8 +7183,6 @@ const LAYER_KIND = {
   ct_air: ["human", "downstream"],
   ct_pop: ["human", "downstream"],
   gsn: ["plant", "downstream"],
-  love_wire: ["human", "downstream"],
-  love_trackers: ["human", "downstream"],
   love_guides: ["human", "downstream"],
   rte_trade: ["insentient", "upstream"],
   mymaps_supp_a: ["animal", "downstream"],
@@ -7651,7 +7679,7 @@ const PANEL_ORDER = [
   { h: 4, t: "Oil slicks" },
   { h: 5, t: "Marine slicks" }, "cerulean_slicks", "cerulean_sources", "slick_archive", "skytruth_voc",
   { h: 5, t: "Terrestrial slicks" }, "skytruth_monitor",
-  { h: 3, t: "Construction" }, "local_projects", "love_wire", "love_trackers", "love_guides",
+  { h: 3, t: "Construction" }, "local_projects", "love_guides",
   { h: 3, t: "Culprits upstream" }, "ejatlas",
   { h: 4, t: "Emissions" }, "carbon_majors", "soy_organizations", "bocc",
   { h: 4, t: "Deforestation" }, "site_forest500_soy", "site_soybean_companies", "dff",

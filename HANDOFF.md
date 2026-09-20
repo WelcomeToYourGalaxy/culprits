@@ -120,6 +120,19 @@ notices rows being ticked.
 
 ---
 
+## The slick archive reads tiles, not a 58 MB file
+
+A busy month of Cerulean slicks is 58 MB of GeoJSON. Fetching it whole took a
+minute when it worked at all, which is what "could not be read" was.
+`scripts/cerulean_archive.py` in culprits-tiles-more now also tiles each month
+it touches into `cerulean_archive/tiles/<month>.pmtiles` (layers `slicks` and
+`slick_points`) and lists them in `cerulean_archive/tiles.json`. The map reads
+that list: a month with an archive draws through a vector source, fetching only
+the squares on screen; a month without one still reads the plain file exactly
+as before, so nothing breaks while the tiling catches up.
+
+---
+
 ## Live Projects to Resist, drawn here rather than opened beside
 
 Its panel row is gone. Three rows under Construction carry what the panel
@@ -128,6 +141,11 @@ added: `love_wire` (its news wire, read live from the map's own
 by `build_shapes.py`). Its project cards are the same records as
 `local_projects`, so that row stands and nothing is drawn twice, and its Earth
 First! archive is text with no positions, so nothing of it is placed.
+
+Its wire and its country tracker lists were rows here briefly and are not any
+more: the wire belongs in the wires box, and the tracker lists were taken off
+at the owner's request. `love_trackers` is marked retired in the shapes
+registry and its published files are removed by `scripts/retire.py`.
 
 `love_guides` uses the `country_docs` kind, which reads the ISO3 index inside
 the map's own page (`LKA:{file:'srilanka.md',pdf:'...'}`) rather than GitHub's
