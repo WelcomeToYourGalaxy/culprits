@@ -2065,7 +2065,10 @@ console.log("\nNusantara Atlas and Global Forest Watch, by category");
   check("integrated alerts are Forest Change", categoryOf("Integrated deforestation alerts", G) === "Forest Change");
   check("mangrove extent is Land Cover", categoryOf("Global mangrove extent", G) === "Land Cover");
   check("a layer no rule claims goes under Other, not away", categoryOf("xyz 123", G) === "Other");
-  check("Global Forest Watch uses the category chips", (src.match(/categoryMenu\(menu, /g) || []).length === 1);
+  // Superseded with Nusantara's: the catalogue's datasets are rows of the box
+  // now, filed by what each shows, and several can be drawn at once.
+  check("Global Forest Watch's datasets are rows of the box", !/categoryMenu\(menu, /.test(src) &&
+        (src.match(/^  catalogueRows\(cfg, /gm) || []).length === 2);
   // Superseded: Nusantara's layers are rows of the box itself now, filed by
   // what they show, not a list inside one row.
   check("Nusantara's layers are rows of the box, filed by subject", /catalogueRows\(cfg, items\);/.test(src) && !/menu\.className = "facet ns-list"/.test(src));
@@ -2142,7 +2145,7 @@ console.log("\nthe showing box, the queue, and menus that draw");
   check("a heading's tick sits at the end of its line", /line\.appendChild\(head\);\n\s*line\.appendChild\(all\);/.test(src));
   check("layers are built three at a time, and a waiting row says so",
         /const QUEUE_AT_ONCE = 3/.test(src) && /waiting behind \$\{i \+ 1\} other layer/.test(src) && /queueBuild\(cfg\.id, \(\) => \{/.test(src));
-  check("a catalogue row turns the row it belongs to on", /function showRowFor\(id\)/.test(src) && /showRowFor\(cfg\.id\);\n\s*on\.add\(i\);/.test(src) && /if \(pick\) showRowFor\(cfg\.id\)/.test(src));
+  check("a catalogue row turns the row it belongs to on", /function showRowFor\(id\)/.test(src) && /showRowFor\(cfg\.id\);\n\s*on\.add\(i\);/.test(src) && /showRowFor\(cfg\.id\);\n\s*setLayerState\(cfg\.id, `\$\{d\.title\}: finding its tiles/.test(src));
 }
 
 console.log("\ntitles in one ink, sources named");
@@ -2606,6 +2609,24 @@ console.log("\nNusantara's layers spread through the box");
   check("a second home ticks the first, and the first ticks its copies",
         /const copied = t\.dataset\.catCopy;/.test(src) && /querySelectorAll\(`\[data-cat-copy="\$\{key\}"\]`\)/.test(src));
   check("each row says it is live and links its source", /class="live"/.test(src) && /\$\{siteLink\(cfg\.id\)\}<\/span>/.test(src));
+}
+
+console.log("\nthe Global Forest Watch catalogue, as rows");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("async function addGfwMenuLayer("), src.indexOf("/* ---------- The Social Spheres"));
+  check("several datasets can be drawn at once, each with its own source",
+        /const drawn = new Map\(\);/.test(body) && /`\$\{cfg\.id\}-\$\{safe\(d\.id\)\}`/.test(body) &&
+        !/const clear = \(\) =>/.test(body));
+  check("unticking one takes its own layers away and leaves the others",
+        /for \(const id of drawn\.get\(d\.id\) \|\| \[\]\) if \(map\.getLayer\(id\)\) map\.removeLayer\(id\);/.test(body) &&
+        /drawn\.delete\(d\.id\);/.test(body));
+  check("the row says how many of the catalogue are drawn",
+        /\$\{drawn\.size\} of \$\{items\.length\} datasets drawn/.test(body));
+  check("a dataset with no tiles says so rather than failing quietly",
+        /publishes no map tiles for this dataset \(download only\)/.test(body));
+  check("its rows are filed by the same rules as Nusantara's",
+        /catalogueRows\(cfg, rows\);/.test(body) && /CATALOGUE_ITEMS\.set\(r\.key, r\)/.test(body));
 }
 
 console.log("\nGlobal Safety Net fixes; My Maps titles");

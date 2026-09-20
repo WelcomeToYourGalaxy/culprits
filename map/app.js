@@ -3937,32 +3937,31 @@ async function addGfwMenuLayer(cfg) {
   if (!all.length) { setLayerState(cfg.id, "the catalogue did not answer"); return; }
   const items = all.map((d) => ({ id: d.dataset, title: (d.metadata && d.metadata.title) || d.dataset, meta: d.metadata || {} }))
     .sort((a, b) => a.title.localeCompare(b.title));
-  const menu = document.createElement("div");
-  menu.className = "facet";
-  // The category the catalogue gives, where it gives one; otherwise by the words
-  // of its title and description, in Global Forest Watch's own map categories.
-  items.forEach((d) => {
-    const given = [d.meta.category, ...(Array.isArray(d.meta.tags) ? d.meta.tags : [])].map((c) => String(c || ""))
-      .map((c) => GFW_CATEGORIES.find(([n]) => n.toLowerCase() === c.toLowerCase())).find(Boolean);
-    d.cat = given ? given[0] : categoryOf(`${d.title} ${d.meta.function || ""} ${d.meta.overview || ""} ${d.id}`, GFW_CATEGORIES);
-  });
-  const row = document.querySelector(`[data-layer="${cfg.id}"]`);
-  const anchor = row && row.closest ? row.closest("label") : null;
-  if (anchor && anchor.after) anchor.after(menu);
-  setLayerState(cfg.id, `${items.length} datasets \u2014 choose one`);
-  const clear = () => {
-    for (const id of [...(cfg._layerIds || [])]) if (map.getLayer(id)) map.removeLayer(id);
-    if (map.getSource(`${cfg.id}-gfw`)) map.removeSource(`${cfg.id}-gfw`);
-    cfg._layerIds = [];
+  // Each dataset is a row of the layers box, filed by what it shows. Several
+  // can be drawn at once now: the menu drew one at a time and cleared the last,
+  // which made comparing two of them impossible.
+  const drawn = new Map();          // dataset id -> the layer ids it drew
+  const safe = (x) => String(x).replace(/[^a-z0-9_]/gi, "_");
+  cfg._layerIds = [];
+  const applyAll = (vis) => {
+    for (const ids of drawn.values()) for (const id of ids) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
   };
-  categoryMenu(menu, items, GFW_CATEGORIES, "Dataset", async (pick) => {
-    clear();
-    // Choosing a dataset turns the row on, so the choice draws rather than
-    // waiting on a second tick.
-    if (pick) showRowFor(cfg.id);
-    const d = pick == null ? null : items[pick];
-    if (!d) return;
+  cfg.afterVisibility = applyAll;
+  const said = () => setLayerState(cfg.id, drawn.size
+    ? `${drawn.size} of ${items.length} datasets drawn`
+    : `${items.length} datasets, each a row below`);
+  const take = (d) => {
+    for (const id of drawn.get(d.id) || []) if (map.getLayer(id)) map.removeLayer(id);
+    if (map.getSource(`${cfg.id}-${safe(d.id)}`)) map.removeSource(`${cfg.id}-${safe(d.id)}`);
+    drawn.delete(d.id);
+    cfg._layerIds = [].concat(...drawn.values());
+    said();
+  };
+  const put = async (d) => {
+    showRowFor(cfg.id);
     setLayerState(cfg.id, `${d.title}: finding its tiles\u2026`);
+    const src = `${cfg.id}-${safe(d.id)}`;
+    const ids = [];
     try {
       const v = await getJson(`${cfg.api}/dataset/${d.id}/latest`);
       const version = (v.data && v.data.version) || "latest";
@@ -3974,32 +3973,41 @@ async function addGfwMenuLayer(cfg) {
         const uri = vec.asset_uri;
         const buf = await (await fetch(uri.replace("{z}", "0").replace("{x}", "0").replace("{y}", "0"))).arrayBuffer().catch(() => null);
         const names = buf ? readTileLayers(buf) : [];
-        map.addSource(`${cfg.id}-gfw`, { type: "vector", tiles: [uri], minzoom: 0, maxzoom: 12 });
+        map.addSource(src, { type: "vector", tiles: [uri], minzoom: 0, maxzoom: 12 });
         for (const n of (names.length ? names : [d.id, "default"])) {
-          const base = { source: `${cfg.id}-gfw`, "source-layer": n };
-          map.addLayer({ id: `${cfg.id}-f-${n}`, type: "fill", ...base, filter: ["==", ["geometry-type"], "Polygon"], paint: { "fill-color": cfg.colour, "fill-opacity": 0.45, "fill-outline-color": "#1D1B17" } });
-          map.addLayer({ id: `${cfg.id}-l-${n}`, type: "line", ...base, filter: ["==", ["geometry-type"], "LineString"], paint: { "line-color": cfg.colour, "line-width": 1.2 } });
-          map.addLayer({ id: `${cfg.id}-p-${n}`, type: "circle", ...base, filter: ["==", ["geometry-type"], "Point"], paint: { "circle-color": cfg.colour, "circle-radius": 3, "circle-stroke-width": 0.5, "circle-stroke-color": "#17150F" } });
-          for (const id of [`${cfg.id}-f-${n}`, `${cfg.id}-l-${n}`, `${cfg.id}-p-${n}`]) {
-            cfg._layerIds.push(id);
+          const base = { source: src, "source-layer": n };
+          map.addLayer({ id: `${src}-f-${safe(n)}`, type: "fill", ...base, filter: ["==", ["geometry-type"], "Polygon"], paint: { "fill-color": cfg.colour, "fill-opacity": 0.45, "fill-outline-color": "#1D1B17" } });
+          map.addLayer({ id: `${src}-l-${safe(n)}`, type: "line", ...base, filter: ["==", ["geometry-type"], "LineString"], paint: { "line-color": cfg.colour, "line-width": 1.2 } });
+          map.addLayer({ id: `${src}-p-${safe(n)}`, type: "circle", ...base, filter: ["==", ["geometry-type"], "Point"], paint: { "circle-color": cfg.colour, "circle-radius": 3, "circle-stroke-width": 0.5, "circle-stroke-color": "#17150F" } });
+          for (const id of [`${src}-f-${safe(n)}`, `${src}-l-${safe(n)}`, `${src}-p-${safe(n)}`]) {
+            ids.push(id);
             bindHtmlPopup(id, (p) => `<b>${escapeHtml(d.title)}</b><table class="meta">${fieldRows(p)}</table>`);
           }
         }
-        setLayerState(cfg.id, `${d.title} \u00b7 live${about ? " \u00b7 " + about : ""}`);
       } else if (ras) {
-        map.addSource(`${cfg.id}-gfw`, { type: "raster", tileSize: 256, tiles: [ras.asset_uri], maxzoom: 12 });
-        map.addLayer({ id: `${cfg.id}-r`, type: "raster", source: `${cfg.id}-gfw`, paint: { "raster-opacity": 0.8, "raster-saturation": -0.3 } });
-        cfg._layerIds.push(`${cfg.id}-r`);
-        setLayerState(cfg.id, `${d.title} \u00b7 live picture${about ? " \u00b7 " + about : ""}`);
+        map.addSource(src, { type: "raster", tileSize: 256, tiles: [ras.asset_uri], maxzoom: 12 });
+        map.addLayer({ id: `${src}-r`, type: "raster", source: src, paint: { "raster-opacity": 0.8, "raster-saturation": -0.3 } });
+        ids.push(`${src}-r`);
       } else {
         setLayerState(cfg.id, `${d.title}: Global Forest Watch publishes no map tiles for this dataset (download only)`);
+        return;
       }
-      const vis = visibility.get(cfg.id) || "visible";
-      for (const id of cfg._layerIds) map.setLayoutProperty(id, "visibility", vis);
+      drawn.set(d.id, ids);
+      cfg._layerIds = [].concat(...drawn.values());
+      applyAll(visibility.get(cfg.id) || "visible");
+      said();
+      if (about) console.info(`[culprits] ${d.title} \u2014 ${about}`);
     } catch (e) {
       setLayerState(cfg.id, `${d.title}: ${e.message}`);
     }
-  }, "Choose a dataset in this category\u2026");
+  };
+  const rows = items.map((d) => ({
+    name: d.id, title: d.title, about: `${d.meta.function || ""} ${d.meta.overview || ""}`.trim(),
+    show: (want) => { if (want) put(d); else take(d); },
+  }));
+  catalogueRows(cfg, rows);
+  rows.forEach((r) => CATALOGUE_ITEMS.set(r.key, r));
+  said();
 }
 
 /* ---------- The Social Spheres: its bodies on the map, its own card on a click ---------- */
