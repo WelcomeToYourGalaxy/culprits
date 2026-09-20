@@ -966,8 +966,8 @@ console.log("\ncoral, live");
   const fill = map.getLayer("allen_coral-fill");
   check("shapes draw from zoom 12", fill && fill.minzoom === 12);
   check("…from squares asked one level lower, as MapLibre reads vector squares at 512 pixels", s2.minzoom === 11);
-  check("wider out the layer says why it is empty",
-        /zoom in to 12/.test((states['[data-state="allen_coral"]'] || {}).textContent || ""));
+  check("wider out the row says whose reefs are shown and where the zones begin",
+        /from zoom 12 the Allen Coral Atlas/.test((states['[data-state="allen_coral"]'] || {}).textContent || ""));
 
   // A tile that names its layer differently: the layer is redrawn from that name.
   globalThis.fetch = async () => ({ ok: true, status: 200, arrayBuffer: async () => tile.buffer.slice(0) });
@@ -1690,10 +1690,10 @@ console.log("\nTrase, and coral at world zoom");
   const br = new Function(src.slice(src.indexOf("function traseBreaks("), src.indexOf("function traseFormat(")) + "; return traseBreaks;")();
   check("steps come from the values themselves", JSON.stringify(br([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])) === "[3,5,7,9]");
   check("the ramps carry no orange or yellow", !/#(F[A-F0-9]{5}|E[6-9A-F][0-9A-F]{2}[0-4][0-9A-F])/i.test(src.slice(src.indexOf("const TRASE_RAMPS"), src.indexOf("const traseCache"))));
-  check("wider than zoom 6, coral shows UNEP-WCMC's map in the Atlas colour",
-        /id: `\$\{cfg\.id\}-world`, type: "raster", source: `\$\{cfg\.id\}-globe`, maxzoom: CORAL_ATLAS_PICTURE_FROM/.test(src) &&
+  check("wider than zoom 12, coral shows UNEP-WCMC's map in the Atlas colour, with no gap",
+        /id: `\$\{cfg\.id\}-world`, type: "raster", source: `\$\{cfg\.id\}-globe`, maxzoom: cfg\.drawFrom/.test(src) &&
         /tint:\/\/\$\{CORAL_CLASSES\["Coral\/Algae"\]\.slice\(1\)\}\/data-gis\.unep-wcmc\.org/.test(src));
-  check("…and the row says whose map it is", /UNEP-WCMC's reef map at this width/.test(src));
+  check("…and the row says whose map it is", /UNEP-WCMC's warm-water reefs at this width/.test(src));
   check("the switch reaches the world layer", /`\$\{id\}-world`/.test(src));
 }
 
@@ -1708,7 +1708,7 @@ console.log("\nthe layers box, in the chosen order");
   check("no layer is placed twice", new Set(ids).size === ids.length);
   check("nothing is both placed and removed", ids.every((id) => !order.PANEL_REMOVED.has(id)));
   const heads = order.PANEL_ORDER.filter((x) => typeof x === "object" && x.h === 1).map((x) => x.t);
-  check("the four sections come first, in order", heads.slice(0, 4).join("|") === "On-planet invasion|Off-planet invasion|Destruction|Suppression");
+  check("the four sections come first, in order", heads.slice(0, 4).join("|") === "On-planet invasion|Destruction|Suppression|Off-planet invasion");
   check("unplaced layers get their own heading, not the bin", /heading\(1, "Not yet placed"\)/.test(src));
   check("removed rows stay findable by the code", /gone\.hidden = true/.test(src));
   check("the Trase row no longer shares an id", (src.match(/id: ?"trase"/g) || []).length === 1);
@@ -1782,7 +1782,7 @@ console.log("\nsuppression in the given order; news box filters");
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
   const order = new Function(body + "; return PANEL_ORDER;")();
   const at = (t) => order.findIndex((x) => x && x.t === t);
-  check("Off-planet invasion is its own section", at("Off-planet invasion") > at("On-planet invasion") && at("Off-planet invasion") < at("Destruction"));
+  check("Off-planet invasion is its own section, after Suppression", at("Off-planet invasion") > at("Suppression") && at("Off-planet invasion") < at("Building types"));
   check("Suppression opens on Of humans, then its four kinds in order",
         at("Of humans") < at("Physical suppression") && at("Physical suppression") < at("Suppression by \u201crepresentation\u201d within it") &&
         at("Suppression by \u201crepresentation\u201d within it") < at("Suppression by information") && at("Suppression by information") < at("Suppression by social molds"));
@@ -1828,8 +1828,8 @@ console.log("\nOur World in Data shading; the genetic engineering map moved");
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
   const order = new Function(body + "; return PANEL_ORDER;")();
   const pre = order.findIndex((x) => x && x.t === "Pre-birth frontlines"), post = order.findIndex((x) => x && x.t === "Post-birth invasion");
-  const g = order.indexOf("group:gmo_map_layers");
-  check("the Genetic engineering map is under Pre-birth frontlines", g > pre && g < post);
+  const gs = ["gmo_cultivation", "gmo_gmofree", "gmo_incidents", "gmo_regime", "gmo_treaties", "gmo_trials"].map((i) => order.indexOf(i));
+  check("the Genetic engineering map's six layers are each a row under Pre-birth frontlines", gs.every((g) => g > pre && g < post) && !order.includes("group:gmo_map_layers"));
   const parse = new Function(src.slice(src.indexOf("function owidParse("), src.indexOf("function owidBreaks(")) + "; return [owidParse, owidPick];")();
   const rows = parse[0]('Entity,Code,Year,gc_xpn\nKenya,KEN,2020,10.5\nKenya,KEN,2022,12\n"Korea, South",KOR,2021,3\nWorld,OWID_WRL,2022,9\nX,XXX,2021,\n');
   check("a chart's rows are read, aggregates and blanks left out", rows.length === 3 && rows[2].name === "Korea, South");
@@ -1858,7 +1858,7 @@ console.log("\nrow tools; easier-to-see points; monitors back in the wires box o
   const ring = { id: "r", type: "circle", paint: { "circle-color": "rgba(0,0,0,0)", "circle-radius": 5 } };
   legibleCircle(ring);
   check("hollow rings keep their own drawing", ring.paint["circle-radius"] === 5);
-  check("each row has move and transparency tools", /data-mv="up"/.test(src) && /type="range" min="10" max="100"/.test(src) && /map\.moveLayer\(id, before\)/.test(src));
+  check("each row is dragged to move it, and has a transparency slider", !/data-mv="up"/.test(src) && /function rowDragging/.test(src) && /type="range" min="10" max="100"/.test(src) && /map\.moveLayer\(id, before\)/.test(src));
 }
 
 console.log("\nlaunch sites and upcoming launches");
@@ -1950,7 +1950,7 @@ console.log("\nwhat was still open");
   check("Giga by country, Trase facilities, and two of your own are rows", ["giga_countries", "trase_facilities", "biosignature", "leverage_chart"].every((i) => new RegExp(`id: "${i}"`).test(src)));
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
   const order = new Function(body + "; return PANEL_ORDER;")();
-  check("the waiting rows are placed", ["ejatlas", "trase_measures", "nusantara", "gfw_catalogue", "gsn", "seas_of_plastic", "coastal_cleanup", "unep_coral", "mines_global", "atlas_hotspots", "final_nail", "group:ct_history"].every((i) => order.includes(i)));
+  check("the waiting rows are placed", ["ejatlas", "trase_measures", "nusantara", "gfw_catalogue", "gsn", "seas_of_plastic", "coastal_cleanup", "mines_global", "atlas_hotspots", "final_nail", "group:ct_history"].every((i) => order.includes(i)));
 }
 
 console.log("\nvessels of concern drawn; the oil-slick archive");
@@ -1974,6 +1974,63 @@ console.log("\nACGF placed");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("ACGF sits under Agriculture", /\{ h: 3, t: "Agriculture" \}, "acgf",/.test(src));
+}
+
+console.log("\nchanges of 19 September");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const o = new Function(body + "; return { PANEL_ORDER, PANEL_REMOVED };")();
+  const order = o.PANEL_ORDER, at = (t) => order.findIndex((x) => x && x.t === t), pos = (i) => order.indexOf(i);
+  const between = (i, a, b) => pos(i) > at(a) && (b == null || pos(i) < at(b));
+  check("no Whose world / Where in the chain chips in the box", !/chips\.innerHTML = kindChipsHtml\(\)/.test(src));
+  check("every layer opens unticked", /for \(const c of LAYERS\) c\.off = true;/.test(src));
+  check("the Eyes network is under Metaphysical (Religion, spirituality, etc.)", between("site_eyes_network", "Metaphysical (Religion, spirituality, etc.)", "Sports") && at("Religion and spirituality") === -1);
+  check("Cartel cells, the export-credit background map and the duplicate Giga and Next Spaceflight rows are out",
+        ["site_cartel_cells", "site_export_credit_shading", "giga_schools", "nsf_locations"].every((i) => o.PANEL_REMOVED.has(i)));
+  check("the Energy Charter, ISDS and Break Free From Plastic rows are out", ["ect_secrets", "isds_tracker", "bffp_audit"].every((i) => o.PANEL_REMOVED.has(i)));
+  check("the Tableau row is the CFR Global Imbalances Tracker", /id: "tableau_zsf", name: "CFR Global Imbalances Tracker"/.test(src));
+  check("Giga by country is under School", between("giga_countries", "School", "Law enforcement"));
+  check("EJAtlas is under Culprits upstream", between("ejatlas", "Culprits upstream", "Emissions"));
+  check("Biodiversity loss holds the hotspots, hotspot cities, Subsidising Extinction and the Power BI report",
+        ["atlas_hotspots", "atlas_cities", "pe_subsidising", "powerbi_report"].every((i) => between(i, "Biodiversity loss", "Mining")));
+  check("Mining holds the mines", between("mines_global", "Mining", "Agriculture"));
+  check("the refinery map is under Climate", between("fractracker_refineries", "Climate", "National shading"));
+  check("the toxic release sites are one row, carrying the live layer", o.PANEL_REMOVED.has("epa_tri") && /name:"US toxic release sites", [^\n]*\n[^\n]*\n[^\n]*\n\s*linked: \["epa_tri"\]/.test(src));
+  check("coral is one row", o.PANEL_REMOVED.has("unep_coral") && pos("allen_coral") > 0);
+  check("mines are merged into counted points wider out", /mines here<\/b>/.test(src) && /"point_count"\], 1\]\]\]\],\n\s*6,/.test(src));
+  check("alerts are grown and lightened wider out", /function recolorAlerts\(px, rgb, z, w\)/.test(src) && /recolorAlerts\(img\.data, tint, z, bmp\.width\)/.test(src));
+  check("the Slaughterhouses row carries the atlas's modelled facilities and livestock grid", /parts: true,/.test(src) && /abattoir_cafo\.pmtiles/.test(src) && /style=default/.test(src) && /TileCol=\{x\}&TileRow=\{y\}/.test(src));
+  check("a page panel's close button hides it", /\.companion\[hidden\]\{display:none !important\}/.test(index));
+  // The alert growing, run on a tiny tile.
+  const fnSrc = src.slice(src.indexOf("function recolorAlerts("), src.indexOf("// latclip://"));
+  const recolor = new Function(fnSrc + "; return recolorAlerts;")();
+  const w = 9, px = new Uint8ClampedArray(w * w * 4);
+  px[(4 * w + 4) * 4 + 3] = 255;
+  recolor(px, [138, 79, 70], 2, w);
+  const lit = [...Array(w * w).keys()].filter((p) => px[p * 4 + 3]).length;
+  check("one alert pixel at zoom 2 becomes a 7-pixel-wide patch", lit === 49, String(lit));
+  const px2 = new Uint8ClampedArray(w * w * 4); px2[(4 * w + 4) * 4 + 3] = 255;
+  recolor(px2, [138, 79, 70], 12, w);
+  check("…and stays one pixel close in", [...Array(w * w).keys()].filter((p) => px2[p * 4 + 3]).length === 1);
+}
+
+console.log("\nNusantara Atlas and Global Forest Watch, by category");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("const NUSANTARA_CATEGORIES"), src.indexOf("// Chips for the categories"));
+  const [N, G, categoryOf] = new Function(body + "; return [NUSANTARA_CATEGORIES, GFW_CATEGORIES, categoryOf];")();
+  check("Nusantara uses its own map's categories", ["Concessions", "Mills", "Protected area", "Indigenous territories", "Administrative boundary", "Roads", "Land use zone"].every((c) => N.some((r) => r[0] === c)));
+  check("Global Forest Watch uses its own map's five categories", ["Forest Change", "Land Cover", "Land Use", "Climate", "Biodiversity"].every((c) => G.some((r) => r[0] === c)));
+  check("a palm oil mill is a mill", categoryOf("Palm oil mills (UML)", N) === "Mills");
+  check("an oil palm concession is a concession", categoryOf("Oil palm concessions HGU", N) === "Concessions");
+  check("an adat territory is indigenous", categoryOf("Wilayah adat", N) === "Indigenous territories");
+  check("emissions from tree cover loss are under Climate", categoryOf("Emissions from tree cover loss", G) === "Climate");
+  check("integrated alerts are Forest Change", categoryOf("Integrated deforestation alerts", G) === "Forest Change");
+  check("mangrove extent is Land Cover", categoryOf("Global mangrove extent", G) === "Land Cover");
+  check("a layer no rule claims goes under Other, not away", categoryOf("xyz 123", G) === "Other");
+  check("both menus use the category chips", (src.match(/categoryMenu\(menu, /g) || []).length === 2);
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

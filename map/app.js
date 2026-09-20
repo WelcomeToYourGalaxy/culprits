@@ -266,7 +266,10 @@ const LAYERS = [
   // never ambiguous which one a dot came from.
   //
   // ready:false until map/tiles/epa_tri_sites.pmtiles exists.
-  { id:"epa_tri_sites",        name:"US toxic release sites (all zooms)", unit:"TRI facilities", colour:"#5C6E77", route:"pmtiles", ready:true, off: true,
+  { id:"epa_tri_sites",        name:"US toxic release sites", unit:"TRI facilities", colour:"#5C6E77", route:"pmtiles", ready:true, off: true,
+    // One row: the whole copy at every zoom, and EPA's live answer drawn over it
+    // once the view is small enough for EPA to send it.
+    linked: ["epa_tri"],
     note: "Every TRI facility, at any zoom. Facilities only — this table lists sites, not quantities; release amounts are per chemical per year and live elsewhere. Facilities with no coordinate published are absent rather than placed at a state centroid." },      // Disabled pending GFW. Their raster query endpoint returns
   // 500 {"message":null} for every request tried, including GFW's own
   // documented example, on fully built dataset versions. Route, shaper, version
@@ -365,6 +368,10 @@ const LAYERS = [
   // geocoding), so its archive is isolated, as local_projects is.
   { id:"abattoir_facilities",  name:"Slaughterhouses, farms and other animal-use sites", unit:"facilities", colour:"#80605A", route:"pmtiles", ready:true, off: true,
     isolate:true,
+    // The abattoir atlas draws two more things beside its facility list, and
+    // so does this row: Climate TRACE's modelled confined animal facilities
+    // and FAO's livestock density grid. See addAbattoirParts.
+    parts: true,
     facet: { property: "x_slaughter", label: "slaughter",
              values: ["yes","no","not stated"] },
     note: "Most of these are not slaughterhouses: farms, dairies, processors, transporters, hatcheries and zoos are registered animal-use sites too. Slaughter is marked yes or no only where a registry says; for most it says neither. Hollow points are placed at a town, not the site. Records with no position at all are not drawn." },
@@ -411,7 +418,7 @@ const LAYERS = [
   // a second for 84 KB. Nothing is served below zoom 3. So shapes draw from
   // zoom 12, and wider out the layer says why it is empty rather than sitting
   // empty. The benthic set only; the Atlas's geomorphic set is not added here.
-  { id:"allen_coral",          name:"Coral reef habitat",      unit:"benthic habitat zones", colour:"#5E7377", route:"coral", ready:true, off: true,
+  { id:"allen_coral",          name:"Coral reefs",      unit:"reefs (UNEP-WCMC) and habitat zones (Allen Coral Atlas)", colour:"#5E7377", route:"coral", ready:true, off: true,
     drawFrom: 12,
     tiles: "https://allencoralatlas.org/geoserver/gwc/service/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0" +
            "&LAYER=coral-atlas:benthic_data_verbose&STYLE=&TILEMATRIXSET=EPSG:900913" +
@@ -475,7 +482,7 @@ function clipTileRows(z, y, height, south, north) {
 // alerts — alerts are scattered, a wash is uniform — so that colour is cleared
 // before anything is painted. Kept apart from the canvas so it can be tested
 // on a plain array.
-function recolorAlerts(px, rgb) {
+function recolorAlerts(px, rgb, z, w) {
   const counts = new Map();
   let opaque = 0;
   for (let i = 0; i < px.length; i += 4) {
@@ -490,7 +497,24 @@ function recolorAlerts(px, rgb) {
     if (!px[i + 3]) continue;
     const k = (px[i] << 24 | px[i + 1] << 16 | px[i + 2] << 8 | px[i + 3]) >>> 0;
     if (k === wash) { px[i + 3] = 0; continue; }
-    px[i] = rgb[0]; px[i + 1] = rgb[1]; px[i + 2] = rgb[2];
+    px[i] = rgb[0]; px[i + 1] = rgb[1]; px[i + 2] = rgb[2]; px[i + 3] = 255;
+  }
+  // Wider out an alert is a single pixel or less, so each is grown into a
+  // small solid patch and lightened, or the layer vanishes at world scale.
+  const r = z == null ? 0 : z <= 3 ? 3 : z <= 5 ? 2 : z <= 8 ? 1 : 0;
+  if (r && w) {
+    const h = px.length / 4 / w, src = new Uint8Array(w * h);
+    for (let p = 0; p < w * h; p++) src[p] = px[p * 4 + 3] ? 1 : 0;
+    const lit = rgb.map((c) => Math.round(c + (232 - c) * 0.35));
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (!src[y * w + x]) continue;
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        const xx = x + dx, yy = y + dy;
+        if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+        const q = (yy * w + xx) * 4;
+        px[q] = lit[0]; px[q + 1] = lit[1]; px[q + 2] = lit[2]; px[q + 3] = 255;
+      }
+    }
   }
   return { opaque, washCleared: wash !== null };
 }
@@ -547,7 +571,7 @@ maplibregl.addProtocol("latclip", async (params, abortController) => {
   }
   if (tint) {
     const img = ctx.getImageData(0, 0, bmp.width, bmp.height);
-    recolorAlerts(img.data, tint);
+    recolorAlerts(img.data, tint, z, bmp.width);
     ctx.putImageData(img, 0, 0);
   }
   const blob = canvas.convertToBlob
@@ -2573,9 +2597,14 @@ function addPmShapesLayer(cfg) {
   map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source: src, "source-layer": cfg.polygonLayer,
     paint: { "fill-color": cfg.colour, "fill-opacity": 0.55, "fill-outline-color": "#1D1B17" } });
   map.addLayer({ id: `${cfg.id}-pt`, type: "circle", source: src, "source-layer": cfg.pointLayer,
-    paint: { "circle-color": cfg.colour, "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 1.4, 6, 3],
+    paint: { "circle-color": cfg.colour,
+             // Merged points carry how many mines they stand for (point_count).
+             "circle-radius": ["interpolate", ["linear"], ["zoom"],
+               1, ["+", 1.6, ["*", 0.9, ["log10", ["coalesce", ["get", "point_count"], 1]]]],
+               6, ["+", 3, ["*", 1.2, ["log10", ["coalesce", ["get", "point_count"], 1]]]]],
              "circle-stroke-color": "#17150F", "circle-stroke-width": 0.4, "circle-opacity": 0.85 } });
   const box = (p) => {
+    if (Number(p.point_count) > 1) return `<b>${Number(p.point_count).toLocaleString()} mines here</b><div class="meta">Merged at this zoom. Zoom in to see each one and its outline.</div>`;
     const loss = Object.keys(p).filter((k) => /(19|20)\d\d/.test(k) && isFinite(Number(p[k])))
       .sort().map((k) => `${escapeHtml(k.replace(/_/g, " "))}: ${Number(p[k]).toLocaleString(undefined, { maximumFractionDigits: 3 })}`);
     const rest = Object.keys(p).filter((k) => !/(19|20)\d\d/.test(k) && p[k] !== "" && p[k] != null)
@@ -2586,9 +2615,86 @@ function addPmShapesLayer(cfg) {
   };
   bindHtmlPopup(`${cfg.id}-fill`, box);
   bindHtmlPopup(`${cfg.id}-pt`, box);
-  setLayerState(cfg.id, "points wider out, outlines from zoom 7");
+  setLayerState(cfg.id, "every mine as a point from the world view (merged where they crowd), outlines from zoom 7");
   applyVisibility(cfg.id);
   buildLegend();
+}
+
+/* ---------- the abattoir atlas's other two parts, inside the Slaughterhouses row ---------- */
+// As the atlas draws them: Climate TRACE's confined animal facilities (a
+// model's estimate, solid where it gives the facility's position and hollow
+// where it gives an area), and FAO's Gridded Livestock of the World 4, read
+// live. The atlas found the address FAO's service answers: rows counted from
+// the top, and style=default, which FAO's own template leaves out.
+const ABATTOIR_PARTS = [
+  ["reg", "Registered facilities"],
+  ["cafo", "Confined animal facilities (Climate TRACE, modelled)"],
+  ["glw", "Livestock density (FAO, modelled)"],
+];
+const CAFO_TILES = "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/abattoir_cafo.pmtiles";
+const GLW_TILES = "https://data.apps.fao.org/map/wmts/wmts?layer=fao-gismgr/GLW4-2020/mapsets/D-DA" +
+  "&tilematrixset=EPSG:3857&Service=WMTS&request=GetTile&Version=1.0.0&style=default&Format=image/png" +
+  "&layertype=Image&TileMatrix={z}&TileCol={x}&TileRow={y}";
+function partsRow(cfg) {
+  cfg._parts = cfg._parts || { reg: true, cafo: true, glw: true };
+  const el = document.createElement("div");
+  el.className = "facet";
+  el.dataset.parts = cfg.id;
+  el.innerHTML = ABATTOIR_PARTS.map(([k, t]) =>
+    `<button type="button" class="chip${cfg._parts[k] ? " on" : ""}" data-part="${k}">${escapeHtml(t)}</button>`).join("");
+  el.addEventListener("click", (e) => {
+    const b = e.target.closest && e.target.closest("[data-part]");
+    if (!b) return;
+    e.stopPropagation();
+    cfg._parts[b.dataset.part] = !cfg._parts[b.dataset.part];
+    b.classList.toggle("on", cfg._parts[b.dataset.part]);
+    applyAbattoirParts(cfg, visibility.get(cfg.id) || "none");
+  });
+  return el;
+}
+function applyAbattoirParts(cfg, vis) {
+  const parts = cfg._parts || { reg: true, cafo: true, glw: true };
+  const own = new Set(cfg._layerIds || []);
+  const set = (id, on) => { if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis === "visible" && on ? "visible" : "none"); };
+  for (const id of layersOfRow(cfg.id)) {
+    if (own.has(id)) continue;
+    set(id, parts.reg);
+  }
+  set(`${cfg.id}-cafo`, parts.cafo);
+  set(`${cfg.id}-glw`, parts.glw);
+}
+function addAbattoirParts(cfg) {
+  if (!cfg || map.getSource(`${cfg.id}-cafo-src`)) return;
+  cfg._parts = cfg._parts || { reg: true, cafo: true, glw: true };
+  cfg._layerIds = [`${cfg.id}-glw`, `${cfg.id}-cafo`];
+  const first = layersOfRow(cfg.id)[0];
+  map.addSource(`${cfg.id}-glw-src`, { type: "raster", tileSize: 256, maxzoom: 10, tiles: [GLW_TILES],
+    attribution: 'Livestock density: FAO, Gridded Livestock of the World 4 (2020), CC BY 4.0 \u2014 modelled, not counted' });
+  map.addLayer({ id: `${cfg.id}-glw`, type: "raster", source: `${cfg.id}-glw-src`, layout: { visibility: "none" },
+    paint: { "raster-opacity": 0.6, "raster-saturation": -0.55 } }, first);
+  map.addSource(`${cfg.id}-cafo-src`, { type: "vector", url: `pmtiles://${CAFO_TILES}`,
+    attribution: 'Confined animal facilities: Climate TRACE, CC BY 4.0 \u2014 modelled, not a permit register' });
+  const n = ["coalesce", ["get", "point_count"], 1];
+  map.addLayer({ id: `${cfg.id}-cafo`, type: "circle", source: `${cfg.id}-cafo-src`, "source-layer": "cafo", layout: { visibility: "none" },
+    paint: {
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, ["+", 1.6, ["*", 0.8, ["log10", n]]], 8, ["+", 2.6, ["*", 1, ["log10", n]]], 12, 4.2],
+      // Solid where Climate TRACE gives the facility's own position, hollow where it gives an area.
+      "circle-color": "#7B6A4E",
+      "circle-opacity": ["case", ["==", ["get", "precise"], 0], 0, 0.75],
+      "circle-stroke-color": "#7B6A4E",
+      "circle-stroke-width": ["case", ["==", ["get", "precise"], 0], 1, 0.4],
+    } }, first);
+  bindHtmlPopup(`${cfg.id}-cafo`, (p) => Number(p.point_count) > 1
+    ? `<b>${Number(p.point_count).toLocaleString()} modelled facilities here</b><div class="meta">Merged at this zoom. Zoom in to see each one.</div>`
+    : `<b>Confined animal facility (modelled)</b><table class="meta">${fieldRows(p, ["precise"])}</table>` +
+      `<div class="meta">Climate TRACE model these from satellite imagery and census data. Nothing here has necessarily been visited, licensed or confirmed by any authority${Number(p.precise) === 0 ? "; hollow because the source gives an area, not a position" : ""}.</div>`);
+  cfg.afterVisibility = (vis) => applyAbattoirParts(cfg, vis);
+  applyVisibility(cfg.id);
+}
+function abattoirPartsInit() {
+  const cfg = LAYERS.find((l) => l.id === "abattoir_facilities");
+  // After the row's own layers exist, so the grid and points sit beneath them.
+  try { if (cfg) addAbattoirParts(cfg); } catch (e) { console.warn("[culprits] abattoir parts:", e.message); }
 }
 
 /* ---------- live places, batch 2 ---------- */
@@ -2723,6 +2829,64 @@ async function readTraseFacilities(cfg) {
   return { title: cfg.name, items };
 }
 
+/* ---------- a long layer list, split into the source's own categories ---------- */
+// Neither server says which category a layer belongs to, so each is placed by
+// the words in its name and description, in the categories the source's own
+// map uses. Rules are tried in order; a layer no rule claims goes under "Other"
+// rather than being left out.
+const NUSANTARA_CATEGORIES = [
+  ["Deforestation and fires", /alert|deforest|forest ?loss|tree ?loss|clear(ing|ed)|disturb|fire|hotspot|burn/],
+  ["Mills", /\bmills?\b|pabrik/],
+  ["Indigenous territories", /indigenous|\badat\b|customary|ulayat|wilayah adat/],
+  ["Roads", /\broads?\b|jalan/],
+  ["Administrative boundary", /boundar|admin|province|provinsi|district|kabupaten|regency|kecamatan|village|desa\b|country/],
+  ["Land use zone", /land ?use|zon(e|ing)|kawasan hutan|forest estate|spatial plan|rtrw|moratorium|pippib|forest area status/],
+  ["Concessions", /concession|\bhgu\b|iuphhk|pbph|\biup\b|\bhti\b|\bhph\b|permit|licen[cs]e|izin/],
+  ["Protected area", /protect|conserv|national park|taman nasional|reserve|wdpa|sanctuary/],
+  ["Forest, peat and plantations", /forest|peat|gambut|mangrove|plantation|oil ?palm|acacia|pulp|land ?cover|tree|kebun/],
+];
+const GFW_CATEGORIES = [
+  ["Climate", /carbon|emission|co2|co₂|biomass|sequestr|removal|greenhouse|\bflux|soil organic/],
+  ["Forest Change", /loss|gain|alert|deforest|disturb|glad|radd|fire|burn|degradation|drivers|change|clearing/],
+  ["Biodiversity", /biodivers|species|habitat|protected|wdpa|key biodiversity|\bkba|hotspot|intact|endemi|wildlife|ecoregion/],
+  ["Land Use", /concession|logging|mining|\bmine|oil ?palm|palm oil|plantation|planted|indigenous|community|land rights|infrastructure|road|dam\b|agricultur|crop|pasture|cattle|soy|cocoa|coffee|rubber|commodit|land use|boundar|admin/],
+  ["Land Cover", /land ?cover|tree cover|canopy|mangrove|primary forest|forest extent|peat|wetland|tree height|natural forest|forest type|vegetation|grassland/],
+];
+function categoryOf(text, rules) {
+  const t = String(text || "").toLowerCase();
+  for (const [name, re] of rules) if (re.test(t)) return name;
+  return "Other";
+}
+// Chips for the categories (with counts) above one menu of the chosen category's layers.
+function categoryMenu(el, items, rules, label, onPick, placeholder) {
+  const names = [...rules.map((r) => r[0]), "Other"].filter((n) => items.some((it) => it.cat === n));
+  let cat = names[0];
+  const draw = () => {
+    const list = items.map((it, i) => [it, i]).filter(([it]) => it.cat === cat);
+    el.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:4px">` +
+      names.map((n) => `<button type="button" class="chip${n === cat ? " on" : ""}" data-cat="${escapeHtml(n)}">${escapeHtml(n)} ` +
+        `<span style="opacity:.6">${items.filter((it) => it.cat === n).length}</span></button>`).join("") + `</div>` +
+      `<select aria-label="${escapeHtml(label)}" style="max-width:100%">` +
+      (placeholder ? `<option value="">${escapeHtml(placeholder)}</option>` : "") +
+      list.map(([it, i]) => `<option value="${i}"${it._picked ? " selected" : ""}>${escapeHtml(it.title)}</option>`).join("") + `</select>`;
+  };
+  el.addEventListener("click", (e) => {
+    const b = e.target.closest && e.target.closest("[data-cat]");
+    if (!b) return;
+    e.stopPropagation();
+    cat = b.dataset.cat;
+    draw();
+  });
+  el.addEventListener("change", (e) => {
+    if (!e.target.matches || !e.target.matches("select")) return;
+    items.forEach((it) => { it._picked = false; });
+    const i = e.target.value === "" ? null : Number(e.target.value);
+    if (i != null && items[i]) items[i]._picked = true;
+    onPick(i);
+  });
+  draw();
+}
+
 /* ---------- a map server's whole layer list, as a menu (Nusantara Atlas) ---------- */
 async function addWmsMenuLayer(cfg) {
   const layers = [];
@@ -2750,22 +2914,22 @@ async function addWmsMenuLayer(cfg) {
   map.addLayer({ id: `${cfg.id}-raster`, type: "raster", source: src, paint: { "raster-opacity": 0.85 } });
   const menu = document.createElement("div");
   menu.className = "facet";
-  menu.innerHTML = `<select aria-label="Layer" style="max-width:100%">${layers.map((l, i) =>
-    `<option value="${i}">${escapeHtml(l.title)}</option>`).join("")}</select>`;
+  layers.forEach((l) => { l.cat = categoryOf(`${l.title} ${l.name} ${l.about}`, NUSANTARA_CATEGORIES); });
+  layers[cfg._pick]._picked = true;
   const row = document.querySelector(`[data-layer="${cfg.id}"]`);
   const anchor = row && row.closest ? row.closest("label") : null;
   if (anchor && anchor.after) anchor.after(menu);
-  const sel = menu.querySelector("select");
   const show = () => {
     const l = layers[cfg._pick];
     setLayerState(cfg.id, `${l.title}${l.about ? " \u2014 " + l.about.slice(0, 120) : ""}`);
   };
-  sel.addEventListener("change", () => {
-    cfg._pick = Number(sel.value) || 0;
+  categoryMenu(menu, layers, NUSANTARA_CATEGORIES, "Layer", (i) => {
+    if (i == null) return;
+    cfg._pick = i;
     const s = map.getSource(src);
     if (s && s.setTiles) s.setTiles([tilesFor(layers[cfg._pick])]);
     show();
-  });
+  }, "Choose a layer in this category\u2026");
   map.on("click", async (e) => {
     if ((visibility.get(cfg.id) || "visible") !== "visible" || map.getLayoutProperty(`${cfg.id}-raster`, "visibility") === "none") return;
     const l = layers[cfg._pick], b = map.getBounds(), c = map.getCanvas();
@@ -2802,8 +2966,13 @@ async function addGfwMenuLayer(cfg) {
     .sort((a, b) => a.title.localeCompare(b.title));
   const menu = document.createElement("div");
   menu.className = "facet";
-  menu.innerHTML = `<select aria-label="Dataset" style="max-width:100%"><option value="">Choose one of ${items.length} datasets\u2026</option>` +
-    items.map((d, i) => `<option value="${i}">${escapeHtml(d.title)}</option>`).join("") + `</select>`;
+  // The category the catalogue gives, where it gives one; otherwise by the words
+  // of its title and description, in Global Forest Watch's own map categories.
+  items.forEach((d) => {
+    const given = [d.meta.category, ...(Array.isArray(d.meta.tags) ? d.meta.tags : [])].map((c) => String(c || ""))
+      .map((c) => GFW_CATEGORIES.find(([n]) => n.toLowerCase() === c.toLowerCase())).find(Boolean);
+    d.cat = given ? given[0] : categoryOf(`${d.title} ${d.meta.function || ""} ${d.meta.overview || ""} ${d.id}`, GFW_CATEGORIES);
+  });
   const row = document.querySelector(`[data-layer="${cfg.id}"]`);
   const anchor = row && row.closest ? row.closest("label") : null;
   if (anchor && anchor.after) anchor.after(menu);
@@ -2813,9 +2982,9 @@ async function addGfwMenuLayer(cfg) {
     if (map.getSource(`${cfg.id}-gfw`)) map.removeSource(`${cfg.id}-gfw`);
     cfg._layerIds = [];
   };
-  menu.querySelector("select").addEventListener("change", async (ev) => {
+  categoryMenu(menu, items, GFW_CATEGORIES, "Dataset", async (pick) => {
     clear();
-    const d = items[Number(ev.target.value)];
+    const d = pick == null ? null : items[pick];
     if (!d) return;
     setLayerState(cfg.id, `${d.title}: finding its tiles\u2026`);
     try {
@@ -2854,7 +3023,7 @@ async function addGfwMenuLayer(cfg) {
     } catch (e) {
       setLayerState(cfg.id, `${d.title}: ${e.message}`);
     }
-  });
+  }, "Choose a dataset in this category\u2026");
 }
 
 /* ---------- The Social Spheres: its bodies on the map, its own card on a click ---------- */
@@ -4286,7 +4455,10 @@ const CORAL_CLASSES = {
   "Microalgal Mats": "#7D7191",
 };
 
-const CORAL_ATLAS_PICTURE_FROM = 6;
+// UNEP-WCMC's reef map from the world view until the Atlas's own shapes take
+// over, so nothing drops out in between (the Atlas's picture of zooms 6 to 12
+// failed to draw over the satellite view).
+const CORAL_ATLAS_PICTURE_FROM = 12;
 function addCoralLayer(cfg) {
   map.addSource(`${cfg.id}-tiles`, {
     type: "vector",
@@ -4315,7 +4487,7 @@ function addCoralLayer(cfg) {
     attribution: "UNEP-WCMC, WorldFish Centre, WRI, TNC",
     tiles: [`tint://${CORAL_CLASSES["Coral/Algae"].slice(1)}/data-gis.unep-wcmc.org/server/rest/services/HabitatsAndBiotopes/Global_Distribution_of_Coral_Reefs/MapServer/export` +
             `?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857&size=256,256&format=png32&transparent=true&f=image`] });
-  map.addLayer({ id: `${cfg.id}-world`, type: "raster", source: `${cfg.id}-globe`, maxzoom: CORAL_ATLAS_PICTURE_FROM,
+  map.addLayer({ id: `${cfg.id}-world`, type: "raster", source: `${cfg.id}-globe`, maxzoom: cfg.drawFrom,
     layout: { visibility: "none" }, paint: { "raster-opacity": 0.9 } });
   bindHtmlPopup(`${cfg.id}-fill`, (p) =>
     `<b>${p.class_name || "Unclassified"}</b>` +
@@ -4329,8 +4501,8 @@ function addCoralLayer(cfg) {
   const state = () => {
     if (map.getZoom() < cfg.drawFrom) {
       setLayerState(cfg.id, map.getZoom() < CORAL_ATLAS_PICTURE_FROM
-        ? `UNEP-WCMC's reef map at this width (the Atlas cannot draw this much); the Atlas's own from zoom ${CORAL_ATLAS_PICTURE_FROM} — zoom in to ${cfg.drawFrom} for each habitat zone and its box`
-        : `the Atlas's picture of the reefs — zoom in to ${cfg.drawFrom} for each habitat zone and its box`);
+        ? `UNEP-WCMC's warm-water reefs at this width — from zoom ${cfg.drawFrom} the Allen Coral Atlas's habitat zones, each with its box`
+        : `UNEP-WCMC's warm-water reefs at this width — from zoom ${cfg.drawFrom} the Allen Coral Atlas's habitat zones, each with its box`);
       return;
     }
     if ((visibility.get(cfg.id) || "visible") !== "visible") {
@@ -5408,6 +5580,8 @@ function afterMovement(fn) {
 // Desired visibility per layer, applied whenever its layers exist.
 // Seeded from the layer configs so an `off` layer is hidden the moment it is
 // added, not after the panel is built.
+// Every layer opens unticked; nothing draws until its row is ticked.
+for (const c of LAYERS) c.off = true;
 const visibility = new Map(LAYERS.filter((c) => c.off).map((c) => [c.id, "none"]));
 
 function applyVisibility(id) {
@@ -5438,6 +5612,9 @@ function applyVisibility(id) {
   }
   const extra = (cfg || childById(id) || {})._layerIds;
   if (extra) for (const l of extra) if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", vis);
+  // A row that carries another source inside it switches that one with it.
+  if (cfg && cfg.linked) for (const l of cfg.linked) { visibility.set(l, vis); if (l !== id) applyVisibility(l); }
+  if (cfg && typeof cfg.afterVisibility === "function") cfg.afterVisibility(vis);
   if (cfg && cfg.route === "cerulean" && vis === "visible") {
     refreshCerulean(cfg).catch((e) => setLayerState(id, `unavailable (${e.message})`));
   }
@@ -5864,7 +6041,7 @@ const OTHER_MAPS = {
     { id: "mines_global", name: "Mines worldwide (Maus et al. 2022 + OpenStreetMap)", unit: "mine outlines", colour: "#6E5E52", route: "pmshapes", ready: true, lazy: true,
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/mining_polygons.pmtiles", polygonLayer: "mines", pointLayer: "mine_points",
       attribution: "Maus et al. 2022; OpenStreetMap contributors; merged by WU Vienna 2024 (ODbL)",
-      note: "192,584 mine outlines: Maus et al.'s satellite-traced mining areas merged with OpenStreetMap's mines and quarries (Zenodo 7307210, ODbL), with the tree cover loss inside each from 2000 to 2019. Points wider out, outlines from zoom 7." },
+      note: "192,584 mine outlines: Maus et al.'s satellite-traced mining areas merged with OpenStreetMap's mines and quarries (Zenodo 7307210, ODbL), with the tree cover loss inside each from 2000 to 2019. Every mine as a point from the world view, merged where they crowd; outlines from zoom 7." },
     { id: "ejatlas", name: "Environmental Justice Atlas (EJAtlas)", unit: "conflicts", colour: "#7A5A55", route: "ejatlas", ready: true, lazy: true,
       api: "https://ejatlas.org/api/v1/conflicts/",
       note: "Every conflict in the EJAtlas, read live from its own data address; each box links the conflict's page." },
@@ -5943,7 +6120,7 @@ const OTHER_MAPS = {
     { id: "cfr_tracker", name: "CFR Global Monetary Policy Tracker (Tableau)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://public.tableau.com/views/CFRGlobalMonetaryPolicyTrackerNEW/GlobalMonetaryPolicyTracker?:showVizHome=no&:embed=y",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "tableau_zsf", name: "Tableau dashboard (Suppression page)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+    { id: "tableau_zsf", name: "CFR Global Imbalances Tracker", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://public.tableau.com/shared/ZSF724HPQ?:showVizHome=no&:embed=y",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
     { id: "troutwood", name: "Troutwood map", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
@@ -6013,7 +6190,7 @@ const OTHER_MAPS = {
     { id: "wrf", name: "When Rockets Fly", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://whenrocketsfly.com/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "nsf_launches", name: "Next Spaceflight: launches", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+    { id: "nsf_launches", name: "Next Spaceflight", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://nextspaceflight.com/launches/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
     { id: "nsf_locations", name: "Next Spaceflight: launch sites", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
@@ -6409,18 +6586,6 @@ function applyKindFilter() {
 
 function buildPanel() {
   const box = document.getElementById("layers");
-  const chips = document.createElement("div");
-  chips.innerHTML = kindChipsHtml();
-  box.appendChild(chips);
-  chips.addEventListener("click", (e) => {
-    const b = e.target.closest && e.target.closest("[data-kind]");
-    if (!b) return;
-    const v = b.dataset.kind;
-    const set = KIND_NAMES.includes(v) ? kindPicked : flowPicked;
-    if (set.has(v)) set.delete(v); else set.add(v);
-    if (b.classList) b.classList.toggle("on", set.has(v));
-    applyKindFilter();
-  });
 
   // Only built layers appear. Greyed-out placeholders for sources that have no
   // harvester yet read as breakage — three separate times they were reported as
@@ -6440,6 +6605,7 @@ function buildPanel() {
       `<span class="un" data-state="${cfg.id}">${cfg.unit}</span></span>`;
     box.appendChild(row);
     if (cfg.facet) box.appendChild(facetRow(cfg));
+    if (cfg.parts) box.appendChild(partsRow(cfg));
   });
 
   // The group renders only if it has children. With no year archives on R2 the
@@ -6749,6 +6915,7 @@ function gmInit() {
 
 map.on("load", gmInit);
 map.on("load", buildLegend);
+map.on("load", () => setTimeout(abattoirPartsInit, 0));
 
 /* ---------- the layers box, in the order and under the headings chosen ---------- */
 // Strings are layer ids; "group:" a whole group; "gm" the guerillamap row.
@@ -6757,36 +6924,35 @@ map.on("load", buildLegend);
 // PANEL_REMOVED are taken out of the box.
 const PANEL_ORDER = [
   { h: 1, t: "On-planet invasion" },
-  { h: 2, t: "Pre-birth frontlines" }, "gmo_releases", "group:gmo_map_layers",
+  { h: 2, t: "Pre-birth frontlines" }, "gmo_releases", "gmo_cultivation", "gmo_gmofree", "gmo_incidents", "gmo_regime", "gmo_treaties", "gmo_trials",
   { h: 2, t: "Post-birth invasion" },
   { h: 3, t: "Invasion of nonhumans" },
-  { h: 3, t: "Invasion of humans" }, "site_settler_colonialism", "site_indigenous_conflicts", "ejatlas",
+  { h: 3, t: "Invasion of humans" }, "site_settler_colonialism", "site_indigenous_conflicts",
   { h: 3, t: "Of countries by countries" }, "site_secret_societies", "gm",
   { h: 2, t: "Post-life invasion" }, "remains_records", "remains_findings", "remains_cemeteries",
 
-  { h: 1, t: "Off-planet invasion" },
-  "space_industry", "ll2_pads", "ll2_upcoming", "wrf", "nsf_launches", "nsf_locations", "esa_risk", "biosignature",
-
   { h: 1, t: "Destruction" },
-  { h: 2, t: "Of the planet" }, "atlas_hotspots", "atlas_cities",
+  { h: 2, t: "Of the planet" },
   { h: 3, t: "Climate" }, "group:climate_trace_sectors", "group:climate_trace_agriculture", "group:climate_trace_forestry",
-    "gem_coal", "carbon_bombs", "power_plants", "fertilizer_facilities", "site_carbon_mapper_waste", "site_china_grain",
+    "gem_coal", "carbon_bombs", "power_plants", "fertilizer_facilities", "fractracker_refineries", "site_carbon_mapper_waste", "site_china_grain",
     "usda_soybean", "usda_corn", "wastewater", "group:ct_history",
   { h: 4, t: "National shading" }, "owid_co2",
   { h: 4, t: "Air pollution" }, "ct_air", "ct_pop",
-  { h: 3, t: "Toxic pollution" }, "epa_tri", "epa_tri_sites", "epa_widget", "eip_inventory", "hydrofate",
-  { h: 3, t: "Plastics" }, "mymaps_chlorine", "arcgis_ym8xk", "arcgis_materialresearch", "pirg_plastic", "bffp_audit", "gpw_map", "seas_of_plastic", "coastal_cleanup",
+  { h: 3, t: "Toxic pollution" }, "epa_tri_sites", "epa_widget", "eip_inventory", "hydrofate",
+  { h: 3, t: "Plastics" }, "mymaps_chlorine", "arcgis_ym8xk", "arcgis_materialresearch", "pirg_plastic", "gpw_map", "seas_of_plastic", "coastal_cleanup",
   { h: 3, t: "Deforestation" }, "gfw", "gfw_dist", "gfw_dist_year", "glad_loss", "palmwatch", "soilgrids", "trase_measures", "trase_facilities", "nusantara", "gfw_catalogue", "gsn", "gsn_rankings",
+  { h: 3, t: "Biodiversity loss" }, "atlas_hotspots", "atlas_cities", "pe_subsidising", "powerbi_report",
+  { h: 3, t: "Mining" }, "mines_global",
   { h: 3, t: "Agriculture" }, "acgf",
   { h: 4, t: "National shading" }, "land_matrix",
   { h: 4, t: "Slaughterhouses" }, "abattoir_facilities", "cultivated_meat_laws",
-  { h: 3, t: "Oceans" }, "fishing", "slavery_fishing", "cerulean_slicks", "cerulean_sources", "slick_archive", "allen_coral", "skytruth_monitor", "skytruth_voc", "unep_coral",
-  { h: 3, t: "Construction" }, "local_projects", "live_projects_app", "mines_global",
-  { h: 3, t: "Culprits upstream" },
-  { h: 4, t: "Emissions" }, "carbon_majors", "soy_organizations", "fractracker_refineries", "bocc",
+  { h: 3, t: "Oceans" }, "fishing", "slavery_fishing", "cerulean_slicks", "cerulean_sources", "slick_archive", "allen_coral", "skytruth_monitor", "skytruth_voc",
+  { h: 3, t: "Construction" }, "local_projects", "live_projects_app",
+  { h: 3, t: "Culprits upstream" }, "ejatlas",
+  { h: 4, t: "Emissions" }, "carbon_majors", "soy_organizations", "bocc",
   { h: 4, t: "Deforestation" }, "site_forest500_soy", "site_soybean_companies", "dff",
   { h: 4, t: "Food generally" }, "site_food_system",
-  { h: 4, t: "Generally" }, "wreckers_umap", "fortune500", "theyrule", "pe_bankrolling", "pe_subsidising", "powerbi_report", "scribd_doc",
+  { h: 4, t: "Generally" }, "wreckers_umap", "fortune500", "theyrule", "pe_bankrolling", "scribd_doc",
   { h: 2, t: "Of groups" },
   { h: 2, t: "Of individuals" }, "site_animal_sacrifice",
 
@@ -6794,10 +6960,10 @@ const PANEL_ORDER = [
   { h: 2, t: "Of humans" },
   { h: 3, t: "Physical suppression" },
   { h: 4, t: "Control of physical resources" }, "site_central_banks", "site_banking_dynasties", "site_export_credit", "site_wealth_atlas",
-    "site_export_credit_shading", "site_earmarked_funding", "site_trade_profits", "site_social_spheres",
-    "owid_interest", "owid_corptax", "cfr_tracker", "tableau_zsf", "troutwood", "ect_secrets", "isds_tracker", "owid_aid", "rte_trade", "gta_acts",
+    "site_earmarked_funding", "site_trade_profits", "site_social_spheres",
+    "owid_interest", "owid_corptax", "cfr_tracker", "tableau_zsf", "troutwood", "owid_aid", "rte_trade", "gta_acts",
   { h: 4, t: "Economic inequality within it" },
-  { h: 5, t: "School" }, "giga_schools",
+  { h: 5, t: "School" }, "giga_countries",
   { h: 4, t: "Law enforcement" },
   { h: 4, t: "Courts and corrections" },
   { h: 4, t: "Discrimination" },
@@ -6816,20 +6982,27 @@ const PANEL_ORDER = [
   { h: 4, t: "The entertainment industries" }, "site_world_entertainment",
   { h: 4, t: "Science" }, "site_research_integrity",
   { h: 3, t: "Suppression by social molds" },
-  { h: 4, t: "Religion and spirituality" },
-  { h: 4, t: "Sports" }, "site_eyes_network",
+  { h: 4, t: "Metaphysical (Religion, spirituality, etc.)" }, "site_eyes_network",
+  { h: 4, t: "Sports" },
   { h: 4, t: "Holidays" },
   { h: 4, t: "Sex" },
-  { h: 4, t: "Drugs" }, "capture_map", "site_cartel_cells",
+  { h: 4, t: "Drugs" }, "capture_map",
   { h: 2, t: "Of animals" }, "site_animal_fighting", "site_animal_tourism", "site_circus", "site_animal_racing", "site_rodeo", "final_nail", "mymaps_supp_a", "mymaps_supp_b",
   { h: 2, t: "Of plants" }, "site_enslaved_plants", "mymaps_trees",
   { h: 2, t: "Of microscopics" }, "site_enslaved_microbes",
   { h: 2, t: "Of the \u201cinsentient\u201d" }, "site_insentient",
 
+  { h: 1, t: "Off-planet invasion" },
+  "space_industry", "ll2_pads", "ll2_upcoming", "wrf", "nsf_launches", "esa_risk", "biosignature",
+
   { h: 1, t: "Building types" }, "building_types",
 ];
 const PANEL_REMOVED = new Set([
   "leverage_chart",
+  // Taken out 19 Sept: near duplicates, a background map mistaken for data, rows
+  // merged into another, and pages asked to be removed.
+  "site_cartel_cells", "site_export_credit_shading", "giga_schools", "nsf_locations",
+  "ect_secrets", "isds_tracker", "bffp_audit", "epa_tri", "unep_coral",
   "fin_bank", "fin_centralbank", "fin_taxoffice", "fin_govfinance", "fin_financial", "fin_exchange", "fin_insurance", "fin_accountant", "fin_remittance", "fin_stockexchange", "fin_auditoffice", "fin_devbank", "fin_mint", "legal_publicdefender", "legal_immigration", "legal_probation", "legal_juvenile", "leg_parliament", "leg_audit", "leg_electoral", "leg_ombudsman", "leg_council", "exec_firestation", "exec_townhall", "leg_townhall", "exec_govoffice", "exec_ministry", "exec_diplomatic", "exec_border", "jud_courts", "legal_courthouse", "slavery_facilities", "activist_courts", "exec_police", "legal_police", "activist_police", "exec_prison", "legal_prison", "jud_prisons", "activist_prisons",
   "site_ufo_pre1900", "site_subsistence_cultures", "site_self_sufficiency", "slavery_trackers",
   "site_environment_law", "enviro_law_by_country", "site_environment_law_shapes", "gov_official_map",
@@ -6871,12 +7044,14 @@ function rowLayerIds(lead) {
   }
   return layersOfRow(rowIdOf(lead));
 }
-function moveRow(lead, dir) {
+// dir "up" puts the row above `target` (on the list and on the map), "down"
+// below it. With no target, the neighbouring row is used.
+function moveRow(lead, dir, target) {
   const parent = lead.parentElement;
   const leads = [...parent.children].filter(rowLead);
   const at = leads.indexOf(lead);
-  const other = leads[dir === "up" ? at - 1 : at + 1];
-  if (!other) return;
+  const other = target || leads[dir === "up" ? at - 1 : at + 1];
+  if (!other || other === lead) return;
   const mine = rowNodes(lead);
   if (dir === "up") mine.forEach((n) => parent.insertBefore(n, other));
   else { const theirs = rowNodes(other); const after = theirs[theirs.length - 1].nextSibling; mine.forEach((n) => parent.insertBefore(n, after)); }
@@ -6903,16 +7078,8 @@ function addRowTools(box) {
     tools.className = "facet row-tools";
     tools.dataset.for = id;
     tools.hidden = !input.checked;
-    tools.innerHTML = `<button type="button" class="chip" data-mv="up" title="Move up: drawn above the layer before it">\u25B2</button>` +
-      `<button type="button" class="chip" data-mv="down" title="Move down: drawn below the layer after it">\u25BC</button>` +
-      `<input type="range" min="10" max="100" value="100" title="Transparency" aria-label="Transparency" style="flex:1;min-width:60px;accent-color:#8A9DA6">` +
+    tools.innerHTML = `<input type="range" min="10" max="100" value="100" title="Transparency" aria-label="Transparency" style="flex:1;min-width:60px;accent-color:#8A9DA6">` +
       `<span class="rt-v" style="font-size:11px;color:var(--dim);min-width:32px;text-align:right">100%</span>`;
-    tools.addEventListener("click", (e) => {
-      const b = e.target.closest && e.target.closest("[data-mv]");
-      if (!b) return;
-      e.stopPropagation();
-      moveRow(lead, b.dataset.mv);
-    });
     const slider = tools.querySelector("input");
     slider.addEventListener("input", () => {
       const f = Number(slider.value) / 100;
@@ -6923,22 +7090,73 @@ function addRowTools(box) {
     input.addEventListener("change", () => { tools.hidden = !input.checked; });
     lead.after(tools);
   }
-  // A group's parent moves its whole group.
-  for (const g of box.querySelectorAll(".group > .layer.parent")) {
-    if (g.querySelector("[data-mv]")) continue;
-    const grp = g.parentElement;
-    const span = document.createElement("span");
-    span.style.cssText = "margin-left:auto;display:flex;gap:2px";
-    span.innerHTML = `<button type="button" class="chip" data-mv="up" title="Move this group up">\u25B2</button>` +
-      `<button type="button" class="chip" data-mv="down" title="Move this group down">\u25BC</button>`;
-    span.addEventListener("click", (e) => {
-      const b = e.target.closest && e.target.closest("[data-mv]");
-      if (!b) return;
-      e.stopPropagation(); e.preventDefault();
-      moveRow(grp, b.dataset.mv);
-    });
-    g.appendChild(span);
+  // Each row carries a grip; the row is dragged above or below the others
+  // under the same heading, and its layers are drawn in the new order.
+  for (const lead of box.querySelectorAll("label.layer, .group > .layer.parent")) {
+    if (lead.closest("[data-removed]") || lead.querySelector(".grip")) continue;
+    if (!lead.querySelector("[data-layer], [data-group]")) continue;
+    const g = document.createElement("span");
+    g.className = "grip";
+    g.title = "Drag to move this layer above or below the others";
+    g.setAttribute("aria-hidden", "true");
+    g.textContent = "\u2807";
+    lead.appendChild(g);
   }
+  rowDragging(box);
+}
+
+function rowDragging(box) {
+  if (!box.dataset || box.dataset.drag) return;
+  box.dataset.drag = "1";
+  let drag = null, swallowClick = false;
+  const unitOf = (el) => {
+    const lead = el && el.closest && el.closest("label.layer, .group > .layer.parent");
+    if (!lead || lead.closest("[data-removed]")) return null;
+    return lead.classList.contains("parent") ? lead.parentElement : lead;
+  };
+  const clearMarks = () => box.querySelectorAll(".drop-above, .drop-below").forEach((n) => n.classList.remove("drop-above", "drop-below"));
+  box.addEventListener("pointerdown", (e) => {
+    if (e.button && e.button !== 0) return;
+    const onGrip = e.target.closest && e.target.closest(".grip");
+    if (!onGrip && e.target.closest && e.target.closest("input, select, button, a, .chip, .facet")) return;
+    // Touch scrolls the list, so on touch only the grip drags.
+    if (e.pointerType === "touch" && !onGrip) return;
+    const unit = unitOf(e.target);
+    if (!unit) return;
+    drag = { unit, y: e.clientY, on: false, target: null, where: null };
+  });
+  window.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    if (!drag.on) {
+      if (Math.abs(e.clientY - drag.y) < 6) return;
+      drag.on = true;
+      drag.unit.classList.add("dragging");
+    }
+    e.preventDefault();
+    clearMarks();
+    drag.target = null;
+    const over = unitOf(document.elementFromPoint(e.clientX, e.clientY));
+    if (!over || over === drag.unit || over.parentElement !== drag.unit.parentElement) return;
+    const r = over.getBoundingClientRect();
+    drag.where = e.clientY < r.top + r.height / 2 ? "up" : "down";
+    drag.target = over;
+    over.classList.add(drag.where === "up" ? "drop-above" : "drop-below");
+  }, { passive: false });
+  const end = () => {
+    if (!drag) return;
+    const d = drag;
+    drag = null;
+    clearMarks();
+    d.unit.classList.remove("dragging");
+    if (!d.on) return;
+    swallowClick = true;
+    setTimeout(() => { swallowClick = false; }, 0);
+    if (d.target) moveRow(d.unit, d.where, d.target);
+  };
+  window.addEventListener("pointerup", end);
+  window.addEventListener("pointercancel", end);
+  // A drag ends in a click on the row; it must not tick or untick it.
+  box.addEventListener("click", (e) => { if (swallowClick) { e.preventDefault(); e.stopPropagation(); swallowClick = false; } }, true);
 }
 
 function arrangePanel() {
@@ -7026,7 +7244,11 @@ function arrangePanel() {
       ".panel-h2{font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.85;padding-left:4px;font-weight:600}" +
       ".panel-h3{font-size:11px;opacity:.8;padding-left:10px;font-weight:600}" +
       ".panel-h4{font-size:10.5px;opacity:.7;padding-left:16px;font-style:italic}" +
-      ".panel-h5{font-size:10.5px;opacity:.62;padding-left:22px}";
+      ".panel-h5{font-size:10.5px;opacity:.62;padding-left:22px}" +
+      "#layers label.layer,#layers .group>.layer.parent{cursor:grab;user-select:none}" +
+      "#layers .grip{margin-left:auto;padding:0 2px 0 6px;color:var(--dim);opacity:.55;cursor:grab;touch-action:none;font-size:13px;line-height:1}" +
+      "#layers .dragging{opacity:.45}" +
+      "#layers .drop-above{box-shadow:0 -2px 0 0 #8A9DA6}#layers .drop-below{box-shadow:0 2px 0 0 #8A9DA6}";
     document.head.appendChild(st);
   }
 }

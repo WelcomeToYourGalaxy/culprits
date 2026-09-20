@@ -26,6 +26,8 @@
   #map.away{opacity:0;pointer-events:none}
   .left-col.away,.panel.away,#legend.away,.wire.away{opacity:0;pointer-events:none;transition:opacity .5s ease}
   /* Beside Eyes' own search button, top right. */
+  /* A page panel sets display:flex, which would otherwise override hidden. */
+  .companion[hidden]{display:none !important}
   .space-back{position:fixed;right:14px;top:14px;z-index:60;font:inherit;font-size:14px;
     color:var(--bone);background:rgba(11,16,23,.86);border:1px solid var(--rule);border-radius:4px;
     padding:11px 16px;cursor:pointer}
