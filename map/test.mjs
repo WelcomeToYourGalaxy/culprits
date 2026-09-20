@@ -2146,5 +2146,11 @@ console.log("\nGlobal Safety Net fixes; My Maps titles");
   check("My Maps rows take their maps' titles before opening", /function mymapsTitles\(/.test(src) && /map\.on\("load", \(\) => setTimeout\(mymapsTitles, 50\)\)/.test(src));
 }
 
+console.log("\nAtlas cities zoom in when clicked");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("clicking a city from further out zooms in to it, then opens its box", /route: "atlascities", zoomTo: 9,/.test(src) && /map\.flyTo\(\{ center: at, zoom: z, duration: 1600 \}\)/.test(src));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
