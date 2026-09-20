@@ -2189,6 +2189,17 @@ async function readUmap(cfg) {
   return { title: props.name || cfg.name, items };
 }
 
+// A place's address: its <address>, or else its address-like data fields
+// (Address, City, State, Zip, Country ...) joined in the map's order — the
+// same string scripts/mymaps_geocode.py looks up in culprits-tiles-more.
+const MYMAPS_ADDR_FIELD = /^(full[ _]?)?(address|street|addr|city|town|state|province|region|zip|postal ?code|postcode|country|location)$/i;
+function mymapsAddress(own, data) {
+  const a = String(own || "").replace(/\s+/g, " ").trim();
+  if (a) return a;
+  return (data || []).filter(([k]) => MYMAPS_ADDR_FIELD.test(String(k || "").trim()))
+    .map(([, v]) => String(v).replace(/\s+/g, " ").trim()).filter(Boolean).join(", ");
+}
+
 // KML (Google My Maps): placemarks with their folder, style colour and data.
 function kmlColour(doc, styleUrl) {
   if (!styleUrl) return null;
@@ -2247,7 +2258,7 @@ async function readKml(cfg) {
     const colour = kmlColour(doc, kid("styleUrl").trim());
     const geoms = kmlGeometries(pm);
     if (!geoms.length) {
-      const addr = kid("address").replace(/\s+/g, " ").trim();
+      const addr = mymapsAddress(kid("address"), data);
       const at = addr && looked[addr];
       if (at) {
         fromAddress++;

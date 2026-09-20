@@ -2058,5 +2058,15 @@ console.log("\nlayer rows laid out like Global Safety Net's list");
   check("the layers box rolls up whole", /\.left-col \.panel\.shut\{flex:0 0 auto;height:auto !important\}/.test(index));
 }
 
+console.log("\nMy Maps addresses from data fields");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("const MYMAPS_ADDR_FIELD"), src.indexOf("// KML (Google My Maps): placemarks"));
+  const f = new Function(body + "; return mymapsAddress;")();
+  check("a place's own address comes first", f(" 2 Elm St ", [["Address", "x"]]) === "2 Elm St");
+  check("else its Address, City and State fields, joined", f("", [["Company", "Acme"], ["Address", "1 Main St"], ["City", "Topeka"], ["State", "KS"]]) === "1 Main St, Topeka, KS");
+  check("a place with neither has no address", f("", [["Notes", "x"]]) === "");
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
