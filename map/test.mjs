@@ -1912,7 +1912,7 @@ console.log("\nGlobal Safety Net");
   const shown = new Function(src.slice(src.indexOf("function gsnShown("), src.indexOf("async function addGsnLayer(")) + "; return gsnShown;")();
   const list = [{ id: 1, gee_tile_url: "u" }, { id: 26, gee_tile_url: "u", is_hidden: "True" }, { id: 7, gee_tile_url: "u", is_multilayer: "True" }, { id: 9 }];
   check("the viewer's own layers are offered, its hidden helpers are not", shown(list).map((l) => l.id).join() === "1,7");
-  check("each is drawn from the fresh address its list gives", /\$\{l\.gee_tile_url\}\/tiles\/\{z\}\/\{x\}\/\{y\}/.test(src));
+  check("each is drawn from the fresh address its list gives", /String\(l\.gee_tile_url/.test(src) && /\/tiles\/\{z\}\/\{x\}\/\{y\}`/.test(src));
 }
 
 console.log("\nClimate TRACE air pollution");
@@ -2132,6 +2132,17 @@ console.log("\nHydroWASTE on the map; the EIP and HydroFATE page rows gone");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("HydroWASTE's plants are drawn from their own archive", /id:"hydrowaste", +name:"Wastewater treatment plants \(HydroWASTE\)"[^\n]*route:"pmtiles"/.test(src) && fs.existsSync(path.join(HERE, "tiles", "hydrowaste.pmtiles")));
   check("the Environmental Integrity Project and HydroFATE page rows are gone", !/id: "eip_inventory"/.test(src) && !/id: "hydrofate"/.test(src));
+}
+
+console.log("\nGlobal Safety Net fixes; My Maps titles");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const order = new Function(body + "; return PANEL_ORDER;")();
+  const at = (t) => order.findIndex((x) => x && x.t === t);
+  check("Global Safety Net rows are under Biodiversity loss", order.indexOf("gsn") > at("Biodiversity loss") && order.indexOf("gsn") < at("Mining") && order.indexOf("gsn_rankings") < at("Mining"));
+  check("a GSN tile template is not doubled", /\/\\\{z\\\}\/\.test\(u\) \? u :/.test(src));
+  check("My Maps rows take their maps' titles before opening", /function mymapsTitles\(/.test(src) && /map\.on\("load", \(\) => setTimeout\(mymapsTitles, 50\)\)/.test(src));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

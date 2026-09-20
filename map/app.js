@@ -3078,6 +3078,25 @@ function addAbattoirParts(cfg) {
   cfg.afterVisibility = (vis) => applyAbattoirParts(cfg, vis);
   applyVisibility(cfg.id);
 }
+// Google My Maps rows: the daily address job (culprits-tiles-more) keeps each
+// map's own title, so the row shows it before the layer is opened.
+const MYMAPS_TITLES = "https://welcometoyourgalaxy.github.io/culprits-tiles-more/mymaps/titles.json";
+async function mymapsTitles() {
+  let titles;
+  try { titles = await getJson(MYMAPS_TITLES, 15000); } catch (e) { return; }
+  const all = LAYERS.concat(...(typeof GROUPS !== "undefined" ? GROUPS.map((g) => g.children) : []));
+  for (const cfg of all) {
+    if (cfg.route !== "kml" || !cfg.kml || !/^Google My Maps map/.test(cfg.name)) continue;
+    const mid = (cfg.kml.match(/mid=([^&]+)/) || [])[1];
+    const t = mid && titles[mid];
+    if (!t) continue;
+    cfg.name = t;
+    const nm = document.querySelector(`[data-layer="${cfg.id}"]`);
+    const el = nm && nm.closest && nm.closest("label") && nm.closest("label").querySelector(".nm");
+    if (el) el.textContent = t;
+  }
+  if (typeof buildLegend === "function") buildLegend();
+}
 function abattoirPartsInit() {
   const cfg = LAYERS.find((l) => l.id === "abattoir_facilities");
   // After the row's own layers exist, so the grid and points sit beneath them.
@@ -3967,7 +3986,11 @@ async function addGsnLayer(cfg) {
       const l = list.find((x) => String(x.id) === cb.dataset.gsn);
       const id = `${cfg.id}-r-${l.id}`;
       if (cb.checked && !map.getLayer(id)) {
-        map.addSource(id, { type: "raster", tileSize: 256, tiles: [`${l.gee_tile_url}/tiles/{z}/{x}/{y}`],
+        // The service gives either a map address to add /tiles/{z}/{x}/{y} to,
+        // or the tile template itself; adding it twice made every tile fail.
+        const u = String(l.gee_tile_url || l.tile_url || l.url || "");
+        const tpl = /\{z\}/.test(u) ? u : `${u.replace(/\/+$/, "")}/tiles/{z}/{x}/{y}`;
+        map.addSource(id, { type: "raster", tileSize: 256, tiles: [tpl],
           attribution: "Global Safety Net, One Earth / Nature Data Lab" });
         map.addLayer({ id, type: "raster", source: id, paint: { "raster-opacity": 0.85 } });
         cfg._layerIds.push(id);
@@ -3977,6 +4000,11 @@ async function addGsnLayer(cfg) {
       setLayerState(cfg.id, `${on} of ${list.length} layers shown` + (cb.checked && l.description ? ` \u00b7 ${l.name}: ${l.description.slice(0, 140)}` : ""));
     });
     anchor.after(el);
+    // Switching the row on or off keeps each layer's own tick.
+    cfg.afterVisibility = (vis) => el.querySelectorAll("[data-gsn]").forEach((cb) => {
+      const id = `${cfg.id}-r-${cb.dataset.gsn}`;
+      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis === "visible" && cb.checked ? "visible" : "none");
+    });
   }
   setLayerState(cfg.id, `${list.length} layers \u2014 tick the ones to show`);
 }
@@ -7424,6 +7452,7 @@ function gmInit() {
 map.on("load", gmInit);
 map.on("load", buildLegend);
 map.on("load", () => setTimeout(abattoirPartsInit, 0));
+map.on("load", () => setTimeout(mymapsTitles, 50));
 
 /* ---------- the layers box, in the order and under the headings chosen ---------- */
 // Strings are layer ids; "group:" a whole group; "gm" the guerillamap row.
@@ -7448,8 +7477,8 @@ const PANEL_ORDER = [
   { h: 4, t: "Air pollution" }, "ct_air", "ct_pop",
   { h: 3, t: "Pollution" }, "epa_tri_sites", "epa_widget", "hydrowaste",
   { h: 4, t: "Plastics" }, "mymaps_chlorine", "arcgis_ym8xk", "arcgis_materialresearch", "pirg_plastic", "gpw_map", "seas_of_plastic", "coastal_cleanup",
-  { h: 3, t: "Deforestation" }, "gfw", "gfw_dist", "gfw_dist_year", "glad_loss", "palmwatch", "soilgrids", "trase_measures", "trase_facilities", "nusantara", "gfw_catalogue", "gsn", "gsn_rankings",
-  { h: 3, t: "Biodiversity loss" }, "atlas_hotspots", "atlas_cities", "pe_subsidising", "powerbi_report",
+  { h: 3, t: "Deforestation" }, "gfw", "gfw_dist", "gfw_dist_year", "glad_loss", "palmwatch", "soilgrids", "trase_measures", "trase_facilities", "nusantara", "gfw_catalogue",
+  { h: 3, t: "Biodiversity loss" }, "atlas_hotspots", "atlas_cities", "pe_subsidising", "powerbi_report", "gsn", "gsn_rankings",
   { h: 3, t: "Mining" }, "mines_global",
   { h: 3, t: "Agriculture" }, "acgf",
   { h: 4, t: "National shading" }, "land_matrix",
