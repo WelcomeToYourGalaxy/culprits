@@ -260,6 +260,44 @@ def from_enviro_files(e):
     return feats, missing
 
 
+# The documents a map offers per country, read from the map's own page.
+#
+# The Live Projects to Resist map keeps them in its page as an index keyed by
+# ISO3 code - LKA:{file:'srilanka.md',pdf:'srilanka-...pdf',label:'...'} - so
+# the country comes from the map itself and is never guessed from a file name.
+# The page rather than the repository's file list, because an unauthenticated
+# call to GitHub's tree API is refused once a runner has made sixty in an hour,
+# which would empty the layer on a normal day.
+DOC_ENTRY = re.compile(r"\b([A-Z]{3})\s*:\s*\{([^{}]*)\}")
+DOC_FIELD = re.compile(r"(\w+)\s*:\s*'([^']*)'")
+DOC_LABELS = {"pdf": "Community resistance how-to (PDF)", "file": "The same guide as a page",
+              "dl": "The guide to download"}
+
+
+def from_country_docs(e):
+    page = requests.get(e["page"], headers=UA, timeout=300)
+    page.raise_for_status()
+    site = e["site"].rstrip("/")
+    feats, missing = [], []
+    for iso_raw, body in DOC_ENTRY.findall(page.text):
+        fields = dict(DOC_FIELD.findall(body))
+        if not any(k in fields for k in DOC_LABELS):
+            continue
+        iso = to_iso(iso_raw)
+        if not iso:
+            missing.append(iso_raw)
+            continue
+        lines = []
+        if fields.get("label"):
+            lines.append(text(fields["label"]))
+        for key, label in DOC_LABELS.items():
+            if fields.get(key):
+                lines.append(f"{label} — {site}/{fields[key]}")
+        f = country_feature(iso, {"entries": len(lines), "list": "\n".join(lines)})
+        (feats.append(f) if f else missing.append(iso))
+    return feats, missing
+
+
 def from_extract(e):
     if "url" in e:
         spec = {"url": e["url"]}
@@ -431,7 +469,8 @@ def _swap(c):
 
 
 KINDS = {"geojson": from_geojson, "records_by_iso": from_records, "tree": from_tree,
-         "routes": from_routes, "enviro_files": from_enviro_files, "extract": from_extract}
+         "routes": from_routes, "enviro_files": from_enviro_files, "extract": from_extract,
+         "country_docs": from_country_docs}
 
 
 def main():
@@ -439,6 +478,11 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     for e in REG:
         if wanted and e["id"] not in wanted:
+            continue
+        # A layer the map no longer shows is not rebuilt. Its files were taking
+        # room on a Pages site that is capped at 1 GB, and nothing read them.
+        # Naming it on the command line still builds it.
+        if e.get("retired") and not wanted:
             continue
         try:
             feats, missing = KINDS[e["kind"]](e)

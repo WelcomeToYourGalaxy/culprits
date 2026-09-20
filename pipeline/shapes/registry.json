@@ -1,5 +1,5 @@
 {
- "_note": "Every non-point feature of the site's maps — country shading, regions, lines — plus maps whose whole content is read here. Built into map/data/shapes/<id>.geojson by build_shapes.py and drawn by the map's shapes route. kind: geojson (the repo's own file), extract (the map's scripts, via ../sitemaps/extract.mjs), records_by_iso and tree (country-keyed data joined to country outlines), routes (country-to-country lines between the outlines' centres, as the anti-slavery map draws them), enviro_files (one file per country or region).",
+ "_note": "Every non-point feature of the site's maps — country shading, regions, lines — plus maps whose whole content is read here. Built into map/data/shapes/<id>.geojson by build_shapes.py and drawn by the map's shapes route. kind: geojson (the repo's own file), extract (the map's scripts, via ../sitemaps/extract.mjs), records_by_iso and tree (country-keyed data joined to country outlines), routes (country-to-country lines between the outlines' centres, as the anti-slavery map draws them), enviro_files (one file per country or region). retired: true means the map no longer shows this layer, so it is not rebuilt unless it is named on the command line.",
  "layers": [
   {
    "id": "gmo_cultivation",
@@ -78,6 +78,7 @@
   },
   {
    "id": "slavery_trackers",
+   "retired": true,
    "group": "MORE_MAPS",
    "kind": "tree",
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/anti-slavery-map/main/trackerdata.json",
@@ -103,6 +104,7 @@
   },
   {
    "id": "legal_by_state",
+   "retired": true,
    "group": "LEGAL_MAP",
    "kind": "tree",
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/legal-map/main/lmap_sub.json",
@@ -112,6 +114,7 @@
   },
   {
    "id": "judicial_by_state",
+   "retired": true,
    "group": "JUD_MAP",
    "kind": "tree",
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/judicial-map/main/judicial_sub_data.json",
@@ -121,6 +124,7 @@
   },
   {
    "id": "leg_by_state",
+   "retired": true,
    "group": "LEG_MAP",
    "kind": "tree",
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/legislative-map/main/legmap_sub.json",
@@ -130,6 +134,7 @@
   },
   {
    "id": "leg_subnational",
+   "retired": true,
    "group": "LEG_MAP",
    "kind": "tree",
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/legislative-map/main/legmap_subnational.json",
@@ -139,6 +144,7 @@
   },
   {
    "id": "leg_county",
+   "retired": true,
    "group": "LEG_MAP",
    "kind": "tree",
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/legislative-map/main/legmap_county.json",
@@ -148,6 +154,7 @@
   },
   {
    "id": "leg_municipal",
+   "retired": true,
    "group": "LEG_MAP",
    "kind": "tree",
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/legislative-map/main/legmap_municipal.json",
@@ -157,6 +164,7 @@
   },
   {
    "id": "leg_municipal_recover",
+   "retired": true,
    "group": "LEG_MAP",
    "kind": "tree",
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/legislative-map/main/legmap_municipal_recover.json",
@@ -166,6 +174,7 @@
   },
   {
    "id": "leg_laws",
+   "retired": true,
    "group": "LEG_MAP",
    "kind": "tree",
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/legislative-map/main/laws.json",
@@ -175,6 +184,7 @@
   },
   {
    "id": "enviro_law_by_country",
+   "retired": true,
    "group": "SITE_MAPS",
    "kind": "enviro_files",
    "repo": "WelcomeToYourGalaxy/enviro-atlas",
@@ -231,6 +241,7 @@
   },
   {
    "id": "site_environment_law_shapes",
+   "retired": true,
    "group": "SITE_MAPS",
    "kind": "extract",
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/enviro-atlas/main/destruction-environment-law-map.html",
@@ -241,6 +252,7 @@
   },
   {
    "id": "site_export_credit_shading",
+   "retired": true,
    "group": "SITE_MAPS",
    "kind": "extract",
    "shapes_only": true,
@@ -252,12 +264,32 @@
   },
   {
    "id": "gov_official_map",
+   "retired": true,
    "group": "SITE_MAPS",
    "kind": "extract",
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/become-a-gov-official/main/index.html",
    "name": "How to become a government official",
    "unit": "countries and places",
    "colour": "#5F6A66"
+  },
+  {
+   "id": "love_trackers",
+   "group": "MORE_MAPS",
+   "kind": "tree",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/local-map/main/trackerdata.json",
+   "name": "Who to enlist against a project, by country (Live Projects to Resist)",
+   "unit": "countries",
+   "colour": "#6E7B84"
+  },
+  {
+   "id": "love_guides",
+   "group": "MORE_MAPS",
+   "kind": "country_docs",
+   "page": "https://welcometoyourgalaxy.github.io/local-map/index.html",
+   "site": "https://welcometoyourgalaxy.github.io/local-map",
+   "name": "Community resistance how-to guides, by country (Live Projects to Resist)",
+   "unit": "countries",
+   "colour": "#7B8472"
   },
   {
    "id": "capture_map",

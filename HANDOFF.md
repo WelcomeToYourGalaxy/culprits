@@ -83,6 +83,76 @@ Worker: `https://culprits-proxy.welcometoyourgalaxy.workers.dev`
 
 ---
 
+## The layers box, as it is asked to read
+
+Headings carry the meaning, so they are changed rather than worked around:
+Oceans holds Fishing (both fishing layers, whose titles say how they differ)
+and Oil slicks, which holds Marine slicks (Cerulean's three rows and SkyTruth's
+vessels of concern) and Terrestrial slicks (the SkyTruth Monitor row).
+Biodiversity loss leads with the Global Safety Net and holds the reefs.
+Agriculture is Meat and agriculture, holding Agriculture (the national shading)
+and Meat (the slaughterhouse rows).
+
+Every row has one fold control at its end, ticked or not, groups included: on a
+group's parent row it works the disclosure triangle, so the arrow means the
+same thing wherever it appears.
+
+The Satellite view was toned down: no scan line sweeping the screen, halos held
+steady instead of pulsing, the protected areas lifted once rather than
+breathing, finer corner brackets, a quieter click ring. Its timer now only
+notices rows being ticked.
+
+---
+
+## Live Projects to Resist, drawn here rather than opened beside
+
+Its panel row is gone. Three rows under Construction carry what the panel
+added: `love_wire` (its news wire, read live from the map's own
+`wire_geo.json`), `love_trackers` and `love_guides` (country layers built daily
+by `build_shapes.py`). Its project cards are the same records as
+`local_projects`, so that row stands and nothing is drawn twice, and its Earth
+First! archive is text with no positions, so nothing of it is placed.
+
+`love_guides` uses the `country_docs` kind, which reads the ISO3 index inside
+the map's own page (`LKA:{file:'srilanka.md',pdf:'...'}`) rather than GitHub's
+tree API: unauthenticated tree calls are refused after sixty an hour on a
+runner, which would empty the layer on a normal day.
+
+The wire places a story by matching its words against place names, not from a
+coordinate in the story. Weak matches happen (a story about Iowa sits near
+Geelong), so every box shows what it matched on and its score.
+
+---
+
+## Where the archives live, and why they are spread across repos
+
+A published Pages site is capped at 1 GB, so the archives sit in whichever repo
+has room, each with its own Pages site:
+
+- `culprits/map/tiles/` — the small ones and anything the map needs at once.
+- `culprits-tiles-more` — most of the daily-rebuilt archives, shapes, sitemaps.
+- `culprits-buildings` — the building archives (about 700 MB), one per kind.
+  Rebuilt weekly there by `scripts/building_types.py`, which runs this repo's
+  `pipeline/building_types.py`. Each save replaces that repo's history with one
+  commit, so it stays the size of what it publishes.
+- `culprits-tiles-ag` and `culprits-tiles-flu` — the Climate TRACE agriculture
+  and forestry archives, too big for the first repo.
+- `culprits-tiles-gov` — the government-building archives the separate rows
+  read. Those rows are inside Buildings now, so most of it is unread; worth
+  clearing when that repo starts to matter.
+
+The map finds each kind of building beside its summary (`base` in
+`addBuildingTypesLayer`), so moving the set again means changing `summaryUrl`
+alone.
+
+Layers taken off the panel are marked `"retired": true` in
+`pipeline/shapes/registry.json`, so `build_shapes.py` stops rebuilding them,
+and their published files are deleted by `scripts/retire.py` in
+`culprits-tiles-more`. That freed about 483 MB of rows that had been merged
+into Buildings or removed on request.
+
+---
+
 ## How data reaches the map — five routes
 
 Set per layer in `map/app.js` as `route:`.

@@ -331,7 +331,7 @@ const LAYERS = [
   // The 4Wings tile endpoint has no report queue, and fishing effort is a
   // continuous field rather than a set of sites, so a heatmap says what the
   // data actually is. Attribution is required by GFW's terms of use.
-  { id:"fishing",              name:"Fishing effort",          unit:"apparent fishing hours, 12 months", colour:"#A8707E", route:"tile", ready:true, off: true,
+  { id:"fishing",              name:"Hours spent fishing, tracked from vessel signals (Global Fishing Watch)", unit:"apparent fishing hours, 12 months", colour:"#A8707E", route:"tile", ready:true, off: true,
     tileMaxZoom: 12,
     attribution: '<a href="https://globalfishingwatch.org" target="_blank" rel="noopener">Powered by Global Fishing Watch</a>' },
 
@@ -378,7 +378,7 @@ const LAYERS = [
     note: "Sector infrastructure, not confirmed exploitation. These are sites in sectors where forced and child labour concentrate; where IPIS actually observed it, the site says so." },
   { id:"slavery_ports",        name:"Ports with high-risk vessel calls", unit:"ports", colour:"#5F7480", route:"pmtiles", ready:true, off: true,
     note: "Scored on the share of calling fishing vessels flagged high-risk by a published behavioural model. A property of the calls, not of the port." },
-  { id:"slavery_fishing",      name:"Modelled at-risk fishing effort", unit:"model cells, 2.5°", colour:"#4E6A70", route:"pmtiles", ready:true, off: true,
+  { id:"slavery_fishing",      name:"Ocean squares where forced-labour fishing is predicted (model, no vessel named)", unit:"model cells, 2.5\u00b0", colour:"#4E6A70", route:"pmtiles", ready:true, off: true,
     note: "Not vessels. The authors anonymised every hull, so each mark is a cell of ocean and identifies nobody." },
   { id:"remains_records",      name:"Unearthings and burial decisions", unit:"records", colour:"#6A6257", route:"pmtiles", ready:true, off: true,
     facet: { property: "x_posture", label: "direction",
@@ -1677,16 +1677,17 @@ function setBasemap(kind) {
 // Only on the Satellite imagery basemap. The imagery stays the photograph; on
 // top of it:
 //   - a livelier grade (BASE_GRADE.satellite) and a teal atmosphere;
-//   - a thin frame at the screen's edges, a faint vignette and a slow scan line
-//     (index.html, #defence-hud), none of which take clicks;
-//   - every ticked layer under Destruction whose places are points gets a slow
-//     red pulse beneath its own points: a threat zone at each real site, never a
-//     place the layer does not give;
-//   - Global Safety Net's areas (the places identified for protection) breathe
-//     slowly brighter and back;
+//   - a fine frame at the screen's edges and a faint vignette (index.html,
+//     #defence-hud), neither of which takes clicks;
+//   - every ticked layer under Destruction whose places are points gets a soft
+//     red halo beneath its own points, held steady: a threat zone at each real
+//     site, never a place the layer does not give;
+//   - Global Safety Net's areas (the places identified for protection) sit a
+//     little brighter than the imagery around them;
 //   - a click answers with a ring where it landed.
-// Nothing is invented: no scores, no places, no numbers. Motion stops for
-// anyone whose system asks for reduced motion.
+// Nothing is invented: no scores, no places, no numbers. The only thing that
+// moves is the ring a click leaves, and that stops for anyone whose system asks
+// for reduced motion.
 const DEFENCE = {
   threat: "#B8473E",
   sky: { "sky-color": "#0B1A22", "horizon-color": "#2F8F93", "fog-color": "#2F8F93",
@@ -1725,7 +1726,7 @@ function ensureHalo(lid) {
   if (map.getLayer(hid)) return hid;
   const l = map.getLayer(lid);
   const spec = { id: hid, type: "circle", source: l.source,
-    paint: { "circle-color": DEFENCE.threat, "circle-blur": 0.85, "circle-opacity": 0,
+    paint: { "circle-color": DEFENCE.threat, "circle-blur": 1, "circle-opacity": 0,
              "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 6, 8, 11, 14, 16] } };
   if (l.sourceLayer) spec["source-layer"] = l.sourceLayer;
   // Only at the zooms its layer draws at.
@@ -1738,9 +1739,11 @@ function ensureHalo(lid) {
 }
 function defenceTick() {
   if (!DEFENCE_ON) return;
-  const t = (Date.now() % 2800) / 2800;           // one pulse every 2.8 s
-  const still = reducedMotion();
   const live = new Set();
+  // Steady, not throbbing. A pulse that grew and faded every 2.8 seconds read
+  // as an arcade screen rather than an instrument, and it kept the map
+  // redrawing while nothing on it had changed. Each threatened point keeps one
+  // soft halo at a fixed size and a low opacity; what moves is the map.
   for (const lid of defenceHalos()) {
     const hid = ensureHalo(lid);
     if (!hid) continue;
@@ -1748,20 +1751,20 @@ function defenceTick() {
     map.setLayoutProperty(hid, "visibility", "visible");
     const f = map.getFilter(lid);
     map.setFilter(hid, f || null);
-    const grow = still ? 0.5 : t;
-    map.setPaintProperty(hid, "circle-opacity", still ? 0.28 : 0.42 * (1 - grow));
+    map.setPaintProperty(hid, "circle-opacity", 0.22);
     map.setPaintProperty(hid, "circle-radius", ["interpolate", ["linear"], ["zoom"],
-      1, 3 + 7 * grow, 8, 6 + 10 * grow, 14, 9 + 14 * grow]);
+      1, 5, 8, 9, 14, 13]);
   }
   for (const l of map.getStyle().layers || []) {
     if (l.id.endsWith("-halo") && !live.has(l.id)) map.setLayoutProperty(l.id, "visibility", "none");
   }
+  // The places identified for protection are lifted a little out of the
+  // imagery and left there, rather than breathing in and out.
   for (const row of DEFENCE.guard) {
     if ((visibility.get(row) || "none") !== "visible") continue;
-    const k = still ? 0.5 : 0.5 + 0.5 * Math.sin(Date.now() / 1400);
     for (const lid of layersOfRow(row)) {
       const l = map.getLayer(lid);
-      if (l && l.type === "raster") map.setPaintProperty(lid, "raster-brightness-min", 0.05 + 0.13 * k);
+      if (l && l.type === "raster") map.setPaintProperty(lid, "raster-brightness-min", 0.11);
     }
   }
 }
@@ -1776,7 +1779,9 @@ function defenceMode(on) {
       map.setSky(Object.assign({}, defenceSky || {}, DEFENCE.sky));
     } else if (defenceSky) { map.setSky(defenceSky); defenceSky = null; }
   }
-  if (on && !defenceTimer) defenceTimer = setInterval(defenceTick, 90);
+  // Nothing animates any more, so this only has to notice a row being ticked
+  // or unticked: twice a second instead of eleven times.
+  if (on && !defenceTimer) { defenceTick(); defenceTimer = setInterval(defenceTick, 500); }
   if (!on && defenceTimer) {
     clearInterval(defenceTimer);
     defenceTimer = null;
@@ -2981,9 +2986,15 @@ function traseBox(cfg, props) {
 function addPmShapesLayer(cfg) {
   const src = `${cfg.id}-pm`;
   map.addSource(src, { type: "vector", url: `pmtiles://${cfg.archiveUrl}`, attribution: cfg.attribution || "" });
+  // Each part only where its own tiles hold anything: the outlines are tiled
+  // from zoom 7 and the points to zoom 8. Without these bounds MapLibre keeps
+  // asking for, and stretching, tiles that carry nothing for the layer, which
+  // is most of the wait on a 72 MB archive.
   map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source: src, "source-layer": cfg.polygonLayer,
+    minzoom: cfg.polygonFrom != null ? cfg.polygonFrom : 7,
     paint: { "fill-color": cfg.colour, "fill-opacity": 0.55, "fill-outline-color": "#1D1B17" } });
   map.addLayer({ id: `${cfg.id}-pt`, type: "circle", source: src, "source-layer": cfg.pointLayer,
+    maxzoom: cfg.pointTo != null ? cfg.pointTo : 9,
     paint: { "circle-color": cfg.colour,
              // Merged points carry how many mines they stand for (point_count).
              "circle-radius": ["interpolate", ["linear"], ["zoom"],
@@ -3146,13 +3157,42 @@ async function readEjatlas(cfg) {
 }
 
 // Plain GeoJSON files (Seas of Plastic; the Coastal Cleanup copy).
+// A file of records with a latitude and a longitude in each, rather than
+// GeoJSON: the Live Projects to Resist wire publishes its placed stories that
+// way. Turned into features here so one route reads both, and a record with no
+// position is left out rather than placed at 0,0 off West Africa.
+function recordsAsFeatures(rows) {
+  const num = (v) => (v === "" || v == null ? null : Number(v));
+  return rows.map((r) => {
+    const lat = num(r.lat != null ? r.lat : r.latitude), lng = num(r.lng != null ? r.lng : (r.lon != null ? r.lon : r.longitude));
+    if (!isFinite(lat) || !isFinite(lng) || lat === null || lng === null) return null;
+    const p = {};
+    Object.keys(r).forEach((k) => { if (!["lat", "lng", "lon", "latitude", "longitude"].includes(k)) p[k] = r[k]; });
+    // A record whose whole point is a link (a story, a report) gets that link
+    // as a link rather than as escaped text in a table cell. Every field is
+    // still listed underneath.
+    const href = p.link || p.url;
+    if (href) {
+      p._html = `<h4 style="margin:0 0 6px">${escapeHtml(String(p.title || p.name || href))}</h4>` +
+        `<p><a href="${escapeHtml(String(href))}" target="_blank" rel="noopener">Open it</a></p>` +
+        `<table>${fieldRows(p, ["_html"])}</table>`;
+    }
+    return { type: "Feature", geometry: { type: "Point", coordinates: [lng, lat] }, properties: p };
+  }).filter(Boolean);
+}
 async function readGeojsonFiles(cfg) {
   const items = [];
   for (const f of cfg.files) {
-    const gj = await getJson(f.url, 60000);
+    const got = await getJson(f.url, 60000);
+    const gj = Array.isArray(got) ? { features: recordsAsFeatures(got) }
+      : (got && !got.features && Array.isArray(got.entries)) ? { features: recordsAsFeatures(got.entries) } : got;
     (gj.features || []).forEach((ft, i) => {
       const p = ft.properties || {};
-      const name = p.name || p.Name || p.title || p.Source || (p.TripId != null ? `Trip ${p.TripId}` : "") || p.Ocean || f.label;
+      // Which field names the place, where a file's own first choice would be
+      // the wrong one: the wire's "name" is the outlet, and a list of forty
+      // rows all reading the same outlet says nothing about where they are.
+      const first = (cfg.nameFrom || []).map((k) => p[k]).find((v) => v !== undefined && v !== null && v !== "");
+      const name = first || p.name || p.Name || p.title || p.Source || (p.TripId != null ? `Trip ${p.TripId}` : "") || p.Ocean || f.label;
       items.push({ geometry: ft.geometry, key: `${f.label}:${i}`, name: String(name), group: p.group != null ? String(p.group) : f.label,
         // A copy that carries its source's own box (_html) shows that; otherwise every field.
         h: p._html ? boxOpen + p._html + `</div>`
@@ -5008,6 +5048,9 @@ const CORAL_CLASSES = {
 // over, so nothing drops out in between (the Atlas's picture of zooms 6 to 12
 // failed to draw over the satellite view).
 const CORAL_ATLAS_PICTURE_FROM = 12;
+// Below this zoom the world reef map is drawn coarse so that reefs a few
+// hundred metres across are still findable; at and above it, full size.
+const CORAL_WORLD_SHARP = 7;
 function addCoralLayer(cfg) {
   map.addSource(`${cfg.id}-tiles`, {
     type: "vector",
@@ -5032,11 +5075,27 @@ function addCoralLayer(cfg) {
     minzoom: CORAL_ATLAS_PICTURE_FROM, layout: { visibility: "none" }, paint: { "raster-opacity": 0.9 } });
   // Wider still, the Atlas's server runs out of time drawing so much reef, so
   // UNEP-WCMC's reef map stands in, in the same colour, and the row says so.
+  //
+  // A reef is a few hundred metres across. From the world view that is a
+  // fraction of a pixel, so the layer drew a scatter of marks too faint to
+  // find. The map asks the same server for a smaller picture of each square
+  // and lets the square stretch it: a reef that covers one pixel of a 96-pixel
+  // picture covers nearly three on screen. Nothing is added or moved - the
+  // same reefs are drawn coarser, which is what makes them findable at this
+  // width. Nearest-neighbour, because smoothing spreads that one pixel into a
+  // pale smudge and undoes it. From zoom CORAL_WORLD_SHARP the squares are
+  // small enough for reefs to hold their own, and the full-size picture is
+  // used instead.
+  const wcmc = (px) => `tint://${CORAL_CLASSES["Coral/Algae"].slice(1)}/data-gis.unep-wcmc.org/server/rest/services/HabitatsAndBiotopes/Global_Distribution_of_Coral_Reefs/MapServer/export` +
+    `?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857&size=${px},${px}&format=png32&transparent=true&f=image`;
   map.addSource(`${cfg.id}-globe`, { type: "raster", tileSize: 256,
-    attribution: "UNEP-WCMC, WorldFish Centre, WRI, TNC",
-    tiles: [`tint://${CORAL_CLASSES["Coral/Algae"].slice(1)}/data-gis.unep-wcmc.org/server/rest/services/HabitatsAndBiotopes/Global_Distribution_of_Coral_Reefs/MapServer/export` +
-            `?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857&size=256,256&format=png32&transparent=true&f=image`] });
-  map.addLayer({ id: `${cfg.id}-world`, type: "raster", source: `${cfg.id}-globe`, maxzoom: cfg.drawFrom,
+    attribution: "UNEP-WCMC, WorldFish Centre, WRI, TNC", tiles: [wcmc(96)] });
+  map.addLayer({ id: `${cfg.id}-world`, type: "raster", source: `${cfg.id}-globe`, maxzoom: CORAL_WORLD_SHARP,
+    layout: { visibility: "none" }, paint: { "raster-opacity": 1, "raster-resampling": "nearest" } });
+  map.addSource(`${cfg.id}-globe-near`, { type: "raster", tileSize: 256,
+    attribution: "UNEP-WCMC, WorldFish Centre, WRI, TNC", tiles: [wcmc(256)] });
+  map.addLayer({ id: `${cfg.id}-world-near`, type: "raster", source: `${cfg.id}-globe-near`,
+    minzoom: CORAL_WORLD_SHARP, maxzoom: cfg.drawFrom,
     layout: { visibility: "none" }, paint: { "raster-opacity": 0.9 } });
   bindHtmlPopup(`${cfg.id}-fill`, (p) =>
     `<b>${p.class_name || "Unclassified"}</b>` +
@@ -6646,7 +6705,9 @@ const OTHER_MAPS = {
       cities: [["antananarivo", "Antananarivo, Madagascar"], ["auckland", "Auckland, New Zealand"], ["baku", "Baku, Azerbaijan"], ["bogota", "Bogotá, Colombia"], ["brasilia", "Brasília, Brazil"], ["cape_town", "Cape Town, South Africa"], ["chengdu", "Chengdu, China"], ["colombo", "Colombo, Sri Lanka"], ["dar_es_salaam", "Dar es Salaam, Tanzania"], ["davao", "Davao, Philippines"], ["durban", "Durban, South Africa"], ["esfahan", "Esfahan, Iran"], ["guadalajara", "Guadalajara, Mexico"], ["guayaquil", "Guayaquil, Ecuador"], ["hongknog_shenzhen_quangzhou", "Hongkong-Shenzhen-Guangzhou, China"], ["honolulu", "Honolulu, United States"], ["houston", "Houston, United States"], ["jakarta", "Jakarta, Indonesia"], ["lagos", "Lagos, Nigeria"], ["los_angeles", "Los Angeles, United States"], ["makassar", "Makassar, Indonesia"], ["mecca", "Mecca, Saudi Arabia"], ["mexico_city", "Mexico City, Mexico"], ["nairobi", "Nairobi, Kenya"], ["osaka", "Osaka, Japan"], ["perth", "Perth, Australia"], ["port-au-prince", "Port-au-Prince, Haiti"], ["rawalpindi", "Rawalpindi, Pakistan"], ["santiago", "Santiago, Chile"], ["sao_paulo", "São Paulo, Brazil"], ["sydney", "Sydney, Australia"], ["tashkent", "Tashkent, Uzbekistan"], ["tel_aviv", "Tel Aviv, Israel"]],
       note: "The Atlas's 33 hotspot cities; each is placed from its name through a weekly OpenStreetMap lookup, and its box links the Atlas's own page." },
     { id: "building_types", name: "Buildings", unit: "places", colour: "#6A6258", route: "buildings", ready: true, lazy: true,
-      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/building_types.pmtiles", summaryUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/building_types.json",
+      // Their own repo and Pages site: a site is capped at 1 GB and these are
+      // about 700 MB. See culprits-buildings.
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-buildings/tiles/building_types.pmtiles", summaryUrl: "https://welcometoyourgalaxy.github.io/culprits-buildings/tiles/building_types.json",
       note: "Every building in the executive, financial, legal, legislative, judicial, anti-slavery and activist-rights maps' files, one record per place: where two files describe the same place, the fuller record leads and every field the other adds is kept." },
     { id: "owid_interest", name: "Share of government spending going to interest payments (Our World in Data)", unit: "% of spending", colour: "#6E5F52", route: "owidgrapher", ready: true, lazy: true,
       slug: "share-of-government-expenditure-going-to-interest-payments",
@@ -6675,9 +6736,22 @@ const OTHER_MAPS = {
     { id: "rte_trade", name: "Resource trade flows (resourcetrade.earth, Chatham House)", unit: "trade flows", colour: "#8A6356", route: "rte", ready: true, lazy: true,
       api: "https://api.resourcetrade.earth/api/rt/2.7", copy: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/rte",
       note: "The largest natural-resource trade flows between countries, read live from resourcetrade.earth (a daily copy stands in if it cannot be read)." },
-    { id: "live_projects_app", name: "Live Projects to Resist (its whole map)", unit: "opens its own map in a panel", colour: "#6E7B84", route: "companion", ready: true, lazy: true,
-      page: "https://welcometoyourgalaxy.github.io/local-map/", follow: true,
-      note: "The Live Global Project Map itself, in a panel along the bottom that follows this map's view: its country guides and how-to PDFs, lenses, trackers, regions, project cards, overlays and history." },
+    // Live Projects to Resist, drawn on this map rather than opened in a panel
+    // beside it. Its project cards are the Development projects row already
+    // under Construction, from the same records, so they are not drawn twice;
+    // what the panel added over that row is here as three more rows. Its Earth
+    // First! archive is text sections with no positions, so there is nothing
+    // to place and none is invented.
+    { id: "love_wire", name: "Resistance news placed where it happened (Live Projects to Resist)", unit: "stories", colour: "#6E7B84", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Live Projects to Resist wire", url: "https://welcometoyourgalaxy.github.io/local-map/wire_geo.json" }],
+      nameFrom: ["title"],
+      note: "The map's own news wire, read live from it. Each story sits where that map matched it, by name rather than by a coordinate in the story, so a box shows what it matched on and how strongly; a weak match can put a story in the wrong country." },
+    { id: "love_trackers", name: "Who to enlist against a project, by country (Live Projects to Resist)", unit: "countries", colour: "#6E7B84", route: "shapes", ready: true, lazy: true,
+      dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/love_trackers.geojson",
+      note: "The map's country lists of firms, funds and bodies to bring in against a project, rebuilt daily from the map itself." },
+    { id: "love_guides", name: "Community resistance how-to guides, by country (Live Projects to Resist)", unit: "countries", colour: "#7B8472", route: "shapes", ready: true, lazy: true,
+      dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/love_guides.geojson",
+      note: "One guide per country, linked from the country it is written for: the how-to as a PDF, as a page, and to download. Seven of the map's entries have no outline in the boundaries file and are named in the build log rather than dropped quietly." },
     { id: "gsn", name: "Global Safety Net (One Earth)", unit: "layers", colour: "#406F2F", route: "gsn", ready: true, lazy: true,
       api: "https://api.gsn.naturedatalab.org/geo-analysis/layers",
       note: "Every layer the Global Safety Net viewer offers, drawn live from its own map service in its own colours." },
@@ -6744,7 +6818,7 @@ const OTHER_MAPS = {
     { id: "pe_subsidising", name: "Portfolio Earth: Subsidising Extinction", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://portfolio.earth/campaigns/subsidising-extinction/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "powerbi_report", name: "Power BI report (Destruction page)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+    { id: "powerbi_report", name: "Environmental Crime Tracker", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://app.powerbi.com/view?r=eyJrIjoiZGJmNGIwODgtMTgyMS00NmVlLWJmNWUtZTAzZDBlMmQ1ODI2IiwidCI6IjBiMzNkZjAwLTYzNGMtNDBlYy1iOGQ5LTZhMGI2MjYyNmU1ZCJ9",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
     { id: "scribd_doc", name: "Scribd document (Destruction page)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
@@ -7040,7 +7114,9 @@ const LAYER_KIND = {
   ct_air: ["human", "downstream"],
   ct_pop: ["human", "downstream"],
   gsn: ["plant", "downstream"],
-  live_projects_app: ["human", "downstream"],
+  love_wire: ["human", "downstream"],
+  love_trackers: ["human", "downstream"],
+  love_guides: ["human", "downstream"],
   rte_trade: ["insentient", "upstream"],
   mymaps_supp_a: ["animal", "downstream"],
   mymaps_supp_b: ["animal", "downstream"],
@@ -7525,15 +7601,17 @@ const PANEL_ORDER = [
   { h: 3, t: "Pollution" }, "epa_tri_sites", "epa_widget", "hydrowaste",
   { h: 4, t: "Plastics" }, "mymaps_chlorine", "arcgis_ym8xk", "arcgis_materialresearch", "pirg_plastic", "gpw_map", "seas_of_plastic", "coastal_cleanup",
   { h: 3, t: "Deforestation" }, "gfw", "gfw_dist", "gfw_dist_year", "glad_loss", "palmwatch", "soilgrids", "trase_measures", "trase_facilities", "nusantara", "gfw_catalogue",
-  { h: 3, t: "Biodiversity loss" }, "atlas_hotspots", "atlas_cities", "pe_subsidising", "powerbi_report", "gsn", "gsn_rankings",
+  { h: 3, t: "Biodiversity loss" }, "gsn", "gsn_rankings", "allen_coral", "atlas_hotspots", "atlas_cities", "pe_subsidising", "powerbi_report",
   { h: 3, t: "Mining" }, "mines_global",
-  { h: 3, t: "Agriculture" },
-  { h: 4, t: "National shading" }, "land_matrix",
-  { h: 4, t: "Slaughterhouses" }, "abattoir_facilities", "cultivated_meat_laws",
-  { h: 3, t: "Oceans" }, "fishing", "slavery_fishing", "allen_coral", "skytruth_monitor", "skytruth_voc",
+  { h: 3, t: "Meat and agriculture" },
+  { h: 4, t: "Agriculture" }, "land_matrix",
+  { h: 4, t: "Meat" }, "abattoir_facilities", "cultivated_meat_laws",
+  { h: 3, t: "Oceans" },
+  { h: 4, t: "Fishing" }, "fishing", "slavery_fishing",
   { h: 4, t: "Oil slicks" },
-  { h: 5, t: "Marine oil slicks" }, "cerulean_slicks", "cerulean_sources", "slick_archive",
-  { h: 3, t: "Construction" }, "local_projects", "live_projects_app",
+  { h: 5, t: "Marine slicks" }, "cerulean_slicks", "cerulean_sources", "slick_archive", "skytruth_voc",
+  { h: 5, t: "Terrestrial slicks" }, "skytruth_monitor",
+  { h: 3, t: "Construction" }, "local_projects", "love_wire", "love_trackers", "love_guides",
   { h: 3, t: "Culprits upstream" }, "ejatlas",
   { h: 4, t: "Emissions" }, "carbon_majors", "soy_organizations", "bocc",
   { h: 4, t: "Deforestation" }, "site_forest500_soy", "site_soybean_companies", "dff",
@@ -7605,6 +7683,9 @@ const PANEL_REMOVED = new Set([
   "gmo_releases",
   // Removed at the owner's request, 20 September.
   "acgf",
+  // Its own map in a panel, replaced by the love_ rows under Construction,
+  // which draw the same material on this map.
+  "live_projects_app",
   "fin_bank", "fin_centralbank", "fin_taxoffice", "fin_govfinance", "fin_financial", "fin_exchange", "fin_insurance", "fin_accountant", "fin_remittance", "fin_stockexchange", "fin_auditoffice", "fin_devbank", "fin_mint", "legal_publicdefender", "legal_immigration", "legal_probation", "legal_juvenile", "leg_parliament", "leg_audit", "leg_electoral", "leg_ombudsman", "leg_council", "exec_firestation", "exec_townhall", "leg_townhall", "exec_govoffice", "exec_ministry", "exec_diplomatic", "exec_border", "jud_courts", "legal_courthouse", "slavery_facilities", "activist_courts", "exec_police", "legal_police", "activist_police", "exec_prison", "legal_prison", "jud_prisons", "activist_prisons",
   "site_ufo_pre1900", "site_subsistence_cultures", "site_self_sufficiency", "slavery_trackers",
   "site_environment_law", "enviro_law_by_country", "site_environment_law_shapes", "gov_official_map",
@@ -7697,21 +7778,34 @@ function addRowTools(box) {
   for (const lead of box.querySelectorAll("label.layer, .group > .layer.parent")) {
     if (lead.closest("[data-removed]") || lead.querySelector(".grip")) continue;
     if (!lead.querySelector("[data-layer], [data-group]")) continue;
-    // A ticked row's boxes underneath it (its sources, kinds, transparency)
-    // fold away and back with this.
-    if (lead.tagName === "LABEL" && !lead.querySelector(".fold")) {
+    // One control on every row, ticked or not: it pulls that row's sublayers
+    // up out of sight and back down. On an ordinary row those are the boxes
+    // underneath it (its sources, kinds, transparency); on a group's parent
+    // row they are the group's children, which the triangle on the left also
+    // shows and hides - both now say the same thing, so the arrow at the end
+    // of the row means the same wherever it is.
+    if (!lead.querySelector(".fold")) {
+      const group = lead.classList.contains("parent");
+      const kids = group ? lead.parentElement.querySelector("[data-kids]") : null;
       const f = document.createElement("button");
       f.type = "button";
       f.className = "fold";
-      f.title = "Hide or show this layer's boxes";
-      f.setAttribute("aria-label", "Hide or show this layer's boxes");
-      f.textContent = "\u25B4";
+      f.title = "Pull this layer's sublayers up or down";
+      f.setAttribute("aria-label", "Pull this layer's sublayers up or down");
+      f.textContent = group && kids && kids.hidden ? "\u25BE" : "\u25B4";
       f.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
-        const folded = !lead.classList.contains("folded");
-        lead.classList.toggle("folded", folded);
-        rowNodes(lead).slice(1).forEach((n) => n.classList.toggle("fold-hide", folded));
+        let folded;
+        if (group && kids) {
+          const id = lead.querySelector("[data-group]").dataset.group;
+          toggleGroup(box, id);
+          folded = kids.hidden;
+        } else {
+          folded = !lead.classList.contains("folded");
+          lead.classList.toggle("folded", folded);
+          rowNodes(lead).slice(1).forEach((n) => n.classList.toggle("fold-hide", folded));
+        }
         f.textContent = folded ? "\u25BE" : "\u25B4";
         f.setAttribute("aria-expanded", String(!folded));
       });
@@ -7898,8 +7992,9 @@ function arrangePanel() {
       ".panel-h5{font-size:10.5px;opacity:.62;padding-left:22px}" +
       "#layers label.layer,#layers .group>.layer.parent{cursor:grab;user-select:none}" +
       "#layers .fold{display:none;margin-left:auto;padding:0 4px;border:0;background:none;color:var(--dim);cursor:pointer;font-size:11px;line-height:1}" +
-      "#layers label.layer:has(> input:checked):has(+ .facet) .fold{display:inline-block}" +
-      "#layers label.layer:has(> input:checked):has(+ .facet) .grip{margin-left:0}" +
+      "#layers label.layer:has(+ .facet) .fold{display:inline-block}" +
+      "#layers .layer.parent .fold{display:inline-block}" +
+      "#layers label.layer:has(+ .facet) .grip{margin-left:0}" +
       "#layers .facet.fold-hide{display:none}" +
       "#layers .grip{margin-left:auto;padding:0 2px 0 6px;color:var(--dim);opacity:.55;cursor:grab;touch-action:none;font-size:13px;line-height:1}" +
       "#layers .dragging{opacity:.45}" +

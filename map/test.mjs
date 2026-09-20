@@ -1689,8 +1689,11 @@ console.log("\nTrase, and coral at world zoom");
   check("steps come from the values themselves", JSON.stringify(br([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])) === "[3,5,7,9]");
   check("the ramps carry no orange or yellow", !/#(F[A-F0-9]{5}|E[6-9A-F][0-9A-F]{2}[0-4][0-9A-F])/i.test(src.slice(src.indexOf("const TRASE_RAMPS"), src.indexOf("const traseCache"))));
   check("wider than zoom 12, coral shows UNEP-WCMC's map in the Atlas colour, with no gap",
-        /id: `\$\{cfg\.id\}-world`, type: "raster", source: `\$\{cfg\.id\}-globe`, maxzoom: cfg\.drawFrom/.test(src) &&
+        /id: `\$\{cfg\.id\}-world`, type: "raster", source: `\$\{cfg\.id\}-globe`, maxzoom: CORAL_WORLD_SHARP/.test(src) &&
+        /id: `\$\{cfg\.id\}-world-near`[\s\S]{0,160}minzoom: CORAL_WORLD_SHARP, maxzoom: cfg\.drawFrom/.test(src) &&
         /tint:\/\/\$\{CORAL_CLASSES\["Coral\/Algae"\]\.slice\(1\)\}\/data-gis\.unep-wcmc\.org/.test(src));
+  check("from the world view the reefs are drawn coarse, so a reef a few hundred metres across can be seen",
+        /wcmc\(96\)/.test(src) && /wcmc\(256\)/.test(src) && /"raster-resampling": "nearest"/.test(src));
   check("…and the row says whose map it is", /UNEP-WCMC's warm-water reefs at this width/.test(src));
   check("the switch reaches the world layer", /`\$\{id\}-world`/.test(src));
 }
@@ -1902,7 +1905,9 @@ console.log("\nSocial Spheres controls; Live Projects to Resist whole; wastewate
   const lab = new Function(src.slice(src.indexOf("function spheresLabels("), src.indexOf("function spheresControls(")) + "; return spheresLabels;")();
   check("the Social Spheres' own kind names are read", lab('const KINDLABEL={assoc:"Association & commission",club:"Club"};').club === "Club");
   check("a person or sector opens through the map's own functions only", /\["openNode", "openPerson", "openSector"\]\.includes\(fn\)/.test(src));
-  check("Live Projects to Resist opens whole, following this map", /id: "live_projects_app"/.test(src) && /map\.setView\(\[\$\{ctr\.lat\}/.test(src));
+  check("Live Projects to Resist is drawn on this map, not opened beside it",
+        !/id: "live_projects_app"/.test(src) && ["love_wire", "love_trackers", "love_guides"].every((i) => new RegExp(`id: "${i}"`).test(src)));
+  check("its project cards are not drawn a second time", (src.match(/id:\s*"local_projects"/g) || []).length === 1);
   check("the wastewater layers read the GitHub copy", (src.match(/tiles\/wastewater_N_[a-z_]+\.pmtiles/g) || []).length === 5 && !/mazu\.nceas\.ucsb\.edu/.test(src));
 }
 
@@ -1939,7 +1944,7 @@ console.log("\noutside pages whole, in the panel");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("every remaining outside page is a row", ["cfr_tracker", "giga_schools", "bocc", "theyrule", "skytruth_voc", "esa_risk", "gsn_rankings"].every((i) => new RegExp(`id: "${i}"`).test(src)));
-  check("only the site's own map follows this one", (src.match(/follow: true/g) || []).length === 1 && /cfg\.follow \?/.test(src));
+  check("no panel follows this map's view any more, and none claims to", (src.match(/follow: true/g) || []).length === 0);
   check("one panel at a time", /One panel at a time/.test(src));
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
   const order = new Function(body + "; return PANEL_ORDER;")();
@@ -2045,6 +2050,40 @@ console.log("\nEPA facilities at every zoom");
   check("the kind buttons also filter the copy", /map\.setFilter\(`\$\{cfg\.id\}-pts`, ptsFilter\(\)\)/.test(src));
 }
 
+console.log("\nthe layers box, as asked for");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const o = new Function(body + "; return { PANEL_ORDER, PANEL_REMOVED };")();
+  const at = (t) => o.PANEL_ORDER.findIndex((x) => x && x.t === t);
+  const between = (id, a, b) => o.PANEL_ORDER.indexOf(id) > at(a) && o.PANEL_ORDER.indexOf(id) < at(b);
+  check("both fishing layers sit under Fishing, under Oceans", at("Oceans") < at("Fishing") &&
+        ["fishing", "slavery_fishing"].every((i) => between(i, "Fishing", "Oil slicks")));
+  check("the reefs sit under Biodiversity loss, with the Global Safety Net at the top of it",
+        between("allen_coral", "Biodiversity loss", "Mining") &&
+        o.PANEL_ORDER[at("Biodiversity loss") + 1] === "gsn");
+  check("Agriculture is Meat and agriculture, holding Agriculture and Meat",
+        at("Meat and agriculture") > 0 && at("Agriculture") > at("Meat and agriculture") &&
+        between("land_matrix", "Agriculture", "Meat") && between("abattoir_facilities", "Meat", "Oceans"));
+  check("the Power BI row is named for what it shows", /id: "powerbi_report", name: "Environmental Crime Tracker"/.test(src));
+  check("every row carries the fold control, ticked or not, groups included",
+        /"#layers label\.layer:has\(\+ \.facet\) \.fold\{display:inline-block\}"/.test(src) &&
+        /"#layers \.layer\.parent \.fold\{display:inline-block\}"/.test(src) &&
+        /const group = lead\.classList\.contains\("parent"\)/.test(src));
+  check("the mines draw only where their own tiles hold something",
+        /minzoom: cfg\.polygonFrom != null \? cfg\.polygonFrom : 7/.test(src) && /maxzoom: cfg\.pointTo != null \? cfg\.pointTo : 9/.test(src));
+}
+
+console.log("\nLive Projects to Resist, drawn here");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const rows = new Function(src.slice(src.indexOf("function recordsAsFeatures("), src.indexOf("async function readGeojsonFiles(")) + "; return recordsAsFeatures;")();
+  const out = rows([{ name: "a", lat: 12, lng: 34 }, { name: "b", lat: "", lng: "" }, { name: "c", latitude: -1, longitude: 2 }]);
+  check("a story with a position becomes a point, keeping its fields", out.length === 2 && out[0].geometry.coordinates[0] === 34 && out[0].properties.name === "a");
+  check("a story with no position is left out rather than placed at 0,0", !out.some((f) => f.properties.name === "b"));
+  check("the three rows sit under Construction, after the projects themselves", /\{ h: 3, t: "Construction" \}, "local_projects", "love_wire", "love_trackers", "love_guides"/.test(src));
+}
+
 console.log("\nBuildings");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
@@ -2054,6 +2093,10 @@ console.log("\nBuildings");
   check("each kind is its own archive, loaded when ticked; an older single archive still reads", /files\[t\]/.test(src) && /const single = !Object\.keys\(files\)\.length/.test(src));
   check("Buildings is held at the foot of the layers box", /sec\.classList\.add\("toc-pinned"\)/.test(src) && /#layers \.toc-pinned\{position:sticky;bottom:14px/.test(src));
   check("the sources-in-progress line is gone", !/more sources in progress/.test(src));
+  check("the archives are read from the buildings repo, off the crowded one",
+        /culprits-buildings\/tiles\/building_types\.json/.test(src) && !/culprits-tiles-more\/tiles\/building_types/.test(src));
+  check("each kind's archive is found beside the summary, so moving them moves both",
+        /const base = cfg\.summaryUrl\.replace\(\/\[\^\/\]\+\$\/, ""\)/.test(src));
   check("the outline map has a sea sheet, so it is a card in the stars", /id: "outline-ocean", type: "fill"/.test(src) && /show\("outline-ocean", !imagery\)/.test(src));
 }
 
@@ -2080,9 +2123,12 @@ console.log("\nthe Satellite basemap as a planetary-defence view; folding a row'
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   check("only the Satellite basemap turns the defence view on", /defenceMode\(kind === "satellite"\);/.test(src));
-  check("threat pulses sit under the real points of ticked Destruction layers only", /t\.textContent\.trim\(\) !== "Destruction"/.test(src) && /l\.type !== "circle"/.test(src) && /map\.addLayer\(spec, lid\)/.test(src));
+  check("threat halos sit under the real points of ticked Destruction layers only", /t\.textContent\.trim\(\) !== "Destruction"/.test(src) && /l\.type !== "circle"/.test(src) && /map\.addLayer\(spec, lid\)/.test(src));
+  check("the view holds still: no scan line, no throbbing halos, no breathing areas",
+        !/defence-scan/.test(index) && !/class="scan"/.test(index) &&
+        !/Math\.sin\(Date\.now\(\)/.test(src) && /setInterval\(defenceTick, 500\)/.test(src));
   check("the threat colour is a red, with no orange, yellow or neon", /threat: "#B8473E"/.test(src));
-  check("the frame takes no clicks and stops moving for reduced motion", /#defence-hud\{position:absolute;inset:0;pointer-events:none/.test(index) && /prefers-reduced-motion: reduce\)\{#defence-hud \.scan/.test(index));
+  check("the frame takes no clicks, and the one thing that moves stops for reduced motion", /#defence-hud\{position:absolute;inset:0;pointer-events:none/.test(index) && /prefers-reduced-motion: reduce\)\{\.defence-ping\{animation:none;display:none\}\}/.test(index));
   check("each ticked row with boxes under it has a fold button", /f\.className = "fold";/.test(src) && /has\(\+ \.facet\) \.fold\{display:inline-block\}/.test(src));
 }
 
@@ -2159,8 +2205,9 @@ console.log("\nACGF removed; oil slicks grouped; the slick archive seen from afa
   const o = new Function(body + "; return { PANEL_ORDER, PANEL_REMOVED };")();
   const at = (t) => o.PANEL_ORDER.findIndex((x) => x && x.t === t);
   check("ACGF is removed", o.PANEL_REMOVED.has("acgf") && !o.PANEL_ORDER.includes("acgf"));
-  check("the three slick layers sit under Oil slicks, Marine oil slicks", at("Oil slicks") < at("Marine oil slicks") &&
-        ["cerulean_slicks", "cerulean_sources", "slick_archive"].every((i) => o.PANEL_ORDER.indexOf(i) > at("Marine oil slicks")) && o.PANEL_ORDER.indexOf("slick_archive") < at("Construction"));
+  check("the slick layers sit under Oil slicks, in Marine slicks and Terrestrial slicks", at("Oil slicks") < at("Marine slicks") &&
+        ["cerulean_slicks", "cerulean_sources", "slick_archive", "skytruth_voc"].every((i) => o.PANEL_ORDER.indexOf(i) > at("Marine slicks") && o.PANEL_ORDER.indexOf(i) < at("Terrestrial slicks")) &&
+        o.PANEL_ORDER.indexOf("skytruth_monitor") > at("Terrestrial slicks") && o.PANEL_ORDER.indexOf("skytruth_monitor") < at("Construction"));
   check("the slick archive draws a point per slick wider out", /id: `\$\{cfg\.id\}-pt`, type: "circle", source: `\$\{src\}-pt`, maxzoom: 7/.test(src));
 }
 
