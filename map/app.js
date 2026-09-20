@@ -3411,7 +3411,12 @@ function columnEdge() {
 // all of it.
 const CARBON_PLUME_ZOOM = 10;     // from here in, the plumes' own pictures
 const CARBON_PLUME_PAGES = 10;    // 1,000 plumes a page
-const CARBON_CLUSTER_TO = 6;      // to here, crowded plumes are merged and counted
+// Merged and counted up to the zoom where each plume starts drawing its own
+// picture. Stopping at 6 left a gap: from a continent or a country the
+// clusters were gone and what replaced them was a scatter of three-pixel
+// dots, so the layer read as empty again between the world view and the
+// street. Now the counted points carry it the whole way.
+const CARBON_CLUSTER_TO = CARBON_PLUME_ZOOM - 1;
 const CARBON_PAGES_AT_ONCE = 3;    // after the first, which is drawn on its own
 const CARBON_PICTURES_AT_ONCE = 40;
 async function addCarbonMapperLayer(cfg) {
@@ -3443,8 +3448,8 @@ async function addCarbonMapperLayer(cfg) {
       "circle-color": ["case", ["==", ["get", "gas"], "CO2"], "#6E6358", cfg.colour],
       "circle-opacity": 0.85,
       "circle-radius": ["interpolate", ["linear"], ["zoom"],
-        1, ["+", 2.6, ["*", 0.8, ["log10", ["max", ["coalesce", ["get", "emission"], 1], 1]]]],
-        9, ["+", 3.4, ["*", 1.4, ["log10", ["max", ["coalesce", ["get", "emission"], 1], 1]]]]],
+        1, ["+", 3, ["*", 0.9, ["log10", ["max", ["coalesce", ["get", "emission"], 1], 1]]]],
+        9, ["+", 3.8, ["*", 1.4, ["log10", ["max", ["coalesce", ["get", "emission"], 1], 1]]]]],
       "circle-stroke-color": "#17150F", "circle-stroke-width": 0.5 } });
   const num = (v, unit) => (v === null || v === undefined || v === "" || !isFinite(Number(v)) ? "" :
     `${Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })}${unit}`);
@@ -3656,6 +3661,7 @@ const NUSANTARA_NAMES = {
   "concessiontimber_spv": "Timber concessions",
   "geotag": "Geotagged photographs",
   "hillshade": "Hillshade relief",
+  "hires": "High-resolution imagery, the southern tip of Bali",
   "merauke_concessionother_sugarcane": "Sugarcane concessions, Merauke",
   "merauke_road_plan": "Planned roads, Merauke",
   "millop_finance_credit": "Palm oil mills, by who lends to them",

@@ -2502,10 +2502,18 @@ console.log("\nplumes show from the world view; the last sources named");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("crowded plumes are merged into one counted point, and split again close in",
         /cluster: true, clusterMaxZoom: CARBON_CLUSTER_TO/.test(src) &&
-        /const CARBON_CLUSTER_TO = 6;/.test(src) &&
+        /const CARBON_CLUSTER_TO = CARBON_PLUME_ZOOM - 1;/.test(src) &&
         /filter: \["has", "point_count"\]/.test(src) &&
         /filter: \["!", \["has", "point_count"\]\]/.test(src));
   check("a merged point says how many are under it", /plumes here<\/b>/.test(src));
+  // The counted points run to the zoom where each plume starts drawing its own
+  // picture, so there is no band between the world view and the street where
+  // the layer reads as empty.
+  check("the counted points carry every zoom up to the pictures",
+        src.indexOf("const CARBON_PLUME_ZOOM") < src.indexOf("const CARBON_CLUSTER_TO") &&
+        /const CARBON_PLUME_ZOOM = 10;/.test(src));
+  check("Nusantara's high-resolution imagery says where it is",
+        /"hires": "High-resolution imagery, the southern tip of Bali"/.test(src));
   check("hiding the row hides the merged points too", /`\$\{id\}-agg`, `\$\{id\}-cl`, `\$\{id\}-pt`/.test(src));
   const sites = new Function(src.slice(src.indexOf("const LAYER_SITE = {"), src.indexOf("function siteLink(")) + "; return LAYER_SITE;")();
   const was = ["fertilizer_facilities", "gpw_map", "seas_of_plastic", "gfw_catalogue", "atlas_hotspots",
