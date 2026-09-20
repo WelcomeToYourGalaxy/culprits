@@ -2033,7 +2033,8 @@ console.log("\nNusantara Atlas and Global Forest Watch, by category");
   check("integrated alerts are Forest Change", categoryOf("Integrated deforestation alerts", G) === "Forest Change");
   check("mangrove extent is Land Cover", categoryOf("Global mangrove extent", G) === "Land Cover");
   check("a layer no rule claims goes under Other, not away", categoryOf("xyz 123", G) === "Other");
-  check("both menus use the category chips", (src.match(/categoryMenu\(menu, /g) || []).length === 2);
+  check("Global Forest Watch uses the category chips", (src.match(/categoryMenu\(menu, /g) || []).length === 1);
+  check("Nusantara lists every layer under its category, indented, any number ticked", /menu\.className = "facet ns-list"/.test(src) && /class="ns-row"/.test(src) && /#layers \.ns-row\{/.test(src));
 }
 
 console.log("\nEPA facilities at every zoom");
