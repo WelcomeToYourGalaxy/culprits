@@ -3575,9 +3575,9 @@ async function addCarbonMapperLayer(cfg) {
 // named here keeps the title the server gives it rather than being guessed at,
 // which is why a handful are still their own ids.
 const NUSANTARA_NAMES = {
-  "AlertDFCOMBINERGB": "Deforestation alerts, every system combined",
-  "AlertGLADRGB": "GLAD deforestation alerts",
-  "AlertRADDRGB": "RADD radar deforestation alerts",
+  "AlertDFCOMBINERGB": "Trees cut, Indonesia and Malaysia \u2014 every alert system at once, as Nusantara reads them",
+  "AlertGLADRGB": "Trees cut, seen by optical satellite (GLAD), as Nusantara reads it",
+  "AlertRADDRGB": "Trees cut, seen through cloud by radar (RADD), as Nusantara reads it",
   "BALI_19650531": "Bali from the air, 31 May 1965",
   "BALI_19650531_Composite1": "Bali from the air, 31 May 1965 (composite)",
   "ECJRCV2": "Forest cover (EC JRC v2)",
@@ -3707,7 +3707,7 @@ const NUSANTARA_NAMES = {
   "spatialplanrtrwn_spv": "National spatial plan (RTRWN)",
   "spatialplanrtrwp_papua_spv": "Provincial spatial plan, Papua (RTRWP)",
   "spatialplanrtrwp_papuawest_spv": "Provincial spatial plan, West Papua (RTRWP)",
-  "v3p2_AlertDFCOMBINERGB": "Deforestation alerts, every system combined (v3p2 copy)",
+  "v3p2_AlertDFCOMBINERGB": "Trees cut, Indonesia and Malaysia \u2014 every alert system at once (v3p2 copy)",
   "v3p2_GLADRGB": "GLAD deforestation alerts (v3p2 copy)",
   "v3p2_RADDRGB": "RADD radar deforestation alerts (v3p2 copy)",
   "v3p2_alertfire_combine": "Fire alerts, MODIS and VIIRS together (v3p2 copy)",
@@ -5385,8 +5385,10 @@ function moveZoomButtons() {
   // rather than floating over it, it covers nothing either.
   const wrap = document.getElementById("reload-wrap");
   const under = document.querySelector(".right-col");
-  if (under && wrap && under.appendChild && wrap.parentNode !== under) {
-    under.appendChild(wrap);
+  if (under && wrap && under.insertBefore && wrap.parentNode !== under) {
+    // Above the View box rather than under it, with a gap, so the two read as
+    // two boxes and neither sits over the other.
+    under.insertBefore(wrap, under.firstChild);
     if (wrap.classList) wrap.classList.remove("reload-early");
   }
   // The compass goes under the 3D terrain tick box, beside the notes on how
@@ -7588,7 +7590,7 @@ const FOREST_ALERTS = {
   group: true,
   ready: true,
   children: [
-    { id:"gfw",                  name:"Deforestation alerts in the tropics \u2014 GLAD-L, GLAD-S2 and RADD, last 30 days", unit:"alerts", colour:"#8A4F46", route:"tile", ready:true, off: true, lazy:true,
+    { id:"gfw",                  name:"Trees cut, tropics only \u2014 seen by radar and optical satellites, last 30 days (GLAD-L, GLAD-S2, RADD)", unit:"alerts", colour:"#8A4F46", route:"tile", ready:true, off: true, lazy:true,
       bounds: [-180, -30, 180, 30],
       // Cut at 30° to the pixel, not just to the tile. See clipTileRows.
       clipToBounds: true,
@@ -7599,13 +7601,13 @@ const FOREST_ALERTS = {
       recolor: "#8A4F46",
       note: "Pan-tropical only. GLAD and RADD do not cover boreal or temperate forest — use the global layers for those.",
       attribution: '<a href="https://www.globalforestwatch.org" target="_blank" rel="noopener">Global Forest Watch</a>' },
-    { id:"gfw_dist",             name:"Vegetation disturbance worldwide \u2014 DIST-ALERT (UMD and NASA), last 30 days", unit:"alerts", colour:"#7A5B4E", route:"tile", ready:true, off: true, lazy:true,
+    { id:"gfw_dist",             name:"Any loss of plant cover, worldwide \u2014 cutting, fire, drought or harvest alike, last 30 days (DIST-ALERT)", unit:"alerts", colour:"#7A5B4E", route:"tile", ready:true, off: true, lazy:true,
       bounds: [-180, -30, 180, 30],
       tilePath: "gfw_tile", tileMaxZoom: 22, tileQuery: "kind=dist&days=30", off: true,
       recolor: "#7A5B4E",
       note: "Global coverage, including boreal and temperate forest. Detects vegetation disturbance generally, so it catches fire and harvest as well as clearing.",
       attribution: '<a href="https://www.globalforestwatch.org" target="_blank" rel="noopener">Global Forest Watch</a>' },
-    { id:"gfw_dist_year",        name:"Vegetation disturbance worldwide \u2014 DIST-ALERT, past year", unit:"alerts", colour:"#6E5E57", route:"tile", ready:true, off: true, lazy:true,
+    { id:"gfw_dist_year",        name:"Any loss of plant cover, worldwide \u2014 the same, gathered over a year (DIST-ALERT)", unit:"alerts", colour:"#6E5E57", route:"tile", ready:true, off: true, lazy:true,
       bounds: [-180, -30, 180, 30],
       tilePath: "gfw_tile", tileMaxZoom: 22, tileQuery: "kind=dist&days=365", off: true,
       recolor: "#6E5E57",
@@ -7649,17 +7651,17 @@ const TRASE_DATA = {
         file: "id_wood_mills_facilities_v2026_02_10.geo.json",
         attribution: "Trase (CC BY 4.0)",
         note: "Trase's Indonesian wood pulp mills. Read live from Trase's own files each time the row is ticked (CC BY 4.0)." },
-      { id: "trase_pulp_concessions_2015", name: "Wood pulp concessions 2015\u20132019, Indonesia (Trase)", unit: "concessions", colour: "#6F7560", route: "trasefac", ready: true, lazy: true,
+      { id: "trase_pulp_concessions_2015", name: "2015\u20132019", unit: "concessions", colour: "#6F7560", route: "trasefac", ready: true, lazy: true,
         manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json", facilityType: "indonesia-wood-pulp-concessions-2015-2019",
         file: "indonesia_wood_pulp_concessions_2015_2019_v2026_02_20.geo.json",
         attribution: "Trase (CC BY 4.0)",
         note: "The areas Trase records as wood pulp concessions over 2015\u20132019, drawn as areas. Read live from Trase's own files each time the row is ticked (CC BY 4.0)." },
-      { id: "trase_pulp_concessions_2020", name: "Wood pulp concessions 2020\u20132022, Indonesia (Trase)", unit: "concessions", colour: "#5E6A63", route: "trasefac", ready: true, lazy: true,
+      { id: "trase_pulp_concessions_2020", name: "2020\u20132022", unit: "concessions", colour: "#5E6A63", route: "trasefac", ready: true, lazy: true,
         manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json", facilityType: "indonesia-wood-pulp-concessions-2020-2022",
         file: "indonesia_wood_pulp_concessions_2020_2022_v2026_02_20.geo.json",
         attribution: "Trase (CC BY 4.0)",
         note: "The areas Trase records as wood pulp concessions over 2020\u20132022, drawn as areas. Read live from Trase's own files each time the row is ticked (CC BY 4.0)." },
-      { id: "trase_pulp_concessions_2023", name: "Wood pulp concessions 2023\u20132024, Indonesia (Trase)", unit: "concessions", colour: "#59665C", route: "trasefac", ready: true, lazy: true,
+      { id: "trase_pulp_concessions_2023", name: "2023\u20132024", unit: "concessions", colour: "#59665C", route: "trasefac", ready: true, lazy: true,
         manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json", facilityType: "indonesia-wood-pulp-concessions-2023-2024",
         file: "indonesia_wood_pulp_concessions_2023_2024_v2026_02_20.geo.json",
         attribution: "Trase (CC BY 4.0)",
@@ -8572,7 +8574,9 @@ const PANEL_ORDER = [
   { h: 3, t: "Fire" },
   { h: 3, t: "Forest and land cover" },
   { h: 3, t: "Deforestation" }, "soilgrids", "trase_measures", "trase_pulp_indonesia",
-    "trase_pulp_concessions_2015", "trase_pulp_concessions_2020", "trase_pulp_concessions_2023", "nusantara",
+    "nusantara",
+  { h: 4, t: "Wood pulp concessions, Indonesia (Trase)" },
+    "trase_pulp_concessions_2015", "trase_pulp_concessions_2020", "trase_pulp_concessions_2023",
   { h: 4, t: "Global Forest Watch" }, "glad_loss", "group:forest_alerts", "gfw_catalogue",
   { h: 3, t: "Biodiversity loss" }, "gsn", "gsn_rankings", "allen_coral", "atlas_hotspots", "atlas_cities", "pe_subsidising", "powerbi_report",
   { h: 3, t: "Land held under permit" },

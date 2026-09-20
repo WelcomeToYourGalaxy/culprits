@@ -1741,7 +1741,7 @@ console.log("\ncolumns close in, a reload button, mines");
   const html2 = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   check("a reload button is in the page from the start, with its own handler and its words beside it",
         /id="reload-map"[\s\S]{0,200}onclick="[^"]*location\.reload\(\)"/.test(html2) && /class="reload-cap">Stuck\? Reload here, or press \u2318R \(Ctrl-R\)</.test(html2));
-  check("…and moves under the view choices once they exist", /under\.appendChild\(wrap\)/.test(src));
+  check("…and moves into the right column, above the View box", /under\.insertBefore\(wrap, under\.firstChild\)/.test(src));
   check("…keeping the view as the map moves", /window\.__culpritsView = /.test(src));
   check("…and comes back to the same view", /sessionStorage\.getItem\("culprits-view"\)/.test(src));
   check("mines worldwide is a row, drawn from the tiles repo", /id: "mines_global"[^\n]*route: "pmshapes"/.test(src) &&
@@ -2235,9 +2235,9 @@ console.log("\nrows gathered, moved and renamed");
          ["trase_cocoa_ivory", String.raw`Cocoa cooperatives, C\u00f4te d'Ivoire (Trase)`],
          ["trase_palm_indonesia", String.raw`Palm oil mills, Indonesia (Trase)`],
          ["trase_pulp_indonesia", String.raw`Wood pulp mills, Indonesia (Trase)`],
-         ["trase_pulp_concessions_2015", String.raw`Wood pulp concessions 2015\u20132019, Indonesia (Trase)`],
-         ["trase_pulp_concessions_2020", String.raw`Wood pulp concessions 2020\u20132022, Indonesia (Trase)`],
-         ["trase_pulp_concessions_2023", String.raw`Wood pulp concessions 2023\u20132024, Indonesia (Trase)`]]
+         ["trase_pulp_concessions_2015", String.raw`2015\u20132019`],
+         ["trase_pulp_concessions_2020", String.raw`2020\u20132022`],
+         ["trase_pulp_concessions_2023", String.raw`2023\u20132024`]]
           .every(([i, n]) => src.includes(`id: "${i}", name: "${n}"`)) &&
         !/name: "Trase: /.test(src) && !/trasefacmenu/.test(src));
   check("each Trase row sits under the map's own heading, not a Trase one",
@@ -2493,8 +2493,8 @@ console.log("\nthe reload row is not clipped, and covers nothing");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
-  check("it moves into the right column, not inside the box that scrolls",
-        /const under = document\.querySelector\("\.right-col"\);/.test(src) && /under\.appendChild\(wrap\)/.test(src));
+  check("it moves into the right column, above the View box",
+        /const under = document\.querySelector\("\.right-col"\);/.test(src) && /under\.insertBefore\(wrap, under\.firstChild\)/.test(src));
   check("it keeps its height while the settings box scrolls in what is left",
         /\.right-col > \.reload-wrap\{flex:0 0 auto;[^}]*overflow:visible\}/.test(index) &&
         /\.right-col > #basemaps\{flex:0 1 auto;min-height:0\}/.test(index));
@@ -2627,6 +2627,27 @@ console.log("\nthe Global Forest Watch catalogue, as rows");
         /publishes no map tiles for this dataset \(download only\)/.test(body));
   check("its rows are filed by the same rules as Nusantara's",
         /catalogueRows\(cfg, rows\);/.test(body) && /CATALOGUE_ITEMS\.set\(r\.key, r\)/.test(body));
+}
+
+console.log("\nrows that show nearly the same thing say how they differ");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the tropical alerts say they are trees cut, and only the tropics",
+        /name:"Trees cut, tropics only \\u2014 seen by radar and optical satellites, last 30 days \(GLAD-L, GLAD-S2, RADD\)"/.test(src));
+  check("DIST-ALERT says it is any loss of plant cover, worldwide",
+        /name:"Any loss of plant cover, worldwide \\u2014 cutting, fire, drought or harvest alike, last 30 days \(DIST-ALERT\)"/.test(src) &&
+        /name:"Any loss of plant cover, worldwide \\u2014 the same, gathered over a year \(DIST-ALERT\)"/.test(src));
+  check("Nusantara's alert layers say which satellite saw it, and where",
+        /"Trees cut, seen by optical satellite \(GLAD\), as Nusantara reads it"/.test(src) &&
+        /"Trees cut, seen through cloud by radar \(RADD\), as Nusantara reads it"/.test(src) &&
+        /"Trees cut, Indonesia and Malaysia \\u2014 every alert system at once, as Nusantara reads them"/.test(src));
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("const PANEL_REMOVED"));
+  const order = new Function(body + "; return PANEL_ORDER;")();
+  const at = (t) => order.findIndex((x) => x && x.t === t);
+  check("the three pulp-concession periods sit under one heading of their own",
+        at("Wood pulp concessions, Indonesia (Trase)") > -1 &&
+        ["trase_pulp_concessions_2015", "trase_pulp_concessions_2020", "trase_pulp_concessions_2023"]
+          .every((i) => order.indexOf(i) > at("Wood pulp concessions, Indonesia (Trase)")));
 }
 
 console.log("\nGlobal Safety Net fixes; My Maps titles");
