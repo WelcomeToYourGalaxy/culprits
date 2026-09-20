@@ -2345,7 +2345,7 @@ console.log("\nOff-planet sections, Of groups, names, launch links, drag bar, ma
         at("To Earth") < at("Near-Earth object impacts") && at("Unidentified aerial phenomena") < at("From Earth") &&
         at("From Earth") < at("The space industry") && at("Space launches") < at("Protecting extraterrestrial life"));
   check("Fur Farms (Final Nail) is under Destruction, Of groups, Of animals", order.indexOf("final_nail") === at("Of animals") + 1 && at("Of animals") > at("Of groups") && /name: "Fur Farms \(Final Nail\)"/.test(src));
-  check("Pet Food Companies is under The pet industry", order.indexOf("mymaps_supp_a") === at("The pet industry") + 1 && /name: "Pet Food Companies"/.test(src));
+  check("Pet Food Companies is under The pet industry", order.indexOf("mymaps_supp_a") === at("The pet industry") + 1 && /name: "Pet Food Companies \(Google My Maps\)"/.test(src));
   check("each upcoming launch links to its own pages", /spacelaunchnow\.me\/launch\//.test(src) && /r\.info_urls/.test(src) && /ll2Links\(r\)/.test(src));
   check("page panels have a drag bar", /class="c-grab"/.test(src) && /ns-resize/.test(src));
   check("every point layer gets a geometric marker; the round one stays for clicks", /function addHud\(/.test(src) && /paint\(layer\.id, "circle-opacity", 0\)/.test(src));
@@ -2495,6 +2495,31 @@ console.log("\nthe reload row is not clipped, and covers nothing");
         /\.right-col > #basemaps\{flex:0 1 auto;min-height:0\}/.test(index));
   check("in the column's flow, so it sits over nothing", !/\.view-choices \.reload-wrap/.test(index));
   check("its words are given the room to wrap", /\.reload-cap\{line-height:1\.2;max-width:none/.test(index));
+}
+
+console.log("\nplumes show from the world view; the last sources named");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("crowded plumes are merged into one counted point, and split again close in",
+        /cluster: true, clusterMaxZoom: CARBON_CLUSTER_TO/.test(src) &&
+        /const CARBON_CLUSTER_TO = 6;/.test(src) &&
+        /filter: \["has", "point_count"\]/.test(src) &&
+        /filter: \["!", \["has", "point_count"\]\]/.test(src));
+  check("a merged point says how many are under it", /plumes here<\/b>/.test(src));
+  check("hiding the row hides the merged points too", /`\$\{id\}-agg`, `\$\{id\}-cl`, `\$\{id\}-pt`/.test(src));
+  const sites = new Function(src.slice(src.indexOf("const LAYER_SITE = {"), src.indexOf("function siteLink(")) + "; return LAYER_SITE;")();
+  const was = ["fertilizer_facilities", "gpw_map", "seas_of_plastic", "gfw_catalogue", "atlas_hotspots",
+               "atlas_cities", "pe_subsidising", "powerbi_report", "skytruth_monitor", "skytruth_voc",
+               "soy_organizations", "dff", "theyrule", "pe_bankrolling", "tableau_zsf", "troutwood",
+               "gta_acts", "giga_countries", "capture_map", "mymaps_supp_a", "esa_risk", "biosignature",
+               "building_types"];
+  check("every one of the twenty-three carries a site", was.every((i) => /^https:\/\//.test(sites[i] || "")));
+  check("each points at the people who published it, not at this map's copy",
+        was.every((i) => !/welcometoyourgalaxy\.github\.io/.test(sites[i])));
+  check("the titles that said nothing about their source now say it",
+        /name:"Fertilizer plants \(Welcome to Your Galaxy\)"/.test(src) &&
+        /name:"Soy industry bodies \(Welcome to Your Galaxy\)"/.test(src) &&
+        /name: "Biosignature Evidence Assessment \(Welcome to Your Galaxy\)"/.test(src));
 }
 
 console.log("\nGlobal Safety Net fixes; My Maps titles");
