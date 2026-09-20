@@ -2033,5 +2033,13 @@ console.log("\nNusantara Atlas and Global Forest Watch, by category");
   check("both menus use the category chips", (src.match(/categoryMenu\(menu, /g) || []).length === 2);
 }
 
+console.log("\nEPA facilities at every zoom");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("wider out, the EPA row draws the weekly copy of every point", /epa_efpoints\.pmtiles/.test(src) && /id: `\$\{cfg\.id\}-pts`, type: "circle"/.test(src) && /maxzoom: cfg\.minzoom \|\| 22/.test(src));
+  check("a point's full record is asked of EPA on click", /\/query\?objectIds=\$\{encodeURIComponent\(p\._oid\)\}&outFields=\*/.test(src));
+  check("the kind buttons also filter the copy", /map\.setFilter\(`\$\{cfg\.id\}-pts`, ptsFilter\(\)\)/.test(src));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

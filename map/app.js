@@ -3676,8 +3676,45 @@ async function addArcgisDynLayer(cfg) {
       b.classList.toggle("on", on.has(id));
       const s = map.getSource(src);
       if (s && s.setTiles) s.setTiles(tilesFor());
+      if (map.getLayer(`${cfg.id}-pts`)) map.setFilter(`${cfg.id}-pts`, ptsFilter());
     });
     anchor.after(el);
+  }
+  // Wider out than EPA draws: the weekly copy of every point. A merged point
+  // stands for points of several kinds, so the kind buttons leave it shown.
+  function ptsFilter() {
+    return ["any", [">", ["coalesce", ["get", "point_count"], 1], 1], ["in", ["get", "_lid"], ["literal", [...on]]]];
+  }
+  if (cfg.points) {
+    try {
+      map.addSource(`${cfg.id}-pts-src`, { type: "vector", url: `pmtiles://${cfg.points}`, attribution: cfg.attribution || "" });
+      const n = ["coalesce", ["get", "point_count"], 1];
+      map.addLayer({ id: `${cfg.id}-pts`, type: "circle", source: `${cfg.id}-pts-src`, "source-layer": "efpoints",
+        maxzoom: cfg.minzoom || 22, filter: ptsFilter(),
+        paint: { "circle-color": cfg.colour, "circle-opacity": 0.8,
+                 "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, ["+", 1.4, ["*", 0.8, ["log10", n]]], 6, ["+", 2.6, ["*", 1, ["log10", n]]]] } },
+        `${cfg.id}-raster`);
+      map.on("click", `${cfg.id}-pts`, async (e) => {
+        const f = e.features && e.features[0];
+        if (!f) return;
+        const p = f.properties;
+        const pop = new maplibregl.Popup({ maxWidth: "340px" }).setLngLat(e.lngLat);
+        if (Number(p.point_count) > 1) {
+          pop.setHTML(`<b>${Number(p.point_count).toLocaleString()} EPA facilities here</b><div class="meta">Merged at this zoom. Zoom in to see each one.</div>`).addTo(map);
+          return;
+        }
+        pop.setHTML(`<b>${escapeHtml(p.name || "")}</b><div class="meta">${escapeHtml(p._layer || "")} \u00b7 asking EPA\u2026</div>`).addTo(map);
+        try {
+          const j = await getJson(`${cfg.service}/${p._lid}/query?objectIds=${encodeURIComponent(p._oid)}&outFields=*&returnGeometry=false&f=json`, 20000);
+          const at = ((j.features || [])[0] || {}).attributes || {};
+          pop.setHTML(`<b>${escapeHtml(p.name || "")}</b><div class="meta">${escapeHtml(p._layer || "")}</div>` +
+            `<table class="meta">${fieldRows(Object.fromEntries(Object.entries(at).filter(([k, v]) => v !== "Null" && v != null && !/^(OBJECTID|Shape)$/i.test(k))))}</table>` +
+            `<div class="meta">US EPA Envirofacts</div>`);
+        } catch (err) {
+          pop.setHTML(`<b>${escapeHtml(p.name || "")}</b><div class="meta">${escapeHtml(p._layer || "")} \u00b7 EPA did not answer (${escapeHtml(err.message)})</div>`);
+        }
+      });
+    } catch (e) { console.warn("[culprits] EPA points:", e.message); }
   }
   map.on("click", async (e) => {
     if ((visibility.get(cfg.id) || "visible") !== "visible" || !map.getLayer(`${cfg.id}-raster`) || map.getZoom() < (cfg.minzoom || 0) || !on.size) return;
@@ -3695,7 +3732,7 @@ async function addArcgisDynLayer(cfg) {
         `<div class="meta">US EPA Envirofacts</div>`).addTo(map);
     } catch (err) { /* nothing there */ }
   });
-  setLayerState(cfg.id, `${layers.length} kinds of facility \u00b7 drawn from about state level in`);
+  setLayerState(cfg.id, `${layers.length} kinds of facility \u00b7 ${cfg.points ? "a weekly copy of every point wider out; EPA's own picture from about state level in" : "drawn from about state level in"}`);
   applyVisibility(cfg.id);
   buildLegend();
 }
@@ -6146,8 +6183,12 @@ const OTHER_MAPS = {
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
     { id: "epa_widget", name: "EPA Envirofacts facilities (the multisystem widget)", unit: "facilities", colour: "#6A6258", route: "arcgisdyn", ready: true, lazy: true,
       service: "https://geopub.epa.gov/arcgis/rest/services/EMEF/efpoints/MapServer", minzoom: 6.5,
+      // EPA's service draws nothing wider than about state level, so wider out
+      // the row draws a weekly copy of every point (scripts/epa_efpoints.py in
+      // culprits-tiles-more); each point's full record is fetched from EPA on click.
+      points: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/epa_efpoints.pmtiles",
       attribution: "US EPA Envirofacts",
-      note: "The facility points behind EPA's Envirofacts multisystem widget, drawn live from EPA's EnviroMapper service; EPA draws them from about state level in." },
+      note: "The facility points behind EPA's Envirofacts multisystem widget, drawn live from EPA's EnviroMapper service; EPA draws them from about state level in; wider out, a weekly copy of every point is drawn, merged into counted points where they crowd." },
     { id: "eip_inventory", name: "Environmental Integrity Project: state emissions inventory", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://environmentalintegrity.org/state-emissions-inventory/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
