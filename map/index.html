@@ -280,10 +280,21 @@
   .to-globe:hover{border-color:var(--bone)}
 
   /* The grip each box is pulled by. */
-  .pull-grip{flex:none;height:9px;cursor:ns-resize;position:relative;touch-action:none}
-  .pull-grip::before{content:"";position:absolute;left:50%;top:50%;width:34px;height:2px;margin:-1px 0 0 -17px;
-    border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
-  .pull-grip:hover::before{border-color:var(--dim)}
+  /* The handle that pulls a box open or shut. It was a hairline nobody
+     found: now a bar with a lip above and below it, brighter on hover. */
+  .pull-grip{flex:none;height:16px;cursor:ns-resize;position:relative;touch-action:none}
+  .pull-grip::before{content:"";position:absolute;left:50%;top:50%;width:46px;height:4px;margin:-2px 0 0 -23px;
+    border-radius:2px;background:var(--dim);opacity:.7}
+  .pull-grip::after{content:"";position:absolute;left:50%;top:50%;width:70px;height:12px;margin:-6px 0 0 -35px;
+    border-radius:3px;border:1px solid var(--rule)}
+  .pull-grip:hover::before{background:var(--bone);opacity:1}
+  .pull-grip:hover::after{border-color:var(--dim)}
+  /* Pulled right down, a box stops scrolling what it is hiding, so no
+     scrollbar is left standing down the side of an empty box. */
+  .pulled-shut{overflow:hidden !important}
+  /* Live rows say so, beside the title. */
+  #layers .nm .live{margin-left:5px;padding:0 3px;border:1px solid var(--rule);border-radius:2px;
+    color:var(--dim);font-size:8.5px;letter-spacing:.08em;vertical-align:1px}
   .panel,#legend{overflow:auto}
   /* The grip stays on the box's edge while its contents scroll under it. */
   .panel .pull-grip{position:sticky;bottom:0;margin-top:8px;background:rgba(31,28,21,.94)}

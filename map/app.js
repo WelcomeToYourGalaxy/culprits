@@ -4975,10 +4975,16 @@ function makePullable(el, edge) {
 
   let from = 0, height = 0;
   const ceiling = () => Math.max(PULL_MIN + 20, (typeof window !== "undefined" ? window.innerHeight : 800) - 60);
+  // Pulled right down, a box is a title bar and nothing else - but it still
+  // scrolls what it is hiding, so the scrollbar stayed down the side of a box
+  // with nothing in it. At the minimum the box stops scrolling.
+  const settle = (h) => { if (el.classList) el.classList.toggle("pulled-shut", h <= PULL_MIN + 4); };
   const move = (e) => {
     const y = e.clientY != null ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : from);
     el.style.maxHeight = "none";
-    el.style.height = pullHeight(height, y - from, edge, PULL_MIN, ceiling()) + "px";
+    const h = pullHeight(height, y - from, edge, PULL_MIN, ceiling());
+    el.style.height = h + "px";
+    settle(h);
   };
   const stop = () => {
     document.removeEventListener("pointermove", move);
@@ -4991,7 +4997,7 @@ function makePullable(el, edge) {
     document.addEventListener("pointermove", move);
     document.addEventListener("pointerup", stop);
   });
-  grip.addEventListener("dblclick", () => { el.style.height = ""; el.style.maxHeight = ""; });
+  grip.addEventListener("dblclick", () => { el.style.height = ""; el.style.maxHeight = ""; settle(999); });
 }
 
 // The news wires box is built by wire.js, which runs after this file.
@@ -6876,7 +6882,7 @@ function groupRows(group) {
     row.innerHTML =
       `<input type="checkbox" data-layer="${child.id}">` +
       `<span class="swatch" style="background:${child.colour}"></span>` +
-      `<span class="body"><span class="nm">${child.name}${siteLink(child.id)}</span>` +
+      `<span class="body"><span class="nm">${child.name}${liveMark(child)}${siteLink(child.id)}</span>` +
       `<span class="un" data-state="${child.id}">not loaded</span></span>`;
     kids.appendChild(row);
   });
@@ -7913,7 +7919,7 @@ function buildPanel() {
       // cannot take the map down with it.
       `<input type="checkbox"${cfg.off ? "" : " checked"} data-layer="${cfg.id}">` +
       `<span class="swatch" style="background:${cfg.colour}"></span>` +
-      `<span class="body"><span class="nm">${cfg.name}${siteLink(cfg.id)}</span>` +
+      `<span class="body"><span class="nm">${cfg.name}${liveMark(cfg)}${siteLink(cfg.id)}</span>` +
       `<span class="un" data-state="${cfg.id}">${cfg.unit}</span></span>`;
     box.appendChild(row);
     if (cfg.facet) box.appendChild(facetRow(cfg));
@@ -8396,6 +8402,22 @@ function siteLink(id) {
     `title="Open ${escapeHtml(host)}" aria-label="Open ${escapeHtml(host)}, the source of this layer">\u2197</a>`;
 }
 
+// Which rows read their source as you look at them, rather than a copy kept
+// here. A reader cannot tell by looking, and the difference matters: a live row
+// shows what the source says right now and goes dark when the source does; a
+// copy is as old as its last build. Archives, sitemaps, shapes and country
+// shadings are copies and carry no mark.
+const LIVE_ROUTES = new Set([
+  "worker", "tile", "wmts", "rasterlive", "cerulean", "coral", "carbonmapper",
+  "arcgis", "arcgisdyn", "arcgisapp", "umap", "kml", "ll2", "ejatlas", "geojsonlive",
+  "wpgmza", "atlascities", "trase", "trasefac", "wmsmenu", "gfwmenu", "giga", "gta",
+  "rte", "owidgrapher", "spheres", "companion",
+]);
+function liveMark(cfg) {
+  if (!cfg || !LIVE_ROUTES.has(cfg.route)) return "";
+  return `<span class="live" title="Read from the source itself when this row is ticked, not from a copy kept here">LIVE</span>`;
+}
+
 /* ---------- the layers box, in the order and under the headings chosen ---------- */
 // Strings are layer ids; "group:" a whole group; "gm" the guerillamap row.
 // { h: level, t: text } is a heading. Anything not named here goes under
@@ -8445,7 +8467,11 @@ const PANEL_ORDER = [
   { h: 3, t: "Of plants" },
   { h: 3, t: "Of microorganisms" },
   { h: 3, t: "Of the \u201cinsentient\u201d" },
-  { h: 2, t: "Of individuals" }, "site_animal_sacrifice",
+  { h: 2, t: "Of individuals" },
+  { h: 3, t: "Of humans" },
+  { h: 3, t: "Of animals" }, "site_animal_sacrifice",
+  { h: 3, t: "Of plants" },
+  { h: 3, t: "Of microscopics" },
 
   { h: 1, t: "Suppression" },
   { h: 2, t: "Of humans" },

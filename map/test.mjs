@@ -2458,8 +2458,8 @@ console.log("\neach row links the site it is read from");
         /github\.com\/WelcomeToYourGalaxy\/anti-slavery-map/.test(sites.slavery_ports || ""));
   check("Trase's rows point at Trase", /trase\.earth/.test(sites.trase_palm_indonesia || ""));
   check("the link is drawn beside the title, on a row and on a group's child",
-        /<span class="nm">\$\{cfg\.name\}\$\{siteLink\(cfg\.id\)\}<\/span>/.test(src) &&
-        /<span class="nm">\$\{child\.name\}\$\{siteLink\(child\.id\)\}<\/span>/.test(src));
+        /<span class="nm">\$\{cfg\.name\}\$\{liveMark\(cfg\)\}\$\{siteLink\(cfg\.id\)\}<\/span>/.test(src) &&
+        /<span class="nm">\$\{child\.name\}\$\{liveMark\(child\)\}\$\{siteLink\(child\.id\)\}<\/span>/.test(src));
   check("a row with no site shows no link rather than a guessed one",
         /const u = LAYER_SITE\[id\];\n  if \(!u\) return "";/.test(src) && /#layers \.nm \.src\{/.test(index));
   check("titles that named no source say so now",
@@ -2528,6 +2528,28 @@ console.log("\nplumes show from the world view; the last sources named");
         /name:"Fertilizer plants \(Welcome to Your Galaxy\)"/.test(src) &&
         /name:"Soy industry bodies \(Welcome to Your Galaxy\)"/.test(src) &&
         /name: "Biosignature Evidence Assessment \(Welcome to Your Galaxy\)"/.test(src));
+}
+
+console.log("\nlive rows say so; the grips read as handles; a shut box stops scrolling");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const live = new Function(src.slice(src.indexOf("const LIVE_ROUTES = new Set(["), src.indexOf("function liveMark(")) + "; return LIVE_ROUTES;")();
+  check("the routes that read their source as you look are marked live",
+        ["worker", "cerulean", "coral", "carbonmapper", "wmsmenu", "gfwmenu", "trase", "ll2"].every((r) => live.has(r)));
+  check("copies carry no mark", !live.has("pmtiles") && !live.has("sitemap") && !live.has("shapes") && !live.has("country"));
+  check("the mark says what it means, and is drawn beside the title",
+        /not from a copy kept here/.test(src) && /#layers \.nm \.live\{/.test(index));
+  check("a box pulled right down stops scrolling", /classList\.toggle\("pulled-shut", h <= PULL_MIN \+ 4\)/.test(src) &&
+        /\.pulled-shut\{overflow:hidden !important\}/.test(index));
+  check("the pull handle is a bar in a lip, not a hairline",
+        /\.pull-grip\{flex:none;height:16px/.test(index) && /\.pull-grip::after\{/.test(index) &&
+        /\.pull-grip:hover::before\{background:var\(--bone\)/.test(index));
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("const PANEL_REMOVED"));
+  const order = new Function(body + "; return PANEL_ORDER;")();
+  const at = (t) => order.findIndex((x) => x && x.t === t);
+  const kinds = order.map((x, i) => (x && x.h === 3 && ["Of humans", "Of animals", "Of plants", "Of microscopics"].includes(x.t) ? i : -1)).filter((i) => i > at("Of individuals"));
+  check("Of individuals holds the same kinds as Of groups", kinds.length === 4);
 }
 
 console.log("\nGlobal Safety Net fixes; My Maps titles");
