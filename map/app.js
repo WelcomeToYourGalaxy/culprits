@@ -266,7 +266,7 @@ const LAYERS = [
   // never ambiguous which one a dot came from.
   //
   // ready:false until map/tiles/epa_tri_sites.pmtiles exists.
-  { id:"epa_tri_sites",        name:"US toxic release sites", unit:"TRI facilities", colour:"#5C6E77", route:"pmtiles", ready:true, off: true,
+  { id:"epa_tri_sites",        name:"Factories reporting toxic chemical releases, US (EPA Toxics Release Inventory)", unit:"TRI facilities", colour:"#5C6E77", route:"pmtiles", ready:true, off: true,
     // One row: the whole copy at every zoom, and EPA's live answer drawn over it
     // once the view is small enough for EPA to send it.
     linked: ["epa_tri"],
@@ -296,7 +296,7 @@ const LAYERS = [
   // They are kept separate rather than merged because they detect different
   // things by different instruments, and a reader who sees an alert should be
   // able to tell which one saw it.
-  { id:"gfw",                  name:"Deforestation alerts — tropics",  unit:"GLAD + RADD, last 30 days", colour:"#8A4F46", route:"tile", ready:true, off: true,
+  { id:"gfw",                  name:"Deforestation alerts in the tropics \u2014 GLAD-L, GLAD-S2 and RADD, last 30 days", unit:"alerts", colour:"#8A4F46", route:"tile", ready:true, off: true,
     bounds: [-180, -30, 180, 30],
     // Cut at 30° to the pixel, not just to the tile. See clipTileRows.
     clipToBounds: true,
@@ -307,13 +307,13 @@ const LAYERS = [
     recolor: "#8A4F46",
     note: "Pan-tropical only. GLAD and RADD do not cover boreal or temperate forest — use the global layers for those.",
     attribution: '<a href="https://www.globalforestwatch.org" target="_blank" rel="noopener">Global Forest Watch</a>' },
-  { id:"gfw_dist",             name:"Disturbance alerts — global",     unit:"DIST-ALERT, last 30 days", colour:"#7A5B4E", route:"tile", ready:true, off: true,
+  { id:"gfw_dist",             name:"Vegetation disturbance worldwide \u2014 DIST-ALERT (UMD and NASA), last 30 days", unit:"alerts", colour:"#7A5B4E", route:"tile", ready:true, off: true,
     bounds: [-180, -30, 180, 30],
     tilePath: "gfw_tile", tileMaxZoom: 22, tileQuery: "kind=dist&days=30", off: true,
     recolor: "#7A5B4E",
     note: "Global coverage, including boreal and temperate forest. Detects vegetation disturbance generally, so it catches fire and harvest as well as clearing.",
     attribution: '<a href="https://www.globalforestwatch.org" target="_blank" rel="noopener">Global Forest Watch</a>' },
-  { id:"gfw_dist_year",        name:"Disturbance alerts — past year",  unit:"DIST-ALERT, last 365 days", colour:"#6E5E57", route:"tile", ready:true, off: true,
+  { id:"gfw_dist_year",        name:"Vegetation disturbance worldwide \u2014 DIST-ALERT, past year", unit:"alerts", colour:"#6E5E57", route:"tile", ready:true, off: true,
     bounds: [-180, -30, 180, 30],
     tilePath: "gfw_tile", tileMaxZoom: 22, tileQuery: "kind=dist&days=365", off: true,
     recolor: "#6E5E57",
@@ -6662,7 +6662,7 @@ const OTHER_MAPS = {
     { id: "usda_corn", name: "Corn Map Explorer", unit: "corn growing areas", colour: "#76705C", route: "arcgis", ready: true, lazy: true,
       crop: "Corn", service: "https://gis.ipad.fas.usda.gov/arcgis/rest/services/CommodityExplorerCorn/MapServer", attribution: "USDA Foreign Agricultural Service",
       note: "Drawn live by USDA's Commodity Explorer map server each time the map moves; a click asks USDA what is there." },
-    { id: "trase_measures", name: "Trase: deforestation and supply-chain measures", unit: "regions", colour: "#8C5548", route: "trase", ready: true, lazy: true,
+    { id: "trase_measures", name: "Deforestation and supply-chain measures", unit: "regions", colour: "#8C5548", route: "trase", ready: true, lazy: true,
       catalogue: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/catalogue.json", values: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/values",
       regions: "https://resources.trase.earth/data/trase-regions",
       attribution: "Trase (CC BY 4.0)",
@@ -6792,7 +6792,7 @@ const OTHER_MAPS = {
     { id: "gpw_map", name: "Global Plastic Watch", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://globalplasticwatch.org/map",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "epa_widget", name: "EPA Envirofacts facilities (the multisystem widget)", unit: "facilities", colour: "#6A6258", route: "arcgisdyn", ready: true, lazy: true,
+    { id: "epa_widget", name: "Every US site EPA holds a record for, across all its programs (EPA Envirofacts)", unit: "facilities", colour: "#6A6258", route: "arcgisdyn", ready: true, lazy: true,
       service: "https://geopub.epa.gov/arcgis/rest/services/EMEF/efpoints/MapServer", minzoom: 6.5,
       // EPA's service draws nothing wider than about state level, so wider out
       // the row draws a weekly copy of every point (scripts/epa_efpoints.py in
@@ -6854,7 +6854,7 @@ const OTHER_MAPS = {
     { id: "giga_countries", name: "Giga: school mapping by country", unit: "countries", colour: "#627A86", route: "giga", ready: true, lazy: true,
       data: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/giga/countries.json",
       note: "Giga's own figures for every country on its map, copied daily (its service does not let other sites read it)." },
-    { id: "trase_facilities", name: "Trase: facilities", unit: "facilities", colour: "#62755F", route: "trasefacmenu", ready: true, lazy: true,
+    { id: "trase_facilities", name: "Facilities", unit: "facilities", colour: "#62755F", route: "trasefacmenu", ready: true, lazy: true,
       manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json",
       types: [["brazil-facilities", "Brazil: slaughterhouses and animal-product facilities"], ["brazil-silos", "Brazil: soy silos and storage"],
               ["cote-d-ivoire-cocoa-cooperatives", "C\u00f4te d'Ivoire: cocoa cooperatives"], ["indonesia-palm-oil-mills", "Indonesia: palm oil mills"],
@@ -6917,7 +6917,46 @@ const OTHER_MAPS = {
   ],
 };
 
-const GROUPS = [CT_SECTORS, CT_AGRICULTURE, CT_FORESTRY, CT_HISTORY, SITE_MAPS, EXEC_MAP, MONEY_MAP, LEGAL_MAP, LEG_MAP, JUD_MAP, MORE_MAPS, GMO_MAP, OTHER_MAPS];
+
+// Two rows that gather layers defined above, so a reader meets one line where
+// the subject is one subject. The children are the same objects as in LAYERS -
+// referenced, not copied - so each still loads exactly as it did; only where it
+// appears in the box has changed, and PANEL_ORDER names the group rather than
+// the children, so nothing is listed twice.
+//
+// The alerts are one row because a reader wants "what has been cleared lately"
+// in one place, and three lines inside it because they detect different things
+// by different instruments: whoever sees an alert can still tell which system
+// saw it. All three come from Global Forest Watch's tile service. Global Nature
+// Watch is the platform Global Forest Watch now sits inside, not the maker of
+// these products, so the row names the service that serves them and each line
+// names the system that made it.
+function rowsById(...ids) {
+  return ids.map((id) => {
+    const hit = LAYERS.find((l) => l.id === id);
+    if (!hit) throw new Error(`no layer "${id}" to gather into a group`);
+    return hit;
+  });
+}
+const FOREST_ALERTS = {
+  id: "forest_alerts",
+  name: "Live deforestation and disturbance alerts (Global Forest Watch)",
+  group: true,
+  ready: true,
+  children: rowsById("gfw", "gfw_dist", "gfw_dist_year"),
+};
+const TRASE_DATA = {
+  id: "trase_data",
+  name: "Trase deforestation data",
+  group: true,
+  ready: true,
+  children: [],
+};
+
+const GROUPS = [CT_SECTORS, CT_AGRICULTURE, CT_FORESTRY, CT_HISTORY, SITE_MAPS, EXEC_MAP, MONEY_MAP, LEGAL_MAP, LEG_MAP, JUD_MAP, MORE_MAPS, GMO_MAP, OTHER_MAPS, FOREST_ALERTS, TRASE_DATA];
+// Trase's two layers sit inside other groups above; this row gathers those same
+// objects, so both read as one subject without either being defined twice.
+TRASE_DATA.children = ["trase_measures", "trase_facilities"].map(childById);
 function childById(id) {
   for (const g of GROUPS) {
     const hit = g.children.find((c) => c.id === id);
@@ -7598,13 +7637,14 @@ const PANEL_ORDER = [
     "usda_soybean", "usda_corn", "wastewater", "group:ct_history",
   { h: 4, t: "National shading" }, "owid_co2",
   { h: 4, t: "Air pollution" }, "ct_air", "ct_pop",
-  { h: 3, t: "Pollution" }, "epa_tri_sites", "epa_widget", "hydrowaste",
+  { h: 3, t: "Pollution" }, "epa_tri_sites", "epa_widget",
+  { h: 4, t: "Wastewater" }, "hydrowaste",
   { h: 4, t: "Plastics" }, "mymaps_chlorine", "arcgis_ym8xk", "arcgis_materialresearch", "pirg_plastic", "gpw_map", "seas_of_plastic", "coastal_cleanup",
-  { h: 3, t: "Deforestation" }, "gfw", "gfw_dist", "gfw_dist_year", "glad_loss", "palmwatch", "soilgrids", "trase_measures", "trase_facilities", "nusantara", "gfw_catalogue",
+  { h: 3, t: "Deforestation" }, "glad_loss", "group:forest_alerts", "soilgrids", "group:trase_data", "nusantara", "gfw_catalogue",
   { h: 3, t: "Biodiversity loss" }, "gsn", "gsn_rankings", "allen_coral", "atlas_hotspots", "atlas_cities", "pe_subsidising", "powerbi_report",
   { h: 3, t: "Mining" }, "mines_global",
   { h: 3, t: "Meat and agriculture" },
-  { h: 4, t: "Agriculture" }, "land_matrix",
+  { h: 4, t: "Agriculture" }, "land_matrix", "palmwatch",
   { h: 4, t: "Meat" }, "abattoir_facilities", "cultivated_meat_laws",
   { h: 3, t: "Oceans" },
   { h: 4, t: "Fishing" }, "fishing", "slavery_fishing",
@@ -7770,7 +7810,16 @@ function addRowTools(box) {
       opacityFactor.set(id, f);
       layersOfRow(id).forEach((l) => applyOpacity(l, f));
     });
-    input.addEventListener("change", () => { tools.hidden = !input.checked; });
+    // Unticking a row takes everything under it away too - its filters, its
+    // kind lists, its month pickers, this slider - rather than leaving a stack
+    // of controls for a layer that is no longer drawn. Ticking it again brings
+    // them back exactly as they were.
+    input.addEventListener("change", () => {
+      tools.hidden = !input.checked;
+      rowNodes(lead).slice(1).forEach((n) => n.classList.toggle("fold-hide", !input.checked));
+      const f = lead.querySelector(".fold");
+      if (f) f.textContent = input.checked && !lead.classList.contains("folded") ? "\u25B4" : "\u25BE";
+    });
     lead.after(tools);
   }
   // Each row carries a grip; the row is dragged above or below the others

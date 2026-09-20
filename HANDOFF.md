@@ -83,6 +83,22 @@ Worker: `https://culprits-proxy.welcometoyourgalaxy.workers.dev`
 
 ---
 
+## What the alert rows actually are
+
+The three live-alert rows are Global Forest Watch products, served by GFW's own
+tile service: integrated deforestation alerts for the tropics (GLAD-L, GLAD-S2
+and RADD) and DIST-ALERT, the UMD and NASA vegetation-disturbance product that
+covers the whole world, over 30 days and over a year. Global Nature Watch is
+the WRI platform Global Forest Watch now sits inside, not the maker of any of
+them, so the row that holds the three names the service and each line names the
+system. They sit in a group whose children are the same objects as in LAYERS -
+gathered by `rowsById`, not copied - so nothing about how they load changed.
+Whether the same products also appear in the `gfw_catalogue` row's dataset list
+is unchecked: that list comes from GFW's data API and was not readable from
+here.
+
+---
+
 ## The layers box, as it is asked to read
 
 Headings carry the meaning, so they are changed rather than worked around:

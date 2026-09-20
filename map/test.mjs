@@ -1581,7 +1581,7 @@ console.log("\nother organisations' maps: PalmWatch");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("PalmWatch is one row in its own group", /const OTHER_MAPS = \{[\s\S]*id: "palmwatch"[^\n]*route: "sitemap"/.test(src) &&
-        /const GROUPS = \[[^\]]*OTHER_MAPS\]/.test(src));
+        /const GROUPS = \[[^\]]*OTHER_MAPS,/.test(src));
   check("its copy is served from GitHub, not the Worker",
         /id: "palmwatch"[^\n]*dataUrl: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/sitemaps\/palmwatch\.places\.geojson"/.test(src));
   check("its note says the catchment is modelled, not a boundary", /modelled sourcing area, not a property boundary/.test(src));
@@ -1958,7 +1958,7 @@ console.log("\nwhat was still open");
   check("Giga by country, Trase facilities, and two of your own are rows", ["giga_countries", "trase_facilities", "biosignature", "leverage_chart"].every((i) => new RegExp(`id: "${i}"`).test(src)));
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
   const order = new Function(body + "; return PANEL_ORDER;")();
-  check("the waiting rows are placed", ["ejatlas", "trase_measures", "nusantara", "gfw_catalogue", "gsn", "seas_of_plastic", "coastal_cleanup", "mines_global", "atlas_hotspots", "final_nail", "group:ct_history"].every((i) => order.includes(i)));
+  check("the waiting rows are placed", ["ejatlas", "group:trase_data", "nusantara", "gfw_catalogue", "gsn", "seas_of_plastic", "coastal_cleanup", "mines_global", "atlas_hotspots", "final_nail", "group:ct_history"].every((i) => order.includes(i)));
 }
 
 console.log("\nvessels of concern drawn; the oil-slick archive");
@@ -2005,7 +2005,7 @@ console.log("\nchanges of 19 September");
         ["atlas_hotspots", "atlas_cities", "pe_subsidising", "powerbi_report"].every((i) => between(i, "Biodiversity loss", "Mining")));
   check("Mining holds the mines", between("mines_global", "Mining", "Agriculture"));
   check("the refinery map is under Climate", between("fractracker_refineries", "Climate", "National shading"));
-  check("the toxic release sites are one row, carrying the live layer", o.PANEL_REMOVED.has("epa_tri") && /name:"US toxic release sites", [^\n]*\n[^\n]*\n[^\n]*\n\s*linked: \["epa_tri"\]/.test(src));
+  check("the toxic release sites are one row, carrying the live layer", o.PANEL_REMOVED.has("epa_tri") && /name:"Factories reporting toxic chemical releases, US \(EPA Toxics Release Inventory\)", [^\n]*\n[^\n]*\n[^\n]*\n\s*linked: \["epa_tri"\]/.test(src));
   check("coral is one row", o.PANEL_REMOVED.has("unep_coral") && pos("allen_coral") > 0);
   check("mines are merged into counted points wider out", /mines here<\/b>/.test(src) && /"point_count"\], 1\]\]\]\],\n\s*6,/.test(src));
   check("alerts are grown and lightened wider out", /function recolorAlerts\(px, rgb, z, w\)/.test(src) && /recolorAlerts\(img\.data, tint, z, bmp\.width\)/.test(src));
@@ -2048,6 +2048,29 @@ console.log("\nEPA facilities at every zoom");
   check("wider out, the EPA row draws the weekly copy of every point", /epa_efpoints\.pmtiles/.test(src) && /id: `\$\{cfg\.id\}-pts`, type: "circle"/.test(src) && /maxzoom: cfg\.minzoom \|\| 22/.test(src));
   check("a point's full record is asked of EPA on click", /\/query\?objectIds=\$\{encodeURIComponent\(p\._oid\)\}&outFields=\*/.test(src));
   check("the kind buttons also filter the copy", /map\.setFilter\(`\$\{cfg\.id\}-pts`, ptsFilter\(\)\)/.test(src));
+}
+
+console.log("\nrows gathered, moved and renamed");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const order = new Function(body + "; return PANEL_ORDER;")();
+  const at = (t) => order.findIndex((x) => x && x.t === t);
+  check("the two EPA rows say which is which", /name:"Factories reporting toxic chemical releases, US \(EPA Toxics Release Inventory\)"/.test(src) &&
+        /name: "Every US site EPA holds a record for, across all its programs \(EPA Envirofacts\)"/.test(src));
+  check("HydroWASTE sits under Wastewater", at("Wastewater") > at("Pollution") && order.indexOf("hydrowaste") === at("Wastewater") + 1);
+  check("PalmWatch sits under Agriculture", order.indexOf("palmwatch") > at("Agriculture") && order.indexOf("palmwatch") < at("Meat"));
+  check("the three alert layers are one row, and each line names the system that saw it",
+        /children: rowsById\("gfw", "gfw_dist", "gfw_dist_year"\)/.test(src) &&
+        /name: "Live deforestation and disturbance alerts \(Global Forest Watch\)"/.test(src) &&
+        /GLAD-L, GLAD-S2 and RADD/.test(src) && (src.match(/DIST-ALERT/g) || []).length >= 2 &&
+        ["gfw", "gfw_dist", "gfw_dist_year"].every((i) => !order.includes(i)));
+  check("Global Forest Change is drawn above the alerts", order.indexOf("glad_loss") < order.indexOf("group:forest_alerts"));
+  check("Trase is one row, its two layers named without the prefix",
+        /name: "Trase deforestation data"/.test(src) && /TRASE_DATA\.children = \["trase_measures", "trase_facilities"\]\.map\(childById\)/.test(src) &&
+        !/name: "Trase: /.test(src));
+  check("unticking a row takes its boxes with it",
+        /rowNodes\(lead\)\.slice\(1\)\.forEach\(\(n\) => n\.classList\.toggle\("fold-hide", !input\.checked\)\)/.test(src));
 }
 
 console.log("\nthe layers box, as asked for");
