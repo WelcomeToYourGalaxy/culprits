@@ -353,6 +353,25 @@ const LAYERS = [
                       "CBD Biosafety Clearing-House","clinical trial sponsor",
                       "Australia OGTR"] },
     note: "96% of these records carry no site coordinate. APHIS publishes the state a release was authorised in and never the field, so most draw hollow at a state centroid." },
+  // The releases archive holds several different registers; each is its own
+  // row here, drawn from the same archive with its own filter.
+  { id:"gmo_env", sourceOf:"gmo_releases", name:"Engineered crops and trees released outdoors (US APHIS)", unit:"authorisations", colour:"#7C6F84", route:"pmtiles", ready:true, off: true,
+    where: ["in", ["get", "id"], ["literal", ["aphis:epermits", "aphis:efile"]]],
+    note: "US Department of Agriculture authorisations to release genetically engineered plants and trees into the environment. APHIS publishes the state, not the field, so most draw hollow at a state's centre." },
+  { id:"gmo_decisions", sourceOf:"gmo_releases", name:"National biosafety decisions (CBD Biosafety Clearing-House)", unit:"decisions", colour:"#6F6A84", route:"pmtiles", ready:true, off: true,
+    where: ["==", ["get", "id"], "bch:decision"] },
+  { id:"gmo_ogtr", sourceOf:"gmo_releases", name:"Gene technology licences (Australia OGTR)", unit:"licences", colour:"#84707A", route:"pmtiles", ready:true, off: true,
+    where: ["==", ["slice", ["get", "id"], 0, 4], "ogtr"] },
+  { id:"gmo_therapy", sourceOf:"gmo_releases", name:"Gene and cell therapy trial sponsors", unit:"sponsors", colour:"#6E7484", route:"pmtiles", ready:true, off: true,
+    where: ["==", ["get", "id"], "clinical:sponsor"] },
+  { id:"gmo_fertility", sourceOf:"gmo_releases", name:"Fertility clinics", unit:"clinics", colour:"#846F74", route:"pmtiles", ready:true, off: true,
+    where: ["==", ["get", "id"], "industry:repro"] },
+  { id:"gmo_animal_research", sourceOf:"gmo_releases", name:"Animal research facilities", unit:"facilities", colour:"#7A6A6A", route:"pmtiles", ready:true, off: true,
+    where: ["all", ["==", ["get", "id"], "industry:animals"],
+            ["in", ["get", "x_type"], ["literal", ["Animal Welfare Act research facility", "Accredited animal research organisation", "CCAC certified institution"]]]] },
+  { id:"gmo_animal_trade", sourceOf:"gmo_releases", name:"Animal breeders, dealers, exhibitors and carriers (USDA Animal Welfare Act)", unit:"licensees", colour:"#74695E", route:"pmtiles", ready:true, off: true,
+    where: ["all", ["==", ["get", "id"], "industry:animals"],
+            ["!", ["in", ["get", "x_type"], ["literal", ["Animal Welfare Act research facility", "Accredited animal research organisation", "CCAC certified institution"]]]]] },
   { id:"slavery_sites",        name:"Brick kilns and artisanal mining", unit:"sites", colour:"#8A6B62", route:"pmtiles", ready:true, off: true,
     note: "Sector infrastructure, not confirmed exploitation. These are sites in sectors where forced and child labour concentrate; where IPIS actually observed it, the site says so." },
   { id:"slavery_ports",        name:"Ports with high-risk vessel calls", unit:"ports", colour:"#5F7480", route:"pmtiles", ready:true, off: true,
@@ -1048,8 +1067,7 @@ const HUD_KIND = {
   // [top section, heading under it] -> [shape, glow]; "*" is any heading.
   "On-planet invasion|*": ["chevron", "cyan"],
   "Destruction|Climate": ["hexagon", "amber"],
-  "Destruction|Toxic pollution": ["triangle", "red"],
-  "Destruction|Plastics": ["square", "white"],
+  "Destruction|Pollution": ["triangle", "red"],
   "Destruction|Deforestation": ["diamond", "red"],
   "Destruction|Biodiversity loss": ["diamond", "red"],
   "Destruction|Mining": ["cross", "amber"],
@@ -7352,7 +7370,6 @@ function gmSetOpen(open) {
   if (!el || !canvas) return;
   gmOpen = open;
   el.hidden = !open;
-  canvas.classList.toggle("gm-open", open);
   // The container changed size, so MapLibre has to re-measure or the canvas
   // keeps the old dimensions and the mouse lands in the wrong place.
   if (typeof map.resize === "function") map.resize();
@@ -7361,7 +7378,32 @@ function gmSetOpen(open) {
 
 function gmInit() {
   const close = document.getElementById("gmClose");
-  if (close) close.addEventListener("click", () => gmSetOpen(false));
+  if (close) close.addEventListener("click", () => {
+    const cb = document.querySelector("[data-gm]");
+    if (cb) cb.checked = false;
+    gmSetOpen(false);
+    if (typeof buildLegend === "function") buildLegend();
+  });
+  // The strip and the bar size the panel, as on the other outside pages.
+  const panel = document.getElementById("gm"), frame = document.getElementById("gmFrame");
+  let drag = null;
+  const grabbers = panel ? [panel.querySelector(".gm-grab"), panel.querySelector(".gm-bar")].filter(Boolean) : [];
+  grabbers.forEach((g) => {
+    g.addEventListener("pointerdown", (e) => {
+      if (e.target.closest && e.target.closest("button, a, input, label")) return;
+      drag = { y: e.clientY, h: panel.getBoundingClientRect().height };
+      if (frame) frame.style.pointerEvents = "none";
+      if (g.setPointerCapture) g.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    g.addEventListener("pointermove", (e) => {
+      if (!drag) return;
+      panel.style.height = `${Math.round(Math.max(90, Math.min(window.innerHeight - 40, drag.h + (drag.y - e.clientY))))}px`;
+    });
+    const end = () => { if (drag) { drag = null; if (frame) frame.style.pointerEvents = ""; } };
+    g.addEventListener("pointerup", end);
+    g.addEventListener("pointercancel", end);
+  });
   const follow = document.getElementById("gmFollow");
   if (follow) follow.addEventListener("change", () => gmSync(true));
 
@@ -7395,7 +7437,7 @@ map.on("load", () => setTimeout(abattoirPartsInit, 0));
 // PANEL_REMOVED are taken out of the box.
 const PANEL_ORDER = [
   { h: 1, t: "On-planet invasion" },
-  { h: 2, t: "Pre-birth frontlines" }, "gmo_releases", "gmo_cultivation", "gmo_gmofree", "gmo_incidents", "gmo_regime", "gmo_treaties", "gmo_trials",
+  { h: 2, t: "Pre-birth frontlines" }, "gmo_env", "gmo_decisions", "gmo_ogtr", "gmo_therapy", "gmo_fertility", "gmo_animal_research", "gmo_animal_trade", "gmo_cultivation", "gmo_gmofree", "gmo_incidents", "gmo_regime", "gmo_treaties", "gmo_trials",
   { h: 2, t: "Post-birth invasion" },
   { h: 3, t: "Invasion of nonhumans" },
   { h: 3, t: "Invasion of humans" }, "site_settler_colonialism", "site_indigenous_conflicts",
@@ -7409,8 +7451,8 @@ const PANEL_ORDER = [
     "usda_soybean", "usda_corn", "wastewater", "group:ct_history",
   { h: 4, t: "National shading" }, "owid_co2",
   { h: 4, t: "Air pollution" }, "ct_air", "ct_pop",
-  { h: 3, t: "Toxic pollution" }, "epa_tri_sites", "epa_widget", "eip_inventory", "hydrofate",
-  { h: 3, t: "Plastics" }, "mymaps_chlorine", "arcgis_ym8xk", "arcgis_materialresearch", "pirg_plastic", "gpw_map", "seas_of_plastic", "coastal_cleanup",
+  { h: 3, t: "Pollution" }, "epa_tri_sites", "epa_widget", "eip_inventory", "hydrofate",
+  { h: 4, t: "Plastics" }, "mymaps_chlorine", "arcgis_ym8xk", "arcgis_materialresearch", "pirg_plastic", "gpw_map", "seas_of_plastic", "coastal_cleanup",
   { h: 3, t: "Deforestation" }, "gfw", "gfw_dist", "gfw_dist_year", "glad_loss", "palmwatch", "soilgrids", "trase_measures", "trase_facilities", "nusantara", "gfw_catalogue", "gsn", "gsn_rankings",
   { h: 3, t: "Biodiversity loss" }, "atlas_hotspots", "atlas_cities", "pe_subsidising", "powerbi_report",
   { h: 3, t: "Mining" }, "mines_global",
@@ -7486,6 +7528,8 @@ const PANEL_REMOVED = new Set([
   // merged into another, and pages asked to be removed.
   "site_cartel_cells", "site_export_credit_shading", "giga_schools", "nsf_locations",
   "ect_secrets", "isds_tracker", "bffp_audit", "epa_tri", "unep_coral",
+  // Split into its registers (gmo_env and the rows after it) on 20 September.
+  "gmo_releases",
   "fin_bank", "fin_centralbank", "fin_taxoffice", "fin_govfinance", "fin_financial", "fin_exchange", "fin_insurance", "fin_accountant", "fin_remittance", "fin_stockexchange", "fin_auditoffice", "fin_devbank", "fin_mint", "legal_publicdefender", "legal_immigration", "legal_probation", "legal_juvenile", "leg_parliament", "leg_audit", "leg_electoral", "leg_ombudsman", "leg_council", "exec_firestation", "exec_townhall", "leg_townhall", "exec_govoffice", "exec_ministry", "exec_diplomatic", "exec_border", "jud_courts", "legal_courthouse", "slavery_facilities", "activist_courts", "exec_police", "legal_police", "activist_police", "exec_prison", "legal_prison", "jud_prisons", "activist_prisons",
   "site_ufo_pre1900", "site_subsistence_cultures", "site_self_sufficiency", "slavery_trackers",
   "site_environment_law", "enviro_law_by_country", "site_environment_law_shapes", "gov_official_map",

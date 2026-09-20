@@ -2113,5 +2113,19 @@ console.log("\nfull shape words; place lists only where markers overlap");
   check("close in, a click opens the nearest place instead of a list", /const PICK_SPLIT_ZOOM = 6;/.test(src) && /map\.getZoom\(\) >= PICK_SPLIT_ZOOM/.test(src));
 }
 
+console.log("\nGuerillamap panel, Pollution, the releases split");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const o = new Function(body + "; return { PANEL_ORDER, PANEL_REMOVED };")();
+  const at = (t) => o.PANEL_ORDER.findIndex((x) => x && x.t === t);
+  check("Guerillamap opens as a bottom panel with a drag strip, over the map", /\.gm\{position:fixed;right:0;bottom:0;left:0;height:46vh;z-index:40/.test(index) && /class="gm-grab"/.test(index) && !/#map\.gm-open/.test(index));
+  check("Plastics sits under Pollution", at("Pollution") > 0 && o.PANEL_ORDER[at("Plastics")].h === 4 && at("Plastics") > at("Pollution") && at("Toxic pollution") === -1);
+  const kids = ["gmo_env", "gmo_decisions", "gmo_ogtr", "gmo_therapy", "gmo_fertility", "gmo_animal_research", "gmo_animal_trade"];
+  check("the releases layer is split into its registers, each its own row", o.PANEL_REMOVED.has("gmo_releases") &&
+        kids.every((k) => o.PANEL_ORDER.includes(k) && new RegExp(`id:"${k}", sourceOf:"gmo_releases"`).test(src)));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

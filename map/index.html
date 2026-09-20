@@ -203,22 +203,23 @@
   .layer.child{padding-left:13px}
   .layer.child .nm{color:var(--dim)}
 
-  .gm{position:absolute;right:0;bottom:0;left:0;height:38vh;background:var(--peat);
-    border-top:1px solid var(--rule);display:flex;flex-direction:column}
+  /* Guerillamap opens like every other outside page: a panel along the bottom,
+     over the map, with a strip and bar to drag it taller or shorter. */
+  .gm{position:fixed;right:0;bottom:0;left:0;height:46vh;z-index:40;background:var(--peat,#17150F);
+      border-top:1px solid var(--rule,#322E27);display:flex;flex-direction:column}
   .gm[hidden]{display:none}
-  .gm-bar{display:flex;align-items:center;gap:11px;padding:7px 12px;
-    font-size:12.5px;color:var(--dim);border-bottom:1px solid var(--rule)}
+  .gm-grab{height:9px;cursor:ns-resize;touch-action:none;display:flex;justify-content:center;align-items:center}
+  .gm-grab span{width:44px;height:3px;border-radius:2px;background:var(--rule,#322E27)}
+  .gm-bar{display:flex;align-items:center;gap:11px;padding:2px 12px 6px;font-size:12.5px;color:var(--dim);cursor:ns-resize;touch-action:none}
   .gm-bar .nm{color:var(--bone)}
   .gm-bar label{display:flex;align-items:center;gap:5px;cursor:pointer}
   .gm-bar input{accent-color:var(--moss)}
-  .gm-bar a{color:var(--slate)}
+  .gm-bar a{color:var(--slate,#8A9DA6)}
   .gm-bar .sp{margin-left:auto}
-  .gm-bar button{font:inherit;font-size:12.5px;background:none;color:var(--dim);
-    border:1px solid var(--rule);padding:1px 7px;cursor:pointer;border-radius:2px}
+  .gm-bar button{font:inherit;background:none;color:var(--dim);border:1px solid var(--rule);border-radius:2px;padding:1px 7px;cursor:pointer}
   .gm-bar button:hover{color:var(--bone);border-color:var(--dim)}
   .gm-frame{flex:1;width:100%;border:0}
   .gm-wait{margin:0;padding:7px 12px;font-size:12px;color:var(--dim)}
-  #map.gm-open{bottom:38vh;inset-block-end:38vh}
 
   /* Legend. Bottom right, above the attribution, narrow enough not to cover
      the map. Lists only what is switched on. */
@@ -327,6 +328,7 @@
 <div id="legend" hidden></div>
 
 <div class="gm" id="gm" hidden>
+  <div class="gm-grab" title="Drag up or down to resize"><span></span></div>
   <div class="gm-bar">
     <span class="nm">Guerillamap overlays</span>
     <label><input type="checkbox" id="gmFollow" checked> follow this map</label>
