@@ -36,7 +36,7 @@ const CACHE_VERSION = "v12";
 // Reported by /v1/_diag so it is possible to tell, in one request, which build
 // is actually live. Several fixes appeared not to work when the real problem
 // was that the deploy had not happened.
-const BUILD = "2026-09-14 cerulean slicks and sources, allen coral benthic";
+const BUILD = "2026-09-20 carbon mapper passthrough; cerulean slicks and sources, allen coral benthic";
 
 // How far back deforestation alerts are fetched. Wider means more rows and a
 // slower, heavier query; the API has no LIMIT to fall back on.
@@ -57,6 +57,7 @@ const ALERT_WINDOW_DAYS = 30;
 let gfwVersion = { value: null, at: 0 };
 const GFW_VERSION_TTL = 6 * 3600 * 1000;
 const GFW_BASE = "https://data-api.globalforestwatch.org";
+const CARBON_MAPPER_BASE = "https://api.carbonmapper.org/api/v1/catalog/plumes/annotated";
 const GFW_MAX_LOOKBACK = 6;
 
 async function gfwLatestVersion(env) {
@@ -832,6 +833,41 @@ export default {
     // and the key never leaves the Worker.
     //   /v1/_gfw?path=/dataset/gfw_integrated_alerts
     //   /v1/_gfw?path=/dataset/gfw_integrated_alerts/latest/fields
+    // Carbon Mapper's plume catalogue, passed through untouched.
+    //
+    // api.carbonmapper.org answers a plain GET with 200 and no
+    // Access-Control-Allow-Origin, so the browser refuses the response before
+    // the map ever sees a status - the row read "Failed to fetch". Nothing is
+    // reshaped here: the catalogue's own JSON goes back as it arrives, with
+    // this Worker's CORS headers on it. Only the parameters the row sends are
+    // forwarded, so this cannot be used as an open proxy for the rest of the API.
+    if (url.pathname === "/v1/carbonmapper") {
+      const pass = new URLSearchParams();
+      for (const k of ["limit", "offset", "sort", "bbox", "plume_gas", "datetime"]) {
+        const v = url.searchParams.get(k);
+        if (v !== null && v !== "") pass.set(k, v);
+      }
+      const target = `${CARBON_MAPPER_BASE}?${pass.toString()}`;
+      const key = new Request(`${url.origin}${url.pathname}?${pass.toString()}&_c=${CACHE_VERSION}`);
+      const fresh = url.searchParams.get("fresh") === "1";
+      const hit = fresh ? null : await cache.match(key);
+      if (hit) return withCors(hit, origin);
+      let upstream;
+      try {
+        upstream = await fetch(target, { headers: { Accept: "application/json" } });
+      } catch (e) {
+        return bad(`Carbon Mapper unreachable: ${e.message}`, 502, origin);
+      }
+      if (!upstream.ok) return bad(`Carbon Mapper answered ${upstream.status}`, upstream.status, origin);
+      const body = await upstream.text();
+      const stored = new Response(body, {
+        status: 200,
+        headers: { "Content-Type": "application/json", "Cache-Control": `public, max-age=${CACHE_SECONDS}` },
+      });
+      ctx.waitUntil(cache.put(key, stored.clone()));
+      return withCors(stored, origin);
+    }
+
     if (url.pathname === "/v1/_gfw") {
       const rel = url.searchParams.get("path") || "";
       if (!rel.startsWith("/")) return bad("path must start with /", 400, origin);

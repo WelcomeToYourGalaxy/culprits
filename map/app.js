@@ -18,6 +18,12 @@ const DATA_BASE = abs("./data");
 const R2_BASE = "https://tiles.welcometoyourgalaxy.com";
 const WORKER = "https://culprits-proxy.welcometoyourgalaxy.workers.dev/v1";
 
+// Read through the Worker. api.carbonmapper.org answers a plain browser GET
+// with 200 and no Access-Control-Allow-Origin, so the response is refused
+// before the map sees a status and the row read "Failed to fetch". The
+// Worker passes the catalogue back untouched with its own CORS headers.
+const CARBON_API = `${WORKER}/carbonmapper`;
+
 // One entry per layer. `colour` carries identity only — magnitude is encoded
 // per layer, because tonnes of CO2e and hectares of land are not comparable
 // and a shared size ramp would imply that they are.
@@ -2104,7 +2110,7 @@ function wireSource() {
         .setLngLat(f.geometry.coordinates)
         .setHTML(`<b>${escapeHtml(f.properties.place || "News wire")}</b>` +
                  `<div class="meta">${list.length} ${list.length === 1 ? "story" : "stories"}</div>` +
-                 (list.length > 1 ? wirePopFilters(list) : "") +
+                 (list.length > 1 ? `<div class="wire-pop-filters">${wirePopFilters(list)}</div>` : "") +
                  `<div class="wire-pop-list">${wirePopRows(list, "new")}</div>`)
         .addTo(map);
       const el = pop.getElement && pop.getElement();
@@ -2128,15 +2134,41 @@ function wireSource() {
 
 // The box's filters: a menu for each subject and source, a search for the
 // headline, and the order.
+// The box above a mark's list: one menu per thing a story carries, plus the
+// headline search and the order. A menu only appears where its stories differ
+// on it - a menu with one value in it does nothing when set - and where some
+// stories carry the value and others do not, the ones without get an option of
+// their own rather than being left unreachable.
+const WIRE_NOT_GIVEN = "\u0000none";
+function wireDay(s) {
+  if (s.date == null) return "";
+  const d = new Date(s.date);
+  return isFinite(d.getTime())
+    ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+    : "";
+}
+function wireDayLabel(key) {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString();
+}
 function wirePopFilters(list) {
-  const opts = (key) => [...new Set(list.map((s) => s[key]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
-  const menu = (key, label) => {
-    const vals = opts(key);
-    return vals.length > 1
-      ? `<label class="wire-pop-sort">${label} <select data-wf="${key}"><option value="">All</option>` +
-        vals.map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("") + `</select></label>` : "";
+  const row = (key, label, values, missing, blank, labelOf) => {
+    if (values.length + (missing ? 1 : 0) < 2) return "";
+    return `<label class="wire-pop-sort">${label} <select data-wf="${key}"><option value="">All</option>` +
+      values.map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(labelOf ? labelOf(v) : v)}</option>`).join("") +
+      (missing ? `<option value="${WIRE_NOT_GIVEN}">${escapeHtml(blank)}</option>` : "") +
+      `</select></label>`;
   };
-  return menu("subject", "Subject") + menu("outlet", "Source") +
+  const menu = (key, label, blank) => {
+    const values = [...new Set(list.map((s) => s[key]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
+    return row(key, label, values, list.some((s) => !s[key]), blank);
+  };
+  // Newest day first, which is the order the list itself opens in.
+  const days = [...new Set(list.map(wireDay).filter(Boolean))].sort().reverse();
+  return menu("subject", "Subject", "No subject given") +
+    menu("outlet", "Source", "No source named") +
+    menu("place", "Place", "No place named") +
+    row("day", "Date", days, list.some((s) => !wireDay(s)), "No date given", wireDayLabel) +
     `<label class="wire-pop-sort">Headline <input data-wf="title" type="search" placeholder="words in the headline" ` +
     `style="flex:1;font:inherit;color:var(--bone);background:var(--peat,#17150F);border:1px solid var(--rule);border-radius:2px;padding:1px 4px"></label>` +
     `<label class="wire-pop-sort">Order <select data-wf="order">` +
@@ -2145,8 +2177,10 @@ function wirePopFilters(list) {
 }
 function wirePopPick(list, f) {
   const words = String(f.title || "").toLocaleLowerCase().split(/\s+/).filter(Boolean);
-  return list.filter((s) => (!f.subject || s.subject === f.subject) && (!f.outlet || s.outlet === f.outlet) &&
-    words.every((w) => String(s.title || "").toLocaleLowerCase().includes(w)));
+  const is = (s, key, want) => !want || (want === "\u0000none" ? !s[key] : s[key] === want);
+  const onDay = (s, want) => !want || (want === "\u0000none" ? !wireDay(s) : wireDay(s) === want);
+  return list.filter((s) => is(s, "subject", f.subject) && is(s, "outlet", f.outlet) && is(s, "place", f.place) &&
+    onDay(s, f.day) && words.every((w) => String(s.title || "").toLocaleLowerCase().includes(w)));
 }
 
 // Every story at a mark, in the order chosen in its box.
@@ -3321,8 +3355,12 @@ function showRowFor(id) {
 // The layers column's right edge is a handle. Long layer names were being cut
 // at 290 pixels with no way to see the rest; now the column is dragged as wide
 // as it needs to be and dragged back for more map. Double-click puts it back to
-// where it started. The width is the same --box-w everything else measures
-// from, so the zoom strip and the defence frame move with it.
+// where it started.
+//
+// It drags --left-w, which is the left column's own width: the layers box, the
+// Showing box under it and the left half of the defence frame. Dragging used to
+// set --box-w, which the view and wires boxes on the right measure from too, so
+// widening the layers column widened those as well.
 function columnEdge() {
   const col = typeof document !== "undefined" && document.querySelector ? document.querySelector(".left-col") : null;
   if (!col || typeof col.querySelector !== "function" || col.querySelector(".col-edge") ||
@@ -3335,7 +3373,7 @@ function columnEdge() {
   edge.setAttribute("aria-hidden", "true");
   let from = 0, was = START;
   const widthNow = () => {
-    const v = parseFloat(getComputedStyle(root).getPropertyValue("--box-w"));
+    const v = parseFloat(getComputedStyle(root).getPropertyValue("--left-w"));
     return isFinite(v) ? v : START;
   };
   edge.addEventListener("pointerdown", (e) => {
@@ -3347,12 +3385,12 @@ function columnEdge() {
   edge.addEventListener("pointermove", (e) => {
     if (!from) return;
     const want = Math.max(MIN, Math.min(MAX, was + (e.clientX - from)));
-    root.style.setProperty("--box-w", `${Math.round(want)}px`);
+    root.style.setProperty("--left-w", `${Math.round(want)}px`);
   });
   const done = () => { from = 0; if (map && typeof map.resize === "function") map.resize(); };
   edge.addEventListener("pointerup", done);
   edge.addEventListener("pointercancel", done);
-  edge.addEventListener("dblclick", () => { root.style.setProperty("--box-w", `${START}px`); done(); });
+  edge.addEventListener("dblclick", () => { root.style.setProperty("--left-w", `${START}px`); done(); });
   col.appendChild(edge);
 }
 /* ---------- Carbon Mapper's plumes, read from its own data platform ---------- */
@@ -3371,7 +3409,6 @@ function columnEdge() {
 // The catalogue is large, so the row reads the newest CARBON_PLUME_PAGES pages
 // and says how many of the total it is holding rather than pretending to have
 // all of it.
-const CARBON_API = "https://api.carbonmapper.org/api/v1/catalog/plumes/annotated";
 const CARBON_PLUME_ZOOM = 10;     // from here in, the plumes' own pictures
 const CARBON_PLUME_PAGES = 10;    // 1,000 plumes a page
 const CARBON_PICTURES_AT_ONCE = 40;
@@ -3481,6 +3518,167 @@ async function addCarbonMapperLayer(cfg) {
   buildLegend();
 }
 
+// Nusantara's server publishes its own layer names as the titles, so the menu
+// read as a list of file names: Global_PlantationIOP_2025, concessionitp_spv,
+// v3p3_spatialplanmoratorium_spv. Each one below is that layer said plainly,
+// written from its own name and what its workspace publishes. A layer not
+// named here keeps the title the server gives it rather than being guessed at,
+// which is why a handful are still their own ids.
+const NUSANTARA_NAMES = {
+  "AlertDFCOMBINERGB": "Deforestation alerts, every system combined",
+  "AlertGLADRGB": "GLAD deforestation alerts",
+  "AlertRADDRGB": "RADD radar deforestation alerts",
+  "BALI_19650531": "Bali from the air, 31 May 1965",
+  "BALI_19650531_Composite1": "Bali from the air, 31 May 1965 (composite)",
+  "ECJRCV2": "Forest cover (EC JRC v2)",
+  "FCHS_2020_ECJRCV2": "Forest cover 2020, with hillshade (EC JRC v2)",
+  "Global_AllExpansionRGB_2000to2024": "Plantation expansion, 2000 to 2024 (picture)",
+  "Global_AllExpansionRGB_2000to2025": "Plantation expansion, 2000 to 2025 (picture)",
+  "Global_AllExpansion_2000to2025": "Plantation expansion, 2000 to 2025",
+  "Global_FC-FNF-HS_Latest_TTM": "Forest and non-forest, latest, with hillshade (TheTreeMap)",
+  "Global_FC-FNF_2024_TTM": "Forest and non-forest 2024 (TheTreeMap)",
+  "Global_FC-FNF_2025_TTM": "Forest and non-forest 2025 (TheTreeMap)",
+  "Global_FC_2025_TTM": "Forest cover 2025 (TheTreeMap)",
+  "Global_LCHS_2024": "Land cover 2024, with hillshade",
+  "Global_PlantationAll_2024": "Plantations of every kind 2024",
+  "Global_PlantationAll_2025": "Plantations of every kind 2025",
+  "Global_PlantationIOP_2024": "Industrial oil palm plantations 2024",
+  "Global_PlantationIOP_2025": "Industrial oil palm plantations 2025",
+  "Global_PlantationITP_2024": "Industrial timber plantations 2024",
+  "Global_PlantationITP_2025": "Industrial timber plantations 2025",
+  "Global_PlantationSmallholder_2024": "Smallholder plantations 2024",
+  "Global_PlantationSmallholder_2025": "Smallholder plantations 2025",
+  "Global_WaterChange_1984to2021": "Surface water change, 1984 to 2021 (EC JRC)",
+  "IDNMYSBorneo_LCHSRiver": "Borneo land cover, with hillshade and rivers",
+  "IDNMYSBorneo_LCIndustrial_1970": "Borneo industrial land 1970",
+  "IDNMYSBorneo_SRTMHS30WGS_2000": "Borneo relief, 30 m (SRTM 2000)",
+  "IDNMYSBorneo_Settlement_2017_GHS": "Settlements 2017, Borneo (GHSL)",
+  "IDNMYSBorneo_Transmigration_2021": "Transmigration areas 2021, Borneo",
+  "IDNMYSBorneo_Transmigration_2021_wms": "Transmigration areas 2021, Borneo",
+  "IDNMYSBorneo_WaterChangeRGB_1984to2020_JRC": "Surface water change, 1984 to 2021 \u2014 Borneo (EC JRC)",
+  "IDN_BurnedArea_2019_TheTreeMap": "Burned area 2019, Indonesia (TheTreeMap)",
+  "IDN_BurnedArea_2020_TheTreeMap": "Burned area 2020, Indonesia (TheTreeMap)",
+  "IDN_BurnedArea_2021_TheTreeMap": "Burned area 2021, Indonesia (TheTreeMap)",
+  "IDN_FC2020_KLHK": "Forest cover 2020, Indonesia's own (Ministry of Environment and Forestry)",
+  "IDN_Mining_2023": "Mining areas 2023, Indonesia",
+  "LC1970": "Land cover 1970",
+  "LC1970HS": "Land cover 1970, with hillshade",
+  "REGBRNIDNMYS_Coconut_2020_Descal": "Coconut plantations 2020 \u2014 Brunei, Indonesia, Malaysia (Descals)",
+  "REGBRNIDNMYS_FC-FNF-HS_Latest_TTM": "Forest and non-forest, latest, with hillshade \u2014 Brunei, Indonesia, Malaysia (TheTreeMap)",
+  "REGBRNMYSIDN_FCHS_2020_ECJRC": "Forest cover 2020, with hillshade \u2014 Brunei, Malaysia, Indonesia (EC JRC)",
+  "REGBRNMYSIDN_FCLandArea_2020_ECJRC": "Forest as a share of land area 2020 \u2014 Brunei, Malaysia, Indonesia (EC JRC)",
+  "REGBRNMYSIDN_FC_2020_ECJRC": "Forest cover 2020 \u2014 Brunei, Malaysia, Indonesia (EC JRC)",
+  "REGIDNMYS_TreeHeight_2020_ETHZurich": "Tree height 2020 \u2014 Indonesia and Malaysia (ETH Zurich)",
+  "RGBProbabilityDF": "Deforestation probability",
+  "admincountry_spv": "Country boundaries",
+  "admindistrict_spv": "District boundaries",
+  "adminprovince_spv": "Province boundaries",
+  "adminsubdistrict_spv": "Sub-district boundaries",
+  "adminvillage_spv": "Village boundaries",
+  "alertfire_combine": "Fire alerts, MODIS and VIIRS together",
+  "alertfire_modis": "Fire alerts, MODIS",
+  "alertfire_viirs": "Fire alerts, VIIRS",
+  "article_spv": "News articles, placed",
+  "base_ikn": "Nusantara, the new Indonesian capital (IKN)",
+  "base_peatland": "Peatland",
+  "base_populatedplace": "Towns and villages",
+  "base_road": "Roads",
+  "base_roadRGB": "Roads, by the year they appeared (picture)",
+  "base_road_edited": "Roads (their edited version)",
+  "base_roadtrans": "Transmigration roads",
+  "base_sagoindicative": "Sago, where it is likely to grow",
+  "benthic_allencorral_global": "Reef habitats (Allen Coral Atlas)",
+  "burned_area_annual": "Burned area, by year",
+  "burned_area_biennial": "Burned area, two years at a time",
+  "burned_area_biennial_del": "Burned area, two years at a time (marked for deletion on their server)",
+  "burned_area_biennial_test": "Burned area, two years at a time (their test copy)",
+  "burned_area_monthly": "Burned area, by month",
+  "burned_area_rgb_crop": "Burned area (picture, cropped)",
+  "burnedarea_rgb": "Burned area (picture)",
+  "burnedareanrt": "Burned area, near real time, showing overlaps",
+  "concessionhgu_spv": "Plantation land-use rights (HGU)",
+  "concessioniop_finance_credit": "Oil palm concessions, by who lends to them",
+  "concessioniop_finance_invest": "Oil palm concessions, by who invests in them",
+  "concessioniop_spv": "Oil palm concessions",
+  "concessionitp_spv": "Industrial timber plantation concessions",
+  "concessionlogging_spv": "Logging concessions",
+  "concessionmining_spv": "Mining concessions",
+  "concessionother_finance_credit": "Other concessions, by who lends to them",
+  "concessionother_finance_invest": "Other concessions, by who invests in them",
+  "concessionother_spv": "Concessions of other kinds",
+  "concessionpbph_spv": "Forest utilisation permits (PBPH)",
+  "concessionpsnmerauke_spv": "National Strategic Project concessions, Merauke",
+  "concessiontimber_spv": "Timber concessions",
+  "geotag": "Geotagged photographs",
+  "hillshade": "Hillshade relief",
+  "merauke_concessionother_sugarcane": "Sugarcane concessions, Merauke",
+  "merauke_road_plan": "Planned roads, Merauke",
+  "millop_finance_credit": "Palm oil mills, by who lends to them",
+  "millop_finance_invest": "Palm oil mills, by who invests in them",
+  "millop_spv": "Palm oil mills",
+  "millopbuffer10km_spv": "Palm oil mill sourcing areas, 10 km",
+  "millopbuffer1hr_spv": "Palm oil mill sourcing areas, one hour's drive",
+  "millopbuffer2hr_spv": "Palm oil mill sourcing areas, two hours' drive",
+  "millopbuffer_spv": "Palm oil mill sourcing areas",
+  "milloprefineries_sp": "Palm oil refineries",
+  "papua_concessioniop_edited": "Oil palm concessions, Papua (their edited version)",
+  "papua_expansion_2025": "Plantation expansion 2025, Papua",
+  "papua_location12_sentinel2_true": "Papua, Sentinel-2 true colour \u2014 location 12",
+  "papua_location13_sentinel2_true": "Papua, Sentinel-2 true colour \u2014 location 13",
+  "papua_location1_sentinel2_true": "Papua, Sentinel-2 true colour \u2014 location 1",
+  "papua_location2_sentinel2_true": "Papua, Sentinel-2 true colour \u2014 location 2",
+  "papua_location6_sentinel2_true": "Papua, Sentinel-2 true colour \u2014 location 6",
+  "plantation_established_merauke": "Established plantations, Merauke",
+  "protectedarea_spv": "Protected areas",
+  "protectedarea_spv_withlabel": "Protected areas, with their names",
+  "protectedareadissolve_sp": "Protected areas, merged into one shape",
+  "protectedareaoutline": "Protected area outlines",
+  "protectedareareaconservationlandscape_spv": "Conservation landscapes",
+  "protectedareareaecosystemrestoration_spv": "Ecosystem restoration areas",
+  "protectedareareaforestreserve_spv": "Forest reserves",
+  "protectedareareahydrologicalreserve_spv": "Hydrological reserves",
+  "rawasingkil_10_canal": "Canals in Rawa Singkil, the ten longest",
+  "rawasingkil_canal": "Canals in Rawa Singkil",
+  "rawasingkil_illegal_oilpalm": "Illegal oil palm in Rawa Singkil",
+  "rdtr_badung_2023": "Detailed spatial plan 2023, Badung (RDTR)",
+  "roadsegmentbuffer_spv": "Land within reach of a road",
+  "rtrw_badung_2024": "District spatial plan 2024, Badung (RTRW)",
+  "rtrw_badung_2025": "District spatial plan 2025, Badung (RTRW)",
+  "rtrw_tabanan_2023": "District spatial plan 2023, Tabanan (RTRW)",
+  "rubber_kalimantan_2020": "Rubber plantations 2020, Kalimantan",
+  "socialforestryhadat_spv": "Customary forest (hutan adat)",
+  "socialforestryhd_spv": "Village forest (hutan desa)",
+  "socialforestryhk_spv": "Community forest (hutan kemasyarakatan)",
+  "socialforestryht_spv": "Community plantation forest (hutan tanaman rakyat)",
+  "socialforestrywiladat_spv": "Customary territories (wilayah adat)",
+  "spatialplanforestland_spv": "Forest estate, as the state designates it",
+  "spatialplanmoratorium_spv": "Moratorium areas (PIPPIB)",
+  "spatialplanrtrwn_spv": "National spatial plan (RTRWN)",
+  "spatialplanrtrwp_papua_spv": "Provincial spatial plan, Papua (RTRWP)",
+  "spatialplanrtrwp_papuawest_spv": "Provincial spatial plan, West Papua (RTRWP)",
+  "v3p2_AlertDFCOMBINERGB": "Deforestation alerts, every system combined (v3p2 copy)",
+  "v3p2_GLADRGB": "GLAD deforestation alerts (v3p2 copy)",
+  "v3p2_RADDRGB": "RADD radar deforestation alerts (v3p2 copy)",
+  "v3p2_alertfire_combine": "Fire alerts, MODIS and VIIRS together (v3p2 copy)",
+  "v3p2_alertfire_modis": "Fire alerts, MODIS (v3p2 copy)",
+  "v3p2_alertfire_viirs": "Fire alerts, VIIRS (v3p2 copy)",
+  "v3p2_protectedarea_spv": "Protected areas (v3p2 copy)",
+  "v3p3_admincountry_spv": "Country boundaries (v3p3 copy)",
+  "v3p3_admindistrict_spv": "District boundaries (v3p3 copy)",
+  "v3p3_adminprovince_spv": "Province boundaries (v3p3 copy)",
+  "v3p3_adminsubdistrict_spv": "Sub-district boundaries (v3p3 copy)",
+  "v3p3_adminvillage_spv": "Village boundaries (v3p3 copy)",
+  "v3p3_alertfire_combine": "Fire alerts, MODIS and VIIRS together (v3p3 copy)",
+  "v3p3_alertfire_modis": "Fire alerts, MODIS (v3p3 copy)",
+  "v3p3_alertfire_viirs": "Fire alerts, VIIRS (v3p3 copy)",
+  "v3p3_concessioniop_spv": "Oil palm concessions (v3p3 copy)",
+  "v3p3_concessionother_spv": "Concessions of other kinds (v3p3 copy)",
+  "v3p3_roadsegmentbuffer_spv": "Land within reach of a road (v3p3 copy)",
+  "v3p3_spatialplanforestland_spv": "Forest estate, as the state designates it (v3p3 copy)",
+  "v3p3_spatialplanmoratorium_spv": "Moratorium areas (PIPPIB) (v3p3 copy)",
+  "varticle": "News articles, placed (second copy)",
+};
+
 /* ---------- a map server's whole layer list, as a menu (Nusantara Atlas) ---------- */
 async function addWmsMenuLayer(cfg) {
   const layers = [];
@@ -3493,7 +3691,8 @@ async function addWmsMenuLayer(cfg) {
         if (!nm || [...l.getElementsByTagName("Layer")].length) continue;
         const tt = [...l.children].find((c) => c.tagName === "Title");
         const ab = [...l.children].find((c) => c.tagName === "Abstract");
-        layers.push({ base, name: nm.textContent, title: (tt && tt.textContent) || nm.textContent, about: (ab && ab.textContent) || "" });
+        const id = nm.textContent;
+      layers.push({ base, name: id, title: NUSANTARA_NAMES[id] || (tt && tt.textContent) || id, about: (ab && ab.textContent) || "" });
       }
     } catch (e) { console.warn(`[culprits] ${cfg.id}: ${base}: ${e.message}`); }
   }
@@ -3999,11 +4198,31 @@ function ll2Pad(p, extra) {
   if (!isFinite(lat) || !isFinite(lng)) return null;
   return { type: "Point", coordinates: [lng, lat] };
 }
+// Launch Library answers slowly: six pages in turn, each a detailed record, and
+// a rate limit under them. The row used to wait for all of it before drawing
+// anything, which for the pads was most of a minute. So the copy kept here
+// daily is read first - one file, one request - and the live read runs beside
+// it with LL2_WAIT to answer in. If it lands in time the row draws the live
+// rows; if it does not, the row draws the copy and says so. Nothing is mixed:
+// what is drawn is one or the other, and the row's line says which.
+const LL2_WAIT = 6000;
 async function readLaunchLibrary(cfg) {
   let rows, note = "";
-  try { rows = await ll2All(cfg.what === "pads" ? "/pads/" : "/launches/upcoming/"); }
-  catch (e) {
-    rows = (await getJson(cfg.copy)).results || [];
+  const copy = getJson(cfg.copy, 20000).then((j) => j.results || []);
+  copy.catch(() => {});   // handled below; this only stops an unhandled rejection
+  const live = ll2All(cfg.what === "pads" ? "/pads/" : "/launches/upcoming/");
+  live.catch(() => {});
+  const late = new Promise((done) => setTimeout(() => done("late"), LL2_WAIT));
+  try {
+    const first = await Promise.race([live, late]);
+    if (first === "late") {
+      rows = await copy;
+      note = `Launch Library did not answer within ${Math.round(LL2_WAIT / 1000)} seconds; showing today's copy`;
+    } else {
+      rows = first;
+    }
+  } catch (e) {
+    rows = await copy;
     note = e.message === "rate" ? "Launch Library's hourly limit was reached; showing today's copy" : `Launch Library did not answer; showing today's copy`;
   }
   const items = [];
@@ -4484,36 +4703,6 @@ async function addGigaLayer(cfg) {
   shade("schools");
   const w = data.world && data.world.school;
   setLayerState(cfg.id, `${C.size} countries` + (w ? ` \u00b7 ${Number(w.entities_total).toLocaleString()} schools mapped worldwide` : ""));
-  applyVisibility(cfg.id);
-  buildLegend();
-}
-
-/* ---------- Trase facilities, from Trase's own menu ---------- */
-async function addTraseFacMenu(cfg) {
-  const src = `${cfg.id}-src`;
-  map.addSource(src, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-  map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source: src, filter: ["==", ["geometry-type"], "Polygon"], paint: { "fill-color": cfg.colour, "fill-opacity": 0.45 } });
-  map.addLayer({ id: `${cfg.id}-line`, type: "line", source: src, filter: ["!=", ["geometry-type"], "Point"], paint: { "line-color": "#1D1B17", "line-width": 0.5 } });
-  map.addLayer({ id: `${cfg.id}-pt`, type: "circle", source: src, filter: ["==", ["geometry-type"], "Point"], paint: { "circle-color": cfg.colour, "circle-radius": 4 } });
-  for (const l of [`${cfg.id}-fill`, `${cfg.id}-pt`]) bindHtmlPopup(l, (p) => p.h || "");
-  const show = async (type) => {
-    setLayerState(cfg.id, "reading Trase\u2026");
-    try {
-      const got = await readTraseFacilities({ ...cfg, facilityType: type });
-      map.getSource(src).setData({ type: "FeatureCollection", features: got.items.map((it) => ({ type: "Feature", geometry: it.geometry, properties: { h: it.h } })) });
-      setLayerState(cfg.id, `${got.items.length.toLocaleString()} ${cfg.types.find((t) => t[0] === type)[1]}`);
-    } catch (e) { setLayerState(cfg.id, `Trase did not answer (${e.message})`); }
-  };
-  const row = document.querySelector(`[data-layer="${cfg.id}"]`);
-  const anchor = row && row.closest ? row.closest("label") : null;
-  if (anchor && anchor.after) {
-    const el = document.createElement("div");
-    el.className = "facet";
-    el.innerHTML = `<select aria-label="Facilities">${cfg.types.map(([k, l]) => `<option value="${k}">${escapeHtml(l)}</option>`).join("")}</select>`;
-    el.querySelector("select").addEventListener("change", (e) => show(e.target.value));
-    anchor.after(el);
-  }
-  await show(cfg.types[0][0]);
   applyVisibility(cfg.id);
   buildLegend();
 }
@@ -7203,18 +7392,51 @@ const TRASE_DATA = {
   group: true,
   ready: true,
   children: [
-      { id: "trase_measures", name: "Deforestation and supply-chain measures", unit: "regions", colour: "#8C5548", route: "trase", ready: true, lazy: true,
+      { id: "trase_measures", name: "Deforestation and supply-chain measures (Trase)", unit: "regions", colour: "#8C5548", route: "trase", ready: true, lazy: true,
         catalogue: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/catalogue.json", values: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/values",
         regions: "https://resources.trase.earth/data/trase-regions",
         attribution: "Trase (CC BY 4.0)",
         note: "Trase's own measures for every country, region level and year it publishes. Region shapes are read live from Trase; the values come from a copy reread weekly, because Trase does not let other sites read them." },
-      { id: "trase_facilities", name: "Facilities", unit: "facilities", colour: "#62755F", route: "trasefacmenu", ready: true, lazy: true,
-        manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json",
-        types: [["brazil-facilities", "Brazil: slaughterhouses and animal-product facilities"], ["brazil-silos", "Brazil: soy silos and storage"],
-                ["cote-d-ivoire-cocoa-cooperatives", "C\u00f4te d'Ivoire: cocoa cooperatives"], ["indonesia-palm-oil-mills", "Indonesia: palm oil mills"],
-                ["indonesia-wood-pulp-mills", "Indonesia: wood pulp mills"], ["indonesia-wood-pulp-concessions-2015-2019", "Indonesia: wood pulp concessions, 2015\u20132019"],
-                ["indonesia-wood-pulp-concessions-2020-2022", "Indonesia: wood pulp concessions, 2020\u20132022"], ["indonesia-wood-pulp-concessions-2023-2024", "Indonesia: wood pulp concessions, 2023\u20132024"]],
-        note: "Trase's facilities maps, chosen from its own menu, read live from Trase's files (CC BY 4.0)." },
+      { id: "trase_meat_brazil", name: "Slaughterhouses and animal-product plants, Brazil (Trase)", unit: "facilities", colour: "#8C5548", route: "trasefac", ready: true, lazy: true,
+        manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json", facilityType: "brazil-facilities",
+        file: "2026-05-07-br_beef_logistics_map_v6.geo.json",
+        attribution: "Trase (CC BY 4.0)",
+        note: "Trase's map of Brazilian slaughterhouses and other animal-product facilities. Read live from Trase's own files each time the row is ticked (CC BY 4.0)." },
+      { id: "trase_silos_brazil", name: "Soy silos and storage, Brazil (Trase)", unit: "silos and stores", colour: "#6E6A55", route: "trasefac", ready: true, lazy: true,
+        manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json", facilityType: "brazil-silos",
+        file: "silos_consolidated_capacity_website_brazil_2024_2_post.geo.json",
+        attribution: "Trase (CC BY 4.0)",
+        note: "About 9,300 Brazilian soy silos and processing sites with their owners. Trase identified them with an image-reading workflow it states is over 90% accurate, so this is not a register and a share of the rows is wrong. Read live from Trase's own files each time the row is ticked (CC BY 4.0)." },
+      { id: "trase_cocoa_ivory", name: "Cocoa cooperatives, C\u00f4te d'Ivoire (Trase)", unit: "cooperatives", colour: "#6B5B4E", route: "trasefac", ready: true, lazy: true,
+        manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json", facilityType: "cote-d-ivoire-cocoa-cooperatives",
+        file: "IC2B_coopyear_clean.geo.json",
+        attribution: "Trase (CC BY 4.0)",
+        note: "Trase's list of Ivorian cocoa cooperatives. Read live from Trase's own files each time the row is ticked (CC BY 4.0)." },
+      { id: "trase_palm_indonesia", name: "Palm oil mills, Indonesia (Trase)", unit: "mills", colour: "#62755F", route: "trasefac", ready: true, lazy: true,
+        manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json", facilityType: "indonesia-palm-oil-mills",
+        file: "IDN_PO_mills_clean.geo.json",
+        attribution: "Trase (CC BY 4.0)",
+        note: "Trase's Indonesian palm oil mills, carrying the Universal Mill List id where it has one. Read live from Trase's own files each time the row is ticked (CC BY 4.0)." },
+      { id: "trase_pulp_indonesia", name: "Wood pulp mills, Indonesia (Trase)", unit: "mills", colour: "#5F6E6A", route: "trasefac", ready: true, lazy: true,
+        manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json", facilityType: "indonesia-wood-pulp-mills",
+        file: "id_wood_mills_facilities_v2026_02_10.geo.json",
+        attribution: "Trase (CC BY 4.0)",
+        note: "Trase's Indonesian wood pulp mills. Read live from Trase's own files each time the row is ticked (CC BY 4.0)." },
+      { id: "trase_pulp_concessions_2015", name: "Wood pulp concessions 2015\u20132019, Indonesia (Trase)", unit: "concessions", colour: "#6F7560", route: "trasefac", ready: true, lazy: true,
+        manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json", facilityType: "indonesia-wood-pulp-concessions-2015-2019",
+        file: "indonesia_wood_pulp_concessions_2015_2019_v2026_02_20.geo.json",
+        attribution: "Trase (CC BY 4.0)",
+        note: "The areas Trase records as wood pulp concessions over 2015\u20132019, drawn as areas. Read live from Trase's own files each time the row is ticked (CC BY 4.0)." },
+      { id: "trase_pulp_concessions_2020", name: "Wood pulp concessions 2020\u20132022, Indonesia (Trase)", unit: "concessions", colour: "#5E6A63", route: "trasefac", ready: true, lazy: true,
+        manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json", facilityType: "indonesia-wood-pulp-concessions-2020-2022",
+        file: "indonesia_wood_pulp_concessions_2020_2022_v2026_02_20.geo.json",
+        attribution: "Trase (CC BY 4.0)",
+        note: "The areas Trase records as wood pulp concessions over 2020\u20132022, drawn as areas. Read live from Trase's own files each time the row is ticked (CC BY 4.0)." },
+      { id: "trase_pulp_concessions_2023", name: "Wood pulp concessions 2023\u20132024, Indonesia (Trase)", unit: "concessions", colour: "#59665C", route: "trasefac", ready: true, lazy: true,
+        manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json", facilityType: "indonesia-wood-pulp-concessions-2023-2024",
+        file: "indonesia_wood_pulp_concessions_2023_2024_v2026_02_20.geo.json",
+        attribution: "Trase (CC BY 4.0)",
+        note: "The areas Trase records as wood pulp concessions over 2023\u20132024, drawn as areas. Read live from Trase's own files each time the row is ticked (CC BY 4.0)." },
   ],
 };
 
@@ -7283,7 +7505,6 @@ function ensureLayer(cfg) {
       : cfg.route === "glw" ? Promise.resolve().then(() => addGlwLayer(cfg))
       : cfg.route === "arcgisdyn" ? addArcgisDynLayer(cfg)
       : cfg.route === "giga" ? addGigaLayer(cfg)
-      : cfg.route === "trasefacmenu" ? addTraseFacMenu(cfg)
       : cfg.route === "gta" ? addGtaLayer(cfg)
       : cfg.route === "ctair" ? addCtAirLayer(cfg)
       : cfg.route === "gsn" ? addGsnLayer(cfg)
@@ -7418,7 +7639,7 @@ const LAYER_KIND = {
   mines_global: ["insentient", "downstream"],
   slick_archive: ["animal", "downstream"],
   giga_countries: ["human", "upstream"],
-  trase_facilities: ["plant", "upstream"],
+  trase_meat_brazil: ["animal", "upstream"],
   biosignature: ["insentient", "downstream"],
   leverage_chart: ["human", "upstream"],
   cfr_tracker: ["human", "upstream"],
@@ -7517,6 +7738,9 @@ const KIND_PREFIXES = [
   ["slavery_", ["human", "downstream"]],
   ["remains_", ["human", "downstream"]],
   ["site_", ["human", "upstream"]],
+  // Trase's facilities rows are all plant commodities except the Brazilian
+  // slaughterhouses, which are named above; the measures row is named above too.
+  ["trase_", ["plant", "upstream"]],
 ];
 
 function kindOf(id) {
@@ -7944,13 +8168,14 @@ const PANEL_ORDER = [
   { h: 3, t: "Pollution" }, "epa_tri_sites", "epa_widget",
   { h: 4, t: "Wastewater" }, "hydrowaste",
   { h: 4, t: "Plastics" }, "mymaps_chlorine", "arcgis_ym8xk", "arcgis_materialresearch", "pirg_plastic", "gpw_map", "seas_of_plastic", "coastal_cleanup",
-  { h: 3, t: "Deforestation" }, "soilgrids", "group:trase_data", "nusantara",
+  { h: 3, t: "Deforestation" }, "soilgrids", "trase_measures", "trase_pulp_indonesia",
+    "trase_pulp_concessions_2015", "trase_pulp_concessions_2020", "trase_pulp_concessions_2023", "nusantara",
   { h: 4, t: "Global Forest Watch" }, "glad_loss", "group:forest_alerts", "gfw_catalogue",
   { h: 3, t: "Biodiversity loss" }, "gsn", "gsn_rankings", "allen_coral", "atlas_hotspots", "atlas_cities", "pe_subsidising", "powerbi_report",
   { h: 3, t: "Mining" }, "mines_global",
   { h: 3, t: "Meat and agriculture" },
-  { h: 4, t: "Agriculture" }, "land_matrix", "palmwatch",
-  { h: 4, t: "Meat" }, "abattoir_facilities", "abattoir_cafo", "abattoir_glw", "cultivated_meat_laws",
+  { h: 4, t: "Agriculture" }, "land_matrix", "palmwatch", "trase_palm_indonesia", "trase_silos_brazil", "trase_cocoa_ivory",
+  { h: 4, t: "Meat" }, "abattoir_facilities", "trase_meat_brazil", "abattoir_cafo", "abattoir_glw", "cultivated_meat_laws",
   { h: 3, t: "Oceans" },
   { h: 4, t: "Fishing" }, "fishing",
   { h: 4, t: "Oil slicks" },
@@ -8013,7 +8238,7 @@ const PANEL_ORDER = [
   { h: 3, t: "Unidentified aerial phenomena" },
   { h: 2, t: "From Earth" },
   { h: 3, t: "The space industry" }, "space_industry",
-  { h: 3, t: "Space launches" }, "ll2_pads", "ll2_upcoming", "wrf", "nsf_launches",
+  { h: 3, t: "Space launches" }, "ll2_pads", "ll2_upcoming",
   { h: 3, t: "Protecting extraterrestrial life" }, "biosignature",
 
   { h: 1, t: "Buildings" }, "building_types",
@@ -8028,6 +8253,9 @@ const PANEL_REMOVED = new Set([
   "gmo_releases",
   // Removed at the owner's request, 20 September.
   "acgf",
+  // The same upcoming launches and the same pads as the two Launch Library 2
+  // rows, but as framed pages rather than on the map.
+  "wrf", "nsf_launches",
   // Replaced by carbon_plumes, which reads Carbon Mapper's own platform rather
   // than the handful of plumes listed on our page.
   "site_carbon_mapper_waste",

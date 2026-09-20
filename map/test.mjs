@@ -1190,11 +1190,11 @@ console.log("\nthe boxes");
   const wireSrc = fs.readFileSync(path.join(HERE, "wire.js"), "utf8");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("one width is declared for every box", /--box-w:\s*290px/.test(index) && /--zoom-w:\s*29px/.test(index));
-  check("the boxes down the left take it", /\.left-col\{[\s\S]{0,120}width:var\(--box-w\)/.test(index));
+  check("the boxes down the left take it, through their own --left-w", /--left-w:var\(--box-w\)/.test(index) && /\.left-col\{[\s\S]{0,120}width:var\(--left-w\)/.test(index));
   check("the news wires box takes it too, no longer 440px",
         /width:min\(var\(--box-w,290px\),calc\(100vw - 18px\)\)/.test(wireSrc) && !/440px/.test(wireSrc));
-  check("the legend is as wide as the wires box",
-        /#legend\{position:absolute;left:16px;bottom:16px;z-index:2;width:var\(--box-w\)/.test(index));
+  check("the legend is as wide as the layers column above it",
+        /#legend\{position:absolute;left:16px;bottom:16px;z-index:2;width:var\(--left-w\)/.test(index));
   check("the zoom buttons are back in the view row, one above the other",
         /function moveZoomButtons/.test(src) && /getElementById\("view-zoom"\)/.test(src) &&
         /<div class="view-zoom" id="view-zoom"><\/div>/.test(src) &&
@@ -1740,7 +1740,7 @@ console.log("\ncolumns close in, a reload button, mines");
   check("at world view columns keep their old size", halves([{ lng: 0, lat: 0 }, { lng: 1, lat: 1 }], 2).want === 1.5);
   const html2 = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   check("a reload button is in the page from the start, with its own handler and its words beside it",
-        /id="reload-map"[\s\S]{0,200}onclick="[^"]*location\.reload\(\)"/.test(html2) && /class="reload-cap">Reload if the map gets stuck</.test(html2));
+        /id="reload-map"[\s\S]{0,200}onclick="[^"]*location\.reload\(\)"/.test(html2) && /class="reload-cap">Stuck\? Reload here, or press \u2318R \(Ctrl-R\)</.test(html2));
   check("…and moves under the view choices once they exist", /under\.appendChild\(wrap\)/.test(src));
   check("…keeping the view as the map moves", /window\.__culpritsView = /.test(src));
   check("…and comes back to the same view", /sessionStorage\.getItem\("culprits-view"\)/.test(src));
@@ -1797,12 +1797,32 @@ console.log("\nsuppression in the given order; news box filters");
   check("Economically is now Control of physical resources", at("Economically") === -1 && at("Control of physical resources") > at("Physical suppression"));
   const last = (x) => order.map((y) => y && y.t).lastIndexOf(x);
   check("the other beings follow Of humans", last("Of animals") > at("Suppression by social molds") && last("Of microscopics") > last("Of plants"));
-  const pick = new Function(src.slice(src.indexOf("function wirePopPick("), src.indexOf("// Every story at a mark")) + "; return wirePopPick;")();
+  const pick = new Function(src.slice(src.indexOf("const WIRE_NOT_GIVEN ="), src.indexOf("// Every story at a mark")) + "; return wirePopPick;")();
   const list = [{ subject: "Slavery", outlet: "AP", title: "Brick kilns raided" }, { subject: "Voting", outlet: "AP", title: "Polls close" },
                 { subject: "Slavery", outlet: "BBC", title: "Fishing crews freed" }];
   check("a news box filters by subject", pick(list, { subject: "Slavery" }).length === 2);
   check("…by source", pick(list, { outlet: "BBC" }).length === 1);
   check("…and by words in the headline", pick(list, { title: "kilns" }).length === 1 && pick(list, { title: "" }).length === 3);
+  // A story carrying no source, place or date is reachable through its menu's
+  // own option rather than being filtered away by every choice.
+  const day = (y, m, d) => new Date(y, m - 1, d).getTime();
+  const dated = [{ subject: "Slavery", outlet: "AP", place: "Lagos", title: "one", date: day(2026, 9, 18) },
+                 { subject: "Slavery", outlet: "", place: "", title: "two", date: day(2026, 9, 19) },
+                 { subject: "Voting", outlet: "BBC", place: "Lagos", title: "three", date: null }];
+  check("\u2026by place", pick(dated, { place: "Lagos" }).length === 2);
+  check("\u2026by the day a story carries", pick(dated, { day: "2026-09-19" }).length === 1);
+  check("stories with nothing in a field have an option of their own",
+        pick(dated, { outlet: "\u0000none" }).length === 1 && pick(dated, { day: "\u0000none" }).length === 1);
+  const filters = new Function("escapeHtml", "WIRE_SORTS",
+    src.slice(src.indexOf("const WIRE_NOT_GIVEN ="), src.indexOf("// Every story at a mark")) + "; return wirePopFilters;")(
+      (x) => String(x), [["new", "Newest first"]]);
+  const html = filters(dated);
+  check("the box carries a menu for each of them, and the headline and order",
+        ["subject", "outlet", "place", "day", "title", "order"].every((k) => html.includes(`data-wf="${k}"`)));
+  check("a menu whose stories all share one value is left out",
+        !filters([{ subject: "Slavery", outlet: "AP", place: "Lagos", title: "one", date: day(2026, 9, 18) },
+                  { subject: "Slavery", outlet: "AP", place: "Lagos", title: "two", date: day(2026, 9, 18) }])
+          .includes('data-wf="subject"'));
 }
 
 console.log("\nthe Social Spheres, its own map");
@@ -1959,10 +1979,10 @@ console.log("\nwhat was still open");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("the EPA widget's facilities are drawn live from EPA's service", /id: "epa_widget"[^\n]*route: "arcgisdyn"/.test(src) && /EMEF\/efpoints\/MapServer/.test(src) && /\/identify\?geometry=/.test(src));
-  check("Giga by country, Trase facilities, and two of your own are rows", ["giga_countries", "trase_facilities", "biosignature", "leverage_chart"].every((i) => new RegExp(`id: "${i}"`).test(src)));
+  check("Giga by country, Trase's facilities rows, and two of your own are rows", ["giga_countries", "trase_meat_brazil", "trase_palm_indonesia", "biosignature", "leverage_chart"].every((i) => new RegExp(`id: "${i}"`).test(src)));
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
   const order = new Function(body + "; return PANEL_ORDER;")();
-  check("the waiting rows are placed", ["ejatlas", "group:trase_data", "nusantara", "gfw_catalogue", "gsn", "seas_of_plastic", "coastal_cleanup", "mines_global", "atlas_hotspots", "final_nail", "group:ct_history"].every((i) => order.includes(i)));
+  check("the waiting rows are placed", ["ejatlas", "trase_measures", "nusantara", "gfw_catalogue", "gsn", "seas_of_plastic", "coastal_cleanup", "mines_global", "atlas_hotspots", "final_nail", "group:ct_history"].every((i) => order.includes(i)));
 }
 
 console.log("\nvessels of concern drawn; the oil-slick archive");
@@ -2062,7 +2082,7 @@ console.log("\nthe column's edge, the meat rows, the reefs close in");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   check("the layers column is dragged wider by its right edge, and put back by a double-click",
-        /function columnEdge\(\)/.test(src) && /root\.style\.setProperty\("--box-w"/.test(src) && /\.col-edge\{position:absolute/.test(index));
+        /function columnEdge\(\)/.test(src) && /root\.style\.setProperty\("--left-w"/.test(src) && /\.col-edge\{position:absolute/.test(index));
   check("the two modelled meat rows are built by the routes that know them",
         /else if \(cfg\.route === "cafo"\) addCafoLayer\(cfg\);/.test(src) && /else if \(cfg\.route === "glw"\) addGlwLayer\(cfg\);/.test(src) &&
         /id:"abattoir_cafo"[^\n]*lazy:true/.test(src) && /id:"abattoir_glw"[^\n]*lazy:true/.test(src));
@@ -2076,7 +2096,7 @@ console.log("\nCarbon Mapper's plumes, from their own platform");
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
   const o = new Function(body + "; return { PANEL_ORDER, PANEL_REMOVED };")();
   check("the row reads Carbon Mapper's catalogue, not the handful on our own page",
-        /const CARBON_API = "https:\/\/api\.carbonmapper\.org\/api\/v1\/catalog\/plumes\/annotated"/.test(src) &&
+        /const CARBON_API = `\$\{WORKER\}\/carbonmapper`;/.test(src) &&
         o.PANEL_ORDER.includes("carbon_plumes") && o.PANEL_REMOVED.has("site_carbon_mapper_waste"));
   check("it pages through the catalogue and says how much of it is held",
         /offset=\$\{page \* 1000\}/.test(src) && /of \$\{total\.toLocaleString\(\)\} published/.test(src));
@@ -2193,9 +2213,27 @@ console.log("\nrows gathered, moved and renamed");
         /GLAD-L, GLAD-S2 and RADD/.test(src) && (src.match(/DIST-ALERT/g) || []).length >= 2 &&
         ["gfw", "gfw_dist", "gfw_dist_year"].every((i) => !order.includes(i)));
   check("Global Forest Change is drawn above the alerts", order.indexOf("glad_loss") < order.indexOf("group:forest_alerts"));
-  check("Trase is one row, its two layers named without the prefix",
-        /name: "Trase deforestation data"/.test(src) && /const TRASE_DATA = \{[\s\S]{0,4000}id: "trase_facilities"/.test(src) &&
-        !/name: "Trase: /.test(src));
+  // The titles are compared as they are written in app.js, escapes and all,
+  // so a name typed with a real accent instead of its escape is caught here.
+  check("each Trase dataset is its own row, the source kept in its title",
+        [["trase_measures", String.raw`Deforestation and supply-chain measures (Trase)`],
+         ["trase_meat_brazil", String.raw`Slaughterhouses and animal-product plants, Brazil (Trase)`],
+         ["trase_silos_brazil", String.raw`Soy silos and storage, Brazil (Trase)`],
+         ["trase_cocoa_ivory", String.raw`Cocoa cooperatives, C\u00f4te d'Ivoire (Trase)`],
+         ["trase_palm_indonesia", String.raw`Palm oil mills, Indonesia (Trase)`],
+         ["trase_pulp_indonesia", String.raw`Wood pulp mills, Indonesia (Trase)`],
+         ["trase_pulp_concessions_2015", String.raw`Wood pulp concessions 2015\u20132019, Indonesia (Trase)`],
+         ["trase_pulp_concessions_2020", String.raw`Wood pulp concessions 2020\u20132022, Indonesia (Trase)`],
+         ["trase_pulp_concessions_2023", String.raw`Wood pulp concessions 2023\u20132024, Indonesia (Trase)`]]
+          .every(([i, n]) => src.includes(`id: "${i}", name: "${n}"`)) &&
+        !/name: "Trase: /.test(src) && !/trasefacmenu/.test(src));
+  check("each Trase row sits under the map's own heading, not a Trase one",
+        ["trase_measures", "trase_pulp_indonesia", "trase_pulp_concessions_2015", "trase_pulp_concessions_2020", "trase_pulp_concessions_2023"]
+          .every((i) => order.indexOf(i) > at("Deforestation") && order.indexOf(i) < at("Global Forest Watch")) &&
+        ["trase_palm_indonesia", "trase_silos_brazil", "trase_cocoa_ivory"]
+          .every((i) => order.indexOf(i) > at("Agriculture") && order.indexOf(i) < at("Meat")) &&
+        order.indexOf("trase_meat_brazil") > at("Meat") && order.indexOf("trase_meat_brazil") < at("Oceans") &&
+        !order.includes("group:trase_data"));
   check("a group owns its children, so no row is rendered twice and none falls into Not yet placed",
         !/rowsById/.test(src) && (src.match(/id:"gfw_dist_year"/g) || []).length === 1 && (src.match(/id: "trase_measures"/g) || []).length === 1);
   check("unticking a row takes its boxes with it",
@@ -2256,7 +2294,11 @@ console.log("\nBuildings");
 console.log("\nlayer rows laid out like Global Safety Net's list");
 {
   const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
-  check("rows are small, tight and led by a colour square", /#layers \.layer\{gap:6px;padding:2px 0;border-top:none;font-size:12px/.test(index) && /#layers \.swatch\{width:10px;height:10px;border-radius:2px/.test(index));
+  check("rows are small, tight and led by a colour square", /#layers \.layer\{gap:6px;padding:0;border-top:none;font-size:12px;line-height:1\.25/.test(index) && /#layers \.swatch\{width:10px;height:10px;border-radius:2px/.test(index));
+  // One line apart: an unticked row carries no padding of its own, so the
+  // titles read as a list rather than a column of gaps. A ticked row takes a
+  // little back, because its line of detail appears underneath it.
+  check("a ticked row keeps room for its line of detail", /#layers \.layer:has\(> input:checked\)\{padding:2px 0\}/.test(index));
   check("a row's detail line shows once it is ticked", /#layers \.layer:has\(> input:checked\) \.un\{display:block\}/.test(index));
   check("the layers box rolls up whole", /\.left-col \.panel\.shut\{flex:0 0 auto;height:auto !important\}/.test(index));
 }
@@ -2332,6 +2374,68 @@ console.log("\nHydroWASTE on the map; the EIP and HydroFATE page rows gone");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("HydroWASTE's plants are drawn from their own archive", /id:"hydrowaste", +name:"Wastewater treatment plants \(HydroWASTE\)"[^\n]*route:"pmtiles"/.test(src) && fs.existsSync(path.join(HERE, "tiles", "hydrowaste.pmtiles")));
   check("the Environmental Integrity Project and HydroFATE page rows are gone", !/id: "eip_inventory"/.test(src) && !/id: "hydrofate"/.test(src));
+}
+
+console.log("\nthe layers column drags on its own");
+{
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const edge = src.slice(src.indexOf("function columnEdge("), src.indexOf("/* ---------- Carbon Mapper"));
+  check("the left column has a width of its own", /--left-w:var\(--box-w\)/.test(html) &&
+        /\.left-col\{[^}]*width:var\(--left-w\)/.test(html) && /#legend\{[^}]*width:var\(--left-w\)/.test(html));
+  check("the boxes on the right keep the starting width", /\.right-col\{[^}]*width:var\(--box-w\)/.test(html));
+  check("the handle drags the left column, not everything", /--left-w/.test(edge) && !/--box-w/.test(edge));
+}
+
+console.log("\nlaunches are drawn, not framed");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_REMOVED = new Set(["), src.indexOf("function panelNodes("));
+  check("the two Launch Library 2 rows are still there", /id: "ll2_pads"/.test(src) && /id: "ll2_upcoming"/.test(src));
+  check("the framed pages showing the same launches and pads are out",
+        ["wrf", "nsf_launches", "nsf_locations"].every((i) => new RegExp(`"${i}"`).test(body)));
+}
+
+console.log("\nCarbon Mapper is read through the Worker");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const worker = fs.readFileSync(path.join(HERE, "..", "worker", "index.js"), "utf8");
+  check("the row asks the Worker, not the API directly",
+        /const CARBON_API = `\$\{WORKER\}\/carbonmapper`;/.test(src) &&
+        !/getJson\(`https:\/\/api\.carbonmapper\.org/.test(src));
+  check("the Worker has the route and passes the catalogue back unchanged",
+        /url\.pathname === "\/v1\/carbonmapper"/.test(worker) &&
+        /const CARBON_MAPPER_BASE = "https:\/\/api\.carbonmapper\.org\/api\/v1\/catalog\/plumes\/annotated";/.test(worker));
+  check("only the parameters the row sends are forwarded",
+        /\["limit", "offset", "sort", "bbox", "plume_gas", "datetime"\]/.test(worker));
+}
+
+console.log("\nthe launch rows draw without waiting out the API");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("the copy is read beside the live pages, not only after they fail",
+        /const LL2_WAIT = 6000;/.test(src) && /const copy = getJson\(cfg\.copy, 20000\)/.test(src) &&
+        /Promise\.race\(\[live, late\]\)/.test(src));
+  check("a row says which of the two it is showing",
+        /did not answer within \$\{Math\.round\(LL2_WAIT \/ 1000\)\} seconds; showing today's copy/.test(src) &&
+        /hourly limit was reached; showing today's copy/.test(src));
+  check("the reload caption names the shortcut that works while the page is busy",
+        /Stuck\? Reload here, or press \u2318R \(Ctrl-R\)/.test(index));
+}
+
+console.log("\nNusantara's layers say what they show");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const table = new Function(src.slice(src.indexOf("const NUSANTARA_NAMES = {"), src.indexOf("/* ---------- a map server's whole layer list")) + "; return NUSANTARA_NAMES;")();
+  check("every name is a plain one, not the server's id", Object.keys(table).length > 140 &&
+        Object.values(table).every((v) => v && !/^[a-z0-9_]+$|_spv|RGB_|TTM/.test(v)));
+  check("the ones that read worst are covered",
+        table.Global_PlantationIOP_2025 === "Industrial oil palm plantations 2025" &&
+        table.concessionitp_spv === "Industrial timber plantation concessions" &&
+        table.v3p3_spatialplanmoratorium_spv === "Moratorium areas (PIPPIB) (v3p3 copy)");
+  check("a layer nobody has named keeps the server's own title, rather than a guess",
+        /title: NUSANTARA_NAMES\[id\] \|\| \(tt && tt\.textContent\) \|\| id/.test(src));
 }
 
 console.log("\nGlobal Safety Net fixes; My Maps titles");
