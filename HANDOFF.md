@@ -101,6 +101,24 @@ broken menu.
 
 ---
 
+## Two things that broke, and why
+
+**The two modelled meat rows.** The load handler dispatches by route with a
+chain of `else if`s and everything it does not recognise falls through to the
+archive builder, which asks for `map/tiles/<id>.pmtiles`. Splitting the abattoir
+atlas's parts into rows gave them routes `cafo` and `glw`, which only
+`ensureLayer` knew, so at load both asked for archives that never existed and
+failed. Both dispatches now name them, and both rows are lazy.
+
+**The reefs close in.** `${id}-raster`, the Atlas's own picture, carried
+`maxzoom: cfg.drawFrom` - which is 12, the same as its `minzoom` - so it drew
+at no zoom at all. From 12 in there was nothing but the Atlas's vector shapes,
+and when those do not arrive the reefs vanished as you zoomed toward them. Both
+pictures now run to the top: UNEP-WCMC's under everything, the Atlas's from 12
+under its own shapes.
+
+---
+
 ## Areas at the world view
 
 A sitemap layer's areas get an edge as well as a fill, and a point at each

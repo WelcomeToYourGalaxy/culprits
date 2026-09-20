@@ -376,9 +376,9 @@ const LAYERS = [
                        "no": "registered, does not slaughter",
                        "not stated": "registry does not say" } },
     note: "Most of these are not slaughterhouses: farms, dairies, processors, transporters, hatcheries and zoos are registered animal-use sites too. Slaughter is marked yes or no only where a registry says; for most it says neither. Hollow points are placed at a town, not the site. Records with no position at all are not drawn." },
-  { id:"abattoir_cafo",        name:"Confined animal feeding operations, modelled (Climate TRACE)", unit:"modelled facilities", colour:"#7B6A4E", route:"cafo", ready:true, off: true,
+  { id:"abattoir_cafo",        name:"Confined animal feeding operations, modelled (Climate TRACE)", unit:"modelled facilities", colour:"#7B6A4E", route:"cafo", ready:true, off: true, lazy:true,
     note: "A model's estimate from satellite imagery and census data, not a permit register: nothing here has necessarily been visited, licensed or confirmed by any authority. Hollow where Climate TRACE give an area rather than the facility's own position." },
-  { id:"abattoir_glw",         name:"Livestock density, modelled (FAO Gridded Livestock of the World 4, 2020)", unit:"animals per square km", colour:"#6E6A55", route:"glw", ready:true, off: true,
+  { id:"abattoir_glw",         name:"Livestock density, modelled (FAO Gridded Livestock of the World 4, 2020)", unit:"animals per square km", colour:"#6E6A55", route:"glw", ready:true, off: true, lazy:true,
     note: "A modelled grid of where animals are kept, not a count of farms. FAO fit census totals to land cover and other predictors, so a dense square means the model puts animals there." },
   { id:"slavery_cases",        name:"Identified trafficking cases", unit:"identified cases", colour:"#7A6A72", route:"country", ready:true, off:true,
     note: "Detection, not prevalence. A country with a large count has organisations filing records; a country with none may have no one counting." },
@@ -3318,6 +3318,43 @@ function showRowFor(id) {
   }
 }
 
+// The layers column's right edge is a handle. Long layer names were being cut
+// at 290 pixels with no way to see the rest; now the column is dragged as wide
+// as it needs to be and dragged back for more map. Double-click puts it back to
+// where it started. The width is the same --box-w everything else measures
+// from, so the zoom strip and the defence frame move with it.
+function columnEdge() {
+  const col = typeof document !== "undefined" && document.querySelector ? document.querySelector(".left-col") : null;
+  if (!col || typeof col.querySelector !== "function" || col.querySelector(".col-edge") ||
+      typeof document.createElement !== "function" || typeof getComputedStyle !== "function") return;
+  const root = document.documentElement;
+  const START = 290, MIN = 220, MAX = 680;
+  const edge = document.createElement("div");
+  edge.className = "col-edge";
+  edge.title = "Drag to make the layers box wider or narrower. Double-click to put it back.";
+  edge.setAttribute("aria-hidden", "true");
+  let from = 0, was = START;
+  const widthNow = () => {
+    const v = parseFloat(getComputedStyle(root).getPropertyValue("--box-w"));
+    return isFinite(v) ? v : START;
+  };
+  edge.addEventListener("pointerdown", (e) => {
+    from = e.clientX;
+    was = widthNow();
+    if (edge.setPointerCapture) edge.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  edge.addEventListener("pointermove", (e) => {
+    if (!from) return;
+    const want = Math.max(MIN, Math.min(MAX, was + (e.clientX - from)));
+    root.style.setProperty("--box-w", `${Math.round(want)}px`);
+  });
+  const done = () => { from = 0; if (map && typeof map.resize === "function") map.resize(); };
+  edge.addEventListener("pointerup", done);
+  edge.addEventListener("pointercancel", done);
+  edge.addEventListener("dblclick", () => { root.style.setProperty("--box-w", `${START}px`); done(); });
+  col.appendChild(edge);
+}
 /* ---------- Carbon Mapper's plumes, read from its own data platform ---------- */
 
 // What was here before was the handful of waste-site plumes listed on our own
@@ -5225,7 +5262,13 @@ function addCoralLayer(cfg) {
     tiles: [`tint://${CORAL_CLASSES["Coral/Algae"].slice(1)}/allencoralatlas.org/geoserver/ows?SERVICE=WMS&VERSION=1.1.1` +
             `&REQUEST=GetMap&LAYERS=coral-atlas:benthic_data_verbose&STYLES=&SRS=EPSG:3857&BBOX={bbox-epsg-3857}` +
             `&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=true`] });
-  map.addLayer({ id: `${cfg.id}-raster`, type: "raster", source: `${cfg.id}-wide`, maxzoom: cfg.drawFrom,
+  // The Atlas's own picture of the same reefs, from zoom 12 in, with no upper
+  // stop. It used to carry maxzoom: cfg.drawFrom, which is also 12, so it drew
+  // at no zoom at all: closer in there was nothing but the Atlas's vector
+  // shapes, and when those do not arrive - the Atlas is slow, and answers some
+  // squares and not others - the reefs simply vanished as you zoomed in. Now
+  // the picture stays underneath the shapes the whole way in.
+  map.addLayer({ id: `${cfg.id}-raster`, type: "raster", source: `${cfg.id}-wide`,
     minzoom: CORAL_ATLAS_PICTURE_FROM, layout: { visibility: "none" }, paint: { "raster-opacity": 0.9 } });
   // Wider still, the Atlas's server runs out of time drawing so much reef, so
   // UNEP-WCMC's reef map stands in, in the same colour, and the row says so.
@@ -5248,8 +5291,11 @@ function addCoralLayer(cfg) {
     layout: { visibility: "none" }, paint: { "raster-opacity": 1, "raster-resampling": "nearest" } });
   map.addSource(`${cfg.id}-globe-near`, { type: "raster", tileSize: 256,
     attribution: "UNEP-WCMC, WorldFish Centre, WRI, TNC", tiles: [wcmc(256)] });
+  // No upper stop here either: UNEP-WCMC's reef map is the one thing that
+  // always answers, so it stays under everything else rather than handing over
+  // at zoom 12 and leaving a gap if the Atlas is silent.
   map.addLayer({ id: `${cfg.id}-world-near`, type: "raster", source: `${cfg.id}-globe-near`,
-    minzoom: CORAL_WORLD_SHARP, maxzoom: cfg.drawFrom,
+    minzoom: CORAL_WORLD_SHARP,
     layout: { visibility: "none" }, paint: { "raster-opacity": 0.9 } });
   bindHtmlPopup(`${cfg.id}-fill`, (p) =>
     `<b>${p.class_name || "Unclassified"}</b>` +
@@ -7689,6 +7735,15 @@ map.on("load", () => {
       else if (cfg.route === "wmts") addWmtsLayer(cfg);
       else if (cfg.route === "cerulean") addCeruleanLayer(cfg);
       else if (cfg.route === "coral") addCoralLayer(cfg);
+      // Routes this loop does not know fall through to the archive builder,
+      // which asks for map/tiles/<id>.pmtiles and fails on a layer that never
+      // had one. That is what broke the two modelled meat rows when they were
+      // split out: named here, and marked lazy so the first tick builds them.
+      else if (cfg.route === "cafo") addCafoLayer(cfg);
+      else if (cfg.route === "glw") addGlwLayer(cfg);
+      else if (cfg.route === "carbonmapper") {
+        addCarbonMapperLayer(cfg).catch((e) => setLayerState(cfg.id, `failed (${e.message})`));
+      }
       else if (cfg.route === "country") {
         // Async: without a catch a failure here becomes an unhandled rejection
         // and the layer just silently never appears.
@@ -7700,6 +7755,7 @@ map.on("load", () => {
     }
   });
   buildPanel();
+  columnEdge();
   updateZoomState();
   LAYERS.filter((c) => c.ready && c.route === "worker").forEach(refreshLiveLayer);
 });

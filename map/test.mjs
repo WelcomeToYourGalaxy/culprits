@@ -1668,8 +1668,9 @@ console.log("\ncoral, the row's line");
 console.log("\ncoral at every zoom");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("wider than 12, the Atlas's own picture is drawn", /allencoralatlas\.org\/geoserver\/ows\?SERVICE=WMS/.test(src) &&
-        /id: `\$\{cfg\.id\}-raster`, type: "raster", source: `\$\{cfg\.id\}-wide`, maxzoom: cfg\.drawFrom/.test(src));
+  check("from 12 in, the Atlas's own picture is drawn under its shapes, with no upper stop",
+        /allencoralatlas\.org\/geoserver\/ows\?SERVICE=WMS/.test(src) &&
+        /id: `\$\{cfg\.id\}-raster`, type: "raster", source: `\$\{cfg\.id\}-wide`,\n\s*minzoom: CORAL_ATLAS_PICTURE_FROM/.test(src));
   check("…in the coral colour, not the server's black", /tint:\/\/\$\{CORAL_CLASSES\["Coral\/Algae"\]\.slice\(1\)\}/.test(src));
   const tint = new Function(src.slice(src.indexOf("function tintPixels("), src.indexOf('maplibregl.addProtocol("latclip"')) + "; return tintPixels;")();
   const d = new Uint8ClampedArray([0, 0, 0, 255, 0, 0, 0, 0]);
@@ -1692,7 +1693,7 @@ console.log("\nTrase, and coral at world zoom");
   check("the ramps carry no orange or yellow", !/#(F[A-F0-9]{5}|E[6-9A-F][0-9A-F]{2}[0-4][0-9A-F])/i.test(src.slice(src.indexOf("const TRASE_RAMPS"), src.indexOf("const traseCache"))));
   check("wider than zoom 12, coral shows UNEP-WCMC's map in the Atlas colour, with no gap",
         /id: `\$\{cfg\.id\}-world`, type: "raster", source: `\$\{cfg\.id\}-globe`, maxzoom: CORAL_WORLD_SHARP/.test(src) &&
-        /id: `\$\{cfg\.id\}-world-near`[\s\S]{0,160}minzoom: CORAL_WORLD_SHARP, maxzoom: cfg\.drawFrom/.test(src) &&
+        /id: `\$\{cfg\.id\}-world-near`[\s\S]{0,160}minzoom: CORAL_WORLD_SHARP,\n/.test(src) &&
         /tint:\/\/\$\{CORAL_CLASSES\["Coral\/Algae"\]\.slice\(1\)\}\/data-gis\.unep-wcmc\.org/.test(src));
   check("from the world view the reefs are drawn coarse, so a reef a few hundred metres across can be seen",
         /wcmc\(96\)/.test(src) && /wcmc\(256\)/.test(src) && /"raster-resampling": "nearest"/.test(src));
@@ -2054,6 +2055,19 @@ console.log("\nEPA facilities at every zoom");
   check("wider out, the EPA row draws the weekly copy of every point", /epa_efpoints\.pmtiles/.test(src) && /id: `\$\{cfg\.id\}-pts`, type: "circle"/.test(src) && /maxzoom: cfg\.minzoom \|\| 22/.test(src));
   check("a point's full record is asked of EPA on click", /\/query\?objectIds=\$\{encodeURIComponent\(p\._oid\)\}&outFields=\*/.test(src));
   check("the kind buttons also filter the copy", /map\.setFilter\(`\$\{cfg\.id\}-pts`, ptsFilter\(\)\)/.test(src));
+}
+
+console.log("\nthe column's edge, the meat rows, the reefs close in");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("the layers column is dragged wider by its right edge, and put back by a double-click",
+        /function columnEdge\(\)/.test(src) && /root\.style\.setProperty\("--box-w"/.test(src) && /\.col-edge\{position:absolute/.test(index));
+  check("the two modelled meat rows are built by the routes that know them",
+        /else if \(cfg\.route === "cafo"\) addCafoLayer\(cfg\);/.test(src) && /else if \(cfg\.route === "glw"\) addGlwLayer\(cfg\);/.test(src) &&
+        /id:"abattoir_cafo"[^\n]*lazy:true/.test(src) && /id:"abattoir_glw"[^\n]*lazy:true/.test(src));
+  check("close in the reefs still draw: neither picture stops at zoom 12",
+        !/source: `\$\{cfg\.id\}-wide`, maxzoom/.test(src) && !/minzoom: CORAL_WORLD_SHARP, maxzoom/.test(src));
 }
 
 console.log("\nCarbon Mapper's plumes, from their own platform");

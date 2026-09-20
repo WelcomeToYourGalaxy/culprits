@@ -98,6 +98,13 @@
   .fit-box code{display:block;margin-top:6px;color:var(--dim);word-break:break-all}
 
   /* Three boxes down the left: the name, the settings, the layers. */
+  /* The right edge of the layers column is a handle: drag it out for long
+     layer names, drag it back for more map. Double-click puts it back. */
+  .col-edge{position:absolute;top:0;right:-7px;width:12px;bottom:0;cursor:ew-resize;
+    z-index:6;touch-action:none;pointer-events:auto}
+  .col-edge::before{content:"";position:absolute;top:50%;right:5px;width:2px;height:34px;
+    margin-top:-17px;border-radius:2px;background:var(--rule)}
+  .col-edge:hover::before{background:var(--dim)}
   .left-col{position:absolute;top:16px;left:16px;width:var(--box-w);bottom:calc(16px + var(--legend-h,0px));
     display:flex;flex-direction:column;gap:8px;pointer-events:none}
   .left-col .panel{flex:1 1 auto}
