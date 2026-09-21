@@ -2563,6 +2563,10 @@ console.log("\nNusantara's layers say what they show");
         table.Global_PlantationIOP_2025 === "Industrial oil palm plantations 2025" &&
         table.concessionitp_spv === "Industrial timber plantation concessions" &&
         table.v3p3_spatialplanmoratorium_spv === "Moratorium areas (PIPPIB) (v3p3 copy)");
+  check("two more are named from Nusantara's own menu, and the three nobody can vouch for are still left alone",
+        table.concessionfca_spv === "Forest Clearance Authority (FCA) concessions" && table.millopbufferol50km_spv === "Near palm oil mills, 50 km" &&
+        !("concessioncma_spv" in table) && !("millopbufferol_spv" in table) && !("millopbufferpolyloreal_spv" in table) &&
+        /\[\/\^concessionfca_\/i, "Papua New Guinea"\]/.test(src));
   check("a layer nobody has named keeps the server's own title, rather than a guess",
         /const said = NUSANTARA_NAMES\[id\] \|\| \(tt && tt\.textContent\) \|\| id;/.test(src));
 }

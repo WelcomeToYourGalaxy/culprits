@@ -3889,6 +3889,9 @@ const NUSANTARA_NAMES = {
   "burned_area_rgb_crop": "Burned area (picture, cropped)",
   "burnedarea_rgb": "Burned area (picture)",
   "burnedareanrt": "Burned area, near real time, showing overlaps",
+  // Named from Nusantara Atlas's own menu, as the owner read it off their site on
+  // 21 September 2026: "Forest Clearance Authority (FCA) - Papua New Guinea".
+  "concessionfca_spv": "Forest Clearance Authority (FCA) concessions",
   "concessionhgu_spv": "Plantation land-use rights (HGU)",
   "concessioniop_finance_credit": "Oil palm concessions, by who lends to them",
   "concessioniop_finance_invest": "Oil palm concessions, by who invests in them",
@@ -3914,6 +3917,9 @@ const NUSANTARA_NAMES = {
   "millopbuffer1hr_spv": "Palm oil mill sourcing areas, one hour's drive",
   "millopbuffer2hr_spv": "Palm oil mill sourcing areas, two hours' drive",
   "millopbuffer_spv": "Palm oil mill sourcing areas",
+  // Their menu lists "Near palm oil mills" at 10, 25 and 50 km. This id carries
+  // its 50 km; what its "ol" stands for is not known and is not guessed at.
+  "millopbufferol50km_spv": "Near palm oil mills, 50 km",
   "milloprefineries_sp": "Palm oil refineries",
   "papua_concessioniop_edited": "Oil palm concessions, Papua (their edited version)",
   "papua_expansion_2025": "Plantation expansion 2025, Papua",
@@ -4031,6 +4037,7 @@ const NUSANTARA_WHERE = [
   [/IDNMYSBorneo/i, "Borneo"],
   [/REGIDNMYS/i, "Indonesia and Malaysia"],
   [/^BALI_|badung|tabanan/i, "Bali"],
+  [/^concessionfca_/i, "Papua New Guinea"],
   [/papua/i, "Papua"],
   [/merauke/i, "Merauke"],
   [/rawasingkil/i, "Rawa Singkil"],

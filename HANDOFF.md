@@ -242,6 +242,16 @@ as before, so nothing breaks while the tiling catches up.
 
 ---
 
+## Nusantara: two of the five unnamed layers named
+
+From Nusantara Atlas's own menu, read off their site by the owner (21 September):
+`concessionfca_spv` is "Forest Clearance Authority (FCA)" and covers Papua New
+Guinea (a rule in `NUSANTARA_WHERE` says so); `millopbufferol50km_spv` is their
+"Near palm oil mills" at 50 km. Still unnamed, because nothing confirms them:
+`concessioncma_spv`, `millopbufferol_spv` (their menu has 10, 25 and 50 km and
+this id carries no distance) and `millopbufferpolyloreal_spv` (the owner wonders
+whether it is L'Oreal's supplier mills; unconfirmed).
+
 ## Three site maps split into a row per type
 
 The plants, microorganisms and insentient maps have no control that sorts their
