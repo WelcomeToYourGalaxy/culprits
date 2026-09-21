@@ -2888,6 +2888,68 @@ function traseFormat(x) {
   return Math.abs(x) >= 100 ? Math.round(x).toLocaleString() : x.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
+// Every measure Trase publishes, each as one entry across all the countries that
+// publish it. Trase's own map shows one country at a time; here "Deforestation"
+// is one layer drawn over Argentina, Bolivia, Brazil and the rest together.
+// A country is drawn at one region level at a time (its municipalities or its
+// states, never both, or the same ground would be coloured twice): by default
+// the municipality level where Trase publishes the measure there, otherwise
+// the first level Trase lists for it - the same default the single row used.
+function traseMeasures(cat) {
+  const byId = new Map();
+  for (const ck of Object.keys(cat || {}).sort()) {
+    const c = cat[ck];
+    for (const lk of Object.keys(c.levels || {})) {
+      const metrics = c.levels[lk].metrics || {};
+      for (const mk of Object.keys(metrics)) {
+        const m = metrics[mk];
+        let e = byId.get(mk);
+        if (!e) byId.set(mk, e = { metric: mk, said: {}, countries: {} });
+        const nm = m.display_name || mk;
+        e.said[nm] = (e.said[nm] || 0) + 1;
+        const cc = e.countries[ck] = e.countries[ck] || { name: c.name, levels: {} };
+        cc.levels[lk] = { name: c.levels[lk].name, years: (m.years || []).slice(), meta: m };
+      }
+    }
+  }
+  const list = [...byId.values()];
+  for (const e of list) {
+    // Trase words the same measure slightly differently from country to country; the commonest wording is used.
+    e.name = Object.keys(e.said).sort((a, b) => e.said[b] - e.said[a] || a.localeCompare(b))[0];
+    for (const cc of Object.values(e.countries)) cc.own = cc.levels.municipality ? "municipality" : Object.keys(cc.levels)[0];
+    e.meta = Object.values(e.countries)[0].levels[Object.values(e.countries)[0].own].meta;
+  }
+  // Two different measures Trase gives the same name are told apart by Trase's
+  // own id for each, since nothing else Trase publishes says how they differ.
+  const count = {};
+  list.forEach((e) => { count[e.name] = (count[e.name] || 0) + 1; });
+  for (const e of list) {
+    const where = Object.values(e.countries).map((c) => traseCountryName(c.name)).sort().join(", ");
+    const unit = e.meta.unit_abbreviation ? ` (${e.meta.unit_abbreviation})` : "";
+    e.title = `${e.name}${count[e.name] > 1 ? ` [${e.metric}]` : ""}${unit} \u2014 ${where} (Trase)`;
+  }
+  return list.sort((a, b) => a.title.localeCompare(b.title));
+}
+function traseCountryName(n) {
+  return String(n || "").toLowerCase().replace(/-/g, " ").replace(/\b([a-z])/g, (x) => x.toUpperCase()).replace(/\bD Ivoire\b/i, "d'Ivoire");
+}
+// Which level and year each country is drawn at, for what the row's menus say.
+// level "" is each country's own default; year "" the latest each publishes.
+// A country with nothing at the chosen level or year is left out and named.
+function trasePlan(entry, level, year) {
+  const draw = [], left = [];
+  for (const ck of Object.keys(entry.countries).sort()) {
+    const cc = entry.countries[ck];
+    const lk = level || cc.own;
+    const lv = cc.levels[lk];
+    if (!lv) { left.push(`${traseCountryName(cc.name)} (no ${level} level)`); continue; }
+    const yr = year ? (lv.years.includes(Number(year)) ? Number(year) : null) : lv.years[lv.years.length - 1];
+    if (yr == null) { left.push(`${traseCountryName(cc.name)} (nothing for ${year})`); continue; }
+    draw.push({ country: ck, name: traseCountryName(cc.name), level: lk, levelName: lv.name, year: yr, meta: lv.meta });
+  }
+  return { draw, left };
+}
+
 async function addTraseLayer(cfg) {
   let cat, regions;
   try {
@@ -2896,80 +2958,106 @@ async function addTraseLayer(cfg) {
     setLayerState(cfg.id, `not built yet (${e.message})`);
     return;
   }
-  cfg._cat = cat.countries || {};
   cfg._regions = regions;
-  const countries = Object.keys(cfg._cat).sort();
-  const pick = cfg._pick = cfg._pick || {};
-  pick.country = pick.country && cfg._cat[pick.country] ? pick.country : (cfg._cat.brazil ? "brazil" : countries[0]);
-  map.addSource(`${cfg.id}-shapes`, { type: "geojson", data: { type: "FeatureCollection", features: [] }, attribution: cfg.attribution });
-  map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source: `${cfg.id}-shapes`,
-    paint: { "fill-color": ["coalesce", ["get", "_c"], "rgba(0,0,0,0)"], "fill-opacity": 0.72 } });
-  map.addLayer({ id: `${cfg.id}-line`, type: "line", source: `${cfg.id}-shapes`,
-    paint: { "line-color": "#1D1B17", "line-width": 0.3, "line-opacity": 0.5 } });
-  bindHtmlPopup(`${cfg.id}-fill`, (p) => traseBox(cfg, p));
-  traseMenus(cfg);
-  await traseDraw(cfg);
-  applyVisibility(cfg.id);
-  buildLegend();
+  const entries = traseMeasures(cat.countries || {});
+  const drawn = new Map();          // measure id -> the layer ids it drew
+  const safe = (x) => String(x).replace(/[^a-z0-9_]/gi, "_");
+  cfg._layerIds = [];
+  cfg.afterVisibility = (vis) => {
+    for (const ids of drawn.values()) for (const id of ids) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
+  };
+  const said = () => setLayerState(cfg.id, drawn.size ? `${drawn.size} of ${entries.length} measures drawn` : `${entries.length} measures, each a row`);
+  const take = (e) => {
+    for (const id of drawn.get(e.metric) || []) if (map.getLayer(id)) map.removeLayer(id);
+    if (map.getSource(`${cfg.id}-${safe(e.metric)}`)) map.removeSource(`${cfg.id}-${safe(e.metric)}`);
+    drawn.delete(e.metric);
+    cfg._layerIds = [].concat(...drawn.values());
+    const menus = document.querySelector(`.facet[data-trase-for="${e.key}"]`);
+    if (menus && menus.remove) menus.remove();
+    said();
+  };
+  const put = async (e) => {
+    showRowFor(cfg.id);
+    const src = `${cfg.id}-${safe(e.metric)}`;
+    if (!map.getSource(src)) {
+      map.addSource(src, { type: "geojson", data: { type: "FeatureCollection", features: [] }, attribution: cfg.attribution });
+      map.addLayer({ id: `${src}-fill`, type: "fill", source: src,
+        paint: { "fill-color": ["coalesce", ["get", "_c"], "rgba(0,0,0,0)"], "fill-opacity": 0.72 } });
+      map.addLayer({ id: `${src}-line`, type: "line", source: src,
+        paint: { "line-color": "#1D1B17", "line-width": 0.3, "line-opacity": 0.5 } });
+      bindHtmlPopup(`${src}-fill`, (p) => traseBox(e, p));
+      drawn.set(e.metric, [`${src}-fill`, `${src}-line`]);
+      cfg._layerIds = [].concat(...drawn.values());
+    }
+    e.pick = e.pick || { level: "", year: "" };
+    traseMenus(cfg, e);
+    await traseDraw(cfg, e);
+    cfg.afterVisibility(visibility.get(cfg.id) || "visible");
+    said();
+  };
+  const rows = entries.map((e) => ({
+    name: e.metric, title: e.title,
+    // Filed by what Trase itself calls it: its name, its group and its commodity.
+    fileBy: `${e.name} ${e.meta.metric_group || ""} ${e.meta.commodity || ""} ${e.metric.replace(/_/g, " ")}`,
+    about: `${e.meta.metric_group || ""} ${e.meta.tooltip && e.meta.tooltip !== "." ? e.meta.tooltip : ""}`.trim(),
+    show: (want) => { if (want) put(e).catch((err) => traseSay(e, `could not draw (${err.message})`)); else take(e); },
+  }));
+  catalogueRows(cfg, rows);
+  rows.forEach((r, i) => { entries[i].key = r.key; CATALOGUE_ITEMS.set(r.key, r); });
+  said();
 }
 
-function traseLevelOk(cfg) {
-  const p = cfg._pick, levels = cfg._cat[p.country].levels;
-  if (!levels[p.level]) p.level = levels.municipality ? "municipality" : Object.keys(levels)[0];
-  const metrics = levels[p.level].metrics;
-  if (!metrics[p.metric]) {
-    p.metric = Object.keys(metrics).sort((a, b) => (Number(metrics[a].display_order) || 999) - (Number(metrics[b].display_order) || 999))[0];
-  }
-  const years = metrics[p.metric].years || [];
-  if (!years.includes(p.year)) p.year = years[years.length - 1];
+function traseSay(e, text) {
+  const el = typeof document !== "undefined" && document.querySelector ? document.querySelector(`[data-state="${e.key}"]`) : null;
+  if (el) el.textContent = text;
 }
 
-function traseMenus(cfg) {
+// Under a ticked measure: which region level, which year, and the key.
+function traseMenus(cfg, e) {
   const box = document.getElementById("layers");
-  const row = box && box.querySelector && box.querySelector(`[data-layer="${cfg.id}"]`);
-  const anchor = row && row.closest ? row.closest("label") : null;
+  const tick = box && box.querySelector && box.querySelector(`[data-cat="${e.key}"]`);
+  const anchor = tick && tick.closest ? tick.closest("label") : null;
   if (!anchor || !document.createElement) return;
-  let el = box.querySelector(`.facet[data-trase-for="${cfg.id}"]`);
+  let el = box.querySelector(`.facet[data-trase-for="${e.key}"]`);
   if (!el) {
     el = document.createElement("div");
     el.className = "facet trase-menus";
-    el.dataset.traseFor = cfg.id;
+    el.dataset.traseFor = e.key;
     if (anchor.after) anchor.after(el);
   }
-  traseLevelOk(cfg);
-  const p = cfg._pick, c = cfg._cat[p.country], lv = c.levels[p.level], m = lv.metrics[p.metric];
+  const levels = {}, years = new Set();
+  for (const cc of Object.values(e.countries)) {
+    for (const [lk, lv] of Object.entries(cc.levels)) {
+      levels[lk] = lv.name;
+      if (!e.pick.level || e.pick.level === lk) lv.years.forEach((y) => years.add(y));
+    }
+  }
   const opt = (v, label, on) => `<option value="${escapeHtml(v)}"${on ? " selected" : ""}>${escapeHtml(label)}</option>`;
-  const byOrder = (ms) => Object.keys(ms).sort((a, b) => (Number(ms[a].display_order) || 999) - (Number(ms[b].display_order) || 999));
   el.innerHTML =
-    `<select data-tr="country" aria-label="Country">${Object.keys(cfg._cat).sort().map((k) => opt(k, cfg._cat[k].name, k === p.country)).join("")}</select>` +
-    `<select data-tr="level" aria-label="Region level">${Object.keys(c.levels).map((k) => opt(k, c.levels[k].name, k === p.level)).join("")}</select>` +
-    `<select data-tr="metric" aria-label="Measure">${byOrder(lv.metrics).map((k) => opt(k, (lv.metrics[k].metric_group ? lv.metrics[k].metric_group + ": " : "") + (lv.metrics[k].display_name || k), k === p.metric)).join("")}</select>` +
-    `<select data-tr="year" aria-label="Year">${(m.years || []).map((y) => opt(y, y, y === p.year)).join("")}</select>` +
+    `<select data-tr="level" aria-label="Region level">${opt("", "Each country at its own level", !e.pick.level)}` +
+      Object.keys(levels).sort().map((k) => opt(k, levels[k], k === e.pick.level)).join("") + `</select>` +
+    `<select data-tr="year" aria-label="Year">${opt("", "Latest year each country has", !e.pick.year)}` +
+      [...years].sort((a, b) => b - a).map((y) => opt(y, y, String(y) === String(e.pick.year))).join("") + `</select>` +
     `<div class="sm-legend" data-trase-legend></div>`;
   for (const s of el.querySelectorAll ? el.querySelectorAll("select") : []) {
     s.addEventListener("change", () => {
-      const k = s.dataset.tr;
-      p[k] = k === "year" ? Number(s.value) : s.value;
-      traseMenus(cfg);
-      traseDraw(cfg).catch((e) => setLayerState(cfg.id, `could not draw (${e.message})`));
+      e.pick[s.dataset.tr] = s.value;
+      if (s.dataset.tr === "level") e.pick.year = "";
+      traseMenus(cfg, e);
+      traseDraw(cfg, e).catch((err) => traseSay(e, `could not draw (${err.message})`));
     });
   }
 }
 
-function traseRegionFile(cfg) {
-  const p = cfg._pick, name = cfg._cat[p.country].name;
-  const hits = (cfg._regions || []).filter((r) => traseSlug(r.country) === p.country && r.node_type_slug === p.level);
-  const hit = hits.find((r) => p.year >= Number(r.year_start) && p.year <= Number(r.year_end)) || hits[0];
+function traseRegionFile(cfg, part) {
+  const hits = (cfg._regions || []).filter((r) => traseSlug(r.country) === part.country && r.node_type_slug === part.level);
+  const hit = hits.find((r) => part.year >= Number(r.year_start) && part.year <= Number(r.year_end)) || hits[0];
   return hit ? `${cfg.regions}/${hit.endpoint_geojson}` : null;
 }
 
-async function traseDraw(cfg) {
-  const p = cfg._pick, m = cfg._cat[p.country].levels[p.level].metrics[p.metric];
-  const file = traseRegionFile(cfg);
-  if (!file) { setLayerState(cfg.id, "Trase publishes no shapes for this level"); return; }
-  setLayerState(cfg.id, "loading from Trase\u2026");
-  const [shapes, values] = await Promise.all([traseJson(file), traseJson(`${cfg.values}/${p.country}/${p.level}/${p.metric}.json`)]);
-  const yr = values[String(p.year)] || {};
+// One country's regions with this measure's value on each. Pure, so it is tested.
+function traseJoin(part, shapes, values) {
+  const yr = (values || {})[String(part.year)] || {};
   const ids = new Set(Object.keys(yr));
   // Which field of the shapes holds Trase's region id: the one whose values are keys of the data.
   let idKey = null;
@@ -2977,44 +3065,72 @@ async function traseDraw(cfg) {
     idKey = Object.keys(f.properties || {}).find((k) => ids.has(String(f.properties[k])));
     if (idKey) break;
   }
-  const ramp = TRASE_RAMPS[m.color_scheme] || TRASE_RAMPS.red;
-  const breaks = traseBreaks(Object.values(yr));
-  const colourOf = (v) => {
-    if (typeof v !== "number") return null;
-    let i = 0;
-    while (i < breaks.length && v >= breaks[i]) i++;
-    return ramp[Math.min(i + (ramp.length - 1 - breaks.length), ramp.length - 1)];
-  };
-  let shown = 0;
-  const features = (shapes.features || []).map((f) => {
+  return (shapes.features || []).map((f) => {
     const id = idKey ? String(f.properties[idKey]) : "";
     const v = yr[id];
-    if (v !== undefined) shown++;
     return { type: "Feature", geometry: f.geometry,
-      properties: Object.assign({}, f.properties, { _id: id, _v: v === undefined ? null : v, _c: colourOf(v) }) };
+      properties: Object.assign({}, f.properties, { _id: id, _v: v === undefined ? null : v,
+        _country: part.name, _slug: part.country, _level: part.levelName, _year: part.year }) };
   });
-  map.getSource(`${cfg.id}-shapes`).setData({ type: "FeatureCollection", features });
-  const legend = document.querySelector(`[data-trase-for="${cfg.id}"] [data-trase-legend]`);
+}
+
+async function traseDraw(cfg, e) {
+  const src = map.getSource(`${cfg.id}-${String(e.metric).replace(/[^a-z0-9_]/gi, "_")}`);
+  if (!src) return;
+  const plan = trasePlan(e, e.pick.level, e.pick.year);
+  traseSay(e, "loading from Trase\u2026");
+  const left = plan.left.slice();
+  const got = await Promise.all(plan.draw.map(async (part) => {
+    const file = traseRegionFile(cfg, part);
+    if (!file) { left.push(`${part.name} (Trase publishes no shapes for its ${part.levelName.toLowerCase()} level)`); return []; }
+    try {
+      const [shapes, values] = await Promise.all([traseJson(file), traseJson(`${cfg.values}/${part.country}/${part.level}/${e.metric}.json`)]);
+      return traseJoin(part, shapes, values);
+    } catch (err) {
+      left.push(`${part.name} (${err.message})`);
+      return [];
+    }
+  }));
+  const features = [].concat(...got);
+  // One set of steps across every country drawn, so a colour means the same
+  // amount on both sides of a border.
+  const ramp = TRASE_RAMPS[e.meta.color_scheme] || TRASE_RAMPS.red;
+  const breaks = traseBreaks(features.map((f) => f.properties._v));
+  let shown = 0;
+  for (const f of features) {
+    const v = f.properties._v;
+    if (typeof v !== "number") { f.properties._c = null; continue; }
+    shown++;
+    let i = 0;
+    while (i < breaks.length && v >= breaks[i]) i++;
+    f.properties._c = ramp[Math.min(i + (ramp.length - 1 - breaks.length), ramp.length - 1)];
+  }
+  src.setData({ type: "FeatureCollection", features });
+  const legend = document.querySelector(`[data-trase-for="${e.key}"] [data-trase-legend]`);
   if (legend) {
     const edges = [null, ...breaks];
     legend.innerHTML = edges.map((b, i) => `<span class="sm-key"><i style="background:${ramp[i + (ramp.length - 1 - breaks.length)]}"></i>` +
       `${b === null ? "below " + traseFormat(breaks[0] ?? 0) : "from " + traseFormat(b)}</span>`).join("") +
-      ` <span class="sm-key">${escapeHtml(m.unit_abbreviation || m.unit || "")}</span>`;
+      ` <span class="sm-key">${escapeHtml(e.meta.unit_abbreviation || e.meta.unit || "")}</span>`;
   }
-  setLayerState(cfg.id, `${shown.toLocaleString()} regions \u00b7 ${m.display_name || p.metric}, ${p.year}`);
+  const countries = new Set(features.filter((f) => typeof f.properties._v === "number").map((f) => f.properties._country)).size;
+  traseSay(e, `${shown.toLocaleString()} regions in ${countries} ${countries === 1 ? "country" : "countries"}` +
+    (left.length ? ` \u00b7 not drawn: ${left.join("; ")}` : ""));
 }
 
-function traseBox(cfg, props) {
-  const p = cfg._pick, m = cfg._cat[p.country].levels[p.level].metrics[p.metric];
+function traseBox(e, props) {
+  const cc = e.countries[props._slug];
+  const lv = cc && Object.values(cc.levels).find((l) => l.name === props._level);
+  const m = (lv && lv.meta) || e.meta;
   const name = props.name || props.region || props.NAME || props.nome || props._id;
   const v = props._v;
-  return `<b>${escapeHtml(name)}</b>` +
-    `<div class="meta">${escapeHtml(m.display_name || p.metric)}, ${p.year}: ` +
+  return `<b>${escapeHtml(name)}</b><div class="meta">${escapeHtml(props._country || "")}${props._level ? " \u00b7 " + escapeHtml(props._level) : ""}</div>` +
+    `<div class="meta">${escapeHtml(m.display_name || e.name)}, ${escapeHtml(props._year)}: ` +
     `${v === null || v === undefined || v === "null" ? "no value published" : escapeHtml(traseFormat(Number(v)))} ${escapeHtml(m.unit_abbreviation || "")}</div>` +
     (m.tooltip && m.tooltip !== "." ? `<div class="meta">${escapeHtml(m.tooltip)}</div>` : "") +
     (m.data_source ? `<div class="meta">Source: ${escapeHtml(m.data_source)}</div>` : "") +
     (m.citation ? `<div class="meta">${escapeHtml(m.citation)}</div>` : "") +
-    `<div class="meta"><a href="https://trase.earth/explore/spatial-data/map?country=${encodeURIComponent(p.country)}" target="_blank" rel="noopener">Open on Trase</a></div>`;
+    `<div class="meta"><a href="https://trase.earth/explore/spatial-data/map?country=${encodeURIComponent(props._slug || "")}" target="_blank" rel="noopener">Open on Trase</a></div>`;
 }
 
 /* ---------- outlines from a PMTiles archive (points wider out) ---------- */
@@ -3800,7 +3916,10 @@ const CATALOGUE_PLACES = [
   [/mining|\bmines?\b|quarr/i, "Destruction > Of the planet > Mining"],
   [/plantation|palm|coconut|rubber|sugarcane|sago|\bmills?\b|refiner|soy|cocoa|coffee|crop|agricultur|pasture|livestock|cattle|yield|mapspam/i,
    "Destruction > Of the planet > Meat and agriculture > Agriculture"],
-  [/aquaculture|fisher|fishing/i, "Destruction > Of the planet > Oceans > Fishing"],
+  [/\bbeef\b|cattle|slaughter|\bpigs?\b|chickens?|livestock|pasture/i, "Destruction > Of the planet > Meat and agriculture > Meat"],
+  [/\bcorn\b|maize|cotton/i, "Destruction > Of the planet > Meat and agriculture > Agriculture"],
+  [/pulpwood|\bzdc\b|zero.deforestation/i, "Destruction > Of the planet > Deforestation"],
+  [/aquaculture|fisher|fishing|shrimp/i, "Destruction > Of the planet > Oceans > Fishing"],
   [/concession|\bhgu\b|\bpbph\b|logging|wood fiber|permit|management objective/i,
    "Destruction > Of the planet > Land held under permit"],
   [/carbon|emission|biomass|climate|\bco2\b|flux|removals|temperature|precipitation/i,
@@ -3876,7 +3995,9 @@ function catalogueRows(cfg, items) {
   const spare = sectionBody(box, "Not yet placed") || box;
   items.forEach((item, i) => {
     const key = `${cfg.id}|${i}`;
-    const paths = cataloguePlaces(`${item.title} ${item.name} ${item.about || ""}`);
+    // A row may say what it is to be filed by, where its long description would
+    // mislead: a Trase tooltip that mentions water in passing is not a water layer.
+    const paths = cataloguePlaces(item.fileBy || `${item.title} ${item.name} ${item.about || ""}`);
     paths.forEach((path, n) => {
       const row = document.createElement("label");
       row.className = "layer layer-cat" + (n ? " layer-copy" : "");
@@ -7708,7 +7829,7 @@ const TRASE_DATA = {
   group: true,
   ready: true,
   children: [
-      { id: "trase_measures", name: "Deforestation and supply-chain measures (Trase)", unit: "regions", colour: "#8C5548", route: "trase", ready: true, lazy: true,
+      { id: "trase_measures", name: "Deforestation and supply-chain measures (Trase)", unit: "regions", catUnit: "regions", colour: "#8C5548", route: "trase", ready: true, lazy: true,
         catalogue: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/catalogue.json", values: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/values",
         regions: "https://resources.trase.earth/data/trase-regions",
         attribution: "Trase (CC BY 4.0)",
@@ -8660,7 +8781,7 @@ const PANEL_ORDER = [
   { h: 4, t: "Plastics" }, "mymaps_chlorine", "arcgis_ym8xk", "arcgis_materialresearch", "pirg_plastic", "gpw_map", "seas_of_plastic", "coastal_cleanup",
   { h: 3, t: "Fire" },
   { h: 3, t: "Forest and land cover" },
-  { h: 3, t: "Deforestation" }, "soilgrids", "trase_measures", "trase_pulp_indonesia",
+  { h: 3, t: "Deforestation" }, "soilgrids", "trase_pulp_indonesia",
   { h: 4, t: "Wood pulp concessions, Indonesia" },
     "trase_pulp_concessions_2015", "trase_pulp_concessions_2020", "trase_pulp_concessions_2023",
   // No heading carries an organisation's name any more: these are rows about
@@ -8763,6 +8884,9 @@ const PANEL_REMOVED = new Set([
   // rather than deleted: its layers still read their visibility from it, and
   // ticking one of them still turns it on where nobody has to see it.
   "nusantara", "gfw_catalogue",
+  // The same for Trase's measures: each is a row of its own now, one layer
+  // across every country that publishes it, filed by what it measures.
+  "trase_measures",
   // The same upcoming launches and the same pads as the two Launch Library 2
   // rows, but as framed pages rather than on the map.
   "wrf", "nsf_launches",
@@ -9162,6 +9286,7 @@ function arrangePanel() {
   }
   tail.filter((el) => el.classList && el.classList.contains("pending-note")).forEach((el) => box.appendChild(el));
   box.appendChild(gone);
+  readCataloguesAtStart();
   pinBuildings(box);
   addRowTools(box);
   if (!document.getElementById("panel-h-style")) {
@@ -9200,6 +9325,18 @@ function arrangePanel() {
       "#layers .bt-kind em{margin-left:auto;font-style:normal;color:var(--dim);font-size:11px}" +
       "#layers .drop-above{box-shadow:0 -2px 0 0 #8A9DA6}#layers .drop-below{box-shadow:0 2px 0 0 #8A9DA6}";
     document.head.appendChild(st);
+  }
+}
+// The catalogues' own rows are out of sight (PANEL_REMOVED) and lazy, and a lazy
+// row is only built when it is ticked - so nothing ever asked Nusantara, Global
+// Forest Watch or Trase for their lists, and their hundreds of rows never
+// reached the box unless "All on" happened to tick the hidden rows too. Their
+// lists are read once the box is arranged. Reading a list draws nothing and
+// ticks nothing: a catalogue draws only what is ticked under it.
+const CATALOGUE_ROUTES = new Set(["wmsmenu", "gfwmenu", "trase"]);
+function readCataloguesAtStart() {
+  for (const g of GROUPS) for (const c of g.children) {
+    if (c.ready && CATALOGUE_ROUTES.has(c.route) && PANEL_REMOVED.has(c.id)) ensureLayer(c);
   }
 }
 map.on("load", () => setTimeout(arrangePanel, 0));

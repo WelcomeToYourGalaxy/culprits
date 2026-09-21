@@ -242,6 +242,44 @@ as before, so nothing breaks while the tiling catches up.
 
 ---
 
+## The catalogues were never being read
+
+Nusantara's and Global Forest Watch's layers became rows of the box, and their
+own two rows were put out of sight (`PANEL_REMOVED`). But both are `lazy`, and a
+lazy row is built only when it is ticked - so nothing ever asked either source
+for its list, and the several hundred rows never reached the box unless
+**All on** happened to tick the hidden rows as well. `readCataloguesAtStart()`
+now runs at the end of `arrangePanel` and builds every hidden catalogue row
+(`CATALOGUE_ROUTES`: `wmsmenu`, `gfwmenu`, `trase`). Reading a list draws and
+ticks nothing.
+
+## Trase's measures: one row per measure, every country at once
+
+Asked for on 20 September in place of one row with three menus. `traseMeasures`
+turns Trase's catalogue into one entry per measure (86 today) across every
+country that publishes it; each is a row of the box through `catalogueRows`,
+titled "Deforestation (ha) - Argentina, Bolivia, Brazil, ... (Trase)" and filed
+by Trase's own name, group and commodity for it (`fileBy`), not by its tooltip,
+which mentions water and regions in passing and sent rows to the wrong headings.
+"GDP per capita - Colombia" is the one measure no rule claims; it waits under
+Not yet placed.
+
+- A country is drawn at one region level at a time, or the same ground would be
+  coloured twice: municipality where Trase publishes the measure at that level,
+  otherwise the first level Trase lists. This is the default the single row
+  already used. The row's **level** menu overrides it for every country.
+- The **year** menu defaults to the latest year each country has, since they
+  stop in different years (Brazil 2024, Paraguay 2019). Asking for one year
+  leaves out, and names in the row's state, any country with nothing for it.
+- One set of colour steps across every country drawn. A Brazilian municipality
+  and an Argentine department are different sizes, so totals (hectares, tonnes)
+  compare like with unlike across a border; that is Trase's data, not a fault.
+- Two measures Trase gives the same name carry Trase's own id in brackets.
+
+A trial run in node against the real values (stand-in shapes, since
+resources.trase.earth is not reachable from the sandbox): Deforestation drew
+6,698 regions in 8 countries. **Not yet seen on the real map.**
+
 ## The right-hand column: three things that went wrong together
 
 The news wires box is pinned between the bottom of the right column and the

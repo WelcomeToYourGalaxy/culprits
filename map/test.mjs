@@ -1706,7 +1706,45 @@ console.log("\ncoral at every zoom");
 console.log("\nTrase, and coral at world zoom");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("Trase is one row with its own menus", /id: "trase_measures"[^\n]*route: "trase"/.test(src) && /data-tr="metric"/.test(src) && /data-tr="year"/.test(src));
+  // Superseded on 20 September: one row with three menus (country, level,
+  // measure) became one row per measure, drawn across every country at once.
+  check("Trase's measures are rows of the box, not menus in one row", /id: "trase_measures"[^\n]*route: "trase"/.test(src) &&
+        !/data-tr="metric"/.test(src) && !/data-tr="country"/.test(src) && /data-tr="year"/.test(src) && /data-tr="level"/.test(src));
+  {
+    const pick = (a, b) => src.slice(src.indexOf(a), src.indexOf(b));
+    const T = new Function(pick("function traseMeasures(", "async function addTraseLayer(") + pick("function traseJoin(", "async function traseDraw(") +
+      "; return { traseMeasures, trasePlan, traseJoin };")();
+    const m = (name, years) => ({ display_name: name, unit_abbreviation: "ha", years });
+    const cat = {
+      brazil: { name: "BRAZIL", levels: { state: { name: "State", metrics: { DEF: m("Deforestation", [2020, 2022]), SOY: m("Soy area", [2022]) } },
+                                          municipality: { name: "Municipality", metrics: { DEF: m("Deforestation", [2020, 2022]) } } } },
+      paraguay: { name: "PARAGUAY", levels: { department: { name: "Department", metrics: { DEF: m("Deforestation", [2019]), SOY2: m("Soy area", [2019]) } } } },
+    };
+    const list = T.traseMeasures(cat);
+    const def = list.find((e) => e.metric === "DEF");
+    check("\u2026one entry per measure, naming every country that publishes it", list.length === 3 &&
+          def.title === "Deforestation (ha) \u2014 Brazil, Paraguay (Trase)");
+    check("\u2026two measures Trase gives one name are told apart by Trase's own ids",
+          list.filter((e) => /^Soy area \[SOY2?\]/.test(e.title)).length === 2);
+    const own = T.trasePlan(def, "", "");
+    check("\u2026each country is drawn at one level only, and by default at its own latest year",
+          own.draw.length === 2 && own.draw[0].level === "municipality" && own.draw[0].year === 2022 &&
+          own.draw[1].level === "department" && own.draw[1].year === 2019 && own.left.length === 0);
+    const asked = T.trasePlan(def, "", "2020");
+    check("\u2026a country with nothing for the chosen year is left out and named, not drawn from another year",
+          asked.draw.length === 1 && asked.draw[0].country === "brazil" && /Paraguay/.test(asked.left[0]));
+    const soy = T.trasePlan(list.find((e) => e.metric === "SOY"), "", "");
+    check("\u2026a measure Trase publishes only by state is drawn by state", soy.draw[0].level === "state");
+    const joined = T.traseJoin({ name: "Brazil", country: "brazil", levelName: "State", year: 2022 },
+      { features: [{ geometry: null, properties: { code: "BR-1", name: "Acre" } }, { geometry: null, properties: { code: "BR-2", name: "Bahia" } }] },
+      { 2022: { "BR-1": 5 } });
+    check("\u2026values are joined to Trase's shapes by its region id, and a region with none says so",
+          joined[0].properties._v === 5 && joined[1].properties._v === null && joined[0].properties._country === "Brazil");
+    check("\u2026the colours use one set of steps across every country drawn", /traseBreaks\(features\.map\(\(f\) => f\.properties\._v\)\)/.test(src));
+  }
+  check("the catalogues' lists are read once the box is arranged, since their own rows are hidden and never ticked",
+        /const CATALOGUE_ROUTES = new Set\(\["wmsmenu", "gfwmenu", "trase"\]\)/.test(src) &&
+        /box\.appendChild\(gone\);\n  readCataloguesAtStart\(\);/.test(src) && /PANEL_REMOVED\.has\(c\.id\)\) ensureLayer\(c\)/.test(src));
   check("its shapes are read live from Trase", /regions: "https:\/\/resources\.trase\.earth\/data\/trase-regions"/.test(src));
   check("its values come from the weekly GitHub copy", /catalogue: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/trase\/catalogue\.json"/.test(src));
   const slug = new Function(src.slice(src.indexOf("function traseSlug("), src.indexOf("// Five steps from the values")) + "; return traseSlug;")();
@@ -2020,7 +2058,7 @@ console.log("\nwhat was still open");
   check("Giga by country, Trase's facilities rows, and two of your own are rows", ["giga_countries", "trase_meat_brazil", "trase_palm_indonesia", "biosignature", "leverage_chart"].every((i) => new RegExp(`id: "${i}"`).test(src)));
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
   const order = new Function(body + "; return PANEL_ORDER;")();
-  check("the waiting rows are placed", ["ejatlas", "trase_measures", "gsn", "seas_of_plastic", "coastal_cleanup", "mines_global", "atlas_hotspots", "final_nail", "group:ct_history"].every((i) => order.includes(i)));
+  check("the waiting rows are placed", ["ejatlas", "gsn", "seas_of_plastic", "coastal_cleanup", "mines_global", "atlas_hotspots", "final_nail", "group:ct_history"].every((i) => order.includes(i)));
 }
 
 console.log("\nvessels of concern drawn; the oil-slick archive");
@@ -2106,7 +2144,7 @@ console.log("\nNusantara Atlas and Global Forest Watch, by category");
   // Superseded with Nusantara's: the catalogue's datasets are rows of the box
   // now, filed by what each shows, and several can be drawn at once.
   check("Global Forest Watch's datasets are rows of the box", !/categoryMenu\(menu, /.test(src) &&
-        (src.match(/^  catalogueRows\(cfg, /gm) || []).length === 2);
+        (src.match(/^  catalogueRows\(cfg, /gm) || []).length === 3);   // Nusantara, Global Forest Watch, Trase
   // Superseded: Nusantara's layers are rows of the box itself now, filed by
   // what they show, not a list inside one row.
   check("Nusantara's layers are rows of the box, filed by subject", /catalogueRows\(cfg, items\);/.test(src) && !/menu\.className = "facet ns-list"/.test(src));
@@ -2281,7 +2319,7 @@ console.log("\nrows gathered, moved and renamed");
           .every(([i, n]) => src.includes(`id: "${i}", name: "${n}"`)) &&
         !/name: "Trase: /.test(src) && !/trasefacmenu/.test(src));
   check("each Trase row sits under the map's own heading, not a Trase one",
-        ["trase_measures", "trase_pulp_indonesia"].every((i) => order.indexOf(i) > at("Deforestation")) &&
+        ["trase_pulp_indonesia"].every((i) => order.indexOf(i) > at("Deforestation")) && !order.includes("trase_measures") &&
         ["trase_palm_indonesia", "trase_silos_brazil", "trase_cocoa_ivory"]
           .every((i) => order.indexOf(i) > at("Agriculture") && order.indexOf(i) < at("Meat")) &&
         order.indexOf("trase_meat_brazil") > at("Meat") && order.indexOf("trase_meat_brazil") < at("Oceans") &&
