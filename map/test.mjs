@@ -1746,6 +1746,21 @@ console.log("\ncolumns close in, a reload button, mines");
   check("…and comes back to the same view", /sessionStorage\.getItem\("culprits-view"\)/.test(src));
   check("mines worldwide is a row, drawn from the tiles repo", /id: "mines_global"[^\n]*route: "pmshapes"/.test(src) &&
         /tiles\/mining_polygons\.pmtiles/.test(src));
+  // The mines are published as several archives, because GitHub refuses a file over 100 MB.
+  const pmShapeParts = new Function(src.match(/function pmShapeParts[\s\S]*?\n}\n/)[0] + "; return pmShapeParts;")();
+  const mineUrl = "https://x.test/tiles/mining_polygons.pmtiles";
+  const cutUp = pmShapeParts(mineUrl, { parts: [
+    { file: "mining_polygons.pmtiles", from: 7, to: 11 }, { file: "mining_polygons_2.pmtiles", from: 12, to: 12 },
+    { file: "mining_polygons_3.pmtiles", from: 13, to: 13, columns: [0, 4000] }, { file: "mining_polygons_4.pmtiles", from: 13, to: 13, columns: [4001, 8191] }] });
+  check("a mines build cut into several files draws each file at its own zooms, never two at once",
+        cutUp.length === 4 && cutUp[0].minzoom === 7 && cutUp[0].maxzoom === 12 && cutUp[1].minzoom === 12 && cutUp[1].maxzoom === 13 &&
+        cutUp[1].url === "https://x.test/tiles/mining_polygons_2.pmtiles");
+  check("\u2026the files holding the closest zoom keep drawing past it, both sides of a longitude cut",
+        cutUp[2].maxzoom === 24 && cutUp[3].maxzoom === 24 && cutUp[2].minzoom === 13);
+  check("\u2026and a build with no list of files draws from the one archive, as before",
+        pmShapeParts(mineUrl, null).length === 1 && pmShapeParts(mineUrl, { zoom: 11 })[0].url === mineUrl);
+  check("\u2026the row reads that list and switches the extra files on and off with it",
+        /\.build\.json/.test(src) && /cfg\._layerIds\.push\(lid\)/.test(src) && /setLayerZoomRange\(`\$\{cfg\.id\}-fill`/.test(src));
 }
 
 console.log("\nthe screen, rearranged");

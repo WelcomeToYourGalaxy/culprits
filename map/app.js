@@ -3018,6 +3018,24 @@ function traseBox(cfg, props) {
 }
 
 /* ---------- outlines from a PMTiles archive (points wider out) ---------- */
+// GitHub refuses any file over 100 MB, so a big set of outlines is published as
+// several archives, each holding some zooms (and, where one zoom is too big,
+// one side of a line of longitude). The build lists them in <archive>.build.json.
+// This turns that list into what each file's outline layer needs: its address
+// and the zooms it may draw at. A file draws only at its own zooms, or the file
+// below would stretch its last tiles over the finer ones and paint every outline
+// twice; the files holding the closest zoom go on drawing past it.
+function pmShapeParts(archiveUrl, stamp) {
+  const parts = stamp && Array.isArray(stamp.parts) ? stamp.parts.filter((p) => p && p.file) : [];
+  if (!parts.length) return [{ url: archiveUrl, first: true }];
+  const top = Math.max(...parts.map((p) => Number(p.to)));
+  const base = archiveUrl.slice(0, archiveUrl.lastIndexOf("/") + 1);
+  return parts.map((p, i) => ({
+    url: base + p.file, first: i === 0,
+    minzoom: Number(p.from), maxzoom: Number(p.to) === top ? 24 : Number(p.to) + 1,
+  }));
+}
+
 function addPmShapesLayer(cfg) {
   const src = `${cfg.id}-pm`;
   map.addSource(src, { type: "vector", url: `pmtiles://${cfg.archiveUrl}`, attribution: cfg.attribution || "" });
@@ -3048,6 +3066,28 @@ function addPmShapesLayer(cfg) {
   };
   bindHtmlPopup(`${cfg.id}-fill`, box);
   bindHtmlPopup(`${cfg.id}-pt`, box);
+  // The other files of the same build, if it was cut into several. Until the
+  // list answers (or if it never does) the first file draws alone, as before.
+  fetch(cfg.archiveUrl.replace(/\.pmtiles$/, ".build.json"))
+    .then((r) => (r.ok ? r.json() : null))
+    .then((stamp) => {
+      const parts = pmShapeParts(cfg.archiveUrl, stamp);
+      if (parts.length < 2) return;
+      map.setLayerZoomRange(`${cfg.id}-fill`, parts[0].minzoom, parts[0].maxzoom);
+      cfg._layerIds = cfg._layerIds || [];
+      parts.slice(1).forEach((part, i) => {
+        const psrc = `${cfg.id}-pm-${i + 2}`, lid = `${cfg.id}-fill-${i + 2}`;
+        if (map.getLayer(lid)) return;
+        map.addSource(psrc, { type: "vector", url: `pmtiles://${part.url}`, attribution: cfg.attribution || "" });
+        map.addLayer({ id: lid, type: "fill", source: psrc, "source-layer": cfg.polygonLayer,
+          minzoom: part.minzoom, maxzoom: part.maxzoom,
+          paint: { "fill-color": cfg.colour, "fill-opacity": 0.55, "fill-outline-color": "#1D1B17" } }, `${cfg.id}-pt`);
+        cfg._layerIds.push(lid);
+        bindHtmlPopup(lid, box);
+      });
+      applyVisibility(cfg.id);
+    })
+    .catch((e) => console.warn(`[culprits] ${cfg.id} build list: ${e.message}`));
   setLayerState(cfg.id, "every mine as a point from the world view (merged where they crowd), outlines from zoom 7");
   applyVisibility(cfg.id);
   buildLegend();

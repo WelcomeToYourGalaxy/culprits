@@ -242,6 +242,25 @@ as before, so nothing breaks while the tiling catches up.
 
 ---
 
+## The mines are several archives, not one
+
+GitHub refuses any file over 100 MB, and the mine outlines to zoom 13 weigh more
+than that; the single archive had to stop at zoom 11. `scripts/mines.py` in
+`culprits-tiles-more` now tiles the outlines once, to zoom 13, and cuts the
+result into as many files as it takes: `tiles/mining_polygons.pmtiles` (the
+points, and the first zooms of outlines), then `mining_polygons_2.pmtiles` and
+so on. It cuts by zoom; a single zoom too big for one file is cut in two down a
+line of longitude. It counts the tiles in the files against the tiles it made
+and keeps nothing if they differ. `tiles/mining_polygons.build.json` lists the
+files and the zooms each holds.
+
+`addPmShapesLayer` reads that list (`pmShapeParts`) and gives each extra file
+its own source and outline layer, drawn only at that file's zooms - otherwise
+the file below stretches its last tiles over the finer ones and every outline
+is painted twice. The extra layer ids go in `cfg._layerIds`, so the row's tick
+switches them. If the list does not answer, the first archive draws alone, as
+it always did, so the map and the tiles repo can be updated in either order.
+
 ## Live Projects to Resist, drawn here rather than opened beside
 
 Its panel row is gone. Three rows under Construction carry what the panel
