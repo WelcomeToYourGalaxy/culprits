@@ -3774,6 +3774,28 @@ const CATALOGUE_PLACES = [
    "Base and reference"],
   [/reef|benthic|coral/i, "Destruction > Of the planet > Oceans"],
 ];
+// Where a catalogue layer is, said in its title. Nusantara names the place in
+// most of its ids and covers Equatorial Asia in the rest; a reader clicking
+// "Fire alerts, VIIRS" under Fire should not have to find out by drawing it
+// that it stops at Indonesia. Read from the id, never assumed: a layer whose id
+// says nothing takes the atlas's own stated coverage.
+const NUSANTARA_WHERE = [
+  [/^Global_|^v3p\d_Global/i, "worldwide"],
+  [/BRNIDNMYS|BRNMYSIDN/i, "Brunei, Indonesia and Malaysia"],
+  [/IDNMYSBorneo/i, "Borneo"],
+  [/REGIDNMYS/i, "Indonesia and Malaysia"],
+  [/^BALI_|badung|tabanan/i, "Bali"],
+  [/papua/i, "Papua"],
+  [/merauke/i, "Merauke"],
+  [/rawasingkil/i, "Rawa Singkil"],
+  [/kalimantan/i, "Kalimantan"],
+  [/^IDN_|_KLHK|^IDN/i, "Indonesia"],
+];
+function nusantaraWhere(id) {
+  for (const [rule, where] of NUSANTARA_WHERE) if (rule.test(id)) return where;
+  return "Equatorial Asia";
+}
+
 function cataloguePlaces(words) {
   const out = [];
   for (const [rule, path] of CATALOGUE_PLACES) if (rule.test(words) && !out.includes(path)) out.push(path);
@@ -3859,7 +3881,10 @@ async function addWmsMenuLayer(cfg) {
         const tt = [...l.children].find((c) => c.tagName === "Title");
         const ab = [...l.children].find((c) => c.tagName === "Abstract");
         const id = nm.textContent;
-      layers.push({ base, name: id, title: NUSANTARA_NAMES[id] || (tt && tt.textContent) || id, about: (ab && ab.textContent) || "" });
+      const said = NUSANTARA_NAMES[id] || (tt && tt.textContent) || id;
+      const where = nusantaraWhere(id);
+      layers.push({ base, name: id, title: new RegExp(where, "i").test(said) ? said : `${said} \u2014 ${where}`,
+        about: (ab && ab.textContent) || "" });
       }
     } catch (e) { console.warn(`[culprits] ${cfg.id}: ${base}: ${e.message}`); }
   }
@@ -3935,7 +3960,15 @@ async function addGfwMenuLayer(cfg) {
     if (rows.length < 100) break;
   }
   if (!all.length) { setLayerState(cfg.id, "the catalogue did not answer"); return; }
-  const items = all.map((d) => ({ id: d.dataset, title: (d.metadata && d.metadata.title) || d.dataset, meta: d.metadata || {} }))
+  // Where a dataset is, as GFW themselves record it. Left off where they
+  // record nothing rather than guessed at from the name.
+  const items = all.map((d) => {
+    const meta = d.metadata || {};
+    const said = meta.title || d.dataset;
+    const where = String(meta.geographic_coverage || "").trim();
+    return { id: d.dataset, meta,
+      title: where && !new RegExp(where.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(said) ? `${said} \u2014 ${where}` : said };
+  })
     .sort((a, b) => a.title.localeCompare(b.title));
   // Each dataset is a row of the layers box, filed by what it shows. Several
   // can be drawn at once now: the menu drew one at a time and cleared the last,
@@ -8574,10 +8607,11 @@ const PANEL_ORDER = [
   { h: 3, t: "Fire" },
   { h: 3, t: "Forest and land cover" },
   { h: 3, t: "Deforestation" }, "soilgrids", "trase_measures", "trase_pulp_indonesia",
-    "nusantara",
-  { h: 4, t: "Wood pulp concessions, Indonesia (Trase)" },
+  { h: 4, t: "Wood pulp concessions, Indonesia" },
     "trase_pulp_concessions_2015", "trase_pulp_concessions_2020", "trase_pulp_concessions_2023",
-  { h: 4, t: "Global Forest Watch" }, "glad_loss", "group:forest_alerts", "gfw_catalogue",
+  // No heading carries an organisation's name any more: these are rows about
+  // forest loss, filed with the rest of it.
+  "glad_loss", "group:forest_alerts",
   { h: 3, t: "Biodiversity loss" }, "gsn", "gsn_rankings", "allen_coral", "atlas_hotspots", "atlas_cities", "pe_subsidising", "powerbi_report",
   { h: 3, t: "Land held under permit" },
   { h: 3, t: "Spatial plans" },
@@ -8670,6 +8704,11 @@ const PANEL_REMOVED = new Set([
   "gmo_releases",
   // Removed at the owner's request, 20 September.
   "acgf",
+  // Their layers are rows of the box now, filed by subject, so the row that
+  // used to carry the menu would be an empty husk. It is kept out of sight
+  // rather than deleted: its layers still read their visibility from it, and
+  // ticking one of them still turns it on where nobody has to see it.
+  "nusantara", "gfw_catalogue",
   // The same upcoming launches and the same pads as the two Launch Library 2
   // rows, but as framed pages rather than on the map.
   "wrf", "nsf_launches",

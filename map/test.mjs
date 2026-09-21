@@ -1982,7 +1982,7 @@ console.log("\nwhat was still open");
   check("Giga by country, Trase's facilities rows, and two of your own are rows", ["giga_countries", "trase_meat_brazil", "trase_palm_indonesia", "biosignature", "leverage_chart"].every((i) => new RegExp(`id: "${i}"`).test(src)));
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
   const order = new Function(body + "; return PANEL_ORDER;")();
-  check("the waiting rows are placed", ["ejatlas", "trase_measures", "nusantara", "gfw_catalogue", "gsn", "seas_of_plastic", "coastal_cleanup", "mines_global", "atlas_hotspots", "final_nail", "group:ct_history"].every((i) => order.includes(i)));
+  check("the waiting rows are placed", ["ejatlas", "trase_measures", "gsn", "seas_of_plastic", "coastal_cleanup", "mines_global", "atlas_hotspots", "final_nail", "group:ct_history"].every((i) => order.includes(i)));
 }
 
 console.log("\nvessels of concern drawn; the oil-slick archive");
@@ -2175,9 +2175,11 @@ console.log("\nGlobal Forest Watch's own rows together");
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
   const order = new Function(body + "; return PANEL_ORDER;")();
   const at = (t) => order.findIndex((x) => x && x.t === t);
-  check("the alerts, the tree cover loss and the catalogue sit under one Global Forest Watch heading",
-        ["glad_loss", "group:forest_alerts", "gfw_catalogue"].every((i) => order.indexOf(i) > at("Global Forest Watch")) &&
-        at("Global Forest Watch") > at("Deforestation"));
+  // Superseded: no heading carries an organisation's name. The alerts and the
+  // tree cover loss are filed under Deforestation with everything else, and
+  // the catalogue's datasets are rows of their own.
+  check("no heading is named for an organisation",
+        !order.some((x) => x && x.t && /(global forest watch|nusantara|trase|climate trace)/i.test(x.t)));
   check("Global Forest Change is still listed above the alerts", order.indexOf("glad_loss") < order.indexOf("group:forest_alerts"));
 }
 
@@ -2241,8 +2243,7 @@ console.log("\nrows gathered, moved and renamed");
           .every(([i, n]) => src.includes(`id: "${i}", name: "${n}"`)) &&
         !/name: "Trase: /.test(src) && !/trasefacmenu/.test(src));
   check("each Trase row sits under the map's own heading, not a Trase one",
-        ["trase_measures", "trase_pulp_indonesia", "trase_pulp_concessions_2015", "trase_pulp_concessions_2020", "trase_pulp_concessions_2023"]
-          .every((i) => order.indexOf(i) > at("Deforestation") && order.indexOf(i) < at("Global Forest Watch")) &&
+        ["trase_measures", "trase_pulp_indonesia"].every((i) => order.indexOf(i) > at("Deforestation")) &&
         ["trase_palm_indonesia", "trase_silos_brazil", "trase_cocoa_ivory"]
           .every((i) => order.indexOf(i) > at("Agriculture") && order.indexOf(i) < at("Meat")) &&
         order.indexOf("trase_meat_brazil") > at("Meat") && order.indexOf("trase_meat_brazil") < at("Oceans") &&
@@ -2448,7 +2449,7 @@ console.log("\nNusantara's layers say what they show");
         table.concessionitp_spv === "Industrial timber plantation concessions" &&
         table.v3p3_spatialplanmoratorium_spv === "Moratorium areas (PIPPIB) (v3p3 copy)");
   check("a layer nobody has named keeps the server's own title, rather than a guess",
-        /title: NUSANTARA_NAMES\[id\] \|\| \(tt && tt\.textContent\) \|\| id/.test(src));
+        /const said = NUSANTARA_NAMES\[id\] \|\| \(tt && tt\.textContent\) \|\| id;/.test(src));
 }
 
 console.log("\neach row links the site it is read from");
@@ -2645,9 +2646,30 @@ console.log("\nrows that show nearly the same thing say how they differ");
   const order = new Function(body + "; return PANEL_ORDER;")();
   const at = (t) => order.findIndex((x) => x && x.t === t);
   check("the three pulp-concession periods sit under one heading of their own",
-        at("Wood pulp concessions, Indonesia (Trase)") > -1 &&
+        at("Wood pulp concessions, Indonesia") > -1 &&
         ["trase_pulp_concessions_2015", "trase_pulp_concessions_2020", "trase_pulp_concessions_2023"]
-          .every((i) => order.indexOf(i) > at("Wood pulp concessions, Indonesia (Trase)")));
+          .every((i) => order.indexOf(i) > at("Wood pulp concessions, Indonesia")));
+}
+
+console.log("\nreallocated rows say where they are; the emptied rows leave the box");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const where = new Function(src.slice(src.indexOf("const NUSANTARA_WHERE = ["), src.indexOf("function cataloguePlaces(")) + "; return nusantaraWhere;")();
+  check("a Nusantara layer says where it is, read from its own id",
+        where("Global_PlantationIOP_2025") === "worldwide" && where("IDNMYSBorneo_LCHSRiver") === "Borneo" &&
+        where("IDN_Mining_2023") === "Indonesia" && where("papua_expansion_2025") === "Papua" &&
+        where("BALI_19650531") === "Bali");
+  check("one whose id says nothing takes the atlas's own stated coverage",
+        where("concessioniop_spv") === "Equatorial Asia" && where("alertfire_viirs") === "Equatorial Asia");
+  check("the title carries it, unless it already says it",
+        /new RegExp\(where, "i"\)\.test\(said\) \? said : `\$\{said\} \\u2014 \$\{where\}`/.test(src));
+  check("a GFW dataset takes the coverage GFW record, and nothing where they record none",
+        /const where = String\(meta\.geographic_coverage \|\| ""\)\.trim\(\);/.test(src));
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const o = new Function(body + "; return { PANEL_ORDER, PANEL_REMOVED };")();
+  check("the two emptied rows are out of the box but still findable by the code",
+        !o.PANEL_ORDER.includes("nusantara") && !o.PANEL_ORDER.includes("gfw_catalogue") &&
+        o.PANEL_REMOVED.has("nusantara") && o.PANEL_REMOVED.has("gfw_catalogue"));
 }
 
 console.log("\nGlobal Safety Net fixes; My Maps titles");
