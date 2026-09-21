@@ -1742,6 +1742,23 @@ console.log("\nTrase, and coral at world zoom");
           joined[0].properties._v === 5 && joined[1].properties._v === null && joined[0].properties._country === "Brazil");
     check("\u2026the colours use one set of steps across every country drawn", /traseBreaks\(features\.map\(\(f\) => f\.properties\._v\)\)/.test(src));
   }
+  // The plants, microorganisms and insentient maps say what kind of company a
+  // point is only inside its popup. The build reads that tag; the box gives each type a row.
+  {
+    const build = fs.readFileSync(path.join(HERE, "..", "pipeline", "sitemaps", "build_boxes.py"), "utf8");
+    const reg = JSON.parse(fs.readFileSync(path.join(HERE, "..", "pipeline", "sitemaps", "registry.json"), "utf8")).maps;
+    check("the site-map build reads a place's type from its popup tag, for the three maps asked for and no others",
+          /def popup_types\(features\):/.test(build) && /if not filters and m\.get\("types_from_popup_tag"\):/.test(build) &&
+          reg.filter((m) => m.types_from_popup_tag).map((m) => m.id).sort().join() === "site_enslaved_microbes,site_enslaved_plants,site_insentient");
+    check("\u2026and each of those maps has a row per type in the box, in place of its one row",
+          ["site_enslaved_plants", "site_enslaved_microbes", "site_insentient"].every((i) => new RegExp(`id: "${i}", typeRows: true`).test(src)) &&
+          /readCataloguesAtStart\(\);\n  readSiteTypeRowsAtStart\(\);/.test(src) && /own_nodes\.forEach\(\(n\) => gone\.appendChild\(n\)\)/.test(src));
+    const title = new Function(src.match(/function siteTypeTitle[^\n]*\n/)[0] + "; return siteTypeTitle;")();
+    check("\u2026titled for the type and the map it belongs to", title("Lawns & sports turf", "Plants 2026") === "Lawns & sports turf \u2014 Plants 2026");
+    check("\u2026with no type ticked the map is off, and All on ticks every type",
+          /own\.checked = tr\.picked\.size > 0;/.test(src) && /tr\.picked = new Set\(own\.checked \? boxes\(\)\.map/.test(src) &&
+          /siteTypeRows\.get\(cfg\.id\)\.fi === i\) return;/.test(src));
+  }
   check("the catalogues' lists are read once the box is arranged, since their own rows are hidden and never ticked",
         /const CATALOGUE_ROUTES = new Set\(\["wmsmenu", "gfwmenu", "trase"\]\)/.test(src) &&
         /box\.appendChild\(gone\);\n  readCataloguesAtStart\(\);/.test(src) && /PANEL_REMOVED\.has\(c\.id\)\) ensureLayer\(c\)/.test(src));

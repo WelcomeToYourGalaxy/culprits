@@ -186,7 +186,7 @@
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_rodeo.html"
   },
   {
-   "id": "site_enslaved_plants",
+   "id": "site_enslaved_plants", "types_from_popup_tag": true,
    "name": "Unnecessary enslavement of plants",
    "unit": "companies",
    "colour": "#62705A",
@@ -194,7 +194,7 @@
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_enslaved_plants.html"
   },
   {
-   "id": "site_enslaved_microbes",
+   "id": "site_enslaved_microbes", "types_from_popup_tag": true,
    "name": "Unnecessary enslavement of microorganisms",
    "unit": "companies",
    "colour": "#6A6E62",
@@ -202,7 +202,7 @@
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_enslaved_microbes.html"
   },
   {
-   "id": "site_insentient",
+   "id": "site_insentient", "types_from_popup_tag": true,
    "name": "The insentient",
    "unit": "companies",
    "colour": "#66625E",

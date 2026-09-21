@@ -448,6 +448,32 @@ def map_filters(data, features, idents):
     return out, marks
 
 
+TAG = re.compile(r'<span[^>]*class="[^"]*\btag\b[^"]*"[^>]*>(.*?)</span>', re.I | re.S)
+
+
+def popup_types(features):
+    """The type each place's own popup gives it, where the page has no control that sorts its places.
+
+    Several of the site's maps (plants, microorganisms, the insentient) say what
+    kind of company a point is only inside its popup, as <span class="tag">. That
+    is the map's own word for the point, so it is read as it stands - nothing is
+    inferred from the company's name. Used only if nearly every place carries
+    one and they fall into at least two types; otherwise no filter is made.
+    """
+    found = []
+    for f in features:
+        m = TAG.search(f.get("popup") or "")
+        text = html.unescape(re.sub(r"<[^>]+>", "", m.group(1))).strip() if m else ""
+        found.append(re.sub(r"\s+", " ", text).replace("|", "/"))
+    have = [t for t in found if t]
+    kinds = sorted(set(have))
+    if len(kinds) < 2 or len(have) < 0.9 * max(1, len(features)) or len(kinds) > 0.5 * len(have):
+        return None, [set() for _ in features]
+    values = [{"k": k, "label": k, "n": have.count(k)} for k in kinds]
+    # "rows": the map's layers box gives each type a row of its own.
+    return {"label": "Type", "from": "popup tag", "rows": True, "values": values}, [({t} if t else set()) for t in found]
+
+
 # ------------------------------------------------------------------ one map
 
 def build(m):
@@ -465,6 +491,14 @@ def build(m):
     chain, name = page_facts(data.get("page"), data.get("map_container"), data.get("headings"), m["name"])
 
     filters, marks = map_filters(data, data["features"], None)
+    # Only for the maps the registry names ("types_from_popup_tag"): the three the
+    # owner asked to have split. Six more of the site's maps tag their popups the
+    # same way (world news, advertising, entertainment, research integrity,
+    # indigenous conflicts, self-sufficiency) and would split just as cleanly.
+    if not filters and m.get("types_from_popup_tag"):
+        by_tag, tag_marks = popup_types(data["features"])
+        if by_tag:
+            filters, marks = [by_tag], tag_marks
     overlays = data.get("overlays") or []
     order = {}
     for k, o in enumerate(overlays):

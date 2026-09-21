@@ -242,6 +242,31 @@ as before, so nothing breaks while the tiling catches up.
 
 ---
 
+## Three site maps split into a row per type
+
+The plants, microorganisms and insentient maps have no control that sorts their
+places; what kind of company a point is appears only in its popup, as
+`<span class="tag">`. `build_boxes.py` (`popup_types`) reads that tag into the
+places file as an ordinary filter marked `"rows": true` - for the maps the
+registry flags `types_from_popup_tag`, and only where nearly every place has a
+tag. Six more site maps tag their popups the same way (world news, advertising,
+entertainment, research integrity, indigenous conflicts, self-sufficiency) and
+would split as cleanly; they were not asked for, so they are not flagged.
+
+In the box (`siteTypeRowsFor`, run by `readSiteTypeRowsAtStart`), a map with
+`typeRows: true` gets a row per type in place of its one row, titled
+"<type> - <map name>" with its count. Underneath it is still one layer: the
+ticked types are that map's filter, no type ticked means the map is off, and
+"All on"/"All off" tick the hidden row, which every type row follows. The
+hidden row's transparency slider goes out of sight with it.
+
+The places files are rebuilt by the `sitemaps` job of the refresh workflow in
+`culprits-tiles-more`, which only runs when the box is left empty (or at 06:17
+UTC). Until then the three maps keep their one row: the code falls back to it
+when a places file has no `rows` filter. Checked in a headless browser against
+the real rebuilt file for plants: 7 rows, ticking two draws those two, unticking
+both turns the map off, All on ticks all seven.
+
 ## SkyTruth Monitor's alert feeds
 
 The feeds are numbered. Asking the service for feeds 1 to 30 and 10095 to 10110

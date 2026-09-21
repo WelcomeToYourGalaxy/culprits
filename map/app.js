@@ -2267,6 +2267,80 @@ map.on("idle", wireFlush);
 // test and a place can belong to more than one.
 const sitemapFilters = new Map();     // map id -> { filters, picked: [Set], base: {layerId: filter} }
 
+// A site map whose places file marks a filter "rows" gets a row of the layers
+// box for each of its types, in place of its one row. The map is still one
+// layer underneath: ticking types narrows it to them, exactly as chips would,
+// and with no type ticked it is off. The places file is small and is read once
+// the box is arranged, so the rows are there before anything is ticked.
+const siteTypeRows = new Map();      // map id -> { fi, picked: Set, busy }
+
+function siteTypeTitle(label, mapName) { return `${label} \u2014 ${mapName}`; }
+
+function siteTypeSync(cfg) {
+  const tr = siteTypeRows.get(cfg.id);
+  const state = sitemapFilters.get(cfg.id);
+  if (!tr || !state) return;
+  state.picked[tr.fi] = tr.picked;
+  applySitemapFilters(cfg.id);
+}
+
+async function siteTypeRowsFor(cfg) {
+  const box = document.getElementById("layers");
+  const own = box && box.querySelector ? box.querySelector(`[data-layer="${cfg.id}"]`) : null;
+  const lead = own && own.closest ? own.closest("label") : null;
+  if (!lead || !document.createElement || siteTypeRows.has(cfg.id)) return;
+  let data;
+  try { data = await getJson(cfg.dataUrl, 40000); } catch (e) { return; }      // the one row stays, as before
+  const fi = (data.filters || []).findIndex((f) => f && f.rows && Array.isArray(f.values) && f.values.length > 1);
+  if (fi < 0) return;
+  const tr = { fi, picked: new Set(), busy: false };
+  siteTypeRows.set(cfg.id, tr);
+  const mapName = (lead.querySelector(".nm") && lead.querySelector(".nm").firstChild && lead.querySelector(".nm").firstChild.textContent) || cfg.name;
+  const rows = data.filters[fi].values.map((v) => {
+    const row = document.createElement("label");
+    row.className = "layer layer-cat";
+    row.innerHTML = `<input type="checkbox" data-smtype="${escapeHtml(cfg.id)}" data-k="${escapeHtml(v.k)}">` +
+      `<span class="swatch" style="background:${cfg.colour}"></span>` +
+      `<span class="body"><span class="nm">${escapeHtml(siteTypeTitle(v.label, mapName.trim()))}${siteLink(cfg.id)}</span>` +
+      `<span class="un">${Number(v.n).toLocaleString()} ${escapeHtml(cfg.unit || "places")}</span></span>`;
+    return row;
+  });
+  // After the row and whatever sits under it (its tools), which are then put
+  // where removed rows go: still findable, out of sight.
+  const own_nodes = rowNodes(lead);
+  let at = own_nodes[own_nodes.length - 1];
+  for (const row of rows) { at.after(row); at = row; }
+  const gone = box.querySelector("[data-removed]");
+  if (gone) own_nodes.forEach((n) => gone.appendChild(n)); else own_nodes.forEach((n) => { n.hidden = true; });
+  const boxes = () => [...box.querySelectorAll(`[data-smtype="${cfg.id}"]`)];
+  box.addEventListener("change", (e) => {
+    const t = e.target;
+    if (!t || !t.dataset) return;
+    if (t.dataset.smtype === cfg.id) {
+      if (t.checked) tr.picked.add(t.dataset.k); else tr.picked.delete(t.dataset.k);
+      tr.busy = true;
+      try {
+        if (own.checked !== tr.picked.size > 0) {
+          own.checked = tr.picked.size > 0;
+          own.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      } finally { tr.busy = false; }
+      siteTypeSync(cfg);
+    } else if (t === own && !tr.busy) {
+      // "All on" and "All off" tick the hidden row itself: every type follows it.
+      tr.picked = new Set(own.checked ? boxes().map((i) => i.dataset.k) : []);
+      boxes().forEach((i) => { i.checked = own.checked; });
+      siteTypeSync(cfg);
+    }
+  });
+}
+
+function readSiteTypeRowsAtStart() {
+  for (const g of GROUPS) for (const c of g.children) {
+    if (c.ready && c.route === "sitemap" && c.typeRows && c.dataUrl) siteTypeRowsFor(c).catch((e) => console.warn(`[culprits] ${c.id} types: ${e.message}`));
+  }
+}
+
 function sitemapChipRows(cfg) {
   const state = sitemapFilters.get(cfg.id);
   const box = document.getElementById("layers");
@@ -2275,6 +2349,7 @@ function sitemapChipRows(cfg) {
   const anchor = row && row.closest ? row.closest("label") : null;
   if (!anchor || !document.createElement) return;
   state.filters.forEach((f, i) => {
+    if (siteTypeRows.has(cfg.id) && siteTypeRows.get(cfg.id).fi === i) return;      // its types are rows, not chips
     if (box.querySelector(`.facet[data-for="${cfg.id}-${i}"]`)) return;
     const el = document.createElement("div");
     el.className = "facet";
@@ -6600,6 +6675,7 @@ async function addSitemapLayer(cfg, given) {
       },
     });
     sitemapChipRows(cfg);
+    siteTypeSync(cfg);      // types ticked before the layer was built
   }
   if (Array.isArray(data.colourings) && data.colourings.length) {
     sitemapColourings.set(cfg.id, { list: data.colourings, pick: 0, year: {} });
@@ -7310,11 +7386,11 @@ const SITE_MAPS = {
       note: "From the Suppression page's animal racing map (maps repo)." },
     { id: "site_rodeo", name: "Global Rodeo & Charreada Map", unit: "events and arenas", colour: "#80665A", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_rodeo.places.geojson",
       note: "From the Suppression page's rodeo and charreada map." },
-    { id: "site_enslaved_plants", name: "The Unnecessary Enslavement of Plants 2026", unit: "companies", colour: "#62705A", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_enslaved_plants.places.geojson",
+    { id: "site_enslaved_plants", typeRows: true, name: "The Unnecessary Enslavement of Plants 2026", unit: "companies", colour: "#62705A", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_enslaved_plants.places.geojson",
       note: "From the Suppression page's plant enslavement map." },
-    { id: "site_enslaved_microbes", name: "The Unnecessary Enslavement of Microorganisms 2026", unit: "companies", colour: "#6A6E62", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_enslaved_microbes.places.geojson",
+    { id: "site_enslaved_microbes", typeRows: true, name: "The Unnecessary Enslavement of Microorganisms 2026", unit: "companies", colour: "#6A6E62", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_enslaved_microbes.places.geojson",
       note: "From the Suppression page's microorganism enslavement map." },
-    { id: "site_insentient", name: "The Insentient 2026", unit: "companies", colour: "#66625E", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_insentient.places.geojson",
+    { id: "site_insentient", typeRows: true, name: "The Insentient 2026", unit: "companies", colour: "#66625E", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_insentient.places.geojson",
       note: "From the Suppression page's map of industries built on things called insentient." },
     { id: "site_subsistence_cultures", name: "Global Subsistence Cultures", unit: "peoples", colour: "#5F7166", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_subsistence_cultures.places.geojson",
       note: "From the Suppression page's subsistence cultures map." },
@@ -9346,6 +9422,7 @@ function arrangePanel() {
   tail.filter((el) => el.classList && el.classList.contains("pending-note")).forEach((el) => box.appendChild(el));
   box.appendChild(gone);
   readCataloguesAtStart();
+  readSiteTypeRowsAtStart();
   pinBuildings(box);
   addRowTools(box);
   if (!document.getElementById("panel-h-style")) {
