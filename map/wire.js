@@ -75,7 +75,7 @@ const MAPS = [
         { key: 'why',     label: 'Why it was kept', field: 'why' },
         { key: 'region',  label: 'Region',          field: 'region',    none: 'Not placed' },
         { key: 'within',  label: 'Within',          field: 'subregion', none: 'Not placed', parent: 'region' },
-        { key: 'country', label: 'Country',         field: 'iso',       none: 'Not placed', parent: 'within', type: 'country' },
+        { key: 'country', label: 'Country',         field: 'iso',       none: 'Not placed', type: 'country' },
         { key: 'who',     label: 'Who reports it',  field: 'source' },
         { key: 'lang',    label: 'Language',        field: 'lang', type: 'lang' }
       ] } },
@@ -173,6 +173,21 @@ function countryName(code) {
     try { const n = REGION_NAMES.of(a2); if (n && n !== a2) return n; } catch (e) { /* not a region code */ }
   }
   return c;   // unknown code: show it as published rather than guess
+}
+
+// A place name to its country code, where the name is a country or ends in one.
+let COUNTRY_BY_NAME = null;
+function countryFromName(name) {
+  if (!COUNTRY_BY_NAME) {
+    COUNTRY_BY_NAME = {};
+    for (let a = 65; a <= 90; a++) for (let b = 65; b <= 90; b++) {
+      const code = String.fromCharCode(a, b), n = countryName(code);
+      if (n !== code) COUNTRY_BY_NAME[n.toLowerCase()] = code;
+    }
+    Object.assign(COUNTRY_BY_NAME, { usa: 'US', 'united states of america': 'US', uk: 'GB', russia: 'RU', 'south korea': 'KR', 'north korea': 'KP' });
+  }
+  const parts = String(name || '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
+  return parts.length ? (COUNTRY_BY_NAME[parts[parts.length - 1]] || null) : null;
 }
 
 function languageName(code, published) {
@@ -280,12 +295,36 @@ function readFeed(data) {
     });
     facets.push(facet('region', 'Region', { labels: regionL, none: 'Not placed', order: 'given', given: geo.map((r) => r.id) }));
     facets.push(facet('within', 'Within', { labels: subL, none: 'Not placed', parent: 'region', belongs: subOf, order: 'label' }));
-    facets.push(facet('place',  'Place',  { labels: placeL, none: 'Not placed', parent: 'within', belongs: placeOf, order: 'label' }));
+    // One Country filter, the same one the map wires carry, in place of the
+    // feeds' "Place". Place only opened after a Region and a Within had been
+    // chosen, and it never offered the United States or Canada at all: the
+    // feeds file those under Within and split them into parts (us-sw, ca-bc)
+    // below it. Country is flat, lists every country a story is tagged with,
+    // and keeps the feeds' finer places as their own options beside their
+    // country ("United States: Southwest"), so nothing the feeds publish has
+    // been lost with the Place row.
+    facets.push(facet('country', 'Country', { labels: {}, none: 'Not placed', order: 'label' }));
   } else if (has('pn')) {
-    // No region tree (space, space-life): the only place these wires give is a
-    // place name per story.
-    facets.push(facet('place', 'Place', { none: 'Not placed', order: 'label' }));
+    // No region tree (space, space-life): these wires give a place name per
+    // story. A name that is a country, or ends in one ("Zhuzhou, China"), is
+    // filed under that country; any other name is its own option, as written.
+    facets.push(facet('country', 'Country', { labels: {}, none: 'Not placed', order: 'label' }));
   }
+  // Which country each of the feed's own place ids is, read from the id itself:
+  // "ke" is Kenya, "us-sw" is in the United States. An id that is not a country
+  // code ("sahel") belongs to none and stays an option of its own.
+  const countryOfPlace = (pid) => {
+    const m = /^([a-z]{2})(-|$)/.exec(String(pid));
+    if (!m) return null;
+    const code = m[1].toUpperCase();
+    return countryName(code) !== code ? code : null;
+  };
+  // A Within that holds the places of one country only (the United States) is that country.
+  const subCountry = {};
+  Object.keys(placeOf).forEach((pid) => {
+    const c = countryOfPlace(pid), sb = placeOf[pid];
+    subCountry[sb] = sb in subCountry ? (subCountry[sb] === c ? c : null) : c;
+  });
 
   const hasStanding = has('st');
   if (hasStanding) {
@@ -318,13 +357,23 @@ function readFeed(data) {
     if (hasTree) {
       put(s, 'region', asList(i.w).filter(unl));
       put(s, 'within', asList(i.sr).filter(unl));
-      put(s, 'place',  asList(i.pl).filter(unl));
-      const pick = [['place', placeL], ['within', subL], ['region', regionL]]
-        .map(([k, L]) => s.v[k].filter((x) => x !== NONE).map((x) => L[x] || x))
+      const places = asList(i.pl).filter(unl);
+      const found = [];
+      places.forEach((pid) => {
+        const c = countryOfPlace(pid);
+        if (c && found.indexOf(c) === -1) found.push(c);
+        if (!c || pid.length > 2) found.push(pid);          // a part of a country, or a place that is no country
+      });
+      if (!found.some((x) => x.length === 2 && x === x.toUpperCase())) {
+        s.v.within.forEach((sb) => { const c = subCountry[sb]; if (c && found.indexOf(c) === -1) found.push(c); });
+      }
+      put(s, 'country', found);
+      const pick = [[places, placeL], [s.v.within.filter((x) => x !== NONE), subL], [s.v.region.filter((x) => x !== NONE), regionL]]
+        .map(([ids, L]) => ids.map((x) => L[x] || x))
         .find((a) => a.length);
       s.place = pick ? pick.slice(0, 2).join(', ') : null;
-    } else if (facets.some((f) => f.key === 'place')) {
-      put(s, 'place', asList(i.pn));
+    } else if (facets.some((f) => f.key === 'country')) {
+      put(s, 'country', asList(i.pn).map((name) => countryFromName(name) || name));
       s.place = i.pn || null;
     }
     if (hasStanding) put(s, 'who', asList(i.st));
@@ -356,8 +405,14 @@ function readFeed(data) {
   }
   const langF = facets.find((f) => f.key === 'lang');
   stories.forEach((s) => s.v.lang.forEach((c) => { if (c !== NONE) langF.labels[c] = languageName(c, langs); }));
-  const placeF = facets.find((f) => f.key === 'place' && !f.belongs);
-  if (placeF) stories.forEach((s) => s.v.place.forEach((p) => { if (p !== NONE) placeF.labels[p] = p; }));
+  const countryF = facets.find((f) => f.key === 'country');
+  if (countryF) stories.forEach((s) => s.v.country.forEach((p) => {
+    if (p === NONE || countryF.labels[p]) return;
+    if (p.length === 2 && p === p.toUpperCase()) { countryF.labels[p] = countryName(p); return; }
+    const c = countryOfPlace(p);
+    // "United States: Southwest", so a country's parts sort directly under it.
+    countryF.labels[p] = c && placeL[p] ? countryName(c) + ': ' + placeL[p].replace(new RegExp('^' + countryName(c) + '\\s*[-:\u2013\u2014,]?\\s*', 'i'), '') : (placeL[p] || p);
+  }));
 
   return finish(facets, stories, data.generated);
 }
@@ -1058,7 +1113,7 @@ function renderPicker() {
 // bookkeeping (which search found a story, how far it was widened, why it
 // was kept), and the escalation label. Time covers how recent a story is.
 const HIDDEN_ROWS = new Set(['Substance score', 'Direction', 'Why it was kept', 'Search feed', 'Search widened to']);
-const ROW_ORDER = ['Topic', 'Country', 'Region', 'Within', 'Place', 'Who reports it', 'News source', 'Language'];
+const ROW_ORDER = ['Topic', 'Country', 'Region', 'Within', 'Who reports it', 'News source', 'Language'];
 function rowRank(label) { const i = ROW_ORDER.indexOf(label); return i === -1 ? ROW_ORDER.length : i; }
 
 function renderFilters(focusId) {

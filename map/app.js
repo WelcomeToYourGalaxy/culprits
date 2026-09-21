@@ -550,6 +550,63 @@ maplibregl.addProtocol("tint", async (params, abortController) => {
     : await new Promise((res) => canvas.toBlob(res, "image/png"));
   return { data: await blob.arrayBuffer() };
 });
+// seen://<https URL without the scheme> - a map server's picture made legible
+// on a dark map, its own colours kept:
+//   - a pixel drawn black or near it (a server's default outline) is redrawn
+//     in bone: black concession outlines on the dark atlas could not be seen;
+//   - wider out, every drawn pixel is grown into the empty pixels round it, in
+//     its own colour, so a scatter of small areas (Indonesia's mining areas)
+//     still shows from the world view. Filled pictures are unchanged by this,
+//     since they have no empty pixels to grow into.
+// The zoom is read from the width of the square asked for, the address being a
+// bounding box rather than z/x/y. Kept apart from the canvas so it is tested.
+function seenPixels(px, w, zoom) {
+  const h = px.length / 4 / w;
+  for (let i = 0; i < px.length; i += 4) {
+    if (!px[i + 3]) continue;
+    if (px[i] < 70 && px[i + 1] < 70 && px[i + 2] < 70) { px[i] = 220; px[i + 1] = 214; px[i + 2] = 198; }
+    if (px[i + 3] < 200) px[i + 3] = Math.min(255, px[i + 3] + 60);
+  }
+  const r = zoom <= 4 ? 2 : zoom <= 7 ? 1 : 0;
+  if (!r) return;
+  const src = px.slice();
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const o = (y * w + x) * 4;
+    if (!src[o + 3]) continue;
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      const xx = x + dx, yy = y + dy;
+      if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+      const q = (yy * w + xx) * 4;
+      if (src[q + 3]) continue;                      // only into empty pixels
+      px[q] = src[o]; px[q + 1] = src[o + 1]; px[q + 2] = src[o + 2]; px[q + 3] = 255;
+    }
+  }
+}
+function zoomOfBbox(url) {
+  const m = /BBOX=(-?[\d.]+),(-?[\d.]+),(-?[\d.]+),(-?[\d.]+)/i.exec(url);
+  if (!m) return 99;
+  const width = Math.abs(Number(m[3]) - Number(m[1]));
+  return width > 0 ? Math.round(Math.log2(40075016.68 / width)) : 99;
+}
+maplibregl.addProtocol("seen", async (params, abortController) => {
+  const url = "https://" + params.url.replace(/^seen:\/\//, "");
+  const r = await fetch(url, { signal: abortController && abortController.signal });
+  if (!r.ok) throw new Error(`${r.status}`);
+  const bmp = await createImageBitmap(new Blob([await r.arrayBuffer()]));
+  const canvas = typeof OffscreenCanvas !== "undefined"
+    ? new OffscreenCanvas(bmp.width, bmp.height)
+    : Object.assign(document.createElement("canvas"), { width: bmp.width, height: bmp.height });
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(bmp, 0, 0);
+  const img = ctx.getImageData(0, 0, bmp.width, bmp.height);
+  seenPixels(img.data, bmp.width, zoomOfBbox(url));
+  ctx.putImageData(img, 0, 0);
+  const blob = canvas.convertToBlob
+    ? await canvas.convertToBlob({ type: "image/png" })
+    : await new Promise((res) => canvas.toBlob(res, "image/png"));
+  return { data: await blob.arrayBuffer() };
+});
+
 function tintPixels(d, rgb) {
   for (let i = 0; i < d.length; i += 4) {
     if (d[i + 3] === 0) continue;
@@ -2312,6 +2369,7 @@ async function siteTypeRowsFor(cfg) {
   for (const row of rows) { at.after(row); at = row; }
   const gone = box.querySelector("[data-removed]");
   if (gone) own_nodes.forEach((n) => gone.appendChild(n)); else own_nodes.forEach((n) => { n.hidden = true; });
+  countHeadings(box);
   const boxes = () => [...box.querySelectorAll(`[data-smtype="${cfg.id}"]`)];
   box.addEventListener("change", (e) => {
     const t = e.target;
@@ -4088,18 +4146,18 @@ function catalogueRows(cfg, items) {
     paths.forEach((path, n) => {
       const row = document.createElement("label");
       row.className = "layer layer-cat" + (n ? " layer-copy" : "");
-      row.title = item.about || "";
       row.innerHTML =
         `<input type="checkbox" data-${n ? "cat-copy" : "cat"}="${escapeHtml(key)}">` +
         `<span class="swatch" style="background:${cfg.colour}"></span>` +
         `<span class="body"><span class="nm">${escapeHtml(item.title)}` +
         `<span class="live" title="Read from the source itself when this row is ticked, not from a copy kept here">LIVE</span>` +
-        `${siteLink(cfg.id)}</span>` +
+        `${siteLink(cfg.id)}${infoMark(item.about)}</span>` +
         `<span class="un" data-state="${escapeHtml(key)}">${escapeHtml(cfg.catUnit || "")}</span></span>`;
       (sectionBody(box, path) || spare).appendChild(row);
     });
     item.key = key;
   });
+  countHeadings(box);
   if (box.dataset.catWired) return;
   box.dataset.catWired = "1";
   box.addEventListener("change", (e) => {
@@ -4122,6 +4180,18 @@ function catalogueRows(cfg, items) {
   });
 }
 const CATALOGUE_ITEMS = new Map();
+// What is happening to one catalogue row, said on that row and its copies. It
+// used to be said on the catalogue's own row, which is out of sight: a dataset
+// with no tiles, or one whose server refused, looked as if nothing had happened.
+function rowSay(key, text) {
+  const box = document.getElementById("layers");
+  if (!box || !box.querySelectorAll) return;
+  for (const tick of box.querySelectorAll(`[data-cat="${key}"], [data-cat-copy="${key}"]`)) {
+    const row = tick.closest ? tick.closest("label") : null;
+    const el = row && row.querySelector(".un");
+    if (el) el.textContent = text;
+  }
+}
 
 /* ---------- a map server's whole layer list, as a menu (Nusantara Atlas) ---------- */
 async function addWmsMenuLayer(cfg) {
@@ -4154,7 +4224,44 @@ async function addWmsMenuLayer(cfg) {
   layers.forEach((l) => { if (seen[l.title] > 1) l.title += ` (${l.base.replace(/^https?:\/\//, "").split("/")[0]})`; });
   const lid = (i) => `${cfg.id}-w${i}`;
   cfg._layerIds = layers.map((l, i) => lid(i));
+  // Whether this server lets a page read its pictures (it must, for "seen" to
+  // work on them). Asked once per server, with the smallest picture there is;
+  // a server that refuses has its pictures drawn as they come.
+  const readable = {};
+  const canRead = async (l) => {
+    if (!(l.base in readable)) {
+      try {
+        const r = await fetch(tilesFor(l).replace("{bbox-epsg-3857}", "0,0,1,1").replace("WIDTH=256&HEIGHT=256", "WIDTH=2&HEIGHT=2"));
+        readable[l.base] = r.ok;
+      } catch (e) { readable[l.base] = false; }
+    }
+    return readable[l.base];
+  };
+  // The server's own key to a layer's colours, under its row while it is ticked.
+  const legendFor = (item, l) => {
+    const box = document.getElementById("layers");
+    const tick = box && box.querySelector ? box.querySelector(`[data-cat="${item.key}"]`) : null;
+    const row = tick && tick.closest ? tick.closest("label") : null;
+    if (!row || !document.createElement || box.querySelector(`.facet[data-legend-for="${item.key}"]`)) return;
+    const el = document.createElement("div");
+    el.className = "facet wms-legend";
+    el.dataset.legendFor = item.key;
+    const img = document.createElement("img");
+    img.alt = `Key to ${l.title}`;
+    img.loading = "lazy";
+    img.src = `${l.base}?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetLegendGraphic&FORMAT=image/png&TRANSPARENT=true&LAYER=${encodeURIComponent(l.name)}` +
+      `&LEGEND_OPTIONS=${encodeURIComponent("fontColor:0xDCD6C6;fontAntiAliasing:true;fontSize:11;forceLabels:on")}`;
+    img.onerror = () => el.remove();                  // no key published: no empty box
+    el.appendChild(img);
+    row.after(el);
+  };
+  const legendOff = (item) => {
+    const box = document.getElementById("layers");
+    const el = box && box.querySelector ? box.querySelector(`.facet[data-legend-for="${item.key}"]`) : null;
+    if (el) el.remove();
+  };
   const on = new Set();
+  const adding = new Set();
   // Each layer is a row of the box, filed by what it shows. The row that
   // carried the menu says how many there are and how many are drawn.
   const apply = (vis) => layers.forEach((l, i) => {
@@ -4169,11 +4276,20 @@ async function addWmsMenuLayer(cfg) {
       if (want) {
         showRowFor(cfg.id);
         on.add(i);
-        if (!map.getLayer(lid(i))) {
-          map.addSource(lid(i), { type: "raster", tileSize: 256, attribution: cfg.attribution || "", tiles: [tilesFor(layers[i])] });
-          map.addLayer({ id: lid(i), type: "raster", source: lid(i), paint: { "raster-opacity": 0.85 } });
+        legendFor(items[i], layers[i]);
+        if (!map.getLayer(lid(i)) && !adding.has(i)) {
+          adding.add(i);
+          canRead(layers[i]).then((ok) => {
+            adding.delete(i);
+            if (map.getLayer(lid(i))) return;
+            const plain = tilesFor(layers[i]);
+            map.addSource(lid(i), { type: "raster", tileSize: 256, attribution: cfg.attribution || "",
+              tiles: [ok ? plain.replace(/^https:\/\//, "seen://") : plain] });
+            map.addLayer({ id: lid(i), type: "raster", source: lid(i), paint: { "raster-opacity": 0.85 } });
+            apply(visibility.get(cfg.id) || "none");
+          });
         }
-      } else on.delete(i);
+      } else { on.delete(i); legendOff(items[i]); }
       apply(visibility.get(cfg.id) || "none");
       show();
     },
@@ -4248,6 +4364,7 @@ async function addGfwMenuLayer(cfg) {
   const put = async (d) => {
     showRowFor(cfg.id);
     setLayerState(cfg.id, `${d.title}: finding its tiles\u2026`);
+    rowSay(d.key, "finding its tiles\u2026");
     const src = `${cfg.id}-${safe(d.id)}`;
     const ids = [];
     try {
@@ -4278,23 +4395,33 @@ async function addGfwMenuLayer(cfg) {
         ids.push(`${src}-r`);
       } else {
         setLayerState(cfg.id, `${d.title}: Global Forest Watch publishes no map tiles for this dataset (download only)`);
+        rowSay(d.key, "no map tiles are published for this dataset, only a download \u2014 nothing to draw");
         return;
       }
       drawn.set(d.id, ids);
       cfg._layerIds = [].concat(...drawn.values());
       applyAll(visibility.get(cfg.id) || "visible");
       said();
+      rowSay(d.key, vec ? "drawn from its vector tiles" : "drawn from its picture tiles, to zoom 12");
+      // A tile that fails says so on the row, once, instead of leaving an empty map.
+      const failed = (e) => {
+        if (!e || e.sourceId !== src) return;
+        map.off("error", failed);
+        rowSay(d.key, `its tiles are not answering (${(e.error && e.error.message) || "error"})`);
+      };
+      map.on("error", failed);
       if (about) console.info(`[culprits] ${d.title} \u2014 ${about}`);
     } catch (e) {
       setLayerState(cfg.id, `${d.title}: ${e.message}`);
+      rowSay(d.key, `could not be read (${e.message})`);
     }
   };
   const rows = items.map((d) => ({
     name: d.id, title: d.title, about: `${d.meta.function || ""} ${d.meta.overview || ""}`.trim(),
-    show: (want) => { if (want) put(d); else take(d); },
+    show: (want) => { if (want) put(d); else { take(d); rowSay(d.key, cfg.catUnit || ""); } },
   }));
   catalogueRows(cfg, rows);
-  rows.forEach((r) => CATALOGUE_ITEMS.set(r.key, r));
+  rows.forEach((r, i) => { items[i].key = r.key; CATALOGUE_ITEMS.set(r.key, r); });
   said();
 }
 
@@ -7294,7 +7421,7 @@ function groupRows(group) {
     row.innerHTML =
       `<input type="checkbox" data-layer="${child.id}">` +
       `<span class="swatch" style="background:${child.colour}"></span>` +
-      `<span class="body"><span class="nm">${child.name}${liveMark(child)}${siteLink(child.id)}</span>` +
+      `<span class="body"><span class="nm">${child.name}${liveMark(child)}${siteLink(child.id)}${infoMark(child.note)}</span>` +
       `<span class="un" data-state="${child.id}">not loaded</span></span>`;
     kids.appendChild(row);
   });
@@ -8374,7 +8501,7 @@ function buildPanel() {
       // cannot take the map down with it.
       `<input type="checkbox"${cfg.off ? "" : " checked"} data-layer="${cfg.id}">` +
       `<span class="swatch" style="background:${cfg.colour}"></span>` +
-      `<span class="body"><span class="nm">${cfg.name}${liveMark(cfg)}${siteLink(cfg.id)}</span>` +
+      `<span class="body"><span class="nm">${cfg.name}${liveMark(cfg)}${siteLink(cfg.id)}${infoMark(cfg.note)}</span>` +
       `<span class="un" data-state="${cfg.id}">${cfg.unit}</span></span>`;
     box.appendChild(row);
     if (cfg.facet) box.appendChild(facetRow(cfg));
@@ -8891,6 +9018,41 @@ const LIVE_ROUTES = new Set([
   "wpgmza", "atlascities", "trase", "trasefac", "wmsmenu", "gfwmenu", "giga", "gta",
   "rte", "owidgrapher", "spheres", "companion",
 ]);
+// A row's longer description sits behind a small "i" beside its other marks.
+// It used to be the whole row's hover text, which popped up over the list every
+// time the pointer crossed it; an ordinary row's note was shown nowhere at all.
+function infoMark(text) {
+  const t = String(text || "").replace(/\s+/g, " ").trim();
+  if (!t) return "";
+  return `<span class="info" tabindex="0" role="note" aria-label="About this layer" data-tip="${escapeHtml(t)}">i</span>`;
+}
+function wireInfoMarks() {
+  const box = document.getElementById("layers");
+  if (!box || !box.addEventListener || box.dataset.infoWired) return;
+  box.dataset.infoWired = "1";
+  const tip = document.createElement("div");
+  tip.id = "row-tip";
+  tip.hidden = true;
+  document.body.appendChild(tip);
+  const show = (el) => {
+    tip.textContent = el.dataset.tip;
+    tip.hidden = false;
+    const r = el.getBoundingClientRect(), w = Math.min(340, window.innerWidth - 24);
+    tip.style.width = w + "px";
+    tip.style.left = Math.max(12, Math.min(r.left, window.innerWidth - w - 12)) + "px";
+    const below = r.bottom + 8, h = tip.getBoundingClientRect().height;
+    tip.style.top = (below + h > window.innerHeight - 8 ? Math.max(8, r.top - h - 8) : below) + "px";
+  };
+  const over = (e) => { const el = e.target && e.target.closest ? e.target.closest(".info") : null; if (el) show(el); };
+  const out = (e) => { if (e.target && e.target.closest && e.target.closest(".info")) tip.hidden = true; };
+  box.addEventListener("mouseover", over);
+  box.addEventListener("focusin", over);
+  box.addEventListener("mouseout", out);
+  box.addEventListener("focusout", out);
+  // The mark sits inside the row's label: a click on it must not tick the row.
+  box.addEventListener("click", (e) => { if (e.target && e.target.closest && e.target.closest(".info")) e.preventDefault(); });
+}
+
 function liveMark(cfg) {
   if (!cfg || !LIVE_ROUTES.has(cfg.route)) return "";
   return `<span class="live" title="Read from the source itself when this row is ticked, not from a copy kept here">LIVE</span>`;
@@ -9420,14 +9582,10 @@ function arrangePanel() {
   box.addEventListener("change", (e) => {
     if (e && e.target && e.target.dataset && (e.target.dataset.layer || e.target.dataset.group)) syncHeadingBoxes(box);
   });
-  // Beside each heading, how many layers are inside it.
-  for (const sec of box.querySelectorAll(".toc-sec")) {
-    const n = sec.querySelectorAll("[data-layer], [data-copy], [data-gm]").length;
-    const el = sec.querySelector(".toc-n");
-    if (el) el.textContent = n ? String(n) : "none yet";
-  }
+  countHeadings(box);
   tail.filter((el) => el.classList && el.classList.contains("pending-note")).forEach((el) => box.appendChild(el));
   box.appendChild(gone);
+  wireInfoMarks();
   readCataloguesAtStart();
   readSiteTypeRowsAtStart();
   pinBuildings(box);
@@ -9470,6 +9628,22 @@ function arrangePanel() {
     document.head.appendChild(st);
   }
 }
+// Beside each heading, how many rows are inside it. Counted again whenever rows
+// arrive later - the catalogues' and the site maps' type rows are added after
+// the box is arranged, and four headings that held only such rows (Land held
+// under permit, Spatial plans, Peatland, Surface water) read "none yet" with
+// dozens of layers under them.
+const ROW_TICKS = "[data-layer], [data-copy], [data-gm], [data-cat], [data-cat-copy], [data-smtype]";
+function countHeadings(box) {
+  box = box || document.getElementById("layers");
+  if (!box || !box.querySelectorAll) return;
+  for (const sec of box.querySelectorAll(".toc-sec")) {
+    const n = [...sec.querySelectorAll(ROW_TICKS)].filter((i) => !(i.closest && i.closest("[data-removed]"))).length;
+    const el = sec.querySelector(".toc-n");
+    if (el) el.textContent = n ? String(n) : "none yet";
+  }
+}
+
 // The catalogues' own rows are out of sight (PANEL_REMOVED) and lazy, and a lazy
 // row is only built when it is ticked - so nothing ever asked Nusantara, Global
 // Forest Watch or Trase for their lists, and their hundreds of rows never

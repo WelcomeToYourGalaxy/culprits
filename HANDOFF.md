@@ -242,6 +242,45 @@ as before, so nothing breaks while the tiling catches up.
 
 ---
 
+## Round of 21 September: what the owner found on the live map
+
+- **Four headings read "none yet" with dozens of rows under them.** The count
+  looked only for ordinary rows and was taken once, before the catalogues
+  answered. `countHeadings` counts catalogue rows, their copies and the site
+  maps' type rows too (`ROW_TICKS`), leaves out the hidden holder, and runs
+  again whenever such rows arrive.
+- **A catalogue row that failed said nothing.** `put()` reported to the
+  catalogue's own row, which is out of sight. `rowSay(key, text)` writes to the
+  row (and its copies): finding its tiles, drawn from vector or picture tiles,
+  no tiles published, could not be read, tiles not answering. Still to find out
+  why four Global Forest Watch datasets draw nothing (the two DIST-ALERT ones,
+  the PANGAEA mining one, WRI/Google drivers of tree cover loss): the owner was
+  given a command that lists those datasets' assets.
+- **A description behind an "i".** Catalogue rows carried their description as
+  the whole row's hover text; ordinary rows' `note` was shown nowhere.
+  `infoMark(text)` puts a small i beside the LIVE and source marks; hovering or
+  focusing it shows one floating box (`#row-tip`, fixed, so the scrolling box
+  does not clip it). A click on it does not tick the row.
+- **Nusantara's layers, legible.** Every ticked layer shows the server's own
+  key under its row (`GetLegendGraphic`; removed if the server has none). Its
+  pictures pass through a new `seen://` protocol where the server lets a page
+  read them (asked once per server): near-black pixels - the server's default
+  outlines, invisible on the dark atlas - are redrawn in bone, and at zoom 7
+  and wider every drawn pixel grows into the empty ones round it in its own
+  colour, so scattered small areas show from the world view. A layer's own
+  colours are never changed.
+- **The wire box: one Country filter.** Feeds carried Region > Within > Place,
+  and Place only opened after the other two were chosen; it never offered the
+  United States or Canada, which the feeds file under Within and split into
+  parts below. Map wires carried a separate Country. Now every subject carries
+  one flat Country (`key: 'country'`): feeds derive it from their place ids
+  ("ke", "us-sw" -> US) and, failing that, from a Within that holds one
+  country's places; a country's parts stay as options beside it ("United
+  States: Southwest"); a place that is no country ("Horn of Africa") keeps its
+  name; space's free-text places are filed under the country they name or end
+  in. Place is gone; Region and Within stay. Capture's Country no longer waits
+  for a Within.
+
 ## Nusantara: two of the five unnamed layers named
 
 From Nusantara Atlas's own menu, read off their site by the owner (21 September):

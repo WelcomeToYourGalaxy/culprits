@@ -1761,7 +1761,7 @@ console.log("\nTrase, and coral at world zoom");
   }
   check("the catalogues' lists are read once the box is arranged, since their own rows are hidden and never ticked",
         /const CATALOGUE_ROUTES = new Set\(\["wmsmenu", "gfwmenu", "trase"\]\)/.test(src) &&
-        /box\.appendChild\(gone\);\n  readCataloguesAtStart\(\);/.test(src) && /PANEL_REMOVED\.has\(c\.id\)\) ensureLayer\(c\)/.test(src));
+        /box\.appendChild\(gone\);\n  wireInfoMarks\(\);\n  readCataloguesAtStart\(\);/.test(src) && /PANEL_REMOVED\.has\(c\.id\)\) ensureLayer\(c\)/.test(src));
   check("its shapes are read live from Trase", /regions: "https:\/\/resources\.trase\.earth\/data\/trase-regions"/.test(src));
   check("its values come from the weekly GitHub copy", /catalogue: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/trase\/catalogue\.json"/.test(src));
   const slug = new Function(src.slice(src.indexOf("function traseSlug("), src.indexOf("// Five steps from the values")) + "; return traseSlug;")();
@@ -2563,6 +2563,29 @@ console.log("\nNusantara's layers say what they show");
         table.Global_PlantationIOP_2025 === "Industrial oil palm plantations 2025" &&
         table.concessionitp_spv === "Industrial timber plantation concessions" &&
         table.v3p3_spatialplanmoratorium_spv === "Moratorium areas (PIPPIB) (v3p3 copy)");
+  {
+    const pick = (a, b) => src.slice(src.indexOf(a), src.indexOf(b));
+    const S = new Function(pick("function seenPixels(", "maplibregl.addProtocol(\"seen\"") + "; return { seenPixels, zoomOfBbox };")();
+    // a 5x5 picture: one black outline pixel in the middle, one green pixel in a corner
+    const px = new Uint8ClampedArray(5 * 5 * 4);
+    px.set([0, 0, 0, 255], (2 * 5 + 2) * 4); px.set([40, 160, 60, 255], 0);
+    const close = px.slice(); S.seenPixels(close, 5, 12);
+    check("a server's black outline is redrawn light, and its own colours are kept",
+          close[(2 * 5 + 2) * 4] === 220 && close[0] === 40 && close[1] === 160 && close[(2 * 5 + 3) * 4 + 3] === 0);
+    const far = px.slice(); S.seenPixels(far, 5, 6);
+    check("\u2026wider out a drawn pixel grows into the empty ones round it, in its own colour, so small areas show from the world view",
+          far[(2 * 5 + 3) * 4 + 3] === 255 && far[(2 * 5 + 3) * 4] === 220 && far[(0 * 5 + 1) * 4 + 1] === 160 && far[(4 * 5 + 0) * 4 + 3] === 0);
+    check("\u2026the zoom is read from the square asked for", S.zoomOfBbox("x?BBOX=0,0,20037508.34,20037508.34&W=1") === 1 &&
+          S.zoomOfBbox("x?BBOX=0,0,2445.98,2445.98") === 14);
+    check("Nusantara's pictures go through it only where the server lets them be read, and each ticked layer shows the server's own key",
+          /plain\.replace\(\/\^https:\\\/\\\/\/, "seen:\/\/"\) : plain/.test(src) && /REQUEST=GetLegendGraphic/.test(src) &&
+          /img\.onerror = \(\) => el\.remove\(\);/.test(src) && /else \{ on\.delete\(i\); legendOff\(items\[i\]\); \}/.test(src));
+    check("a row's description sits behind an i beside its other marks, not as the whole row's hover text",
+          /function infoMark\(text\)/.test(src) && !/row\.title = item\.about/.test(src) && /\$\{siteLink\(cfg\.id\)\}\$\{infoMark\(item\.about\)\}/.test(src) &&
+          /if \(e\.target && e\.target\.closest && e\.target\.closest\("\.info"\)\) e\.preventDefault\(\);/.test(src));
+    check("a catalogue row says what became of it on the row itself, not on the hidden row",
+          /function rowSay\(key, text\)/.test(src) && /rowSay\(d\.key, "no map tiles are published/.test(src) && /its tiles are not answering/.test(src));
+  }
   check("two more are named from Nusantara's own menu, and the three nobody can vouch for are still left alone",
         table.concessionfca_spv === "Forest Clearance Authority (FCA) concessions" && table.millopbufferol50km_spv === "Near palm oil mills, 50 km" &&
         !("concessioncma_spv" in table) && !("millopbufferol_spv" in table) && !("millopbufferpolyloreal_spv" in table) &&
@@ -2583,8 +2606,8 @@ console.log("\neach row links the site it is read from");
         /github\.com\/WelcomeToYourGalaxy\/anti-slavery-map/.test(sites.slavery_ports || ""));
   check("Trase's rows point at Trase", /trase\.earth/.test(sites.trase_palm_indonesia || ""));
   check("the link is drawn beside the title, on a row and on a group's child",
-        /<span class="nm">\$\{cfg\.name\}\$\{liveMark\(cfg\)\}\$\{siteLink\(cfg\.id\)\}<\/span>/.test(src) &&
-        /<span class="nm">\$\{child\.name\}\$\{liveMark\(child\)\}\$\{siteLink\(child\.id\)\}<\/span>/.test(src));
+        /<span class="nm">\$\{cfg\.name\}\$\{liveMark\(cfg\)\}\$\{siteLink\(cfg\.id\)\}\$\{infoMark\(cfg\.note\)\}<\/span>/.test(src) &&
+        /<span class="nm">\$\{child\.name\}\$\{liveMark\(child\)\}\$\{siteLink\(child\.id\)\}\$\{infoMark\(child\.note\)\}<\/span>/.test(src));
   check("a row with no site shows no link rather than a guessed one",
         /const u = LAYER_SITE\[id\];\n  if \(!u\) return "";/.test(src) && /#layers \.nm \.src\{/.test(index));
   check("titles that named no source say so now",
@@ -2694,7 +2717,10 @@ console.log("\na row can sit under more than one subject");
         /syncCopies\(box, id, e\.target\.checked\);/.test(src));
   check("a copy leaves the row's own tools with the row", /for \(const tool of copy\.querySelectorAll\("\.grip, \.fold"\)\) tool\.remove\(\);/.test(src));
   check("headings count copies in the number beside them",
-        /sec\.querySelectorAll\("\[data-layer\], \[data-copy\], \[data-gm\]"\)\.length/.test(src));
+        /const ROW_TICKS = "\[data-layer\], \[data-copy\], \[data-gm\], \[data-cat\], \[data-cat-copy\], \[data-smtype\]";/.test(src));
+  check("\u2026and the catalogues' rows and the site maps' type rows, counted again when they arrive, so no full heading reads none yet",
+        /countHeadings\(box\);\n  if \(box\.dataset\.catWired\) return;/.test(src) && (src.match(/countHeadings\(box\);/g) || []).length >= 3 &&
+        /filter\(\(i\) => !\(i\.closest && i\.closest\("\[data-removed\]"\)\)\)/.test(src));
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("const PANEL_REMOVED"));
   const order = new Function(body + "; return PANEL_ORDER;")();
   const at = (t) => order.findIndex((x) => x && x.t === t);

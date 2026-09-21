@@ -210,15 +210,32 @@ if (args.includes("--live") || dirAt !== -1) {
         W.optionsFor(c, c.facets.find((f) => f.key === "region"), {}, ANY).some((o) => o.label === "Not placed"));
   check("search runs over title and outlet", W.filterStories(c, {}, { q: "sohu", when: "all", now: NOW }).length === 1);
 
+  {
+    // The feeds file the United States under Within and split it into parts below
+    // that, so the old Place filter never offered it. Country does.
+    const us = W.readWire("conflict", { generated: "2026-09-21T00:00:00Z",
+      geo: [{ id: "americas-n", label: "North America", subs: [{ id: "na-us", label: "United States", places: [{ id: "us-sw", label: "Southwest" }, { id: "us-ak", label: "Alaska" }] }] },
+            { id: "africa", label: "Africa", subs: [{ id: "africa-e", label: "East Africa", places: [{ id: "ke", label: "Kenya" }, { id: "horn", label: "Horn of Africa" }] }] }],
+      items: [{ t: "a", u: "u1", w: ["americas-n"], sr: ["na-us"], pl: ["us-sw"] }, { t: "b", u: "u2", w: ["americas-n"], sr: ["na-us"], pl: [] },
+              { t: "c", u: "u3", w: ["africa"], sr: ["africa-e"], pl: ["ke", "horn"] }, { t: "d", u: "u4", w: [], sr: [], pl: [] }] });
+    const cf = us.facets.find((f) => f.key === "country");
+    const labels = W.optionsFor(us, cf, {}, ANY).map((o) => `${o.label}=${o.count}`);
+    check("feeds carry one flat Country filter and no Place", !!cf && !cf.parent && !us.facets.some((f) => f.key === "place"));
+    check("\u2026the United States is in it, counting a story tagged only at the Within level", labels.includes("United States=2"), labels.join(" | "));
+    check("\u2026a part of a country is its own option beside it, and a place that is no country keeps its own name",
+          labels.includes("United States: Southwest=1") && labels.includes("Kenya=1") && labels.includes("Horn of Africa=1") && labels.includes("Not placed=1"), labels.join(" | "));
+  }
   const sp = W.readWire("space", SAMPLES.space);
-  check("space has no region tree, so its place filter is the place name",
-        sp.facets.some((f) => f.key === "place" && !f.parent) && !sp.facets.some((f) => f.key === "region"));
+  // Superseded on 21 September: Place is gone; every subject carries one flat Country filter.
+  check("space has no region tree; its place names are filed under Country",
+        sp.facets.some((f) => f.key === "country" && !f.parent) && !sp.facets.some((f) => f.key === "place") && !sp.facets.some((f) => f.key === "region"));
   check("space's news/watchdog split appears as Type", sp.facets.some((f) => f.key === "kind" && f.label === "Type"));
 
   const cap = W.readWire("capture", SAMPLES.capture);
   const country = cap.facets.find((f) => f.key === "country");
-  check("capture drills region, then within, then country",
-        country.parent === "within" && cap.facets.find((f) => f.key === "within").parent === "region");
+  check("capture's Country is offered at once, not only after a Region and a Within are chosen",
+        !country.parent && cap.facets.find((f) => f.key === "within").parent === "region" &&
+        W.optionsFor(cap, country, {}, ANY).some((o) => o.label === "Mexico"));
   const capC = W.optionsFor(cap, country, { region: "Americas", within: "Central America" }, ANY);
   check("three-letter country codes are named", capC.length === 1 && capC[0].label === "Mexico");
 
