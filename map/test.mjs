@@ -1770,7 +1770,25 @@ console.log("\nthe layers box, in the chosen order");
   const ids = order.PANEL_ORDER.filter((x) => typeof x === "string" && !x.startsWith("group:") && x !== "gm");
   check("every id in the order is a real layer", ids.every((id) => new RegExp(`id: ?"${id}"`).test(src)),
         ids.filter((id) => !new RegExp(`id: ?"${id}"`).test(src)).join(", "));
-  check("no layer is placed twice", new Set(ids).size === ids.length);
+  // Superseded: a layer that belongs to two subjects is named under both, and the
+  // box makes the second naming a copy of the row (copyRow), never a second layer.
+  const twice = ids.filter((id, i) => ids.indexOf(id) !== i);
+  check("a layer named under two headings is one row and a copy of it, never two layers",
+        /if \(placed\.has\(item\)\) \{\n\s*const copy = copyRow\(leads\.get\(item\), item\);/.test(src) &&
+        twice.every((id) => ids.filter((x) => x === id).length === 2), twice.join(", "));
+  {
+    const feeds = ["skytruth_nrc", "skytruth_posts", "skytruth_marine_incidents", "skytruth_pa_permits", "skytruth_pa_spud",
+                   "skytruth_pa_violations", "skytruth_well_permits", "skytruth_fracfocus", "skytruth_quakes"];
+    const at = (t) => order.PANEL_ORDER.findIndex((x) => x && x.t === t);
+    check("SkyTruth Monitor's nine alert feeds are rows, each from its own daily copy",
+          feeds.every((id) => new RegExp(`id: "${id}"[^\\n]*route: "geojsonlive"`).test(src) && ids.includes(id)) &&
+          (src.match(/culprits-tiles-more\/skytruth\/feed_\d+\.geojson/g) || []).length === 9);
+    check("\u2026filed by what they show: spill reports under slicks and pollution, drilling under its own heading",
+          at("Oil and gas drilling") > at("Mining") && order.PANEL_ORDER.indexOf("skytruth_fracfocus") > at("Oil and gas drilling") &&
+          ids.filter((x) => x === "skytruth_nrc").length === 2 && ids.filter((x) => x === "skytruth_pa_violations").length === 2);
+    check("\u2026and the vessels row no longer claims the last 30 days, which the service never applied",
+          !/id: "skytruth_voc"[^\n]*last 30 days/.test(src) && !/vessels-of-concern alerts for the whole world over the last 30 days/.test(src));
+  }
   check("nothing is both placed and removed", ids.every((id) => !order.PANEL_REMOVED.has(id)));
   const heads = order.PANEL_ORDER.filter((x) => typeof x === "object" && x.h === 1).map((x) => x.t);
   check("the four sections come first, in order", heads.slice(0, 4).join("|") === "On-planet invasion|Destruction|Suppression|Off-planet invasion");

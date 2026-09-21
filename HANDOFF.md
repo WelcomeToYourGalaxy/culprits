@@ -242,6 +242,43 @@ as before, so nothing breaks while the tiling catches up.
 
 ---
 
+## SkyTruth Monitor's alert feeds
+
+The feeds are numbered. Asking the service for feeds 1 to 30 and 10095 to 10110
+(20 September) found nine with alerts - 1, 2, 3, 4, 5, 6, 8, 9, 10 - plus 10101,
+a developer's test entries ("This is dan's house"), left out, and 10102, Vessels
+of concern. Each of the nine is a `geojsonlive` row reading
+`culprits-tiles-more/skytruth/feed_<n>.geojson`, filed by subject: National
+Response Center reports under Terrestrial slicks and Pollution; SkyTruth's own
+write-ups under both slick headings; responders' marine reports under Marine
+slicks; Pennsylvania permits, drilling starts and violations, the county well
+permits and FracFocus under a new heading, **Oil and gas drilling**; earthquakes
+under Base and reference.
+
+Two things about the service, both found the hard way:
+
+- It returns **the 100 newest alerts for the area asked, never more**, whatever
+  `n` says. `scripts/skytruth.py` therefore asks area by area - the world, then
+  the four quarters of any area that came back full, six levels down - and
+  writes any square still full at the bottom into `skytruth/feeds.json`.
+- It **does not apply `d` (days)**. The Vessels row said "last 30 days" and
+  never was; it holds ships from 2019. The row now says what it is.
+
+Each run adds to the file already there, matched on SkyTruth's own alert id, so
+nothing gathered is lost when it drops out of the newest 100. An active feed's
+file will grow (the National Response Center takes roughly 70 reports a day);
+past about 20 MB it should move to tiles, as the slick archive did. Alert text
+is SkyTruth's HTML and is cut down to plain formatting and http links before it
+is kept (`clean_html`): feed 10101 shows anyone with an account can write one.
+
+Several feeds look dormant - the newest seen were July 2015 (earthquakes),
+December 2011 (county well permits), 2013-14 (SkyTruth's write-ups, marine
+reports). `feeds.json` records each feed's oldest and newest after every run.
+
+Test 1773 used to forbid naming a layer twice in `PANEL_ORDER`; the box has
+made the second naming a copy for some time (`copyRow`), so the test now checks
+that instead.
+
 ## The catalogues were never being read
 
 Nusantara's and Global Forest Watch's layers became rows of the box, and their
