@@ -242,6 +242,30 @@ as before, so nothing breaks while the tiling catches up.
 
 ---
 
+## The right-hand column: three things that went wrong together
+
+The news wires box is pinned between the bottom of the right column and the
+bottom of the screen, so it is often only 350 px tall. Three faults met there:
+
+- `trackBoxHeights` placed the wires box by adding up the view box's height
+  alone. Once the reload row joined the column above it, the wires box started
+  that much too high and sat over the last rows of the column. It now measures
+  to the bottom of `.right-col` and watches the column itself.
+- Basemap was the last section of a box that stops at 48vh and scrolls, so its
+  three choices were below the edge and the heading looked empty. Basemap now
+  comes first (`basemapPanelHtml`), View under it.
+- The filters could take 34vh and the stories were left 60 px. Every filter and
+  the time window now sit behind one **Filters** row in `wire.js`, shut until
+  asked for and remembered; the row says what is set ("Region: Africa - Last 7
+  days"), so a choice put away is still in view. Open, the filters sit two to a
+  row and scroll inside two fifths of what the fixed rows leave; the stories
+  keep three fifths (`layout()` measures both). This is one fold for the lot,
+  not the per-subject folds that were taken out earlier.
+
+Checked in a headless browser against the live wires at 1440x800 and 1280x680:
+before, the wires box overlapped the column by 42 px and the stories had 60 to
+120 px; after, no overlap and 166 to 228 px with the fold shut.
+
 ## The mines are several archives, not one
 
 GitHub refuses any file over 100 MB, and the mine outlines to zoom 13 weigh more

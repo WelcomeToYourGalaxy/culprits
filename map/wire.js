@@ -577,7 +577,7 @@ const REFRESH_MS = 30 * 60000;
 
 const state = {
   open: true, picked: [], when: 'all', q: '', sel: {}, cross: {}, expanded: {},
-  pickerOpen: false, shown: PAGE, wires: {}   // wires[id] = { status, error, loadedAt, wire }
+  pickerOpen: false, filtersOpen: false, shown: PAGE, wires: {}   // wires[id] = { status, error, loadedAt, wire }
 };
 
 try {
@@ -588,13 +588,14 @@ try {
     state.when = WINDOWS.some((w) => w.id === saved.when) ? saved.when : 'all';
     state.cross = saved.cross || {};
     state.expanded = saved.expanded || {};
+    state.filtersOpen = saved.filtersOpen === true;
   }
 } catch (e) { /* storage blocked: start fresh */ }
 
 function save() {
   try {
     localStorage.setItem(STORE, JSON.stringify({ open: state.open, picked: state.picked, when: state.when,
-      cross: state.cross, expanded: state.expanded }));
+      cross: state.cross, expanded: state.expanded, filtersOpen: state.filtersOpen }));
   } catch (e) { /* storage blocked: nothing to keep */ }
 }
 
@@ -661,7 +662,26 @@ const CSS = `
 .wire-pick input{accent-color:var(--moss,#62755F);margin:0}
 .wire-pick .n{color:var(--dim,#948D7C);font-size:11.5px;margin-left:auto}
 .wire-filters{flex:none}
-.wire-facets{max-height:34vh;overflow:auto}
+/* The filters are all still there and none is folded away, but they sit two
+   to a row and scroll inside their share of the box, and the stories always
+   keep the larger share. Before, the filters could take 34vh of a box that is
+   often not much taller than that, leaving the stories 60px - less than one
+   headline. The two shares are measured in layout(). */
+.wire-facets{max-height:var(--wire-facets-max,120px);overflow:auto;display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));gap:3px 8px;padding:2px 10px 4px}
+.wire-facets .wire-filter{flex-direction:column;align-items:stretch;gap:0;padding:0;font-size:11.5px}
+.wire-facets .wire-filter > span:first-child{flex:none}
+.wire-facets .wire-filter select{flex:none;width:100%}
+.wire-facets .wire-unread{grid-column:1 / -1;padding:3px 0}
+.wire-fold{display:flex;align-items:center;gap:7px;width:100%;background:none;border:0;cursor:pointer;
+  padding:4px 10px 6px;color:var(--dim,#948D7C);font-size:12px;text-align:left}
+.wire-fold:hover{color:var(--bone,#DCD6C6)}
+.wire-fold[hidden]{display:none}
+.wire.open .wire-fold .wire-caret{transform:none}
+.wire.open .wire-fold[aria-expanded="true"] .wire-caret{transform:rotate(90deg)}
+.wire-fold-sum{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--bone,#DCD6C6)}
+.wire-fold-sum.none{color:var(--dim,#948D7C)}
+.wire-foldbody[hidden]{display:none}
 .wire-subj{border-top:1px solid var(--rule,#322E27);padding:5px 10px}
 .wire-subj:first-child{border-top:0}
 .wire-subj-head{display:flex;align-items:baseline;gap:8px}
@@ -674,7 +694,7 @@ const CSS = `
 .wire-grid[hidden]{display:none}
 .wire-grid label{display:flex;flex-direction:column;gap:1px;color:var(--dim,#948D7C);font-size:11.5px;min-width:0}
 .wire-grid select.set{border-color:var(--moss,#62755F);color:var(--bone,#DCD6C6)}
-.wire-list{flex:1;overflow:auto;border-top:1px solid var(--rule,#322E27);min-height:60px}
+.wire-list{flex:1;overflow:auto;border-top:1px solid var(--rule,#322E27);min-height:var(--wire-list-min,160px)}
 .wire-list ol{list-style:none;margin:0;padding:0}
 .wire-item{padding:7px 10px;border-top:1px solid rgba(50,46,39,.6)}
 .wire-item:first-child{border-top:0}
@@ -691,7 +711,7 @@ const CSS = `
 @media (prefers-reduced-motion:reduce){.wire-caret{transition:none}}
 `;
 
-let box, $sum, $body, $toggle, $pickBtn, $picker, $filters, $list, $q, $when, $refresh, $onMap;
+let box, $sum, $body, $toggle, $pickBtn, $picker, $filters, $list, $q, $when, $refresh, $onMap, $fold, $foldBody, $foldSum;
 
 function build() {
   const style = document.createElement('style');
@@ -722,12 +742,20 @@ function build() {
             '<span class="t" id="wirePickLabel">Choose</span><span class="wire-caret" aria-hidden="true"></span></button>' +
           '<div class="wire-picker" id="wirePicker" hidden></div>' +
         '</div>' +
+        // Every filter and the time window sit behind this one row, so the
+        // stories have the box. The row says what is set, so a choice made
+        // and then put away is still in view.
+        '<button type="button" class="wire-fold" id="wireFold" aria-expanded="false" aria-controls="wireFoldBody">' +
+          '<span class="wire-caret" aria-hidden="true"></span><span>Filters</span>' +
+          '<span class="wire-fold-sum" id="wireFoldSum"></span></button>' +
+        '<div class="wire-foldbody" id="wireFoldBody" hidden>' +
         '<div class="wire-facets" id="wireFilters"></div>' +
-      '</div>' +
       '<div class="wire-when"><label for="wireWhen">Time</label>' +
         '<select id="wireWhen" aria-label="Time window">' +
           WINDOWS.map((w) => '<option value="' + w.id + '">' + w.label + '</option>').join('') +
         '</select></div>' +
+        '</div>' +
+      '</div>' +
       '<div class="wire-list" id="wireList"></div>' +
     '</div>';
   document.body.appendChild(box);
@@ -743,6 +771,10 @@ function build() {
   $when = box.querySelector('#wireWhen');
   $refresh = box.querySelector('#wireRefresh');
   $onMap = box.querySelector('#wireOnMap');
+  $fold = box.querySelector('#wireFold');
+  $foldBody = box.querySelector('#wireFoldBody');
+  $foldSum = box.querySelector('#wireFoldSum');
+  $fold.addEventListener('click', () => { state.filtersOpen = !state.filtersOpen; save(); renderFold(); layout(); });
   $when.value = state.when;
 
   $toggle.addEventListener('click', () => setOpen(!state.open));
@@ -860,6 +892,16 @@ function layout() {
   // The legend now sits bottom left, under the layers box, so only the zoom box lifts the wires.
   if (zh) lift += zh + 8;
   document.documentElement.style.setProperty('--wire-lift', Math.round(lift) + 'px');
+  // What is left of the box once its fixed rows (the bar, the search, Subjects,
+  // Time) are taken out is shared: the filters scroll inside two fifths of it
+  // at most, and the stories always keep three fifths. Measured, not guessed,
+  // so it still fits when the box is short.
+  if (box && box.style && box.querySelector) {
+    const tall = (sel) => { const el = box.querySelector(sel); return el ? el.getBoundingClientRect().height : 0; };
+    const room = Math.max(0, box.getBoundingClientRect().height - tall('.wire-bar') - tall('.wire-tools') - tall('.wire-subjrow') - tall('.wire-fold') - tall('.wire-when'));
+    box.style.setProperty('--wire-facets-max', Math.floor(room * 0.4) + 'px');
+    box.style.setProperty('--wire-list-min', Math.floor(room * 0.6) + 'px');
+  }
 }
 
 function setOpen(open) {
@@ -938,8 +980,36 @@ function renderData(focusId) {
   renderSum();
   renderPicker();
   renderFilters(focusId);
+  renderFold();
   renderList();
   layout();
+}
+
+// The Filters row: what is set behind it, in words.
+function foldSummary(cross, when, labelFor) {
+  const set = Object.keys(cross || {}).filter((k) => cross[k] != null).map((k) => labelFor(k) + ': ' + cross[k]);
+  const w = WINDOWS.find((x) => x.id === when);
+  if (w && w.id !== 'all') set.push(w.label);
+  return set;
+}
+
+function renderFold() {
+  if (!$fold) return;
+  $fold.hidden = !state.picked.length;
+  $foldBody.hidden = !state.filtersOpen || !state.picked.length;
+  $fold.setAttribute('aria-expanded', String(state.filtersOpen));
+  const labelFor = (key) => {
+    for (const id of state.picked) {
+      const e = state.wires[id];
+      const f = e && e.wire && e.wire.facets.find((x) => x.key === key);
+      if (f) return f.label;
+    }
+    return key;
+  };
+  const set = foldSummary(state.cross, state.when, labelFor);
+  $foldSum.textContent = set.length ? set.join(' \u00b7 ') : 'none set';
+  $foldSum.classList.toggle('none', !set.length);
+  $foldSum.title = set.join('\n');
 }
 
 function renderSum() {

@@ -1365,8 +1365,31 @@ console.log("\nreading the map");
   check("Climate TRACE sources stand as columns by their emissions", /type: "fill-extrusion", source: "ct-columns"/.test(src) &&
         /Math\.sqrt\(v\) \* COLUMN_TALL \* mPerPx/.test(src) && /addColumnLayer\(\);/.test(src));
   check("the compass sits under the 3D terrain box", /id="compass-holder"/.test(src) && /querySelector\("\.maplibregl-ctrl-compass"\)/.test(src));
-  check("the filters are not folded away at all any more",
+  check("the filters are not folded subject by subject",
         !/state\.expanded\[/.test(wireSrc) && /class="wire-filter"/.test(wireSrc));
+  // The filters took so much of the box that no story could be read. They and the
+  // time window now sit behind one Filters row, which says what is set.
+  check("one Filters row holds every filter and the time window, shut until asked for",
+        /id="wireFold" aria-expanded="false"/.test(wireSrc) && /filtersOpen: false/.test(wireSrc) &&
+        wireSrc.indexOf('id="wireFoldBody"') < wireSrc.indexOf('id="wireFilters"') &&
+        wireSrc.indexOf('id="wireFilters"') < wireSrc.indexOf('wire-when"><label') &&
+        /\$foldBody\.hidden = !state\.filtersOpen/.test(wireSrc));
+  {
+    const WINDOWS = [{ id: "d7", label: "Last 7 days" }, { id: "all", label: "Any time" }];
+    const foldSummary = new Function("WINDOWS", wireSrc.match(/function foldSummary[\s\S]*?\n}\n/)[0] + "; return foldSummary;")(WINDOWS);
+    const said = foldSummary({ region: "Africa", topic: null }, "d7", (k) => k === "region" ? "Region" : k);
+    check("\u2026and the row says what is set behind it, so a choice put away is still in view",
+          said.length === 2 && said[0] === "Region: Africa" && said[1] === "Last 7 days" &&
+          foldSummary({}, "all", (k) => k).length === 0);
+  }
+  check("\u2026whether it is open is remembered", /filtersOpen: state\.filtersOpen/.test(wireSrc) && /saved\.filtersOpen === true/.test(wireSrc));
+  check("open, the filters sit two to a row and the stories keep the larger share of the box",
+        /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/.test(wireSrc) && /--wire-list-min', Math\.floor\(room \* 0\.6\)/.test(wireSrc) &&
+        /--wire-facets-max', Math\.floor\(room \* 0\.4\)/.test(wireSrc) && !/max-height:34vh/.test(wireSrc));
+  check("the news wires box starts under the whole right column, reload row included",
+        /col \? col\.getBoundingClientRect\(\)\.bottom/.test(src) && /if \(col\) ro\.observe\(col\)/.test(src));
+  check("Basemap comes before View in the settings box, so its three choices are never below the edge",
+        /box\.innerHTML = basemapPanelHtml\(opts\) \+ viewPanelHtml\(\)/.test(src));
   check("the time window sits with the filters, below them",
         wireSrc.indexOf("id=\"wireFilters") < wireSrc.indexOf("wire-when\"><label") &&
         /class="wire-when"><label for="wireWhen">Time<\/label>/.test(wireSrc));

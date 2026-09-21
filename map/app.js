@@ -5490,6 +5490,16 @@ function sectHead(name, key) {
     `title="Roll ${name.toLowerCase()} up or down">&#9662;</button></div>`;
 }
 
+// Basemap comes first. It is three short rows; View is long, and the box stops
+// at 48vh and scrolls, so with Basemap last its choices sat below the bottom
+// edge and the heading looked like an empty section.
+function basemapPanelHtml(opts) {
+  return `<div class="sect" data-sect="basemap">` + sectHead("Basemap", "basemap") + `<div class="sect-body">` +
+    opts.map(([k, nm]) =>
+      `<label class="layer"><input type="radio" name="basemap" value="${k}"` +
+      `${k === BASEMAP ? " checked" : ""}><span class="nm">${nm}</span></label>`).join("") + `</div></div>`;
+}
+
 function viewPanelHtml() {
   return `<div class="sect" data-sect="view">` + sectHead("View", "view") + `<div class="sect-body">` +
     `<div class="view-row"><div class="view-choices">` +
@@ -5511,17 +5521,14 @@ function viewPanelHtml() {
     `<p class="how"><b>Mouse</b> Right-drag: tilt and turn. Ctrl + right-drag: roll.</p>` +
     `<p class="how"><b>Trackpad</b> Ctrl + drag: tilt and turn. Ctrl + two-finger click, then drag: roll.</p>` +
     `<p class="how">Same on Mac and Windows. Keys: Shift + arrows.</p>` +
-    `</div></div></div></div>` +
-    `<div class="sect" data-sect="basemap">` + sectHead("Basemap", "basemap") + `<div class="sect-body">`;
+    `</div></div></div></div>`;
 }
 
 function buildBasemapPanel() {
   const box = document.getElementById("basemaps");
   if (!box) return;
   const opts = [["atlas", "Painted atlas"], ["satellite", "Satellite imagery"], ["outlines", "Country outlines"]];
-  box.innerHTML = viewPanelHtml() + opts.map(([k, nm]) =>
-    `<label class="layer"><input type="radio" name="basemap" value="${k}"` +
-    `${k === BASEMAP ? " checked" : ""}><span class="nm">${nm}</span></label>`).join("") + `</div></div>`;
+  box.innerHTML = basemapPanelHtml(opts) + viewPanelHtml();
   box.addEventListener("click", (e) => {
     const roll = e.target && e.target.closest ? e.target.closest("[data-roll]") : null;
     if (roll) {
@@ -9203,16 +9210,21 @@ function trackBoxHeights() {
   const root = document.documentElement;
   const legend = document.getElementById("legend");
   const view = document.getElementById("basemaps");
+  const col = document.querySelector(".right-col");
   if (!root || !root.style || typeof ResizeObserver === "undefined") return;
   const set = () => {
     const lh = legend && !legend.hidden ? legend.getBoundingClientRect().height : 0;
     root.style.setProperty("--legend-h", lh ? Math.round(lh + 8) + "px" : "0px");
-    const vh = view ? view.getBoundingClientRect().height : 0;
-    root.style.setProperty("--wire-top", Math.round(16 + vh + 8) + "px");
+    // Measured to the bottom of the whole column. It used to add up the view
+    // box's height alone, so once the reload row joined the column above it,
+    // the wires box started that much too high and sat over the last rows.
+    const bottom = col ? col.getBoundingClientRect().bottom : (view ? 16 + view.getBoundingClientRect().height : 16);
+    root.style.setProperty("--wire-top", Math.round(bottom + 8) + "px");
   };
   const ro = new ResizeObserver(set);
   if (legend) ro.observe(legend);
   if (view) ro.observe(view);
+  if (col) ro.observe(col);
   if (legend && typeof MutationObserver !== "undefined") new MutationObserver(set).observe(legend, { attributes: true, attributeFilter: ["hidden"] });
   set();
 }
