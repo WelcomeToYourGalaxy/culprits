@@ -2222,9 +2222,9 @@ console.log("\nrows gathered, moved and renamed");
         /name: "Every US site EPA holds a record for, across all its programs \(EPA Envirofacts\)"/.test(src));
   check("HydroWASTE sits under Wastewater", at("Wastewater") > at("Pollution") && order.indexOf("hydrowaste") === at("Wastewater") + 1);
   check("PalmWatch sits under Agriculture", order.indexOf("palmwatch") > at("Agriculture") && order.indexOf("palmwatch") < at("Meat"));
-  check("the three alert layers are one row, and each line names the system that saw it",
+  check("the three alert layers are one row, named for what it shows, each line naming the system that saw it",
         /const FOREST_ALERTS = \{[\s\S]{0,4000}id:"gfw_dist_year"/.test(src) &&
-        /name: "Live deforestation and disturbance alerts \(Global Forest Watch\)"/.test(src) &&
+        /name: "Trees and plant cover lost, as it happens"/.test(src) &&
         /GLAD-L, GLAD-S2 and RADD/.test(src) && (src.match(/DIST-ALERT/g) || []).length >= 2 &&
         ["gfw", "gfw_dist", "gfw_dist_year"].every((i) => !order.includes(i)));
   check("Global Forest Change is drawn above the alerts", order.indexOf("glad_loss") < order.indexOf("group:forest_alerts"));
@@ -2686,6 +2686,21 @@ console.log("\na row's own filters read as groups, not a wall of chips");
   check("Colour by is a labelled group too, with its year at the end of the line and its key under it",
         /<div class="fl">Colour by/.test(src) && /#layers \.facet-set \.fl select\{margin-left:auto\}/.test(index) &&
         /#layers \.facet-set \.sm-legend\{margin-top:5px\}/.test(index));
+}
+
+console.log("\nnothing in the box is named for who published it");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const groups = [...src.matchAll(/\n  name: "([^"]+)",\n  group: true/g)].map((m) => m[1]);
+  check("every group is named for its subject", groups.length > 8 &&
+        !groups.some((n) => /(climate trace|global forest watch|nusantara|trase|the site's own|map repos|organisations'|accountability map|engineering map)/i.test(n)));
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("const PANEL_REMOVED"));
+  const order = new Function(body + "; return PANEL_ORDER;")();
+  check("and so is every heading",
+        !order.some((x) => x && x.t && /(climate trace|global forest watch|nusantara|trase|palmwatch|skytruth)/i.test(x.t)));
+  check("the groups say what they hold",
+        groups.includes("Emitting sites, by sector") && groups.includes("Emissions from farming and land use") &&
+        groups.includes("Trees and plant cover lost, as it happens") && groups.includes("Maps made by others"));
 }
 
 console.log("\nGlobal Safety Net fixes; My Maps titles");

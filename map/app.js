@@ -132,7 +132,7 @@ function ctChild(id, label, base) {
 
 const CT_SECTORS = {
   id: "climate_trace_sectors",
-  name: "Climate TRACE — emitting assets",
+  name: "Emitting sites, by sector",
   group: true,
   ready: true,
   children: [
@@ -147,7 +147,7 @@ const CT_SECTORS = {
 
 const CT_AGRICULTURE = {
   id: "climate_trace_agriculture",
-  name: "Climate TRACE — agriculture",
+  name: "Emissions from farming and land use",
   group: true,
   ready: true,
   children: [
@@ -165,7 +165,7 @@ const CT_AGRICULTURE = {
 
 const CT_FORESTRY = {
   id: "climate_trace_forestry",
-  name: "Climate TRACE — forestry and land use",
+  name: "Emissions from forestry and land clearing",
   group: true,
   ready: true,
   children: [
@@ -185,7 +185,7 @@ const CT_FORESTRY = {
 
 const CT_HISTORY = {
   id: "ct_history",
-  name: "Historical",
+  name: "Emitting sites in past years",
   group: true,
   ready: true,
   children: CT_HISTORY_YEARS.map((y) => ({
@@ -7086,7 +7086,7 @@ function syncGroupBox(box, group) {
 // popup text are read from each map by pipeline/sitemaps/extract.mjs.
 const SITE_MAPS = {
   id: "site_maps",
-  name: "The site's own maps",
+  name: "Maps made for this site",
   group: true,
   ready: true,
   children: [
@@ -7179,7 +7179,7 @@ const SITE_MAPS = {
 // Generated from pipeline/sitemaps/repo_layers.json by patch_repo_layers.py.
 const EXEC_MAP = {
   id: "executive_map_layers",
-  name: "Executive accountability map",
+  name: "Government offices and services",
   group: true,
   ready: true,
   children: [
@@ -7204,7 +7204,7 @@ const EXEC_MAP = {
 
 const MONEY_MAP = {
   id: "money_map_layers",
-  name: "Money and financial accountability map",
+  name: "Banks, tax offices and financial services",
   group: true,
   ready: true,
   children: [
@@ -7239,7 +7239,7 @@ const MONEY_MAP = {
 
 const LEGAL_MAP = {
   id: "legal_map_layers",
-  name: "Legal defense and prisoner support map",
+  name: "Legal defence and prisoner support",
   group: true,
   ready: true,
   children: [
@@ -7264,7 +7264,7 @@ const LEGAL_MAP = {
 
 const LEG_MAP = {
   id: "legislative_map_layers",
-  name: "Legislative accountability map",
+  name: "Parliaments, councils and electoral offices",
   group: true,
   ready: true,
   children: [
@@ -7297,7 +7297,7 @@ const LEG_MAP = {
 
 const JUD_MAP = {
   id: "judicial_map_layers",
-  name: "Judicial accountability map",
+  name: "Courts and prisons",
   group: true,
   ready: true,
   children: [
@@ -7312,7 +7312,7 @@ const JUD_MAP = {
 
 const MORE_MAPS = {
   id: "more_map_layers",
-  name: "More from the map repos",
+  name: "Further rows from the same records",
   group: true,
   ready: true,
   children: [
@@ -7345,7 +7345,7 @@ const MORE_MAPS = {
 
 const GMO_MAP = {
   id: "gmo_map_layers",
-  name: "Genetic engineering map",
+  name: "Genetic engineering registers",
   group: true,
   ready: true,
   children: [
@@ -7366,7 +7366,7 @@ const GMO_MAP = {
 
 const OTHER_MAPS = {
   id: "other_org_maps",
-  name: "Other organisations' maps",
+  name: "Maps made by others",
   group: true,
   ready: true,
   children: [
@@ -7626,7 +7626,7 @@ const OTHER_MAPS = {
 // names the system that made it.
 const FOREST_ALERTS = {
   id: "forest_alerts",
-  name: "Live deforestation and disturbance alerts (Global Forest Watch)",
+  name: "Trees and plant cover lost, as it happens",
   group: true,
   ready: true,
   children: [
@@ -7657,7 +7657,7 @@ const FOREST_ALERTS = {
 };
 const TRASE_DATA = {
   id: "trase_data",
-  name: "Trase deforestation data",
+  name: "Deforestation and supply chains",
   group: true,
   ready: true,
   children: [
