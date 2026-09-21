@@ -2279,10 +2279,16 @@ function sitemapChipRows(cfg) {
     const el = document.createElement("div");
     el.className = "facet";
     el.dataset.for = `${cfg.id}-${i}`;
-    el.innerHTML = `<span class="chip reset" data-sm="${cfg.id}" data-fi="${i}" data-k="">${f.label}: all</span>` +
-      f.values.map((v) =>
+    // A wall of chips with the filter's name buried in the first one read as
+    // one long list. The name is its own line now, with the chips under it and
+    // a long list held to a few rows that scroll, so a row with fifteen brands
+    // under it does not push the rest of the box off the screen.
+    el.classList.add("facet-set");
+    el.innerHTML = `<div class="fl">${escapeHtml(f.label)}` +
+      `<button type="button" class="chip reset" data-sm="${cfg.id}" data-fi="${i}" data-k="">all</button></div>` +
+      `<div class="fv">` + f.values.map((v) =>
         `<button type="button" class="chip" data-sm="${cfg.id}" data-fi="${i}" data-k="${escapeHtml(v.k)}">` +
-        `${escapeHtml(v.label)} (${v.n.toLocaleString()})</button>`).join("");
+        `${escapeHtml(v.label)} <em>${v.n.toLocaleString()}</em></button>`).join("") + `</div>`;
     if (anchor.after) anchor.after(el);
   });
 }
@@ -2366,13 +2372,14 @@ function renderColourRow(id) {
   if (!state || !el) return;
   const c = state.list[state.pick];
   const year = state.year[c.k] != null ? state.year[c.k] : c.year;
-  el.innerHTML = `<span class="chip reset">Colour by:</span>` +
-    state.list.map((o, i) =>
-      `<button type="button" class="chip${i === state.pick ? " on" : ""}" data-smc="${id}" data-ci="${i}">${escapeHtml(o.label)}</button>`).join("") +
+  el.classList.add("facet-set");
+  el.innerHTML = `<div class="fl">Colour by` +
     (Array.isArray(c.years) && c.years.length
       ? `<select class="sm-year" data-smy="${id}" aria-label="Year">` +
         c.years.map((y) => `<option value="${y}"${y === year ? " selected" : ""}>${y}</option>`).join("") + `</select>`
-      : "") +
+      : "") + `</div>` +
+    `<div class="fv">` + state.list.map((o, i) =>
+      `<button type="button" class="chip${i === state.pick ? " on" : ""}" data-smc="${id}" data-ci="${i}">${escapeHtml(o.label)}</button>`).join("") + `</div>` +
     `<div class="sm-legend">${colouringLegend(c)}</div>`;
   const sel = el.querySelector && el.querySelector("select");
   if (sel && sel.addEventListener) sel.addEventListener("change", () => {

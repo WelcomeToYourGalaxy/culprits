@@ -2672,6 +2672,22 @@ console.log("\nreallocated rows say where they are; the emptied rows leave the b
         o.PANEL_REMOVED.has("nusantara") && o.PANEL_REMOVED.has("gfw_catalogue"));
 }
 
+console.log("\na row's own filters read as groups, not a wall of chips");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("each filter's name is its own line, with an all beside it",
+        /<div class="fl">\$\{escapeHtml\(f\.label\)\}/.test(src) &&
+        /<button type="button" class="chip reset" data-sm="\$\{cfg\.id\}" data-fi="\$\{i\}" data-k="">all<\/button>/.test(src));
+  check("its values sit under it, and a long list scrolls rather than pushing the box off screen",
+        /<div class="fv">/.test(src) && /#layers \.facet-set \.fv\{[^}]*max-height:96px;overflow:auto/.test(index));
+  check("a count is quieter than the name it belongs to", /<em>\$\{v\.n\.toLocaleString\(\)\}<\/em>/.test(src) &&
+        /#layers \.facet-set \.chip em\{font-style:normal;opacity:\.6/.test(index));
+  check("Colour by is a labelled group too, with its year at the end of the line and its key under it",
+        /<div class="fl">Colour by/.test(src) && /#layers \.facet-set \.fl select\{margin-left:auto\}/.test(index) &&
+        /#layers \.facet-set \.sm-legend\{margin-top:5px\}/.test(index));
+}
+
 console.log("\nGlobal Safety Net fixes; My Maps titles");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
