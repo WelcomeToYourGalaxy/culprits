@@ -279,6 +279,33 @@ Test 1773 used to forbid naming a layer twice in `PANEL_ORDER`; the box has
 made the second naming a copy for some time (`copyRow`), so the test now checks
 that instead.
 
+### Nothing excluded (asked for the same day)
+
+The owner asked that nothing SkyTruth publishes be left out, all four things the
+first version dropped:
+
+1. **The back history.** No depth limit now: a full area is quartered until it
+   is not full, down to a square the size of a building. A busy feed needs
+   thousands of requests, so each run spends at most 600 per feed
+   (`SKYTRUTH_REQUESTS` changes it): first what is new, stopping at any full
+   area whose 100 alerts are all in the copy already; then history, from the
+   areas left waiting in `feeds.json` (`todo`). `history_complete` says when a
+   feed is done. On the 1st of each month the walk skips the shortcut, in case
+   an alert was added late under an old date.
+   **What still cannot be reached:** more than 100 alerts at the very same
+   point (reports pinned to a town's centre). `feeds.json` lists them as
+   `stacked`. Only a date option on the service would reach them; none found.
+   **Size:** at 60 MB a feed's history pauses (new alerts still added) and the
+   log says the feed needs tiles. Expect that for the National Response Center.
+2. **Feed 10101**, the developers' test entries, is a row (`skytruth_tests`,
+   under Base and reference), titled for what it is.
+3. **Alerts with no position** stay in the file with no geometry;
+   `readGeojsonFiles` counts them and the row says how many.
+4. **Pictures** in an alert's text are shown, with only their address kept.
+   The one thing still cut is `ga.php`, an invisible 1-pixel counter that
+   reports each reader of the map to SkyTruth's analytics - not a picture and
+   not data. The untouched text is in each alert's `content`.
+
 ## The catalogues were never being read
 
 Nusantara's and Global Forest Watch's layers became rows of the box, and their

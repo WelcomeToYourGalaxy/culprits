@@ -1782,10 +1782,14 @@ console.log("\nthe layers box, in the chosen order");
     const at = (t) => order.PANEL_ORDER.findIndex((x) => x && x.t === t);
     check("SkyTruth Monitor's nine alert feeds are rows, each from its own daily copy",
           feeds.every((id) => new RegExp(`id: "${id}"[^\\n]*route: "geojsonlive"`).test(src) && ids.includes(id)) &&
-          (src.match(/culprits-tiles-more\/skytruth\/feed_\d+\.geojson/g) || []).length === 9);
+          (src.match(/culprits-tiles-more\/skytruth\/feed_\d+\.geojson/g) || []).length === 10);
     check("\u2026filed by what they show: spill reports under slicks and pollution, drilling under its own heading",
           at("Oil and gas drilling") > at("Mining") && order.PANEL_ORDER.indexOf("skytruth_fracfocus") > at("Oil and gas drilling") &&
           ids.filter((x) => x === "skytruth_nrc").length === 2 && ids.filter((x) => x === "skytruth_pa_violations").length === 2);
+    check("\u2026nothing SkyTruth publishes is left out: the developers' test feed is a row too",
+          /id: "skytruth_tests"[^\n]*route: "geojsonlive"/.test(src) && /skytruth\/feed_10101\.geojson/.test(src) && ids.includes("skytruth_tests"));
+    check("\u2026an alert with no position is counted on its row, not passed over",
+          /if \(!ft\.geometry\) \{ nowhere\+\+; return; \}/.test(src) && /more in the file have no position and cannot be drawn/.test(src));
     check("\u2026and the vessels row no longer claims the last 30 days, which the service never applied",
           !/id: "skytruth_voc"[^\n]*last 30 days/.test(src) && !/vessels-of-concern alerts for the whole world over the last 30 days/.test(src));
   }
