@@ -2743,18 +2743,9 @@ console.log("\nthe reload row is not clipped, and covers nothing");
 console.log("\nplumes show from the world view; the last sources named");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("crowded plumes are merged into one counted point, and split again close in",
-        /cluster: true, clusterMaxZoom: CARBON_CLUSTER_TO/.test(src) &&
-        /const CARBON_CLUSTER_TO = CARBON_PLUME_ZOOM - 1;/.test(src) &&
-        /filter: \["has", "point_count"\]/.test(src) &&
-        /filter: \["!", \["has", "point_count"\]\]/.test(src));
-  check("a merged point says how many are under it", /plumes here<\/b>/.test(src));
-  // The counted points run to the zoom where each plume starts drawing its own
-  // picture, so there is no band between the world view and the street where
-  // the layer reads as empty.
-  check("the counted points carry every zoom up to the pictures",
-        src.indexOf("const CARBON_PLUME_ZOOM") < src.indexOf("const CARBON_CLUSTER_TO") &&
-        /const CARBON_PLUME_ZOOM = 10;/.test(src));
+  check("every plume is its own point at every zoom; nothing is merged (22 September, round 4)",
+        !/cluster: true, clusterMaxZoom: CARBON_CLUSTER_TO/.test(src) && !/CARBON_CLUSTER_TO/.test(src) &&
+        !/plumes here<\/b>/.test(src) && /const CARBON_PLUME_ZOOM = 10;/.test(src));
   check("Nusantara's high-resolution imagery says where it is",
         /"hires": "High-resolution imagery, the southern tip of Bali"/.test(src));
   check("hiding the row hides the merged points too", /`\$\{id\}-agg`, `\$\{id\}-cl`, `\$\{id\}-pt`/.test(src));
@@ -2779,7 +2770,8 @@ console.log("\nlive rows say so; the grips read as handles; a shut box stops scr
   const live = new Function(src.slice(src.indexOf("const LIVE_ROUTES = new Set(["), src.indexOf("function liveMark(")) + "; return LIVE_ROUTES;")();
   check("the routes that read their source as you look are marked live",
         ["worker", "cerulean", "coral", "carbonmapper", "wmsmenu", "gfwmenu", "trase", "ll2"].every((r) => live.has(r)));
-  check("copies carry no mark", !live.has("pmtiles") && !live.has("sitemap") && !live.has("shapes") && !live.has("country"));
+  check("copies are not in the live routes, and carry the NOT LIVE mark instead", !live.has("pmtiles") && !live.has("sitemap") && !live.has("shapes") && !live.has("country") &&
+        /NOT LIVE<\/span>/.test(src));
   check("the mark says what it means, and is drawn beside the title",
         /not from a copy kept here/.test(src) && /#layers \.nm \.live\{/.test(index));
   check("a box pulled right down stops scrolling", /classList\.toggle\("pulled-shut", h <= PULL_MIN \+ 4\)/.test(src) &&
@@ -2950,7 +2942,7 @@ console.log("\nreallocated rows say where they are; the emptied rows leave the b
   check("the title carries it, unless it already says it",
         /new RegExp\(where, "i"\)\.test\(said\) \? said : `\$\{said\} \\u2014 \$\{where\}`/.test(src));
   check("a GFW dataset takes the coverage GFW record, and nothing where they record none",
-        /const where = String\(meta\.geographic_coverage \|\| ""\)\.trim\(\);/.test(src));
+        /const where = String\(GFW_WHERE\[d\.dataset\] \|\| meta\.geographic_coverage \|\| ""\)\.trim\(\);/.test(src));
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
   const o = new Function(body + "; return { PANEL_ORDER, PANEL_REMOVED };")();
   check("the two emptied rows are out of the box but still findable by the code",
@@ -3051,7 +3043,7 @@ console.log("\nround of 22 September (2): the box refiled, rows taken out");
         f("Oil and gas concessions") === `${P} > Oil and gas drilling | ${P} > Climate > Infrastructure emitting more than one gas`);
   check("the named rows are taken out",
         ["Annual surface temperature anomalies", "Burned areas in WDPA protected areas", "Burned area, two years at a time \u2014 Equatorial Asia",
-         "Burned area \u2014 Indonesia", "Intact forest landscapes \u2014 Equatorial Asia"].every((t) => f(t) === "(taken out)"));
+         "Burned area \u2014 Indonesia"].every((t) => f(t) === "(taken out)"));
   check("a biodiversity hotspot is not a fire hotspot", !places("Biodiversity hotspots").includes(P + " > Fire") && places("Fire hotspots").includes(P + " > Fire"));
   check("nitrogen dioxide is under Pollution, not Climate",
         f("Air quality: nitrogen dioxide satellite measurements") === P + " > Pollution > Nitrogen dioxide" &&
@@ -3065,12 +3057,59 @@ console.log("\nround of 22 September (2): the box refiled, rows taken out");
         ["carbon_bombs", "carbon_majors", "bocc"].every((i) => order.indexOf(i) > co2 && order.indexOf(i) < ch4));
   check("the Scribd document is out of the box", !order.includes("scribd_doc") && o.PANEL_REMOVED.has("scribd_doc"));
   check("rows are filed by title and id, not by their long description",
-        /cataloguePlaces\(item\.fileBy \|\| `\$\{item\.title\} \$\{item\.name\}`, item\.title\)/.test(src));
+        /cataloguePlaces\(item\.fileBy \|\| `\$\{item\.title\} \$\{item\.name\}`, `\$\{item\.title\} \$\{item\.name\}`\)/.test(src));
   check("a Global Forest Watch row found to have nothing to draw leaves the box",
         /catalogueRowGone\(d\.key\);/.test(src) && /function catalogueRowGone\(key, ms = 8000\)/.test(src));
   check("the asset list is read a kind at a time, each tried twice",
         /GFW_DRAWABLE_KINDS\.map\(\(k\) => readKind\(k\)\.catch\(\(\) => readKind\(k\)\)\)/.test(src));
 }
 
+console.log("\nround of 22 September (3): the report's findings, live marks, legible areas and vessels");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const places = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return cataloguePlaces;")();
+  const P = "Destruction > Of the planet";
+  const f = (t, id) => places(`${t} ${id}`, `${t} ${id}`).join(" | ");
+  check("\"drivers\" is not a river and \"disturbance\" is not urban",
+        f("Drivers of disturbance alerts \u2014 the driver behind each alert (Wageningen University)", "wur_integration_alert_drivers_class") === P + " > Deforestation > Tree cover loss and alerts");
+  check("Global Forest Watch's analysis tables are taken out, and so is the drivers dataset with no tiles",
+        f("Gadm  burned areas  adm1 whitelist", "gadm__burned_areas__adm1_whitelist") === "(taken out)" &&
+        f("Geostore  burned areas  daily alerts", "geostore__burned_areas__daily_alerts") === "(taken out)" &&
+        f("Wdpa protected areas  glad  summary", "wdpa_protected_areas__glad__summary") === "(taken out)" &&
+        f("Drivers of disturbance alerts \u2014 Three major forest basins", "wur_alert_drivers") === "(taken out)" &&
+        f("Protected areas \u2014 Global", "wdpa_protected_areas") === P + " > Biodiversity loss");
+  check("the dated intact forest landscapes stay, under Biodiversity loss",
+        ["2000", "2013", "2016", "2020"].every((y) => f(`Intact Forest Landscapes ${y}`, `ifl_intact_forest_landscapes_${y}`) === P + " > Biodiversity loss"));
+  const gfw = new Function(src.slice(src.indexOf("const GFW_TITLES = {"), src.indexOf("// Which of a dataset's assets to draw from.")) + "; return { gfwTitle, GFW_WHERE };")();
+  check("untitled datasets are named from their records, and the two worldwide protected-area rows say which is which",
+        /driver behind each alert/.test(gfw.gfwTitle({ dataset: "wur_integration_alert_drivers_class", metadata: {} })) &&
+        gfw.gfwTitle({ dataset: "wdpa_protected_areas", metadata: { title: "Protected areas" } }) !== gfw.gfwTitle({ dataset: "wdpa_licensed_protected_areas", metadata: { title: "Protected areas" } }) &&
+        !/no title/.test(gfw.gfwTitle({ dataset: "umd_soy_planted_area_buffered_10km", metadata: {} })) &&
+        /50 major river basins/.test(gfw.GFW_WHERE.intl_rivers_dam_hotspots));
+  const mark = new Function("escapeHtml", src.slice(src.indexOf("const LIVE_ROUTES = new Set(["), src.indexOf("/* ---------- the layers box, in the order")) + "; return liveMark;")((x) => String(x));
+  check("every row carries LIVE or NOT LIVE, and a live route drawn from a copy says NOT LIVE",
+        /">LIVE</.test(mark({ id: "x", route: "worker" })) && /NOT LIVE/.test(mark({ id: "x", route: "pmtiles" })) &&
+        /NOT LIVE/.test(mark({ id: "coastal_cleanup", route: "geojsonlive" })) && /NOT LIVE/.test(mark({ id: "trase_measures", route: "trase" })));
+  check("catalogue rows take the mark of the catalogue they come from", /escapeHtml\(item\.title\)\}\$\{liveMark\(cfg\)\}/.test(src));
+  check("Global Forest Watch areas have a light edge at least a pixel wide", /id: `\$\{src\}-o-\$\{safe\(n\)\}`, type: "line"/.test(src) && /"line-color": "#D6CCBC"/.test(src));
+  check("the vessels of concern glow at full strength", /const GLOW_FULL = new Set\(\["skytruth_voc"\]\);/.test(src) && /if \(glowFull\(layer\)\) return 1;/.test(src));
+}
+console.log("\nround of 22 September (4): rows of the same name told apart");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const g = new Function(src.slice(src.indexOf("const GFW_TITLES = {"), src.indexOf("// Which of a dataset's assets to draw from.")) + "; return { gfwTitle, GFW_ABOUT };")();
+  const ids = ["tsc_tree_cover_loss_drivers", "wri_google_tree_cover_loss_drivers", "tsc_drivers", "umd_drivers"];
+  const titles = ids.map((id) => g.gfwTitle({ dataset: id, metadata: { title: "Tree Cover Loss by Dominant Driver" } }));
+  check("the four driver rows have four different titles, each saying whose it is", new Set(titles).size === 4 && titles.every((t) => /\([^)]+\)$/.test(t)));
+  const places = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return cataloguePlaces;")();
+  check("\u2026and all four still file under Deforestation", titles.every((t, i) => places(`${t} ${ids[i]}`, `${t} ${ids[i]}`).join() === "Destruction > Of the planet > Deforestation > Tree cover loss and alerts"));
+  const wdpa = ["wdpa_protected_areas", "wdpa_licensed_protected_areas"].map((id) => g.gfwTitle({ dataset: id, metadata: { title: "Protected areas" } }));
+  check("the two worldwide protected-area rows are told apart", wdpa[0] !== wdpa[1] && wdpa.every((t) => /World Database on Protected Areas/.test(t)));
+  check("what is known about how they differ goes first in each row's i box",
+        [...ids, "wdpa_protected_areas", "wdpa_licensed_protected_areas"].every((id) => g.GFW_ABOUT[id]) &&
+        /about: `\$\{GFW_ABOUT\[d\.id\] \? GFW_ABOUT\[d\.id\] \+ " \\u2014 " : ""\}/.test(src));
+  check("the check script asks each failing source and each grey picture, and changes nothing",
+        fs.existsSync(path.join(HERE, "check-sources.mjs")) && !/writeFile/.test(fs.readFileSync(path.join(HERE, "check-sources.mjs"), "utf8")));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

@@ -420,6 +420,61 @@ owner's request, so a land-cover layer that no other rule claims gets no row
 and is counted in the console (`LEFT_OUT`). Agriculture > Moratoriums from the
 list was not made: Nusantara has one moratorium layer and it is a forest one.
 
+## Round of 22 September (4): same-name rows told apart, plumes unmerged, a source check
+
+- **Four "Tree cover loss by dominant driver" rows and two worldwide protected
+  area rows** are titled apart in `GFW_TITLES` (source at the end), and
+  `GFW_ABOUT` puts what is known about how they differ first in each row's
+  "i" box, ahead of GFW's own description. Where the records do not say how
+  two differ, the box says that rather than guessing.
+- **Carbon Mapper plumes are no longer merged** (item 25, map side): the
+  source has no `cluster`, the counted `-cl` layer and `CARBON_CLUSTER_TO` are
+  gone, and every plume is its own point at every zoom, with the glow under
+  them showing where they crowd.
+- **Still merged, in culprits-tiles-more**: mines points, mine feature points,
+  CAFO, EPA facilities and the SkyTruth feeds (`--cluster-densest-as-needed`),
+  and Cerulean's slick points in this repo (`pipeline/cerulean/harvest_points.py`).
+  Unmerging them means lifting the tile-size cap they were merged to meet, so
+  the world tiles grow; each needs its world-tile weight measured first.
+- **`node map/check-sources.mjs`** asks every row reported as not drawing
+  (USDA soybean and corn, Trase soy silos, EJAtlas, Wreckers of the Earth,
+  Materials research, Seas of Plastic, the wastewater archives, Nusantara's
+  fire alerts) what it answers, with timing and whether it sends a CORS
+  header; reads the records, assets and COG pixel values of the GFW pictures
+  that draw grey (the driver rows, WUR driver class, DIST-ALERT, burned areas,
+  mining concessions) so their colours and keys can be built from what the
+  pixels actually are; and lists the files in the wastewater package on KNB.
+
+## Round of 22 September (3): what the filing report showed, live marks, legibility
+
+Read from the owner's run of `map/filing-report.mjs`:
+
+- **Word edges.** "drivers" matched `river` (Surface water) and "disturbance"
+  matched `urban` (Construction); both rules now need a word start.
+- **Rules by name see the id as well** (`title + " " + id`). Global Forest
+  Watch's analysis tables - any id with `__`, the per-country, per-province,
+  per-protected-area and per-shape alert counts - are taken out: they are
+  tables and never draw. `wur_alert_drivers` is taken out (no tiles, item 10).
+- **The dated Intact Forest Landscapes (2000, 2013, 2016, 2020) stay** under
+  Biodiversity loss. Round 2's rule took out any title without "global"; the
+  report showed those rows are years, not regions.
+- **Titles from records** (`GFW_TITLES`, which now wins over GFW's own title):
+  the WUR driver class and date rows, the coverage row (said to be one shape
+  with no drivers in it), the 10 km soy buffer, IFL 2025, and the two worldwide
+  protected-area sets told apart (public WDPA release, and the copy licensed to
+  GFW). `GFW_WHERE` replaces a coverage record that is a sentence (major dams).
+- **LIVE / NOT LIVE (item 43).** Every row carries one. `NOT_LIVE` lists rows
+  whose route reads live but which draw a copy: Coastal Cleanup, space
+  industry, Global Trade Alert, Giga, the wastewater model, Trase's measures
+  (values weekly, shapes live), Atlas cities (places weekly). Catalogue rows
+  take their catalogue's mark rather than a hard-coded LIVE.
+- **Areas from Global Forest Watch get a light edge** (`-o-` line layer, bone,
+  1.6 px at the world view) in place of a near-black outline, so mines and
+  concessions show as specks from far out (item 37).
+- **Vessels of concern glow at full strength** (`GLOW_FULL`): a few dozen
+  points with no amounts were weighed at a tenth each and could not be found
+  from the world view (item 41).
+
 ## Round of 22 September (2): the box refiled, rows taken out
 
 The owner sent 44 items; this round is the filing and removal ones (1, 2, 3, 5,

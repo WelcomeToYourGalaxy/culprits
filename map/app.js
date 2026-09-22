@@ -1258,7 +1258,13 @@ const GLOW = {
   fadeOut: 9, gone: 12,                        // haze and cores: full to 9, gone by 12; the dots the other way
 };
 const glowMaxOf = new Map();                   // source id -> the largest "value" in it, from the archive's own stats
+// Layers of a few dozen points with no amounts: each point glows at full
+// strength, or at the world view they are too faint to find (22 September,
+// round 3: the vessels of concern).
+const GLOW_FULL = new Set(["skytruth_voc"]);
+const glowFull = (layer) => GLOW_FULL.has(String(layer.source || "").replace(/-src$/, ""));
 function glowWeight(layer) {
+  if (glowFull(layer)) return 1;
   const max = glowMaxOf.get(layer.source);
   const count = ["max", 1, ["coalesce", ["to-number", ["get", "_count"]], 1]];
   if (!max) return ["min", 1, ["/", ["log2", ["+", 1, count]], 10]];
@@ -3862,39 +3868,20 @@ function columnEdge() {
 // all of it.
 const CARBON_PLUME_ZOOM = 10;     // from here in, the plumes' own pictures
 const CARBON_PLUME_PAGES = 10;    // 1,000 plumes a page
-// Merged and counted up to the zoom where each plume starts drawing its own
-// picture. Stopping at 6 left a gap: from a continent or a country the
-// clusters were gone and what replaced them was a scatter of three-pixel
-// dots, so the layer read as empty again between the world view and the
-// street. Now the counted points carry it the whole way.
-const CARBON_CLUSTER_TO = CARBON_PLUME_ZOOM - 1;
 const CARBON_PAGES_AT_ONCE = 3;    // after the first, which is drawn on its own
 const CARBON_PICTURES_AT_ONCE = 40;
 async function addCarbonMapperLayer(cfg) {
   const src = `${cfg.id}-src`;
-  // Tens of thousands of plumes, most of them in a few basins, each a dot two
-  // pixels across at world view: from any distance the layer read as empty.
-  // Where they crowd they are merged into one point that says how many it
-  // stands for, the way the mines already work, so the basins show from the
-  // world view and nothing is dropped to make them show. From
-  // CARBON_CLUSTER_TO in, every plume is its own point again.
+  // Every plume is its own point at every zoom (22 September, round 4). They
+  // used to be merged into counted points out to zoom 9, which bunched them at
+  // the world view and split them apart on the way in; the owner asked for
+  // every dot at every zoom. Where they crowd, the glow under the points shows
+  // it, weighed by how many there are, and nothing is merged.
   map.addSource(src, { type: "geojson", data: { type: "FeatureCollection", features: [] },
-    cluster: true, clusterMaxZoom: CARBON_CLUSTER_TO, clusterRadius: 30,
     attribution: cfg.attribution || "" });
-  map.addLayer({ id: `${cfg.id}-cl`, type: "circle", source: src, filter: ["has", "point_count"],
-    paint: {
-      "circle-color": cfg.colour, "circle-opacity": 0.75,
-      "circle-radius": ["interpolate", ["linear"], ["zoom"],
-        1, ["+", 3, ["*", 2.2, ["log10", ["max", ["get", "point_count"], 1]]]],
-        CARBON_CLUSTER_TO, ["+", 4, ["*", 2.6, ["log10", ["max", ["get", "point_count"], 1]]]]],
-      "circle-stroke-color": "#17150F", "circle-stroke-width": 0.5 } });
-  bindHtmlPopup(`${cfg.id}-cl`, (p) =>
-    `<b>${Number(p.point_count).toLocaleString()} plumes here</b>` +
-    `<div class="meta">Merged at this zoom. Zoom in to see each one, its rate and its picture.</div>` +
-    `<div class="meta">Carbon Mapper data platform</div>`);
   // Sized by the emission rate Carbon Mapper measured, which is the one number
   // that says how much this plume matters; unmeasured plumes keep the base size.
-  map.addLayer({ id: `${cfg.id}-pt`, type: "circle", source: src, filter: ["!", ["has", "point_count"]],
+  map.addLayer({ id: `${cfg.id}-pt`, type: "circle", source: src,
     paint: {
       "circle-color": ["case", ["==", ["get", "gas"], "CO2"], "#6E6358", cfg.colour],
       "circle-opacity": 0.85,
@@ -4245,10 +4232,10 @@ const CATALOGUE_PLACES = [
   // Kept where they were, at the owner's word (22 September, "I'll decide later").
   [/forest cover|forest and non-forest|land cover|tree height|forest as a share|tree cover extent|forest extent|tree cover density|forest age|industrial land/i, P + " > Forest and land cover"],
   [/mangrove|reef|benthic|coral/i, P + " > Oceans > Reefs and mangroves"],
-  [/water|aqueduct|river|watershed|flood|\bpond\b|canal/i, P + " > Surface water"],
+  [/water|aqueduct|\brivers?\b|watershed|flood|\bpond\b|canal/i, P + " > Surface water"],
   [/customary|\badat\b|indigenous|community land|tenure|land rights|quilombola|village forest|community forest|social forestry|rural settlement|forestry employment/i,
    "Suppression > Of humans > Land and territory"],
-  [/\broads?\b|transmigration|settlement|capital|\bikn\b|infrastructure|urban|built/i, P + " > Construction"],
+  [/\broads?\b|transmigration|settlement|capital|\bikn\b|infrastructure|\burban|\bbuilt\b/i, P + " > Construction"],
   // Spatial plans: the national and provincial plans and the moratorium (PIPPIB)
   // stay; the moratorium is also under Deforestation, being a bar on clearing
   // forest and peat; Badung's detailed plans go under Agriculture, as asked.
@@ -4270,7 +4257,12 @@ const CATALOGUE_BY_TITLE = [
   [/annual surface temperature anomal/i, null],
   [/(wdpa|protected areas?).*burn|burn.*(wdpa|protected areas?)/i, null],
   [/burn(ed|t) areas?.*(indonesia|equatorial asia|malaysia|brunei|borneo|kalimantan)/i, null],
-  [/^(?!.*(global|worldwide)).*intact forest landscape/i, null],
+  // Global Forest Watch's analysis tables (ids with "__": alert counts per
+  // country, province, protected area or drawn shape). Tables, never tiles.
+  [/[a-z0-9]__[a-z0-9]/, null],
+  // The drivers of disturbance alerts as one dataset: no tiles published. Its
+  // driver classes are drawn by the "driver class" row.
+  [/\bwur_alert_drivers$/, null],
   // Placed by name.
   [/tree cover loss by (dominant )?driver|drivers? of tree cover loss/i, [P + " > Deforestation > Tree cover loss and alerts"]],
   [/soy(bean)? planted area/i, [P + " > Climate > Nitrous oxide > Soy", AG + " > Soy, corn and grain"]],
@@ -4310,6 +4302,7 @@ function nusantaraWhere(id) {
 const LEFT_OUT = "(left out)";
 function cataloguePlaces(words, title) {
   if (title != null) {
+    // The title and, after it, the id (the id rules above end in $ or name it).
     for (const [rule, paths] of CATALOGUE_BY_TITLE) if (rule.test(title)) return paths ? paths.slice() : [CATALOGUE_TAKEN_OUT];
   }
   let out = [];
@@ -4366,7 +4359,7 @@ function catalogueRows(cfg, items) {
     // passing word in it filed rows under subjects they are not about: the
     // drivers of tree cover loss under Fire (fire is one driver), protected
     // areas and dams under Fire, oil and gas concessions under Mining.
-    const paths = cataloguePlaces(item.fileBy || `${item.title} ${item.name}`, item.title);
+    const paths = cataloguePlaces(item.fileBy || `${item.title} ${item.name}`, `${item.title} ${item.name}`);
     item.key = key;
     if (paths[0] === LEFT_OUT) { leftOut++; item.leftOut = true; return; }
     if (paths[0] === CATALOGUE_TAKEN_OUT) { takenOut.push(item.title); item.leftOut = true; return; }
@@ -4376,8 +4369,7 @@ function catalogueRows(cfg, items) {
       row.innerHTML =
         `<input type="checkbox" data-${n ? "cat-copy" : "cat"}="${escapeHtml(key)}">` +
         `<span class="swatch" style="background:${cfg.colour}"></span>` +
-        `<span class="body"><span class="nm">${escapeHtml(item.title)}` +
-        `<span class="live" title="Read from the source itself when this row is ticked, not from a copy kept here">LIVE</span>` +
+        `<span class="body"><span class="nm">${escapeHtml(item.title)}${liveMark(cfg)}` +
         `${siteLink(cfg.id)}${infoMark(item.about)}</span>` +
         `<span class="un" data-state="${escapeHtml(key)}">${escapeHtml(cfg.catUnit || "")}</span></span>`;
       (sectionBody(box, path) || spare).appendChild(row);
@@ -4575,11 +4567,38 @@ async function addWmsMenuLayer(cfg) {
 // dataset shows its id in words, marked as having no title, rather than a guess.
 const GFW_TITLES = {
   pangaea_global_mining: "Mining areas worldwide \u2014 outlines by Maus et al., from the PANGAEA data library (Global Forest Watch\u2019s copy)",
+  // Named from their ids and records (22 September, round 3).
+  wur_integration_alert_drivers_class: "Drivers of disturbance alerts \u2014 the driver behind each alert (Wageningen University)",
+  wur_integration_alert_drivers_date: "Drivers of disturbance alerts \u2014 the date of each alert (Wageningen University)",
+  wur_alert_drivers_coverage: "Drivers of disturbance alerts \u2014 the area they cover, as one shape, with no drivers in it",
+  umd_soy_planted_area_buffered_10km: "Soy planted area, widened by 10 km on every side",
+  ifl_intact_forest_landscapes_2025: "Intact Forest Landscapes 2025",
+  wdpa_protected_areas: "Protected areas, public release (World Database on Protected Areas)",
+  wdpa_licensed_protected_areas: "Protected areas, copy licensed to Global Forest Watch (World Database on Protected Areas)",
+  // The four rows of the same name told apart (22 September, round 4).
+  tsc_tree_cover_loss_drivers: "Tree cover loss by dominant driver, first method, coarse grid (Curtis et al., The Sustainability Consortium)",
+  wri_google_tree_cover_loss_drivers: "Tree cover loss by dominant driver, newest, 1 km (WRI and Google)",
+  tsc_drivers: "Tree cover loss by dominant driver, second record, tiles unfinished (The Sustainability Consortium)",
+  umd_drivers: "Tree cover loss by dominant driver, University of Maryland record (UMD)",
+};
+// What is known about how rows of the same name differ, put first in the
+// row's "i" box, ahead of Global Forest Watch's own description.
+const GFW_ABOUT = {
+  tsc_tree_cover_loss_drivers: "The original method (Curtis et al. 2018, The Sustainability Consortium): each square of a coarse grid, about 10 km across, is given the one driver that caused most of its tree cover loss. Five drivers: commodity-driven deforestation, shifting agriculture, forestry, wildfire, urbanization. Global Forest Watch lists three other datasets under the same title; this is the one its id marks as the Sustainability Consortium's.",
+  wri_google_tree_cover_loss_drivers: "The newest version, made by WRI with Google at 1 km, much finer than the original coarse grid, with more kinds of driver, among them mining and energy, and settlements and infrastructure, which the original grouped differently.",
+  tsc_drivers: "A second dataset under the Sustainability Consortium's name with the same title. Global Forest Watch lists map tiles for it that it has not finished making; if it still has none when ticked, the row leaves the list. Its record does not say how it differs from the first.",
+  umd_drivers: "A dataset of the same title that its id marks as the University of Maryland's. Its record does not say how it differs from the Sustainability Consortium's or from the WRI and Google version.",
+  wdpa_protected_areas: "The public release of the World Database on Protected Areas (UNEP-WCMC and IUCN), as Global Forest Watch serves it. There is a second worldwide row, the copy licensed to Global Forest Watch; the records do not say how the two differ beyond that.",
+  wdpa_licensed_protected_areas: "The World Database on Protected Areas as licensed to Global Forest Watch. There is a second worldwide row, the public release; the records do not say how the two differ beyond that.",
+};
+// Where a dataset is, where the record's own wording does not fit a title.
+const GFW_WHERE = {
+  intl_rivers_dam_hotspots: "the world\u2019s 50 major river basins",
 };
 function gfwTitle(d) {
   const meta = d.metadata || {};
-  if (meta.title) return meta.title;
   if (GFW_TITLES[d.dataset]) return GFW_TITLES[d.dataset];
+  if (meta.title) return meta.title;
   const words = String(d.dataset).replace(/_/g, " ");
   return `${words.charAt(0).toUpperCase()}${words.slice(1)} (Global Forest Watch gives this dataset no title)`;
 }
@@ -4684,7 +4703,7 @@ async function addGfwMenuLayer(cfg) {
   const items = all.filter((d) => !leftOut.includes(d.dataset)).map((d) => {
     const meta = d.metadata || {};
     const said = gfwTitle(d);
-    const where = String(meta.geographic_coverage || "").trim();
+    const where = String(GFW_WHERE[d.dataset] || meta.geographic_coverage || "").trim();
     return { id: d.dataset, meta,
       title: where && !new RegExp(where.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(said) ? `${said} \u2014 ${where}` : said };
   })
@@ -4738,7 +4757,14 @@ async function addGfwMenuLayer(cfg) {
         map.addSource(src, { type: "vector", tiles: [uri], minzoom: asset.minzoom, maxzoom: asset.maxzoom });
         for (const n of (names.length ? names : [d.id, "default"])) {
           const base = { source: src, "source-layer": n };
-          map.addLayer({ id: `${src}-f-${safe(n)}`, type: "fill", ...base, filter: ["==", ["geometry-type"], "Polygon"], paint: { "fill-color": cfg.colour, "fill-opacity": 0.45, "fill-outline-color": "#1D1B17" } });
+          map.addLayer({ id: `${src}-f-${safe(n)}`, type: "fill", ...base, filter: ["==", ["geometry-type"], "Polygon"], paint: { "fill-color": cfg.colour, "fill-opacity": 0.5 } });
+          // A light edge on every area, never thinner than a pixel, so areas far
+          // smaller than a pixel at the world view (mines, concessions) still show
+          // as specks; it was a near-black edge on a dark map (22 September, round 3).
+          map.addLayer({ id: `${src}-o-${safe(n)}`, type: "line", ...base, filter: ["==", ["geometry-type"], "Polygon"],
+            paint: { "line-color": "#D6CCBC", "line-opacity": ["interpolate", ["linear"], ["zoom"], 0, 0.95, 10, 0.75],
+                     "line-width": ["interpolate", ["linear"], ["zoom"], 0, 1.6, 6, 1.2, 12, 0.9] } });
+          ids.push(`${src}-o-${safe(n)}`);
           map.addLayer({ id: `${src}-l-${safe(n)}`, type: "line", ...base, filter: ["==", ["geometry-type"], "LineString"], paint: { "line-color": cfg.colour, "line-width": 1.2 } });
           map.addLayer({ id: `${src}-p-${safe(n)}`, type: "circle", ...base, filter: ["==", ["geometry-type"], "Point"], paint: { "circle-color": cfg.colour, "circle-radius": 3, "circle-stroke-width": 0.5, "circle-stroke-color": "#17150F" } });
           for (const id of [`${src}-f-${safe(n)}`, `${src}-l-${safe(n)}`, `${src}-p-${safe(n)}`]) {
@@ -4785,7 +4811,7 @@ async function addGfwMenuLayer(cfg) {
     }
   };
   const rows = items.map((d) => ({
-    name: d.id, title: d.title, about: `${d.meta.function || ""} ${d.meta.overview || ""}`.trim(),
+    name: d.id, title: d.title, about: `${GFW_ABOUT[d.id] ? GFW_ABOUT[d.id] + " \u2014 " : ""}${d.meta.function || ""} ${d.meta.overview || ""}`.trim(),
     show: (want) => { if (want) put(d); else { take(d); rowSay(d.key, cfg.catUnit || ""); } },
   }));
   catalogueRows(cfg, rows);
@@ -9469,9 +9495,24 @@ function wireInfoMarks() {
 }
 
 function liveMark(cfg) {
-  if (!cfg || !LIVE_ROUTES.has(cfg.route)) return "";
-  return `<span class="live" title="Read from the source itself when this row is ticked, not from a copy kept here">LIVE</span>`;
+  if (!cfg) return "";
+  const copy = NOT_LIVE[cfg.id];
+  if (LIVE_ROUTES.has(cfg.route) && !copy) return `<span class="live" title="Read from the source itself when this row is ticked, not from a copy kept here">LIVE</span>`;
+  const why = copy || "Drawn from a copy or file kept here, made when the source was last gathered, not read from the source each time";
+  return `<span class="live notlive" title="${escapeHtml(why)}">NOT LIVE</span>`;
 }
+// Rows whose way of reading would count as live, but which draw from a copy
+// kept here (the source cannot be read by another site, or its server is gone).
+// Every row now carries one mark or the other (22 September, round 3).
+const NOT_LIVE = {
+  coastal_cleanup: "Ocean Conservancy's cleanup sites, from a copy made daily (their server lets only their own site read it)",
+  space_industry: "openmaps.space's places, from a copy made daily",
+  gta_acts: "Global Trade Alert's acts, from a copy made daily",
+  giga_countries: "Giga's figures, from a copy made daily (its service does not let other sites read it)",
+  wastewater: "The Global Wastewater Model, from copies kept here; the model is not updated",
+  trase_measures: "Trase's values come from a copy made weekly; only the region shapes are read live",
+  atlas_cities: "The places are from a copy made weekly; each city's own page is read live",
+};
 
 /* ---------- the layers box, in the order and under the headings chosen ---------- */
 // Strings are layer ids; "group:" a whole group; "gm" the guerillamap row.

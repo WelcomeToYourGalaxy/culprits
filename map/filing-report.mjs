@@ -20,7 +20,7 @@ const lib = new Function(
   cut("const NUSANTARA_NAMES = {", "/* ---------- a catalogue's layers as rows") +
   cut("const P = \"Destruction > Of the planet\";", "// The body of the heading a path names") +
   cut("const GFW_TITLES = {", "// Which of a dataset's assets to draw from.") +
-  "; return { NUSANTARA_NAMES, nusantaraWhere, cataloguePlaces, CATALOGUE_BY_TITLE, gfwTitle };")();
+  "; return { NUSANTARA_NAMES, nusantaraWhere, cataloguePlaces, CATALOGUE_BY_TITLE, gfwTitle, GFW_WHERE };")();
 
 const words = process.argv.slice(2).map((w) => w.toLowerCase());
 const want = (t) => !words.length || words.some((w) => t.toLowerCase().includes(w));
@@ -33,7 +33,7 @@ async function gfw() {
     const rows = (await r.json()).data || [];
     for (const d of rows) {
       const said = lib.gfwTitle(d);
-      const where = String((d.metadata || {}).geographic_coverage || "").trim();
+      const where = String(lib.GFW_WHERE[d.dataset] || (d.metadata || {}).geographic_coverage || "").trim();
       const title = where && !new RegExp(where.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(said) ? `${said} \u2014 ${where}` : said;
       out.push({ from: "Global Forest Watch", id: d.dataset, title });
     }
@@ -59,11 +59,11 @@ const rows = [];
 for (const [name, fn] of [["Global Forest Watch", gfw], ["Nusantara", nusantara]]) {
   try { rows.push(...await fn()); } catch (e) { console.log(`${name}: ${e.message}`); }
 }
-for (const r of rows) r.paths = lib.cataloguePlaces(`${r.title} ${r.id}`, r.title);
+for (const r of rows) r.paths = lib.cataloguePlaces(`${r.title} ${r.id}`, `${r.title} ${r.id}`);
 
 console.log("\nCaught by the rules by name:");
 lib.CATALOGUE_BY_TITLE.forEach(([rule, paths]) => {
-  const hit = rows.filter((r) => lib.CATALOGUE_BY_TITLE.find(([x]) => x.test(r.title))?.[0] === rule);
+  const hit = rows.filter((r) => lib.CATALOGUE_BY_TITLE.find(([x]) => x.test(`${r.title} ${r.id}`))?.[0] === rule);
   console.log(`\n  ${rule}  ->  ${paths ? paths.join(" | ") : "TAKEN OUT"}`);
   if (!hit.length) console.log("      (matched nothing)");
   for (const r of hit) console.log(`      ${r.title}  [${r.from}: ${r.id}]`);
