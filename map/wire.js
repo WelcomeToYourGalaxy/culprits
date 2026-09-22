@@ -1112,8 +1112,11 @@ function renderPicker() {
 // Read by the box but not offered as filters: the score, the feeds' own
 // bookkeeping (which search found a story, how far it was widened, why it
 // was kept), and the escalation label. Time covers how recent a story is.
-const HIDDEN_ROWS = new Set(['Substance score', 'Direction', 'Why it was kept', 'Search feed', 'Search widened to']);
-const ROW_ORDER = ['Topic', 'Country', 'Region', 'Within', 'Who reports it', 'News source', 'Language'];
+// Within (the feeds' sub-region, "East Africa", "Levant") is kept for the
+// stories' place lines and for reading a country off it, but is not a row:
+// the owner asked for two place filters, Region and Country (21 September).
+const HIDDEN_ROWS = new Set(['Substance score', 'Direction', 'Why it was kept', 'Search feed', 'Search widened to', 'Within']);
+const ROW_ORDER = ['Topic', 'Region', 'Country', 'Who reports it', 'News source', 'Language'];
 function rowRank(label) { const i = ROW_ORDER.indexOf(label); return i === -1 ? ROW_ORDER.length : i; }
 
 function renderFilters(focusId) {

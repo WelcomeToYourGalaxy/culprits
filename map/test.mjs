@@ -2583,7 +2583,7 @@ console.log("\nNusantara's layers say what they show");
     check("a row's description sits behind an i beside its other marks, not as the whole row's hover text",
           /function infoMark\(text\)/.test(src) && !/row\.title = item\.about/.test(src) && /\$\{siteLink\(cfg\.id\)\}\$\{infoMark\(item\.about\)\}/.test(src) &&
           /if \(e\.target && e\.target\.closest && e\.target\.closest\("\.info"\)\) e\.preventDefault\(\);/.test(src));
-    const G = new Function(src.slice(src.indexOf("const GFW_TITLES = {"), src.indexOf("// Datasets with no tiles of their own")) + "; return { gfwTitle, gfwPickAsset };")();
+    const G = new Function(src.slice(src.indexOf("const GFW_TITLES = {"), src.indexOf("// Datasets with no tiles of their own")) + "; return { gfwTitle, gfwPickAsset, gfwAssetIndex };")();
     const A = (asset_type, status, asset_uri) => ({ asset_type, status, asset_uri });
     check("a Global Forest Watch dataset is drawn from its ready-made tiles before the slow made-on-request ones",
           G.gfwPickAsset([A("Dynamic vector tile cache", "saved", "https://t/dynamic/{z}/{x}/{y}.pbf"), A("Static vector tile cache", "saved", "https://t/default/{z}/{x}/{y}.pbf")]).uri === "https://t/default/{z}/{x}/{y}.pbf" &&
@@ -2591,7 +2591,20 @@ console.log("\nNusantara's layers say what they show");
     check("\u2026a tile cache still being made is not drawn from, and the row can say it is waiting",
           G.gfwPickAsset([A("Raster tile set", "saved", "s3://x"), A("Raster tile cache", "pending", "https://t/{z}/{x}/{y}.png")]).how === "none" &&
           G.gfwPickAsset([A("Raster tile cache", "pending", "https://t/{z}/{x}/{y}.png")]).waiting === true &&
-          G.gfwPickAsset([A("Raster tile set", "saved", "s3://x"), A("COG", "saved", "s3://y")]).waiting === false);
+          G.gfwPickAsset([A("Raster tile set", "saved", "s3://x")]).waiting === false);
+    const cog = G.gfwPickAsset([A("Raster tile set", "saved", "s3://x"), A("COG", "saved", "s3://gfw-data-lake/d/v1/raster/epsg-4326/cog/default.tif")]);
+    check("\u2026a dataset with only a GeoTIFF is drawn as a picture through Global Forest Watch's own tile service",
+          cog.how === "cog" && /^https:\/\/tiles\.globalforestwatch\.org\/cog\/basic\/tiles\/WebMercatorQuad\/\{z\}\/\{x\}\/\{y\}\.png\?url=s3%3A%2F%2F/.test(cog.uri));
+    check("\u2026an asset's tiles are asked for only at the zooms its record gives, which is what returned 422",
+          G.gfwPickAsset([Object.assign(A("Raster tile cache", "saved", "https://t/{z}/{x}/{y}.png"), { creation_options: { min_zoom: 2, max_zoom: 9 } })]).maxzoom === 9 &&
+          G.gfwPickAsset([A("Raster tile cache", "saved", "https://t/{z}/{x}/{y}.png")]).maxzoom === 12);
+    const idx = G.gfwAssetIndex([{ dataset: "a", version: "v2020", asset_type: "COG", asset_uri: "s3://o" }, { dataset: "a", version: "v2023", is_latest: true, asset_type: "COG", asset_uri: "s3://n" },
+                                  { dataset: "b", version: "v1", asset_type: "COG", asset_uri: "s3://b1" }, { dataset: "b", version: "v3", asset_type: "COG", asset_uri: "s3://b3" }]);
+    check("\u2026the asset list is read once at the start and each dataset keeps its latest version's assets, or its newest where none is marked",
+          idx.a.length === 1 && idx.a[0].asset_uri === "s3://n" && idx.b.length === 1 && idx.b[0].asset_uri === "s3://b3" &&
+          /assets\?asset_type=\$\{encodeURIComponent\(kind\)\}/.test(src));
+    check("\u2026and a dataset that is downloads only has no row, at the owner's request, with the count said on the catalogue's row",
+          /leftOut = all\.filter\(\(d\) => gfwPickAsset\(index\[d\.dataset\] \|\| \[\]\)\.how === "none"\)/.test(src) && /more are downloads only and have no row/.test(src));
     check("\u2026a dataset with no title is named where what it is can be shown, and otherwise says it has none",
           /Maus et al/.test(G.gfwTitle({ dataset: "pangaea_global_mining", metadata: {} })) &&
           G.gfwTitle({ dataset: "wur_x_class", metadata: {} }) === "Wur x class (Global Forest Watch gives this dataset no title)" &&

@@ -260,6 +260,31 @@ facilities archive. The other registers' extra columns still stop at the atlas's
 parsers; adding a register to `PUBLISH_RAW` there and `PUBLISHED_AS` here is all
 it takes once its size has been looked at.
 
+## Global Forest Watch: the asset list, COGs drawn, downloads-only rows gone
+
+Continued the same day, from the owner's live look (404s, 422s, rows that
+could only ever be downloads):
+
+- `addGfwMenuLayer` reads GFW's asset list at the start, four requests
+  (`/assets?asset_type=...`, one per drawable kind, paged), and `gfwAssetIndex`
+  keeps each dataset's latest version's assets. Ticking a row no longer asks
+  `/latest` (which was the 404 for datasets with no version marked latest); if
+  the index cannot be read, the old per-tick path runs, now falling back to the
+  dataset's version list when `/latest` is 404.
+- **COGs draw**, through `tiles.globalforestwatch.org/cog/basic/tiles/
+  WebMercatorQuad/{z}/{x}/{y}.png?url=s3://...` - the service GFW's own map
+  uses, checked from outside (200, image/png). That is DIST-ALERT, the
+  integrated alerts, WRI/Google drivers, the wur "class" layer. A picture, not
+  clickable, in the service's own colouring.
+- **Zooms come from the asset's record** (`creation_options`/`metadata`
+  min_zoom, max_zoom; 0-12 if absent). Asking past them is what GFW answered
+  with 422. A 422 that still arrives is said on the row; a 404 for a tile is
+  an empty square and is ignored.
+- **Datasets with nothing drawable** (only a GeoTIFF tile set, or nothing) get
+  **no row**, at the owner's request. This is the one place the "nothing is
+  left out" rule is set aside, by the owner: a row that can never draw. Their
+  ids go to the console and their count to the catalogue's own row.
+
 ## Global Forest Watch datasets that drew nothing
 
 Read from the asset lists the owner pulled (21 September):
@@ -287,6 +312,12 @@ values over all 74,548 outlines, mostly digitising leftovers ("Placemark",
 "polygon" in Chinese) with a handful of real hints (Au, Cu, Fe, diamond,
 chromite, coal, tungsten, nitrate). The owner's condition for a map row was
 that it carry commodities or impacts; it does not, so no row has been added.
+
+## The wires: two place filters
+
+Region and Country only, from the same day. Within (the feeds' sub-regions) is
+in `HIDDEN_ROWS`: still read, still on each story's place line, still used to
+read a country off a story with no place, but not a row.
 
 ## Round of 21 September: what the owner found on the live map
 

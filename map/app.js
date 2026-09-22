@@ -4341,16 +4341,52 @@ function gfwTitle(d) {
 // A static vector cache before a dynamic one: dynamic tiles are made on request
 // from the database and are slow, which is what made the mining concessions and
 // the PANGAEA mining layer seem not to load.
+// A dataset with no tile cache but a COG (one cloud-ready GeoTIFF) is drawn
+// through the tile service Global Forest Watch's own map uses for them, which
+// answers an outside page (checked 21 September: 200, image/png). That is how
+// DIST-ALERT, the integrated alerts and the WRI/Google drivers now draw.
+const GFW_COG_TILES = "https://tiles.globalforestwatch.org/cog/basic/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=";
+// The zooms an asset's tiles exist at, as its record says (creation_options or
+// metadata); asking past them is what returned 422 for several datasets.
+function gfwZooms(a) {
+  const m = Object.assign({}, a.metadata || {}, a.creation_options || {});
+  const lo = Number.isFinite(Number(m.min_zoom)) ? Number(m.min_zoom) : 0;
+  const hi = Number.isFinite(Number(m.max_zoom)) ? Number(m.max_zoom) : 12;
+  return { minzoom: Math.max(0, Math.min(lo, hi)), maxzoom: Math.max(lo, hi) };
+}
 function gfwPickAsset(assets) {
-  const ok = (assets || []).filter((a) => String(a.status || "saved").toLowerCase() === "saved" && /^https?:/.test(a.asset_uri || ""));
-  const kind = (re) => ok.find((a) => re.test(a.asset_type || ""));
+  const saved = (assets || []).filter((a) => String(a.status || "saved").toLowerCase() === "saved");
+  const ok = saved.filter((a) => /^https?:/.test(a.asset_uri || ""));
+  const kind = (re, from) => (from || ok).find((a) => re.test(a.asset_type || ""));
   const vec = kind(/static vector tile cache/i) || kind(/vector tile cache/i);
-  if (vec) return { how: "vector", slow: !/static/i.test(vec.asset_type), uri: vec.asset_uri };
+  if (vec) return { how: "vector", slow: !/static/i.test(vec.asset_type), uri: vec.asset_uri, ...gfwZooms(vec) };
   const ras = kind(/raster tile cache/i);
-  if (ras) return { how: "raster", uri: ras.asset_uri };
+  if (ras) return { how: "raster", uri: ras.asset_uri, ...gfwZooms(ras) };
+  const cog = kind(/^COG$/i, saved.filter((a) => /^s3:\/\//.test(a.asset_uri || "")));
+  if (cog) return { how: "cog", uri: GFW_COG_TILES + encodeURIComponent(cog.asset_uri), minzoom: 0, maxzoom: 12 };
   const waiting = (assets || []).some((a) => /tile cache/i.test(a.asset_type || "") && !/saved/i.test(a.status || ""));
   return { how: "none", waiting };
 }
+// Every asset Global Forest Watch lists, read in four requests at the start
+// (one per kind that can be drawn) instead of two per dataset on each tick,
+// grouped by dataset with the latest version's assets kept. From this the box
+// knows before any row is made which datasets can be drawn at all.
+function gfwAssetIndex(rows) {
+  const by = {};
+  for (const a of rows || []) {
+    if (!a || !a.dataset) continue;
+    (by[a.dataset] = by[a.dataset] || []).push(a);
+  }
+  const out = {};
+  for (const id of Object.keys(by)) {
+    const list = by[id];
+    const latest = list.filter((a) => a.is_latest);
+    const versions = [...new Set(list.map((a) => String(a.version || "")))].sort();
+    out[id] = latest.length ? latest : list.filter((a) => String(a.version || "") === versions[versions.length - 1]);
+  }
+  return out;
+}
+const GFW_DRAWABLE_KINDS = ["Static vector tile cache", "Dynamic vector tile cache", "Raster tile cache", "COG"];
 // Datasets with no tiles of their own whose alerts another row already draws.
 const GFW_DRAWN_BY = {
   umd_glad_dist_alerts: "Any loss of plant cover, worldwide (DIST-ALERT)",
@@ -4367,9 +4403,33 @@ async function addGfwMenuLayer(cfg) {
     if (rows.length < 100) break;
   }
   if (!all.length) { setLayerState(cfg.id, "the catalogue did not answer"); return; }
+  // The asset index. If it cannot be read the rows are made as before and each
+  // dataset's assets are looked up when it is ticked.
+  let index = null;
+  try {
+    const rows = [];
+    for (const kind of GFW_DRAWABLE_KINDS) {
+      for (let page = 1; page < 20; page++) {
+        const j = await getJson(`${cfg.api}/assets?asset_type=${encodeURIComponent(kind)}&page[size]=1000&page[number]=${page}`, 40000);
+        const got = Array.isArray(j.data) ? j.data : [];
+        rows.push(...got);
+        if (got.length < 1000) break;
+      }
+    }
+    if (rows.length) index = gfwAssetIndex(rows);
+  } catch (e) { console.warn(`[culprits] ${cfg.id}: the asset list could not be read (${e.message}); assets are looked up on each tick`); }
+  // Datasets Global Forest Watch publishes only as downloads - no tile cache and
+  // no COG - are left out of the box, at the owner's request (21 September):
+  // a row that can never draw is noise. How many were left out is said on the
+  // catalogue's own row and in the console, with their ids.
+  let leftOut = [];
+  if (index) {
+    leftOut = all.filter((d) => gfwPickAsset(index[d.dataset] || []).how === "none").map((d) => d.dataset);
+    if (leftOut.length) console.info(`[culprits] ${cfg.id}: ${leftOut.length} datasets are downloads only and have no row: ${leftOut.join(", ")}`);
+  }
   // Where a dataset is, as GFW themselves record it. Left off where they
   // record nothing rather than guessed at from the name.
-  const items = all.map((d) => {
+  const items = all.filter((d) => !leftOut.includes(d.dataset)).map((d) => {
     const meta = d.metadata || {};
     const said = gfwTitle(d);
     const where = String(meta.geographic_coverage || "").trim();
@@ -4387,9 +4447,9 @@ async function addGfwMenuLayer(cfg) {
     for (const ids of drawn.values()) for (const id of ids) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
   };
   cfg.afterVisibility = applyAll;
-  const said = () => setLayerState(cfg.id, drawn.size
+  const said = () => setLayerState(cfg.id, (drawn.size
     ? `${drawn.size} of ${items.length} datasets drawn`
-    : `${items.length} datasets, each a row below`);
+    : `${items.length} datasets, each a row below`) + (leftOut.length ? ` \u00b7 ${leftOut.length} more are downloads only and have no row` : ""));
   const take = (d) => {
     for (const id of drawn.get(d.id) || []) if (map.getLayer(id)) map.removeLayer(id);
     if (map.getSource(`${cfg.id}-${safe(d.id)}`)) map.removeSource(`${cfg.id}-${safe(d.id)}`);
@@ -4404,18 +4464,26 @@ async function addGfwMenuLayer(cfg) {
     const src = `${cfg.id}-${safe(d.id)}`;
     const ids = [];
     try {
-      const v = await getJson(`${cfg.api}/dataset/${d.id}/latest`);
-      const version = (v.data && v.data.version) || "latest";
-      const assets = (await getJson(`${cfg.api}/dataset/${d.id}/${version}/assets`)).data || [];
+      let assets = index ? (index[d.id] || []) : null;
+      if (!assets) {
+        let version = null;
+        try { version = (await getJson(`${cfg.api}/dataset/${d.id}/latest`)).data.version; } catch (e) { /* none marked latest */ }
+        if (!version) {
+          // No version is marked latest (a 404 there): the newest one listed.
+          const vs = ((await getJson(`${cfg.api}/dataset/${d.id}`)).data || {}).versions || [];
+          version = vs.slice().sort().pop();
+        }
+        assets = version ? ((await getJson(`${cfg.api}/dataset/${d.id}/${version}/assets`)).data || []) : [];
+      }
       const asset = gfwPickAsset(assets);
       const vec = asset.how === "vector" ? { asset_uri: asset.uri } : null;
-      const ras = asset.how === "raster" ? { asset_uri: asset.uri } : null;
+      const ras = asset.how === "raster" || asset.how === "cog" ? { asset_uri: asset.uri } : null;
       const about = [d.meta.license ? `licence: ${d.meta.license}` : "", d.meta.source ? `source: ${String(d.meta.source).replace(/\[|\]\([^)]*\)/g, "")}` : ""].filter(Boolean).join("; ");
       if (vec) {
         const uri = vec.asset_uri;
         const buf = await (await fetch(uri.replace("{z}", "0").replace("{x}", "0").replace("{y}", "0"))).arrayBuffer().catch(() => null);
         const names = buf ? readTileLayers(buf) : [];
-        map.addSource(src, { type: "vector", tiles: [uri], minzoom: 0, maxzoom: 12 });
+        map.addSource(src, { type: "vector", tiles: [uri], minzoom: asset.minzoom, maxzoom: asset.maxzoom });
         for (const n of (names.length ? names : [d.id, "default"])) {
           const base = { source: src, "source-layer": n };
           map.addLayer({ id: `${src}-f-${safe(n)}`, type: "fill", ...base, filter: ["==", ["geometry-type"], "Polygon"], paint: { "fill-color": cfg.colour, "fill-opacity": 0.45, "fill-outline-color": "#1D1B17" } });
@@ -4427,7 +4495,7 @@ async function addGfwMenuLayer(cfg) {
           }
         }
       } else if (ras) {
-        map.addSource(src, { type: "raster", tileSize: 256, tiles: [ras.asset_uri], maxzoom: 12 });
+        map.addSource(src, { type: "raster", tileSize: 256, tiles: [ras.asset_uri], minzoom: asset.minzoom, maxzoom: asset.maxzoom });
         map.addLayer({ id: `${src}-r`, type: "raster", source: src, paint: { "raster-opacity": 0.8, "raster-saturation": -0.3 } });
         ids.push(`${src}-r`);
       } else {
@@ -4443,12 +4511,16 @@ async function addGfwMenuLayer(cfg) {
       applyAll(visibility.get(cfg.id) || "visible");
       said();
       rowSay(d.key, vec ? (asset.slow ? "drawn from tiles Global Forest Watch makes as they are asked for, so it fills in slowly" : "drawn from its vector tiles")
-        : "drawn from its picture tiles, to zoom 12");
+        : asset.how === "cog" ? "drawn as a picture from its GeoTIFF, through Global Forest Watch\u2019s own tile service"
+        : `drawn from its picture tiles, to zoom ${asset.maxzoom}`);
       // A tile that fails says so on the row, once, instead of leaving an empty map.
       const failed = (e) => {
         if (!e || e.sourceId !== src) return;
         map.off("error", failed);
-        rowSay(d.key, `its tiles are not answering (${(e.error && e.error.message) || "error"})`);
+        const st = e.error && e.error.status;
+        if (st === 404 && e.tile) return;                       // an empty square: nothing there, not a fault
+        rowSay(d.key, st === 422 ? "Global Forest Watch refuses tiles at this zoom for this dataset (422); zoom out or in"
+          : `its tiles are not answering (${(e.error && e.error.message) || "error"})`);
       };
       map.on("error", failed);
       if (about) console.info(`[culprits] ${d.title} \u2014 ${about}`);
