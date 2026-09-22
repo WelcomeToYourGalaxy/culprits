@@ -278,6 +278,37 @@ and no pieces are written). The pieces appear when the refresh workflow next
 rebuilds a source. `fieldRows` (the copied-file layers) also dropped every
 nested value; it writes them out now.
 
+## Two workflows that had been failing (22 September)
+
+- **culprits, "Refresh atlas tiles"**: every run since the Global Forest Watch
+  catalogue commit stopped at the first source with
+  `FileNotFoundError: data/raw/climate_trace.json`. `harvest.py` has written
+  `data/raw/<id>.jsonl.gz` since then; the build step still asked for
+  `<id>.json`. The step now asks for `.jsonl.gz` (normalize.py reads gzip).
+  No tiles had been rebuilt in that time, so the pieces and Trase's fields on
+  the facilities all wait on the next run.
+- **culprits-tiles-more, save.sh**: a file over 95 MB
+  (`cerulean_archive/2026-09.geojson`) is left out of the commit but stays
+  changed in the working tree, and `git pull --rebase` refuses to run over an
+  unstaged change; every job's save failed eight times and nothing was kept.
+  `--autostash` fixes it. That monthly slick file wants tiling like the earlier
+  months (the map already reads a tiled month where one exists).
+
+## Climate TRACE by gas: the plan
+
+Climate TRACE's sector packages are per gas: `latest/sector_packages/<gas>/
+<sector>.zip` for `co2`, `ch4`, `n2o`, `co2e_100yr`, `co2e_20yr`. The harvest
+reads only `co2e_100yr` (`GAS` in `pipeline/sources/climate_trace.py`). The
+split: read the `co2`, `ch4` and `n2o` packages as well, one feature per site,
+period and gas with that gas's tonnes as `value` and `x_gas` set, into their
+own archives (`climate_trace_<gas>_<sector>`), and the box gets each sector
+group again under Carbon dioxide, Methane and Nitrous oxide, each drawing only
+its gas's archive. Exact for those three gases; F-gases are not in the
+inventory, and black carbon and NOx are in the air-pollution set (`ct_air`).
+Cost: three more package downloads per sector per run (agriculture's co2e
+package alone is 1.4 GB), so the per-gas harvest should run as its own job
+with its own ETags rather than inside the existing one. Not written yet.
+
 ## The glow (22 September): symbols gone, emissions as a field of light
 
 Every point layer's geometric symbol is gone. `addHud` (kept the name; the
