@@ -419,6 +419,9 @@ def fetch():
                     # is showing.
                     "year": _year_of(start),
                     "url": None,
+                    # Every column the source published, kept whole beside the chosen fields:
+                    # normalize.py files it in map/data/pieces/<source>/ and the map shows it on click.
+                    "raw": row,
                     "extra": {
                         # normalize namespaces these to x_*, and the map reads
                         # x_precision to render non-facilities hollow.

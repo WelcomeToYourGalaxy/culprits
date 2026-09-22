@@ -67,6 +67,9 @@ def fetch():
             "unit": "Gt CO₂ lifetime potential",
             "year": int(row["Carbon_bomb_start_year"]) if (row.get("Carbon_bomb_start_year") or "").isdigit() else None,
             "url": row.get("GEM_url_source_GEM") or None,
+            # Every column the source published, kept whole beside the chosen fields:
+            # normalize.py files it in map/data/pieces/<source>/ and the map shows it on click.
+            "raw": row,
             "extra": {
                 "precision": precision,
                 "coord_origin": origin,

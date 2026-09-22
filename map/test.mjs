@@ -2626,6 +2626,21 @@ console.log("\nNusantara's layers say what they show");
           /maplibregl-popup-content\{max-height:60vh;overflow-y:auto/.test(fs.readFileSync(path.join(HERE, "index.html"), "utf8")));
     check("\u2026and the facilities harvester carries through what Trase published for a site, tax number included",
           /PUBLISHED_AS = \{"br_trase": "trase"\}/.test(harvester) && /\*\*_published\(members\),/.test(harvester));
+    {
+      const norm = fs.readFileSync(path.join(HERE, "..", "pipeline", "normalize.py"), "utf8");
+      const harv = ["gem_coal", "carbon_bombs", "fertilizer_facilities", "epa_tri_sites", "gmo_releases", "land_matrix", "local_projects", "power_plants",
+                    "remains_records", "slavery_cases", "slavery_fishing", "slavery_ports", "slavery_sites", "soy_organizations", "climate_trace", "owid_co2"]
+        .map((f) => fs.readFileSync(path.join(HERE, "..", "pipeline", "sources", f + ".py"), "utf8"));
+      check("every harvester hands its whole source row on, and the pipeline files it in pieces beside the tiles",
+            harv.every((h) => /"raw": [a-z]+,\n\s*"extra": \{/.test(h)) && /def write_pieces\(raws, pieces_dir\)/.test(norm) &&
+            /pieces_dir=f"map\/data\/pieces\/\{args\.source\}"/.test(norm) && /PIECES_SKIP = \{"climate_trace"\}/.test(norm));
+      check("\u2026and a click shows every field from the record's piece, found by the same hash the pipeline used",
+            /readPiece\(`data\/pieces\/\$\{p\.source\}`, p\.id\)/.test(src) && /Every field the source publishes/.test(src) &&
+            /h = \(\(h \^ b\) \* 0x01000193\) & 0xFFFFFFFF/.test(norm));
+      const fieldRows = new Function("escapeHtml", src.match(/function fieldRows[\s\S]*?\n}\n/)[0] + "; return fieldRows;")((x) => String(x));
+      check("\u2026a nested value in a copied file's record is written out, not dropped",
+            /Notes<\/th><td>\["a","b"\]/.test(fieldRows({ Notes: ["a", "b"], Empty: [] })) && !/Empty/.test(fieldRows({ Notes: ["a"], Empty: [] })));
+    }
     check("a catalogue row says what became of it on the row itself, not on the hidden row",
           /function rowSay\(key, text\)/.test(src) && /no map tiles are published for this dataset, only files to download/.test(src) && /its tiles are not answering/.test(src));
   }

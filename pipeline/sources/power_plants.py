@@ -67,6 +67,9 @@ def fetch():
             "unit": "MW capacity",
             "year": year,
             "url": row.get("url") or None,
+            # Every column the source published, kept whole beside the chosen fields:
+            # normalize.py files it in map/data/pieces/<source>/ and the map shows it on click.
+            "raw": row,
             "extra": {
                 "country": row.get("country_long"),
                 "fuel": row.get("primary_fuel"),

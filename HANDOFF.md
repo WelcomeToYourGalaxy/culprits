@@ -260,6 +260,24 @@ facilities archive. The other registers' extra columns still stop at the atlas's
 parsers; adding a register to `PUBLISH_RAW` there and `PUBLISHED_AS` here is all
 it takes once its size has been looked at.
 
+## Fields lost on the way to the popup (item 9), the harvested layers
+
+Every harvester in `pipeline/sources/` chose a handful of columns for `extra`
+and dropped the rest of the source row (gem_coal kept six of the tracker's
+dozens; the EPA sites kept the address and the parent). `build_tiles.sh` also
+excludes `x_country` and a few more from the tiles for size. Rather than load
+every column into every tile, each harvester now hands the whole source row on
+as `raw`; `normalize.py` keeps it out of the feature and writes it to
+`map/data/pieces/<source>/<hh>.json` (256 pieces, keyed by the feature's id,
+FNV-1a as SkyTruth's), which the refresh workflow already commits (`map/data`).
+`bindPopup` reads the record's piece on a click and adds "Every field the
+source publishes" under what the tiles carried; a source with no pieces is
+asked once and left alone. Two limits: `PIECES_SKIP` (Climate TRACE, millions
+of period rows) and `PIECES_LIMIT` (60 MB per source; over it, the log says so
+and no pieces are written). The pieces appear when the refresh workflow next
+rebuilds a source. `fieldRows` (the copied-file layers) also dropped every
+nested value; it writes them out now.
+
 ## The box rearranged to the owner's list (22 September)
 
 `PANEL_ORDER` was rewritten from the owner's `layers-reallocated.md`, heading

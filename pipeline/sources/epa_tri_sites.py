@@ -149,6 +149,9 @@ def fetch():
                 "year": None,
                 "url": (f"https://enviro.epa.gov/enviro/tris_control_v2.tris_print?"
                         f"tris_id={ident}" if ident else None),
+                # Every column the source published, kept whole beside the chosen fields:
+                # normalize.py files it in map/data/pieces/<source>/ and the map shows it on click.
+                "raw": r,
                 "extra": {
                     "state": _get(r, "state_abbr") or abbr,
                     "city": _get(r, "city_name"),

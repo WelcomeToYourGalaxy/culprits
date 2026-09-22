@@ -52,6 +52,9 @@ def fetch():
             "unit": "model grid cell",
             "year": None,
             "url": r.get("url") or None,
+            # Every column the source published, kept whole beside the chosen fields:
+            # normalize.py files it in map/data/pieces/<source>/ and the map shows it on click.
+            "raw": r,
             "extra": {
                 # Fixed rather than read from `precise`, because what makes
                 # these imprecise is that they are cells, not that a coordinate

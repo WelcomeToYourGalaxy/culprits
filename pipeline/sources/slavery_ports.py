@@ -49,6 +49,9 @@ def fetch():
             "unit": "port",
             "year": None,
             "url": r.get("url") or None,
+            # Every column the source published, kept whole beside the chosen fields:
+            # normalize.py files it in map/data/pieces/<source>/ and the map shows it on click.
+            "raw": r,
             "extra": {
                 "precision": _wtyg.precision_from(r),
                 "type": r.get("type"),

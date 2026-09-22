@@ -123,6 +123,9 @@ def fetch():
             "unit": "hectares under land deals",
             "year": max(a["years"]) if a["years"] else None,
             "url": "https://landmatrix.org/list/deals",
+            # Every column the source published, kept whole beside the chosen fields:
+            # normalize.py files it in map/data/pieces/<source>/ and the map shows it on click.
+            "raw": a,
             "extra": {
                 "deals": a["deals"],
                 "investor_countries": ", ".join(sorted(a["investors"])[:8]),

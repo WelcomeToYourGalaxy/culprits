@@ -61,6 +61,9 @@ def fetch():
             "unit": "ammonia / urea plant",
             "year": None,
             "url": None,
+            # Every column the source published, kept whole beside the chosen fields:
+            # normalize.py files it in map/data/pieces/<source>/ and the map shows it on click.
+            "raw": row,
             "extra": {
                 "company": row.get("company"),
                 "capacity": row.get("capacity"),

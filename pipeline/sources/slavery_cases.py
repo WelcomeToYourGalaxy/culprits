@@ -95,6 +95,9 @@ def fetch():
             "unit": "identified cases",
             "year": None,
             "url": "https://www.ctdatacollaborative.org/",
+            # Every column the source published, kept whole beside the chosen fields:
+            # normalize.py files it in map/data/pieces/<source>/ and the map shows it on click.
+            "raw": c,
             "extra": {
                 "basis": basis,
                 "rows": c["rows"],

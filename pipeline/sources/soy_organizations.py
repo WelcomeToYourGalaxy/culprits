@@ -52,6 +52,9 @@ def fetch():
             "unit": "soy industry body",
             "year": None,
             "url": None,
+            # Every column the source published, kept whole beside the chosen fields:
+            # normalize.py files it in map/data/pieces/<source>/ and the map shows it on click.
+            "raw": row,
             "extra": {
                 "address": row.get("address"),
                 "country": row.get("country"),

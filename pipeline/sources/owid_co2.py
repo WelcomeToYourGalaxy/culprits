@@ -93,6 +93,9 @@ def fetch():
             "unit": "million tonnes CO₂ (production, annual)",
             "year": year,
             "url": "https://ourworldindata.org/co2-emissions",
+            # Every column the source published, kept whole beside the chosen fields:
+            # normalize.py files it in map/data/pieces/<source>/ and the map shows it on click.
+            "raw": row,
             "extra": {
                 "per_capita": _num(row.get("co2_per_capita")),
                 "cumulative": _num(row.get("cumulative_co2")),

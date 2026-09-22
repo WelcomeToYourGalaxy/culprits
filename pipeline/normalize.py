@@ -35,8 +35,24 @@ SOURCES = {s["id"]: s for s in REGISTRY["sources"]}
 FIELDS = ("id", "source", "name", "value", "unit", "year", "licence", "url")
 
 
+def shard(key):
+    """Which of 256 pieces a record is in: FNV-1a over its id, two hex digits.
+    map/app.js (pieceOf) has the same function; the two must agree."""
+    h = 0x811C9DC5
+    for b in str(key).encode("utf-8"):
+        h = ((h ^ b) * 0x01000193) & 0xFFFFFFFF
+    return f"{h % 256:02x}"
+
+
+# Sources whose raw rows are too many to keep as pieces on GitHub: Climate
+# TRACE is one row per source per period, millions of them. Their chosen
+# fields (extra) still reach the tiles; the whole row does not.
+PIECES_SKIP = {"climate_trace"}
+PIECES_LIMIT = 60 * 1024 * 1024
+
+
 def feature(source_id, ident, name, lon, lat, value=None, unit=None,
-            year=None, url=None, extra=None):
+            year=None, url=None, extra=None, raw=None):
     """Build one normalized GeoJSON feature. Raises rather than guessing."""
     meta = SOURCES.get(source_id)
     if meta is None:
@@ -66,15 +82,20 @@ def feature(source_id, ident, name, lon, lat, value=None, unit=None,
         # collide with a schema field or be mistaken for one.
         props.update({f"x_{k}": v for k, v in extra.items()})
 
-    return {
+    out = {
         "type": "Feature",
         "geometry": {"type": "Point", "coordinates": [lon, lat]},
         "properties": props,
     }
+    # The whole source row, for the pieces the map reads on a click. Not a
+    # property: it would weigh down every tile.
+    if raw and source_id not in PIECES_SKIP:
+        out["_raw"] = raw
+    return out
 
 
 def country_row(source_id, iso3, name, value=None, unit=None, year=None,
-                url=None, extra=None, **_):
+                url=None, extra=None, raw=None, **_):
     """
     A country aggregate. Same eight fields, but keyed by ISO3 instead of a
     coordinate — because a total for a country has no point location, and
@@ -109,19 +130,52 @@ def write_countries(rows, path):
     return len(out)
 
 
-def write(features, path):
-    """Line-delimited GeoJSON — what tippecanoe wants, and streamable."""
+def write(features, path, pieces_dir=None):
+    """Line-delimited GeoJSON — what tippecanoe wants, and streamable.
+
+    With pieces_dir, every feature's whole source row ("_raw", from the
+    harvester's "raw") goes to <pieces_dir>/<hh>.json, keyed by the feature's
+    id, so the map can show every field the source published on a click
+    without carrying it in the tiles. Nothing is dropped: a row that is not a
+    JSON value is written as text."""
     pathlib.Path(path).parent.mkdir(parents=True, exist_ok=True)
     n = 0
+    raws = {}
     # Gzipped when the caller asks for it. tippecanoe reads gzipped GeoJSON
     # natively, so this costs nothing downstream and turns a 30 GB intermediate
     # into roughly 3 GB. Nothing is dropped — the bytes are the same bytes.
     opener = gzip.open if str(path).endswith(".gz") else open
     with opener(path, "wt", encoding="utf-8") as fh:
         for f in features:
+            raw = f.pop("_raw", None)
+            if raw is not None and pieces_dir:
+                raws[f["properties"]["id"]] = raw
             fh.write(json.dumps(f, separators=(",", ":")) + "\n")
             n += 1
+    if pieces_dir:
+        write_pieces(raws, pieces_dir)
     return n
+
+
+def write_pieces(raws, pieces_dir):
+    """The pieces: 256 files at most, or none if the lot would be too big for the repo."""
+    d = pathlib.Path(pieces_dir)
+    for old in d.glob("*.json") if d.exists() else []:
+        old.unlink()
+    if not raws:
+        return 0
+    size = sum(len(json.dumps(v, ensure_ascii=False, default=str)) for v in raws.values())
+    if size > PIECES_LIMIT:
+        print(f"  pieces: {len(raws):,} whole rows would be {size / 1e6:.0f} MB, over the {PIECES_LIMIT / 1e6:.0f} MB kept on GitHub; not written")
+        return 0
+    d.mkdir(parents=True, exist_ok=True)
+    by = {}
+    for k, v in raws.items():
+        by.setdefault(shard(k), {})[k] = v
+    for hh, part in by.items():
+        (d / f"{hh}.json").write_text(json.dumps(part, ensure_ascii=False, separators=(",", ":"), default=str), encoding="utf-8")
+    print(f"  pieces: {len(raws):,} whole rows in {len(by)} files, {size / 1e6:.1f} MB -> {d}")
+    return len(raws)
 
 
 def check_isolation(source_id):
@@ -173,7 +227,7 @@ def main():
         print(f"{args.source}: {n} country aggregates -> {out}")
     else:
         feats = (feature(args.source, **row) for row in rows)
-        n = write(feats, args.outfile)
+        n = write(feats, args.outfile, pieces_dir=f"map/data/pieces/{args.source}")
         print(f"{args.source}: {n} features -> {args.outfile}")
 
 

@@ -1605,6 +1605,7 @@ function pieceOf(key) {
   return (h % 256).toString(16).padStart(2, "0");
 }
 const pieces = new Map();
+const noPieces = new Set();      // sources whose pieces are not there, so they are not asked for again
 function readPiece(base, key) {
   const at = `${base}/${pieceOf(key)}.json`;
   if (!pieces.has(at)) {
@@ -3464,8 +3465,11 @@ function abattoirPartsInit() { /* both parts are rows of their own now */ }
 /* ---------- live places, batch 2 ---------- */
 const boxOpen = `<div style="font:13px/1.4 system-ui,sans-serif;max-width:340px">`;
 function fieldRows(p, skip = []) {
-  return Object.keys(p).filter((k) => !skip.includes(k) && p[k] !== null && p[k] !== "" && typeof p[k] !== "object")
-    .map((k) => `<tr><th style="text-align:left;padding-right:8px;vertical-align:top">${escapeHtml(k.replace(/_/g, " "))}</th><td>${escapeHtml(p[k])}</td></tr>`).join("");
+  // A nested value (a list, a record inside the record) is written out as
+  // text rather than left off: it used to be dropped without a word.
+  const text = (v) => (typeof v === "object" ? JSON.stringify(v) : String(v));
+  return Object.keys(p).filter((k) => !skip.includes(k) && p[k] !== null && p[k] !== "" && !(Array.isArray(p[k]) && !p[k].length))
+    .map((k) => `<tr><th style="text-align:left;padding-right:8px;vertical-align:top">${escapeHtml(k.replace(/_/g, " "))}</th><td>${escapeHtml(text(p[k]))}</td></tr>`).join("");
 }
 function pointOf(r) {
   const n = (v) => (v === null || v === undefined || v === "" ? NaN : Number(v));
@@ -7468,8 +7472,22 @@ function bindPopup(layerId) {
         (p.url ? `<br><a href="${p.url}" target="_blank" rel="noopener">Source record</a>` : "") +
         `</div>`;
 
-    new maplibregl.Popup({ closeButton: true, maxWidth: "280px" })
+    const popup = new maplibregl.Popup({ closeButton: true, maxWidth: "280px" })
       .setLngLat(e.lngLat).setHTML(html).addTo(map);
+    // Then every field the source published, from the layer's pieces
+    // (map/data/pieces/<source>/, written by the pipeline beside the tiles).
+    // A layer with no pieces - one built before they existed, or one too big
+    // for them - shows what the tiles carry and nothing more.
+    if (count === 1 && p.source && p.id != null && !noPieces.has(p.source)) {
+      readPiece(`data/pieces/${p.source}`, p.id).then((piece) => {
+        const raw = piece && piece[String(p.id)];
+        if (!raw || typeof raw !== "object") return;
+        const rows = Object.entries(raw).filter(([, v]) => v !== null && v !== "" && !(Array.isArray(v) && !v.length))
+          .map(([k, v]) => `<tr><th style="text-align:left;padding-right:8px;vertical-align:top">${escapeHtml(k.replace(/_/g, " "))}</th>` +
+            `<td>${escapeHtml(typeof v === "object" ? JSON.stringify(v) : String(v))}</td></tr>`).join("");
+        if (rows && popup.isOpen()) popup.setHTML(html + `<div class="meta"><b>Every field the source publishes</b><table>${rows}</table></div>`);
+      }).catch(() => noPieces.add(p.source));
+    }
   });
   map.on("mouseenter", layerId, () => (map.getCanvas().style.cursor = "pointer"));
   map.on("mouseleave", layerId, () => (map.getCanvas().style.cursor = ""));

@@ -74,6 +74,9 @@ def fetch():
             "unit": "MW capacity",
             "year": int(row["year"]) if str(row.get("year", "")).isdigit() else None,
             "url": row.get("url") or None,
+            # Every column the source published, kept whole beside the chosen fields:
+            # normalize.py files it in map/data/pieces/<source>/ and the map shows it on click.
+            "raw": row,
             "extra": {
                 "status": row.get("status"),
                 "country": row.get("country"),
