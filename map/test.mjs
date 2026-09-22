@@ -2583,8 +2583,27 @@ console.log("\nNusantara's layers say what they show");
     check("a row's description sits behind an i beside its other marks, not as the whole row's hover text",
           /function infoMark\(text\)/.test(src) && !/row\.title = item\.about/.test(src) && /\$\{siteLink\(cfg\.id\)\}\$\{infoMark\(item\.about\)\}/.test(src) &&
           /if \(e\.target && e\.target\.closest && e\.target\.closest\("\.info"\)\) e\.preventDefault\(\);/.test(src));
+    const G = new Function(src.slice(src.indexOf("const GFW_TITLES = {"), src.indexOf("// Datasets with no tiles of their own")) + "; return { gfwTitle, gfwPickAsset };")();
+    const A = (asset_type, status, asset_uri) => ({ asset_type, status, asset_uri });
+    check("a Global Forest Watch dataset is drawn from its ready-made tiles before the slow made-on-request ones",
+          G.gfwPickAsset([A("Dynamic vector tile cache", "saved", "https://t/dynamic/{z}/{x}/{y}.pbf"), A("Static vector tile cache", "saved", "https://t/default/{z}/{x}/{y}.pbf")]).uri === "https://t/default/{z}/{x}/{y}.pbf" &&
+          G.gfwPickAsset([A("Dynamic vector tile cache", "saved", "https://t/dynamic/{z}/{x}/{y}.pbf")]).slow === true);
+    check("\u2026a tile cache still being made is not drawn from, and the row can say it is waiting",
+          G.gfwPickAsset([A("Raster tile set", "saved", "s3://x"), A("Raster tile cache", "pending", "https://t/{z}/{x}/{y}.png")]).how === "none" &&
+          G.gfwPickAsset([A("Raster tile cache", "pending", "https://t/{z}/{x}/{y}.png")]).waiting === true &&
+          G.gfwPickAsset([A("Raster tile set", "saved", "s3://x"), A("COG", "saved", "s3://y")]).waiting === false);
+    check("\u2026a dataset with no title is named where what it is can be shown, and otherwise says it has none",
+          /Maus et al/.test(G.gfwTitle({ dataset: "pangaea_global_mining", metadata: {} })) &&
+          G.gfwTitle({ dataset: "wur_x_class", metadata: {} }) === "Wur x class (Global Forest Watch gives this dataset no title)" &&
+          G.gfwTitle({ dataset: "a", metadata: { title: "Tree cover" } }) === "Tree cover");
+    const harvester = fs.readFileSync(path.join(HERE, "..", "pipeline", "sources", "abattoir_facilities.py"), "utf8");
+    check("a harvested layer's box shows every field its source published, not the first six, and scrolls when long",
+          !/\.slice\(0, 6\)\s*\n\s*\.map\(\(\[k, v\]\) => `\$\{k\.slice\(2\)/.test(src) && /k\.startsWith\("x_"\) && v !== null/.test(src) &&
+          /maplibregl-popup-content\{max-height:60vh;overflow-y:auto/.test(fs.readFileSync(path.join(HERE, "index.html"), "utf8")));
+    check("\u2026and the facilities harvester carries through what Trase published for a site, tax number included",
+          /PUBLISHED_AS = \{"br_trase": "trase"\}/.test(harvester) && /\*\*_published\(members\),/.test(harvester));
     check("a catalogue row says what became of it on the row itself, not on the hidden row",
-          /function rowSay\(key, text\)/.test(src) && /rowSay\(d\.key, "no map tiles are published/.test(src) && /its tiles are not answering/.test(src));
+          /function rowSay\(key, text\)/.test(src) && /no map tiles are published for this dataset, only files to download/.test(src) && /its tiles are not answering/.test(src));
   }
   check("two more are named from Nusantara's own menu, and the three nobody can vouch for are still left alone",
         table.concessionfca_spv === "Forest Clearance Authority (FCA) concessions" && table.millopbufferol50km_spv === "Near palm oil mills, 50 km" &&

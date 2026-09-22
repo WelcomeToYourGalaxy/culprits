@@ -34,6 +34,8 @@ addresses were geocoded with Photon and Nominatim, both built on OpenStreetMap
 — ODbL again for those positions. Built isolated, like local_projects.
 """
 
+import json
+
 import _wtyg
 
 REPO = "abattoir-atlas"
@@ -53,6 +55,35 @@ def resolve():
 def _join(values):
     values = [str(v) for v in (values or []) if v not in (None, "")]
     return "; ".join(values) or None
+
+
+# Short names for the registers whose own published fields the atlas carries
+# through (members[].published). Only Trase so far.
+PUBLISHED_AS = {"br_trase": "trase"}
+
+
+def _published(members):
+    """Every field a register published beyond the atlas's own, flattened for the
+    popup: trase_status, trase_cnpj, trase_capacity_value_text and so on. Where
+    two records of one register were merged into a facility, their values sit
+    side by side. Nothing is left out; a nested value is written as JSON."""
+    out = {}
+    for m in members:
+        short = PUBLISHED_AS.get(m.get("source"))
+        if not short:
+            continue
+        for k, v in (m.get("published") or {}).items():
+            if v in (None, ""):
+                continue
+            if isinstance(v, (list, dict)):
+                v = json.dumps(v, ensure_ascii=False, separators=(",", ":"))
+            key = f"{short}_{k}"
+            v = str(v)
+            if key in out and v not in out[key].split(" | "):
+                out[key] += " | " + v
+            else:
+                out.setdefault(key, v)
+    return out
 
 
 def fetch():
@@ -99,6 +130,9 @@ def fetch():
                 "position_precision": raw_precision,
                 # The atlas's own flag for a merge it was not sure of.
                 "merge_needs_review": bool(r.get("review")),
+                # Then everything Trase published for the site: inspection level
+                # and number, status, capacity, export approvals, tax number.
+                **_published(members),
             },
         }
 

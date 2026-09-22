@@ -242,6 +242,52 @@ as before, so nothing breaks while the tiling catches up.
 
 ---
 
+## Fields lost on the way to the popup (item 9), first finding
+
+`bindPopup` - the box of every harvested point layer - kept only the first six
+`x_` fields of a record. The cut is gone: every published field is listed, the
+values escaped, and the box scrolls (60vh). That alone restores, for the
+registered facilities, the address, country, how the position was found and
+the merge flag, which sat seventh and later.
+
+The atlas now publishes what Trase gave for a site (`members[].published`,
+`dedup.PUBLISH_RAW`); `pipeline/sources/abattoir_facilities.py` flattens it into
+the record as `trase_*` (`_published`): inspection level and number, status,
+capacity, export approvals, types, commodities, tax number. Checked against the
+atlas's real output: 184,552 facilities drawn, 14,610 carrying Trase's fields.
+They reach the map when this repo's refresh workflow next rebuilds the
+facilities archive. The other registers' extra columns still stop at the atlas's
+parsers; adding a register to `PUBLISH_RAW` there and `PUBLISHED_AS` here is all
+it takes once its size has been looked at.
+
+## Global Forest Watch datasets that drew nothing
+
+Read from the asset lists the owner pulled (21 September):
+- A dataset can list a tile cache that is still **pending** (`tsc_drivers`); it
+  has no tiles. Only `saved` assets are drawn from now (`gfwPickAsset`).
+- Where both exist, the **static** vector cache is used before the dynamic one,
+  which is generated per request and slow (mining concessions). Where only a
+  dynamic one exists (`pangaea_global_mining`) the row says it fills in slowly.
+- Several have **no tile cache at all**, only GeoTIFFs and COGs on S3:
+  DIST-ALERT (`umd_glad_dist_alerts`), the integrated disturbance alerts, the
+  drivers of disturbance alerts (`wur_alert_drivers`), WRI/Google drivers of tree
+  cover loss. Their rows now say so, and the two DIST ones point at the row that
+  already draws those alerts through the Worker. Global Forest Watch's own map
+  draws these from the COGs through a tile service; whether that service answers
+  an outside page is being checked with one request before anything is built.
+- A dataset with no title (`pangaea_global_mining`) is titled in `GFW_TITLES`
+  where what it is can be shown; any other says it has no title.
+
+## Tang & Werner 2023, built; what it carries
+
+`tiles/mine_features.pmtiles` (62 MB, one file): 74,548 outlines, 74,547 with
+their own outline at zoom 13. Its columns are OBJECTID, Name, Shape_Le_1 and
+Shape_Area - **no commodity and no impact figure**. `Name` has 31 distinct
+values over all 74,548 outlines, mostly digitising leftovers ("Placemark",
+"polygon" in Chinese) with a handful of real hints (Au, Cu, Fe, diamond,
+chromite, coal, tungsten, nitrate). The owner's condition for a map row was
+that it carry commodities or impacts; it does not, so no row has been added.
+
 ## Round of 21 September: what the owner found on the live map
 
 - **Four headings read "none yet" with dozens of rows under them.** The count

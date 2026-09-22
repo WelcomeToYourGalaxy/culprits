@@ -331,6 +331,8 @@
   .maplibregl-popup-content{background:var(--peat2);color:var(--bone);
     border:1px solid var(--rule);border-radius:2px;font-size:13px;padding:11px 13px;max-width:260px}
   /* Not inside a site map's own box (.wtyg-box): those carry their map's styling. */
+  /* A box that lists every field a source publishes can be long: it scrolls rather than running off the screen. */
+  .maplibregl-popup:not(.wtyg-box) .maplibregl-popup-content{max-height:60vh;overflow-y:auto;overflow-wrap:anywhere}
   .maplibregl-popup:not(.wtyg-box) .maplibregl-popup-content b{display:block;margin-bottom:3px}
   .maplibregl-popup:not(.wtyg-box) .maplibregl-popup-content .meta{color:var(--dim);font-size:12px;margin-top:5px}
   .maplibregl-popup-tip{border-top-color:var(--peat2)!important;border-bottom-color:var(--peat2)!important}

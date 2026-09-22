@@ -4321,6 +4321,42 @@ async function addWmsMenuLayer(cfg) {
 }
 
 /* ---------- Global Forest Watch's whole catalogue, as a menu ---------- */
+// A dataset Global Forest Watch lists without a title gets one here, where what
+// it is can be shown. pangaea_global_mining (version 2) is the mining-area
+// outlines of Maus et al., published through the PANGAEA data library - the
+// same work as the Mines row, in Global Forest Watch's copy. Any other untitled
+// dataset shows its id in words, marked as having no title, rather than a guess.
+const GFW_TITLES = {
+  pangaea_global_mining: "Mining areas worldwide \u2014 outlines by Maus et al., from the PANGAEA data library (Global Forest Watch\u2019s copy)",
+};
+function gfwTitle(d) {
+  const meta = d.metadata || {};
+  if (meta.title) return meta.title;
+  if (GFW_TITLES[d.dataset]) return GFW_TITLES[d.dataset];
+  const words = String(d.dataset).replace(/_/g, " ");
+  return `${words.charAt(0).toUpperCase()}${words.slice(1)} (Global Forest Watch gives this dataset no title)`;
+}
+// Which of a dataset's assets to draw from. Only one marked "saved": a tile
+// cache still "pending" has no tiles behind it (tsc_drivers), and drew nothing.
+// A static vector cache before a dynamic one: dynamic tiles are made on request
+// from the database and are slow, which is what made the mining concessions and
+// the PANGAEA mining layer seem not to load.
+function gfwPickAsset(assets) {
+  const ok = (assets || []).filter((a) => String(a.status || "saved").toLowerCase() === "saved" && /^https?:/.test(a.asset_uri || ""));
+  const kind = (re) => ok.find((a) => re.test(a.asset_type || ""));
+  const vec = kind(/static vector tile cache/i) || kind(/vector tile cache/i);
+  if (vec) return { how: "vector", slow: !/static/i.test(vec.asset_type), uri: vec.asset_uri };
+  const ras = kind(/raster tile cache/i);
+  if (ras) return { how: "raster", uri: ras.asset_uri };
+  const waiting = (assets || []).some((a) => /tile cache/i.test(a.asset_type || "") && !/saved/i.test(a.status || ""));
+  return { how: "none", waiting };
+}
+// Datasets with no tiles of their own whose alerts another row already draws.
+const GFW_DRAWN_BY = {
+  umd_glad_dist_alerts: "Any loss of plant cover, worldwide (DIST-ALERT)",
+  gfw_integrated_dist_alerts: "Any loss of plant cover, worldwide (DIST-ALERT)",
+};
+
 async function addGfwMenuLayer(cfg) {
   const all = [];
   for (let page = 1; page < 30; page++) {
@@ -4335,7 +4371,7 @@ async function addGfwMenuLayer(cfg) {
   // record nothing rather than guessed at from the name.
   const items = all.map((d) => {
     const meta = d.metadata || {};
-    const said = meta.title || d.dataset;
+    const said = gfwTitle(d);
     const where = String(meta.geographic_coverage || "").trim();
     return { id: d.dataset, meta,
       title: where && !new RegExp(where.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(said) ? `${said} \u2014 ${where}` : said };
@@ -4371,8 +4407,9 @@ async function addGfwMenuLayer(cfg) {
       const v = await getJson(`${cfg.api}/dataset/${d.id}/latest`);
       const version = (v.data && v.data.version) || "latest";
       const assets = (await getJson(`${cfg.api}/dataset/${d.id}/${version}/assets`)).data || [];
-      const vec = assets.find((a) => /vector tile cache/i.test(a.asset_type || ""));
-      const ras = assets.find((a) => /raster tile cache/i.test(a.asset_type || ""));
+      const asset = gfwPickAsset(assets);
+      const vec = asset.how === "vector" ? { asset_uri: asset.uri } : null;
+      const ras = asset.how === "raster" ? { asset_uri: asset.uri } : null;
       const about = [d.meta.license ? `licence: ${d.meta.license}` : "", d.meta.source ? `source: ${String(d.meta.source).replace(/\[|\]\([^)]*\)/g, "")}` : ""].filter(Boolean).join("; ");
       if (vec) {
         const uri = vec.asset_uri;
@@ -4395,14 +4432,18 @@ async function addGfwMenuLayer(cfg) {
         ids.push(`${src}-r`);
       } else {
         setLayerState(cfg.id, `${d.title}: Global Forest Watch publishes no map tiles for this dataset (download only)`);
-        rowSay(d.key, "no map tiles are published for this dataset, only a download \u2014 nothing to draw");
+        rowSay(d.key, (asset.waiting
+          ? "Global Forest Watch lists map tiles for this dataset but has not finished making them \u2014 nothing to draw yet"
+          : "no map tiles are published for this dataset, only files to download \u2014 nothing to draw") +
+          (GFW_DRAWN_BY[d.id] ? `. The same alerts are drawn by the row \u201c${GFW_DRAWN_BY[d.id]}\u201d` : ""));
         return;
       }
       drawn.set(d.id, ids);
       cfg._layerIds = [].concat(...drawn.values());
       applyAll(visibility.get(cfg.id) || "visible");
       said();
-      rowSay(d.key, vec ? "drawn from its vector tiles" : "drawn from its picture tiles, to zoom 12");
+      rowSay(d.key, vec ? (asset.slow ? "drawn from tiles Global Forest Watch makes as they are asked for, so it fills in slowly" : "drawn from its vector tiles")
+        : "drawn from its picture tiles, to zoom 12");
       // A tile that fails says so on the row, once, instead of leaving an empty map.
       const failed = (e) => {
         if (!e || e.sourceId !== src) return;
@@ -7206,10 +7247,13 @@ function bindPopup(layerId) {
     // a facility record with no release figure. Rather than announce the
     // absence, show what the source does know.
     const detail = Object.entries(p)
+      // Every field the source published, not the first six: the cut-off hid
+      // most of what each harvested layer knows (a facility's address, country,
+      // how its position was found; Trase's capacity, status and export
+      // approvals). The box scrolls when the list is long.
       .filter(([k, v]) => k.startsWith("x_") && v !== null && v !== "" &&
                           k !== "x_precision")
-      .slice(0, 6)
-      .map(([k, v]) => `${k.slice(2).replace(/_/g, " ")}: ${v}`)
+      .map(([k, v]) => `${escapeHtml(k.slice(2).replace(/_/g, " "))}: ${escapeHtml(String(v))}`)
       .join("<br>");
     const value = p.value != null && p.value !== ""
       ? `${Number(p.value).toLocaleString()} ${p.unit || ""}`
