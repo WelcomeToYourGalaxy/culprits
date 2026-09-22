@@ -394,6 +394,55 @@ owner's request, so a land-cover layer that no other rule claims gets no row
 and is counted in the console (`LEFT_OUT`). Agriculture > Moratoriums from the
 list was not made: Nusantara has one moratorium layer and it is a forest one.
 
+## Round of 22 September (2): the box refiled, rows taken out
+
+The owner sent 44 items; this round is the filing and removal ones (1, 2, 3, 5,
+6, 8, 9, 10, 11, 12, 13, 19, 20, 27, 28, 31, 33, 35, 38 and the headings of 39).
+
+- **Catalogue rows are filed by title and id only.** `catalogueRows` used to
+  add each row's long description to the words the rules read, and a passing
+  word there filed rows under subjects they are not about: the drivers of tree
+  cover loss under Fire (fire is one driver), dams and protected areas under
+  Fire, oil and gas concessions and intact forest landscapes under Mining.
+  Trase's rows still carry their own `fileBy`.
+- **`CATALOGUE_BY_TITLE`**, read before `CATALOGUE_PLACES`, against the title:
+  the first match decides and its paths are the row's only homes; `null`
+  takes the row out (`(taken out)`, listed in the console). It holds the
+  owner's placements by name. Titles are matched by words, not ids, because
+  the ids could not be read from here; `node map/filing-report.mjs [words]`
+  reads both catalogues live and prints what each rule caught and where every
+  row lands. **Run it after any change to the rules.**
+- Taken out by name: annual surface temperature anomalies; burned area in
+  protected areas (WDPA); burned area in Indonesia / Equatorial Asia /
+  Malaysia / Borneo; intact forest landscapes other than the worldwide one.
+  Burned peatland and the peat-burning emissions are not taken out.
+- **A Global Forest Watch row found to have nothing to draw leaves the box**
+  (`catalogueRowGone`, 8 s after saying why). The asset list is meant to keep
+  such rows out from the start; the owner seeing "has not finished making
+  them" means the list was not read in their browser. Each kind is now read on
+  its own, twice if the first try fails, with 60 s a page.
+- `hotspot` in the Fire rule no longer catches biodiversity hotspots.
+- Climate: carbon bombs, the Carbon Majors and Banking on Climate Chaos under
+  Carbon dioxide ("Companies and financiers" under Climate is gone); Nitrous
+  oxide holds Soy, Corn and Grain; Infrastructure emitting more than one gas
+  now takes oil and gas concessions (also under Oil and gas drilling).
+- Pollution by pollutant: General and all pollutants (Climate TRACE air
+  pollution until it is split per pollutant, EPA toxic releases), Nitrogen
+  dioxide (moved from Climate), Wastewater, Plastics, Oil spills and slicks.
+- Biodiversity loss > Fish holds dams. Forest greenhouse gas emissions is
+  under Deforestation only, as asked ("move"). The Scribd document is in
+  `PANEL_REMOVED`.
+- The drivers of disturbance alerts row now files under Deforestation > Tree
+  cover loss and alerts by its title (it had been under Mining through its
+  description).
+
+Still to do from the list: legends and colour for the driver layers and
+DIST-ALERT at the world view (21, 32, 34, 36), visibility of mining outlines
+and vessels (37, 41), dots at every zoom (25), LIVE / NOT LIVE marks (43), the
+Climate TRACE pollutants as rows (39), the layers that do not draw or are too
+slow (4, 7, 14-18, 22, 23, 24, 26, 29, 30, 40, 42, seas of plastic), soy and
+corn emissions (24) and D-Waste (44).
+
 ## Concessions filed by what they are for; "Land held under permit" retired
 
 Asked for on 22 September. `CATALOGUE_PLACES` no longer has a generic permit

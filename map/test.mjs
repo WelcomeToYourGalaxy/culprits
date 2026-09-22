@@ -2072,8 +2072,8 @@ console.log("\nGlobal Safety Net");
 console.log("\nClimate TRACE air pollution");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("the air-pollution sources are under Pollution > Air, and population density under Overpopulation (22 September)", /id: "ct_air"/.test(src) && /id: "ct_pop"/.test(src) &&
-        /\{ h: 4, t: "Air" \}, "ct_air",/.test(src) && /\{ h: 3, t: "Overpopulation" \}, "ct_pop",/.test(src));
+  check("the air-pollution sources are under Pollution > General and all pollutants, and population density under Overpopulation", /id: "ct_air"/.test(src) && /id: "ct_pop"/.test(src) &&
+        /\{ h: 4, t: "General and all pollutants" \}, "ct_air", "epa_tri_sites", "epa_widget",/.test(src) && /\{ h: 3, t: "Overpopulation" \}, "ct_pop",/.test(src));
   check("a plume is drawn as one still hotspot, graded by its concentration, not a set of outlines",
         /function ctPlumeShape\(gj\)/.test(src) && /type: "heatmap", source: `\$\{cfg\.id\}-plume`/.test(src) && /"fill-opacity": \["interpolate", \["linear"\], \["get", "_strength"\]/.test(src));
   {
@@ -2084,7 +2084,7 @@ console.log("\nClimate TRACE air pollution");
   check("\u2026its figures and plume are read through the Worker, since Climate TRACE sends no CORS header",
         /\$\{WORKER\}\/ct-asset\?id=/.test(src) && /\$\{WORKER\}\/ct-plume\?file=/.test(src) &&
         /url\.pathname === "\/v1\/ct-asset" \|\| url\.pathname === "\/v1\/ct-plume"/.test(fs.readFileSync(path.join(HERE, "..", "worker", "index.js"), "utf8")));
-  check("nitrogen dioxide rows go under their own gas heading under Climate", /\{ h: 4, t: "Nitrogen dioxide" \},/.test(src) && /nitrogen dioxide\|\\bno2\\b/.test(src));
+  check("nitrogen dioxide rows go under their own heading under Pollution", /\{ h: 4, t: "Nitrogen dioxide" \},/.test(src) && /nitrogen dioxide\|\\bno2\\b\|\\bnox\\b\|nitric oxide\/i, P \+ " > Pollution > Nitrogen dioxide"/.test(src));
   check("every pollutant Climate TRACE reports can be chosen", ["pm2_5", "bc", "oc", "so2", "vocs", "co", "nh3", "nox", "co2e_100yr"].every((g) => src.includes(`["${g}",`)));
   check("a click reads the plume and the figures live", /ct-plume\?file=\$\{encodeURIComponent\(p\.plume\)\}/.test(src) && /api\.c10e\.org\/v7\/app\/asset/.test(fs.readFileSync(path.join(HERE, "..", "worker", "index.js"), "utf8")));
   const html = new Function("escapeHtml", "CT_GASES", src.slice(src.indexOf("function ctAssetHtml("), src.indexOf("async function addCtAirLayer(")) + "; return ctAssetHtml;")((s) => String(s), [["pm2_5", "PM2.5"]]);
@@ -3008,6 +3008,56 @@ console.log("\nACGF removed; oil slicks grouped; the slick archive seen from afa
         o.PANEL_ORDER.indexOf("skytruth_monitor") > at("Terrestrial slicks") && o.PANEL_ORDER.indexOf("skytruth_monitor") < at("Marine slicks") &&
         ["cerulean_slicks", "cerulean_sources", "slick_archive", "skytruth_voc"].every((i) => o.PANEL_ORDER.indexOf(i) > at("Marine slicks") && o.PANEL_ORDER.indexOf(i) < at("Construction")));
   check("the slick archive draws a point per slick wider out", /id: `\$\{cfg\.id\}-pt`, type: "circle", source: `\$\{src\}-pt`, maxzoom: 7/.test(src));
+}
+
+console.log("\nround of 22 September (2): the box refiled, rows taken out");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const places = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return cataloguePlaces;")();
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const o = new Function(body + "; return { PANEL_ORDER, PANEL_REMOVED };")();
+  const order = o.PANEL_ORDER, at = (t, from = 0) => order.findIndex((x, i) => i >= from && x && x.t === t);
+  const P = "Destruction > Of the planet", AG = P + " > Meat and agriculture > Agriculture";
+  const f = (t) => places(t, t).join(" | ");
+  check("the drivers of tree cover loss are deforestation, not fire",
+        f("Tree cover loss by dominant driver") === P + " > Deforestation > Tree cover loss and alerts" &&
+        f("Drivers of tree cover loss (WRI/Google)") === P + " > Deforestation > Tree cover loss and alerts");
+  check("soy planted area is under Nitrous oxide > Soy and still under Agriculture",
+        f("Soy planted area \u2014 South America") === `${P} > Climate > Nitrous oxide > Soy | ${AG} > Soy, corn and grain` &&
+        at("Soy", at("Nitrous oxide")) > at("Nitrous oxide") && at("Soy", at("Nitrous oxide")) < at("F-gases"));
+  check("protected areas, intact forest landscapes worldwide and biodiversity hotspots are biodiversity loss",
+        f("Protected areas (WDPA)") === P + " > Biodiversity loss" &&
+        f("Intact forest landscapes \u2014 Global") === P + " > Biodiversity loss" &&
+        f("Biodiversity hotspots (global, land only)") === P + " > Biodiversity loss");
+  check("dams go under Biodiversity loss > Fish",
+        f("Major dams") === P + " > Biodiversity loss > Fish" && at("Fish") > at("Biodiversity loss") && at("Fish") < at("Spatial plans"));
+  check("forest greenhouse gas emissions go under Deforestation",
+        f("Forest greenhouse gas emissions") === P + " > Deforestation");
+  check("DIST-ALERT is under Construction, Biodiversity loss and Deforestation, not Mining",
+        f("Global all ecosystem disturbance alerts (DIST-ALERT)") === `${P} > Construction | ${P} > Biodiversity loss | ${P} > Deforestation > Tree cover loss and alerts`);
+  check("oil and gas concessions go under Oil and gas drilling and Climate, not Mining",
+        f("Oil and gas concessions") === `${P} > Oil and gas drilling | ${P} > Climate > Infrastructure emitting more than one gas`);
+  check("the named rows are taken out",
+        ["Annual surface temperature anomalies", "Burned areas in WDPA protected areas", "Burned area, two years at a time \u2014 Equatorial Asia",
+         "Burned area \u2014 Indonesia", "Intact forest landscapes \u2014 Equatorial Asia"].every((t) => f(t) === "(taken out)"));
+  check("a biodiversity hotspot is not a fire hotspot", !places("Biodiversity hotspots").includes(P + " > Fire") && places("Fire hotspots").includes(P + " > Fire"));
+  check("nitrogen dioxide is under Pollution, not Climate",
+        f("Air quality: nitrogen dioxide satellite measurements") === P + " > Pollution > Nitrogen dioxide" &&
+        at("Nitrogen dioxide") > at("Pollution") && at("Nitrogen dioxide") < at("Fire"));
+  check("Pollution is by pollutant: General and all pollutants, Nitrogen dioxide, Wastewater, Plastics, Oil spills",
+        ["General and all pollutants", "Nitrogen dioxide", "Wastewater", "Plastics", "Oil spills and slicks"]
+          .every((t, i, a) => at(t, at("Pollution")) > at("Pollution") && (!i || at(t, at("Pollution")) > at(a[i - 1], at("Pollution")))) &&
+        at("Air") === -1 && at("Toxic releases and regulated sites, US") === -1);
+  const co2 = at("Carbon dioxide"), ch4 = at("Methane");
+  check("carbon bombs, the Carbon Majors and Banking on Climate Chaos are under Carbon dioxide",
+        ["carbon_bombs", "carbon_majors", "bocc"].every((i) => order.indexOf(i) > co2 && order.indexOf(i) < ch4));
+  check("the Scribd document is out of the box", !order.includes("scribd_doc") && o.PANEL_REMOVED.has("scribd_doc"));
+  check("rows are filed by title and id, not by their long description",
+        /cataloguePlaces\(item\.fileBy \|\| `\$\{item\.title\} \$\{item\.name\}`, item\.title\)/.test(src));
+  check("a Global Forest Watch row found to have nothing to draw leaves the box",
+        /catalogueRowGone\(d\.key\);/.test(src) && /function catalogueRowGone\(key, ms = 8000\)/.test(src));
+  check("the asset list is read a kind at a time, each tried twice",
+        /GFW_DRAWABLE_KINDS\.map\(\(k\) => readKind\(k\)\.catch\(\(\) => readKind\(k\)\)\)/.test(src));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

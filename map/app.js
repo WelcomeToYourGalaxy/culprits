@@ -4147,7 +4147,7 @@ const CATALOGUE_PLACES = [
   // systems and the words that mean forest loss, and fire keeps its own.
   [/deforest|forest ?loss|tree ?cover ?loss|disturb|expansion|probability|forest change|frontera|\bglad\b|\bradd\b|dist-?alert|integrated alert|trees cut|alert system|forest alert/i,
    P + " > Deforestation > Tree cover loss and alerts"],
-  [/\bfires?\b|burn|hotspot/i, P + " > Fire"],
+  [/\bfires?\b|burn|(?<!biodiversity )hotspot/i, P + " > Fire"],
   [/mining|\bmines?\b|quarr|\bcoal\b|nickel|bauxite|\bgold\b/i, P + " > Mining"],
   [/oil and gas|oil & gas|\bgas\b|petroleum|geothermal/i, P + " > Oil and gas drilling"],
   // Agriculture, by crop where the box has a heading for it (22 September).
@@ -4173,8 +4173,8 @@ const CATALOGUE_PLACES = [
   [/methane|\bch4\b/i, P + " > Climate > Methane"],
   [/nitrous|\bn2o\b/i, P + " > Climate > Nitrous oxide"],
   [/carbon|emission|biomass|climate|\bco2\b|flux|removals|temperature|precipitation/i, P + " > Climate > Carbon dioxide"],
-  [/nitrogen dioxide|\bno2\b|\bnox\b|nitric oxide/i, P + " > Climate > Nitrogen dioxide"],
-  [/air quality|aerosol|pm2/i, P + " > Pollution > Air"],
+  [/nitrogen dioxide|\bno2\b|\bnox\b|nitric oxide/i, P + " > Pollution > Nitrogen dioxide"],
+  [/air quality|aerosol|pm2/i, P + " > Pollution > General and all pollutants"],
   [/protect|conserv|reserve|restoration|biodivers|intact forest|primary forest|wdpa|ramsar|species|habitat|ecozone|ecosystem|\bkba\b/i,
    P + " > Biodiversity loss"],
   [/peat/i, P + " > Peatland"],
@@ -4195,6 +4195,32 @@ const CATALOGUE_PLACES = [
   [/spatial plan|forest estate|\brtrw\b|\brtrwn\b|\brtrwp\b|\brdtr\b|zoning|moratorium|pippib/i, P + " > Spatial plans"],
   [/boundar|admin|hillshade|relief|imagery|sentinel|from the air|geotag|news article|towns and villages|\bgadm\b|\bgrid\b|geostore|buffered|coverage layer|\bregions?\b/i,
    "Base and reference > Boundaries and relief"],
+];
+// Rows the owner placed or took out by name (22 September, round 2). Read
+// before the rules above, against the row's title: the first that matches
+// decides, and its paths are the row's only homes. A null path takes the row
+// out of the box. Where a rule names a title the catalogue no longer carries,
+// it matches nothing and changes nothing; map/filing-report.mjs lists which
+// titles each rule caught.
+const CATALOGUE_TAKEN_OUT = "(taken out)";
+const CATALOGUE_BY_TITLE = [
+  // Taken out: no tiles published, or regional repeats of worldwide rows.
+  [/annual surface temperature anomal/i, null],
+  [/(wdpa|protected areas?).*burn|burn.*(wdpa|protected areas?)/i, null],
+  [/burn(ed|t) areas?.*(indonesia|equatorial asia|malaysia|brunei|borneo|kalimantan)/i, null],
+  [/^(?!.*(global|worldwide)).*intact forest landscape/i, null],
+  // Placed by name.
+  [/tree cover loss by (dominant )?driver|drivers? of tree cover loss/i, [P + " > Deforestation > Tree cover loss and alerts"]],
+  [/soy(bean)? planted area/i, [P + " > Climate > Nitrous oxide > Soy", AG + " > Soy, corn and grain"]],
+  [/forest greenhouse gas emissions/i, [P + " > Deforestation"]],
+  [/all[- ]ecosystem disturbance alerts|dist-?alert/i,
+   [P + " > Construction", P + " > Biodiversity loss", P + " > Deforestation > Tree cover loss and alerts"]],
+  [/intact forest landscape/i, [P + " > Biodiversity loss"]],
+  [/biodiversity hotspots/i, [P + " > Biodiversity loss"]],
+  [/\bdams?\b/i, [P + " > Biodiversity loss > Fish"]],
+  [/oil (and|&) gas (concession|block|licen|lease)/i, [P + " > Oil and gas drilling", P + " > Climate > Infrastructure emitting more than one gas"]],
+  [/protected areas?/i, [P + " > Biodiversity loss"]],
+  [/nitrogen dioxide|\bno2\b/i, [P + " > Pollution > Nitrogen dioxide"]],
 ];
 // Where a catalogue layer is, said in its title. Nusantara names the place in
 // most of its ids and covers Equatorial Asia in the rest; a reader clicking
@@ -4220,7 +4246,10 @@ function nusantaraWhere(id) {
 }
 
 const LEFT_OUT = "(left out)";
-function cataloguePlaces(words) {
+function cataloguePlaces(words, title) {
+  if (title != null) {
+    for (const [rule, paths] of CATALOGUE_BY_TITLE) if (rule.test(title)) return paths ? paths.slice() : [CATALOGUE_TAKEN_OUT];
+  }
   let out = [];
   let dropped = false;
   for (const [rule, path] of CATALOGUE_PLACES) {
@@ -4266,13 +4295,19 @@ function catalogueRows(cfg, items) {
   if (!box || !items.length) return;
   const spare = sectionBody(box, "Not yet placed") || box;
   let leftOut = 0;
+  const takenOut = [];
   items.forEach((item, i) => {
     const key = `${cfg.id}|${i}`;
     // A row may say what it is to be filed by, where its long description would
     // mislead: a Trase tooltip that mentions water in passing is not a water layer.
-    const paths = cataloguePlaces(item.fileBy || `${item.title} ${item.name} ${item.about || ""}`);
+    // Filed by its title and id. The long description used to count too, and a
+    // passing word in it filed rows under subjects they are not about: the
+    // drivers of tree cover loss under Fire (fire is one driver), protected
+    // areas and dams under Fire, oil and gas concessions under Mining.
+    const paths = cataloguePlaces(item.fileBy || `${item.title} ${item.name}`, item.title);
     item.key = key;
     if (paths[0] === LEFT_OUT) { leftOut++; item.leftOut = true; return; }
+    if (paths[0] === CATALOGUE_TAKEN_OUT) { takenOut.push(item.title); item.leftOut = true; return; }
     paths.forEach((path, n) => {
       const row = document.createElement("label");
       row.className = "layer layer-cat" + (n ? " layer-copy" : "");
@@ -4287,6 +4322,7 @@ function catalogueRows(cfg, items) {
     });
   });
   if (leftOut) console.info(`[culprits] ${cfg.id}: ${leftOut} land-cover layers have no row, at the owner's request (22 September)`);
+  if (takenOut.length) console.info(`[culprits] ${cfg.id}: taken out by name at the owner's request: ${takenOut.join("; ")}`);
   countHeadings(box);
   if (box.dataset.catWired) return;
   box.dataset.catWired = "1";
@@ -4310,6 +4346,25 @@ function catalogueRows(cfg, items) {
   });
 }
 const CATALOGUE_ITEMS = new Map();
+// A catalogue row found, when ticked, to have nothing it can draw leaves the
+// box (and so do its copies), after saying why for a few seconds. The owner's
+// rule is that a row which can never draw is not shown (21 and 22 September);
+// the asset list read at the start normally keeps such rows out, and this
+// catches the ones it missed.
+function catalogueRowGone(key, ms = 8000) {
+  const box = document.getElementById("layers");
+  if (!box || !box.querySelectorAll) return;
+  setTimeout(() => {
+    for (const tick of box.querySelectorAll(`[data-cat="${key}"], [data-cat-copy="${key}"]`)) {
+      const row = tick.closest ? tick.closest("label") : null;
+      if (row && row.remove) row.remove();
+    }
+    const legend = box.querySelector ? box.querySelector(`.facet[data-legend-for="${key}"]`) : null;
+    if (legend && legend.remove) legend.remove();
+    CATALOGUE_ITEMS.delete(key);
+    if (typeof countHeadings === "function") countHeadings(box);
+  }, ms);
+}
 // What is happening to one catalogue row, said on that row and its copies. It
 // used to be said on the catalogue's own row, which is out of sight: a dataset
 // with no tiles, or one whose server refused, looked as if nothing had happened.
@@ -4537,15 +4592,20 @@ async function addGfwMenuLayer(cfg) {
   // dataset's assets are looked up when it is ticked.
   let index = null;
   try {
-    const rows = [];
-    for (const kind of GFW_DRAWABLE_KINDS) {
+    // Each kind is read on its own and tried twice. One slow page used to throw
+    // the whole list away, and then every download-only dataset got a row.
+    const readKind = async (kind) => {
+      const got = [];
       for (let page = 1; page < 20; page++) {
-        const j = await getJson(`${cfg.api}/assets?asset_type=${encodeURIComponent(kind)}&page[size]=1000&page[number]=${page}`, 40000);
-        const got = Array.isArray(j.data) ? j.data : [];
-        rows.push(...got);
-        if (got.length < 1000) break;
+        const j = await getJson(`${cfg.api}/assets?asset_type=${encodeURIComponent(kind)}&page[size]=1000&page[number]=${page}`, 60000);
+        const part = Array.isArray(j.data) ? j.data : [];
+        got.push(...part);
+        if (part.length < 1000) break;
       }
-    }
+      return got;
+    };
+    const kinds = await Promise.all(GFW_DRAWABLE_KINDS.map((k) => readKind(k).catch(() => readKind(k))));
+    const rows = [].concat(...kinds);
     if (rows.length) index = gfwAssetIndex(rows);
   } catch (e) { console.warn(`[culprits] ${cfg.id}: the asset list could not be read (${e.message}); assets are looked up on each tick`); }
   // Datasets Global Forest Watch publishes only as downloads - no tile cache and
@@ -4633,7 +4693,10 @@ async function addGfwMenuLayer(cfg) {
         rowSay(d.key, (asset.waiting
           ? "Global Forest Watch lists map tiles for this dataset but has not finished making them \u2014 nothing to draw yet"
           : "no map tiles are published for this dataset, only files to download \u2014 nothing to draw") +
-          (GFW_DRAWN_BY[d.id] ? `. The same alerts are drawn by the row \u201c${GFW_DRAWN_BY[d.id]}\u201d` : ""));
+          (GFW_DRAWN_BY[d.id] ? `. The same alerts are drawn by the row \u201c${GFW_DRAWN_BY[d.id]}\u201d` : "") +
+          ". This row will now leave the list.");
+        console.info(`[culprits] ${cfg.id}: ${d.id} has nothing to draw; its row is taken out`);
+        catalogueRowGone(d.key);
         return;
       }
       drawn.set(d.id, ids);
@@ -9360,7 +9423,7 @@ const PANEL_ORDER = [
 
   { h: 1, t: "Destruction" },
   { h: 2, t: "Of the planet" },
-  { h: 3, t: "General" }, "ejatlas", "wreckers_umap", "fortune500", "theyrule", "scribd_doc",
+  { h: 3, t: "General" }, "ejatlas", "wreckers_umap", "fortune500", "theyrule",
   // Climate is arranged by greenhouse gas, in the Destruction page's own order
   // (22 September): a row goes under the gas its sites mainly emit, and a row
   // whose sites emit more than one in earnest is under Infrastructure, or
@@ -9373,18 +9436,27 @@ const PANEL_ORDER = [
   // gas it emits (22 September): filed under one gas each, the gases a
   // sector also emits were drowned out.
   { h: 4, t: "Emitting sites by sector, until split by gas" }, "group:climate_trace_sectors", "group:climate_trace_agriculture", "group:climate_trace_forestry", "group:ct_history",
-  { h: 4, t: "Carbon dioxide" }, "owid_co2", "gem_coal", "power_plants", "fractracker_refineries", "carbon_plumes",
+  // Carbon bombs, the Carbon Majors and Banking on Climate Chaos under Carbon
+  // dioxide, and nitrogen dioxide moved to Pollution (22 September, round 2).
+  { h: 4, t: "Carbon dioxide" }, "owid_co2", "gem_coal", "power_plants", "fractracker_refineries", "carbon_plumes", "carbon_bombs", "carbon_majors", "bocc",
   { h: 4, t: "Methane" }, "carbon_plumes", "hydrowaste", "wastewater",
-  { h: 4, t: "Nitrous oxide" }, "fertilizer_facilities", "usda_soybean", "usda_corn", "site_china_grain", "trase_silos_brazil",
+  { h: 4, t: "Nitrous oxide" }, "fertilizer_facilities",
+  { h: 5, t: "Soy" }, "usda_soybean", "trase_silos_brazil",
+  { h: 5, t: "Corn" }, "usda_corn",
+  { h: 5, t: "Grain" }, "site_china_grain",
   { h: 4, t: "F-gases" },
   { h: 4, t: "Black carbon" }, "fractracker_refineries",
-  { h: 4, t: "Nitrogen dioxide" },
-  { h: 4, t: "Infrastructure emitting more than one gas" }, "carbon_bombs",
-  { h: 4, t: "Companies and financiers" }, "carbon_majors", "bocc",
+  // Oil and gas concessions (from the catalogues) are filed here as well as
+  // under Oil and gas drilling: the wells emit carbon dioxide, methane and,
+  // where gas is flared, black carbon.
+  { h: 4, t: "Infrastructure emitting more than one gas" },
   { h: 3, t: "Overpopulation" }, "ct_pop",
+  // Pollution by pollutant, as Climate is by gas (22 September, round 2).
+  // Climate TRACE's air-pollution row covers every pollutant it reports and
+  // sits under General until it is split into a row per pollutant.
   { h: 3, t: "Pollution" },
-  { h: 4, t: "Air" }, "ct_air",
-  { h: 4, t: "Toxic releases and regulated sites, US" }, "epa_tri_sites", "epa_widget",
+  { h: 4, t: "General and all pollutants" }, "ct_air", "epa_tri_sites", "epa_widget",
+  { h: 4, t: "Nitrogen dioxide" },
   { h: 4, t: "Wastewater" }, "hydrowaste", "wastewater",
   { h: 4, t: "Plastics" },
   { h: 5, t: "Production" }, "pirg_plastic", "mymaps_chlorine", "arcgis_ym8xk", "arcgis_materialresearch",
@@ -9399,6 +9471,7 @@ const PANEL_ORDER = [
   { h: 4, t: "Wood pulp, Indonesia" }, "trase_pulp_indonesia", "trase_pulp_concessions_2015", "trase_pulp_concessions_2020", "trase_pulp_concessions_2023",
   { h: 4, t: "Companies and financiers" }, "site_forest500_soy", "site_soybean_companies", "soy_organizations", "dff",
   { h: 3, t: "Biodiversity loss" }, "gsn", "gsn_rankings", "atlas_hotspots", "atlas_cities", "powerbi_report",
+  { h: 4, t: "Fish" },
   { h: 4, t: "Companies and financiers" }, "pe_subsidising", "pe_bankrolling",
   { h: 3, t: "Spatial plans" },
   { h: 3, t: "Peatland" },
@@ -9501,6 +9574,7 @@ const PANEL_ORDER = [
 const PANEL_REMOVED = new Set([
   "leverage_chart",
   "cultivated_meat_laws",          // taken out 22 September at the owner's request
+  "scribd_doc",                    // the Destruction page document, taken out 22 September (round 2)
   // Taken out 19 Sept: near duplicates, a background map mistaken for data, rows
   // merged into another, and pages asked to be removed.
   "site_cartel_cells", "site_export_credit_shading", "giga_schools", "nsf_locations",
