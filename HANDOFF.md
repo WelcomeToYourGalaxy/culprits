@@ -260,6 +260,31 @@ facilities archive. The other registers' extra columns still stop at the atlas's
 parsers; adding a register to `PUBLISH_RAW` there and `PUBLISHED_AS` here is all
 it takes once its size has been looked at.
 
+## SkyTruth as tiles, and the copy in pieces (22 September)
+
+After two runs the violations feed's single file was 86 MB, the spill reports
+68 MB: near GitHub's limit, and a browser read all of it to draw a point. Two
+changes in `culprits-tiles-more`:
+
+- `scripts/skytruth.py` keeps each feed's copy in 256 pieces,
+  `skytruth/<name>/<hh>.json` ({id: feature}), an alert filed by `shard(id)`
+  (FNV-1a, two hex digits). An old single file is folded in and removed on the
+  first run. The size pause is gone; history walks on. Biggest piece today:
+  0.5 MB.
+- `scripts/skytruth_tiles.py` (run after it: "skytruth skytruth_tiles" in the
+  workflow's box) builds `tiles/<row id>.pmtiles` per feed: every placed alert
+  at every zoom, merged into counted points where they crowd, nothing dropped;
+  a point carries id, title, date. `tiles/<row id>.build.json` records the
+  counts and what the tiles were built from, so unchanged feeds are not rebuilt.
+
+In the map the eleven rows are `route: "pmtiles"` with `boxes:` naming the
+copy's folder. `addPmtilesLayer` with `cfg.boxes` binds `pieceBox`: a merged
+point says its count; a single one reads its piece (`readPiece`, cached) and
+shows the record's own `_html` and then every other field. The row's line
+comes from the build record: placed alerts, and how many in the copy have no
+position. Built here on the real copies: spill reports 32,745 alerts, 15.9 MB of
+tiles; every feed under 16 MB.
+
 ## Global Forest Watch: the asset list, COGs drawn, downloads-only rows gone
 
 Continued the same day, from the owner's live look (404s, 422s, rows that

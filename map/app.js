@@ -1578,10 +1578,58 @@ async function addPmtilesLayer(cfg) {
 
   // Both layers, not just the detail one: below the cluster threshold the
   // aggregate layer is the only thing on screen, and it was unclickable.
-  bindPopup(`${cfg.id}-agg`);
-  bindPopup(`${cfg.id}-pt`);
+  if (cfg.boxes) {
+    // The points carry only an id, a title and a date; the record itself is in
+    // the copy, in 256 pieces, and a click reads the one piece that holds it.
+    bindHtmlPopup(`${cfg.id}-agg`, (p) => pieceBox(cfg, p));
+    bindHtmlPopup(`${cfg.id}-pt`, (p) => pieceBox(cfg, p));
+    fetch(url.replace(/\.pmtiles$/, ".build.json")).then((r) => (r.ok ? r.json() : null)).then((b) => {
+      if (!b) return;
+      setLayerState(cfg.id, `${Number(b.alerts_with_position).toLocaleString()} ${cfg.unit}` +
+        (b.no_position ? ` \u00b7 ${Number(b.no_position).toLocaleString()} more in the copy have no position and cannot be drawn` : ""));
+    }).catch(() => {});
+  } else {
+    bindPopup(`${cfg.id}-agg`);
+    bindPopup(`${cfg.id}-pt`);
+  }
   applyVisibility(cfg.id);
   buildLegend();
+}
+
+// Which of a copy's 256 pieces a record is in: FNV-1a over its id, two hex
+// digits. scripts/skytruth.py in culprits-tiles-more has the same function;
+// the two must agree.
+function pieceOf(key) {
+  let h = 0x811C9DC5;
+  for (const b of new TextEncoder().encode(String(key))) h = Math.imul(h ^ b, 0x01000193) >>> 0;
+  return (h % 256).toString(16).padStart(2, "0");
+}
+const pieces = new Map();
+function readPiece(base, key) {
+  const at = `${base}/${pieceOf(key)}.json`;
+  if (!pieces.has(at)) {
+    const p = fetch(at).then((r) => { if (!r.ok) throw new Error(`${r.status} at ${at}`); return r.json(); });
+    p.catch(() => pieces.delete(at));
+    pieces.set(at, p);
+  }
+  return pieces.get(at);
+}
+function pieceBox(cfg, p) {
+  const count = Number(p._count || 1);
+  if (count > 1) {
+    return `<b>${count.toLocaleString()} ${escapeHtml(cfg.unit || "records")}</b>` +
+      `<div class="meta">Merged for this zoom. Zoom in to see each one.</div><div class="meta">${escapeHtml(p.source || "")}</div>`;
+  }
+  return readPiece(cfg.boxes, p.id).then((piece) => {
+    const f = piece[String(p.id)];
+    if (!f) return `<b>${escapeHtml(p.name || "")}</b><div class="meta">not found in the copy (id ${escapeHtml(p.id)})</div>`;
+    const props = f.properties || {};
+    // The record's own box (_html, made safe when it was copied) and then every
+    // other field it carries, so nothing the source published is out of reach.
+    const rest = Object.entries(props).filter(([k, v]) => !["_html", "content", "title"].includes(k) && v !== null && v !== "")
+      .map(([k, v]) => `<tr><th>${escapeHtml(k.replace(/_/g, " "))}</th><td>${escapeHtml(String(v))}</td></tr>`).join("");
+    return (props._html || `<b>${escapeHtml(props.title || p.name || "")}</b>`) + (rest ? `<table class="meta">${rest}</table>` : "");
+  }).catch((e) => `<b>${escapeHtml(p.name || "")}</b><div class="meta">its record could not be read (${escapeHtml(e.message)})</div>`);
 }
 
 /* ---------- country aggregate layers (choropleth) ---------- */
@@ -8026,40 +8074,40 @@ const OTHER_MAPS = {
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
     // It said "last 30 days". It never was: SkyTruth's service does not apply the
     // days it is asked for, and the copy holds ships from 2019 and 2024.
-    { id: "skytruth_voc", name: "SkyTruth Monitor: vessels of concern", unit: "alerts", colour: "#5E7377", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Vessels of concern", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/vessels_of_concern.geojson" }],
+    { id: "skytruth_voc", name: "SkyTruth Monitor: vessels of concern", unit: "alerts", colour: "#5E7377", route: "pmtiles", ready: true, lazy: true,
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_voc.pmtiles", boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/vessels_of_concern",
       note: "SkyTruth's own list of disabled and sunken ships that threaten a spill, every one it lists whatever its date, from a daily copy of its service." },
     // SkyTruth Monitor's alert feeds, one row each, from the same daily copy.
-    { id: "skytruth_nrc", name: "Spills, releases and rail incidents reported to the US National Response Center (SkyTruth Monitor)", unit: "incident reports", colour: "#6A5A4E", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Incident reports", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_1.geojson" }],
-      note: "Every alert SkyTruth's service will give, from a daily copy: it hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. Each report as the National Response Center took it down, with SkyTruth's own reading of it where it made one. Reports are what a caller said, not findings." },
-    { id: "skytruth_posts", name: "Spills and accidents written up by SkyTruth itself \u2014 Taylor Energy, derailments, refuge spills (SkyTruth Monitor)", unit: "write-ups", colour: "#5E6B70", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Write-ups", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_2.geojson" }],
-      note: "Every alert SkyTruth's service will give, from a daily copy: it hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. SkyTruth's own posts about incidents it followed, placed where each happened." },
-    { id: "skytruth_marine_incidents", name: "Sinkings, groundings and mystery slicks, as US responders wrote them up (SkyTruth Monitor)", unit: "incident reports", colour: "#5A6772", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Incident reports", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_3.geojson" }],
-      note: "Every alert SkyTruth's service will give, from a daily copy: it hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. Incident reports in the words of the responders, NOAA's and the Coast Guard's among them." },
-    { id: "skytruth_pa_permits", name: "Oil and gas drilling permits issued, Pennsylvania (SkyTruth Monitor)", unit: "permits", colour: "#6E6A55", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Permits", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_4.geojson" }],
-      note: "Every alert SkyTruth's service will give, from a daily copy: it hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. Each permit as Pennsylvania issued it: well type, operator, site, township." },
-    { id: "skytruth_pa_spud", name: "Oil and gas wells where drilling has started, Pennsylvania (SkyTruth Monitor)", unit: "drilling starts", colour: "#73664F", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Drilling starts", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_5.geojson" }],
-      note: "Every alert SkyTruth's service will give, from a daily copy: it hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. Operators' own reports that drilling began (SPUD reports)." },
-    { id: "skytruth_pa_violations", name: "Violations issued to oil and gas operators, Pennsylvania (SkyTruth Monitor)", unit: "violations", colour: "#7A5B4E", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Violations", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_9.geojson" }],
-      note: "Every alert SkyTruth's service will give, from a daily copy: it hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. Each violation as Pennsylvania's inspectors recorded it, with its code." },
-    { id: "skytruth_well_permits", name: "Well plugging and other well permit activity, by county (SkyTruth Monitor)", unit: "permit reports", colour: "#6B6056", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Permit reports", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_8.geojson" }],
-      note: "Every alert SkyTruth's service will give, from a daily copy: it hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. Permit activity as operators reported it. The feed does not say which state it covers; the newest report seen on 20 September 2026 was from December 2011." },
-    { id: "skytruth_fracfocus", name: "Gas and oil wells fracked, United States \u2014 operators' FracFocus disclosures (SkyTruth Monitor)", unit: "disclosures", colour: "#6F5F58", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Disclosures", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_10.geojson" }],
-      note: "Every alert SkyTruth's service will give, from a daily copy: it hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. An alert for each disclosure SkyTruth found on FracFocus.org." },
-    { id: "skytruth_tests", name: "Test entries left by SkyTruth Monitor's own developers (SkyTruth Monitor)", unit: "test entries", colour: "#6A6A66", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Test entries", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_10101.geojson" }],
-      note: "Every alert SkyTruth's service will give, from a daily copy: it hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. Feed 10101: entries its developers made while trying the service out (\"This is dan's house\"). Not environmental data; here because the service publishes it and nothing it publishes is left out." },
-    { id: "skytruth_quakes", name: "Earthquakes, worldwide (SkyTruth Monitor)", unit: "earthquakes", colour: "#65676A", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Earthquakes", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_6.geojson" }],
-      note: "Every alert SkyTruth's service will give, from a daily copy: it hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. The earthquakes SkyTruth's feed carries; the newest seen on 20 September 2026 was from July 2015." },
+    { id: "skytruth_nrc", name: "Spills, releases and rail incidents reported to the US National Response Center (SkyTruth Monitor)", unit: "incident reports", colour: "#6A5A4E", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_nrc.pmtiles",
+      boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_1",
+      note: "Every alert SkyTruth's service will give, from a daily copy read square by square as tiles: the service hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. A click reads the alert's own text from the copy. Each report as the National Response Center took it down, with SkyTruth's own reading of it where it made one. Reports are what a caller said, not findings." },
+    { id: "skytruth_posts", name: "Spills and accidents written up by SkyTruth itself \u2014 Taylor Energy, derailments, refuge spills (SkyTruth Monitor)", unit: "write-ups", colour: "#5E6B70", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_posts.pmtiles",
+      boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_2",
+      note: "Every alert SkyTruth's service will give, from a daily copy read square by square as tiles: the service hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. A click reads the alert's own text from the copy. SkyTruth's own posts about incidents it followed, placed where each happened." },
+    { id: "skytruth_marine_incidents", name: "Sinkings, groundings and mystery slicks, as US responders wrote them up (SkyTruth Monitor)", unit: "incident reports", colour: "#5A6772", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_marine_incidents.pmtiles",
+      boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_3",
+      note: "Every alert SkyTruth's service will give, from a daily copy read square by square as tiles: the service hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. A click reads the alert's own text from the copy. Incident reports in the words of the responders, NOAA's and the Coast Guard's among them." },
+    { id: "skytruth_pa_permits", name: "Oil and gas drilling permits issued, Pennsylvania (SkyTruth Monitor)", unit: "permits", colour: "#6E6A55", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_pa_permits.pmtiles",
+      boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_4",
+      note: "Every alert SkyTruth's service will give, from a daily copy read square by square as tiles: the service hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. A click reads the alert's own text from the copy. Each permit as Pennsylvania issued it: well type, operator, site, township." },
+    { id: "skytruth_pa_spud", name: "Oil and gas wells where drilling has started, Pennsylvania (SkyTruth Monitor)", unit: "drilling starts", colour: "#73664F", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_pa_spud.pmtiles",
+      boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_5",
+      note: "Every alert SkyTruth's service will give, from a daily copy read square by square as tiles: the service hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. A click reads the alert's own text from the copy. Operators' own reports that drilling began (SPUD reports)." },
+    { id: "skytruth_pa_violations", name: "Violations issued to oil and gas operators, Pennsylvania (SkyTruth Monitor)", unit: "violations", colour: "#7A5B4E", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_pa_violations.pmtiles",
+      boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_9",
+      note: "Every alert SkyTruth's service will give, from a daily copy read square by square as tiles: the service hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. A click reads the alert's own text from the copy. Each violation as Pennsylvania's inspectors recorded it, with its code." },
+    { id: "skytruth_well_permits", name: "Well plugging and other well permit activity, by county (SkyTruth Monitor)", unit: "permit reports", colour: "#6B6056", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_well_permits.pmtiles",
+      boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_8",
+      note: "Every alert SkyTruth's service will give, from a daily copy read square by square as tiles: the service hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. A click reads the alert's own text from the copy. Permit activity as operators reported it. The feed does not say which state it covers; the newest report seen on 20 September 2026 was from December 2011." },
+    { id: "skytruth_fracfocus", name: "Gas and oil wells fracked, United States \u2014 operators' FracFocus disclosures (SkyTruth Monitor)", unit: "disclosures", colour: "#6F5F58", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_fracfocus.pmtiles",
+      boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_10",
+      note: "Every alert SkyTruth's service will give, from a daily copy read square by square as tiles: the service hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. A click reads the alert's own text from the copy. An alert for each disclosure SkyTruth found on FracFocus.org." },
+    { id: "skytruth_tests", name: "Test entries left by SkyTruth Monitor's own developers (SkyTruth Monitor)", unit: "test entries", colour: "#6A6A66", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_tests.pmtiles",
+      boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_10101",
+      note: "Every alert SkyTruth's service will give, from a daily copy read square by square as tiles: the service hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. A click reads the alert's own text from the copy. Feed 10101: entries its developers made while trying the service out (\"This is dan's house\"). Not environmental data; here because the service publishes it and nothing it publishes is left out." },
+    { id: "skytruth_quakes", name: "Earthquakes, worldwide (SkyTruth Monitor)", unit: "earthquakes", colour: "#65676A", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_quakes.pmtiles",
+      boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_6",
+      note: "Every alert SkyTruth's service will give, from a daily copy read square by square as tiles: the service hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. A click reads the alert's own text from the copy. The earthquakes SkyTruth's feed carries; the newest seen on 20 September 2026 was from July 2015." },
     { id: "slick_archive", name: "Oil slick archive (Cerulean, kept daily)", unit: "slicks by month", colour: "#5A5750", route: "slickarchive", ready: true, lazy: true,
       base: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/cerulean_archive",
       note: "Every Cerulean slick kept by month from a daily copy, so they stay on the map whatever happens to the live service." },

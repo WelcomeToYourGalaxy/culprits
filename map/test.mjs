@@ -1797,16 +1797,24 @@ console.log("\nthe layers box, in the chosen order");
     const feeds = ["skytruth_nrc", "skytruth_posts", "skytruth_marine_incidents", "skytruth_pa_permits", "skytruth_pa_spud",
                    "skytruth_pa_violations", "skytruth_well_permits", "skytruth_fracfocus", "skytruth_quakes"];
     const at = (t) => order.PANEL_ORDER.findIndex((x) => x && x.t === t);
-    check("SkyTruth Monitor's nine alert feeds are rows, each from its own daily copy",
-          feeds.every((id) => new RegExp(`id: "${id}"[^\\n]*route: "geojsonlive"`).test(src) && ids.includes(id)) &&
-          (src.match(/culprits-tiles-more\/skytruth\/feed_\d+\.geojson/g) || []).length === 10);
+    // Tiles since 22 September: a feed's copy ran to 86 MB in one file, and a
+    // browser had to read all of it to draw a point.
+    check("SkyTruth Monitor's alert feeds are rows drawn from tiles, each with its own pieces to read a record from",
+          feeds.every((id) => new RegExp(`id: "${id}"[^\\n]*route: "pmtiles"[^\\n]*archiveUrl: "[^"]*/tiles/${id}\\.pmtiles"`).test(src) && ids.includes(id)) &&
+          (src.match(/boxes: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/skytruth\/(feed_\d+|vessels_of_concern)"/g) || []).length === 11 &&
+          !/skytruth\/feed_\d+\.geojson/.test(src));
+    const pieceOf = new Function(src.match(/function pieceOf[\s\S]*?\n}\n/)[0] + "; return pieceOf;")();
+    check("\u2026a record's piece is found by the same hash the copy was written with",
+          pieceOf("abc") === "0b" && pieceOf("5bef4812-71a8-7a20-02c5-9c88ef953109") === "37");
+    check("\u2026a merged point says how many it stands for; a single one shows the record's own box and every other field",
+          /bindHtmlPopup\(`\$\{cfg\.id\}-pt`, \(p\) => pieceBox\(cfg, p\)\)/.test(src) && /props\._html \|\| `<b>/.test(src) && /Merged for this zoom/.test(src));
     check("\u2026filed by what they show: spill reports under slicks and pollution, drilling under its own heading",
           at("Oil and gas drilling") > at("Mining") && order.PANEL_ORDER.indexOf("skytruth_fracfocus") > at("Oil and gas drilling") &&
           ids.filter((x) => x === "skytruth_nrc").length === 2 && ids.filter((x) => x === "skytruth_pa_violations").length === 2);
     check("\u2026nothing SkyTruth publishes is left out: the developers' test feed is a row too",
-          /id: "skytruth_tests"[^\n]*route: "geojsonlive"/.test(src) && /skytruth\/feed_10101\.geojson/.test(src) && ids.includes("skytruth_tests"));
+          /id: "skytruth_tests"[^\n]*route: "pmtiles"/.test(src) && /skytruth\/feed_10101"/.test(src) && ids.includes("skytruth_tests"));
     check("\u2026an alert with no position is counted on its row, not passed over",
-          /if \(!ft\.geometry\) \{ nowhere\+\+; return; \}/.test(src) && /more in the file have no position and cannot be drawn/.test(src));
+          /if \(!ft\.geometry\) \{ nowhere\+\+; return; \}/.test(src) && /more in the copy have no position and cannot be drawn/.test(src));
     check("\u2026and the vessels row no longer claims the last 30 days, which the service never applied",
           !/id: "skytruth_voc"[^\n]*last 30 days/.test(src) && !/vessels-of-concern alerts for the whole world over the last 30 days/.test(src));
   }
@@ -2103,7 +2111,7 @@ console.log("\nwhat was still open");
 console.log("\nvessels of concern drawn; the oil-slick archive");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("vessels of concern are drawn from the daily copy", /id: "skytruth_voc"[^\n]*route: "geojsonlive"/.test(src) && /skytruth\/vessels_of_concern\.geojson/.test(src));
+  check("vessels of concern are drawn from the daily copy, as tiles since 22 September", /id: "skytruth_voc"[^\n]*route: "pmtiles"/.test(src) && /skytruth\/vessels_of_concern"/.test(src));
   check("the slick archive is a row beside the live slicks", /id: "slick_archive"/.test(src) && /"cerulean_sources", "slick_archive",/.test(src));
 }
 
