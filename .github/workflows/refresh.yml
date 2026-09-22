@@ -84,7 +84,7 @@ jobs:
           for id in $(tr ',' ' ' <<< "${{ steps.harvest.outputs.changed }}"); do
             python3 pipeline/normalize.py \
               --source "$id" \
-              --in "data/raw/$id.json" \
+              --in "data/raw/$id.jsonl.gz" \
               --out "data/normalized/$id.geojsonl"
             if [ -f "data/normalized/$id.countries.json" ]; then
               mkdir -p map/data
