@@ -1810,7 +1810,9 @@ console.log("\nthe layers box, in the chosen order");
           /bindHtmlPopup\(`\$\{cfg\.id\}-pt`, \(p\) => pieceBox\(cfg, p\)\)/.test(src) && /props\._html \|\| `<b>/.test(src) && /Merged for this zoom/.test(src));
     check("\u2026filed by what they show: spill reports under slicks and pollution, drilling under its own heading",
           at("Oil and gas drilling") > at("Mining") && order.PANEL_ORDER.indexOf("skytruth_fracfocus") > at("Oil and gas drilling") &&
-          ids.filter((x) => x === "skytruth_nrc").length === 2 && ids.filter((x) => x === "skytruth_pa_violations").length === 2);
+          // Since 22 September the spill reports and the violations are each under one heading only.
+          ids.filter((x) => x === "skytruth_nrc").length === 1 && ids.filter((x) => x === "skytruth_pa_violations").length === 1 &&
+          at("Pennsylvania") > at("Oil and gas drilling"));
     check("\u2026nothing SkyTruth publishes is left out: the developers' test feed is a row too",
           /id: "skytruth_tests"[^\n]*route: "pmtiles"/.test(src) && /skytruth\/feed_10101"/.test(src) && ids.includes("skytruth_tests"));
     check("\u2026an alert with no position is counted on its row, not passed over",
@@ -2038,7 +2040,7 @@ console.log("\nthe Suppression page's two Google My Maps maps");
 console.log("\nresource trade flows");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("it is a row under Control of physical resources", /id: "rte_trade"/.test(src) && /"owid_aid", "rte_trade",/.test(src));
+  check("it is a row under Control of physical resources, under Trade", /id: "rte_trade"/.test(src) && /\{ h: 5, t: "Trade" \}, "site_trade_profits", "rte_trade", "gta_acts"/.test(src));
   check("read live, with the daily copy when it cannot be", /api\.resourcetrade\.earth\/api\/rt\/2\.7/.test(src) && /cfg\._fromCopy = true/.test(src));
   const arc = new Function(src.slice(src.indexOf("function rteArc("), src.indexOf("async function addRteLayer(")) + "; return rteArc;")();
   const a = arc([0, 0], [10, 0]);
@@ -2070,7 +2072,8 @@ console.log("\nGlobal Safety Net");
 console.log("\nClimate TRACE air pollution");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("sources and population are rows under Climate > Air pollution", /id: "ct_air"/.test(src) && /id: "ct_pop"/.test(src) && /\{ h: 4, t: "Air pollution" \}, "ct_air", "ct_pop"/.test(src));
+  check("the air-pollution sources are under Pollution > Air, and population under Base and reference (22 September)", /id: "ct_air"/.test(src) && /id: "ct_pop"/.test(src) &&
+        /\{ h: 4, t: "Air" \}, "ct_air",/.test(src) && /"soilgrids", "ct_pop", "skytruth_quakes"/.test(src));
   check("every pollutant Climate TRACE reports can be chosen", ["pm2_5", "bc", "oc", "so2", "vocs", "co", "nh3", "nox", "co2e_100yr"].every((g) => src.includes(`["${g}",`)));
   check("a click reads the plume and the figures live", /plumes\.climatetrace\.org\/\$\{p\.plume\}/.test(src) && /api\.c10e\.org\/v7\/app\/asset/.test(src));
   const html = new Function("escapeHtml", "CT_GASES", src.slice(src.indexOf("function ctAssetHtml("), src.indexOf("async function addCtAirLayer(")) + "; return ctAssetHtml;")((s) => String(s), [["pm2_5", "PM2.5"]]);
@@ -2145,13 +2148,13 @@ console.log("\nchanges of 19 September");
   check("Cartel cells, the export-credit background map and the duplicate Giga and Next Spaceflight rows are out",
         ["site_cartel_cells", "site_export_credit_shading", "giga_schools", "nsf_locations"].every((i) => o.PANEL_REMOVED.has(i)));
   check("the Energy Charter, ISDS and Break Free From Plastic rows are out", ["ect_secrets", "isds_tracker", "bffp_audit"].every((i) => o.PANEL_REMOVED.has(i)));
-  check("the Tableau row is the CFR Global Imbalances Tracker", /id: "tableau_zsf", name: "CFR Global Imbalances Tracker"/.test(src));
+  check("the Tableau row is the CFR Global Imbalances Tracker", /id: "tableau_zsf", name: "Global Imbalances Tracker \(CFR\)"/.test(src));
   check("Giga by country is under School", between("giga_countries", "School", "Law enforcement"));
-  check("EJAtlas is under Culprits upstream", between("ejatlas", "Culprits upstream", "Emissions"));
+  check("EJAtlas is under Of the planet > General; Culprits upstream is dissolved (22 September)", between("ejatlas", "General", "Climate") && at("Culprits upstream") === -1);
   check("Biodiversity loss holds the hotspots, hotspot cities, Subsidising Extinction and the Power BI report",
         ["atlas_hotspots", "atlas_cities", "pe_subsidising", "powerbi_report"].every((i) => between(i, "Biodiversity loss", "Mining")));
   check("Mining holds the mines", between("mines_global", "Mining", "Agriculture"));
-  check("the refinery map is under Climate", between("fractracker_refineries", "Climate", "National shading"));
+  check("the refinery map is under Climate > Fossil fuel plants and refineries", between("fractracker_refineries", "Fossil fuel plants and refineries", "Companies and financiers"));
   check("the toxic release sites are one row, carrying the live layer", o.PANEL_REMOVED.has("epa_tri") && /name:"Factories reporting toxic chemical releases, US \(EPA Toxics Release Inventory\)", [^\n]*\n[^\n]*\n[^\n]*\n\s*linked: \["epa_tri"\]/.test(src));
   check("coral is one row", o.PANEL_REMOVED.has("unep_coral") && pos("allen_coral") > 0);
   check("mines are merged into counted points wider out", /mines here<\/b>/.test(src) && /"point_count"\], 1\]\]\]\],\n\s*6,/.test(src));
@@ -2277,7 +2280,7 @@ console.log("\ntitles in one ink, sources named");
   const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   check("a child row's title reads in the same ink as any other", /\.layer\.child \.nm\{color:inherit\}/.test(index));
   check("the refinery row names who made the map and credits them on it",
-        /name: "Global Oil Refinery Complexes \(FracTracker Alliance\)"/.test(src) &&
+        /name: "Oil refinery complexes, worldwide \(FracTracker Alliance\)"/.test(src) &&
         /id: "fractracker_refineries"[\s\S]{0,400}fractracker\.org/.test(src));
   check("the Carbon Mapper row says it is the set from our own page, not their whole catalogue",
         /Methane plumes from waste sites \\u2014 the set on our own page \(Carbon Mapper\)/.test(src));
@@ -2360,9 +2363,9 @@ console.log("\nrows gathered, moved and renamed");
          ["trase_cocoa_ivory", String.raw`Cocoa cooperatives, C\u00f4te d'Ivoire (Trase)`],
          ["trase_palm_indonesia", String.raw`Palm oil mills, Indonesia (Trase)`],
          ["trase_pulp_indonesia", String.raw`Wood pulp mills, Indonesia (Trase)`],
-         ["trase_pulp_concessions_2015", String.raw`2015\u20132019`],
-         ["trase_pulp_concessions_2020", String.raw`2020\u20132022`],
-         ["trase_pulp_concessions_2023", String.raw`2023\u20132024`]]
+         ["trase_pulp_concessions_2015", "Wood pulp concessions 2015–2019 (Trase)"],
+         ["trase_pulp_concessions_2020", "Wood pulp concessions 2020–2022 (Trase)"],
+         ["trase_pulp_concessions_2023", "Wood pulp concessions 2023–2024 (Trase)"]]
           .every(([i, n]) => src.includes(`id: "${i}", name: "${n}"`)) &&
         !/name: "Trase: /.test(src) && !/trasefacmenu/.test(src));
   check("each Trase row sits under the map's own heading, not a Trase one",
@@ -2385,14 +2388,14 @@ console.log("\nthe layers box, as asked for");
   const at = (t) => o.PANEL_ORDER.findIndex((x) => x && x.t === t);
   const between = (id, a, b) => o.PANEL_ORDER.indexOf(id) > at(a) && o.PANEL_ORDER.indexOf(id) < at(b);
   check("the fishing-effort layer sits under Fishing, under Oceans, and the modelled one under Slavery",
-        at("Oceans") < at("Fishing") && between("fishing", "Fishing", "Oil slicks") &&
+        at("Oceans") < at("Fishing") && between("fishing", "Fishing", "Construction") &&
         o.PANEL_ORDER.indexOf("slavery_fishing") > at("Slavery"));
   check("the reefs sit under Biodiversity loss, with the Global Safety Net at the top of it",
-        between("allen_coral", "Biodiversity loss", "Mining") &&
+        between("allen_coral", "Reefs and mangroves", "Fishing") &&
         o.PANEL_ORDER[at("Biodiversity loss") + 1] === "gsn");
   check("Agriculture is Meat and agriculture, holding Agriculture and Meat",
         at("Meat and agriculture") > 0 && at("Agriculture") > at("Meat and agriculture") &&
-        between("land_matrix", "Agriculture", "Meat") && between("abattoir_facilities", "Meat", "Oceans"));
+        between("land_matrix", "Land and territory", "Physical suppression") && between("abattoir_facilities", "Facilities", "Herds"));
   check("the Power BI row is named for what it shows", /id: "powerbi_report", name: "Environmental Crime Tracker"/.test(src));
   check("every row carries the fold control, ticked or not, groups included",
         /"#layers label\.layer:has\(\+ \.facet\) \.fold\{display:inline-block\}"/.test(src) &&
@@ -2651,7 +2654,7 @@ console.log("\neach row links the site it is read from");
   check("a row with no site shows no link rather than a guessed one",
         /const u = LAYER_SITE\[id\];\n  if \(!u\) return "";/.test(src) && /#layers \.nm \.src\{/.test(index));
   check("titles that named no source say so now",
-        /name:"Coal plant units \(GEM Global Coal Plant Tracker\)"/.test(src) &&
+        /name:"Coal plant units \(Global Energy Monitor, Global Coal Plant Tracker\)"/.test(src) &&
         /name: "Genetic-engineering cultivation \(Genetic engineering map\)"/.test(src));
 }
 
@@ -2713,9 +2716,8 @@ console.log("\nplumes show from the world view; the last sources named");
   check("each points at the people who published it, not at this map's copy",
         was.every((i) => !/welcometoyourgalaxy\.github\.io/.test(sites[i])));
   check("the titles that said nothing about their source now say it",
-        /name:"Fertilizer plants \(Welcome to Your Galaxy\)"/.test(src) &&
-        /name:"Soy industry bodies \(Welcome to Your Galaxy\)"/.test(src) &&
-        /name: "Biosignature Evidence Assessment \(Welcome to Your Galaxy\)"/.test(src));
+        // 22 September: "(Welcome to Your Galaxy)" dropped again from the site's own four rows, as asked.
+        /name:"Fertilizer plants"/.test(src) && /name:"Soy industry bodies"/.test(src) && /name: "Biosignature Evidence Assessment"/.test(src));
 }
 
 console.log("\nlive rows say so; the grips read as handles; a shut box stops scrolling");
@@ -2765,10 +2767,10 @@ console.log("\na row can sit under more than one subject");
   const order = new Function(body + "; return PANEL_ORDER;")();
   const at = (t) => order.findIndex((x) => x && x.t === t);
   check("the eight new headings are in, in the order's own style",
-        ["Fire", "Forest and land cover", "Spatial plans", "Peatland",
-         "Surface water", "Base and reference", "Land and territory"].every((t) => at(t) > -1) && at("Land held under permit") === -1);
+        ["Fire", "Spatial plans", "Peatland", "Surface water", "Base and reference", "Land and territory"].every((t) => at(t) > -1) &&
+        at("Land held under permit") === -1 && at("Forest and land cover") === -1);
   check("the planet's new headings sit under Of the planet, before Of groups",
-        ["Fire", "Forest and land cover", "Spatial plans", "Peatland", "Surface water", "Other"]
+        ["Fire", "Spatial plans", "Peatland", "Surface water", "Other", "General", "Oil spills and slicks"]
           .every((t) => at(t) > at("Of the planet") && at(t) < at("Of groups")));
   check("Base and reference is its own section, beside Buildings", at("Base and reference") < at("Buildings") &&
         order[at("Base and reference")].h === 1);
@@ -2777,10 +2779,12 @@ console.log("\na row can sit under more than one subject");
 console.log("\nNusantara's layers spread through the box");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  const places = new Function(src.slice(src.indexOf("const CATALOGUE_PLACES = ["), src.indexOf("// The body of the heading a path names")) + "; return cataloguePlaces;")();
+  const places = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return cataloguePlaces;")();
   check("a layer goes under every subject its words answer to",
         places("Mining concessions Indonesia").includes("Destruction > Of the planet > Mining") &&
-        places("Oil palm concessions, by who lends to them").includes("Destruction > Of the planet > Meat and agriculture > Agriculture"));
+        places("Oil palm concessions, by who lends to them").join() === "Destruction > Of the planet > Meat and agriculture > Agriculture > Palm oil");
+  const orderH = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("const PANEL_REMOVED")) + "; return PANEL_ORDER;")();
+  const atH = (t) => orderH.findIndex((x) => x && x.t === t);
   // A concession is filed by what it is for; the generic heading is gone (22 September).
   check("a concession goes under its material or activity, not a generic permit heading",
         places("Timber concessions").join() === "Destruction > Of the planet > Deforestation" &&
@@ -2788,6 +2792,7 @@ console.log("\nNusantara's layers spread through the box");
         places("Logging concessions").join() === "Destruction > Of the planet > Deforestation" &&
         places("Mining concessions").join() === "Destruction > Of the planet > Mining" &&
         places("Plantation land-use rights (HGU)").join() === "Destruction > Of the planet > Meat and agriculture > Agriculture" &&
+        places("Cumulative deforestation for planted pulpwood inside concession trase").includes("Destruction > Of the planet > Deforestation > Wood pulp, Indonesia") &&
         places("Oil and gas concessions").join() === "Destruction > Of the planet > Oil and gas drilling" &&
         !/"Destruction > Of the planet > Land held under permit"/.test(src));
   check("\u2026one for a material no heading covers, or that names none, goes under Other",
@@ -2795,15 +2800,30 @@ console.log("\nNusantara's layers spread through the box");
         places("Concessions of other kinds").join() === "Destruction > Of the planet > Other" &&
         places("National Strategic Project concessions, Merauke").join() === "Destruction > Of the planet > Other" &&
         places("Some permit").join() === "Destruction > Of the planet > Other" &&
-        /\{ h: 3, t: "Culprits upstream" \}, "ejatlas",\n[^\n]*\n[^\n]*\n  \{ h: 3, t: "Other" \},/.test(src));
+        atH("Other") > atH("Construction") && atH("Other") < atH("Of groups"));
+  // 22 September: the box rearranged to the owner's list.
+  check("emissions are split by sector and by gas, Trase's by sector and Global Forest Watch's by gas",
+        places("Total GhG emissions trase").join() === "Destruction > Of the planet > Climate > Emissions > By sector" &&
+        places("Carbon flux").join() === "Destruction > Of the planet > Climate > Emissions > By greenhouse gas");
+  check("\u2026Trase's crops go under their own headings, soy and cocoa and palm, not the general one",
+        places("Production of soy trase").join() === "Destruction > Of the planet > Meat and agriculture > Agriculture > Soy, corn and grain" &&
+        places("Cocoa area trase").join() === "Destruction > Of the planet > Meat and agriculture > Agriculture > Cocoa and cotton");
+  check("\u2026the moratorium (PIPPIB) is under Spatial plans and Deforestation > Moratoriums; Badung's plans under Agriculture",
+        places("Moratorium areas (PIPPIB)").includes("Destruction > Of the planet > Spatial plans") &&
+        places("Moratorium areas (PIPPIB)").includes("Destruction > Of the planet > Deforestation > Moratoriums") &&
+        places("Detailed spatial plan 2023, Badung (RDTR)").join() === "Destruction > Of the planet > Meat and agriculture > Agriculture > Detailed spatial plans, Badung");
+  check("\u2026a land-cover layer has no row, at the owner's request, and is counted rather than filed under Not yet placed",
+        places("Land cover 2020, Indonesia").join() === "(left out)" && places("Mangrove extent").join() === "Destruction > Of the planet > Oceans > Reefs and mangroves" &&
+        /leftOut\+\+; item\.leftOut = true; return;/.test(src));
+  check("\u2026the cultivated-meat row is out of the box, and Culprits upstream is dissolved", /"cultivated_meat_laws",/.test(src.slice(src.indexOf("const PANEL_REMOVED"))) && atH("Culprits upstream") === -1);
   check("fire alerts are fire and deforestation is deforestation",
         places("Fire alerts, VIIRS")[0] === "Destruction > Of the planet > Deforestation" ||
         places("Fire alerts, VIIRS").includes("Destruction > Of the planet > Fire"));
   check("customary forest is land and territory, not forest cover",
         places("Customary forest (hutan adat)").includes("Suppression > Of humans > Land and territory"));
   check("boundaries and relief are base and reference",
-        places("Province boundaries").includes("Base and reference") &&
-        places("Hillshade relief").includes("Base and reference"));
+        places("Province boundaries").includes("Base and reference > Boundaries and relief") &&
+        places("Hillshade relief").includes("Base and reference > Boundaries and relief"));
   check("a layer no rule claims waits in Not yet placed rather than being invented a home",
         places("qqqq zzzz")[0] === "Not yet placed");
   check("a heading nothing answers to is not made up", /function sectionBody\(box, path\)/.test(src) && /if \(!found\) return null;/.test(src));
@@ -2846,9 +2866,9 @@ console.log("\nrows that show nearly the same thing say how they differ");
   const order = new Function(body + "; return PANEL_ORDER;")();
   const at = (t) => order.findIndex((x) => x && x.t === t);
   check("the three pulp-concession periods sit under one heading of their own",
-        at("Wood pulp concessions, Indonesia") > -1 &&
+        at("Wood pulp, Indonesia") > -1 &&
         ["trase_pulp_concessions_2015", "trase_pulp_concessions_2020", "trase_pulp_concessions_2023"]
-          .every((i) => order.indexOf(i) > at("Wood pulp concessions, Indonesia")));
+          .every((i) => order.indexOf(i) > at("Wood pulp, Indonesia")));
 }
 
 console.log("\nreallocated rows say where they are; the emptied rows leave the box");
@@ -2892,14 +2912,16 @@ console.log("\nnothing in the box is named for who published it");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const groups = [...src.matchAll(/\n  name: "([^"]+)",\n  group: true/g)].map((m) => m[1]);
-  check("every group is named for its subject", groups.length > 8 &&
-        !groups.some((n) => /(climate trace|global forest watch|nusantara|trase|the site's own|map repos|organisations'|accountability map|engineering map)/i.test(n)));
+  // A group's name may end with its source in parentheses (the naming rule since
+  // 22 September: "Emitting sites by sector (Climate TRACE)"), but never open with it.
+  check("every group is named for its subject, the source at the end if at all", groups.length > 8 &&
+        !groups.some((n) => /^(climate trace|global forest watch|nusantara|trase|the site's own|map repos|organisations'|accountability map|engineering map)/i.test(n)));
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("const PANEL_REMOVED"));
   const order = new Function(body + "; return PANEL_ORDER;")();
   check("and so is every heading",
         !order.some((x) => x && x.t && /(climate trace|global forest watch|nusantara|trase|palmwatch|skytruth)/i.test(x.t)));
   check("the groups say what they hold",
-        groups.includes("Emitting sites, by sector") && groups.includes("Emissions from farming and land use") &&
+        groups.includes("Emitting sites by sector (Climate TRACE)") && groups.includes("Emissions from farming and land use (Climate TRACE)") &&
         groups.includes("Trees and plant cover lost, as it happens") && groups.includes("Maps made by others"));
 }
 

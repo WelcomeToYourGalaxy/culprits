@@ -132,7 +132,7 @@ function ctChild(id, label, base) {
 
 const CT_SECTORS = {
   id: "climate_trace_sectors",
-  name: "Emitting sites, by sector",
+  name: "Emitting sites by sector (Climate TRACE)",
   group: true,
   ready: true,
   children: [
@@ -147,7 +147,7 @@ const CT_SECTORS = {
 
 const CT_AGRICULTURE = {
   id: "climate_trace_agriculture",
-  name: "Emissions from farming and land use",
+  name: "Emissions from farming and land use (Climate TRACE)",
   group: true,
   ready: true,
   children: [
@@ -165,7 +165,7 @@ const CT_AGRICULTURE = {
 
 const CT_FORESTRY = {
   id: "climate_trace_forestry",
-  name: "Emissions from forestry and land clearing",
+  name: "Emissions from forestry and land clearing (Climate TRACE)",
   group: true,
   ready: true,
   children: [
@@ -185,7 +185,7 @@ const CT_FORESTRY = {
 
 const CT_HISTORY = {
   id: "ct_history",
-  name: "Emitting sites in past years",
+  name: "Emitting sites in past years (Climate TRACE)",
   group: true,
   ready: true,
   children: CT_HISTORY_YEARS.map((y) => ({
@@ -226,7 +226,7 @@ const LAYERS = [
              defaultValues: [CT_MONTHS[CT_MONTHS.length - 1]] },
     note: "Monthly, 2021-01 to 2026-06. One month is shown at a time — pick others in the panel." },
 
-  { id:"gem_coal",             name:"Coal plant units (GEM Global Coal Plant Tracker)",        unit:"MW capacity", colour:"#7A5548", route:"pmtiles", ready:true, off: true,
+  { id:"gem_coal",             name:"Coal plant units (Global Energy Monitor, Global Coal Plant Tracker)",        unit:"MW capacity", colour:"#7A5548", route:"pmtiles", ready:true, off: true,
     radiusScale: 0.55,
     facet: { property: "x_status", label: "status",
              values: ["operating","construction","permitted","pre-permit","announced",
@@ -250,8 +250,8 @@ const LAYERS = [
   // once map/tiles/<id>.pmtiles exists, or once a harvester is registered.
   { id:"carbon_majors",        name:"Carbon major HQs",        unit:"company headquarters", colour:"#7E6B8F", route:"pmtiles", ready:true, off: true,
     note: "From the Destruction page's Carbon Majors headquarters map (maps repo): the addresses written into that map." },
-  { id:"fertilizer_facilities",name:"Fertilizer plants (Welcome to Your Galaxy)",       unit:"ammonia / urea", colour:"#8A7C5C", route:"pmtiles", ready:true, off: true },
-  { id:"soy_organizations",    name:"Soy industry bodies (Welcome to Your Galaxy)",     unit:"trade organisations", colour:"#6F7F72", route:"pmtiles", ready:true, off: true },
+  { id:"fertilizer_facilities",name:"Fertilizer plants",       unit:"ammonia / urea", colour:"#8A7C5C", route:"pmtiles", ready:true, off: true },
+  { id:"soy_organizations",    name:"Soy industry bodies",     unit:"trade organisations", colour:"#6F7F72", route:"pmtiles", ready:true, off: true },
   { id:"trase",                name:"Commodity supply chains", unit:"ha",         colour:"#62755F", route:"pmtiles", ready:false },
   { id:"land_matrix",          name:"Land deals (Land Matrix)",              unit:"hectares",   colour:"#6C7F63", route:"country", ready:true, off: true,  isolate:true },
   { id:"counterglow",          name:"Industrial animal farms", unit:"facilities", colour:"#7B7A5C", route:"pmtiles", ready:false },
@@ -347,7 +347,7 @@ const LAYERS = [
     where: ["==", ["slice", ["get", "id"], 0, 4], "ogtr"] },
   { id:"gmo_therapy", sourceOf:"gmo_releases", name:"Gene and cell therapy trial sponsors", unit:"sponsors", colour:"#6E7484", route:"pmtiles", ready:true, off: true,
     where: ["==", ["get", "id"], "clinical:sponsor"] },
-  { id:"gmo_fertility", sourceOf:"gmo_releases", name:"Fertility clinics", unit:"clinics", colour:"#846F74", route:"pmtiles", ready:true, off: true,
+  { id:"gmo_fertility", sourceOf:"gmo_releases", name:"Fertility clinics (Assisted Reproduction)", unit:"clinics", colour:"#846F74", route:"pmtiles", ready:true, off: true,
     where: ["==", ["get", "id"], "industry:repro"] },
   { id:"gmo_animal_research", sourceOf:"gmo_releases", name:"Animal research facilities", unit:"facilities", colour:"#7A6A6A", route:"pmtiles", ready:true, off: true,
     where: ["all", ["==", ["get", "id"], "industry:animals"],
@@ -1123,7 +1123,7 @@ const HUD_KIND = {
   "Destruction|Agriculture": ["hexagon", "red"],
   "Destruction|Oceans": ["reticle", "cyan"],
   "Destruction|Construction": ["square", "amber"],
-  "Destruction|Culprits upstream": ["diamond", "amber"],
+  "Destruction|Other": ["diamond", "amber"],
   "Destruction|*": ["triangle", "red"],
   "Suppression|*": ["square", "white"],
   "Off-planet invasion|*": ["reticle", "cyan"],
@@ -3179,7 +3179,7 @@ async function addTraseLayer(cfg) {
   const rows = entries.map((e) => ({
     name: e.metric, title: e.title,
     // Filed by what Trase itself calls it: its name, its group and its commodity.
-    fileBy: `${e.name} ${e.meta.metric_group || ""} ${e.meta.commodity || ""} ${e.metric.replace(/_/g, " ")}`,
+    fileBy: `${e.name} ${e.meta.metric_group || ""} ${e.meta.commodity || ""} ${e.metric.replace(/_/g, " ")} trase`,
     about: `${e.meta.metric_group || ""} ${e.meta.tooltip && e.meta.tooltip !== "." ? e.meta.tooltip : ""}`.trim(),
     show: (want) => { if (want) put(e).catch((err) => traseSay(e, `could not draw (${err.message})`)); else take(e); },
   }));
@@ -4098,46 +4098,59 @@ const NUSANTARA_NAMES = {
 // concessions land under Mining. Nothing is
 // filed by which organisation published it: that is what the source link on
 // the row is for.
+const P = "Destruction > Of the planet";
+const AG = P + " > Meat and agriculture > Agriculture";
 const CATALOGUE_PLACES = [
   // "Alert" on its own is not deforestation: Nusantara's fire alerts carry it
   // too, and they belong under Fire. So the deforestation rule names the
   // systems and the words that mean forest loss, and fire keeps its own.
   [/deforest|forest ?loss|tree ?cover ?loss|disturb|expansion|probability|forest change|frontera|\bglad\b|\bradd\b|dist-?alert|integrated alert/i,
-   "Destruction > Of the planet > Deforestation"],
-  [/\bfires?\b|burn|hotspot/i, "Destruction > Of the planet > Fire"],
-  [/mining|\bmines?\b|quarr|\bcoal\b|nickel|bauxite|\bgold\b/i, "Destruction > Of the planet > Mining"],
-  [/oil and gas|oil & gas|\bgas\b|petroleum|geothermal/i, "Destruction > Of the planet > Oil and gas drilling"],
-  [/plantation|palm|coconut|sugarcane|sago|\bmills?\b|refiner|soy|cocoa|coffee|crop|agricultur|pasture|livestock|cattle|yield|mapspam|\bhgu\b/i,
-   "Destruction > Of the planet > Meat and agriculture > Agriculture"],
-  [/\bbeef\b|cattle|slaughter|\bpigs?\b|chickens?|livestock|pasture/i, "Destruction > Of the planet > Meat and agriculture > Meat"],
-  [/\bcorn\b|maize|cotton/i, "Destruction > Of the planet > Meat and agriculture > Agriculture"],
-  [/pulpwood|\bzdc\b|zero.deforestation/i, "Destruction > Of the planet > Deforestation"],
-  [/aquaculture|fisher|fishing|shrimp/i, "Destruction > Of the planet > Oceans > Fishing"],
+   P + " > Deforestation > Tree cover loss and alerts"],
+  [/\bfires?\b|burn|hotspot/i, P + " > Fire"],
+  [/mining|\bmines?\b|quarr|\bcoal\b|nickel|bauxite|\bgold\b/i, P + " > Mining"],
+  [/oil and gas|oil & gas|\bgas\b|petroleum|geothermal/i, P + " > Oil and gas drilling"],
+  // Agriculture, by crop where the box has a heading for it (22 September).
+  [/palm|\bmills?\b|refiner/i, AG + " > Palm oil"],
+  [/\bsoy|\bcorn\b|maize|grain|silo/i, AG + " > Soy, corn and grain"],
+  [/cocoa|cotton/i, AG + " > Cocoa and cotton"],
+  [/fertili[sz]er/i, AG + " > Farm inputs"],
+  [/plantation|coconut|sugarcane|sago|coffee|crop|agricultur|pasture|yield|mapspam|\bhgu\b/i, AG],
+  [/\bbeef\b|cattle|slaughter|\bpigs?\b|chickens?|livestock|pasture/i, P + " > Meat and agriculture > Meat > Facilities"],
+  [/pulpwood|\bpulp\b|\bzdc\b|zero.deforestation/i, P + " > Deforestation > Wood pulp, Indonesia"],
+  [/aquaculture|fisher|fishing|shrimp/i, P + " > Oceans > Fishing"],
   // A concession or permit is filed by what it is for - mining under Mining,
   // timber under Deforestation, oil palm under Agriculture (22 September; the
   // generic "Land held under permit" heading is gone). One for a material or
   // activity no heading covers (rubber, a project that names none) goes under
   // Other, below; so does a permit whose words say nothing about its use.
-  [/timber|logging|pulpwood|\bpulp\b|wood fiber|forest utili[sz]ation|\bpbph\b|forest clearance|\bfca\b|management objective|forest concession|\bhph\b|\bhti\b|iuphhk/i,
-   "Destruction > Of the planet > Deforestation"],
-  [/rubber|concessions? of other kinds|other concessions|national strategic project|\bpsn\b/i, "Destruction > Of the planet > Other"],
-  [/carbon|emission|biomass|climate|\bco2\b|flux|removals|temperature|precipitation/i,
-   "Destruction > Of the planet > Climate"],
-  [/nitrogen dioxide|air quality|aerosol|pm2/i, "Destruction > Of the planet > Climate > Air pollution"],
+  [/timber|logging|wood fiber|forest utili[sz]ation|\bpbph\b|forest clearance|\bfca\b|management objective|forest concession|\bhph\b|\bhti\b|iuphhk/i,
+   P + " > Deforestation"],
+  [/rubber|concessions? of other kinds|other concessions|national strategic project|\bpsn\b/i, P + " > Other"],
+  // Emissions: what Trase measures is a supply chain's emissions, by sector;
+  // Global Forest Watch's carbon datasets are by gas (22 September).
+  [/(emission|carbon|\bco2\b|greenhouse)[\s\S]*\btrase\b|\btrase\b[\s\S]*(emission|carbon|\bco2\b|greenhouse)/i, P + " > Climate > Emissions > By sector"],
+  [/carbon|emission|biomass|climate|\bco2\b|flux|removals|temperature|precipitation/i, P + " > Climate > Emissions > By greenhouse gas"],
+  [/nitrogen dioxide|air quality|aerosol|pm2/i, P + " > Pollution > Air"],
   [/protect|conserv|reserve|restoration|biodivers|intact forest|primary forest|wdpa|ramsar|species|habitat|ecozone|ecosystem|\bkba\b/i,
-   "Destruction > Of the planet > Biodiversity loss"],
-  [/peat/i, "Destruction > Of the planet > Peatland"],
-  [/forest cover|forest and non-forest|land cover|tree height|forest as a share|mangrove|tree cover extent|forest extent|tree cover density|forest age|industrial land/i,
-   "Destruction > Of the planet > Forest and land cover"],
-  [/water|aqueduct|river|watershed|flood|\bpond\b|canal/i, "Destruction > Of the planet > Surface water"],
+   P + " > Biodiversity loss"],
+  [/peat/i, P + " > Peatland"],
+  // Forest and land cover: the heading and its rows were taken out of the box
+  // at the owner's request (22 September). A layer only this rule claims is
+  // left out, and counted on the catalogue's own row.
+  [/forest cover|forest and non-forest|land cover|tree height|forest as a share|tree cover extent|forest extent|tree cover density|forest age|industrial land/i, null],
+  [/mangrove|reef|benthic|coral/i, P + " > Oceans > Reefs and mangroves"],
+  [/water|aqueduct|river|watershed|flood|\bpond\b|canal/i, P + " > Surface water"],
   [/customary|\badat\b|indigenous|community land|tenure|land rights|quilombola|village forest|community forest|social forestry|rural settlement|forestry employment/i,
    "Suppression > Of humans > Land and territory"],
-  [/\broads?\b|transmigration|settlement|capital|\bikn\b|infrastructure|urban|built/i,
-   "Destruction > Of the planet > Construction"],
-  [/spatial plan|moratorium|forest estate|\brtrw\b|\brdtr\b|zoning/i, "Destruction > Of the planet > Spatial plans"],
+  [/\broads?\b|transmigration|settlement|capital|\bikn\b|infrastructure|urban|built/i, P + " > Construction"],
+  // Spatial plans: the national and provincial plans and the moratorium (PIPPIB)
+  // stay; the moratorium is also under Deforestation, being a bar on clearing
+  // forest and peat; Badung's detailed plans go under Agriculture, as asked.
+  [/badung/i, AG + " > Detailed spatial plans, Badung"],
+  [/moratorium|pippib/i, P + " > Deforestation > Moratoriums"],
+  [/spatial plan|forest estate|\brtrw\b|\brtrwn\b|\brtrwp\b|\brdtr\b|zoning|moratorium|pippib/i, P + " > Spatial plans"],
   [/boundar|admin|hillshade|relief|imagery|sentinel|from the air|geotag|news article|towns and villages|\bgadm\b|\bgrid\b|geostore|buffered|coverage layer|\bregions?\b/i,
-   "Base and reference"],
-  [/reef|benthic|coral/i, "Destruction > Of the planet > Oceans"],
+   "Base and reference > Boundaries and relief"],
 ];
 // Where a catalogue layer is, said in its title. Nusantara names the place in
 // most of its ids and covers Equatorial Asia in the rest; a reader clicking
@@ -4162,13 +4175,24 @@ function nusantaraWhere(id) {
   return "Equatorial Asia";
 }
 
+const LEFT_OUT = "(left out)";
 function cataloguePlaces(words) {
-  const out = [];
-  for (const [rule, path] of CATALOGUE_PLACES) if (rule.test(words) && !out.includes(path)) out.push(path);
+  let out = [];
+  let dropped = false;
+  for (const [rule, path] of CATALOGUE_PLACES) {
+    if (!rule.test(words)) continue;
+    if (path === null) dropped = true; else if (!out.includes(path)) out.push(path);
+  }
+  const drop = (path) => { const i = out.indexOf(path); if (i > -1) out.splice(i, 1); };
   // Rubber was asked to go under Other, not Agriculture, though its rows say "plantation".
-  if (/rubber/i.test(words)) { const i = out.indexOf("Destruction > Of the planet > Meat and agriculture > Agriculture"); if (i > -1) out.splice(i, 1); }
+  if (/rubber/i.test(words)) drop(AG);
+  // A crop's own heading stands in for the general one; by sector stands in for by gas.
+  if (out.some((p) => p.startsWith(AG + " > "))) drop(AG);
+  if (out.includes(P + " > Climate > Emissions > By sector")) drop(P + " > Climate > Emissions > By greenhouse gas");
+  if (out.includes(AG + " > Detailed spatial plans, Badung")) drop(P + " > Spatial plans");
   // A concession or permit whose words name no material and no activity.
-  if (!out.length && /concession|permit|licen[cs]e|\bizin\b/i.test(words)) out.push("Destruction > Of the planet > Other");
+  if (!out.length && !dropped && /concession|permit|licen[cs]e|\bizin\b/i.test(words)) out.push(P + " > Other");
+  if (!out.length && dropped) return [LEFT_OUT];
   return out.length ? out : ["Not yet placed"];
 }
 
@@ -4197,11 +4221,14 @@ function catalogueRows(cfg, items) {
   const box = document.getElementById("layers");
   if (!box || !items.length) return;
   const spare = sectionBody(box, "Not yet placed") || box;
+  let leftOut = 0;
   items.forEach((item, i) => {
     const key = `${cfg.id}|${i}`;
     // A row may say what it is to be filed by, where its long description would
     // mislead: a Trase tooltip that mentions water in passing is not a water layer.
     const paths = cataloguePlaces(item.fileBy || `${item.title} ${item.name} ${item.about || ""}`);
+    item.key = key;
+    if (paths[0] === LEFT_OUT) { leftOut++; item.leftOut = true; return; }
     paths.forEach((path, n) => {
       const row = document.createElement("label");
       row.className = "layer layer-cat" + (n ? " layer-copy" : "");
@@ -4214,8 +4241,8 @@ function catalogueRows(cfg, items) {
         `<span class="un" data-state="${escapeHtml(key)}">${escapeHtml(cfg.catUnit || "")}</span></span>`;
       (sectionBody(box, path) || spare).appendChild(row);
     });
-    item.key = key;
   });
+  if (leftOut) console.info(`[culprits] ${cfg.id}: ${leftOut} land-cover layers have no row, at the owner's request (22 September)`);
   countHeadings(box);
   if (box.dataset.catWired) return;
   box.dataset.catWired = "1";
@@ -7652,12 +7679,12 @@ const SITE_MAPS = {
       note: "From the Destruction page's animal sacrifice map." },
     { id: "site_animal_fighting", name: "Animal Fighting Locations Map", unit: "venues", colour: "#84594F", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_animal_fighting.places.geojson",
       note: "From the Destruction page's animal fighting map (maps repo)." },
-    { id: "carbon_plumes", name: "Methane and carbon dioxide plumes, as Carbon Mapper saw them", unit: "plumes", colour: "#6D6A5E", route: "carbonmapper", ready: true, lazy: true,
+    { id: "carbon_plumes", name: "Methane and carbon dioxide plumes (Carbon Mapper)", unit: "plumes", colour: "#6D6A5E", route: "carbonmapper", ready: true, lazy: true,
       attribution: '<a href="https://carbonmapper.org" target="_blank" rel="noopener">Carbon Mapper</a>',
       note: "Read live from Carbon Mapper's own data platform: the newest 10,000 plumes it publishes, each with the emission rate measured at that moment, and from zoom 10 each plume's own picture laid where Carbon Mapper say it belongs. The row says how many of the published total it is holding." },
     { id: "site_carbon_mapper_waste", name: "Methane plumes from waste sites \u2014 the set on our own page (Carbon Mapper)", unit: "plume sources", colour: "#6D6A5E", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_carbon_mapper_waste.places.geojson",
       note: "From the Destruction page's Carbon Mapper waste-sector map: the hotspots written into that map, not Carbon Mapper's live feed." },
-    { id: "site_forest500_soy", name: "Forest 500: Worst Soy Financial Institutions (2024)", unit: "financial institutions", colour: "#6B5B4E", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_forest500_soy.places.geojson",
+    { id: "site_forest500_soy", name: "Worst soy financial institutions, 2024 (Forest 500)", unit: "financial institutions", colour: "#6B5B4E", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_forest500_soy.places.geojson",
       note: "From the Destruction page's Forest 500 map: institutions scoring 2 or less of 94 on soy policy, placed at their headquarters." },
     { id: "site_china_grain", name: "中国粮仓 China Grain Storage", unit: "depots", colour: "#76705C", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_china_grain.places.geojson",
       note: "From the Destruction page's China grain storage map. The page states 205 facilities; this layer carries the positions its map draws." },
@@ -7671,7 +7698,7 @@ const SITE_MAPS = {
       note: "From the Suppression page's central banks map." },
     { id: "site_banking_dynasties", name: "Global Banking Dynasties", unit: "dynasty seats", colour: "#6A5D6B", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_banking_dynasties.places.geojson",
       note: "From the Suppression page's banking dynasties map." },
-    { id: "site_export_credit", name: "Export Credit Agenciesof the World", unit: "agencies", colour: "#5E6A63", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_export_credit.places.geojson",
+    { id: "site_export_credit", name: "Export Credit Agencies of the World", unit: "agencies", colour: "#5E6A63", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_export_credit.places.geojson",
       note: "From the Suppression page's export credit agencies map. Its country shading is not carried here, only the agencies." },
     { id: "site_wealth_atlas", name: "The World's Richest Dynasties & Individuals", unit: "families and individuals", colour: "#735E57", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_wealth_atlas.places.geojson",
       note: "From the Suppression page's wealth atlas." },
@@ -7728,7 +7755,7 @@ const SITE_MAPS = {
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
     { id: "gov_official_map", name: "How to become a government official", unit: "countries and places", colour: "#5F6A66", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/gov_official_map.geojson",
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
-    { id: "capture_map", name: "Drug underworld and capture map (Welcome to Your Galaxy)", unit: "places and areas", colour: "#6A5A5E", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/capture_map.geojson",
+    { id: "capture_map", name: "Drug underworld and capture map", unit: "places and areas", colour: "#6A5A5E", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/capture_map.geojson",
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
   ],
 };
@@ -7940,11 +7967,11 @@ const OTHER_MAPS = {
       service: "https://data-gis.unep-wcmc.org/server/rest/services/HabitatsAndBiotopes/Global_Distribution_of_Coral_Reefs/MapServer",
       attribution: "UNEP-WCMC, WorldFish Centre, WRI, TNC",
       note: "UNEP-WCMC's Global Distribution of Warm-water Coral Reefs, drawn live by its own map server at every zoom; a click asks it what is there." },
-    { id: "mines_global", name: "Mines worldwide (Maus et al. 2022 + OpenStreetMap)", unit: "mine outlines", colour: "#6E5E52", route: "pmshapes", ready: true, lazy: true,
+    { id: "mines_global", name: "Mines worldwide (Maus et al. 2022 and OpenStreetMap)", unit: "mine outlines", colour: "#6E5E52", route: "pmshapes", ready: true, lazy: true,
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/mining_polygons.pmtiles", polygonLayer: "mines", pointLayer: "mine_points",
       attribution: "Maus et al. 2022; OpenStreetMap contributors; merged by WU Vienna 2024 (ODbL)",
       note: "192,584 mine outlines: Maus et al.'s satellite-traced mining areas merged with OpenStreetMap's mines and quarries (Zenodo 7307210, ODbL), with the tree cover loss inside each from 2000 to 2019. Every mine as a point from the world view, merged where they crowd; outlines from zoom 7." },
-    { id: "ejatlas", name: "Environmental Justice Atlas (EJAtlas)", unit: "conflicts", colour: "#7A5A55", route: "ejatlas", ready: true, lazy: true,
+    { id: "ejatlas", name: "Environmental justice conflicts (EJAtlas)", unit: "conflicts", colour: "#7A5A55", route: "ejatlas", ready: true, lazy: true,
       api: "https://ejatlas.org/api/v1/conflicts/",
       note: "Every conflict in the EJAtlas, read live from its own data address; each box links the conflict's page." },
     { id: "seas_of_plastic", name: "Seas of Plastic", unit: "stations, trips and ocean areas", colour: "#5E7377", route: "geojsonlive", ready: true, lazy: true,
@@ -7965,14 +7992,14 @@ const OTHER_MAPS = {
     { id: "coastal_cleanup", name: "Coastal Cleanup (Ocean Conservancy)", unit: "cleanup sites", colour: "#5F6B70", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Cleanups", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/coastal/cleanups.geojson" }],
       note: "Ocean Conservancy's cleanup sites, copied daily by culprits-tiles-more (its server lets only its own site read it)." },
-    { id: "atlas_hotspots", name: "Atlas for the End of the World: Hotspots", unit: "biodiversity hotspots", colour: "#6E5A55", route: "arcgisapp", ready: true, lazy: true,
+    { id: "atlas_hotspots", name: "Hotspots (Atlas for the End of the World)", unit: "biodiversity hotspots", colour: "#6E5A55", route: "arcgisapp", ready: true, lazy: true,
       item: "ba55aa1bff5447e7b72559b8dc1a0e83", pdfBase: "https://atlas-for-the-end-of-the-world.com/hotspots/",
       // About a kilometre, in degrees: the outlines are tens of megabytes at
       // the survey's own precision and took most of a minute to arrive.
       coarse: 0.01,
       pdfs: [["atlantic_forests", "Atlantic Forest"], ["california_floristic_province", "California Floristic Province"], ["cape_floristic_region", "Cape Floristic Region"], ["caribbean_islands", "Caribbean Islands"], ["caucasus", "Caucasus"], ["cerrado", "Cerrado"], ["chilean_valdivian_forests", "Chilean Winter Rainfall Valdivian Forests"], ["coastal_forests_of_eastern_africa", "Coastal Forests of Eastern Africa"], ["east_melanesian_islands", "East Melanesian Islands"], ["eastern_afromontane", "Eastern Afromontane"], ["forests_of_east_australia", "Forests of Eastern Australia"], ["guinean_forests_of_west_africa", "Guinean Forests of West Africa"], ["himalaya", "Himalaya"], ["horn_of_africa", "Horn of Africa"], ["japan", "Japan"], ["madagascar", "Madagascar & The Indian Ocean Islands"], ["madrean_woodlands", "Madrean Pine-Oak Woodlands"], ["maputaland_pondoland_albany", "Maputaland Pondoland Albany"], ["mediterranean_basin", "Mediterranean Basin"], ["mesoamerica", "Mesoamerica"], ["mountains_of_central_asia", "Mountains of Central Asia"], ["mountains_of_southwest_china", "Mountains of Southwest China"], ["new_caledonia", "New Caledonia"], ["new_zealand", "New Zealand"], ["philippines", "Philippines"], ["north_american_coastal_plain", "North American Coastal Plain"], ["southwest_australia", "Southwest Australia"], ["succulent_karoo", "Succulent Karoo"], ["sundaland", "Sundaland"], ["tropical_andes", "Tropical Andes"], ["wallacea", "Wallacea"], ["western_ghats_sri_lanka", "Western Ghats & Sri Lanka"]],
       note: "The 36 biodiversity hotspots, outlined live from Conservation International's Biodiversity Hotspots 2016.1 (CC BY 3.0), the boundaries the Atlas maps; each box links the Atlas's own PDF for that hotspot. The outlines are asked for at about a kilometre's precision rather than the survey's own, which is what makes them arrive in seconds; every field comes across unchanged." },
-    { id: "atlas_cities", name: "Atlas for the End of the World: Hotspot Cities", unit: "cities", colour: "#5E6070", route: "atlascities", zoomTo: 9, ready: true, lazy: true,
+    { id: "atlas_cities", name: "Hotspot Cities (Atlas for the End of the World)", unit: "cities", colour: "#5E6070", route: "atlascities", zoomTo: 9, ready: true, lazy: true,
       pageBase: "https://atlas-for-the-end-of-the-world.com/hotspot_cities/", positions: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/atlas/cities.json",
       cities: [["antananarivo", "Antananarivo, Madagascar"], ["auckland", "Auckland, New Zealand"], ["baku", "Baku, Azerbaijan"], ["bogota", "Bogotá, Colombia"], ["brasilia", "Brasília, Brazil"], ["cape_town", "Cape Town, South Africa"], ["chengdu", "Chengdu, China"], ["colombo", "Colombo, Sri Lanka"], ["dar_es_salaam", "Dar es Salaam, Tanzania"], ["davao", "Davao, Philippines"], ["durban", "Durban, South Africa"], ["esfahan", "Esfahan, Iran"], ["guadalajara", "Guadalajara, Mexico"], ["guayaquil", "Guayaquil, Ecuador"], ["hongknog_shenzhen_quangzhou", "Hongkong-Shenzhen-Guangzhou, China"], ["honolulu", "Honolulu, United States"], ["houston", "Houston, United States"], ["jakarta", "Jakarta, Indonesia"], ["lagos", "Lagos, Nigeria"], ["los_angeles", "Los Angeles, United States"], ["makassar", "Makassar, Indonesia"], ["mecca", "Mecca, Saudi Arabia"], ["mexico_city", "Mexico City, Mexico"], ["nairobi", "Nairobi, Kenya"], ["osaka", "Osaka, Japan"], ["perth", "Perth, Australia"], ["port-au-prince", "Port-au-Prince, Haiti"], ["rawalpindi", "Rawalpindi, Pakistan"], ["santiago", "Santiago, Chile"], ["sao_paulo", "São Paulo, Brazil"], ["sydney", "Sydney, Australia"], ["tashkent", "Tashkent, Uzbekistan"], ["tel_aviv", "Tel Aviv, Israel"]],
       note: "The Atlas's 33 hotspot cities; each is placed from its name through a weekly OpenStreetMap lookup, and its box links the Atlas's own page." },
@@ -8002,7 +8029,7 @@ const OTHER_MAPS = {
     { id: "mymaps_supp_a", name: "Pet Food Companies (Google My Maps)", unit: "placemarks", colour: "#6A5E66", route: "kml", ready: true, lazy: true,
       kml: "https://www.google.com/maps/d/kml?mid=1vrnqSW4cWWdnjz6cJ-qFMmd0zbJzYd6V&forcekml=1",
       note: "Read live from the map's Google My Maps file; the row takes the map's own title once it loads." },
-    { id: "mymaps_supp_b", name: "Google My Maps map (Suppression page)", unit: "placemarks", colour: "#6A5E66", route: "kml", ready: true, lazy: true,
+    { id: "mymaps_supp_b", name: "Suppression page map (Google My Maps)", unit: "placemarks", colour: "#6A5E66", route: "kml", ready: true, lazy: true,
       kml: "https://www.google.com/maps/d/kml?mid=1seBCggQGg1tcRYpqpZ5ZKJaxHs4&forcekml=1",
       note: "Read live from the map's Google My Maps file; the row takes the map's own title once it loads." },
     { id: "rte_trade", name: "Resource trade flows (resourcetrade.earth, Chatham House)", unit: "trade flows", colour: "#8A6356", route: "rte", ready: true, lazy: true,
@@ -8011,20 +8038,20 @@ const OTHER_MAPS = {
     { id: "gsn", name: "Global Safety Net (One Earth)", unit: "layers", colour: "#406F2F", route: "gsn", ready: true, lazy: true,
       api: "https://api.gsn.naturedatalab.org/geo-analysis/layers",
       note: "Every layer the Global Safety Net viewer offers, drawn live from its own map service in its own colours." },
-    { id: "ct_air", name: "Climate TRACE: urban air-pollution sources and their plumes", unit: "sources", colour: "#7A5A55", route: "ctair", ready: true, lazy: true,
+    { id: "ct_air", name: "Urban air-pollution sources and their plumes (Climate TRACE)", unit: "sources", colour: "#7A5A55", route: "ctair", ready: true, lazy: true,
       list: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/sources.geojson",
       note: "The sources Climate TRACE's city air-pollution pages cover; a click draws the source's modelled plume and gives its figures for every pollutant, read live." },
-    { id: "ct_pop", name: "Population density (Climate TRACE, GHSL 1 km)", unit: "people per square km", colour: "#6A6258", route: "rasterlive", ready: true, lazy: true,
+    { id: "ct_pop", name: "Population density, 1 km (GHSL via Climate TRACE)", unit: "people per square km", colour: "#6A6258", route: "rasterlive", ready: true, lazy: true,
       attribution: "Climate TRACE; GHSL population", maxzoom: 12,
       choices: [{ label: "Population", tiles: "https://tiles.climatetrace.org/ghsl-pop-1km/all/{z}/{x}/{y}.png" }],
       note: "The population layer Climate TRACE's air-pollution pages draw underneath, read live." },
-    { id: "gta_acts", name: "Global Trade Alert: state acts by country", unit: "state acts", colour: "#8A6356", route: "gta", ready: true, lazy: true,
+    { id: "gta_acts", name: "State acts by country (Global Trade Alert)", unit: "state acts", colour: "#8A6356", route: "gta", ready: true, lazy: true,
       data: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gta/countries.json", shapes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gta/world.geojson",
       note: "Every state act in Global Trade Alert's database, summed by the country that took it, from a daily copy." },
-    { id: "cfr_tracker", name: "CFR Global Monetary Policy Tracker (Tableau)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+    { id: "cfr_tracker", name: "Global Monetary Policy Tracker (CFR)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://public.tableau.com/views/CFRGlobalMonetaryPolicyTrackerNEW/GlobalMonetaryPolicyTracker?:showVizHome=no&:embed=y",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "tableau_zsf", name: "CFR Global Imbalances Tracker", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+    { id: "tableau_zsf", name: "Global Imbalances Tracker (CFR)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://public.tableau.com/shared/ZSF724HPQ?:showVizHome=no&:embed=y",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
     { id: "troutwood", name: "Troutwood map", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
@@ -8062,37 +8089,37 @@ const OTHER_MAPS = {
     { id: "dff", name: "Deforestation Free Funds", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://deforestationfreefunds.org",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "fortune500", name: "Fortune Global 500 (2024)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+    { id: "fortune500", name: "Fortune Global 500, 2024", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://interactives.fortune.com/global_500_2024/dashboard/index.html",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
     { id: "theyrule", name: "They Rule", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://theyrule.net/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "pe_bankrolling", name: "Portfolio Earth: Bankrolling Extinction", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+    { id: "pe_bankrolling", name: "Bankrolling Extinction (Portfolio Earth)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://portfolio.earth/campaigns/bankrolling-extinction/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "pe_subsidising", name: "Portfolio Earth: Subsidising Extinction", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+    { id: "pe_subsidising", name: "Subsidising Extinction (Portfolio Earth)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://portfolio.earth/campaigns/subsidising-extinction/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
     { id: "powerbi_report", name: "Environmental Crime Tracker", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://app.powerbi.com/view?r=eyJrIjoiZGJmNGIwODgtMTgyMS00NmVlLWJmNWUtZTAzZDBlMmQ1ODI2IiwidCI6IjBiMzNkZjAwLTYzNGMtNDBlYy1iOGQ5LTZhMGI2MjYyNmU1ZCJ9",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "scribd_doc", name: "Scribd document (Destruction page)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+    { id: "scribd_doc", name: "Destruction page document (Scribd)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://www.scribd.com/embeds/401203705/content?start_page=1&view_mode=scroll&access_key=key-9NzI5oK8PppZP3Bfluct",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "skytruth_monitor", name: "SkyTruth Monitor", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+    { id: "skytruth_monitor", name: "All incidents (SkyTruth Monitor)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://monitor.skytruth.org/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
     // It said "last 30 days". It never was: SkyTruth's service does not apply the
     // days it is asked for, and the copy holds ships from 2019 and 2024.
-    { id: "skytruth_voc", name: "SkyTruth Monitor: vessels of concern", unit: "alerts", colour: "#5E7377", route: "pmtiles", ready: true, lazy: true,
+    { id: "skytruth_voc", name: "Vessels of concern (SkyTruth Monitor)", unit: "alerts", colour: "#5E7377", route: "pmtiles", ready: true, lazy: true,
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_voc.pmtiles", boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/vessels_of_concern",
       note: "SkyTruth's own list of disabled and sunken ships that threaten a spill, every one it lists whatever its date, from a daily copy of its service." },
     // SkyTruth Monitor's alert feeds, one row each, from the same daily copy.
     { id: "skytruth_nrc", name: "Spills, releases and rail incidents reported to the US National Response Center (SkyTruth Monitor)", unit: "incident reports", colour: "#6A5A4E", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_nrc.pmtiles",
       boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_1",
       note: "Every alert SkyTruth's service will give, from a daily copy read square by square as tiles: the service hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. A click reads the alert's own text from the copy. Each report as the National Response Center took it down, with SkyTruth's own reading of it where it made one. Reports are what a caller said, not findings." },
-    { id: "skytruth_posts", name: "Spills and accidents written up by SkyTruth itself \u2014 Taylor Energy, derailments, refuge spills (SkyTruth Monitor)", unit: "write-ups", colour: "#5E6B70", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_posts.pmtiles",
+    { id: "skytruth_posts", name: "Taylor Energy, derailments and refuge spills, written up by SkyTruth (SkyTruth Monitor)", unit: "write-ups", colour: "#5E6B70", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_posts.pmtiles",
       boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_2",
       note: "Every alert SkyTruth's service will give, from a daily copy read square by square as tiles: the service hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. A click reads the alert's own text from the copy. SkyTruth's own posts about incidents it followed, placed where each happened." },
     { id: "skytruth_marine_incidents", name: "Sinkings, groundings and mystery slicks, as US responders wrote them up (SkyTruth Monitor)", unit: "incident reports", colour: "#5A6772", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_marine_incidents.pmtiles",
@@ -8119,7 +8146,7 @@ const OTHER_MAPS = {
     { id: "skytruth_quakes", name: "Earthquakes, worldwide (SkyTruth Monitor)", unit: "earthquakes", colour: "#65676A", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_quakes.pmtiles",
       boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_6",
       note: "Every alert SkyTruth's service will give, from a daily copy read square by square as tiles: the service hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. A click reads the alert's own text from the copy. The earthquakes SkyTruth's feed carries; the newest seen on 20 September 2026 was from July 2015." },
-    { id: "slick_archive", name: "Oil slick archive (Cerulean, kept daily)", unit: "slicks by month", colour: "#5A5750", route: "slickarchive", ready: true, lazy: true,
+    { id: "slick_archive", name: "Oil slick archive, kept daily (Cerulean)", unit: "slicks by month", colour: "#5A5750", route: "slickarchive", ready: true, lazy: true,
       base: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/cerulean_archive",
       note: "Every Cerulean slick kept by month from a daily copy, so they stay on the map whatever happens to the live service." },
     { id: "wrf", name: "When Rockets Fly", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
@@ -8131,19 +8158,19 @@ const OTHER_MAPS = {
     { id: "nsf_locations", name: "Next Spaceflight: launch sites", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://nextspaceflight.com/locations/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "esa_risk", name: "ESA near-Earth-object risk list", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+    { id: "esa_risk", name: "Near-Earth-object risk list (ESA)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://neo.ssa.esa.int/risk-list-plots",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
     { id: "acgf", name: "ACGF", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://acgf.org/index.htm",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "gsn_rankings", name: "Global Safety Net: country rankings", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+    { id: "gsn_rankings", name: "Country rankings (Global Safety Net)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://www.globalsafetynet.app/rankings/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "giga_countries", name: "Giga: school mapping by country", unit: "countries", colour: "#627A86", route: "giga", ready: true, lazy: true,
+    { id: "giga_countries", name: "School mapping by country (Giga)", unit: "countries", colour: "#627A86", route: "giga", ready: true, lazy: true,
       data: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/giga/countries.json",
       note: "Giga's own figures for every country on its map, copied daily (its service does not let other sites read it)." },
-    { id: "biosignature", name: "Biosignature Evidence Assessment (Welcome to Your Galaxy)", unit: "opens it in a panel", colour: "#5E6070", route: "companion", ready: true, lazy: true,
+    { id: "biosignature", name: "Biosignature Evidence Assessment", unit: "opens it in a panel", colour: "#5E6070", route: "companion", ready: true, lazy: true,
       page: "https://welcometoyourgalaxy.github.io/maps/off-planet-invasion_embed_13_large-script.html",
       note: "Your own assessment from the Off-Planet Invasion page, whole, in the panel along the bottom." },
     { id: "leverage_chart", name: "The Leverage Chart", unit: "opens it in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
@@ -8152,27 +8179,27 @@ const OTHER_MAPS = {
     { id: "wreckers_umap", name: "Wreckers of the Earth (Corporate Watch)", unit: "companies and sites", colour: "#6E5A55", route: "umap", ready: true, lazy: true,
       umap: "https://umap.openstreetmap.fr/en", umapId: 409815,
       note: "Read live from Corporate Watch's uMap each time it is ticked, with its own layers, colours and popups." },
-    { id: "mymaps_chlorine", name: "Google My Maps map (plastics and chlorine section)", unit: "placemarks", colour: "#5F6B70", route: "kml", ready: true, lazy: true,
+    { id: "mymaps_chlorine", name: "Plastics and chlorine (Google My Maps)", unit: "placemarks", colour: "#5F6B70", route: "kml", ready: true, lazy: true,
       kml: "https://www.google.com/maps/d/kml?mid=1PwPKisRf73FPC6hTtZDCv2s_B6_x0Pk7&forcekml=1",
       note: "Read live from the map's Google My Maps file; the row takes the map's own title once it loads." },
-    { id: "mymaps_trees", name: "Google My Maps map (trees section)", unit: "placemarks", colour: "#5F6E5C", route: "kml", ready: true, lazy: true,
+    { id: "mymaps_trees", name: "Christmas Trees (Google My Maps)", unit: "placemarks", colour: "#5F6E5C", route: "kml", ready: true, lazy: true,
       kml: "https://www.google.com/maps/d/kml?mid=1c-vPoGf79mfQezTgcFoKb-xN4A4&forcekml=1",
       note: "Read live from the map's Google My Maps file; the row takes the map's own title once it loads." },
-    { id: "fractracker_refineries", name: "Global Oil Refinery Complexes (FracTracker Alliance)", unit: "refineries", colour: "#6A5E58", route: "arcgisapp", ready: true, lazy: true,
+    { id: "fractracker_refineries", name: "Oil refinery complexes, worldwide (FracTracker Alliance)", unit: "refineries", colour: "#6A5E58", route: "arcgisapp", ready: true, lazy: true,
       item: "8e72a974af4c4fe9ba6875cee03078ee",
       attribution: '<a href="https://www.fractracker.org" target="_blank" rel="noopener">FracTracker Alliance</a>',
       note: "FracTracker Alliance's own Global Oil Refinery Complexes map, read live from it: its layers, its fields and its popups, unchanged." },
-    { id: "arcgis_ym8xk", name: "ArcGIS map (vinyl chloride section)", unit: "places", colour: "#5E6070", route: "arcgisapp", ready: true, lazy: true,
+    { id: "arcgis_ym8xk", name: "Vinyl chloride (ArcGIS)", unit: "places", colour: "#5E6070", route: "arcgisapp", ready: true, lazy: true,
       item: "b1b5b5e0d08c4024a50caa88e6442281",
       note: "Read live from the ArcGIS map linked on the Destruction page (arcg.is/ym8XK); the row takes its own title once it loads." },
-    { id: "arcgis_materialresearch", name: "ArcGIS map (materialresearch)", unit: "places", colour: "#665E6C", route: "arcgisapp", ready: true, lazy: true,
+    { id: "arcgis_materialresearch", name: "Materials research (ArcGIS)", unit: "places", colour: "#665E6C", route: "arcgisapp", ready: true, lazy: true,
       item: "3ff82579637f4c7a96bd62d039ac3e00",
       note: "Read live from the ArcGIS experience linked on the Destruction page (arcg.is/4q8m4); the row takes its own title once it loads." },
-    { id: "glad_loss", name: "Global Forest Change: tree cover loss (UMD GLAD)", unit: "loss since 2000, 30 m", colour: "#8A4F46", route: "rasterlive", ready: true, lazy: true,
+    { id: "glad_loss", name: "Tree cover loss (Global Forest Change, UMD GLAD)", unit: "loss since 2000, 30 m", colour: "#8A4F46", route: "rasterlive", ready: true, lazy: true,
       attribution: "Hansen/UMD/Google/USGS/NASA", maxzoom: 12,
       choices: [{ label: "Tree cover loss", tiles: "https://storage.googleapis.com/earthenginepartners-hansen/tiles/gfc_v1.12/loss_alpha/{z}/{x}/{y}.png" }],
       note: "The published Global Forest Change tiles, read live." },
-    { id: "soilgrids", name: "SoilGrids (ISRIC)", unit: "soil properties, 250 m", colour: "#6B5A4A", route: "rasterlive", ready: true, lazy: true,
+    { id: "soilgrids", name: "Soil properties (SoilGrids, ISRIC)", unit: "soil properties, 250 m", colour: "#6B5A4A", route: "rasterlive", ready: true, lazy: true,
       attribution: "ISRIC SoilGrids (CC BY 4.0)", maxzoom: 14,
       choices: [
         { label: "Soil organic carbon, 0\u20135 cm", tiles: "https://maps.isric.org/mapserv?map=/map/soc.map&SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=soc_0-5cm_mean&STYLES=&CRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=true" },
@@ -8282,17 +8309,17 @@ const TRASE_DATA = {
         file: "id_wood_mills_facilities_v2026_02_10.geo.json",
         attribution: "Trase (CC BY 4.0)",
         note: "Trase's Indonesian wood pulp mills. Read live from Trase's own files each time the row is ticked (CC BY 4.0)." },
-      { id: "trase_pulp_concessions_2015", name: "2015\u20132019", unit: "concessions", colour: "#6F7560", route: "trasefac", ready: true, lazy: true,
+      { id: "trase_pulp_concessions_2015", name: "Wood pulp concessions 2015–2019 (Trase)", unit: "concessions", colour: "#6F7560", route: "trasefac", ready: true, lazy: true,
         manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json", facilityType: "indonesia-wood-pulp-concessions-2015-2019",
         file: "indonesia_wood_pulp_concessions_2015_2019_v2026_02_20.geo.json",
         attribution: "Trase (CC BY 4.0)",
         note: "The areas Trase records as wood pulp concessions over 2015\u20132019, drawn as areas. Read live from Trase's own files each time the row is ticked (CC BY 4.0)." },
-      { id: "trase_pulp_concessions_2020", name: "2020\u20132022", unit: "concessions", colour: "#5E6A63", route: "trasefac", ready: true, lazy: true,
+      { id: "trase_pulp_concessions_2020", name: "Wood pulp concessions 2020–2022 (Trase)", unit: "concessions", colour: "#5E6A63", route: "trasefac", ready: true, lazy: true,
         manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json", facilityType: "indonesia-wood-pulp-concessions-2020-2022",
         file: "indonesia_wood_pulp_concessions_2020_2022_v2026_02_20.geo.json",
         attribution: "Trase (CC BY 4.0)",
         note: "The areas Trase records as wood pulp concessions over 2020\u20132022, drawn as areas. Read live from Trase's own files each time the row is ticked (CC BY 4.0)." },
-      { id: "trase_pulp_concessions_2023", name: "2023\u20132024", unit: "concessions", colour: "#59665C", route: "trasefac", ready: true, lazy: true,
+      { id: "trase_pulp_concessions_2023", name: "Wood pulp concessions 2023–2024 (Trase)", unit: "concessions", colour: "#59665C", route: "trasefac", ready: true, lazy: true,
         manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json", facilityType: "indonesia-wood-pulp-concessions-2023-2024",
         file: "indonesia_wood_pulp_concessions_2023_2024_v2026_02_20.geo.json",
         attribution: "Trase (CC BY 4.0)",
@@ -9240,7 +9267,9 @@ function liveMark(cfg) {
 // PANEL_REMOVED are taken out of the box.
 const PANEL_ORDER = [
   { h: 1, t: "On-planet invasion" },
-  { h: 2, t: "Pre-birth frontlines" }, "gmo_env", "gmo_decisions", "gmo_ogtr", "gmo_therapy", "gmo_fertility", "gmo_animal_research", "gmo_animal_trade", "gmo_cultivation", "gmo_gmofree", "gmo_incidents", "gmo_regime", "gmo_treaties", "gmo_trials",
+  { h: 2, t: "Pre-birth frontlines" },
+  { h: 3, t: "Genetic engineering" }, "gmo_env", "gmo_decisions", "gmo_ogtr", "gmo_cultivation", "gmo_gmofree", "gmo_incidents", "gmo_regime", "gmo_treaties", "gmo_trials",
+  { h: 3, t: "Human reproduction and gene therapy" }, "gmo_therapy", "gmo_fertility",
   { h: 2, t: "Post-birth invasion" },
   { h: 3, t: "Invasion of nonhumans" },
   { h: 3, t: "Invasion of humans" }, "site_settler_colonialism", "site_indigenous_conflicts",
@@ -9249,51 +9278,60 @@ const PANEL_ORDER = [
 
   { h: 1, t: "Destruction" },
   { h: 2, t: "Of the planet" },
-  { h: 3, t: "Climate" }, "group:climate_trace_sectors", "group:climate_trace_agriculture", "group:climate_trace_forestry",
-    "gem_coal", "carbon_bombs", "power_plants", "fertilizer_facilities", "fractracker_refineries", "carbon_plumes", "site_china_grain",
-    "usda_soybean", "usda_corn", "wastewater", "group:ct_history",
-  { h: 4, t: "National shading" }, "owid_co2",
-  { h: 4, t: "Air pollution" }, "ct_air", "ct_pop",
-  { h: 3, t: "Pollution" }, "epa_tri_sites", "epa_widget", "skytruth_nrc", "skytruth_pa_violations",
-  { h: 4, t: "Wastewater" }, "hydrowaste",
-  { h: 4, t: "Plastics" }, "mymaps_chlorine", "arcgis_ym8xk", "arcgis_materialresearch", "pirg_plastic", "gpw_map", "seas_of_plastic", "coastal_cleanup",
+  { h: 3, t: "General" }, "ejatlas", "wreckers_umap", "fortune500", "theyrule", "scribd_doc",
+  { h: 3, t: "Climate" },
+  { h: 4, t: "Emissions" },
+  { h: 5, t: "By sector" }, "group:climate_trace_sectors", "group:climate_trace_agriculture", "group:climate_trace_forestry", "group:ct_history",
+  { h: 5, t: "By greenhouse gas" }, "owid_co2", "carbon_plumes",
+  { h: 4, t: "Fossil fuel plants and refineries" }, "gem_coal", "power_plants", "carbon_bombs", "fractracker_refineries",
+  { h: 4, t: "Companies and financiers" }, "carbon_majors", "bocc",
+  { h: 3, t: "Pollution" },
+  { h: 4, t: "Air" }, "ct_air",
+  { h: 4, t: "Toxic releases and regulated sites, US" }, "epa_tri_sites", "epa_widget",
+  { h: 4, t: "Wastewater" }, "hydrowaste", "wastewater",
+  { h: 4, t: "Plastics" },
+  { h: 5, t: "Production" }, "pirg_plastic", "mymaps_chlorine", "arcgis_ym8xk", "arcgis_materialresearch",
+  { h: 5, t: "Waste and dumping" }, "gpw_map", "seas_of_plastic", "coastal_cleanup",
+  { h: 4, t: "Oil spills and slicks" },
+  { h: 5, t: "Terrestrial slicks" }, "skytruth_monitor", "skytruth_nrc", "skytruth_posts",
+  { h: 5, t: "Marine slicks" }, "cerulean_slicks", "cerulean_sources", "slick_archive", "skytruth_voc", "skytruth_marine_incidents", "skytruth_posts",
   { h: 3, t: "Fire" },
-  { h: 3, t: "Forest and land cover" },
-  { h: 3, t: "Deforestation" }, "soilgrids", "trase_pulp_indonesia",
-  { h: 4, t: "Wood pulp concessions, Indonesia" },
-    "trase_pulp_concessions_2015", "trase_pulp_concessions_2020", "trase_pulp_concessions_2023",
-  // No heading carries an organisation's name any more: these are rows about
-  // forest loss, filed with the rest of it.
-  "glad_loss", "group:forest_alerts",
-  { h: 3, t: "Biodiversity loss" }, "gsn", "gsn_rankings", "allen_coral", "atlas_hotspots", "atlas_cities", "pe_subsidising", "powerbi_report",
+  { h: 3, t: "Deforestation" },
+  { h: 4, t: "Tree cover loss and alerts" }, "glad_loss", "group:forest_alerts",
+  { h: 4, t: "Moratoriums" },
+  { h: 4, t: "Wood pulp, Indonesia" }, "trase_pulp_indonesia", "trase_pulp_concessions_2015", "trase_pulp_concessions_2020", "trase_pulp_concessions_2023",
+  { h: 4, t: "Companies and financiers" }, "site_forest500_soy", "site_soybean_companies", "soy_organizations", "dff",
+  { h: 3, t: "Biodiversity loss" }, "gsn", "gsn_rankings", "atlas_hotspots", "atlas_cities", "powerbi_report",
+  { h: 4, t: "Companies and financiers" }, "pe_subsidising", "pe_bankrolling",
   { h: 3, t: "Spatial plans" },
   { h: 3, t: "Peatland" },
   { h: 3, t: "Surface water" },
   { h: 3, t: "Mining" }, "mines_global",
-  { h: 3, t: "Oil and gas drilling" }, "skytruth_pa_permits", "skytruth_pa_spud", "skytruth_pa_violations", "skytruth_well_permits", "skytruth_fracfocus",
-  { h: 3, t: "Meat and agriculture" },
-  { h: 4, t: "Agriculture" }, "land_matrix", "palmwatch", "trase_palm_indonesia", "trase_silos_brazil", "trase_cocoa_ivory",
-  { h: 4, t: "Meat" }, "abattoir_facilities", "trase_meat_brazil", "abattoir_cafo", "abattoir_glw", "cultivated_meat_laws",
+  { h: 3, t: "Oil and gas drilling" },
+  { h: 4, t: "Pennsylvania" }, "skytruth_pa_permits", "skytruth_pa_spud", "skytruth_pa_violations", "skytruth_well_permits",
+  { h: 4, t: "United States" }, "skytruth_fracfocus",
+  { h: 3, t: "Meat and agriculture" }, "site_food_system",
+  { h: 4, t: "Agriculture" },
+  { h: 5, t: "Palm oil" }, "palmwatch", "trase_palm_indonesia",
+  { h: 5, t: "Soy, corn and grain" }, "trase_silos_brazil", "usda_soybean", "usda_corn", "site_china_grain",
+  { h: 5, t: "Cocoa and cotton" }, "trase_cocoa_ivory",
+  { h: 5, t: "Farm inputs" }, "fertilizer_facilities",
+  { h: 5, t: "Moratoriums" },
+  { h: 5, t: "Detailed spatial plans, Badung" },
+  { h: 4, t: "Meat" },
+  { h: 5, t: "Facilities" }, "abattoir_facilities", "trase_meat_brazil", "abattoir_cafo",
+  { h: 5, t: "Herds" }, "abattoir_glw",
   { h: 3, t: "Oceans" },
+  { h: 4, t: "Reefs and mangroves" }, "allen_coral",
   { h: 4, t: "Fishing" }, "fishing",
-  { h: 4, t: "Oil slicks" },
-  { h: 5, t: "Terrestrial slicks" }, "skytruth_monitor", "skytruth_nrc", "skytruth_posts",
-  { h: 5, t: "Marine slicks" }, "cerulean_slicks", "cerulean_sources", "slick_archive", "skytruth_voc", "skytruth_marine_incidents", "skytruth_posts",
   { h: 3, t: "Construction" }, "local_projects",
-  { h: 3, t: "Culprits upstream" }, "ejatlas",
-  // Concessions and permits for a material or activity no heading above
-  // covers (rubber, a project that names none). Catalogue rows only.
   { h: 3, t: "Other" },
-  { h: 4, t: "Emissions" }, "carbon_majors", "soy_organizations", "bocc",
-  { h: 4, t: "Deforestation" }, "site_forest500_soy", "site_soybean_companies", "dff",
-  { h: 4, t: "Food generally" }, "site_food_system",
-  { h: 4, t: "Generally" }, "wreckers_umap", "fortune500", "theyrule", "pe_bankrolling", "scribd_doc",
   { h: 2, t: "Of groups" },
   { h: 3, t: "Of humans" },
   { h: 3, t: "Of animals" }, "final_nail",
   { h: 3, t: "Of plants" },
   { h: 3, t: "Of microorganisms" },
-  { h: 3, t: "Of the \u201cinsentient\u201d" },
+  { h: 3, t: "Of the “insentient”" },
   { h: 2, t: "Of individuals" },
   { h: 3, t: "Of humans" },
   { h: 3, t: "Of animals" }, "site_animal_sacrifice",
@@ -9302,19 +9340,25 @@ const PANEL_ORDER = [
 
   { h: 1, t: "Suppression" },
   { h: 2, t: "Of humans" },
-  { h: 3, t: "Land and territory" },
+  { h: 3, t: "Land and territory" }, "land_matrix",
   { h: 3, t: "Physical suppression" },
-  { h: 4, t: "Control of physical resources" }, "site_central_banks", "site_banking_dynasties", "site_export_credit", "site_wealth_atlas",
-    "site_earmarked_funding", "site_trade_profits", "site_social_spheres",
-    "owid_interest", "owid_corptax", "cfr_tracker", "tableau_zsf", "troutwood", "owid_aid", "rte_trade", "gta_acts",
+  { h: 4, t: "Control of physical resources" },
+  { h: 5, t: "Banks and monetary power" }, "site_central_banks", "site_banking_dynasties", "cfr_tracker", "tableau_zsf", "site_export_credit", "troutwood",
+  { h: 5, t: "Trade" }, "site_trade_profits", "rte_trade", "gta_acts",
+  { h: 5, t: "Funding of international bodies" }, "site_earmarked_funding",
   { h: 4, t: "Economic inequality within it" },
+  { h: 5, t: "Wealth concentration" }, "site_wealth_atlas", "site_social_spheres",
+  { h: 5, t: "Public finance and tax" }, "owid_interest", "owid_corptax", "owid_aid",
   { h: 5, t: "School" }, "giga_countries",
   { h: 4, t: "Law enforcement" },
   { h: 4, t: "Courts and corrections" },
   { h: 4, t: "Discrimination" },
-  { h: 4, t: "Slavery" }, "slavery_sites", "slavery_ports", "slavery_fishing", "slavery_routes", "slavery_determinations", "slavery_enforcement",
-  { h: 5, t: "National shading" }, "slavery_cases", "slavery_prevalence",
-  { h: 3, t: "Suppression by \u201crepresentation\u201d within it" },
+  { h: 4, t: "Slavery" },
+  { h: 5, t: "Prevalence" }, "slavery_prevalence",
+  { h: 5, t: "Sites on land" }, "slavery_sites",
+  { h: 5, t: "At sea" }, "slavery_ports", "slavery_fishing",
+  { h: 5, t: "Routes, cases and enforcement" }, "slavery_routes", "slavery_cases", "slavery_determinations", "slavery_enforcement",
+  { h: 3, t: "Suppression by “representation” within it" },
   { h: 4, t: "Politics as a front" },
   { h: 5, t: "Voter suppression" },
   { h: 5, t: "Representation as presentation" },
@@ -9332,11 +9376,14 @@ const PANEL_ORDER = [
   { h: 4, t: "Holidays" },
   { h: 4, t: "Sex" },
   { h: 4, t: "Drugs" }, "capture_map",
-  { h: 2, t: "Of animals" }, "site_animal_fighting", "site_animal_tourism", "site_circus", "site_animal_racing", "site_rodeo", "mymaps_supp_b",
+  { h: 2, t: "Of animals" },
+  { h: 3, t: "Slavery" }, "gmo_animal_research", "gmo_animal_trade",
+  { h: 3, t: "Spectacle and sport" }, "site_animal_fighting", "site_circus", "site_animal_racing", "site_rodeo", "site_animal_tourism",
+  { h: 3, t: "Other" }, "mymaps_supp_b",
   { h: 3, t: "The pet industry" }, "mymaps_supp_a",
   { h: 2, t: "Of plants" }, "site_enslaved_plants", "mymaps_trees",
   { h: 2, t: "Of microscopics" }, "site_enslaved_microbes",
-  { h: 2, t: "Of the \u201cinsentient\u201d" }, "site_insentient",
+  { h: 2, t: "Of the “insentient”" }, "site_insentient",
 
   { h: 1, t: "Off-planet invasion" },
   { h: 2, t: "To Earth" },
@@ -9347,11 +9394,16 @@ const PANEL_ORDER = [
   { h: 3, t: "Space launches" }, "ll2_pads", "ll2_upcoming",
   { h: 3, t: "Protecting extraterrestrial life" }, "biosignature",
 
-  { h: 1, t: "Base and reference" }, "skytruth_quakes", "skytruth_tests",
+  { h: 1, t: "Base and reference" },
+  { h: 2, t: "Boundaries and relief" },
+  { h: 2, t: "Physical and human geography" }, "soilgrids", "ct_pop", "skytruth_quakes",
+  { h: 2, t: "Housekeeping" }, "skytruth_tests",
+
   { h: 1, t: "Buildings" }, "building_types",
 ];
 const PANEL_REMOVED = new Set([
   "leverage_chart",
+  "cultivated_meat_laws",          // taken out 22 September at the owner's request
   // Taken out 19 Sept: near duplicates, a background map mistaken for data, rows
   // merged into another, and pages asked to be removed.
   "site_cartel_cells", "site_export_credit_shading", "giga_schools", "nsf_locations",

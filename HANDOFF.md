@@ -260,6 +260,32 @@ facilities archive. The other registers' extra columns still stop at the atlas's
 parsers; adding a register to `PUBLISH_RAW` there and `PUBLISHED_AS` here is all
 it takes once its size has been looked at.
 
+## The box rearranged to the owner's list (22 September)
+
+`PANEL_ORDER` was rewritten from the owner's `layers-reallocated.md`, heading
+for heading; 151 rows placed, 129 headings, nesting to five levels. Rows are
+named as the list names them (45 renamed: the source goes at the end in
+parentheses, no code names - "Emitting sites by sector (Climate TRACE)").
+`cultivated_meat_laws` is out of the box (`PANEL_REMOVED`). The concessions
+rule of the same day is kept, with "Other" now the last heading under Of the
+planet.
+
+`CATALOGUE_PLACES` sends the catalogue rows to the new headings: alerts and
+loss to Deforestation > Tree cover loss and alerts; Trase's pulp measures to
+Deforestation > Wood pulp, Indonesia; palm and mills to Agriculture > Palm oil,
+soy and corn to Soy, corn and grain, cocoa and cotton to their heading, other
+crops to Agriculture itself; Trase's cattle measures to Meat > Facilities;
+emissions to Climate > Emissions - Trase's by sector (its `fileBy` now ends in
+"trase"), Global Forest Watch's by gas; air quality to Pollution > Air;
+mangroves and reefs to Oceans > Reefs and mangroves; the moratorium (PIPPIB) to
+Spatial plans and to Deforestation > Moratoriums; Badung's plans to
+Agriculture > Detailed spatial plans, Badung; relief and boundaries to Base and
+reference > Boundaries and relief. A rule whose path is `null` **leaves a
+layer out**: the Forest and land cover heading and its rows were deleted at the
+owner's request, so a land-cover layer that no other rule claims gets no row
+and is counted in the console (`LEFT_OUT`). Agriculture > Moratoriums from the
+list was not made: Nusantara has one moratorium layer and it is a forest one.
+
 ## Concessions filed by what they are for; "Land held under permit" retired
 
 Asked for on 22 September. `CATALOGUE_PLACES` no longer has a generic permit
