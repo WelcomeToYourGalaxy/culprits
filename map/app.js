@@ -1218,47 +1218,77 @@ function hudImages() {
 }
 const hudOf = new Map();       // circle layer id -> its symbol layer id
 function hudEligible(layer) {
-  if (!layer || layer.type !== "circle" || !layer.id || /^(wire-|ct-)/.test(layer.id) || /-(halo|hud)$/.test(layer.id)) return false;
+  if (!layer || layer.type !== "circle" || !layer.id || /^(wire-|ct-)/.test(layer.id) || /-(halo|hud|glow)$/.test(layer.id)) return false;
   const c = JSON.stringify((layer.paint || {})["circle-color"] || "");
   return !/rgba\(0,\s*0,\s*0,\s*0\)|transparent/.test(c);
 }
 function hudSize(radius) {
   return mapOutputs(radius === undefined ? 5 : radius, (n) => Math.max(0.3, n / HUD.R * 1.05));
 }
+// The glow, asked for on 22 September in place of the geometric symbols: a
+// satellite-derived look where emissions read as a continuous field of light.
+//   Wider out: a heat field (one WebGL heatmap layer per point layer, so
+//   thousands of points stay fast) whose brightness comes from each source's
+//   AMOUNT - one huge emitter glows brighter than ten tiny ones unless the
+//   tiny ones together emit more - weighted by value over the layer's largest
+//   value, read from its archive (glowMaxOf); a layer with no amounts weighs
+//   each point, or each merged point's count, alike. Every source is in it.
+//   Closer in: the field fades and the sources stand as round dots, sized
+//   by the layer's own rule (an area proportional to the amount), each with a
+//   faint blurred halo. Nothing has a hard edge. Colours run plum, rose and
+//   pale bone at the hottest points; no orange or yellow anywhere.
+// The round layer stays the one that is clicked, filtered, recoloured and
+// removed; the glow and the halo follow it (the wrappers below).
+const GLOW = {
+  plum: "#6E4A6A", rose: "#B07087", bone: "#E8DFD0", red: "#C77A8A", white: "#DCD6C6",
+  cyan: "#8C8FA8", amber: "#9E6E82",          // the old symbol glows, mapped into the same range
+  ramp: ["interpolate", ["linear"], ["heatmap-density"],
+    0, "rgba(60,30,60,0)", 0.15, "rgba(80,40,80,0.45)", 0.4, "#6E4A6A", 0.7, "#B07087", 0.9, "#D9B8BF", 1, "#E8DFD0"],
+  fadeOut: 9, gone: 12,                        // the field: full to 9, gone by 12; the dots the other way
+};
+const glowMaxOf = new Map();                   // source id -> the largest "value" in it, from the archive's own stats
+function glowWeight(layer) {
+  const max = glowMaxOf.get(layer.source);
+  const count = ["max", 1, ["coalesce", ["to-number", ["get", "_count"]], 1]];
+  if (!max) return ["min", 1, ["/", ["log2", ["+", 1, count]], 10]];
+  // Amount over the layer's largest amount; a merged point carries its members' sum already.
+  return ["min", 1, ["/", ["max", 0, ["coalesce", ["to-number", ["get", "value"]], 0]], max]];
+}
 function addHud(layer, rawAddLayer) {
-  hudImages();
-  const [shape, glow] = hudPlace(layer.id);
+  const [, glowName] = hudPlace(layer.id);
   const p = layer.paint || {};
-  const op = p["circle-opacity"];
-  // A place drawn hollow (opacity 0 by a rule on its data) is the outline alone.
-  const hollowRule = Array.isArray(op) && !hasZoom(op) ? ["<", op, 0.2] : null;
-  const hid = `${layer.id}-hud`;
-  const spec = {
-    id: hid, type: "symbol", source: layer.source,
-    layout: {
-      "icon-image": hollowRule ? ["case", hollowRule, `hud-${shape}-hollow`, `hud-${shape}`] : `hud-${shape}`,
-      "icon-size": hudSize(p["circle-radius"]),
-      "icon-allow-overlap": true, "icon-ignore-placement": true,
-      visibility: (layer.layout && layer.layout.visibility) || "visible",
-    },
+  const halo = `${layer.id}-halo`, field = `${layer.id}-glow`;
+  const base = { source: layer.source };
+  if (layer["source-layer"]) base["source-layer"] = layer["source-layer"];
+  if (layer.filter) base.filter = layer.filter;
+  const vis = (layer.layout && layer.layout.visibility) || "visible";
+  const fieldSpec = Object.assign({ id: field, type: "heatmap", layout: { visibility: vis },
+    minzoom: layer.minzoom != null ? layer.minzoom : 0, maxzoom: GLOW.gone,
     paint: {
-      "icon-color": p["circle-color"] === undefined ? "#EEF3F2" : p["circle-color"],
-      "icon-opacity": hollowRule || op === undefined ? 1 : op,
-      "icon-halo-color": HUD[glow], "icon-halo-width": 0.7, "icon-halo-blur": 1.1,
-    },
-  };
-  if (layer["source-layer"]) spec["source-layer"] = layer["source-layer"];
-  if (layer.filter) spec.filter = layer.filter;
-  if (layer.minzoom != null) spec.minzoom = layer.minzoom;
-  if (layer.maxzoom != null) spec.maxzoom = layer.maxzoom;
+      "heatmap-weight": glowWeight(layer),
+      "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 0, 1.2, 6, 2, 10, 3],
+      "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 0, 10, 4, 18, 8, 34, 12, 60],
+      "heatmap-opacity": ["interpolate", ["linear"], ["zoom"], GLOW.fadeOut, 0.9, GLOW.gone, 0],
+      "heatmap-color": GLOW.ramp,
+    } }, base);
+  const haloSpec = Object.assign({ id: halo, type: "circle", layout: { visibility: vis },
+    paint: {
+      "circle-color": GLOW[glowName] || GLOW.rose,
+      "circle-radius": mapOutputs(p["circle-radius"] === undefined ? 5 : p["circle-radius"], (n) => n * 2.4),
+      "circle-blur": 1, "circle-opacity": ["interpolate", ["linear"], ["zoom"], GLOW.fadeOut, 0.12, GLOW.gone, 0.38],
+    } }, base);
+  if (layer.minzoom != null) haloSpec.minzoom = layer.minzoom;
+  if (layer.maxzoom != null) haloSpec.maxzoom = layer.maxzoom;
   try {
-    rawAddLayer(spec, hudNext(layer.id));
-    // The round layer stays for clicks and boxes, unseen.
+    rawAddLayer(fieldSpec, layer.id);
+    rawAddLayer(haloSpec, layer.id);
+    // The dots themselves: soft-edged, and rising as the field fades.
     const paint = hudRaw.setPaintProperty || map.setPaintProperty.bind(map);
-    paint(layer.id, "circle-opacity", 0);
-    paint(layer.id, "circle-stroke-opacity", 0);
-    hudOf.set(layer.id, hid);
-  } catch (e) { /* this layer keeps its round markers */ }
+    paint(layer.id, "circle-blur", 0.35);
+    paint(layer.id, "circle-stroke-width", 0);
+    if (p["circle-opacity"] === undefined) paint(layer.id, "circle-opacity", ["interpolate", ["linear"], ["zoom"], GLOW.fadeOut, 0.55, GLOW.gone, 0.95]);
+    hudOf.set(layer.id, [field, halo]);
+  } catch (e) { /* this layer keeps its round markers alone */ }
 }
 function hudNext(layerId) {
   const ls = (map.getStyle().layers || []).map((l) => l.id);
@@ -1272,41 +1302,36 @@ function hudWrap(name, make) {
   hudRaw[name] = map[name].bind(map);
   map[name] = make(hudRaw[name]);
 }
+const hudMates = (id) => (hudOf.get(id) || []).filter((h) => map.getLayer(h));
 hudWrap("setLayoutProperty", (raw) => function (id, prop, v, o) {
   const out = raw(id, prop, v, o);
-  const h = hudOf.get(id);
-  if (h && prop === "visibility" && map.getLayer(h)) raw(h, prop, v, o);
+  if (prop === "visibility") hudMates(id).forEach((h) => raw(h, prop, v, o));
   return out;
 });
 hudWrap("setFilter", (raw) => function (id, f, o) {
   const out = raw(id, f, o);
-  const h = hudOf.get(id);
-  if (h && map.getLayer(h)) raw(h, f, o);
+  hudMates(id).forEach((h) => raw(h, f, o));
   return out;
 });
 hudWrap("setPaintProperty", (raw) => function (id, prop, v, o) {
-  const h = hudOf.get(id);
-  // The round layer's own opacity stays at nothing; its symbol has its own
-  // (the transparency slider sets that one directly).
-  if (h && (prop === "circle-opacity" || prop === "circle-stroke-opacity")) return map;
   const out = raw(id, prop, v, o);
-  if (h && map.getLayer(h)) {
+  for (const h of hudMates(id)) {
     try {
-      if (prop === "circle-color") raw(h, "icon-color", v, o);
-      if (prop === "circle-radius" && hudRaw.setLayoutProperty) hudRaw.setLayoutProperty(h, "icon-size", hudSize(v), o);
+      if (h.endsWith("-halo") && prop === "circle-radius") raw(h, "circle-radius", mapOutputs(v, (n) => n * 2.4), o);
+      if (h.endsWith("-halo") && prop === "circle-opacity" && typeof v === "number") raw(h, "circle-opacity", v * 0.38, o);
+      if (h.endsWith("-glow") && prop === "circle-opacity" && typeof v === "number") raw(h, "heatmap-opacity", v * 0.9, o);
     } catch (e) { /* kept */ }
   }
   return out;
 });
 hudWrap("moveLayer", (raw) => function (id, before) {
   const out = raw(id, before);
-  const h = hudOf.get(id);
-  if (h && map.getLayer(h)) raw(h, before);
+  hudMates(id).forEach((h) => raw(h, id));    // the glow and the halo stay under their dots
   return out;
 });
 hudWrap("removeLayer", (raw) => function (id) {
-  const h = hudOf.get(id);
-  if (h && map.getLayer(h)) { raw(h); hudOf.delete(id); }
+  hudMates(id).forEach((h) => raw(h));
+  hudOf.delete(id);
   return raw(id);
 });
 if (typeof map.addLayer === "function") {
@@ -1456,6 +1481,18 @@ async function addPmtilesLayer(cfg) {
     }
 
     map.addSource(src, { type: "vector", url: `pmtiles://${url}` });
+    // The largest amount in the archive, from tippecanoe's own statistics, so
+    // the glow can weigh each source by its share of it. Read before the
+    // layers are added, since their weight expression is set at that moment.
+    if (archive && !glowMaxOf.has(src)) {
+      try {
+        const meta = await archive.getMetadata();
+        const stats = (meta && (meta.tilestats || (typeof meta.json === "string" ? JSON.parse(meta.json).tilestats : undefined))) || {};
+        const lay = (stats.layers || []).find((l) => l.layer === owner) || (stats.layers || [])[0];
+        const attr = lay && (lay.attributes || []).find((x) => x.attribute === "value");
+        if (attr && Number.isFinite(Number(attr.max)) && Number(attr.max) > 0) glowMaxOf.set(src, Number(attr.max));
+      } catch (e) { /* no statistics: the glow weighs points alike */ }
+    }
     // An archive that declares its own facet values is asked for them, so a
     // year archive offers its twelve months rather than the shared list's
     // sixty-six. Failure here is not fatal: the declared list stands and the
@@ -9332,9 +9369,13 @@ const PANEL_ORDER = [
   // gas; a true per-gas split waits on the per-gas columns the source
   // publishes (they now reach the pieces, not yet the tiles).
   { h: 3, t: "Climate" },
-  { h: 4, t: "Carbon dioxide" }, "owid_co2", "group:climate_trace_sectors", "group:climate_trace_forestry", "group:ct_history", "gem_coal", "power_plants", "fractracker_refineries", "carbon_plumes",
-  { h: 4, t: "Methane" }, "carbon_plumes", "group:climate_trace_agriculture", "hydrowaste", "wastewater",
-  { h: 4, t: "Nitrous oxide" }, "group:climate_trace_agriculture", "fertilizer_facilities", "usda_soybean", "usda_corn", "site_china_grain", "trase_silos_brazil",
+  // The Climate TRACE groups stay by sector until each site is split by the
+  // gas it emits (22 September): filed under one gas each, the gases a
+  // sector also emits were drowned out.
+  { h: 4, t: "Emitting sites by sector, until split by gas" }, "group:climate_trace_sectors", "group:climate_trace_agriculture", "group:climate_trace_forestry", "group:ct_history",
+  { h: 4, t: "Carbon dioxide" }, "owid_co2", "gem_coal", "power_plants", "fractracker_refineries", "carbon_plumes",
+  { h: 4, t: "Methane" }, "carbon_plumes", "hydrowaste", "wastewater",
+  { h: 4, t: "Nitrous oxide" }, "fertilizer_facilities", "usda_soybean", "usda_corn", "site_china_grain", "trase_silos_brazil",
   { h: 4, t: "F-gases" },
   { h: 4, t: "Black carbon" }, "fractracker_refineries",
   { h: 4, t: "Nitrogen dioxide" },

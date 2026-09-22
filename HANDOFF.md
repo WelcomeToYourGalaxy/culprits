@@ -278,6 +278,31 @@ and no pieces are written). The pieces appear when the refresh workflow next
 rebuilds a source. `fieldRows` (the copied-file layers) also dropped every
 nested value; it writes them out now.
 
+## The glow (22 September): symbols gone, emissions as a field of light
+
+Every point layer's geometric symbol is gone. `addHud` (kept the name; the
+wrappers under it too) now adds, under each round layer, a WebGL heatmap
+`<id>-glow` and a blurred circle layer `<id>-halo`: the field draws full to
+zoom 9 and is gone by 12, weighted by each source's `value` over the layer's
+largest value (`glowMaxOf`, read from the archive's tippecanoe statistics in
+`addPmtilesLayer`; a layer with no amounts weighs points, or merged counts,
+alike), so one big emitter outglows ten small ones; the dots rise as the
+field fades, soft-edged, sized by the layer's own area-by-amount rule, with a
+halo. Colours plum (#6E4A6A), rose (#B07087), bone (#E8DFD0); `GLOW.ramp`.
+Everything is drawn by MapLibre on its canvas; no DOM markers. Nothing
+filtered or merged for looks. The wrappers carry visibility, filter, move,
+remove, radius and opacity from the round layer to its two mates. The old
+HUD constants and shape images remain in the file, unused, for now.
+
+The Climate TRACE groups are back under one heading, "Emitting sites by
+sector, until split by gas": placing each under a single gas drowned out the
+others a sector emits. The per-gas split is a tiling change: Climate TRACE
+publishes co2, ch4 and n2o per site (columns `co2`, `ch4`, `n2o` beside
+`co2e_100yr`), for every sector, so a site can be tiled under each gas it
+emits with that gas's tonnes - exact for those three gases; F-gases, black
+carbon and NOx are not in that inventory (black carbon and NOx are in the
+air-pollution set, the `ct_air` row).
+
 ## Climate TRACE air pollution: plumes as still hotspots, read through the Worker
 
 The click box stayed at "Reading Climate TRACE..." and no plume ever drew:

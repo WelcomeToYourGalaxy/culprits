@@ -2492,7 +2492,23 @@ console.log("\nOff-planet sections, Of groups, names, launch links, drag bar, ma
   check("Pet Food Companies is under The pet industry", order.indexOf("mymaps_supp_a") === at("The pet industry") + 1 && /name: "Pet Food Companies \(Google My Maps\)"/.test(src));
   check("each upcoming launch links to its own pages", /spacelaunchnow\.me\/launch\//.test(src) && /r\.info_urls/.test(src) && /ll2Links\(r\)/.test(src));
   check("page panels have a drag bar", /class="c-grab"/.test(src) && /ns-resize/.test(src));
-  check("every point layer gets a geometric marker; the round one stays for clicks", /function addHud\(/.test(src) && /paint\(layer\.id, "circle-opacity", 0\)/.test(src));
+  // Superseded on 22 September: the symbols gave way to a glow. Every point
+  // layer gets a heat field weighted by amount wider out, and a halo under its
+  // round dots closer in; the round layer is still the one that is clicked.
+  check("every point layer gets a glow field and halos in place of the geometric markers; the round one stays for clicks",
+        /function addHud\(/.test(src) && !/paint\(layer\.id, "circle-opacity", 0\)/.test(src) &&
+        /type: "heatmap", layout: \{ visibility: vis \}/.test(src) && /const halo = `\$\{layer\.id\}-halo`, field = `\$\{layer\.id\}-glow`/.test(src) &&
+        /hudOf\.set\(layer\.id, \[field, halo\]\)/.test(src));
+  {
+    const G = new Function("mapOutputs", src.slice(src.indexOf("const GLOW = {"), src.indexOf("function addHud(layer, rawAddLayer)")) + "; return { GLOW, glowWeight, glowMaxOf };")((v) => v);
+    G.glowMaxOf.set("s1", 5000);
+    check("\u2026the field is weighted by each source's amount over the layer's largest, so one big emitter outglows ten small ones",
+          JSON.stringify(G.glowWeight({ source: "s1" })).includes('["get","value"]') && JSON.stringify(G.glowWeight({ source: "s1" })).includes("5000") &&
+          JSON.stringify(G.glowWeight({ source: "none" })).includes('["get","_count"]'));
+    const colours = JSON.stringify(G.GLOW);
+    check("\u2026its colours run plum, rose and bone, with no orange or yellow", /#6E4A6A/.test(colours) && /#B07087/.test(colours) && /#E8DFD0/.test(colours) && !/#E7A63B/i.test(colours));
+    check("\u2026the archive's own largest amount is read for the weight", /glowMaxOf\.set\(src, Number\(attr\.max\)\)/.test(src));
+  }
   check("the zoom-8 note is gone", !/every layer shows summed totals/.test(src));
   const tc = new Function(src.slice(src.indexOf("const TITLE_SMALL"), src.indexOf("function pinBuildings(")) + "; return titleCase;")();
   check("headings are in title case", tc("Suppression by \u201crepresentation\u201d within it") === "Suppression by \u201cRepresentation\u201d Within It" && tc("Of the planet") === "Of the Planet" && tc("For money-written-law") === "For Money-Written-Law");
