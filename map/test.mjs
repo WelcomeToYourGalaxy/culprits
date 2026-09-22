@@ -1340,9 +1340,17 @@ console.log("\nreading the map");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   const wireSrc = fs.readFileSync(path.join(HERE, "wire.js"), "utf8");
-  check("the Satellite basemap has its own livelier grade; the atlas keeps its own",
-        /satellite: \{ "raster-brightness-min": 0\.02, "raster-brightness-max": 1,\n\s*"raster-saturation": 0\.38/.test(src) &&
+  // Regraded on 22 September: sensor imagery, not the livelier game-map grade.
+  check("the Satellite basemap has its own sensor-imagery grade; the atlas keeps its own",
+        /satellite: \{ "raster-brightness-min": 0\.02, "raster-brightness-max": 0\.74,\n\s*"raster-saturation": -0\.6/.test(src) &&
         /atlas: \{ "raster-brightness-min": ATLAS_TUNE\.lift/.test(src));
+  check("\u2026its washes are its own plum-grey tint and dark floor, none of the atlas's sea, green or warm",
+        /if \(BASEMAP === "satellite"\) return \[\n\s*\{ mode: "multiply", rgb: hexRgb\(SAT_WASH\.tint\) \}/.test(src) && /tint: "#B4AEBA"/.test(src));
+  check("\u2026grey labels, the glow's fixed grain over it, and the atlas's tuning knob leaves it alone",
+        /"raster-saturation", kind === "satellite" \? -1 : 0/.test(src) && /if \(kind === "satellite"\) glowGrain\(\);/.test(src) &&
+        /BASEMAP === "satellite" \? GLOW\.grainSatellite : 0/.test(src) && /for \(const k of \["atlas"\]\)/.test(src));
+  check("\u2026no teal atmosphere, no corner brackets, and threat halos small and faint",
+        !/#2F8F93/.test(src) && !/class="br /.test(index) && !/rgba\(63,167,163/.test(index) && /1, 2\.5, 8, 5, 14, 8\]\);/.test(src));
   check("and carries the same washes", /BASEMAP === "outlines" \|\| !options/.test(src));
   check("the caret sits in the layer box, not the title box",
         /<div class="panel-head">[\s\S]{0,500}id="panelRoll"/.test(index) &&

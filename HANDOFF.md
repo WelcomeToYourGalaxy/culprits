@@ -317,6 +317,21 @@ Cost: three more package downloads per sector per run (agriculture's co2e
 package alone is 1.4 GB), so the per-gas harvest should run as its own job
 with its own ETags rather than inside the existing one. Not written yet.
 
+## The Satellite basemap regraded as sensor imagery (22 September)
+
+Only the Satellite basemap; the atlas and the imagery under it are untouched.
+`BASE_GRADE.satellite`: saturation -0.6, brightness max 0.74, contrast 0.2
+(was +0.38, 1, 0.14). `atlasWashPasses` gives the satellite its own two
+passes, `SAT_WASH`: a plum-grey multiply (#B4AEBA) and a dark screen floor
+(#0D0B10), in place of the atlas's sea, green and warm washes. Labels grey
+(saturation -1) at 0.62. The glow's grain covers the whole view on satellite
+at `GLOW.grainSatellite` (0.2), rising to `GLOW.grain` where the glow is.
+Defence view: slate-plum sky in place of teal, corner brackets removed,
+vignette neutral, threat halos radius 2.5-8 at 0.16 (were 5-13 at 0.22),
+click ring bone at low opacity. `atlasTune()` now tunes the atlas only; it
+used to overwrite the satellite grade too. Esri imagery cannot be fetched
+from the sandbox, so this was not rendered before shipping.
+
 ## The glow made finer (22 September, later)
 
 The first glow read as smooth round blobs. Now, per point layer, `addHud`

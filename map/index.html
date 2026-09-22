@@ -76,21 +76,17 @@
   #layers .kids{margin:0 0 1px 9px}
   #layers .group{margin:0}
   /* The Satellite basemap's planetary-defence frame (see DEFENCE in app.js).
-     Fine corner brackets and a faint vignette; none of it takes clicks or
+     A faint vignette (the corner brackets went on 22 September: they read as a
+     game screen); none of it takes clicks or
      covers the middle of the map. The scan line that used to sweep down the
      screen is gone: a bar crossing the map every eleven seconds is an arcade
      screen, not an instrument, and it drew attention away from the map it was
      supposed to be framing. */
   #defence-hud{position:absolute;inset:0;pointer-events:none;z-index:1;
-    background:radial-gradient(ellipse at center, rgba(0,0,0,0) 68%, rgba(4,16,22,.30) 100%)}
+    background:radial-gradient(ellipse at center, rgba(0,0,0,0) 62%, rgba(8,7,10,.34) 100%)}
   #defence-hud[hidden]{display:none}
-  #defence-hud .br{position:absolute;width:56px;height:56px;border:1px solid rgba(63,167,163,.28)}
-  #defence-hud .tl{top:10px;left:calc(var(--left-w) + 32px);border-right:0;border-bottom:0}
-  #defence-hud .tr{top:10px;right:calc(var(--box-w) + 24px);border-left:0;border-bottom:0}
-  #defence-hud .bl{bottom:34px;left:calc(var(--left-w) + 32px);border-right:0;border-top:0}
-  #defence-hud .bre{bottom:34px;right:calc(var(--box-w) + 24px);border-left:0;border-top:0}
   .defence-ping{position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;
-    border:1px solid rgba(63,167,163,.55);pointer-events:none;z-index:2;animation:defence-ping .7s ease-out forwards}
+    border:1px solid rgba(232,223,208,.32);pointer-events:none;z-index:2;animation:defence-ping .7s ease-out forwards}
   @keyframes defence-ping{to{transform:scale(3.4);opacity:0}}
   @media (prefers-reduced-motion: reduce){.defence-ping{animation:none;display:none}}
   /* The layers box rolls up whole: the box shrinks to its heading. */
@@ -359,7 +355,7 @@
      there and clickable from the first moment, before the map has loaded and
      even if the map's script is slow or has failed. Once the view box exists
      it is moved beside the zoom buttons. -->
-<div id="defence-hud" hidden><i class="br tl"></i><i class="br tr"></i><i class="br bl"></i><i class="br bre"></i></div>
+<div id="defence-hud" hidden></div>
 <div class="reload-wrap reload-early" id="reload-wrap">
   <button type="button" id="reload-map" aria-label="Reload the map"
           onclick="try{var v=window.__culpritsView;if(v)sessionStorage.setItem('culprits-view',v)}catch(e){}location.reload()">&#8635;</button>

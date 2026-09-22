@@ -784,10 +784,13 @@ const BASE_GRADE = {
            "raster-saturation": ATLAS_TUNE.sat, "raster-contrast": ATLAS_TUNE.con,
            "raster-hue-rotate": ATLAS_TUNE.hue },
   // The Satellite imagery basemap on its own (not the imagery under the painted
-  // atlas, which keeps the atlas grade): graded livelier, so forest reads green
-  // and water blue. Part of the planetary-defence look (see DEFENCE below).
-  satellite: { "raster-brightness-min": 0.02, "raster-brightness-max": 1,
-               "raster-saturation": 0.38, "raster-contrast": 0.14,
+  // atlas, which keeps the atlas grade). Graded on 22 September to read as
+  // sensor imagery rather than a game map: most of the colour taken out, the
+  // brights held down so the glow is the brightest thing on it, a little more
+  // contrast so the ground's own texture - ridges, fields, river beds - carries
+  // the picture. Its washes (SAT_WASH below) and the fixed grain finish it.
+  satellite: { "raster-brightness-min": 0.02, "raster-brightness-max": 0.74,
+               "raster-saturation": -0.6, "raster-contrast": 0.2,
                "raster-hue-rotate": 0 },
 };
 let BASEMAP = "atlas";
@@ -829,7 +832,15 @@ function hexRgb(h) {
 }
 // Passes for one frame, as { mode, rgb }. Kept separate from the GL code so the
 // arithmetic can be tested without a GPU.
+// The Satellite basemap's own washes, in place of the atlas's sea, green and
+// warm ones: a cool plum-grey multiply that tints and darkens what colour is
+// left, and a faint dark floor so the shadows are not dead black.
+const SAT_WASH = { tint: "#B4AEBA", floor: "#0D0B10" };
 function atlasWashPasses(z) {
+  if (BASEMAP === "satellite") return [
+    { mode: "multiply", rgb: hexRgb(SAT_WASH.tint) },
+    { mode: "screen", rgb: hexRgb(SAT_WASH.floor) },
+  ];
   const { t, sea } = atlasWashRamp(z);
   const passes = [];
   const aSea = ATLAS_TUNE.sea * sea;
@@ -955,7 +966,8 @@ void main() { colour = vec4(c, 1.0); }`));
 window.atlasTune = (next) => {
   if (!next) { console.log("[culprits] atlas tune", JSON.stringify(ATLAS_TUNE)); return ATLAS_TUNE; }
   for (const k of Object.keys(next)) if (k in ATLAS_TUNE) ATLAS_TUNE[k] = next[k];
-  for (const k of ["atlas", "satellite"]) {
+  // The atlas's knob only; the Satellite basemap keeps its own grade.
+  for (const k of ["atlas"]) {
     Object.assign(BASE_GRADE[k], {
       "raster-brightness-min": ATLAS_TUNE.lift, "raster-saturation": ATLAS_TUNE.sat,
       "raster-contrast": ATLAS_TUNE.con, "raster-hue-rotate": ATLAS_TUNE.hue });
@@ -1254,6 +1266,7 @@ const GLOW = {
     0, "rgba(60,30,60,0)", 0.3, "rgba(70,40,70,0.12)", 0.7, "rgba(110,74,106,0.4)", 1, "rgba(176,112,135,0.6)"],
   hazeOpacity: 0.3,                            // very faint: the soft spread only
   core: (w) => ["interpolate", ["linear"], ["sqrt", w], 0, "#6E4A6A", 0.45, "#B07087", 0.8, "#D9B8BF", 1, "#E8DFD0"],
+  grainSatellite: 0.2,                         // the grain over the Satellite basemap, where there is no glow
   grain: 0.3,                                  // the grain's strength over the light
   fadeOut: 9, gone: 12,                        // haze and cores: full to 9, gone by 12; the dots the other way
 };
@@ -1355,7 +1368,8 @@ function glowGrainSync() {
   for (const id of hudOf.keys()) if (map.getLayer(id) && map.getLayoutProperty(id, "visibility") !== "none") { on = true; break; }
   const zm = map.getZoom();
   const k = zm <= GLOW.fadeOut ? 1 : zm >= GLOW.gone ? 0 : (GLOW.gone - zm) / (GLOW.gone - GLOW.fadeOut);
-  el.style.opacity = on ? (GLOW.grain * k).toFixed(3) : "0";
+  const glow = on ? GLOW.grain * k : 0;
+  el.style.opacity = Math.max(glow, BASEMAP === "satellite" ? GLOW.grainSatellite : 0).toFixed(3);
 }
 function hudNext(layerId) {
   const ls = (map.getStyle().layers || []).map((l) => l.id);
@@ -1870,18 +1884,24 @@ function setBasemap(kind) {
   if (map.getLayer("labels")) {
     map.setPaintProperty("labels", "raster-opacity", kind === "atlas"
       ? ["interpolate", ["linear"], ["zoom"], PLATE.fadeIn, 0, PLATE.fadeOut, .92]
-      : .92);
+      : kind === "satellite" ? .62 : .92);
+    // On the Satellite basemap the names are grey, not the label set's colours.
+    map.setPaintProperty("labels", "raster-saturation", kind === "satellite" ? -1 : 0);
   }
   defenceMode(kind === "satellite");
+  // The same fixed grain as the glow, lighter, over the whole Satellite view.
+  if (kind === "satellite") glowGrain();
+  glowGrainSync();
   if (typeof map.triggerRepaint === "function") map.triggerRepaint();
 }
 
 /* ---------- the Satellite basemap as a planetary-defence view ---------- */
 // Only on the Satellite imagery basemap. The imagery stays the photograph; on
 // top of it:
-//   - a livelier grade (BASE_GRADE.satellite) and a teal atmosphere;
-//   - a fine frame at the screen's edges and a faint vignette (index.html,
-//     #defence-hud), neither of which takes clicks;
+//   - a sensor-imagery grade (BASE_GRADE.satellite, SAT_WASH), grey labels,
+//     the glow's fixed grain, and a dark slate-plum atmosphere;
+//   - a faint vignette (index.html, #defence-hud), which takes no clicks; the
+//     corner brackets are gone (22 September);
 //   - every ticked layer under Destruction whose places are points gets a soft
 //     red halo beneath its own points, held steady: a threat zone at each real
 //     site, never a place the layer does not give;
@@ -1893,7 +1913,8 @@ function setBasemap(kind) {
 // for reduced motion.
 const DEFENCE = {
   threat: "#B8473E",
-  sky: { "sky-color": "#0B1A22", "horizon-color": "#2F8F93", "fog-color": "#2F8F93",
+  // A dark slate-plum atmosphere, not the teal it had.
+  sky: { "sky-color": "#0E0D12", "horizon-color": "#47424D", "fog-color": "#47424D",
          "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 1, 4, 0.85, 7, 0] },
   guard: ["gsn"],
   maxPulsing: 16,
@@ -1954,9 +1975,10 @@ function defenceTick() {
     map.setLayoutProperty(hid, "visibility", "visible");
     const f = map.getFilter(lid);
     map.setFilter(hid, f || null);
-    map.setPaintProperty(hid, "circle-opacity", 0.22);
+    // Small and faint, like the glow round it: a tint at the site, not a disc.
+    map.setPaintProperty(hid, "circle-opacity", 0.16);
     map.setPaintProperty(hid, "circle-radius", ["interpolate", ["linear"], ["zoom"],
-      1, 5, 8, 9, 14, 13]);
+      1, 2.5, 8, 5, 14, 8]);
   }
   for (const l of map.getStyle().layers || []) {
     if (l.id.endsWith("-halo") && !live.has(l.id)) map.setLayoutProperty(l.id, "visibility", "none");
