@@ -2495,10 +2495,19 @@ console.log("\nOff-planet sections, Of groups, names, launch links, drag bar, ma
   // Superseded on 22 September: the symbols gave way to a glow. Every point
   // layer gets a heat field weighted by amount wider out, and a halo under its
   // round dots closer in; the round layer is still the one that is clicked.
-  check("every point layer gets a glow field and halos in place of the geometric markers; the round one stays for clicks",
-        /function addHud\(/.test(src) && !/paint\(layer\.id, "circle-opacity", 0\)/.test(src) &&
-        /type: "heatmap", layout: \{ visibility: vis \}/.test(src) && /const halo = `\$\{layer\.id\}-halo`, field = `\$\{layer\.id\}-glow`/.test(src) &&
-        /hudOf\.set\(layer\.id, \[field, halo\]\)/.test(src));
+  check("every point layer gets a faint wide haze and tight cores in place of the geometric markers; the round one stays for clicks",
+        /function addHud\(/.test(src) && /type: "heatmap", layout: \{ visibility: vis \}/.test(src) &&
+        /const haze = `\$\{layer\.id\}-haze`, core = `\$\{layer\.id\}-core`, soft = `\$\{layer\.id\}-soft`/.test(src) &&
+        /hudOf\.set\(layer\.id, \[haze, core, soft\]\)/.test(src));
+  // Made finer on 22 September: no round blobs. The cores are circles a pixel
+  // or two across (full resolution); the haze stays faint; a fixed grain.
+  check("\u2026the cores are small specks, the haze faint and never brighter than rose, the dots soft-edged and unseen wider out",
+        /"circle-radius": z\(0, \["\*", 0\.8, lift\]/.test(src) && /hazeOpacity: 0\.3,/.test(src) && /1, "rgba\(176,112,135,0\.6\)"\]/.test(src) &&
+        /paint\(layer\.id, "circle-blur", 1\)/.test(src) && /z\(GLOW\.fadeOut, 0, GLOW\.gone, 0\.9\)/.test(src));
+  check("\u2026the grain is one noise image from a set seed, made once and held still",
+        /let seed = 0x2F6B4A1D;/.test(src) && /if \(glowGrain\.el \|\| typeof document/.test(src) && /mix-blend-mode:soft-light/.test(src) &&
+        !/glowGrain[\s\S]{0,1200}Math\.random/.test(src.slice(src.indexOf("function glowGrain()"), src.indexOf("function glowGrainSync()"))));
+  check("\u2026planetary defence does not pulse the glow's own layers", /if \(\/-\(halo\|haze\|core\|soft\)\$\/\.test\(lid\)\) continue;/.test(src));
   {
     const G = new Function("mapOutputs", src.slice(src.indexOf("const GLOW = {"), src.indexOf("function addHud(layer, rawAddLayer)")) + "; return { GLOW, glowWeight, glowMaxOf };")((v) => v);
     G.glowMaxOf.set("s1", 5000);

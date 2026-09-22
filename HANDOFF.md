@@ -317,6 +317,24 @@ Cost: three more package downloads per sector per run (agriculture's co2e
 package alone is 1.4 GB), so the per-gas harvest should run as its own job
 with its own ETags rather than inside the existing one. Not written yet.
 
+## The glow made finer (22 September, later)
+
+The first glow read as smooth round blobs. Now, per point layer, `addHud`
+adds three layers under the round one: `<id>-haze`, a faint wide heatmap
+(opacity 0.3, ramp tops out at rose); `<id>-core`, a circle layer of specks
+0.8-2.1 px times a small lift by amount, colour and opacity by amount, blur
+0.6 - circles rather than a heatmap because MapLibre draws a flat-map
+heatmap at a quarter of screen resolution, which would smear them; and
+`<id>-soft`, the close-in surround (was `-halo`, renamed so planetary
+defence, which hides every `-halo`, leaves it alone; defence also skips
+`-haze|-core|-soft` when choosing what to pulse). Haze and cores full to
+zoom 9, gone by 12. The round dots are unseen below 9 (still clickable),
+rise to 0.9 by 12, blur 1. `glowGrain()` puts one 256 px noise image, from a
+fixed seed, in a screen-fixed div over the map canvas (under controls and
+popups), `mix-blend-mode: soft-light`, opacity `GLOW.grain` (0.3) fading
+with the haze; off when no glow layer is showing. Rendered and checked in
+headless Chromium on test points, not on the live tiles.
+
 ## The glow (22 September): symbols gone, emissions as a field of light
 
 Every point layer's geometric symbol is gone. `addHud` (kept the name; the

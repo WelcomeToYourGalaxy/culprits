@@ -1218,33 +1218,44 @@ function hudImages() {
 }
 const hudOf = new Map();       // circle layer id -> its symbol layer id
 function hudEligible(layer) {
-  if (!layer || layer.type !== "circle" || !layer.id || /^(wire-|ct-)/.test(layer.id) || /-(halo|hud|glow)$/.test(layer.id)) return false;
+  if (!layer || layer.type !== "circle" || !layer.id || /^(wire-|ct-)/.test(layer.id) || /-(halo|hud|glow|haze|core|soft)$/.test(layer.id)) return false;
   const c = JSON.stringify((layer.paint || {})["circle-color"] || "");
   return !/rgba\(0,\s*0,\s*0,\s*0\)|transparent/.test(c);
 }
 function hudSize(radius) {
   return mapOutputs(radius === undefined ? 5 : radius, (n) => Math.max(0.3, n / HUD.R * 1.05));
 }
-// The glow, asked for on 22 September in place of the geometric symbols: a
-// satellite-derived look where emissions read as a continuous field of light.
-//   Wider out: a heat field (one WebGL heatmap layer per point layer, so
-//   thousands of points stay fast) whose brightness comes from each source's
-//   AMOUNT - one huge emitter glows brighter than ten tiny ones unless the
-//   tiny ones together emit more - weighted by value over the layer's largest
+// The glow, asked for on 22 September in place of the geometric symbols, and
+// made finer the same day so it reads as part of the land rather than round
+// blobs laid on it. Wider out, each point layer draws two layers of light:
+//   a faint, wide haze (a WebGL heatmap, "<id>-haze") for the soft,
+//   atmospheric spread, never brighter than rose; and
+//   a tight core at each source ("<id>-core"): a speck a pixel or two across,
+//   drawn as a circle so it keeps full screen resolution (MapLibre draws a
+//   heatmap at a quarter of it on the flat map). Its size, brightness and
+//   colour rise with the source's AMOUNT - value over the layer's largest
 //   value, read from its archive (glowMaxOf); a layer with no amounts weighs
-//   each point, or each merged point's count, alike. Every source is in it.
-//   Closer in: the field fades and the sources stand as round dots, sized
-//   by the layer's own rule (an area proportional to the amount), each with a
-//   faint blurred halo. Nothing has a hard edge. Colours run plum, rose and
-//   pale bone at the hottest points; no orange or yellow anywhere.
+//   each point, or each merged point's count, alike - so one big emitter
+//   outshines ten small ones, and crowded places brighten because their specks
+//   overlap, with the gaps between them left dark. Every source is in it.
+// Over both, a fixed grain (glowGrain): one noise image made once from a set
+// seed, held still on the screen, blended so it shows in the light and hardly
+// in the dark.
+// Closer in, the haze and cores fade and each source stands as a small,
+// soft-edged dot, sized by the layer's own rule (an area proportional to the
+// amount), with a faint soft surround ("<id>-soft"). Colours run plum, rose
+// and pale bone at the hottest points; no orange or yellow anywhere.
 // The round layer stays the one that is clicked, filtered, recoloured and
-// removed; the glow and the halo follow it (the wrappers below).
+// removed; the other three follow it (the wrappers below).
 const GLOW = {
   plum: "#6E4A6A", rose: "#B07087", bone: "#E8DFD0", red: "#C77A8A", white: "#DCD6C6",
   cyan: "#8C8FA8", amber: "#9E6E82",          // the old symbol glows, mapped into the same range
-  ramp: ["interpolate", ["linear"], ["heatmap-density"],
-    0, "rgba(60,30,60,0)", 0.15, "rgba(80,40,80,0.45)", 0.4, "#6E4A6A", 0.7, "#B07087", 0.9, "#D9B8BF", 1, "#E8DFD0"],
-  fadeOut: 9, gone: 12,                        // the field: full to 9, gone by 12; the dots the other way
+  haze: ["interpolate", ["linear"], ["heatmap-density"],
+    0, "rgba(60,30,60,0)", 0.3, "rgba(70,40,70,0.12)", 0.7, "rgba(110,74,106,0.4)", 1, "rgba(176,112,135,0.6)"],
+  hazeOpacity: 0.3,                            // very faint: the soft spread only
+  core: (w) => ["interpolate", ["linear"], ["sqrt", w], 0, "#6E4A6A", 0.45, "#B07087", 0.8, "#D9B8BF", 1, "#E8DFD0"],
+  grain: 0.3,                                  // the grain's strength over the light
+  fadeOut: 9, gone: 12,                        // haze and cores: full to 9, gone by 12; the dots the other way
 };
 const glowMaxOf = new Map();                   // source id -> the largest "value" in it, from the archive's own stats
 function glowWeight(layer) {
@@ -1255,40 +1266,90 @@ function glowWeight(layer) {
   return ["min", 1, ["/", ["max", 0, ["coalesce", ["to-number", ["get", "value"]], 0]], max]];
 }
 function addHud(layer, rawAddLayer) {
-  const [, glowName] = hudPlace(layer.id);
   const p = layer.paint || {};
-  const halo = `${layer.id}-halo`, field = `${layer.id}-glow`;
+  const haze = `${layer.id}-haze`, core = `${layer.id}-core`, soft = `${layer.id}-soft`;
   const base = { source: layer.source };
   if (layer["source-layer"]) base["source-layer"] = layer["source-layer"];
   if (layer.filter) base.filter = layer.filter;
   const vis = (layer.layout && layer.layout.visibility) || "visible";
-  const fieldSpec = Object.assign({ id: field, type: "heatmap", layout: { visibility: vis },
-    minzoom: layer.minzoom != null ? layer.minzoom : 0, maxzoom: GLOW.gone,
-    paint: {
-      "heatmap-weight": glowWeight(layer),
-      "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 0, 1.2, 6, 2, 10, 3],
-      "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 0, 10, 4, 18, 8, 34, 12, 60],
-      "heatmap-opacity": ["interpolate", ["linear"], ["zoom"], GLOW.fadeOut, 0.9, GLOW.gone, 0],
-      "heatmap-color": GLOW.ramp,
+  const w = glowWeight(layer);
+  const lift = ["+", 0.7, ["*", 0.9, ["sqrt", w]]];   // a speck grows a little with its amount
+  const z = (...stops) => ["interpolate", ["linear"], ["zoom"], ...stops];
+  const wide = { minzoom: layer.minzoom != null ? layer.minzoom : 0, maxzoom: GLOW.gone };
+  const hazeSpec = Object.assign({ id: haze, type: "heatmap", layout: { visibility: vis }, paint: {
+      "heatmap-weight": w,
+      "heatmap-intensity": z(0, 0.6, 6, 1, 10, 1.4),
+      "heatmap-radius": z(0, 14, 4, 22, 8, 36, 11, 48),
+      "heatmap-opacity": z(GLOW.fadeOut, GLOW.hazeOpacity, GLOW.gone, 0),
+      "heatmap-color": GLOW.haze,
+    } }, wide, base);
+  const coreSpec = Object.assign({ id: core, type: "circle", layout: { visibility: vis }, paint: {
+      "circle-color": GLOW.core(w),
+      "circle-radius": z(0, ["*", 0.8, lift], 4, ["*", 1.1, lift], 8, ["*", 1.6, lift], 11, ["*", 2.1, lift]),
+      "circle-blur": 0.6,
+      "circle-opacity": z(GLOW.fadeOut, ["+", 0.3, ["*", 0.7, ["sqrt", w]]], GLOW.gone, 0),
+      "circle-stroke-width": 0,
+    } }, wide, base);
+  const softSpec = Object.assign({ id: soft, type: "circle", layout: { visibility: vis }, paint: {
+      "circle-color": GLOW[hudPlace(layer.id)[1]] || GLOW.rose,
+      "circle-radius": mapOutputs(p["circle-radius"] === undefined ? 5 : p["circle-radius"], (n) => n * 1.5),
+      "circle-blur": 1, "circle-opacity": z(GLOW.fadeOut, 0, GLOW.gone, 0.2),
     } }, base);
-  const haloSpec = Object.assign({ id: halo, type: "circle", layout: { visibility: vis },
-    paint: {
-      "circle-color": GLOW[glowName] || GLOW.rose,
-      "circle-radius": mapOutputs(p["circle-radius"] === undefined ? 5 : p["circle-radius"], (n) => n * 2.4),
-      "circle-blur": 1, "circle-opacity": ["interpolate", ["linear"], ["zoom"], GLOW.fadeOut, 0.12, GLOW.gone, 0.38],
-    } }, base);
-  if (layer.minzoom != null) haloSpec.minzoom = layer.minzoom;
-  if (layer.maxzoom != null) haloSpec.maxzoom = layer.maxzoom;
+  softSpec.minzoom = Math.max(layer.minzoom != null ? layer.minzoom : 0, GLOW.fadeOut);
+  if (layer.maxzoom != null) softSpec.maxzoom = layer.maxzoom;
   try {
-    rawAddLayer(fieldSpec, layer.id);
-    rawAddLayer(haloSpec, layer.id);
-    // The dots themselves: soft-edged, and rising as the field fades.
+    rawAddLayer(hazeSpec, layer.id);
+    rawAddLayer(coreSpec, layer.id);
+    rawAddLayer(softSpec, layer.id);
+    // The dots themselves: soft-edged all the way in (the visible part sits
+    // well inside the clickable circle), and unseen wider out, where the cores
+    // stand for them; they are still there to be clicked.
     const paint = hudRaw.setPaintProperty || map.setPaintProperty.bind(map);
-    paint(layer.id, "circle-blur", 0.35);
+    paint(layer.id, "circle-blur", 1);
     paint(layer.id, "circle-stroke-width", 0);
-    if (p["circle-opacity"] === undefined) paint(layer.id, "circle-opacity", ["interpolate", ["linear"], ["zoom"], GLOW.fadeOut, 0.55, GLOW.gone, 0.95]);
-    hudOf.set(layer.id, [field, halo]);
+    if (p["circle-opacity"] === undefined) paint(layer.id, "circle-opacity", z(GLOW.fadeOut, 0, GLOW.gone, 0.9));
+    hudOf.set(layer.id, [haze, core, soft]);
+    glowGrain();
   } catch (e) { /* this layer keeps its round markers alone */ }
+}
+// The grain: made once, from a fixed seed, so it is the same on every redraw
+// and every visit; screen-fixed, under the controls and popups. "soft-light"
+// leaves near-black almost untouched and textures the lit parts most. It
+// fades with the haze and cores, and is off when no glow layer is showing.
+function glowGrain() {
+  if (glowGrain.el || typeof document === "undefined" || !map.getCanvas) return;
+  const n = 256, c = document.createElement("canvas");
+  c.width = c.height = n;
+  const g = c.getContext && c.getContext("2d");
+  if (!g) return;
+  const img = g.createImageData(n, n);
+  let seed = 0x2F6B4A1D;
+  for (let i = 0; i < n * n; i++) {
+    seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5;
+    const v = 128 + ((((seed >>> 0) & 255) - 128) * 0.85 | 0);
+    img.data[i * 4] = img.data[i * 4 + 1] = img.data[i * 4 + 2] = v; img.data[i * 4 + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  const el = document.createElement("div");
+  el.className = "glow-grain";
+  const px = n / (window.devicePixelRatio || 1);
+  el.style.cssText = "position:absolute;inset:0;pointer-events:none;mix-blend-mode:soft-light;opacity:0;" +
+    `background-image:url(${c.toDataURL()});background-size:${px}px ${px}px;image-rendering:pixelated;`;
+  const cv = map.getCanvas();
+  cv.parentNode.insertBefore(el, cv.nextSibling);
+  glowGrain.el = el;
+  map.on("zoom", glowGrainSync);
+  map.on("styledata", glowGrainSync);
+  glowGrainSync();
+}
+function glowGrainSync() {
+  const el = glowGrain.el;
+  if (!el) return;
+  let on = false;
+  for (const id of hudOf.keys()) if (map.getLayer(id) && map.getLayoutProperty(id, "visibility") !== "none") { on = true; break; }
+  const zm = map.getZoom();
+  const k = zm <= GLOW.fadeOut ? 1 : zm >= GLOW.gone ? 0 : (GLOW.gone - zm) / (GLOW.gone - GLOW.fadeOut);
+  el.style.opacity = on ? (GLOW.grain * k).toFixed(3) : "0";
 }
 function hudNext(layerId) {
   const ls = (map.getStyle().layers || []).map((l) => l.id);
@@ -1317,16 +1378,16 @@ hudWrap("setPaintProperty", (raw) => function (id, prop, v, o) {
   const out = raw(id, prop, v, o);
   for (const h of hudMates(id)) {
     try {
-      if (h.endsWith("-halo") && prop === "circle-radius") raw(h, "circle-radius", mapOutputs(v, (n) => n * 2.4), o);
-      if (h.endsWith("-halo") && prop === "circle-opacity" && typeof v === "number") raw(h, "circle-opacity", v * 0.38, o);
-      if (h.endsWith("-glow") && prop === "circle-opacity" && typeof v === "number") raw(h, "heatmap-opacity", v * 0.9, o);
+      if (h.endsWith("-soft") && prop === "circle-radius") raw(h, "circle-radius", mapOutputs(v, (n) => n * 1.5), o);
+      if (h.endsWith("-soft") && prop === "circle-opacity" && typeof v === "number") raw(h, "circle-opacity", v * 0.2, o);
+      if (h.endsWith("-haze") && prop === "circle-opacity" && typeof v === "number") raw(h, "heatmap-opacity", v * GLOW.hazeOpacity, o);
     } catch (e) { /* kept */ }
   }
   return out;
 });
 hudWrap("moveLayer", (raw) => function (id, before) {
   const out = raw(id, before);
-  hudMates(id).forEach((h) => raw(h, id));    // the glow and the halo stay under their dots
+  hudMates(id).forEach((h) => raw(h, id));    // the haze, cores and soft surround stay under their dots
   return out;
 });
 hudWrap("removeLayer", (raw) => function (id) {
@@ -1848,7 +1909,7 @@ function defenceHalos() {
   const ids = [];
   for (const row of destructionRows()) {
     for (const lid of layersOfRow(row)) {
-      if (lid.endsWith("-halo")) continue;
+      if (/-(halo|haze|core|soft)$/.test(lid)) continue;
       const l = map.getLayer(lid);
       if (!l || l.type !== "circle" || map.getLayoutProperty(lid, "visibility") === "none") continue;
       ids.push(lid);
