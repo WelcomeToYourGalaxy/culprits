@@ -1340,12 +1340,19 @@ console.log("\nreading the map");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   const wireSrc = fs.readFileSync(path.join(HERE, "wire.js"), "utf8");
-  // Regraded on 22 September: sensor imagery, not the livelier game-map grade.
-  check("the Satellite basemap has its own sensor-imagery grade; the atlas keeps its own",
-        /satellite: \{ "raster-brightness-min": 0\.02, "raster-brightness-max": 0\.74,\n\s*"raster-saturation": -0\.6/.test(src) &&
-        /atlas: \{ "raster-brightness-min": ATLAS_TUNE\.lift/.test(src));
-  check("\u2026its washes are its own plum-grey tint and dark floor, none of the atlas's sea, green or warm",
-        /if \(BASEMAP === "satellite"\) return \[\n\s*\{ mode: "multiply", rgb: hexRgb\(SAT_WASH\.tint\) \}/.test(src) && /tint: "#B4AEBA"/.test(src));
+  // Redone on 22 September: shaded relief in earth tones, not the grey sensor grade.
+  check("the Satellite basemap is shaded relief in earth tones over lightly muted imagery; the atlas keeps its own grade",
+        /satellite: \{ "raster-brightness-min": 0\.03, "raster-brightness-max": 0\.92,\n\s*"raster-saturation": -0\.3/.test(src) &&
+        /atlas: \{ "raster-brightness-min": ATLAS_TUNE\.lift/.test(src) &&
+        /id: "sat-relief-colour", type: "color-relief", source: "outline-dem"/.test(src) &&
+        /id: "sat-relief-shade", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF\.shade/.test(src) &&
+        /"hillshade-method": "multidirectional"/.test(src) && /if \(BASEMAP === "satellite"\) return \[\];/.test(src));
+  {
+    const block = src.slice(src.indexOf("const SAT_RELIEF = {"), src.indexOf("\n};", src.indexOf("const SAT_RELIEF = {")));
+    check("\u2026its palette runs slate, muted green, olive, khaki, ochre-brown, sienna, slate-grey rock and off-white, with nothing bright",
+          ["#2F3A40", "#6B7757", "#83865E", "#A08F67", "#9A7A57", "#8C6650", "#7E6E66", "#ECE8DF"].every((c) => block.includes(c)) &&
+          !/#(F[0-9A-F]{2}[0-9A-F]{2}00|FFD|FFA|FF8|E7A63B)/i.test(block));
+  }
   check("\u2026grey labels, the glow's fixed grain over it, and the atlas's tuning knob leaves it alone",
         /"raster-saturation", kind === "satellite" \? -1 : 0/.test(src) && /if \(kind === "satellite"\) glowGrain\(\);/.test(src) &&
         /BASEMAP === "satellite" \? GLOW\.grainSatellite : 0/.test(src) && /for \(const k of \["atlas"\]\)/.test(src));
@@ -1365,7 +1372,7 @@ console.log("\nreading the map");
         /colour: CT_COLOURS\[id\]/.test(src) && !/circle-sort-key/.test(src));
   check("the map draws at most 1.5 pixels per pixel, with no fades", /pixelRatio: Math\.min\(/.test(src) && /fadeDuration: 0/.test(src));
   check("terrain heights stop at zoom 12, and the Esri relief is put away under them",
-        /encoding: "terrarium", tileSize: 256, maxzoom: 12/.test(src) && /show\("hillshade", imagery && !TERRAIN_ON\)/.test(src));
+        /encoding: "terrarium", tileSize: 256, maxzoom: 12/.test(src) && /show\("hillshade", kind === "atlas" && !TERRAIN_ON\)/.test(src));
   check("the outlines gain OpenStreetMap detail, relief and buildings closer in, with no key",
         /const OFM = "https:\/\/tiles\.openfreemap\.org\/planet"/.test(src) && !/dark_nolabels/.test(src) &&
         /type: "hillshade", source: "outline-dem"/.test(src) && /"source-layer": "building", minzoom: 13/.test(src) &&

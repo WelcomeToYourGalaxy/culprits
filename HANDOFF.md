@@ -317,6 +317,22 @@ Cost: three more package downloads per sector per run (agriculture's co2e
 package alone is 1.4 GB), so the per-gas harvest should run as its own job
 with its own ETags rather than inside the existing one. Not written yet.
 
+## The Satellite basemap as earth-tone shaded relief (22 September, later)
+
+Supersedes the sensor grade below, which read dreary and uniform. The
+imagery is only lightly muted now (saturation -0.3, max 0.92) and takes no
+washes. Over it, from the terrarium elevation tiles (`outline-dem`, shared
+with the outline map), `addSatelliteRelief()` adds `sat-relief-colour`, a
+MapLibre `color-relief` layer with a terrain palette by height
+(`SAT_RELIEF.colour`: slate sea, muted green, olive, khaki, ochre-brown,
+sienna, slate-grey rock, off-white; opacity 0.62 at world view to 0.3 close
+in), and `sat-relief-shade`, a `multidirectional` hillshade lit from four
+directions weighted to the north-west, warm-slate shadows and off-white
+lights. Esri's relief tiles now show on the atlas only. Grain 0.1 on
+satellite; labels grey at 0.8; defence sky slate with an earth-grey horizon.
+Previewed on made-up terrain in headless Chromium; real elevation and imagery
+could not be fetched from the sandbox.
+
 ## The Satellite basemap regraded as sensor imagery (22 September)
 
 Only the Satellite basemap; the atlas and the imagery under it are untouched.

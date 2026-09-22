@@ -784,16 +784,44 @@ const BASE_GRADE = {
            "raster-saturation": ATLAS_TUNE.sat, "raster-contrast": ATLAS_TUNE.con,
            "raster-hue-rotate": ATLAS_TUNE.hue },
   // The Satellite imagery basemap on its own (not the imagery under the painted
-  // atlas, which keeps the atlas grade). Graded on 22 September to read as
-  // sensor imagery rather than a game map: most of the colour taken out, the
-  // brights held down so the glow is the brightest thing on it, a little more
-  // contrast so the ground's own texture - ridges, fields, river beds - carries
-  // the picture. Its washes (SAT_WASH below) and the fixed grain finish it.
-  satellite: { "raster-brightness-min": 0.02, "raster-brightness-max": 0.74,
-               "raster-saturation": -0.6, "raster-contrast": 0.2,
+  // atlas, which keeps the atlas grade). Since 22 September a shaded-relief map
+  // in earth tones (SAT_RELIEF below): the imagery is only a little muted, so
+  // the ground keeps its own colour and texture, and the relief's palette and
+  // Swiss-style shading are laid over it.
+  satellite: { "raster-brightness-min": 0.03, "raster-brightness-max": 0.92,
+               "raster-saturation": -0.3, "raster-contrast": 0.06,
                "raster-hue-rotate": 0 },
 };
 let BASEMAP = "atlas";
+
+// The Satellite basemap's relief (22 September): shaded relief in the manner of
+// the Swiss school, over the imagery, from the same keyless elevation tiles as
+// 3D terrain.
+//   colour  a terrain palette by height - earth tones, all a little greyed:
+//           slate under the sea, muted green on the lowlands, olive, khaki,
+//           ochre-brown and sienna up the slopes, slate-grey rock, off-white
+//           on the highest ground. Stronger wider out, where the imagery is a
+//           blur; lighter close in, where the imagery's own detail matters.
+//   shade   light from several directions at once, weighted to the north-west,
+//           as the Swiss relief maps are lit: shadows a warm slate, lights
+//           off-white, so slopes model without going black.
+const SAT_RELIEF = {
+  colour: ["interpolate", ["linear"], ["elevation"],
+    -8000, "#2F3A40", -1500, "#3E4A50", -50, "#56625F", 0, "#6A7466",
+    1, "#6B7757", 150, "#737D59", 400, "#83865E", 800, "#97926A", 1300, "#A08F67",
+    1900, "#9A7A57", 2600, "#8C6650", 3300, "#7E6E66", 4200, "#9C978E", 5200, "#CFCABE", 6500, "#ECE8DF"],
+  colourOpacity: ["interpolate", ["linear"], ["zoom"], 2, 0.62, 8, 0.48, 13, 0.3],
+  shade: {
+    "hillshade-method": "multidirectional",
+    "hillshade-illumination-direction": [270, 315, 0, 225],
+    "hillshade-illumination-altitude": [35, 40, 35, 55],
+    "hillshade-highlight-color": ["rgba(246,242,232,0.35)", "rgba(246,242,232,0.55)", "rgba(246,242,232,0.3)", "rgba(246,242,232,0.12)"],
+    "hillshade-shadow-color": ["rgba(52,46,40,0.35)", "rgba(52,46,40,0.65)", "rgba(52,46,40,0.35)", "rgba(52,46,40,0.15)"],
+    "hillshade-accent-color": "#4A4238",
+    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 0.75, 8, 0.6, 13, 0.45],
+    "hillshade-illumination-anchor": "map",
+  },
+};
 
 // The colour washes, as one WebGL layer drawn over the imagery.
 //
@@ -832,15 +860,10 @@ function hexRgb(h) {
 }
 // Passes for one frame, as { mode, rgb }. Kept separate from the GL code so the
 // arithmetic can be tested without a GPU.
-// The Satellite basemap's own washes, in place of the atlas's sea, green and
-// warm ones: a cool plum-grey multiply that tints and darkens what colour is
-// left, and a faint dark floor so the shadows are not dead black.
-const SAT_WASH = { tint: "#B4AEBA", floor: "#0D0B10" };
+// The Satellite basemap takes none of the atlas's sea, green and warm washes:
+// its colour comes from the relief (SAT_RELIEF), which the washes would tint.
 function atlasWashPasses(z) {
-  if (BASEMAP === "satellite") return [
-    { mode: "multiply", rgb: hexRgb(SAT_WASH.tint) },
-    { mode: "screen", rgb: hexRgb(SAT_WASH.floor) },
-  ];
+  if (BASEMAP === "satellite") return [];
   const { t, sea } = atlasWashRamp(z);
   const passes = [];
   const aSea = ATLAS_TUNE.sea * sea;
@@ -1266,7 +1289,7 @@ const GLOW = {
     0, "rgba(60,30,60,0)", 0.3, "rgba(70,40,70,0.12)", 0.7, "rgba(110,74,106,0.4)", 1, "rgba(176,112,135,0.6)"],
   hazeOpacity: 0.3,                            // very faint: the soft spread only
   core: (w) => ["interpolate", ["linear"], ["sqrt", w], 0, "#6E4A6A", 0.45, "#B07087", 0.8, "#D9B8BF", 1, "#E8DFD0"],
-  grainSatellite: 0.2,                         // the grain over the Satellite basemap, where there is no glow
+  grainSatellite: 0.1,                         // the grain over the Satellite basemap, where there is no glow
   grain: 0.3,                                  // the grain's strength over the light
   fadeOut: 9, gone: 12,                        // haze and cores: full to 9, gone by 12; the dots the other way
 };
@@ -1862,6 +1885,19 @@ function addOutlineLayers() {
                "atlas-washes");
 }
 
+// Added the first time the Satellite basemap is chosen, above the imagery and
+// under the washes, labels and every data layer. Shares the outline map's
+// elevation source when that exists.
+function addSatelliteRelief() {
+  if (map.getLayer("sat-relief-colour")) return;
+  try {
+    if (!map.getSource("outline-dem")) map.addSource("outline-dem", Object.assign({}, TERRAIN_SOURCE));
+    const before = map.getLayer("atlas-washes") ? "atlas-washes" : undefined;
+    map.addLayer({ id: "sat-relief-colour", type: "color-relief", source: "outline-dem",
+      paint: { "color-relief-color": SAT_RELIEF.colour, "color-relief-opacity": SAT_RELIEF.colourOpacity } }, before);
+    map.addLayer({ id: "sat-relief-shade", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF.shade }, before);
+  } catch (e) { console.warn("[culprits] satellite relief unavailable:", e.message || e); }
+}
 function setBasemap(kind) {
   BASEMAP = kind;
   const show = (id, on) => {
@@ -1870,8 +1906,12 @@ function setBasemap(kind) {
   const imagery = kind !== "outlines";
   if (!imagery) addOutlineLayers();
   show("base", imagery);
-  show("hillshade", imagery && !TERRAIN_ON);
+  // Esri's relief tiles on the atlas only; the Satellite basemap has its own.
+  show("hillshade", kind === "atlas" && !TERRAIN_ON);
   show("atlas-plate", kind === "atlas");
+  if (kind === "satellite") addSatelliteRelief();
+  show("sat-relief-colour", kind === "satellite");
+  show("sat-relief-shade", kind === "satellite");
   show("outline-ocean", !imagery);
   show("outline-land", !imagery);
   OUTLINE_IDS.forEach((id) => show(id, !imagery));
@@ -1884,7 +1924,7 @@ function setBasemap(kind) {
   if (map.getLayer("labels")) {
     map.setPaintProperty("labels", "raster-opacity", kind === "atlas"
       ? ["interpolate", ["linear"], ["zoom"], PLATE.fadeIn, 0, PLATE.fadeOut, .92]
-      : kind === "satellite" ? .62 : .92);
+      : kind === "satellite" ? .8 : .92);
     // On the Satellite basemap the names are grey, not the label set's colours.
     map.setPaintProperty("labels", "raster-saturation", kind === "satellite" ? -1 : 0);
   }
@@ -1898,8 +1938,8 @@ function setBasemap(kind) {
 /* ---------- the Satellite basemap as a planetary-defence view ---------- */
 // Only on the Satellite imagery basemap. The imagery stays the photograph; on
 // top of it:
-//   - a sensor-imagery grade (BASE_GRADE.satellite, SAT_WASH), grey labels,
-//     the glow's fixed grain, and a dark slate-plum atmosphere;
+//   - shaded relief in earth tones over lightly muted imagery (SAT_RELIEF),
+//     grey labels, a light grain, and a dark slate atmosphere;
 //   - a faint vignette (index.html, #defence-hud), which takes no clicks; the
 //     corner brackets are gone (22 September);
 //   - every ticked layer under Destruction whose places are points gets a soft
@@ -1913,8 +1953,8 @@ function setBasemap(kind) {
 // for reduced motion.
 const DEFENCE = {
   threat: "#B8473E",
-  // A dark slate-plum atmosphere, not the teal it had.
-  sky: { "sky-color": "#0E0D12", "horizon-color": "#47424D", "fog-color": "#47424D",
+  // A dark slate atmosphere with an earth-grey horizon, not the teal it had.
+  sky: { "sky-color": "#14171A", "horizon-color": "#5C5E57", "fog-color": "#5C5E57",
          "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 1, 4, 0.85, 7, 0] },
   guard: ["gsn"],
   maxPulsing: 16,
@@ -6274,7 +6314,7 @@ function setTerrain(on) {
   // The Esri relief layer is a second set of tiles to fetch; with real
   // heights under the imagery it is put away.
   if (map.getLayer("hillshade")) {
-    map.setLayoutProperty("hillshade", "visibility", !TERRAIN_ON && BASEMAP !== "outlines" ? "visible" : "none");
+    map.setLayoutProperty("hillshade", "visibility", !TERRAIN_ON && BASEMAP === "atlas" ? "visible" : "none");
   }
   if (TERRAIN_ON) {
     if (!map.getSource("terrain-dem")) map.addSource("terrain-dem", TERRAIN_SOURCE);
