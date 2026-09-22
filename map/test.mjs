@@ -2765,10 +2765,10 @@ console.log("\na row can sit under more than one subject");
   const order = new Function(body + "; return PANEL_ORDER;")();
   const at = (t) => order.findIndex((x) => x && x.t === t);
   check("the eight new headings are in, in the order's own style",
-        ["Fire", "Forest and land cover", "Land held under permit", "Spatial plans", "Peatland",
-         "Surface water", "Base and reference", "Land and territory"].every((t) => at(t) > -1));
+        ["Fire", "Forest and land cover", "Spatial plans", "Peatland",
+         "Surface water", "Base and reference", "Land and territory"].every((t) => at(t) > -1) && at("Land held under permit") === -1);
   check("the planet's new headings sit under Of the planet, before Of groups",
-        ["Fire", "Forest and land cover", "Land held under permit", "Spatial plans", "Peatland", "Surface water"]
+        ["Fire", "Forest and land cover", "Spatial plans", "Peatland", "Surface water", "Other"]
           .every((t) => at(t) > at("Of the planet") && at(t) < at("Of groups")));
   check("Base and reference is its own section, beside Buildings", at("Base and reference") < at("Buildings") &&
         order[at("Base and reference")].h === 1);
@@ -2780,7 +2780,22 @@ console.log("\nNusantara's layers spread through the box");
   const places = new Function(src.slice(src.indexOf("const CATALOGUE_PLACES = ["), src.indexOf("// The body of the heading a path names")) + "; return cataloguePlaces;")();
   check("a layer goes under every subject its words answer to",
         places("Mining concessions Indonesia").includes("Destruction > Of the planet > Mining") &&
-        places("Mining concessions Indonesia").includes("Destruction > Of the planet > Land held under permit"));
+        places("Oil palm concessions, by who lends to them").includes("Destruction > Of the planet > Meat and agriculture > Agriculture"));
+  // A concession is filed by what it is for; the generic heading is gone (22 September).
+  check("a concession goes under its material or activity, not a generic permit heading",
+        places("Timber concessions").join() === "Destruction > Of the planet > Deforestation" &&
+        places("Forest utilisation permits (PBPH)").join() === "Destruction > Of the planet > Deforestation" &&
+        places("Logging concessions").join() === "Destruction > Of the planet > Deforestation" &&
+        places("Mining concessions").join() === "Destruction > Of the planet > Mining" &&
+        places("Plantation land-use rights (HGU)").join() === "Destruction > Of the planet > Meat and agriculture > Agriculture" &&
+        places("Oil and gas concessions").join() === "Destruction > Of the planet > Oil and gas drilling" &&
+        !/"Destruction > Of the planet > Land held under permit"/.test(src));
+  check("\u2026one for a material no heading covers, or that names none, goes under Other",
+        places("Rubber plantations 2020, Kalimantan").join() === "Destruction > Of the planet > Other" &&
+        places("Concessions of other kinds").join() === "Destruction > Of the planet > Other" &&
+        places("National Strategic Project concessions, Merauke").join() === "Destruction > Of the planet > Other" &&
+        places("Some permit").join() === "Destruction > Of the planet > Other" &&
+        /\{ h: 3, t: "Culprits upstream" \}, "ejatlas",\n[^\n]*\n[^\n]*\n  \{ h: 3, t: "Other" \},/.test(src));
   check("fire alerts are fire and deforestation is deforestation",
         places("Fire alerts, VIIRS")[0] === "Destruction > Of the planet > Deforestation" ||
         places("Fire alerts, VIIRS").includes("Destruction > Of the planet > Fire"));

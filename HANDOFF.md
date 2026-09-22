@@ -260,6 +260,20 @@ facilities archive. The other registers' extra columns still stop at the atlas's
 parsers; adding a register to `PUBLISH_RAW` there and `PUBLISHED_AS` here is all
 it takes once its size has been looked at.
 
+## Concessions filed by what they are for; "Land held under permit" retired
+
+Asked for on 22 September. `CATALOGUE_PLACES` no longer has a generic permit
+heading: a concession or permit goes under its material or activity - timber,
+logging, pulpwood, forest utilisation (PBPH), forest clearance (FCA) under
+Deforestation; mining (and coal, nickel, bauxite, gold) under Mining; oil and
+gas and geothermal under the Oil and gas drilling heading; oil palm, sugarcane
+and plantation land-use rights (HGU) under Agriculture. A new heading **Other**,
+last under Of the planet, takes what no heading covers: rubber (asked for by
+name, so it is taken out of Agriculture even though its rows say plantation),
+"Concessions of other kinds", the Merauke National Strategic Project rows, and
+any permit whose words name nothing (`cataloguePlaces`' last check). Trase's
+pulp measures reach Deforestation through `\bpulp\b`.
+
 ## SkyTruth as tiles, and the copy in pieces (22 September)
 
 After two runs the violations feed's single file was 86 MB, the spill reports

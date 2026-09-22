@@ -4095,7 +4095,7 @@ const NUSANTARA_NAMES = {
 // holds (see copyRow).
 //
 // The rules below are read in order and every match counts, so mining
-// concessions land under Mining and under Land held under permit. Nothing is
+// concessions land under Mining. Nothing is
 // filed by which organisation published it: that is what the source link on
 // the row is for.
 const CATALOGUE_PLACES = [
@@ -4105,15 +4105,22 @@ const CATALOGUE_PLACES = [
   [/deforest|forest ?loss|tree ?cover ?loss|disturb|expansion|probability|forest change|frontera|\bglad\b|\bradd\b|dist-?alert|integrated alert/i,
    "Destruction > Of the planet > Deforestation"],
   [/\bfires?\b|burn|hotspot/i, "Destruction > Of the planet > Fire"],
-  [/mining|\bmines?\b|quarr/i, "Destruction > Of the planet > Mining"],
-  [/plantation|palm|coconut|rubber|sugarcane|sago|\bmills?\b|refiner|soy|cocoa|coffee|crop|agricultur|pasture|livestock|cattle|yield|mapspam/i,
+  [/mining|\bmines?\b|quarr|\bcoal\b|nickel|bauxite|\bgold\b/i, "Destruction > Of the planet > Mining"],
+  [/oil and gas|oil & gas|\bgas\b|petroleum|geothermal/i, "Destruction > Of the planet > Oil and gas drilling"],
+  [/plantation|palm|coconut|sugarcane|sago|\bmills?\b|refiner|soy|cocoa|coffee|crop|agricultur|pasture|livestock|cattle|yield|mapspam|\bhgu\b/i,
    "Destruction > Of the planet > Meat and agriculture > Agriculture"],
   [/\bbeef\b|cattle|slaughter|\bpigs?\b|chickens?|livestock|pasture/i, "Destruction > Of the planet > Meat and agriculture > Meat"],
   [/\bcorn\b|maize|cotton/i, "Destruction > Of the planet > Meat and agriculture > Agriculture"],
   [/pulpwood|\bzdc\b|zero.deforestation/i, "Destruction > Of the planet > Deforestation"],
   [/aquaculture|fisher|fishing|shrimp/i, "Destruction > Of the planet > Oceans > Fishing"],
-  [/concession|\bhgu\b|\bpbph\b|logging|wood fiber|permit|management objective/i,
-   "Destruction > Of the planet > Land held under permit"],
+  // A concession or permit is filed by what it is for - mining under Mining,
+  // timber under Deforestation, oil palm under Agriculture (22 September; the
+  // generic "Land held under permit" heading is gone). One for a material or
+  // activity no heading covers (rubber, a project that names none) goes under
+  // Other, below; so does a permit whose words say nothing about its use.
+  [/timber|logging|pulpwood|\bpulp\b|wood fiber|forest utili[sz]ation|\bpbph\b|forest clearance|\bfca\b|management objective|forest concession|\bhph\b|\bhti\b|iuphhk/i,
+   "Destruction > Of the planet > Deforestation"],
+  [/rubber|concessions? of other kinds|other concessions|national strategic project|\bpsn\b/i, "Destruction > Of the planet > Other"],
   [/carbon|emission|biomass|climate|\bco2\b|flux|removals|temperature|precipitation/i,
    "Destruction > Of the planet > Climate"],
   [/nitrogen dioxide|air quality|aerosol|pm2/i, "Destruction > Of the planet > Climate > Air pollution"],
@@ -4158,6 +4165,10 @@ function nusantaraWhere(id) {
 function cataloguePlaces(words) {
   const out = [];
   for (const [rule, path] of CATALOGUE_PLACES) if (rule.test(words) && !out.includes(path)) out.push(path);
+  // Rubber was asked to go under Other, not Agriculture, though its rows say "plantation".
+  if (/rubber/i.test(words)) { const i = out.indexOf("Destruction > Of the planet > Meat and agriculture > Agriculture"); if (i > -1) out.splice(i, 1); }
+  // A concession or permit whose words name no material and no activity.
+  if (!out.length && /concession|permit|licen[cs]e|\bizin\b/i.test(words)) out.push("Destruction > Of the planet > Other");
   return out.length ? out : ["Not yet placed"];
 }
 
@@ -9255,7 +9266,6 @@ const PANEL_ORDER = [
   // forest loss, filed with the rest of it.
   "glad_loss", "group:forest_alerts",
   { h: 3, t: "Biodiversity loss" }, "gsn", "gsn_rankings", "allen_coral", "atlas_hotspots", "atlas_cities", "pe_subsidising", "powerbi_report",
-  { h: 3, t: "Land held under permit" },
   { h: 3, t: "Spatial plans" },
   { h: 3, t: "Peatland" },
   { h: 3, t: "Surface water" },
@@ -9271,6 +9281,9 @@ const PANEL_ORDER = [
   { h: 5, t: "Marine slicks" }, "cerulean_slicks", "cerulean_sources", "slick_archive", "skytruth_voc", "skytruth_marine_incidents", "skytruth_posts",
   { h: 3, t: "Construction" }, "local_projects",
   { h: 3, t: "Culprits upstream" }, "ejatlas",
+  // Concessions and permits for a material or activity no heading above
+  // covers (rubber, a project that names none). Catalogue rows only.
+  { h: 3, t: "Other" },
   { h: 4, t: "Emissions" }, "carbon_majors", "soy_organizations", "bocc",
   { h: 4, t: "Deforestation" }, "site_forest500_soy", "site_soybean_companies", "dff",
   { h: 4, t: "Food generally" }, "site_food_system",
