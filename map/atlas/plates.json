@@ -1,0 +1,897 @@
+{
+ "atlantic_forests": {
+  "title": "Atlantic Forest",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/atlantic_forests.pdf",
+  "labels": 36,
+  "kept": true,
+  "reason": "",
+  "corners": [
+   [
+    -61.27802,
+    -3.7178
+   ],
+   [
+    -19.33548,
+    -0.51135
+   ],
+   [
+    -21.20435,
+    -33.03919
+   ],
+   [
+    -63.14689,
+    -35.68772
+   ]
+  ],
+  "error_km": 90.5,
+  "width_km": 4673,
+  "names": [
+   "Aracaju",
+   "Belo Horizonte",
+   "Blumenau",
+   "Brasilia",
+   "Campinas",
+   "Campos dos Goytacazes",
+   "Ciudad del Este",
+   "Curitiba",
+   "Feira de Santana",
+   "Florianópolis",
+   "Goiania",
+   "Grande Vitória",
+   "Joinville",
+   "João Pessoa",
+   "Juazeiro Do Norte",
+   "Juiz de Fora",
+   "Jundiaí",
+   "Londrina",
+   "Maceió",
+   "Maringá",
+   "Natal",
+   "Paraguay",
+   "Piracicaba",
+   "Porto Alegre",
+   "Recife",
+   "Rio de Janeiro",
+   "Salvador",
+   "Sorocaba",
+   "São José",
+   "São Paulo",
+   "Volta Redonda"
+  ],
+  "anchor": "right edge",
+  "image": "atlas/plates/atlantic_forests.webp"
+ },
+ "california_floristic_province": {
+  "title": "California Floristic Province",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/california_floristic_province.pdf",
+  "labels": 19,
+  "kept": true,
+  "reason": "",
+  "corners": [
+   [
+    -136.37135,
+    46.43298
+   ],
+   [
+    -119.29824,
+    43.50206
+   ],
+   [
+    -108.8074,
+    25.2561
+   ],
+   [
+    -125.8805,
+    28.94412
+   ]
+  ],
+  "error_km": 22.7,
+  "width_km": 1379,
+  "names": [
+   "Antioch",
+   "Bakersfield",
+   "Concord",
+   "Fresno",
+   "Los Angeles-",
+   "Modesto",
+   "Oakland",
+   "Sacramento",
+   "San Diego",
+   "San Francisco-",
+   "San Jose",
+   "Santa Clarita",
+   "Santa Rosa",
+   "Stockton",
+   "Tijuana"
+  ],
+  "anchor": "right edge",
+  "image": "atlas/plates/california_floristic_province.webp"
+ },
+ "cape_floristic_region": {
+  "title": "Cape Floristic Region",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/cape_floristic_region.pdf",
+  "labels": 2,
+  "kept": false,
+  "reason": "fewer than three names on the page could be found"
+ },
+ "caribbean_islands": {
+  "title": "Caribbean Islands",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/caribbean_islands.pdf",
+  "labels": 16,
+  "kept": true,
+  "reason": "",
+  "corners": [
+   [
+    -102.56428,
+    28.76352
+   ],
+   [
+    -49.70771,
+    25.99549
+   ],
+   [
+    -61.14939,
+    -0.23274
+   ],
+   [
+    -114.00596,
+    2.88373
+   ]
+  ],
+  "error_km": 71.2,
+  "width_km": 5185,
+  "names": [
+   "Camaguey",
+   "Havana",
+   "Kingston",
+   "Mexico",
+   "Port-au-Prince",
+   "Puerto Rico",
+   "San Juan",
+   "Santiago",
+   "Santiago de Cuba",
+   "Santo Domingo"
+  ],
+  "anchor": "above",
+  "image": "atlas/plates/caribbean_islands.webp"
+ },
+ "caucasus": {
+  "title": "Caucasus",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/caucasus.pdf",
+  "labels": 31,
+  "kept": true,
+  "reason": "",
+  "corners": [
+   [
+    21.70603,
+    49.72563
+   ],
+   [
+    62.63837,
+    47.33819
+   ],
+   [
+    62.83588,
+    23.89391
+   ],
+   [
+    21.90355,
+    27.14764
+   ]
+  ],
+  "error_km": 26.9,
+  "width_km": 2988,
+  "names": [
+   "Baku",
+   "Gorgan",
+   "Grozny",
+   "Gäncä",
+   "Krasnodar",
+   "Makhachkala",
+   "Moldova",
+   "Rasht",
+   "Rostov-on-Don",
+   "Sochi",
+   "Stavropol",
+   "Tbilisi",
+   "Tehran",
+   "Vladikavkaz"
+  ],
+  "anchor": "left edge",
+  "image": "atlas/plates/caucasus.webp"
+ },
+ "cerrado": {
+  "title": "Cerrado",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/cerrado.pdf",
+  "labels": 20,
+  "kept": true,
+  "reason": "",
+  "corners": [
+   [
+    -63.47677,
+    1.56221
+   ],
+   [
+    -25.04966,
+    5.72311
+   ],
+   [
+    -22.03741,
+    -28.44399
+   ],
+   [
+    -60.46452,
+    -32.0456
+   ]
+  ],
+  "error_km": 81.1,
+  "width_km": 4288,
+  "names": [
+   "Anápolis",
+   "Bauru",
+   "Belo Horizonte",
+   "Brasília",
+   "Campo Grande",
+   "Cuiabá",
+   "Curitiba",
+   "Franca",
+   "Goiânia",
+   "Montes Claros",
+   "Paraguay",
+   "Ponta Grossa",
+   "Ribeirão Preto",
+   "São José do Rio Preto",
+   "São Paulo",
+   "Uberaba",
+   "Uberlândia"
+  ],
+  "anchor": "left edge",
+  "image": "atlas/plates/cerrado.webp"
+ },
+ "chilean_valdivian_forests": {
+  "title": "Chilean Winter Rainfall Valdivian Forests",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/chilean_valdivian_forests.pdf",
+  "labels": 11,
+  "kept": true,
+  "reason": "",
+  "corners": [
+   [
+    -91.42984,
+    24.09314
+   ],
+   [
+    -51.82126,
+    -25.22499
+   ],
+   [
+    -60.08936,
+    -67.91513
+   ],
+   [
+    -99.69794,
+    -39.22294
+   ]
+  ],
+  "error_km": 162.8,
+  "width_km": 6946,
+  "names": [
+   "Antofagasta",
+   "Concepción",
+   "Paraguay",
+   "Santiago",
+   "Temuco",
+   "Valparaíso"
+  ],
+  "anchor": "right edge",
+  "image": "atlas/plates/chilean_valdivian_forests.webp"
+ },
+ "coastal_forests_of_eastern_africa": {
+  "title": "Coastal Forests of Eastern Africa",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/coastal_forests_of_eastern_africa.pdf",
+  "labels": 17,
+  "kept": true,
+  "reason": "",
+  "corners": [
+   [
+    4.99404,
+    -25.56091
+   ],
+   [
+    97.20864,
+    39.77416
+   ],
+   [
+    122.40231,
+    41.53779
+   ],
+   [
+    30.1877,
+    -23.4455
+   ]
+  ],
+  "error_km": 114.2,
+  "width_km": 11968,
+  "names": [
+   "Dar es Salaam",
+   "Kenya",
+   "Mogadishu",
+   "Mombasa",
+   "Zanzibar"
+  ],
+  "anchor": "left edge",
+  "image": "atlas/plates/coastal_forests_of_eastern_africa.webp"
+ },
+ "east_melanesian_islands": {
+  "title": "East Melanesian Islands",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/east_melanesian_islands.pdf",
+  "labels": 5,
+  "kept": false,
+  "reason": "fewer than three names on the page could be found"
+ },
+ "eastern_afromontane": {
+  "title": "Eastern Afromontane",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/eastern_afromontane.pdf",
+  "labels": 28,
+  "kept": true,
+  "reason": "",
+  "corners": [
+   [
+    23.20407,
+    20.33478
+   ],
+   [
+    78.52978,
+    32.04722
+   ],
+   [
+    75.23144,
+    -8.64624
+   ],
+   [
+    19.90572,
+    -21.26033
+   ]
+  ],
+  "error_km": 98.5,
+  "width_km": 5611,
+  "names": [
+   "Addis Ababa",
+   "Arusha",
+   "Asmara",
+   "Bukavu",
+   "Bunia",
+   "Djibouti",
+   "Nairobi",
+   "Somalia"
+  ],
+  "anchor": "right edge",
+  "image": "atlas/plates/eastern_afromontane.webp"
+ },
+ "forests_of_east_australia": {
+  "title": "Forests of Eastern Australia",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/forests_of_east_australia.pdf",
+  "labels": 8,
+  "kept": true,
+  "reason": "",
+  "corners": [
+   [
+    138.3564,
+    -10.66265
+   ],
+   [
+    174.33692,
+    -14.34531
+   ],
+   [
+    174.45841,
+    -39.45295
+   ],
+   [
+    138.47789,
+    -36.47927
+   ]
+  ],
+  "error_km": 38.6,
+  "width_km": 3923,
+  "names": [
+   "Brisbane",
+   "Cairns",
+   "Gold Coast",
+   "Mackay",
+   "Sydney"
+  ],
+  "anchor": "left edge",
+  "image": "atlas/plates/forests_of_east_australia.webp"
+ },
+ "guinean_forests_of_west_africa": {
+  "title": "Guinean Forests of West Africa",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/guinean_forests_of_west_africa.pdf",
+  "labels": 41,
+  "kept": true,
+  "reason": "",
+  "corners": [
+   [
+    -17.10709,
+    15.84167
+   ],
+   [
+    18.20216,
+    15.69154
+   ],
+   [
+    15.37834,
+    -10.58455
+   ],
+   [
+    -19.93092,
+    -10.43116
+   ]
+  ],
+  "error_km": 39.9,
+  "width_km": 3774,
+  "names": [
+   "Aba",
+   "Abeokuta",
+   "Abidjan",
+   "Accra",
+   "Ado-Ekiti",
+   "Akure",
+   "Bafoussam",
+   "Bamenda",
+   "Benin City",
+   "Burkina Faso",
+   "Calabar",
+   "Conakry",
+   "Effon Alaiye",
+   "Freetown",
+   "Ibadan",
+   "Ife",
+   "Kumasi",
+   "Lagos",
+   "Loum",
+   "Monrovia",
+   "Nzérékoré",
+   "Onitsha",
+   "Owerri",
+   "Port Harcourt",
+   "Sierra Leone",
+   "Uyo",
+   "Warri"
+  ],
+  "anchor": "left edge",
+  "image": "atlas/plates/guinean_forests_of_west_africa.webp"
+ },
+ "himalaya": {
+  "title": "Himalaya",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/himalaya.pdf",
+  "labels": 18,
+  "kept": true,
+  "reason": "",
+  "corners": [
+   [
+    71.23182,
+    33.84866
+   ],
+   [
+    126.22802,
+    -7.95743
+   ],
+   [
+    95.62645,
+    23.96328
+   ],
+   [
+    40.63026,
+    56.43801
+   ]
+  ],
+  "error_km": 97.8,
+  "width_km": 7422,
+  "names": [
+   "Bhagalpur",
+   "Islamabad",
+   "Kathmandu",
+   "Pokhara",
+   "Rawalpindi",
+   "Sialkot",
+   "Srinagar"
+  ],
+  "anchor": "left edge",
+  "image": "atlas/plates/himalaya.webp"
+ },
+ "horn_of_africa": {
+  "title": "Horn of Africa",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/horn_of_africa.pdf",
+  "labels": 21,
+  "kept": true,
+  "reason": "",
+  "corners": [
+   [
+    29.90327,
+    31.538
+   ],
+   [
+    81.91079,
+    33.05325
+   ],
+   [
+    80.5203,
+    -4.86072
+   ],
+   [
+    28.51278,
+    -6.64426
+   ]
+  ],
+  "error_km": 52.8,
+  "width_km": 4840,
+  "names": [
+   "Aden",
+   "Berbera",
+   "Djibouti",
+   "Jiddah",
+   "Khamis Mushayt",
+   "Mecca",
+   "Mogadishu",
+   "Mombasa",
+   "Nairobi",
+   "Ta’izz"
+  ],
+  "anchor": "above",
+  "image": "atlas/plates/horn_of_africa.webp"
+ },
+ "japan": {
+  "title": "Japan",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/japan.pdf",
+  "labels": 24,
+  "kept": true,
+  "reason": "",
+  "corners": [
+   [
+    121.23338,
+    49.79868
+   ],
+   [
+    163.69392,
+    49.9082
+   ],
+   [
+    154.79549,
+    15.05654
+   ],
+   [
+    112.33495,
+    14.89244
+   ]
+  ],
+  "error_km": 54.1,
+  "width_km": 3003,
+  "names": [
+   "Asahikawa",
+   "Hiroshima",
+   "Kagoshima",
+   "Kanazawa",
+   "Kitakyushu-Fukuoka",
+   "Kochi",
+   "Matsuyama",
+   "Nagasaki",
+   "Nagoya",
+   "Niigata",
+   "Oita",
+   "Okayama",
+   "Osaka",
+   "Sapporo",
+   "Sendai",
+   "Shizuoka-Hamamatsu",
+   "Tokyo",
+   "Utsunomiya"
+  ],
+  "anchor": "centre",
+  "image": "atlas/plates/japan.webp"
+ },
+ "madagascar": {
+  "title": "Madagascar & The Indian Ocean Islands",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/madagascar.pdf",
+  "labels": 10,
+  "kept": false,
+  "reason": "only 0 names agree on a placement (at least 5 needed)"
+ },
+ "madrean_woodlands": {
+  "title": "Madrean Pine-Oak Woodlands",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/madrean_woodlands.pdf",
+  "labels": 18,
+  "kept": true,
+  "reason": "",
+  "corners": [
+   [
+    -122.83867,
+    33.99878
+   ],
+   [
+    -77.46871,
+    33.87269
+   ],
+   [
+    -77.00907,
+    -0.18681
+   ],
+   [
+    -122.37903,
+    -0.03483
+   ]
+  ],
+  "error_km": 73.4,
+  "width_km": 4150,
+  "names": [
+   "Belize",
+   "Cuernavaca",
+   "Guadalajara",
+   "Hermosillo",
+   "Mexico City",
+   "Monterrey",
+   "Pachuca de Soto",
+   "Puebla",
+   "Saltillo",
+   "San Diego",
+   "Tijuana",
+   "Tucson"
+  ],
+  "anchor": "left edge",
+  "image": "atlas/plates/madrean_woodlands.webp"
+ },
+ "maputaland_pondoland_albany": {
+  "title": "Maputaland Pondoland Albany",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/maputaland_pondoland_albany.pdf",
+  "labels": 14,
+  "kept": true,
+  "reason": "",
+  "corners": [
+   [
+    6.17769,
+    -20.82762
+   ],
+   [
+    46.9853,
+    -19.5552
+   ],
+   [
+    48.44664,
+    -41.35392
+   ],
+   [
+    7.63904,
+    -42.36365
+   ]
+  ],
+  "error_km": 24.3,
+  "width_km": 4250,
+  "names": [
+   "Durban",
+   "East London",
+   "Johannesburg",
+   "Maputo",
+   "Pietermaritzburg",
+   "Port Elizabeth"
+  ],
+  "anchor": "right edge",
+  "image": "atlas/plates/maputaland_pondoland_albany.webp"
+ },
+ "mediterranean_basin": {
+  "title": "Mediterranean Basin",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/mediterranean_basin.pdf",
+  "labels": 58,
+  "kept": true,
+  "reason": "",
+  "corners": [
+   [
+    -38.16742,
+    51.13444
+   ],
+   [
+    53.74965,
+    52.4162
+   ],
+   [
+    51.46986,
+    -26.91314
+   ],
+   [
+    -40.44721,
+    -28.74515
+   ]
+  ],
+  "error_km": 138.7,
+  "width_km": 5874,
+  "names": [
+   "Adana",
+   "Aix-en-Provence",
+   "Albania",
+   "Algiers",
+   "Amman",
+   "Antalya",
+   "Barcelona",
+   "Beirut",
+   "Bursa",
+   "Fès",
+   "Gaziantep",
+   "Haifa",
+   "Lisbon",
+   "Macedonia",
+   "Madrid",
+   "Marseille-",
+   "Naples",
+   "Niger",
+   "Rabat",
+   "Rome",
+   "Tel-Aviv",
+   "Tripoli",
+   "Tunis"
+  ],
+  "anchor": "left edge",
+  "image": "atlas/plates/mediterranean_basin.webp"
+ },
+ "mesoamerica": {
+  "title": "Mesoamerica",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/mesoamerica.pdf",
+  "labels": 38,
+  "kept": true,
+  "reason": "",
+  "corners": [
+   [
+    -123.32434,
+    33.26087
+   ],
+   [
+    -75.20116,
+    31.87114
+   ],
+   [
+    -74.32908,
+    -3.48331
+   ],
+   [
+    -122.45227,
+    -1.83607
+   ]
+  ],
+  "error_km": 87.6,
+  "width_km": 4472,
+  "names": [
+   "Celaya",
+   "Choloma",
+   "Ciudad Victoria",
+   "Coatzacoalcos",
+   "Colima",
+   "Cuernavaca",
+   "Culiacán",
+   "Guadalajara",
+   "Guatemala",
+   "Guatemala City",
+   "Irapuato",
+   "León",
+   "Managua",
+   "Minatitlán",
+   "Morelia",
+   "Mérida",
+   "Oaxaca de Juárez",
+   "Panama",
+   "Panama City",
+   "Puerto Vallarta",
+   "Querétaro",
+   "San José",
+   "San Pedro Sula",
+   "San Salvador",
+   "Tegucigalpa",
+   "Tuxtla Gutierrez",
+   "Veracruz",
+   "Villahermosa",
+   "Xalapa"
+  ],
+  "anchor": "below",
+  "image": "atlas/plates/mesoamerica.webp"
+ },
+ "mountains_of_central_asia": {
+  "title": "Mountains of Central Asia",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/mountains_of_central_asia.pdf",
+  "labels": 21,
+  "kept": true,
+  "reason": "",
+  "corners": [
+   [
+    44.64016,
+    49.25961
+   ],
+   [
+    119.41132,
+    49.13611
+   ],
+   [
+    114.19538,
+    10.19628
+   ],
+   [
+    39.42422,
+    10.38224
+   ]
+  ],
+  "error_km": 96.6,
+  "width_km": 5199,
+  "names": [
+   "Almaty",
+   "Andizhan",
+   "Bishkek",
+   "Dushanbe",
+   "Fergana",
+   "Namangan",
+   "Samarkand",
+   "Tashkent",
+   "Urumqi"
+  ],
+  "anchor": "left edge",
+  "image": "atlas/plates/mountains_of_central_asia.webp"
+ },
+ "mountains_of_southwest_china": {
+  "title": "Mountains of Southwest China",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/mountains_of_southwest_china.pdf",
+  "labels": 9,
+  "kept": false,
+  "reason": "only 3 names agree on a placement (at least 5 needed)"
+ },
+ "new_caledonia": {
+  "title": "New Caledonia",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/new_caledonia.pdf",
+  "labels": 3,
+  "kept": false,
+  "reason": "fewer than three names on the page could be found"
+ },
+ "new_zealand": {
+  "title": "New Zealand",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/new_zealand.pdf",
+  "labels": 4,
+  "kept": false,
+  "reason": "only 0 names agree on a placement (at least 5 needed)"
+ },
+ "philippines": {
+  "title": "Philippines",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/philippines.pdf",
+  "labels": 20,
+  "kept": false,
+  "reason": "typical error 303 km is more than 3% of the plate's 9051 km",
+  "corners": [
+   [
+    122.63002,
+    44.22626
+   ],
+   [
+    132.09045,
+    -36.72175
+   ],
+   [
+    125.76966,
+    -30.34048
+   ],
+   [
+    116.30923,
+    49.46145
+   ]
+  ],
+  "error_km": 303.1,
+  "width_km": 9051,
+  "names": [
+   "Bacolod",
+   "Baguio",
+   "Batangas",
+   "Butuan",
+   "Cebu",
+   "China",
+   "Cotabato City",
+   "Davao",
+   "General Santos",
+   "Iligan",
+   "Iloilo City",
+   "Manila",
+   "Zamboanga"
+  ],
+  "anchor": "right edge"
+ }
+}

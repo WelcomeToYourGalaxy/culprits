@@ -455,6 +455,9 @@ map over this one, not a link out to the PDF.
   PDF with a country label and a wrong look-up mixed in: both were set aside
   and the corners came back exact. **Not yet run on the real PDFs**; the owner
   runs it (about half an hour the first time, for the look-ups).
+  First run stopped on a placement from three towns nearly in a line, which
+  threw the page off the map's square (OverflowError); such placements are now
+  refused (`on_earth`), and 300 random pages run through without error.
 - **The map**: a hotspot's or city's box carries a button marked
   `data-atlas-auto`; opening the box runs it (`atlasFrom`). A hotspot with a
   kept plate gets an image source `atlas-plate` at the four corners, the view
