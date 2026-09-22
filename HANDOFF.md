@@ -435,6 +435,36 @@ owner's request, so a land-cover layer that no other rule claims gets no row
 and is counted in the console (`LEFT_OUT`). Agriculture > Moratoriums from the
 list was not made: Nusantara has one moratorium layer and it is a forest one.
 
+## The Atlas for the End of the World's maps, on this map (22 September)
+
+Asked for: opening a hotspot or a city zooms to it and shows the Atlas's own
+map over this one, not a link out to the PDF.
+
+- **`pipeline/atlas_plates.py`** places each hotspot PDF's first page. The
+  towns on the page are text in the file, so each is read with where it sits,
+  looked up on OpenStreetMap (Nominatim, settlements only, cached in
+  `pipeline/.atlas-cache`), and a straight-line placement of the page is
+  found that the most names agree on, trying 4,000 random sets of three so a
+  wrongly matched name cannot drag it (RANSAC); five places on a label are
+  tried as its dot (centre, each edge) and the best-fitting kept. The error -
+  how far the agreeing towns still are from their places - is written with
+  the plate. A plate is kept with at least 5 agreeing towns and an error under
+  3% of its width; otherwise `plates.json` carries the reason. Output:
+  `map/atlas/plates/<slug>.webp` (the page at 2,400 px) and
+  `map/atlas/plates.json` (corners, error, towns used). Tested on a made-up
+  PDF with a country label and a wrong look-up mixed in: both were set aside
+  and the corners came back exact. **Not yet run on the real PDFs**; the owner
+  runs it (about half an hour the first time, for the look-ups).
+- **The map**: a hotspot's or city's box carries a button marked
+  `data-atlas-auto`; opening the box runs it (`atlasFrom`). A hotspot with a
+  kept plate gets an image source `atlas-plate` at the four corners, the view
+  fits it, and a panel (`#atlas-panel`) says how many towns placed it and the
+  error, with a slider between the two maps and the PDF's pages behind a
+  "pages" button. Without a plate the view fits the hotspot's own outline and
+  the panel says why. A city zooms (as before) and its Atlas page opens in the
+  panel: the city maps carry no named places to fit them by, so they are not
+  laid on the map. The page itself is on the plate, key and title included.
+
 ## Round of 22 September (4): same-name rows told apart, plumes unmerged, a source check
 
 - **Four "Tree cover loss by dominant driver" rows and two worldwide protected

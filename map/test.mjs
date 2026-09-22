@@ -3119,5 +3119,22 @@ console.log("\nround of 22 September (4): rows of the same name told apart");
   check("the check script asks each failing source and each grey picture, and changes nothing",
         fs.existsSync(path.join(HERE, "check-sources.mjs")) && !/writeFile/.test(fs.readFileSync(path.join(HERE, "check-sources.mjs"), "utf8")));
 }
+console.log("\nthe Atlas's own maps, on this map (22 September)");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("a hotspot's box no longer sends the reader to another site; it shows the Atlas's map here",
+        /data-atlas-auto="1" data-atlas-plate=/.test(src) && !/Open the Atlas's PDF:/.test(src) && !/Open the Atlas's page for this city<\/a>/.test(src));
+  check("opening an Atlas place zooms to it and lays its placed plate over the map, as an image at the plate's four corners",
+        /map\.addSource\("atlas-plate", \{ type: "image", url: abs\("\.\/" \+ p\.image\), coordinates: p\.corners \}\)/.test(src) &&
+        /if \(auto\) atlasFrom\(auto, geometryBounds\(hit\.geometry\)\);/.test(src));
+  check("a plate is laid only when it was placed well enough, and says how far off its towns are",
+        /p && p\.kept && p\.image/.test(src) && /\$\{p\.error_km\} km/.test(src));
+  const gb = new Function(src.slice(src.indexOf("function geometryBounds("), src.indexOf("function atlasPanel(")) + "; return geometryBounds;")();
+  const b = gb({ type: "MultiPolygon", coordinates: [[[[-50, -20], [-40, -20], [-40, -10], [-50, -20]]], [[[-60, -25], [-55, -25], [-55, -22], [-60, -25]]]] });
+  check("with no plate, the map zooms to the hotspot's own outline", JSON.stringify(b) === JSON.stringify([[-60, -25], [-40, -10]]));
+  const py = fs.readFileSync(path.join(HERE, "..", "pipeline", "atlas_plates.py"), "utf8");
+  check("the plates are placed by the towns named on each page, with outliers set aside and the error measured",
+        /def place_page\(labels, width_pt, height_pt, seed=0\):/.test(py) && /TRIES = 4000/.test(py) && /"error_km": round\(rms, 1\)/.test(py) && /MIN_AGREE = 5/.test(py));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

@@ -3713,10 +3713,115 @@ function atlasPdfFor(cfg, name) {
 function linkAtlasPdfs(cfg, items) {
   for (const it of items) {
     const hit = atlasPdfFor(cfg, it.name);
+    // Opening a hotspot zooms to it and lays the Atlas's own map of it over
+    // this one, where it has been placed (pipeline/atlas_plates.py); its pages
+    // open in a panel on the map rather than on another site (22 September).
     it.h = it.h.replace(/<\/div>$/, hit
-      ? `<p><a href="${cfg.pdfBase}${hit[0]}.pdf" target="_blank" rel="noopener">Open the Atlas's PDF: ${escapeHtml(hit[1])}</a></p></div>`
+      ? `<p><button type="button" class="atlas-show" data-atlas-auto="1" data-atlas-plate="${escapeHtml(hit[0])}" ` +
+        `data-atlas-doc="${escapeHtml(cfg.pdfBase + hit[0] + ".pdf")}" data-atlas-title="${escapeHtml(hit[1])}">` +
+        `The Atlas's map of ${escapeHtml(hit[1])}, on this map</button></p></div>`
       : `<p style="font-size:11px">The Atlas has no PDF for this hotspot.</p></div>`);
   }
+}
+
+/* ---------- the Atlas's own maps, laid on this one ---------- */
+// plates.json (built by pipeline/atlas_plates.py) says, for each hotspot PDF,
+// where the corners of its first page fall, fitted to the towns named on it,
+// and how far those towns still are from their places (error_km). A plate that
+// could not be placed well enough carries the reason instead, and its pages are
+// shown without laying it on the map.
+let atlasPlates = null;
+function atlasPlatesRead() {
+  if (!atlasPlates) atlasPlates = getJson(abs("./atlas/plates.json")).catch(() => ({}));
+  return atlasPlates;
+}
+// The box around a geometry, as [[west, south], [east, north]].
+function geometryBounds(g) {
+  let w = Infinity, s = Infinity, e = -Infinity, n = -Infinity;
+  const walk = (c) => {
+    if (typeof c[0] === "number") { w = Math.min(w, c[0]); e = Math.max(e, c[0]); s = Math.min(s, c[1]); n = Math.max(n, c[1]); }
+    else c.forEach(walk);
+  };
+  if (g && g.coordinates) walk(g.coordinates);
+  return isFinite(w) ? [[w, s], [e, n]] : null;
+}
+function atlasPanel() {
+  let el = document.getElementById("atlas-panel");
+  if (el) return el;
+  el = document.createElement("div");
+  el.id = "atlas-panel";
+  el.hidden = true;
+  el.style.cssText = "position:fixed;left:50%;bottom:14px;transform:translateX(-50%);width:min(620px,62vw);max-height:62vh;z-index:45;" +
+    "display:flex;flex-direction:column;background:var(--peat,#17150F);border:1px solid var(--rule,#322E27);border-radius:3px;" +
+    "box-shadow:0 8px 30px rgba(0,0,0,.5);font-size:12.5px;color:var(--dim)";
+  el.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:7px 10px 4px">` +
+      `<b class="ap-title" style="color:var(--bone);font-weight:600"></b><span style="margin-left:auto"></span>` +
+      `<a class="ap-open" target="_blank" rel="noopener" title="Only if the pages stay blank: the Atlas's site may not allow being shown inside another page" ` +
+      `style="color:var(--slate,#8A9DA6);font-size:11.5px">open \u2197</a>` +
+      `<button type="button" class="ap-pages" style="font:inherit;background:none;color:var(--dim);border:1px solid var(--rule);border-radius:2px;padding:1px 7px;cursor:pointer">pages</button>` +
+      `<button type="button" class="ap-close" style="font:inherit;background:none;color:var(--dim);border:1px solid var(--rule);border-radius:2px;padding:1px 7px;cursor:pointer">close</button></div>` +
+    `<div class="ap-said" style="padding:0 10px 4px;font-size:11.5px"></div>` +
+    `<label class="ap-fade" style="display:flex;gap:8px;align-items:center;padding:0 10px 7px;font-size:11.5px">` +
+      `the Atlas's map <input type="range" min="0" max="100" value="85" style="flex:1"> this map</label>` +
+    `<iframe class="ap-frame" title="The Atlas's pages" hidden style="flex:1;min-height:40vh;width:100%;border:0;border-top:1px solid var(--rule)"></iframe>`;
+  document.body.appendChild(el);
+  const frame = el.querySelector(".ap-frame");
+  el.querySelector(".ap-pages").addEventListener("click", () => {
+    frame.hidden = !frame.hidden;
+    if (!frame.hidden && frame.dataset.src && frame.src !== frame.dataset.src) frame.src = frame.dataset.src;
+  });
+  el.querySelector(".ap-close").addEventListener("click", atlasPlateOff);
+  el.querySelector(".ap-fade input").addEventListener("input", (e) => {
+    if (map.getLayer("atlas-plate")) map.setPaintProperty("atlas-plate", "raster-opacity", 1 - Number(e.target.value) / 100 + 0.0);
+  });
+  return el;
+}
+function atlasPlateOff() {
+  if (map.getLayer("atlas-plate")) map.removeLayer("atlas-plate");
+  if (map.getSource("atlas-plate")) map.removeSource("atlas-plate");
+  const el = document.getElementById("atlas-panel");
+  if (el) { el.hidden = true; const f = el.querySelector(".ap-frame"); f.hidden = true; f.removeAttribute("src"); }
+}
+// what: { plate, doc, title } for a hotspot, { page, title } for a city;
+// bounds: the hotspot's own outline, used when there is no placed plate.
+async function showAtlas(what, bounds) {
+  const el = atlasPanel();
+  const frame = el.querySelector(".ap-frame");
+  el.querySelector(".ap-title").textContent = what.title || "Atlas for the End of the World";
+  frame.dataset.src = what.doc || what.page || "";
+  el.querySelector(".ap-open").href = frame.dataset.src;
+  frame.hidden = !what.page;                       // a city's page opens at once; a hotspot's pages on asking
+  if (!frame.hidden) frame.src = frame.dataset.src;
+  const said = el.querySelector(".ap-said"), fade = el.querySelector(".ap-fade");
+  fade.hidden = true;
+  if (map.getLayer("atlas-plate")) map.removeLayer("atlas-plate");
+  if (map.getSource("atlas-plate")) map.removeSource("atlas-plate");
+  el.hidden = false;
+  if (!what.plate) {
+    said.textContent = "The Atlas's own page for this city. Its maps carry no named places to fit them by, so they are shown here rather than laid on the map.";
+    return;
+  }
+  const p = (await atlasPlatesRead())[what.plate];
+  if (p && p.kept && p.image && Array.isArray(p.corners) && p.corners.length === 4) {
+    map.addSource("atlas-plate", { type: "image", url: abs("./" + p.image), coordinates: p.corners });
+    map.addLayer({ id: "atlas-plate", type: "raster", source: "atlas-plate", paint: { "raster-opacity": 0.85, "raster-fade-duration": 0 } });
+    fade.hidden = false;
+    fade.querySelector("input").value = 15;
+    said.textContent = `The first page of the Atlas's PDF, placed by the ${p.names.length} towns named on it: ` +
+      `they sit on average ${p.error_km} km from where OpenStreetMap has them, on a plate ${p.width_km} km across. ` +
+      `The key and title on the page are drawn with it.`;
+    const lons = p.corners.map((c) => c[0]), lats = p.corners.map((c) => c[1]);
+    if (typeof map.fitBounds === "function") map.fitBounds([[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]], { padding: 30, duration: 1400 });
+    return;
+  }
+  said.textContent = p && p.reason ? `The Atlas's map is not laid on this one: ${p.reason}. Its pages are under pages.`
+    : "The Atlas's map has not been placed yet (pipeline/atlas_plates.py). Its pages are under pages.";
+  if (bounds && typeof map.fitBounds === "function") map.fitBounds(bounds, { padding: 30, duration: 1400 });
+}
+function atlasFrom(btn, bounds) {
+  const d = btn.dataset;
+  if (d.atlasPlate) showAtlas({ plate: d.atlasPlate, doc: d.atlasDoc, title: d.atlasTitle }, bounds);
+  else if (d.atlasPage) showAtlas({ page: d.atlasPage, title: d.atlasTitle }, bounds);
 }
 
 // The Atlas's cities, placed from the weekly lookup of their names.
@@ -3730,7 +3835,8 @@ async function readAtlasCities(cfg) {
     if (!c) { missing++; continue; }
     items.push({ geometry: { type: "Point", coordinates: c }, key: slug, name, group: "",
       h: boxOpen + `<h4 style="margin:0 0 6px">${escapeHtml(name)}</h4>` +
-        `<p><a href="${cfg.pageBase}${slug}.html" target="_blank" rel="noopener">Open the Atlas's page for this city</a></p>` +
+        `<p><button type="button" class="atlas-show" data-atlas-auto="1" data-atlas-page="${escapeHtml(cfg.pageBase + slug + ".html")}" ` +
+        `data-atlas-title="${escapeHtml(name)}">The Atlas's page for this city, on this map</button></p>` +
         `<p style="font-size:11px">Placed from its name through OpenStreetMap; the Atlas gives no coordinates.</p></div>` });
   }
   return { title: cfg.name, items, note: missing ? `${missing} not yet placed` : "" };
@@ -7420,7 +7526,12 @@ async function openSitemapBox(hit, at) {
     el.addEventListener("click", (ev) => {
       const x = ev.target.closest && ev.target.closest(".leaflet-popup-close-button");
       if (x) { ev.preventDefault(); popup.remove(); }
+      const a = ev.target.closest && ev.target.closest(".atlas-show");
+      if (a) { ev.preventDefault(); atlasFrom(a, geometryBounds(hit.geometry)); }
     });
+    // An Atlas hotspot or city shows its own map or page as soon as it is opened.
+    const auto = el.querySelector && el.querySelector("[data-atlas-auto]");
+    if (auto) atlasFrom(auto, geometryBounds(hit.geometry));
   }
 }
 
@@ -8257,11 +8368,11 @@ const OTHER_MAPS = {
       // the survey's own precision and took most of a minute to arrive.
       coarse: 0.01,
       pdfs: [["atlantic_forests", "Atlantic Forest"], ["california_floristic_province", "California Floristic Province"], ["cape_floristic_region", "Cape Floristic Region"], ["caribbean_islands", "Caribbean Islands"], ["caucasus", "Caucasus"], ["cerrado", "Cerrado"], ["chilean_valdivian_forests", "Chilean Winter Rainfall Valdivian Forests"], ["coastal_forests_of_eastern_africa", "Coastal Forests of Eastern Africa"], ["east_melanesian_islands", "East Melanesian Islands"], ["eastern_afromontane", "Eastern Afromontane"], ["forests_of_east_australia", "Forests of Eastern Australia"], ["guinean_forests_of_west_africa", "Guinean Forests of West Africa"], ["himalaya", "Himalaya"], ["horn_of_africa", "Horn of Africa"], ["japan", "Japan"], ["madagascar", "Madagascar & The Indian Ocean Islands"], ["madrean_woodlands", "Madrean Pine-Oak Woodlands"], ["maputaland_pondoland_albany", "Maputaland Pondoland Albany"], ["mediterranean_basin", "Mediterranean Basin"], ["mesoamerica", "Mesoamerica"], ["mountains_of_central_asia", "Mountains of Central Asia"], ["mountains_of_southwest_china", "Mountains of Southwest China"], ["new_caledonia", "New Caledonia"], ["new_zealand", "New Zealand"], ["philippines", "Philippines"], ["north_american_coastal_plain", "North American Coastal Plain"], ["southwest_australia", "Southwest Australia"], ["succulent_karoo", "Succulent Karoo"], ["sundaland", "Sundaland"], ["tropical_andes", "Tropical Andes"], ["wallacea", "Wallacea"], ["western_ghats_sri_lanka", "Western Ghats & Sri Lanka"]],
-      note: "The 36 biodiversity hotspots, outlined live from Conservation International's Biodiversity Hotspots 2016.1 (CC BY 3.0), the boundaries the Atlas maps; each box links the Atlas's own PDF for that hotspot. The outlines are asked for at about a kilometre's precision rather than the survey's own, which is what makes them arrive in seconds; every field comes across unchanged." },
+      note: "The 36 biodiversity hotspots, outlined live from Conservation International's Biodiversity Hotspots 2016.1 (CC BY 3.0), the boundaries the Atlas maps; opening one zooms to it and lays the Atlas's own map of it over this one, where it has been placed by the towns named on it, with its pages in a panel. The outlines are asked for at about a kilometre's precision rather than the survey's own, which is what makes them arrive in seconds; every field comes across unchanged." },
     { id: "atlas_cities", name: "Hotspot Cities (Atlas for the End of the World)", unit: "cities", colour: "#5E6070", route: "atlascities", zoomTo: 9, ready: true, lazy: true,
       pageBase: "https://atlas-for-the-end-of-the-world.com/hotspot_cities/", positions: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/atlas/cities.json",
       cities: [["antananarivo", "Antananarivo, Madagascar"], ["auckland", "Auckland, New Zealand"], ["baku", "Baku, Azerbaijan"], ["bogota", "Bogotá, Colombia"], ["brasilia", "Brasília, Brazil"], ["cape_town", "Cape Town, South Africa"], ["chengdu", "Chengdu, China"], ["colombo", "Colombo, Sri Lanka"], ["dar_es_salaam", "Dar es Salaam, Tanzania"], ["davao", "Davao, Philippines"], ["durban", "Durban, South Africa"], ["esfahan", "Esfahan, Iran"], ["guadalajara", "Guadalajara, Mexico"], ["guayaquil", "Guayaquil, Ecuador"], ["hongknog_shenzhen_quangzhou", "Hongkong-Shenzhen-Guangzhou, China"], ["honolulu", "Honolulu, United States"], ["houston", "Houston, United States"], ["jakarta", "Jakarta, Indonesia"], ["lagos", "Lagos, Nigeria"], ["los_angeles", "Los Angeles, United States"], ["makassar", "Makassar, Indonesia"], ["mecca", "Mecca, Saudi Arabia"], ["mexico_city", "Mexico City, Mexico"], ["nairobi", "Nairobi, Kenya"], ["osaka", "Osaka, Japan"], ["perth", "Perth, Australia"], ["port-au-prince", "Port-au-Prince, Haiti"], ["rawalpindi", "Rawalpindi, Pakistan"], ["santiago", "Santiago, Chile"], ["sao_paulo", "São Paulo, Brazil"], ["sydney", "Sydney, Australia"], ["tashkent", "Tashkent, Uzbekistan"], ["tel_aviv", "Tel Aviv, Israel"]],
-      note: "The Atlas's 33 hotspot cities; each is placed from its name through a weekly OpenStreetMap lookup, and its box links the Atlas's own page." },
+      note: "The Atlas's 33 hotspot cities; each is placed from its name through a weekly OpenStreetMap lookup, and opening one zooms to it and shows the Atlas's own page for it in a panel on the map." },
     { id: "building_types", name: "Buildings", unit: "places", colour: "#6A6258", route: "buildings", ready: true, lazy: true,
       // Their own repo and Pages site: a site is capped at 1 GB and these are
       // about 700 MB. See culprits-buildings.

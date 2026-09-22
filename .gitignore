@@ -5,3 +5,4 @@ __pycache__/
 .DS_Store
 map/tiles/.needs-r2
 
+pipeline/.atlas-cache/
