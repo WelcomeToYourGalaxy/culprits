@@ -4181,7 +4181,8 @@ const CATALOGUE_PLACES = [
   // Forest and land cover: the heading and its rows were taken out of the box
   // at the owner's request (22 September). A layer only this rule claims is
   // left out, and counted on the catalogue's own row.
-  [/forest cover|forest and non-forest|land cover|tree height|forest as a share|tree cover extent|forest extent|tree cover density|forest age|industrial land/i, null],
+  // Kept where they were, at the owner's word (22 September, "I'll decide later").
+  [/forest cover|forest and non-forest|land cover|tree height|forest as a share|tree cover extent|forest extent|tree cover density|forest age|industrial land/i, P + " > Forest and land cover"],
   [/mangrove|reef|benthic|coral/i, P + " > Oceans > Reefs and mangroves"],
   [/water|aqueduct|river|watershed|flood|\bpond\b|canal/i, P + " > Surface water"],
   [/customary|\badat\b|indigenous|community land|tenure|land rights|quilombola|village forest|community forest|social forestry|rural settlement|forestry employment/i,
@@ -8116,6 +8117,10 @@ const OTHER_MAPS = {
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/mining_polygons.pmtiles", polygonLayer: "mines", pointLayer: "mine_points",
       attribution: "Maus et al. 2022; OpenStreetMap contributors; merged by WU Vienna 2024 (ODbL)",
       note: "192,584 mine outlines: Maus et al.'s satellite-traced mining areas merged with OpenStreetMap's mines and quarries (Zenodo 7307210, ODbL), with the tree cover loss inside each from 2000 to 2019. Every mine as a point from the world view, merged where they crowd; outlines from zoom 7." },
+    { id: "mine_features", name: "Mine features worldwide \u2014 pits, waste dumps, tailings dams and plant, traced one by one (Tang and Werner 2023)", unit: "mine features", colour: "#7A6A5E", route: "pmshapes", ready: true, lazy: true,
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/mine_features.pmtiles", polygonLayer: "mine_features", pointLayer: "mine_feature_points",
+      attribution: "Tang and Werner 2023, Communications Earth & Environment (Zenodo 7894216, CC BY 4.0)",
+      note: "74,548 outlines drawn tight round each feature of a mine - the pit, the waste rock dump, the tailings dam, the pond, the heap leach pad, the plant - rather than round the whole site, which is how this differs from the Mines row. The release carries an id, a name (mostly blank or a digitising leftover; a few say Au, Cu, Fe, diamond, coal, tungsten), a length and an area, and no commodity or impact figure. Every feature as a point from the world view, merged where they crowd; outlines from zoom 7." },
     { id: "ejatlas", name: "Environmental justice conflicts (EJAtlas)", unit: "conflicts", colour: "#7A5A55", route: "ejatlas", ready: true, lazy: true,
       api: "https://ejatlas.org/api/v1/conflicts/",
       note: "Every conflict in the EJAtlas, read live from its own data address; each box links the conflict's page." },
@@ -8669,6 +8674,7 @@ const LAYER_KIND = {
   unep_coral: ["animal", "downstream"],
   trase_measures: ["plant", "downstream"],
   mines_global: ["insentient", "downstream"],
+  mine_features: ["insentient", "downstream"],
   slick_archive: ["animal", "downstream"],
   giga_countries: ["human", "upstream"],
   trase_meat_brazil: ["animal", "upstream"],
@@ -9205,6 +9211,7 @@ map.on("load", () => setTimeout(mymapsTitles, 50));
 // point at the repo or the page they are read from; everyone else's at their
 // own site. A row missing from here shows no link rather than a guessed one.
 const LAYER_SITE = {
+  mine_features: "https://zenodo.org/records/7894216",
   atlas_cities: "https://atlas-for-the-end-of-the-world.com/hotspot_cities/",
   atlas_hotspots: "https://atlas-for-the-end-of-the-world.com/hotspots/",
   biosignature: "https://github.com/WelcomeToYourGalaxy/maps",
@@ -9473,10 +9480,11 @@ const PANEL_ORDER = [
   { h: 3, t: "Biodiversity loss" }, "gsn", "gsn_rankings", "atlas_hotspots", "atlas_cities", "powerbi_report",
   { h: 4, t: "Fish" },
   { h: 4, t: "Companies and financiers" }, "pe_subsidising", "pe_bankrolling",
+  { h: 3, t: "Forest and land cover" },
   { h: 3, t: "Spatial plans" },
   { h: 3, t: "Peatland" },
   { h: 3, t: "Surface water" },
-  { h: 3, t: "Mining" }, "mines_global",
+  { h: 3, t: "Mining" }, "mines_global", "mine_features",
   { h: 3, t: "Oil and gas drilling" },
   { h: 4, t: "Pennsylvania" }, "skytruth_pa_permits", "skytruth_pa_spud", "skytruth_pa_violations", "skytruth_well_permits",
   { h: 4, t: "United States" }, "skytruth_fracfocus",

@@ -18,6 +18,14 @@ Pages, Cloudflare Workers.
 
 ---
 
+## Tang & Werner as a row; Forest and land cover back (22 September, after the refile)
+
+`mine_features`, under Mining beside the mines, drawn by `pmshapes` from
+`tiles/mine_features.pmtiles`: the owner chose to add it knowing the release
+carries no commodity or impact field; the note says so. The Forest and land
+cover heading and its catalogue rows are back where they were; the owner will
+decide later. `LEFT_OUT` and its counting stay in the code, unused.
+
 ## My setup, so you know what I am typing into
 
 macOS 12.6, Intel. zsh. **zsh does not treat `#` as a comment in an interactive

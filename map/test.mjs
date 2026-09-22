@@ -2811,7 +2811,7 @@ console.log("\na row can sit under more than one subject");
   const at = (t) => order.findIndex((x) => x && x.t === t);
   check("the eight new headings are in, in the order's own style",
         ["Fire", "Spatial plans", "Peatland", "Surface water", "Base and reference", "Land and territory"].every((t) => at(t) > -1) &&
-        at("Land held under permit") === -1 && at("Forest and land cover") === -1);
+        at("Land held under permit") === -1 && at("Forest and land cover") > -1);
   check("the planet's new headings sit under Of the planet, before Of groups",
         ["Fire", "Spatial plans", "Peatland", "Surface water", "Other", "General", "Oil spills and slicks"]
           .every((t) => at(t) > at("Of the planet") && at(t) < at("Of groups")));
@@ -2866,9 +2866,12 @@ console.log("\nNusantara's layers spread through the box");
         places("Moratorium areas (PIPPIB)").includes("Destruction > Of the planet > Spatial plans") &&
         places("Moratorium areas (PIPPIB)").includes("Destruction > Of the planet > Deforestation > Moratoriums") &&
         places("Detailed spatial plan 2023, Badung (RDTR)").join() === "Destruction > Of the planet > Meat and agriculture > Agriculture > Detailed spatial plans, Badung");
-  check("\u2026a land-cover layer has no row, at the owner's request, and is counted rather than filed under Not yet placed",
-        places("Land cover 2020, Indonesia").join() === "(left out)" && places("Mangrove extent").join() === "Destruction > Of the planet > Oceans > Reefs and mangroves" &&
+  check("\u2026a land-cover layer is back under Forest and land cover until the owner decides; mangroves under Reefs and mangroves",
+        places("Land cover 2020, Indonesia").join() === "Destruction > Of the planet > Forest and land cover" && places("Mangrove extent").join() === "Destruction > Of the planet > Oceans > Reefs and mangroves" &&
         /leftOut\+\+; item\.leftOut = true; return;/.test(src));
+  check("the Tang and Werner mine features are a row under Mining, drawn like the mines, and say what the release carries",
+        /id: "mine_features"[^\n]*route: "pmshapes"/.test(src) && /tiles\/mine_features\.pmtiles/.test(src) && /pointLayer: "mine_feature_points"/.test(src) &&
+        /\{ h: 3, t: "Mining" \}, "mines_global", "mine_features",/.test(src) && /no commodity or impact figure/.test(src));
   check("\u2026the cultivated-meat row is out of the box, and Culprits upstream is dissolved", /"cultivated_meat_laws",/.test(src.slice(src.indexOf("const PANEL_REMOVED"))) && atH("Culprits upstream") === -1);
   check("fire alerts are fire and deforestation is deforestation",
         places("Fire alerts, VIIRS")[0] === "Destruction > Of the planet > Deforestation" ||
