@@ -2346,7 +2346,8 @@ console.log("\nrows gathered, moved and renamed");
   const at = (t) => order.findIndex((x) => x && x.t === t);
   check("the two EPA rows say which is which", /name:"Factories reporting toxic chemical releases, US \(EPA Toxics Release Inventory\)"/.test(src) &&
         /name: "Every US site EPA holds a record for, across all its programs \(EPA Envirofacts\)"/.test(src));
-  check("HydroWASTE sits under Wastewater", at("Wastewater") > at("Pollution") && order.indexOf("hydrowaste") === at("Wastewater") + 1);
+  check("HydroWASTE sits under Wastewater, and is copied under Methane", at("Wastewater") > at("Pollution") && order.lastIndexOf("hydrowaste") === at("Wastewater") + 1 &&
+        order.indexOf("hydrowaste") > at("Methane") && order.indexOf("hydrowaste") < at("Nitrous oxide"));
   check("PalmWatch sits under Agriculture", order.indexOf("palmwatch") > at("Agriculture") && order.indexOf("palmwatch") < at("Meat"));
   check("the three alert layers are one row, named for what it shows, each line naming the system that saw it",
         /const FOREST_ALERTS = \{[\s\S]{0,4000}id:"gfw_dist_year"/.test(src) &&
@@ -2371,7 +2372,7 @@ console.log("\nrows gathered, moved and renamed");
   check("each Trase row sits under the map's own heading, not a Trase one",
         ["trase_pulp_indonesia"].every((i) => order.indexOf(i) > at("Deforestation")) && !order.includes("trase_measures") &&
         ["trase_palm_indonesia", "trase_silos_brazil", "trase_cocoa_ivory"]
-          .every((i) => order.indexOf(i) > at("Agriculture") && order.indexOf(i) < at("Meat")) &&
+          .every((i) => order.lastIndexOf(i) > at("Agriculture") && order.lastIndexOf(i) < at("Meat")) &&
         order.indexOf("trase_meat_brazil") > at("Meat") && order.indexOf("trase_meat_brazil") < at("Oceans") &&
         !order.includes("group:trase_data"));
   check("a group owns its children, so no row is rendered twice and none falls into Not yet placed",
@@ -2817,9 +2818,20 @@ console.log("\nNusantara's layers spread through the box");
         places("Some permit").join() === "Destruction > Of the planet > Other" &&
         atH("Other") > atH("Construction") && atH("Other") < atH("Of groups"));
   // 22 September: the box rearranged to the owner's list.
-  check("emissions are split by sector and by gas, Trase's by sector and Global Forest Watch's by gas",
-        places("Total GhG emissions trase").join() === "Destruction > Of the planet > Climate > Emissions > By sector" &&
-        places("Carbon flux").join() === "Destruction > Of the planet > Climate > Emissions > By greenhouse gas");
+  // 22 September, later the same day: Climate arranged by gas, in the Destruction page's order.
+  check("Climate is arranged by gas, in the page's order, and an emissions row goes under the gas it names, else carbon dioxide",
+        ["Carbon dioxide", "Methane", "Nitrous oxide", "F-gases", "Black carbon", "Infrastructure emitting more than one gas"].every((g, i, a) => atH(g) > atH("Climate") && (!i || atH(g) > atH(a[i - 1]))) &&
+        atH("By sector") === -1 && atH("By greenhouse gas") === -1 &&
+        places("Total GhG emissions trase").join() === "Destruction > Of the planet > Climate > Carbon dioxide" &&
+        places("Methane emissions from peat trase").includes("Destruction > Of the planet > Climate > Methane") &&
+        places("Carbon flux").join() === "Destruction > Of the planet > Climate > Carbon dioxide");
+  check("\u2026Carbon Mapper's plumes are under Methane and copied under Carbon dioxide; grain, soy and corn under Nitrous oxide; the refineries under Carbon dioxide",
+        orderH.filter((x) => x === "carbon_plumes").length === 2 && orderH.filter((x) => x === "fractracker_refineries").length === 2 &&
+        orderH.indexOf("site_china_grain") > atH("Nitrous oxide") && orderH.indexOf("site_china_grain") < atH("F-gases") &&
+        orderH.indexOf("fractracker_refineries") > atH("Carbon dioxide") && orderH.indexOf("fractracker_refineries") < atH("Methane"));
+  check("\u2026and every Nusantara alert row is under Deforestation",
+        places("Trees cut, Indonesia and Malaysia \u2014 every alert system at once, as Nusantara reads them").join() === "Destruction > Of the planet > Deforestation > Tree cover loss and alerts" &&
+        places("Trees cut, seen through cloud by radar (RADD), as Nusantara reads it").join() === "Destruction > Of the planet > Deforestation > Tree cover loss and alerts");
   check("\u2026Trase's crops go under their own headings, soy and cocoa and palm, not the general one",
         places("Production of soy trase").join() === "Destruction > Of the planet > Meat and agriculture > Agriculture > Soy, corn and grain" &&
         places("Cocoa area trase").join() === "Destruction > Of the planet > Meat and agriculture > Agriculture > Cocoa and cotton");

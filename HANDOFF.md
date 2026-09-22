@@ -278,6 +278,24 @@ and no pieces are written). The pieces appear when the refresh workflow next
 rebuilds a source. `fieldRows` (the copied-file layers) also dropped every
 nested value; it writes them out now.
 
+## Climate arranged by greenhouse gas (22 September, later)
+
+The Destruction page's climate section runs carbon dioxide, methane, nitrous
+oxide, F-gases, black carbon; the Climate heading now does the same, each row
+under the gas its sites mainly emit: coal plant units, power plants, national
+CO2, the Climate TRACE sectors, forestry and history groups, the refineries
+under Carbon dioxide; the wastewater rows, Carbon Mapper's plumes and the
+Climate TRACE agriculture group under Methane; that group again, fertilizer
+plants, the soybean, corn and grain rows under Nitrous oxide (copies, the
+originals staying under Agriculture); the refineries copied under Black carbon
+(where the page has them, among vehicle fuels); carbon bombs under
+"Infrastructure emitting more than one gas"; F-gases empty. Catalogue rows: a
+title naming methane or nitrous oxide goes under that gas, any other emission
+under Carbon dioxide. **A true per-gas split of the Climate TRACE sites is not
+possible yet**: the archives carry each site's CO2e total only; the source's
+per-gas columns now reach the pieces and could be tiled next. The Nusantara
+alert rows ("Trees cut ... every alert system") are under Deforestation.
+
 ## The box rearranged to the owner's list (22 September)
 
 `PANEL_ORDER` was rewritten from the owner's `layers-reallocated.md`, heading

@@ -4108,7 +4108,7 @@ const CATALOGUE_PLACES = [
   // "Alert" on its own is not deforestation: Nusantara's fire alerts carry it
   // too, and they belong under Fire. So the deforestation rule names the
   // systems and the words that mean forest loss, and fire keeps its own.
-  [/deforest|forest ?loss|tree ?cover ?loss|disturb|expansion|probability|forest change|frontera|\bglad\b|\bradd\b|dist-?alert|integrated alert/i,
+  [/deforest|forest ?loss|tree ?cover ?loss|disturb|expansion|probability|forest change|frontera|\bglad\b|\bradd\b|dist-?alert|integrated alert|trees cut|alert system|forest alert/i,
    P + " > Deforestation > Tree cover loss and alerts"],
   [/\bfires?\b|burn|hotspot/i, P + " > Fire"],
   [/mining|\bmines?\b|quarr|\bcoal\b|nickel|bauxite|\bgold\b/i, P + " > Mining"],
@@ -4130,10 +4130,12 @@ const CATALOGUE_PLACES = [
   [/timber|logging|wood fiber|forest utili[sz]ation|\bpbph\b|forest clearance|\bfca\b|management objective|forest concession|\bhph\b|\bhti\b|iuphhk/i,
    P + " > Deforestation"],
   [/rubber|concessions? of other kinds|other concessions|national strategic project|\bpsn\b/i, P + " > Other"],
-  // Emissions: what Trase measures is a supply chain's emissions, by sector;
-  // Global Forest Watch's carbon datasets are by gas (22 September).
-  [/(emission|carbon|\bco2\b|greenhouse)[\s\S]*\btrase\b|\btrase\b[\s\S]*(emission|carbon|\bco2\b|greenhouse)/i, P + " > Climate > Emissions > By sector"],
-  [/carbon|emission|biomass|climate|\bco2\b|flux|removals|temperature|precipitation/i, P + " > Climate > Emissions > By greenhouse gas"],
+  // Emissions catalogue rows, by gas (22 September): methane and nitrous oxide
+  // where a title names them; otherwise carbon dioxide, the gas a forest or
+  // land-use emission is.
+  [/methane|\bch4\b/i, P + " > Climate > Methane"],
+  [/nitrous|\bn2o\b/i, P + " > Climate > Nitrous oxide"],
+  [/carbon|emission|biomass|climate|\bco2\b|flux|removals|temperature|precipitation/i, P + " > Climate > Carbon dioxide"],
   [/nitrogen dioxide|air quality|aerosol|pm2/i, P + " > Pollution > Air"],
   [/protect|conserv|reserve|restoration|biodivers|intact forest|primary forest|wdpa|ramsar|species|habitat|ecozone|ecosystem|\bkba\b/i,
    P + " > Biodiversity loss"],
@@ -4192,7 +4194,7 @@ function cataloguePlaces(words) {
   if (/rubber/i.test(words)) drop(AG);
   // A crop's own heading stands in for the general one; by sector stands in for by gas.
   if (out.some((p) => p.startsWith(AG + " > "))) drop(AG);
-  if (out.includes(P + " > Climate > Emissions > By sector")) drop(P + " > Climate > Emissions > By greenhouse gas");
+  if (out.some((x) => x === P + " > Climate > Methane" || x === P + " > Climate > Nitrous oxide")) drop(P + " > Climate > Carbon dioxide");
   if (out.includes(AG + " > Detailed spatial plans, Badung")) drop(P + " > Spatial plans");
   // A concession or permit whose words name no material and no activity.
   if (!out.length && !dropped && /concession|permit|licen[cs]e|\bizin\b/i.test(words)) out.push(P + " > Other");
@@ -9297,11 +9299,20 @@ const PANEL_ORDER = [
   { h: 1, t: "Destruction" },
   { h: 2, t: "Of the planet" },
   { h: 3, t: "General" }, "ejatlas", "wreckers_umap", "fortune500", "theyrule", "scribd_doc",
+  // Climate is arranged by greenhouse gas, in the Destruction page's own order
+  // (22 September): a row goes under the gas its sites mainly emit, and a row
+  // whose sites emit more than one in earnest is under Infrastructure, or
+  // copied under each gas. The Climate TRACE groups carry each site's CO2e
+  // total, not a figure per gas, so they are placed by their sectors' main
+  // gas; a true per-gas split waits on the per-gas columns the source
+  // publishes (they now reach the pieces, not yet the tiles).
   { h: 3, t: "Climate" },
-  { h: 4, t: "Emissions" },
-  { h: 5, t: "By sector" }, "group:climate_trace_sectors", "group:climate_trace_agriculture", "group:climate_trace_forestry", "group:ct_history",
-  { h: 5, t: "By greenhouse gas" }, "owid_co2", "carbon_plumes",
-  { h: 4, t: "Fossil fuel plants and refineries" }, "gem_coal", "power_plants", "carbon_bombs", "fractracker_refineries",
+  { h: 4, t: "Carbon dioxide" }, "owid_co2", "group:climate_trace_sectors", "group:climate_trace_forestry", "group:ct_history", "gem_coal", "power_plants", "fractracker_refineries", "carbon_plumes",
+  { h: 4, t: "Methane" }, "carbon_plumes", "group:climate_trace_agriculture", "hydrowaste", "wastewater",
+  { h: 4, t: "Nitrous oxide" }, "group:climate_trace_agriculture", "fertilizer_facilities", "usda_soybean", "usda_corn", "site_china_grain", "trase_silos_brazil",
+  { h: 4, t: "F-gases" },
+  { h: 4, t: "Black carbon" }, "fractracker_refineries",
+  { h: 4, t: "Infrastructure emitting more than one gas" }, "carbon_bombs",
   { h: 4, t: "Companies and financiers" }, "carbon_majors", "bocc",
   { h: 3, t: "Pollution" },
   { h: 4, t: "Air" }, "ct_air",
