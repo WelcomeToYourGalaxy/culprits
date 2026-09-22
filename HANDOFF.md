@@ -278,6 +278,22 @@ and no pieces are written). The pieces appear when the refresh workflow next
 rebuilds a source. `fieldRows` (the copied-file layers) also dropped every
 nested value; it writes them out now.
 
+## Climate TRACE air pollution: plumes as still hotspots, read through the Worker
+
+The click box stayed at "Reading Climate TRACE..." and no plume ever drew:
+api.c10e.org and plumes.climatetrace.org send no Access-Control-Allow-Origin.
+The Worker now has `/v1/ct-asset?id=&gas=&years=` and `/v1/ct-plume?file=`
+(passthroughs like Carbon Mapper's; BUILD says 2026-09-22, **redeploy the
+Worker**: `cd worker && npx wrangler deploy`). The plume is drawn once, still,
+as a hotspot rather than outlines: `ctPlumeShape` gives every feature a
+`_strength` from whatever concentration figure the file carries (the strongest
+part 1); polygons fill graded by it with no outline, points draw as a heatmap,
+lines blurred. **The plume file's real fields have not been seen from the
+sandbox**; if the fill draws flat, paste one plume file's first feature.
+Also: population density under a new Overpopulation heading under Of the
+planet; nitrogen dioxide rows under a Nitrogen dioxide heading under Climate
+(air quality and PM2.5 stay under Pollution > Air).
+
 ## Climate arranged by greenhouse gas (22 September, later)
 
 The Destruction page's climate section runs carbon dioxide, methane, nitrous

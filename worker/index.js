@@ -36,7 +36,7 @@ const CACHE_VERSION = "v12";
 // Reported by /v1/_diag so it is possible to tell, in one request, which build
 // is actually live. Several fixes appeared not to work when the real problem
 // was that the deploy had not happened.
-const BUILD = "2026-09-20 carbon mapper passthrough; cerulean slicks and sources, allen coral benthic";
+const BUILD = "2026-09-22 climate trace asset and plume passthrough; carbon mapper; cerulean; allen coral benthic";
 
 // How far back deforestation alerts are fetched. Wider means more rows and a
 // slower, heavier query; the API has no LIMIT to fall back on.
@@ -864,6 +864,36 @@ export default {
         status: 200,
         headers: { "Content-Type": "application/json", "Cache-Control": `public, max-age=${CACHE_SECONDS}` },
       });
+      ctx.waitUntil(cache.put(key, stored.clone()));
+      return withCors(stored, origin);
+    }
+
+    // Climate TRACE's per-source figures and its plume files, passed through
+    // untouched, for the air-pollution row. Neither api.c10e.org nor
+    // plumes.climatetrace.org sends Access-Control-Allow-Origin, so read
+    // straight from the page the box stayed at "Reading Climate TRACE..." and
+    // no plume ever drew. Only an asset id, a gas and a year, or a plume file
+    // name, are forwarded.
+    if (url.pathname === "/v1/ct-asset" || url.pathname === "/v1/ct-plume") {
+      let target;
+      if (url.pathname === "/v1/ct-asset") {
+        const id = url.searchParams.get("id"), gas = url.searchParams.get("gas") || "pm2_5", years = url.searchParams.get("years") || "2024";
+        if (!id || !/^[\w.:-]+$/.test(gas) || !/^[\d,]+$/.test(years)) return bad("id, gas and years are needed", 400, origin);
+        target = `https://api.c10e.org/v7/app/asset/${encodeURIComponent(id)}?gas=${encodeURIComponent(gas)}&years=${years}`;
+      } else {
+        const file = url.searchParams.get("file") || "";
+        if (!/^[\w./-]+$/.test(file) || file.includes("..")) return bad("a plume file name is needed", 400, origin);
+        target = `https://plumes.climatetrace.org/${file}`;
+      }
+      const key = new Request(`${url.origin}${url.pathname}?${url.searchParams.toString()}&_c=${CACHE_VERSION}`);
+      const hit = await cache.match(key);
+      if (hit) return withCors(hit, origin);
+      let upstream;
+      try { upstream = await fetch(target, { headers: { Accept: "application/json" } }); }
+      catch (e) { return bad(`Climate TRACE unreachable: ${e.message}`, 502, origin); }
+      if (!upstream.ok) return bad(`Climate TRACE answered ${upstream.status}`, upstream.status, origin);
+      const body = await upstream.text();
+      const stored = new Response(body, { status: 200, headers: { "Content-Type": "application/json", "Cache-Control": `public, max-age=${CACHE_SECONDS}` } });
       ctx.waitUntil(cache.put(key, stored.clone()));
       return withCors(stored, origin);
     }

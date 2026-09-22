@@ -4136,7 +4136,8 @@ const CATALOGUE_PLACES = [
   [/methane|\bch4\b/i, P + " > Climate > Methane"],
   [/nitrous|\bn2o\b/i, P + " > Climate > Nitrous oxide"],
   [/carbon|emission|biomass|climate|\bco2\b|flux|removals|temperature|precipitation/i, P + " > Climate > Carbon dioxide"],
-  [/nitrogen dioxide|air quality|aerosol|pm2/i, P + " > Pollution > Air"],
+  [/nitrogen dioxide|\bno2\b|\bnox\b|nitric oxide/i, P + " > Climate > Nitrogen dioxide"],
+  [/air quality|aerosol|pm2/i, P + " > Pollution > Air"],
   [/protect|conserv|reserve|restoration|biodivers|intact forest|primary forest|wdpa|ramsar|species|habitat|ecozone|ecosystem|\bkba\b/i,
    P + " > Biodiversity loss"],
   [/peat/i, P + " > Peatland"],
@@ -5242,6 +5243,20 @@ function ctAssetHtml(a, gas) {
     (t.emissionsFactor ? `<div class="meta">Rate: ${n(t.emissionsFactor, 5)} ${escapeHtml(t.emissionsFactorUnits || "")}</div>` : "") +
     (ranks ? `<div class="meta">Rank in its sector, ${ranks.year}: ${n(ranks.rank)}</div>` : "");
 }
+// A plume file as one still shape: every feature kept, and each given a
+// _strength from 0 to 1 read from whatever concentration figure it carries
+// (the first numeric field named like one), so the drawing can grade it.
+// A file with no such figure draws at one strength.
+function ctPlumeShape(gj) {
+  const feats = (gj && gj.features) || (gj && gj.type === "Feature" ? [gj] : []);
+  const pick = (p) => { for (const k of Object.keys(p || {})) if (/conc|value|weight|level|density|pm|mass|rate/i.test(k) && Number.isFinite(Number(p[k]))) return Number(p[k]); return null; };
+  const vals = feats.map((f) => pick(f.properties)).filter((v) => v !== null);
+  const max = vals.length ? Math.max(...vals) : 0;
+  return { type: "FeatureCollection", features: feats.map((f) => {
+    const v = pick(f.properties);
+    return { type: "Feature", geometry: f.geometry, properties: Object.assign({}, f.properties, { _strength: v === null || !max ? 0.6 : Math.max(0.05, v / max) }) };
+  }) };
+}
 async function addCtAirLayer(cfg) {
   let gj;
   try { gj = await getJson(cfg.list, 60000); }
@@ -5249,8 +5264,17 @@ async function addCtAirLayer(cfg) {
   const src = `${cfg.id}-src`;
   map.addSource(src, { type: "geojson", data: gj });
   map.addSource(`${cfg.id}-plume`, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-  map.addLayer({ id: `${cfg.id}-line`, type: "line", source: `${cfg.id}-plume`, layout: { "line-cap": "round" },
-    paint: { "line-color": "#B8A79E", "line-width": 1.6, "line-opacity": 0.8 } });
+  // The plume as a still hotspot, not a set of outlines: Climate TRACE's own
+  // page animates it moving downwind; here the same shape is drawn once, its
+  // fill graded by whatever concentration figure the file carries (the
+  // strongest part darkest), fading out to its edge, with no hard line.
+  map.addLayer({ id: `${cfg.id}-plume-fill`, type: "fill", source: `${cfg.id}-plume`, filter: ["==", ["geometry-type"], "Polygon"],
+    paint: { "fill-color": cfg.colour, "fill-opacity": ["interpolate", ["linear"], ["get", "_strength"], 0, 0.12, 1, 0.7], "fill-antialias": false } });
+  map.addLayer({ id: `${cfg.id}-plume-heat`, type: "heatmap", source: `${cfg.id}-plume`, filter: ["==", ["geometry-type"], "Point"],
+    paint: { "heatmap-weight": ["get", "_strength"], "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 6, 6, 12, 40], "heatmap-opacity": 0.65,
+             "heatmap-color": ["interpolate", ["linear"], ["heatmap-density"], 0, "rgba(0,0,0,0)", 0.2, "rgba(122,91,78,0.35)", 0.6, "rgba(122,91,78,0.7)", 1, "rgba(80,50,45,0.9)"] } });
+  map.addLayer({ id: `${cfg.id}-line`, type: "line", source: `${cfg.id}-plume`, filter: ["==", ["geometry-type"], "LineString"], layout: { "line-cap": "round" },
+    paint: { "line-color": cfg.colour, "line-width": 3, "line-opacity": 0.5, "line-blur": 2 } });
   map.addLayer({ id: `${cfg.id}-pt`, type: "circle", source: src,
     paint: { "circle-color": cfg.colour, "circle-opacity": 0.9,
              "circle-radius": ["interpolate", ["linear"], ["sqrt", ["max", 0, ["to-number", ["get", "pm25_kg_hr"], 0]]], 0, 2.5, 10, 9] } });
@@ -5271,15 +5295,16 @@ async function addCtAirLayer(cfg) {
     const figs = async () => {
       const box = el.querySelector(".ct-air-figs");
       try {
-        const a = await getJson(`https://api.c10e.org/v7/app/asset/${encodeURIComponent(p.id)}?gas=${gas}&years=2024`, 30000);
+        // Through the Worker: api.c10e.org sends no CORS header, so read straight the box stayed at "Reading".
+        const a = await getJson(`${WORKER}/ct-asset?id=${encodeURIComponent(p.id)}&gas=${encodeURIComponent(gas)}&years=2024`, 30000);
         box.innerHTML = ctAssetHtml(a, gas);
       } catch (err) { box.textContent = `Climate TRACE did not answer (${err.message})`; }
     };
     el.querySelector("select").addEventListener("change", (ev) => { gas = ev.target.value; figs(); });
     figs();
     if (p.plume) {
-      try { map.getSource(`${cfg.id}-plume`).setData(await getJson(`https://plumes.climatetrace.org/${p.plume}`, 30000)); }
-      catch (err) { /* no plume for this date */ }
+      try { map.getSource(`${cfg.id}-plume`).setData(ctPlumeShape(await getJson(`${WORKER}/ct-plume?file=${encodeURIComponent(p.plume)}`, 30000))); }
+      catch (err) { const box = el.querySelector(".ct-air-figs"); if (box) box.insertAdjacentHTML("afterend", `<div class="meta">its plume could not be read (${escapeHtml(err.message)})</div>`); }
     }
   });
   map.on("mouseenter", `${cfg.id}-pt`, () => { map.getCanvas().style.cursor = "pointer"; });
@@ -9312,8 +9337,10 @@ const PANEL_ORDER = [
   { h: 4, t: "Nitrous oxide" }, "group:climate_trace_agriculture", "fertilizer_facilities", "usda_soybean", "usda_corn", "site_china_grain", "trase_silos_brazil",
   { h: 4, t: "F-gases" },
   { h: 4, t: "Black carbon" }, "fractracker_refineries",
+  { h: 4, t: "Nitrogen dioxide" },
   { h: 4, t: "Infrastructure emitting more than one gas" }, "carbon_bombs",
   { h: 4, t: "Companies and financiers" }, "carbon_majors", "bocc",
+  { h: 3, t: "Overpopulation" }, "ct_pop",
   { h: 3, t: "Pollution" },
   { h: 4, t: "Air" }, "ct_air",
   { h: 4, t: "Toxic releases and regulated sites, US" }, "epa_tri_sites", "epa_widget",
@@ -9425,7 +9452,7 @@ const PANEL_ORDER = [
 
   { h: 1, t: "Base and reference" },
   { h: 2, t: "Boundaries and relief" },
-  { h: 2, t: "Physical and human geography" }, "soilgrids", "ct_pop", "skytruth_quakes",
+  { h: 2, t: "Physical and human geography" }, "soilgrids", "skytruth_quakes",
   { h: 2, t: "Housekeeping" }, "skytruth_tests",
 
   { h: 1, t: "Buildings" }, "building_types",

@@ -2072,10 +2072,21 @@ console.log("\nGlobal Safety Net");
 console.log("\nClimate TRACE air pollution");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("the air-pollution sources are under Pollution > Air, and population under Base and reference (22 September)", /id: "ct_air"/.test(src) && /id: "ct_pop"/.test(src) &&
-        /\{ h: 4, t: "Air" \}, "ct_air",/.test(src) && /"soilgrids", "ct_pop", "skytruth_quakes"/.test(src));
+  check("the air-pollution sources are under Pollution > Air, and population density under Overpopulation (22 September)", /id: "ct_air"/.test(src) && /id: "ct_pop"/.test(src) &&
+        /\{ h: 4, t: "Air" \}, "ct_air",/.test(src) && /\{ h: 3, t: "Overpopulation" \}, "ct_pop",/.test(src));
+  check("a plume is drawn as one still hotspot, graded by its concentration, not a set of outlines",
+        /function ctPlumeShape\(gj\)/.test(src) && /type: "heatmap", source: `\$\{cfg\.id\}-plume`/.test(src) && /"fill-opacity": \["interpolate", \["linear"\], \["get", "_strength"\]/.test(src));
+  {
+    const shape = new Function(src.match(/function ctPlumeShape[\s\S]*?\n}\n/)[0] + "; return ctPlumeShape;")();
+    const out = shape({ type: "FeatureCollection", features: [{ type: "Feature", geometry: null, properties: { concentration: 5 } }, { type: "Feature", geometry: null, properties: { concentration: 1 } }] });
+    check("\u2026the strongest part is 1 and the rest in proportion, every feature kept", out.features.length === 2 && out.features[0].properties._strength === 1 && out.features[1].properties._strength === 0.2);
+  }
+  check("\u2026its figures and plume are read through the Worker, since Climate TRACE sends no CORS header",
+        /\$\{WORKER\}\/ct-asset\?id=/.test(src) && /\$\{WORKER\}\/ct-plume\?file=/.test(src) &&
+        /url\.pathname === "\/v1\/ct-asset" \|\| url\.pathname === "\/v1\/ct-plume"/.test(fs.readFileSync(path.join(HERE, "..", "worker", "index.js"), "utf8")));
+  check("nitrogen dioxide rows go under their own gas heading under Climate", /\{ h: 4, t: "Nitrogen dioxide" \},/.test(src) && /nitrogen dioxide\|\\bno2\\b/.test(src));
   check("every pollutant Climate TRACE reports can be chosen", ["pm2_5", "bc", "oc", "so2", "vocs", "co", "nh3", "nox", "co2e_100yr"].every((g) => src.includes(`["${g}",`)));
-  check("a click reads the plume and the figures live", /plumes\.climatetrace\.org\/\$\{p\.plume\}/.test(src) && /api\.c10e\.org\/v7\/app\/asset/.test(src));
+  check("a click reads the plume and the figures live", /ct-plume\?file=\$\{encodeURIComponent\(p\.plume\)\}/.test(src) && /api\.c10e\.org\/v7\/app\/asset/.test(fs.readFileSync(path.join(HERE, "..", "worker", "index.js"), "utf8")));
   const html = new Function("escapeHtml", "CT_GASES", src.slice(src.indexOf("function ctAssetHtml("), src.indexOf("async function addCtAirLayer(")) + "; return ctAssetHtml;")((s) => String(s), [["pm2_5", "PM2.5"]]);
   const h = html({ type: "BF/BOF", subsector: "iron-and-steel", location: { country: "BRA" }, totals: { value: 807.3, capacity: 600000, capacityUnits: "t of steel", capacityFactor: 0.62 }, subsectorRanks: [{ year: 2025, rank: 418 }] }, "pm2_5");
   check("a source's box gives its figures and rank", h.includes("807.3") && h.includes("used 62%") && h.includes("2025: 418"));
