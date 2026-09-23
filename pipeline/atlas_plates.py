@@ -233,8 +233,14 @@ def main(only):
             continue
         pdf = CACHE / f"{slug}.pdf"
         if not pdf.exists():
-            r = session.get(PDF_BASE + slug + ".pdf", headers=UA, timeout=180)
-            if not r.ok:
+            # One PDF that will not come (the Atlas lists the North American
+            # Coastal Plain as not yet assessed) no longer stops the run.
+            try:
+                r = session.get(PDF_BASE + slug + ".pdf", headers=UA, timeout=180)
+            except Exception as e:  # noqa: BLE001
+                print(f"{slug}: the PDF did not come ({e.__class__.__name__})")
+                continue
+            if not r.ok or not r.content.startswith(b"%PDF"):
                 print(f"{slug}: the PDF did not come ({r.status_code})")
                 continue
             pdf.write_bytes(r.content)

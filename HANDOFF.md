@@ -451,6 +451,49 @@ owner's request, so a land-cover layer that no other rule claims gets no row
 and is counted in the console (`LEFT_OUT`). Agriculture > Moratoriums from the
 list was not made: Nusantara has one moratorium layer and it is a forest one.
 
+## Round of 22 September (5): what check-sources.mjs found
+
+Read from the owner's run of `map/check-sources.mjs`:
+
+- **Drivers of tree cover loss (WRI and Google) in colour, with a key.** Its
+  COG holds codes 1-7 (uint8, 0 = nothing); the Zenodo record (Sims et al.
+  2025) gives the codes: permanent agriculture 1, hard commodities 2, shifting
+  cultivation 3, logging 4, wildfire 5, settlements and infrastructure 6,
+  other natural disturbances 7. `GFW_KEYS` gives each a colour; the COG tile
+  URL carries `&colormap=` (titiler's form); the key shows under the row and,
+  indented, in the Showing box (`CATALOGUE_KEYS`). `gfwPickAsset` now takes
+  `default.tif`/`class.tif`, not an `intensity` COG.
+- **DIST-ALERT** (int16, 20,759-32,083): coloured by its first digit, 2 low
+  and 3 high confidence, as ranges.
+- **WUR driver classes** (1-11): coloured, but keyed "Class 1" to "Class 11":
+  GFW's record names no driver per number. Names wait on a source that gives
+  the mapping.
+- **Not yet coloured**: Curtis/TSC drivers (`tsc_tree_cover_loss_drivers`) are
+  GFW's own raster tile caches per canopy threshold (tcd_10 ... tcd_75), whose
+  colouring is GFW's; `tsc_drivers` has only a pending cache; `umd_drivers`
+  lists no assets at all.
+- **Trase facilities**: resources.trase.earth sends no CORS header, so the
+  browser cannot read them (the soy silos row). culprits-tiles-more's
+  `scripts/trase.py` now copies each file to `trase/facilities/` weekly and
+  gives each type its own `base`; the map reads `hit.base`. The eight rows are
+  NOT LIVE.
+- **Materials research** is an Experience Builder app ("Web Experience");
+  its maps are named in `dataSources` and are now read first
+  (`arcgisExperienceIds`), with a larger allowance (40 items).
+- **EJAtlas**: first page gives `count`; the rest are read four at a time.
+- **Nusantara's fire alerts**: 2-12 s per picture on their server; squares are
+  now 512 px (a quarter as many requests).
+- **Seas of Plastic**: all three files answer with CORS; kept.
+- **Wreckers of the Earth**: the map's GeoJSON answers, its layers do not (HTML,
+  no CORS) at the `/en/` address; round 2 of the check tries the map's own
+  address without the language part before a copy is made.
+- **USDA explorers**: every request failed in about 0.3 s (the connection, not
+  the service). Round 2 asks the USDA hosts that are still up.
+- **Wastewater**: the archives are 404; the KNB package lists
+  `N_PourPoint_And_Watershed.zip`, `FIO_PourPoint_And_Watershed.zip` and
+  `Global_N_Coastal_Plumes_tifs.zip`; round 2 asks for their addresses.
+- `node map/check-sources.mjs round2` runs without the long GFW and KNB parts.
+
 ## The Atlas for the End of the World's maps, on this map (22 September)
 
 Asked for: opening a hotspot or a city zooms to it and shows the Atlas's own

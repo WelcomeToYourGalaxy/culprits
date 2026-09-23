@@ -3034,16 +3034,33 @@ async function readKml(cfg) {
 // ArcGIS: an app (web app, experience) names its web map; the web map names its
 // layers and how each shows a clicked feature. Every feature is read.
 const AGOL = "https://www.arcgis.com/sharing/rest/content/items";
+// An Experience Builder app (a "Web Experience", like Materials research) names
+// its maps in dataSources; those are read first. Its data also carries dozens of
+// other ids (images, widgets, themes), and reading them in order used the
+// twelve-item allowance up before a map was reached (22 September, round 5).
+function arcgisExperienceIds(text) {
+  let j = null;
+  try { j = JSON.parse(text); } catch (e) { return []; }
+  const out = [];
+  const walk = (o) => {
+    if (!o || typeof o !== "object") return;
+    if (typeof o.itemId === "string" && /^[0-9a-f]{32}$/.test(o.itemId) && /WEB_MAP|WEB_SCENE|FEATURE|MAP_SERVICE/i.test(String(o.type || ""))) out.push(o.itemId);
+    for (const v of Object.values(o)) walk(v);
+  };
+  walk(j.dataSources);
+  return [...new Set(out)];
+}
 async function arcgisWebmapsOf(itemId, seen = new Set()) {
-  if (seen.has(itemId) || seen.size > 12) return [];
+  if (seen.has(itemId) || seen.size > 40) return [];
   seen.add(itemId);
   const info = await getJson(`${AGOL}/${itemId}?f=json`);
   if (info.error) throw new Error(info.error.message || "item not shared publicly");
-  if (info.type === "Web Map") return [{ id: itemId, title: info.title }];
+  if (info.type === "Web Map" || info.type === "Web Scene") return [{ id: itemId, title: info.title }];
   if (info.type === "Feature Service" || info.type === "Map Service") return [{ service: info.url, title: info.title }];
   let text = "";
   try { text = await (await fetch(`${AGOL}/${itemId}/data?f=json`)).text(); } catch (e) { /* no data */ }
-  const ids = [...new Set((text.match(/\b[0-9a-f]{32}\b/g) || []).filter((x) => x !== itemId))];
+  const named = arcgisExperienceIds(text);
+  const ids = named.length ? named : [...new Set((text.match(/\b[0-9a-f]{32}\b/g) || []).filter((x) => x !== itemId))];
   const out = [];
   for (const id of ids) {
     try { out.push(...(await arcgisWebmapsOf(id, seen))); } catch (e) { /* not public or not a map */ }
@@ -3652,8 +3669,23 @@ function pointOf(r) {
 async function readEjatlas(cfg) {
   const items = [];
   let url = `${cfg.api}?limit=500&offset=0`, pages = 0, sample = null;
-  while (url && pages < 40) {
-    const j = await getJson(url.replace(/^http:/, "https:"), 60000);
+  // The first page says how many there are; the rest are then read four at a
+  // time rather than one after another (about a second and a quarter each),
+  // which is what made the row slow (22 September, round 5).
+  const pagesRead = [];
+  const first = await getJson(url, 60000);
+  pagesRead.push(first);
+  if (Number.isFinite(Number(first.count)) && first.next) {
+    const offsets = [];
+    for (let o = 500; o < Number(first.count) && offsets.length < 39; o += 500) offsets.push(o);
+    for (let i = 0; i < offsets.length; i += 4) {
+      const got = await Promise.all(offsets.slice(i, i + 4).map((o) =>
+        getJson(`${cfg.api}?limit=500&offset=${o}`, 60000).catch(() => null)));
+      got.forEach((j) => { if (j) pagesRead.push(j); });
+    }
+    url = null;
+  } else url = first.next;
+  const handle = (j) => {
     for (const r of j.results || []) {
       sample = sample || r;
       const g = pointOf(r);
@@ -3667,6 +3699,12 @@ async function readEjatlas(cfg) {
           `<table>${fieldRows(r, ["id", "slug", "image", "headline", "title", "name", "lat", "lon", "lng", "latitude", "longitude"])}</table>` +
           (link ? `<p><a href="${escapeHtml(link)}" target="_blank" rel="noopener">Open on EJAtlas</a></p>` : "") + `</div>` });
     }
+  };
+  pagesRead.forEach(handle);
+  // A service that does not give its count is read page by page, as before.
+  while (url && pages < 40) {
+    const j = await getJson(url.replace(/^http:/, "https:"), 60000);
+    handle(j);
     url = j.next; pages++;
   }
   if (!items.length && sample) console.warn(`[culprits] ejatlas: no position found in its records; their fields are ${Object.keys(sample).join(", ")}`);
@@ -3888,7 +3926,7 @@ async function readTraseFacilities(cfg) {
   try {
     const m = await getJson(cfg.manifest);
     const hit = (m.types || []).find((t) => t.id === cfg.facilityType);
-    if (hit && hit.file) { file = hit.file; base = m.base || base; }
+    if (hit && hit.file) { file = hit.file; base = hit.base || m.base || base; }   // the weekly copy, where one was made
   } catch (e) { /* the manifest is not built yet: use the file known when this was written */ }
   const gj = await getJson(base + file, 120000);
   const items = (gj.features || []).map((f, i) => {
@@ -4624,7 +4662,10 @@ async function addWmsMenuLayer(cfg) {
   layers.sort((a, b) => a.title.localeCompare(b.title));
   cfg._layers = layers;
   const tilesFor = (l) => `${l.base}?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=${encodeURIComponent(l.name)}&STYLES=` +
-    `&SRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=true`;
+    `&SRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=512&HEIGHT=512&FORMAT=image/png&TRANSPARENT=true`;
+  // Squares of 512 pixels, a quarter as many requests: Nusantara's server
+  // takes 2 to 12 seconds for each picture (measured 22 September), so the
+  // number asked for is what decides how long a layer takes to fill in.
   // The same title served twice (the site runs two map servers) says which.
   const seen = {};
   layers.forEach((l) => { seen[l.title] = (seen[l.title] || 0) + 1; });
@@ -4638,7 +4679,7 @@ async function addWmsMenuLayer(cfg) {
   const canRead = async (l) => {
     if (!(l.base in readable)) {
       try {
-        const r = await fetch(tilesFor(l).replace("{bbox-epsg-3857}", "0,0,1,1").replace("WIDTH=256&HEIGHT=256", "WIDTH=2&HEIGHT=2"));
+        const r = await fetch(tilesFor(l).replace("{bbox-epsg-3857}", "0,0,1,1").replace("WIDTH=512&HEIGHT=512", "WIDTH=2&HEIGHT=2"));
         readable[l.base] = r.ok;
       } catch (e) { readable[l.base] = false; }
     }
@@ -4690,7 +4731,7 @@ async function addWmsMenuLayer(cfg) {
             adding.delete(i);
             if (map.getLayer(lid(i))) return;
             const plain = tilesFor(layers[i]);
-            map.addSource(lid(i), { type: "raster", tileSize: 256, attribution: cfg.attribution || "",
+            map.addSource(lid(i), { type: "raster", tileSize: 512, attribution: cfg.attribution || "",
               tiles: [ok ? plain.replace(/^https:\/\//, "seen://") : plain] });
             map.addLayer({ id: lid(i), type: "raster", source: lid(i), paint: { "raster-opacity": 0.85 } });
             apply(visibility.get(cfg.id) || "none");
@@ -4760,6 +4801,73 @@ const GFW_ABOUT = {
   wdpa_licensed_protected_areas: "The World Database on Protected Areas as licensed to Global Forest Watch. There is a second worldwide row, the public release; the records do not say how the two differ beyond that.",
 };
 // Where a dataset is, where the record's own wording does not fit a title.
+// What a picture's pixel values mean, for the datasets Global Forest Watch
+// publishes as one GeoTIFF of numbers (drawn grey by its tile service unless it
+// is told a colour for each). Each is drawn in these colours and its key is
+// shown under its row and in the Showing box (22 September, round 5). Codes
+// are the publishers' own, as cited; nothing here is a guess at a code.
+const GFW_KEYS = {
+  // Sims et al. 2025, WRI and Google DeepMind; codes as the Zenodo record gives
+  // them (Driver_primary_code): 1 to 7.
+  wri_google_tree_cover_loss_drivers: { values: [
+    [1, "#8C5A4E", "Permanent agriculture"],
+    [2, "#6F5A7A", "Hard commodities (mining and energy)"],
+    [3, "#6E8058", "Shifting cultivation"],
+    [4, "#4F6E6A", "Logging"],
+    [5, "#B0707C", "Wildfire"],
+    [6, "#A9A39A", "Settlements and infrastructure"],
+    [7, "#5E6D8A", "Other natural disturbances"]],
+    source: "codes from the dataset's Zenodo record (Sims et al. 2025)" },
+  // DIST-ALERT's pixels carry the confidence as their first digit (2 low, 3
+  // high) and the date in the rest; its values run from 20,759 to 32,083.
+  umd_glad_dist_alerts: { ranges: [
+    [20000, 30000, "#9E7A86", "Low confidence"],
+    [30000, 40000, "#D9B8BF", "High confidence"]],
+    source: "the first digit of each pixel is its confidence" },
+  // Eleven classes; Global Forest Watch's record gives no name for each number,
+  // so the key names them by number rather than guessing which is which.
+  wur_integration_alert_drivers_class: { values: [
+    [1, "#8C5A4E", "Class 1"], [2, "#6F5A7A", "Class 2"], [3, "#6E8058", "Class 3"], [4, "#4F6E6A", "Class 4"],
+    [5, "#B0707C", "Class 5"], [6, "#A9A39A", "Class 6"], [7, "#5E6D8A", "Class 7"], [8, "#7A6A5C", "Class 8"],
+    [9, "#5C7A73", "Class 9"], [10, "#8A7486", "Class 10"], [11, "#6A6258", "Class 11"]],
+    source: "the record names no driver for each number; the kinds GFW describes include small- and large-scale agriculture, roads, mining and wildfire" },
+};
+const hexRgba = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)).concat(255);
+// The colour instruction the tile service takes (titiler's colormap).
+function gfwColormap(key) {
+  if (key.values) return Object.fromEntries(key.values.map(([v, c]) => [String(v), hexRgba(c)]));
+  return key.ranges.map(([lo, hi, c]) => [[lo, hi], hexRgba(c)]);
+}
+// Keys of the catalogue rows drawn now, for the Showing box.
+const CATALOGUE_KEYS = new Map();
+function catalogueKeyHtml(k) {
+  return (k.values || k.ranges).map((e) => {
+    const [c, label] = k.values ? [e[1], e[2]] : [e[2], e[3]];
+    return `<div class="lg-row lg-sub" style="padding-left:18px"><span class="lg-sw lg-key" style="background:${c}"></span>` +
+      `<span class="lg-nm">${escapeHtml(label)}</span></div>`;
+  }).join("");
+}
+function catalogueKeyShow(key, title, k) {
+  CATALOGUE_KEYS.set(key, { title, k });
+  const box = document.getElementById("layers");
+  const tick = box && box.querySelector ? box.querySelector(`[data-cat="${key}"]`) : null;
+  const row = tick && tick.closest ? tick.closest("label") : null;
+  if (row && row.after && !box.querySelector(`.facet[data-key-for="${key}"]`)) {
+    const el = document.createElement("div");
+    el.className = "facet cat-key";
+    el.dataset.keyFor = key;
+    el.innerHTML = catalogueKeyHtml(k) + `<div style="padding-left:18px;font-size:10.5px;color:var(--dim)">${escapeHtml(k.source)}</div>`;
+    row.after(el);
+  }
+  buildLegend();
+}
+function catalogueKeyHide(key) {
+  CATALOGUE_KEYS.delete(key);
+  const box = document.getElementById("layers");
+  const el = box && box.querySelector ? box.querySelector(`.facet[data-key-for="${key}"]`) : null;
+  if (el) el.remove();
+  buildLegend();
+}
 const GFW_WHERE = {
   intl_rivers_dam_hotspots: "the world\u2019s 50 major river basins",
 };
@@ -4796,7 +4904,10 @@ function gfwPickAsset(assets) {
   if (vec) return { how: "vector", slow: !/static/i.test(vec.asset_type), uri: vec.asset_uri, ...gfwZooms(vec) };
   const ras = kind(/raster tile cache/i);
   if (ras) return { how: "raster", uri: ras.asset_uri, ...gfwZooms(ras) };
-  const cog = kind(/^COG$/i, saved.filter((a) => /^s3:\/\//.test(a.asset_uri || "")));
+  // Of several COGs, the classification itself (default.tif, class.tif) before
+  // the "intensity" ones, which are only for fading the picture wider out.
+  const cogs = saved.filter((a) => /^s3:\/\//.test(a.asset_uri || "") && /^COG$/i.test(a.asset_type || ""));
+  const cog = cogs.find((a) => /\/(default|class)\.tif$/.test(a.asset_uri)) || cogs.find((a) => !/intensity/.test(a.asset_uri)) || cogs[0];
   if (cog) return { how: "cog", uri: GFW_COG_TILES + encodeURIComponent(cog.asset_uri), minzoom: 0, maxzoom: 12 };
   const waiting = (assets || []).some((a) => /tile cache/i.test(a.asset_type || "") && !/saved/i.test(a.status || ""));
   return { how: "none", waiting };
@@ -4890,6 +5001,7 @@ async function addGfwMenuLayer(cfg) {
     ? `${drawn.size} of ${items.length} datasets drawn`
     : `${items.length} datasets, each a row below`) + (leftOut.length ? ` \u00b7 ${leftOut.length} more are downloads only and have no row` : ""));
   const take = (d) => {
+    if (GFW_KEYS[d.id]) catalogueKeyHide(d.key);
     for (const id of drawn.get(d.id) || []) if (map.getLayer(id)) map.removeLayer(id);
     if (map.getSource(`${cfg.id}-${safe(d.id)}`)) map.removeSource(`${cfg.id}-${safe(d.id)}`);
     drawn.delete(d.id);
@@ -4916,7 +5028,10 @@ async function addGfwMenuLayer(cfg) {
       }
       const asset = gfwPickAsset(assets);
       const vec = asset.how === "vector" ? { asset_uri: asset.uri } : null;
-      const ras = asset.how === "raster" || asset.how === "cog" ? { asset_uri: asset.uri } : null;
+      const key = asset.how === "cog" ? GFW_KEYS[d.id] : null;
+      // A keyed GeoTIFF is asked for in its key's colours, one colour per code.
+      const ras = asset.how === "raster" || asset.how === "cog"
+        ? { asset_uri: key ? `${asset.uri}&colormap=${encodeURIComponent(JSON.stringify(gfwColormap(key)))}` : asset.uri } : null;
       const about = [d.meta.license ? `licence: ${d.meta.license}` : "", d.meta.source ? `source: ${String(d.meta.source).replace(/\[|\]\([^)]*\)/g, "")}` : ""].filter(Boolean).join("; ");
       if (vec) {
         const uri = vec.asset_uri;
@@ -4942,8 +5057,13 @@ async function addGfwMenuLayer(cfg) {
         }
       } else if (ras) {
         map.addSource(src, { type: "raster", tileSize: 256, tiles: [ras.asset_uri], minzoom: asset.minzoom, maxzoom: asset.maxzoom });
-        map.addLayer({ id: `${src}-r`, type: "raster", source: src, paint: { "raster-opacity": 0.8, "raster-saturation": -0.3 } });
+        // Keyed pictures keep their key's colours exactly and are not blurred
+        // between codes; others are toned down as before.
+        map.addLayer({ id: `${src}-r`, type: "raster", source: src, paint: key
+          ? { "raster-opacity": 0.9, "raster-resampling": "nearest" }
+          : { "raster-opacity": 0.8, "raster-saturation": -0.3 } });
         ids.push(`${src}-r`);
+        if (key) catalogueKeyShow(d.key, d.title, key);
       } else {
         setLayerState(cfg.id, `${d.title}: Global Forest Watch publishes no map tiles for this dataset (download only)`);
         rowSay(d.key, (asset.waiting
@@ -7737,7 +7857,7 @@ function buildLegend() {
     }
   }
 
-  if (!shown.length) { box.hidden = true; return; }
+  if (!shown.length && !(typeof CATALOGUE_KEYS !== "undefined" && CATALOGUE_KEYS.size)) { box.hidden = true; return; }
   box.hidden = false;
 
   // Each line takes a tick of its own, left of its colour, so a layer can be
@@ -7750,8 +7870,14 @@ function buildLegend() {
     `<span class="lg-nm">${c.name}</span>` +
     `<span class="lg-un">${c.unit || ""}</span></div>`).join("");
 
+  // A catalogue row drawn from a key: its title, then each colour and what it
+  // means, indented under it (22 September, round 5).
+  const keyed = typeof CATALOGUE_KEYS === "undefined" ? "" : [...CATALOGUE_KEYS.entries()].map(([key, { title, k }]) =>
+    `<div class="lg-row"><input type="checkbox" class="lg-on" data-lg-cat="${escapeHtml(key)}" checked aria-label="Hide ${escapeHtml(title)}" title="Hide this layer">` +
+    `<span class="lg-sw" style="background:none"></span><span class="lg-nm">${escapeHtml(title)}</span></div>` +
+    catalogueKeyHtml(k)).join("");
   box.innerHTML =
-    `<div class="lg-hd">Showing</div>${rows}` +
+    `<div class="lg-hd">Showing</div>${rows}${keyed}` +
     `<div class="lg-rule"></div>` +
     `<div class="lg-row"><span class="lg-sw lg-hollow"></span>` +
     `<span class="lg-nm">hollow</span>` +
@@ -7761,6 +7887,13 @@ function buildLegend() {
   if (!box.dataset.wired) {
     box.dataset.wired = "1";
     box.addEventListener("change", (e) => {
+      // A keyed catalogue row: unticked here, unticked in the layers box.
+      const c = e.target && e.target.closest && e.target.closest("[data-lg-cat]");
+      if (c) {
+        const t = document.querySelector(`[data-cat="${c.dataset.lgCat}"]`);
+        if (t) { t.checked = c.checked; t.dispatchEvent(new Event("change", { bubbles: true })); }
+        return;
+      }
       const i = e.target && e.target.closest && e.target.closest("[data-lg]");
       if (!i) return;
       const row = document.querySelector(`[data-layer="${i.dataset.lg}"]`);
@@ -9685,6 +9818,16 @@ const NOT_LIVE = {
   wastewater: "The Global Wastewater Model, from copies kept here; the model is not updated",
   trase_measures: "Trase's values come from a copy made weekly; only the region shapes are read live",
   atlas_cities: "The places are from a copy made weekly; each city's own page is read live",
+  // Trase's file server sends no CORS header (checked 22 September), so its
+  // facilities maps are read from a weekly copy in culprits-tiles-more.
+  trase_meat_brazil: "Trase's facilities file, from a copy made weekly (its file server does not let other sites read it)",
+  trase_silos_brazil: "Trase's facilities file, from a copy made weekly (its file server does not let other sites read it)",
+  trase_cocoa_ivory: "Trase's facilities file, from a copy made weekly (its file server does not let other sites read it)",
+  trase_palm_indonesia: "Trase's facilities file, from a copy made weekly (its file server does not let other sites read it)",
+  trase_pulp_indonesia: "Trase's facilities file, from a copy made weekly (its file server does not let other sites read it)",
+  trase_pulp_concessions_2015: "Trase's facilities file, from a copy made weekly (its file server does not let other sites read it)",
+  trase_pulp_concessions_2020: "Trase's facilities file, from a copy made weekly (its file server does not let other sites read it)",
+  trase_pulp_concessions_2023: "Trase's facilities file, from a copy made weekly (its file server does not let other sites read it)",
 };
 
 /* ---------- the layers box, in the order and under the headings chosen ---------- */

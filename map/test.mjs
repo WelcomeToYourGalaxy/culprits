@@ -3143,5 +3143,29 @@ console.log("\nthe Atlas's own maps, on this map (22 September)");
   check("the plates are placed by the towns named on each page, with outliers set aside and the error measured",
         /def place_page\(labels, width_pt, height_pt, seed=0\):/.test(py) && /TRIES = 4000/.test(py) && /"error_km": round\(rms, 1\)/.test(py) && /MIN_AGREE = 5/.test(py));
 }
+console.log("\nround of 22 September (5): what check-sources found");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const k = new Function("escapeHtml", src.slice(src.indexOf("const GFW_KEYS = {"), src.indexOf("function catalogueKeyShow(")) + "; return { GFW_KEYS, gfwColormap, catalogueKeyHtml };")((x) => String(x));
+  const d = k.GFW_KEYS.wri_google_tree_cover_loss_drivers;
+  check("the drivers are coloured by the publishers' own codes, 1 to 7, in their order",
+        d.values.map((v) => v[0]).join() === "1,2,3,4,5,6,7" && d.values[0][2] === "Permanent agriculture" && d.values[4][2] === "Wildfire" &&
+        d.values[6][2] === "Other natural disturbances");
+  check("\u2026and the tile service is told one colour per code", JSON.stringify(k.gfwColormap(d)["1"]) === JSON.stringify([140, 90, 78, 255]));
+  check("DIST-ALERT is coloured by its confidence digit, as ranges", JSON.stringify(k.gfwColormap(k.GFW_KEYS.umd_glad_dist_alerts)[0][0]) === "[20000,30000]");
+  check("the WUR classes are keyed by number, not given guessed names", k.GFW_KEYS.wur_integration_alert_drivers_class.values.every((v) => /^Class \d+$/.test(v[2])));
+  const all = Object.values(k.GFW_KEYS).flatMap((x) => (x.values || x.ranges).map((e) => x.values ? e[1] : e[2]));
+  check("no key colour is orange or yellow", all.every((h) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); return !(r > 150 && g > 110 && b < 90); }));
+  check("a keyed picture's key is under its row and indented in the Showing box",
+        /catalogueKeyShow\(d\.key, d\.title, key\)/.test(src) && /padding-left:18px/.test(k.catalogueKeyHtml(d)) && /\$\{rows\}\$\{keyed\}/.test(src));
+  check("of several GeoTIFFs, the classification is drawn, not the intensity one", /\/\\\/\(default\|class\)\\\.tif\$\/\.test\(a\.asset_uri\)/.test(src));
+  const ex = new Function(src.slice(src.indexOf("function arcgisExperienceIds("), src.indexOf("async function arcgisWebmapsOf(")) + "; return arcgisExperienceIds;")();
+  check("an Experience Builder app's own maps are read first",
+        JSON.stringify(ex(JSON.stringify({ dataSources: { a: { type: "WEB_MAP", itemId: "0123456789abcdef0123456789abcdef" }, b: { type: "IMAGE", itemId: "fedcba9876543210fedcba9876543210" } } }))) === '["0123456789abcdef0123456789abcdef"]');
+  check("EJAtlas's pages after the first are read four at a time", /offsets\.slice\(i, i \+ 4\)\.map/.test(src));
+  check("Nusantara's pictures come in squares of 512", /WIDTH=512&HEIGHT=512/.test(src) && /map\.addSource\(lid\(i\), \{ type: "raster", tileSize: 512/.test(src));
+  check("Trase's facilities are read from the weekly copy where one was made, and say NOT LIVE",
+        /base = hit\.base \|\| m\.base \|\| base;/.test(src) && /trase_silos_brazil: "Trase's facilities file, from a copy made weekly/.test(src));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

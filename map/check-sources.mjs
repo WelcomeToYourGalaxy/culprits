@@ -8,7 +8,8 @@
  * say about their pixel values. Then the files in the wastewater model's data
  * package.
  *
- * Run: node map/check-sources.mjs
+ * Run: node map/check-sources.mjs            everything
+ *      node map/check-sources.mjs round2     without the long Global Forest Watch and KNB sections
  * Paste everything it prints back into the chat.
  */
 const ORIGIN = "https://welcometoyourgalaxy.github.io";
@@ -68,6 +69,46 @@ for (const layer of ["v3p3_alertfire_modis", "v3p3_alertfire_viirs", "v3p3_alert
     `${nus}?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=${layer}&STYLES=&SRS=EPSG:3857&BBOX=10018754,-1252344,12523443,1252344&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=true`);
 }
 
+console.log("\n=== Round 2 (22 September): where the answers were not enough ===\n");
+// uMap: the same layers at the address the map's own settings give, without the language part.
+if (umj) {
+  const tpl = umj.properties && umj.properties.urls && (umj.properties.urls.datalayer_view || umj.properties.urls.datalayer_get);
+  console.log(`    the map's own address for a layer: ${tpl || "(none given)"}`);
+  const first = (layers || [])[0];
+  const id = first && (first.id || (first.properties && first.properties.id));
+  if (id) {
+    const forms = [tpl && "https://umap.openstreetmap.fr" + tpl.replace("{map_id}", "409815").replace("{pk}", id).replace("{datalayer_id}", id),
+      `https://umap.openstreetmap.fr/datalayer/409815/${id}/`];
+    for (const u of forms.filter(Boolean)) await ask(`(30) Wreckers of the Earth, layer ${id} at ${u}`, u, { show: 160 });
+  }
+}
+// USDA: which of its servers answer at all, and what they list.
+for (const u of ["https://gis.ipad.fas.usda.gov/arcgis/rest/services?f=json", "https://geo.fas.usda.gov/arcgis/rest/services?f=json",
+                 "https://ipad.fas.usda.gov/cropexplorer/", "https://ipad.fas.usda.gov/"]) {
+  await ask(`(22/23) USDA: ${u}`, u, { show: 600 });
+}
+// GFW's tile service: does it colour a GeoTIFF when told the colours?
+{
+  const cog = "s3://gfw-data-lake/wri_google_tree_cover_loss_drivers/v20241224/raster/epsg-4326/cog/default.tif";
+  const cm = encodeURIComponent(JSON.stringify({ 1: [140, 90, 78, 255], 5: [176, 112, 124, 255] }));
+  const got = await ask("(21) Drivers in colour, one square over the Amazon", `${COG}/tiles/WebMercatorQuad/4/5/8.png?url=${encodeURIComponent(cog)}&colormap=${cm}`);
+  if (got && got.r.ok) console.log("    the square came back as a picture; if the colours are wrong on the map, say so and I will read this square's pixels next.");
+}
+// The wastewater package: the files' own addresses (the first reading listed names only).
+{
+  const e = await ask("(26) Wastewater package, file addresses", "https://knb.ecoinformatics.org/knb/d1/mn/v2/object/doi%3A10.5063%2FF76B09", { ms: 90000 });
+  if (e && e.body) {
+    for (const m of e.body.matchAll(/<otherEntity[^>]*?(?:id="([^"]+)")?[^>]*>[\s\S]*?<entityName>([^<]+)<\/entityName>[\s\S]*?<\/otherEntity>/g)) {
+      const block = m[0];
+      const url = (/<url[^>]*>([^<]+)<\/url>/.exec(block) || [])[1] || "";
+      const size = (/<size[^>]*>([^<]+)<\/size>/.exec(block) || [])[1] || "?";
+      console.log(`    ${m[2]} | id ${m[1] || "-"} | ${size} bytes | ${url}`);
+    }
+  }
+  await ask("(26) the package's list of files", "https://knb.ecoinformatics.org/knb/d1/mn/v2/query/solr/?q=resourceMap:%22resource_map_doi:10.5063/F76B09%22&fl=identifier,fileName,size&rows=50&wt=json", { show: 2500 });
+}
+
+if (!process.argv.includes("round2")) {
 console.log("\n=== Global Forest Watch pictures: what their pixels mean ===\n");
 const GFW_IDS = ["tsc_tree_cover_loss_drivers", "wri_google_tree_cover_loss_drivers", "tsc_drivers", "umd_drivers",
   "wur_integration_alert_drivers_class", "umd_glad_dist_alerts", "umd_modis_burned_areas", "gfw_mining_concessions"];
@@ -101,5 +142,6 @@ if (eml && eml.body) {
   const sizes = [...eml.body.matchAll(/<size[^>]*>([^<]+)<\/size>/g)].map((x) => x[1]);
   names.forEach((n, i) => console.log(`    ${n} | ${sizes[i] || "?"} bytes | ${urls[i] || ""}`));
   if (!names.length) console.log("    " + eml.body.slice(0, 800).replace(/\s+/g, " "));
+}
 }
 console.log("\nDone.");
