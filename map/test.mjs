@@ -2751,6 +2751,8 @@ console.log("\nNusantara's layers say what they show");
             /readPiece\(`data\/pieces\/\$\{p\.source\}`, p\.id\)/.test(src) && /Every field the source publishes/.test(src) &&
             /h = \(\(h \^ b\) \* 0x01000193\) & 0xFFFFFFFF/.test(norm));
       const fieldRows = new Function("escapeHtml", src.match(/function fieldRows[\s\S]*?\n}\n/)[0] + "; return fieldRows;")((x) => String(x));
+      check("\u2026and a value JSON cannot write (a set, a date) is written plainly rather than stopping the harvest",
+            /json\.dumps\(row, separators=\(",", ":"\), default=_plain\)/.test(fs.readFileSync(path.join(HERE, "..", "pipeline", "harvest.py"), "utf8")));
       check("\u2026a nested value in a copied file's record is written out, not dropped",
             /Notes<\/th><td>\["a","b"\]/.test(fieldRows({ Notes: ["a", "b"], Empty: [] })) && !/Empty/.test(fieldRows({ Notes: ["a"], Empty: [] })));
     }

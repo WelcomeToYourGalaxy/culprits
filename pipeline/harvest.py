@@ -36,6 +36,15 @@ def load_state(path):
     return json.loads(p.read_text()) if p.exists() else {}
 
 
+def _plain(value):
+    """What json.dumps cannot write on its own, written plainly."""
+    if isinstance(value, (set, frozenset)):
+        return sorted(value, key=str)
+    if isinstance(value, bytes):
+        return value.decode("utf-8", "replace")
+    return str(value)
+
+
 def save_state(path, state):
     pathlib.Path(path).write_text(json.dumps(state, indent=1, sort_keys=True))
 
@@ -118,7 +127,12 @@ def harvest_one(meta):
     count = 0
     with gzip.open(out, "wt", encoding="utf-8") as fh:
         for row in rows:
-            fh.write(json.dumps(row, separators=(",", ":")) + "\n")
+            # A harvester's row may carry a value JSON has no form for - a set, a
+            # date, a Decimal - now that the whole source row travels as "raw".
+            # The Climate TRACE run of 22 September died on one such set in the
+            # waste sector after four hours of parsing. Sets become sorted
+            # lists; anything else becomes its text. Nothing is left out.
+            fh.write(json.dumps(row, separators=(",", ":"), default=_plain) + "\n")
             count += 1
     if not count:
         out.unlink(missing_ok=True)
