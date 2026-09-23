@@ -317,6 +317,24 @@ Cost: three more package downloads per sector per run (agriculture's co2e
 package alone is 1.4 GB), so the per-gas harvest should run as its own job
 with its own ETags rather than inside the existing one. Not written yet.
 
+## The Satellite relief, fourth version (22 September, late)
+
+The softened version dropped the tint and shading close in and lost the
+look; the owner wants them kept at every zoom, minus the plastic sheen, and
+a sunlit rather than overcast world view. Tint opacity 1 at zoom 2 easing to
+0.6 at 16 (never 0); land tint a lusher green, sea a clearer deep blue.
+Main shading exaggeration 1 at 2 to 0.55 at 15; lights faint and warm (at
+most 0.14), shadows at most 0.8. The depth light, which smoothed the coarse
+elevation into rounded sheets close in, is gone by zoom 11. Imagery: max 1,
+saturation +0.2, contrast 0.1. Vignette halved (0.18). Fog stays at the
+horizon only.
+
+On the flat map not dragging past its edges: checked in headless Chromium on
+the live code (6032c70), flat map, Satellite and Atlas, with and without 3D
+terrain (terrain drawn from real elevation), by mouse drag - the map goes
+past its edge into the stars in every case. Not reproduced; waiting on the
+owner's steps.
+
 ## The Satellite relief, softened (22 September, evening)
 
 The owner found the stacked shading rocky and grainy, the slopes sheened and

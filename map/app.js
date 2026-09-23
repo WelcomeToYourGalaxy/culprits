@@ -788,8 +788,8 @@ const BASE_GRADE = {
   // in earth tones (SAT_RELIEF below): the imagery is only a little muted, so
   // the ground keeps its own colour and texture, and the relief's palette and
   // Swiss-style shading are laid over it.
-  satellite: { "raster-brightness-min": 0.0, "raster-brightness-max": 0.9,
-               "raster-saturation": 0.06, "raster-contrast": 0.08,
+  satellite: { "raster-brightness-min": 0.02, "raster-brightness-max": 1,
+               "raster-saturation": 0.2, "raster-contrast": 0.1,
                "raster-hue-rotate": 0 },
 };
 let BASEMAP = "atlas";
@@ -811,43 +811,46 @@ let BASEMAP = "atlas";
 //           the depth one layer can, which is what lifts it off the page at
 //           world view. Shadows green-black, lights faint, so no haze.
 const SAT_RELIEF = {
-  // Revised the same evening: the stacked shading read rocky and grainy, the
-  // lights read as a sheen on the slopes, and close in the drawn relief lay
-  // over the photograph like a plastic sheet. The photograph already carries
-  // real texture and real sun shadows - fuzzy canopy, rock, water - so the
-  // drawn relief now works only where the photograph cannot: wide out. It
-  // gives way with the zoom and is gone by zoom 14, leaving the photograph
-  // untouched close in.
+  // Fourth version, 22 September, late. The owner wants the drawn tint and
+  // shading kept at every zoom (the softened version dropped them close in
+  // and lost the look), without the flat, glossy, plastic sheen up close, and
+  // a sunlit rather than overcast world view, still prehistoric.
+  //   sunlit    brighter, livelier imagery; the land tint a lusher green and
+  //             the sea a clearer deep blue, instead of darkening veils.
+  //   no sheen  what read as plastic was the pale lights on the slopes, and
+  //             the second (depth) light smoothing everything into rounded
+  //             forms close in, where the elevation data is coarser than the
+  //             photograph. So: faint warm lights only, and the depth light
+  //             kept for the wide views and gone by zoom 11. The main shading
+  //             and the tint stay at every zoom, easing a little close in.
   colour: ["interpolate", ["linear"], ["elevation"],
-    -8000, "rgba(10,20,32,0.85)", -3000, "rgba(14,28,42,0.8)", -500, "rgba(22,42,58,0.7)",
-    -60, "rgba(30,60,72,0.5)", 0, "rgba(30,60,72,0.35)",
-    1, "rgba(28,48,26,0.3)", 400, "rgba(34,54,30,0.3)", 1200, "rgba(48,62,38,0.26)",
-    2200, "rgba(78,72,56,0.24)", 3500, "rgba(96,90,80,0.24)", 5500, "rgba(110,104,96,0.26)"],
-  colourOpacity: ["interpolate", ["linear"], ["zoom"], 2, 1, 8, 0.75, 11, 0.4, 13, 0.12, 14, 0],
-  // Light from four directions, weighted to the north-west. Shadows soft and
-  // green-black; almost no lights (a lit slope on a photograph reads as a
-  // sheen); and it fades out with the zoom, as the photograph's own
-  // shadows take over.
+    -8000, "rgba(8,30,56,0.8)", -3000, "rgba(10,38,66,0.75)", -500, "rgba(18,58,84,0.6)",
+    -60, "rgba(26,84,100,0.42)", 0, "rgba(26,84,100,0.3)",
+    1, "rgba(40,86,34,0.3)", 400, "rgba(46,90,38,0.3)", 1200, "rgba(62,92,46,0.26)",
+    2200, "rgba(96,86,62,0.24)", 3500, "rgba(112,104,92,0.24)", 5500, "rgba(124,118,108,0.26)"],
+  colourOpacity: ["interpolate", ["linear"], ["zoom"], 2, 1, 10, 0.85, 14, 0.7, 16, 0.6],
+  // Light from four directions, weighted to the north-west (Swiss style):
+  // green-black shadows, faint warm sunlight on the lit faces.
   shade: {
     "hillshade-method": "multidirectional",
     "hillshade-illumination-direction": [270, 315, 0, 225],
-    "hillshade-illumination-altitude": [35, 40, 35, 55],
-    "hillshade-highlight-color": ["rgba(236,238,220,0.04)", "rgba(236,238,220,0.08)", "rgba(236,238,220,0.04)", "rgba(236,238,220,0)"],
-    "hillshade-shadow-color": ["rgba(8,14,10,0.4)", "rgba(8,14,10,0.7)", "rgba(8,14,10,0.4)", "rgba(8,14,10,0.2)"],
-    "hillshade-accent-color": "rgba(11,19,13,0.5)",
-    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 0.9, 6, 0.75, 9, 0.45, 12, 0.15, 14, 0],
+    "hillshade-illumination-altitude": [32, 38, 32, 52],
+    "hillshade-highlight-color": ["rgba(252,244,220,0.08)", "rgba(252,244,220,0.14)", "rgba(252,244,220,0.06)", "rgba(252,244,220,0)"],
+    "hillshade-shadow-color": ["rgba(8,14,10,0.5)", "rgba(8,14,10,0.8)", "rgba(8,14,10,0.5)", "rgba(8,14,10,0.25)"],
+    "hillshade-accent-color": "rgba(11,19,13,0.6)",
+    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 1, 8, 0.9, 12, 0.7, 15, 0.55],
     "hillshade-illumination-anchor": "map",
   },
-  // A second, low north-west light for depth at the widest views only, where
-  // a continent's ranges are a few pixels; gone by zoom 6.
+  // A second, low north-west light for depth wide out; gone by zoom 11, where
+  // it was what rounded and smoothed the slopes into a sheet.
   depth: {
     "hillshade-method": "standard",
     "hillshade-illumination-direction": 315,
     "hillshade-illumination-anchor": "map",
-    "hillshade-highlight-color": "rgba(236,238,220,0)",
-    "hillshade-shadow-color": "rgba(8,14,10,0.55)",
-    "hillshade-accent-color": "rgba(8,14,10,0.2)",
-    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 0.6, 4, 0.35, 6, 0],
+    "hillshade-highlight-color": "rgba(252,244,220,0)",
+    "hillshade-shadow-color": "rgba(8,14,10,0.7)",
+    "hillshade-accent-color": "rgba(8,14,10,0.3)",
+    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 0.85, 6, 0.55, 9, 0.2, 11, 0],
   },
   // With 3D terrain on, the ground is raised more the further out you are,
   // so ranges still stand up from a continent's height; 1.4 close in.
