@@ -788,40 +788,59 @@ const BASE_GRADE = {
   // in earth tones (SAT_RELIEF below): the imagery is only a little muted, so
   // the ground keeps its own colour and texture, and the relief's palette and
   // Swiss-style shading are laid over it.
-  satellite: { "raster-brightness-min": 0.03, "raster-brightness-max": 0.92,
-               "raster-saturation": -0.3, "raster-contrast": 0.06,
+  satellite: { "raster-brightness-min": 0.0, "raster-brightness-max": 0.88,
+               "raster-saturation": 0.08, "raster-contrast": 0.18,
                "raster-hue-rotate": 0 },
 };
 let BASEMAP = "atlas";
 
-// The Satellite basemap's relief (22 September): shaded relief in the manner of
-// the Swiss school, over the imagery, from the same keyless elevation tiles as
-// 3D terrain.
-//   colour  a terrain palette by height - earth tones, all a little greyed:
-//           slate under the sea, muted green on the lowlands, olive, khaki,
-//           ochre-brown and sienna up the slopes, slate-grey rock, off-white
-//           on the highest ground. Stronger wider out, where the imagery is a
-//           blur; lighter close in, where the imagery's own detail matters.
-//   shade   light from several directions at once, weighted to the north-west,
-//           as the Swiss relief maps are lit: shadows a warm slate, lights
-//           off-white, so slopes model without going black.
+// The Satellite basemap's relief (22 September, third version). The owner
+// found the painted relief flat and two-dimensional from the world view. What
+// makes a landscape pop is the ground's own variety - forest, grassland,
+// desert, ice - which is in the imagery, not in any colour-by-height scheme.
+// So the imagery now carries the colour, graded richer and a little darker,
+// and the relief does two jobs over it:
+//   colour  a see-through tint by height: land pulled toward a deep,
+//           prehistoric forest green (a third of the way at most), high rock
+//           toward grey-brown, never white; the sea darkened to slate-navy,
+//           with the shelves left lighter. Transparent stops, so the imagery's
+//           deserts, forests and ice still show as themselves.
+//   shade   two layers of light. A Swiss-style multidirectional hillshade
+//           (four lights weighted to the north-west) and over it a single
+//           low north-west light: stacked, they give the relief roughly twice
+//           the depth one layer can, which is what lifts it off the page at
+//           world view. Shadows green-black, lights faint, so no haze.
 const SAT_RELIEF = {
   colour: ["interpolate", ["linear"], ["elevation"],
-    -8000, "#2F3A40", -1500, "#3E4A50", -50, "#56625F", 0, "#6A7466",
-    1, "#6B7757", 150, "#737D59", 400, "#83865E", 800, "#97926A", 1300, "#A08F67",
-    1900, "#9A7A57", 2600, "#8C6650", 3300, "#7E6E66", 4200, "#9C978E", 5200, "#CFCABE", 6500, "#ECE8DF"],
-  colourOpacity: ["interpolate", ["linear"], ["zoom"], 2, 0.62, 8, 0.48, 13, 0.3],
+    -8000, "rgba(10,20,32,0.85)", -3000, "rgba(14,28,42,0.8)", -500, "rgba(22,42,58,0.7)",
+    -60, "rgba(30,60,72,0.5)", 0, "rgba(30,60,72,0.35)",
+    1, "rgba(28,48,26,0.34)", 400, "rgba(34,54,30,0.34)", 1200, "rgba(48,62,38,0.3)",
+    2200, "rgba(78,72,56,0.3)", 3500, "rgba(96,90,80,0.32)", 5500, "rgba(110,104,96,0.35)"],
+  colourOpacity: ["interpolate", ["linear"], ["zoom"], 2, 1, 10, 0.8, 14, 0.55],
   shade: {
     "hillshade-method": "multidirectional",
     "hillshade-illumination-direction": [270, 315, 0, 225],
-    "hillshade-illumination-altitude": [35, 40, 35, 55],
-    "hillshade-highlight-color": ["rgba(246,242,232,0.35)", "rgba(246,242,232,0.55)", "rgba(246,242,232,0.3)", "rgba(246,242,232,0.12)"],
-    "hillshade-shadow-color": ["rgba(52,46,40,0.35)", "rgba(52,46,40,0.65)", "rgba(52,46,40,0.35)", "rgba(52,46,40,0.15)"],
-    "hillshade-accent-color": "#4A4238",
-    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 0.75, 8, 0.6, 13, 0.45],
+    "hillshade-illumination-altitude": [30, 35, 30, 50],
+    "hillshade-highlight-color": ["rgba(236,238,220,0.16)", "rgba(236,238,220,0.32)", "rgba(236,238,220,0.14)", "rgba(236,238,220,0.05)"],
+    "hillshade-shadow-color": ["rgba(6,12,8,0.6)", "rgba(6,12,8,0.95)", "rgba(6,12,8,0.6)", "rgba(6,12,8,0.3)"],
+    "hillshade-accent-color": "#0B130D",
+    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 1, 8, 0.95, 13, 0.8],
     "hillshade-illumination-anchor": "map",
   },
+  depth: {
+    "hillshade-method": "standard",
+    "hillshade-illumination-direction": 315,
+    "hillshade-illumination-anchor": "map",
+    "hillshade-highlight-color": "rgba(236,238,220,0.1)",
+    "hillshade-shadow-color": "rgba(6,12,8,0.75)",
+    "hillshade-accent-color": "rgba(6,12,8,0.4)",
+    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 1, 8, 0.7, 13, 0.4],
+  },
+  // With 3D terrain on, the ground is raised more the further out you are,
+  // so ranges still stand up from a continent's height; 1.4 close in.
+  lift: [[3, 7], [6, 4], [9, 2.4], [12, 1.4]],
 };
+
 
 // The colour washes, as one WebGL layer drawn over the imagery.
 //
@@ -1289,7 +1308,7 @@ const GLOW = {
     0, "rgba(60,30,60,0)", 0.3, "rgba(70,40,70,0.12)", 0.7, "rgba(110,74,106,0.4)", 1, "rgba(176,112,135,0.6)"],
   hazeOpacity: 0.3,                            // very faint: the soft spread only
   core: (w) => ["interpolate", ["linear"], ["sqrt", w], 0, "#6E4A6A", 0.45, "#B07087", 0.8, "#D9B8BF", 1, "#E8DFD0"],
-  grainSatellite: 0.1,                         // the grain over the Satellite basemap, where there is no glow
+  grainSatellite: 0,                           // the grain over the Satellite basemap, where there is no glow
   grain: 0.3,                                  // the grain's strength over the light
   fadeOut: 9, gone: 12,                        // haze and cores: full to 9, gone by 12; the dots the other way
 };
@@ -1896,6 +1915,7 @@ function addSatelliteRelief() {
     map.addLayer({ id: "sat-relief-colour", type: "color-relief", source: "outline-dem",
       paint: { "color-relief-color": SAT_RELIEF.colour, "color-relief-opacity": SAT_RELIEF.colourOpacity } }, before);
     map.addLayer({ id: "sat-relief-shade", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF.shade }, before);
+    map.addLayer({ id: "sat-relief-depth", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF.depth }, before);
   } catch (e) { console.warn("[culprits] satellite relief unavailable:", e.message || e); }
 }
 function setBasemap(kind) {
@@ -1912,6 +1932,8 @@ function setBasemap(kind) {
   if (kind === "satellite") addSatelliteRelief();
   show("sat-relief-colour", kind === "satellite");
   show("sat-relief-shade", kind === "satellite");
+  show("sat-relief-depth", kind === "satellite");
+  if (TERRAIN_ON && map.getTerrain && map.getTerrain()) liftTerrain();
   show("outline-ocean", !imagery);
   show("outline-land", !imagery);
   OUTLINE_IDS.forEach((id) => show(id, !imagery));
@@ -1955,7 +1977,8 @@ const DEFENCE = {
   threat: "#B8473E",
   // A dark slate atmosphere with an earth-grey horizon, not the teal it had.
   sky: { "sky-color": "#14171A", "horizon-color": "#5C5E57", "fog-color": "#5C5E57",
-         "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 1, 4, 0.85, 7, 0] },
+         // Thin: a full atmosphere laid a pale haze over the relief.
+         "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.35, 3, 0.15, 5, 0] },
   guard: ["gsn"],
   maxPulsing: 16,
 };
@@ -6376,6 +6399,27 @@ const TERRAIN_SOURCE = {
   attribution: '<a href="https://registry.opendata.aws/terrain-tiles/" target="_blank" rel="noopener">AWS Terrain Tiles</a>',
 };
 const TERRAIN_EXAGGERATION = 1.4;
+// On the Satellite basemap the raise follows the zoom (SAT_RELIEF.lift),
+// stepped so it is set again only when the step changes, at the end of a zoom.
+function terrainLift() {
+  if (BASEMAP !== "satellite") return TERRAIN_EXAGGERATION;
+  const z = map.getZoom(), L = SAT_RELIEF.lift;
+  if (z <= L[0][0]) return L[0][1];
+  for (let i = 1; i < L.length; i++) if (z <= L[i][0]) {
+    const t = (z - L[i - 1][0]) / (L[i][0] - L[i - 1][0]);
+    return Math.round((L[i - 1][1] + t * (L[i][1] - L[i - 1][1])) * 2) / 2;
+  }
+  return L[L.length - 1][1];
+}
+let liftNow = null;
+function liftTerrain() {
+  if (!TERRAIN_ON || typeof map.setTerrain !== "function" || !map.getSource("terrain-dem")) return;
+  const v = terrainLift();
+  if (v === liftNow) return;
+  liftNow = v;
+  map.setTerrain({ source: "terrain-dem", exaggeration: v });
+}
+if (typeof map.on === "function") map.on("zoomend", liftTerrain);
 let TERRAIN_ON = false;
 
 // Buildings, standing up, while the ground is tilted.
@@ -6438,7 +6482,8 @@ function setTerrain(on) {
   }
   if (TERRAIN_ON) {
     if (!map.getSource("terrain-dem")) map.addSource("terrain-dem", TERRAIN_SOURCE);
-    map.setTerrain({ source: "terrain-dem", exaggeration: TERRAIN_EXAGGERATION });
+    liftNow = terrainLift();
+    map.setTerrain({ source: "terrain-dem", exaggeration: liftNow });
     // Close up, the camera leans over so the ground reads. At world scale it
     // stays upright: the planet's own curve already shows it is round.
     if (typeof map.easeTo === "function" && map.getPitch && map.getPitch() < 25 && map.getZoom() >= 6) {
@@ -6446,6 +6491,7 @@ function setTerrain(on) {
     }
   } else {
     map.setTerrain(null);
+    liftNow = null;
     if (typeof map.easeTo === "function" && map.getPitch && map.getPitch() > 0) {
       map.easeTo({ pitch: 0, duration: 500 });
     }

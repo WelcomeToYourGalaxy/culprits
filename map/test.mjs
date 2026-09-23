@@ -1340,18 +1340,25 @@ console.log("\nreading the map");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   const wireSrc = fs.readFileSync(path.join(HERE, "wire.js"), "utf8");
-  // Redone on 22 September: shaded relief in earth tones, not the grey sensor grade.
-  check("the Satellite basemap is shaded relief in earth tones over lightly muted imagery; the atlas keeps its own grade",
-        /satellite: \{ "raster-brightness-min": 0\.03, "raster-brightness-max": 0\.92,\n\s*"raster-saturation": -0\.3/.test(src) &&
+  // Third version, 22 September: the imagery carries the colour; the relief
+  // tints it and stacks two layers of shading, so the world view is not flat.
+  check("the Satellite basemap is richer imagery under a see-through relief tint and two layers of shading; the atlas keeps its own grade",
+        /satellite: \{ "raster-brightness-min": 0\.0, "raster-brightness-max": 0\.88,\n\s*"raster-saturation": 0\.08/.test(src) &&
         /atlas: \{ "raster-brightness-min": ATLAS_TUNE\.lift/.test(src) &&
         /id: "sat-relief-colour", type: "color-relief", source: "outline-dem"/.test(src) &&
         /id: "sat-relief-shade", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF\.shade/.test(src) &&
-        /"hillshade-method": "multidirectional"/.test(src) && /if \(BASEMAP === "satellite"\) return \[\];/.test(src));
+        /id: "sat-relief-depth", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF\.depth/.test(src) &&
+        /"hillshade-method": "multidirectional"/.test(src) && /show\("sat-relief-depth", kind === "satellite"\);/.test(src));
   {
     const block = src.slice(src.indexOf("const SAT_RELIEF = {"), src.indexOf("\n};", src.indexOf("const SAT_RELIEF = {")));
-    check("\u2026its palette runs slate, muted green, olive, khaki, ochre-brown, sienna, slate-grey rock and off-white, with nothing bright",
-          ["#2F3A40", "#6B7757", "#83865E", "#A08F67", "#9A7A57", "#8C6650", "#7E6E66", "#ECE8DF"].every((c) => block.includes(c)) &&
-          !/#(F[0-9A-F]{2}[0-9A-F]{2}00|FFD|FFA|FF8|E7A63B)/i.test(block));
+    const colour = block.slice(block.indexOf("colour:"), block.indexOf("colourOpacity"));
+    const alphas = [...colour.matchAll(/rgba\((\d+),(\d+),(\d+),([\d.]+)\)/g)];
+    check("\u2026the land tint is see-through (the imagery's own deserts, forests and ice show), dark green to grey-brown, never white",
+          alphas.length >= 10 && alphas.every((m) => Math.max(+m[1], +m[2], +m[3]) <= 120) &&
+          alphas.filter((m, i) => i >= 5).every((m) => +m[4] <= 0.4));
+    check("\u2026with 3D terrain on, the ground is raised more the further out you are, and set again only when the step changes",
+          /lift: \[\[3, 7\], \[6, 4\], \[9, 2\.4\], \[12, 1\.4\]\]/.test(block) && /map\.on\("zoomend", liftTerrain\)/.test(src) &&
+          /if \(v === liftNow\) return;/.test(src) && /if \(BASEMAP !== "satellite"\) return TERRAIN_EXAGGERATION;/.test(src));
   }
   check("\u2026grey labels, the glow's fixed grain over it, and the atlas's tuning knob leaves it alone",
         /"raster-saturation", kind === "satellite" \? -1 : 0/.test(src) && /if \(kind === "satellite"\) glowGrain\(\);/.test(src) &&

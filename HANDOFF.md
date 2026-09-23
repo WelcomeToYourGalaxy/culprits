@@ -317,6 +317,25 @@ Cost: three more package downloads per sector per run (agriculture's co2e
 package alone is 1.4 GB), so the per-gas harvest should run as its own job
 with its own ETags rather than inside the existing one. Not written yet.
 
+## The Satellite relief, third version: imagery forward, stacked shading, 3D lift (22 September, latest)
+
+Replaces the earth-tone hypsometry of patch l (and the unapplied m and n).
+The owner found the painted relief flat and 2D from the world view and asked
+for something that pops, darker prehistoric green, no haze. The imagery now
+carries the colour (grade: max 0.88, saturation +0.08, contrast +0.18), so
+the ground's own forests, deserts and ice show. `sat-relief-colour` is a
+see-through tint by height (rgba stops): land toward deep green at most a
+third of the way, high ground toward grey-brown, sea darkened to slate-navy
+with the shelves lighter; opacity 1 wide to 0.55 at zoom 14. Two hillshades:
+`sat-relief-shade` (multidirectional, green-black shadows) and
+`sat-relief-depth` (one low north-west light) stacked for roughly twice the
+depth one allows. With 3D terrain on and this basemap, the exaggeration
+follows the zoom (`SAT_RELIEF.lift`: 7 at zoom 3 down to 1.4 at 12), set
+again at the end of a zoom only when the half-step changes (`liftTerrain`);
+other basemaps keep 1.4. No grain on satellite; the defence atmosphere thin.
+Previewed in headless Chromium on ETOPO 10' with NASA Blue Marble (three.js
+example texture) standing in for the Esri imagery.
+
 ## The Satellite basemap as earth-tone shaded relief (22 September, later)
 
 Supersedes the sensor grade below, which read dreary and uniform. The
