@@ -761,6 +761,23 @@ owner's request, so a land-cover layer that no other rule claims gets no row
 and is counted in the console (`LEFT_OUT`). Agriculture > Moratoriums from the
 list was not made: Nusantara has one moratorium layer and it is a forest one.
 
+## Round of 23 September (6): every point at every zoom (item 25); soy and corn (item 24)
+
+- **No merged points.** The owner asked for every dot at every zoom. The
+  archives that merged crowded points into counts are now built with none
+  merged (`-r1 --no-feature-limit --no-tile-size-limit`, no `--cluster-*`):
+  culprits-tiles-more `mines.py` (points), `mine_features.py` (points),
+  `abattoir_cafo.py`, `epa_efpoints.py`, `skytruth_tiles.py`, and this repo's
+  `pipeline/cerulean/harvest_points.py`. Each marks its build as unmerged, so
+  the next run rebuilds once. CAFO and EPA lower their deepest zoom only if the
+  file would pass 95 MB. The cost, said to the owner: at the world view each
+  row fetches one heavier square before it draws.
+- **Soy and corn emissions**: Halpern et al. 2022 (Nature Sustainability)
+  maps greenhouse gases, water, disturbance and nutrients per food for 2017;
+  its data is KNB doi:10.5063/F1V69H1B (Frazier et al., Global food system
+  pressure data). `pipeline/knb_list.py` lists the package; the build is
+  written from that list.
+
 ## Round of 23 September (5): the owner's notes on the map
 
 - **No grain.** The fixed-noise overlay (`glowGrain`) textured the whole map

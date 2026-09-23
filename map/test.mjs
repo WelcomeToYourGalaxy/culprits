@@ -3321,5 +3321,12 @@ console.log("\nround of 23 September (5): the Atlas panel pared down; no grain; 
   check("the news wires' open-and-shut arrow sits at the right-hand end of the bar",
         /id="wireEnd"/.test(wire) && /\.wire-toggle \.wire-caret\{display:none\}/.test(wire));
 }
+console.log("\nround of 23 September (6): every point at every zoom; the food package listed");
+{
+  const cer = fs.readFileSync(path.join(HERE, "..", "pipeline", "cerulean", "harvest_points.py"), "utf8");
+  check("Cerulean's slick points are tiled with none merged", !/--cluster-/.test(cer) && /"--no-tile-size-limit"/.test(cer));
+  const knb = fs.readFileSync(path.join(HERE, "..", "pipeline", "knb_list.py"), "utf8");
+  check("the food-footprint package (Halpern et al. 2022) is listed from KNB before a build is written", /doi:10\.5063\/F1V69H1B/.test(knb));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

@@ -166,9 +166,8 @@ def tile(name, src, state):
     maxz = next(z for (_, n, z) in JOBS.values() if n == name)
     cmd = ["tippecanoe", "--quiet", "--force", f"--output={part}", f"--layer={name}", f"--name={name}",
            "--minimum-zoom=0", f"--maximum-zoom={maxz}", "--full-detail=12",
-           # Crowded points are merged, never dropped, and each merged point
-           # carries how many records it stands for.
-           "--cluster-distance=2", "--cluster-densest-as-needed", "--accumulate-attribute=_count:sum",
+           # Every slick at every zoom, none merged (asked for 23 September).
+           "-r1", "--no-feature-limit", "--no-tile-size-limit",
            "--attribution=SkyTruth Cerulean (cerulean.skytruth.org) — potential slicks from Sentinel-1 radar, not confirmed spills",
            str(src)]
     print("  tiling…")
