@@ -1336,15 +1336,21 @@ console.log("\nthe wires on the map");
 
 
 // The Satellite basemap close in: one season of imagery all the way in, and
-// (patch 0922o2) no close-in multiply, as in the third version's look.
+// (23 September, after the paleo-map plates) a green multiply that keeps the
+// photograph's texture, where a see-through sheet flattened it.
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const chunk = src.slice(src.indexOf("const ATLAS_TUNE"), src.indexOf("const atlasWashes"));
-  const f = new Function("abs", chunk + "\nreturn { SAT_CLOSE, atlasWashPasses, setB: (k) => { BASEMAP = k; } };")(() => "");
+  const f = new Function("abs", chunk + "\nreturn { SAT_CLOSE, SAT_TINT, atlasWashPasses, setB: (k) => { BASEMAP = k; } };")(() => "");
   f.setB("satellite");
   const at = (z) => f.atlasWashPasses(z);
-  check("Satellite: no wash at any zoom, so deserts and dry land keep the photograph's colours",
-        [4, 8, 10, 12, 14, 18].every((z) => at(z).length === 0) && !("multiply" in f.SAT_CLOSE));
+  check("Satellite: no wash out to zoom 9; from there a single multiply that reaches its full green at zoom 13 and holds",
+        [4, 8, 9].every((z) => at(z).length === 0) &&
+        [10, 12, 14, 18].every((z) => at(z).length === 1 && at(z)[0].mode === "multiply") &&
+        JSON.stringify(at(13)[0].rgb) === JSON.stringify(at(18)[0].rgb) &&
+        at(11)[0].rgb.every((c, i) => c > at(13)[0].rgb[i] && c < 1));
+  check("…the multiply keeps more green than red or blue, and never darkens a channel below 0.8",
+        (() => { const [r, g, b] = at(13)[0].rgb; return g > r && g > b && Math.min(r, g, b) >= 0.8; })());
   check("…the Sentinel-2 wide views are kept but switched off (SAT_CLOSE.s2 false): Esri's imagery at every zoom, as when patch o was made",
         /tiles: \["https:\/\/tiles\.maps\.eox\.at\/wmts\/1\.0\.0\/s2cloudless-2024_3857\/default\/g\/\{z\}\/\{y\}\/\{x\}\.jpg"\]/.test(src) &&
         /Contains modified Copernicus Sentinel data 2024/.test(src) &&
@@ -1363,24 +1369,36 @@ console.log("\nreading the map");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   const wireSrc = fs.readFileSync(path.join(HERE, "wire.js"), "utf8");
-  // 23 September, latest: after the owner's plates.
-  // 23 September: patch 0922n's look, exactly, on today's code (Esri imagery).
-  check("the Satellite basemap has patch n's look: darker imagery under opaque forest-green relief and deep shading; the atlas keeps its own grade",
-        /satellite: \{ "raster-brightness-min": 0\.0, "raster-brightness-max": 0\.82,\n\s*"raster-saturation": -0\.1, "raster-contrast": 0\.1/.test(src) &&
+  // 23 September, after the owner's paleo-map plates: natural ground colour,
+  // a see-through terrain palette, Swiss-style shading, a calm sea.
+  check("the Satellite basemap is sunlit imagery under a see-through terrain palette, Swiss shading and a calm sea; the atlas keeps its own grade",
+        /satellite: \{ "raster-brightness-min": 0\.02, "raster-brightness-max": 0\.92,\n\s*"raster-saturation": 0\.12, "raster-contrast": 0\.06/.test(src) &&
         /atlas: \{ "raster-brightness-min": ATLAS_TUNE\.lift/.test(src) &&
         /id: "sat-relief-colour", type: "color-relief", source: "outline-dem"/.test(src) &&
         /id: "sat-relief-shade", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF\.shade/.test(src) &&
-        /id: "sat-relief-depth", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF\.depth/.test(src));
+        /id: "sat-relief-depth", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF\.depth/.test(src) &&
+        /id: "sat-relief-sea", type: "color-relief", source: "outline-dem",\n\s*paint: \{ "color-relief-color": SAT_RELIEF\.sea/.test(src) &&
+        /show\("sat-relief-sea", kind === "satellite"\);/.test(src));
   {
     const block = src.slice(src.indexOf("const SAT_RELIEF = {"), src.indexOf("\n};", src.indexOf("const SAT_RELIEF = {")));
-    check("…n's colours: deep forest green, olive then brown on high slopes, grey rock never white; slate-navy seas with lighter shelves",
-          ["#0C1724", "#244856", "#27411F", "#344E27", "#4F5A36", "#615B42", "#746D62", "#827B71"].every((c) => block.includes(c)) &&
-          /colourOpacity: \["interpolate", \["linear"\], \["zoom"\], 2, 0\.92, 8, 0\.78, 13, 0\.5\]/.test(block));
-    check("…n's shading: deep green-black shadows at full strength, no second light; fog at the horizon",
-          /"rgba\(8,14,10,0\.9\)"/.test(block) && /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 2, 1, 8, 0\.9, 13, 0\.75\]/.test(block) &&
-          /depth: \{\n\s*"hillshade-method": "standard",\n\s*"hillshade-exaggeration": 0,/.test(block) && /"fog-ground-blend": 0\.97/.test(src));
-
-    check("…no drawn water and no close-in multiply",
+    const stops = (key, end) => [...block.slice(block.indexOf(key + ":"), block.indexOf(end)).matchAll(/(-?\d+), "rgba\((\d+),(\d+),(\d+),([\d.]+)\)"/g)]
+      .map((m) => ({ h: +m[1], r: +m[2], g: +m[3], b: +m[4], a: +m[5] }));
+    const colour = stops("colour", "colourOpacity"), land = colour.filter((c) => c.h > 0);
+    check("…the land palette is see-through (at most a third) earth tones: green lowlands, then olive, khaki, ochre-brown, sienna and grey-brown rock; no white, no yellow",
+          land.length >= 8 && land.every((c) => c.a <= 0.34 && Math.max(c.r, c.g, c.b) <= 140) &&
+          land[0].g > land[0].r && land[0].g > land[0].b && land.slice(3, 6).every((c) => c.r > c.g && c.g > c.b) &&
+          land.every((c) => !(c.r > 150 && c.g > 130 && c.b < 90)));
+    check("…the sea: navy in the deeps, lighter blue-green shelves, and a calm-sea layer above the shading that clears before the coast",
+          colour.filter((c) => c.h < 0).every((c) => c.b >= c.r) &&
+          stops("sea", "shade").filter((c) => c.h >= -80).every((c) => c.a === 0) &&
+          stops("sea", "shade").filter((c) => c.h <= -3000).every((c) => c.a >= 0.5));
+    check("…Swiss shading weighted to the north-west, faint lights (no sheen), and the second light gone by zoom 7",
+          /"hillshade-illumination-direction": \[315, 270, 0, 225\]/.test(block) &&
+          [...block.matchAll(/rgba\(240,236,222,([\d.]+)\)/g)].every((m) => +m[1] <= 0.1) &&
+          /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 2, 0\.6, 5, 0\.35, 7, 0\]/.test(block) &&
+          /colourOpacity: \["interpolate", \["linear"\], \["zoom"\], 2, 1, 9, 0\.9, 13, 0\.6, 17, 0\.4\]/.test(block) &&
+          /"fog-ground-blend": 0\.97/.test(src));
+    check("…no drawn water",
           !/sat-water/.test(src) && !/closeMultiply/.test(src) &&
           (src.match(/map\.addSource\("osm", Object\.assign\(\{\}, OSM_SOURCE\)\)/g) || []).length === 1);
     check("…the drawn relief reads its heights from Mapterhorn's 512-pixel squares, stopping at zoom 12, and the outline map shares them",

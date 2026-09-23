@@ -788,58 +788,78 @@ const BASE_GRADE = {
   // in earth tones (SAT_RELIEF below): the imagery is only a little muted, so
   // the ground keeps its own colour and texture, and the relief's palette and
   // Swiss-style shading are laid over it.
-  satellite: { "raster-brightness-min": 0.0, "raster-brightness-max": 0.82,
-               "raster-saturation": -0.1, "raster-contrast": 0.1,
+  satellite: { "raster-brightness-min": 0.02, "raster-brightness-max": 0.92,
+               "raster-saturation": 0.12, "raster-contrast": 0.06,
                "raster-hue-rotate": 0 },
 };
 let BASEMAP = "atlas";
 
-// The Satellite basemap's relief (22 September, third version). The owner
-// found the painted relief flat and two-dimensional from the world view. What
-// makes a landscape pop is the ground's own variety - forest, grassland,
-// desert, ice - which is in the imagery, not in any colour-by-height scheme.
-// So the imagery now carries the colour, graded richer and a little darker,
-// and the relief does two jobs over it:
-//   colour  a see-through tint by height: land pulled toward a deep,
-//           prehistoric forest green (a third of the way at most), high rock
-//           toward grey-brown, never white; the sea darkened to slate-navy,
-//           with the shelves left lighter. Transparent stops, so the imagery's
-//           deserts, forests and ice still show as themselves.
-//   shade   two layers of light. A Swiss-style multidirectional hillshade
-//           (four lights weighted to the north-west) and over it a single
-//           low north-west light: stacked, they give the relief roughly twice
-//           the depth one layer can, which is what lifts it off the page at
-//           world view. Shadows green-black, lights faint, so no haze.
+// The Satellite basemap's relief (23 September, after the owner's paleo-map
+// plates: Swiss-style shaded relief over natural ground colour). What the
+// plates have, and this copies:
+//   ground  the photograph's own colours - green forest, tan desert, white
+//           ice - graded sunlit rather than dim (BASE_GRADE.satellite), so the
+//           world view reads like the End-Cretaceous plate, not an even sheet.
+//   colour  a see-through terrain palette by height laid over it: a deep,
+//           prehistoric green on the lowlands, olive, khaki, ochre-brown and
+//           sienna up the slopes, grey-brown rock at the top (no white of its
+//           own; the photograph's snow and ice show through). Under the sea,
+//           navy in the deeps and lighter blue-green shelves.
+//   sea     a second see-through navy over the deep sea, drawn above the
+//           shading, so the ocean floor is calm as on the plates and the
+//           land's relief is what stands out.
+//   shade   Swiss-style: light from four directions weighted to the north-west,
+//           olive-black shadows, the pale lights kept faint (strong lights read
+//           as a sheen on the slopes). A second single north-west light adds
+//           depth at the widest views only and is gone by zoom 7, where it
+//           turned rocky and grainy.
+// Close in, the tint and shading ease off and a multiply grade (SAT_TINT) takes
+// over the green: a multiply darkens each pixel in proportion, so the canopy,
+// rock and water keep their own texture instead of being covered by a flat
+// see-through sheet.
 const SAT_RELIEF = {
-  // Patch 0922n's look, exactly (23 September, at the owner's request): the
-  // old patch no longer applied, so its values are set here on today's code.
-  // n was made on Esri's imagery, which the Satellite basemap draws at every
-  // zoom (SAT_CLOSE.s2 false). Kept from later rounds: Mapterhorn heights, the
-  // zoom-scaled 3D lift, fog only at the horizon. n had no second (depth)
-  // light, so that layer is off.
   colour: ["interpolate", ["linear"], ["elevation"],
-    -8000, "#0C1724", -4000, "#11202F", -1000, "#172B3C", -200, "#1C3747", -30, "#244856", 0, "#2F4C34",
-    1, "#27411F", 250, "#2C4722", 700, "#344E27", 1300, "#3F552E", 1900, "#4F5A36",
-    2500, "#615B42", 3200, "#716856", 4200, "#746D62", 5500, "#827B71"],
-  colourOpacity: ["interpolate", ["linear"], ["zoom"], 2, 0.92, 8, 0.78, 13, 0.5],
+    -8000, "rgba(10,22,42,0.8)", -3500, "rgba(12,28,50,0.72)", -1200, "rgba(16,40,60,0.6)",
+    -200, "rgba(26,70,86,0.38)", -40, "rgba(40,96,102,0.22)", 0, "rgba(40,90,90,0.1)",
+    1, "rgba(30,60,26,0.32)", 400, "rgba(34,62,28,0.3)", 1000, "rgba(62,76,40,0.28)",
+    1700, "rgba(108,100,66,0.26)", 2500, "rgba(118,90,60,0.3)", 3300, "rgba(110,80,62,0.32)",
+    4300, "rgba(102,92,84,0.3)", 5500, "rgba(132,128,122,0.2)"],
+  colourOpacity: ["interpolate", ["linear"], ["zoom"], 2, 1, 9, 0.9, 13, 0.6, 17, 0.4],
+  sea: ["interpolate", ["linear"], ["elevation"],
+    -8000, "rgba(10,22,42,0.6)", -3000, "rgba(12,26,46,0.55)", -1500, "rgba(14,32,52,0.42)",
+    -400, "rgba(20,48,64,0.2)", -80, "rgba(20,48,64,0)", 0, "rgba(0,0,0,0)"],
   shade: {
     "hillshade-method": "multidirectional",
-    "hillshade-illumination-direction": [270, 315, 0, 225],
-    "hillshade-illumination-altitude": [30, 35, 30, 50],
-    "hillshade-highlight-color": ["rgba(226,230,212,0.14)", "rgba(226,230,212,0.3)", "rgba(226,230,212,0.12)", "rgba(226,230,212,0.04)"],
-    "hillshade-shadow-color": ["rgba(8,14,10,0.55)", "rgba(8,14,10,0.9)", "rgba(8,14,10,0.55)", "rgba(8,14,10,0.25)"],
-    "hillshade-accent-color": "#0E1610",
-    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 1, 8, 0.9, 13, 0.75],
+    "hillshade-illumination-direction": [315, 270, 0, 225],
+    "hillshade-illumination-altitude": [40, 35, 35, 50],
+    "hillshade-highlight-color": ["rgba(240,236,222,0.1)", "rgba(240,236,222,0.04)", "rgba(240,236,222,0.04)", "rgba(240,236,222,0.02)"],
+    "hillshade-shadow-color": ["rgba(18,24,14,0.78)", "rgba(18,24,14,0.42)", "rgba(18,24,14,0.42)", "rgba(18,24,14,0.2)"],
+    "hillshade-accent-color": "rgba(18,24,14,0.3)",
+    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 1, 6, 0.9, 10, 0.7, 13, 0.45, 16, 0.3],
     "hillshade-illumination-anchor": "map",
   },
   depth: {
     "hillshade-method": "standard",
-    "hillshade-exaggeration": 0,
+    "hillshade-illumination-direction": 315,
+    "hillshade-illumination-anchor": "map",
+    "hillshade-highlight-color": "rgba(240,236,222,0.04)",
+    "hillshade-shadow-color": "rgba(12,18,10,0.55)",
+    "hillshade-accent-color": "rgba(12,18,10,0)",
+    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 0.6, 5, 0.35, 7, 0],
   },
   // With 3D terrain on, the ground is raised more the further out you are,
   // so ranges still stand up from a continent's height; 1.4 close in.
   lift: [[3, 4.5], [6, 3], [9, 2], [12, 1.4]],
 };
+// The close-in green (see above): multiplied over the Satellite basemap from
+// zoom 9, reaching full strength at zoom 13. Each number is how much of that
+// colour channel is kept, so red and blue are held back a little more than
+// green: a prehistoric green cast that keeps the photograph's texture.
+const SAT_TINT = {
+  close: [0.84, 0.94, 0.82],
+  ramp: [9, 13],
+};
+
 
 // The Satellite basemap's imagery (23 September). Its close-in multiply was
 // taken out with the return to the third version's look (patch 0922o2).
@@ -899,7 +919,11 @@ function hexRgb(h) {
 // The Satellite basemap takes none of the atlas's sea, green and warm washes:
 // its colour comes from the relief (SAT_RELIEF), which the washes would tint.
 function atlasWashPasses(z) {
-  if (BASEMAP === "satellite") return [];
+  if (BASEMAP === "satellite") {
+    const [z0, z1] = SAT_TINT.ramp;
+    const k = z <= z0 ? 0 : z >= z1 ? 1 : (z - z0) / (z1 - z0);
+    return k === 0 ? [] : [{ mode: "multiply", rgb: SAT_TINT.close.map((c) => 1 - k * (1 - c)) }];
+  }
   const { t, sea } = atlasWashRamp(z);
   const passes = [];
   const aSea = ATLAS_TUNE.sea * sea;
@@ -1951,6 +1975,8 @@ function addSatelliteRelief() {
       paint: { "color-relief-color": SAT_RELIEF.colour, "color-relief-opacity": SAT_RELIEF.colourOpacity } }, before);
     map.addLayer({ id: "sat-relief-shade", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF.shade }, before);
     map.addLayer({ id: "sat-relief-depth", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF.depth }, before);
+    map.addLayer({ id: "sat-relief-sea", type: "color-relief", source: "outline-dem",
+      paint: { "color-relief-color": SAT_RELIEF.sea, "color-relief-opacity": 1 } }, before);
   } catch (e) { console.warn("[culprits] satellite relief unavailable:", e.message || e); }
 }
 function setBasemap(kind) {
@@ -1970,6 +1996,7 @@ function setBasemap(kind) {
   show("sat-relief-colour", kind === "satellite");
   show("sat-relief-shade", kind === "satellite");
   show("sat-relief-depth", kind === "satellite");
+  show("sat-relief-sea", kind === "satellite");
   if (TERRAIN_ON && map.getTerrain && map.getTerrain()) liftTerrain();
   show("outline-ocean", !imagery);
   show("outline-land", !imagery);

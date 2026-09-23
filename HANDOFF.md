@@ -5,6 +5,32 @@ touches.
 
 ---
 
+## The Satellite basemap after the paleo-map plates (23 September, latest)
+
+The owner sent five plates (a landforms illustration and four paleogeography
+maps: Campanian North America, East Gondwana, Jurassic Europe, the
+End-Cretaceous world) and asked for that look: Swiss-style shaded relief,
+earth-tone terrain palette, realistic hypsometry, a slightly darker
+prehistoric green, sunlit (not overcast), and close in no flat glossy sheet
+over trees, rock and water. Replaces patch n's opaque forest-green relief.
+- Imagery grade `BASE_GRADE.satellite`: max 0.92, min 0.02, saturation +0.12,
+  contrast +0.06, so the photograph's forests, deserts and ice show.
+- `sat-relief-colour`: see-through rgba palette (land alpha 0.24-0.32):
+  green lowlands, olive, khaki, ochre-brown, sienna, grey-brown rock, no
+  white; navy deeps, lighter blue-green shelves. Opacity 1 wide to 0.4 at z17.
+- `sat-relief-sea` (new): a second color-relief drawn above the hillshades,
+  navy over the deep sea only (clear from -80 m up), so the ocean floor is
+  calm as on the plates.
+- `sat-relief-shade`: multidirectional [315, 270, 0, 225], olive-black
+  shadows (0.78 main), lights at most 0.1 (stronger lights read as sheen).
+  `sat-relief-depth`: one NW light at the widest views, gone by zoom 7.
+- `SAT_TINT`: close-in multiply [0.84, 0.94, 0.82], ramping in over zoom
+  9-13 through `atlasWashPasses` (satellite only). A multiply keeps each
+  pixel's texture, where the see-through tint flattened it.
+Previewed in headless Chromium on ETOPO 10' with NASA Blue Marble (three.js
+example texture) standing in for Esri's imagery; tilted 3D could not render
+in the sandbox's software GPU in time.
+
 ## Patch n's look again, exactly, on Esri (23 September)
 
 The owner asked for patch 0922n to work as it did. The old patch no longer
