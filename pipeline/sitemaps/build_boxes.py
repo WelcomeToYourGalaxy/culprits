@@ -491,10 +491,11 @@ def build(m):
     chain, name = page_facts(data.get("page"), data.get("map_container"), data.get("headings"), m["name"])
 
     filters, marks = map_filters(data, data["features"], None)
-    # Only for the maps the registry names ("types_from_popup_tag"): the three the
-    # owner asked to have split. Six more of the site's maps tag their popups the
-    # same way (world news, advertising, entertainment, research integrity,
-    # indigenous conflicts, self-sufficiency) and would split just as cleanly.
+    # Only for the maps the registry names ("types_from_popup_tag"): the plants,
+    # microorganisms and insentient maps, and since 23 September, at the owner's
+    # word, world news, advertising, entertainment, research integrity,
+    # indigenous conflicts and self-sufficiency. A popup with several tags is
+    # typed by its first, the map's own leading word for the place.
     if not filters and m.get("types_from_popup_tag"):
         by_tag, tag_marks = popup_types(data["features"])
         if by_tag:

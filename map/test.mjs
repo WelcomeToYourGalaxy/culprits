@@ -1821,9 +1821,11 @@ console.log("\nTrase, and coral at world zoom");
   {
     const build = fs.readFileSync(path.join(HERE, "..", "pipeline", "sitemaps", "build_boxes.py"), "utf8");
     const reg = JSON.parse(fs.readFileSync(path.join(HERE, "..", "pipeline", "sitemaps", "registry.json"), "utf8")).maps;
-    check("the site-map build reads a place's type from its popup tag, for the three maps asked for and no others",
+    check("the site-map build reads a place's type from its popup tag, for the nine maps asked for and no others",
           /def popup_types\(features\):/.test(build) && /if not filters and m\.get\("types_from_popup_tag"\):/.test(build) &&
-          reg.filter((m) => m.types_from_popup_tag).map((m) => m.id).sort().join() === "site_enslaved_microbes,site_enslaved_plants,site_insentient");
+          // Six more asked for on 23 September.
+          reg.filter((m) => m.types_from_popup_tag).map((m) => m.id).sort().join() ===
+            "site_enslaved_microbes,site_enslaved_plants,site_indigenous_conflicts,site_insentient,site_research_integrity,site_self_sufficiency,site_world_advertising,site_world_entertainment,site_world_news");
     check("\u2026and each of those maps has a row per type in the box, in place of its one row",
           ["site_enslaved_plants", "site_enslaved_microbes", "site_insentient"].every((i) => new RegExp(`id: "${i}", typeRows: true`).test(src)) &&
           /readCataloguesAtStart\(\);\n  readSiteTypeRowsAtStart\(\);/.test(src) && /own_nodes\.forEach\(\(n\) => gone\.appendChild\(n\)\)/.test(src));
@@ -3410,6 +3412,20 @@ console.log("\nround of 23 September (15): the rows say their points are no long
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("no row's note still says its points are merged where they crowd", !/note: "[^"\n]*merged where they crowd/.test(src) && !/note: "[^"\n]*merged into counted points/.test(src));
+}
+console.log("\nround of 23 September (16): watersheds, six more type rows, Trase's GDP row out");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the wastewater model's watersheds are a row under Wastewater, shaded in the steps their build wrote, each record read from its piece",
+        /id: "wastewater_watersheds"[^\n]*route: "pmtareas"/.test(src) && /"wastewater_n_open", "wastewater_watersheds",/.test(src) &&
+        /async function addPmtAreasLayer\(cfg\)/.test(src) && /bindHtmlPopup\(`\$\{cfg\.id\}-fill`, \(p\) => pieceBox\(cfg, p\)\)/.test(src));
+  const ramp = src.match(/const AREA_RAMP = \[([^\]]*)\]/)[1].match(/#[0-9A-F]{6}/gi);
+  const warm = (h) => { const r = parseInt(h.slice(1, 3), 16), g = parseInt(h.slice(3, 5), 16), b = parseInt(h.slice(5, 7), 16); return r > 150 && g > 110 && b < 90; };
+  check("…its colours carry no orange or yellow", ramp.length === 7 && !ramp.some(warm));
+  check("the six more site maps each have a row per type", ["site_world_news", "site_world_advertising", "site_world_entertainment", "site_research_integrity",
+        "site_indigenous_conflicts", "site_self_sufficiency"].every((i) => new RegExp(`id: "${i}", typeRows: true`).test(src)));
+  const T = new Function(src.match(/const TRASE_REMOVED = [^\n]*\n/)[0] + "; return TRASE_REMOVED;")();
+  check("Trase's GDP per capita row is out of the box, and no other measure", T.some((r) => r.test("GDP per capita")) && !T.some((r) => r.test("Soy deforestation exposure")));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

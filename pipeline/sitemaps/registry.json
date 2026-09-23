@@ -119,7 +119,8 @@
    "unit": "companies",
    "colour": "#6C5F66",
    "note": "From the Suppression page's World Advertising 2026 map.",
-   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_world_advertising.html"
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_world_advertising.html",
+   "types_from_popup_tag": true
   },
   {
    "id": "site_world_news",
@@ -127,7 +128,8 @@
    "unit": "outlets and owners",
    "colour": "#626A6F",
    "note": "From the Suppression page's World News 2026 map.",
-   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_world_news.html"
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_world_news.html",
+   "types_from_popup_tag": true
   },
   {
    "id": "site_research_integrity",
@@ -135,7 +137,8 @@
    "unit": "institutions and publishers",
    "colour": "#5F6E6A",
    "note": "From the Suppression page's research integrity map.",
-   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_research_integrity.html"
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_research_integrity.html",
+   "types_from_popup_tag": true
   },
   {
    "id": "site_world_entertainment",
@@ -143,7 +146,8 @@
    "unit": "companies",
    "colour": "#6D5E5A",
    "note": "From the Suppression page's World Entertainment 2026 map.",
-   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_world_entertainment.html"
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_world_entertainment.html",
+   "types_from_popup_tag": true
   },
   {
    "id": "site_eyes_network",
@@ -186,7 +190,8 @@
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_rodeo.html"
   },
   {
-   "id": "site_enslaved_plants", "types_from_popup_tag": true,
+   "id": "site_enslaved_plants",
+   "types_from_popup_tag": true,
    "name": "Unnecessary enslavement of plants",
    "unit": "companies",
    "colour": "#62705A",
@@ -194,7 +199,8 @@
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_enslaved_plants.html"
   },
   {
-   "id": "site_enslaved_microbes", "types_from_popup_tag": true,
+   "id": "site_enslaved_microbes",
+   "types_from_popup_tag": true,
    "name": "Unnecessary enslavement of microorganisms",
    "unit": "companies",
    "colour": "#6A6E62",
@@ -202,7 +208,8 @@
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_enslaved_microbes.html"
   },
   {
-   "id": "site_insentient", "types_from_popup_tag": true,
+   "id": "site_insentient",
+   "types_from_popup_tag": true,
    "name": "The insentient",
    "unit": "companies",
    "colour": "#66625E",
@@ -223,7 +230,8 @@
    "unit": "programs",
    "colour": "#5E6F5B",
    "note": "From the Solution page's self-sufficiency programs map.",
-   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_self_sufficiency.html"
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_self_sufficiency.html",
+   "types_from_popup_tag": true
   },
   {
    "id": "site_environment_law",
@@ -247,7 +255,8 @@
    "unit": "conflicts",
    "colour": "#6B5A4A",
    "note": "From local-map's Indigenous Environmental Conflicts map (local-map repo).",
-   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/local-map/main/indigenous_conflicts_map_REAL.html"
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/local-map/main/indigenous_conflicts_map_REAL.html",
+   "types_from_popup_tag": true
   }
  ]
 }

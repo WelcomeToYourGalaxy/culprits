@@ -830,6 +830,21 @@ saves after each day, stops at 100 minutes, and carries on next run
 (`cerulean_archive/refill.json`). Mines' first file is 96.7 MB (92 MiB), under
 the 95 MiB cut.
 
+## Round of 23 September (16): owner's answers of 23 September
+
+- EPA: every dot kept from the world view (the owner's choice), 17 MB first square.
+- Wastewater watersheds: row `wastewater_watersheds` (route `pmtareas`, a new
+  area route: fill in 7 plum-to-bone steps from `wastewater/watersheds.key.json`,
+  records from `wastewater/pieces` by basin id). Built by culprits-tiles-more
+  `scripts/wastewater_watersheds.py` (by hand).
+- Forest and land cover stays as it is.
+- Trase's "GDP per capita" (Colombia) measure is dropped (`TRASE_REMOVED`).
+- Six more site maps split by their popup tag into a row per type
+  (`types_from_popup_tag` in the registry, `typeRows: true` in app.js):
+  world news, advertising, entertainment, research integrity, indigenous
+  conflicts, self-sufficiency. The empty refresh rebuilds them; a map whose
+  tags do not split cleanly keeps its one row.
+
 ## Round of 23 September (11): the modelled farms' squares made light
 
 The unmerged CAFO archive's world square was 3.6 MB. `abattoir_cafo.py` now
