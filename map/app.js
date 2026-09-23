@@ -6599,8 +6599,11 @@ function setBuildings3D(on) {
         // They rise as you come in, rather than appearing full height at 15.
         "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"],
           BUILDINGS_ZOOM, 0, BUILDINGS_ZOOM + 1, ["get", "render_height"]],
-        "fill-extrusion-base": ["case", [">=", ["zoom"], BUILDINGS_ZOOM + 1],
-          ["coalesce", ["get", "render_min_height"], 0], 0],
+        // An interpolate, like the height: MapLibre refuses ["zoom"] inside a
+        // "case", and until 23 September that refusal kept the whole layer
+        // from being added, so no building ever stood up.
+        "fill-extrusion-base": ["interpolate", ["linear"], ["zoom"],
+          BUILDINGS_ZOOM, 0, BUILDINGS_ZOOM + 1, ["coalesce", ["get", "render_min_height"], 0]],
         "fill-extrusion-opacity": 0.85,
       },
     });

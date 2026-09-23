@@ -3277,5 +3277,18 @@ console.log("\nround of 23 September (3): the wastewater points' projection; Was
         /def mollweide_inverse\(x, y\):/.test(py) && /\(x \/ \(2 \* SQ2 \* A\)\) \*\* 2 \+ \(y \/ \(SQ2 \* A\)\) \*\* 2 > 1/.test(py) && /A = 6378137\.0/.test(py));
   check("the Waste Atlas probe exists and only reads", fs.existsSync(path.join(HERE, "..", "pipeline", "wasteatlas_probe.py")));
 }
+console.log("\nbuildings stand up again (23 September)");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const a = src.indexOf('id: "buildings-3d"'), block = src.slice(a, src.indexOf("});", a));
+  // MapLibre only takes ["zoom"] as the input of a top-level step or
+  // interpolate; anywhere else the whole layer is refused.
+  const paint = block.slice(block.indexOf("paint:")).replace(/\/\/.*$/gm, "");
+  const topLevel = (paint.match(/\["interpolate", \["linear"\], \["zoom"\]/g) || []).length +
+                   (paint.match(/\["step", \["zoom"\]/g) || []).length;
+  check("every zoom in the 3D buildings' paint is the input of a top-level interpolate or step, so MapLibre adds the layer",
+        !/\["case", \[">=", \["zoom"\]/.test(block) && topLevel >= 2 &&
+        (paint.match(/\["zoom"\]/g) || []).length === topLevel);
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

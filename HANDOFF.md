@@ -5,7 +5,15 @@ touches.
 
 ---
 
-## The Satellite sea drawn from depth tiles (23 September, latest)
+## 3D buildings: the layer was never added (23 September, latest)
+
+Found running the real page in headless Chromium: MapLibre refused
+`buildings-3d` ("zoom expression may only be used as input to a top-level
+step or interpolate") because `fill-extrusion-base` put ["zoom"] inside a
+"case". The whole layer failed, so no building ever stood up with 3D terrain
+on. The base is now an interpolate, like the height.
+
+## The Satellite sea drawn from depth tiles (23 September)
 
 Why none of the Satellite rounds changed the sea on the live map: Mapterhorn
 (outline-dem) is built from Copernicus GLO-30, land only, so the sea is 0 m
