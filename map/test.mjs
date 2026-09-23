@@ -1344,13 +1344,8 @@ console.log("\nthe wires on the map");
   const f = new Function("abs", chunk + "\nreturn { SAT_CLOSE, SAT_TINT, atlasWashPasses, setB: (k) => { BASEMAP = k; } };")(() => "");
   f.setB("satellite");
   const at = (z) => f.atlasWashPasses(z);
-  check("Satellite: no wash out to zoom 9; from there a single multiply that reaches its full green at zoom 13 and holds",
-        [4, 8, 9].every((z) => at(z).length === 0) &&
-        [10, 12, 14, 18].every((z) => at(z).length === 1 && at(z)[0].mode === "multiply") &&
-        JSON.stringify(at(13)[0].rgb) === JSON.stringify(at(18)[0].rgb) &&
-        at(11)[0].rgb.every((c, i) => c > at(13)[0].rgb[i] && c < 1));
-  check("…the multiply keeps more green than red or blue, and never darkens a channel below 0.8",
-        (() => { const [r, g, b] = at(13)[0].rgb; return g > r && g > b && Math.min(r, g, b) >= 0.8; })());
+  check("Satellite: no wash at any zoom, so nothing changes as you zoom in (the close-in multiply is off)",
+        [2, 4, 8, 10, 12, 14, 18].every((z) => at(z).length === 0) && f.SAT_TINT.close.every((c) => c === 1));
   check("…the Sentinel-2 wide views are kept but switched off (SAT_CLOSE.s2 false): Esri's imagery at every zoom, as when patch o was made",
         /tiles: \["https:\/\/tiles\.maps\.eox\.at\/wmts\/1\.0\.0\/s2cloudless-2024_3857\/default\/g\/\{z\}\/\{y\}\/\{x\}\.jpg"\]/.test(src) &&
         /Contains modified Copernicus Sentinel data 2024/.test(src) &&
@@ -1372,7 +1367,7 @@ console.log("\nreading the map");
   // 23 September, after the owner's paleo-map plates: natural ground colour,
   // a see-through terrain palette, Swiss-style shading, a calm sea.
   check("the Satellite basemap is sunlit imagery under a see-through terrain palette, Swiss shading and a calm sea; the atlas keeps its own grade",
-        /satellite: \{ "raster-brightness-min": 0\.02, "raster-brightness-max": 0\.92,\n\s*"raster-saturation": 0\.12, "raster-contrast": 0\.06/.test(src) &&
+        /satellite: \{ "raster-brightness-min": 0\.02, "raster-brightness-max": 0\.92,\n\s*"raster-saturation": -0\.06, "raster-contrast": 0\.06/.test(src) &&
         /atlas: \{ "raster-brightness-min": ATLAS_TUNE\.lift/.test(src) &&
         /id: "sat-relief-colour", type: "color-relief", source: "outline-dem"/.test(src) &&
         /id: "sat-relief-shade", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF\.shade/.test(src) &&
@@ -1388,15 +1383,16 @@ console.log("\nreading the map");
           land.length >= 8 && land.every((c) => c.a <= 0.34 && Math.max(c.r, c.g, c.b) <= 140) &&
           land[0].g > land[0].r && land[0].g > land[0].b && land.slice(3, 6).every((c) => c.r > c.g && c.g > c.b) &&
           land.every((c) => !(c.r > 150 && c.g > 130 && c.b < 90)));
-    check("…the sea: navy in the deeps, lighter blue-green shelves, and a calm-sea layer above the shading that clears before the coast",
+    check("…the sea in the plates' colours: indigo-navy deeps, darker teal shelves, and a calm-sea layer above the shading that clears before the coast",
           colour.filter((c) => c.h < 0).every((c) => c.b >= c.r) &&
+          colour.filter((c) => c.h <= -2000).every((c) => c.r <= 20 && c.g <= 32 && c.b >= 40 && c.b <= 64 && c.a >= 0.85) &&
           stops("sea", "shade").filter((c) => c.h >= -80).every((c) => c.a === 0) &&
           stops("sea", "shade").filter((c) => c.h <= -3000).every((c) => c.a >= 0.5));
-    check("…Swiss shading weighted to the north-west, faint lights (no sheen), and the second light gone by zoom 7",
+    check("…Swiss shading weighted to the north-west, faint lights (no sheen), and tint, shading and depth the same at every zoom",
           /"hillshade-illumination-direction": \[315, 270, 0, 225\]/.test(block) &&
           [...block.matchAll(/rgba\(240,236,222,([\d.]+)\)/g)].every((m) => +m[1] <= 0.1) &&
-          /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 2, 0\.6, 5, 0\.35, 7, 0\]/.test(block) &&
-          /colourOpacity: \["interpolate", \["linear"\], \["zoom"\], 2, 1, 9, 0\.9, 13, 0\.6, 17, 0\.4\]/.test(block) &&
+          /"hillshade-exaggeration": 0\.9,/.test(block) && /"hillshade-exaggeration": 0\.3,/.test(block) &&
+          /colourOpacity: 1,/.test(block) && !/\["zoom"\]/.test(block.slice(0, block.indexOf("lift:"))) &&
           /"fog-ground-blend": 0\.97/.test(src));
     check("…no drawn water",
           !/sat-water/.test(src) && !/closeMultiply/.test(src) &&

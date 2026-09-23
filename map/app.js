@@ -789,7 +789,7 @@ const BASE_GRADE = {
   // the ground keeps its own colour and texture, and the relief's palette and
   // Swiss-style shading are laid over it.
   satellite: { "raster-brightness-min": 0.02, "raster-brightness-max": 0.92,
-               "raster-saturation": 0.12, "raster-contrast": 0.06,
+               "raster-saturation": -0.06, "raster-contrast": 0.06,
                "raster-hue-rotate": 0 },
 };
 let BASEMAP = "atlas";
@@ -810,24 +810,25 @@ let BASEMAP = "atlas";
 //           land's relief is what stands out.
 //   shade   Swiss-style: light from four directions weighted to the north-west,
 //           olive-black shadows, the pale lights kept faint (strong lights read
-//           as a sheen on the slopes). A second single north-west light adds
-//           depth at the widest views only and is gone by zoom 7, where it
-//           turned rocky and grainy.
-// Close in, the tint and shading ease off and a multiply grade (SAT_TINT) takes
-// over the green: a multiply darkens each pixel in proportion, so the canopy,
-// rock and water keep their own texture instead of being covered by a flat
-// see-through sheet.
+//           as a sheen on the slopes), and a second, lighter north-west light
+//           for depth.
+// Every one of these is the same at every zoom (23 September, the owner's
+// request), so zooming in never hands over to plain imagery. The heights stop
+// at zoom 12; past it the shading is the same, only smoother. The seas take
+// the plates' own colours, sampled from them: indigo-navy deeps (about
+// #0A112C to #121E3C) and darker teal shelves (about #183E56 to #1E5466).
 const SAT_RELIEF = {
   colour: ["interpolate", ["linear"], ["elevation"],
-    -8000, "rgba(10,22,42,0.8)", -3500, "rgba(12,28,50,0.72)", -1200, "rgba(16,40,60,0.6)",
-    -200, "rgba(26,70,86,0.38)", -40, "rgba(40,96,102,0.22)", 0, "rgba(40,90,90,0.1)",
+    -8000, "rgba(10,17,44,0.92)", -4000, "rgba(12,20,50,0.9)", -2000, "rgba(18,30,60,0.86)",
+    -500, "rgba(20,40,70,0.86)", -150, "rgba(24,62,86,0.8)", -30, "rgba(30,84,102,0.7)", 0, "rgba(34,96,110,0.5)",
     1, "rgba(30,60,26,0.32)", 400, "rgba(34,62,28,0.3)", 1000, "rgba(62,76,40,0.28)",
     1700, "rgba(108,100,66,0.26)", 2500, "rgba(118,90,60,0.3)", 3300, "rgba(110,80,62,0.32)",
     4300, "rgba(102,92,84,0.3)", 5500, "rgba(132,128,122,0.2)"],
-  colourOpacity: ["interpolate", ["linear"], ["zoom"], 2, 1, 9, 0.9, 13, 0.6, 17, 0.4],
+  // The same at every zoom (23 September, at the owner's request).
+  colourOpacity: 1,
   sea: ["interpolate", ["linear"], ["elevation"],
-    -8000, "rgba(10,22,42,0.6)", -3000, "rgba(12,26,46,0.55)", -1500, "rgba(14,32,52,0.42)",
-    -400, "rgba(20,48,64,0.2)", -80, "rgba(20,48,64,0)", 0, "rgba(0,0,0,0)"],
+    -8000, "rgba(10,17,44,0.6)", -3000, "rgba(12,20,50,0.55)", -1500, "rgba(16,28,56,0.4)",
+    -400, "rgba(22,46,70,0.15)", -80, "rgba(22,46,70,0)", 0, "rgba(0,0,0,0)"],
   shade: {
     "hillshade-method": "multidirectional",
     "hillshade-illumination-direction": [315, 270, 0, 225],
@@ -835,7 +836,7 @@ const SAT_RELIEF = {
     "hillshade-highlight-color": ["rgba(240,236,222,0.1)", "rgba(240,236,222,0.04)", "rgba(240,236,222,0.04)", "rgba(240,236,222,0.02)"],
     "hillshade-shadow-color": ["rgba(18,24,14,0.78)", "rgba(18,24,14,0.42)", "rgba(18,24,14,0.42)", "rgba(18,24,14,0.2)"],
     "hillshade-accent-color": "rgba(18,24,14,0.3)",
-    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 1, 6, 0.9, 10, 0.7, 13, 0.45, 16, 0.3],
+    "hillshade-exaggeration": 0.9,
     "hillshade-illumination-anchor": "map",
   },
   depth: {
@@ -845,18 +846,16 @@ const SAT_RELIEF = {
     "hillshade-highlight-color": "rgba(240,236,222,0.04)",
     "hillshade-shadow-color": "rgba(12,18,10,0.55)",
     "hillshade-accent-color": "rgba(12,18,10,0)",
-    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 0.6, 5, 0.35, 7, 0],
+    "hillshade-exaggeration": 0.3,
   },
   // With 3D terrain on, the ground is raised more the further out you are,
   // so ranges still stand up from a continent's height; 1.4 close in.
   lift: [[3, 4.5], [6, 3], [9, 2], [12, 1.4]],
 };
-// The close-in green (see above): multiplied over the Satellite basemap from
-// zoom 9, reaching full strength at zoom 13. Each number is how much of that
-// colour channel is kept, so red and blue are held back a little more than
-// green: a prehistoric green cast that keeps the photograph's texture.
+// The close-in green multiply is off (23 September): the tint above no
+// longer fades, so there is nothing for it to take over from.
 const SAT_TINT = {
-  close: [0.84, 0.94, 0.82],
+  close: [1, 1, 1],
   ramp: [9, 13],
 };
 
@@ -922,7 +921,8 @@ function atlasWashPasses(z) {
   if (BASEMAP === "satellite") {
     const [z0, z1] = SAT_TINT.ramp;
     const k = z <= z0 ? 0 : z >= z1 ? 1 : (z - z0) / (z1 - z0);
-    return k === 0 ? [] : [{ mode: "multiply", rgb: SAT_TINT.close.map((c) => 1 - k * (1 - c)) }];
+    if (k === 0 || SAT_TINT.close.every((c) => c === 1)) return [];
+    return [{ mode: "multiply", rgb: SAT_TINT.close.map((c) => 1 - k * (1 - c)) }];
   }
   const { t, sea } = atlasWashRamp(z);
   const passes = [];

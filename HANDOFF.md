@@ -5,7 +5,19 @@ touches.
 
 ---
 
-## The Satellite basemap after the paleo-map plates (23 September, latest)
+## The Satellite basemap, the same at every zoom; the plates' blues (23 September, latest)
+
+On top of the paleo-map patch (57d04a9). The owner saw the look hand over to
+plain imagery closer in and wants the same effects at all zooms: the tint's
+opacity is a constant 1, the shade exaggeration 0.9 and the depth light 0.3
+at every zoom, and the close-in multiply is off (`SAT_TINT.close` all 1,
+`atlasWashPasses` returns nothing). The sea stops take the plates' sampled
+colours: deeps about #0A112C-#121E3C at 0.86-0.92, shelves darker teal at
+0.7-0.8, so the imagery's pale cyan shelves no longer come through as much.
+Imagery saturation -0.06 (was +0.12). Still changing with zoom and not ours:
+Esri's own photograph, which is a different picture at different zooms.
+
+## The Satellite basemap after the paleo-map plates (23 September)
 
 The owner sent five plates (a landforms illustration and four paleogeography
 maps: Campanian North America, East Gondwana, Jurassic Europe, the
