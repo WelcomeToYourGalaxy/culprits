@@ -317,6 +317,22 @@ Cost: three more package downloads per sector per run (agriculture's co2e
 package alone is 1.4 GB), so the per-gas harvest should run as its own job
 with its own ETags rather than inside the existing one. Not written yet.
 
+## The Satellite relief, softened (22 September, evening)
+
+The owner found the stacked shading rocky and grainy, the slopes sheened and
+too rounded, the tilted distance foggy, and close in the drawn relief lay on
+the photograph like a glossy plastic sheet. The photograph carries real
+texture and real sun shadows, so the drawn relief now only works where the
+photograph cannot, wide out, and gives way with the zoom: tint opacity 1 at
+zoom 2 to 0 at 14; multidirectional shading exaggeration 0.9 at 2 to 0 at 14,
+shadows at most 0.7, lights at most 0.08 (they read as sheen); the second
+(depth) light 0.6 at 2, gone by 6. Imagery contrast down to 0.08 (it
+sharpened grain). Defence sky: fog only in the last strip before the horizon
+(`fog-ground-blend` 0.97, `horizon-fog-blend` 0.25). What the owner's
+reference picture shows close in - fuzzy canopy, textured rock, rapids - is
+illustration; the map shows the photograph's own texture untouched from
+zoom 14, and the tree options (canopy or 3D models) are still to decide.
+
 ## The Satellite relief, third version: imagery forward, stacked shading, 3D lift (22 September, latest)
 
 Replaces the earth-tone hypsometry of patch l (and the unapplied m and n).

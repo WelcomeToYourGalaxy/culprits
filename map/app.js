@@ -788,8 +788,8 @@ const BASE_GRADE = {
   // in earth tones (SAT_RELIEF below): the imagery is only a little muted, so
   // the ground keeps its own colour and texture, and the relief's palette and
   // Swiss-style shading are laid over it.
-  satellite: { "raster-brightness-min": 0.0, "raster-brightness-max": 0.88,
-               "raster-saturation": 0.08, "raster-contrast": 0.18,
+  satellite: { "raster-brightness-min": 0.0, "raster-brightness-max": 0.9,
+               "raster-saturation": 0.06, "raster-contrast": 0.08,
                "raster-hue-rotate": 0 },
 };
 let BASEMAP = "atlas";
@@ -811,30 +811,43 @@ let BASEMAP = "atlas";
 //           the depth one layer can, which is what lifts it off the page at
 //           world view. Shadows green-black, lights faint, so no haze.
 const SAT_RELIEF = {
+  // Revised the same evening: the stacked shading read rocky and grainy, the
+  // lights read as a sheen on the slopes, and close in the drawn relief lay
+  // over the photograph like a plastic sheet. The photograph already carries
+  // real texture and real sun shadows - fuzzy canopy, rock, water - so the
+  // drawn relief now works only where the photograph cannot: wide out. It
+  // gives way with the zoom and is gone by zoom 14, leaving the photograph
+  // untouched close in.
   colour: ["interpolate", ["linear"], ["elevation"],
     -8000, "rgba(10,20,32,0.85)", -3000, "rgba(14,28,42,0.8)", -500, "rgba(22,42,58,0.7)",
     -60, "rgba(30,60,72,0.5)", 0, "rgba(30,60,72,0.35)",
-    1, "rgba(28,48,26,0.34)", 400, "rgba(34,54,30,0.34)", 1200, "rgba(48,62,38,0.3)",
-    2200, "rgba(78,72,56,0.3)", 3500, "rgba(96,90,80,0.32)", 5500, "rgba(110,104,96,0.35)"],
-  colourOpacity: ["interpolate", ["linear"], ["zoom"], 2, 1, 10, 0.8, 14, 0.55],
+    1, "rgba(28,48,26,0.3)", 400, "rgba(34,54,30,0.3)", 1200, "rgba(48,62,38,0.26)",
+    2200, "rgba(78,72,56,0.24)", 3500, "rgba(96,90,80,0.24)", 5500, "rgba(110,104,96,0.26)"],
+  colourOpacity: ["interpolate", ["linear"], ["zoom"], 2, 1, 8, 0.75, 11, 0.4, 13, 0.12, 14, 0],
+  // Light from four directions, weighted to the north-west. Shadows soft and
+  // green-black; almost no lights (a lit slope on a photograph reads as a
+  // sheen); and it fades out with the zoom, as the photograph's own
+  // shadows take over.
   shade: {
     "hillshade-method": "multidirectional",
     "hillshade-illumination-direction": [270, 315, 0, 225],
-    "hillshade-illumination-altitude": [30, 35, 30, 50],
-    "hillshade-highlight-color": ["rgba(236,238,220,0.16)", "rgba(236,238,220,0.32)", "rgba(236,238,220,0.14)", "rgba(236,238,220,0.05)"],
-    "hillshade-shadow-color": ["rgba(6,12,8,0.6)", "rgba(6,12,8,0.95)", "rgba(6,12,8,0.6)", "rgba(6,12,8,0.3)"],
-    "hillshade-accent-color": "#0B130D",
-    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 1, 8, 0.95, 13, 0.8],
+    "hillshade-illumination-altitude": [35, 40, 35, 55],
+    "hillshade-highlight-color": ["rgba(236,238,220,0.04)", "rgba(236,238,220,0.08)", "rgba(236,238,220,0.04)", "rgba(236,238,220,0)"],
+    "hillshade-shadow-color": ["rgba(8,14,10,0.4)", "rgba(8,14,10,0.7)", "rgba(8,14,10,0.4)", "rgba(8,14,10,0.2)"],
+    "hillshade-accent-color": "rgba(11,19,13,0.5)",
+    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 0.9, 6, 0.75, 9, 0.45, 12, 0.15, 14, 0],
     "hillshade-illumination-anchor": "map",
   },
+  // A second, low north-west light for depth at the widest views only, where
+  // a continent's ranges are a few pixels; gone by zoom 6.
   depth: {
     "hillshade-method": "standard",
     "hillshade-illumination-direction": 315,
     "hillshade-illumination-anchor": "map",
-    "hillshade-highlight-color": "rgba(236,238,220,0.1)",
-    "hillshade-shadow-color": "rgba(6,12,8,0.75)",
-    "hillshade-accent-color": "rgba(6,12,8,0.4)",
-    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 1, 8, 0.7, 13, 0.4],
+    "hillshade-highlight-color": "rgba(236,238,220,0)",
+    "hillshade-shadow-color": "rgba(8,14,10,0.55)",
+    "hillshade-accent-color": "rgba(8,14,10,0.2)",
+    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 0.6, 4, 0.35, 6, 0],
   },
   // With 3D terrain on, the ground is raised more the further out you are,
   // so ranges still stand up from a continent's height; 1.4 close in.
@@ -1976,7 +1989,10 @@ function setBasemap(kind) {
 const DEFENCE = {
   threat: "#B8473E",
   // A dark slate atmosphere with an earth-grey horizon, not the teal it had.
-  sky: { "sky-color": "#14171A", "horizon-color": "#5C5E57", "fog-color": "#5C5E57",
+  // Fog only in the last strip before the horizon, so a tilted view keeps its
+  // distance clear; before, the fog began at the middle of the ground.
+  sky: { "sky-color": "#14171A", "horizon-color": "#4A5058", "fog-color": "rgba(74,80,88,0.6)",
+         "fog-ground-blend": 0.97, "horizon-fog-blend": 0.25, "sky-horizon-blend": 0.35,
          // Thin: a full atmosphere laid a pale haze over the relief.
          "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.35, 3, 0.15, 5, 0] },
   guard: ["gsn"],
