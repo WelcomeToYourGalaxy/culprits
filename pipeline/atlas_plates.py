@@ -7,7 +7,11 @@ map of that hotspot, with the cities on it named in text that stays text in
 the file. That is enough to put the page where it belongs:
 
   1. read every place name on the first page and where it sits on the page;
-  2. look each one up on OpenStreetMap (Nominatim), towns and cities only;
+  2. look each one up on OpenStreetMap (Nominatim), towns and cities only,
+     and only inside the hotspot's own outline box (Conservation
+     International's Biodiversity Hotspots 2016.1, the outlines the map
+     draws), so a same-named town elsewhere cannot answer: the Philippines
+     plate was once pulled to 9,000 km wide by a town called China;
   3. find the one straight-line (affine) placement of the page that puts the
      most names within reach of where OpenStreetMap has them, trying many
      sets of three at random so that a wrongly-matched name cannot pull the
@@ -18,7 +22,9 @@ the file. That is enough to put the page where it belongs:
   5. draw the page as a picture and record where its four corners fall.
 
 A plate is kept only when enough names agree and the error is small next to
-the plate's size (MIN_AGREE, MAX_ERROR_SHARE). The rest are listed with the
+the plate's size (MIN_AGREE, MAX_ERROR_SHARE), or when one name fewer agrees
+and the error is half that (MIN_AGREE_SMALL, MAX_ERROR_SHARE_SMALL; set
+MIN_AGREE_SMALL to MIN_AGREE to switch this off). The rest are listed with the
 reason, and the map shows their PDF without placing it. Nothing is guessed:
 the placement comes only from the Atlas's own labels and OpenStreetMap.
 
@@ -32,6 +38,15 @@ Run from the repo root, with the venv on:
     pip install pymupdf pillow requests
     python3 pipeline/atlas_plates.py            every hotspot
     python3 pipeline/atlas_plates.py cerrado    one or more by name
+    python3 pipeline/atlas_plates.py --show new_zealand philippines
+        places nothing; writes pipeline/.atlas-cache/<slug>.page.txt with
+        every piece of text on the page (kept or dropped, and why) and the
+        largest shapes drawn on it, to see why a page will not place
+
+Hotspots that cross the 180th meridian (New Zealand's Chatham Islands) keep
+their longitudes running on past 180 (179, 181) rather than jumping to -179,
+so the fit and the corners stay in one piece; the map draws such corners in
+the neighbouring copy of the world, which is where they belong.
 """
 import io
 import json
@@ -67,6 +82,11 @@ HOTSPOTS = [
 
 MIN_AGREE = 5            # names that must agree on the placement
 MAX_ERROR_SHARE = 0.03   # typical error no more than 3% of the plate's width
+MIN_AGREE_SMALL = 4      # one fewer is accepted only with half the error
+MAX_ERROR_SHARE_SMALL = 0.015
+BOX_MARGIN = 0.25        # share of the outline box added on each side (at least 1 degree)
+HOTSPOT_ITEM = "ba55aa1bff5447e7b72559b8dc1a0e83"   # the map's atlas_hotspots.item
+AGOL = "https://www.arcgis.com/sharing/rest/content/items"
 TRIES = 4000             # random sets of three tried
 IMAGE_WIDTH = 2400       # pixels across the drawn page
 # Close in, the page is also drawn at four times that, cut into a grid of
@@ -94,8 +114,14 @@ def unmerc(x, y):
     return math.degrees(x / R), math.degrees(2 * math.atan(math.exp(y / R)) - math.pi / 2)
 def on_earth(T, w, h):
     """Whether a placement keeps the whole page on the map's square: three
-    towns nearly in a line give a placement that throws the page off it."""
-    return all(abs(v) <= MERC_EDGE for x, y in ((0, 0), (w, 0), (w, h), (0, h)) for v in apply(T, x, y))
+    towns nearly in a line give a placement that throws the page off it.
+    East-west it may run one world past the edge, for plates across the
+    180th meridian whose longitudes are kept continuous (179, 181)."""
+    for x, y in ((0, 0), (w, 0), (w, h), (0, h)):
+        X, Y = apply(T, x, y)
+        if not (-MERC_EDGE <= X <= 3 * MERC_EDGE and abs(Y) <= MERC_EDGE):
+            return False
+    return True
 
 
 # Where on a label its place's dot is taken to be. Labels sit beside their dots
@@ -189,8 +215,9 @@ def place_page(labels, width_pt, height_pt, seed=0):
                 agree.append(((l[1], l[2]), c, l[0]))
         if not best or len(agree) > len(best[1]):
             best = (T, agree)
-    if not best or len(best[1]) < MIN_AGREE:
-        return {"kept": False, "reason": f"only {len(best[1]) if best else 0} names agree on a placement (at least {MIN_AGREE} needed)"}
+    if not best or len(best[1]) < MIN_AGREE_SMALL:
+        return {"kept": False, "reason": f"only {len(best[1]) if best else 0} names agree on a placement (at least {MIN_AGREE} needed, or {MIN_AGREE_SMALL} with half the error)"}
+    share = MAX_ERROR_SHARE if len(best[1]) >= MIN_AGREE else MAX_ERROR_SHARE_SMALL
     T = fit_affine([(p, c) for p, c, _ in best[1]])
     if not T or not on_earth(T, width_pt, height_pt):
         return {"kept": False, "reason": "the towns that agree give no placement that keeps the page on the map"}
@@ -201,25 +228,154 @@ def place_page(labels, width_pt, height_pt, seed=0):
     rms = math.sqrt(sum(e * e for e, _ in errs) / len(errs))
     span_km = ground_km(*apply(T, 0, 0), *apply(T, width_pt, 0))
     corners = [unmerc(*apply(T, x, y)) for x, y in ((0, 0), (width_pt, 0), (width_pt, height_pt), (0, height_pt))]
-    kept = rms <= span_km * MAX_ERROR_SHARE
-    return {"kept": kept, "reason": "" if kept else f"typical error {rms:.0f} km is more than {MAX_ERROR_SHARE:.0%} of the plate's {span_km:.0f} km",
+    kept = rms <= span_km * share
+    return {"kept": kept, "reason": "" if kept else f"typical error {rms:.0f} km is more than {share:.1%} of the plate's {span_km:.0f} km with {len(errs)} names agreeing",
             "corners": [[round(lon, 5), round(lat, 5)] for lon, lat in corners],
             "error_km": round(rms, 1), "width_km": round(span_km), "names": sorted(n for _, n in errs),
             "worst": sorted(errs, reverse=True)[:3], "affine": T}
 
 
-def geocode(name, cache, session):
-    if name in cache:
-        return cache[name]
-    time.sleep(1.1)                     # Nominatim's limit: one request a second
-    r = session.get("https://nominatim.openstreetmap.org/search",
-                    params={"q": name, "format": "jsonv2", "featureType": "settlement", "limit": 5}, headers=UA, timeout=60)
-    got = [(float(h["lon"]), float(h["lat"])) for h in (r.json() if r.ok else [])]
-    cache[name] = got
+def atlas_words(s):
+    """The same word test the map uses to pair a hotspot with its PDF (atlasWords in map/app.js)."""
+    return {w for w in re.split(r"[^a-z]+", str(s).lower().replace("&", " and ")) if len(w) > 2 and w not in ("and", "the")}
+
+
+def slug_for(name):
+    want = atlas_words(name)
+    best, score = None, 0.0
+    for slug, title in HOTSPOTS:
+        have = atlas_words(title)
+        if not want or not have:
+            continue
+        sc = len(want & have) / max(len(want), len(have))
+        if sc > score:
+            best, score = slug, sc
+    return best if score >= 0.5 else None
+
+
+def continuous(lons):
+    """Longitudes that straddle the 180th meridian, kept running on past 180."""
+    if lons and max(lons) - min(lons) > 180:
+        return [l + 360 if l < 0 else l for l in lons]
+    return lons
+
+
+def hotspot_boxes(session):
+    """[west, south, east, north] of each hotspot's outline, west < east always
+    (east may pass 180), from the same ArcGIS item the map draws. Kept in the cache."""
+    path = CACHE / "hotspot_boxes.json"
+    if path.exists():
+        return json.loads(path.read_text())
+    info = session.get(f"{AGOL}/{HOTSPOT_ITEM}", params={"f": "json"}, headers=UA, timeout=60).json()
+    url = (info.get("url") or "").rstrip("/")
+    if not url:
+        raise RuntimeError("the hotspot item names no service")
+    if re.search(r"/\d+$", url):
+        layers = [url]
+    else:
+        svc = session.get(url, params={"f": "json"}, headers=UA, timeout=60).json()
+        layers = [f"{url}/{l['id']}" for l in svc.get("layers", [])]
+    pts = {}
+    for layer in layers:
+        offset = 0
+        while True:
+            j = session.get(layer + "/query", params={
+                "where": "1=1", "outFields": "*", "returnGeometry": "true", "outSR": 4326, "f": "json",
+                "maxAllowableOffset": 0.05, "resultOffset": offset, "resultRecordCount": 1000}, headers=UA, timeout=180).json()
+            feats = j.get("features") or []
+            for f in feats:
+                names = [v for v in (f.get("attributes") or {}).values() if isinstance(v, str)]
+                slug = next((s for s in map(slug_for, names) if s), None)
+                if not slug:
+                    continue
+                for ring in (f.get("geometry") or {}).get("rings", []):
+                    pts.setdefault(slug, []).extend((p[0], p[1]) for p in ring)
+            if not j.get("exceededTransferLimit") or not feats:
+                break
+            offset += len(feats)
+    boxes = {}
+    for slug, ps in pts.items():
+        lons = continuous([p[0] for p in ps])
+        lats = [p[1] for p in ps]
+        boxes[slug] = [min(lons), min(lats), max(lons), max(lats)]
+    path.write_text(json.dumps(boxes, indent=1))
+    return boxes
+
+
+def widen(box):
+    w, s, e, n = box
+    mx = max(1.0, (e - w) * BOX_MARGIN)
+    my = max(1.0, (n - s) * BOX_MARGIN)
+    return [w - mx, max(-85.0, s - my), e + mx, min(85.0, n + my)]
+
+
+def inside(lon, lat, box):
+    """(lon, lat) as it falls in the box, longitude shifted by 360 if that is
+    how it gets there, or None when it is outside."""
+    w, s, e, n = box
+    if not (s <= lat <= n):
+        return None
+    for shift in (0, 360, -360):
+        if w <= lon + shift <= e:
+            return (lon + shift, lat)
+    return None
+
+
+def geocode(name, cache, session, box=None):
+    """Towns and cities called `name`; with a box, only those inside it,
+    asked for inside it, so the answer is not five same-named towns elsewhere."""
+    key = name if box is None else name + "|" + ",".join(f"{v:.2f}" for v in box)
+    if key in cache:
+        return cache[key]
+    if box is None:
+        parts = [None]
+    else:
+        w, s, e, n = box
+        # Nominatim's box cannot cross the 180th meridian: ask in two halves.
+        parts = [(w, s, min(e, 180.0), n)] + ([(-180.0, s, e - 360.0, n)] if e > 180 else [])
+    got = []
+    for part in parts:
+        time.sleep(1.1)                     # Nominatim's limit: one request a second
+        params = {"q": name, "format": "jsonv2", "featureType": "settlement", "limit": 5}
+        if part:
+            params.update(viewbox=",".join(f"{v:.4f}" for v in part), bounded=1)
+        r = session.get("https://nominatim.openstreetmap.org/search", params=params, headers=UA, timeout=60)
+        got += [(float(h["lon"]), float(h["lat"])) for h in (r.json() if r.ok else [])]
+    if box is not None:
+        got = [p for p in (inside(lon, lat, box) for lon, lat in got) if p]
+    cache[key] = got
     return got
 
 
-def main(only):
+def show_page(slug, page):
+    """Everything on a page, for seeing why it will not place (--show)."""
+    lines = [f"{slug}: page {page.rect.width:.0f} x {page.rect.height:.0f} pt", "", "TEXT (kept = read as a possible place name)"]
+    for block in page.get_text("dict")["blocks"]:
+        for line in block.get("lines", []):
+            for span in line.get("spans", []):
+                raw = span["text"]
+                t = re.sub(r"\s+", " ", raw).strip(" ,.;:")
+                why = ("too short or long" if not (3 <= len(t) <= 40) else "has a digit" if re.search(r"\d", t)
+                       else "starts lower-case" if not t[:1].isupper() else "all capitals" if t.isupper()
+                       else "a key word" if any(w.lower() in NOT_PLACES for w in re.split(r"[\s\-()]+", t) if w) else "kept")
+                b = span["bbox"]
+                lines.append(f"  {why:18} {t!r:44} at ({b[0]:.0f},{b[1]:.0f})-({b[2]:.0f},{b[3]:.0f}) size {span['size']:.1f} font {span['font']}")
+    try:
+        drawings = page.get_drawings()
+    except Exception as e:  # noqa: BLE001
+        drawings = []
+        lines.append(f"(shapes could not be read: {e})")
+    big = sorted(drawings, key=lambda d: -(d["rect"].width * d["rect"].height))[:25]
+    lines += ["", f"SHAPES: {len(drawings)} drawn; the 25 largest by their box"]
+    for d in big:
+        r = d["rect"]
+        lines.append(f"  box ({r.x0:.0f},{r.y0:.0f})-({r.x1:.0f},{r.y1:.0f})  fill {d.get('fill')}  stroke {d.get('color')}  parts {len(d.get('items', []))}")
+    path = CACHE / f"{slug}.page.txt"
+    path.write_text("\n".join(lines) + "\n")
+    return path
+
+
+def main(only, show=False):
     try:
         import pymupdf
     except ImportError:
@@ -231,6 +387,12 @@ def main(only):
     gc_path = CACHE / "geocode.json"
     cache = json.loads(gc_path.read_text()) if gc_path.exists() else {}
     session = requests.Session()
+    try:
+        boxes = hotspot_boxes(session)
+        print(f"hotspot outline boxes: {len(boxes)} of {len(HOTSPOTS)}")
+    except Exception as e:  # noqa: BLE001
+        boxes = {}
+        print(f"hotspot outline boxes could not be read ({e.__class__.__name__}: {e}); looking names up worldwide")
     out_path = OUT / "plates.json"
     plates = json.loads(out_path.read_text()) if out_path.exists() else {}
     for slug, title in HOTSPOTS:
@@ -251,14 +413,17 @@ def main(only):
             pdf.write_bytes(r.content)
         doc = pymupdf.open(str(pdf))
         page = doc[0]
+        if show:
+            print(f"{slug}: wrote {show_page(slug, page)}")
+            continue
+        box = widen(boxes[slug]) if slug in boxes else None
         labels = label_candidates(page)
-        for name in dict.fromkeys(n for n, _, _ in labels):
-            geocode(name, cache, session)
+        found = {name: geocode(name, cache, session, box) for name in dict.fromkeys(n for n, _, _ in labels)}
         gc_path.write_text(json.dumps(cache, ensure_ascii=False, indent=0))
         w, h = page.rect.width, page.rect.height
         got = None
         for anchor in ANCHORS:
-            rows = [(n, x, y, [merc(lon, lat) for lon, lat in cache.get(n, [])]) for n, x, y in label_candidates(page, anchor)]
+            rows = [(n, x, y, [merc(lon, lat) for lon, lat in found.get(n, [])]) for n, x, y in label_candidates(page, anchor)]
             tried = place_page(rows, w, h)
             if tried and tried.get("corners") and (not got or not got.get("corners") or
                                                    (len(tried["names"]), -tried["error_km"]) > (len(got["names"]), -got["error_km"])):
@@ -267,6 +432,8 @@ def main(only):
                 got = tried
         got = got or {"kept": False, "reason": "fewer than three names on the page could be found"}
         entry = {"title": title, "pdf": PDF_BASE + slug + ".pdf", "labels": len(labels), **got}
+        if box:
+            entry["looked_up_within"] = [round(v, 3) for v in box]
         entry.pop("worst", None)
         T = entry.pop("affine", None)
         if got.get("kept"):
@@ -300,4 +467,5 @@ def main(only):
 
 
 if __name__ == "__main__":
-    main(set(sys.argv[1:]))
+    args = sys.argv[1:]
+    main({a for a in args if a != "--show"}, show="--show" in args)

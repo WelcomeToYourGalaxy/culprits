@@ -5,6 +5,29 @@ touches.
 
 ---
 
+## Atlas hotspot plates: look-ups kept inside each hotspot (23 September, latest)
+
+`pipeline/atlas_plates.py` now reads each hotspot's outline box from the same
+ArcGIS item the map draws (`HOTSPOT_ITEM`, Conservation International's
+Biodiversity Hotspots 2016.1; cached in `pipeline/.atlas-cache/hotspot_boxes.json`)
+and asks Nominatim only inside that box, widened by `BOX_MARGIN` (a quarter
+of its size, at least a degree). The Philippines plate had been pulled to
+9,051 km by a town called China elsewhere. Boxes across the 180th meridian
+(New Zealand, with the Chatham Islands) keep longitudes running past 180, are
+asked for in two halves, and give corners past 180, which MapLibre draws in the
+neighbouring world copy; `on_earth` allows that. A plate is also kept with 4
+agreeing names when the error is under 1.5% (`MIN_AGREE_SMALL`,
+`MAX_ERROR_SHARE_SMALL`; set the first to 5 to switch off). Each entry records
+`looked_up_within`. `--show <slugs>` places nothing and writes
+`pipeline/.atlas-cache/<slug>.page.txt`: every piece of text (kept or dropped,
+and why) and the 25 largest shapes, for the next step on pages with too few
+names (Cape, Southwest Australia, New Caledonia): the Atlas labels only cities
+of 300,000 or more, so those pages will never have 5 names, and fitting the
+hotspot outline drawn on the page is the lead. Look-ups made before this are
+cached under the bare name and not reused; the new ones are keyed by name and
+box. Tested offline on made-up ArcGIS and Nominatim answers and a made-up
+page; not yet run against the real services.
+
 ## 3D buildings: the layer was never added (23 September, latest)
 
 Found running the real page in headless Chromium: MapLibre refused
