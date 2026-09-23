@@ -3449,6 +3449,43 @@ function trasePlan(entry, level, year) {
   return { draw, left };
 }
 
+// Climate TRACE by gas: one row per gas and subsector, each drawing its own
+// archive from culprits-tiles-more (scripts/ct_gases.py builds them and writes
+// the list this reads), filed under Carbon dioxide, Methane or Nitrous oxide
+// by the gas in its title. A site with several gases is a row under each, with
+// that gas's own tonnes. The list is read at the start like the catalogues;
+// no row draws until ticked.
+const CT_GASES_BASE = "https://welcometoyourgalaxy.github.io/culprits-tiles-more";
+function ctGasRows(index) {
+  const rows = [];
+  for (const gas of Object.keys(index || {})) {
+    const g = index[gas] || {};
+    for (const a of g.archives || []) {
+      const label = String(a.label || a.subsector || a.id).replace(/\b\w/, (c) => c.toUpperCase());
+      rows.push({ gas, name: a.id, title: `${label} \u2014 ${g.name || gas}, tonnes a year, every site and period (Climate TRACE)`,
+        fileBy: `${g.name || gas} emissions climate trace`, about: `Each source's ${g.name || gas} emissions as Climate TRACE estimates them, by period.`,
+        cfg: Object.assign(ctChild(a.id, label, CT_GASES_BASE), { colour: CT_COLOURS[`climate_trace_${a.subsector}`] || "#8F4E40" }) });
+    }
+  }
+  return rows;
+}
+async function addCtGasesLayer(cfg) {
+  let index;
+  try { index = await getJson(`${CT_GASES_BASE}/tiles/climate_trace_gases.json`, 30000); }
+  catch (e) { setLayerState(cfg.id, `not built yet (${e.message})`); return; }
+  const rows = ctGasRows(index).map((r) => Object.assign(r, {
+    show: (want) => {
+      visibility.set(r.cfg.id, want ? "visible" : "none");
+      if (want) { ensureLayer(r.cfg); showRowFor(cfg.id); }
+      applyVisibility(r.cfg.id);
+      buildLegend();
+    },
+  }));
+  catalogueRows(cfg, rows);
+  rows.forEach((r) => CATALOGUE_ITEMS.set(r.key, r));
+  setLayerState(cfg.id, `${rows.length} rows, one per gas and subsector`);
+}
+
 async function addTraseLayer(cfg) {
   let cat, regions;
   try {
@@ -8834,6 +8871,8 @@ const OTHER_MAPS = {
       wms: ["https://map.nusantara-atlas.org/geoserver/atlas-workspace-v3/wms", "https://map.nusantara-atlas.org/geoserver/atlas-workspace-v2/wms"],
       attribution: "Nusantara Atlas, TheTreeMap",
       note: "Every layer Nusantara Atlas's map server publishes, drawn live; its alerts and compliance lists need a login and are not included." },
+    { id: "ct_gases", name: "Emitting sites by gas (Climate TRACE)", unit: "rows", colour: "#8F4E40", route: "ctgases", ready: true, lazy: true,
+      note: "Climate TRACE's per-site emissions of carbon dioxide, methane and nitrous oxide, each gas its own rows." },
     { id: "gfw_catalogue", name: "Global Forest Watch / Global Nature Watch: every dataset", unit: "datasets", colour: "#62755F", route: "gfwmenu", ready: true, lazy: true,
       api: "https://data-api.globalforestwatch.org",
       note: "Its whole data catalogue, read live; a dataset draws from its own published tiles when it has them." },
@@ -9415,6 +9454,7 @@ function ensureLayer(cfg) {
       : cfg.route === "owidgrapher" ? addOwidGrapherLayer(cfg)
       : cfg.route === "buildings" ? addBuildingTypesLayer(cfg)
       : cfg.route === "spheres" ? addSpheresLayer(cfg)
+      : cfg.route === "ctgases" ? addCtGasesLayer(cfg)
       : ["ejatlas", "geojsonlive", "wpgmza", "atlascities", "trasefac"].includes(cfg.route) ? addLivePlacesLayer(cfg)
       : cfg.route === "wmsmenu" ? addWmsMenuLayer(cfg)
       : cfg.route === "gfwmenu" ? addGfwMenuLayer(cfg)
@@ -9607,6 +9647,7 @@ const LAYER_KIND = {
   final_nail: ["animal", "downstream"],
   nusantara: ["plant", "downstream"],
   gfw_catalogue: ["plant", "downstream"],
+  ct_gases: ["insentient", "downstream"],
   coastal_cleanup: ["insentient", "downstream"],
   food_soy: ["plant", "downstream"], food_maize: ["plant", "downstream"],
   wastewater_plumes: ["insentient", "downstream"],
@@ -10109,6 +10150,7 @@ const LAYER_SITE = {
   esa_risk: "https://neo.ssa.esa.int/risk-list-plots",
   fertilizer_facilities: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/fertilizer_facilities.html",
   gfw_catalogue: "https://www.globalforestwatch.org",
+  ct_gases: "https://climatetrace.org/data",
   giga_countries: "https://giga.global",
   gpw_map: "https://globalplasticwatch.org/map",
   gta_acts: "https://globaltradealert.org",
@@ -10579,7 +10621,7 @@ const PANEL_REMOVED = new Set([
   // used to carry the menu would be an empty husk. It is kept out of sight
   // rather than deleted: its layers still read their visibility from it, and
   // ticking one of them still turns it on where nobody has to see it.
-  "nusantara", "gfw_catalogue",
+  "nusantara", "gfw_catalogue", "ct_gases",
   // The same for Trase's measures: each is a row of its own now, one layer
   // across every country that publishes it, filed by what it measures.
   "trase_measures",
@@ -11042,7 +11084,7 @@ function countHeadings(box) {
 // reached the box unless "All on" happened to tick the hidden rows too. Their
 // lists are read once the box is arranged. Reading a list draws nothing and
 // ticks nothing: a catalogue draws only what is ticked under it.
-const CATALOGUE_ROUTES = new Set(["wmsmenu", "gfwmenu", "trase"]);
+const CATALOGUE_ROUTES = new Set(["wmsmenu", "gfwmenu", "trase", "ctgases"]);
 function readCataloguesAtStart() {
   for (const g of GROUPS) for (const c of g.children) {
     if (c.ready && CATALOGUE_ROUTES.has(c.route) && PANEL_REMOVED.has(c.id)) ensureLayer(c);

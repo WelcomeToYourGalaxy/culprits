@@ -1835,8 +1835,19 @@ console.log("\nTrase, and coral at world zoom");
           /own\.checked = tr\.picked\.size > 0;/.test(src) && /tr\.picked = new Set\(own\.checked \? boxes\(\)\.map/.test(src) &&
           /siteTypeRows\.get\(cfg\.id\)\.fi === i\) return;/.test(src));
   }
+  {
+    const places = new Function(src.slice(src.indexOf('const P = "Destruction > Of the planet";'), src.indexOf("// The body of the heading a path names")) + "; return cataloguePlaces;")();
+    const ctGasRows = new Function("ctChild", "CT_COLOURS", src.slice(src.indexOf("const CT_GASES_BASE"), src.indexOf("async function addCtGasesLayer")) + "; return ctGasRows;")((id, label, base) => ({ id, name: label, archiveUrl: `${base}/tiles/${id}.pmtiles` }), {});
+    const rows = ctGasRows({ ch4: { name: "methane", archives: [{ id: "climate_trace_ch4_rice_cultivation", subsector: "rice_cultivation", label: "rice cultivation" }] },
+                             co2: { name: "carbon dioxide", archives: [{ id: "climate_trace_co2_electricity_generation", subsector: "electricity_generation", label: "electricity generation" }] } });
+    check("Climate TRACE by gas: a row per gas and subsector, drawing its own archive from the tiles repo, filed by the gas in its title",
+          rows.length === 2 && rows[0].title === "Rice cultivation \u2014 methane, tonnes a year, every site and period (Climate TRACE)" &&
+          rows[0].cfg.archiveUrl === "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/climate_trace_ch4_rice_cultivation.pmtiles" &&
+          places(rows[0].fileBy).join() === "Destruction > Of the planet > Climate > Methane" && places(rows[1].fileBy).join() === "Destruction > Of the planet > Climate > Carbon dioxide" &&
+          /id: "ct_gases"[^\n]*route: "ctgases"/.test(src) && /cfg\.route === "ctgases" \? addCtGasesLayer\(cfg\)/.test(src));
+  }
   check("the catalogues' lists are read once the box is arranged, since their own rows are hidden and never ticked",
-        /const CATALOGUE_ROUTES = new Set\(\["wmsmenu", "gfwmenu", "trase"\]\)/.test(src) &&
+        /const CATALOGUE_ROUTES = new Set\(\["wmsmenu", "gfwmenu", "trase", "ctgases"\]\)/.test(src) &&
         /box\.appendChild\(gone\);\n  wireInfoMarks\(\);\n  readCataloguesAtStart\(\);/.test(src) && /PANEL_REMOVED\.has\(c\.id\)\) ensureLayer\(c\)/.test(src));
   check("its shapes are read live from Trase", /regions: "https:\/\/resources\.trase\.earth\/data\/trase-regions"/.test(src));
   check("its values come from the weekly GitHub copy", /catalogue: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/trase\/catalogue\.json"/.test(src));
@@ -2284,7 +2295,7 @@ console.log("\nNusantara Atlas and Global Forest Watch, by category");
   // Superseded with Nusantara's: the catalogue's datasets are rows of the box
   // now, filed by what each shows, and several can be drawn at once.
   check("Global Forest Watch's datasets are rows of the box", !/categoryMenu\(menu, /.test(src) &&
-        (src.match(/^  catalogueRows\(cfg, /gm) || []).length === 3);   // Nusantara, Global Forest Watch, Trase
+        (src.match(/^  catalogueRows\(cfg, /gm) || []).length === 4);   // Nusantara, Global Forest Watch, Trase, Climate TRACE by gas
   // Superseded: Nusantara's layers are rows of the box itself now, filed by
   // what they show, not a list inside one row.
   check("Nusantara's layers are rows of the box, filed by subject", /catalogueRows\(cfg, items\);/.test(src) && !/menu\.className = "facet ns-list"/.test(src));

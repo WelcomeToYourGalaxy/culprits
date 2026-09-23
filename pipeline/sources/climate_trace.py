@@ -122,7 +122,13 @@ SECTORS = [
 #
 # Gas to map. The inventory carries CO2, CH4, N2O and CO2e at 20 and 100 year
 # GWPs; mixing them in one layer would be meaningless, so pick one explicitly.
-GAS = "co2e_100yr"
+# Which of Climate TRACE's per-gas packages to read. The map's default archives
+# are the CO2-equivalent total; culprits-tiles-more/scripts/ct_gases.py runs
+# this with CT_GAS=co2, ch4 and n2o in turn to build the per-gas archives, so
+# a site can be filed under each gas it emits with that gas's own tonnes.
+GAS = os.environ.get("CT_GAS", "co2e_100yr")
+GAS_UNIT = {"co2e_100yr": "t CO\u2082e/yr (GWP-100)", "co2e_20yr": "t CO\u2082e/yr (GWP-20)",
+            "co2": "t CO\u2082/yr", "ch4": "t CH\u2084/yr", "n2o": "t N\u2082O/yr"}
 
 LAT_COLS = ("lat", "latitude", "st_astext_lat")
 LON_COLS = ("lon", "lng", "longitude")
@@ -409,7 +415,7 @@ def fetch():
                     "lon": lon,
                     "lat": lat,
                     "value": value,
-                    "unit": "t CO₂e/yr (GWP-100)",
+                    "unit": GAS_UNIT.get(GAS, f"t {GAS}/yr"),
                     # Climate TRACE has no "year" column — it has start_time and
                     # end_time, and every row is one PERIOD for one source. The
                     # first version looked for "year", found nothing, and wrote

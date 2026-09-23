@@ -13,6 +13,22 @@ step or interpolate") because `fill-extrusion-base` put ["zoom"] inside a
 "case". The whole layer failed, so no building ever stood up with 3D terrain
 on. The base is now an interpolate, like the height.
 
+## Climate TRACE by gas (23 September, built; not yet run)
+
+`pipeline/sources/climate_trace.py` reads the gas from `CT_GAS` (default
+`co2e_100yr`), with the unit to match. `culprits-tiles-more/scripts/ct_gases.py`
+clones the culprits pipeline, runs the harvest for co2, ch4 and n2o in turn
+(own ETag state per gas in `climate_gases/`), normalises as
+`climate_trace_<gas>`, and splits by **subsector** with `split_sectors.sh`
+(`PREFIX=climate_trace_<gas>`) into `tiles/climate_trace_<gas>_<subsector>.pmtiles`;
+an archive over 99 MB is not copied and is named in the log. It writes
+`tiles/climate_trace_gases.json`. In the map, `ct_gases` (route `ctgases`,
+hidden like the other catalogues) reads that list and makes one catalogue row
+per gas and subsector (`ctGasRows`), each drawing its own archive through
+`ctChild`, filed by the gas in its title. Run: `ct_gases` in the tiles-more
+workflow box; three gases' packages, so hours. `normalize.py`'s PIECES_SKIP
+matches `climate_trace_*` too.
+
 ## The Satellite sea drawn from depth tiles (23 September)
 
 Why none of the Satellite rounds changed the sea on the live map: Mapterhorn

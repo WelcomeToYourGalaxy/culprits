@@ -89,7 +89,7 @@ def feature(source_id, ident, name, lon, lat, value=None, unit=None,
     }
     # The whole source row, for the pieces the map reads on a click. Not a
     # property: it would weigh down every tile.
-    if raw and source_id not in PIECES_SKIP:
+    if raw and not any(source_id == k or source_id.startswith(k + "_") for k in PIECES_SKIP):
         out["_raw"] = raw
     return out
 
