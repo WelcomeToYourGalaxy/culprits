@@ -6079,7 +6079,7 @@ async function addGtaLayer(cfg) {
     return `<b>${escapeHtml(p.gta)}</b>` +
       `<div class="meta">${c.total.toLocaleString()} state acts: ${dot("Red")}${c.red.toLocaleString()} Red, ${dot("Amber")}${c.amber.toLocaleString()} Amber, ` +
       `${dot("Green")}${c.green.toLocaleString()} Green; ${c.in_force.toLocaleString()} with a measure in force</div>` +
-      `<div class="meta">Commonest: ${Object.entries(c.types || {}).slice(0, 6).map(([t, n]) => `${escapeHtml(t)} (${n})`).join(", ")}</div>` +
+      `<div class="meta" style="max-height:120px;overflow:auto">By type: ${Object.entries(c.types || {}).map(([t, n]) => `${escapeHtml(t)} (${n})`).join(", ")}</div>` +
       `<div class="meta" style="max-height:220px;overflow:auto">${(c.latest || []).map((a) => `<div style="margin:5px 0">${dot(a.eval)}<b>${escapeHtml(a.date || "")}</b> ` +
         `${escapeHtml(a.title)}<br><span style="font-size:11px">${escapeHtml(a.text || "")}</span></div>`).join("")}</div>` +
       `<div class="meta">Global Trade Alert</div>`;
@@ -6197,12 +6197,13 @@ async function addArcgisDynLayer(cfg) {
       `&imageDisplay=${c.clientWidth},${c.clientHeight},96&returnGeometry=false&f=json`;
     try {
       const j = await getJson(q, 20000);
-      const hits = (j.results || []).slice(0, 8);
+      // Every facility the click touches, in a box that scrolls (it was the first eight).
+      const hits = j.results || [];
       if (!hits.length) return;
-      new maplibregl.Popup({ maxWidth: "340px" }).setLngLat(e.lngLat).setHTML(hits.map((h) =>
+      new maplibregl.Popup({ maxWidth: "340px" }).setLngLat(e.lngLat).setHTML(`<div style="max-height:360px;overflow:auto">` + hits.map((h) =>
         `<b>${escapeHtml(h.value || (h.attributes && h.attributes.PRIMARY_NAME) || "")}</b><div class="meta">${escapeHtml(h.layerName || "")}</div>` +
-        `<table class="meta">${fieldRows(Object.fromEntries(Object.entries(h.attributes || {}).filter(([k, v]) => v !== "Null" && !/^(OBJECTID|Shape)$/i.test(k))))}</table>`).join("<hr>") +
-        `<div class="meta">US EPA Envirofacts</div>`).addTo(map);
+        `<table class="meta">${fieldRows(Object.fromEntries(Object.entries(h.attributes || {}).filter(([k, v]) => v !== "Null" && !/^(OBJECTID|Shape)$/i.test(k))))}</table>`).join("<hr>") + `</div>` +
+        `<div class="meta">${hits.length.toLocaleString()} ${hits.length === 1 ? "record" : "records"} here \u00b7 US EPA Envirofacts</div>`).addTo(map);
     } catch (err) { /* nothing there */ }
   });
   setLayerState(cfg.id, `${layers.length} kinds of facility \u00b7 ${cfg.points ? "a weekly copy of every point wider out; EPA's own picture from about state level in" : "drawn from about state level in"}`);
@@ -6245,6 +6246,9 @@ async function addGigaLayer(cfg) {
       `<div class="meta">Connectivity data: ${escapeHtml(pretty(c.connectivity_availability))}; coverage data: ${escapeHtml(pretty(c.coverage_availability))}</div>` +
       (c.data_source ? `<div class="meta">Data source: ${escapeHtml(c.data_source)}</div>` : "") +
       (c.date_schools_mapped ? `<div class="meta">Mapped: ${escapeHtml(c.date_schools_mapped)}</div>` : "") +
+      // Every other field Giga gives for the country, as it names it.
+      `<div style="max-height:200px;overflow:auto"><table class="meta">${fieldRows(c, ["flag", "name", "entity_counts", "schools_with_data_percentage",
+        "connectivity_availability", "coverage_availability", "data_source", "date_schools_mapped"])}</table></div>` +
       `<div class="meta">Giga (UNICEF and ITU)</div>`;
   });
   const row = document.querySelector(`[data-layer="${cfg.id}"]`);
@@ -6626,9 +6630,7 @@ function addColumnLayer() {
       `<div class="meta">${escapeHtml(p.layerName || "")}</div>` +
       (isFinite(v) ? `<div class="meta">${Math.round(v).toLocaleString()} t CO\u2082e/yr (GWP-100)` +
         (n > 1 ? ", together" : "") + `</div>` : "") +
-      (n > 1 ? "" : ["x_asset_definition", "x_period", "x_capacity", "x_capacity_units", "x_gas"]
-        .filter((k) => p[k] != null && p[k] !== "")
-        .map((k) => `<div class="meta">${k.replace(/^x_/, "").replace(/_/g, " ")}: ${escapeHtml(String(p[k]))}</div>`).join(""));
+      (n > 1 ? "" : `<div style="max-height:200px;overflow:auto"><table class="meta">${fieldRows(p, ["_count", "layerName", "name", "value"])}</table></div>`);
   });
   map.on("moveend", scheduleColumns);
   map.on("sourcedata", (e) => {
@@ -7197,6 +7199,7 @@ function addCoralLayer(cfg) {
     `<b>${p.class_name || "Unclassified"}</b>` +
     (p.area_sqkm != null
       ? `<div class="meta">This mapped patch: ${Number(p.area_sqkm).toPrecision(3)} km²</div>` : "") +
+    `<table class="meta">${fieldRows(p, ["class_name", "area_sqkm"])}</table>` +
     `<div class="meta">Allen Coral Atlas benthic habitat, from satellite imagery ` +
     `to about 10 m depth. A class of seabed, not a survey of living coral.</div>`);
   // A layer that draws nothing looks the same whether it is working over open
@@ -7739,15 +7742,16 @@ async function addShapesLayer(cfg) {
     const skip = new Set(["name", "country", "title", "list", "from_the_map", "entries"]);
     const rows = Object.entries(p).filter(([k, v]) => !k.startsWith("_") && !skip.has(k) && v !== "" && v != null)
       .map(([k, v]) => `${shapeText(k.replace(/[_.]/g, " "))}: ${shapeText(v)}`);   // every field, in full
-    const said = p.from_the_map ? shapeText(p.from_the_map).slice(0, 1200) : "";
+    // Whole, in a box that scrolls: the text and the list were cut at 1,200
+    // characters and 40 entries until 23 September.
+    const said = p.from_the_map ? shapeText(p.from_the_map) : "";
     const list = p.list ? String(p.list).split("\n") : [];
-    const shown = list.slice(0, 40).map((l) => shapeText(l).slice(0, 300));
+    const shown = list.map((l) => shapeText(l));
     return `<b>${shapeText(title)}</b>` +
-      (said ? `<div class="meta">${said}</div>` : "") +
+      (said ? `<div class="meta" style="max-height:200px;overflow:auto">${said}</div>` : "") +
       (rows.length ? `<div class="meta">${rows.join("<br>")}</div>` : "") +
-      (shown.length ? `<div class="meta">${Number(p.entries || list.length).toLocaleString()} entries:<br>` +
-        shown.join("<br>") + (list.length > 40 ? `<br>…and ${(list.length - 40).toLocaleString()} more in the source file` : "") +
-        `</div>` : "");
+      (shown.length ? `<div class="meta" style="max-height:240px;overflow:auto">${Number(p.entries || list.length).toLocaleString()} entries:<br>` +
+        shown.join("<br>") + `</div>` : "");
   };
   // A layer built with its long text kept apart reads it on the first click.
   const popup = (p) => (data.details && p._k != null

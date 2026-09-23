@@ -846,6 +846,17 @@ saves after each day, stops at 100 minutes, and carries on next run
 (`cerulean_archive/refill.json`). Mines' first file is 96.7 MB (92 MiB), under
 the 95 MiB cut.
 
+## Round of 23 September (18): every field in the boxes that picked their own
+
+Item 9 of the handed-over list (every field a source publishes reaches the
+box), checked across all 29 popups. The ones that chose fields by hand now
+show the rest too: Global Trade Alert (every type, not six), Giga (the whole
+country record), Allen Coral (every field of the patch), the Climate TRACE
+columns (every field, not five), the shape layers' own text and list (whole,
+not 1,200 characters and 40 entries) and EPA's picture (every facility hit,
+not eight). Long ones scroll. Site maps use their own boxes, and harvested
+layers read their pieces, so both were already whole.
+
 ## Round of 23 September (16): owner's answers of 23 September
 
 - EPA: every dot kept from the world view (the owner's choice), 17 MB first square.

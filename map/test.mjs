@@ -3445,5 +3445,15 @@ console.log("\nround of 23 September (17): the F-gas chips from the build's own 
         /choicesUrl: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/edgar\/fgases_choices\.json"/.test(src) &&
         /if \(cfg\.choicesUrl && !cfg\._choicesRead\)/.test(src) && /if \(d && Array\.isArray\(d\.choices\) && d\.choices\.length\) cfg\.choices = d\.choices;/.test(src));
 }
+console.log("\nround of 23 September (18): every field in the boxes that picked their own");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("Global Trade Alert's box lists every type of act, not the first six", !/Object\.entries\(c\.types \|\| \{\}\)\.slice\(0, 6\)/.test(src));
+  check("Giga's box shows every field of the country's record", /fieldRows\(c, \["flag", "name", "entity_counts"/.test(src));
+  check("a reef patch's box shows every field the Atlas gives it", /fieldRows\(p, \["class_name", "area_sqkm"\]\)/.test(src));
+  check("a Climate TRACE column's box shows every field, not five", /fieldRows\(p, \["_count", "layerName", "name", "value"\]\)/.test(src) && !/\["x_asset_definition", "x_period", "x_capacity"/.test(src));
+  check("a click on EPA's picture lists every facility it touches, not the first eight", /const hits = j\.results \|\| \[\];/.test(src));
+  check("a shape's own words and list are shown whole, in a box that scrolls", !/shapeText\(p\.from_the_map\)\.slice\(0, 1200\)/.test(src) && !/list\.slice\(0, 40\)/.test(src));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
