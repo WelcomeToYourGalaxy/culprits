@@ -1345,14 +1345,14 @@ console.log("\nthe wires on the map");
   const at = (z) => f.atlasWashPasses(z);
   check("Satellite: no wash at any zoom",
         [4, 10, 12, 14, 18].every((z) => at(z).length === 0) && !("multiply" in f.SAT_CLOSE));
-  check("…Sentinel-2 cloudless 2024 out to 13.25, Esri's photo fading in from 12.5, the atlas keeps its own imagery layer",
+  check("…the Sentinel-2 wide views are kept but switched off (SAT_CLOSE.s2 false): Esri's imagery at every zoom, as when patch o was made",
         /tiles: \["https:\/\/tiles\.maps\.eox\.at\/wmts\/1\.0\.0\/s2cloudless-2024_3857\/default\/g\/\{z\}\/\{y\}\/\{x\}\.jpg"\]/.test(src) &&
         /Contains modified Copernicus Sentinel data 2024/.test(src) &&
         /id: "base-s2", type: "raster", source: "s2", maxzoom: SAT_CLOSE\.handover\[1\]/.test(src) &&
         /id: "base-close", type: "raster", source: "base", minzoom: SAT_CLOSE\.handover\[0\]/.test(src) &&
         JSON.stringify(f.SAT_CLOSE.handover) === "[12.5,13.25]" &&
-        /show\("base", kind === "atlas"\);/.test(src) && /show\("base-s2", kind === "satellite"\);/.test(src) &&
-        /show\("base-close", kind === "satellite"\);/.test(src) &&
+        /show\("base", kind === "atlas" \|\| \(kind === "satellite" && !SAT_CLOSE\.s2\)\);/.test(src) && /show\("base-s2", kind === "satellite" && SAT_CLOSE\.s2\);/.test(src) &&
+        /show\("base-close", kind === "satellite" && SAT_CLOSE\.s2\);/.test(src) && f.SAT_CLOSE.s2 === false &&
         /\["base", "s2", "hillshade", "labels", "atlas-plate"\]\.includes\(src\)/.test(src));
   f.setB("atlas");
   check("…and the painted atlas's washes are unchanged by it", at(12).length === 4);

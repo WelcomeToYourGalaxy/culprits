@@ -867,6 +867,12 @@ const SAT_CLOSE = {
   // mosaic (one year, cloud-free, the same everywhere); Esri's sharper photo
   // fades in between 12.5 and 13.25.
   handover: [12.5, 13.25],
+  // Off since 23 September, at the owner's choice: the look they want (patch
+  // o's) was made on Esri's imagery, and Sentinel-2 cloudless is darker, more
+  // saturated, with orange deserts. Esri at every zoom again; its change of
+  // season around zoom 12 comes back with it. true restores the Sentinel-2
+  // wide views as they were.
+  s2: false,
 };
 
 // The colour washes, as one WebGL layer drawn over the imagery.
@@ -1969,9 +1975,9 @@ function setBasemap(kind) {
   };
   const imagery = kind !== "outlines";
   if (!imagery) addOutlineLayers();
-  show("base", kind === "atlas");
-  show("base-s2", kind === "satellite");
-  show("base-close", kind === "satellite");
+  show("base", kind === "atlas" || (kind === "satellite" && !SAT_CLOSE.s2));
+  show("base-s2", kind === "satellite" && SAT_CLOSE.s2);
+  show("base-close", kind === "satellite" && SAT_CLOSE.s2);
   // Esri's relief tiles on the atlas only; the Satellite basemap has its own.
   show("hillshade", kind === "atlas" && !TERRAIN_ON);
   show("atlas-plate", kind === "atlas");
@@ -1985,7 +1991,7 @@ function setBasemap(kind) {
   OUTLINE_IDS.forEach((id) => show(id, !imagery));
   show("outline-line", !imagery);
   if (imagery) {
-    for (const id of kind === "satellite" ? ["base-s2", "base-close"] : ["base"]) {
+    for (const id of kind === "satellite" && SAT_CLOSE.s2 ? ["base-s2", "base-close"] : ["base"]) {
       if (!map.getLayer(id)) continue;
       for (const [k, v] of Object.entries(BASE_GRADE[kind])) map.setPaintProperty(id, k, v);
     }

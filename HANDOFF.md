@@ -5,6 +5,16 @@ touches.
 
 ---
 
+## Satellite back on Esri's imagery at every zoom (23 September)
+
+The owner's chosen look (patch o's, with edits) was made on Esri's imagery;
+since 5295b36 the Satellite basemap drew Sentinel-2 cloudless 2024 out to
+zoom 12.5, which is darker, more saturated and orange in the deserts, so the
+look came out different. `SAT_CLOSE.s2` is now false: the Satellite basemap
+draws the `base` layer (Esri) at every zoom, graded by BASE_GRADE.satellite;
+`base-s2` and `base-close` stay in the style, hidden. Esri's change of season
+around zoom 12 is back. Set s2 to true to restore the Sentinel-2 wide views.
+
 ## The Satellite basemap as patch o, with the owner's edits (23 September)
 
 Replaces patch n's look (af60123), which the owner found entirely different
