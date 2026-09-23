@@ -1383,7 +1383,7 @@ console.log("\nreading the map");
           land.length >= 8 && land.every((c) => c.a <= 0.34 && Math.max(c.r, c.g, c.b) <= 140) &&
           land[0].g > land[0].r && land[0].g > land[0].b && land.slice(3, 6).every((c) => c.r > c.g && c.g > c.b) &&
           land.every((c) => !(c.r > 150 && c.g > 130 && c.b < 90)) &&
-          block.includes('1, "rgba(30,60,26,0.32)"') && block.includes('-8000, "rgba(10,22,42,0.8)"'));
+          block.includes('1, "rgba(46,52,34,0.32)"') && block.includes('-8000, "rgba(10,22,42,0.8)"'));
     check("…paleo's sea: navy deeps, lighter blue-green shelves, and a calm-sea layer above the shading that clears before the coast",
           colour.filter((c) => c.h < 0).every((c) => c.b >= c.r) &&
           stops("sea", "shade").filter((c) => c.h >= -80).every((c) => c.a === 0) &&
@@ -3352,6 +3352,19 @@ console.log("\nround of 23 September (8): Waste Atlas rows; soy and maize from H
   check("soy and maize each have a row with the four pressures as chips, under Nitrous oxide and under Agriculture",
         ["soyb", "maiz"].every((c) => ["ghg", "water", "nutrient", "disturbance"].every((p) => src.includes(`food_${c}_${p}.pmtiles`))) &&
         o.includes("food_soy") && o.includes("food_maize"));
+}
+console.log("\nround of 23 September (9): refresh notes, where each dot is, place names, the green cast");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("every row's mark carries a note of how often what it shows is renewed",
+        /return `<span class="live"[^`]*>LIVE<\/span>` \+ refreshNote\(cfg\);/.test(src) && /NOT LIVE<\/span>` \+ refreshNote\(cfg\);/.test(src) &&
+        /copy renewed daily/.test(src) && /copy renewed weekly/.test(src) && /read afresh each time it is ticked/.test(src));
+  check("every dot's box says how exact its position is, unless the box already says it",
+        /function positionText\(props, rowId\)/.test(src) && /P\.setHTML = function/.test(src) && /POSITION_SAID\.test\(h\)/.test(src) &&
+        /The coordinates the source gives; it does not say how exact they are\./.test(src));
+  check("a Place names tick box in the settings box takes every name off the map and puts it back as it was",
+        /id="names-toggle"/.test(src) && /map\.setLayoutProperty\(l\.id, "text-field", ""\)/.test(src) && /namesField\.get\(l\.id\)/.test(src));
+  check("the Satellite lowlands keep their darkness with far less green", /1, "rgba\(46,52,34,0\.32\)", 400, "rgba\(48,54,36,0\.3\)"/.test(src));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

@@ -761,6 +761,26 @@ owner's request, so a land-cover layer that no other rule claims gets no row
 and is counted in the console (`LEFT_OUT`). Agriculture > Moratoriums from the
 list was not made: Nusantara has one moratorium layer and it is a forest one.
 
+## Round of 23 September (9): refresh notes, positions, place names, the green cast
+
+- **Refresh notes**: `refreshNote(cfg)` adds a small note after every LIVE /
+  NOT LIVE mark. Live rows: "read afresh each time it is ticked" (as the map
+  moves for `worker` and `cerulean`). Copies: the rhythm read from the row's
+  NOT_LIVE reason, note and name (hourly, daily, weekly, every four weeks,
+  made once); where none is said, "copy; renewed when rebuilt, no set rhythm".
+- **Positions**: every dot's box gets a "Position:" line (`positionText`),
+  added by wrapping `maplibregl.Popup.prototype.setHTML/setDOMContent` with
+  the point under the last click. Precision fields first (`x_precision`,
+  `precise`), then `POSITION_BY_ROW` / `POSITION_BY_PREFIX`, else "The
+  coordinates the source gives; it does not say how exact they are." A box
+  that already says (`POSITION_SAID`) is left alone.
+- **Place names** tick box beside 3D terrain: empties every symbol layer's
+  `text-field` and restores it (kept in `namesField`); remembered in
+  localStorage; applied again on `styledata` while off.
+- **Satellite**: the lowland stops of `SAT_RELIEF.colour` (1, 400, 1000 m) are
+  far less green at the same darkness and alpha; nothing else in the look
+  changed. (The Satellite basemap is also being worked on in another chat.)
+
 ## Round of 23 September (7): the EPA copy, rebuilt in parts
 
 The first unmerged EPA build was over 95 MB at every depth, and the old
