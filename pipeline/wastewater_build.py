@@ -56,6 +56,18 @@ def clean(v):
     return v.strip() if isinstance(v, str) else v
 
 
+A = 6378137.0                   # the sphere radius PROJ's Mollweide (ESRI:54009, WGS84) uses
+SQ2 = math.sqrt(2)
+
+
+def mollweide_inverse(x, y):
+    theta = math.asin(max(-1.0, min(1.0, y / (SQ2 * A))))
+    lat = math.asin(max(-1.0, min(1.0, (2 * theta + math.sin(2 * theta)) / math.pi)))
+    c = math.cos(theta)
+    lon = math.pi * x / (2 * SQ2 * A * c) if c > 1e-12 else 0.0
+    return math.degrees(lon), math.degrees(lat)
+
+
 def unit_of(total):
     """The unit the tables are in, from how their global total compares with the paper's."""
     for name, per_tonne in (("kilograms", 1e3), ("grams", 1e6), ("tonnes", 1.0)):
@@ -74,16 +86,30 @@ def main():
     z = zipfile.ZipFile(ZIP)
     pts = reader(z, "effluent_N_pourpoints_all")
     x0, y0, x1, y1 = pts.bbox
-    if not (-181 <= x0 <= x1 <= 181 and -91 <= y0 <= y1 <= 91):
-        sys.exit(f"The pour points are not in longitude and latitude (their extent is {pts.bbox}), and the package "
-                 "gives no projection file; nothing was built.")
+    raw = [(sr.shape.points[0], sr.record) for sr in pts.iterShapeRecords() if sr.shape.points]
+    if -181 <= x0 <= x1 <= 181 and -91 <= y0 <= y1 <= 91:
+        to_lonlat = lambda x, y: (x, y)
+        print("wastewater: the points are in longitude and latitude", flush=True)
+    else:
+        # The package gives no projection file. Its extent (x to +-17.9 million
+        # metres, y from -6.8 to 8.8 million) is wider than Robinson, Eckert IV
+        # or Equal Earth allow and fits Mollweide, the projection of the ocean
+        # impact maps this model feeds. That is tested, not assumed: in
+        # Mollweide every point must lie inside the world's ellipse; points in
+        # Mercator or most other projections would fall outside it.
+        out = [(x, y) for (x, y), _ in raw if (x / (2 * SQ2 * A)) ** 2 + (y / (SQ2 * A)) ** 2 > 1 + 1e-9]
+        if out:
+            sys.exit(f"The pour points are not in longitude and latitude (their extent is {pts.bbox}), and {len(out):,} of them "
+                     "fall outside the Mollweide world, so the projection is not known; nothing was built.")
+        to_lonlat = mollweide_inverse
+        print(f"wastewater: the points are in Mollweide (all {len(raw):,} inside its world ellipse); turned to longitude and latitude", flush=True)
     names = [f[0] for f in pts.fields[1:]]
     rows = []
-    for sr in pts.iterShapeRecords():
-        if not sr.shape.points:
-            continue
-        lon, lat = sr.shape.points[0]
-        rows.append(((round(lon, 5), round(lat, 5)), {k: clean(v) for k, v in zip(names, sr.record)}))
+    for (x, y), rec in raw:
+        lon, lat = to_lonlat(x, y)
+        rows.append(((round(lon, 5), round(lat, 5)), {k: clean(v) for k, v in zip(names, rec)}))
+    lats = [ll[1] for ll, _ in rows]
+    print(f"wastewater: the points run from latitude {min(lats):.1f} to {max(lats):.1f}", flush=True)
     total = sum(float(p.get("tot_N") or 0) for _, p in rows)
     unit, per_tonne = unit_of(total)
     if not unit:
