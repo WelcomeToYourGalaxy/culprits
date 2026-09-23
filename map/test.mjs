@@ -3405,5 +3405,10 @@ console.log("\nround of 23 September (14): the Atlas's city maps laid on the map
         /what\.cityPlate \? \(await atlasCityPlatesRead\(\)\)\[what\.cityPlate\]/.test(src) && /culprits-tiles-more\/atlas\/city_plates\.json/.test(src));
   check("…a city with no placed map keeps its own zoom", /if \(what\.cityPlate\) return;/.test(src));
 }
+console.log("\nround of 23 September (15): the rows say their points are no longer merged");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("no row's note still says its points are merged where they crowd", !/note: "[^"\n]*merged where they crowd/.test(src) && !/note: "[^"\n]*merged into counted points/.test(src));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
