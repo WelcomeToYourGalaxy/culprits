@@ -833,7 +833,12 @@ const SAT_RELIEF = {
   // map read as the plain photograph; only steep ground showed the theme.
   // Lighter at the world view, where the green lay too heavy over whole
   // continents; full from zoom 8 in, where it carries the look.
-  colourOpacity: ["interpolate", ["linear"], ["zoom"], 2, 0.5, 5, 0.72, 8, 0.95, 14, 0.9, 16, 0.85],
+  // Thinned close in (23 September): at 0.9 the veil was a flat sheet of one
+  // colour over about two-fifths of the photograph, which is what flattened
+  // every tree, rock and rapid into the plastic look. From zoom 11 the theme's
+  // green comes instead from SAT_CLOSE's multiply (see atlasWashPasses),
+  // which darkens and greens the photograph without covering its texture.
+  colourOpacity: ["interpolate", ["linear"], ["zoom"], 2, 0.5, 5, 0.72, 8, 0.95, 11, 0.95, 14, 0.4, 16, 0.3],
   // Light from four directions, weighted to the north-west (Swiss style):
   // green-black shadows, faint warm sunlight on the lit faces.
   shade: {
@@ -843,7 +848,10 @@ const SAT_RELIEF = {
     "hillshade-highlight-color": ["rgba(252,244,220,0.08)", "rgba(252,244,220,0.14)", "rgba(252,244,220,0.06)", "rgba(252,244,220,0)"],
     "hillshade-shadow-color": ["rgba(8,14,10,0.5)", "rgba(8,14,10,0.8)", "rgba(8,14,10,0.5)", "rgba(8,14,10,0.25)"],
     "hillshade-accent-color": "rgba(11,19,13,0.6)",
-    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 1, 8, 0.9, 12, 0.7, 15, 0.55],
+    // Eased past zoom 12, where Mapterhorn's heights end and are only
+    // enlarged: shading drawn from them is smoother than the photograph and
+    // rounds its slopes into a sheet. The photograph's own shadows take over.
+    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 1, 8, 0.9, 12, 0.7, 14, 0.35, 16, 0.15],
     "hillshade-illumination-anchor": "map",
   },
   // A second, low north-west light for depth wide out; gone by zoom 11, where
@@ -862,6 +870,23 @@ const SAT_RELIEF = {
   lift: [[3, 7], [6, 4], [9, 2.4], [12, 1.4]],
 };
 
+// The Satellite basemap close in (23 September). What gives a landscape its
+// character up close (single tree crowns, rock with its own shadow, white
+// water in a river) is in the photograph, so nothing is laid over it as a
+// sheet. The theme's deep green comes from a multiply instead: every pixel is
+// scaled, so light and dark within a tree crown keep their ratio and the
+// texture stays. Off to zoom 10, full from 14, as the tint above thins.
+const SAT_CLOSE = {
+  multiply: [0.80, 0.93, 0.80],
+  from: 10, to: 14,
+  // Two photographs, so one season all the way in. Esri's World Imagery is a
+  // different photograph at different zooms; around zoom 12 it is often a
+  // leaf-off or dry-season one, so zooming in went green, brown, green. Out to
+  // zoom 12.5 the Satellite basemap shows EOX's Sentinel-2 cloudless 2024
+  // mosaic (one year, cloud-free, the same everywhere); Esri's sharper photo
+  // fades in between 12.5 and 13.25.
+  handover: [12.5, 13.25],
+};
 
 // The colour washes, as one WebGL layer drawn over the imagery.
 //
@@ -902,8 +927,12 @@ function hexRgb(h) {
 // arithmetic can be tested without a GPU.
 // The Satellite basemap takes none of the atlas's sea, green and warm washes:
 // its colour comes from the relief (SAT_RELIEF), which the washes would tint.
+// Close in it takes one multiply of its own (SAT_CLOSE).
 function atlasWashPasses(z) {
-  if (BASEMAP === "satellite") return [];
+  if (BASEMAP === "satellite") {
+    const k = Math.min(1, Math.max(0, (z - SAT_CLOSE.from) / (SAT_CLOSE.to - SAT_CLOSE.from)));
+    return k > 0 ? [{ mode: "multiply", rgb: SAT_CLOSE.multiply.map((c) => 1 - k * (1 - c)) }] : [];
+  }
   const { t, sea } = atlasWashRamp(z);
   const passes = [];
   const aSea = ATLAS_TUNE.sea * sea;
@@ -1081,6 +1110,14 @@ const map = new maplibregl.Map({
         tileSize: 256, maxzoom: 18,
         attribution: "Imagery © Esri, Maxar",
       },
+      // The Satellite basemap's wide views (SAT_CLOSE.handover). Free for
+      // non-commercial use with this attribution (CC BY-NC-SA 4.0).
+      s2: {
+        type: "raster",
+        tiles: ["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg"],
+        tileSize: 256, maxzoom: 14,
+        attribution: '<a href="https://s2maps.eu" target="_blank" rel="noopener">Sentinel-2 cloudless - https://s2maps.eu</a> by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024)',
+      },
       // Relief is what makes imagery read as terrain rather than as a
       // photograph. In the Leaflet map it multiplies; here it can only sit on
       // top at low opacity, which is weaker but the same idea.
@@ -1109,6 +1146,15 @@ const map = new maplibregl.Map({
       // basemap; setBasemap() swaps it for the satellite grading.
       { id: "base", type: "raster", source: "base",
         paint: { "raster-opacity": 1, ...BASE_GRADE.atlas } },
+      // The Satellite basemap's imagery: Sentinel-2 out to 13.25, Esri's photo
+      // from 12.5, fading in over it. Separate layers so neither asks for
+      // squares at zooms where it is not drawn.
+      { id: "base-s2", type: "raster", source: "s2", maxzoom: SAT_CLOSE.handover[1],
+        layout: { visibility: "none" }, paint: { ...BASE_GRADE.satellite } },
+      { id: "base-close", type: "raster", source: "base", minzoom: SAT_CLOSE.handover[0],
+        layout: { visibility: "none" },
+        paint: { ...BASE_GRADE.satellite, "raster-opacity":
+          ["interpolate", ["linear"], ["zoom"], SAT_CLOSE.handover[0], 0, SAT_CLOSE.handover[1], 1] } },
       // Relief eases IN as you zoom, the way the Leaflet ramp does it: wide out
       // it muddies the picture, at valley scale it is what you want more of.
       { id: "hillshade", type: "raster", source: "hillshade",
@@ -1946,7 +1992,9 @@ function setBasemap(kind) {
   };
   const imagery = kind !== "outlines";
   if (!imagery) addOutlineLayers();
-  show("base", imagery);
+  show("base", kind === "atlas");
+  show("base-s2", kind === "satellite");
+  show("base-close", kind === "satellite");
   // Esri's relief tiles on the atlas only; the Satellite basemap has its own.
   show("hillshade", kind === "atlas" && !TERRAIN_ON);
   show("atlas-plate", kind === "atlas");
@@ -1959,8 +2007,11 @@ function setBasemap(kind) {
   show("outline-land", !imagery);
   OUTLINE_IDS.forEach((id) => show(id, !imagery));
   show("outline-line", !imagery);
-  if (imagery && map.getLayer("base")) {
-    for (const [k, v] of Object.entries(BASE_GRADE[kind])) map.setPaintProperty("base", k, v);
+  if (imagery) {
+    for (const id of kind === "satellite" ? ["base-s2", "base-close"] : ["base"]) {
+      if (!map.getLayer(id)) continue;
+      for (const [k, v] of Object.entries(BASE_GRADE[kind])) map.setPaintProperty(id, k, v);
+    }
   }
   // The plate carries its own drawn place names, so map labels wait until it
   // has faded, as they do on the Leaflet atlas.
@@ -9448,7 +9499,7 @@ function updateZoomState() {
 const badTiles = new Set();
 map.on("error", (e) => {
   const src = e && e.sourceId;
-  if (src && ["base", "hillshade", "labels", "atlas-plate"].includes(src) && !badTiles.has(src)) {
+  if (src && ["base", "s2", "hillshade", "labels", "atlas-plate"].includes(src) && !badTiles.has(src)) {
     badTiles.add(src);
     console.warn(`[culprits] basemap source "${src}" is failing to load tiles ` +
                  `— the map still works, but it will look wrong.`);

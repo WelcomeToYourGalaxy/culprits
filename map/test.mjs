@@ -1335,6 +1335,34 @@ console.log("\nthe wires on the map");
 }
 
 
+// The Satellite basemap close in (23 September): a multiply, not a sheet, and
+// one season of imagery all the way in.
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const chunk = src.slice(src.indexOf("const ATLAS_TUNE"), src.indexOf("const atlasWashes"));
+  const f = new Function("abs", chunk + "\nreturn { SAT_CLOSE, atlasWashPasses, setB: (k) => { BASEMAP = k; } };")(() => "");
+  f.setB("satellite");
+  const at = (z) => f.atlasWashPasses(z);
+  check("Satellite close in: no wash out to zoom 10, one multiply from there, full at 14",
+        at(4).length === 0 && at(10).length === 0 && at(12).length === 1 && at(12)[0].mode === "multiply" &&
+        JSON.stringify(at(14)[0].rgb) === JSON.stringify(f.SAT_CLOSE.multiply) &&
+        JSON.stringify(at(18)[0].rgb) === JSON.stringify(f.SAT_CLOSE.multiply));
+  check("…the multiply only darkens, never past 0.75 on any channel, and greens (green kept most)",
+        [11, 12, 13, 14, 17].every((z) => at(z)[0].rgb.every((c) => c <= 1 && c >= 0.75)) &&
+        f.SAT_CLOSE.multiply[1] > f.SAT_CLOSE.multiply[0] && f.SAT_CLOSE.multiply[1] > f.SAT_CLOSE.multiply[2]);
+  check("…Sentinel-2 cloudless 2024 out to 13.25, Esri's photo fading in from 12.5, the atlas keeps its own imagery layer",
+        /tiles: \["https:\/\/tiles\.maps\.eox\.at\/wmts\/1\.0\.0\/s2cloudless-2024_3857\/default\/g\/\{z\}\/\{y\}\/\{x\}\.jpg"\]/.test(src) &&
+        /Contains modified Copernicus Sentinel data 2024/.test(src) &&
+        /id: "base-s2", type: "raster", source: "s2", maxzoom: SAT_CLOSE\.handover\[1\]/.test(src) &&
+        /id: "base-close", type: "raster", source: "base", minzoom: SAT_CLOSE\.handover\[0\]/.test(src) &&
+        JSON.stringify(f.SAT_CLOSE.handover) === "[12.5,13.25]" &&
+        /show\("base", kind === "atlas"\);/.test(src) && /show\("base-s2", kind === "satellite"\);/.test(src) &&
+        /show\("base-close", kind === "satellite"\);/.test(src) &&
+        /\["base", "s2", "hillshade", "labels", "atlas-plate"\]\.includes\(src\)/.test(src));
+  f.setB("atlas");
+  check("…and the painted atlas's washes are unchanged by it", at(12).length === 4);
+}
+
 console.log("\nreading the map");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
@@ -1357,9 +1385,9 @@ console.log("\nreading the map");
           alphas.length >= 10 && alphas.every((m) => Math.max(+m[1], +m[2], +m[3]) <= 130) &&
           alphas.filter((m, i) => i >= 5).every((m) => +m[4] <= 0.5));
     // Fourth version: the owner wants the tint and shading kept close in, without the sheen.
-    check("…the tint and shading stay nearly full at every zoom; the depth light is gone by 11; faint warm lights only; fog only at the horizon",
-        /colourOpacity: \["interpolate", \["linear"\], \["zoom"\], 2, 0\.5, 5, 0\.72, 8, 0\.95, 14, 0\.9, 16, 0\.85\]/.test(src) &&
-        /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 2, 1, 8, 0\.9, 12, 0\.7, 15, 0\.55\]/.test(src) &&
+    check("…the tint is full from 8 to 11 and thins close in; the shading eases past zoom 12; the depth light is gone by 11; faint warm lights only; fog only at the horizon",
+        /colourOpacity: \["interpolate", \["linear"\], \["zoom"\], 2, 0\.5, 5, 0\.72, 8, 0\.95, 11, 0\.95, 14, 0\.4, 16, 0\.3\]/.test(src) &&
+        /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 2, 1, 8, 0\.9, 12, 0\.7, 14, 0\.35, 16, 0\.15\]/.test(src) &&
         /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 2, 0\.85, 6, 0\.55, 9, 0\.2, 11, 0\]/.test(src) &&
         /"rgba\(252,244,220,0\.14\)"/.test(src) && !/"rgba\(2\d\d,2\d\d,2\d\d,0\.[3-9]/.test(block) &&
         /"fog-ground-blend": 0\.97/.test(src));

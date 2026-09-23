@@ -317,6 +317,35 @@ Cost: three more package downloads per sector per run (agriculture's co2e
 package alone is 1.4 GB), so the per-gas harvest should run as its own job
 with its own ETags rather than inside the existing one. Not written yet.
 
+## The Satellite basemap close in: one season, and a multiply instead of a sheet (23 September)
+
+Two things the owner saw on the Satellite basemap. Zooming in went green,
+brown, green: Esri's World Imagery is a different photograph at different
+zooms, and around zoom 12 it is often a leaf-off or dry-season one. And close
+in the ground looked like plastic: the tint (`sat-relief-colour`) at 0.9
+opacity with land alphas around 0.46 is one flat colour over roughly
+two-fifths of the photograph, which cuts the contrast inside every tree crown,
+rock face and river by that much; the shading over it comes from heights that
+end at zoom 12 and are only enlarged past it, so it is smoother than the
+photograph.
+
+Now, on the Satellite basemap only (the atlas is unchanged):
+- Imagery: `base` shows on the atlas only. The Satellite basemap uses two
+  layers, `base-s2` (EOX Sentinel-2 cloudless 2024, source `s2`,
+  https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg,
+  maxzoom 14, layer maxzoom 13.25) and `base-close` (Esri, the `base`
+  source, layer minzoom 12.5, fading in 12.5 to 13.25). `SAT_CLOSE.handover`.
+  EOX's WMTS is free for non-commercial use with the attribution given in the
+  source; commercial use needs their licence.
+- Tint: `colourOpacity` 0.95 to zoom 11, then 0.4 at 14 and 0.3 at 16.
+- Shading: main exaggeration 0.7 at 12, 0.35 at 14, 0.15 at 16.
+- Theme close in: `atlasWashPasses` returns one multiply on Satellite,
+  `SAT_CLOSE.multiply` [0.80, 0.93, 0.80], off to zoom 10, full from 14.
+  Multiply scales each pixel, so texture keeps its contrast.
+Not seen rendered from the sandbox (it cannot reach the tile hosts). If the
+close-in green is too strong or too weak, `SAT_CLOSE.multiply` is the knob;
+if EOX's squares fail, the console names source `s2`.
+
 ## The drawn relief from Mapterhorn; a lighter tint wide out (22 September, night, later)
 
 While zooming the owner saw the tint and shading come and go, the plain
