@@ -3215,5 +3215,24 @@ console.log("\nround of 22 September (6): the second check");
   check("a uMap layer is read from the daily copy first, and the row says NOT LIVE",
         /culprits-tiles-more\/umap\/\$\{cfg\.umapId\}\/\$\{id\}\.geojson/.test(src) && /wreckers_umap: "The map's settings are read live/.test(src));
 }
+console.log("\nround of 23 September: one row per air pollutant");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const gases = ["pm2_5", "bc", "oc", "so2", "vocs", "co", "nh3", "nox"];
+  check("each pollutant Climate TRACE reports for urban sources is a row of its own", gases.every((g) => new RegExp(`id: "ct_air_${g}", [^\\n]*route: "ctairgas", gas: "${g}"`).test(src)));
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const o = new Function(body + "; return { PANEL_ORDER };")().PANEL_ORDER;
+  const at = (t, from = 0) => o.findIndex((x, i) => i >= from && x && x.t === t);
+  const pol = at("Pollution");
+  check("\u2026each under its own heading in Pollution, between General and Nitrogen dioxide",
+        ["Fine particles (PM2.5)", "Black carbon", "Organic carbon", "Sulphur dioxide", "Volatile organic compounds", "Carbon monoxide", "Ammonia", "Nitrogen oxides"]
+          .every((t, i) => { const h = at(t, pol); return h > at("General and all pollutants", pol) && h < at("Nitrogen dioxide", pol) && o[h + 1] === `ct_air_${gases[i]}`; }));
+  check("\u2026black carbon copied under Climate's Black carbon too", o.indexOf("ct_air_bc") > at("Black carbon") && o.indexOf("ct_air_bc") < at("Infrastructure emitting more than one gas"));
+  check("\u2026every source kept, sized and glowing by that pollutant's yearly amount, from the weekly copy",
+        /glowMaxOf\.set\(src, max\)/.test(src) && /\["get", "value"\], 0\]\], cfg\._max\]/.test(src) && /ct_air\/gases\.json/.test(src));
+  check("\u2026and the rows say NOT LIVE, the click still reads live", /ct_air_\$\{g\}`,\s*"The yearly amounts come from a weekly copy/.test(src));
+  const py = fs.readFileSync(path.join(HERE, "..", "pipeline", "wastewater_inspect.py"), "utf8");
+  check("the wastewater package is inspected from KNB before a build is written", /urn:uuid:af8d0bd6-dc0c-4149-a3cd-93b5aed71f7c/.test(py) && /def dbf_fields/.test(py));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

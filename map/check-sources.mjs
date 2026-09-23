@@ -45,7 +45,7 @@ for (const crop of ["Soybean", "Corn"]) {
 const man = await ask("(24) Trase facilities list (our copy)", `${ORIGIN}/culprits-tiles-more/trase/facilities.json`);
 let silos = "silos_consolidated_capacity_website_brazil_2024_2_post.geo.json", base = "https://resources.trase.earth/data/facilities-data/";
 const m = man && json(man);
-if (m) { const hit = (m.types || []).find((t) => t.id === "brazil-silos"); if (hit && hit.file) { silos = hit.file; base = m.base || base; } }
+if (m) { const hit = (m.types || []).find((t) => t.id === "brazil-silos"); if (hit && hit.file) { silos = hit.file; base = hit.base || m.base || base; } }
 await ask(`(24) Trase soy silos file: ${silos}`, base + silos, { ms: 120000 });
 await ask("(29) EJAtlas, first page of 500", "https://ejatlas.org/api/v1/conflicts/?limit=500&offset=0", { ms: 120000 });
 const um = await ask("(30) Wreckers of the Earth, the uMap map", "https://umap.openstreetmap.fr/en/map/409815/geojson/", { show: 300 });

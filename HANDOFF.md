@@ -670,6 +670,27 @@ owner's request, so a land-cover layer that no other rule claims gets no row
 and is counted in the console (`LEFT_OUT`). Agriculture > Moratoriums from the
 list was not made: Nusantara has one moratorium layer and it is a forest one.
 
+## Round of 23 September: one row per air pollutant; the wastewater package found
+
+- **Climate TRACE air pollution by pollutant** (item 39). Eight rows,
+  `ct_air_pm2_5`, `_bc`, `_oc`, `_so2`, `_vocs`, `_co`, `_nh3`, `_nox`, route
+  `ctairgas` (drawn by `addCtAirLayer`), each under its own heading in
+  Pollution between General and Nitrogen dioxide; black carbon also under
+  Climate > Black carbon. Every source in `ct_air/sources.geojson` is drawn,
+  its `value` the pollutant's yearly amount from `ct_air/gases.json`, and the
+  glow is weighed by it (`glowMaxOf`). The amounts come from
+  culprits-tiles-more `scripts/ct_air_gases.py`: weekly (Mondays or by hand),
+  `api.c10e.org/v7/app/asset/<id>?gas=<gas>&years=2024` -> `totals.value`, eight
+  requests at a time, least recently read first, saved as it goes, stopping at
+  130 minutes; a figure not answered keeps the last one. About 9,400 sources x
+  8 pollutants, so the first copy may take two runs. The rows are NOT LIVE; a
+  click still reads the plume and figures live through the Worker.
+- **Wastewater**: KNB's index gives the three files' ids (N pour points and
+  watersheds 403 MB, FIO 910 MB, N coastal plume GeoTIFFs 276 MB).
+  `pipeline/wastewater_inspect.py` downloads the N and plume files and lists
+  what is in them; the build is written from that listing.
+- `check-sources.mjs` now asks for the soy silos where the map does (the copy).
+
 ## Round of 22 September (6): the second check
 
 - **USDA's explorers are gone.** ipad.fas.usda.gov now answers 503 with a page

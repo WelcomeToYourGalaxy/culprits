@@ -5810,6 +5810,23 @@ async function addCtAirLayer(cfg) {
   try { gj = await getJson(cfg.list, 60000); }
   catch (e) { setLayerState(cfg.id, `not built yet (${e.message})`); return; }
   const src = `${cfg.id}-src`;
+  // A pollutant's own row: each source carries that pollutant's yearly amount
+  // as its value, and the glow is weighed by it. Sources with no figure yet
+  // are kept, drawn at the least weight, and counted on the row.
+  let withAmount = 0;
+  if (cfg.gas) {
+    let g = {};
+    try { g = await getJson(cfg.gases, 60000); } catch (e) { /* not copied yet: every source drawn alike */ }
+    const vals = (g && g.values) || {};
+    let max = 0;
+    gj = { type: "FeatureCollection", features: (gj.features || []).map((f) => {
+      const v = vals[f.properties.id] ? vals[f.properties.id][cfg.gas] : null;
+      if (Number.isFinite(Number(v)) && v !== null) { withAmount++; max = Math.max(max, Number(v)); }
+      return { type: "Feature", geometry: f.geometry, properties: Object.assign({}, f.properties, { value: v === undefined ? null : v }) };
+    }) };
+    if (max > 0) glowMaxOf.set(src, max);
+    cfg._max = max;
+  }
   map.addSource(src, { type: "geojson", data: gj });
   map.addSource(`${cfg.id}-plume`, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
   // The plume as a still hotspot, not a set of outlines: Climate TRACE's own
@@ -5825,8 +5842,10 @@ async function addCtAirLayer(cfg) {
     paint: { "line-color": cfg.colour, "line-width": 3, "line-opacity": 0.5, "line-blur": 2 } });
   map.addLayer({ id: `${cfg.id}-pt`, type: "circle", source: src,
     paint: { "circle-color": cfg.colour, "circle-opacity": 0.9,
-             "circle-radius": ["interpolate", ["linear"], ["sqrt", ["max", 0, ["to-number", ["get", "pm25_kg_hr"], 0]]], 0, 2.5, 10, 9] } });
-  let gas = "pm2_5";
+             "circle-radius": cfg.gas && cfg._max
+               ? ["interpolate", ["linear"], ["sqrt", ["/", ["max", 0, ["to-number", ["get", "value"], 0]], cfg._max]], 0, 2.5, 1, 9]
+               : ["interpolate", ["linear"], ["sqrt", ["max", 0, ["to-number", ["get", "pm25_kg_hr"], 0]]], 0, 2.5, 10, 9] } });
+  let gas = cfg.gas || "pm2_5";
   map.on("click", `${cfg.id}-pt`, async (e) => {
     const f = e.features && e.features[0];
     if (!f) return;
@@ -5857,7 +5876,8 @@ async function addCtAirLayer(cfg) {
   });
   map.on("mouseenter", `${cfg.id}-pt`, () => { map.getCanvas().style.cursor = "pointer"; });
   map.on("mouseleave", `${cfg.id}-pt`, () => { map.getCanvas().style.cursor = ""; });
-  setLayerState(cfg.id, `${(gj.features || []).length.toLocaleString()} sources \u00b7 click one for its plume and pollutants`);
+  setLayerState(cfg.id, `${(gj.features || []).length.toLocaleString()} sources` +
+    (cfg.gas ? ` \u00b7 ${withAmount.toLocaleString()} with a yearly figure copied so far` : "") + ` \u00b7 click one for its plume and pollutants`);
   applyVisibility(cfg.id);
   buildLegend();
 }
@@ -8696,6 +8716,34 @@ const OTHER_MAPS = {
     { id: "ct_air", name: "Urban air-pollution sources and their plumes (Climate TRACE)", unit: "sources", colour: "#7A5A55", route: "ctair", ready: true, lazy: true,
       list: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/sources.geojson",
       note: "The sources Climate TRACE's city air-pollution pages cover; a click draws the source's modelled plume and gives its figures for every pollutant, read live." },
+    // One row per pollutant (22 September, round 7): the same sources, each
+    // sized and glowing by how much of that one pollutant it puts out a year,
+    // from a weekly copy of Climate TRACE's figures (scripts/ct_air_gases.py in
+    // culprits-tiles-more). A click still reads the plume and figures live.
+    { id: "ct_air_pm2_5", name: "Fine particles (PM2.5) from urban air-pollution sources (Climate TRACE)", unit: "tonnes a year", colour: "#7A5A55", route: "ctairgas", gas: "pm2_5", ready: true, lazy: true,
+      list: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/sources.geojson", gases: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/gases.json",
+      note: "Every source Climate TRACE's city air-pollution pages cover, sized by its fine particles (PM2.5) in a year, from a weekly copy of Climate TRACE's figures; a click reads its plume and every pollutant live." },
+    { id: "ct_air_bc", name: "Black carbon from urban air-pollution sources (Climate TRACE)", unit: "tonnes a year", colour: "#7A5A55", route: "ctairgas", gas: "bc", ready: true, lazy: true,
+      list: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/sources.geojson", gases: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/gases.json",
+      note: "Every source Climate TRACE's city air-pollution pages cover, sized by its black carbon in a year, from a weekly copy of Climate TRACE's figures; a click reads its plume and every pollutant live." },
+    { id: "ct_air_oc", name: "Organic carbon from urban air-pollution sources (Climate TRACE)", unit: "tonnes a year", colour: "#7A5A55", route: "ctairgas", gas: "oc", ready: true, lazy: true,
+      list: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/sources.geojson", gases: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/gases.json",
+      note: "Every source Climate TRACE's city air-pollution pages cover, sized by its organic carbon in a year, from a weekly copy of Climate TRACE's figures; a click reads its plume and every pollutant live." },
+    { id: "ct_air_so2", name: "Sulphur dioxide from urban air-pollution sources (Climate TRACE)", unit: "tonnes a year", colour: "#7A5A55", route: "ctairgas", gas: "so2", ready: true, lazy: true,
+      list: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/sources.geojson", gases: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/gases.json",
+      note: "Every source Climate TRACE's city air-pollution pages cover, sized by its sulphur dioxide in a year, from a weekly copy of Climate TRACE's figures; a click reads its plume and every pollutant live." },
+    { id: "ct_air_vocs", name: "Volatile organic compounds from urban air-pollution sources (Climate TRACE)", unit: "tonnes a year", colour: "#7A5A55", route: "ctairgas", gas: "vocs", ready: true, lazy: true,
+      list: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/sources.geojson", gases: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/gases.json",
+      note: "Every source Climate TRACE's city air-pollution pages cover, sized by its volatile organic compounds in a year, from a weekly copy of Climate TRACE's figures; a click reads its plume and every pollutant live." },
+    { id: "ct_air_co", name: "Carbon monoxide from urban air-pollution sources (Climate TRACE)", unit: "tonnes a year", colour: "#7A5A55", route: "ctairgas", gas: "co", ready: true, lazy: true,
+      list: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/sources.geojson", gases: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/gases.json",
+      note: "Every source Climate TRACE's city air-pollution pages cover, sized by its carbon monoxide in a year, from a weekly copy of Climate TRACE's figures; a click reads its plume and every pollutant live." },
+    { id: "ct_air_nh3", name: "Ammonia from urban air-pollution sources (Climate TRACE)", unit: "tonnes a year", colour: "#7A5A55", route: "ctairgas", gas: "nh3", ready: true, lazy: true,
+      list: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/sources.geojson", gases: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/gases.json",
+      note: "Every source Climate TRACE's city air-pollution pages cover, sized by its ammonia in a year, from a weekly copy of Climate TRACE's figures; a click reads its plume and every pollutant live." },
+    { id: "ct_air_nox", name: "Nitrogen oxides from urban air-pollution sources (Climate TRACE)", unit: "tonnes a year", colour: "#7A5A55", route: "ctairgas", gas: "nox", ready: true, lazy: true,
+      list: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/sources.geojson", gases: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/gases.json",
+      note: "Every source Climate TRACE's city air-pollution pages cover, sized by its nitrogen oxides in a year, from a weekly copy of Climate TRACE's figures; a click reads its plume and every pollutant live." },
     { id: "ct_pop", name: "Population density, 1 km (GHSL via Climate TRACE)", unit: "people per square km", colour: "#6A6258", route: "rasterlive", ready: true, lazy: true,
       attribution: "Climate TRACE; GHSL population", maxzoom: 12,
       choices: [{ label: "Population", tiles: "https://tiles.climatetrace.org/ghsl-pop-1km/all/{z}/{x}/{y}.png" }],
@@ -9048,7 +9096,7 @@ function ensureLayer(cfg) {
       : cfg.route === "arcgisdyn" ? addArcgisDynLayer(cfg)
       : cfg.route === "giga" ? addGigaLayer(cfg)
       : cfg.route === "gta" ? addGtaLayer(cfg)
-      : cfg.route === "ctair" ? addCtAirLayer(cfg)
+      : cfg.route === "ctair" || cfg.route === "ctairgas" ? addCtAirLayer(cfg)
       : cfg.route === "gsn" ? addGsnLayer(cfg)
       : cfg.route === "companion" ? Promise.resolve().then(() => addCompanion(cfg))
       : cfg.route === "rte" ? addRteLayer(cfg)
@@ -9223,6 +9271,14 @@ const LAYER_KIND = {
   gsn_rankings: ["plant", "downstream"],
   gta_acts: ["human", "upstream"],
   ct_air: ["human", "downstream"],
+  ct_air_pm2_5: ["human", "downstream"],
+  ct_air_bc: ["human", "downstream"],
+  ct_air_oc: ["human", "downstream"],
+  ct_air_so2: ["human", "downstream"],
+  ct_air_vocs: ["human", "downstream"],
+  ct_air_co: ["human", "downstream"],
+  ct_air_nh3: ["human", "downstream"],
+  ct_air_nox: ["human", "downstream"],
   ct_pop: ["human", "downstream"],
   gsn: ["plant", "downstream"],
   rte_trade: ["insentient", "upstream"],
@@ -9930,6 +9986,8 @@ const NOT_LIVE = {
   wastewater: "The Global Wastewater Model, from copies kept here; the model is not updated",
   trase_measures: "Trase's values come from a copy made weekly; only the region shapes are read live",
   atlas_cities: "The places are from a copy made weekly; each city's own page is read live",
+  ...Object.fromEntries(["pm2_5", "bc", "oc", "so2", "vocs", "co", "nh3", "nox"].map((g) => [`ct_air_${g}`,
+    "The yearly amounts come from a weekly copy of Climate TRACE's figures; a click reads the plume and every pollutant live"])),
   wreckers_umap: "The map's settings are read live from uMap; its places come from a daily copy, since uMap lets no other site read them",
   // Trase's file server sends no CORS header (checked 22 September), so its
   // facilities maps are read from a weekly copy in culprits-tiles-more.
@@ -9983,7 +10041,7 @@ const PANEL_ORDER = [
   { h: 5, t: "Corn" },
   { h: 5, t: "Grain" }, "site_china_grain",
   { h: 4, t: "F-gases" },
-  { h: 4, t: "Black carbon" }, "fractracker_refineries",
+  { h: 4, t: "Black carbon" }, "fractracker_refineries", "ct_air_bc",
   // Oil and gas concessions (from the catalogues) are filed here as well as
   // under Oil and gas drilling: the wells emit carbon dioxide, methane and,
   // where gas is flared, black carbon.
@@ -9994,6 +10052,14 @@ const PANEL_ORDER = [
   // sits under General until it is split into a row per pollutant.
   { h: 3, t: "Pollution" },
   { h: 4, t: "General and all pollutants" }, "ct_air", "epa_tri_sites", "epa_widget",
+  { h: 4, t: "Fine particles (PM2.5)" }, "ct_air_pm2_5",
+  { h: 4, t: "Black carbon" }, "ct_air_bc",
+  { h: 4, t: "Organic carbon" }, "ct_air_oc",
+  { h: 4, t: "Sulphur dioxide" }, "ct_air_so2",
+  { h: 4, t: "Volatile organic compounds" }, "ct_air_vocs",
+  { h: 4, t: "Carbon monoxide" }, "ct_air_co",
+  { h: 4, t: "Ammonia" }, "ct_air_nh3",
+  { h: 4, t: "Nitrogen oxides" }, "ct_air_nox",
   { h: 4, t: "Nitrogen dioxide" },
   { h: 4, t: "Wastewater" }, "hydrowaste", "wastewater",
   { h: 4, t: "Plastics" },
