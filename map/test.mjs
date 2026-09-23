@@ -3375,5 +3375,12 @@ console.log("\nround of 23 September (10): the wastewater plumes");
         ["tot", "treated", "septic", "open"].every((k) => src.includes(`wastewater_plume_${k}.pmtiles`)) &&
         /"wastewater_n_countries", "wastewater_plumes",/.test(src));
 }
+console.log("\nround of 23 September (11): the modelled farms' squares made light");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("a modelled farm with only its id in the square reads its whole record from its piece on a click",
+        /const CAFO_PIECES = "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/cafo\/pieces";/.test(src) &&
+        /readPiece\(CAFO_PIECES, p\.id\)/.test(src));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

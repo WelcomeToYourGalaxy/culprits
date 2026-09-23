@@ -761,6 +761,40 @@ owner's request, so a land-cover layer that no other rule claims gets no row
 and is counted in the console (`LEFT_OUT`). Agriculture > Moratoriums from the
 list was not made: Nusantara has one moratorium layer and it is a forest one.
 
+## Could not get, could not add, or needs the owner (kept current)
+
+Kept as the rounds go; move a line out when it is settled.
+
+- **Wageningen driver classes**: the alert-drivers layer is keyed Class 1 to
+  11; Global Forest Watch publishes the numbers without names and no public
+  list was found. Needs the class list from Wageningen or GFW.
+- **Atlas for the End of the World plates not placed** (10): Cape Floristic
+  Region, East Melanesian Islands, Madagascar, Mountains of Southwest China,
+  New Caledonia, New Zealand, Philippines, Southwest Australia, Succulent
+  Karoo, Wallacea: too few named towns agreed, or the fit was off by too much.
+  They zoom to their outline instead.
+- **USDA soybean and corn explorers**: USDA retired the site; rows removed.
+- **Three Nusantara layers** keep the server's own titles: nobody could vouch
+  for what they show.
+- **Three older Global Forest Watch driver layers** stay grey: GFW paints them
+  itself and two have no finished tiles.
+- **Wastewater watershed shapes** (103 MB) not built: waiting on the owner.
+- **Waste Atlas** is a 2016-era site: its figures are as it last published
+  them; its https certificate has expired, hence the weekly copy.
+- **Workflow files**: the owner's Mac token cannot push `.github/workflows`
+  changes; those are edited on github.com.
+- **Satellite basemap** is also worked on in another chat; changes here are
+  kept to the lowland colour stops.
+
+## Round of 23 September (11): the modelled farms' squares made light
+
+The unmerged CAFO archive's world square was 3.6 MB. `abattoir_cafo.py` now
+tiles only `id` and `precise`, with every field in `cafo/pieces/<hh>.json`
+(FNV-1a); the map reads the piece on a click (`CAFO_PIECES`), and an older
+full-field square still shows as before. The mines' tile-join now keeps
+squares over 500 kB (`--no-tile-size-limit`); the first unmerged build had
+lost the world-view squares. Soy and maize are built (4 to 10 MB each).
+
 ## Round of 23 September (10): the wastewater plumes
 
 `wastewater_plumes` (rasterlive, four chips) under Pollution > Wastewater, from

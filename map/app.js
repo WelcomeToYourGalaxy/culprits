@@ -3719,6 +3719,9 @@ const ABATTOIR_PARTS = [
   ["glw", "Livestock density (FAO, modelled)"],
 ];
 const CAFO_TILES = "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/abattoir_cafo.pmtiles";
+// Since 23 September the squares carry only each facility's id and whether its
+// position is its own; every field is in pieces beside them, read on a click.
+const CAFO_PIECES = "https://welcometoyourgalaxy.github.io/culprits-tiles-more/cafo/pieces";
 const GLW_TILES = "https://data.apps.fao.org/map/wmts/wmts?layer=fao-gismgr/GLW4-2020/mapsets/D-DA" +
   "&tilematrixset=EPSG:3857&Service=WMTS&request=GetTile&Version=1.0.0&style=default&Format=image/png" +
   "&layertype=Image&TileMatrix={z}&TileCol={x}&TileRow={y}";
@@ -3750,10 +3753,14 @@ function addCafoLayer(cfg) {
       "circle-stroke-color": "#7B6A4E",
       "circle-stroke-width": ["case", ["==", ["get", "precise"], 0], 1, 0.4],
     } }, pointLayerAbove());
+  const cafoBox = (p) => `<b>Confined animal facility (modelled)</b><table class="meta">${fieldRows(p, ["precise", "id"])}</table>` +
+    `<div class="meta">Climate TRACE model these from satellite imagery and census data. Nothing here has necessarily been visited, licensed or confirmed by any authority${Number(p.precise) === 0 ? "; hollow because the source gives an area, not a position" : ""}.</div>`;
   bindHtmlPopup(`${cfg.id}-cafo`, (p) => Number(p.point_count) > 1
     ? `<b>${Number(p.point_count).toLocaleString()} modelled facilities here</b><div class="meta">Merged at this zoom. Zoom in to see each one.</div>`
-    : `<b>Confined animal facility (modelled)</b><table class="meta">${fieldRows(p, ["precise"])}</table>` +
-      `<div class="meta">Climate TRACE model these from satellite imagery and census data. Nothing here has necessarily been visited, licensed or confirmed by any authority${Number(p.precise) === 0 ? "; hollow because the source gives an area, not a position" : ""}.</div>`);
+    // A square with only the id reads the facility's whole record from its piece.
+    : Object.keys(p).every((k) => k === "id" || k === "precise")
+      ? readPiece(CAFO_PIECES, p.id).then((piece) => cafoBox(Object.assign({}, (piece[p.id] || {}).properties || {}, { precise: p.precise })))
+      : cafoBox(p));
   setLayerState(cfg.id, "Climate TRACE's modelled confined animal facilities");
   applyVisibility(cfg.id);
 }
