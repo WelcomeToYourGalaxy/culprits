@@ -2908,7 +2908,7 @@ console.log("\na row can sit under more than one subject");
         ["Fire", "Spatial plans", "Peatland", "Surface water", "Base and reference", "Land and territory"].every((t) => at(t) > -1) &&
         at("Land held under permit") === -1 && at("Forest and land cover") > -1);
   check("the planet's new headings sit under Of the planet, before Of groups",
-        ["Fire", "Spatial plans", "Peatland", "Surface water", "Other", "General", "Oil spills and slicks"]
+        ["Fire", "Spatial plans", "Peatland", "Surface water", "Other concessions", "General", "Oil spills and slicks"]
           .every((t) => at(t) > at("Of the planet") && at(t) < at("Of groups")));
   check("Base and reference is its own section, beside Buildings", at("Base and reference") < at("Buildings") &&
         order[at("Base and reference")].h === 1);
@@ -2933,12 +2933,13 @@ console.log("\nNusantara's layers spread through the box");
         places("Cumulative deforestation for planted pulpwood inside concession trase").includes("Destruction > Of the planet > Deforestation > Wood pulp, Indonesia") &&
         places("Oil and gas concessions").join() === "Destruction > Of the planet > Oil and gas drilling" &&
         !/"Destruction > Of the planet > Land held under permit"/.test(src));
-  check("\u2026one for a material no heading covers, or that names none, goes under Other",
-        places("Rubber plantations 2020, Kalimantan").join() === "Destruction > Of the planet > Other" &&
-        places("Concessions of other kinds").join() === "Destruction > Of the planet > Other" &&
-        places("National Strategic Project concessions, Merauke").join() === "Destruction > Of the planet > Other" &&
-        places("Some permit").join() === "Destruction > Of the planet > Other" &&
-        atH("Other") > atH("Construction") && atH("Other") < atH("Of groups"));
+  check("\u2026one that names no material or activity goes under Other concessions; rubber under Deforestation",
+        places("Rubber plantations 2020, Kalimantan").join() === "Destruction > Of the planet > Deforestation" &&
+        places("Concessions of other kinds").join() === "Destruction > Of the planet > Other concessions" &&
+        places("National Strategic Project concessions, Merauke").join() === "Destruction > Of the planet > Other concessions" &&
+        places("Some permit").join() === "Destruction > Of the planet > Other concessions" &&
+        atH("Other") > atH("Of groups") &&
+        atH("Other concessions") > atH("Construction") && atH("Other concessions") < atH("Of groups"));
   // 22 September: the box rearranged to the owner's list.
   // 22 September, later the same day: Climate arranged by gas, in the Destruction page's order.
   check("Climate is arranged by gas, in the page's order, and an emissions row goes under the gas it names, else carbon dioxide",
@@ -3131,8 +3132,8 @@ console.log("\nround of 22 September (2): the box refiled, rows taken out");
         f("Major dams") === P + " > Biodiversity loss > Fish" && at("Fish") > at("Biodiversity loss") && at("Fish") < at("Spatial plans"));
   check("forest greenhouse gas emissions go under Deforestation",
         f("Forest greenhouse gas emissions") === P + " > Deforestation");
-  check("DIST-ALERT is under Construction, Biodiversity loss and Deforestation, not Mining",
-        f("Global all ecosystem disturbance alerts (DIST-ALERT)") === `${P} > Construction | ${P} > Biodiversity loss | ${P} > Deforestation > Tree cover loss and alerts`);
+  check("DIST-ALERT is under Construction, Biodiversity loss, Fire, Mining and Deforestation",
+        f("Global all ecosystem disturbance alerts (DIST-ALERT)") === `${P} > Construction | ${P} > Biodiversity loss | ${P} > Fire | ${P} > Mining | ${P} > Deforestation > Tree cover loss and alerts`);
   check("oil and gas concessions go under Oil and gas drilling and Climate, not Mining",
         f("Oil and gas concessions") === `${P} > Oil and gas drilling | ${P} > Climate > Infrastructure emitting more than one gas`);
   check("the named rows are taken out",
@@ -3462,6 +3463,25 @@ console.log("\nround of 23 September (19): the slick archive's months made small
   check("…a slick with only its id and time in the tiles has its record read from Cerulean by id on a click",
         /collections\/public\.slick_plus\/items\/\$\{encodeURIComponent\(p\.id\)\}\?bbox-only=true`\)\n\s*\.then/.test(src));
   check("…each click layer is bound once, not again each time a month is shown", /if \(!bound\.has\(sfx\)\)/.test(src));
+}
+console.log("\nround of 23 September (20): rows refiled and taken out by name");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const places = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return cataloguePlaces;")();
+  const P = "Destruction > Of the planet", f = (t) => places(t, t).join(" | ");
+  check("MapSPAM's rubber yield, the road-reach, capital, road, 2017 settlement and transmigration layers, the Congo forest roads and INCRA's settlements are taken out",
+        ["Rubber yield (MapSPAM) spam_rubber_yield", "Land within reach of a road \u2014 Equatorial Asia roadsegmentbuffer_spv",
+         "Land within reach of a road (v3p3 copy) \u2014 Equatorial Asia v3p3_roadsegmentbuffer_spv",
+         "Nusantara, the new Indonesian capital (IKN) \u2014 Equatorial Asia base_ikn", "Roads \u2014 Equatorial Asia base_road",
+         "Roads (their edited version) \u2014 Equatorial Asia base_road_edited", "Roads, by the year they appeared (picture) \u2014 Equatorial Asia base_roadRGB",
+         "Transmigration roads \u2014 Equatorial Asia base_roadtrans", "Settlements 2017, Borneo (GHSL) IDNMYSBorneo_Settlement_2017_GHS",
+         "Transmigration areas 2021, Borneo IDNMYSBorneo_Transmigration_2021", "Transmigration areas 2021, Borneo IDNMYSBorneo_Transmigration_2021_wms",
+         "Congo Basin forest roads", "Brazil rural settlements (INCRA)"].every((t) => f(t) === "(taken out)") &&
+        f("Towns and villages \u2014 Equatorial Asia base_populatedplace") !== "(taken out)" &&
+        f("Rubber plantations 2020, Kalimantan rubber_kalimantan_2020") === P + " > Deforestation");
+  check("Liberia's mineral exploration and development licences are under Mining",
+        f("Mineral exploration licenses \u2014 Liberia") === P + " > Mining" && f("Liberia development licenses (exploration)") === P + " > Mining");
+  check("logging roads are under Deforestation, not Construction", f("Logging roads \u2014 Congo Basin") === P + " > Deforestation");
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

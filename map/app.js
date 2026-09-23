@@ -4647,11 +4647,15 @@ const CATALOGUE_PLACES = [
   // A concession or permit is filed by what it is for - mining under Mining,
   // timber under Deforestation, oil palm under Agriculture (22 September; the
   // generic "Land held under permit" heading is gone). One for a material or
-  // activity no heading covers (rubber, a project that names none) goes under
-  // Other, below; so does a permit whose words say nothing about its use.
+  // activity no heading covers (a project that names none) goes under
+  // Other concessions, below; so does a permit whose words say nothing about
+  // its use. Rubber goes under Deforestation (23 September): the Destruction
+  // page names it among the deforestation-risk commodities, beside palm oil,
+  // pulp, timber, cattle and soy, under "The Biggest Deforesters".
   [/timber|logging|wood fiber|forest utili[sz]ation|\bpbph\b|forest clearance|\bfca\b|management objective|forest concession|\bhph\b|\bhti\b|iuphhk/i,
    P + " > Deforestation"],
-  [/rubber|concessions? of other kinds|other concessions|national strategic project|\bpsn\b/i, P + " > Other"],
+  [/rubber/i, P + " > Deforestation"],
+  [/concessions? of other kinds|other concessions|national strategic project|\bpsn\b/i, P + " > Other concessions"],
   // Emissions catalogue rows, by gas (22 September): methane and nitrous oxide
   // where a title names them; otherwise carbon dioxide, the gas a forest or
   // land-use emission is.
@@ -4700,12 +4704,33 @@ const CATALOGUE_BY_TITLE = [
   // The drivers of disturbance alerts as one dataset: no tiles published. Its
   // driver classes are drawn by the "driver class" row.
   [/\bwur_alert_drivers$/, null],
+  // Taken out by the owner (23 September): MapSPAM's rubber yield (no tiles
+  // published); Nusantara's land within reach of a road (both copies), the new
+  // capital (IKN), its roads (all three: as published, edited, by year), the
+  // 2017 Borneo settlements and the three transmigration layers (the two
+  // transmigration areas and the transmigration roads); the Congo Basin forest
+  // roads; INCRA's rural settlements in Brazil.
+  [/(?=.*rubber)(?=.*(yield|mapspam))/i, null],
+  [/\b(v3p3_)?roadsegmentbuffer_spv\b/, null],
+  [/\bbase_ikn\b/, null],
+  [/\bbase_road(_edited|RGB|trans)?\b/, null],
+  [/\bIDNMYSBorneo_Settlement_2017_GHS\b/, null],
+  [/\bIDNMYSBorneo_Transmigration_2021(_wms)?\b/, null],
+  [/(?=.*congo)(?=.*forest roads?\b)/i, null],
+  [/\bincra\b|(?=.*brazil)(?=.*rural settlements?)/i, null],
+  // Liberia's mineral exploration and development licences are mining rights,
+  // issued under its Minerals and Mining Law (23 September).
+  [/(?=.*(liberia|\blbr_))(?=.*(exploration|development))(?=.*licen[cs]e)/i, [P + " > Mining"]],
+  // Logging roads in the Congo Basin: Deforestation only, not Construction.
+  [/logging roads?\b/i, [P + " > Deforestation"]],
   // Placed by name.
   [/tree cover loss by (dominant )?driver|drivers? of tree cover loss/i, [P + " > Deforestation > Tree cover loss and alerts"]],
   [/soy(bean)? planted area/i, [P + " > Climate > Nitrous oxide > Soy", AG + " > Soy, corn and grain"]],
   [/forest greenhouse gas emissions/i, [P + " > Deforestation"]],
+  // Copied under Fire and Mining too (23 September): the alerts cover any loss
+  // of plant cover, whatever its cause.
   [/all[- ]ecosystem disturbance alerts|dist-?alert/i,
-   [P + " > Construction", P + " > Biodiversity loss", P + " > Deforestation > Tree cover loss and alerts"]],
+   [P + " > Construction", P + " > Biodiversity loss", P + " > Fire", P + " > Mining", P + " > Deforestation > Tree cover loss and alerts"]],
   [/intact forest landscape/i, [P + " > Biodiversity loss"]],
   [/biodiversity hotspots/i, [P + " > Biodiversity loss"]],
   [/\bdams?\b/i, [P + " > Biodiversity loss > Fish"]],
@@ -4749,14 +4774,14 @@ function cataloguePlaces(words, title) {
     if (path === null) dropped = true; else if (!out.includes(path)) out.push(path);
   }
   const drop = (path) => { const i = out.indexOf(path); if (i > -1) out.splice(i, 1); };
-  // Rubber was asked to go under Other, not Agriculture, though its rows say "plantation".
+  // Rubber was asked to go under Deforestation, not Agriculture, though its rows say "plantation".
   if (/rubber/i.test(words)) drop(AG);
   // A crop's own heading stands in for the general one; by sector stands in for by gas.
   if (out.some((p) => p.startsWith(AG + " > "))) drop(AG);
   if (out.some((x) => x === P + " > Climate > Methane" || x === P + " > Climate > Nitrous oxide")) drop(P + " > Climate > Carbon dioxide");
   if (out.includes(AG + " > Detailed spatial plans, Badung")) drop(P + " > Spatial plans");
   // A concession or permit whose words name no material and no activity.
-  if (!out.length && !dropped && /concession|permit|licen[cs]e|\bizin\b/i.test(words)) out.push(P + " > Other");
+  if (!out.length && !dropped && /concession|permit|licen[cs]e|\bizin\b/i.test(words)) out.push(P + " > Other concessions");
   if (!out.length && dropped) return [LEFT_OUT];
   return out.length ? out : ["Not yet placed"];
 }
@@ -10563,7 +10588,8 @@ const PANEL_ORDER = [
   { h: 4, t: "Reefs and mangroves" }, "allen_coral",
   { h: 4, t: "Fishing" }, "fishing",
   { h: 3, t: "Construction" }, "local_projects",
-  { h: 3, t: "Other" },
+  // Concessions that name no material or activity a heading covers (23 September).
+  { h: 3, t: "Other concessions" },
   { h: 2, t: "Of groups" },
   { h: 3, t: "Of humans" },
   { h: 3, t: "Of animals" }, "final_nail", "powerbi_report",

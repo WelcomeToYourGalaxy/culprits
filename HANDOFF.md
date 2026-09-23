@@ -5,6 +5,26 @@ touches.
 
 ---
 
+## Catalogue rows refiled and taken out by name (23 September, round 20)
+
+In `CATALOGUE_BY_TITLE` (`map/app.js`), at the owner's word. Taken out:
+MapSPAM's rubber yield (no tiles published); Nusantara's `roadsegmentbuffer_spv`
+and its v3p3 copy, `base_ikn`, `base_road`, `base_road_edited`, `base_roadRGB`,
+`base_roadtrans`, `IDNMYSBorneo_Settlement_2017_GHS`,
+`IDNMYSBorneo_Transmigration_2021` and its `_wms` twin; the Congo Basin forest
+roads; INCRA's rural settlements in Brazil. Placed: Liberia's mineral
+exploration and development licences under Mining; logging roads under
+Deforestation only (no longer also Construction); the all-ecosystem
+disturbance alerts (DIST-ALERT) copied under Fire and Mining as well. In
+`CATALOGUE_PLACES`, rubber goes under Deforestation (the Destruction page
+names rubber among the deforestation-risk commodities under "The Biggest
+Deforesters"), and the heading "Other" under Of the planet is now "Other
+concessions": concessions and permits that name no material or activity a
+heading covers. The Global Forest Watch rules match words, not ids, because
+their titles could not be read from the sandbox (the data API refused it); run
+`node map/filing-report.mjs rubber liberia licen road settlement disturbance`
+to see what each rule caught.
+
 ## Atlas plates: country names set aside (23 September, later)
 
 The first run with look-ups inside each box placed four plates with 4 names,
