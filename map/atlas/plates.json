@@ -893,5 +893,254 @@
    "Zamboanga"
   ],
   "anchor": "right edge"
+ },
+ "north_american_coastal_plain": {
+  "title": "North American Coastal Plain",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/north_american_coastal_plain.pdf",
+  "labels": 45,
+  "kept": true,
+  "reason": "",
+  "corners": [
+   [
+    -106.46871,
+    42.0026
+   ],
+   [
+    -61.44394,
+    42.59511
+   ],
+   [
+    -66.24056,
+    9.96249
+   ],
+   [
+    -111.26534,
+    9.17257
+   ]
+  ],
+  "error_km": 93.5,
+  "width_km": 3659,
+  "names": [
+   "Augusta-Richmond County",
+   "Austin",
+   "Baltimore",
+   "Baton Rouge",
+   "Cape Coral",
+   "Charleston-North Charleston",
+   "Columbia",
+   "Corpus Christi",
+   "Denton-Lewisville",
+   "Fayetteville",
+   "Houston",
+   "Jackson",
+   "Jacksonville",
+   "Kissimmee",
+   "Matamoros",
+   "McAllen",
+   "Memphis",
+   "Miami",
+   "Mobile",
+   "Monterrey",
+   "New Orleans",
+   "Orlando",
+   "Pensacola",
+   "Philadelphia",
+   "Port St. Lucie",
+   "Reynosa",
+   "Richmond",
+   "San Antonio",
+   "Shreveport",
+   "The Woodlands",
+   "Trenton",
+   "Virginia Beach",
+   "Washington, D.C"
+  ],
+  "anchor": "left edge",
+  "image": "atlas/plates/north_american_coastal_plain.webp"
+ },
+ "southwest_australia": {
+  "title": "Southwest Australia",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/southwest_australia.pdf",
+  "labels": 2,
+  "kept": false,
+  "reason": "fewer than three names on the page could be found"
+ },
+ "succulent_karoo": {
+  "title": "Succulent Karoo",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/succulent_karoo.pdf",
+  "labels": 7,
+  "kept": false,
+  "reason": "only 3 names agree on a placement (at least 5 needed)"
+ },
+ "sundaland": {
+  "title": "Sundaland",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/sundaland.pdf",
+  "labels": 47,
+  "kept": true,
+  "reason": "",
+  "corners": [
+   [
+    72.68274,
+    20.73658
+   ],
+   [
+    127.48667,
+    20.44559
+   ],
+   [
+    129.38577,
+    -20.5901
+   ],
+   [
+    74.58185,
+    -20.29883
+   ]
+  ],
+  "error_km": 85.2,
+  "width_km": 5675,
+  "names": [
+   "Balikpapan",
+   "Bandar Lampung",
+   "Bandung",
+   "Bangkok",
+   "Banjarmasin",
+   "Batam",
+   "Bogor",
+   "Denpasar",
+   "Ho Chi Minh City",
+   "Ipoh",
+   "Jakarta",
+   "Jambi",
+   "Kota Kinabalu",
+   "Kuala",
+   "Kuala Terengganu",
+   "Kuantan",
+   "Kuching",
+   "Lumpur",
+   "Malang",
+   "Medan",
+   "Padang",
+   "Palembang",
+   "Pekan Baru",
+   "Samarinda",
+   "Sandakan",
+   "Semarang",
+   "Seremban",
+   "Singapore",
+   "Sukabumi",
+   "Surabaya",
+   "Surakarta",
+   "Tasikmalaya"
+  ],
+  "anchor": "centre",
+  "image": "atlas/plates/sundaland.webp"
+ },
+ "tropical_andes": {
+  "title": "Tropical Andes",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/tropical_andes.pdf",
+  "labels": 42,
+  "kept": true,
+  "reason": "",
+  "corners": [
+   [
+    -115.62264,
+    18.30076
+   ],
+   [
+    -56.24394,
+    14.9174
+   ],
+   [
+    -54.15493,
+    -33.35333
+   ],
+   [
+    -113.53363,
+    -30.35449
+   ]
+  ],
+  "error_km": 137.1,
+  "width_km": 6312,
+  "names": [
+   "Armenia",
+   "Barranquilla",
+   "Bogotá",
+   "Bucaramanga",
+   "Cali",
+   "Caracas",
+   "Cochabamba",
+   "Colombia",
+   "Cuenca",
+   "Cúcuta",
+   "Guayaquil",
+   "Huancayo",
+   "La Paz",
+   "Lagunillas",
+   "Lima",
+   "Manizales",
+   "Maracay",
+   "Medellín",
+   "Merida",
+   "Neiva",
+   "Panama",
+   "Paraguay",
+   "Pasto",
+   "Quito",
+   "Salta",
+   "San Cristóbal",
+   "San Miguel de Tucumán",
+   "San Salvador de Jujuy",
+   "Sucre",
+   "Villavicencio"
+  ],
+  "anchor": "below",
+  "image": "atlas/plates/tropical_andes.webp"
+ },
+ "wallacea": {
+  "title": "Wallacea",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/wallacea.pdf",
+  "labels": 7,
+  "kept": false,
+  "reason": "fewer than three names on the page could be found"
+ },
+ "western_ghats_sri_lanka": {
+  "title": "Western Ghats & Sri Lanka",
+  "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/western_ghats_sri_lanka.pdf",
+  "labels": 11,
+  "kept": true,
+  "reason": "",
+  "corners": [
+   [
+    60.22224,
+    26.34553
+   ],
+   [
+    85.97458,
+    23.78406
+   ],
+   [
+    86.46925,
+    0.78476
+   ],
+   [
+    60.71691,
+    3.6105
+   ]
+  ],
+  "error_km": 76.6,
+  "width_km": 2605,
+  "names": [
+   "Bengaluru",
+   "Chennai",
+   "Coimbatore",
+   "Colombo",
+   "Hyderabad",
+   "Mumbai",
+   "Pune",
+   "Shimoga",
+   "Sri Lanka"
+  ],
+  "anchor": "left edge",
+  "image": "atlas/plates/western_ghats_sri_lanka.webp"
  }
 }
