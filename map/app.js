@@ -789,7 +789,7 @@ const BASE_GRADE = {
   // the ground keeps its own colour and texture, and the relief's palette and
   // Swiss-style shading are laid over it.
   satellite: { "raster-brightness-min": 0.0, "raster-brightness-max": 1,
-               "raster-saturation": 0.15, "raster-contrast": 0.16,
+               "raster-saturation": 0.05, "raster-contrast": 0.16,
                "raster-hue-rotate": 0 },
 };
 let BASEMAP = "atlas";
@@ -826,8 +826,10 @@ const SAT_RELIEF = {
   //            against it. Land below sea level deeper than 60 m (the Dead Sea
   //            shores) takes a little of that navy too; the heights cannot tell
   //            dry ground from sea floor.
-  //   shade    strong, matte: shadows up to 0.75, pale grey-white lights up to
-  //            0.18; a broad second light for wide views only.
+  //   shade    matte: shadows up to 0.6, pale grey-white lights up to 0.18;
+  //            a broad second light for wide views only (shadow 0.35).
+  //            23 September, last: saturation 0.05 and shadows eased, as the
+  //            owner found the matte version a little too saturated and dark.
   //            23 September, later: the mountains read as smooth plastic. The
   //            light is weighted harder to one low north-west sun (the other
   //            three lights' shadows cut to 0.3 and under), and the lights
@@ -844,7 +846,7 @@ const SAT_RELIEF = {
     "hillshade-illumination-direction": [270, 315, 0, 225],
     "hillshade-illumination-altitude": [30, 28, 30, 50],
     "hillshade-highlight-color": ["rgba(238,238,230,0.08)", "rgba(238,238,230,0.18)", "rgba(238,238,230,0.06)", "rgba(238,238,230,0)"],
-    "hillshade-shadow-color": ["rgba(10,14,14,0.3)", "rgba(10,14,14,0.75)", "rgba(10,14,14,0.3)", "rgba(10,14,14,0.1)"],
+    "hillshade-shadow-color": ["rgba(10,14,14,0.24)", "rgba(10,14,14,0.6)", "rgba(10,14,14,0.24)", "rgba(10,14,14,0.08)"],
     "hillshade-accent-color": "rgba(10,14,14,0.35)",
     "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 0.8, 5, 1, 8, 0.9, 12, 0.7, 16, 0.45],
     "hillshade-illumination-anchor": "map",
@@ -854,7 +856,7 @@ const SAT_RELIEF = {
     "hillshade-illumination-direction": 315,
     "hillshade-illumination-anchor": "map",
     "hillshade-highlight-color": "rgba(238,238,230,0)",
-    "hillshade-shadow-color": "rgba(10,14,14,0.45)",
+    "hillshade-shadow-color": "rgba(10,14,14,0.35)",
     "hillshade-accent-color": "rgba(10,14,14,0)",
     "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 0.4, 5, 0.35, 8, 0],
   },
