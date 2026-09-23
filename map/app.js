@@ -789,7 +789,7 @@ const BASE_GRADE = {
   // the ground keeps its own colour and texture, and the relief's palette and
   // Swiss-style shading are laid over it.
   satellite: { "raster-brightness-min": 0.0, "raster-brightness-max": 1,
-               "raster-saturation": 0.15, "raster-contrast": 0.08,
+               "raster-saturation": 0.15, "raster-contrast": 0.16,
                "raster-hue-rotate": 0 },
 };
 let BASEMAP = "atlas";
@@ -827,7 +827,14 @@ const SAT_RELIEF = {
   //            shores) takes a little of that navy too; the heights cannot tell
   //            dry ground from sea floor.
   //   shade    strong, matte: shadows up to 0.75, pale grey-white lights up to
-  //            0.3, as in the plates; a broad second light for wide views only.
+  //            0.18; a broad second light for wide views only.
+  //            23 September, later: the mountains read as smooth plastic. The
+  //            light is weighted harder to one low north-west sun (the other
+  //            three lights' shadows cut to 0.3 and under), and the lights
+  //            dimmed, so ridges read crisp and matte rather than rounded and
+  //            glossy; imagery contrast 0.16 so the rock's own texture shows.
+  //            The world view read overcast: both shade layers are lighter
+  //            there (0.8 and 0.4 at zoom 2), back to full by zoom 5.
   colour: ["interpolate", ["linear"], ["elevation"],
     -8000, "rgba(8,18,38,0.62)", -4000, "rgba(9,21,42,0.58)", -1000, "rgba(11,27,50,0.45)",
     -200, "rgba(14,38,64,0.22)", -60, "rgba(18,50,74,0)", 0, "rgba(18,50,74,0)", 9000, "rgba(18,50,74,0)"],
@@ -835,11 +842,11 @@ const SAT_RELIEF = {
   shade: {
     "hillshade-method": "multidirectional",
     "hillshade-illumination-direction": [270, 315, 0, 225],
-    "hillshade-illumination-altitude": [30, 35, 30, 50],
-    "hillshade-highlight-color": ["rgba(238,238,230,0.18)", "rgba(238,238,230,0.3)", "rgba(238,238,230,0.15)", "rgba(238,238,230,0.05)"],
-    "hillshade-shadow-color": ["rgba(10,14,14,0.5)", "rgba(10,14,14,0.75)", "rgba(10,14,14,0.5)", "rgba(10,14,14,0.25)"],
+    "hillshade-illumination-altitude": [30, 28, 30, 50],
+    "hillshade-highlight-color": ["rgba(238,238,230,0.08)", "rgba(238,238,230,0.18)", "rgba(238,238,230,0.06)", "rgba(238,238,230,0)"],
+    "hillshade-shadow-color": ["rgba(10,14,14,0.3)", "rgba(10,14,14,0.75)", "rgba(10,14,14,0.3)", "rgba(10,14,14,0.1)"],
     "hillshade-accent-color": "rgba(10,14,14,0.35)",
-    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 1, 8, 0.9, 12, 0.7, 16, 0.45],
+    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 0.8, 5, 1, 8, 0.9, 12, 0.7, 16, 0.45],
     "hillshade-illumination-anchor": "map",
   },
   depth: {
@@ -849,7 +856,7 @@ const SAT_RELIEF = {
     "hillshade-highlight-color": "rgba(238,238,230,0)",
     "hillshade-shadow-color": "rgba(10,14,14,0.45)",
     "hillshade-accent-color": "rgba(10,14,14,0)",
-    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 0.6, 5, 0.35, 8, 0],
+    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 0.4, 5, 0.35, 8, 0],
   },
   // With 3D terrain on, the ground is raised more the further out you are,
   // so ranges still stand up from a continent's height; 1.4 close in.

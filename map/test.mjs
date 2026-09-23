@@ -1365,7 +1365,7 @@ console.log("\nreading the map");
   const wireSrc = fs.readFileSync(path.join(HERE, "wire.js"), "utf8");
   // 23 September, latest: after the owner's plates.
   check("the Satellite basemap follows the plates: the photograph's own colours, a little brighter; the atlas keeps its own grade",
-        /satellite: \{ "raster-brightness-min": 0\.0, "raster-brightness-max": 1,\n\s*"raster-saturation": 0\.15, "raster-contrast": 0\.08/.test(src) &&
+        /satellite: \{ "raster-brightness-min": 0\.0, "raster-brightness-max": 1,\n\s*"raster-saturation": 0\.15, "raster-contrast": 0\.16/.test(src) &&
         /atlas: \{ "raster-brightness-min": ATLAS_TUNE\.lift/.test(src) &&
         /id: "sat-relief-colour", type: "color-relief", source: "outline-dem"/.test(src) &&
         /id: "sat-relief-shade", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF\.shade/.test(src) &&
@@ -1376,10 +1376,12 @@ console.log("\nreading the map");
     check("…no tint on land: every stop from 60 m below sea level up is clear; only deeper water is darkened toward navy",
           /-60, "rgba\(18,50,74,0\)", 0, "rgba\(18,50,74,0\)", 9000, "rgba\(18,50,74,0\)"/.test(ramp) &&
           /-8000, "rgba\(8,18,38,0\.62\)"/.test(ramp) && !/#[0-9A-F]{6}/i.test(ramp) && /colourOpacity: 1,/.test(block));
-    check("…strong matte shading: shadows up to 0.75, pale lights up to 0.3, the second light wide views only; fog at the horizon",
-          /"rgba\(10,14,14,0\.75\)"/.test(block) && /"rgba\(238,238,230,0\.3\)"/.test(block) &&
-          /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 2, 1, 8, 0\.9, 12, 0\.7, 16, 0\.45\]/.test(block) &&
-          /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 2, 0\.6, 5, 0\.35, 8, 0\]/.test(block) &&
+    check("…matte shading weighted to one low north-west light: shadows up to 0.75, lights at most 0.18, both layers lighter at world view; fog at the horizon",
+          /"rgba\(10,14,14,0\.75\)"/.test(block) && /"rgba\(238,238,230,0\.18\)"/.test(block) &&
+          !/"rgba\(238,238,230,0\.(19|[2-9])/.test(block) &&
+          /"hillshade-illumination-altitude": \[30, 28, 30, 50\]/.test(block) &&
+          /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 2, 0\.8, 5, 1, 8, 0\.9, 12, 0\.7, 16, 0\.45\]/.test(block) &&
+          /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 2, 0\.4, 5, 0\.35, 8, 0\]/.test(block) &&
           /"fog-ground-blend": 0\.97/.test(src));
     check("…no drawn water and no close-in multiply",
           !/sat-water/.test(src) && !/closeMultiply/.test(src) &&
