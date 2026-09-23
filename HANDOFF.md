@@ -818,6 +818,18 @@ materialresearch and Wreckers of the Earth.
   `slick_points` to 6, which the map already reads), writes `tiles.json`, and
   reads again from Cerulean any month the index lists with no store.
 
+## Round of 23 September (16): the first run of the new builds
+
+Every job saved except the slick archive. EDGAR's first build took sulphur
+hexafluoride only, from the first file in its zip, which is not necessarily
+the latest year; `edgar_fgases.py` now builds one archive per gas group
+(HFCs, PFCs, SF6, NF3, HCFCs) from the latest year in each zip, and the row has
+a chip per gas. The slick archive's job was stopped while reading August again
+in one piece; `cerulean_archive.py` now reads a lost month a day at a time,
+saves after each day, stops at 100 minutes, and carries on next run
+(`cerulean_archive/refill.json`). Mines' first file is 96.7 MB (92 MiB), under
+the 95 MiB cut.
+
 ## Round of 23 September (11): the modelled farms' squares made light
 
 The unmerged CAFO archive's world square was 3.6 MB. `abattoir_cafo.py` now

@@ -3388,7 +3388,8 @@ console.log("\nround of 23 September (11): the modelled farms' squares made ligh
 console.log("\nround of 23 September (12): F-gases from EDGAR");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("EDGAR's gridded F-gas emissions are a row under Climate > F-gases", /\{ h: 4, t: "F-gases" \}, "edgar_fgases",/.test(src) && /edgar_fgases\.pmtiles/.test(src));
+  check("EDGAR's gridded F-gas emissions are a row under Climate > F-gases", /\{ h: 4, t: "F-gases" \}, "edgar_fgases",/.test(src) && /edgar_fgases_hfcs\.pmtiles/.test(src));
+  check("…one chip per gas group EDGAR publishes, never added together", ["hfcs", "pfcs", "sf6", "nf3", "hcfcs"].every((g) => src.includes(`edgar_fgases_${g}.pmtiles`)) && /are not added together/.test(src));
 }
 console.log("\nround of 23 September (13): the crime tracker under every subject it records");
 {

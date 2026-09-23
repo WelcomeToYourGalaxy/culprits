@@ -9105,10 +9105,16 @@ const OTHER_MAPS = {
         { label: "Habitat disturbance", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/food_maiz_disturbance.pmtiles" }
       ],
       note: "What growing maize (corn) put on the land in 2017, food and feed together, mapped by Halpern et al. 2022 (Nature Sustainability) from their data package. Each chip is one of its four pressures, per map cell, coloured dark to light on a log scale cut at the values' own steps (food/<name>.key.json in culprits-tiles-more). Built once from the package; it is not updated." },
-    { id: "edgar_fgases", name: "Fluorinated gas emissions by 10 km cell, latest year (EDGAR)", unit: "per map cell", colour: "#6A5A6E", route: "rasterlive", ready: true, lazy: true,
+    { id: "edgar_fgases", name: "Fluorinated gas emissions by 10 km cell, one chip per gas, latest year (EDGAR)", unit: "tonnes of the gas per map cell", colour: "#6A5A6E", route: "rasterlive", ready: true, lazy: true,
       attribution: "EDGAR_2025_GHG, European Commission JRC, CC BY 4.0", maxzoom: 6,
-      choices: [{ label: "All F-gases", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/edgar_fgases.pmtiles" }],
-      note: "EDGAR's gridded emissions of fluorinated gases (refrigerants, solvents, electrical insulation gas and the like), every 0.1-degree cell with a value, coloured dark to light on a log scale cut at the values' own steps. The file, variable and unit used are in edgar/fgases.key.json in culprits-tiles-more. Built from EDGAR's yearly release; it is not updated between releases." },
+      choices: [
+        { label: "Hydrofluorocarbons (HFCs)", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/edgar_fgases_hfcs.pmtiles" },
+        { label: "Perfluorocarbons (PFCs)", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/edgar_fgases_pfcs.pmtiles" },
+        { label: "Sulphur hexafluoride (SF6)", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/edgar_fgases_sf6.pmtiles" },
+        { label: "Nitrogen trifluoride (NF3)", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/edgar_fgases_nf3.pmtiles" },
+        { label: "Hydrochlorofluorocarbons (HCFCs)", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/edgar_fgases_hcfcs.pmtiles" }
+      ],
+      note: "EDGAR's gridded emissions of each group of fluorinated gases (refrigerants, foam blowing, solvents, electrical insulation, aluminium and chip making), every 0.1-degree cell with a value, from the latest year in EDGAR's release, coloured dark to light on a log scale cut at the values' own steps. Each chip is one gas group in tonnes of that gas; the groups are not added together, as a tonne of one warms very differently from a tonne of another. The year, file and unit of each are in edgar/edgar_fgases_<gas>.key.json in culprits-tiles-more. Built from EDGAR's yearly release; it is not updated between releases." },
     { id: "wastewater_plumes", name: "Nitrogen from human wastewater in coastal waters, 2015 (Tuholske et al.)", unit: "per map cell", colour: "#5E7377", route: "rasterlive", ready: true, lazy: true,
       attribution: "Tuholske et al. 2021, Global Wastewater Model (KNB doi:10.5063/F76B09)", maxzoom: 6,
       choices: [
