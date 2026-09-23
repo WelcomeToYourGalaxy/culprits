@@ -761,6 +761,33 @@ owner's request, so a land-cover layer that no other rule claims gets no row
 and is counted in the console (`LEFT_OUT`). Agriculture > Moratoriums from the
 list was not made: Nusantara has one moratorium layer and it is a forest one.
 
+## Round of 23 September (7): the EPA copy, rebuilt in parts
+
+The first unmerged EPA build was over 95 MB at every depth, and the old
+script then deleted the last copy (commit aff4631 in culprits-tiles-more).
+The owner restores it from ecef1f0. `scripts/epa_efpoints.py` now builds one
+file per zoom 0 to 6 (`epa_efpoints_z<z>.pmtiles`, the map draws EPA's own
+picture from 6.5), each point carrying only `_lid` and `_oid`, listed in
+`epa_efpoints.build.json`; the files replace the old copy only if all fit; a
+failed try writes `epa_efpoints.tried.json` with the sizes and keeps the copy.
+Rebuilt every four weeks. The map reads the list (one file if there is none),
+registers the layers in `cfg._layerIds` so unticking the row hides them, and
+names a point from EPA's record on a click.
+
+Waste Atlas rows (item 44): the copy holds 4,606 markers (2 with no position)
+in seven categories: city 1,799, Sanitary Landfills 1,626, WtE 716, country
+164, MBT 130, Dumpsites 93, Biological Treatment 78. One `geojsonlive` row
+per category (`files[].only = [field, value]`), under Pollution > Solid waste;
+dumpsites and landfills copied under Climate > Methane, WtE under Carbon
+dioxide. Soy and maize (item 24): `food_soy`, `food_maize` (rasterlive, four
+chips each) from culprits-tiles-more `scripts/food_crops.py` (by hand), which
+reads eight rasters out of `crops_food_feed_raw.zip` by byte range and builds
+`tiles/food_<crop>_<pressure>.pmtiles` and `food/<same>.key.json`.
+
+Waste Atlas: its data is `http://www.atlas.d-waste.com/uploads/data.xml`
+(https has an expired certificate); `scripts/wasteatlas.py` copies it weekly.
+Soy and corn: `scripts/food_list.py` lists the package's zips.
+
 ## Round of 23 September (6): every point at every zoom (item 25); soy and corn (item 24)
 
 - **No merged points.** The owner asked for every dot at every zoom. The

@@ -2288,9 +2288,9 @@ console.log("\nNusantara Atlas and Global Forest Watch, by category");
 console.log("\nEPA facilities at every zoom");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("wider out, the EPA row draws the weekly copy of every point", /epa_efpoints\.pmtiles/.test(src) && /id: `\$\{cfg\.id\}-pts`, type: "circle"/.test(src) && /maxzoom: cfg\.minzoom \|\| 22/.test(src));
+  check("wider out, the EPA row draws the weekly copy of every point", /epa_efpoints\.pmtiles/.test(src) && /map\.addLayer\(\{ id: lid, type: "circle", source: sid, "source-layer": "efpoints"/.test(src) && /maxzoom: Math\.min\(part\.to \+ 1, cfg\.minzoom \|\| 22\)/.test(src));
   check("a point's full record is asked of EPA on click", /\/query\?objectIds=\$\{encodeURIComponent\(p\._oid\)\}&outFields=\*/.test(src));
-  check("the kind buttons also filter the copy", /map\.setFilter\(`\$\{cfg\.id\}-pts`, ptsFilter\(\)\)/.test(src));
+  check("the kind buttons also filter the copy", /for \(const l of ptsLayers\) if \(map\.getLayer\(l\)\) map\.setFilter\(l, ptsFilter\(\)\);/.test(src));
 }
 
 console.log("\nthe column's edge, the meat rows, the reefs close in");
@@ -3327,6 +3327,31 @@ console.log("\nround of 23 September (6): every point at every zoom; the food pa
   check("Cerulean's slick points are tiled with none merged", !/--cluster-/.test(cer) && /"--no-tile-size-limit"/.test(cer));
   const knb = fs.readFileSync(path.join(HERE, "..", "pipeline", "knb_list.py"), "utf8");
   check("the food-footprint package (Halpern et al. 2022) is listed from KNB before a build is written", /doi:10\.5063\/F1V69H1B/.test(knb));
+}
+console.log("\nround of 23 September (7): the EPA copy in one file per zoom");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the EPA row reads its copy's list of files, one per zoom, and draws each at its own zoom",
+        /cfg\.points\.replace\(\/\\\.pmtiles\$\/, "\.build\.json"\)/.test(src) && /minzoom: part\.from/.test(src));
+  check("\u2026and those layers go with the row when it is unticked", /cfg\._layerIds\.push\(lid\);/.test(src));
+  check("\u2026a point with only its ids is named from EPA's own record on a click", /\/name\/i\.test\(k\)/.test(src));
+}
+console.log("\nround of 23 September (8): Waste Atlas rows; soy and maize from Halpern et al.");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const o = new Function(body + "; return { PANEL_ORDER };")().PANEL_ORDER;
+  const kinds = ["dumpsites", "landfills", "wte", "mbt", "bt", "cities", "countries"];
+  check("Waste Atlas is one row per kind of place, each reading only its own kind from the weekly copy",
+        kinds.every((k) => new RegExp(`id: "wasteatlas_${k}"[^\\n]*route: "geojsonlive"`).test(src)) && /only: \["category", "Dumpsites"\]/.test(src) &&
+        /got\.features = got\.features\.filter\(\(ft\) => String\(\(ft\.properties \|\| \{\}\)\[f\.only\[0\]\]\) === f\.only\[1\]\)/.test(src));
+  const at = (t) => o.findIndex((x) => x && x.t === t);
+  check("\u2026all under Pollution > Solid waste, dumpsites and landfills copied under Methane, incinerators under Carbon dioxide",
+        kinds.every((k) => o.lastIndexOf(`wasteatlas_${k}`) > at("Solid waste")) &&
+        /\{ h: 4, t: "Methane" \}, [^\n]*"wasteatlas_dumpsites", "wasteatlas_landfills"/.test(src) && /\{ h: 4, t: "Carbon dioxide" \}, [^\n]*"wasteatlas_wte"/.test(src));
+  check("soy and maize each have a row with the four pressures as chips, under Nitrous oxide and under Agriculture",
+        ["soyb", "maiz"].every((c) => ["ghg", "water", "nutrient", "disturbance"].every((p) => src.includes(`food_${c}_${p}.pmtiles`))) &&
+        o.includes("food_soy") && o.includes("food_maize"));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
