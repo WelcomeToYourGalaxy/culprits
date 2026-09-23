@@ -69,6 +69,11 @@ MIN_AGREE = 5            # names that must agree on the placement
 MAX_ERROR_SHARE = 0.03   # typical error no more than 3% of the plate's width
 TRIES = 4000             # random sets of three tried
 IMAGE_WIDTH = 2400       # pixels across the drawn page
+# Close in, the page is also drawn at four times that, cut into a grid of
+# squares, each placed by the same fit: the PDF is drawn in lines, so this keeps
+# its detail when the map is zoomed in (asked for 23 September).
+DETAIL_SCALE = 4
+DETAIL_GRID = 4
 
 # Words on the plates that are the key, the title or the figures, never places.
 NOT_PLACES = {
@@ -200,7 +205,7 @@ def place_page(labels, width_pt, height_pt, seed=0):
     return {"kept": kept, "reason": "" if kept else f"typical error {rms:.0f} km is more than {MAX_ERROR_SHARE:.0%} of the plate's {span_km:.0f} km",
             "corners": [[round(lon, 5), round(lat, 5)] for lon, lat in corners],
             "error_km": round(rms, 1), "width_km": round(span_km), "names": sorted(n for _, n in errs),
-            "worst": sorted(errs, reverse=True)[:3]}
+            "worst": sorted(errs, reverse=True)[:3], "affine": T}
 
 
 def geocode(name, cache, session):
@@ -263,12 +268,28 @@ def main(only):
         got = got or {"kept": False, "reason": "fewer than three names on the page could be found"}
         entry = {"title": title, "pdf": PDF_BASE + slug + ".pdf", "labels": len(labels), **got}
         entry.pop("worst", None)
+        T = entry.pop("affine", None)
         if got.get("kept"):
             zoom = IMAGE_WIDTH / w
             pix = page.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), alpha=False)
             img = Image.open(io.BytesIO(pix.tobytes("png")))
             img.save(OUT / "plates" / f"{slug}.webp", "WEBP", quality=80)
             entry["image"] = f"atlas/plates/{slug}.webp"
+            # The detail squares: each a part of the page, drawn at four times
+            # the size, and placed by the page's own fit at its four corners.
+            ddir = OUT / "plates" / slug
+            ddir.mkdir(parents=True, exist_ok=True)
+            dzoom = zoom * DETAIL_SCALE
+            entry["detail"] = []
+            for r in range(DETAIL_GRID):
+                for c in range(DETAIL_GRID):
+                    x0, x1 = w * c / DETAIL_GRID, w * (c + 1) / DETAIL_GRID
+                    y0, y1 = h * r / DETAIL_GRID, h * (r + 1) / DETAIL_GRID
+                    part = page.get_pixmap(matrix=pymupdf.Matrix(dzoom, dzoom), clip=pymupdf.Rect(x0, y0, x1, y1), alpha=False)
+                    Image.open(io.BytesIO(part.tobytes("png"))).save(ddir / f"d{r}{c}.webp", "WEBP", quality=80)
+                    corners = [unmerc(*apply(T, x, y)) for x, y in ((x0, y0), (x1, y0), (x1, y1), (x0, y1))]
+                    entry["detail"].append({"image": f"atlas/plates/{slug}/d{r}{c}.webp",
+                                            "corners": [[round(lon, 5), round(lat, 5)] for lon, lat in corners]})
         plates[slug] = entry
         say = f"placed, {len(got['names'])} names agree, typical error {got['error_km']} km on a {got['width_km']} km plate" if got.get("kept") else f"not placed: {got['reason']}"
         print(f"{slug}: {say}")

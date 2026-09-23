@@ -2578,9 +2578,8 @@ console.log("\nOff-planet sections, Of groups, names, launch links, drag bar, ma
   check("\u2026the cores are small specks, the haze faint and never brighter than rose, the dots soft-edged and unseen wider out",
         /"circle-radius": z\(0, \["\*", 0\.8, lift\]/.test(src) && /hazeOpacity: 0\.3,/.test(src) && /1, "rgba\(176,112,135,0\.6\)"\]/.test(src) &&
         /paint\(layer\.id, "circle-blur", 1\)/.test(src) && /z\(GLOW\.fadeOut, 0, GLOW\.gone, 0\.9\)/.test(src));
-  check("\u2026the grain is one noise image from a set seed, made once and held still",
-        /let seed = 0x2F6B4A1D;/.test(src) && /if \(glowGrain\.el \|\| typeof document/.test(src) && /mix-blend-mode:soft-light/.test(src) &&
-        !/glowGrain[\s\S]{0,1200}Math\.random/.test(src.slice(src.indexOf("function glowGrain()"), src.indexOf("function glowGrainSync()"))));
+  check("\u2026no grain over the map: its strength is 0 and it is never made (23 September)",
+        /grain: 0,\s/.test(src) && /if \(!GLOW\.grain && !GLOW\.grainSatellite\) return;/.test(src));
   check("\u2026planetary defence does not pulse the glow's own layers", /if \(\/-\(halo\|haze\|core\|soft\)\$\/\.test\(lid\)\) continue;/.test(src));
   {
     const G = new Function("mapOutputs", src.slice(src.indexOf("const GLOW = {"), src.indexOf("function addHud(layer, rawAddLayer)")) + "; return { GLOW, glowWeight, glowMaxOf };")((v) => v);
@@ -2623,7 +2622,10 @@ console.log("\nGuerillamap panel, Pollution, the releases split");
 console.log("\nHydroWASTE on the map; the EIP and HydroFATE page rows gone");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("HydroWASTE's plants are drawn from their own archive", /id:"hydrowaste", +name:"Wastewater treatment plants \(HydroWASTE\)"[^\n]*route:"pmtiles"/.test(src) && fs.existsSync(path.join(HERE, "tiles", "hydrowaste.pmtiles")));
+  check("HydroWASTE's plants are drawn from their own archive", /id:"hydrowaste", +name:"Wastewater treatment plants \(HydroWASTE\)"[^\n]*route:"pmtiles"/.test(src) &&
+        // A sparse checkout (the owner's Mac leaves map/tiles out) has no archives
+        // to look at; the file is on GitHub. Anywhere else it must be there.
+        (fs.existsSync(path.join(HERE, "tiles", "hydrowaste.pmtiles")) || fs.existsSync(path.join(HERE, "..", ".git", "info", "sparse-checkout"))));
   check("the Environmental Integrity Project and HydroFATE page rows are gone", !/id: "eip_inventory"/.test(src) && !/id: "hydrofate"/.test(src));
 }
 
@@ -3192,9 +3194,8 @@ console.log("\nthe Atlas's own maps, on this map (22 September)");
         /data-atlas-auto="1" data-atlas-plate=/.test(src) && !/Open the Atlas's PDF:/.test(src) && !/Open the Atlas's page for this city<\/a>/.test(src));
   check("opening an Atlas place zooms to it and lays its placed plate over the map, as an image at the plate's four corners",
         /map\.addSource\("atlas-plate", \{ type: "image", url: abs\("\.\/" \+ p\.image\), coordinates: p\.corners \}\)/.test(src) &&
-        /if \(auto\) atlasFrom\(auto, geometryBounds\(hit\.geometry\)\);/.test(src));
-  check("a plate is laid only when it was placed well enough, and says how far off its towns are",
-        /p && p\.kept && p\.image/.test(src) && /\$\{p\.error_km\} km/.test(src));
+        /if \(auto\) atlasFrom\(auto, geometryBounds\(hit\.geometry\), hit\.cfg\.id\);/.test(src));
+  check("a plate is laid only when it was placed well enough", /p && p\.kept && p\.image/.test(src));
   const gb = new Function(src.slice(src.indexOf("function geometryBounds("), src.indexOf("function atlasPanel(")) + "; return geometryBounds;")();
   const b = gb({ type: "MultiPolygon", coordinates: [[[[-50, -20], [-40, -20], [-40, -10], [-50, -20]]], [[[-60, -25], [-55, -25], [-55, -22], [-60, -25]]]] });
   check("with no plate, the map zooms to the hotspot's own outline", JSON.stringify(b) === JSON.stringify([[-60, -25], [-40, -10]]));
@@ -3267,7 +3268,7 @@ console.log("\nround of 23 September (2): the wastewater model from its data pac
         src.includes(`archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_n_${k}.pmtiles"`)));
   const py = fs.readFileSync(path.join(HERE, "..", "pipeline", "wastewater_build.py"), "utf8");
   check("the build keeps every point at every zoom, weighs each archive by its own measure, and works out the unit rather than guessing it",
-        /"-r1"/.test(py) && /"--no-feature-limit", "--no-tile-size-limit"/.test(py) && /value=p\.get\(field\)/.test(py) && /def unit_of\(total\)/.test(py) &&
+        /"-r1"/.test(py) && /"--no-feature-limit", "--no-tile-size-limit"/.test(py) && /"value": p\.get\(field\)/.test(py) && /def unit_of\(total\)/.test(py) &&
         /fits no unit/.test(py) && /not in longitude and latitude/.test(py));
 }
 console.log("\nround of 23 September (3): the wastewater points' projection; Waste Atlas looked at");
@@ -3289,6 +3290,36 @@ console.log("\nbuildings stand up again (23 September)");
   check("every zoom in the 3D buildings' paint is the input of a top-level interpolate or step, so MapLibre adds the layer",
         !/\["case", \[">=", \["zoom"\]/.test(block) && topLevel >= 2 &&
         (paint.match(/\["zoom"\]/g) || []).length === topLevel);
+}
+
+console.log("\nround of 23 September (4): the wastewater archives made small enough for GitHub");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const py = fs.readFileSync(path.join(HERE, "..", "pipeline", "wastewater_build.py"), "utf8");
+  check("the tiles carry only each point's id and value, to zoom 8, and the build stops rather than leave a file GitHub refuses",
+        /"properties": \{"id": str\(p\.get\("basin_id"\)\), "value": p\.get\(field\)\}/.test(py) && /"-z8"/.test(py) && /which GitHub refuses; stopped here/.test(py));
+  check("\u2026every field of every point is in 256 pieces, found by the same hash the map uses",
+        /def piece_of\(key\):/.test(py) && /0x811C9DC5/.test(py) && /0x01000193/.test(py) &&
+        ["tot", "treated", "septic", "open"].every((k) => new RegExp(`wastewater_n_${k}\\.pmtiles",\\n    boxes: "https://welcometoyourgalaxy\\.github\\.io/culprits-tiles-more/wastewater/pieces"`).test(src)));
+  check("\u2026and its working files are removed as it goes", /path\.unlink\(missing_ok=True\)/.test(py) && /work\.rmdir\(\)/.test(py));
+}
+console.log("\nround of 23 September (5): the Atlas panel pared down; no grain; the boxes' bars");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const wire = fs.readFileSync(path.join(HERE, "wire.js"), "utf8");
+  const panel = src.slice(src.indexOf("function atlasPanel() {"), src.indexOf("function atlasPlateOff() {"));
+  check("the Atlas panel holds only the see-through slider and the link to the Atlas's page",
+        /class="ap-fade"/.test(panel) && /class="ap-open"/.test(panel) && !/ap-pages|ap-close|ap-said|ap-title|iframe/.test(panel));
+  check("\u2026and unticking the Atlas row closes it and takes the plate away",
+        /if \(vis !== "visible" && typeof atlasOwner !== "undefined" && atlasOwner === id\) atlasPlateOff\(\);/.test(src));
+  check("\u2026close in, the page's detail squares are added for what is on screen, once closer than the whole plate",
+        /function atlasDetail\(p, fitZoom\)/.test(src) && /minzoom: fitZoom \+ 1/.test(src));
+  const py = fs.readFileSync(path.join(HERE, "..", "pipeline", "atlas_plates.py"), "utf8");
+  check("\u2026the detail squares are drawn from the PDF at four times the size, each placed by the page's own fit",
+        /DETAIL_SCALE = 4/.test(py) && /"detail"/.test(py));
+  check("a pulled box keeps the height it is pulled to, the layers box included", /el\.style\.flex = "0 0 auto";/.test(src));
+  check("the news wires' open-and-shut arrow sits at the right-hand end of the bar",
+        /id="wireEnd"/.test(wire) && /\.wire-toggle \.wire-caret\{display:none\}/.test(wire));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

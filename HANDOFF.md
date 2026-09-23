@@ -761,6 +761,26 @@ owner's request, so a land-cover layer that no other rule claims gets no row
 and is counted in the console (`LEFT_OUT`). Agriculture > Moratoriums from the
 list was not made: Nusantara has one moratorium layer and it is a forest one.
 
+## Round of 23 September (5): the owner's notes on the map
+
+- **No grain.** The fixed-noise overlay (`glowGrain`) textured the whole map
+  whenever a point layer was on; `GLOW.grain` is 0 and the grain is never made.
+- **Pulling the layers box up** did nothing: `.left-col .panel{flex:1 1 auto}`
+  filled the column whatever height the pull set. A pulled box now gets
+  `flex:0 0 auto`; a double-click on the bar puts it back.
+- **The news wires' arrow** is at the right-hand end of its bar (`#wireEnd`);
+  the title still opens and closes the box.
+- **Atlas for the End of the World**: the panel holds only the see-through
+  slider and a link to the Atlas's page. It closes, and the plate goes, when
+  the row that opened it is unticked (`atlasOwner`, checked in
+  `applyVisibility`). For detail close in, `atlas_plates.py` also draws each
+  placed page at four times the size in a 4 x 4 grid, each square placed by
+  the page's own fit (`plates.json` `detail`); the map adds the squares on
+  screen once the view is closer than the whole plate. Re-run
+  `pipeline/atlas_plates.py` to make them (the look-ups are cached).
+- The HydroWASTE archive test accepts a sparse checkout, which leaves
+  `map/tiles` out, so the suite passes on the owner's Mac and `&&` chains run.
+
 ## Round of 23 September (2): the Global Wastewater Model from its data package
 
 `pipeline/wastewater_inspect.py` showed the N package holds pour points
@@ -789,6 +809,14 @@ treated, total). No projection file is included.
   projection of the ocean-impact maps the model feeds. The build now tests it:
   every point must fall inside the Mollweide world ellipse, or it stops. The
   extent's corners come back at latitude 83.6 N and 59.5 S, coasts that exist.
+- **First real run**: Mollweide confirmed (all 134,846 inside the ellipse,
+  latitudes -59.5 to 83.6), the unit grams (6.19 Mt N a year in total). With
+  every field in every tile to zoom 10 the archives were 85.5 and 99.2 MB,
+  and the Mac's disk filled. The tiles now carry only `id` (basin_id) and
+  `value`, to zoom 8 (enlarged beyond), and every field is in 256 pieces at
+  culprits-tiles-more `wastewater/pieces/` (FNV-1a, the map's `pieceOf`), read
+  on a click through `cfg.boxes`. Working files are deleted as it goes; a file
+  over 95 MB stops the build.
 - **Waste Atlas** (item 44): `pipeline/wasteatlas_probe.py` lists the page's
   scripts and the data addresses in them, for the reader to be written from.
 

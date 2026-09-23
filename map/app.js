@@ -355,19 +355,23 @@ const LAYERS = [
   { id:"gmo_animal_trade", sourceOf:"gmo_releases", name:"Animal breeders, dealers, exhibitors and carriers (USDA Animal Welfare Act)", unit:"licensees", colour:"#74695E", route:"pmtiles", ready:true, off: true,
     where: ["all", ["==", ["get", "id"], "industry:animals"],
             ["!", ["in", ["get", "x_type"], ["literal", ["Animal Welfare Act research facility", "Accredited animal research organisation", "CCAC certified institution"]]]]] },
-  { id:"wastewater_n_tot", name:"Nitrogen from human wastewater reaching the sea, all of it, by coastal outlet (Tuholske et al.)", unit:"nitrogen a year", colour:"#5E7377", route:"pmtiles", ready:true, off: true,
+  { id:"wastewater_n_tot", name:"Nitrogen from human wastewater reaching the sea, all of it, by coastal outlet (Tuholske et al.)", unit:"grams of nitrogen a year", colour:"#5E7377", route:"pmtiles", ready:true, off: true,
     archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_n_tot.pmtiles",
+    boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/wastewater/pieces",
     note: "The Global Wastewater Model (Tuholske et al. 2021, KNB doi:10.5063/F76B09): each of its 134,846 pour points, where a watershed's wastewater reaches the coast, weighed by this share of its nitrogen. Built from the model's data package; every field it gives is kept, the unit included. The model is not updated." },
-  { id:"wastewater_n_treated", name:"Nitrogen from sewage treatment plants reaching the sea, by coastal outlet (Tuholske et al.)", unit:"nitrogen a year", colour:"#5E7377", route:"pmtiles", ready:true, off: true,
+  { id:"wastewater_n_treated", name:"Nitrogen from sewage treatment plants reaching the sea, by coastal outlet (Tuholske et al.)", unit:"grams of nitrogen a year", colour:"#5E7377", route:"pmtiles", ready:true, off: true,
     archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_n_treated.pmtiles",
+    boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/wastewater/pieces",
     note: "The Global Wastewater Model (Tuholske et al. 2021, KNB doi:10.5063/F76B09): each of its 134,846 pour points, where a watershed's wastewater reaches the coast, weighed by this share of its nitrogen. Built from the model's data package; every field it gives is kept, the unit included. The model is not updated." },
-  { id:"wastewater_n_septic", name:"Nitrogen from septic systems reaching the sea, by coastal outlet (Tuholske et al.)", unit:"nitrogen a year", colour:"#5E7377", route:"pmtiles", ready:true, off: true,
+  { id:"wastewater_n_septic", name:"Nitrogen from septic systems reaching the sea, by coastal outlet (Tuholske et al.)", unit:"grams of nitrogen a year", colour:"#5E7377", route:"pmtiles", ready:true, off: true,
     archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_n_septic.pmtiles",
+    boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/wastewater/pieces",
     note: "The Global Wastewater Model (Tuholske et al. 2021, KNB doi:10.5063/F76B09): each of its 134,846 pour points, where a watershed's wastewater reaches the coast, weighed by this share of its nitrogen. Built from the model's data package; every field it gives is kept, the unit included. The model is not updated." },
-  { id:"wastewater_n_open", name:"Nitrogen from untreated human waste reaching the sea, by coastal outlet (Tuholske et al.)", unit:"nitrogen a year", colour:"#5E7377", route:"pmtiles", ready:true, off: true,
+  { id:"wastewater_n_open", name:"Nitrogen from untreated human waste reaching the sea, by coastal outlet (Tuholske et al.)", unit:"grams of nitrogen a year", colour:"#5E7377", route:"pmtiles", ready:true, off: true,
     archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_n_open.pmtiles",
+    boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/wastewater/pieces",
     note: "The Global Wastewater Model (Tuholske et al. 2021, KNB doi:10.5063/F76B09): each of its 134,846 pour points, where a watershed's wastewater reaches the coast, weighed by this share of its nitrogen. Built from the model's data package; every field it gives is kept, the unit included. The model is not updated." },
-  { id:"wastewater_n_countries", name:"Nitrogen from human wastewater reaching the sea, by country (Tuholske et al.)", unit:"nitrogen a year", colour:"#5E7377", route:"country", ready:true, off: true,
+  { id:"wastewater_n_countries", name:"Nitrogen from human wastewater reaching the sea, by country (Tuholske et al.)", unit:"grams of nitrogen a year", colour:"#5E7377", route:"country", ready:true, off: true,
     note: "The country totals the Global Wastewater Model's data package gives (Tuholske et al. 2021, KNB doi:10.5063/F76B09), with its split by treatment, septic and untreated." },
   { id:"hydrowaste",           name:"Wastewater treatment plants (HydroWASTE)", unit:"plants", colour:"#5E7278", route:"pmtiles", ready:true, off: true,
     note: "HydroWASTE v1.0: 58,502 wastewater treatment plants, with the population each serves, the treated wastewater it discharges, its level of treatment, its estimated outfall and the river's dilution there (Ehalt Macedo et al., Earth System Science Data 2022; CC BY 4.0). The database behind HydroFATE's map, whose own page cannot be read to draw here. Every column is kept." },
@@ -1384,7 +1388,7 @@ const GLOW = {
   hazeOpacity: 0.3,                            // very faint: the soft spread only
   core: (w) => ["interpolate", ["linear"], ["sqrt", w], 0, "#6E4A6A", 0.45, "#B07087", 0.8, "#D9B8BF", 1, "#E8DFD0"],
   grainSatellite: 0,                           // the grain over the Satellite basemap, where there is no glow
-  grain: 0.3,                                  // the grain's strength over the light
+  grain: 0,                                    // no grain: it textured the whole map, not the dots (taken out 23 September)
   fadeOut: 9, gone: 12,                        // haze and cores: full to 9, gone by 12; the dots the other way
 };
 const glowMaxOf = new Map();                   // source id -> the largest "value" in it, from the archive's own stats
@@ -1453,6 +1457,9 @@ function addHud(layer, rawAddLayer) {
 // leaves near-black almost untouched and textures the lit parts most. It
 // fades with the haze and cores, and is off when no glow layer is showing.
 function glowGrain() {
+  // The owner did not want the whole map gritty when a layer is on; with both
+  // strengths at 0 the grain is never made at all.
+  if (!GLOW.grain && !GLOW.grainSatellite) return;
   if (glowGrain.el || typeof document === "undefined" || !map.getCanvas) return;
   const n = 256, c = document.createElement("canvas");
   c.width = c.height = n;
@@ -3946,83 +3953,89 @@ function geometryBounds(g) {
   if (g && g.coordinates) walk(g.coordinates);
   return isFinite(w) ? [[w, s], [e, n]] : null;
 }
+// The panel holds only what the owner asked for (23 September): the slider
+// between the Atlas's map and this one, and a link to the Atlas's own page.
+// It closes, and the plate goes, when the Atlas row is unticked.
+let atlasOwner = null;                 // the row whose box opened it
+const atlasLayers = () => (map.getStyle && map.getStyle() ? map.getStyle().layers : []).map((l) => l.id).filter((id) => /^atlas-plate/.test(id));
 function atlasPanel() {
   let el = document.getElementById("atlas-panel");
   if (el) return el;
   el = document.createElement("div");
   el.id = "atlas-panel";
   el.hidden = true;
-  el.style.cssText = "position:fixed;left:50%;bottom:14px;transform:translateX(-50%);width:min(620px,62vw);max-height:62vh;z-index:45;" +
-    "display:flex;flex-direction:column;background:var(--peat,#17150F);border:1px solid var(--rule,#322E27);border-radius:3px;" +
-    "box-shadow:0 8px 30px rgba(0,0,0,.5);font-size:12.5px;color:var(--dim)";
-  el.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:7px 10px 4px">` +
-      `<b class="ap-title" style="color:var(--bone);font-weight:600"></b><span style="margin-left:auto"></span>` +
-      `<a class="ap-open" target="_blank" rel="noopener" title="Only if the pages stay blank: the Atlas's site may not allow being shown inside another page" ` +
-      `style="color:var(--slate,#8A9DA6);font-size:11.5px">open \u2197</a>` +
-      `<button type="button" class="ap-pages" style="font:inherit;background:none;color:var(--dim);border:1px solid var(--rule);border-radius:2px;padding:1px 7px;cursor:pointer">pages</button>` +
-      `<button type="button" class="ap-close" style="font:inherit;background:none;color:var(--dim);border:1px solid var(--rule);border-radius:2px;padding:1px 7px;cursor:pointer">close</button></div>` +
-    `<div class="ap-said" style="padding:0 10px 4px;font-size:11.5px"></div>` +
-    `<label class="ap-fade" style="display:flex;gap:8px;align-items:center;padding:0 10px 7px;font-size:11.5px">` +
-      `the Atlas's map <input type="range" min="0" max="100" value="85" style="flex:1"> this map</label>` +
-    `<iframe class="ap-frame" title="The Atlas's pages" hidden style="flex:1;min-height:40vh;width:100%;border:0;border-top:1px solid var(--rule)"></iframe>`;
+  el.style.cssText = "position:fixed;left:50%;bottom:14px;transform:translateX(-50%);width:min(420px,70vw);z-index:45;" +
+    "display:flex;align-items:center;gap:12px;padding:7px 12px;background:var(--peat,#17150F);border:1px solid var(--rule,#322E27);" +
+    "border-radius:3px;box-shadow:0 8px 30px rgba(0,0,0,.5);font-size:12px;color:var(--dim)";
+  el.innerHTML = `<label class="ap-fade" style="display:flex;gap:8px;align-items:center;flex:1">` +
+      `<input type="range" min="0" max="100" value="15" style="flex:1" aria-label="See through the Atlas's map"></label>` +
+    `<a class="ap-open" target="_blank" rel="noopener" style="color:var(--slate,#8A9DA6);white-space:nowrap">the Atlas's page \u2197</a>`;
   document.body.appendChild(el);
-  const frame = el.querySelector(".ap-frame");
-  el.querySelector(".ap-pages").addEventListener("click", () => {
-    frame.hidden = !frame.hidden;
-    if (!frame.hidden && frame.dataset.src && frame.src !== frame.dataset.src) frame.src = frame.dataset.src;
-  });
-  el.querySelector(".ap-close").addEventListener("click", atlasPlateOff);
   el.querySelector(".ap-fade input").addEventListener("input", (e) => {
-    if (map.getLayer("atlas-plate")) map.setPaintProperty("atlas-plate", "raster-opacity", 1 - Number(e.target.value) / 100 + 0.0);
+    for (const id of atlasLayers()) map.setPaintProperty(id, "raster-opacity", 1 - Number(e.target.value) / 100);
   });
   return el;
 }
 function atlasPlateOff() {
-  if (map.getLayer("atlas-plate")) map.removeLayer("atlas-plate");
-  if (map.getSource("atlas-plate")) map.removeSource("atlas-plate");
+  for (const id of atlasLayers()) { map.removeLayer(id); if (map.getSource(id)) map.removeSource(id); }
+  if (atlasPlateOff.move) { map.off("moveend", atlasPlateOff.move); atlasPlateOff.move = null; }
+  atlasOwner = null;
   const el = document.getElementById("atlas-panel");
-  if (el) { el.hidden = true; const f = el.querySelector(".ap-frame"); f.hidden = true; f.removeAttribute("src"); }
+  if (el) el.hidden = true;
 }
-// what: { plate, doc, title } for a hotspot, { page, title } for a city;
-// bounds: the hotspot's own outline, used when there is no placed plate.
-async function showAtlas(what, bounds) {
+// Close in, the page's detail: plates.json can give a plate in squares drawn
+// from the page at four times the resolution (pipeline/atlas_plates.py). The
+// squares on screen are added once the view is closer than the whole plate,
+// the rest only as the view reaches them.
+function atlasDetail(p, fitZoom) {
+  const detail = Array.isArray(p.detail) ? p.detail : [];
+  if (!detail.length) return;
+  const opacity = () => { const i = document.querySelector("#atlas-panel .ap-fade input"); return i ? 1 - Number(i.value) / 100 : 0.85; };
+  const add = () => {
+    if (map.getZoom() < fitZoom + 1) return;
+    const b = map.getBounds();
+    detail.forEach((d, i) => {
+      const id = `atlas-plate-d${i}`;
+      if (map.getSource(id)) return;
+      const lons = d.corners.map((c) => c[0]), lats = d.corners.map((c) => c[1]);
+      if (Math.max(...lons) < b.getWest() || Math.min(...lons) > b.getEast() || Math.max(...lats) < b.getSouth() || Math.min(...lats) > b.getNorth()) return;
+      map.addSource(id, { type: "image", url: abs("./" + d.image), coordinates: d.corners });
+      map.addLayer({ id, type: "raster", source: id, minzoom: fitZoom + 1, paint: { "raster-opacity": opacity(), "raster-fade-duration": 0 } });
+    });
+  };
+  atlasPlateOff.move = add;
+  map.on("moveend", add);
+}
+// what: { plate, doc } for a hotspot, { page } for a city; bounds: the
+// hotspot's own outline, used when there is no placed plate.
+async function showAtlas(what, bounds, owner) {
+  atlasPlateOff();
+  atlasOwner = owner || null;
   const el = atlasPanel();
-  const frame = el.querySelector(".ap-frame");
-  el.querySelector(".ap-title").textContent = what.title || "Atlas for the End of the World";
-  frame.dataset.src = what.doc || what.page || "";
-  el.querySelector(".ap-open").href = frame.dataset.src;
-  frame.hidden = !what.page;                       // a city's page opens at once; a hotspot's pages on asking
-  if (!frame.hidden) frame.src = frame.dataset.src;
-  const said = el.querySelector(".ap-said"), fade = el.querySelector(".ap-fade");
+  el.querySelector(".ap-open").href = what.doc || what.page || "#";
+  const fade = el.querySelector(".ap-fade");
   fade.hidden = true;
-  if (map.getLayer("atlas-plate")) map.removeLayer("atlas-plate");
-  if (map.getSource("atlas-plate")) map.removeSource("atlas-plate");
   el.hidden = false;
-  if (!what.plate) {
-    said.textContent = "The Atlas's own page for this city. Its maps carry no named places to fit them by, so they are shown here rather than laid on the map.";
-    return;
-  }
+  if (!what.plate) return;
   const p = (await atlasPlatesRead())[what.plate];
   if (p && p.kept && p.image && Array.isArray(p.corners) && p.corners.length === 4) {
     map.addSource("atlas-plate", { type: "image", url: abs("./" + p.image), coordinates: p.corners });
     map.addLayer({ id: "atlas-plate", type: "raster", source: "atlas-plate", paint: { "raster-opacity": 0.85, "raster-fade-duration": 0 } });
     fade.hidden = false;
     fade.querySelector("input").value = 15;
-    said.textContent = `The first page of the Atlas's PDF, placed by the ${p.names.length} towns named on it: ` +
-      `they sit on average ${p.error_km} km from where OpenStreetMap has them, on a plate ${p.width_km} km across. ` +
-      `The key and title on the page are drawn with it.`;
     const lons = p.corners.map((c) => c[0]), lats = p.corners.map((c) => c[1]);
-    if (typeof map.fitBounds === "function") map.fitBounds([[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]], { padding: 30, duration: 1400 });
+    const box = [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]];
+    const fit = typeof map.cameraForBounds === "function" ? map.cameraForBounds(box, { padding: 30 }) : null;
+    atlasDetail(p, fit && Number.isFinite(fit.zoom) ? fit.zoom : 4);
+    if (typeof map.fitBounds === "function") map.fitBounds(box, { padding: 30, duration: 1400 });
     return;
   }
-  said.textContent = p && p.reason ? `The Atlas's map is not laid on this one: ${p.reason}. Its pages are under pages.`
-    : "The Atlas's map has not been placed yet (pipeline/atlas_plates.py). Its pages are under pages.";
   if (bounds && typeof map.fitBounds === "function") map.fitBounds(bounds, { padding: 30, duration: 1400 });
 }
-function atlasFrom(btn, bounds) {
+function atlasFrom(btn, bounds, owner) {
   const d = btn.dataset;
-  if (d.atlasPlate) showAtlas({ plate: d.atlasPlate, doc: d.atlasDoc, title: d.atlasTitle }, bounds);
-  else if (d.atlasPage) showAtlas({ page: d.atlasPage, title: d.atlasTitle }, bounds);
+  if (d.atlasPlate) showAtlas({ plate: d.atlasPlate, doc: d.atlasDoc }, bounds, owner);
+  else if (d.atlasPage) showAtlas({ page: d.atlasPage }, bounds, owner);
 }
 
 // The Atlas's cities, placed from the weekly lookup of their names.
@@ -6360,6 +6373,10 @@ function makePullable(el, edge) {
   const move = (e) => {
     const y = e.clientY != null ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : from);
     el.style.maxHeight = "none";
+    // The layers box grows to fill its column (flex 1 1 auto), which undid any
+    // height the pull set: pulled up, it did not get shorter and its bar stayed
+    // put. A pulled box keeps the height it is pulled to (23 September).
+    el.style.flex = "0 0 auto";
     const h = pullHeight(height, y - from, edge, PULL_MIN, ceiling());
     el.style.height = h + "px";
     settle(h);
@@ -6375,7 +6392,7 @@ function makePullable(el, edge) {
     document.addEventListener("pointermove", move);
     document.addEventListener("pointerup", stop);
   });
-  grip.addEventListener("dblclick", () => { el.style.height = ""; el.style.maxHeight = ""; settle(999); });
+  grip.addEventListener("dblclick", () => { el.style.height = ""; el.style.maxHeight = ""; el.style.flex = ""; settle(999); });
 }
 
 // The news wires box is built by wire.js, which runs after this file.
@@ -7873,11 +7890,11 @@ async function openSitemapBox(hit, at) {
       const x = ev.target.closest && ev.target.closest(".leaflet-popup-close-button");
       if (x) { ev.preventDefault(); popup.remove(); }
       const a = ev.target.closest && ev.target.closest(".atlas-show");
-      if (a) { ev.preventDefault(); atlasFrom(a, geometryBounds(hit.geometry)); }
+      if (a) { ev.preventDefault(); atlasFrom(a, geometryBounds(hit.geometry), hit.cfg.id); }
     });
     // An Atlas hotspot or city shows its own map or page as soon as it is opened.
     const auto = el.querySelector && el.querySelector("[data-atlas-auto]");
-    if (auto) atlasFrom(auto, geometryBounds(hit.geometry));
+    if (auto) atlasFrom(auto, geometryBounds(hit.geometry), hit.cfg.id);
   }
 }
 
@@ -8236,6 +8253,8 @@ const visibility = new Map(LAYERS.filter((c) => c.off).map((c) => [c.id, "none"]
 
 function applyVisibility(id) {
   const vis = visibility.get(id) || "visible";
+  // An Atlas row unticked takes its map and its panel with it.
+  if (vis !== "visible" && typeof atlasOwner !== "undefined" && atlasOwner === id) atlasPlateOff();
   [`${id}-agg`, `${id}-cl`, `${id}-pt`, `${id}-fill`, `${id}-line`, `${id}-raster`, `${id}-world`, `${id}-cap`].forEach((l) => {
     if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", vis);
   });

@@ -675,6 +675,8 @@ const CSS = `
 .wire.open .wire-caret{transform:rotate(90deg)}
 .wire-sum{display:none}
 .wire-onmap{margin-left:auto}
+.wire-toggle .wire-caret{display:none}
+.wire-end{background:none;border:0;padding:4px 2px 4px 6px;cursor:pointer;display:flex;align-items:center}
 .wire-onmap{display:flex;align-items:center;gap:5px;color:var(--dim,#948D7C);font-size:12px;
   white-space:nowrap;cursor:pointer}
 .wire-onmap input{accent-color:var(--moss,#62755F)}
@@ -785,6 +787,10 @@ function build() {
       '<span class="wire-sum" id="wireSum" aria-live="polite"></span>' +
       '<label class="wire-onmap" title="Draw the stories that name a place on the map">' +
         '<input type="checkbox" id="wireOnMap" checked> show them on the map</label>' +
+      // The box's open-and-shut arrow, at the right-hand end of its bar
+      // (moved from the left, 23 September); the title still opens it too.
+      '<button type="button" class="wire-end" id="wireEnd" aria-label="Open or close the news wires" aria-controls="wireBody">' +
+        '<span class="wire-caret" aria-hidden="true"></span></button>' +
     '</div>' +
     '<div class="wire-body" id="wireBody" hidden>' +
       '<div class="wire-tools"><div class="wire-search">' +
@@ -833,6 +839,7 @@ function build() {
   $when.value = state.when;
 
   $toggle.addEventListener('click', () => setOpen(!state.open));
+  box.querySelector('#wireEnd').addEventListener('click', () => setOpen(!state.open));
   if ($onMap) $onMap.addEventListener('change', () => { state.onMap = $onMap.checked; save(); renderList(); });
   $pickBtn.addEventListener('click', () => { state.pickerOpen = !state.pickerOpen; renderPicker(); layout(); });
   document.addEventListener('click', (e) => {

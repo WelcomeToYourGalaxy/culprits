@@ -13,8 +13,9 @@ Run from the repo root:  python3 pipeline/wasteatlas_probe.py > ~/Desktop/wastea
 """
 import re, urllib.parse, urllib.request
 
-BASE = "https://www.atlas.d-waste.com/"
-UA = {"User-Agent": "Mozilla/5.0 (Culprits atlas; looking for Waste Atlas's data addresses)"}
+BASES = ["https://www.atlas.d-waste.com/", "http://www.atlas.d-waste.com/", "http://atlas.d-waste.com/"]
+UA = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"}
 
 
 def get(url, n=None):
@@ -26,8 +27,16 @@ def get(url, n=None):
         return None, "", f"FAILED: {e}"
 
 
-status, kind, page = get(BASE)
-print(f"page: {status} {kind} {len(page):,} characters")
+# The first run got no answer from the https address and did not say why;
+# each address is now tried in turn, with the reason printed.
+BASE = page = None
+for b in BASES:
+    status, kind, body = get(b)
+    print(f"{b}: {status} {kind} {len(body):,} characters" + (f" \u2014 {body}" if status is None else ""))
+    if status and page is None:
+        BASE, page = b, body
+if page is None:
+    raise SystemExit("No address of Waste Atlas answered; nothing more to read.")
 scripts = [urllib.parse.urljoin(BASE, s) for s in re.findall(r"""<script[^>]+src=["']([^"']+)""", page, re.I)]
 print("\nscripts:")
 for s in scripts:

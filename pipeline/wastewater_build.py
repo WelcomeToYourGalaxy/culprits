@@ -68,6 +68,14 @@ def mollweide_inverse(x, y):
     return math.degrees(lon), math.degrees(lat)
 
 
+def piece_of(key):
+    """Which of 256 pieces a record is in: FNV-1a over its id, as the map's pieceOf."""
+    h = 0x811C9DC5
+    for b in str(key).encode("utf-8"):
+        h = ((h ^ b) * 0x01000193) & 0xFFFFFFFF
+    return format(h % 256, "02x")
+
+
 def unit_of(total):
     """The unit the tables are in, from how their global total compares with the paper's."""
     for name, per_tonne in (("kilograms", 1e3), ("grams", 1e6), ("tonnes", 1.0)):
@@ -120,23 +128,43 @@ def main():
 
     out = tiles_dir()
     out.mkdir(parents=True, exist_ok=True)
+    # The tiles carry only each point's id and the measure it is weighed by;
+    # everything else the package gives for it is in 256 pieces beside them,
+    # read on a click (the map's pieceBox, FNV-1a of the id, as SkyTruth's are).
+    # With every field in every tile at every zoom the archives were 85 to 99 MB.
+    pieces_dir = out.parent / "wastewater" / "pieces"
+    pieces_dir.mkdir(parents=True, exist_ok=True)
+    pieces = {}
+    for (lon, lat), p in rows:
+        rid = str(p.get("basin_id"))
+        pieces.setdefault(piece_of(rid), {})[rid] = {"properties": dict(
+            {"title": f"Coastal outlet of watershed {rid}", "longitude": lon, "latitude": lat, "unit": unit_text, "source": CITE}, **p)}
+    for key, recs in pieces.items():
+        (pieces_dir / f"{key}.json").write_text(json.dumps(recs, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    print(f"wastewater: {len(rows):,} records in {len(pieces)} pieces in {pieces_dir}", flush=True)
+    work = out / ".wastewater-build"
+    work.mkdir(exist_ok=True)
     for key, field in MEASURES.items():
         lid = f"wastewater_n_{key}"
-        with tempfile.NamedTemporaryFile("w", suffix=".geojsonl", delete=False) as f:
+        path = work / f"{lid}.geojsonl"
+        with open(path, "w", encoding="utf-8") as f:
             for (lon, lat), p in rows:
-                props = dict(p, value=p.get(field), unit=unit_text, source=CITE)
                 f.write(json.dumps({"type": "Feature", "geometry": {"type": "Point", "coordinates": [lon, lat]},
-                                    "properties": props}, separators=(",", ":")) + "\n")
-            path = f.name
+                                    "properties": {"id": str(p.get("basin_id")), "value": p.get(field)}}, separators=(",", ":")) + "\n")
         dest = out / f"{lid}.pmtiles"
-        # Every point at every zoom: no dropping, no merging.
-        cmd = ["tippecanoe", "-o", str(dest), "--force", "-l", lid, "-z10", "-r1",
-               "--no-feature-limit", "--no-tile-size-limit", "-P", path]
-        subprocess.run(cmd, check=True)
+        # Every point at every zoom: no dropping, no merging. Zoom 8 is the
+        # deepest square made; closer in, the map enlarges those squares.
+        cmd = ["tippecanoe", "-o", str(dest), "--force", "-l", lid, "-z8", "-r1",
+               "--no-feature-limit", "--no-tile-size-limit", "-t", str(work), "-P", str(path)]
+        try:
+            subprocess.run(cmd, check=True)
+        finally:
+            path.unlink(missing_ok=True)
         size = dest.stat().st_size
         print(f"wastewater: {dest.name} {size / 1e6:.1f} MB", flush=True)
         if size > 95e6:
-            print(f"  {dest.name} is over 95 MB, which GitHub refuses; say so and it will be cut into parts.", flush=True)
+            sys.exit(f"  {dest.name} is over 95 MB, which GitHub refuses; stopped here so nothing too big is left to commit.")
+    work.rmdir()
 
     cty = reader(z, "effluent_N_countries_gdam_all", table_only=True)
     cnames = [f[0] for f in cty.fields[1:]]
