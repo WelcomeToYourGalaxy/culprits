@@ -3296,6 +3296,16 @@ async function readArcgisApp(cfg) {
 
 /* ---------- pictures read live, with a choice of the source's own layers ---------- */
 function addRasterChoiceLayer(cfg) {
+  // A row whose build writes its own list of chips (choicesUrl) reads it first:
+  // EDGAR's HFCs and the like come as one file per gas, so the chips are known
+  // only once the build has run. The chips written here stand if it cannot be read.
+  if (cfg.choicesUrl && !cfg._choicesRead) {
+    cfg._choicesRead = true;
+    return getJson(cfg.choicesUrl, 20000)
+      .then((d) => { if (d && Array.isArray(d.choices) && d.choices.length) cfg.choices = d.choices; })
+      .catch(() => {})
+      .then(() => addRasterChoiceLayer(cfg));
+  }
   const src = `${cfg.id}-img`;
   cfg._pick = cfg._pick || 0;
   map.addSource(src, rasterChoiceSource(cfg));
@@ -9169,6 +9179,7 @@ const OTHER_MAPS = {
       ],
       note: "What growing maize (corn) put on the land in 2017, food and feed together, mapped by Halpern et al. 2022 (Nature Sustainability) from their data package. Each chip is one of its four pressures, per map cell, coloured dark to light on a log scale cut at the values' own steps (food/<name>.key.json in culprits-tiles-more). Built once from the package; it is not updated." },
     { id: "edgar_fgases", name: "Fluorinated gas emissions by 10 km cell, one chip per gas, latest year (EDGAR)", unit: "tonnes of the gas per map cell", colour: "#6A5A6E", route: "rasterlive", ready: true, lazy: true,
+      choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/edgar/fgases_choices.json",
       attribution: "EDGAR_2025_GHG, European Commission JRC, CC BY 4.0", maxzoom: 6,
       choices: [
         { label: "Hydrofluorocarbons (HFCs)", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/edgar_fgases_hfcs.pmtiles" },

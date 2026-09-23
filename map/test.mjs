@@ -3438,5 +3438,12 @@ console.log("\nround of 23 September (16): watersheds, six more type rows, Trase
   const T = new Function(src.match(/const TRASE_REMOVED = [^\n]*\n/)[0] + "; return TRASE_REMOVED;")();
   check("Trase's GDP per capita row is out of the box, and no other measure", T.some((r) => r.test("GDP per capita")) && !T.some((r) => r.test("Soy deforestation exposure")));
 }
+console.log("\nround of 23 September (17): the F-gas chips from the build's own list");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the F-gas row reads its chips from the list its build writes, one per gas drawn, keeping its own if the list cannot be read",
+        /choicesUrl: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/edgar\/fgases_choices\.json"/.test(src) &&
+        /if \(cfg\.choicesUrl && !cfg\._choicesRead\)/.test(src) && /if \(d && Array\.isArray\(d\.choices\) && d\.choices\.length\) cfg\.choices = d\.choices;/.test(src));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
