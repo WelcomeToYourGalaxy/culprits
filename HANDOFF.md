@@ -786,6 +786,25 @@ Kept as the rounds go; move a line out when it is settled.
 - **Satellite basemap** is also worked on in another chat; changes here are
   kept to the lowland colour stops.
 
+## Round of 23 September (12): the other chat's list taken over; F-gases; the slick archive
+
+The other chat handed over its open items (HANDOFF_TO_OTHER_CHAT.md, 23
+September). Done or already covered: the Global Wastewater Model (pour
+points, countries, plumes), the outside-server checks for USDA, EJAtlas,
+materialresearch and Wreckers of the Earth.
+
+- **EDGAR F-gases** (`edgar_fgases`, rasterlive, Climate > F-gases): from
+  culprits-tiles-more `scripts/edgar_fgases.py` (by hand). EDGAR's page folds
+  its gridmap links, so the script reads the release's own file index on
+  jeodpp, writes `edgar/listing.txt`, and takes the latest annual F-gas
+  emissions gridmap it finds; if none, it stops and the listing says why.
+- **Cerulean slick archive**: `scripts/cerulean_archive.py` keeps each month as
+  `<month>.geojson.gz` (was plain GeoJSON; September's 85 MB file was about to
+  pass the cut, and August and July had already been lost to it), tiles each
+  changed month into `<month>.pmtiles` (layers `slicks` from zoom 7,
+  `slick_points` to 6, which the map already reads), writes `tiles.json`, and
+  reads again from Cerulean any month the index lists with no store.
+
 ## Round of 23 September (11): the modelled farms' squares made light
 
 The unmerged CAFO archive's world square was 3.6 MB. `abattoir_cafo.py` now

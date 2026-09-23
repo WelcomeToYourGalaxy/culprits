@@ -3382,5 +3382,10 @@ console.log("\nround of 23 September (11): the modelled farms' squares made ligh
         /const CAFO_PIECES = "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/cafo\/pieces";/.test(src) &&
         /readPiece\(CAFO_PIECES, p\.id\)/.test(src));
 }
+console.log("\nround of 23 September (12): F-gases from EDGAR");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("EDGAR's gridded F-gas emissions are a row under Climate > F-gases", /\{ h: 4, t: "F-gases" \}, "edgar_fgases",/.test(src) && /edgar_fgases\.pmtiles/.test(src));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
