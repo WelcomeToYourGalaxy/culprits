@@ -3198,7 +3198,7 @@ console.log("\nthe Atlas's own maps, on this map (22 September)");
   check("a hotspot's box no longer sends the reader to another site; it shows the Atlas's map here",
         /data-atlas-auto="1" data-atlas-plate=/.test(src) && !/Open the Atlas's PDF:/.test(src) && !/Open the Atlas's page for this city<\/a>/.test(src));
   check("opening an Atlas place zooms to it and lays its placed plate over the map, as an image at the plate's four corners",
-        /map\.addSource\("atlas-plate", \{ type: "image", url: abs\("\.\/" \+ p\.image\), coordinates: p\.corners \}\)/.test(src) &&
+        /map\.addSource\("atlas-plate", \{ type: "image", url: plateUrl\(p\.image\), coordinates: p\.corners \}\)/.test(src) &&
         /if \(auto\) atlasFrom\(auto, geometryBounds\(hit\.geometry\), hit\.cfg\.id\);/.test(src));
   check("a plate is laid only when it was placed well enough", /p && p\.kept && p\.image/.test(src));
   const gb = new Function(src.slice(src.indexOf("function geometryBounds("), src.indexOf("function atlasPanel(")) + "; return geometryBounds;")();
@@ -3396,6 +3396,14 @@ console.log("\nround of 23 September (13): the crime tracker under every subject
   check("EIA's Environmental Crime Tracker is copied under illegal logging, F-gases and the animals as well as biodiversity loss",
         /"Illegal logging and timber trafficking" \}, "powerbi_report"/.test(src) && /"F-gases" \}, "edgar_fgases", "powerbi_report"/.test(src) &&
         /"Of animals" \}, "final_nail", "powerbi_report"/.test(src));
+}
+console.log("\nround of 23 September (14): the Atlas's city maps laid on the map where placed");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("a hotspot city's box carries its slug, and opening it lays the city's placed map as the hotspots' are",
+        /data-atlas-city="\$\{escapeHtml\(slug\)\}"/.test(src) && /cityPlate: d\.atlasCity \|\| null/.test(src) &&
+        /what\.cityPlate \? \(await atlasCityPlatesRead\(\)\)\[what\.cityPlate\]/.test(src) && /culprits-tiles-more\/atlas\/city_plates\.json/.test(src));
+  check("…a city with no placed map keeps its own zoom", /if \(what\.cityPlate\) return;/.test(src));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

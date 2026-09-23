@@ -791,9 +791,13 @@ Kept as the rounds go; move a line out when it is settled.
   `powerbi_report`, now copied under Illegal logging and timber trafficking,
   F-gases and Of animals as well as Biodiversity loss.
 - **Atlas hotspot-city maps** (their item 7): each city's map is a PNG, not a
-  PDF (atlas-for-the-end-of-the-world.com/images/hotspot_cities/<slug>.png),
-  so its town names are pixels, not text; placing them needs reading the
-  names off the picture (OCR) first. Not attempted yet.
+  PDF, so its town names are pixels. culprits-tiles-more
+  `scripts/atlas_city_plates.py` (by hand) reads them with Tesseract, looks
+  each up on Nominatim within 1.5 degrees of the city, and places the picture
+  where at least 4 names agree with a typical error under 3% of its width
+  (`atlas/city_plates.json`, `atlas/city_plates/<slug>.webp`). The map lays a
+  placed city's picture as it does a hotspot's; an unplaced city keeps its old
+  behaviour. How many place depends on how legible the pictures are.
 
 ## Round of 23 September (12): the other chat's list taken over; F-gases; the slick archive
 

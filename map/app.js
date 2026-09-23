@@ -3955,6 +3955,16 @@ function atlasPlatesRead() {
   if (!atlasPlates) atlasPlates = getJson(abs("./atlas/plates.json")).catch(() => ({}));
   return atlasPlates;
 }
+// The hotspot cities' own maps, placed by the town names read off each picture
+// (culprits-tiles-more scripts/atlas_city_plates.py, 23 September). Their
+// images are addressed in full, since they live in the tiles repo.
+const ATLAS_CITY_PLATES = "https://welcometoyourgalaxy.github.io/culprits-tiles-more/atlas/city_plates.json";
+let atlasCityPlates = null;
+function atlasCityPlatesRead() {
+  if (!atlasCityPlates) atlasCityPlates = getJson(ATLAS_CITY_PLATES).catch(() => ({}));
+  return atlasCityPlates;
+}
+const plateUrl = (image) => (/^https?:/.test(image) ? image : abs("./" + image));
 // The box around a geometry, as [[west, south], [east, north]].
 function geometryBounds(g) {
   let w = Infinity, s = Infinity, e = -Infinity, n = -Infinity;
@@ -4011,7 +4021,7 @@ function atlasDetail(p, fitZoom) {
       if (map.getSource(id)) return;
       const lons = d.corners.map((c) => c[0]), lats = d.corners.map((c) => c[1]);
       if (Math.max(...lons) < b.getWest() || Math.min(...lons) > b.getEast() || Math.max(...lats) < b.getSouth() || Math.min(...lats) > b.getNorth()) return;
-      map.addSource(id, { type: "image", url: abs("./" + d.image), coordinates: d.corners });
+      map.addSource(id, { type: "image", url: plateUrl(d.image), coordinates: d.corners });
       map.addLayer({ id, type: "raster", source: id, minzoom: fitZoom + 1, paint: { "raster-opacity": opacity(), "raster-fade-duration": 0 } });
     });
   };
@@ -4028,10 +4038,10 @@ async function showAtlas(what, bounds, owner) {
   const fade = el.querySelector(".ap-fade");
   fade.hidden = true;
   el.hidden = false;
-  if (!what.plate) return;
-  const p = (await atlasPlatesRead())[what.plate];
+  if (!what.plate && !what.cityPlate) return;
+  const p = what.cityPlate ? (await atlasCityPlatesRead())[what.cityPlate] : (await atlasPlatesRead())[what.plate];
   if (p && p.kept && p.image && Array.isArray(p.corners) && p.corners.length === 4) {
-    map.addSource("atlas-plate", { type: "image", url: abs("./" + p.image), coordinates: p.corners });
+    map.addSource("atlas-plate", { type: "image", url: plateUrl(p.image), coordinates: p.corners });
     map.addLayer({ id: "atlas-plate", type: "raster", source: "atlas-plate", paint: { "raster-opacity": 0.85, "raster-fade-duration": 0 } });
     fade.hidden = false;
     fade.querySelector("input").value = 15;
@@ -4042,12 +4052,14 @@ async function showAtlas(what, bounds, owner) {
     if (typeof map.fitBounds === "function") map.fitBounds(box, { padding: 30, duration: 1400 });
     return;
   }
+  // A city with no placed map keeps the zoom its own click already made.
+  if (what.cityPlate) return;
   if (bounds && typeof map.fitBounds === "function") map.fitBounds(bounds, { padding: 30, duration: 1400 });
 }
 function atlasFrom(btn, bounds, owner) {
   const d = btn.dataset;
   if (d.atlasPlate) showAtlas({ plate: d.atlasPlate, doc: d.atlasDoc }, bounds, owner);
-  else if (d.atlasPage) showAtlas({ page: d.atlasPage }, bounds, owner);
+  else if (d.atlasPage) showAtlas({ page: d.atlasPage, cityPlate: d.atlasCity || null }, bounds, owner);
 }
 
 // The Atlas's cities, placed from the weekly lookup of their names.
@@ -4061,7 +4073,7 @@ async function readAtlasCities(cfg) {
     if (!c) { missing++; continue; }
     items.push({ geometry: { type: "Point", coordinates: c }, key: slug, name, group: "",
       h: boxOpen + `<h4 style="margin:0 0 6px">${escapeHtml(name)}</h4>` +
-        `<p><button type="button" class="atlas-show" data-atlas-auto="1" data-atlas-page="${escapeHtml(cfg.pageBase + slug + ".html")}" ` +
+        `<p><button type="button" class="atlas-show" data-atlas-auto="1" data-atlas-page="${escapeHtml(cfg.pageBase + slug + ".html")}" data-atlas-city="${escapeHtml(slug)}" ` +
         `data-atlas-title="${escapeHtml(name)}">The Atlas's page for this city, on this map</button></p>` +
         `<p style="font-size:11px">Placed from its name through OpenStreetMap; the Atlas gives no coordinates.</p></div>` });
   }
