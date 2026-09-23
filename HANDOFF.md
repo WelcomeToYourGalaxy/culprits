@@ -5,6 +5,18 @@ touches.
 
 ---
 
+## Atlas plates: country names set aside (23 September, later)
+
+The first run with look-ups inside each box placed four plates with 4 names,
+and every one leaned on a country: Madagascar (Madagascar, Malawi, Zambia),
+Wallacea (Brunei, Philippines), Mountains of Southwest China (Myanmar), and
+Philippines had "Philippines" among its 13. Nominatim's settlement type lets
+countries and states through. `geocode` now keeps only answers with
+`place_rank` of at least `MIN_TOWN_RANK` (13: towns and cities, not counties,
+states or countries); a name whose answers were all regions is listed on the
+plate as `set_aside_as_regions`. The cache key gained `|towns`, so every name
+is asked again once.
+
 ## Atlas hotspot plates: look-ups kept inside each hotspot (23 September, latest)
 
 `pipeline/atlas_plates.py` now reads each hotspot's outline box from the same

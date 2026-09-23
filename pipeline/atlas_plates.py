@@ -7,7 +7,8 @@ map of that hotspot, with the cities on it named in text that stays text in
 the file. That is enough to put the page where it belongs:
 
   1. read every place name on the first page and where it sits on the page;
-  2. look each one up on OpenStreetMap (Nominatim), towns and cities only,
+  2. look each one up on OpenStreetMap (Nominatim), towns and cities only
+     (countries and states the plate prints are set aside and listed),
      and only inside the hotspot's own outline box (Conservation
      International's Biodiversity Hotspots 2016.1, the outlines the map
      draws), so a same-named town elsewhere cannot answer: the Philippines
@@ -82,6 +83,13 @@ HOTSPOTS = [
 
 MIN_AGREE = 5            # names that must agree on the placement
 MAX_ERROR_SHARE = 0.03   # typical error no more than 3% of the plate's width
+# OpenStreetMap's rank of a place: 4 a country, 8 a state, 12 a county, 16 a
+# city, 18 a town. Nominatim's "settlement" type lets countries and states
+# through, and the plates also print country names ("Malawi", "Philippines"):
+# on 23 September every plate placed with 4 names leaned on one of them. Only
+# answers ranked as a town or finer are used.
+MIN_TOWN_RANK = 13
+REGIONS = set()          # names whose only answers were countries or regions
 MIN_AGREE_SMALL = 4      # one fewer is accepted only with half the error
 MAX_ERROR_SHARE_SMALL = 0.015
 BOX_MARGIN = 0.25        # share of the outline box added on each side (at least 1 degree)
@@ -324,7 +332,7 @@ def inside(lon, lat, box):
 def geocode(name, cache, session, box=None):
     """Towns and cities called `name`; with a box, only those inside it,
     asked for inside it, so the answer is not five same-named towns elsewhere."""
-    key = name if box is None else name + "|" + ",".join(f"{v:.2f}" for v in box)
+    key = name + "|towns" if box is None else name + "|towns|" + ",".join(f"{v:.2f}" for v in box)
     if key in cache:
         return cache[key]
     if box is None:
@@ -340,10 +348,16 @@ def geocode(name, cache, session, box=None):
         if part:
             params.update(viewbox=",".join(f"{v:.4f}" for v in part), bounded=1)
         r = session.get("https://nominatim.openstreetmap.org/search", params=params, headers=UA, timeout=60)
-        got += [(float(h["lon"]), float(h["lat"])) for h in (r.json() if r.ok else [])]
+        hits = r.json() if r.ok else []
+        towns = [h for h in hits if int(h.get("place_rank") or 0) >= MIN_TOWN_RANK]
+        if hits and not towns:
+            REGIONS.add(name)
+        got += [(float(h["lon"]), float(h["lat"])) for h in towns]
     if box is not None:
         got = [p for p in (inside(lon, lat, box) for lon, lat in got) if p]
     cache[key] = got
+    if name in REGIONS:
+        cache[f"{name}|regions"] = True
     return got
 
 
@@ -434,6 +448,9 @@ def main(only, show=False):
         entry = {"title": title, "pdf": PDF_BASE + slug + ".pdf", "labels": len(labels), **got}
         if box:
             entry["looked_up_within"] = [round(v, 3) for v in box]
+        regions = sorted(n for n in found if n in REGIONS or not found[n] and cache.get(f"{n}|regions"))
+        if regions:
+            entry["set_aside_as_regions"] = regions
         entry.pop("worst", None)
         T = entry.pop("affine", None)
         if got.get("kept"):
