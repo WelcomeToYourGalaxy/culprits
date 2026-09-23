@@ -788,7 +788,13 @@
   "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/cape_floristic_region.pdf",
   "labels": 2,
   "kept": false,
-  "reason": "fewer than three names on the page could be found"
+  "reason": "fewer than three names on the page could be found",
+  "looked_up_within": [
+   15.35,
+   -36.22,
+   27.773,
+   -27.942
+  ]
  },
  "caribbean_islands": {
   "title": "Caribbean Islands",
@@ -2692,7 +2698,13 @@
   "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/east_melanesian_islands.pdf",
   "labels": 5,
   "kept": false,
-  "reason": "fewer than three names on the page could be found"
+  "reason": "fewer than three names on the page could be found",
+  "looked_up_within": [
+   135.177,
+   -25.931,
+   177.789,
+   4.675
+  ]
  },
  "eastern_afromontane": {
   "title": "Eastern Afromontane",
@@ -4987,8 +4999,380 @@
   "title": "Madagascar & The Indian Ocean Islands",
   "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/madagascar.pdf",
   "labels": 10,
-  "kept": false,
-  "reason": "only 0 names agree on a placement (at least 5 needed)"
+  "kept": true,
+  "reason": "",
+  "corners": [
+   [
+    54.11377,
+    -38.48006
+   ],
+   [
+    144.91568,
+    -70.28921
+   ],
+   [
+    74.81046,
+    -21.04577
+   ],
+   [
+    -15.99146,
+    34.6669
+   ]
+  ],
+  "error_km": 80.6,
+  "width_km": 6049,
+  "names": [
+   "Antananarivo",
+   "Madagascar",
+   "Malawi",
+   "Zambia"
+  ],
+  "anchor": "left edge",
+  "looked_up_within": [
+   33.781,
+   -34.16,
+   70.386,
+   4.417
+  ],
+  "image": "atlas/plates/madagascar.webp",
+  "detail": [
+   {
+    "image": "atlas/plates/madagascar/d00.webp",
+    "corners": [
+     [
+      54.11377,
+      -38.48006
+     ],
+     [
+      76.81425,
+      -49.00951
+     ],
+     [
+      59.28794,
+      -34.417
+     ],
+     [
+      36.58747,
+      -21.53613
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d01.webp",
+    "corners": [
+     [
+      76.81425,
+      -49.00951
+     ],
+     [
+      99.51473,
+      -57.70445
+     ],
+     [
+      81.98842,
+      -45.58406
+     ],
+     [
+      59.28794,
+      -34.417
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d02.webp",
+    "corners": [
+     [
+      99.51473,
+      -57.70445
+     ],
+     [
+      122.21521,
+      -64.71806
+     ],
+     [
+      104.6889,
+      -54.90244
+     ],
+     [
+      81.98842,
+      -45.58406
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d03.webp",
+    "corners": [
+     [
+      122.21521,
+      -64.71806
+     ],
+     [
+      144.91568,
+      -70.28921
+     ],
+     [
+      127.38938,
+      -62.47211
+     ],
+     [
+      104.6889,
+      -54.90244
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d10.webp",
+    "corners": [
+     [
+      36.58747,
+      -21.53613
+     ],
+     [
+      59.28794,
+      -34.417
+     ],
+     [
+      41.76164,
+      -16.76417
+     ],
+     [
+      19.06116,
+      -2.37429
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d11.webp",
+    "corners": [
+     [
+      59.28794,
+      -34.417
+     ],
+     [
+      81.98842,
+      -45.58406
+     ],
+     [
+      64.46211,
+      -30.14655
+     ],
+     [
+      41.76164,
+      -16.76417
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d12.webp",
+    "corners": [
+     [
+      81.98842,
+      -45.58406
+     ],
+     [
+      104.6889,
+      -54.90244
+     ],
+     [
+      87.16259,
+      -41.93609
+     ],
+     [
+      64.46211,
+      -30.14655
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d13.webp",
+    "corners": [
+     [
+      104.6889,
+      -54.90244
+     ],
+     [
+      127.38938,
+      -62.47211
+     ],
+     [
+      109.86307,
+      -51.8909
+     ],
+     [
+      87.16259,
+      -41.93609
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d20.webp",
+    "corners": [
+     [
+      19.06116,
+      -2.37429
+     ],
+     [
+      41.76164,
+      -16.76417
+     ],
+     [
+      24.23533,
+      2.67737
+     ],
+     [
+      1.53485,
+      17.05444
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d21.webp",
+    "corners": [
+     [
+      41.76164,
+      -16.76417
+     ],
+     [
+      64.46211,
+      -30.14655
+     ],
+     [
+      46.93581,
+      -11.86948
+     ],
+     [
+      24.23533,
+      2.67737
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d22.webp",
+    "corners": [
+     [
+      64.46211,
+      -30.14655
+     ],
+     [
+      87.16259,
+      -41.93609
+     ],
+     [
+      69.63629,
+      -25.68297
+     ],
+     [
+      46.93581,
+      -11.86948
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d23.webp",
+    "corners": [
+     [
+      87.16259,
+      -41.93609
+     ],
+     [
+      109.86307,
+      -51.8909
+     ],
+     [
+      92.33676,
+      -38.06689
+     ],
+     [
+      69.63629,
+      -25.68297
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d30.webp",
+    "corners": [
+     [
+      1.53485,
+      17.05444
+     ],
+     [
+      24.23533,
+      2.67737
+     ],
+     [
+      6.70902,
+      21.81806
+     ],
+     [
+      -15.99146,
+      34.6669
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d31.webp",
+    "corners": [
+     [
+      24.23533,
+      2.67737
+     ],
+     [
+      46.93581,
+      -11.86948
+     ],
+     [
+      29.4095,
+      7.7083
+     ],
+     [
+      6.70902,
+      21.81806
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d32.webp",
+    "corners": [
+     [
+      46.93581,
+      -11.86948
+     ],
+     [
+      69.63629,
+      -25.68297
+     ],
+     [
+      52.10998,
+      -6.88536
+     ],
+     [
+      29.4095,
+      7.7083
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d33.webp",
+    "corners": [
+     [
+      69.63629,
+      -25.68297
+     ],
+     [
+      92.33676,
+      -38.06689
+     ],
+     [
+      74.81046,
+      -21.04577
+     ],
+     [
+      52.10998,
+      -6.88536
+     ]
+    ]
+   }
+  ]
  },
  "madrean_woodlands": {
   "title": "Madrean Pine-Oak Woodlands",
@@ -6918,65 +7302,794 @@
   "title": "Mountains of Southwest China",
   "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/mountains_of_southwest_china.pdf",
   "labels": 9,
-  "kept": false,
-  "reason": "only 3 names agree on a placement (at least 5 needed)"
+  "kept": true,
+  "reason": "",
+  "corners": [
+   [
+    84.85574,
+    35.62882
+   ],
+   [
+    117.73048,
+    34.83411
+   ],
+   [
+    117.73746,
+    14.23938
+   ],
+   [
+    84.86272,
+    15.18041
+   ]
+  ],
+  "error_km": 7.9,
+  "width_km": 2973,
+  "names": [
+   "Chengdu",
+   "Chongqing",
+   "Kunming",
+   "Myanmar"
+  ],
+  "anchor": "left edge",
+  "looked_up_within": [
+   90.207,
+   22.803,
+   107.481,
+   36.074
+  ],
+  "image": "atlas/plates/mountains_of_southwest_china.webp",
+  "detail": [
+   {
+    "image": "atlas/plates/mountains_of_southwest_china/d00.webp",
+    "corners": [
+     [
+      84.85574,
+      35.62882
+     ],
+     [
+      93.07443,
+      35.43087
+     ],
+     [
+      93.07617,
+      30.65229
+     ],
+     [
+      84.85749,
+      30.86131
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/mountains_of_southwest_china/d01.webp",
+    "corners": [
+     [
+      93.07443,
+      35.43087
+     ],
+     [
+      101.29311,
+      35.23244
+     ],
+     [
+      101.29486,
+      30.44281
+     ],
+     [
+      93.07617,
+      30.65229
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/mountains_of_southwest_china/d02.webp",
+    "corners": [
+     [
+      101.29311,
+      35.23244
+     ],
+     [
+      109.5118,
+      35.03352
+     ],
+     [
+      109.51354,
+      30.23289
+     ],
+     [
+      101.29486,
+      30.44281
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/mountains_of_southwest_china/d03.webp",
+    "corners": [
+     [
+      109.5118,
+      35.03352
+     ],
+     [
+      117.73048,
+      34.83411
+     ],
+     [
+      117.73223,
+      30.02251
+     ],
+     [
+      109.51354,
+      30.23289
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/mountains_of_southwest_china/d10.webp",
+    "corners": [
+     [
+      84.85749,
+      30.86131
+     ],
+     [
+      93.07617,
+      30.65229
+     ],
+     [
+      93.07792,
+      25.62539
+     ],
+     [
+      84.85923,
+      25.8445
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/mountains_of_southwest_china/d11.webp",
+    "corners": [
+     [
+      93.07617,
+      30.65229
+     ],
+     [
+      101.29486,
+      30.44281
+     ],
+     [
+      101.2966,
+      25.40588
+     ],
+     [
+      93.07792,
+      25.62539
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/mountains_of_southwest_china/d12.webp",
+    "corners": [
+     [
+      101.29486,
+      30.44281
+     ],
+     [
+      109.51354,
+      30.23289
+     ],
+     [
+      109.51529,
+      25.18597
+     ],
+     [
+      101.2966,
+      25.40588
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/mountains_of_southwest_china/d13.webp",
+    "corners": [
+     [
+      109.51354,
+      30.23289
+     ],
+     [
+      117.73223,
+      30.02251
+     ],
+     [
+      117.73397,
+      24.96566
+     ],
+     [
+      109.51529,
+      25.18597
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/mountains_of_southwest_china/d20.webp",
+    "corners": [
+     [
+      84.85923,
+      25.8445
+     ],
+     [
+      93.07792,
+      25.62539
+     ],
+     [
+      93.07966,
+      20.3778
+     ],
+     [
+      84.86098,
+      20.60564
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/mountains_of_southwest_china/d21.webp",
+    "corners": [
+     [
+      93.07792,
+      25.62539
+     ],
+     [
+      101.2966,
+      25.40588
+     ],
+     [
+      101.29835,
+      20.14962
+     ],
+     [
+      93.07966,
+      20.3778
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/mountains_of_southwest_china/d22.webp",
+    "corners": [
+     [
+      101.2966,
+      25.40588
+     ],
+     [
+      109.51529,
+      25.18597
+     ],
+     [
+      109.51703,
+      19.92111
+     ],
+     [
+      101.29835,
+      20.14962
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/mountains_of_southwest_china/d23.webp",
+    "corners": [
+     [
+      109.51529,
+      25.18597
+     ],
+     [
+      117.73397,
+      24.96566
+     ],
+     [
+      117.73571,
+      19.69226
+     ],
+     [
+      109.51703,
+      19.92111
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/mountains_of_southwest_china/d30.webp",
+    "corners": [
+     [
+      84.86098,
+      20.60564
+     ],
+     [
+      93.07966,
+      20.3778
+     ],
+     [
+      93.08141,
+      14.94554
+     ],
+     [
+      84.86272,
+      15.18041
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/mountains_of_southwest_china/d31.webp",
+    "corners": [
+     [
+      93.07966,
+      20.3778
+     ],
+     [
+      101.29835,
+      20.14962
+     ],
+     [
+      101.30009,
+      14.7104
+     ],
+     [
+      93.08141,
+      14.94554
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/mountains_of_southwest_china/d32.webp",
+    "corners": [
+     [
+      101.29835,
+      20.14962
+     ],
+     [
+      109.51703,
+      19.92111
+     ],
+     [
+      109.51877,
+      14.47501
+     ],
+     [
+      101.30009,
+      14.7104
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/mountains_of_southwest_china/d33.webp",
+    "corners": [
+     [
+      109.51703,
+      19.92111
+     ],
+     [
+      117.73571,
+      19.69226
+     ],
+     [
+      117.73746,
+      14.23938
+     ],
+     [
+      109.51877,
+      14.47501
+     ]
+    ]
+   }
+  ]
  },
  "new_caledonia": {
   "title": "New Caledonia",
   "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/new_caledonia.pdf",
   "labels": 3,
   "kept": false,
-  "reason": "fewer than three names on the page could be found"
+  "reason": "fewer than three names on the page could be found",
+  "looked_up_within": [
+   154.197,
+   -25.191,
+   176.364,
+   -17.091
+  ]
  },
  "new_zealand": {
   "title": "New Zealand",
   "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/new_zealand.pdf",
   "labels": 4,
   "kept": false,
-  "reason": "only 0 names agree on a placement (at least 5 needed)"
+  "reason": "only 3 names agree on a placement (at least 5 needed, or 4 with half the error)",
+  "looked_up_within": [
+   150.749,
+   -64.519,
+   192.238,
+   -20.665
+  ]
  },
  "philippines": {
   "title": "Philippines",
   "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/philippines.pdf",
   "labels": 20,
-  "kept": false,
-  "reason": "typical error 303 km is more than 3% of the plate's 9051 km",
+  "kept": true,
+  "reason": "",
   "corners": [
    [
-    122.63002,
-    44.22626
+    106.89971,
+    33.07636
    ],
    [
-    132.09045,
-    -36.72175
+    136.07137,
+    0.67208
    ],
    [
-    125.76966,
-    -30.34048
+    140.21697,
+    -14.20352
    ],
    [
-    116.30923,
-    49.46145
+    111.0453,
+    19.66215
    ]
   ],
-  "error_km": 303.1,
-  "width_km": 9051,
+  "error_km": 141.3,
+  "width_km": 4719,
   "names": [
    "Bacolod",
    "Baguio",
    "Batangas",
    "Butuan",
    "Cebu",
-   "China",
    "Cotabato City",
    "Davao",
    "General Santos",
    "Iligan",
    "Iloilo City",
    "Manila",
+   "Philippines",
    "Zamboanga"
   ],
-  "anchor": "right edge"
+  "anchor": "right edge",
+  "looked_up_within": [
+   109.094,
+   -1.502,
+   132.686,
+   25.98
+  ],
+  "image": "atlas/plates/philippines.webp",
+  "detail": [
+   {
+    "image": "atlas/plates/philippines/d00.webp",
+    "corners": [
+     [
+      106.89971,
+      33.07636
+     ],
+     [
+      114.19262,
+      25.58513
+     ],
+     [
+      115.22902,
+      22.15121
+     ],
+     [
+      107.93611,
+      29.87386
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/philippines/d01.webp",
+    "corners": [
+     [
+      114.19262,
+      25.58513
+     ],
+     [
+      121.48554,
+      17.59442
+     ],
+     [
+      122.52194,
+      13.98096
+     ],
+     [
+      115.22902,
+      22.15121
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/philippines/d02.webp",
+    "corners": [
+     [
+      121.48554,
+      17.59442
+     ],
+     [
+      128.77846,
+      9.23463
+     ],
+     [
+      129.81486,
+      5.51051
+     ],
+     [
+      122.52194,
+      13.98096
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/philippines/d03.webp",
+    "corners": [
+     [
+      128.77846,
+      9.23463
+     ],
+     [
+      136.07137,
+      0.67208
+     ],
+     [
+      137.10777,
+      -3.08226
+     ],
+     [
+      129.81486,
+      5.51051
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/philippines/d10.webp",
+    "corners": [
+     [
+      107.93611,
+      29.87386
+     ],
+     [
+      115.22902,
+      22.15121
+     ],
+     [
+      116.26542,
+      18.63143
+     ],
+     [
+      108.97251,
+      26.56515
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/philippines/d11.webp",
+    "corners": [
+     [
+      115.22902,
+      22.15121
+     ],
+     [
+      122.52194,
+      13.98096
+     ],
+     [
+      123.55834,
+      10.30987
+     ],
+     [
+      116.26542,
+      18.63143
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/philippines/d12.webp",
+    "corners": [
+     [
+      122.52194,
+      13.98096
+     ],
+     [
+      129.81486,
+      5.51051
+     ],
+     [
+      130.85126,
+      1.76291
+     ],
+     [
+      123.55834,
+      10.30987
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/philippines/d13.webp",
+    "corners": [
+     [
+      129.81486,
+      5.51051
+     ],
+     [
+      137.10777,
+      -3.08226
+     ],
+     [
+      138.14417,
+      -6.8234
+     ],
+     [
+      130.85126,
+      1.76291
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/philippines/d20.webp",
+    "corners": [
+     [
+      108.97251,
+      26.56515
+     ],
+     [
+      116.26542,
+      18.63143
+     ],
+     [
+      117.30182,
+      15.03724
+     ],
+     [
+      110.0089,
+      23.1581
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/philippines/d21.webp",
+    "corners": [
+     [
+      116.26542,
+      18.63143
+     ],
+     [
+      123.55834,
+      10.30987
+     ],
+     [
+      124.59474,
+      6.59551
+     ],
+     [
+      117.30182,
+      15.03724
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/philippines/d22.webp",
+    "corners": [
+     [
+      123.55834,
+      10.30987
+     ],
+     [
+      130.85126,
+      1.76291
+     ],
+     [
+      131.88765,
+      -1.99225
+     ],
+     [
+      124.59474,
+      6.59551
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/philippines/d23.webp",
+    "corners": [
+     [
+      130.85126,
+      1.76291
+     ],
+     [
+      138.14417,
+      -6.8234
+     ],
+     [
+      139.18057,
+      -10.53555
+     ],
+     [
+      131.88765,
+      -1.99225
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/philippines/d30.webp",
+    "corners": [
+     [
+      110.0089,
+      23.1581
+     ],
+     [
+      117.30182,
+      15.03724
+     ],
+     [
+      118.33822,
+      11.38146
+     ],
+     [
+      111.0453,
+      19.66215
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/philippines/d31.webp",
+    "corners": [
+     [
+      117.30182,
+      15.03724
+     ],
+     [
+      124.59474,
+      6.59551
+     ],
+     [
+      125.63114,
+      2.8531
+     ],
+     [
+      118.33822,
+      11.38146
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/philippines/d32.webp",
+    "corners": [
+     [
+      124.59474,
+      6.59551
+     ],
+     [
+      131.88765,
+      -1.99225
+     ],
+     [
+      132.92405,
+      -5.73888
+     ],
+     [
+      125.63114,
+      2.8531
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/philippines/d33.webp",
+    "corners": [
+     [
+      131.88765,
+      -1.99225
+     ],
+     [
+      139.18057,
+      -10.53555
+     ],
+     [
+      140.21697,
+      -14.20352
+     ],
+     [
+      132.92405,
+      -5.73888
+     ]
+    ]
+   }
+  ]
  },
  "north_american_coastal_plain": {
   "title": "North American Coastal Plain",
@@ -7385,14 +8498,26 @@
   "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/southwest_australia.pdf",
   "labels": 2,
   "kept": false,
-  "reason": "fewer than three names on the page could be found"
+  "reason": "fewer than three names on the page could be found",
+  "looked_up_within": [
+   109.476,
+   -37.608,
+   130.115,
+   -23.093
+  ]
  },
  "succulent_karoo": {
   "title": "Succulent Karoo",
   "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/succulent_karoo.pdf",
   "labels": 7,
   "kept": false,
-  "reason": "only 3 names agree on a placement (at least 5 needed)"
+  "reason": "only 3 names agree on a placement (at least 5 needed, or 4 with half the error)",
+  "looked_up_within": [
+   12.949,
+   -35.945,
+   25.736,
+   -24.494
+  ]
  },
  "sundaland": {
   "title": "Sundaland",
@@ -8198,8 +9323,380 @@
   "title": "Wallacea",
   "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/wallacea.pdf",
   "labels": 7,
-  "kept": false,
-  "reason": "fewer than three names on the page could be found"
+  "kept": true,
+  "reason": "",
+  "corners": [
+   [
+    96.66765,
+    13.37536
+   ],
+   [
+    137.21569,
+    12.4408
+   ],
+   [
+    135.59863,
+    -19.34113
+   ],
+   [
+    95.05059,
+    -18.43396
+   ]
+  ],
+  "error_km": 13.3,
+  "width_km": 4391,
+  "names": [
+   "Brunei",
+   "Makassar",
+   "Palu",
+   "Philippines"
+  ],
+  "anchor": "right edge",
+  "looked_up_within": [
+   111.068,
+   -16.082,
+   138.075,
+   9.193
+  ],
+  "image": "atlas/plates/wallacea.webp",
+  "detail": [
+   {
+    "image": "atlas/plates/wallacea/d00.webp",
+    "corners": [
+     [
+      96.66765,
+      13.37536
+     ],
+     [
+      106.80466,
+      13.14205
+     ],
+     [
+      106.40039,
+      5.18698
+     ],
+     [
+      96.26338,
+      5.42565
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/wallacea/d01.webp",
+    "corners": [
+     [
+      106.80466,
+      13.14205
+     ],
+     [
+      116.94167,
+      12.90852
+     ],
+     [
+      116.53741,
+      4.94822
+     ],
+     [
+      106.40039,
+      5.18698
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/wallacea/d02.webp",
+    "corners": [
+     [
+      116.94167,
+      12.90852
+     ],
+     [
+      127.07868,
+      12.67477
+     ],
+     [
+      126.67442,
+      4.70937
+     ],
+     [
+      116.53741,
+      4.94822
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/wallacea/d03.webp",
+    "corners": [
+     [
+      127.07868,
+      12.67477
+     ],
+     [
+      137.21569,
+      12.4408
+     ],
+     [
+      136.81143,
+      4.47043
+     ],
+     [
+      126.67442,
+      4.70937
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/wallacea/d10.webp",
+    "corners": [
+     [
+      96.26338,
+      5.42565
+     ],
+     [
+      106.40039,
+      5.18698
+     ],
+     [
+      105.99613,
+      -2.86947
+     ],
+     [
+      95.85912,
+      -2.63005
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/wallacea/d11.webp",
+    "corners": [
+     [
+      106.40039,
+      5.18698
+     ],
+     [
+      116.53741,
+      4.94822
+     ],
+     [
+      116.13314,
+      -3.10885
+     ],
+     [
+      105.99613,
+      -2.86947
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/wallacea/d12.webp",
+    "corners": [
+     [
+      116.53741,
+      4.94822
+     ],
+     [
+      126.67442,
+      4.70937
+     ],
+     [
+      126.27015,
+      -3.34817
+     ],
+     [
+      116.13314,
+      -3.10885
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/wallacea/d13.webp",
+    "corners": [
+     [
+      126.67442,
+      4.70937
+     ],
+     [
+      136.81143,
+      4.47043
+     ],
+     [
+      136.40716,
+      -3.58743
+     ],
+     [
+      126.27015,
+      -3.34817
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/wallacea/d20.webp",
+    "corners": [
+     [
+      95.85912,
+      -2.63005
+     ],
+     [
+      105.99613,
+      -2.86947
+     ],
+     [
+      105.59187,
+      -10.86963
+     ],
+     [
+      95.45485,
+      -10.63414
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/wallacea/d21.webp",
+    "corners": [
+     [
+      105.99613,
+      -2.86947
+     ],
+     [
+      116.13314,
+      -3.10885
+     ],
+     [
+      115.72888,
+      -11.10494
+     ],
+     [
+      105.59187,
+      -10.86963
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/wallacea/d22.webp",
+    "corners": [
+     [
+      116.13314,
+      -3.10885
+     ],
+     [
+      126.27015,
+      -3.34817
+     ],
+     [
+      125.86589,
+      -11.34005
+     ],
+     [
+      115.72888,
+      -11.10494
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/wallacea/d23.webp",
+    "corners": [
+     [
+      126.27015,
+      -3.34817
+     ],
+     [
+      136.40716,
+      -3.58743
+     ],
+     [
+      136.0029,
+      -11.57498
+     ],
+     [
+      125.86589,
+      -11.34005
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/wallacea/d30.webp",
+    "corners": [
+     [
+      95.45485,
+      -10.63414
+     ],
+     [
+      105.59187,
+      -10.86963
+     ],
+     [
+      105.1876,
+      -18.66121
+     ],
+     [
+      95.05059,
+      -18.43396
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/wallacea/d31.webp",
+    "corners": [
+     [
+      105.59187,
+      -10.86963
+     ],
+     [
+      115.72888,
+      -11.10494
+     ],
+     [
+      115.32461,
+      -18.88816
+     ],
+     [
+      105.1876,
+      -18.66121
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/wallacea/d32.webp",
+    "corners": [
+     [
+      115.72888,
+      -11.10494
+     ],
+     [
+      125.86589,
+      -11.34005
+     ],
+     [
+      125.46162,
+      -19.1148
+     ],
+     [
+      115.32461,
+      -18.88816
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/wallacea/d33.webp",
+    "corners": [
+     [
+      125.86589,
+      -11.34005
+     ],
+     [
+      136.0029,
+      -11.57498
+     ],
+     [
+      135.59863,
+      -19.34113
+     ],
+     [
+      125.46162,
+      -19.1148
+     ]
+    ]
+   }
+  ]
  },
  "western_ghats_sri_lanka": {
   "title": "Western Ghats & Sri Lanka",
