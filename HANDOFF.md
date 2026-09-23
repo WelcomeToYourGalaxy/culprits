@@ -317,6 +317,21 @@ Cost: three more package downloads per sector per run (agriculture's co2e
 package alone is 1.4 GB), so the per-gas harvest should run as its own job
 with its own ETags rather than inside the existing one. Not written yet.
 
+## The drawn relief from Mapterhorn; a lighter tint wide out (22 September, night, later)
+
+While zooming the owner saw the tint and shading come and go, the plain
+photograph or a patchwork between. A hillshade or colour-relief layer draws
+nothing on a square until its heights arrive (no coarser stand-in, unlike the
+imagery), and the AWS terrarium tiles are slow from a browser. `outline-dem`
+(the Satellite relief and the outline map's shading) now reads
+`RELIEF_SOURCE`: Mapterhorn, https://tiles.mapterhorn.com/{z}/{x}/{y}.webp,
+terrarium, 512 px, keyless, maxzoom 12 (its global coverage; its TileJSON
+gives no maxzoom, and above 12 most of the world has no squares). 3D terrain
+still reads the AWS tiles (`TERRAIN_SOURCE`). Colour opacity now 0.5 at
+zoom 2, 0.72 at 5, 0.95 from 8. Not tried against Mapterhorn from the
+sandbox (it cannot reach the host); if its squares fail, the console shows
+it and the source can go back to TERRAIN_SOURCE in the two addSource lines.
+
 ## The Satellite tint held at every zoom (22 September, night)
 
 Close in, the owner saw the theme only on steep ground and the plain

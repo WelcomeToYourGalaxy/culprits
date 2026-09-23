@@ -831,7 +831,9 @@ const SAT_RELIEF = {
   // Held nearly full at every zoom (22 September, night): eased to 0.7 close
   // in, the tint over gentle ground was too faint to see, and most of the
   // map read as the plain photograph; only steep ground showed the theme.
-  colourOpacity: ["interpolate", ["linear"], ["zoom"], 2, 1, 10, 0.95, 14, 0.9, 16, 0.85],
+  // Lighter at the world view, where the green lay too heavy over whole
+  // continents; full from zoom 8 in, where it carries the look.
+  colourOpacity: ["interpolate", ["linear"], ["zoom"], 2, 0.5, 5, 0.72, 8, 0.95, 14, 0.9, 16, 0.85],
   // Light from four directions, weighted to the north-west (Swiss style):
   // green-black shadows, faint warm sunlight on the lit faces.
   shade: {
@@ -1856,7 +1858,7 @@ const OUTLINE_IDS = ["outline-relief", "outline-water", "outline-green", "outlin
 function OUTLINE_DETAIL(map) {
   if (!map.getSource("osm")) map.addSource("osm", { type: "vector", url: OFM,
     attribution: '<a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> © OpenStreetMap contributors' });
-  if (!map.getSource("outline-dem")) map.addSource("outline-dem", Object.assign({}, TERRAIN_SOURCE));
+  if (!map.getSource("outline-dem")) map.addSource("outline-dem", Object.assign({}, RELIEF_SOURCE));
   const fade = (a) => ["interpolate", ["linear"], ["zoom"], 3.5, 0, 6, a];
   const road = (w) => ["interpolate", ["exponential", 1.4], ["zoom"], 5, w * .3, 10, w, 16, w * 6];
   const kind = (list) => ["match", ["get", "class"], list, true, false];
@@ -1929,7 +1931,7 @@ function addOutlineLayers() {
 function addSatelliteRelief() {
   if (map.getLayer("sat-relief-colour")) return;
   try {
-    if (!map.getSource("outline-dem")) map.addSource("outline-dem", Object.assign({}, TERRAIN_SOURCE));
+    if (!map.getSource("outline-dem")) map.addSource("outline-dem", Object.assign({}, RELIEF_SOURCE));
     const before = map.getLayer("atlas-washes") ? "atlas-washes" : undefined;
     map.addLayer({ id: "sat-relief-colour", type: "color-relief", source: "outline-dem",
       paint: { "color-relief-color": SAT_RELIEF.colour, "color-relief-opacity": SAT_RELIEF.colourOpacity } }, before);
@@ -6425,6 +6427,23 @@ const TERRAIN_SOURCE = {
   attribution: '<a href="https://registry.opendata.aws/terrain-tiles/" target="_blank" rel="noopener">AWS Terrain Tiles</a>',
 };
 const TERRAIN_EXAGGERATION = 1.4;
+// The drawn relief (the Satellite basemap's tint and shading, and the outline
+// map's shading) reads its heights from Mapterhorn rather than the AWS tiles
+// (22 September, night). The owner saw the tint come and go while zooming: a
+// hillshade or colour-relief layer draws nothing on a square until that
+// square's heights arrive - it does not stand in a coarser square meanwhile,
+// as the imagery does - and the AWS tiles are slow from a browser, 256 pixels
+// each, so zooming showed the plain photograph, or a patchwork, for seconds.
+// Mapterhorn is free, keyless, global, built for web maps, and serves 512-pixel
+// squares (a quarter as many requests) from a CDN. Its global coverage stops at
+// zoom 12; asked beyond that it has nothing in most places, so maxzoom is 12
+// and MapLibre enlarges the zoom-12 squares closer in.
+const RELIEF_SOURCE = {
+  type: "raster-dem",
+  tiles: ["https://tiles.mapterhorn.com/{z}/{x}/{y}.webp"],
+  encoding: "terrarium", tileSize: 512, maxzoom: 12,
+  attribution: '<a href="https://mapterhorn.com/attribution" target="_blank" rel="noopener">© Mapterhorn</a>',
+};
 // On the Satellite basemap the raise follows the zoom (SAT_RELIEF.lift),
 // stepped so it is set again only when the step changes, at the end of a zoom.
 function terrainLift() {

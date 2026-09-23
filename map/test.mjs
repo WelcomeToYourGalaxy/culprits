@@ -1358,11 +1358,15 @@ console.log("\nreading the map");
           alphas.filter((m, i) => i >= 5).every((m) => +m[4] <= 0.5));
     // Fourth version: the owner wants the tint and shading kept close in, without the sheen.
     check("…the tint and shading stay nearly full at every zoom; the depth light is gone by 11; faint warm lights only; fog only at the horizon",
-        /colourOpacity: \["interpolate", \["linear"\], \["zoom"\], 2, 1, 10, 0\.95, 14, 0\.9, 16, 0\.85\]/.test(src) &&
+        /colourOpacity: \["interpolate", \["linear"\], \["zoom"\], 2, 0\.5, 5, 0\.72, 8, 0\.95, 14, 0\.9, 16, 0\.85\]/.test(src) &&
         /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 2, 1, 8, 0\.9, 12, 0\.7, 15, 0\.55\]/.test(src) &&
         /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 2, 0\.85, 6, 0\.55, 9, 0\.2, 11, 0\]/.test(src) &&
         /"rgba\(252,244,220,0\.14\)"/.test(src) && !/"rgba\(2\d\d,2\d\d,2\d\d,0\.[3-9]/.test(block) &&
         /"fog-ground-blend": 0\.97/.test(src));
+    check("…the drawn relief reads its heights from Mapterhorn's 512-pixel squares, stopping at zoom 12, and the outline map shares them",
+          /tiles: \["https:\/\/tiles\.mapterhorn\.com\/\{z\}\/\{x\}\/\{y\}\.webp"\],\n\s*encoding: "terrarium", tileSize: 512, maxzoom: 12,/.test(src) &&
+          (src.match(/map\.addSource\("outline-dem", Object\.assign\(\{\}, RELIEF_SOURCE\)\)/g) || []).length === 2 &&
+          !/addSource\("outline-dem", Object\.assign\(\{\}, TERRAIN_SOURCE\)\)/.test(src));
   check("\u2026with 3D terrain on, the ground is raised more the further out you are, and set again only when the step changes",
           /lift: \[\[3, 7\], \[6, 4\], \[9, 2\.4\], \[12, 1\.4\]\]/.test(block) && /map\.on\("zoomend", liftTerrain\)/.test(src) &&
           /if \(v === liftNow\) return;/.test(src) && /if \(BASEMAP !== "satellite"\) return TERRAIN_EXAGGERATION;/.test(src));
