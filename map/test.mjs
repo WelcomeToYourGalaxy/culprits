@@ -1866,7 +1866,9 @@ console.log("\nthe layers box, in the chosen order");
   const twice = ids.filter((id, i) => ids.indexOf(id) !== i);
   check("a layer named under two headings is one row and a copy of it, never two layers",
         /if \(placed\.has\(item\)\) \{\n\s*const copy = copyRow\(leads\.get\(item\), item\);/.test(src) &&
-        twice.every((id) => ids.filter((x) => x === id).length === 2), twice.join(", "));
+        // A row may sit under as many subjects as it belongs to (the crime
+        // tracker is under four); each naming after the first is a copy.
+        twice.every((id) => ids.filter((x) => x === id).length >= 2), twice.join(", "));
   {
     const feeds = ["skytruth_nrc", "skytruth_posts", "skytruth_marine_incidents", "skytruth_pa_permits", "skytruth_pa_spud",
                    "skytruth_pa_violations", "skytruth_well_permits", "skytruth_fracfocus", "skytruth_quakes"];
@@ -2226,7 +2228,8 @@ console.log("\nchanges of 19 September");
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
   const o = new Function(body + "; return { PANEL_ORDER, PANEL_REMOVED };")();
   const order = o.PANEL_ORDER, at = (t) => order.findIndex((x) => x && x.t === t), pos = (i) => order.indexOf(i);
-  const between = (i, a, b) => pos(i) > at(a) && (b == null || pos(i) < at(b));
+  // Any of a row's namings will do: a row under several subjects is found under each.
+  const between = (i, a, b) => o.PANEL_ORDER.some((x, k) => x === i && k > at(a) && (b == null || k < at(b)));
   check("no Whose world / Where in the chain chips in the box", !/chips\.innerHTML = kindChipsHtml\(\)/.test(src));
   check("every layer opens unticked", /for \(const c of LAYERS\) c\.off = true;/.test(src));
   check("the Eyes network is under Metaphysical (Religion, spirituality, etc.)", between("site_eyes_network", "Metaphysical (Religion, spirituality, etc.)", "Sports") && at("Religion and spirituality") === -1);
@@ -3386,6 +3389,13 @@ console.log("\nround of 23 September (12): F-gases from EDGAR");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("EDGAR's gridded F-gas emissions are a row under Climate > F-gases", /\{ h: 4, t: "F-gases" \}, "edgar_fgases",/.test(src) && /edgar_fgases\.pmtiles/.test(src));
+}
+console.log("\nround of 23 September (13): the crime tracker under every subject it records");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("EIA's Environmental Crime Tracker is copied under illegal logging, F-gases and the animals as well as biodiversity loss",
+        /"Illegal logging and timber trafficking" \}, "powerbi_report"/.test(src) && /"F-gases" \}, "edgar_fgases", "powerbi_report"/.test(src) &&
+        /"Of animals" \}, "final_nail", "powerbi_report"/.test(src));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

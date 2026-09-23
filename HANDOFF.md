@@ -785,6 +785,15 @@ Kept as the rounds go; move a line out when it is settled.
   changes; those are edited on github.com.
 - **Satellite basemap** is also worked on in another chat; changes here are
   kept to the lowland colour stops.
+- **EIA Environmental Crime Tracker** (their item 6): a Power BI report; the
+  full dataset is "available on request" from EIA's enquiry form, so it cannot
+  be drawn as points until the owner asks for it. Until then it is the page row
+  `powerbi_report`, now copied under Illegal logging and timber trafficking,
+  F-gases and Of animals as well as Biodiversity loss.
+- **Atlas hotspot-city maps** (their item 7): each city's map is a PNG, not a
+  PDF (atlas-for-the-end-of-the-world.com/images/hotspot_cities/<slug>.png),
+  so its town names are pixels, not text; placing them needs reading the
+  names off the picture (OCR) first. Not attempted yet.
 
 ## Round of 23 September (12): the other chat's list taken over; F-gases; the slick archive
 

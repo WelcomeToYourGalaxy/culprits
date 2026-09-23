@@ -10362,7 +10362,7 @@ const PANEL_ORDER = [
   { h: 5, t: "Soy" }, "trase_silos_brazil", "food_soy",
   { h: 5, t: "Corn" }, "food_maize",
   { h: 5, t: "Grain" }, "site_china_grain",
-  { h: 4, t: "F-gases" }, "edgar_fgases",
+  { h: 4, t: "F-gases" }, "edgar_fgases", "powerbi_report",
   { h: 4, t: "Black carbon" }, "fractracker_refineries", "ct_air_bc",
   // Oil and gas concessions (from the catalogues) are filed here as well as
   // under Oil and gas drilling: the wells emit carbon dioxide, methane and,
@@ -10396,6 +10396,9 @@ const PANEL_ORDER = [
   { h: 5, t: "Marine slicks" }, "cerulean_slicks", "cerulean_sources", "slick_archive", "skytruth_voc", "skytruth_marine_incidents", "skytruth_posts",
   { h: 3, t: "Fire" },
   { h: 3, t: "Deforestation" },
+  // EIA's Environmental Crime Tracker also records illegal logging and timber
+  // seizures, and smuggled HFC refrigerant gases: copied under both (23 September).
+  { h: 4, t: "Illegal logging and timber trafficking" }, "powerbi_report",
   { h: 4, t: "Tree cover loss and alerts" }, "glad_loss", "group:forest_alerts",
   { h: 4, t: "Moratoriums" },
   { h: 4, t: "Wood pulp, Indonesia" }, "trase_pulp_indonesia", "trase_pulp_concessions_2015", "trase_pulp_concessions_2020", "trase_pulp_concessions_2023",
@@ -10429,7 +10432,7 @@ const PANEL_ORDER = [
   { h: 3, t: "Other" },
   { h: 2, t: "Of groups" },
   { h: 3, t: "Of humans" },
-  { h: 3, t: "Of animals" }, "final_nail",
+  { h: 3, t: "Of animals" }, "final_nail", "powerbi_report",
   { h: 3, t: "Of plants" },
   { h: 3, t: "Of microorganisms" },
   { h: 3, t: "Of the “insentient”" },
