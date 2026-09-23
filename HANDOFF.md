@@ -761,6 +761,16 @@ owner's request, so a land-cover layer that no other rule claims gets no row
 and is counted in the console (`LEFT_OUT`). Agriculture > Moratoriums from the
 list was not made: Nusantara has one moratorium layer and it is a forest one.
 
+## Round of 23 September (10): the wastewater plumes
+
+`wastewater_plumes` (rasterlive, four chips) under Pollution > Wastewater, from
+culprits-tiles-more `scripts/wastewater_plumes.py` (by hand): downloads the
+plume zip, reads each 3 GB raster at a quarter resolution (average), draws it
+with `food_crops.build_array` (which now skips any square whose parent held
+nothing), into `tiles/wastewater_plume_<k>.pmtiles` and
+`wastewater/plume_<k>.key.json`. A raster with no projection is not drawn.
+The watershed shapes are not built.
+
 ## Round of 23 September (9): refresh notes, positions, place names, the green cast
 
 - **Refresh notes**: `refreshNote(cfg)` adds a small note after every LIVE /

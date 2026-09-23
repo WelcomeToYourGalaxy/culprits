@@ -3366,5 +3366,12 @@ console.log("\nround of 23 September (9): refresh notes, where each dot is, plac
         /id="names-toggle"/.test(src) && /map\.setLayoutProperty\(l\.id, "text-field", ""\)/.test(src) && /namesField\.get\(l\.id\)/.test(src));
   check("the Satellite lowlands keep their darkness with far less green", /1, "rgba\(46,52,34,0\.32\)", 400, "rgba\(48,54,36,0\.3\)"/.test(src));
 }
+console.log("\nround of 23 September (10): the wastewater plumes");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the model's coastal plumes are a row under Wastewater, one chip per source of the nitrogen",
+        ["tot", "treated", "septic", "open"].every((k) => src.includes(`wastewater_plume_${k}.pmtiles`)) &&
+        /"wastewater_n_countries", "wastewater_plumes",/.test(src));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
