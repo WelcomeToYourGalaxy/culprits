@@ -1343,8 +1343,13 @@ console.log("\nthe wires on the map");
   const f = new Function("abs", chunk + "\nreturn { SAT_CLOSE, atlasWashPasses, setB: (k) => { BASEMAP = k; } };")(() => "");
   f.setB("satellite");
   const at = (z) => f.atlasWashPasses(z);
-  check("Satellite: no wash at any zoom",
-        [4, 10, 12, 14, 18].every((z) => at(z).length === 0) && !("multiply" in f.SAT_CLOSE));
+  // 23 September, later: close in, one multiply toward the theme's green, which
+  // keeps the photograph's texture; none wide out.
+  check("Satellite: no wash wide out; close in one multiply, rising from zoom 10 to full at 14",
+        [4, 8, 10].every((z) => at(z).length === 0) &&
+        [12, 14, 18].every((z) => at(z).length === 1 && at(z)[0].mode === "multiply") &&
+        at(14)[0].rgb.every((c, i) => Math.abs(c - [0.86, 0.93, 0.86][i]) < 1e-9) &&
+        at(12)[0].rgb[0] > at(14)[0].rgb[0] && !("multiply" in f.SAT_CLOSE));
   check("…the Sentinel-2 wide views are kept but switched off (SAT_CLOSE.s2 false): Esri's imagery at every zoom, as when patch o was made",
         /tiles: \["https:\/\/tiles\.maps\.eox\.at\/wmts\/1\.0\.0\/s2cloudless-2024_3857\/default\/g\/\{z\}\/\{y\}\/\{x\}\.jpg"\]/.test(src) &&
         /Contains modified Copernicus Sentinel data 2024/.test(src) &&
@@ -1363,22 +1368,31 @@ console.log("\nreading the map");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   const wireSrc = fs.readFileSync(path.join(HERE, "wire.js"), "utf8");
-  // 23 September: patch o's look (its colours), with the owner's edits.
-  check("the Satellite basemap is patch o's look: imagery under a see-through relief tint and two layers of shading; the atlas keeps its own grade",
-        /satellite: \{ "raster-brightness-min": 0\.0, "raster-brightness-max": 0\.95,\n\s*"raster-saturation": 0\.12, "raster-contrast": 0\.12/.test(src) &&
+  // 23 September, later: patch n's look, with the owner's edits.
+  check("the Satellite basemap is patch n's look, sunlit: brighter imagery, contrast low wide out and higher close in; the atlas keeps its own grade",
+        /satellite: \{ "raster-brightness-min": 0\.0, "raster-brightness-max": 0\.92,\n\s*"raster-saturation": 0, "raster-contrast": \["interpolate", \["linear"\], \["zoom"\], 10, 0\.04, 14, 0\.2\]/.test(src) &&
         /atlas: \{ "raster-brightness-min": ATLAS_TUNE\.lift/.test(src) &&
         /id: "sat-relief-colour", type: "color-relief", source: "outline-dem"/.test(src) &&
         /id: "sat-relief-shade", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF\.shade/.test(src) &&
         /id: "sat-relief-depth", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF\.depth/.test(src));
   {
     const block = src.slice(src.indexOf("const SAT_RELIEF = {"), src.indexOf("\n};", src.indexOf("const SAT_RELIEF = {")));
-    check("…o's colours unchanged: see-through dark green land, grey-brown heights, slate seas",
-          ['"rgba(10,20,32,0.85)"', '"rgba(28,48,26,0.34)"', '"rgba(48,62,38,0.3)"', '"rgba(110,104,96,0.35)"'].every((c) => block.includes(c)));
-    check("…the edits: faint warm lights, softer shadows, the depth light gone by 11, the tint kept close in and a touch lighter wide out",
-          !/"rgba\(2\d\d,2\d\d,2\d\d,0\.[2-9]/.test(block) && /"rgba\(6,12,8,0\.8\)"/.test(block) && !/0\.95\)"/.test(block) &&
-          /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 2, 0\.8, 6, 0\.5, 9, 0\.2, 11, 0\]/.test(block) &&
-          /colourOpacity: \["interpolate", \["linear"\], \["zoom"\], 2, 0\.85, 8, 1, 12, 0\.95, 16, 0\.85\]/.test(block) &&
-          /"fog-ground-blend": 0\.97/.test(src));
+    check("…n's opaque colours, a little lighter: deep forest green land, olive then earth-brown heights, blue-navy seas with lighter shelves",
+          ["#0E1C2E", "#2A5B69", "#2E4F22", "#3D5F2A", "#57643A", "#675F48", "#7D7264", "#8A8174"].every((c) => block.includes(c)) &&
+          !/rgba\(\d+,\d+,\d+,0\.\d+\)", -?\d+, "rgba/.test(block.slice(block.indexOf("colour:"), block.indexOf("colourOpacity"))));
+    check("…the tint kept close in, easing to 0.42 and no lower",
+          /colourOpacity: \["interpolate", \["linear"\], \["zoom"\], 2, 0\.9, 8, 0\.78, 11, 0\.6, 14, 0\.42\]/.test(block));
+    check("…the edits: faint warm lights, shadows at most 0.7, shading eased past 12, the second light wide views only, fog at the horizon",
+          !/"rgba\(2\d\d,2\d\d,2\d\d,0\.[2-9]/.test(block) && !/"rgba\(2\d\d,2\d\d,2\d\d,0\.1[1-9]/.test(block) &&
+          /"rgba\(14,16,10,0\.7\)"/.test(block) && !/,0\.[89]\)"/.test(block) &&
+          /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 2, 1, 8, 0\.9, 12, 0\.75, 16, 0\.5\]/.test(block) &&
+          /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 2, 0\.5, 5, 0\.3, 8, 0\]/.test(block) &&
+          /"fog-ground-blend": 0\.97/.test(src) && /"fog-color": "rgba\(52,74,92,0\.25\)"/.test(src));
+    check("…water close in coloured from OpenStreetMap's water shapes and river lines, shown only on Satellite",
+          /id: "sat-water", type: "fill", source: "osm", "source-layer": "water", minzoom: 8/.test(src) &&
+          /id: "sat-waterway", type: "line", source: "osm", "source-layer": "waterway", minzoom: 10/.test(src) &&
+          /show\("sat-water", kind === "satellite"\);/.test(src) && /show\("sat-waterway", kind === "satellite"\);/.test(src) &&
+          (src.match(/map\.addSource\("osm", Object\.assign\(\{\}, OSM_SOURCE\)\)/g) || []).length === 2);
     check("…the drawn relief reads its heights from Mapterhorn's 512-pixel squares, stopping at zoom 12, and the outline map shares them",
           /tiles: \["https:\/\/tiles\.mapterhorn\.com\/\{z\}\/\{x\}\/\{y\}\.webp"\],\n\s*encoding: "terrarium", tileSize: 512, maxzoom: 12,/.test(src) &&
           (src.match(/map\.addSource\("outline-dem", Object\.assign\(\{\}, RELIEF_SOURCE\)\)/g) || []).length === 2 &&

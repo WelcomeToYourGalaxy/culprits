@@ -5,6 +5,37 @@ touches.
 
 ---
 
+## The Satellite basemap as patch n, with the owner's edits (23 September, later)
+
+Replaces o's look with edits (8a1e93a). `SAT_RELIEF.colour` is n's opaque
+stops, each a little lighter and greener (sunlit, not overcast), the top
+stops warmer (they read slate-grey). Edits: shadows at most 0.7 (grain);
+lights faint and warm, at most 0.1 (sheen); main shading 1 at zoom 2 to 0.75
+at 12 and 0.5 at 16 (rounded forms past the end of the heights); the depth
+light a broad low light for wide views only, 0.5 at 2, gone by 8; tint opacity
+0.9 at 2, 0.78 at 8, 0.6 at 11, 0.42 from 14 (never lower).
+Close in the plastic look was the tint laid over the photograph as a
+see-through sheet, which flattens its texture by the same share. So from zoom
+10 to 14 the theme also comes from a multiply (`SAT_RELIEF.closeMultiply`,
+[0.86, 0.93, 0.86], drawn by `atlasWashPasses` on Satellite), which keeps the
+texture, and imagery contrast rises from 0.04 at 10 to 0.2 at 14
+(`BASE_GRADE.satellite`, max 0.92, saturation 0). Water close in:
+`sat-water` (OpenStreetMap water shapes, fill) and `sat-waterway` (river and
+canal lines), #2B5E6C, from zoom 8, opacity up to 0.4, source `osm`
+(`OSM_SOURCE`, shared with the outline map). Tilted distance: fog colour
+rgba(52,74,92,0.25) (was grey at 0.6), horizon-fog-blend 0.1, horizon
+#3E5566; fog-ground-blend stays 0.97. Kept: Esri at every zoom
+(`SAT_CLOSE.s2` false), Mapterhorn heights, the zoom-scaled 3D lift, thin
+atmosphere, no grain, grey labels. Painted atlas and Country outlines
+unchanged. Checked in headless Chromium with the tile hosts blocked: on
+Satellite `base`, the three relief layers and the two water layers show,
+under `atlas-washes` and `labels`; back on the atlas they hide. Not seen
+rendered with the real imagery or heights.
+Limit: the map can only tint, shade and multiply what the photograph holds.
+Tree crowns, rock texture and their shadows show close in only where Esri's
+photograph has them; rapids, foam and waterfalls cannot be drawn from the
+data here.
+
 ## Satellite back on Esri's imagery at every zoom (23 September)
 
 The owner's chosen look (patch o's, with edits) was made on Esri's imagery;
