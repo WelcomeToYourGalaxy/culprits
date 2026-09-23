@@ -838,6 +838,11 @@ const SAT_RELIEF = {
     1700, "rgba(108,100,66,0.26)", 2500, "rgba(118,90,60,0.3)", 3300, "rgba(110,80,62,0.32)",
     4300, "rgba(102,92,84,0.3)", 5500, "rgba(132,128,122,0.2)"],
   colourOpacity: 1,
+  // The same sea stops, drawn from the depth tiles (sat-relief-seabed); clear
+  // from the shore up, where Mapterhorn's land colours take over.
+  seabed: ["interpolate", ["linear"], ["elevation"],
+    -8000, "rgba(10,22,42,0.8)", -3500, "rgba(12,28,50,0.72)", -1200, "rgba(16,40,60,0.6)",
+    -200, "rgba(26,70,86,0.38)", -40, "rgba(40,96,102,0.22)", -1, "rgba(40,90,90,0.1)", 0, "rgba(0,0,0,0)"],
   sea: ["interpolate", ["linear"], ["elevation"],
     -8000, "rgba(10,22,42,0.6)", -3000, "rgba(12,26,46,0.55)", -1500, "rgba(14,32,52,0.42)",
     -400, "rgba(20,48,64,0.2)", -80, "rgba(20,48,64,0)", 0, "rgba(0,0,0,0)"],
@@ -1985,9 +1990,15 @@ function addSatelliteRelief() {
     const before = map.getLayer("atlas-washes") ? "atlas-washes" : undefined;
     map.addLayer({ id: "sat-relief-colour", type: "color-relief", source: "outline-dem",
       paint: { "color-relief-color": SAT_RELIEF.colour, "color-relief-opacity": SAT_RELIEF.colourOpacity } }, before);
+    // Mapterhorn is land only (Copernicus heights: the sea is 0 m), so the
+    // sea's colours are drawn from the AWS/Mapzen tiles, which carry the
+    // depths. Before this (23 September) the navy deeps and shelves never drew.
+    if (!map.getSource("sea-dem")) map.addSource("sea-dem", Object.assign({}, TERRAIN_SOURCE));
+    map.addLayer({ id: "sat-relief-seabed", type: "color-relief", source: "sea-dem",
+      paint: { "color-relief-color": SAT_RELIEF.seabed, "color-relief-opacity": 1 } }, before);
     map.addLayer({ id: "sat-relief-shade", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF.shade }, before);
     map.addLayer({ id: "sat-relief-depth", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF.depth }, before);
-    map.addLayer({ id: "sat-relief-sea", type: "color-relief", source: "outline-dem",
+    map.addLayer({ id: "sat-relief-sea", type: "color-relief", source: "sea-dem",
       paint: { "color-relief-color": SAT_RELIEF.sea, "color-relief-opacity": 1 } }, before);
   } catch (e) { console.warn("[culprits] satellite relief unavailable:", e.message || e); }
 }
@@ -2009,6 +2020,7 @@ function setBasemap(kind) {
   show("sat-relief-shade", kind === "satellite");
   show("sat-relief-depth", kind === "satellite");
   show("sat-relief-sea", kind === "satellite");
+  show("sat-relief-seabed", kind === "satellite");
   if (TERRAIN_ON && map.getTerrain && map.getTerrain()) liftTerrain();
   show("outline-ocean", !imagery);
   show("outline-land", !imagery);

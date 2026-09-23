@@ -5,7 +5,20 @@ touches.
 
 ---
 
-## The Satellite basemap back to patch paleo, held at every zoom (23 September, latest)
+## The Satellite sea drawn from depth tiles (23 September, latest)
+
+Why none of the Satellite rounds changed the sea on the live map: Mapterhorn
+(outline-dem) is built from Copernicus GLO-30, land only, so the sea is 0 m
+and the colour relief's navy deeps and shelves, and the calm-sea layer, never
+drew; the owner saw Esri's own teal (#004658 measured). The sandbox previews
+used ETOPO with depths, which hid this. Now `sea-dem` (TERRAIN_SOURCE, the
+AWS/Mapzen terrarium tiles, which carry bathymetry) feeds `sat-relief-seabed`
+(`SAT_RELIEF.seabed`, paleo's sea stops, clear from 0 m up) and
+`sat-relief-sea`. Checked on the real page in headless Chromium with
+land-only heights for Mapterhorn: before, the Atlantic was Esri-blue; after,
+#0E1D34.
+
+## The Satellite basemap back to patch paleo, held at every zoom (23 September)
 
 At the owner's request, the even, ridge and jungle rounds are undone and patch
 paleo's look (57d04a9) is back, with one change: nothing eases off with zoom.

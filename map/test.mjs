@@ -1372,7 +1372,7 @@ console.log("\nreading the map");
         /id: "sat-relief-colour", type: "color-relief", source: "outline-dem"/.test(src) &&
         /id: "sat-relief-shade", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF\.shade/.test(src) &&
         /id: "sat-relief-depth", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF\.depth/.test(src) &&
-        /id: "sat-relief-sea", type: "color-relief", source: "outline-dem",\n\s*paint: \{ "color-relief-color": SAT_RELIEF\.sea/.test(src) &&
+        /id: "sat-relief-sea", type: "color-relief", source: "sea-dem",\n\s*paint: \{ "color-relief-color": SAT_RELIEF\.sea/.test(src) &&
         /show\("sat-relief-sea", kind === "satellite"\);/.test(src) && !/sat-relief-ridge/.test(src));
   {
     const block = src.slice(src.indexOf("const SAT_RELIEF = {"), src.indexOf("\n};", src.indexOf("const SAT_RELIEF = {")));
@@ -1394,6 +1394,13 @@ console.log("\nreading the map");
           /"hillshade-illumination-direction": \[315, 270, 0, 225\]/.test(block) &&
           [...block.matchAll(/rgba\(240,236,222,([\d.]+)\)/g)].every((m) => +m[1] <= 0.1) &&
           /"fog-ground-blend": 0\.97/.test(src));
+    check("…the sea's colours are drawn from depth tiles (Mapterhorn is land only, its sea is 0 m): navy deeps and shelves from the AWS heights, clear from the shore up",
+          /map\.addSource\("sea-dem", Object\.assign\(\{\}, TERRAIN_SOURCE\)\)/.test(src) &&
+          /id: "sat-relief-seabed", type: "color-relief", source: "sea-dem",\n\s*paint: \{ "color-relief-color": SAT_RELIEF\.seabed/.test(src) &&
+          /id: "sat-relief-sea", type: "color-relief", source: "sea-dem"/.test(src) &&
+          /show\("sat-relief-seabed", kind === "satellite"\);/.test(src) &&
+          stops("seabed", "sea:").filter((c) => c.h >= 0).every((c) => c.a === 0) &&
+          stops("seabed", "sea:").filter((c) => c.h <= -3500).every((c) => c.a >= 0.7 && c.b >= c.r));
     check("…no drawn water",
           !/sat-water/.test(src) && !/closeMultiply/.test(src) &&
           (src.match(/map\.addSource\("osm", Object\.assign\(\{\}, OSM_SOURCE\)\)/g) || []).length === 1);
