@@ -5,6 +5,24 @@ touches.
 
 ---
 
+## The Satellite basemap after the owner's plates (23 September, latest)
+
+Replaces patch p (7710435), which the owner found cartoonish and over-tinted.
+Aimed at the owner's reference plates (shaded-relief maps of ancient
+continents): land is the photograph's own colour with no tint by height
+(`SAT_RELIEF.colour` is clear from 60 m below sea level up; deserts and dry
+land stay as photographed, the owner's choice); deeper water only is darkened
+toward navy (alpha 0.22 at -200 m to 0.62 at -8,000 m), so the photograph's
+light shallows show against it; `colourOpacity` 1. Shading strong and matte:
+shadows up to 0.75, pale grey-white lights up to 0.3 (the plates have them),
+exaggeration 1 at zoom 2 to 0.45 at 16; the depth light 0.6 at 2, gone by 8.
+Imagery max 1, saturation +0.15, contrast 0.08. The close-in multiply and the
+drawn water layers (sat-water, sat-waterway) are gone; `atlasWashPasses`
+returns nothing on Satellite. `OSM_SOURCE` stays for the outline map. Known
+limit: land lower than 60 m below sea level (Dead Sea shores) takes some navy.
+The owner's first picture (the labelled landforms illustration) is a made-up
+illustration and cannot be reproduced from real imagery.
+
 ## The Satellite basemap as patch n, with the owner's edits (23 September, later)
 
 Replaces o's look with edits (8a1e93a). `SAT_RELIEF.colour` is n's opaque

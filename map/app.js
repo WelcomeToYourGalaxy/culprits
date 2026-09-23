@@ -788,8 +788,8 @@ const BASE_GRADE = {
   // in earth tones (SAT_RELIEF below): the imagery is only a little muted, so
   // the ground keeps its own colour and texture, and the relief's palette and
   // Swiss-style shading are laid over it.
-  satellite: { "raster-brightness-min": 0.0, "raster-brightness-max": 0.92,
-               "raster-saturation": 0, "raster-contrast": ["interpolate", ["linear"], ["zoom"], 10, 0.04, 14, 0.2],
+  satellite: { "raster-brightness-min": 0.0, "raster-brightness-max": 1,
+               "raster-saturation": 0.15, "raster-contrast": 0.08,
                "raster-hue-rotate": 0 },
 };
 let BASEMAP = "atlas";
@@ -811,64 +811,46 @@ let BASEMAP = "atlas";
 //           the depth one layer can, which is what lifts it off the page at
 //           world view. Shadows green-black, lights faint, so no haze.
 const SAT_RELIEF = {
-  // 23 September, later: patch 0922n's look, with the owner's edits to it.
-  // n's colours were opaque and so replaced the photograph; the edits:
-  //   sunlit      the world view read overcast: every land and sea stop a
-  //               little lighter and greener than n's, the imagery brighter
-  //               (max 0.92) and no longer muted.
-  //   grain       n's shadows at 0.9 read rocky and grainy: at most 0.7, and
-  //               imagery contrast 0.04 wide out.
-  //   sheen       n's pale lights (0.3) read as a reflection: faint and warm,
-  //               at most 0.1.
-  //   slate       high slopes were slate-grey: the top stops and the shadows
-  //               warmer, toward earth-brown.
-  //   rounded     the coarse heights stop at zoom 12 and are only enlarged
-  //               past it, so strong shading there drew rounded forms: the
-  //               main shading eases from 0.75 at 12 to 0.5 at 16. The second
-  //               (depth) light, which also rounds, is kept to wide views and
-  //               gone by zoom 8.
-  //   plastic     close in n's tint at 0.5 laid half a flat sheet over the
-  //               photograph. Now 0.42 from zoom 14 (never lower), and the
-  //               rest of the theme comes from a multiply (closeMultiply),
-  //               which darkens and greens each pixel by the same share and so
-  //               keeps the texture of tree crowns and rock; imagery contrast
-  //               rises to 0.2 at zoom 14 for the same reason. Water close in
-  //               takes a colour from OpenStreetMap's water shapes (sat-water).
-  //   fog         kept at the horizon only, thinner and not grey (DEFENCE.sky).
+  // 23 September, latest: after the owner's plates (shaded-relief maps of
+  // ancient continents). In those the land's colour is a satellite photograph,
+  // bright and green, with no colour laid over it by height; the depth comes
+  // from strong shading with dark shadows and pale, lit ridges; the open sea is
+  // a deep navy and the shallows along the coasts glow blue-green. So:
+  //   land     no tint at all: the photograph's own colours, deserts and dry
+  //            land included (the owner's choice), brightened a little
+  //            (BASE_GRADE.satellite). Patch 0922p's opaque stops and close-in
+  //            multiply made it cartoonish and over-tinted; both are gone, and
+  //            so is its drawn water.
+  //   sea      only water deeper than 60 m is darkened toward navy, more the
+  //            deeper it is, so the photograph's own light shallows stand out
+  //            against it. Land below sea level deeper than 60 m (the Dead Sea
+  //            shores) takes a little of that navy too; the heights cannot tell
+  //            dry ground from sea floor.
+  //   shade    strong, matte: shadows up to 0.75, pale grey-white lights up to
+  //            0.3, as in the plates; a broad second light for wide views only.
   colour: ["interpolate", ["linear"], ["elevation"],
-    -8000, "#0E1C2E", -4000, "#13253A", -1000, "#19324A", -200, "#1F4659", -30, "#2A5B69", 0, "#2F5A44",
-    1, "#2E4F22", 250, "#345825", 700, "#3D5F2A", 1300, "#486330", 1900, "#57643A",
-    2500, "#675F48", 3200, "#766A58", 4200, "#7D7264", 5500, "#8A8174"],
-  colourOpacity: ["interpolate", ["linear"], ["zoom"], 2, 0.9, 8, 0.78, 11, 0.6, 14, 0.42],
+    -8000, "rgba(8,18,38,0.62)", -4000, "rgba(9,21,42,0.58)", -1000, "rgba(11,27,50,0.45)",
+    -200, "rgba(14,38,64,0.22)", -60, "rgba(18,50,74,0)", 0, "rgba(18,50,74,0)", 9000, "rgba(18,50,74,0)"],
+  colourOpacity: 1,
   shade: {
     "hillshade-method": "multidirectional",
     "hillshade-illumination-direction": [270, 315, 0, 225],
     "hillshade-illumination-altitude": [30, 35, 30, 50],
-    "hillshade-highlight-color": ["rgba(236,226,204,0.06)", "rgba(236,226,204,0.1)", "rgba(236,226,204,0.05)", "rgba(236,226,204,0)"],
-    "hillshade-shadow-color": ["rgba(14,16,10,0.45)", "rgba(14,16,10,0.7)", "rgba(14,16,10,0.45)", "rgba(14,16,10,0.2)"],
-    "hillshade-accent-color": "rgba(20,20,12,0.4)",
-    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 1, 8, 0.9, 12, 0.75, 16, 0.5],
+    "hillshade-highlight-color": ["rgba(238,238,230,0.18)", "rgba(238,238,230,0.3)", "rgba(238,238,230,0.15)", "rgba(238,238,230,0.05)"],
+    "hillshade-shadow-color": ["rgba(10,14,14,0.5)", "rgba(10,14,14,0.75)", "rgba(10,14,14,0.5)", "rgba(10,14,14,0.25)"],
+    "hillshade-accent-color": "rgba(10,14,14,0.35)",
+    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 1, 8, 0.9, 12, 0.7, 16, 0.45],
     "hillshade-illumination-anchor": "map",
   },
-  // A broad low light from the north-west, wide views only: it lifts whole
-  // ranges off the continents without adding fine texture, and is gone by
-  // zoom 8, before it can round the slopes.
   depth: {
     "hillshade-method": "standard",
     "hillshade-illumination-direction": 315,
     "hillshade-illumination-anchor": "map",
-    "hillshade-highlight-color": "rgba(236,226,204,0)",
-    "hillshade-shadow-color": "rgba(14,16,10,0.4)",
-    "hillshade-accent-color": "rgba(14,16,10,0)",
-    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 0.5, 5, 0.3, 8, 0],
+    "hillshade-highlight-color": "rgba(238,238,230,0)",
+    "hillshade-shadow-color": "rgba(10,14,14,0.45)",
+    "hillshade-accent-color": "rgba(10,14,14,0)",
+    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 0.6, 5, 0.35, 8, 0],
   },
-  // Close in, a multiply toward the theme's green: off to zoom 10, full from
-  // 14. Kept light; it is what holds the look when the tint eases.
-  closeMultiply: { rgb: [0.86, 0.93, 0.86], from: 10, full: 14 },
-  // Water close in, from OpenStreetMap's water shapes (lakes, wide rivers,
-  // the sea) and river lines: a muted blue-green, faint, from zoom 8.
-  water: "#2B5E6C",
-  waterOpacity: ["interpolate", ["linear"], ["zoom"], 8, 0, 10, 0.3, 14, 0.4],
   // With 3D terrain on, the ground is raised more the further out you are,
   // so ranges still stand up from a continent's height; 1.4 close in.
   lift: [[3, 4.5], [6, 3], [9, 2], [12, 1.4]],
@@ -931,14 +913,8 @@ function hexRgb(h) {
 // arithmetic can be tested without a GPU.
 // The Satellite basemap takes none of the atlas's sea, green and warm washes:
 // its colour comes from the relief (SAT_RELIEF), which the washes would tint.
-// Close in it takes one multiply (SAT_RELIEF.closeMultiply), which keeps the
-// photograph's texture where a see-through sheet would flatten it.
 function atlasWashPasses(z) {
-  if (BASEMAP === "satellite") {
-    const m = SAT_RELIEF.closeMultiply;
-    const k = Math.max(0, Math.min(1, (z - m.from) / (m.full - m.from)));
-    return k > 0 ? [{ mode: "multiply", rgb: m.rgb.map((c) => 1 - k * (1 - c)) }] : [];
-  }
+  if (BASEMAP === "satellite") return [];
   const { t, sea } = atlasWashRamp(z);
   const passes = [];
   const aSea = ATLAS_TUNE.sea * sea;
@@ -1990,15 +1966,6 @@ function addSatelliteRelief() {
       paint: { "color-relief-color": SAT_RELIEF.colour, "color-relief-opacity": SAT_RELIEF.colourOpacity } }, before);
     map.addLayer({ id: "sat-relief-shade", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF.shade }, before);
     map.addLayer({ id: "sat-relief-depth", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF.depth }, before);
-    // Water close in. The drawn relief knows only heights, so a lake reads as
-    // land; OpenStreetMap's water shapes give it its own colour.
-    if (!map.getSource("osm")) map.addSource("osm", Object.assign({}, OSM_SOURCE));
-    map.addLayer({ id: "sat-water", type: "fill", source: "osm", "source-layer": "water", minzoom: 8,
-      paint: { "fill-color": SAT_RELIEF.water, "fill-opacity": SAT_RELIEF.waterOpacity, "fill-antialias": false } }, before);
-    map.addLayer({ id: "sat-waterway", type: "line", source: "osm", "source-layer": "waterway", minzoom: 10,
-      filter: ["match", ["get", "class"], ["river", "canal"], true, false],
-      paint: { "line-color": SAT_RELIEF.water, "line-opacity": SAT_RELIEF.waterOpacity,
-               "line-width": ["interpolate", ["exponential", 1.4], ["zoom"], 10, 0.8, 16, 4] } }, before);
   } catch (e) { console.warn("[culprits] satellite relief unavailable:", e.message || e); }
 }
 function setBasemap(kind) {
@@ -2018,8 +1985,6 @@ function setBasemap(kind) {
   show("sat-relief-colour", kind === "satellite");
   show("sat-relief-shade", kind === "satellite");
   show("sat-relief-depth", kind === "satellite");
-  show("sat-water", kind === "satellite");
-  show("sat-waterway", kind === "satellite");
   if (TERRAIN_ON && map.getTerrain && map.getTerrain()) liftTerrain();
   show("outline-ocean", !imagery);
   show("outline-land", !imagery);
