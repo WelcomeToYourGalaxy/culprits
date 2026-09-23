@@ -802,8 +802,8 @@ const BASE_GRADE = {
   // in earth tones (SAT_RELIEF below): the imagery is only a little muted, so
   // the ground keeps its own colour and texture, and the relief's palette and
   // Swiss-style shading are laid over it.
-  satellite: { "raster-brightness-min": 0.02, "raster-brightness-max": 0.9,
-               "raster-saturation": 0.3, "raster-contrast": 0.16,
+  satellite: { "raster-brightness-min": 0.02, "raster-brightness-max": 0.92,
+               "raster-saturation": 0.12, "raster-contrast": 0.06,
                "raster-hue-rotate": 0 },
 };
 let BASEMAP = "atlas";
@@ -824,69 +824,41 @@ let BASEMAP = "atlas";
 //           land's relief is what stands out.
 //   shade   Swiss-style: light from four directions weighted to the north-west,
 //           olive-black shadows, the pale lights kept faint (strong lights read
-//           as a sheen on the slopes), and a second, lighter north-west light
-//           for depth.
-// 23 September, later: the owner found the world view bland beside the plates
-// (darker jungle greens, no grey, a little more colour). The photograph now
-// carries more colour (saturation +0.3, contrast +0.16), which deepens forests
-// while deserts stay tan; the lowland tint is a darker jungle green and lighter
-// than before, since a heavy green sheet greyed the deserts; the high ground
-// runs to warm brown, not grey; and the pale lights are a sage off-white.
-// Every one of these is the same at every zoom (23 September, the owner's
-// request), so zooming in never hands over to plain imagery. The heights stop
-// at zoom 12; past it the shading is the same, only smoother. The seas take
-// the plates' own colours, sampled from them: indigo-navy deeps (about
-// #0A112C to #121E3C) and darker teal shelves (about #183E56 to #1E5466).
+//           as a sheen on the slopes). A second single north-west light adds
+//           depth.
+// 23 September, latest: back to this look at the owner's request, with one
+// change: nothing eases off as you zoom in. The tint, both lights and the
+// calm sea hold their world-view strength at every zoom, and there is no
+// close-in multiply. (Replaces the even, ridge and jungle rounds.)
 const SAT_RELIEF = {
   colour: ["interpolate", ["linear"], ["elevation"],
-    -8000, "rgba(10,17,44,0.92)", -4000, "rgba(12,20,50,0.9)", -2000, "rgba(18,30,60,0.86)",
-    -500, "rgba(20,40,70,0.86)", -150, "rgba(24,62,86,0.8)", -30, "rgba(30,84,102,0.7)", 0, "rgba(34,96,110,0.5)",
-    1, "rgba(14,42,10,0.3)", 400, "rgba(18,46,12,0.28)", 1000, "rgba(44,62,22,0.26)",
-    1700, "rgba(102,92,54,0.3)", 2500, "rgba(112,82,50,0.32)", 3300, "rgba(106,72,50,0.34)",
-    4300, "rgba(96,76,60,0.32)", 5500, "rgba(118,102,88,0.24)"],
-  // The same at every zoom (23 September, at the owner's request).
+    -8000, "rgba(10,22,42,0.8)", -3500, "rgba(12,28,50,0.72)", -1200, "rgba(16,40,60,0.6)",
+    -200, "rgba(26,70,86,0.38)", -40, "rgba(40,96,102,0.22)", 0, "rgba(40,90,90,0.1)",
+    1, "rgba(30,60,26,0.32)", 400, "rgba(34,62,28,0.3)", 1000, "rgba(62,76,40,0.28)",
+    1700, "rgba(108,100,66,0.26)", 2500, "rgba(118,90,60,0.3)", 3300, "rgba(110,80,62,0.32)",
+    4300, "rgba(102,92,84,0.3)", 5500, "rgba(132,128,122,0.2)"],
   colourOpacity: 1,
   sea: ["interpolate", ["linear"], ["elevation"],
-    -8000, "rgba(10,17,44,0.6)", -3000, "rgba(12,20,50,0.55)", -1500, "rgba(16,28,56,0.4)",
-    -400, "rgba(22,46,70,0.15)", -80, "rgba(22,46,70,0)", 0, "rgba(0,0,0,0)"],
+    -8000, "rgba(10,22,42,0.6)", -3000, "rgba(12,26,46,0.55)", -1500, "rgba(14,32,52,0.42)",
+    -400, "rgba(20,48,64,0.2)", -80, "rgba(20,48,64,0)", 0, "rgba(0,0,0,0)"],
   shade: {
     "hillshade-method": "multidirectional",
     "hillshade-illumination-direction": [315, 270, 0, 225],
     "hillshade-illumination-altitude": [40, 35, 35, 50],
-    "hillshade-highlight-color": ["rgba(222,228,200,0.1)", "rgba(222,228,200,0.04)", "rgba(222,228,200,0.04)", "rgba(222,228,200,0.02)"],
+    "hillshade-highlight-color": ["rgba(240,236,222,0.1)", "rgba(240,236,222,0.04)", "rgba(240,236,222,0.04)", "rgba(240,236,222,0.02)"],
     "hillshade-shadow-color": ["rgba(18,24,14,0.78)", "rgba(18,24,14,0.42)", "rgba(18,24,14,0.42)", "rgba(18,24,14,0.2)"],
     "hillshade-accent-color": "rgba(18,24,14,0.3)",
-    "hillshade-exaggeration": 0.9,
+    "hillshade-exaggeration": 1,
     "hillshade-illumination-anchor": "map",
   },
   depth: {
     "hillshade-method": "standard",
     "hillshade-illumination-direction": 315,
     "hillshade-illumination-anchor": "map",
-    "hillshade-highlight-color": "rgba(222,228,200,0.04)",
+    "hillshade-highlight-color": "rgba(240,236,222,0.04)",
     "hillshade-shadow-color": "rgba(12,18,10,0.55)",
     "hillshade-accent-color": "rgba(12,18,10,0)",
-    "hillshade-exaggeration": 0.3,
-  },
-  // Pronounced relief for the world and continent views (23 September), as
-  // the plates draw it on purpose: a low north-west light, drawn twice
-  // (sat-relief-ridge and -ridge2; one layer tops out at exaggeration 1), that
-  // carves the ranges with deep shadow and a pale lit face. A range is only a
-  // few pixels wide from the world view, so it needs far more light and shadow
-  // than close in to read as high ground; the pair is at full strength out to
-  // zoom 3 and eases to nothing by zoom 7, where the other two lights carry the
-  // relief as before. They sit directly on the imagery, under the terrain
-  // palette: the land palette is see-through, so the ranges show, while the
-  // near-solid navy of the deep sea covers them and the ocean floor stays calm.
-  ridge: {
-    "hillshade-method": "standard",
-    "hillshade-illumination-direction": 315,
-    "hillshade-illumination-altitude": 30,
-    "hillshade-illumination-anchor": "map",
-    "hillshade-highlight-color": ["interpolate", ["linear"], ["zoom"], 3, "rgba(214,222,190,0.3)", 7, "rgba(214,222,190,0)"],
-    "hillshade-shadow-color": ["interpolate", ["linear"], ["zoom"], 3, "rgba(14,18,10,1)", 7, "rgba(14,18,10,0)"],
-    "hillshade-accent-color": ["interpolate", ["linear"], ["zoom"], 3, "rgba(14,18,10,0.5)", 7, "rgba(14,18,10,0)"],
-    "hillshade-exaggeration": 1,
+    "hillshade-exaggeration": 0.6,
   },
   // With 3D terrain on, the ground is raised more the further out you are,
   // so ranges still stand up from a continent's height; 1.4 close in.
@@ -2011,8 +1983,6 @@ function addSatelliteRelief() {
   try {
     if (!map.getSource("outline-dem")) map.addSource("outline-dem", Object.assign({}, RELIEF_SOURCE));
     const before = map.getLayer("atlas-washes") ? "atlas-washes" : undefined;
-    map.addLayer({ id: "sat-relief-ridge", type: "hillshade", source: "outline-dem", maxzoom: 7, paint: SAT_RELIEF.ridge }, before);
-    map.addLayer({ id: "sat-relief-ridge2", type: "hillshade", source: "outline-dem", maxzoom: 7, paint: SAT_RELIEF.ridge }, before);
     map.addLayer({ id: "sat-relief-colour", type: "color-relief", source: "outline-dem",
       paint: { "color-relief-color": SAT_RELIEF.colour, "color-relief-opacity": SAT_RELIEF.colourOpacity } }, before);
     map.addLayer({ id: "sat-relief-shade", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF.shade }, before);
@@ -2039,8 +2009,6 @@ function setBasemap(kind) {
   show("sat-relief-shade", kind === "satellite");
   show("sat-relief-depth", kind === "satellite");
   show("sat-relief-sea", kind === "satellite");
-  show("sat-relief-ridge", kind === "satellite");
-  show("sat-relief-ridge2", kind === "satellite");
   if (TERRAIN_ON && map.getTerrain && map.getTerrain()) liftTerrain();
   show("outline-ocean", !imagery);
   show("outline-land", !imagery);

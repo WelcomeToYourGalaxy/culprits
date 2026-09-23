@@ -1366,41 +1366,34 @@ console.log("\nreading the map");
   const wireSrc = fs.readFileSync(path.join(HERE, "wire.js"), "utf8");
   // 23 September, after the owner's paleo-map plates: natural ground colour,
   // a see-through terrain palette, Swiss-style shading, a calm sea.
-  check("the Satellite basemap is sunlit imagery under a see-through terrain palette, Swiss shading and a calm sea; the atlas keeps its own grade",
-        /satellite: \{ "raster-brightness-min": 0\.02, "raster-brightness-max": 0\.9,\n\s*"raster-saturation": 0\.3, "raster-contrast": 0\.16/.test(src) &&
+  check("the Satellite basemap is patch paleo's look: sunlit imagery under a see-through terrain palette, Swiss shading and a calm sea; the atlas keeps its own grade",
+        /satellite: \{ "raster-brightness-min": 0\.02, "raster-brightness-max": 0\.92,\n\s*"raster-saturation": 0\.12, "raster-contrast": 0\.06/.test(src) &&
         /atlas: \{ "raster-brightness-min": ATLAS_TUNE\.lift/.test(src) &&
         /id: "sat-relief-colour", type: "color-relief", source: "outline-dem"/.test(src) &&
         /id: "sat-relief-shade", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF\.shade/.test(src) &&
         /id: "sat-relief-depth", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF\.depth/.test(src) &&
         /id: "sat-relief-sea", type: "color-relief", source: "outline-dem",\n\s*paint: \{ "color-relief-color": SAT_RELIEF\.sea/.test(src) &&
-        /show\("sat-relief-sea", kind === "satellite"\);/.test(src));
+        /show\("sat-relief-sea", kind === "satellite"\);/.test(src) && !/sat-relief-ridge/.test(src));
   {
     const block = src.slice(src.indexOf("const SAT_RELIEF = {"), src.indexOf("\n};", src.indexOf("const SAT_RELIEF = {")));
     const stops = (key, end) => [...block.slice(block.indexOf(key + ":"), block.indexOf(end)).matchAll(/(-?\d+), "rgba\((\d+),(\d+),(\d+),([\d.]+)\)"/g)]
       .map((m) => ({ h: +m[1], r: +m[2], g: +m[3], b: +m[4], a: +m[5] }));
     const colour = stops("colour", "colourOpacity"), land = colour.filter((c) => c.h > 0);
-    check("…darker jungle green on the lowlands and warm browns up high, with no grey stop: every stop from 1000 m up has red well above blue, the lowest green far above both",
-          land.filter((c) => c.h >= 1000).every((c) => c.r > c.b + 10) && land[0].g >= 2.5 * land[0].b && land[0].g >= 2.5 * land[0].r);
-    check("…the land palette is see-through (at most a third) earth tones: green lowlands, then olive, khaki, ochre-brown, sienna and grey-brown rock; no white, no yellow",
+    check("…paleo's palette: see-through earth tones, green lowlands, then olive, khaki, ochre-brown, sienna and grey-brown rock; no white, no yellow",
           land.length >= 8 && land.every((c) => c.a <= 0.34 && Math.max(c.r, c.g, c.b) <= 140) &&
           land[0].g > land[0].r && land[0].g > land[0].b && land.slice(3, 6).every((c) => c.r > c.g && c.g > c.b) &&
-          land.every((c) => !(c.r > 150 && c.g > 130 && c.b < 90)));
-    check("…the sea in the plates' colours: indigo-navy deeps, darker teal shelves, and a calm-sea layer above the shading that clears before the coast",
+          land.every((c) => !(c.r > 150 && c.g > 130 && c.b < 90)) &&
+          block.includes('1, "rgba(30,60,26,0.32)"') && block.includes('-8000, "rgba(10,22,42,0.8)"'));
+    check("…paleo's sea: navy deeps, lighter blue-green shelves, and a calm-sea layer above the shading that clears before the coast",
           colour.filter((c) => c.h < 0).every((c) => c.b >= c.r) &&
-          colour.filter((c) => c.h <= -2000).every((c) => c.r <= 20 && c.g <= 32 && c.b >= 40 && c.b <= 64 && c.a >= 0.85) &&
           stops("sea", "shade").filter((c) => c.h >= -80).every((c) => c.a === 0) &&
           stops("sea", "shade").filter((c) => c.h <= -3000).every((c) => c.a >= 0.5));
-    check("…Swiss shading weighted to the north-west, faint lights (no sheen), and tint, shading and depth the same at every zoom",
+    check("…nothing eases off as you zoom in: tint, both lights and the sea hold their world-view strength, with faint lights (no sheen)",
+          /colourOpacity: 1,/.test(block) && /"hillshade-exaggeration": 1,/.test(block) && /"hillshade-exaggeration": 0\.6,/.test(block) &&
+          !/\["zoom"\]/.test(block.slice(0, block.indexOf("lift:"))) &&
           /"hillshade-illumination-direction": \[315, 270, 0, 225\]/.test(block) &&
-          (() => { const l = [...block.matchAll(/rgba\(222,228,200,([\d.]+)\)/g)]; return l.length >= 5 && l.every((m) => +m[1] <= 0.1); })() &&
-          /"hillshade-exaggeration": 0\.9,/.test(block) && /"hillshade-exaggeration": 0\.3,/.test(block) &&
-          /colourOpacity: 1,/.test(block) && !/\["zoom"\]/.test(block.slice(0, block.indexOf("ridge:"))) &&
+          [...block.matchAll(/rgba\(240,236,222,([\d.]+)\)/g)].every((m) => +m[1] <= 0.1) &&
           /"fog-ground-blend": 0\.97/.test(src));
-    check("…pronounced relief wider out: a low north-west light drawn twice, straight on the imagery under the palette, strong to zoom 3 and gone by zoom 7",
-          /id: "sat-relief-ridge", type: "hillshade", source: "outline-dem", maxzoom: 7, paint: SAT_RELIEF\.ridge \}, before\);\n\s*map\.addLayer\(\{ id: "sat-relief-ridge2", type: "hillshade", source: "outline-dem", maxzoom: 7, paint: SAT_RELIEF\.ridge \}, before\);\n\s*map\.addLayer\(\{ id: "sat-relief-colour"/.test(src) &&
-          /show\("sat-relief-ridge", kind === "satellite"\);\n\s*show\("sat-relief-ridge2", kind === "satellite"\);/.test(src) &&
-          /"hillshade-shadow-color": \["interpolate", \["linear"\], \["zoom"\], 3, "rgba\(14,18,10,1\)", 7, "rgba\(14,18,10,0\)"\]/.test(block) &&
-          /"hillshade-highlight-color": \["interpolate", \["linear"\], \["zoom"\], 3, "rgba\(214,222,190,0\.3\)", 7, "rgba\(214,222,190,0\)"\]/.test(block));
     check("…no drawn water",
           !/sat-water/.test(src) && !/closeMultiply/.test(src) &&
           (src.match(/map\.addSource\("osm", Object\.assign\(\{\}, OSM_SOURCE\)\)/g) || []).length === 1);

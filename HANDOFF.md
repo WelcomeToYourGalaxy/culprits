@@ -5,7 +5,16 @@ touches.
 
 ---
 
-## The Satellite basemap: darker jungle green, no grey (23 September, latest)
+## The Satellite basemap back to patch paleo, held at every zoom (23 September, latest)
+
+At the owner's request, the even, ridge and jungle rounds are undone and patch
+paleo's look (57d04a9) is back, with one change: nothing eases off with zoom.
+`SAT_RELIEF.colourOpacity` 1, shade exaggeration 1 and depth 0.6 (paleo's
+world-view values) at every zoom; the close-in multiply stays off
+(`SAT_TINT.close` all 1); `sat-relief-ridge`/`ridge2` removed. Grade, palette,
+sea stops, calm-sea layer and light colours are paleo's own.
+
+## The Satellite basemap: darker jungle green, no grey (23 September)
 
 On top of patch_0923_ridge. The owner found the world view bland beside the
 End-Cretaceous plate (darker jungle greens, less or no grey, a little more
