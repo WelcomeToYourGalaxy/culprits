@@ -317,6 +317,16 @@ Cost: three more package downloads per sector per run (agriculture's co2e
 package alone is 1.4 GB), so the per-gas harvest should run as its own job
 with its own ETags rather than inside the existing one. Not written yet.
 
+## The Satellite tint held at every zoom (22 September, night)
+
+Close in, the owner saw the theme only on steep ground and the plain
+photograph elsewhere. The tint had eased to 0.7 opacity with land alphas of
+0.3 (about a fifth of the way), and the brighter imagery grade of the fourth
+version pulled the rest back to the photograph. Now land tint alphas 0.38-0.46,
+colour opacity 1 wide to 0.85 at zoom 16; imagery max 0.95, saturation
++0.12, contrast 0.14. The shading only shows where the ground slopes, so on
+flat ground it is the tint that carries the look.
+
 ## The Satellite relief, fourth version (22 September, late)
 
 The softened version dropped the tint and shading close in and lost the

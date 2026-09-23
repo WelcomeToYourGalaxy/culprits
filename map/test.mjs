@@ -1343,7 +1343,7 @@ console.log("\nreading the map");
   // Third version, 22 September: the imagery carries the colour; the relief
   // tints it and stacks two layers of shading, so the world view is not flat.
   check("the Satellite basemap is richer imagery under a see-through relief tint and two layers of shading; the atlas keeps its own grade",
-        /satellite: \{ "raster-brightness-min": 0\.02, "raster-brightness-max": 1,\n\s*"raster-saturation": 0\.2/.test(src) &&
+        /satellite: \{ "raster-brightness-min": 0\.02, "raster-brightness-max": 0\.95,\n\s*"raster-saturation": 0\.12/.test(src) &&
         /atlas: \{ "raster-brightness-min": ATLAS_TUNE\.lift/.test(src) &&
         /id: "sat-relief-colour", type: "color-relief", source: "outline-dem"/.test(src) &&
         /id: "sat-relief-shade", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF\.shade/.test(src) &&
@@ -1355,10 +1355,10 @@ console.log("\nreading the map");
     const alphas = [...colour.matchAll(/rgba\((\d+),(\d+),(\d+),([\d.]+)\)/g)];
     check("\u2026the land tint is see-through (the imagery's own deserts, forests and ice show), lush green to grey-brown, never white",
           alphas.length >= 10 && alphas.every((m) => Math.max(+m[1], +m[2], +m[3]) <= 130) &&
-          alphas.filter((m, i) => i >= 5).every((m) => +m[4] <= 0.4));
+          alphas.filter((m, i) => i >= 5).every((m) => +m[4] <= 0.5));
     // Fourth version: the owner wants the tint and shading kept close in, without the sheen.
-    check("…the tint and shading stay at every zoom, easing close in; the depth light is gone by 11; faint warm lights only; fog only at the horizon",
-        /colourOpacity: \["interpolate", \["linear"\], \["zoom"\], 2, 1, 10, 0\.85, 14, 0\.7, 16, 0\.6\]/.test(src) &&
+    check("…the tint and shading stay nearly full at every zoom; the depth light is gone by 11; faint warm lights only; fog only at the horizon",
+        /colourOpacity: \["interpolate", \["linear"\], \["zoom"\], 2, 1, 10, 0\.95, 14, 0\.9, 16, 0\.85\]/.test(src) &&
         /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 2, 1, 8, 0\.9, 12, 0\.7, 15, 0\.55\]/.test(src) &&
         /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 2, 0\.85, 6, 0\.55, 9, 0\.2, 11, 0\]/.test(src) &&
         /"rgba\(252,244,220,0\.14\)"/.test(src) && !/"rgba\(2\d\d,2\d\d,2\d\d,0\.[3-9]/.test(block) &&

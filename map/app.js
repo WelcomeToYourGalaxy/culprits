@@ -788,8 +788,8 @@ const BASE_GRADE = {
   // in earth tones (SAT_RELIEF below): the imagery is only a little muted, so
   // the ground keeps its own colour and texture, and the relief's palette and
   // Swiss-style shading are laid over it.
-  satellite: { "raster-brightness-min": 0.02, "raster-brightness-max": 1,
-               "raster-saturation": 0.2, "raster-contrast": 0.1,
+  satellite: { "raster-brightness-min": 0.02, "raster-brightness-max": 0.95,
+               "raster-saturation": 0.12, "raster-contrast": 0.14,
                "raster-hue-rotate": 0 },
 };
 let BASEMAP = "atlas";
@@ -826,9 +826,12 @@ const SAT_RELIEF = {
   colour: ["interpolate", ["linear"], ["elevation"],
     -8000, "rgba(8,30,56,0.8)", -3000, "rgba(10,38,66,0.75)", -500, "rgba(18,58,84,0.6)",
     -60, "rgba(26,84,100,0.42)", 0, "rgba(26,84,100,0.3)",
-    1, "rgba(40,86,34,0.3)", 400, "rgba(46,90,38,0.3)", 1200, "rgba(62,92,46,0.26)",
-    2200, "rgba(96,86,62,0.24)", 3500, "rgba(112,104,92,0.24)", 5500, "rgba(124,118,108,0.26)"],
-  colourOpacity: ["interpolate", ["linear"], ["zoom"], 2, 1, 10, 0.85, 14, 0.7, 16, 0.6],
+    1, "rgba(40,86,34,0.46)", 400, "rgba(46,90,38,0.46)", 1200, "rgba(62,92,46,0.42)",
+    2200, "rgba(96,86,62,0.38)", 3500, "rgba(112,104,92,0.38)", 5500, "rgba(124,118,108,0.4)"],
+  // Held nearly full at every zoom (22 September, night): eased to 0.7 close
+  // in, the tint over gentle ground was too faint to see, and most of the
+  // map read as the plain photograph; only steep ground showed the theme.
+  colourOpacity: ["interpolate", ["linear"], ["zoom"], 2, 1, 10, 0.95, 14, 0.9, 16, 0.85],
   // Light from four directions, weighted to the north-west (Swiss style):
   // green-black shadows, faint warm sunlight on the lit faces.
   shade: {
