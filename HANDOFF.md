@@ -869,6 +869,27 @@ saves after each day, stops at 100 minutes, and carries on next run
 (`cerulean_archive/refill.json`). Mines' first file is 96.7 MB (92 MiB), under
 the 95 MiB cut.
 
+## Round of 23 September (19): the slick archive, the saves, the city maps
+
+The run of 23 September (logs_97274071361) showed:
+- Slick archive: July and August were read back in full (48,546 and 49,107
+  slicks), but a month gzipped was over 95 MB and a month's tiles with every
+  field were 744 to 752 MB, and the save then stuck on a rebase clash over a
+  Python cache file. `scripts/cerulean_archive.py` now keeps a day to a file
+  (`cerulean_archive/<month>/<date>.geojson.gz`, older whole-month files
+  split on the next run), tiles only each slick's `id` and `t` (time), goes
+  from zoom 10 to 9, then splits a month by date into several files;
+  `tiles.json` may list an array per month. The map draws each file through
+  its own source and reads a slick's record from Cerulean by id on a click.
+- `.github/save.sh`: drops Python cache files before committing, and undoes a
+  rebase that stopped on a clash before trying again.
+- City maps: 2 of 33 placed (Osaka, Tel Aviv); OCR read 1 to 10 words a
+  picture. Now read at three times the size in grey at full contrast, in two
+  modes, and a north-up, one-scale fit (two names fix it, a third checks it)
+  is tried where the free fit finds too few.
+- That run's EDGAR job checked out the code before the nested-zip fix; it
+  needs running again.
+
 ## Round of 23 September (18): every field in the boxes that picked their own
 
 Item 9 of the handed-over list (every field a source publishes reaches the

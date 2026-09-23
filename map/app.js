@@ -6303,22 +6303,48 @@ async function addSlickArchive(cfg) {
   // The tiled form draws through its own pair of layers, so the plain-file
   // pair can stay exactly as it was; only one pair is ever shown.
   const tsrc = `${cfg.id}-pm`;
-  let tiledNow = null;
+  let tiledNow = null, tiledIds = [];
+  const bound = new Set();
+  // Since 23 September a month's tiles carry each slick's id and time only (a
+  // whole month with every field came to 750 MB); a click reads the slick's
+  // record from Cerulean by its id, as the live slick points do. The shapes
+  // stay on the map whatever the service does; its words need it answering.
+  // A month too big for one file is several, listed in tiles.json as an array.
+  const slickBox = (p, tail) => {
+    const foot = `<div class="meta">SkyTruth Cerulean, kept daily${tail}</div>`;
+    if (p.id == null || !Object.keys(p).every((k) => k === "id" || k === "t")) return `<b>Oil slick</b><table class="meta">${fieldRows(p)}</table>${foot}`;
+    return fetch(`${CERULEAN}/collections/public.slick_plus/items/${encodeURIComponent(p.id)}?bbox-only=true`)
+      .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
+      .then((j) => `<b>Oil slick</b><table class="meta">${fieldRows(j.properties || {}, ["centerlines"])}</table>${foot}`)
+      .catch((e) => `<b>Oil slick ${escapeHtml(String(p.id))}</b><div class="meta">${escapeHtml(String(p.t || ""))}</div>` +
+        `<div class="meta">Its record could not be read from Cerulean just now (${escapeHtml(e.message)}); the shape is kept here.</div>${foot}`);
+  };
   const showTiled = (m) => {
-    const url = `${cfg.base}/${tiled[m]}`;
+    const files = [].concat(tiled[m]);
+    const url = files.join(",");
     if (tiledNow !== url) {
-      ["-tfill", "-tline", "-tpt"].forEach((suffix) => { if (map.getLayer(cfg.id + suffix)) map.removeLayer(cfg.id + suffix); });
+      for (const id of tiledIds) if (map.getLayer(id)) map.removeLayer(id);
+      for (let i = 0; map.getSource(`${tsrc}${i}`); i++) map.removeSource(`${tsrc}${i}`);
       if (map.getSource(tsrc)) map.removeSource(tsrc);
-      map.addSource(tsrc, { type: "vector", url: `pmtiles://${url}` });
-      map.addLayer({ id: `${cfg.id}-tfill`, type: "fill", source: tsrc, "source-layer": "slicks", minzoom: 7,
-        paint: { "fill-color": "#1D1B17", "fill-opacity": 0.55 } });
-      map.addLayer({ id: `${cfg.id}-tline`, type: "line", source: tsrc, "source-layer": "slicks", minzoom: 7,
-        paint: { "line-color": "#B8A79E", "line-width": 1 } });
-      map.addLayer({ id: `${cfg.id}-tpt`, type: "circle", source: tsrc, "source-layer": "slick_points", maxzoom: 7,
-        paint: { "circle-color": "#B8A79E", "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 2.2, 6, 3.6],
-                 "circle-stroke-color": "#1D1B17", "circle-stroke-width": 0.5, "circle-opacity": 0.9 } });
-      bindHtmlPopup(`${cfg.id}-tfill`, (p) => `<b>Oil slick</b><table class="meta">${fieldRows(p)}</table><div class="meta">SkyTruth Cerulean, kept daily</div>`);
-      bindHtmlPopup(`${cfg.id}-tpt`, (p) => `<b>Oil slick</b><table class="meta">${fieldRows(p)}</table><div class="meta">SkyTruth Cerulean, kept daily \u00b7 zoom in for its shape</div>`);
+      tiledIds = [];
+      files.forEach((file, i) => {
+        const sid = `${tsrc}${i}`, sfx = i ? String(i) : "";
+        map.addSource(sid, { type: "vector", url: `pmtiles://${cfg.base}/${file}` });
+        map.addLayer({ id: `${cfg.id}-tfill${sfx}`, type: "fill", source: sid, "source-layer": "slicks", minzoom: 7,
+          paint: { "fill-color": "#1D1B17", "fill-opacity": 0.55 } });
+        map.addLayer({ id: `${cfg.id}-tline${sfx}`, type: "line", source: sid, "source-layer": "slicks", minzoom: 7,
+          paint: { "line-color": "#B8A79E", "line-width": 1 } });
+        map.addLayer({ id: `${cfg.id}-tpt${sfx}`, type: "circle", source: sid, "source-layer": "slick_points", maxzoom: 7,
+          paint: { "circle-color": "#B8A79E", "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 2.2, 6, 3.6],
+                   "circle-stroke-color": "#1D1B17", "circle-stroke-width": 0.5, "circle-opacity": 0.9 } });
+        tiledIds.push(`${cfg.id}-tfill${sfx}`, `${cfg.id}-tline${sfx}`, `${cfg.id}-tpt${sfx}`);
+        if (!bound.has(sfx)) {
+          bound.add(sfx);
+          bindHtmlPopup(`${cfg.id}-tfill${sfx}`, (p) => slickBox(p, ""));
+          bindHtmlPopup(`${cfg.id}-tpt${sfx}`, (p) => slickBox(p, " \u00b7 zoom in for its shape"));
+        }
+      });
+      cfg._layerIds = tiledIds.slice();
       tiledNow = url;
     }
     map.getSource(src).setData({ type: "FeatureCollection", features: [] });

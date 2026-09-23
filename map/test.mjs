@@ -3455,5 +3455,13 @@ console.log("\nround of 23 September (18): every field in the boxes that picked 
   check("a click on EPA's picture lists every facility it touches, not the first eight", /const hits = j\.results \|\| \[\];/.test(src));
   check("a shape's own words and list are shown whole, in a box that scrolls", !/shapeText\(p\.from_the_map\)\.slice\(0, 1200\)/.test(src) && !/list\.slice\(0, 40\)/.test(src));
 }
+console.log("\nround of 23 September (19): the slick archive's months made small enough for GitHub");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("a month may be several tile files, each drawn through its own source", /const files = \[\]\.concat\(tiled\[m\]\);/.test(src) && /files\.forEach\(\(file, i\) =>/.test(src));
+  check("…a slick with only its id and time in the tiles has its record read from Cerulean by id on a click",
+        /collections\/public\.slick_plus\/items\/\$\{encodeURIComponent\(p\.id\)\}\?bbox-only=true`\)\n\s*\.then/.test(src));
+  check("…each click layer is bound once, not again each time a month is shown", /if \(!bound\.has\(sfx\)\)/.test(src));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
