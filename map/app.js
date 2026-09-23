@@ -355,6 +355,20 @@ const LAYERS = [
   { id:"gmo_animal_trade", sourceOf:"gmo_releases", name:"Animal breeders, dealers, exhibitors and carriers (USDA Animal Welfare Act)", unit:"licensees", colour:"#74695E", route:"pmtiles", ready:true, off: true,
     where: ["all", ["==", ["get", "id"], "industry:animals"],
             ["!", ["in", ["get", "x_type"], ["literal", ["Animal Welfare Act research facility", "Accredited animal research organisation", "CCAC certified institution"]]]]] },
+  { id:"wastewater_n_tot", name:"Nitrogen from human wastewater reaching the sea, all of it, by coastal outlet (Tuholske et al.)", unit:"nitrogen a year", colour:"#5E7377", route:"pmtiles", ready:true, off: true,
+    archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_n_tot.pmtiles",
+    note: "The Global Wastewater Model (Tuholske et al. 2021, KNB doi:10.5063/F76B09): each of its 134,846 pour points, where a watershed's wastewater reaches the coast, weighed by this share of its nitrogen. Built from the model's data package; every field it gives is kept, the unit included. The model is not updated." },
+  { id:"wastewater_n_treated", name:"Nitrogen from sewage treatment plants reaching the sea, by coastal outlet (Tuholske et al.)", unit:"nitrogen a year", colour:"#5E7377", route:"pmtiles", ready:true, off: true,
+    archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_n_treated.pmtiles",
+    note: "The Global Wastewater Model (Tuholske et al. 2021, KNB doi:10.5063/F76B09): each of its 134,846 pour points, where a watershed's wastewater reaches the coast, weighed by this share of its nitrogen. Built from the model's data package; every field it gives is kept, the unit included. The model is not updated." },
+  { id:"wastewater_n_septic", name:"Nitrogen from septic systems reaching the sea, by coastal outlet (Tuholske et al.)", unit:"nitrogen a year", colour:"#5E7377", route:"pmtiles", ready:true, off: true,
+    archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_n_septic.pmtiles",
+    note: "The Global Wastewater Model (Tuholske et al. 2021, KNB doi:10.5063/F76B09): each of its 134,846 pour points, where a watershed's wastewater reaches the coast, weighed by this share of its nitrogen. Built from the model's data package; every field it gives is kept, the unit included. The model is not updated." },
+  { id:"wastewater_n_open", name:"Nitrogen from untreated human waste reaching the sea, by coastal outlet (Tuholske et al.)", unit:"nitrogen a year", colour:"#5E7377", route:"pmtiles", ready:true, off: true,
+    archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_n_open.pmtiles",
+    note: "The Global Wastewater Model (Tuholske et al. 2021, KNB doi:10.5063/F76B09): each of its 134,846 pour points, where a watershed's wastewater reaches the coast, weighed by this share of its nitrogen. Built from the model's data package; every field it gives is kept, the unit included. The model is not updated." },
+  { id:"wastewater_n_countries", name:"Nitrogen from human wastewater reaching the sea, by country (Tuholske et al.)", unit:"nitrogen a year", colour:"#5E7377", route:"country", ready:true, off: true,
+    note: "The country totals the Global Wastewater Model's data package gives (Tuholske et al. 2021, KNB doi:10.5063/F76B09), with its split by treatment, septic and untreated." },
   { id:"hydrowaste",           name:"Wastewater treatment plants (HydroWASTE)", unit:"plants", colour:"#5E7278", route:"pmtiles", ready:true, off: true,
     note: "HydroWASTE v1.0: 58,502 wastewater treatment plants, with the population each serves, the treated wastewater it discharges, its level of treatment, its estimated outfall and the river's dilution there (Ehalt Macedo et al., Earth System Science Data 2022; CC BY 4.0). The database behind HydroFATE's map, whose own page cannot be read to draw here. Every column is kept." },
   { id:"slavery_sites",        name:"Brick kilns and artisanal mining", unit:"sites", colour:"#8A6B62", route:"pmtiles", ready:true, off: true,
@@ -847,6 +861,26 @@ const SAT_RELIEF = {
     "hillshade-shadow-color": "rgba(12,18,10,0.55)",
     "hillshade-accent-color": "rgba(12,18,10,0)",
     "hillshade-exaggeration": 0.3,
+  },
+  // Pronounced relief for the world and continent views (23 September), as
+  // the plates draw it on purpose: a low north-west light, drawn twice
+  // (sat-relief-ridge and -ridge2; one layer tops out at exaggeration 1), that
+  // carves the ranges with deep shadow and a pale lit face. A range is only a
+  // few pixels wide from the world view, so it needs far more light and shadow
+  // than close in to read as high ground; the pair is at full strength out to
+  // zoom 3 and eases to nothing by zoom 7, where the other two lights carry the
+  // relief as before. They sit directly on the imagery, under the terrain
+  // palette: the land palette is see-through, so the ranges show, while the
+  // near-solid navy of the deep sea covers them and the ocean floor stays calm.
+  ridge: {
+    "hillshade-method": "standard",
+    "hillshade-illumination-direction": 315,
+    "hillshade-illumination-altitude": 30,
+    "hillshade-illumination-anchor": "map",
+    "hillshade-highlight-color": ["interpolate", ["linear"], ["zoom"], 3, "rgba(236,232,216,0.34)", 7, "rgba(236,232,216,0)"],
+    "hillshade-shadow-color": ["interpolate", ["linear"], ["zoom"], 3, "rgba(14,18,10,1)", 7, "rgba(14,18,10,0)"],
+    "hillshade-accent-color": ["interpolate", ["linear"], ["zoom"], 3, "rgba(14,18,10,0.5)", 7, "rgba(14,18,10,0)"],
+    "hillshade-exaggeration": 1,
   },
   // With 3D terrain on, the ground is raised more the further out you are,
   // so ranges still stand up from a continent's height; 1.4 close in.
@@ -1971,6 +2005,8 @@ function addSatelliteRelief() {
   try {
     if (!map.getSource("outline-dem")) map.addSource("outline-dem", Object.assign({}, RELIEF_SOURCE));
     const before = map.getLayer("atlas-washes") ? "atlas-washes" : undefined;
+    map.addLayer({ id: "sat-relief-ridge", type: "hillshade", source: "outline-dem", maxzoom: 7, paint: SAT_RELIEF.ridge }, before);
+    map.addLayer({ id: "sat-relief-ridge2", type: "hillshade", source: "outline-dem", maxzoom: 7, paint: SAT_RELIEF.ridge }, before);
     map.addLayer({ id: "sat-relief-colour", type: "color-relief", source: "outline-dem",
       paint: { "color-relief-color": SAT_RELIEF.colour, "color-relief-opacity": SAT_RELIEF.colourOpacity } }, before);
     map.addLayer({ id: "sat-relief-shade", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF.shade }, before);
@@ -1997,6 +2033,8 @@ function setBasemap(kind) {
   show("sat-relief-shade", kind === "satellite");
   show("sat-relief-depth", kind === "satellite");
   show("sat-relief-sea", kind === "satellite");
+  show("sat-relief-ridge", kind === "satellite");
+  show("sat-relief-ridge2", kind === "satellite");
   if (TERRAIN_ON && map.getTerrain && map.getTerrain()) liftTerrain();
   show("outline-ocean", !imagery);
   show("outline-land", !imagery);
@@ -9335,6 +9373,9 @@ const LAYER_KIND = {
   glad_loss: ["plant", "downstream"],
   soilgrids: ["microorganism", "downstream"],
   wastewater: ["insentient", "downstream"],
+  wastewater_n_tot: ["insentient", "downstream"], wastewater_n_treated: ["insentient", "downstream"],
+  wastewater_n_septic: ["insentient", "downstream"], wastewater_n_open: ["insentient", "downstream"],
+  wastewater_n_countries: ["insentient", "downstream"],
   site_environment_law: ["human", "upstream"],
   site_environment_law_shapes: ["human", "upstream"],
   enviro_law_by_country: ["human", "upstream"],
@@ -10011,6 +10052,7 @@ const NOT_LIVE = {
   gta_acts: "Global Trade Alert's acts, from a copy made daily",
   giga_countries: "Giga's figures, from a copy made daily (its service does not let other sites read it)",
   wastewater: "The Global Wastewater Model, from copies kept here; the model is not updated",
+  ...Object.fromEntries(["tot", "treated", "septic", "open"].map((k) => [`wastewater_n_${k}`, "Built once from the Global Wastewater Model's data package (2021); the model is not updated"])),
   trase_measures: "Trase's values come from a copy made weekly; only the region shapes are read live",
   atlas_cities: "The places are from a copy made weekly; each city's own page is read live",
   ...Object.fromEntries(["pm2_5", "bc", "oc", "so2", "vocs", "co", "nh3", "nox"].map((g) => [`ct_air_${g}`,
@@ -10062,7 +10104,7 @@ const PANEL_ORDER = [
   // Carbon bombs, the Carbon Majors and Banking on Climate Chaos under Carbon
   // dioxide, and nitrogen dioxide moved to Pollution (22 September, round 2).
   { h: 4, t: "Carbon dioxide" }, "owid_co2", "gem_coal", "power_plants", "fractracker_refineries", "carbon_plumes", "carbon_bombs", "carbon_majors", "bocc",
-  { h: 4, t: "Methane" }, "carbon_plumes", "hydrowaste", "wastewater",
+  { h: 4, t: "Methane" }, "carbon_plumes", "hydrowaste",
   { h: 4, t: "Nitrous oxide" }, "fertilizer_facilities",
   { h: 5, t: "Soy" }, "trase_silos_brazil",
   { h: 5, t: "Corn" },
@@ -10088,7 +10130,9 @@ const PANEL_ORDER = [
   { h: 4, t: "Ammonia" }, "ct_air_nh3",
   { h: 4, t: "Nitrogen oxides" }, "ct_air_nox",
   { h: 4, t: "Nitrogen dioxide" },
-  { h: 4, t: "Wastewater" }, "hydrowaste", "wastewater",
+  // The model's map server is gone; its data package is drawn instead
+  // (pipeline/wastewater_build.py, 23 September).
+  { h: 4, t: "Wastewater" }, "hydrowaste", "wastewater_n_tot", "wastewater_n_treated", "wastewater_n_septic", "wastewater_n_open", "wastewater_n_countries",
   { h: 4, t: "Plastics" },
   { h: 5, t: "Production" }, "pirg_plastic", "mymaps_chlorine", "arcgis_ym8xk", "arcgis_materialresearch",
   { h: 5, t: "Waste and dumping" }, "gpw_map", "seas_of_plastic", "coastal_cleanup",
@@ -10211,6 +10255,9 @@ const PANEL_REMOVED = new Set([
   // available to the public", checked 22 September); the two explorers can
   // never draw. Soy and corn are still drawn by MapSPAM's rows and Trase's.
   "usda_soybean", "usda_corn",
+  // The Global Wastewater Model's map server is gone (its five pictures 404);
+  // its data package is drawn by the wastewater_n_* rows instead.
+  "wastewater",
   // Taken out 19 Sept: near duplicates, a background map mistaken for data, rows
   // merged into another, and pages asked to be removed.
   "site_cartel_cells", "site_export_credit_shading", "giga_schools", "nsf_locations",

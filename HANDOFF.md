@@ -5,7 +5,20 @@ touches.
 
 ---
 
-## The Satellite basemap, the same at every zoom; the plates' blues (23 September, latest)
+## The Satellite basemap: pronounced relief at world scale (23 September, latest)
+
+On top of patch_0923_even. The owner found the world view flat next to the
+plates, whose relief is pronounced on purpose. Two new hillshades,
+`sat-relief-ridge` and `sat-relief-ridge2` (same paint, `SAT_RELIEF.ridge`:
+standard method, NW light at 30 degrees, shadow alpha 1 and pale light 0.34 at
+zoom 3 easing to 0 by zoom 7, maxzoom 7), drawn twice because one hillshade
+tops out at exaggeration 1. They sit directly on the imagery, under
+`sat-relief-colour`: the see-through land palette lets the ranges show, and
+the near-solid deep-sea navy hides them so the ocean floor stays calm. From
+zoom 7 in the look is unchanged. Tried in preview: `combined` and `igor`
+methods (weaker at world view than doubled `standard`).
+
+## The Satellite basemap, the same at every zoom; the plates' blues (23 September)
 
 On top of the paleo-map patch (57d04a9). The owner saw the look hand over to
 plain imagery closer in and wants the same effects at all zooms: the tint's
@@ -707,6 +720,28 @@ layer out**: the Forest and land cover heading and its rows were deleted at the
 owner's request, so a land-cover layer that no other rule claims gets no row
 and is counted in the console (`LEFT_OUT`). Agriculture > Moratoriums from the
 list was not made: Nusantara has one moratorium layer and it is a forest one.
+
+## Round of 23 September (2): the Global Wastewater Model from its data package
+
+`pipeline/wastewater_inspect.py` showed the N package holds pour points
+(134,846; basin_id, open_N, septic_N, treated_N, tot_N and their shares),
+watersheds (the same table, 103 MB of shapes), country totals (255 rows,
+ISO3), and four global 3 GB GeoTIFFs of the coastal plumes (open, septic,
+treated, total). No projection file is included.
+
+- `pipeline/wastewater_build.py` (run on the Mac; pyshp and tippecanoe) makes
+  `wastewater_n_{tot,treated,septic,open}.pmtiles` in culprits-tiles-more
+  `tiles/` (every point, every zoom, `-r1 --no-feature-limit
+  --no-tile-size-limit`; `value` = that measure; every field kept) and
+  `map/data/wastewater_n_countries.countries.json`. It stops if the points are
+  not in longitude and latitude, and works the unit out from the global total
+  against the paper's 6.2 Mt N a year (stops if none fits), writing it on
+  every point.
+- Rows `wastewater_n_tot`, `_treated`, `_septic`, `_open` (pmtiles) and
+  `wastewater_n_countries` (country) under Pollution > Wastewater. The old
+  `wastewater` picture row is in `PANEL_REMOVED` (its server is gone) and no
+  longer under Methane.
+- Not built yet: the plume GeoTIFFs and the watershed shapes.
 
 ## Round of 23 September: one row per air pollutant; the wastewater package found
 

@@ -1392,8 +1392,13 @@ console.log("\nreading the map");
           /"hillshade-illumination-direction": \[315, 270, 0, 225\]/.test(block) &&
           [...block.matchAll(/rgba\(240,236,222,([\d.]+)\)/g)].every((m) => +m[1] <= 0.1) &&
           /"hillshade-exaggeration": 0\.9,/.test(block) && /"hillshade-exaggeration": 0\.3,/.test(block) &&
-          /colourOpacity: 1,/.test(block) && !/\["zoom"\]/.test(block.slice(0, block.indexOf("lift:"))) &&
+          /colourOpacity: 1,/.test(block) && !/\["zoom"\]/.test(block.slice(0, block.indexOf("ridge:"))) &&
           /"fog-ground-blend": 0\.97/.test(src));
+    check("…pronounced relief wider out: a low north-west light drawn twice, straight on the imagery under the palette, strong to zoom 3 and gone by zoom 7",
+          /id: "sat-relief-ridge", type: "hillshade", source: "outline-dem", maxzoom: 7, paint: SAT_RELIEF\.ridge \}, before\);\n\s*map\.addLayer\(\{ id: "sat-relief-ridge2", type: "hillshade", source: "outline-dem", maxzoom: 7, paint: SAT_RELIEF\.ridge \}, before\);\n\s*map\.addLayer\(\{ id: "sat-relief-colour"/.test(src) &&
+          /show\("sat-relief-ridge", kind === "satellite"\);\n\s*show\("sat-relief-ridge2", kind === "satellite"\);/.test(src) &&
+          /"hillshade-shadow-color": \["interpolate", \["linear"\], \["zoom"\], 3, "rgba\(14,18,10,1\)", 7, "rgba\(14,18,10,0\)"\]/.test(block) &&
+          /"hillshade-highlight-color": \["interpolate", \["linear"\], \["zoom"\], 3, "rgba\(236,232,216,0\.34\)", 7, "rgba\(236,232,216,0\)"\]/.test(block));
     check("…no drawn water",
           !/sat-water/.test(src) && !/closeMultiply/.test(src) &&
           (src.match(/map\.addSource\("osm", Object\.assign\(\{\}, OSM_SOURCE\)\)/g) || []).length === 1);
@@ -3247,6 +3252,21 @@ console.log("\nround of 23 September: one row per air pollutant");
   check("\u2026and the rows say NOT LIVE, the click still reads live", /ct_air_\$\{g\}`,\s*"The yearly amounts come from a weekly copy/.test(src));
   const py = fs.readFileSync(path.join(HERE, "..", "pipeline", "wastewater_inspect.py"), "utf8");
   check("the wastewater package is inspected from KNB before a build is written", /urn:uuid:af8d0bd6-dc0c-4149-a3cd-93b5aed71f7c/.test(py) && /def dbf_fields/.test(py));
+}
+console.log("\nround of 23 September (2): the wastewater model from its data package");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const o = new Function(body + "; return { PANEL_ORDER, PANEL_REMOVED };")();
+  const ids = ["wastewater_n_tot", "wastewater_n_treated", "wastewater_n_septic", "wastewater_n_open", "wastewater_n_countries"];
+  check("the four pour-point measures and the country totals are rows under Wastewater, the dead picture row out",
+        ids.every((id) => new RegExp(`id:"${id}"`).test(src) && o.PANEL_ORDER.includes(id)) && o.PANEL_REMOVED.has("wastewater") && !o.PANEL_ORDER.includes("wastewater"));
+  check("\u2026each archive is read from the tiles repo, named for its row", ["tot", "treated", "septic", "open"].every((k) =>
+        src.includes(`archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_n_${k}.pmtiles"`)));
+  const py = fs.readFileSync(path.join(HERE, "..", "pipeline", "wastewater_build.py"), "utf8");
+  check("the build keeps every point at every zoom, weighs each archive by its own measure, and works out the unit rather than guessing it",
+        /"-r1"/.test(py) && /"--no-feature-limit", "--no-tile-size-limit"/.test(py) && /value=p\.get\(field\)/.test(py) && /def unit_of\(total\)/.test(py) &&
+        /fits no unit/.test(py) && /not in longitude and latitude/.test(py));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
