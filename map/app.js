@@ -788,8 +788,8 @@ const BASE_GRADE = {
   // in earth tones (SAT_RELIEF below): the imagery is only a little muted, so
   // the ground keeps its own colour and texture, and the relief's palette and
   // Swiss-style shading are laid over it.
-  satellite: { "raster-brightness-min": 0.0, "raster-brightness-max": 1,
-               "raster-saturation": 0.05, "raster-contrast": 0.16,
+  satellite: { "raster-brightness-min": 0.0, "raster-brightness-max": 0.82,
+               "raster-saturation": -0.1, "raster-contrast": 0.1,
                "raster-hue-rotate": 0 },
 };
 let BASEMAP = "atlas";
@@ -811,54 +811,30 @@ let BASEMAP = "atlas";
 //           the depth one layer can, which is what lifts it off the page at
 //           world view. Shadows green-black, lights faint, so no haze.
 const SAT_RELIEF = {
-  // 23 September, latest: after the owner's plates (shaded-relief maps of
-  // ancient continents). In those the land's colour is a satellite photograph,
-  // bright and green, with no colour laid over it by height; the depth comes
-  // from strong shading with dark shadows and pale, lit ridges; the open sea is
-  // a deep navy and the shallows along the coasts glow blue-green. So:
-  //   land     no tint at all: the photograph's own colours, deserts and dry
-  //            land included (the owner's choice), brightened a little
-  //            (BASE_GRADE.satellite). Patch 0922p's opaque stops and close-in
-  //            multiply made it cartoonish and over-tinted; both are gone, and
-  //            so is its drawn water.
-  //   sea      only water deeper than 60 m is darkened toward navy, more the
-  //            deeper it is, so the photograph's own light shallows stand out
-  //            against it. Land below sea level deeper than 60 m (the Dead Sea
-  //            shores) takes a little of that navy too; the heights cannot tell
-  //            dry ground from sea floor.
-  //   shade    matte: shadows up to 0.6, pale grey-white lights up to 0.18;
-  //            a broad second light for wide views only (shadow 0.35).
-  //            23 September, last: saturation 0.05 and shadows eased, as the
-  //            owner found the matte version a little too saturated and dark.
-  //            23 September, later: the mountains read as smooth plastic. The
-  //            light is weighted harder to one low north-west sun (the other
-  //            three lights' shadows cut to 0.3 and under), and the lights
-  //            dimmed, so ridges read crisp and matte rather than rounded and
-  //            glossy; imagery contrast 0.16 so the rock's own texture shows.
-  //            The world view read overcast: both shade layers are lighter
-  //            there (0.8 and 0.4 at zoom 2), back to full by zoom 5.
+  // Patch 0922n's look, exactly (23 September, at the owner's request): the
+  // old patch no longer applied, so its values are set here on today's code.
+  // n was made on Esri's imagery, which the Satellite basemap draws at every
+  // zoom (SAT_CLOSE.s2 false). Kept from later rounds: Mapterhorn heights, the
+  // zoom-scaled 3D lift, fog only at the horizon. n had no second (depth)
+  // light, so that layer is off.
   colour: ["interpolate", ["linear"], ["elevation"],
-    -8000, "rgba(8,18,38,0.62)", -4000, "rgba(9,21,42,0.58)", -1000, "rgba(11,27,50,0.45)",
-    -200, "rgba(14,38,64,0.22)", -60, "rgba(18,50,74,0)", 0, "rgba(18,50,74,0)", 9000, "rgba(18,50,74,0)"],
-  colourOpacity: 1,
+    -8000, "#0C1724", -4000, "#11202F", -1000, "#172B3C", -200, "#1C3747", -30, "#244856", 0, "#2F4C34",
+    1, "#27411F", 250, "#2C4722", 700, "#344E27", 1300, "#3F552E", 1900, "#4F5A36",
+    2500, "#615B42", 3200, "#716856", 4200, "#746D62", 5500, "#827B71"],
+  colourOpacity: ["interpolate", ["linear"], ["zoom"], 2, 0.92, 8, 0.78, 13, 0.5],
   shade: {
     "hillshade-method": "multidirectional",
     "hillshade-illumination-direction": [270, 315, 0, 225],
-    "hillshade-illumination-altitude": [30, 28, 30, 50],
-    "hillshade-highlight-color": ["rgba(238,238,230,0.08)", "rgba(238,238,230,0.18)", "rgba(238,238,230,0.06)", "rgba(238,238,230,0)"],
-    "hillshade-shadow-color": ["rgba(10,14,14,0.24)", "rgba(10,14,14,0.6)", "rgba(10,14,14,0.24)", "rgba(10,14,14,0.08)"],
-    "hillshade-accent-color": "rgba(10,14,14,0.35)",
-    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 0.8, 5, 1, 8, 0.9, 12, 0.7, 16, 0.45],
+    "hillshade-illumination-altitude": [30, 35, 30, 50],
+    "hillshade-highlight-color": ["rgba(226,230,212,0.14)", "rgba(226,230,212,0.3)", "rgba(226,230,212,0.12)", "rgba(226,230,212,0.04)"],
+    "hillshade-shadow-color": ["rgba(8,14,10,0.55)", "rgba(8,14,10,0.9)", "rgba(8,14,10,0.55)", "rgba(8,14,10,0.25)"],
+    "hillshade-accent-color": "#0E1610",
+    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 1, 8, 0.9, 13, 0.75],
     "hillshade-illumination-anchor": "map",
   },
   depth: {
     "hillshade-method": "standard",
-    "hillshade-illumination-direction": 315,
-    "hillshade-illumination-anchor": "map",
-    "hillshade-highlight-color": "rgba(238,238,230,0)",
-    "hillshade-shadow-color": "rgba(10,14,14,0.35)",
-    "hillshade-accent-color": "rgba(10,14,14,0)",
-    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 0.4, 5, 0.35, 8, 0],
+    "hillshade-exaggeration": 0,
   },
   // With 3D terrain on, the ground is raised more the further out you are,
   // so ranges still stand up from a continent's height; 1.4 close in.

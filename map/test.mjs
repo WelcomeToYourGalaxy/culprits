@@ -1364,25 +1364,22 @@ console.log("\nreading the map");
   const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   const wireSrc = fs.readFileSync(path.join(HERE, "wire.js"), "utf8");
   // 23 September, latest: after the owner's plates.
-  check("the Satellite basemap follows the plates: the photograph's own colours, a little brighter; the atlas keeps its own grade",
-        /satellite: \{ "raster-brightness-min": 0\.0, "raster-brightness-max": 1,\n\s*"raster-saturation": 0\.05, "raster-contrast": 0\.16/.test(src) &&
+  // 23 September: patch 0922n's look, exactly, on today's code (Esri imagery).
+  check("the Satellite basemap has patch n's look: darker imagery under opaque forest-green relief and deep shading; the atlas keeps its own grade",
+        /satellite: \{ "raster-brightness-min": 0\.0, "raster-brightness-max": 0\.82,\n\s*"raster-saturation": -0\.1, "raster-contrast": 0\.1/.test(src) &&
         /atlas: \{ "raster-brightness-min": ATLAS_TUNE\.lift/.test(src) &&
         /id: "sat-relief-colour", type: "color-relief", source: "outline-dem"/.test(src) &&
         /id: "sat-relief-shade", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF\.shade/.test(src) &&
         /id: "sat-relief-depth", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF\.depth/.test(src));
   {
     const block = src.slice(src.indexOf("const SAT_RELIEF = {"), src.indexOf("\n};", src.indexOf("const SAT_RELIEF = {")));
-    const ramp = block.slice(block.indexOf("colour:"), block.indexOf("colourOpacity"));
-    check("…no tint on land: every stop from 60 m below sea level up is clear; only deeper water is darkened toward navy",
-          /-60, "rgba\(18,50,74,0\)", 0, "rgba\(18,50,74,0\)", 9000, "rgba\(18,50,74,0\)"/.test(ramp) &&
-          /-8000, "rgba\(8,18,38,0\.62\)"/.test(ramp) && !/#[0-9A-F]{6}/i.test(ramp) && /colourOpacity: 1,/.test(block));
-    check("…matte shading weighted to one low north-west light: shadows up to 0.6, lights at most 0.18, both layers lighter at world view; fog at the horizon",
-          /"rgba\(10,14,14,0\.6\)"/.test(block) && !/"rgba\(10,14,14,0\.(6[1-9]|[7-9])/.test(block) && /"rgba\(238,238,230,0\.18\)"/.test(block) &&
-          !/"rgba\(238,238,230,0\.(19|[2-9])/.test(block) &&
-          /"hillshade-illumination-altitude": \[30, 28, 30, 50\]/.test(block) &&
-          /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 2, 0\.8, 5, 1, 8, 0\.9, 12, 0\.7, 16, 0\.45\]/.test(block) &&
-          /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 2, 0\.4, 5, 0\.35, 8, 0\]/.test(block) &&
-          /"fog-ground-blend": 0\.97/.test(src));
+    check("…n's colours: deep forest green, olive then brown on high slopes, grey rock never white; slate-navy seas with lighter shelves",
+          ["#0C1724", "#244856", "#27411F", "#344E27", "#4F5A36", "#615B42", "#746D62", "#827B71"].every((c) => block.includes(c)) &&
+          /colourOpacity: \["interpolate", \["linear"\], \["zoom"\], 2, 0\.92, 8, 0\.78, 13, 0\.5\]/.test(block));
+    check("…n's shading: deep green-black shadows at full strength, no second light; fog at the horizon",
+          /"rgba\(8,14,10,0\.9\)"/.test(block) && /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 2, 1, 8, 0\.9, 13, 0\.75\]/.test(block) &&
+          /depth: \{\n\s*"hillshade-method": "standard",\n\s*"hillshade-exaggeration": 0,/.test(block) && /"fog-ground-blend": 0\.97/.test(src));
+
     check("…no drawn water and no close-in multiply",
           !/sat-water/.test(src) && !/closeMultiply/.test(src) &&
           (src.match(/map\.addSource\("osm", Object\.assign\(\{\}, OSM_SOURCE\)\)/g) || []).length === 1);

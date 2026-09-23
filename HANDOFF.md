@@ -5,6 +5,16 @@ touches.
 
 ---
 
+## Patch n's look again, exactly, on Esri (23 September)
+
+The owner asked for patch 0922n to work as it did. The old patch no longer
+applies, so its values are set on today's code: SAT_RELIEF colour, colour
+opacity and shade exactly as n had them, the depth light off, n's imagery
+grade (max 0.82, saturation -0.1, contrast 0.1). The Satellite basemap draws
+Esri's imagery at every zoom (SAT_CLOSE.s2 false), which is what n was made
+on. Kept: Mapterhorn heights, the 3D lift, fog only at the horizon. Replaces
+the plates look (12e356f, 5da7242, 7b7a332).
+
 ## The Satellite basemap after the owner's plates (23 September, latest)
 
 Replaces patch p (7710435), which the owner found cartoonish and over-tinted.
