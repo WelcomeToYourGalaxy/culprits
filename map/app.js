@@ -788,8 +788,8 @@ const BASE_GRADE = {
   // in earth tones (SAT_RELIEF below): the imagery is only a little muted, so
   // the ground keeps its own colour and texture, and the relief's palette and
   // Swiss-style shading are laid over it.
-  satellite: { "raster-brightness-min": 0.0, "raster-brightness-max": 0.82,
-               "raster-saturation": -0.1, "raster-contrast": 0.1,
+  satellite: { "raster-brightness-min": 0.0, "raster-brightness-max": 0.95,
+               "raster-saturation": 0.12, "raster-contrast": 0.12,
                "raster-hue-rotate": 0 },
 };
 let BASEMAP = "atlas";
@@ -811,30 +811,46 @@ let BASEMAP = "atlas";
 //           the depth one layer can, which is what lifts it off the page at
 //           world view. Shadows green-black, lights faint, so no haze.
 const SAT_RELIEF = {
-  // Restored on 23 September at the owner's request: the look of patch
-  // 0922n (after their reference plates) - opaque dark forest green land,
-  // olive then brown on high slopes, grey rock (never white) on the highest
-  // ranges, slate-navy seas with lighter shelves, deep green-black shading.
-  // Kept from later rounds: Mapterhorn heights, the zoom-scaled 3D lift, fog
-  // only at the horizon. The second (depth) light n did not have is off.
+  // 23 September: a replica of patch 0922o's look (its colours unchanged),
+  // with the owner's edits to it:
+  //   grain       o's second (depth) light and its full-strength shadows read
+  //               rocky and grainy: the depth light is lighter and gone by
+  //               zoom 11, the main shadows at most 0.8, imagery contrast 0.12.
+  //   sheen       o's pale lights on the slopes read as a reflection: warm
+  //               lights at most 0.12.
+  //   rounded     the depth light smoothed the coarse heights into rounded
+  //               forms close in; it no longer reaches there, and the heights
+  //               come from Mapterhorn's finer squares.
+  //   plastic     o thinned its tint close in (0.55 at zoom 14), so the land
+  //               went back to the plain photograph; the tint and shading now
+  //               stay close in, the shading easing a little.
+  //   overcast    brighter imagery (max 0.95, saturation +0.12) and a slightly
+  //               lighter tint at the world view.
+  //   fog         kept at the horizon only (DEFENCE.sky).
   colour: ["interpolate", ["linear"], ["elevation"],
-    -8000, "#0C1724", -4000, "#11202F", -1000, "#172B3C", -200, "#1C3747", -30, "#244856", 0, "#2F4C34",
-    1, "#27411F", 250, "#2C4722", 700, "#344E27", 1300, "#3F552E", 1900, "#4F5A36",
-    2500, "#615B42", 3200, "#716856", 4200, "#746D62", 5500, "#827B71"],
-  colourOpacity: ["interpolate", ["linear"], ["zoom"], 2, 0.92, 8, 0.78, 13, 0.5],
+    -8000, "rgba(10,20,32,0.85)", -3000, "rgba(14,28,42,0.8)", -500, "rgba(22,42,58,0.7)",
+    -60, "rgba(30,60,72,0.5)", 0, "rgba(30,60,72,0.35)",
+    1, "rgba(28,48,26,0.34)", 400, "rgba(34,54,30,0.34)", 1200, "rgba(48,62,38,0.3)",
+    2200, "rgba(78,72,56,0.3)", 3500, "rgba(96,90,80,0.32)", 5500, "rgba(110,104,96,0.35)"],
+  colourOpacity: ["interpolate", ["linear"], ["zoom"], 2, 0.85, 8, 1, 12, 0.95, 16, 0.85],
   shade: {
     "hillshade-method": "multidirectional",
     "hillshade-illumination-direction": [270, 315, 0, 225],
     "hillshade-illumination-altitude": [30, 35, 30, 50],
-    "hillshade-highlight-color": ["rgba(226,230,212,0.14)", "rgba(226,230,212,0.3)", "rgba(226,230,212,0.12)", "rgba(226,230,212,0.04)"],
-    "hillshade-shadow-color": ["rgba(8,14,10,0.55)", "rgba(8,14,10,0.9)", "rgba(8,14,10,0.55)", "rgba(8,14,10,0.25)"],
-    "hillshade-accent-color": "#0E1610",
-    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 1, 8, 0.9, 13, 0.75],
+    "hillshade-highlight-color": ["rgba(246,240,220,0.06)", "rgba(246,240,220,0.12)", "rgba(246,240,220,0.05)", "rgba(246,240,220,0)"],
+    "hillshade-shadow-color": ["rgba(6,12,8,0.5)", "rgba(6,12,8,0.8)", "rgba(6,12,8,0.5)", "rgba(6,12,8,0.25)"],
+    "hillshade-accent-color": "rgba(11,19,13,0.6)",
+    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 1, 8, 0.95, 12, 0.75, 15, 0.6],
     "hillshade-illumination-anchor": "map",
   },
   depth: {
     "hillshade-method": "standard",
-    "hillshade-exaggeration": 0,
+    "hillshade-illumination-direction": 315,
+    "hillshade-illumination-anchor": "map",
+    "hillshade-highlight-color": "rgba(246,240,220,0)",
+    "hillshade-shadow-color": "rgba(6,12,8,0.6)",
+    "hillshade-accent-color": "rgba(6,12,8,0.25)",
+    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 0.8, 6, 0.5, 9, 0.2, 11, 0],
   },
   // With 3D terrain on, the ground is raised more the further out you are,
   // so ranges still stand up from a continent's height; 1.4 close in.

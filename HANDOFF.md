@@ -5,6 +5,18 @@ touches.
 
 ---
 
+## The Satellite basemap as patch o, with the owner's edits (23 September)
+
+Replaces patch n's look (af60123), which the owner found entirely different
+from what they wanted. `SAT_RELIEF.colour` is patch o's, unchanged. Edits,
+each for a complaint the owner made about o: the depth light lighter and gone
+by zoom 11 (grain, rounded slopes); main shadows at most 0.8 (grain); warm
+lights at most 0.12 (sheen); colour opacity 0.85 at zoom 2, 1 at 8, 0.95 at 12,
+0.85 at 16 (o thinned to 0.55 at 14, which read as the plain photograph);
+main shading 1 to 0.6 at 15; imagery max 0.95, saturation +0.12, contrast
+0.12 (overcast, grain). Kept: Mapterhorn heights, the zoom-scaled 3D lift,
+fog only at the horizon, thin atmosphere, no grain.
+
 ## The Satellite basemap back to patch n's look (23 September)
 
 At the owner's request, patch 0922n's look (never applied; it no longer fit

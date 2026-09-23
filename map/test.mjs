@@ -1363,21 +1363,22 @@ console.log("\nreading the map");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   const wireSrc = fs.readFileSync(path.join(HERE, "wire.js"), "utf8");
-  // Restored 23 September: the look of patch 0922n, after the owner's reference plates.
-  check("the Satellite basemap has patch n's look: darker imagery under opaque forest-green relief and deep shading; the atlas keeps its own grade",
-        /satellite: \{ "raster-brightness-min": 0\.0, "raster-brightness-max": 0\.82,\n\s*"raster-saturation": -0\.1, "raster-contrast": 0\.1/.test(src) &&
+  // 23 September: patch o's look (its colours), with the owner's edits.
+  check("the Satellite basemap is patch o's look: imagery under a see-through relief tint and two layers of shading; the atlas keeps its own grade",
+        /satellite: \{ "raster-brightness-min": 0\.0, "raster-brightness-max": 0\.95,\n\s*"raster-saturation": 0\.12, "raster-contrast": 0\.12/.test(src) &&
         /atlas: \{ "raster-brightness-min": ATLAS_TUNE\.lift/.test(src) &&
         /id: "sat-relief-colour", type: "color-relief", source: "outline-dem"/.test(src) &&
         /id: "sat-relief-shade", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF\.shade/.test(src) &&
-        /"hillshade-method": "multidirectional"/.test(src));
+        /id: "sat-relief-depth", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF\.depth/.test(src));
   {
     const block = src.slice(src.indexOf("const SAT_RELIEF = {"), src.indexOf("\n};", src.indexOf("const SAT_RELIEF = {")));
-    check("…land deep forest green, olive then brown on high slopes, grey rock never white; slate-navy seas with lighter shelves",
-          ["#0C1724", "#244856", "#27411F", "#344E27", "#4F5A36", "#615B42", "#746D62", "#827B71"].every((c) => block.includes(c)) &&
-          /colourOpacity: \["interpolate", \["linear"\], \["zoom"\], 2, 0\.92, 8, 0\.78, 13, 0\.5\]/.test(block));
-    check("…deep green-black shadows at full strength; the second light n did not have is off",
-          /"rgba\(8,14,10,0\.9\)"/.test(block) && /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 2, 1, 8, 0\.9, 13, 0\.75\]/.test(block) &&
-          /depth: \{\n\s*"hillshade-method": "standard",\n\s*"hillshade-exaggeration": 0,/.test(block));
+    check("…o's colours unchanged: see-through dark green land, grey-brown heights, slate seas",
+          ['"rgba(10,20,32,0.85)"', '"rgba(28,48,26,0.34)"', '"rgba(48,62,38,0.3)"', '"rgba(110,104,96,0.35)"'].every((c) => block.includes(c)));
+    check("…the edits: faint warm lights, softer shadows, the depth light gone by 11, the tint kept close in and a touch lighter wide out",
+          !/"rgba\(2\d\d,2\d\d,2\d\d,0\.[2-9]/.test(block) && /"rgba\(6,12,8,0\.8\)"/.test(block) && !/0\.95\)"/.test(block) &&
+          /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 2, 0\.8, 6, 0\.5, 9, 0\.2, 11, 0\]/.test(block) &&
+          /colourOpacity: \["interpolate", \["linear"\], \["zoom"\], 2, 0\.85, 8, 1, 12, 0\.95, 16, 0\.85\]/.test(block) &&
+          /"fog-ground-blend": 0\.97/.test(src));
     check("…the drawn relief reads its heights from Mapterhorn's 512-pixel squares, stopping at zoom 12, and the outline map shares them",
           /tiles: \["https:\/\/tiles\.mapterhorn\.com\/\{z\}\/\{x\}\/\{y\}\.webp"\],\n\s*encoding: "terrarium", tileSize: 512, maxzoom: 12,/.test(src) &&
           (src.match(/map\.addSource\("outline-dem", Object\.assign\(\{\}, RELIEF_SOURCE\)\)/g) || []).length === 2 &&
