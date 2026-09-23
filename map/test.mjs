@@ -1367,7 +1367,7 @@ console.log("\nreading the map");
   // 23 September, after the owner's paleo-map plates: natural ground colour,
   // a see-through terrain palette, Swiss-style shading, a calm sea.
   check("the Satellite basemap is sunlit imagery under a see-through terrain palette, Swiss shading and a calm sea; the atlas keeps its own grade",
-        /satellite: \{ "raster-brightness-min": 0\.02, "raster-brightness-max": 0\.92,\n\s*"raster-saturation": -0\.06, "raster-contrast": 0\.06/.test(src) &&
+        /satellite: \{ "raster-brightness-min": 0\.02, "raster-brightness-max": 0\.9,\n\s*"raster-saturation": 0\.3, "raster-contrast": 0\.16/.test(src) &&
         /atlas: \{ "raster-brightness-min": ATLAS_TUNE\.lift/.test(src) &&
         /id: "sat-relief-colour", type: "color-relief", source: "outline-dem"/.test(src) &&
         /id: "sat-relief-shade", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF\.shade/.test(src) &&
@@ -1379,6 +1379,8 @@ console.log("\nreading the map");
     const stops = (key, end) => [...block.slice(block.indexOf(key + ":"), block.indexOf(end)).matchAll(/(-?\d+), "rgba\((\d+),(\d+),(\d+),([\d.]+)\)"/g)]
       .map((m) => ({ h: +m[1], r: +m[2], g: +m[3], b: +m[4], a: +m[5] }));
     const colour = stops("colour", "colourOpacity"), land = colour.filter((c) => c.h > 0);
+    check("…darker jungle green on the lowlands and warm browns up high, with no grey stop: every stop from 1000 m up has red well above blue, the lowest green far above both",
+          land.filter((c) => c.h >= 1000).every((c) => c.r > c.b + 10) && land[0].g >= 2.5 * land[0].b && land[0].g >= 2.5 * land[0].r);
     check("…the land palette is see-through (at most a third) earth tones: green lowlands, then olive, khaki, ochre-brown, sienna and grey-brown rock; no white, no yellow",
           land.length >= 8 && land.every((c) => c.a <= 0.34 && Math.max(c.r, c.g, c.b) <= 140) &&
           land[0].g > land[0].r && land[0].g > land[0].b && land.slice(3, 6).every((c) => c.r > c.g && c.g > c.b) &&
@@ -1390,7 +1392,7 @@ console.log("\nreading the map");
           stops("sea", "shade").filter((c) => c.h <= -3000).every((c) => c.a >= 0.5));
     check("…Swiss shading weighted to the north-west, faint lights (no sheen), and tint, shading and depth the same at every zoom",
           /"hillshade-illumination-direction": \[315, 270, 0, 225\]/.test(block) &&
-          [...block.matchAll(/rgba\(240,236,222,([\d.]+)\)/g)].every((m) => +m[1] <= 0.1) &&
+          (() => { const l = [...block.matchAll(/rgba\(222,228,200,([\d.]+)\)/g)]; return l.length >= 5 && l.every((m) => +m[1] <= 0.1); })() &&
           /"hillshade-exaggeration": 0\.9,/.test(block) && /"hillshade-exaggeration": 0\.3,/.test(block) &&
           /colourOpacity: 1,/.test(block) && !/\["zoom"\]/.test(block.slice(0, block.indexOf("ridge:"))) &&
           /"fog-ground-blend": 0\.97/.test(src));
@@ -1398,7 +1400,7 @@ console.log("\nreading the map");
           /id: "sat-relief-ridge", type: "hillshade", source: "outline-dem", maxzoom: 7, paint: SAT_RELIEF\.ridge \}, before\);\n\s*map\.addLayer\(\{ id: "sat-relief-ridge2", type: "hillshade", source: "outline-dem", maxzoom: 7, paint: SAT_RELIEF\.ridge \}, before\);\n\s*map\.addLayer\(\{ id: "sat-relief-colour"/.test(src) &&
           /show\("sat-relief-ridge", kind === "satellite"\);\n\s*show\("sat-relief-ridge2", kind === "satellite"\);/.test(src) &&
           /"hillshade-shadow-color": \["interpolate", \["linear"\], \["zoom"\], 3, "rgba\(14,18,10,1\)", 7, "rgba\(14,18,10,0\)"\]/.test(block) &&
-          /"hillshade-highlight-color": \["interpolate", \["linear"\], \["zoom"\], 3, "rgba\(236,232,216,0\.34\)", 7, "rgba\(236,232,216,0\)"\]/.test(block));
+          /"hillshade-highlight-color": \["interpolate", \["linear"\], \["zoom"\], 3, "rgba\(214,222,190,0\.3\)", 7, "rgba\(214,222,190,0\)"\]/.test(block));
     check("…no drawn water",
           !/sat-water/.test(src) && !/closeMultiply/.test(src) &&
           (src.match(/map\.addSource\("osm", Object\.assign\(\{\}, OSM_SOURCE\)\)/g) || []).length === 1);
@@ -3267,6 +3269,13 @@ console.log("\nround of 23 September (2): the wastewater model from its data pac
   check("the build keeps every point at every zoom, weighs each archive by its own measure, and works out the unit rather than guessing it",
         /"-r1"/.test(py) && /"--no-feature-limit", "--no-tile-size-limit"/.test(py) && /value=p\.get\(field\)/.test(py) && /def unit_of\(total\)/.test(py) &&
         /fits no unit/.test(py) && /not in longitude and latitude/.test(py));
+}
+console.log("\nround of 23 September (3): the wastewater points' projection; Waste Atlas looked at");
+{
+  const py = fs.readFileSync(path.join(HERE, "..", "pipeline", "wastewater_build.py"), "utf8");
+  check("points not in longitude and latitude are turned from Mollweide only if every one lies inside its world ellipse",
+        /def mollweide_inverse\(x, y\):/.test(py) && /\(x \/ \(2 \* SQ2 \* A\)\) \*\* 2 \+ \(y \/ \(SQ2 \* A\)\) \*\* 2 > 1/.test(py) && /A = 6378137\.0/.test(py));
+  check("the Waste Atlas probe exists and only reads", fs.existsSync(path.join(HERE, "..", "pipeline", "wasteatlas_probe.py")));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

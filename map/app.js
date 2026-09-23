@@ -802,8 +802,8 @@ const BASE_GRADE = {
   // in earth tones (SAT_RELIEF below): the imagery is only a little muted, so
   // the ground keeps its own colour and texture, and the relief's palette and
   // Swiss-style shading are laid over it.
-  satellite: { "raster-brightness-min": 0.02, "raster-brightness-max": 0.92,
-               "raster-saturation": -0.06, "raster-contrast": 0.06,
+  satellite: { "raster-brightness-min": 0.02, "raster-brightness-max": 0.9,
+               "raster-saturation": 0.3, "raster-contrast": 0.16,
                "raster-hue-rotate": 0 },
 };
 let BASEMAP = "atlas";
@@ -826,6 +826,12 @@ let BASEMAP = "atlas";
 //           olive-black shadows, the pale lights kept faint (strong lights read
 //           as a sheen on the slopes), and a second, lighter north-west light
 //           for depth.
+// 23 September, later: the owner found the world view bland beside the plates
+// (darker jungle greens, no grey, a little more colour). The photograph now
+// carries more colour (saturation +0.3, contrast +0.16), which deepens forests
+// while deserts stay tan; the lowland tint is a darker jungle green and lighter
+// than before, since a heavy green sheet greyed the deserts; the high ground
+// runs to warm brown, not grey; and the pale lights are a sage off-white.
 // Every one of these is the same at every zoom (23 September, the owner's
 // request), so zooming in never hands over to plain imagery. The heights stop
 // at zoom 12; past it the shading is the same, only smoother. The seas take
@@ -835,9 +841,9 @@ const SAT_RELIEF = {
   colour: ["interpolate", ["linear"], ["elevation"],
     -8000, "rgba(10,17,44,0.92)", -4000, "rgba(12,20,50,0.9)", -2000, "rgba(18,30,60,0.86)",
     -500, "rgba(20,40,70,0.86)", -150, "rgba(24,62,86,0.8)", -30, "rgba(30,84,102,0.7)", 0, "rgba(34,96,110,0.5)",
-    1, "rgba(30,60,26,0.32)", 400, "rgba(34,62,28,0.3)", 1000, "rgba(62,76,40,0.28)",
-    1700, "rgba(108,100,66,0.26)", 2500, "rgba(118,90,60,0.3)", 3300, "rgba(110,80,62,0.32)",
-    4300, "rgba(102,92,84,0.3)", 5500, "rgba(132,128,122,0.2)"],
+    1, "rgba(14,42,10,0.3)", 400, "rgba(18,46,12,0.28)", 1000, "rgba(44,62,22,0.26)",
+    1700, "rgba(102,92,54,0.3)", 2500, "rgba(112,82,50,0.32)", 3300, "rgba(106,72,50,0.34)",
+    4300, "rgba(96,76,60,0.32)", 5500, "rgba(118,102,88,0.24)"],
   // The same at every zoom (23 September, at the owner's request).
   colourOpacity: 1,
   sea: ["interpolate", ["linear"], ["elevation"],
@@ -847,7 +853,7 @@ const SAT_RELIEF = {
     "hillshade-method": "multidirectional",
     "hillshade-illumination-direction": [315, 270, 0, 225],
     "hillshade-illumination-altitude": [40, 35, 35, 50],
-    "hillshade-highlight-color": ["rgba(240,236,222,0.1)", "rgba(240,236,222,0.04)", "rgba(240,236,222,0.04)", "rgba(240,236,222,0.02)"],
+    "hillshade-highlight-color": ["rgba(222,228,200,0.1)", "rgba(222,228,200,0.04)", "rgba(222,228,200,0.04)", "rgba(222,228,200,0.02)"],
     "hillshade-shadow-color": ["rgba(18,24,14,0.78)", "rgba(18,24,14,0.42)", "rgba(18,24,14,0.42)", "rgba(18,24,14,0.2)"],
     "hillshade-accent-color": "rgba(18,24,14,0.3)",
     "hillshade-exaggeration": 0.9,
@@ -857,7 +863,7 @@ const SAT_RELIEF = {
     "hillshade-method": "standard",
     "hillshade-illumination-direction": 315,
     "hillshade-illumination-anchor": "map",
-    "hillshade-highlight-color": "rgba(240,236,222,0.04)",
+    "hillshade-highlight-color": "rgba(222,228,200,0.04)",
     "hillshade-shadow-color": "rgba(12,18,10,0.55)",
     "hillshade-accent-color": "rgba(12,18,10,0)",
     "hillshade-exaggeration": 0.3,
@@ -877,7 +883,7 @@ const SAT_RELIEF = {
     "hillshade-illumination-direction": 315,
     "hillshade-illumination-altitude": 30,
     "hillshade-illumination-anchor": "map",
-    "hillshade-highlight-color": ["interpolate", ["linear"], ["zoom"], 3, "rgba(236,232,216,0.34)", 7, "rgba(236,232,216,0)"],
+    "hillshade-highlight-color": ["interpolate", ["linear"], ["zoom"], 3, "rgba(214,222,190,0.3)", 7, "rgba(214,222,190,0)"],
     "hillshade-shadow-color": ["interpolate", ["linear"], ["zoom"], 3, "rgba(14,18,10,1)", 7, "rgba(14,18,10,0)"],
     "hillshade-accent-color": ["interpolate", ["linear"], ["zoom"], 3, "rgba(14,18,10,0.5)", 7, "rgba(14,18,10,0)"],
     "hillshade-exaggeration": 1,

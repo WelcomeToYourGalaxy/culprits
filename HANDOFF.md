@@ -5,7 +5,17 @@ touches.
 
 ---
 
-## The Satellite basemap: pronounced relief at world scale (23 September, latest)
+## The Satellite basemap: darker jungle green, no grey (23 September, latest)
+
+On top of patch_0923_ridge. The owner found the world view bland beside the
+End-Cretaceous plate (darker jungle greens, less or no grey, a little more
+saturated). Grade: max 0.9, saturation +0.3, contrast +0.16. Lowland tint
+#0E2A0A at 0.3 (a heavier green sheet greyed the deserts), high stops warm
+brown in place of grey, every pale light a sage off-white (222,228,200; ridge
+214,222,190). Preview (Blue Marble stand-in): Amazon median #223F11 against
+the plate's jungle #2C4416; Sahara stays tan.
+
+## The Satellite basemap: pronounced relief at world scale (23 September)
 
 On top of patch_0923_even. The owner found the world view flat next to the
 plates, whose relief is pronounced on purpose. Two new hillshades,
@@ -742,6 +752,15 @@ treated, total). No projection file is included.
   `wastewater` picture row is in `PANEL_REMOVED` (its server is gone) and no
   longer under Methane.
 - Not built yet: the plume GeoTIFFs and the watershed shapes.
+- **Projection** (the owner's first run stopped, as it should): the points are
+  not in longitude and latitude, and there is no .prj. Their extent (x to
+  +-17.9 million m, y -6.8 to 8.8 million m) is wider than Robinson, Eckert IV
+  or Equal Earth allow and fits Mollweide (ESRI:54009, radius 6378137), the
+  projection of the ocean-impact maps the model feeds. The build now tests it:
+  every point must fall inside the Mollweide world ellipse, or it stops. The
+  extent's corners come back at latitude 83.6 N and 59.5 S, coasts that exist.
+- **Waste Atlas** (item 44): `pipeline/wasteatlas_probe.py` lists the page's
+  scripts and the data addresses in them, for the reader to be written from.
 
 ## Round of 23 September: one row per air pollutant; the wastewater package found
 
