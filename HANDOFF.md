@@ -5,6 +5,19 @@ touches.
 
 ---
 
+## The Satellite basemap back to patch n's look (23 September)
+
+At the owner's request, patch 0922n's look (never applied; it no longer fit
+the code) put onto the current code: `SAT_RELIEF.colour` opaque dark forest
+green land (#27411F), olive then brown on high slopes, grey rock never white
+(#827B71 at 5,500 m), slate-navy seas (#0C1724) with lighter shelves
+(#244856); colour opacity 0.92 wide, 0.78 at zoom 8, 0.5 at 13; multidirectional
+shading at full exaggeration with green-black shadows up to 0.9; imagery max
+0.82, saturation -0.1, contrast 0.1. Replaces the fifth version (3ca3e57,
+o's look with matte mountains). Kept from later rounds: Mapterhorn heights,
+the zoom-scaled 3D lift, fog only at the horizon, thin atmosphere. The depth
+layer stays in place with exaggeration 0 (n had no second light).
+
 ## What this is
 
 `WelcomeToYourGalaxy/culprits` — a MapLibre map merging datasets on who is

@@ -788,8 +788,8 @@ const BASE_GRADE = {
   // in earth tones (SAT_RELIEF below): the imagery is only a little muted, so
   // the ground keeps its own colour and texture, and the relief's palette and
   // Swiss-style shading are laid over it.
-  satellite: { "raster-brightness-min": 0.0, "raster-brightness-max": 0.93,
-               "raster-saturation": 0.12, "raster-contrast": 0.18,
+  satellite: { "raster-brightness-min": 0.0, "raster-brightness-max": 0.82,
+               "raster-saturation": -0.1, "raster-contrast": 0.1,
                "raster-hue-rotate": 0 },
 };
 let BASEMAP = "atlas";
@@ -811,53 +811,30 @@ let BASEMAP = "atlas";
 //           the depth one layer can, which is what lifts it off the page at
 //           world view. Shadows green-black, lights faint, so no haze.
 const SAT_RELIEF = {
-  // Fifth version, 22 September, latest. Back to the third version's look
-  // (patch o), which the owner found almost right, with two fixes:
-  //   mountains  they read sleek, flat and plastic. Four causes: pale lights
-  //              on the sunlit slopes (a gloss); a second light using the
-  //              legacy "standard" method, which models every range as one
-  //              smooth rounded form; a flat grey-brown coat of tint over the
-  //              high ground, hiding the photograph's own rock, scree and
-  //              snow; and 3D terrain raised 7 times at world view, which
-  //              stretches coarse heights into smooth, melted-looking walls.
-  //              So: lights faint and warm, shadows short of black; the
-  //              second light is now "combined" (darker the steeper the
-  //              ground, whatever the light), which cuts gullies and ridges
-  //              into the slopes instead of rounding them; the tint thins as
-  //              the ground rises, so the rock shows through; the 3D raise is
-  //              4.5 at world view; and the shading eases past zoom 12, where
-  //              the heights run out and are only enlarged.
-  //   world view less overcast: the sea veil lighter and bluer, the tint and
-  //              both shadings lighter at the widest zooms, the imagery a
-  //              little brighter and richer, the atmosphere thinner.
+  // Restored on 23 September at the owner's request: the look of patch
+  // 0922n (after their reference plates) - opaque dark forest green land,
+  // olive then brown on high slopes, grey rock (never white) on the highest
+  // ranges, slate-navy seas with lighter shelves, deep green-black shading.
+  // Kept from later rounds: Mapterhorn heights, the zoom-scaled 3D lift, fog
+  // only at the horizon. The second (depth) light n did not have is off.
   colour: ["interpolate", ["linear"], ["elevation"],
-    -8000, "rgba(10,26,44,0.72)", -3000, "rgba(14,34,54,0.66)", -500, "rgba(22,48,66,0.56)",
-    -60, "rgba(30,62,76,0.42)", 0, "rgba(30,62,76,0.3)",
-    1, "rgba(28,48,26,0.34)", 400, "rgba(34,54,30,0.34)", 1200, "rgba(46,60,36,0.26)",
-    2200, "rgba(70,66,52,0.18)", 3500, "rgba(84,80,72,0.12)", 5500, "rgba(96,92,86,0.08)"],
-  colourOpacity: ["interpolate", ["linear"], ["zoom"], 2, 0.8, 5, 0.95, 10, 0.8, 14, 0.55],
-  // Light from four directions, weighted to the north-west (Swiss style):
-  // green-black shadows, faint warm light on the lit faces.
+    -8000, "#0C1724", -4000, "#11202F", -1000, "#172B3C", -200, "#1C3747", -30, "#244856", 0, "#2F4C34",
+    1, "#27411F", 250, "#2C4722", 700, "#344E27", 1300, "#3F552E", 1900, "#4F5A36",
+    2500, "#615B42", 3200, "#716856", 4200, "#746D62", 5500, "#827B71"],
+  colourOpacity: ["interpolate", ["linear"], ["zoom"], 2, 0.92, 8, 0.78, 13, 0.5],
   shade: {
     "hillshade-method": "multidirectional",
     "hillshade-illumination-direction": [270, 315, 0, 225],
     "hillshade-illumination-altitude": [30, 35, 30, 50],
-    "hillshade-highlight-color": ["rgba(214,206,180,0.06)", "rgba(214,206,180,0.12)", "rgba(214,206,180,0.05)", "rgba(214,206,180,0)"],
-    "hillshade-shadow-color": ["rgba(6,12,8,0.55)", "rgba(6,12,8,0.8)", "rgba(6,12,8,0.55)", "rgba(6,12,8,0.25)"],
-    "hillshade-accent-color": "rgba(11,19,13,0.5)",
-    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 0.85, 5, 0.95, 8, 0.95, 12, 0.8, 14, 0.5, 16, 0.3],
+    "hillshade-highlight-color": ["rgba(226,230,212,0.14)", "rgba(226,230,212,0.3)", "rgba(226,230,212,0.12)", "rgba(226,230,212,0.04)"],
+    "hillshade-shadow-color": ["rgba(8,14,10,0.55)", "rgba(8,14,10,0.9)", "rgba(8,14,10,0.55)", "rgba(8,14,10,0.25)"],
+    "hillshade-accent-color": "#0E1610",
+    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 1, 8, 0.9, 13, 0.75],
     "hillshade-illumination-anchor": "map",
   },
-  // The second light: slope shading, darker the steeper the ground. It gives
-  // the ranges their ridges and gullies rather than a smooth rounded sheen.
   depth: {
-    "hillshade-method": "combined",
-    "hillshade-illumination-direction": 315,
-    "hillshade-illumination-anchor": "map",
-    "hillshade-highlight-color": "rgba(214,206,180,0)",
-    "hillshade-shadow-color": "rgba(6,12,8,0.6)",
-    "hillshade-accent-color": "rgba(6,12,8,0.3)",
-    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 0.75, 8, 0.6, 12, 0.35, 14, 0.15],
+    "hillshade-method": "standard",
+    "hillshade-exaggeration": 0,
   },
   // With 3D terrain on, the ground is raised more the further out you are,
   // so ranges still stand up from a continent's height; 1.4 close in.
