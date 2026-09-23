@@ -788,8 +788,8 @@ const BASE_GRADE = {
   // in earth tones (SAT_RELIEF below): the imagery is only a little muted, so
   // the ground keeps its own colour and texture, and the relief's palette and
   // Swiss-style shading are laid over it.
-  satellite: { "raster-brightness-min": 0.02, "raster-brightness-max": 0.95,
-               "raster-saturation": 0.12, "raster-contrast": 0.14,
+  satellite: { "raster-brightness-min": 0.0, "raster-brightness-max": 0.93,
+               "raster-saturation": 0.12, "raster-contrast": 0.18,
                "raster-hue-rotate": 0 },
 };
 let BASEMAP = "atlas";
@@ -811,74 +811,62 @@ let BASEMAP = "atlas";
 //           the depth one layer can, which is what lifts it off the page at
 //           world view. Shadows green-black, lights faint, so no haze.
 const SAT_RELIEF = {
-  // Fourth version, 22 September, late. The owner wants the drawn tint and
-  // shading kept at every zoom (the softened version dropped them close in
-  // and lost the look), without the flat, glossy, plastic sheen up close, and
-  // a sunlit rather than overcast world view, still prehistoric.
-  //   sunlit    brighter, livelier imagery; the land tint a lusher green and
-  //             the sea a clearer deep blue, instead of darkening veils.
-  //   no sheen  what read as plastic was the pale lights on the slopes, and
-  //             the second (depth) light smoothing everything into rounded
-  //             forms close in, where the elevation data is coarser than the
-  //             photograph. So: faint warm lights only, and the depth light
-  //             kept for the wide views and gone by zoom 11. The main shading
-  //             and the tint stay at every zoom, easing a little close in.
+  // Fifth version, 22 September, latest. Back to the third version's look
+  // (patch o), which the owner found almost right, with two fixes:
+  //   mountains  they read sleek, flat and plastic. Four causes: pale lights
+  //              on the sunlit slopes (a gloss); a second light using the
+  //              legacy "standard" method, which models every range as one
+  //              smooth rounded form; a flat grey-brown coat of tint over the
+  //              high ground, hiding the photograph's own rock, scree and
+  //              snow; and 3D terrain raised 7 times at world view, which
+  //              stretches coarse heights into smooth, melted-looking walls.
+  //              So: lights faint and warm, shadows short of black; the
+  //              second light is now "combined" (darker the steeper the
+  //              ground, whatever the light), which cuts gullies and ridges
+  //              into the slopes instead of rounding them; the tint thins as
+  //              the ground rises, so the rock shows through; the 3D raise is
+  //              4.5 at world view; and the shading eases past zoom 12, where
+  //              the heights run out and are only enlarged.
+  //   world view less overcast: the sea veil lighter and bluer, the tint and
+  //              both shadings lighter at the widest zooms, the imagery a
+  //              little brighter and richer, the atmosphere thinner.
   colour: ["interpolate", ["linear"], ["elevation"],
-    -8000, "rgba(8,30,56,0.8)", -3000, "rgba(10,38,66,0.75)", -500, "rgba(18,58,84,0.6)",
-    -60, "rgba(26,84,100,0.42)", 0, "rgba(26,84,100,0.3)",
-    1, "rgba(40,86,34,0.46)", 400, "rgba(46,90,38,0.46)", 1200, "rgba(62,92,46,0.42)",
-    2200, "rgba(96,86,62,0.38)", 3500, "rgba(112,104,92,0.38)", 5500, "rgba(124,118,108,0.4)"],
-  // Held nearly full at every zoom (22 September, night): eased to 0.7 close
-  // in, the tint over gentle ground was too faint to see, and most of the
-  // map read as the plain photograph; only steep ground showed the theme.
-  // Lighter at the world view, where the green lay too heavy over whole
-  // continents; full from zoom 8 in, where it carries the look.
-  // Thinned close in (23 September): at 0.9 the veil was a flat sheet of one
-  // colour over about two-fifths of the photograph, which is what flattened
-  // every tree, rock and rapid into the plastic look. From zoom 11 the theme's
-  // green comes instead from SAT_CLOSE's multiply (see atlasWashPasses),
-  // which darkens and greens the photograph without covering its texture.
-  colourOpacity: ["interpolate", ["linear"], ["zoom"], 2, 0.5, 5, 0.72, 8, 0.95, 11, 0.95, 14, 0.4, 16, 0.3],
+    -8000, "rgba(10,26,44,0.72)", -3000, "rgba(14,34,54,0.66)", -500, "rgba(22,48,66,0.56)",
+    -60, "rgba(30,62,76,0.42)", 0, "rgba(30,62,76,0.3)",
+    1, "rgba(28,48,26,0.34)", 400, "rgba(34,54,30,0.34)", 1200, "rgba(46,60,36,0.26)",
+    2200, "rgba(70,66,52,0.18)", 3500, "rgba(84,80,72,0.12)", 5500, "rgba(96,92,86,0.08)"],
+  colourOpacity: ["interpolate", ["linear"], ["zoom"], 2, 0.8, 5, 0.95, 10, 0.8, 14, 0.55],
   // Light from four directions, weighted to the north-west (Swiss style):
-  // green-black shadows, faint warm sunlight on the lit faces.
+  // green-black shadows, faint warm light on the lit faces.
   shade: {
     "hillshade-method": "multidirectional",
     "hillshade-illumination-direction": [270, 315, 0, 225],
-    "hillshade-illumination-altitude": [32, 38, 32, 52],
-    "hillshade-highlight-color": ["rgba(252,244,220,0.08)", "rgba(252,244,220,0.14)", "rgba(252,244,220,0.06)", "rgba(252,244,220,0)"],
-    "hillshade-shadow-color": ["rgba(8,14,10,0.5)", "rgba(8,14,10,0.8)", "rgba(8,14,10,0.5)", "rgba(8,14,10,0.25)"],
-    "hillshade-accent-color": "rgba(11,19,13,0.6)",
-    // Eased past zoom 12, where Mapterhorn's heights end and are only
-    // enlarged: shading drawn from them is smoother than the photograph and
-    // rounds its slopes into a sheet. The photograph's own shadows take over.
-    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 1, 8, 0.9, 12, 0.7, 14, 0.35, 16, 0.15],
+    "hillshade-illumination-altitude": [30, 35, 30, 50],
+    "hillshade-highlight-color": ["rgba(214,206,180,0.06)", "rgba(214,206,180,0.12)", "rgba(214,206,180,0.05)", "rgba(214,206,180,0)"],
+    "hillshade-shadow-color": ["rgba(6,12,8,0.55)", "rgba(6,12,8,0.8)", "rgba(6,12,8,0.55)", "rgba(6,12,8,0.25)"],
+    "hillshade-accent-color": "rgba(11,19,13,0.5)",
+    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 0.85, 5, 0.95, 8, 0.95, 12, 0.8, 14, 0.5, 16, 0.3],
     "hillshade-illumination-anchor": "map",
   },
-  // A second, low north-west light for depth wide out; gone by zoom 11, where
-  // it was what rounded and smoothed the slopes into a sheet.
+  // The second light: slope shading, darker the steeper the ground. It gives
+  // the ranges their ridges and gullies rather than a smooth rounded sheen.
   depth: {
-    "hillshade-method": "standard",
+    "hillshade-method": "combined",
     "hillshade-illumination-direction": 315,
     "hillshade-illumination-anchor": "map",
-    "hillshade-highlight-color": "rgba(252,244,220,0)",
-    "hillshade-shadow-color": "rgba(8,14,10,0.7)",
-    "hillshade-accent-color": "rgba(8,14,10,0.3)",
-    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 0.85, 6, 0.55, 9, 0.2, 11, 0],
+    "hillshade-highlight-color": "rgba(214,206,180,0)",
+    "hillshade-shadow-color": "rgba(6,12,8,0.6)",
+    "hillshade-accent-color": "rgba(6,12,8,0.3)",
+    "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 2, 0.75, 8, 0.6, 12, 0.35, 14, 0.15],
   },
   // With 3D terrain on, the ground is raised more the further out you are,
   // so ranges still stand up from a continent's height; 1.4 close in.
-  lift: [[3, 7], [6, 4], [9, 2.4], [12, 1.4]],
+  lift: [[3, 4.5], [6, 3], [9, 2], [12, 1.4]],
 };
 
-// The Satellite basemap close in (23 September). What gives a landscape its
-// character up close (single tree crowns, rock with its own shadow, white
-// water in a river) is in the photograph, so nothing is laid over it as a
-// sheet. The theme's deep green comes from a multiply instead: every pixel is
-// scaled, so light and dark within a tree crown keep their ratio and the
-// texture stays. Off to zoom 10, full from 14, as the tint above thins.
+// The Satellite basemap's imagery (23 September). Its close-in multiply was
+// taken out with the return to the third version's look (patch 0922o2).
 const SAT_CLOSE = {
-  multiply: [0.80, 0.93, 0.80],
-  from: 10, to: 14,
   // Two photographs, so one season all the way in. Esri's World Imagery is a
   // different photograph at different zooms; around zoom 12 it is often a
   // leaf-off or dry-season one, so zooming in went green, brown, green. Out to
@@ -927,12 +915,8 @@ function hexRgb(h) {
 // arithmetic can be tested without a GPU.
 // The Satellite basemap takes none of the atlas's sea, green and warm washes:
 // its colour comes from the relief (SAT_RELIEF), which the washes would tint.
-// Close in it takes one multiply of its own (SAT_CLOSE).
 function atlasWashPasses(z) {
-  if (BASEMAP === "satellite") {
-    const k = Math.min(1, Math.max(0, (z - SAT_CLOSE.from) / (SAT_CLOSE.to - SAT_CLOSE.from)));
-    return k > 0 ? [{ mode: "multiply", rgb: SAT_CLOSE.multiply.map((c) => 1 - k * (1 - c)) }] : [];
-  }
+  if (BASEMAP === "satellite") return [];
   const { t, sea } = atlasWashRamp(z);
   const passes = [];
   const aSea = ATLAS_TUNE.sea * sea;
@@ -2053,7 +2037,7 @@ const DEFENCE = {
   sky: { "sky-color": "#14171A", "horizon-color": "#4A5058", "fog-color": "rgba(74,80,88,0.6)",
          "fog-ground-blend": 0.97, "horizon-fog-blend": 0.25, "sky-horizon-blend": 0.35,
          // Thin: a full atmosphere laid a pale haze over the relief.
-         "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.35, 3, 0.15, 5, 0] },
+         "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.2, 3, 0.08, 5, 0] },
   guard: ["gsn"],
   maxPulsing: 16,
 };

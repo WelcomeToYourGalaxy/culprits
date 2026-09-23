@@ -1335,21 +1335,16 @@ console.log("\nthe wires on the map");
 }
 
 
-// The Satellite basemap close in (23 September): a multiply, not a sheet, and
-// one season of imagery all the way in.
+// The Satellite basemap close in: one season of imagery all the way in, and
+// (patch 0922o2) no close-in multiply, as in the third version's look.
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const chunk = src.slice(src.indexOf("const ATLAS_TUNE"), src.indexOf("const atlasWashes"));
   const f = new Function("abs", chunk + "\nreturn { SAT_CLOSE, atlasWashPasses, setB: (k) => { BASEMAP = k; } };")(() => "");
   f.setB("satellite");
   const at = (z) => f.atlasWashPasses(z);
-  check("Satellite close in: no wash out to zoom 10, one multiply from there, full at 14",
-        at(4).length === 0 && at(10).length === 0 && at(12).length === 1 && at(12)[0].mode === "multiply" &&
-        JSON.stringify(at(14)[0].rgb) === JSON.stringify(f.SAT_CLOSE.multiply) &&
-        JSON.stringify(at(18)[0].rgb) === JSON.stringify(f.SAT_CLOSE.multiply));
-  check("…the multiply only darkens, never past 0.75 on any channel, and greens (green kept most)",
-        [11, 12, 13, 14, 17].every((z) => at(z)[0].rgb.every((c) => c <= 1 && c >= 0.75)) &&
-        f.SAT_CLOSE.multiply[1] > f.SAT_CLOSE.multiply[0] && f.SAT_CLOSE.multiply[1] > f.SAT_CLOSE.multiply[2]);
+  check("Satellite: no wash at any zoom",
+        [4, 10, 12, 14, 18].every((z) => at(z).length === 0) && !("multiply" in f.SAT_CLOSE));
   check("…Sentinel-2 cloudless 2024 out to 13.25, Esri's photo fading in from 12.5, the atlas keeps its own imagery layer",
         /tiles: \["https:\/\/tiles\.maps\.eox\.at\/wmts\/1\.0\.0\/s2cloudless-2024_3857\/default\/g\/\{z\}\/\{y\}\/\{x\}\.jpg"\]/.test(src) &&
         /Contains modified Copernicus Sentinel data 2024/.test(src) &&
@@ -1371,7 +1366,7 @@ console.log("\nreading the map");
   // Third version, 22 September: the imagery carries the colour; the relief
   // tints it and stacks two layers of shading, so the world view is not flat.
   check("the Satellite basemap is richer imagery under a see-through relief tint and two layers of shading; the atlas keeps its own grade",
-        /satellite: \{ "raster-brightness-min": 0\.02, "raster-brightness-max": 0\.95,\n\s*"raster-saturation": 0\.12/.test(src) &&
+        /satellite: \{ "raster-brightness-min": 0\.0, "raster-brightness-max": 0\.93,\n\s*"raster-saturation": 0\.12, "raster-contrast": 0\.18/.test(src) &&
         /atlas: \{ "raster-brightness-min": ATLAS_TUNE\.lift/.test(src) &&
         /id: "sat-relief-colour", type: "color-relief", source: "outline-dem"/.test(src) &&
         /id: "sat-relief-shade", type: "hillshade", source: "outline-dem", paint: SAT_RELIEF\.shade/.test(src) &&
@@ -1384,19 +1379,22 @@ console.log("\nreading the map");
     check("\u2026the land tint is see-through (the imagery's own deserts, forests and ice show), lush green to grey-brown, never white",
           alphas.length >= 10 && alphas.every((m) => Math.max(+m[1], +m[2], +m[3]) <= 130) &&
           alphas.filter((m, i) => i >= 5).every((m) => +m[4] <= 0.5));
-    // Fourth version: the owner wants the tint and shading kept close in, without the sheen.
-    check("…the tint is full from 8 to 11 and thins close in; the shading eases past zoom 12; the depth light is gone by 11; faint warm lights only; fog only at the horizon",
-        /colourOpacity: \["interpolate", \["linear"\], \["zoom"\], 2, 0\.5, 5, 0\.72, 8, 0\.95, 11, 0\.95, 14, 0\.4, 16, 0\.3\]/.test(src) &&
-        /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 2, 1, 8, 0\.9, 12, 0\.7, 14, 0\.35, 16, 0\.15\]/.test(src) &&
-        /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 2, 0\.85, 6, 0\.55, 9, 0\.2, 11, 0\]/.test(src) &&
-        /"rgba\(252,244,220,0\.14\)"/.test(src) && !/"rgba\(2\d\d,2\d\d,2\d\d,0\.[3-9]/.test(block) &&
+    // Fifth version: the third version's look, without the plastic mountains or the overcast world view.
+    check("…mountains: the tint thins as the ground rises, faint warm lights only, slope shading (not the legacy method) as the second light",
+        alphas.slice(8).every((m, i, a) => i === 0 || +m[4] < +a[i - 1][4]) && +alphas[alphas.length - 1][4] <= 0.1 &&
+        !/"rgba\(2\d\d,2\d\d,2\d\d,0\.[2-9]/.test(block) &&
+        /depth: \{\n\s*"hillshade-method": "combined"/.test(block) && !/"hillshade-method": "standard"/.test(block) &&
+        /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 2, 0\.85, 5, 0\.95, 8, 0\.95, 12, 0\.8, 14, 0\.5, 16, 0\.3\]/.test(block));
+    check("…world view less overcast: tint and shading lighter at zoom 2, thin atmosphere, fog only at the horizon",
+        /colourOpacity: \["interpolate", \["linear"\], \["zoom"\], 2, 0\.8, 5, 0\.95, 10, 0\.8, 14, 0\.55\]/.test(block) &&
+        /"atmosphere-blend": \["interpolate", \["linear"\], \["zoom"\], 0, 0\.2, 3, 0\.08, 5, 0\]/.test(src) &&
         /"fog-ground-blend": 0\.97/.test(src));
     check("…the drawn relief reads its heights from Mapterhorn's 512-pixel squares, stopping at zoom 12, and the outline map shares them",
           /tiles: \["https:\/\/tiles\.mapterhorn\.com\/\{z\}\/\{x\}\/\{y\}\.webp"\],\n\s*encoding: "terrarium", tileSize: 512, maxzoom: 12,/.test(src) &&
           (src.match(/map\.addSource\("outline-dem", Object\.assign\(\{\}, RELIEF_SOURCE\)\)/g) || []).length === 2 &&
           !/addSource\("outline-dem", Object\.assign\(\{\}, TERRAIN_SOURCE\)\)/.test(src));
   check("\u2026with 3D terrain on, the ground is raised more the further out you are, and set again only when the step changes",
-          /lift: \[\[3, 7\], \[6, 4\], \[9, 2\.4\], \[12, 1\.4\]\]/.test(block) && /map\.on\("zoomend", liftTerrain\)/.test(src) &&
+          /lift: \[\[3, 4\.5\], \[6, 3\], \[9, 2\], \[12, 1\.4\]\]/.test(block) && /map\.on\("zoomend", liftTerrain\)/.test(src) &&
           /if \(v === liftNow\) return;/.test(src) && /if \(BASEMAP !== "satellite"\) return TERRAIN_EXAGGERATION;/.test(src));
   }
   check("\u2026grey labels, the glow's fixed grain over it, and the atlas's tuning knob leaves it alone",

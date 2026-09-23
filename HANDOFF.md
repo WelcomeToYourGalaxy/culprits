@@ -405,6 +405,24 @@ reference picture shows close in - fuzzy canopy, textured rock, rapids - is
 illustration; the map shows the photograph's own texture untouched from
 zoom 14, and the tree options (canopy or 3D models) are still to decide.
 
+## The Satellite relief, fifth version: back to o, mountains matte, world view clearer (22 September, latest)
+
+The owner went back to patch o's look as almost right, with two faults: the
+mountains read sleek, flat and plastic, and the world view overcast. Built on
+main, so the non-look fixes since o stay (Mapterhorn heights, Sentinel-2 out to
+13.25, fog only at the horizon, USDA rows out, uMap copy). The look values in
+`SAT_RELIEF` go back to o's, the close-in multiply (`SAT_CLOSE.multiply`) is
+taken out, and then:
+- Mountains: lights faint and warm (alpha 0.12 at most), shadows 0.8 at most;
+  `sat-relief-depth` uses `"combined"` (slope shading) instead of the legacy
+  `"standard"`, which rounds ranges into one smooth form; the tint thins from
+  0.26 at 1,200 m to 0.08 at 5,500 m so rock and snow show; the 3D raise is
+  4.5 at zoom 3 (was 7); shading eases past zoom 12 where the heights end.
+- World view: sea veil lighter and bluer, tint opacity 0.8 at zoom 2, main
+  shade 0.85 and depth 0.75 there, imagery max 0.93 and saturation +0.12,
+  atmosphere 0.2 at zoom 0.
+Not previewed: the sandbox cannot reach the elevation or imagery servers.
+
 ## The Satellite relief, third version: imagery forward, stacked shading, 3D lift (22 September, latest)
 
 Replaces the earth-tone hypsometry of patch l (and the unapplied m and n).
