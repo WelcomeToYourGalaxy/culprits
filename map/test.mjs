@@ -3179,5 +3179,15 @@ console.log("\nround of 22 September (5): what check-sources found");
   check("Trase's facilities are read from the weekly copy where one was made, and say NOT LIVE",
         /base = hit\.base \|\| m\.base \|\| base;/.test(src) && /trase_silos_brazil: "Trase's facilities file, from a copy made weekly/.test(src));
 }
+console.log("\nround of 22 September (6): the second check");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const o = new Function(body + "; return { PANEL_ORDER, PANEL_REMOVED };")();
+  check("USDA's retired explorers are out of the box", !o.PANEL_ORDER.includes("usda_soybean") && !o.PANEL_ORDER.includes("usda_corn") &&
+        o.PANEL_REMOVED.has("usda_soybean") && o.PANEL_REMOVED.has("usda_corn"));
+  check("a uMap layer is read from the daily copy first, and the row says NOT LIVE",
+        /culprits-tiles-more\/umap\/\$\{cfg\.umapId\}\/\$\{id\}\.geojson/.test(src) && /wreckers_umap: "The map's settings are read live/.test(src));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

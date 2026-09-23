@@ -105,6 +105,9 @@ for (const u of ["https://gis.ipad.fas.usda.gov/arcgis/rest/services?f=json", "h
       console.log(`    ${m[2]} | id ${m[1] || "-"} | ${size} bytes | ${url}`);
     }
   }
+  for (const q of ['id:"doi:10.5063/F76B09"', 'documents:"doi:10.5063/F76B09" OR isDocumentedBy:"doi:10.5063/F76B09"']) {
+    await ask(`(26) KNB index: ${q}`, `https://knb.ecoinformatics.org/knb/d1/mn/v2/query/solr/?q=${encodeURIComponent(q)}&fl=id,fileName,size,resourceMap,documents&rows=50&wt=json`, { show: 3000 });
+  }
   await ask("(26) the package's list of files", "https://knb.ecoinformatics.org/knb/d1/mn/v2/query/solr/?q=resourceMap:%22resource_map_doi:10.5063/F76B09%22&fl=identifier,fileName,size&rows=50&wt=json", { show: 2500 });
 }
 

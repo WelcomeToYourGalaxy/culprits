@@ -486,6 +486,26 @@ owner's request, so a land-cover layer that no other rule claims gets no row
 and is counted in the console (`LEFT_OUT`). Agriculture > Moratoriums from the
 list was not made: Nusantara has one moratorium layer and it is a forest one.
 
+## Round of 22 September (6): the second check
+
+- **USDA's explorers are gone.** ipad.fas.usda.gov now answers 503 with a page
+  titled "IPAD retired": per USDA guidance the site is no longer public, and
+  gis.ipad.fas.usda.gov does not connect at all. `usda_soybean` and
+  `usda_corn` are in `PANEL_REMOVED` (their configs kept, for the record).
+  Soy and corn are still on the map through MapSPAM (GFW catalogue) and
+  Trase's measures.
+- **Wreckers of the Earth**: every layer comes back as text/html with no CORS
+  header, at the map's own address and without the language part, though the
+  body is the GeoJSON. culprits-tiles-more now has `scripts/umap_copy.py`
+  (run daily by refresh.yml, which runs every script in scripts/), writing
+  `umap/<map>/<layer>.geojson`; `readUmap` tries that copy first. The row is
+  NOT LIVE.
+- **GFW's tile service colours a GeoTIFF when given `colormap`** (a square over
+  the Amazon came back 200, image/png), so the round 5 keys hold.
+- **Wastewater (KNB)**: the package metadata names three zips but gives no
+  addresses; the resource-map query found nothing. The check now asks the
+  index by the package id itself.
+
 ## Round of 22 September (5): what check-sources.mjs found
 
 Read from the owner's run of `map/check-sources.mjs`:

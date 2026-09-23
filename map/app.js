@@ -2959,7 +2959,11 @@ async function readUmap(cfg) {
   for (const dl of layers) {
     const id = typeof dl === "object" ? (dl.id || dl.uuid || dl.pk || (dl.settings && dl.settings.id)) : dl;
     let gj = null;
+    // The daily copy first: uMap sends each layer without a CORS header, at
+    // either address, so the browser cannot read it there (checked 22
+    // September). The live addresses stay after it, for the day uMap changes.
     const urls = [
+      `https://welcometoyourgalaxy.github.io/culprits-tiles-more/umap/${cfg.umapId}/${id}.geojson`,
       tpl ? site + tpl.replace("{map_id}", cfg.umapId).replace("{pk}", id).replace("{datalayer_id}", id) : null,
       tpl ? cfg.umap + tpl.replace("{map_id}", cfg.umapId).replace("{pk}", id).replace("{datalayer_id}", id) : null,
       `${cfg.umap}/datalayer/${cfg.umapId}/${id}/`, `${cfg.umap}/datalayer/${id}/`,
@@ -9880,6 +9884,7 @@ const NOT_LIVE = {
   wastewater: "The Global Wastewater Model, from copies kept here; the model is not updated",
   trase_measures: "Trase's values come from a copy made weekly; only the region shapes are read live",
   atlas_cities: "The places are from a copy made weekly; each city's own page is read live",
+  wreckers_umap: "The map's settings are read live from uMap; its places come from a daily copy, since uMap lets no other site read them",
   // Trase's file server sends no CORS header (checked 22 September), so its
   // facilities maps are read from a weekly copy in culprits-tiles-more.
   trase_meat_brazil: "Trase's facilities file, from a copy made weekly (its file server does not let other sites read it)",
@@ -9928,8 +9933,8 @@ const PANEL_ORDER = [
   { h: 4, t: "Carbon dioxide" }, "owid_co2", "gem_coal", "power_plants", "fractracker_refineries", "carbon_plumes", "carbon_bombs", "carbon_majors", "bocc",
   { h: 4, t: "Methane" }, "carbon_plumes", "hydrowaste", "wastewater",
   { h: 4, t: "Nitrous oxide" }, "fertilizer_facilities",
-  { h: 5, t: "Soy" }, "usda_soybean", "trase_silos_brazil",
-  { h: 5, t: "Corn" }, "usda_corn",
+  { h: 5, t: "Soy" }, "trase_silos_brazil",
+  { h: 5, t: "Corn" },
   { h: 5, t: "Grain" }, "site_china_grain",
   { h: 4, t: "F-gases" },
   { h: 4, t: "Black carbon" }, "fractracker_refineries",
@@ -9971,7 +9976,7 @@ const PANEL_ORDER = [
   { h: 3, t: "Meat and agriculture" }, "site_food_system",
   { h: 4, t: "Agriculture" },
   { h: 5, t: "Palm oil" }, "palmwatch", "trase_palm_indonesia",
-  { h: 5, t: "Soy, corn and grain" }, "trase_silos_brazil", "usda_soybean", "usda_corn", "site_china_grain",
+  { h: 5, t: "Soy, corn and grain" }, "trase_silos_brazil", "site_china_grain",
   { h: 5, t: "Cocoa and cotton" }, "trase_cocoa_ivory",
   { h: 5, t: "Farm inputs" }, "fertilizer_facilities",
   { h: 5, t: "Moratoriums" },
@@ -10063,6 +10068,10 @@ const PANEL_REMOVED = new Set([
   "leverage_chart",
   "cultivated_meat_laws",          // taken out 22 September at the owner's request
   "scribd_doc",                    // the Destruction page document, taken out 22 September (round 2)
+  // USDA retired its IPAD site and map servers (the site says so: "no longer
+  // available to the public", checked 22 September); the two explorers can
+  // never draw. Soy and corn are still drawn by MapSPAM's rows and Trase's.
+  "usda_soybean", "usda_corn",
   // Taken out 19 Sept: near duplicates, a background map mistaken for data, rows
   // merged into another, and pages asked to be removed.
   "site_cartel_cells", "site_export_credit_shading", "giga_schools", "nsf_locations",
