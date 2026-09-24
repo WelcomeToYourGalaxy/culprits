@@ -5,6 +5,98 @@ touches.
 
 ---
 
+## Where things stand (24 September, after round 25): read this first
+
+Every request the owner has made up to round 25 is done and on main (round 25
+is 249ad38). Nothing is half-built. What is left falls in three groups. The
+fuller notes are in "Could not get, could not add, or needs the owner" near
+the end of this file.
+
+**Waiting on the owner (nothing to do until they say)**
+
+- **EIA Environmental Crime Tracker.** The owner has asked EIA for the full
+  dataset (EIA's report says it is "available on request"). Until it comes,
+  the map shows the report as the row `powerbi_report`. When the data
+  arrives, draw it as points.
+- **Aquaculture pond clusters: the licence.** The layer is built and on the
+  map (`aquaculture_ponds`, 79 of 79 cluster files). The data is Zenodo record
+  5643036, "Global Landside Clustering of Aquaculture Ponds Distribution
+  Acquired from Dense Time-Series Sentinel-2 Images by Google Earth Engine"
+  (https://zenodo.org/records/5643036). Its paper (Wang et al. 2022, Int. J.
+  Applied Earth Observation and Geoinformation 115, 103100,
+  https://doi.org/10.1016/j.jag.2022.103100) is open under CC BY 4.0, but that
+  covers the article. The paper's own data statement says "Data will be made
+  available on request", and the Zenodo record gives no licence, so the data's
+  terms are not stated. The owner has been given the two corresponding
+  authors to ask: X. Yang (yangxm@lreis.ac.cn) and Y. Zhang
+  (yuanzhizhang@cuhk.edu.hk). Keeping the row or hiding it until they answer
+  is the owner's call; whatever they decide, keep the credit and the Zenodo
+  link on the row.
+- **Wageningen driver classes.** The "Drivers of deforestation alerts" layer
+  (`wur_integration_alert_drivers_class`) shows Class 1 to 11 with no names:
+  no public source pairs the numbers with names. Pages given to the owner to
+  check: GFW's blog
+  https://globalnaturewatch.org/blog/data-and-tools/drivers-deforestation-alerts/,
+  the Wageningen paper
+  https://research.wur.nl/en/publications/monitoring-direct-drivers-of-small-scale-tropical-forest-disturba/
+  (https://www.sciencedirect.com/science/article/pii/S0034425723002067), Land &
+  Carbon Lab
+  https://landcarbonlab.org/data/land-disturbance-alert-classification-system/,
+  Mongabay
+  https://news.mongabay.com/2025/12/real-time-deforestation-alerts-get-an-ai-boost-to-identify-the-causes/
+  (it names small-scale agriculture, large-scale agriculture, road
+  construction, mining and wildfires, without numbers). Put the names in only
+  from a source that gives number and name together.
+- **Wastewater watershed shapes** (103 MB): not built until the owner says so.
+
+**Worth a look on the live map**
+
+- **JRC surface water and GLC_FCS30D land cover** (round 23): not tried in a
+  browser. Their servers may refuse to be read from another site (CORS). If
+  either row says it could not be read, host a copy: JRC's tiles through
+  culprits-tiles-more or R2; GLC_FCS30D cut to web tiles on R2 (the world
+  file is tens of GB, too big for GitHub).
+- **Global Forest Watch layers made on request** (1996 mangroves, reservoir
+  anomalies, PANGAEA mines, the water-stress test copy): GFW builds each
+  square when asked, so they fill in slowly, slowest at the world view. If
+  that is too slow, build the 1996 mangroves as our own tiles from Global
+  Mangrove Watch v3 on Zenodo.
+- **Round 25's news-wire changes** were tried in headless Chromium, not on the
+  live site: several topics ticked at once, grouped under each subject, and the
+  popup labels on one line.
+
+**Known limits (nothing to do unless the owner asks)**
+
+- Ten Atlas for the End of the World plates could not be pinned (Cape
+  Floristic Region, East Melanesian Islands, Madagascar, Mountains of
+  Southwest China, New Caledonia, New Zealand, Philippines, Southwest
+  Australia, Succulent Karoo, Wallacea); they zoom to their outline instead.
+- Three Nusantara layers keep their server's own titles: nobody could vouch
+  for what they show.
+- Three older GFW driver layers stay grey: GFW draws them itself, and two have
+  no finished tiles.
+- Trase's burned peatland and burned area have no values for any year; those
+  rows leave the list when ticked.
+- No worldwide map separates plantations, mining, transmigration and fish
+  ponds as Indonesia's ministry map does (that map is under Destruction > Of
+  the planet > Forest and land cover, "Forest cover 2020, Indonesia's own").
+  GLC_FCS30D is the finest worldwide land cover (35 classes at 30 m).
+- cifor_peatlands and gfwpro_peatlands were taken out: GFW has nothing
+  drawable for either.
+- USDA retired its soybean and corn explorers; those rows were removed.
+- Waste Atlas figures are as the site last published them (about 2016).
+- Workflow files (`.github/workflows`) have to be edited on github.com: the
+  owner's Mac token cannot push them.
+- The satellite basemap and index.html are also edited in another chat, so
+  pull before every patch. Changes to the basemap from here are kept to the
+  lowland colour stops.
+
+**How work reaches main.** This sandbox cannot push to either repo. Each round
+is one Python patch script (a checked git diff, plus the HANDOFF text put in
+under the first "---"). The owner runs it from `~/Desktop/culprits` and runs
+`node map/test.mjs` and `node map/wire.test.mjs`, then commits the named files
+and pushes. Terminal steps have no `#` comments (the owner's shell is zsh).
+
 ## Round of 24 September (25): several topics at once; the news popup's labels
 
 **Topics, as many as wanted** (map/wire.js). The Topic row is no longer a
@@ -1087,9 +1179,10 @@ Kept as the rounds go; move a line out when it is settled.
   with no values published for any year; those rows leave the list when
   ticked. Whether Trase's Indonesia region shapes load was not checkable here
   (their file server asks for approval from this sandbox).
-- **Round 23, the aquaculture pond clusters' licence** is not confirmed from
-  here (Zenodo refused the fetch); the build writes the record's licence into
-  `tiles/aquaculture_ponds.build.json` - check it before the row is relied on.
+- **Round 23, the aquaculture pond clusters' licence**: the paper is CC BY
+  4.0, but its data statement says "available on request" and the Zenodo
+  record gives no licence. The owner is asking the authors (see "Where things
+  stand" at the top).
 - **Round 23, cifor_peatlands and gfwpro_peatlands**: Global Forest Watch has
   nothing drawable for either; taken out. CIFOR's tropical wetlands map would
   need building from its own download.
