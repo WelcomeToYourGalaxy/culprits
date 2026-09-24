@@ -3220,7 +3220,12 @@ console.log("\nthe Atlas's own maps, on this map (22 September)");
   check("with no plate, the map zooms to the hotspot's own outline", JSON.stringify(b) === JSON.stringify([[-60, -25], [-40, -10]]));
   const py = fs.readFileSync(path.join(HERE, "..", "pipeline", "atlas_plates.py"), "utf8");
   check("the plates are placed by the towns named on each page, with outliers set aside and the error measured",
-        /def place_page\(labels, width_pt, height_pt, seed=0\):/.test(py) && /TRIES = 4000/.test(py) && /"error_km": round\(rms, 1\)/.test(py) && /MIN_AGREE = 5/.test(py));
+        /def place_page\(labels, width_pt, height_pt, seed=0, bar_km_per_pt=None\):/.test(py) && /TRIES = 4000/.test(py) && /"error_km": round\(rms, 1\)/.test(py) && /MIN_AGREE = 5/.test(py));
+  check("…with one scale and one turn, never a skew or a mirror, and checked against the page's own scale bar (23 September)",
+        /def fit_similarity\(pairs\):/.test(py) && !/def fit_affine\(/.test(py) && /MAX_TURN = 20/.test(py) &&
+        /def read_scale_bar\(page\):/.test(py) && /SCALE_TOLERANCE = 0\.2/.test(py) && /"scale_vs_bar"/.test(py));
+  check("…a page with too few names is placed by its scale bar and at least two agreeing towns, and only countries are set aside",
+        /def place_by_bar\(/.test(py) && /len\(found\[1\]\) < 2/.test(py) && /COUNTRY_RANK = 4/.test(py) && !/MIN_TOWN_RANK/.test(py));
 }
 console.log("\nround of 22 September (5): what check-sources found");
 {

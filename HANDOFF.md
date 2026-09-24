@@ -5,6 +5,33 @@ touches.
 
 ---
 
+## Atlas plates: one scale and one turn, checked against the page's scale bar (23 September, latest)
+
+Measured on the kept plates: the straight-line (affine) fit could skew and
+mirror a page, and six kept plates were skewed 20 to 60 degrees or mirrored
+(California, the Chilean forests, the East African coastal forests, the
+Himalaya, the Philippines, the Caribbean). The fit is now a similarity in web
+mercator (`fit_similarity`: one scale, one turn under `MAX_TURN`, a shift;
+page y runs down). The Atlas's pages are web mercator and their scale bars are
+true at the equator (Auckland to Christchurch 2.5% off, Cape Town to Port
+Elizabeth under 1%, read as mercator metres; 25% and 35% off read as ground
+distance), so `read_scale_bar` gives mercator metres per point and a fit more
+than `SCALE_TOLERANCE` (20%) from it is not kept (`scale_vs_bar`). Where too
+few names agree, `place_by_bar` takes the bar's scale, north up, and the shift
+from at least two agreeing towns (`placed_by` says which). Each label is tried
+at its middle and at each side (`label_boxes`, `near`), since one page sets
+some labels left of their dots and some right. plates2's rank rule is undone:
+it set aside Manila, Cebu and Chengdu, which come back as boundaries; only
+countries (rank 4 or less, or address type country) are set aside now
+(`set_aside_as_countries`). The cache keeps every raw answer with its rank and
+type (`|v3` keys), so a change of rule needs no new requests. Rebuilt from the
+real pages' text positions: New Zealand (Auckland, Christchurch, 83 km on
+7,024 km), the Succulent Karoo (3 towns, 17 km) and Wallacea (Makassar, Palu,
+18 km; the Brunei and Philippines labels land on those countries) place by
+the bar; the Cape, Southwest Australia and Madagascar have one town each, and
+East Melanesia and New Caledonia none, so they stay unplaced. `--show` also
+lists the pictures on a page: the maps did not show up as drawn shapes, so they are most likely one picture; the next run will say.
+
 ## Catalogue rows refiled and taken out by name (23 September, round 20)
 
 In `CATALOGUE_BY_TITLE` (`map/app.js`), at the owner's word. Taken out:
