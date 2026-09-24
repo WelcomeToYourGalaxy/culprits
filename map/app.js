@@ -2079,7 +2079,7 @@ async function addPmtilesLayer(cfg) {
         if (cfg.where) spec.filter = cfg.where;
         map.addLayer(spec, `${cfg.id}-${kind}`);
         cfg._layerIds.push(lid);
-        if (cfg.boxes) bindHtmlPopup(lid, (p) => pieceBox(cfg, p)); else bindPopup(lid);
+        if (cfg.boxes) bindHtmlPopup(lid, (p) => pieceBox(cfg, p)); else bindPopup(lid, owner);
       }
     });
     applyVisibility(cfg.id);
@@ -2095,8 +2095,8 @@ async function addPmtilesLayer(cfg) {
         (b.no_position ? ` \u00b7 ${Number(b.no_position).toLocaleString()} more in the copy have no position and cannot be drawn` : ""));
     }).catch(() => {});
   } else {
-    bindPopup(`${cfg.id}-agg`);
-    bindPopup(`${cfg.id}-pt`);
+    bindPopup(`${cfg.id}-agg`, owner);
+    bindPopup(`${cfg.id}-pt`, owner);
   }
   applyVisibility(cfg.id);
   buildLegend();
@@ -8901,7 +8901,11 @@ function buildLegend() {
 // clicks never do, however fast they come.
 let popupClaimedBy = null;
 
-function bindPopup(layerId) {
+// `source` names the pieces to read a record's every field from
+// (map/data/pieces/<source>/). The tiles themselves no longer carry a source
+// field - build_tiles.sh leaves it out to keep them small - which is why the
+// section never appeared: the popup looked for it on the point.
+function bindPopup(layerId, source) {
   map.on("click", layerId, (e) => {
     const claim = e.originalEvent || e;
     if (popupClaimedBy === claim) return;
@@ -8982,15 +8986,16 @@ function bindPopup(layerId) {
     // (map/data/pieces/<source>/, written by the pipeline beside the tiles).
     // A layer with no pieces - one built before they existed, or one too big
     // for them - shows what the tiles carry and nothing more.
-    if (count === 1 && p.source && p.id != null && !noPieces.has(p.source)) {
-      readPiece(`data/pieces/${p.source}`, p.id).then((piece) => {
+    const from = source || p.source;
+    if (count === 1 && from && p.id != null && !noPieces.has(from)) {
+      readPiece(`data/pieces/${from}`, p.id).then((piece) => {
         const raw = piece && piece[String(p.id)];
         if (!raw || typeof raw !== "object") return;
         const rows = Object.entries(raw).filter(([, v]) => v !== null && v !== "" && !(Array.isArray(v) && !v.length))
           .map(([k, v]) => `<tr><th style="text-align:left;padding-right:8px;vertical-align:top">${escapeHtml(k.replace(/_/g, " "))}</th>` +
             `<td>${escapeHtml(typeof v === "object" ? JSON.stringify(v) : String(v))}</td></tr>`).join("");
         if (rows && popup.isOpen()) popup.setHTML(html + `<div class="meta"><b>Every field the source publishes</b><table>${rows}</table></div>`);
-      }).catch(() => noPieces.add(p.source));
+      }).catch(() => noPieces.add(from));
     }
   });
   map.on("mouseenter", layerId, () => (map.getCanvas().style.cursor = "pointer"));

@@ -2774,8 +2774,8 @@ console.log("\nNusantara's layers say what they show");
       check("every harvester hands its whole source row on, and the pipeline files it in pieces beside the tiles",
             harv.every((h) => /"raw": [a-z]+,\n\s*"extra": \{/.test(h)) && /def write_pieces\(raws, pieces_dir\)/.test(norm) &&
             /pieces_dir=f"map\/data\/pieces\/\{args\.source\}"/.test(norm) && /PIECES_SKIP = \{"climate_trace"\}/.test(norm));
-      check("\u2026and a click shows every field from the record's piece, found by the same hash the pipeline used",
-            /readPiece\(`data\/pieces\/\$\{p\.source\}`, p\.id\)/.test(src) && /Every field the source publishes/.test(src) &&
+      check("\u2026and a click shows every field from the record's piece, found by the same hash the pipeline used, the pieces named by the layer since the tiles carry no source field",
+            /readPiece\(`data\/pieces\/\$\{from\}`, p\.id\)/.test(src) && /bindPopup\(`\$\{cfg\.id\}-pt`, owner\)/.test(src) && /Every field the source publishes/.test(src) &&
             /h = \(\(h \^ b\) \* 0x01000193\) & 0xFFFFFFFF/.test(norm));
       const fieldRows = new Function("escapeHtml", src.match(/function fieldRows[\s\S]*?\n}\n/)[0] + "; return fieldRows;")((x) => String(x));
       check("\u2026and a value JSON cannot write (a set, a date) is written plainly rather than stopping the harvest",
