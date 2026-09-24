@@ -5,6 +5,22 @@ touches.
 
 ---
 
+## Round 27 (24 September): the eleven driver classes named
+
+- `wur_integration_alert_drivers_class` now shows names, not Class 1 to 11.
+  Pairing: GFW's map legend (Global Nature Watch, layer
+  `drivers-of-deforestation-alert`) gives each name a colour; GFW's map code
+  (wri/gfw, providers/datasets-provider/config.js, `alertDriversEncoded`)
+  paints each number in one of those colours. Ten match exactly; class 3 is
+  (244,177,131) in the code, (244,176,131) in the legend. Result: 1 Small-scale
+  agriculture, 2 the same with fire, 3 Large-scale agriculture, 4 the same with
+  fire, 5 Road development, 6 Selective logging, 7 Mining, 8 Flooding,
+  9 Wildfire, 10 Other natural disturbances, 11 Unlabeled. 9 and 10 are the
+  reverse of the legend's order.
+- Each name's hover text is GFW's own card description (Flourish 25392464,
+  embedded in GFW's blog post on the dataset). Colours stay the map's own.
+
+
 ## Round 26 (24 September): names, hologram, flat-map drag with 3D
 
 - Place names box now hides the basemap's names too. Those are one picture

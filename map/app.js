@@ -5627,8 +5627,6 @@ const GFW_KEYS = {
     [20000, 30000, "#9E7A86", "Low confidence"],
     [30000, 40000, "#D9B8BF", "High confidence"]],
     source: "the first digit of each pixel is its confidence" },
-  // Eleven classes; Global Forest Watch's record gives no name for each number,
-  // so the key names them by number rather than guessing which is which.
   // Round 23: two GeoTIFFs of numbers that drew grey and black (item 9). Pixels
   // of 0 or with no value are left out, so only mangroves and trees are drawn.
   jpl_mangrove_aboveground_biomass_stock_2000: { ranges: [
@@ -5644,11 +5642,39 @@ const GFW_KEYS = {
     [50, 75, "#6F805F", "50 to 75%"],
     [75, 101, "#8E9E7C", "75 to 100%"]],
     source: "share of each 30 m square under trees, 2010 (Hansen et al., University of Maryland)" },
+  // Names from Global Forest Watch's own map (24 September, round 27). Its
+  // legend lists the eleven drivers, each with a colour; its website code
+  // (wri/gfw, providers/datasets-provider/config.js, alertDriversEncoded)
+  // paints each class number in one of those colours. Ten match exactly; class 3
+  // is (244, 177, 131) in the code and (244, 176, 131) in the legend, one step
+  // apart and nearest to nothing else. So 9 is Wildfire and 10 Other natural
+  // disturbance, the reverse of the legend's order. The notes are GFW's own
+  // card texts (Flourish 25392464, on its blog post about the dataset). The
+  // colours here are the map's own, muted; GFW's include yellows and oranges.
   wur_integration_alert_drivers_class: { values: [
-    [1, "#8C5A4E", "Class 1"], [2, "#6F5A7A", "Class 2"], [3, "#6E8058", "Class 3"], [4, "#4F6E6A", "Class 4"],
-    [5, "#B0707C", "Class 5"], [6, "#A9A39A", "Class 6"], [7, "#5E6D8A", "Class 7"], [8, "#7A6A5C", "Class 8"],
-    [9, "#5C7A73", "Class 9"], [10, "#8A7486", "Class 10"], [11, "#6A6258", "Class 11"]],
-    source: "the record names no driver for each number; the kinds GFW describes include small- and large-scale agriculture, roads, mining and wildfire" },
+    [1, "#8C5A4E", "Small-scale agriculture",
+      "Clearings smaller than 2 ha, commonly related to shifting cultivation (temporary clearing for cultivation with later regrowth) or smallholder farming. In smallholder landscapes with mixed disturbances, this may include artisanal logging and fuelwood collection (typically burned for cooking)."],
+    [2, "#6F5A7A", "Small-scale agriculture with fire",
+      "Clearings for small-scale agriculture (see above) where fire was likely used for the clearing"],
+    [3, "#6E8058", "Large-scale agriculture",
+      "Clearings larger than 2 ha for the establishment crops or pastures, commonly related to industrial agriculture (e.g. production of soy, palm oil, beef, etc.), clearcuts, and large-scale clearings for land speculation"],
+    [4, "#4F6E6A", "Large-scale agriculture with fire",
+      "Clearings for large-scale agriculture (see above) where fire was likely used for the clearing"],
+    [5, "#B0707C", "Road development",
+      "Clearings for the establishment of roads, commonly related to facilitating industrial timber harvests, but can include roads for any purpose"],
+    [6, "#A9A39A", "Selective logging",
+      "Small-scale disturbances caused by selective tree felling and skidding (paths where felled logs are dragged or transported), commonly related to industrial timber harvests"],
+    [7, "#5E6D8A", "Mining",
+      "Forest clearing to facilitate artisanal and industrial mineral extraction"],
+    [8, "#7A6A5C", "Flooding",
+      "Disturbances or clearings caused by floodings and meandering rivers. This includes both natural and human-induced flooding"],
+    [9, "#5C7A73", "Wildfire",
+      "Large-scale disturbances due to fire, without immediate land clearing for agricultural activity. This includes both human-induced and naturally induced fires. This class excludes controlled fires used for agricultural clearing, but includes escaped wildfires caused by controlled fires."],
+    [10, "#8A7486", "Other natural disturbances",
+      "Disturbances or clearings without visible human-induced cause. This includes windthrows, droughts, landslides and naturally dying trees"],
+    [11, "#6A6258", "Unlabeled",
+      "Pixels where a confidence threshold for a prediction is not reached"]],
+    source: "names from Global Forest Watch's map legend, matched to each number by the colour GFW's own map code gives it; hover a name for GFW's description" },
 };
 const hexRgba = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)).concat(255);
 // The colour instruction the tile service takes (titiler's colormap).
@@ -5661,7 +5687,9 @@ const CATALOGUE_KEYS = new Map();
 function catalogueKeyHtml(k) {
   return (k.values || k.ranges).map((e) => {
     const [c, label] = k.values ? [e[1], e[2]] : [e[2], e[3]];
-    return `<div class="lg-row lg-sub" style="padding-left:18px"><span class="lg-sw lg-key" style="background:${c}"></span>` +
+    // A fourth entry on a value is the publisher's own description of it.
+    const note = k.values && e[3] ? ` title="${escapeHtml(e[3])}"` : "";
+    return `<div class="lg-row lg-sub" style="padding-left:18px"${note}><span class="lg-sw lg-key" style="background:${c}"></span>` +
       `<span class="lg-nm">${escapeHtml(label)}</span></div>`;
   }).join("");
 }

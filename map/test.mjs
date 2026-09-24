@@ -3256,7 +3256,13 @@ console.log("\nround of 22 September (5): what check-sources found");
         d.values[6][2] === "Other natural disturbances");
   check("\u2026and the tile service is told one colour per code", JSON.stringify(k.gfwColormap(d)["1"]) === JSON.stringify([140, 90, 78, 255]));
   check("DIST-ALERT is coloured by its confidence digit, as ranges", JSON.stringify(k.gfwColormap(k.GFW_KEYS.umd_glad_dist_alerts)[0][0]) === "[20000,30000]");
-  check("the WUR classes are keyed by number, not given guessed names", k.GFW_KEYS.wur_integration_alert_drivers_class.values.every((v) => /^Class \d+$/.test(v[2])));
+  {
+    const w = k.GFW_KEYS.wur_integration_alert_drivers_class.values;
+    check("the WUR classes carry GFW's names, paired by the colour its map code gives each number (9 Wildfire, 10 Other natural disturbances)",
+      w.length === 11 && w[0][2] === "Small-scale agriculture" && w[8][2] === "Wildfire" && w[9][2] === "Other natural disturbances" &&
+      w[10][2] === "Unlabeled" && w.every((v) => typeof v[3] === "string" && v[3].length > 20));
+    check("the WUR key's colours stay the map's own, none of GFW's yellows or oranges", !w.some((v) => /^#(FFD966|FF8C42|F4B183|CE4D1E|FF0000)$/i.test(v[1])));
+  }
   const all = Object.values(k.GFW_KEYS).flatMap((x) => (x.values || x.ranges).map((e) => x.values ? e[1] : e[2]));
   check("no key colour is orange or yellow", all.every((h) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); return !(r > 150 && g > 110 && b < 90); }));
   check("a keyed picture's key is under its row and indented in the Showing box",
