@@ -4940,7 +4940,7 @@ const BUNDLES = {
   ponds: "Pond aquaculture in the tropics, 1999, 2014 and 2018 (Clark Labs)",
   mangroves: "Mangroves in 1996, 2016 and 2020 (Global Mangrove Watch)",
   waterwatch: "Reservoirs above or below their usual water area (Global Water Watch)",
-  forest: "Forest and tree cover in 2010 and 2020, worldwide and the tropics",
+  forest: "Forest and tree cover in 2000, 2010 and 2020, worldwide and the tropics",
   plans: "Spatial plans, forest estate and the clearing moratorium, Indonesia",
 };
 const IN = (path, key) => `${path} > ${BUNDLES[key]}`;
@@ -5051,8 +5051,23 @@ const CATALOGUE_BY_TITLE = [
   [/\bpangaea_global_mining\b|\bgfw_mining_concessions\b|\bIDN_Mining_2023\b|\bconcessionmining_spv\b/, [IN(P + " > Mining", "mines")]],
   [/\bgmw_global_mangrove_extent(_1996|_2016)?\b/, [IN(P + " > Oceans > Reefs and mangroves", "mangroves")]],
   [/\bglobal_water_watch_anomalies2?\b/, [IN(P + " > Surface water", "waterwatch")]],
-  [/\bjrc_global_forest_cover\b|\bumd_tree_cover_density_2010\b|\bwri_tropical_tree_cover(_extent)?\b/, [IN(P + " > Forest and land cover", "forest")]],
+  [/\bjrc_global_forest_cover\b|\bumd_tree_cover_density_20(00|10)\b|\bwri_tropical_tree_cover(_extent)?\b/, [IN(P + " > Forest and land cover", "forest")]],
   [/\bidn_forest_moratorium\b|\brtrw_tabanan_2023\b|\b(v3p3_)?spatialplan(forestland|moratorium|rtrwn|rtrwp_papua|rtrwp_papuawest)_spv\b/, [IN(P + " > Deforestation", "plans")]],
+  // Round 24: the rows no rule had placed ("Not yet placed"), each filed by
+  // what it shows. Indonesia's forest area (kawasan hutan) is the forest
+  // estate, beside Nusantara's copy of it in the spatial plans row.
+  [/\bidn_forest_area\b/, [IN(P + " > Deforestation", "plans")]],
+  [/\barg_native_forest_land_plan\b|\bfao_management_objectives\b/, [P + " > Deforestation > Forest zoning and management plans"]],
+  [/\barg_otbn_forest_loss\b|\binpe_\w*prodes\b/, [P + " > Deforestation > Tree cover loss and alerts > Loss year by year"]],
+  [/\bgfw_emerging_hot_spots\b|\bgfw_places_to_watch\b/, [P + " > Deforestation > Tree cover loss and alerts > Where clearing is likely"]],
+  [/\bbirdlife_alliance_for_zero_extinction_sites\b|\bbirdlife_endemic_bird_areas\b/, [P + " > Biodiversity loss > Places that matter most for species"]],
+  [/\bwcs_forest_landscape_integrity_index\b/, [P + " > Biodiversity loss > Intact and primary forests"]],
+  [/\bicf_hnd_forest_type_2013\b|\bjrc_managed_land_(can|usa)\b|\brspo_southeast_asia_land_cover_2010\b|\bsbtn_natural_forests_map\b|\bumd_tree_cover_gain\b|\bumd_tree_cover_height_20\d\d\b|\bwri_trees_in_(mosaic|complex)_landscapes\b/,
+   [P + " > Forest and land cover"]],
+  [/\blandmark_natural_resource_rights\b/, ["Suppression > Of humans > Land and territory"]],
+  [/\bwri_cmr_agro_industrial_zones\b/, [AG + " > Plantations"]],
+  [/\bwri_global_power_plant_database\b/, [P + " > Climate > Carbon dioxide"]],
+  [/\bdtu_wb_wind_speed_potential_2001_2010\b|\bibge_bra_biomes\b/, ["Base and reference > Physical and human geography"]],
   // Moved: the forest net flux from drilling to Deforestation, beside the forest
   // emissions, and kept under carbon dioxide (item 1); the Key Biodiversity
   // Areas out of Surface water, which "freshwater" in its coverage had put it
@@ -11132,6 +11147,7 @@ const PANEL_ORDER = [
   { h: 4, t: "Logging and timber concessions" },
   { h: 4, t: "Timber and rubber plantations" },
   { h: 4, t: "Emissions from forests" },
+  { h: 4, t: "Forest zoning and management plans" },
   { h: 4, t: "Illegal logging and timber trafficking" }, "powerbi_report",
   { h: 4, t: "Tree cover loss and alerts" },
   { h: 5, t: "Loss year by year" }, "glad_loss",
@@ -11719,6 +11735,7 @@ function arrangePanel() {
   readSiteTypeRowsAtStart();
   pinBuildings(box);
   addRowTools(box);
+  layerSearch(box);
   if (!document.getElementById("panel-h-style")) {
     const st = document.createElement("style");
     st.id = "panel-h-style";
@@ -11765,6 +11782,128 @@ function arrangePanel() {
     document.head.appendChild(st);
   }
 }
+/* ---------- searching the layers box (round 24) ---------- */
+// A box above the list: every word typed must begin a word somewhere in a
+// row's title or in the headings, layer-with-sublayers or group it sits under
+// ("mang" finds Mangroves, "palm mills" finds the palm oil mills, "mining"
+// finds everything under Mining). Case and accents do not matter. Rows that
+// match stay, with the headings above them opened; everything else is hidden
+// until the box is cleared, which puts every heading back as it was. Rows that
+// arrive later (the catalogues) are searched as they come.
+function searchWords(text) {
+  return String(text || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+    .split(/[^a-z0-9\u00c0-\uffff]+/).filter(Boolean);
+}
+// Every typed word must be the start of some word of the text. Pure, so it is tested.
+function searchMatches(tokens, words) {
+  return tokens.every((t) => words.some((w) => w.startsWith(t)));
+}
+function rowTitle(label) {
+  const nm = label.querySelector(".nm");
+  if (!nm) return label.textContent;
+  let t = "";
+  for (const n of nm.childNodes) if (n.nodeType === 3) t += n.textContent; else if (n.classList && !n.classList.contains("live") && !n.classList.contains("refresh") && !n.classList.contains("info")) t += " " + n.textContent;
+  return t;
+}
+function rowContext(label, box) {
+  const parts = [];
+  for (let el = label.parentElement; el && el !== box; el = el.parentElement) {
+    if (el.classList && el.classList.contains("toc-sec")) {
+      const t = el.querySelector(".toc-t");
+      if (t) parts.push(t.textContent);
+    }
+    if (el.classList && el.classList.contains("group")) {
+      const nm = el.querySelector(".layer.parent .nm");
+      if (nm) parts.push(nm.textContent);
+    }
+  }
+  return parts.join(" ");
+}
+function applyLayerSearch(box, query) {
+  const tokens = searchWords(query);
+  const rows = [...box.querySelectorAll("label.layer")].filter((l) => !(l.closest && l.closest("[data-removed]")));
+  const secs = [...box.querySelectorAll(".toc-sec")];
+  const kids = [...box.querySelectorAll(".kids")];
+  const clear = () => {
+    box.classList.remove("searching");
+    for (const el of box.querySelectorAll(".search-hide")) el.classList.remove("search-hide");
+    for (const el of [...secs.map((x) => x.querySelector(".toc-body")), ...kids]) {
+      if (el && el.dataset.searchWas != null) {
+        el.hidden = el.dataset.searchWas === "1";
+        delete el.dataset.searchWas;
+        const head = el.previousElementSibling && el.previousElementSibling.querySelector ? el.previousElementSibling.querySelector(".toc-head") : null;
+        if (head) head.setAttribute("aria-expanded", String(!el.hidden));
+      }
+    }
+  };
+  if (!tokens.length) { clear(); return 0; }
+  box.classList.add("searching");
+  let n = 0;
+  const shown = new Set();
+  for (const row of rows) {
+    const ok = searchMatches(tokens, searchWords(rowTitle(row) + " " + rowContext(row, box)));
+    let el = row.nextElementSibling;
+    row.classList.toggle("search-hide", !ok);
+    while (el && el.classList && el.classList.contains("facet")) { el.classList.toggle("search-hide", !ok); el = el.nextElementSibling; }
+    if (!ok) continue;
+    n++;
+    for (let p = row.parentElement; p && p !== box; p = p.parentElement) shown.add(p);
+  }
+  const open = (body) => {
+    if (!body) return;
+    if (body.dataset.searchWas == null) body.dataset.searchWas = body.hidden ? "1" : "0";
+    body.hidden = false;
+  };
+  for (const sec of secs) {
+    const has = shown.has(sec);
+    sec.classList.toggle("search-hide", !has);
+    if (has) {
+      const body = sec.querySelector(".toc-body");
+      open(body);
+      const head = sec.querySelector(".toc-head");
+      if (head) head.setAttribute("aria-expanded", "true");
+    }
+  }
+  for (const k of kids) {
+    const g = k.closest(".group");
+    const has = shown.has(k);
+    if (g) g.classList.toggle("search-hide", !has);
+    if (has) open(k);
+  }
+  for (const note of box.querySelectorAll(".toc-note")) note.classList.toggle("search-hide", true);
+  return n;
+}
+function layerSearch(box) {
+  if (!box || !box.parentElement || typeof document.createElement !== "function" || document.getElementById("layer-search")) return;
+  const wrap = document.createElement("div");
+  wrap.className = "layer-search";
+  wrap.innerHTML = `<input id="layer-search" type="search" placeholder="Search layers \u2014 any word" aria-label="Search the layers" autocomplete="off" spellcheck="false">` +
+    `<span class="ls-n" aria-live="polite"></span>`;
+  box.parentElement.insertBefore(wrap, box);
+  const input = wrap.querySelector("input"), count = wrap.querySelector(".ls-n");
+  let timer = null;
+  const run = () => {
+    const n = applyLayerSearch(box, input.value);
+    count.textContent = input.value.trim() ? (n ? `${n} layer${n === 1 ? "" : "s"}` : "nothing matches") : "";
+  };
+  input.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(run, 120); });
+  input.addEventListener("keydown", (e) => { if (e.key === "Escape") { input.value = ""; run(); } });
+  // Rows the catalogues add after the box is built are searched as they come.
+  if (typeof MutationObserver !== "undefined") {
+    let again = null;
+    new MutationObserver((list) => {
+      if (!input.value.trim() || !list.some((m) => m.addedNodes && m.addedNodes.length)) return;
+      clearTimeout(again);
+      again = setTimeout(run, 300);
+    }).observe(box, { childList: true, subtree: true });
+  }
+  addStyle(".layer-search{display:flex;align-items:center;gap:6px;margin:4px 0 6px}" +
+    ".layer-search input{flex:1;min-width:0;font:inherit;font-size:12px;padding:4px 7px;border-radius:4px;" +
+    "border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.25);color:var(--ink,#e8e2d6)}" +
+    ".layer-search .ls-n{font-size:11px;color:var(--dim);white-space:nowrap}" +
+    "#layers .search-hide{display:none !important}", "layer-search");
+}
+
 // Beside each heading, how many rows are inside it. Counted again whenever rows
 // arrive later - the catalogues' and the site maps' type rows are added after
 // the box is arranged, and four headings that held only such rows (Land held

@@ -3630,5 +3630,26 @@ console.log("\nround of 23 September (23): the owner's thirty notes on the layer
         /e\.target\.dataset\.cat\)\) syncHeadingBoxes\(box\);/.test(src) && /if \(typeof syncHeadingBoxes === "function"\) syncHeadingBoxes\(box\);/.test(src) &&
         Object.keys(B).every((k) => bat(k) > -1));
 }
+console.log("\nround of 24 September: a search box for the layers, and the unplaced rows filed");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const s = new Function(src.match(/function searchWords[\s\S]*?\n}\n/)[0] + src.match(/function searchMatches[\s\S]*?\n}\n/)[0] + "; return { searchWords, searchMatches };")();
+  const m = (q, text) => s.searchMatches(s.searchWords(q), s.searchWords(text));
+  check("every typed word must begin a word of the title or the headings above it; case and accents do not matter",
+        m("mang", "Mangroves in 1996 (Global Mangrove Watch)") && m("PALM mills", "Palm oil mills Equatorial Asia") &&
+        m("cote", "Cocoa cooperatives, Côte d'Ivoire") && !m("oil", "Soil properties (SoilGrids)") && !m("palm xyz", "Palm oil mills"));
+  check("the box sits above the list, reads rows added later, and puts every heading back when cleared",
+        /layerSearch\(box\);/.test(src) && /box\.parentElement\.insertBefore\(wrap, box\)/.test(src) &&
+        /new MutationObserver/.test(src) && /el\.hidden = el\.dataset\.searchWas === "1";/.test(src) && /e\.key === "Escape"/.test(src));
+  const places = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return { cataloguePlaces, BUNDLES };")();
+  const P = "Destruction > Of the planet", f = (id) => places.cataloguePlaces(`x ${id}`, `x ${id}`).join(" | ");
+  check("the rows no rule placed are filed by what they show",
+        f("inpe_amazon_prodes") === `${P} > Deforestation > Tree cover loss and alerts > Loss year by year` &&
+        f("idn_forest_area") === `${P} > Deforestation > ${places.BUNDLES.plans}` &&
+        f("umd_tree_cover_density_2000") === `${P} > Forest and land cover > ${places.BUNDLES.forest}` &&
+        f("birdlife_endemic_bird_areas") === `${P} > Biodiversity loss > Places that matter most for species` &&
+        f("ibge_bra_biomes") === "Base and reference > Physical and human geography" &&
+        f("fao_management_objectives") === `${P} > Deforestation > Forest zoning and management plans`);
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

@@ -5,6 +5,33 @@ touches.
 
 ---
 
+## Round of 24 September: search in the layers box; the unplaced rows filed
+
+**Search.** `layerSearch(box)` (called at the end of `arrangePanel`) puts a box
+above the list. `applyLayerSearch` keeps a row when every typed word begins a
+word (`searchWords`, `searchMatches`: lower case, accents stripped) of its
+title (`rowTitle`: the name without the LIVE mark, refresh note or i) or of the
+headings, layer with sublayers or group it sits under (`rowContext`), so
+"mining" shows all of Mining. Matching rows' headings and groups are opened;
+their earlier open or shut state is kept in `data-search-was` and put back when
+the box is cleared (Escape clears it). A MutationObserver re-runs the search
+when catalogue rows arrive. Tried in headless Chromium on a mock box.
+
+**Unplaced rows filed** (`CATALOGUE_BY_TITLE`, by id): Indonesia's forest area
+into the spatial plans row; Argentina's native forest plan and FAO's management
+objectives under a new Deforestation > Forest zoning and management plans;
+Argentina's forest monitoring and INPE's PRODES under Loss year by year; GFW's
+emerging hot spots and places to watch under Where clearing is likely; the AZE
+sites and endemic bird areas under Places that matter most for species; the
+forest landscape integrity index under Intact and primary forests; Honduras
+forest type, JRC managed land, RSPO's 2010 land cover, SBTN natural forest, tree
+cover gain and height, trees in mosaic and complex landscapes under Forest and
+land cover; UMD tree cover 2000 into the forest cover row (now 2000, 2010 and
+2020); LandMark resource rights under Land and territory; Cameroon's
+agro-industrial zones under Agriculture > Plantations; GFW's copy of the power
+plant database under Carbon dioxide; wind speed potential and Brazil's biomes
+under Base and reference > Physical and human geography.
+
 ## Round of 23 September (23): the owner's thirty notes on the layers box
 
 Everything below is in `map/app.js` unless named; tests under "round of 23
