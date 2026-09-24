@@ -5,6 +5,52 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>The Culprits — compilation map</title>
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+<!-- HOLOGRAM VIEW (1 of 2): colours, font and overlays. The code is in the
+     <script id="holo-script"> block at the bottom of this file. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style id="holo-style">
+  :root{
+    /* Change the hologram's colours here, and only here. */
+    --holo-bg:   #0a1230;                    /* screen background (lighter at centre) */
+    --holo-line: #7fb8d9;                    /* country outlines */
+    --holo-glow: #5b9cc8;                    /* soft glow under outlines and markers */
+    --holo-grid: rgba(127,184,217,0.15);     /* 15° grid lines and the floor grid */
+    --holo-font: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  }
+  /* The screen behind the map. The map canvas is see-through where nothing is
+     drawn, so hiding the basemap lets this show. */
+  body.holo-on #map{
+    background:var(--holo-bg);
+    background:radial-gradient(ellipse at 50% 45%,
+      color-mix(in srgb, var(--holo-bg), #ffffff 9%) 0%, var(--holo-bg) 70%);
+  }
+  /* Overlays sit just above the map drawing, under popups and every panel,
+     and never take a click or a drag. */
+  .holo-scan,.holo-floor,.holo-readout{position:absolute;pointer-events:none;display:none}
+  body.holo-on .holo-scan,body.holo-on .holo-readout{display:block}
+  body.holo-on.holo-floor-on .holo-floor{display:block}
+  .holo-scan{inset:0;opacity:.04;
+    background:repeating-linear-gradient(to bottom, var(--holo-line) 0 1px, transparent 1px 3px)}
+  .holo-floor{left:0;right:0;bottom:0;height:26vh;perspective:320px;perspective-origin:50% 0;overflow:hidden;
+    -webkit-mask-image:linear-gradient(to top,#000 0%,transparent 100%);
+            mask-image:linear-gradient(to top,#000 0%,transparent 100%)}
+  .holo-floor i{position:absolute;left:-50%;right:-50%;top:0;height:200%;transform-origin:50% 0;
+    transform:rotateX(62deg);
+    background-image:linear-gradient(var(--holo-grid) 1px, transparent 1px),
+                     linear-gradient(90deg, var(--holo-grid) 1px, transparent 1px);
+    background-size:44px 44px}
+  .holo-readout{left:50%;bottom:10px;transform:translateX(-50%);white-space:nowrap;
+    font:500 10.5px/1.3 var(--holo-font);letter-spacing:.14em;text-transform:uppercase;
+    color:var(--holo-line);opacity:.7}
+  /* The switch in the Basemap box. */
+  .holo-ctl{margin-top:5px;padding-top:5px;border-top:1px solid var(--rule)}
+  .holo-ctl .nm{font-family:var(--holo-font);font-size:12.5px;letter-spacing:.02em}
+  .holo-ctl .holo-sub{padding-left:20px}
+  .holo-ctl .holo-sub[hidden]{display:none}
+  .holo-ctl .holo-sub .nm{font-size:11.5px;color:var(--dim)}
+  .holo-ctl .holo-note{margin:1px 0 2px 20px;font:11px/1.35 var(--holo-font);color:var(--dim)}
+  .holo-ctl .holo-note:empty{display:none}
+</style>
 <style>
   :root{
     --peat:#17150F; --peat2:#1F1C15; --bone:#DCD6C6; --dim:#948D7C;
@@ -397,7 +443,357 @@
 
 <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
 <script src="https://unpkg.com/pmtiles@3.2.0/dist/pmtiles.js"></script>
+<script>
+/* HOLOGRAM VIEW: a handle on the map for the hologram script at the bottom.
+   app.js keeps its map inside a block where other scripts cannot see it, so
+   this notes the map the first time it subscribes to an event, then puts
+   MapLibre back exactly as it was. Nothing in app.js changes. */
+(function () {
+  if (!window.maplibregl || !maplibregl.Map) return;
+  const P = maplibregl.Map.prototype, own = Object.prototype.hasOwnProperty.call(P, "on"), orig = P.on;
+  P.on = function () {
+    if (!window.__holoMap) window.__holoMap = this;
+    if (own) P.on = orig; else delete P.on;
+    return orig.apply(this, arguments);
+  };
+})();
+</script>
 <script src="./app.js"></script>
 <script src="./wire.js"></script>
+<!-- HOLOGRAM VIEW (2 of 2). Adds a "Hologram view" switch to the Basemap box.
+     On: the basemap is hidden and Natural Earth country outlines are drawn as a
+     glowing wireframe. Off: the basemap is put back by the map's own code.
+     No data layer, popup, filter or control is removed or changed, except that
+     the markers' soft glow turns blue-cyan while the view is on. -->
+<script id="holo-script">
+(function () {
+  "use strict";
+  const map = window.__holoMap;
+  if (!map || typeof map.getStyle !== "function") return;
+
+  const HOLO = {
+    // Natural Earth, pinned to one release so the file never changes under you.
+    url: (res) => `https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-${res}.json`,
+    res: "50m",               // "50m" or "110m"
+    gridStep: 15,             // degrees between grid lines
+    slowFrameMs: 40,          // if moving the map is slower than this per frame
+                              // with the hologram on (and clearly slower than
+                              // without it), it switches to 110m and says so
+  };
+
+  // The basemap's own layers. Everything else on the map is left alone.
+  const BASE_IDS = ["bg", "world-fill", "base", "base-s2", "base-close", "hillshade",
+    "atlas-washes", "atlas-plate", "labels", "outline-ocean", "outline-land", "outline-line",
+    "sat-relief-colour", "sat-relief-seabed", "sat-relief-shade", "sat-relief-depth", "sat-relief-sea",
+    // the Country outlines basemap's close-in detail (OUTLINE_IDS in app.js)
+    "outline-relief", "outline-water", "outline-green", "outline-town", "outline-waterway",
+    "outline-rail", "outline-road-minor", "outline-road", "outline-road-major", "outline-buildings"];
+  const HOLO_IDS = ["holo-grat", "holo-glow", "holo-line"];
+
+  let on = false, gratOn = true, floorOn = true;
+  let savedVis = new Map();        // basemap layer -> its visibility before the hologram
+  let savedPaint = new Map();      // "layer|prop" -> marker glow colour before the hologram
+  let savedSky = null;
+  const geoCache = {};
+  let resNote = "";
+
+  const cssVar = (n, fb) => (getComputedStyle(document.documentElement).getPropertyValue(n).trim() || fb);
+  const colours = () => ({
+    bg: cssVar("--holo-bg", "#0a1230"), line: cssVar("--holo-line", "#7fb8d9"),
+    glow: cssVar("--holo-glow", "#5b9cc8"), grid: cssVar("--holo-grid", "rgba(127,184,217,0.15)"),
+  });
+  // Any CSS colour -> [r, g, b], so the marker haze can use it at its own alphas.
+  function rgbOf(c) {
+    const cx = document.createElement("canvas").getContext("2d");
+    cx.fillStyle = "#000"; cx.fillStyle = c;
+    const s = cx.fillStyle;
+    if (s[0] === "#") { const n = parseInt(s.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+    const m = s.match(/[\d.]+/g) || [0, 0, 0];
+    return [+m[0], +m[1], +m[2]];
+  }
+
+  /* ---------- the outlines: TopoJSON arcs -> GeoJSON lines ---------- */
+  // Each shared border is one arc in the file, so drawing arcs (not country
+  // shapes) draws every border once, with no doubled lines. Three kinds of
+  // segment are joins in the file rather than coastlines or borders, and are
+  // skipped: the seam along 180° (Russia, Fiji, Antarctica), a step from one
+  // side of 180° to the other (which would draw a line across the whole
+  // world), and the straight edge Antarctica is closed with at the South Pole.
+  function topoToLines(topo) {
+    const [sx, sy] = topo.transform.scale, [tx, ty] = topo.transform.translate;
+    const lines = [];
+    for (const arc of topo.arcs) {
+      let x = 0, y = 0, cur = [];
+      for (const p of arc) {
+        x += p[0]; y += p[1];
+        const pt = [x * sx + tx, y * sy + ty];
+        const prev = cur[cur.length - 1];
+        if (prev && ((Math.abs(pt[0]) > 179.99 && Math.abs(prev[0]) > 179.99) || (pt[1] < -89.9 && prev[1] < -89.9) ||
+                     Math.abs(pt[0] - prev[0]) > 180)) {
+          if (cur.length > 1) lines.push(cur);
+          cur = [pt];
+          continue;
+        }
+        cur.push(pt);
+      }
+      if (cur.length > 1) lines.push(cur);
+    }
+    return { type: "Feature", properties: {}, geometry: { type: "MultiLineString", coordinates: lines } };
+  }
+  async function loadOutlines(res) {
+    if (geoCache[res]) return geoCache[res];
+    const r = await fetch(HOLO.url(res));
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return (geoCache[res] = topoToLines(await r.json()));
+  }
+  // Grid every 15°, with points every 2° so the lines curve on the globe.
+  function graticule(step) {
+    const lines = [];
+    for (let lon = -180; lon < 180; lon += step) {
+      const l = []; for (let lat = -85; lat <= 85; lat += 2) l.push([lon, lat]); l.push([lon, 85]); lines.push(l);
+    }
+    for (let lat = -75; lat <= 75; lat += step) {
+      const l = []; for (let lon = -180; lon <= 180; lon += 2) l.push([lon, lat]); lines.push(l);
+    }
+    return { type: "Feature", properties: {}, geometry: { type: "MultiLineString", coordinates: lines } };
+  }
+
+  /* ---------- map layers ---------- */
+  const empty = { type: "FeatureCollection", features: [] };
+  function ensureLayers() {
+    const c = colours();
+    if (!map.getSource("holo-outlines")) map.addSource("holo-outlines", { type: "geojson", data: empty, tolerance: 0.2 });
+    if (!map.getSource("holo-graticule")) map.addSource("holo-graticule", { type: "geojson", data: graticule(HOLO.gridStep) });
+    // Above the basemap, under every data layer.
+    const before = map.getLayer("atlas-washes") ? "atlas-washes" : undefined;
+    const hidden = { visibility: "none", "line-join": "round", "line-cap": "round" };
+    if (!map.getLayer("holo-grat")) map.addLayer({ id: "holo-grat", type: "line", source: "holo-graticule", layout: hidden,
+      paint: { "line-color": c.grid, "line-width": 0.8 } }, before);
+    // The glow: a wide, blurred, faint line under the thin one. This is the
+    // WebGL version of an SVG blur filter, and costs next to nothing to draw.
+    if (!map.getLayer("holo-glow")) map.addLayer({ id: "holo-glow", type: "line", source: "holo-outlines", layout: hidden,
+      paint: { "line-color": c.glow, "line-opacity": 0.32, "line-blur": 3,
+               "line-width": ["interpolate", ["linear"], ["zoom"], 1, 3.5, 6, 5] } }, before);
+    if (!map.getLayer("holo-line")) map.addLayer({ id: "holo-line", type: "line", source: "holo-outlines", layout: hidden,
+      paint: { "line-color": c.line, "line-opacity": 0.95,
+               "line-width": ["interpolate", ["linear"], ["zoom"], 1, 0.8, 6, 1.2] } }, before);
+  }
+  function recolourLayers() {
+    const c = colours();
+    if (map.getLayer("holo-grat")) map.setPaintProperty("holo-grat", "line-color", c.grid);
+    if (map.getLayer("holo-glow")) map.setPaintProperty("holo-glow", "line-color", c.glow);
+    if (map.getLayer("holo-line")) map.setPaintProperty("holo-line", "line-color", c.line);
+  }
+  function showHolo() {
+    const vis = (id, v) => { if (map.getLayer(id) && map.getLayoutProperty(id, "visibility") !== v) map.setLayoutProperty(id, "visibility", v); };
+    vis("holo-grat", on && gratOn ? "visible" : "none");
+    vis("holo-glow", on ? "visible" : "none");
+    vis("holo-line", on ? "visible" : "none");
+  }
+  async function setRes(res, why) {
+    try {
+      const geo = await loadOutlines(res);
+      HOLO.res = res;
+      if (map.getSource("holo-outlines")) map.getSource("holo-outlines").setData(geo);
+      resNote = why || "";
+    } catch (e) {
+      if (res === "50m") return setRes("110m", "1:50m outlines could not load, showing 1:110m");
+      resNote = "Outlines could not load (" + (e.message || e) + ")";
+    }
+    updateText();
+  }
+
+  /* ---------- hiding and restoring the basemap ---------- */
+  function hideBase() {
+    for (const id of BASE_IDS) {
+      if (!map.getLayer(id)) continue;
+      const v = map.getLayoutProperty(id, "visibility") || "visible";
+      if (!savedVis.has(id)) savedVis.set(id, v);
+      if (v !== "none") map.setLayoutProperty(id, "visibility", "none");
+    }
+  }
+  function holoSky() {
+    const bg = colours().bg;
+    return { "sky-color": bg, "horizon-color": bg, "fog-color": bg, "atmosphere-blend": 0,
+             "sky-horizon-blend": 0.5, "horizon-fog-blend": 0.5, "fog-ground-blend": 0.5 };
+  }
+  // The Satellite basemap switches on its own frame (red halos, vignette,
+  // sky). That belongs to the basemap, so it goes off with it.
+  function defenceOff() { if (typeof window.defenceMode === "function") window.defenceMode(false); }
+  function defenceShowing() { const h = document.getElementById("defence-hud"); return !!(h && !h.hidden); }
+  const basemapTicked = () => { const r = document.querySelector('#basemaps input[name="basemap"]:checked'); return r ? r.value : null; };
+
+  /* ---------- markers: a blue-cyan glow ---------- */
+  // Markers are drawn by WebGL, not as page elements, so a CSS class cannot
+  // reach them. Instead the glow layers the map already draws with every
+  // marker layer are recoloured, and the round cores (what shows at world
+  // view) get a soft rim in the same hue. Marker fill colours, sizes,
+  // filters, data and popups are untouched, and everything goes back on exit.
+  // app.js names them after their marker layer: "<layer>-soft" (a circle)
+  // and "<layer>-haze" (a heatmap).
+  function glowLayers() {
+    const out = [];
+    // getLayersOrder() lists ids only; getStyle() would copy every source's data.
+    const ids = typeof map.getLayersOrder === "function" ? map.getLayersOrder() : (map.getStyle().layers || []).map((l) => l.id);
+    for (const id of ids) {
+      if (!/-(soft|haze|core)$/.test(id)) continue;
+      const l = map.getLayer(id);
+      if (l && l.type === "circle" && /-soft$/.test(id)) out.push([id, "circle-color"]);
+      else if (l && l.type === "heatmap" && /-haze$/.test(id)) out.push([id, "heatmap-color"]);
+      else if (l && l.type === "circle" && /-core$/.test(id)) out.push([id, "circle-stroke-color"], [id, "circle-stroke-width"]);
+    }
+    return out;
+  }
+  function glowMarkers(onlyNew) {
+    const glow = colours().glow, [r, g, b] = rgbOf(glow);
+    const a = (x) => `rgba(${r},${g},${b},${x})`;
+    // The same see-through steps as the map's own haze, in the hologram's hue.
+    const haze = ["interpolate", ["linear"], ["heatmap-density"], 0, a(0), 0.3, a(0.12), 0.7, a(0.4), 1, a(0.6)];
+    for (const [id, prop] of glowLayers()) {
+      const key = id + "|" + prop;
+      if (savedPaint.has(key) && onlyNew) continue;
+      if (!savedPaint.has(key)) savedPaint.set(key, map.getPaintProperty(id, prop));
+      map.setPaintProperty(id, prop, prop === "circle-color" ? glow : prop === "heatmap-color" ? haze
+        : prop === "circle-stroke-color" ? a(0.55) : ["interpolate", ["linear"], ["zoom"], 0, 1.4, 8, 2.4]);
+    }
+  }
+  function unglowMarkers() {
+    for (const [key, v] of savedPaint) {
+      const [id, prop] = key.split("|");
+      // undefined puts back the style default, which is what it was.
+      if (map.getLayer(id)) { try { map.setPaintProperty(id, prop, v); } catch (e) { /* kept */ } }
+    }
+    savedPaint.clear();
+  }
+
+  // Layers can appear while the hologram is on (a layer ticked, a basemap
+  // picked, the view changed). Each style change is checked once per frame.
+  let pending = false;
+  map.on("styledata", () => {
+    if (!on || pending) return;
+    pending = true;
+    requestAnimationFrame(() => {
+      pending = false;
+      if (!on) return;
+      // A basemap picked while the hologram is on: the map's own code has run
+      // (so that basemap is what comes back later); hide it again.
+      if (defenceShowing()) { defenceOff(); if (map.setSky) map.setSky(holoSky()); }
+      hideBase();
+      glowMarkers(true);
+      if (!map.getLayer("holo-line")) { ensureLayers(); setRes(HOLO.res); }
+      showHolo();
+    });
+  });
+
+  /* ---------- on and off ---------- */
+  let overlays = null;
+  function ensureOverlays() {
+    if (overlays) return;
+    const cv = map.getCanvas();
+    const scan = document.createElement("div"); scan.className = "holo-scan";
+    const floor = document.createElement("div"); floor.className = "holo-floor"; floor.appendChild(document.createElement("i"));
+    const read = document.createElement("div"); read.className = "holo-readout";
+    // Straight after the canvas: over the map drawing, under popups and controls.
+    cv.parentNode.insertBefore(read, cv.nextSibling);
+    cv.parentNode.insertBefore(floor, cv.nextSibling);
+    cv.parentNode.insertBefore(scan, cv.nextSibling);
+    overlays = { scan, floor, read };
+  }
+  function updateText() {
+    if (overlays) overlays.read.textContent =
+      `Hologram view · Natural Earth 1:${HOLO.res}` + (gratOn ? ` · grid ${HOLO.gridStep}°` : "");
+    const n = document.getElementById("holo-note");
+    if (n) n.textContent = resNote;
+  }
+
+  function enable() {
+    if (on) return;
+    on = true;
+    ensureLayers(); ensureOverlays(); recolourLayers();
+    defenceOff();
+    savedSky = map.getSky ? map.getSky() : null;
+    if (map.setSky) map.setSky(holoSky());
+    savedVis = new Map();
+    hideBase();
+    glowMarkers();
+    document.body.classList.add("holo-on");
+    document.body.classList.toggle("holo-floor-on", floorOn);
+    showHolo();
+    updateText();
+    setRes(HOLO.res, resNote);
+    perf.samples = []; perf.last = 0;
+  }
+  function disable() {
+    if (!on) return;
+    on = false;
+    showHolo();
+    unglowMarkers();
+    document.body.classList.remove("holo-on", "holo-floor-on");
+    if (map.setSky && savedSky) map.setSky(savedSky);
+    for (const [id, v] of savedVis) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", v);
+    savedVis.clear();
+    // Then the map's own code decides the basemap, exactly as without the
+    // hologram: the right background for globe or flat, and whichever basemap
+    // is ticked in the Basemap box.
+    try { if (typeof window.skyForView === "function" && typeof window.drawnProjection === "function") window.skyForView(window.drawnProjection()); } catch (e) { /* kept */ }
+    const kind = basemapTicked();
+    if (typeof window.setBasemap === "function" && kind) window.setBasemap(kind);
+  }
+
+  /* ---------- speed check: 1:50m -> 1:110m if the glow slows things down ---------- */
+  // Frame times are measured while the map is moving, first without the
+  // hologram (as a baseline), then with it. If it is both slow and clearly
+  // slower than the baseline, the outlines switch to 1:110m and the Basemap
+  // box and the readout say so.
+  const perf = { base: [], samples: [], last: 0, done: false };
+  const median = (a) => { const s = a.slice().sort((x, y) => x - y); return s[s.length >> 1]; };
+  map.on("render", () => {
+    if (perf.done || !map.isMoving()) { perf.last = 0; return; }
+    const t = performance.now();
+    if (perf.last) {
+      const dt = t - perf.last;
+      if (dt < 250) (on ? perf.samples : perf.base).push(dt);
+      if (perf.base.length > 200) perf.base.shift();
+    }
+    perf.last = t;
+    if (on && HOLO.res === "50m" && perf.samples.length >= 120) {
+      perf.done = true;
+      const m = median(perf.samples), b = perf.base.length >= 30 ? median(perf.base) : 0;
+      if (m > HOLO.slowFrameMs && m > b * 1.4) {
+        console.info(`[culprits] hologram: ${m.toFixed(0)} ms per frame at 1:50m (baseline ${b ? b.toFixed(0) : "?"} ms); switched to 1:110m`);
+        setRes("110m", "Switched to 1:110m outlines: 1:50m was slowing panning");
+      }
+    }
+  });
+
+  /* ---------- the switch, in the Basemap box ---------- */
+  function addSwitch() {
+    const body = document.querySelector('#basemaps .sect[data-sect="basemap"] .sect-body');
+    if (!body || document.getElementById("holo-toggle")) return;
+    const d = document.createElement("div");
+    d.className = "holo-ctl";
+    d.innerHTML =
+      `<label class="layer" title="A wireframe screen: country outlines only, no imagery. Your layers stay on.">` +
+      `<input type="checkbox" id="holo-toggle"${on ? " checked" : ""}><span class="nm">Hologram view</span></label>` +
+      `<p class="holo-note" id="holo-note"></p>` +
+      `<div class="holo-sub"${on ? "" : " hidden"}>` +
+      `<label class="layer"><input type="checkbox" id="holo-grat"${gratOn ? " checked" : ""}><span class="nm">${HOLO.gridStep}° grid lines</span></label>` +
+      `<label class="layer"><input type="checkbox" id="holo-floorbox"${floorOn ? " checked" : ""}><span class="nm">Grid floor</span></label></div>`;
+    body.appendChild(d);
+    d.addEventListener("change", (e) => {
+      const t = e.target;
+      if (t.id === "holo-toggle") { t.checked ? enable() : disable(); d.querySelector(".holo-sub").hidden = !t.checked; }
+      if (t.id === "holo-grat") { gratOn = t.checked; showHolo(); updateText(); }
+      if (t.id === "holo-floorbox") { floorOn = t.checked; document.body.classList.toggle("holo-floor-on", on && floorOn); }
+    });
+    updateText();
+  }
+  // The Basemap box is filled in once the map has loaded; the switch is added
+  // as soon as it appears, and again if the box is ever rebuilt.
+  addSwitch();
+  const box = document.getElementById("basemaps");
+  if (box && window.MutationObserver) new MutationObserver(addSwitch).observe(box, { childList: true, subtree: true });
+})();
+</script>
 </body>
 </html>
