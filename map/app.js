@@ -3405,8 +3405,8 @@ async function readUmap(cfg) {
       const o = p._umap_options || {};
       items.push({ geometry: f.geometry, key: `${id}:${f.id || p.id || i}`, name: p.name || "", group,
         colour: o.color || opts.color || (props.color || null),
-        h: `<div style="font:13px/1.4 system-ui,sans-serif;max-width:320px">` +
-           umapPopup(o.popupContentTemplate || opts.popupContentTemplate || props.popupContentTemplate, p) + `</div>` });
+        h: withEveryField(`<div style="font:13px/1.4 system-ui,sans-serif;max-width:320px">` +
+           umapPopup(o.popupContentTemplate || opts.popupContentTemplate || props.popupContentTemplate, p) + `</div>`, p, ["_umap_options"]) });
     });
   }
   if (!items.length) console.warn(`[culprits] ${cfg.id}: no places read from ${layers.length} uMap layers; tried ${tried.join(" , ")}`);
@@ -3478,7 +3478,9 @@ async function readKml(cfg) {
     const desc = kid("description");
     // My Maps repeats the data fields in the description; show the description as written.
     const h = `<div style="font:13px/1.4 system-ui,sans-serif;max-width:320px"><h4 style="margin:0 0 6px">${escapeHtml(name)}</h4>` +
-      (desc ? `<div>${desc}</div>` : data.map(([k, v]) => `<div><b>${escapeHtml(k)}:</b> ${escapeHtml(v)}</div>`).join("")) + `</div>`;
+      (desc ? `<div>${desc}</div>` : data.map(([k, v]) => `<div><b>${escapeHtml(k)}:</b> ${escapeHtml(v)}</div>`).join("")) +
+      // With a description written, the data fields it may leave out are kept below it.
+      (desc && data.length ? everyField(Object.fromEntries(data)) : "") + `</div>`;
     const colour = kmlColour(doc, kid("styleUrl").trim());
     const geoms = kmlGeometries(pm);
     if (!geoms.length) {
@@ -3622,7 +3624,8 @@ async function readArcgisApp(cfg) {
         const info = l.popupInfo;
         const name = info && info.title ? arcgisFill(info.title, a) : (a.Name || a.NAME || a.name || "");
         items.push({ geometry: f.geometry, key: `${l.url}|${oid}`, name, group: l.title || "",
-          colour: arcgisSymbolColour(l.layerDefinition, a), h: arcgisPopupHtml(l.title || title, info, a) });
+          colour: arcgisSymbolColour(l.layerDefinition, a),
+          h: withEveryField(arcgisPopupHtml(l.title || title, info, a), Object.fromEntries(Object.entries(a).filter(([k]) => !/^shape/i.test(k)))) });
       });
     }
   }
@@ -4048,7 +4051,9 @@ function traseBox(e, props) {
     (m.tooltip && m.tooltip !== "." ? `<div class="meta">${escapeHtml(m.tooltip)}</div>` : "") +
     (m.data_source ? `<div class="meta">Source: ${escapeHtml(m.data_source)}</div>` : "") +
     (m.citation ? `<div class="meta">${escapeHtml(m.citation)}</div>` : "") +
-    `<div class="meta"><a href="https://trase.earth/explore/spatial-data/map?country=${encodeURIComponent(props._slug || "")}" target="_blank" rel="noopener">Open on Trase</a></div>`;
+    `<div class="meta"><a href="https://trase.earth/explore/spatial-data/map?country=${encodeURIComponent(props._slug || "")}" target="_blank" rel="noopener">Open on Trase</a></div>` +
+    // The region shape's own fields (its codes and names), round 29.
+    everyField(Object.fromEntries(Object.entries(props).filter(([k]) => !k.startsWith("_"))));
 }
 
 /* ---------- outlines from a PMTiles archive (points wider out) ---------- */
@@ -4281,6 +4286,33 @@ function fieldRows(p, skip = []) {
   return Object.keys(p).filter((k) => !skip.includes(k) && p[k] !== null && p[k] !== "" && !(Array.isArray(p[k]) && !p[k].length))
     .map((k) => `<tr><th style="text-align:left;padding-right:8px;vertical-align:top">${escapeHtml(k.replace(/_/g, " "))}</th><td>${escapeHtml(text(p[k]))}</td></tr>`).join("");
 }
+// Round 29: a box written by the source's own template (uMap, ArcGIS, My
+// Maps, WP Go Maps, Launch Library) shows what its makers chose. Everything
+// else the record carries follows, folded under one line, so no field is left
+// off: nested records are spelt out with dotted names, lists joined.
+function everyField(o, skip = []) {
+  const flat = {};
+  const walk = (v, key, depth) => {
+    if (v === null || v === undefined || v === "") return;
+    if (Array.isArray(v)) {
+      if (!v.length) return;
+      flat[key] = v.every((x) => x === null || typeof x !== "object") ? v.join(", ") : JSON.stringify(v);
+      return;
+    }
+    if (typeof v === "object") {
+      if (depth >= 3) { flat[key] = JSON.stringify(v); return; }
+      for (const [k, x] of Object.entries(v)) walk(x, `${key}.${k}`, depth + 1);
+      return;
+    }
+    flat[key] = v;
+  };
+  for (const [k, v] of Object.entries(o || {})) if (!skip.includes(k)) walk(v, k, 1);
+  const rows = fieldRows(flat);
+  return rows ? `<details style="margin-top:6px"><summary style="cursor:pointer;font-size:11px">Every field the source gives</summary>` +
+    `<div style="max-height:240px;overflow:auto"><table class="meta">${rows}</table></div></details>` : "";
+}
+// The fold goes inside the box's own last </div>.
+const withEveryField = (h, o, skip) => h.replace(/<\/div>$/, everyField(o, skip) + "</div>");
 function pointOf(r) {
   const n = (v) => (v === null || v === undefined || v === "" ? NaN : Number(v));
   const pairs = [[r.lon, r.lat], [r.lng, r.lat], [r.longitude, r.latitude], [r.long, r.lat]];
@@ -4399,7 +4431,8 @@ async function readWpgmza(cfg) {
     if (!isFinite(lat) || !isFinite(lng)) return null;
     return { geometry: { type: "Point", coordinates: [lng, lat] }, key: `m${m.id || i}`, name: m.title || "",
       group: "", h: boxOpen + `<h4 style="margin:0 0 6px">${escapeHtml(m.title || "")}</h4>${m.description || ""}` +
-        (m.link ? `<p><a href="${escapeHtml(m.link)}" target="_blank" rel="noopener">More</a></p>` : "") + `</div>` };
+        (m.link ? `<p><a href="${escapeHtml(m.link)}" target="_blank" rel="noopener">More</a></p>` : "") +
+        everyField(m, ["title", "description"]) + `</div>` };
   }).filter(Boolean);
   return { title: cfg.name, items };
 }
@@ -6447,7 +6480,7 @@ async function readLaunchLibrary(cfg) {
           (r.description ? `<p>${escapeHtml(r.description)}</p>` : "") +
           (r.wiki_url ? `<p><a href="${escapeHtml(r.wiki_url)}" target="_blank" rel="noopener">About this site</a></p>` : "") +
           (r.map_url ? `<p><a href="${escapeHtml(r.map_url)}" target="_blank" rel="noopener">On a map</a></p>` : "") +
-          `<div style="font-size:11px">Launch Library 2, The Space Devs</div></div>` });
+          everyField(r) + `<div style="font-size:11px">Launch Library 2, The Space Devs</div></div>` });
     } else {
       const pad = r.pad || {};
       const g = ll2Pad(pad);
@@ -6463,7 +6496,7 @@ async function readLaunchLibrary(cfg) {
           `<div>${escapeHtml([rocket, lsp].filter(Boolean).join(" \u00b7 "))}</div>` +
           `<div>${escapeHtml(pad.name || "")}${pad.location ? ", " + escapeHtml(pad.location.name || "") : ""}</div>` +
           (m.name ? `<p><b>${escapeHtml(m.name)}</b>${m.orbit && m.orbit.name ? " \u2192 " + escapeHtml(m.orbit.name) : ""}<br>${escapeHtml(m.description || "")}</p>` : "") +
-          ll2Links(r) +
+          ll2Links(r) + everyField(r) +
           `<div style="font-size:11px">Launch Library 2, The Space Devs</div></div>` });
     }
   }
@@ -6509,7 +6542,9 @@ async function addRteLayer(cfg) {
       const a = C.get(r.exporter), b = C.get(r.importer);
       return { type: "Feature", geometry: { type: "LineString", coordinates: rteArc([a.lng, a.lat], [b.lng, b.lat]) },
         properties: { from: a.name, to: b.name, value: r.value, weight: r.weight, co2: r.env_co2, year: r.year,
-                      share: Math.sqrt((Number(r.value) || 0) / max), ex: r.exporter, im: r.importer } };
+                      share: Math.sqrt((Number(r.value) || 0) / max), ex: r.exporter, im: r.importer,
+                      // Every field of the flow's record, for its box (round 29).
+                      _all: JSON.stringify(r) } };
     });
     map.getSource(`${cfg.id}-src`).setData({ type: "FeatureCollection", features: feats });
     const left = (j.main || []).length - rows.length;
@@ -6520,6 +6555,9 @@ async function addRteLayer(cfg) {
   bindHtmlPopup(`${cfg.id}-line`, (p) => `<b>${escapeHtml(p.from)} \u2192 ${escapeHtml(p.to)}</b>` +
     `<div class="meta">${escapeHtml(String(p.year))}</div>` +
     `<div class="meta">Trade value: ${n(p.value)}<br>Weight: ${n(p.weight)}<br>CO\u2082: ${n(p.co2)}</div>` +
+    (() => { let r = {}; try { r = JSON.parse(p._all || "{}"); } catch (e) { /* none */ }
+      const rest = Object.fromEntries(Object.entries(r).filter(([k]) => !["value", "weight", "env_co2", "year"].includes(k)));
+      return Object.keys(rest).length ? `<table class="meta">${fieldRows(rest)}</table>` : ""; })() +
     `<div class="meta">Figures as resourcetrade.earth publishes them (its units are on its site).</div>` +
     `<div class="meta"><a href="https://resourcetrade.earth/?year=${p.year}&exporter=${p.ex}&importer=${p.im}" target="_blank" rel="noopener">Open on resourcetrade.earth</a></div>`);
   const row = document.querySelector(`[data-layer="${cfg.id}"]`);
@@ -7798,6 +7836,9 @@ async function addCountryLayer(cfg) {
         `<b>${e.features[0].properties.name}</b>` +
         `${Number(st[key]).toLocaleString()} ${st[`${key}_unit`] || ""}` +
         (st[`${key}_note`] ? `<div class="meta">${st[`${key}_note`]}</div>` : "") +
+        // Every other figure the country's record carries (round 29).
+        `<table class="meta">${fieldRows(Object.fromEntries(Object.entries(totals[e.features[0].id] || {})
+          .filter(([k]) => k !== "value" && k !== "unit").map(([k, v]) => [k.replace(/^x_/, ""), v])))}</table>` +
         `<div class="meta" style="color:#8F4E40">Country total — the source ` +
         `records no site coordinates for these.</div>`
       )

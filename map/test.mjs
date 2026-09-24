@@ -3693,5 +3693,22 @@ console.log("\nround of 24 September: a search box for the layers, and the unpla
         /asset\.uri\.replace\(\/\\\/tcd_\\d\+\\\/\/, `\/tcd_\$\{dc\.tcd\}\/`\)/.test(src));
   check("the row reads the tiles through the decoder and shows the key", /gfwdecode:\/\/\$\{d\.id\}\//.test(src) && /asset\.how === "cog" \|\| decode/.test(src));
 }
+{
+  // Round 29: every field in the boxes that used their own template, and on live points.
+  console.log("\nround 29: every field, everywhere");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const f = new Function("escapeHtml", src.match(/function fieldRows[\s\S]*?\n}\n/)[0] + src.match(/function everyField[\s\S]*?\n}\n/)[0] + "; return { everyField };")((x) => String(x));
+  const html = f.everyField({ name: "Pad 39A", location: { country: { name: "USA" }, id: 7 }, tags: ["a", "b"], empty: "", agencies: [{ id: 1 }] }, ["name"]);
+  check("a nested record is spelt out with dotted names, lists joined, blanks and skipped fields left off",
+        /location\.country\.name<\/th><td>USA/.test(html) && /tags<\/th><td>a, b/.test(html) && /agencies<\/th><td>\[\{"id":1\}\]/.test(html) &&
+        !/empty/.test(html) && !/>name</.test(html) && /<details/.test(html));
+  check("the uMap, ArcGIS, My Maps, WP Go Maps, Launch Library and Trase boxes all carry it",
+        /umapPopup\([^)]*\) \+ `<\/div>`, p, \["_umap_options"\]\)/.test(src) && /withEveryField\(arcgisPopupHtml/.test(src) &&
+        /desc && data\.length \? everyField/.test(src) && /everyField\(m, \["title", "description"\]\)/.test(src) &&
+        (src.match(/everyField\(r\)/g) || []).length === 2 && /everyField\(Object\.fromEntries\(Object\.entries\(props\)/.test(src));
+  check("a country total's box lists every figure its record carries",
+        /totals\[e\.features\[0\]\.id\]/.test(src));
+  check("a trade flow's box lists every field of the flow's record", /_all: JSON\.stringify\(r\)/.test(src));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

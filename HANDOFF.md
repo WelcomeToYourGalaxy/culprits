@@ -5,6 +5,21 @@ touches.
 
 ---
 
+## Round 29 (24 September): every field, everywhere
+
+- Boxes written from a source's own template (uMap, ArcGIS apps, My Maps,
+  WP Go Maps, Launch Library pads and launches, Trase regions) keep their
+  template and now end with a folded "Every field the source gives" list
+  (`everyField` in app.js): nested records spelt out with dotted names.
+- Country totals list every figure in their record; resource trade flows list
+  every field of the flow.
+- Worker (`worker/index.js`, CACHE_VERSION v13): live points (EPA TRI, Land
+  Matrix, fishing, GFW alerts) carry every upstream field as `x_<name>`, not
+  only the picked ones. Needs `cd worker && wrangler deploy`.
+- Not done: clicking a Global Forest Watch picture layer (COG or picture
+  tiles) still shows nothing; a point read would need GFW's query service.
+
+
 ## Round 28 (24 September): tree cover loss by dominant driver, coloured
 
 - `tsc_tree_cover_loss_drivers` drew grey: its tiles hold numbers, not a

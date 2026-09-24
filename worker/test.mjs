@@ -369,6 +369,9 @@ console.log("\nworker request handling");
         `${g.features.length} features`);
   check("popups carry the parent company",
         g.features[0].properties.x_parent === "SOME PARENT");
+  check("every other field of the row reaches the box, under its own name (round 29)",
+        g.features[0].properties.x_epa_registry_id === "110000000001" &&
+        g.features[0].properties.x_city_name === "TOWN" && g.features[0].properties.x_tri_facility_id != null);
   check("popups link to EPA's own facility report",
         /echo\.epa\.gov/.test(g.features[0].properties.url || ""),
         g.features[0].properties.url);

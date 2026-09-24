@@ -31,12 +31,12 @@ const CACHE_SECONDS = 3600;
 // Bump on any change to how responses are built. Without this the edge cache
 // keeps serving bodies from the previous deploy for up to an hour — which is
 // exactly what hid the EPA longitude fix.
-const CACHE_VERSION = "v12";
+const CACHE_VERSION = "v13";
 
 // Reported by /v1/_diag so it is possible to tell, in one request, which build
 // is actually live. Several fixes appeared not to work when the real problem
 // was that the deploy had not happened.
-const BUILD = "2026-09-22 climate trace asset and plume passthrough; carbon mapper; cerulean; allen coral benthic";
+const BUILD = "2026-09-24 every upstream field on live points; climate trace asset and plume passthrough; carbon mapper; cerulean; allen coral benthic";
 
 // How far back deforestation alerts are fetched. Wider means more rows and a
 // slower, heavier query; the API has no LIMIT to fall back on.
@@ -144,6 +144,18 @@ function statesForBbox(bbox) {
   return hits;
 }
 
+function rawFields(row, extra) {
+  const out = {};
+  if (!row || typeof row !== "object") return out;
+  const have = new Set(Object.keys(extra || {}));
+  for (const [k, v] of Object.entries(row)) {
+    if (v === null || v === undefined || v === "" || have.has(k)) continue;
+    const key = `x_${String(k).toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
+    out[key] = typeof v === "object" ? JSON.stringify(v) : v;
+  }
+  return out;
+}
+
 function rowsToGeoJSON(rows, source, unit, pick) {
   if (!Array.isArray(rows)) return null;
   const features = [];
@@ -170,6 +182,10 @@ function rowsToGeoJSON(rows, source, unit, pick) {
             .filter(([, v]) => v !== null && v !== undefined && v !== "")
             .map(([k, v]) => [`x_${k}`, v])
         ),
+        // Every other field of the upstream row, under its own name, so the
+        // box shows all the source published and not only the fields picked
+        // above (24 September, round 29). A nested value is written as text.
+        ...rawFields(row, p.extra),
       },
     });
   }
