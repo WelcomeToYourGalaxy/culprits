@@ -519,6 +519,8 @@ function matches(story, facets, sel, skip) {
     const want = sel[f.key];
     if (want == null) continue;
     if (f.weight) { if (story.w == null || story.w < want) return false; continue; }
+    // Several choices on one row (the topics, 24 September): any of them will do.
+    if (Array.isArray(want)) { if (!valuesOf(story, f, sel).some((v) => want.indexOf(v) !== -1)) return false; continue; }
     if (valuesOf(story, f, sel).indexOf(want) === -1) return false;
   }
   return true;
@@ -555,7 +557,7 @@ function optionsFor(wire, f, sel, shared) {
 
   const counts = new Map();
   pool.forEach((s) => valuesOf(s, f, sel).forEach((x) => counts.set(x, (counts.get(x) || 0) + 1)));
-  if (sel[f.key] != null && !counts.has(sel[f.key])) counts.set(sel[f.key], 0);
+  [].concat(sel[f.key] == null ? [] : sel[f.key]).forEach((x) => { if (!counts.has(x)) counts.set(x, 0); });
 
   const label = (x) => (x === NONE ? f.none : (f.labels[x] || x));
   let keys = Array.from(counts.keys()).filter((x) => x !== NONE);
@@ -614,7 +616,26 @@ function selFromCross(wire, cross) {
   return sel;
 }
 
-const core = { ORG, FEEDS, MAPS, SUBJECTS, WINDOWS, NONE, NO_MATCH, readWire, filterStories, optionsFor, selFromCross,
+// The topics are chosen per subject, as many as wanted (24 September):
+// topics = { subjectId: [label, ...] }. A subject's stories are kept when they
+// carry any topic ticked under it; once any topic is ticked anywhere, a subject
+// with none ticked under it shows nothing, as with the other filters.
+function withTopics(wire, sel, id, topics) {
+  const any = Object.keys(topics || {}).some((k) => (topics[k] || []).length);
+  if (!any) return sel;
+  const out = Object.assign({}, sel);
+  const f = wire.facets.find((x) => x.key === 'topic');
+  const mine = (topics[id] || []);
+  if (f && mine.length) {
+    const vals = mine.map((l) => valueForLabel(wire, f, l)).filter((v) => v !== undefined);
+    out.topic = vals.length ? vals : [NO_MATCH];
+  } else {
+    out.__blocked = Object.assign({}, out.__blocked, { topic: true });
+  }
+  return out;
+}
+
+const core = { ORG, FEEDS, MAPS, SUBJECTS, WINDOWS, NONE, NO_MATCH, readWire, filterStories, optionsFor, selFromCross, withTopics,
                valuesOf, descendants, countryName, languageName, plainText, toMs, timeAgo };
 
 if (typeof module === 'object' && module.exports) module.exports = core;
@@ -631,7 +652,7 @@ const PAGE = 60;
 const REFRESH_MS = 30 * 60000;
 
 const state = {
-  open: true, picked: [], when: 'all', q: '', sel: {}, cross: {}, expanded: {},
+  open: true, picked: [], when: 'all', q: '', sel: {}, cross: {}, topics: {}, topicsOpen: false, expanded: {},
   pickerOpen: false, filtersOpen: false, shown: PAGE, wires: {}   // wires[id] = { status, error, loadedAt, wire }
 };
 
@@ -642,6 +663,8 @@ try {
     state.picked = (saved.picked || []).filter((id) => BY_ID[id]);
     state.when = WINDOWS.some((w) => w.id === saved.when) ? saved.when : 'all';
     state.cross = saved.cross || {};
+    delete state.cross.topic;             // the topics are chosen per subject now (24 September)
+    state.topics = saved.topics && typeof saved.topics === 'object' ? saved.topics : {};
     state.expanded = saved.expanded || {};
     state.filtersOpen = saved.filtersOpen === true;
   }
@@ -650,7 +673,7 @@ try {
 function save() {
   try {
     localStorage.setItem(STORE, JSON.stringify({ open: state.open, picked: state.picked, when: state.when,
-      cross: state.cross, expanded: state.expanded, filtersOpen: state.filtersOpen }));
+      cross: state.cross, topics: state.topics, expanded: state.expanded, filtersOpen: state.filtersOpen }));
   } catch (e) { /* storage blocked: nothing to keep */ }
 }
 
@@ -698,6 +721,17 @@ const CSS = `
 .wire.picking .wire-dd .wire-caret{transform:rotate(-90deg)}
 .wire.picking .wire-dd{border-color:var(--dim,#948D7C)}
 .wire-pickbar{display:flex;gap:6px;padding:4px 10px 2px}
+.wire-topics{max-height:220px;overflow:auto;margin:2px 0 6px 102px;padding:2px 0}
+.wire-topic{display:flex;align-items:center;gap:6px;font-size:12px;padding:1px 0;cursor:pointer}
+.wire-topic input{accent-color:var(--moss,#62755F);margin:0}
+.wire-topic .n{margin-left:auto;color:var(--dim,#948D7C);font-size:11px}
+.wire-topic-subj{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim,#948D7C);margin:6px 0 2px}
+.wire-topics .wire-btn{margin-bottom:4px}
+.wire-dd.set{border-color:var(--dim,#948D7C)}
+.wire-facets .wire-topicrow,.wire-facets .wire-topics{grid-column:1 / -1}
+.wire-facets .wire-topicrow .wire-dd{flex:none}
+.wire-facets .wire-topics{margin:2px 0 4px;max-height:200px}
+.wire-facets.topics-open{max-height:none;overflow:visible}
 .wire-pickbar button{flex:1}
 .wire-filter{display:flex;align-items:center;gap:7px;padding:3px 10px;color:var(--dim,#948D7C);font-size:12px}
 .wire-filter select{flex:1;min-width:0}
@@ -862,6 +896,7 @@ function build() {
     const had = state.picked.slice();
     state.sel = {};
     state.cross = {};
+    state.topics = {};
     state.picked = [];
     state.pickerOpen = true;
     state.when = 'all';
@@ -896,6 +931,19 @@ function build() {
 
   $filters.addEventListener('change', (e) => {
     const t = e.target;
+    if (t && t.dataset && t.dataset.topic != null) {
+      const id = t.dataset.topicSubj;
+      const list = (state.topics[id] || []).filter((l) => l !== t.dataset.topic);
+      if (t.checked) list.push(t.dataset.topic);
+      if (list.length) state.topics[id] = list; else delete state.topics[id];
+      applyCross();
+      state.shown = PAGE;
+      save();
+      renderData();
+      const again = $filters.querySelector('[data-topic-subj="' + id + '"][data-topic="' + String(t.dataset.topic).replace(/"/g, '\\"') + '"]');
+      if (again) again.focus();
+      return;
+    }
     if (!t || !t.dataset || !t.dataset.key) return;
     const key = t.dataset.key;
     // One choice for every ticked subject (see selFromCross). Choosing a
@@ -914,6 +962,8 @@ function build() {
 
   $filters.addEventListener('click', (e) => {
     const t = e.target.closest && e.target.closest('button');
+    if (t && t.dataset && t.dataset.topicToggle) { state.topicsOpen = !state.topicsOpen; renderFilters(); layout(); return; }
+    if (t && t.dataset && t.dataset.topicClear) { state.topics = {}; applyCross(); state.shown = PAGE; save(); renderData(); return; }
     if (t && t.dataset && t.dataset.retry) load(t.dataset.retry, true);
   });
 
@@ -1032,7 +1082,7 @@ function applyCross() {
   state.cross = state.cross || {};
   Object.keys(state.wires).forEach((id) => {
     const e = state.wires[id];
-    if (e && e.wire) state.sel[id] = selFromCross(e.wire, state.cross);
+    if (e && e.wire) state.sel[id] = withTopics(e.wire, selFromCross(e.wire, state.cross), id, state.topics);
   });
 }
 
@@ -1069,6 +1119,8 @@ function renderFold() {
     return key;
   };
   const set = foldSummary(state.cross, state.when, labelFor);
+  const ticked = [].concat(...Object.keys(state.topics).map((k) => state.topics[k] || []));
+  if (ticked.length) set.unshift('Topic: ' + ticked.join(', '));
   $foldSum.textContent = set.length ? set.join(' \u00b7 ') : 'none set';
   $foldSum.classList.toggle('none', !set.length);
   $foldSum.title = set.join('\n');
@@ -1154,6 +1206,7 @@ function renderFilters(focusId) {
   const many = state.picked.length > 1;
   kinds.sort((a, b) => rowRank(a.label) - rowRank(b.label));
   const rows = kinds.filter((k) => k.subs.length).map((k) => {
+    if (k.key === 'topic') return topicRow(k, many);
     const fid = 'wf-' + k.key;
     // The same value from several subjects is one option, its counts added.
     const merged = new Map();
@@ -1171,10 +1224,34 @@ function renderFilters(focusId) {
       '</select></label>' + hint;
   }).join('');
 
+  // An open topic list has room of its own; the rows below it stay whole.
+  $filters.classList.toggle('topics-open', !!state.topicsOpen);
   $filters.innerHTML = rows + unread.map((u) =>
     '<p class="wire-unread">' + esc(BY_ID[u.id].name) + ' could not be read (' + esc(String(u.error)) + '). ' +
     '<button type="button" class="wire-btn" data-retry="' + u.id + '">Try again</button></p>').join('');
   if (active) { const el = document.getElementById(active); if (el && $filters.contains(el)) el.focus(); }
+}
+
+// Topics: a list to tick as many as wanted, under a heading for each subject
+// when more than one subject has topics (24 September).
+function topicRow(k, many) {
+  const ticked = [].concat(...Object.keys(state.topics).map((id) => (state.topics[id] || []).map((l) => ({ id, l }))));
+  const said = !ticked.length ? 'All'
+    : ticked.length === 1 ? ticked[0].l
+    : ticked.length + ' topics ticked';
+  const head = '<div class="wire-filter wire-topicrow"><span>' + esc(k.label) + '</span>' +
+    '<button type="button" class="wire-dd' + (ticked.length ? ' set' : '') + '" data-topic-toggle="1" aria-expanded="' + state.topicsOpen + '">' +
+      '<span class="t">' + esc(said) + '</span><span class="wire-caret" aria-hidden="true"></span></button></div>';
+  if (!state.topicsOpen) return head;
+  const grouped = k.subs.length > 1;
+  const body = k.subs.map(({ id, opts }) => {
+    const mine = state.topics[id] || [];
+    return (grouped ? '<div class="wire-topic-subj">' + esc(BY_ID[id] ? BY_ID[id].name : id) + '</div>' : '') +
+      opts.map((o) => '<label class="wire-topic"><input type="checkbox" data-topic-subj="' + esc(id) + '" data-topic="' + esc(o.label) + '"' +
+        (mine.indexOf(o.label) !== -1 ? ' checked' : '') + '><span>' + esc(o.label) + '</span><span class="n">' + num(o.count) + '</span></label>').join('');
+  }).join('');
+  return head + '<div class="wire-topics">' +
+    (ticked.length ? '<button type="button" class="wire-btn" data-topic-clear="1">Clear the topics</button>' : '') + body + '</div>';
 }
 
 // The stories now showing, handed to the map. Off when the box is unticked.

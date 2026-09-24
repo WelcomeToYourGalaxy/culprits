@@ -3656,5 +3656,13 @@ console.log("\nround of 24 September: a search box for the layers, and the unpla
         f("ibge_bra_biomes") === "Base and reference > Physical and human geography" &&
         f("fao_management_objectives") === `${P} > Deforestation > Forest zoning and management plans`);
 }
+{
+  // Round 25: the news popup's filter labels keep one line beside their menus.
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("function wirePopFilters("), src.indexOf("function wirePopPick("));
+  check("each popup filter label is its own span, not bare text squeezed a letter a line",
+        (body.match(/<span class=\"wf-l\">/g) || []).length === 3 && !/wire-pop-sort\">\$\{label\} /.test(body) &&
+        /\.wf-l\{flex:0 0 64px;white-space:nowrap/.test(src) && /min-width:0;width:0/.test(src));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

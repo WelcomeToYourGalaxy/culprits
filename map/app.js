@@ -2813,10 +2813,16 @@ function wireDayLabel(key) {
   const [y, m, d] = key.split("-").map(Number);
   return new Date(y, m - 1, d).toLocaleDateString();
 }
+// The label words sit in their own span so they keep one line at a fixed width
+// beside the menu: bare text beside a select was squeezed to a letter a line.
+const WIRE_POP_LABEL_CSS = ".wire-pop-sort > .wf-l{flex:0 0 64px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" +
+  ".wire-pop-sort > select,.wire-pop-sort > input{flex:1 1 auto;min-width:0;width:0}";
+let wirePopLabelCss = false;
 function wirePopFilters(list) {
+  if (!wirePopLabelCss && typeof addStyle === "function") { addStyle(WIRE_POP_LABEL_CSS, "wire-pop-labels"); wirePopLabelCss = true; }
   const row = (key, label, values, missing, blank, labelOf) => {
     if (values.length + (missing ? 1 : 0) < 2) return "";
-    return `<label class="wire-pop-sort">${label} <select data-wf="${key}"><option value="">All</option>` +
+    return `<label class="wire-pop-sort"><span class="wf-l">${label}</span><select data-wf="${key}"><option value="">All</option>` +
       values.map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(labelOf ? labelOf(v) : v)}</option>`).join("") +
       (missing ? `<option value="${WIRE_NOT_GIVEN}">${escapeHtml(blank)}</option>` : "") +
       `</select></label>`;
@@ -2831,9 +2837,9 @@ function wirePopFilters(list) {
     menu("outlet", "Source", "No source named") +
     menu("place", "Place", "No place named") +
     row("day", "Date", days, list.some((s) => !wireDay(s)), "No date given", wireDayLabel) +
-    `<label class="wire-pop-sort">Headline <input data-wf="title" type="search" placeholder="words in the headline" ` +
+    `<label class="wire-pop-sort"><span class="wf-l">Headline</span><input data-wf="title" type="search" placeholder="words in the headline" ` +
     `style="flex:1;font:inherit;color:var(--bone);background:var(--peat,#17150F);border:1px solid var(--rule);border-radius:2px;padding:1px 4px"></label>` +
-    `<label class="wire-pop-sort">Order <select data-wf="order">` +
+    `<label class="wire-pop-sort"><span class="wf-l">Order</span><select data-wf="order">` +
     WIRE_SORTS.map(([k, nm]) => `<option value="${k}">${nm}</option>`).join("") + `</select></label>` +
     `<div class="meta wire-pop-n"></div>`;
 }

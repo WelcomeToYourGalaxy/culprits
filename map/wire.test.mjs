@@ -281,5 +281,27 @@ if (args.includes("--live") || dirAt !== -1) {
   check("a subject whose every story is in the chosen language is kept", !W.selFromCross(allEnglish, { lang: W.languageName("en") }).__blocked);
 }
 
+{
+  // Topics: as many as wanted, chosen per subject (24 September).
+  const tf = (labels) => ({ key: "topic", label: "Topic", labels, none: "Not stated" });
+  const food = { facets: [tf({ fi: "Fishing", fo: "Forests", mi: "Mining" })],
+    stories: [{ v: { topic: ["fi"] } }, { v: { topic: ["fo"] } }, { v: { topic: ["mi"] } }, { v: { topic: ["fi", "mi"] } }] };
+  const police = { facets: [tf({ ar: "Arrests" })], stories: [{ v: { topic: ["ar"] } }] };
+  check("no topic ticked leaves the choice as it was", W.withTopics(food, {}, "food", {}).topic === undefined);
+  const two = W.withTopics(food, {}, "food", { food: ["Fishing", "Mining"] });
+  check("two topics ticked keep a story carrying either", W.filterStories(food, two, {}).length === 3);
+  check("a topic list of one still filters", W.filterStories(food, W.withTopics(food, {}, "food", { food: ["Forests"] }), {}).length === 1);
+  const other = W.withTopics(police, {}, "police", { food: ["Fishing"] });
+  check("a subject with no topic ticked under it shows nothing once any is ticked", W.filterStories(police, other, {}).length === 0);
+  const opts = W.optionsFor(food, food.facets[0], two, {});
+  check("every topic is still offered, with its count, while some are ticked",
+        opts && opts.length === 3 && opts.find((o) => o.label === "Forests").count === 1, JSON.stringify(opts));
+}
+{
+  const src = fs.readFileSync(new URL('./wire.js', import.meta.url), 'utf8');
+  check("the topic row is a list to tick, under a heading per subject when there are several",
+        /function topicRow\(k, many\)/.test(src) && /const grouped = k\.subs\.length > 1/.test(src) && /wire-topic-subj/.test(src));
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

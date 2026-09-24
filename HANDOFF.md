@@ -5,6 +5,30 @@ touches.
 
 ---
 
+## Round of 24 September (25): several topics at once; the news popup's labels
+
+**Topics, as many as wanted** (map/wire.js). The Topic row is no longer a
+menu: `topicRow` draws a button ("All", the one topic, or "N topics ticked")
+that opens a list of tick boxes with each topic's count, under a heading per
+subject when more than one ticked subject has topics, and a "Clear the topics"
+button. Choices are kept per subject in `state.topics` ({subject id: [label,
+...]}, saved with the rest; the old single `cross.topic` is dropped on load).
+`withTopics` turns them into each subject's choice: an array of values, which
+`matches` keeps when a story carries any of them; once any topic is ticked, a
+subject with none ticked under it shows nothing, as the other filters do.
+`optionsFor` still offers every topic while some are ticked. The fold line
+leads with "Topic: a, b". The row and its list span both columns of the
+filters grid, and the grid gives up its height cap while the list is open
+(`.wire-facets.topics-open`). Tried in headless Chromium on the live Abortion
+and Conflict wires: two headings, two topics ticked, stories from both kept.
+
+**News popup labels** (map/app.js, `wirePopFilters`). The words Subject,
+Source, Place, Date, Headline and Order were bare text beside their menus, and
+index.html's `.wire-pop-sort > :first-child{flex:0 0 62px}` fixed the width of
+the menu instead, so the words were squeezed to a letter a line. Each is now a
+`<span class="wf-l">` held to one line at 64px, with the menu taking the rest
+(`WIRE_POP_LABEL_CSS`, added once through `addStyle`; index.html untouched).
+
 ## Round of 24 September: search in the layers box; the unplaced rows filed
 
 **Search.** `layerSearch(box)` (called at the end of `arrangePanel`) puts a box
