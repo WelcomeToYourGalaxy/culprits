@@ -4722,6 +4722,11 @@ const CATALOGUE_BY_TITLE = [
   // Liberia's mineral exploration and development licences are mining rights,
   // issued under its Minerals and Mining Law (23 September).
   [/(?=.*(liberia|\blbr_))(?=.*(exploration|development))(?=.*licen[cs]e)/i, [P + " > Mining"]],
+  // Liberia's Mineral Development Agreements, under Mining beside the licences;
+  // Global Forest Watch's resource rights (Cameroon, Equatorial Guinea, Liberia,
+  // Namibia) under Land and territory (23 September, round 22).
+  [/\blbr_mineral_development_agreement\b|(?=.*liberia)(?=.*mineral development agreement)/i, [P + " > Mining"]],
+  [/\bgfw_resource_rights\b/, ["Suppression > Of humans > Land and territory"]],
   // Logging roads in the Congo Basin: Deforestation only, not Construction.
   [/logging roads?\b/i, [P + " > Deforestation"]],
   // Placed by name.

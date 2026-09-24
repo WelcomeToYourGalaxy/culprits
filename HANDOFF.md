@@ -14,7 +14,9 @@ and its v3p3 copy, `base_ikn`, `base_road`, `base_road_edited`, `base_roadRGB`,
 `IDNMYSBorneo_Transmigration_2021` and its `_wms` twin; the Congo Basin forest
 roads; INCRA's rural settlements in Brazil (its quilombola communities stay, under
 Land and territory: round 21 narrowed a rule that had caught them). Placed: Liberia's mineral
-exploration and development licences under Mining; logging roads under
+exploration and development licences and its Mineral Development Agreements
+under Mining; the resource rights (Cameroon, Equatorial Guinea, Liberia,
+Namibia) under Land and territory (round 22); logging roads under
 Deforestation only (no longer also Construction); the all-ecosystem
 disturbance alerts (DIST-ALERT) copied under Fire and Mining as well. In
 `CATALOGUE_PLACES`, rubber goes under Deforestation (the Destruction page

@@ -3492,5 +3492,14 @@ console.log("\nround of 23 September (21): INCRA's quilombola communities kept")
         f("INCRA Brazil Rural Settlements incra_bra_rural_settlements") === "(taken out)" &&
         f("INCRA Brazil Quilombola Communities incra_bra_quilombola_communities") === "Suppression > Of humans > Land and territory");
 }
+console.log("\nround of 23 September (22): Liberia's development agreements and the resource rights placed");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const places = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return cataloguePlaces;")();
+  const f = (t) => places(t, t).join(" | ");
+  check("Liberia's Mineral Development Agreements are under Mining, the resource rights under Land and territory",
+        f("Liberia Mineral Development Agreement lbr_mineral_development_agreement") === "Destruction > Of the planet > Mining" &&
+        f("Resource rights \u2014 Currently available for Cameroon, Equatorial Guinea, Liberia and Namibia gfw_resource_rights") === "Suppression > Of humans > Land and territory");
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
