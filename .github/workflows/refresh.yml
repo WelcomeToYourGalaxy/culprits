@@ -82,6 +82,7 @@ jobs:
         run: |
           chmod +x pipeline/build_tiles.sh
           for id in $(tr ',' ' ' <<< "${{ steps.harvest.outputs.changed }}"); do
+            if [ "$id" = "climate_trace" ]; then echo "climate_trace: its sector archives are built by split_sectors, not here"; continue; fi
             python3 pipeline/normalize.py \
               --source "$id" \
               --in "data/raw/$id.jsonl.gz" \
