@@ -3710,5 +3710,18 @@ console.log("\nround of 24 September: a search box for the layers, and the unpla
         /totals\[e\.features\[0\]\.id\]/.test(src));
   check("a trade flow's box lists every field of the flow's record", /_all: JSON\.stringify\(r\)/.test(src));
 }
+{
+  // Round 30: what the live check of 24 September found.
+  console.log("\nround 30: the layers the live check found not drawing");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const owid = new Function(src.match(/function owidParse[\s\S]*?\n}\n/)[0] + "; return owidParse;")();
+  const rows = owid("entity,code,year,oda_share_gni_recipient,owid_region\nAfghanistan,AFG,1960,3.129,Asia\nWorld,OWID_WRL,1960,1,\nChad,TCD,1961,,Africa\n");
+  check("an Our World in Data file ending in a text column still reads its numbers (foreign aid drew 0 countries)",
+        rows.length === 1 && rows[0].iso3 === "AFG" && rows[0].v === 3.129);
+  check("a harvested layer that has drawn stops saying loading", /\/\^loading\/\.test\(stateEl\.textContent/.test(src));
+  check("Trase's region shapes come from the weekly copy first, Trase's own server second",
+        /regionsCopy: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/trase\/regions"/.test(src) &&
+        /traseCopyFirst\(cfg, "metadata\.json"\)/.test(src) && /traseCopyFirst\(cfg, file\)/.test(src));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

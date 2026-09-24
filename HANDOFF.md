@@ -5,6 +5,26 @@ touches.
 
 ---
 
+## Round 30 (24 September): what the live layer check found
+
+Checked in the browser by the owner (layer_check.js). Fixed here:
+- Foreign aid (`owid_aid`) drew 0 countries: Our World in Data's files now end
+  with a text column (owid_region); owidParse took the last column as the
+  value. It now takes the numeric column.
+- Harvested layers with no other status line (Unearthings findings) said
+  "loading…" for good after drawing; they now say they are drawn.
+- Trase measures: resources.trase.earth now blocks the browser (CORS) for the
+  region shapes. scripts/trase.py in culprits-tiles-more copies them to
+  trase/regions/; the map reads the copy first (`regionsCopy`).
+Found working: trade acts, buildings, space industry, launches (from the
+copy), hotspot cities (33), slick archive, vessels of concern, Trase
+facilities, coastal cleanups, Wreckers of the Earth.
+Still open: EJAtlas's API no longer gives positions (fields id, slug, image,
+headline, name); Coastal Cleanup gives exactly 5,000 sites (a cap);
+materialresearch reads a US census-tract layer slowly; Global Safety Net's
+sub-layers not yet checked one by one.
+
+
 ## Round 29 (24 September): every field, everywhere
 
 - Boxes written from a source's own template (uMap, ArcGIS apps, My Maps,

@@ -2158,6 +2158,10 @@ async function addPmtilesLayer(cfg) {
     bindPopup(`${cfg.id}-agg`, owner);
     bindPopup(`${cfg.id}-pt`, owner);
   }
+  // A layer that nothing else gives a line to said "loading…" for good after
+  // it had drawn (the Unearthings findings, 24 September).
+  const stateEl = typeof document !== "undefined" && document.querySelector ? document.querySelector(`[data-state="${cfg.id}"]`) : null;
+  if (stateEl && /^loading/.test(stateEl.textContent || "")) setLayerState(cfg.id, `drawn from its archive \u00b7 zoom in for each ${cfg.unit ? cfg.unit.replace(/s$/, "") : "one"}`);
   applyVisibility(cfg.id);
   buildLegend();
 }
@@ -3849,7 +3853,7 @@ async function addCtGasesLayer(cfg) {
 async function addTraseLayer(cfg) {
   let cat, regions;
   try {
-    [cat, regions] = await Promise.all([traseJson(cfg.catalogue), traseJson(`${cfg.regions}/metadata.json`)]);
+    [cat, regions] = await Promise.all([traseJson(cfg.catalogue), traseCopyFirst(cfg, "metadata.json")]);
   } catch (e) {
     setLayerState(cfg.id, `not built yet (${e.message})`);
     return;
@@ -3950,7 +3954,16 @@ function traseMenus(cfg, e) {
 function traseRegionFile(cfg, part) {
   const hits = (cfg._regions || []).filter((r) => traseSlug(r.country) === part.country && r.node_type_slug === part.level);
   const hit = hits.find((r) => part.year >= Number(r.year_start) && part.year <= Number(r.year_end)) || hits[0];
-  return hit ? `${cfg.regions}/${hit.endpoint_geojson}` : null;
+  return hit ? hit.endpoint_geojson : null;
+}
+// Trase's file server stopped letting other sites read its region shapes
+// (24 September: blocked by CORS in the browser). scripts/trase.py in
+// culprits-tiles-more copies them weekly; the copy is read first and Trase's
+// own address only if the copy lacks the file.
+function traseCopyFirst(cfg, file) {
+  return cfg.regionsCopy
+    ? traseJson(`${cfg.regionsCopy}/${file}`).catch(() => traseJson(`${cfg.regions}/${file}`))
+    : traseJson(`${cfg.regions}/${file}`);
 }
 
 // The year to draw: the one asked for if it has values; with none asked for,
@@ -3992,7 +4005,7 @@ async function traseDraw(cfg, e) {
     const file = traseRegionFile(cfg, part);
     if (!file) { left.push(`${part.name} (Trase publishes no shapes for its ${part.levelName.toLowerCase()} level)`); return []; }
     try {
-      const [shapes, values] = await Promise.all([traseJson(file), traseJson(`${cfg.values}/${part.country}/${part.level}/${e.metric}.json`)]);
+      const [shapes, values] = await Promise.all([traseCopyFirst(cfg, file), traseJson(`${cfg.values}/${part.country}/${part.level}/${e.metric}.json`)]);
       // Trase's catalogue can list years its values do not hold (round 23,
       // item 15: Indonesia's peatland area is listed to 2024 and published for
       // 2015 to 2023; burned peatland is listed and published for no year). With
@@ -6333,10 +6346,21 @@ function owidParse(csv) {
     out.push(cur); return out; };
   const head = split(lines[0]).map((h) => h.trim().toLowerCase());
   const ci = head.indexOf("code"), yi = head.indexOf("year");
-  const vi = head.length - 1;
+  const body = lines.slice(1).map(split);
+  // The measure's column: the one after entity, code and year whose values are
+  // numbers. It used to be taken as the last column, and Our World in Data now
+  // ends its files with a text column (owid_region), so every row read as no
+  // number and the foreign aid chart drew 0 countries (24 September).
+  const skip = new Set(["entity", "code", "year"]);
+  let vi = -1, best = 0;
+  head.forEach((h, i) => {
+    if (skip.has(h)) return;
+    const n = body.slice(0, 500).filter((c) => c[i] !== undefined && c[i] !== "" && isFinite(Number(c[i]))).length;
+    if (n > best) { best = n; vi = i; }
+  });
+  if (vi < 0) return [];
   const rows = [];
-  for (const l of lines.slice(1)) {
-    const c = split(l);
+  for (const c of body) {
     const v = Number(c[vi]);
     if (!c[ci] || c[ci].startsWith("OWID") || !isFinite(v) || c[vi] === "") continue;
     rows.push({ iso3: c[ci], name: c[head.indexOf("entity")], year: Number(c[yi]), v });
@@ -10129,8 +10153,9 @@ const TRASE_DATA = {
       { id: "trase_measures", name: "Deforestation and supply-chain measures (Trase)", unit: "regions", catUnit: "regions", colour: "#8C5548", route: "trase", ready: true, lazy: true,
         catalogue: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/catalogue.json", values: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/values",
         regions: "https://resources.trase.earth/data/trase-regions",
+        regionsCopy: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/regions",
         attribution: "Trase (CC BY 4.0)",
-        note: "Trase's own measures for every country, region level and year it publishes. Region shapes are read live from Trase; the values come from a copy reread weekly, because Trase does not let other sites read them." },
+        note: "Trase's own measures for every country, region level and year it publishes. Values and region shapes both come from a copy reread weekly, because Trase does not let other sites read them." },
       { id: "trase_meat_brazil", name: "Slaughterhouses and animal-product plants, Brazil (Trase)", unit: "facilities", colour: "#8C5548", route: "trasefac", ready: true, lazy: true,
         manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json", facilityType: "brazil-facilities",
         file: "2026-05-07-br_beef_logistics_map_v6.geo.json",
