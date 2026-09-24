@@ -36,10 +36,10 @@
       color-mix(in srgb, var(--holo-bg), #000000 35%) 100%)}
   /* Overlays sit just above the map drawing, under popups and every panel,
      and never take a click or a drag. */
-  .holo-scan,.holo-floor,.holo-readout,.holo-rim,.holo-flicker,.holo-crt{position:absolute;pointer-events:none;display:none}
+  .holo-scan,.holo-floor,.holo-readout,.holo-rim,.holo-crt{position:absolute;pointer-events:none;display:none}
   body.holo-on .holo-scan,body.holo-on .holo-readout,body.holo-on .holo-rim{display:block}
   body.holo-on.holo-floor-on .holo-floor{display:block}
-  body.holo-on.holo-fx-on .holo-flicker,body.holo-on.holo-fx-on .holo-crt{display:block}
+  body.holo-on.holo-fx-on .holo-crt{display:block}
   .holo-rim{left:0;top:0;width:100%;height:100%}
   .holo-scan{inset:0;opacity:.04;
     background:repeating-linear-gradient(to bottom, var(--holo-line) 0 1px, transparent 1px 3px)}
@@ -51,23 +51,8 @@
     background-image:linear-gradient(var(--holo-grid) 1px, transparent 1px),
                      linear-gradient(90deg, var(--holo-grid) 1px, transparent 1px);
     background-size:44px 44px}
-  /* 80s effects. The flicker is an overlay whose tint blinks, so the map
-     itself is never redrawn for it. Uneven steps, so it never reads as a beat. */
-  .holo-flicker{inset:0;animation:holo-flicker 9.7s steps(1,end) infinite}
-  @keyframes holo-flicker{
-    0%{background:transparent}
-    11%{background:color-mix(in srgb, var(--holo-line) 4%, transparent)}
-    11.4%{background:transparent}
-    46%{background:rgba(0,0,0,.07)}
-    46.5%{background:transparent}
-    47.1%{background:color-mix(in srgb, var(--holo-line) 3%, transparent)}
-    47.5%{background:transparent}
-    73%{background:rgba(0,0,0,.05)}
-    73.3%{background:transparent}
-    90.2%{background:color-mix(in srgb, var(--holo-line) 2.5%, transparent)}
-    90.9%{background:transparent}}
-  @media (prefers-reduced-motion: reduce){.holo-flicker{animation:none}}
-  /* A tube's darker, rounded edges. */
+  /* 80s effects: a tube's darker, rounded edges (the colour fringe on the
+     outlines is a map layer, in the script below). */
   .holo-crt{inset:0;border-radius:18px;
     background:radial-gradient(ellipse at center, transparent 58%, rgba(2,4,14,.38) 100%);
     box-shadow:inset 0 0 70px rgba(2,4,14,.55)}
@@ -78,6 +63,10 @@
   .holo-ctl{margin-top:5px;padding-top:5px;border-top:1px solid var(--rule)}
   .holo-ctl .nm{font-family:var(--holo-font);font-size:12.5px;letter-spacing:.02em}
   .holo-ctl .holo-sub{padding-left:20px}
+  .holo-ctl .holo-fold{margin-left:auto;background:none;border:0;color:var(--dim);cursor:pointer;
+    font-size:11px;line-height:1.5;padding:0 3px}
+  .holo-ctl .holo-fold:hover{color:var(--bone)}
+  .holo-ctl .holo-fold[hidden]{display:none}
   .holo-ctl .holo-sub[hidden]{display:none}
   .holo-ctl .holo-sub .nm{font-size:11.5px;color:var(--dim)}
   .holo-ctl .holo-tint{display:flex;align-items:center;gap:6px;padding:0 0 4px 20px;
@@ -353,8 +342,9 @@
   .view-row .view-choices{flex:0 0 auto}
   /* Snap back over Leave Earth, to the right of the zoom buttons. */
   .view-go{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:4px}
-  .view-go .snap{font:inherit;font-size:11.5px;line-height:1.2;color:var(--bone);background:none;
-    border:1px solid var(--rule);border-radius:3px;padding:4px 6px;cursor:pointer}
+  /* Highlighted like Leave Earth under it (asked for 23 September). */
+  .view-go .snap{font:inherit;font-size:11.5px;font-weight:600;line-height:1.2;color:var(--bone);
+    background:rgba(92,110,119,.18);border:1px solid var(--slate);border-radius:3px;padding:4px 6px;cursor:pointer}
   .view-go .snap:hover{border-color:var(--bone)}
   .view-go .leave{flex:1 1 auto!important;min-width:0;font-size:15px!important;padding:6px 8px!important}
   .terrain-left{flex:0 0 auto;display:flex;flex-direction:column;gap:6px}
@@ -496,6 +486,34 @@
 </script>
 <script src="./app.js"></script>
 <script src="./wire.js"></script>
+<!-- The drag bar on the layers box's right edge (made by columnEdge() in
+     app.js) ran the full height of the column, so it stayed standing beside
+     empty map when the box was rolled up or pulled shorter. It is held to the
+     box's own height here, and follows it as the box changes. -->
+<script id="col-edge-fit">
+(function () {
+  const col = document.querySelector(".left-col");
+  if (!col || !window.ResizeObserver) return;
+  let watched = null;
+  const ro = new ResizeObserver(fit);
+  function fit() {
+    const edge = col.querySelector(".col-edge"), panel = col.querySelector(".panel");
+    if (!edge || !panel) return;
+    const h = panel.offsetHeight + "px";
+    // Only when it changes, so this never answers its own change.
+    if (edge.style.bottom !== "auto") edge.style.bottom = "auto";
+    if (edge.style.height !== h) edge.style.height = h;
+  }
+  function watch() {
+    const panel = col.querySelector(".panel");
+    if (panel && panel !== watched) { if (watched) ro.unobserve(watched); ro.observe(panel); watched = panel; }
+    fit();
+  }
+  watch();
+  // The bar is added after the map loads; the box is rolled with a class.
+  new MutationObserver(watch).observe(col, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "style"] });
+})();
+</script>
 <!-- HOLOGRAM VIEW (2 of 2). Adds a "Hologram view" switch to the Basemap box.
      On: the basemap is hidden (or dimmed underneath) and Natural Earth country
      outlines are drawn as a glowing wireframe, with OpenStreetMap detail close
@@ -541,7 +559,7 @@
   const HOLO_IDS = EARTH_IDS.concat(["holo-grat"], DETAIL_IDS.slice(0, 5), ["holo-glow", "holo-fringe", "holo-line"], DETAIL_IDS.slice(5));
 
   // The sub-switches, kept for this browser only (nothing else depends on them).
-  const opt = { grat: true, floor: true, stars: true, detail: true, fx: true, under: false, tint: 55 };
+  const opt = { grat: true, floor: true, stars: true, detail: true, names: false, fx: true, under: false, tint: 55, fold: false };
   try { Object.assign(opt, JSON.parse(localStorage.getItem("culprits-holo") || "{}")); } catch (e) { /* defaults */ }
   const keepOpt = () => { try { localStorage.setItem("culprits-holo", JSON.stringify(opt)); } catch (e) { /* not kept */ } };
 
@@ -637,6 +655,12 @@
     if (!map.getSource("holo-world")) map.addSource("holo-world", { type: "geojson", data: { type: "Feature", properties: {},
       geometry: { type: "Polygon", coordinates: [[[-180, -85.0511], [180, -85.0511], [180, 85.0511], [-180, 85.0511], [-180, -85.0511]]] } } });
     if (!map.getSource("osm")) map.addSource("osm", Object.assign({}, OSM_SOURCE));
+    // Place names: the map's own labels come from CARTO's light-background
+    // set (dark text). This is CARTO's set for dark maps, same provider, pale
+    // text with a dark edge, so it reads on the hologram.
+    if (!map.getSource("holo-labels")) map.addSource("holo-labels", { type: "raster", tileSize: 256,
+      tiles: ["https://a.basemaps.cartocdn.com/rastertiles/dark_only_labels/{z}/{x}/{y}@2x.png"],
+      attribution: "Labels © CARTO, © OpenStreetMap" });
     if (!map.getSource("outline-dem")) map.addSource("outline-dem", Object.assign({}, RELIEF_SOURCE));
     const before = holoBefore();
     const hid = { visibility: "none" };
@@ -700,6 +724,12 @@
       try { map.addLayer(Object.assign({ id }, specs[id]), before); }
       catch (e) { console.warn("[culprits] hologram layer", id, e.message || e); }
     }
+    // Names go over everything, as the map's own labels do.
+    if (!map.getLayer("holo-labels")) {
+      try { map.addLayer({ id: "holo-labels", type: "raster", source: "holo-labels", layout: { visibility: "none" },
+        paint: { "raster-opacity": 0.85, "raster-saturation": -1, "raster-fade-duration": 0 } }); }
+      catch (e) { console.warn("[culprits] hologram layer holo-labels", e.message || e); }
+    }
     outlineFade();
   }
   // With the close-in detail on, the Natural Earth lines step back as the
@@ -745,6 +775,7 @@
     vis("holo-glow", on ? "visible" : "none");
     vis("holo-line", on ? "visible" : "none");
     vis("holo-fringe", on && opt.fx ? "visible" : "none");
+    vis("holo-labels", on && opt.names ? "visible" : "none");
     document.body.classList.toggle("holo-on", on);
     document.body.classList.toggle("holo-floor-on", on && opt.floor);
     document.body.classList.toggle("holo-stars-on", on && opt.stars);
@@ -899,12 +930,12 @@
     if (overlays) return;
     const cv = map.getCanvas();
     const mk = (cls, tag) => { const el = document.createElement(tag || "div"); el.className = cls; return el; };
-    const els = [mk("holo-rim", "canvas"), mk("holo-scan"), mk("holo-floor"), mk("holo-crt"), mk("holo-flicker"), mk("holo-readout")];
+    const els = [mk("holo-rim", "canvas"), mk("holo-scan"), mk("holo-floor"), mk("holo-crt"), mk("holo-readout")];
     els[2].appendChild(document.createElement("i"));
     // Straight after the canvas: over the map drawing, under popups and controls.
     for (const el of els.slice().reverse()) cv.parentNode.insertBefore(el, cv.nextSibling);
     rim = els[0];
-    overlays = { read: els[5] };
+    overlays = { read: els[4] };
   }
   function updateText() {
     if (overlays) overlays.read.textContent =
@@ -985,22 +1016,35 @@
       `<label class="layer"${title ? ` title="${title}"` : ""}><input type="checkbox" id="${id}" data-opt="${key}"${opt[key] ? " checked" : ""}><span class="nm">${nm}</span></label>`;
     d.innerHTML =
       `<label class="layer" title="A wireframe screen: country outlines, no imagery. Your layers stay on.">` +
-      `<input type="checkbox" id="holo-toggle"${on ? " checked" : ""}><span class="nm">Hologram view</span></label>` +
+      `<input type="checkbox" id="holo-toggle"${on ? " checked" : ""}><span class="nm">Hologram view</span>` +
+      `<button type="button" class="holo-fold" id="holo-fold" title="Roll the hologram's options up or down"` +
+      ` aria-expanded="${opt.fold ? "false" : "true"}"${on ? "" : " hidden"}>${opt.fold ? "&#9656;" : "&#9662;"}</button></label>` +
       `<p class="holo-note" id="holo-note"></p>` +
-      `<div class="holo-sub"${on ? "" : " hidden"}>` +
+      `<div class="holo-sub"${on && !opt.fold ? "" : " hidden"}>` +
       tick("holo-grat", "grat", `${HOLO.gridStep}° grid lines`) +
       tick("holo-floorbox", "floor", "Grid floor") +
       tick("holo-stars", "stars", "Stars") +
+      tick("holo-names", "names", "Place names", "Country, city and sea names, in pale text for the dark screen") +
       tick("holo-detail", "detail", "Close-in detail", "OpenStreetMap coasts, borders, rivers, roads and buildings, and relief shading, drawn as wireframe as you zoom in") +
-      tick("holo-fx", "fx", "80s effects", "Flicker, colour fringe on the outlines, darker tube edges") +
+      tick("holo-fx", "fx", "80s effects", "Colour fringe on the outlines, darker tube edges") +
       tick("holo-under", "under", "Basemap underneath", "The basemap ticked above, under the hologram, dimmed by a navy wash") +
       `</div>` +
-      `<label class="holo-tint"${on && opt.under ? "" : " hidden"}>wash <input type="range" id="holo-tint" min="0" max="90" step="5" value="${opt.tint}"><span id="holo-tint-n">${opt.tint}%</span></label>`;
+      `<label class="holo-tint"${on && opt.under && !opt.fold ? "" : " hidden"}>wash <input type="range" id="holo-tint" min="0" max="90" step="5" value="${opt.tint}"><span id="holo-tint-n">${opt.tint}%</span></label>`;
     body.appendChild(d);
     const sync = () => {
-      d.querySelector(".holo-sub").hidden = !on;
-      d.querySelector(".holo-tint").hidden = !(on && opt.under);
+      d.querySelector(".holo-sub").hidden = !on || opt.fold;
+      d.querySelector(".holo-tint").hidden = !(on && opt.under && !opt.fold);
+      const f = d.querySelector("#holo-fold");
+      f.hidden = !on;
+      f.innerHTML = opt.fold ? "&#9656;" : "&#9662;";
+      f.setAttribute("aria-expanded", opt.fold ? "false" : "true");
     };
+    // The options roll up and down with the view still on. The button sits
+    // inside the label, so its click must not reach the tick box.
+    d.querySelector("#holo-fold").addEventListener("click", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      opt.fold = !opt.fold; keepOpt(); sync();
+    });
     d.addEventListener("change", (e) => {
       const t = e.target;
       if (t.id === "holo-toggle") { t.checked ? enable() : disable(); sync(); return; }
