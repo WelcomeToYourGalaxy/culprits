@@ -89,6 +89,9 @@
  "gem_coal": {
   "validator": null
  },
+ "gmo_releases": {
+  "validator": null
+ },
  "jud_courts": {
   "validator": null
  },
@@ -137,6 +140,9 @@
  "legal_publicdefender": {
   "validator": null
  },
+ "local_projects": {
+  "validator": null
+ },
  "owid_co2": {
   "validator": null
  },
@@ -144,6 +150,9 @@
   "validator": null
  },
  "remains_findings": {
+  "validator": null
+ },
+ "remains_records": {
   "validator": null
  },
  "site_animal_fighting": {
@@ -188,6 +197,9 @@
  "site_subsistence_cultures": {
   "validator": null
  },
+ "slavery_cases": {
+  "validator": null
+ },
  "slavery_determinations": {
   "validator": null
  },
@@ -195,6 +207,15 @@
   "validator": null
  },
  "slavery_facilities": {
+  "validator": null
+ },
+ "slavery_fishing": {
+  "validator": null
+ },
+ "slavery_ports": {
+  "validator": null
+ },
+ "slavery_sites": {
   "validator": null
  }
 }
