@@ -5,6 +5,28 @@ touches.
 
 ---
 
+## Round 28 (24 September): tree cover loss by dominant driver, coloured
+
+- `tsc_tree_cover_loss_drivers` drew grey: its tiles hold numbers, not a
+  picture. GFW's own layer for them (Resource Watch layer cc62ec7c) reads them
+  with the decode `treeLossByDriver` (wri/gfw config.js): blue = year - 2000,
+  green = driver code, red = amount. New protocol `gfwdecode://` does the same
+  per pixel and paints the map's own muted colours. Names 1 Commodity driven
+  deforestation, 2 Shifting agriculture, 3 Forestry, 4 Wildfire,
+  5 Urbanization, from the band's values table; RW's legend gives the same
+  names, and its colours are the decode's colours for the same codes.
+- Tiles as GFW asks for them: 30% tree cover (`tcd_30`), zooms 2 to 4,
+  enlarged closer in. If over 5% of a square's pixels do not read as a year and
+  a code 1 to 5, the row says so. Checked in headless Chromium with a made-up
+  square (2015, Forestry): painted exactly the key's colour.
+- Open question on round 27: wri/gfw commit 689b83d (28 Aug 2026, "remove zoom
+  threshold", PR #5260) swapped the colours of classes 9 and 10 in
+  alertDriversEncoded and changed class 3 by one. Before it, 9 painted in the
+  "Other natural disturbance" colour and 10 in the "Wildfire" colour (legend
+  order); since, the reverse. The map follows the current code and legend
+  (9 Wildfire). The PR's text may say why.
+
+
 ## Round 27 (24 September): the eleven driver classes named
 
 - `wur_integration_alert_drivers_class` now shows names, not Class 1 to 11.

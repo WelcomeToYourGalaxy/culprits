@@ -651,6 +651,66 @@ maplibregl.addProtocol("remap", async (params, abortController) => {
     : await new Promise((res) => canvas.toBlob(res, "image/png"));
   return { data: await blob.arrayBuffer() };
 });
+// gfwdecode://<dataset>/<tile address without https://> - a Global Forest
+// Watch picture tile that holds numbers in its colours rather than a picture
+// (round 28). Global Forest Watch's own map reads them in its browser code
+// (wri/gfw, providers/datasets-provider/config.js); the one used here is its
+// treeLossByDriver: blue is the year of loss less 2000, green the driver's
+// code, red how much loss (drawn on its power scale, stronger closer in). Each
+// pixel is painted in the colour this map's key gives its code. If most drawn
+// pixels do not fit that reading, the row says so and nothing is painted.
+// Global Forest Watch's own layer for these tiles (Resource Watch layer
+// cc62ec7c, "Tree cover loss by dominant driver - 2001-2023") names that
+// decode, asks for the 30% tree cover tiles by default, and reads them at
+// zooms 2 to 4 only; closer in the zoom-4 squares are enlarged.
+const GFW_DECODE = {
+  tsc_tree_cover_loss_drivers: { how: "treeLossByDriver", codes: [1, 2, 3, 4, 5], firstYear: 2001, tcd: 30, minzoom: 2, maxzoom: 4 },
+};
+const GFW_DECODE_SAY = new Map();       // dataset -> a way to say something on its row
+function gfwDecodePixels(px, spec, colours, zoom) {
+  const exp = zoom < 13 ? 0.3 + (zoom - 3) / 20 : 1;
+  const maxPow = Math.pow(255, exp);
+  let drawn = 0, odd = 0;
+  for (let i = 0; i < px.length; i += 4) {
+    if (!px[i + 3]) continue;
+    const year = 2000 + px[i + 2], code = px[i + 1], intensity = px[i];
+    if (!intensity && !code) { px[i + 3] = 0; continue; }
+    drawn++;
+    const c = colours.get(code);
+    if (!c || year < spec.firstYear || year > 2000 + 60) { odd++; px[i + 3] = 0; continue; }
+    const scaled = Math.max(0, exp > 0 ? Math.pow(intensity, exp) / maxPow * 255 : 255);
+    px[i] = c[0]; px[i + 1] = c[1]; px[i + 2] = c[2];
+    px[i + 3] = Math.min(255, Math.round(scaled * 2));
+  }
+  return { drawn, odd };
+}
+maplibregl.addProtocol("gfwdecode", async (params, abortController) => {
+  const m = params.url.match(/^gfwdecode:\/\/([a-z0-9_]+)\/(.*)$/);
+  const spec = GFW_DECODE[m[1]], key = GFW_KEYS[m[1]];
+  const r = await fetch("https://" + m[2], { signal: abortController && abortController.signal });
+  if (!r.ok) throw Object.assign(new Error(`${r.status}`), { status: r.status });
+  const buf = await r.arrayBuffer();
+  const zm = m[2].match(/\/(\d+)\/\d+\/\d+\.png/);
+  const bmp = await createImageBitmap(new Blob([buf]));
+  const canvas = typeof OffscreenCanvas !== "undefined"
+    ? new OffscreenCanvas(bmp.width, bmp.height)
+    : Object.assign(document.createElement("canvas"), { width: bmp.width, height: bmp.height });
+  // No colour correction, so the numbers in the pixels arrive as stored.
+  const ctx = canvas.getContext("2d", { colorSpace: "srgb", willReadFrequently: true });
+  ctx.drawImage(bmp, 0, 0);
+  const img = ctx.getImageData(0, 0, bmp.width, bmp.height, { colorSpaceConversion: "none" });
+  const colours = new Map(key.values.map(([v, c]) => [v, hex3(c.slice(1))]));
+  const n = gfwDecodePixels(img.data, spec, colours, zm ? Number(zm[1]) : 6);
+  if (n.drawn > 50 && n.odd / n.drawn > 0.05) {
+    const say = GFW_DECODE_SAY.get(m[1]);
+    if (say) say(`${Math.round(100 * n.odd / n.drawn)}% of the pixels in a square do not read as a year and a driver code 1 to ${spec.codes.length}; those are not drawn`);
+  }
+  ctx.putImageData(img, 0, 0);
+  const blob = canvas.convertToBlob
+    ? await canvas.convertToBlob({ type: "image/png" })
+    : await new Promise((res) => canvas.toBlob(res, "image/png"));
+  return { data: await blob.arrayBuffer() };
+});
 // cog4326://<source>/<year>/<z>/<x>/<y> - a class map published as one Cloud
 // Optimised GeoTIFF in latitude and longitude, drawn here square by square
 // (round 23, item 30). The file is never downloaded whole: geotiff.js reads
@@ -5651,6 +5711,17 @@ const GFW_KEYS = {
   // disturbance, the reverse of the legend's order. The notes are GFW's own
   // card texts (Flourish 25392464, on its blog post about the dataset). The
   // colours here are the map's own, muted; GFW's include yellows and oranges.
+  // Curtis et al. 2018 (The Sustainability Consortium), version v2023. Names
+  // from the values table on the band of Global Forest Watch's own driver
+  // raster (probe/gfw in culprits-tiles-more); Resource Watch's three legends
+  // for the dataset give the same five. Drawn through gfwdecode (round 28).
+  tsc_tree_cover_loss_drivers: { values: [
+    [1, "#8C5A4E", "Commodity driven deforestation"],
+    [2, "#6E8058", "Shifting agriculture"],
+    [3, "#4F6E6A", "Forestry"],
+    [4, "#B0707C", "Wildfire"],
+    [5, "#6F5A7A", "Urbanization"]],
+    source: "codes from the values table of Global Forest Watch's driver raster; every year of loss from 2001, stronger where more was lost" },
   wur_integration_alert_drivers_class: { values: [
     [1, "#8C5A4E", "Small-scale agriculture",
       "Clearings smaller than 2 ha, commonly related to shifting cultivation (temporary clearing for cultivation with later regrowth) or smallholder farming. In smallholder landscapes with mixed disturbances, this may include artisanal logging and fuelwood collection (typically burned for cooking)."],
@@ -5878,10 +5949,19 @@ async function addGfwMenuLayer(cfg) {
       }
       const asset = gfwPickAsset(assets);
       const vec = asset.how === "vector" ? { asset_uri: asset.uri } : null;
-      const key = asset.how === "cog" ? GFW_KEYS[d.id] : null;
+      const decode = asset.how === "raster" && GFW_DECODE[d.id] && GFW_KEYS[d.id];
+      const key = asset.how === "cog" || decode ? GFW_KEYS[d.id] : null;
       // A keyed GeoTIFF is asked for in its key's colours, one colour per code.
+      // Picture tiles that hold numbers are read here, pixel by pixel (round 28).
+      if (decode) {
+        GFW_DECODE_SAY.set(d.id, (t) => rowSay(d.key, t));
+        const dc = GFW_DECODE[d.id];
+        asset.uri = asset.uri.replace(/\/tcd_\d+\//, `/tcd_${dc.tcd}/`);
+        asset.minzoom = dc.minzoom; asset.maxzoom = dc.maxzoom;
+      }
       const ras = asset.how === "raster" || asset.how === "cog"
-        ? { asset_uri: key ? `${asset.uri}&colormap=${encodeURIComponent(JSON.stringify(gfwColormap(key)))}` : asset.uri } : null;
+        ? { asset_uri: decode ? `gfwdecode://${d.id}/${asset.uri.replace(/^https:\/\//, "")}`
+          : key ? `${asset.uri}&colormap=${encodeURIComponent(JSON.stringify(gfwColormap(key)))}` : asset.uri } : null;
       const about = [d.meta.license ? `licence: ${d.meta.license}` : "", d.meta.source ? `source: ${String(d.meta.source).replace(/\[|\]\([^)]*\)/g, "")}` : ""].filter(Boolean).join("; ");
       if (vec) {
         const uri = vec.asset_uri;
@@ -5944,6 +6024,8 @@ async function addGfwMenuLayer(cfg) {
       said();
       rowSay(d.key, vec ? (asset.slow ? "drawn from tiles Global Forest Watch makes as they are asked for, so it fills in slowly" : "drawn from its vector tiles")
         : asset.how === "cog" ? "drawn as a picture from its GeoTIFF, through Global Forest Watch\u2019s own tile service"
+        : decode ? `drawn from its picture tiles, each pixel read as a year and a driver code the way Global Forest Watch\u2019s own map reads them` +
+          ((asset.uri.match(/tcd_(\d+)/) || [])[1] ? `, where tree cover was over ${asset.uri.match(/tcd_(\d+)/)[1]}% in 2000` : "")
         : `drawn from its picture tiles, to zoom ${asset.maxzoom}`);
       // A tile that fails says so on the row, once, instead of leaving an empty map.
       const failed = (e) => {

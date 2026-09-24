@@ -3670,5 +3670,28 @@ console.log("\nround of 24 September: a search box for the layers, and the unpla
         (body.match(/<span class=\"wf-l\">/g) || []).length === 3 && !/wire-pop-sort\">\$\{label\} /.test(body) &&
         /\.wf-l\{flex:0 0 64px;white-space:nowrap/.test(src) && /min-width:0;width:0/.test(src));
 }
+{
+  // Round 28: the Sustainability Consortium's drivers, read pixel by pixel the
+  // way Global Forest Watch's own map reads them.
+  console.log("\nround 28: tree cover loss by dominant driver, coloured");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const g = new Function(src.slice(src.indexOf("const GFW_DECODE = {"), src.indexOf("maplibregl.addProtocol(\"gfwdecode\"")) + "; return { GFW_DECODE, gfwDecodePixels };")();
+  const keys = new Function("escapeHtml", src.slice(src.indexOf("const GFW_KEYS = {"), src.indexOf("function catalogueKeyShow(")) + "; return { GFW_KEYS };")((x) => String(x)).GFW_KEYS;
+  const t = keys.tsc_tree_cover_loss_drivers;
+  check("the five drivers carry the names on Global Forest Watch's own raster, 1 to 5",
+        t.values.map((v) => v[0] + " " + v[2]).join("; ") === "1 Commodity driven deforestation; 2 Shifting agriculture; 3 Forestry; 4 Wildfire; 5 Urbanization");
+  const cols = new Map(t.values.map(([v, c]) => [v, [0, 2, 4].map((i) => parseInt(c.slice(1 + i, 3 + i), 16))]));
+  // pixel 1: 2015, Forestry, full loss; pixel 2: empty; pixel 3: code 9 (not a driver); pixel 4: year 2000 (no loss year)
+  const px = new Uint8ClampedArray([255, 3, 15, 255,  0, 0, 0, 255,  200, 9, 10, 255,  200, 2, 0, 255]);
+  const n = g.gfwDecodePixels(px, g.GFW_DECODE.tsc_tree_cover_loss_drivers, cols, 13);
+  check("a pixel reads blue as the year, green as the driver and red as how much, painted in the key's colour",
+        px[0] === cols.get(3)[0] && px[1] === cols.get(3)[1] && px[2] === cols.get(3)[2] && px[3] === 255);
+  check("an empty pixel, a code that is no driver and a pixel with no loss year are left clear, and the odd ones counted",
+        px[7] === 0 && px[11] === 0 && px[15] === 0 && n.drawn === 3 && n.odd === 2);
+  check("the tiles asked for are Global Forest Watch's own default, 30% tree cover, at its zooms 2 to 4, enlarged closer in",
+        g.GFW_DECODE.tsc_tree_cover_loss_drivers.tcd === 30 && g.GFW_DECODE.tsc_tree_cover_loss_drivers.maxzoom === 4 &&
+        /asset\.uri\.replace\(\/\\\/tcd_\\d\+\\\/\/, `\/tcd_\$\{dc\.tcd\}\/`\)/.test(src));
+  check("the row reads the tiles through the decoder and shows the key", /gfwdecode:\/\/\$\{d\.id\}\//.test(src) && /asset\.how === "cog" \|\| decode/.test(src));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
