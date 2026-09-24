@@ -1859,9 +1859,9 @@ console.log("\nTrase, and coral at world zoom");
   check("wider than zoom 12, coral shows UNEP-WCMC's map in the Atlas colour, with no gap",
         /id: `\$\{cfg\.id\}-world`, type: "raster", source: `\$\{cfg\.id\}-globe`, maxzoom: CORAL_WORLD_SHARP/.test(src) &&
         /id: `\$\{cfg\.id\}-world-near`[\s\S]{0,160}minzoom: CORAL_WORLD_SHARP,\n/.test(src) &&
-        /tint:\/\/\$\{CORAL_CLASSES\["Coral\/Algae"\]\.slice\(1\)\}\/data-gis\.unep-wcmc\.org/.test(src));
+        /tint:\/\/\$\{how \|\| CORAL_CLASSES\["Coral\/Algae"\]\.slice\(1\)\}\/data-gis\.unep-wcmc\.org/.test(src));
   check("from the world view the reefs are drawn coarse, so a reef a few hundred metres across can be seen",
-        /wcmc\(96\)/.test(src) && /wcmc\(256\)/.test(src) && /"raster-resampling": "nearest"/.test(src));
+        /wcmc\(96, CORAL_WORLD_TINT \+ "\+grow"\)/.test(src) && /wcmc\(256\)/.test(src) && /"raster-resampling": "nearest"/.test(src));
   check("…and the row says whose map it is", /UNEP-WCMC's warm-water reefs at this width/.test(src));
   check("the switch reaches the world layer", /`\$\{id\}-world`/.test(src));
 }
@@ -1897,11 +1897,15 @@ console.log("\nthe layers box, in the chosen order");
           pieceOf("abc") === "0b" && pieceOf("5bef4812-71a8-7a20-02c5-9c88ef953109") === "37");
     check("\u2026a merged point says how many it stands for; a single one shows the record's own box and every other field",
           /bindHtmlPopup\(`\$\{cfg\.id\}-pt`, \(p\) => pieceBox\(cfg, p\)\)/.test(src) && /props\._html \|\| `<b>/.test(src) && /Merged for this zoom/.test(src));
-    check("\u2026filed by what they show: spill reports under slicks and pollution, drilling under its own heading",
-          at("Oil and gas drilling") > at("Mining") && order.PANEL_ORDER.indexOf("skytruth_fracfocus") > at("Oil and gas drilling") &&
+    // Round 23 (item 2): the Oil and gas drilling heading is gone; the fracking
+    // disclosures and the Pennsylvania heading are under Infrastructure
+    // emitting more than one gas.
+    check("\u2026filed by what they show: spill reports under slicks and pollution, drilling under the climate heading for sites emitting several gases",
+          at("Oil and gas drilling") === -1 && order.PANEL_ORDER.indexOf("skytruth_fracfocus") > at("Infrastructure emitting more than one gas") &&
+          order.PANEL_ORDER.indexOf("skytruth_fracfocus") < at("Pennsylvania") && at("Pennsylvania") < at("Overpopulation") &&
           // Since 22 September the spill reports and the violations are each under one heading only.
           ids.filter((x) => x === "skytruth_nrc").length === 1 && ids.filter((x) => x === "skytruth_pa_violations").length === 1 &&
-          at("Pennsylvania") > at("Oil and gas drilling"));
+          at("Pennsylvania") > at("Infrastructure emitting more than one gas"));
     check("\u2026nothing SkyTruth publishes is left out: the developers' test feed is a row too",
           /id: "skytruth_tests"[^\n]*route: "pmtiles"/.test(src) && /skytruth\/feed_10101"/.test(src) && ids.includes("skytruth_tests"));
     check("\u2026an alert with no position is counted on its row, not passed over",
@@ -2258,7 +2262,7 @@ console.log("\nchanges of 19 September");
   check("the refinery map is under Climate > Fossil fuel plants and refineries", between("fractracker_refineries", "Fossil fuel plants and refineries", "Companies and financiers"));
   check("the toxic release sites are one row, carrying the live layer", o.PANEL_REMOVED.has("epa_tri") && /name:"Factories reporting toxic chemical releases, US \(EPA Toxics Release Inventory\)", [^\n]*\n[^\n]*\n[^\n]*\n\s*linked: \["epa_tri"\]/.test(src));
   check("coral is one row", o.PANEL_REMOVED.has("unep_coral") && pos("allen_coral") > 0);
-  check("mines are merged into counted points wider out", /mines here<\/b>/.test(src) && /"point_count"\], 1\]\]\]\],\n\s*6,/.test(src));
+  check("mines are merged into counted points wider out", /\$\{escapeHtml\(cfg\.featureWords \|\| "mines"\)\} here<\/b>/.test(src) && /"point_count"\], 1\]\]\]\],\n\s*6,/.test(src));
   check("alerts are grown and lightened wider out", /function recolorAlerts\(px, rgb, z, w\)/.test(src) && /recolorAlerts\(img\.data, tint, z, bmp\.width\)/.test(src));
   check("the atlas's two modelled sets are rows of their own, beside the registered facilities",
         !/parts: true,/.test(src) && /id:"abattoir_cafo"[^\n]*route:"cafo"/.test(src) && /id:"abattoir_glw"[^\n]*route:"glw"/.test(src) &&
@@ -2369,7 +2373,7 @@ console.log("\nthe showing box, the queue, and menus that draw");
         src.indexOf('class="lg-on"') < src.indexOf('class="lg-sw"'));
   check("unticking there unticks the row in the layers box, not the map directly",
         /const row = document\.querySelector\(`\[data-layer="\$\{i\.dataset\.lg\}"\]`\)/.test(src) && /row\.dispatchEvent\(new Event\("change"/.test(src));
-  check("a heading's tick sits at the end of its line", /line\.appendChild\(head\);\n\s*line\.appendChild\(all\);/.test(src));
+  check("a heading's tick sits at the end of its line", /else \{ line\.appendChild\(head\); line\.appendChild\(all\); \}/.test(src));
   check("layers are built three at a time, and a waiting row says so",
         /const QUEUE_AT_ONCE = 3/.test(src) && /waiting behind \$\{i \+ 1\} other layer/.test(src) && /queueBuild\(cfg\.id, \(\) => \{/.test(src));
   check("a catalogue row turns the row it belongs to on", /function showRowFor\(id\)/.test(src) && /showRowFor\(cfg\.id\);\n\s*on\.add\(i\);/.test(src) && /showRowFor\(cfg\.id\);\n\s*setLayerState\(cfg\.id, `\$\{d\.title\}: finding its tiles/.test(src));
@@ -2417,7 +2421,7 @@ console.log("\nheading ticks, chips in words, a named archive");
   const order = new Function(body + "; return PANEL_ORDER;")();
   const at = (t) => order.findIndex((x) => x && x.t === t);
   check("every heading takes a tick that shows or hides everything under it",
-        /all\.className = "toc-all"/.test(src) && /for \(const i of body\.querySelectorAll\("\[data-layer\], \[data-copy\]"\)\)/.test(src));
+        /all\.className = "toc-all"/.test(src) && /for \(const i of body\.querySelectorAll\(bundle \? "\[data-layer\], \[data-copy\], \[data-cat\]" : "\[data-layer\], \[data-copy\]"\)\)/.test(src));
   check("unticking a heading clears its layers and its groups' boxes too",
         /for \(const g of body\.querySelectorAll\("\[data-group\]"\)\) \{\n\s*g\.checked = on;/.test(src));
   check("the tick reads its layers: all, none or part-way",
@@ -2493,8 +2497,10 @@ console.log("\nthe layers box, as asked for");
         at("Oceans") < at("Fishing") && between("fishing", "Fishing", "Construction") &&
         o.PANEL_ORDER.indexOf("slavery_fishing") > at("Slavery"));
   check("the reefs sit under Biodiversity loss, with the Global Safety Net at the top of it",
-        between("allen_coral", "Reefs and mangroves", "Fishing") &&
-        o.PANEL_ORDER[at("Biodiversity loss") + 1] === "gsn");
+        // Round 23: Fishing above Reefs and mangroves (item 11); the Global
+        // Safety Net heads the first sub-heading of Biodiversity loss (item 27).
+        between("allen_coral", "Reefs and mangroves", "Construction") && at("Fishing") < at("Reefs and mangroves") &&
+        o.PANEL_ORDER[at("Biodiversity loss") + 1].t === "Places that matter most for species" && o.PANEL_ORDER[at("Biodiversity loss") + 2] === "gsn");
   check("Agriculture is Meat and agriculture, holding Agriculture and Meat",
         at("Meat and agriculture") > 0 && at("Agriculture") > at("Meat and agriculture") &&
         between("land_matrix", "Land and territory", "Physical suppression") && between("abattoir_facilities", "Facilities", "Herds"));
@@ -2899,16 +2905,17 @@ console.log("\na row can sit under more than one subject");
   check("headings count copies in the number beside them",
         /const ROW_TICKS = "\[data-layer\], \[data-copy\], \[data-gm\], \[data-cat\], \[data-cat-copy\], \[data-smtype\]";/.test(src));
   check("\u2026and the catalogues' rows and the site maps' type rows, counted again when they arrive, so no full heading reads none yet",
-        /countHeadings\(box\);\n  if \(box\.dataset\.catWired\) return;/.test(src) && (src.match(/countHeadings\(box\);/g) || []).length >= 3 &&
+        /countHeadings\(box\);\n[\s\S]{0,160}if \(box\.dataset\.catWired\) return;/.test(src) && (src.match(/countHeadings\(box\);/g) || []).length >= 3 &&
         /filter\(\(i\) => !\(i\.closest && i\.closest\("\[data-removed\]"\)\)\)/.test(src));
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("const PANEL_REMOVED"));
   const order = new Function(body + "; return PANEL_ORDER;")();
   const at = (t) => order.findIndex((x) => x && x.t === t);
   check("the eight new headings are in, in the order's own style",
-        ["Fire", "Spatial plans", "Peatland", "Surface water", "Base and reference", "Land and territory"].every((t) => at(t) > -1) &&
+        // Spatial plans is one row with sublayers under Deforestation since round 23.
+        ["Fire", "Peatland", "Surface water", "Base and reference", "Land and territory"].every((t) => at(t) > -1) && at("Spatial plans") === -1 &&
         at("Land held under permit") === -1 && at("Forest and land cover") > -1);
   check("the planet's new headings sit under Of the planet, before Of groups",
-        ["Fire", "Spatial plans", "Peatland", "Surface water", "Other concessions", "General", "Oil spills and slicks"]
+        ["Fire", "Peatland", "Surface water", "Other concessions", "General", "Oil spills and slicks"]
           .every((t) => at(t) > at("Of the planet") && at(t) < at("Of groups")));
   check("Base and reference is its own section, beside Buildings", at("Base and reference") < at("Buildings") &&
         order[at("Base and reference")].h === 1);
@@ -2920,21 +2927,22 @@ console.log("\nNusantara's layers spread through the box");
   const places = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return cataloguePlaces;")();
   check("a layer goes under every subject its words answer to",
         places("Mining concessions Indonesia").includes("Destruction > Of the planet > Mining") &&
-        places("Oil palm concessions, by who lends to them").join() === "Destruction > Of the planet > Meat and agriculture > Agriculture > Palm oil");
+        places("Oil palm concessions, by who lends to them").join() === "Destruction > Of the planet > Meat and agriculture > Agriculture > Palm oil > Who finances them");
   const orderH = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("const PANEL_REMOVED")) + "; return PANEL_ORDER;")();
   const atH = (t) => orderH.findIndex((x) => x && x.t === t);
   // A concession is filed by what it is for; the generic heading is gone (22 September).
   check("a concession goes under its material or activity, not a generic permit heading",
-        places("Timber concessions").join() === "Destruction > Of the planet > Deforestation" &&
-        places("Forest utilisation permits (PBPH)").join() === "Destruction > Of the planet > Deforestation" &&
-        places("Logging concessions").join() === "Destruction > Of the planet > Deforestation" &&
+        // One level further since round 23 (item 27).
+        places("Timber concessions").join() === "Destruction > Of the planet > Deforestation > Logging and timber concessions" &&
+        places("Forest utilisation permits (PBPH)").join() === "Destruction > Of the planet > Deforestation > Logging and timber concessions" &&
+        places("Logging concessions").join() === "Destruction > Of the planet > Deforestation > Logging and timber concessions" &&
         places("Mining concessions").join() === "Destruction > Of the planet > Mining" &&
-        places("Plantation land-use rights (HGU)").join() === "Destruction > Of the planet > Meat and agriculture > Agriculture" &&
+        places("Plantation land-use rights (HGU)").join() === "Destruction > Of the planet > Meat and agriculture > Agriculture > Plantations" &&
         places("Cumulative deforestation for planted pulpwood inside concession trase").includes("Destruction > Of the planet > Deforestation > Wood pulp, Indonesia") &&
-        places("Oil and gas concessions").join() === "Destruction > Of the planet > Oil and gas drilling" &&
+        places("Oil and gas concessions").join() === "Destruction > Of the planet > Climate > Infrastructure emitting more than one gas" &&
         !/"Destruction > Of the planet > Land held under permit"/.test(src));
   check("\u2026one that names no material or activity goes under Other concessions; rubber under Deforestation",
-        places("Rubber plantations 2020, Kalimantan").join() === "Destruction > Of the planet > Deforestation" &&
+        places("Rubber plantations 2020, Kalimantan").join() === "Destruction > Of the planet > Deforestation > Timber and rubber plantations" &&
         places("Concessions of other kinds").join() === "Destruction > Of the planet > Other concessions" &&
         places("National Strategic Project concessions, Merauke").join() === "Destruction > Of the planet > Other concessions" &&
         places("Some permit").join() === "Destruction > Of the planet > Other concessions" &&
@@ -2953,21 +2961,20 @@ console.log("\nNusantara's layers spread through the box");
         orderH.indexOf("site_china_grain") > atH("Nitrous oxide") && orderH.indexOf("site_china_grain") < atH("F-gases") &&
         orderH.indexOf("fractracker_refineries") > atH("Carbon dioxide") && orderH.indexOf("fractracker_refineries") < atH("Methane"));
   check("\u2026and every Nusantara alert row is under Deforestation",
-        places("Trees cut, Indonesia and Malaysia \u2014 every alert system at once, as Nusantara reads them").join() === "Destruction > Of the planet > Deforestation > Tree cover loss and alerts" &&
-        places("Trees cut, seen through cloud by radar (RADD), as Nusantara reads it").join() === "Destruction > Of the planet > Deforestation > Tree cover loss and alerts");
+        places("Trees cut, Indonesia and Malaysia \u2014 every alert system at once, as Nusantara reads them").join() === "Destruction > Of the planet > Deforestation > Tree cover loss and alerts > Alerts" &&
+        places("Trees cut, seen through cloud by radar (RADD), as Nusantara reads it").join() === "Destruction > Of the planet > Deforestation > Tree cover loss and alerts > Alerts");
   check("\u2026Trase's crops go under their own headings, soy and cocoa and palm, not the general one",
-        places("Production of soy trase").join() === "Destruction > Of the planet > Meat and agriculture > Agriculture > Soy, corn and grain" &&
-        places("Cocoa area trase").join() === "Destruction > Of the planet > Meat and agriculture > Agriculture > Cocoa and cotton");
-  check("\u2026the moratorium (PIPPIB) is under Spatial plans and Deforestation > Moratoriums; Badung's plans under Agriculture",
-        places("Moratorium areas (PIPPIB)").includes("Destruction > Of the planet > Spatial plans") &&
-        places("Moratorium areas (PIPPIB)").includes("Destruction > Of the planet > Deforestation > Moratoriums") &&
+        places("Production of soy trase").join() === "Destruction > Of the planet > Meat and agriculture > Agriculture > Soy, corn and grain > Soy" &&
+        places("Cocoa area trase").join() === "Destruction > Of the planet > Meat and agriculture > Agriculture > Cocoa and cotton > Cocoa");
+  check("\u2026the moratorium (PIPPIB) is in the spatial plans row under Deforestation; Badung's plans under Agriculture",
+        places("Moratorium areas (PIPPIB)").join() === "Destruction > Of the planet > Deforestation > Spatial plans, forest estate and the clearing moratorium, Indonesia" &&
         places("Detailed spatial plan 2023, Badung (RDTR)").join() === "Destruction > Of the planet > Meat and agriculture > Agriculture > Detailed spatial plans, Badung");
   check("\u2026a land-cover layer is back under Forest and land cover until the owner decides; mangroves under Reefs and mangroves",
         places("Land cover 2020, Indonesia").join() === "Destruction > Of the planet > Forest and land cover" && places("Mangrove extent").join() === "Destruction > Of the planet > Oceans > Reefs and mangroves" &&
         /leftOut\+\+; item\.leftOut = true; return;/.test(src));
   check("the Tang and Werner mine features are a row under Mining, drawn like the mines, and say what the release carries",
         /id: "mine_features"[^\n]*route: "pmshapes"/.test(src) && /tiles\/mine_features\.pmtiles/.test(src) && /pointLayer: "mine_feature_points"/.test(src) &&
-        /\{ h: 3, t: "Mining" \}, "mines_global", "mine_features",/.test(src) && /no commodity or impact figure/.test(src));
+        /\{ h: 3, t: "Mining" \},\n\s*\{ h: 4, bundle: "mines", colour: "#6E5E52" \}, "mines_global", "mine_features",/.test(src) && /no commodity or impact figure/.test(src));
   check("\u2026the cultivated-meat row is out of the box, and Culprits upstream is dissolved", /"cultivated_meat_laws",/.test(src.slice(src.indexOf("const PANEL_REMOVED"))) && atH("Culprits upstream") === -1);
   check("fire alerts are fire and deforestation is deforestation",
         places("Fire alerts, VIIRS")[0] === "Destruction > Of the planet > Deforestation" ||
@@ -3119,23 +3126,26 @@ console.log("\nround of 22 September (2): the box refiled, rows taken out");
   const P = "Destruction > Of the planet", AG = P + " > Meat and agriculture > Agriculture";
   const f = (t) => places(t, t).join(" | ");
   check("the drivers of tree cover loss are deforestation, not fire",
-        f("Tree cover loss by dominant driver") === P + " > Deforestation > Tree cover loss and alerts" &&
-        f("Drivers of tree cover loss (WRI/Google)") === P + " > Deforestation > Tree cover loss and alerts");
+        f("Tree cover loss by dominant driver") === P + " > Deforestation > Tree cover loss and alerts > What drove the loss" &&
+        f("Drivers of tree cover loss (WRI/Google)") === P + " > Deforestation > Tree cover loss and alerts > What drove the loss");
   check("soy planted area is under Nitrous oxide > Soy and still under Agriculture",
-        f("Soy planted area \u2014 South America") === `${P} > Climate > Nitrous oxide > Soy | ${AG} > Soy, corn and grain` &&
+        f("Soy planted area \u2014 South America") === `${P} > Climate > Nitrous oxide > Soy | ${AG} > Soy, corn and grain > Soy` &&
         at("Soy", at("Nitrous oxide")) > at("Nitrous oxide") && at("Soy", at("Nitrous oxide")) < at("F-gases"));
   check("protected areas, intact forest landscapes worldwide and biodiversity hotspots are biodiversity loss",
-        f("Protected areas (WDPA)") === P + " > Biodiversity loss" &&
-        f("Intact forest landscapes \u2014 Global") === P + " > Biodiversity loss" &&
-        f("Biodiversity hotspots (global, land only)") === P + " > Biodiversity loss");
+        f("Protected areas (WDPA)") === P + " > Biodiversity loss > Protected and conserved areas" &&
+        f("Intact forest landscapes \u2014 Global") === P + " > Biodiversity loss > Intact and primary forests" &&
+        f("Biodiversity hotspots (global, land only)") === P + " > Biodiversity loss > Places that matter most for species");
   check("dams go under Biodiversity loss > Fish",
-        f("Major dams") === P + " > Biodiversity loss > Fish" && at("Fish") > at("Biodiversity loss") && at("Fish") < at("Spatial plans"));
+        f("Major dams") === P + " > Biodiversity loss > Fish" && at("Fish") > at("Biodiversity loss") && at("Fish") < at("Forest and land cover"));
   check("forest greenhouse gas emissions go under Deforestation",
-        f("Forest greenhouse gas emissions") === P + " > Deforestation");
+        f("Forest greenhouse gas emissions") === P + " > Deforestation > Emissions from forests" &&
+        // Round 23 (item 1): the net flux beside it, not under drilling.
+        f("Forest greenhouse gas net flux \u2014 Global gfw_forest_carbon_net_flux") === `${P} > Deforestation > Emissions from forests | ${P} > Climate > Carbon dioxide`);
   check("DIST-ALERT is under Construction, Biodiversity loss, Fire, Mining and Deforestation",
-        f("Global all ecosystem disturbance alerts (DIST-ALERT)") === `${P} > Construction | ${P} > Biodiversity loss | ${P} > Fire | ${P} > Mining | ${P} > Deforestation > Tree cover loss and alerts`);
-  check("oil and gas concessions go under Oil and gas drilling and Climate, not Mining",
-        f("Oil and gas concessions") === `${P} > Oil and gas drilling | ${P} > Climate > Infrastructure emitting more than one gas`);
+        f("Global all ecosystem disturbance alerts (DIST-ALERT)") === `${P} > Construction | ${P} > Biodiversity loss > Disturbance | ${P} > Fire | ${P} > Mining | ${P} > Deforestation > Tree cover loss and alerts > Alerts`);
+  // Round 23 (item 2): the drilling heading is gone.
+  check("oil and gas concessions go under Climate's infrastructure emitting more than one gas, not Mining",
+        f("Oil and gas concessions") === `${P} > Climate > Infrastructure emitting more than one gas`);
   check("the named rows are taken out",
         ["Annual surface temperature anomalies", "Burned areas in WDPA protected areas", "Burned area, two years at a time \u2014 Equatorial Asia",
          "Burned area \u2014 Indonesia"].every((t) => f(t) === "(taken out)"));
@@ -3166,15 +3176,15 @@ console.log("\nround of 22 September (3): the report's findings, live marks, leg
   const P = "Destruction > Of the planet";
   const f = (t, id) => places(`${t} ${id}`, `${t} ${id}`).join(" | ");
   check("\"drivers\" is not a river and \"disturbance\" is not urban",
-        f("Drivers of disturbance alerts \u2014 the driver behind each alert (Wageningen University)", "wur_integration_alert_drivers_class") === P + " > Deforestation > Tree cover loss and alerts");
+        f("Drivers of disturbance alerts \u2014 the driver behind each alert (Wageningen University)", "wur_integration_alert_drivers_class") === P + " > Deforestation > Tree cover loss and alerts > What drove the loss");
   check("Global Forest Watch's analysis tables are taken out, and so is the drivers dataset with no tiles",
         f("Gadm  burned areas  adm1 whitelist", "gadm__burned_areas__adm1_whitelist") === "(taken out)" &&
         f("Geostore  burned areas  daily alerts", "geostore__burned_areas__daily_alerts") === "(taken out)" &&
         f("Wdpa protected areas  glad  summary", "wdpa_protected_areas__glad__summary") === "(taken out)" &&
         f("Drivers of disturbance alerts \u2014 Three major forest basins", "wur_alert_drivers") === "(taken out)" &&
-        f("Protected areas \u2014 Global", "wdpa_protected_areas") === P + " > Biodiversity loss");
+        f("Protected areas \u2014 Global", "wdpa_protected_areas") === P + " > Biodiversity loss > Protected and conserved areas");
   check("the dated intact forest landscapes stay, under Biodiversity loss",
-        ["2000", "2013", "2016", "2020"].every((y) => f(`Intact Forest Landscapes ${y}`, `ifl_intact_forest_landscapes_${y}`) === P + " > Biodiversity loss"));
+        ["2000", "2013", "2016", "2020"].every((y) => f(`Intact Forest Landscapes ${y}`, `ifl_intact_forest_landscapes_${y}`) === P + " > Biodiversity loss > Intact and primary forests"));
   const gfw = new Function(src.slice(src.indexOf("const GFW_TITLES = {"), src.indexOf("// Which of a dataset's assets to draw from.")) + "; return { gfwTitle, GFW_WHERE };")();
   check("untitled datasets are named from their records, and the two worldwide protected-area rows say which is which",
         /driver behind each alert/.test(gfw.gfwTitle({ dataset: "wur_integration_alert_drivers_class", metadata: {} })) &&
@@ -3187,7 +3197,7 @@ console.log("\nround of 22 September (3): the report's findings, live marks, leg
         /NOT LIVE/.test(mark({ id: "coastal_cleanup", route: "geojsonlive" })) && /NOT LIVE/.test(mark({ id: "trase_measures", route: "trase" })));
   check("catalogue rows take the mark of the catalogue they come from", /escapeHtml\(item\.title\)\}\$\{liveMark\(cfg\)\}/.test(src));
   check("Global Forest Watch areas have a light edge at least a pixel wide", /id: `\$\{src\}-o-\$\{safe\(n\)\}`, type: "line"/.test(src) && /"line-color": "#D6CCBC"/.test(src));
-  check("the vessels of concern glow at full strength", /const GLOW_FULL = new Set\(\["skytruth_voc"\]\);/.test(src) && /if \(glowFull\(layer\)\) return 1;/.test(src));
+  check("the vessels of concern glow at full strength", /const GLOW_FULL = new Set\(\["skytruth_voc"/.test(src) && /if \(glowFull\(layer\)\) return 1;/.test(src));
 }
 console.log("\nround of 22 September (4): rows of the same name told apart");
 {
@@ -3197,7 +3207,7 @@ console.log("\nround of 22 September (4): rows of the same name told apart");
   const titles = ids.map((id) => g.gfwTitle({ dataset: id, metadata: { title: "Tree Cover Loss by Dominant Driver" } }));
   check("the four driver rows have four different titles, each saying whose it is", new Set(titles).size === 4 && titles.every((t) => /\([^)]+\)$/.test(t)));
   const places = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return cataloguePlaces;")();
-  check("\u2026and all four still file under Deforestation", titles.every((t, i) => places(`${t} ${ids[i]}`, `${t} ${ids[i]}`).join() === "Destruction > Of the planet > Deforestation > Tree cover loss and alerts"));
+  check("\u2026and all four still file under Deforestation", titles.every((t, i) => places(`${t} ${ids[i]}`, `${t} ${ids[i]}`).join() === "Destruction > Of the planet > Deforestation > Tree cover loss and alerts > What drove the loss"));
   const wdpa = ["wdpa_protected_areas", "wdpa_licensed_protected_areas"].map((id) => g.gfwTitle({ dataset: id, metadata: { title: "Protected areas" } }));
   check("the two worldwide protected-area rows are told apart", wdpa[0] !== wdpa[1] && wdpa.every((t) => /World Database on Protected Areas/.test(t)));
   check("what is known about how they differ goes first in each row's i box",
@@ -3487,10 +3497,10 @@ console.log("\nround of 23 September (20): rows refiled and taken out by name");
          "Transmigration areas 2021, Borneo IDNMYSBorneo_Transmigration_2021", "Transmigration areas 2021, Borneo IDNMYSBorneo_Transmigration_2021_wms",
          "Congo Basin forest roads", "Brazil rural settlements (INCRA)"].every((t) => f(t) === "(taken out)") &&
         f("Towns and villages \u2014 Equatorial Asia base_populatedplace") !== "(taken out)" &&
-        f("Rubber plantations 2020, Kalimantan rubber_kalimantan_2020") === P + " > Deforestation");
+        f("Rubber plantations 2020, Kalimantan rubber_kalimantan_2020") === P + " > Deforestation > Timber and rubber plantations");
   check("Liberia's mineral exploration and development licences are under Mining",
         f("Mineral exploration licenses \u2014 Liberia") === P + " > Mining" && f("Liberia development licenses (exploration)") === P + " > Mining");
-  check("logging roads are under Deforestation, not Construction", f("Logging roads \u2014 Congo Basin") === P + " > Deforestation");
+  check("logging roads are under Deforestation, not Construction", f("Logging roads \u2014 Congo Basin") === P + " > Deforestation > Logging and timber concessions");
 }
 console.log("\nround of 23 September (21): INCRA's quilombola communities kept");
 {
@@ -3509,6 +3519,116 @@ console.log("\nround of 23 September (22): Liberia's development agreements and 
   check("Liberia's Mineral Development Agreements are under Mining, the resource rights under Land and territory",
         f("Liberia Mineral Development Agreement lbr_mineral_development_agreement") === "Destruction > Of the planet > Mining" &&
         f("Resource rights \u2014 Currently available for Cameroon, Equatorial Guinea, Liberia and Namibia gfw_resource_rights") === "Suppression > Of humans > Land and territory");
+}
+console.log("\nround of 23 September (23): the owner's thirty notes on the layers box");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const places = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return { cataloguePlaces, BUNDLES };")();
+  const P = "Destruction > Of the planet", AG = P + " > Meat and agriculture > Agriculture";
+  const f = (t, id) => places.cataloguePlaces(`${t} ${id || ""}`, `${t} ${id || ""}`).join(" | ");
+  const B = places.BUNDLES;
+  const o = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes(")) + "; return { PANEL_ORDER, PANEL_REMOVED };")();
+  const order = o.PANEL_ORDER, at = (t, from = 0) => order.findIndex((x, i) => i >= from && x && x.t === t);
+  const bat = (k) => order.findIndex((x) => x && x.bundle === k);
+  check("1: the forest net flux is under Deforestation and Carbon dioxide, and \"greenhouse gas\" is not oil and gas",
+        f("Forest greenhouse gas net flux — Global", "gfw_forest_carbon_net_flux") === `${P} > Deforestation > Emissions from forests | ${P} > Climate > Carbon dioxide` &&
+        !/Oil and gas drilling/.test(f("Some greenhouse gas layer")));
+  check("2: no Oil and gas drilling heading; the fracking row and Pennsylvania under Infrastructure emitting more than one gas",
+        at("Oil and gas drilling") === -1 && order.indexOf("skytruth_fracfocus") > at("Infrastructure emitting more than one gas") &&
+        at("Pennsylvania") > order.indexOf("skytruth_fracfocus") && order[at("Pennsylvania")].h === 5 &&
+        ["skytruth_pa_permits", "skytruth_pa_spud", "skytruth_pa_violations", "skytruth_well_permits"].every((i) => order.indexOf(i) > at("Pennsylvania") && order.indexOf(i) < at("Overpopulation")) &&
+        f("Oil and gas concessions — Argentina", "gfw_oil_gas") === `${P} > Climate > Infrastructure emitting more than one gas`);
+  check("3: Trase's shrimp production is out", f("Production of shrimp (t) — Ecuador, Indonesia (Trase)", "SHRIMP_TN") === "(taken out)");
+  check("4, 6, 19: the Clark Labs maps of 1999, 2014, 2018 and the 1999 to 2018 change are one row under Fishing only; the other changes are out",
+        ["1999", "2014", "2018", "change_1999_2018"].every((y) => f("Aquaculture ponds", `clark_labs_tropical_pond_aquaculture_${y}`) === `${P} > Oceans > Fishing > ${B.ponds}`) &&
+        ["change_1999_2014", "change_2014_2018"].every((y) => f("Clark Labs Tropical Pond Aquaculture Change", `clark_labs_tropical_pond_aquaculture_${y}`) === "(taken out)") &&
+        /clark_labs_tropical_pond_aquaculture_2014: "Aquaculture ponds in 2014/.test(src) && /clark_labs_tropical_pond_aquaculture_2018: "Aquaculture ponds in 2018/.test(src));
+  check("5: a worldwide aquaculture pond row under Fishing, built by culprits-tiles-more, saying so until built",
+        /id: "aquaculture_ponds"[^\n]*route: "pmshapes"/.test(src) && /tiles\/aquaculture_ponds\.pmtiles/.test(src) &&
+        /buildScript: "scripts\/aquaculture_ponds\.py"/.test(src) && order.indexOf("aquaculture_ponds") > at("Fishing") && order.indexOf("aquaculture_ponds") < at("Reefs and mangroves") &&
+        /not built yet: run \$\{cfg\.buildScript\}/.test(src));
+  check("7: the coral row says warm-water only, and the world view is drawn pale and grown so reefs outside the Caribbean show",
+        /name:"Coral reefs, warm-water only \(Allen Coral Atlas and UNEP-WCMC\)"/.test(src) && /const CORAL_WORLD_TINT = "E3D2CC"/.test(src) &&
+        /if \(grow\) growPixels\(img\.data, bmp\.width, zoomOfBbox\(url\)\)/.test(src));
+  check("8, 10: the three Global Mangrove Watch years are one row; 1996 is kept, and drawn without waiting on the world tile",
+        ["", "_1996", "_2016"].every((y) => f("Mangroves", `gmw_global_mangrove_extent${y}`) === `${P} > Oceans > Reefs and mangroves > ${B.mangroves}`) &&
+        /if \(!asset\.slow\) \{/.test(src) && /setTimeout\(\(\) => ctl\.abort\(\), 8000\)/.test(src));
+  const keys = new Function(src.slice(src.indexOf("const GFW_KEYS = {"), src.indexOf("const hexRgba")) + "; return GFW_KEYS;")();
+  check("9, 28: the mangrove biomass and 2010 tree cover pictures are drawn in colour steps, zero left out, not grey",
+        keys.jpl_mangrove_aboveground_biomass_stock_2000.ranges[0][0] > 0 && keys.umd_tree_cover_density_2010.ranges[0][0] === 1 &&
+        [...keys.jpl_mangrove_aboveground_biomass_stock_2000.ranges, ...keys.umd_tree_cover_density_2010.ranges].every((r) => !/^#(F|E[6-9A-F])[0-9A-F]{2}[0-4]/i.test(r[2])));
+  check("11: Fishing sits above Reefs and mangroves", at("Fishing") > at("Oceans") && at("Fishing") < at("Reefs and mangroves"));
+  check("12: the food system row is Who Owns the Food Industry", /id: "site_food_system", name: "Who Owns the Food Industry"/.test(src));
+  check("13: the mine features glow at full strength, their boxes name their own source, and their build puts every point in the world view",
+        /const GLOW_FULL = new Set\(\["skytruth_voc", "mine_features", "aquaculture_ponds"\]\);/.test(src) &&
+        /replace\(\/-\(src\|pm\)\$\/, ""\)/.test(src) && /featureWord: "Mine feature"/.test(src) && /escapeHtml\(cfg\.attribution \|\| "Maus et al/.test(src));
+  check("14: the mines layers are one row with sublayers under Mining",
+        bat("mines") > at("Mining") && order[bat("mines") + 1] === "mines_global" && order[bat("mines") + 2] === "mine_features" &&
+        ["pangaea_global_mining", "gfw_mining_concessions", "IDN_Mining_2023", "concessionmining_spv"].every((id) => f("x", id) === `${P} > Mining > ${B.mines}`));
+  check("15: the Equatorial Asia peatland and the two undrawable peatland datasets are out; Trase draws the latest year it has values for",
+        ["base_peatland", "cifor_peatlands", "gfwpro_peatlands"].every((id) => f("Peatland", id) === "(taken out)") &&
+        f("Global peatland extent", "gfw_peatlands") === `${P} > Peatland`);
+  const yearOf = new Function(src.match(/function traseYearWithValues[\s\S]*?\n}\n/)[0] + "; return traseYearWithValues;")();
+  check("…a Trase year listed with no values falls back to the latest year with values, and a measure with none anywhere leaves the list",
+        yearOf({ "2022": { a: null }, "2023": { a: 5 } }, 2024, true) === 2023 && yearOf({}, 2024, true) === null &&
+        yearOf({ "2024": { a: 1 } }, 2024, true) === 2024 && yearOf({ "2023": { a: 1 } }, 2024, false) === 2024 &&
+        /Trase lists this measure but publishes no values for it in any year/.test(src));
+  check("16, 17, 22, 26: Borneo's land cover with rivers, the Rawa Singkil canals and Mapbox's river basins are out",
+        ["IDNMYSBorneo_LCHSRiver", "rawasingkil_canal", "rawasingkil_10_canal", "mapbox_river_basins"].every((id) => f("x", id) === "(taken out)"));
+  check("18: Global Forest Watch versions sort by number, so v1.12 comes after v1.9; Nusantara's slow worldwide water change is replaced",
+        /const versionOrder = \(a, b\) => String\(a\)\.localeCompare\(String\(b\), "en", \{ numeric: true \}\);/.test(src) &&
+        ["v1.9", "v1.12", "v1.10"].sort((a, b) => a.localeCompare(b, "en", { numeric: true })).pop() === "v1.12" &&
+        f("Surface water change", "Global_WaterChange_1984to2021") === "(taken out)");
+  check("20: the two reservoir anomaly layers are one row, their titles saying how they differ",
+        ["global_water_watch_anomalies", "global_water_watch_anomalies2"].every((id) => f("x", id) === `${P} > Surface water > ${B.waterwatch}`) &&
+        /global_water_watch_anomalies: "Each reservoir month by month through 2025/.test(src) && /global_water_watch_anomalies2: "Each reservoir at one reading/.test(src));
+  check("21: the Key Biodiversity Areas are out of Surface water, under Biodiversity loss",
+        f("Key Biodiversity Areas — Global, terrestrial, freshwater and marine.", "birdlife_key_biodiversity_areas") === `${P} > Biodiversity loss > Places that matter most for species`);
+  check("23: the EC JRC's surface water map is back under Surface water, from the JRC's own 2024 tiles, in this map's colours",
+        /id: "jrc_water"[^\n]*route: "rasterlive"/.test(src) && /storage\.googleapis\.com\/water-world\/tiles2024\/\$\{layer\}/.test(src) &&
+        order.indexOf("jrc_water") > at("Surface water") && order.indexOf("jrc_water") < at("Mining"));
+  const R = new Function(src.slice(src.indexOf("const REMAP = {"), src.indexOf("maplibregl.addProtocol(\"remap\"")) + "; return { REMAP, remapColour };")();
+  check("…the JRC's yellows, oranges and bright greens come out muted",
+        Object.values(R.REMAP).every((sp) => sp.dst.every((h) => !/^(F|E[6-9A-F])[0-9A-F]{2}[0-4]/i.test(h))) &&
+        JSON.stringify(R.remapColour(R.REMAP.gsw_transitions, 255, 201, 14)) === JSON.stringify([201, 207, 210]) &&
+        JSON.stringify(R.remapColour(R.REMAP.gsw_occurrence, 0, 0, 255)) === JSON.stringify([47, 70, 82]));
+  check("24: the water stress test copy is titled for what it is", /test_wat_006_projected_water_stress: "Water stress projected/.test(src));
+  check("25: Mexico's land rights are out; the spatial plans are one row under Deforestation; the Spatial plans and Moratoriums headings are gone",
+        f("Mexico land rights", "conafor_mex_forest_zoning") === "(taken out)" && at("Spatial plans") === -1 && at("Moratoriums") === -1 &&
+        bat("plans") > at("Deforestation") && bat("plans") < at("Biodiversity loss") &&
+        ["idn_forest_moratorium", "rtrw_tabanan_2023", "spatialplanforestland_spv", "v3p3_spatialplanmoratorium_spv", "spatialplanrtrwp_papuawest_spv"]
+          .every((id) => f("x", id) === `${P} > Deforestation > ${B.plans}`));
+  check("26: Trase's peatland area is not a land cover row", !f("Peatland area Land cover Territorial PEAT AREA trase").includes("Forest and land cover"));
+  check("27: long lists are split a level further, and a row lands in a sub-heading, not between heading and sub-headings",
+        f("Oil palm concessions — Equatorial Asia", "concessioniop_spv") === `${AG} > Palm oil > Concessions` &&
+        f("Palm oil mills — Equatorial Asia", "millop_spv") === `${AG} > Palm oil > Mills and refineries` &&
+        f("Cattle herd size Production beef CATTLE HEADS trase") === `${P} > Meat and agriculture > Meat > Cattle and pasture` &&
+        f("Soy traded under zero deforestation commitments trase") === `${AG} > Soy, corn and grain > Soy | ${P} > Deforestation > Zero-deforestation commitments` &&
+        at("Palm oil") < at("Concessions") && order[at("Concessions")].h === 6 && /"\.panel-h6\{/.test(src));
+  check("…a heading of the same name deeper down is not mistaken for this one", /found = own\.find\(named\) \|\| null;/.test(src));
+  check("28: the three forest cover maps are one row with sublayers under Forest and land cover",
+        ["jrc_global_forest_cover", "umd_tree_cover_density_2010", "wri_tropical_tree_cover", "wri_tropical_tree_cover_extent"]
+          .every((id) => f("x", id) === `${P} > Forest and land cover > ${B.forest}`));
+  check("29: the land and forest cover layers named are out",
+        ["esa_land_cover_2015", "idn_land_cover_2017", "Global_LCHS_2024", "LC1970", "LC1970HS", "Global_FC_2025_TTM", "ECJRCV2", "FCHS_2020_ECJRCV2",
+         "REGBRNMYSIDN_FCHS_2020_ECJRC", "REGBRNMYSIDN_FC_2020_ECJRC", "Global_FC-FNF_2024_TTM", "Global_FC-FNF_2025_TTM", "Global_FC-FNF-HS_Latest_TTM",
+         "REGBRNIDNMYS_FC-FNF-HS_Latest_TTM", "REGBRNMYSIDN_FCLandArea_2020_ECJRC", "IDNMYSBorneo_LCIndustrial_1970"].every((id) => f("x", id) === "(taken out)") &&
+        f("Forest cover 2020, Indonesia's own (Ministry of Environment and Forestry)", "IDN_FC2020_KLHK") === `${P} > Forest and land cover`);
+  const cog = new Function(src.slice(src.indexOf("function tileDegrees"), src.indexOf("async function cogSquare")) + "; return { cogLevel, tileDegrees };")();
+  check("30: GLC_FCS30D's 35 classes, drawn from OpenLandMap's GeoTIFFs square by square, and OpenStreetMap's land use, under Forest and land cover",
+        /id: "glc_fcs30d"[^\n]*route: "rasterlive"/.test(src) && /cog4326:\/\/glc_fcs30d\/\$\{y\}\/\{z\}\/\{x\}\/\{y\}/.test(src) &&
+        new Function(src.match(/const GLC_FCS30D_CLASSES = \[[\s\S]*?\n\];\n/)[0] + "; return GLC_FCS30D_CLASSES;")().length === 35 &&
+        /id: "osm_landuse"[^\n]*route: "osmlanduse"/.test(src) && /"source-layer": "landuse"/.test(src) &&
+        order.indexOf("glc_fcs30d") > at("Forest and land cover") && order.indexOf("osm_landuse") > at("Forest and land cover") && order.indexOf("osm_landuse") < at("Peatland"));
+  check("…a square reads the coarsest level still as fine as the square",
+        cog.cogLevel([1296000, 648000, 324000, 162000, 81000, 40500, 20250, 10125, 5063], 1296000, 360 / 1296000, 360 / 2 / 256) === 8 &&
+        cog.cogLevel([1296000, 648000, 324000], 1296000, 360 / 1296000, 360 / 1296000 / 4) === 0 &&
+        Math.abs(cog.tileDegrees(1, 0, 0).north - 85.0511) < 0.001 && cog.tileDegrees(1, 1, 1).west === 0);
+  check("layers with sublayers read as one row: tick first, own title, tick reaching their catalogue parts, reading all, none or part-way",
+        /if \(bundle\) \{ line\.appendChild\(all\); line\.appendChild\(head\); \}/.test(src) &&
+        /querySelectorAll\(bundle \? "\[data-layer\], \[data-cat\]" : "\[data-layer\]"\)/.test(src) &&
+        /e\.target\.dataset\.cat\)\) syncHeadingBoxes\(box\);/.test(src) && /if \(typeof syncHeadingBoxes === "function"\) syncHeadingBoxes\(box\);/.test(src) &&
+        Object.keys(B).every((k) => bat(k) > -1));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

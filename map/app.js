@@ -447,7 +447,11 @@ const LAYERS = [
   // a second for 84 KB. Nothing is served below zoom 3. So shapes draw from
   // zoom 12, and wider out the layer says why it is empty rather than sitting
   // empty. The benthic set only; the Atlas's geomorphic set is not added here.
-  { id:"allen_coral",          name:"Coral reefs (Allen Coral Atlas)",      unit:"reefs (UNEP-WCMC) and habitat zones (Allen Coral Atlas)", colour:"#5E7377", route:"coral", ready:true, off: true,
+  // Both maps under this row are of warm-water reefs only (round 23, item 7):
+  // the Allen Coral Atlas maps shallow tropical reefs, and UNEP-WCMC's is its
+  // Global Distribution of Warm-water Coral Reefs. Cold-water reefs are in
+  // neither.
+  { id:"allen_coral",          name:"Coral reefs, warm-water only (Allen Coral Atlas and UNEP-WCMC)",      unit:"reefs (UNEP-WCMC) and habitat zones (Allen Coral Atlas)", colour:"#5E7377", route:"coral", ready:true, off: true,
     drawFrom: 12,
     tiles: "https://allencoralatlas.org/geoserver/gwc/service/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0" +
            "&LAYER=coral-atlas:benthic_data_verbose&STYLE=&TILEMATRIXSET=EPSG:900913" +
@@ -550,8 +554,12 @@ function recolorAlerts(px, rgb, z, w) {
 
 // latclip://<south>,<north>[,<RRGGBB>]/<https URL without the scheme>
 maplibregl.addProtocol("tint", async (params, abortController) => {
-  const m = params.url.match(/^tint:\/\/([0-9A-Fa-f]{6})\/(.*)$/);
-  const r = await fetch("https://" + m[2], { signal: abortController && abortController.signal });
+  // tint://RRGGBB/<url>, or tint://RRGGBB+grow/<url>: also grown into the empty
+  // pixels round each drawn one wider out, as seen:// does, so reefs a fraction
+  // of a pixel across can be found from the world view (round 23, item 7).
+  const m = params.url.match(/^tint:\/\/([0-9A-Fa-f]{6})(\+grow)?\/(.*)$/);
+  const grow = !!m[2], url = "https://" + m[3];
+  const r = await fetch(url, { signal: abortController && abortController.signal });
   if (!r.ok) throw new Error(`${r.status}`);
   const buf = await r.arrayBuffer();
   const bmp = await createImageBitmap(new Blob([buf]));
@@ -562,11 +570,217 @@ maplibregl.addProtocol("tint", async (params, abortController) => {
   ctx.drawImage(bmp, 0, 0);
   const img = ctx.getImageData(0, 0, bmp.width, bmp.height);
   tintPixels(img.data, [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16)));
+  if (grow) growPixels(img.data, bmp.width, zoomOfBbox(url));
   ctx.putImageData(img, 0, 0);
   const blob = canvas.convertToBlob
     ? await canvas.convertToBlob({ type: "image/png" })
     : await new Promise((res) => canvas.toBlob(res, "image/png"));
   return { data: await blob.arrayBuffer() };
+});
+// remap://<key>/<https URL without the scheme> - somebody else's picture in
+// this map's colours (round 23). The EC JRC's surface water tiles come in
+// their own palettes, with yellows, oranges and a bright green among them. Each
+// pixel is placed on the source palette - the nearest class, or the nearest
+// point along a ramp - and drawn in the matching colour of REMAP[key].dst.
+// What a pixel means is unchanged; only its colour is.
+const REMAP = {
+  // Palettes as the JRC publishes them (Pekel et al. 2016, Global Surface Water
+  // Explorer), mapped onto muted blue-greys, plum, rose and sage.
+  gsw_occurrence: { mode: "ramp", src: ["ffcccc", "0000ff"], dst: ["A9B4B8", "2F4652"] },
+  gsw_change: { mode: "ramp", src: ["ff0000", "000000", "00ff00"], dst: ["B07087", "2A2622", "8E9E7C"] },
+  gsw_seasonality: { mode: "ramp", src: ["99d9ea", "0000ff"], dst: ["A9B4B8", "2F4652"] },
+  gsw_recurrence: { mode: "ramp", src: ["ff7f27", "99d9ea"], dst: ["8C5A68", "A9B4B8"] },
+  gsw_extent: { mode: "class", src: ["6666ff"], dst: ["5E7377"] },
+  gsw_transitions: { mode: "class",
+    src: ["0000ff", "22b14c", "d1102d", "99d9ea", "b5e61d", "e68a00", "ff7f27", "ffc90e", "7f7f7f", "c3c3c3"],
+    dst: ["2F4652", "6F805F", "8C4F5A", "8C9DA6", "A3AE8E", "B07087", "5E7377", "C9CFD2", "6A6258", "A39C92"] },
+};
+const GSW = (layer) => `remap://gsw_${layer}/storage.googleapis.com/water-world/tiles2024/${layer}/{z}/{x}/{y}.png`;
+const GSW_OCCURRENCE = GSW("occurrence"), GSW_CHANGE = GSW("change"), GSW_SEASONALITY = GSW("seasonality"),
+      GSW_RECURRENCE = GSW("recurrence"), GSW_TRANSITIONS = GSW("transitions"), GSW_EXTENT = GSW("extent");
+const hex3 = (h) => [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+function remapColour(spec, r, g, b) {
+  const src = spec.src.map(hex3), dst = spec.dst.map(hex3);
+  const d2 = (p, q) => (p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2 + (p[2] - q[2]) ** 2;
+  const px = [r, g, b];
+  if (spec.mode === "class" || src.length < 2) {
+    let best = 0;
+    src.forEach((c, i) => { if (d2(px, c) < d2(px, src[best])) best = i; });
+    return dst[best];
+  }
+  // The nearest point on the ramp's segments, and the same share along the new ramp.
+  let bestT = 0, bestD = Infinity;
+  for (let i = 0; i < src.length - 1; i++) {
+    const a = src[i], b2 = src[i + 1], ab = [b2[0] - a[0], b2[1] - a[1], b2[2] - a[2]];
+    const len = ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2 || 1;
+    const u = Math.max(0, Math.min(1, ((px[0] - a[0]) * ab[0] + (px[1] - a[1]) * ab[1] + (px[2] - a[2]) * ab[2]) / len));
+    const q = [a[0] + ab[0] * u, a[1] + ab[1] * u, a[2] + ab[2] * u], dd = d2(px, q);
+    if (dd < bestD) { bestD = dd; bestT = (i + u) / (src.length - 1); }
+  }
+  const at = bestT * (dst.length - 1), k = Math.min(dst.length - 2, Math.floor(at)), f = at - k;
+  return [0, 1, 2].map((c) => Math.round(dst[k][c] + (dst[k + 1][c] - dst[k][c]) * f));
+}
+function remapPixels(px, spec) {
+  const seen = new Map();
+  for (let i = 0; i < px.length; i += 4) {
+    if (!px[i + 3]) continue;
+    const key = (px[i] << 16) | (px[i + 1] << 8) | px[i + 2];
+    let c = seen.get(key);
+    if (!c) { c = remapColour(spec, px[i], px[i + 1], px[i + 2]); seen.set(key, c); }
+    px[i] = c[0]; px[i + 1] = c[1]; px[i + 2] = c[2];
+  }
+}
+maplibregl.addProtocol("remap", async (params, abortController) => {
+  const m = params.url.match(/^remap:\/\/([a-z_]+)\/(.*)$/);
+  const r = await fetch("https://" + m[2], { signal: abortController && abortController.signal });
+  if (!r.ok) throw new Error(`${r.status}`);
+  const buf = await r.arrayBuffer();
+  const spec = REMAP[m[1]];
+  if (!spec) return { data: buf };
+  const bmp = await createImageBitmap(new Blob([buf]));
+  const canvas = typeof OffscreenCanvas !== "undefined"
+    ? new OffscreenCanvas(bmp.width, bmp.height)
+    : Object.assign(document.createElement("canvas"), { width: bmp.width, height: bmp.height });
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(bmp, 0, 0);
+  const img = ctx.getImageData(0, 0, bmp.width, bmp.height);
+  remapPixels(img.data, spec);
+  ctx.putImageData(img, 0, 0);
+  const blob = canvas.convertToBlob
+    ? await canvas.convertToBlob({ type: "image/png" })
+    : await new Promise((res) => canvas.toBlob(res, "image/png"));
+  return { data: await blob.arrayBuffer() };
+});
+// cog4326://<source>/<year>/<z>/<x>/<y> - a class map published as one Cloud
+// Optimised GeoTIFF in latitude and longitude, drawn here square by square
+// (round 23, item 30). The file is never downloaded whole: geotiff.js reads
+// the file's index, then only the blocks under the square asked for, from the
+// overview whose pixels are closest to the square's own, and each pixel is
+// placed on the web map's grid and painted in its class's colour.
+const GEOTIFF_LIB = "https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js";
+let geotiffLoading = null;
+function geotiffLib() {
+  if (typeof window !== "undefined" && window.GeoTIFF) return Promise.resolve(window.GeoTIFF);
+  if (!geotiffLoading) geotiffLoading = new Promise((res, rej) => {
+    const el = document.createElement("script");
+    el.src = GEOTIFF_LIB;
+    el.async = true;
+    el.onload = () => (window.GeoTIFF ? res(window.GeoTIFF) : rej(new Error("geotiff.js did not load")));
+    el.onerror = () => { geotiffLoading = null; rej(new Error("geotiff.js could not be fetched")); };
+    document.head.appendChild(el);
+  });
+  return geotiffLoading;
+}
+// GLC_FCS30D (Zhang et al. 2023, Earth System Science Data): 30 m, 35 classes,
+// the finest class list of any worldwide land cover map, yearly from 2000 to
+// 2022. Codes and names as the dataset publishes them; colours this map's own,
+// earthy, with no orange, yellow or bright green.
+const GLC_FCS30D_CLASSES = [
+  [10, "#8A7E6A", "Rainfed cropland"], [11, "#9A8E78", "Herbaceous cropland"], [12, "#7A7560", "Cropland with trees or shrubs"],
+  [20, "#6F8A86", "Irrigated cropland"],
+  [51, "#4F6B47", "Open evergreen broadleaved forest"], [52, "#3B5536", "Closed evergreen broadleaved forest"],
+  [61, "#6E8058", "Open deciduous broadleaved forest"], [62, "#56684A", "Closed deciduous broadleaved forest"],
+  [71, "#46604F", "Open evergreen needle-leaved forest"], [72, "#33483C", "Closed evergreen needle-leaved forest"],
+  [81, "#5E7560", "Open deciduous needle-leaved forest"], [82, "#4A5E4C", "Closed deciduous needle-leaved forest"],
+  [91, "#667A5A", "Open mixed-leaf forest"], [92, "#4E6045", "Closed mixed-leaf forest"],
+  [120, "#7D6E5E", "Shrubland"], [121, "#6F6153", "Evergreen shrubland"], [122, "#8A7A68", "Deciduous shrubland"],
+  [130, "#9C9A84", "Grassland"], [140, "#8C8F7E", "Lichens and mosses"],
+  [150, "#B3A999", "Sparse vegetation"], [152, "#A89A8A", "Sparse shrubland"], [153, "#BDB3A5", "Sparse herbaceous"],
+  [181, "#4F6E6A", "Swamp"], [182, "#6B8A84", "Marsh"], [183, "#8C9DA6", "Flooded flat"], [184, "#A39C92", "Saline"],
+  [185, "#6E4A6A", "Mangrove"], [186, "#7D9A8E", "Salt marsh"], [187, "#5E6D8A", "Tidal flat"],
+  [190, "#B07087", "Impervious surfaces (built over)"],
+  [200, "#D2CBC2", "Bare areas"], [201, "#C4BCB2", "Consolidated bare areas"], [202, "#DCD4C8", "Unconsolidated bare areas"],
+  [210, "#3E5561", "Water body"], [220, "#EDE8E0", "Permanent ice and snow"],
+];
+const COG_SOURCES = {
+  glc_fcs30d: {
+    url: (year) => `https://s3.openlandmap.org/arco/lc_glc.fcs30d_c_30m_s_${year}0101_${year}1231_go_epsg.4326_v20231026.tif`,
+    classes: new Map(GLC_FCS30D_CLASSES.map(([v, c]) => [v, hex3(c.slice(1))])),
+    who: "OpenLandMap's copy of GLC_FCS30D",
+  },
+};
+const cogOpened = new Map();          // file address -> its levels, once read
+function cogOpen(url) {
+  if (!cogOpened.has(url)) {
+    cogOpened.set(url, (async () => {
+      const lib = await geotiffLib();
+      const tiff = await lib.fromUrl(url, { allowFullFile: false });
+      const n = await tiff.getImageCount();
+      const images = [];
+      for (let i = 0; i < n; i++) {
+        const im = await tiff.getImage(i);
+        // A transparency mask stored beside an overview is not a level.
+        if (((im.fileDirectory && im.fileDirectory.NewSubfileType) || 0) & 4) continue;
+        images.push(im);
+      }
+      const base = images[0];
+      const [x0, y0] = base.getOrigin();
+      const [rx, ry] = base.getResolution();
+      return { images, x0, y0, rx, ry, w: base.getWidth(), h: base.getHeight() };
+    })().catch((e) => { cogOpened.delete(url); throw e; }));
+  }
+  return cogOpened.get(url);
+}
+function tileDegrees(z, x, y) {
+  const n = 2 ** z;
+  const lat = (yy) => Math.atan(Math.sinh(Math.PI * (1 - 2 * yy / n))) * 180 / Math.PI;
+  return { west: x / n * 360 - 180, east: (x + 1) / n * 360 - 180, north: lat(y), south: lat(y + 1), lat };
+}
+// Which level of the file to read for a square: the coarsest whose pixels are
+// still no wider than the square's own. Pure, so it is tested.
+function cogLevel(levels, baseWidth, baseRes, want) {
+  let pick = 0, pickRes = baseRes;
+  levels.forEach((w, i) => {
+    const res = baseRes * baseWidth / w;
+    if (res <= want * 1.001 && res >= pickRes) { pick = i; pickRes = res; }
+  });
+  return pick;
+}
+async function cogSquare(url, classes, z, x, y, signal) {
+  const c = await cogOpen(url);
+  const t = tileDegrees(z, x, y);
+  const S = 256;
+  const lv = c.images[cogLevel(c.images.map((im) => im.getWidth()), c.w, c.rx, (t.east - t.west) / S)];
+  const rxl = c.rx * c.w / lv.getWidth(), ryl = c.ry * c.h / lv.getHeight();     // ry is negative: rows run south
+  const px0 = Math.max(0, Math.floor((t.west - c.x0) / rxl)), px1 = Math.min(lv.getWidth(), Math.ceil((t.east - c.x0) / rxl));
+  const py0 = Math.max(0, Math.floor((t.north - c.y0) / ryl)), py1 = Math.min(lv.getHeight(), Math.ceil((t.south - c.y0) / ryl));
+  const out = new Uint8ClampedArray(S * S * 4);
+  if (px1 > px0 && py1 > py0) {
+    const data = await lv.readRasters({ window: [px0, py0, px1, py1], samples: [0], interleave: true, signal });
+    const W = px1 - px0, H = py1 - py0;
+    for (let j = 0; j < S; j++) {
+      const row = Math.floor((t.lat(y + (j + 0.5) / S) - c.y0) / ryl) - py0;
+      if (row < 0 || row >= H) continue;
+      for (let i = 0; i < S; i++) {
+        const col = Math.floor((t.west + (i + 0.5) * (t.east - t.west) / S - c.x0) / rxl) - px0;
+        if (col < 0 || col >= W) continue;
+        const rgb = classes.get(data[row * W + col]);
+        if (!rgb) continue;
+        const o = (j * S + i) * 4;
+        out[o] = rgb[0]; out[o + 1] = rgb[1]; out[o + 2] = rgb[2]; out[o + 3] = 255;
+      }
+    }
+  }
+  const canvas = typeof OffscreenCanvas !== "undefined"
+    ? new OffscreenCanvas(S, S) : Object.assign(document.createElement("canvas"), { width: S, height: S });
+  const ctx = canvas.getContext("2d");
+  ctx.putImageData(new ImageData(out, S, S), 0, 0);
+  const blob = canvas.convertToBlob
+    ? await canvas.convertToBlob({ type: "image/png" })
+    : await new Promise((res) => canvas.toBlob(res, "image/png"));
+  return blob.arrayBuffer();
+}
+maplibregl.addProtocol("cog4326", async (params, abortController) => {
+  const m = params.url.match(/^cog4326:\/\/([a-z0-9_]+)\/(\d{4})\/(\d+)\/(\d+)\/(\d+)/);
+  const src = COG_SOURCES[m[1]];
+  try {
+    return { data: await cogSquare(src.url(m[2]), src.classes, Number(m[3]), Number(m[4]), Number(m[5]), abortController && abortController.signal) };
+  } catch (e) {
+    if (!(e && e.name === "AbortError") && typeof setLayerState === "function") {
+      setLayerState(m[1], `${src.who} could not be read here (${e.message}); if this persists, its server does not let other sites read the file`);
+    }
+    throw e;
+  }
 });
 // seen://<https URL without the scheme> - a map server's picture made legible
 // on a dark map, its own colours kept:
@@ -585,6 +799,12 @@ function seenPixels(px, w, zoom) {
     if (px[i] < 70 && px[i + 1] < 70 && px[i + 2] < 70) { px[i] = 220; px[i + 1] = 214; px[i + 2] = 198; }
     if (px[i + 3] < 200) px[i + 3] = Math.min(255, px[i + 3] + 60);
   }
+  growPixels(px, w, zoom);
+}
+// Every drawn pixel grown into the empty pixels round it, in its own colour:
+// two pixels wide to zoom 4, one to zoom 7, none closer in.
+function growPixels(px, w, zoom) {
+  const h = px.length / 4 / w;
   const r = zoom <= 4 ? 2 : zoom <= 7 ? 1 : 0;
   if (!r) return;
   const src = px.slice();
@@ -1398,8 +1618,12 @@ const glowMaxOf = new Map();                   // source id -> the largest "valu
 // Layers of a few dozen points with no amounts: each point glows at full
 // strength, or at the world view they are too faint to find (22 September,
 // round 3: the vessels of concern).
-const GLOW_FULL = new Set(["skytruth_voc"]);
-const glowFull = (layer) => GLOW_FULL.has(String(layer.source || "").replace(/-src$/, ""));
+// The mine features too (round 23, item 13): 74,548 specks with no amount, each
+// a pit or a dump a few hundred metres across, glowed at a tenth of full
+// strength and could not be seen from the world view. The aquaculture ponds are
+// the same kind of layer.
+const GLOW_FULL = new Set(["skytruth_voc", "mine_features", "aquaculture_ponds"]);
+const glowFull = (layer) => GLOW_FULL.has(String(layer.source || "").replace(/-(src|pm)$/, ""));
 function glowWeight(layer) {
   if (glowFull(layer)) return 1;
   const max = glowMaxOf.get(layer.source);
@@ -3309,8 +3533,10 @@ function addRasterChoiceLayer(cfg) {
   const src = `${cfg.id}-img`;
   cfg._pick = cfg._pick || 0;
   map.addSource(src, rasterChoiceSource(cfg));
+  // A row whose picture is already in this map's colours (a remap, a class
+  // map drawn here) keeps them: no toning down.
   map.addLayer({ id: `${cfg.id}-raster`, type: "raster", source: src,
-    paint: { "raster-opacity": 0.8, "raster-saturation": -0.35 } });
+    paint: Object.assign({ "raster-opacity": 0.8, "raster-saturation": -0.35 }, cfg.rasterPaint || {}) });
   let failed = 0;
   map.on("error", (e) => {
     if (e && e.sourceId === src) {
@@ -3318,7 +3544,7 @@ function addRasterChoiceLayer(cfg) {
       setLayerState(cfg.id, `${cfg.choices[cfg._pick].label}: the source did not answer for ${failed} square${failed > 1 ? "s" : ""}`);
     }
   });
-  if (cfg.choices.length > 1) rasterChoiceRow(cfg);
+  if (cfg.choices.length > 1 || cfg.choices.some((c) => c.key) || cfg.key) rasterChoiceRow(cfg);
   setLayerState(cfg.id, `${cfg.choices[cfg._pick].label} \u00b7 live`);
   applyVisibility(cfg.id);
   buildLegend();
@@ -3338,9 +3564,17 @@ function rasterChoiceRow(cfg) {
   const el = document.createElement("div");
   el.className = "facet";
   el.dataset.rasterFor = cfg.id;
-  el.innerHTML = cfg.choices.map((c, i) =>
-    `<button type="button" class="chip${i === cfg._pick ? " on" : ""}" data-rc="${cfg.id}" data-ri="${i}">${escapeHtml(c.label)}</button>`).join("");
+  el.innerHTML = (cfg.choices.length > 1 ? cfg.choices.map((c, i) =>
+    `<button type="button" class="chip${i === cfg._pick ? " on" : ""}" data-rc="${cfg.id}" data-ri="${i}">${escapeHtml(c.label)}</button>`).join("") : "") +
+    `<div class="rc-key" data-rc-legend="${cfg.id}" style="flex-basis:100%">${rasterKeyHtml(cfg)}</div>`;
   if (anchor.after) anchor.after(el);
+}
+// What the colours of the chosen picture mean, under its chips (round 23).
+function rasterKeyHtml(cfg) {
+  const k = (cfg.choices[cfg._pick || 0] || {}).key || cfg.key;
+  if (!k) return "";
+  return `<div style="display:flex;flex-wrap:wrap;gap:2px 10px;margin-top:3px;max-height:180px;overflow:auto">` +
+    k.map(([c, label]) => `<span class="sm-key" style="font-size:11px"><i style="background:${escapeHtml(c)};display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px"></i>${escapeHtml(label)}</span>`).join("") + `</div>`;
 }
 function rasterChoiceClicked(btn) {
   const cfg = childById(btn.dataset.rc);
@@ -3352,7 +3586,7 @@ function rasterChoiceClicked(btn) {
     const order = map.getStyle().layers.map((l) => l.id);
     const at = order.indexOf(`${cfg.id}-raster`);
     const before = at >= 0 ? order[at + 1] : undefined;
-    const paint = { "raster-opacity": map.getPaintProperty(`${cfg.id}-raster`, "raster-opacity") ?? 0.8, "raster-saturation": -0.35 };
+    const paint = Object.assign({ "raster-opacity": map.getPaintProperty(`${cfg.id}-raster`, "raster-opacity") ?? 0.8, "raster-saturation": -0.35 }, cfg.rasterPaint || {});
     if (map.getLayer(`${cfg.id}-raster`)) map.removeLayer(`${cfg.id}-raster`);
     if (s) map.removeSource(`${cfg.id}-img`);
     map.addSource(`${cfg.id}-img`, rasterChoiceSource(cfg));
@@ -3362,6 +3596,8 @@ function rasterChoiceClicked(btn) {
   const box = document.getElementById("layers");
   const row = box && box.querySelector(`.facet[data-raster-for="${cfg.id}"]`);
   if (row) for (const c of row.querySelectorAll("[data-ri]")) c.classList.toggle("on", Number(c.dataset.ri) === cfg._pick);
+  const key = box && box.querySelector(`[data-rc-legend="${cfg.id}"]`);
+  if (key) key.innerHTML = rasterKeyHtml(cfg);
   setLayerState(cfg.id, `${cfg.choices[cfg._pick].label} \u00b7 live`);
 }
 
@@ -3603,6 +3839,15 @@ function traseRegionFile(cfg, part) {
   return hit ? `${cfg.regions}/${hit.endpoint_geojson}` : null;
 }
 
+// The year to draw: the one asked for if it has values; with none asked for,
+// the latest year holding any number. null when there is nothing to draw.
+function traseYearWithValues(values, year, fallBack) {
+  const has = (y) => Object.values((values || {})[String(y)] || {}).some((v) => typeof v === "number");
+  if (has(year)) return year;
+  if (!fallBack) return year;
+  const years = Object.keys(values || {}).map(Number).filter((y) => Number.isFinite(y) && has(y)).sort((a, b) => b - a);
+  return years.length ? years[0] : null;
+}
 // One country's regions with this measure's value on each. Pure, so it is tested.
 function traseJoin(part, shapes, values) {
   const yr = (values || {})[String(part.year)] || {};
@@ -3628,11 +3873,20 @@ async function traseDraw(cfg, e) {
   const plan = trasePlan(e, e.pick.level, e.pick.year);
   traseSay(e, "loading from Trase\u2026");
   const left = plan.left.slice();
+  const empty = [];
   const got = await Promise.all(plan.draw.map(async (part) => {
     const file = traseRegionFile(cfg, part);
     if (!file) { left.push(`${part.name} (Trase publishes no shapes for its ${part.levelName.toLowerCase()} level)`); return []; }
     try {
       const [shapes, values] = await Promise.all([traseJson(file), traseJson(`${cfg.values}/${part.country}/${part.level}/${e.metric}.json`)]);
+      // Trase's catalogue can list years its values do not hold (round 23,
+      // item 15: Indonesia's peatland area is listed to 2024 and published for
+      // 2015 to 2023; burned peatland is listed and published for no year). With
+      // no year chosen, the latest year that has values is drawn and the row
+      // says so; a measure with values for no year anywhere leaves the list.
+      const year = traseYearWithValues(values, part.year, !e.pick.year);
+      if (year == null) { empty.push(part.name); left.push(`${part.name} (Trase publishes no values for it)`); return []; }
+      if (year !== part.year) { left.push(`${part.name} at ${year}, the latest year Trase gives values for (its list says ${part.year})`); part.year = year; }
       return traseJoin(part, shapes, values);
     } catch (err) {
       left.push(`${part.name} (${err.message})`);
@@ -3640,6 +3894,11 @@ async function traseDraw(cfg, e) {
     }
   }));
   const features = [].concat(...got);
+  if (plan.draw.length && empty.length === plan.draw.length && !e.pick.year) {
+    traseSay(e, "Trase lists this measure but publishes no values for it in any year \u2014 nothing to draw. This row will now leave the list.");
+    catalogueRowGone(e.key);
+    return;
+  }
   // One set of steps across every country drawn, so a colour means the same
   // amount on both sides of a border.
   const ramp = TRASE_RAMPS[e.meta.color_scheme] || TRASE_RAMPS.red;
@@ -3719,14 +3978,16 @@ function addPmShapesLayer(cfg) {
                6, ["+", 3, ["*", 1.2, ["log10", ["coalesce", ["get", "point_count"], 1]]]]],
              "circle-stroke-color": "#17150F", "circle-stroke-width": 0.4, "circle-opacity": 0.85 } });
   const box = (p) => {
-    if (Number(p.point_count) > 1) return `<b>${Number(p.point_count).toLocaleString()} mines here</b><div class="meta">Merged at this zoom. Zoom in to see each one and its outline.</div>`;
+    if (Number(p.point_count) > 1) return `<b>${Number(p.point_count).toLocaleString()} ${escapeHtml(cfg.featureWords || "mines")} here</b><div class="meta">Merged at this zoom. Zoom in to see each one and its outline.</div>`;
     const loss = Object.keys(p).filter((k) => /(19|20)\d\d/.test(k) && isFinite(Number(p[k])))
       .sort().map((k) => `${escapeHtml(k.replace(/_/g, " "))}: ${Number(p[k]).toLocaleString(undefined, { maximumFractionDigits: 3 })}`);
     const rest = Object.keys(p).filter((k) => !/(19|20)\d\d/.test(k) && p[k] !== "" && p[k] != null)
       .map((k) => `${escapeHtml(k.replace(/_/g, " "))}: ${escapeHtml(k === "area" ? Number(p[k]).toLocaleString(undefined, { maximumFractionDigits: 3 }) + " km\u00b2" : p[k])}`);
-    return `<b>Mine${p.country ? " \u2014 " + escapeHtml(p.country) : ""}</b><div class="meta">${rest.join("<br>")}</div>` +
+    // Each row says what one of its shapes is and whose data it is (round 23:
+    // the mine features' boxes named the Mines row's sources).
+    return `<b>${escapeHtml(cfg.featureWord || "Mine")}${p.country ? " \u2014 " + escapeHtml(p.country) : ""}</b><div class="meta">${rest.join("<br>")}</div>` +
       (loss.length ? `<div class="meta">Tree cover loss inside it:<br>${loss.join("<br>")}</div>` : "") +
-      `<div class="meta">Maus et al. 2022 and OpenStreetMap, merged by WU Vienna (ODbL)</div>`;
+      `<div class="meta">${escapeHtml(cfg.attribution || "Maus et al. 2022 and OpenStreetMap, merged by WU Vienna (ODbL)")}</div>`;
   };
   bindHtmlPopup(`${cfg.id}-fill`, box);
   bindHtmlPopup(`${cfg.id}-pt`, box);
@@ -3752,7 +4013,11 @@ function addPmShapesLayer(cfg) {
       applyVisibility(cfg.id);
     })
     .catch((e) => console.warn(`[culprits] ${cfg.id} build list: ${e.message}`));
-  setLayerState(cfg.id, "every mine as a point from the world view (merged where they crowd), outlines from zoom 7");
+  setLayerState(cfg.id, cfg.stateText || "every mine as a point from the world view (merged where they crowd), outlines from zoom 7");
+  // A row whose copy is built by hand says so until the build has run.
+  if (cfg.buildScript) fetch(cfg.archiveUrl, { method: "HEAD" }).then((r) => {
+    if (!r.ok) setLayerState(cfg.id, `not built yet: run ${cfg.buildScript} in culprits-tiles-more`);
+  }).catch(() => {});
   applyVisibility(cfg.id);
   buildLegend();
 }
@@ -3780,6 +4045,46 @@ const GLW_TILES = "https://data.apps.fao.org/map/wmts/wmts?layer=fao-gismgr/GLW4
 // questions - what is registered, what a model puts where, how many animals a
 // grid says are there - and a reader ticking "slaughterhouses" should not have
 // a model's estimate arrive with it.
+// Land use plot by plot, as OpenStreetMap's mappers record it (round 23, item
+// 30), from the same OpenFreeMap tiles the basemap's outlines use: every class
+// of their land use layer, and their farmland with its kinds (orchard,
+// vineyard, nursery). Mines and quarries are "quarry" there. The finest land
+// use map there is worldwide - each plot is its own shape - but it is mapped
+// by volunteers, so how much of a place it covers varies.
+const OSM_LANDUSE_COLOURS = {
+  residential: "#8A7E74", suburb: "#7E7268", quarter: "#7E7268", neighbourhood: "#7E7268",
+  commercial: "#9A7E86", retail: "#9A7E86", industrial: "#7A6A72", garages: "#6A6258", railway: "#6A6258",
+  parking: "#6A6258", bus_station: "#6A6258", military: "#5E5A6A", quarry: "#A39C92", dam: "#5E7377",
+  cemetery: "#6F7F72", hospital: "#8C8F9E", school: "#8C8F9E", university: "#8C8F9E", college: "#8C8F9E",
+  kindergarten: "#8C8F9E", library: "#8C8F9E", stadium: "#7D9A8E", pitch: "#7D9A8E", track: "#7D9A8E",
+  playground: "#7D9A8E", theme_park: "#7D9A8E", zoo: "#7D9A8E",
+  farmland: "#8A7E6A", farm: "#8A7E6A", orchard: "#7A7560", vineyard: "#7A6A7A", plant_nursery: "#6F7F72",
+};
+const OSM_LANDUSE_KEY = [
+  ["#8A7E74", "Homes"], ["#9A7E86", "Shops and offices"], ["#7A6A72", "Industry"], ["#6A6258", "Rail, garages and parking"],
+  ["#5E5A6A", "Military"], ["#A39C92", "Quarries and mines"], ["#5E7377", "Dams"], ["#6F7F72", "Cemeteries and nurseries"],
+  ["#8C8F9E", "Hospitals, schools and universities"], ["#7D9A8E", "Sport, play and zoos"],
+  ["#8A7E6A", "Farmland"], ["#7A7560", "Orchards"], ["#7A6A7A", "Vineyards"],
+];
+function addOsmLanduseLayer(cfg) {
+  const src = `${cfg.id}-src`;
+  if (map.getSource(src)) return;
+  map.addSource(src, Object.assign({}, OSM_SOURCE));
+  const colour = (field) => ["match", ["get", field], ...Object.entries(OSM_LANDUSE_COLOURS).flat(), "#7E7268"];
+  map.addLayer({ id: `${cfg.id}-farm`, type: "fill", source: src, "source-layer": "landcover", filter: ["==", ["get", "class"], "farmland"],
+    layout: { visibility: "none" }, paint: { "fill-color": colour("subclass"), "fill-opacity": 0.55 } });
+  map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source: src, "source-layer": "landuse",
+    layout: { visibility: "none" }, paint: { "fill-color": colour("class"), "fill-opacity": 0.62 } });
+  map.addLayer({ id: `${cfg.id}-edge`, type: "line", source: src, "source-layer": "landuse",
+    layout: { visibility: "none" }, paint: { "line-color": "#D6CCBC", "line-opacity": 0.35, "line-width": 0.5 } });
+  const box = (p) => `<b>${escapeHtml(String(p.subclass || p.class || "land use").replace(/_/g, " "))}</b>` +
+    `<table class="meta">${fieldRows(p)}</table><div class="meta">As mapped in OpenStreetMap; served by OpenFreeMap</div>`;
+  bindHtmlPopup(`${cfg.id}-fill`, box);
+  bindHtmlPopup(`${cfg.id}-farm`, box);
+  rasterChoiceRow(Object.assign(cfg, { choices: cfg.choices || [{ label: "Land use" }], _pick: 0 }));
+  setLayerState(cfg.id, "OpenStreetMap's land use, plot by plot; towns show first, most plots as you zoom in");
+  applyVisibility(cfg.id);
+}
 function addGlwLayer(cfg) {
   if (!cfg || map.getSource(`${cfg.id}-glw-src`)) return;
   map.addSource(`${cfg.id}-glw-src`, { type: "raster", tileSize: 256, maxzoom: 10, tiles: [GLW_TILES],
@@ -4512,7 +4817,7 @@ const NUSANTARA_NAMES = {
   "base_road_edited": "Roads (their edited version)",
   "base_roadtrans": "Transmigration roads",
   "base_sagoindicative": "Sago, where it is likely to grow",
-  "benthic_allencorral_global": "Reef habitats (Allen Coral Atlas)",
+  "benthic_allencorral_global": "Coral reef habitats, warm-water only (Allen Coral Atlas)",
   "burned_area_annual": "Burned area, by year",
   "burned_area_biennial": "Burned area, two years at a time",
   "burned_area_biennial_del": "Burned area, two years at a time (marked for deletion on their server)",
@@ -4626,6 +4931,19 @@ const NUSANTARA_NAMES = {
 // the row is for.
 const P = "Destruction > Of the planet";
 const AG = P + " > Meat and agriculture > Agriculture";
+// Layers with sublayers (round 23). Each is one row in the box whose tick turns
+// on everything inside it and whose arrow opens the list of its parts; a part
+// is ticked on its own like any row. They are named in PANEL_ORDER with
+// bundle: true, and a catalogue layer is put inside one by giving its path.
+const BUNDLES = {
+  mines: "Mines and mining land, every source together",
+  ponds: "Pond aquaculture in the tropics, 1999, 2014 and 2018 (Clark Labs)",
+  mangroves: "Mangroves in 1996, 2016 and 2020 (Global Mangrove Watch)",
+  waterwatch: "Reservoirs above or below their usual water area (Global Water Watch)",
+  forest: "Forest and tree cover in 2010 and 2020, worldwide and the tropics",
+  plans: "Spatial plans, forest estate and the clearing moratorium, Indonesia",
+};
+const IN = (path, key) => `${path} > ${BUNDLES[key]}`;
 const CATALOGUE_PLACES = [
   // "Alert" on its own is not deforestation: Nusantara's fire alerts carry it
   // too, and they belong under Fire. So the deforestation rule names the
@@ -4634,15 +4952,24 @@ const CATALOGUE_PLACES = [
    P + " > Deforestation > Tree cover loss and alerts"],
   [/\bfires?\b|burn|(?<!biodiversity )hotspot/i, P + " > Fire"],
   [/mining|\bmines?\b|quarr|\bcoal\b|nickel|bauxite|\bgold\b/i, P + " > Mining"],
-  [/oil and gas|oil & gas|\bgas\b|petroleum|geothermal/i, P + " > Oil and gas drilling"],
+  // The Oil and gas drilling heading was retired (23 September, round 23): oil
+  // and gas rows go under the climate heading for sites that emit more than one
+  // gas. "Greenhouse gas" is not oil and gas: it filed Global Forest Watch's
+  // forest net flux under drilling.
+  [/oil and gas|oil & gas|(?<!greenhouse )\bgas\b|petroleum|geothermal/i, P + " > Climate > Infrastructure emitting more than one gas"],
   // Agriculture, by crop where the box has a heading for it (22 September).
   [/palm|\bmills?\b|refiner/i, AG + " > Palm oil"],
   [/\bsoy|\bcorn\b|maize|grain|silo/i, AG + " > Soy, corn and grain"],
   [/cocoa|cotton/i, AG + " > Cocoa and cotton"],
   [/fertili[sz]er/i, AG + " > Farm inputs"],
   [/plantation|coconut|sugarcane|sago|coffee|crop|agricultur|pasture|yield|mapspam|\bhgu\b/i, AG],
-  [/\bbeef\b|cattle|slaughter|\bpigs?\b|chickens?|livestock|pasture/i, P + " > Meat and agriculture > Meat > Facilities"],
-  [/pulpwood|\bpulp\b|\bzdc\b|zero.deforestation/i, P + " > Deforestation > Wood pulp, Indonesia"],
+  // Measures about herds and grazing are not facilities: they go under Meat,
+  // where CATALOGUE_SUBS files them by animal (round 23).
+  [/\bbeef\b|cattle|slaughter|\bpigs?\b|chickens?|livestock|pasture/i, P + " > Meat and agriculture > Meat"],
+  // Zero-deforestation commitments cover beef, soy, corn and cocoa as well as
+  // pulp; they had all been filed under Wood pulp, Indonesia (round 23).
+  [/\bzdc\b|zero.deforestation/i, P + " > Deforestation > Zero-deforestation commitments"],
+  [/pulpwood|\bpulp\b/i, P + " > Deforestation > Wood pulp, Indonesia"],
   [/aquaculture|fisher|fishing|shrimp/i, P + " > Oceans > Fishing"],
   // A concession or permit is filed by what it is for - mining under Mining,
   // timber under Deforestation, oil palm under Agriculture (22 September; the
@@ -4681,8 +5008,10 @@ const CATALOGUE_PLACES = [
   // stay; the moratorium is also under Deforestation, being a bar on clearing
   // forest and peat; Badung's detailed plans go under Agriculture, as asked.
   [/badung/i, AG + " > Detailed spatial plans, Badung"],
-  [/moratorium|pippib/i, P + " > Deforestation > Moratoriums"],
-  [/spatial plan|forest estate|\brtrw\b|\brtrwn\b|\brtrwp\b|\brdtr\b|zoning|moratorium|pippib/i, P + " > Spatial plans"],
+  // Spatial plans and the moratorium are one row with sublayers under
+  // Deforestation since round 23 (item 25); the Spatial plans and Moratoriums
+  // headings are gone.
+  [/spatial plan|forest estate|\brtrw\b|\brtrwn\b|\brtrwp\b|\brdtr\b|zoning|moratorium|pippib/i, IN(P + " > Deforestation", "plans")],
   [/boundar|admin|hillshade|relief|imagery|sentinel|from the air|geotag|news article|towns and villages|\bgadm\b|\bgrid\b|geostore|buffered|coverage layer|\bregions?\b/i,
    "Base and reference > Boundaries and relief"],
 ];
@@ -4694,6 +5023,45 @@ const CATALOGUE_PLACES = [
 // titles each rule caught.
 const CATALOGUE_TAKEN_OUT = "(taken out)";
 const CATALOGUE_BY_TITLE = [
+  // ---- Round 23 (23 September), at the owner's word ---------------------
+  // Taken out: Trase's shrimp production (item 3); the Clark Labs change maps
+  // other than 1999 to 2018 (items 4 and 6); Nusantara's Equatorial Asia
+  // peatland (item 15) and Global Forest Watch's two peatland datasets that
+  // publish nothing drawable (cifor_peatlands has one tile set, which failed to
+  // build; gfwpro_peatlands has tile sets and no tile cache or GeoTIFF); the
+  // Borneo land cover with hillshade and rivers (items 16 and 26); the Rawa
+  // Singkil canals (item 17); Mapbox's river basins (item 22); Mexico's land
+  // rights (item 25); Nusantara's worldwide surface water change, which is the
+  // EC JRC's map drawn slowly through their server, now drawn from JRC's own
+  // tiles (item 18); Global Forest Watch's copy of the same JRC map, which has
+  // no tiles (item 23); and the land and forest cover layers listed in item 29.
+  [/^production of shrimp\b/i, null],
+  [/\bclark_labs_tropical_pond_aquaculture_change_(1999_2014|2014_2018)\b/, null],
+  [/\bbase_peatland\b|\bcifor_peatlands\b|\bgfwpro_peatlands\b/, null],
+  [/\bIDNMYSBorneo_LCHSRiver\b/, null],
+  [/\brawasingkil(_10)?_canal\b/, null],
+  [/\bmapbox_river_basins\b/, null],
+  [/\bconafor_mex_forest_zoning\b/, null],
+  [/\bGlobal_WaterChange_1984to2021\b|\bjrc_surface_water_transitions_1984_2020\b/, null],
+  [/\besa_land_cover_2015\b|\bidn_land_cover_2017\b|\bGlobal_LCHS_2024\b|\bLC1970(HS)?\b|\bGlobal_FC_2025_TTM\b/, null],
+  [/\bECJRCV2\b|\bFCHS_2020_ECJRCV2\b|\bREGBRNMYSIDN_FC(HS)?_2020_ECJRC\b|\bREGBRNMYSIDN_FCLandArea_2020_ECJRC\b/, null],
+  [/\bGlobal_FC-FNF(-HS_Latest|_2024|_2025)_TTM\b|\bREGBRNIDNMYS_FC-FNF-HS_Latest_TTM\b|\bIDNMYSBorneo_LCIndustrial_1970\b/, null],
+  // Layers with sublayers.
+  [/\bclark_labs_tropical_pond_aquaculture_(1999|2014|2018|change_1999_2018)\b/, [IN(P + " > Oceans > Fishing", "ponds")]],
+  [/\bpangaea_global_mining\b|\bgfw_mining_concessions\b|\bIDN_Mining_2023\b|\bconcessionmining_spv\b/, [IN(P + " > Mining", "mines")]],
+  [/\bgmw_global_mangrove_extent(_1996|_2016)?\b/, [IN(P + " > Oceans > Reefs and mangroves", "mangroves")]],
+  [/\bglobal_water_watch_anomalies2?\b/, [IN(P + " > Surface water", "waterwatch")]],
+  [/\bjrc_global_forest_cover\b|\bumd_tree_cover_density_2010\b|\bwri_tropical_tree_cover(_extent)?\b/, [IN(P + " > Forest and land cover", "forest")]],
+  [/\bidn_forest_moratorium\b|\brtrw_tabanan_2023\b|\b(v3p3_)?spatialplan(forestland|moratorium|rtrwn|rtrwp_papua|rtrwp_papuawest)_spv\b/, [IN(P + " > Deforestation", "plans")]],
+  // Moved: the forest net flux from drilling to Deforestation, beside the forest
+  // emissions, and kept under carbon dioxide (item 1); the Key Biodiversity
+  // Areas out of Surface water, which "freshwater" in its coverage had put it
+  // under (item 21).
+  [/forest greenhouse gas net flux/i, [P + " > Deforestation", P + " > Climate > Carbon dioxide"]],
+  [/\bbirdlife_key_biodiversity_areas\b/, [P + " > Biodiversity loss"]],
+  // Nusantara's copy of the Allen Coral Atlas's reef habitats is a reef layer,
+  // beside the Atlas's own row, not a species one ("habitat" put it there).
+  [/\bbenthic_allencorral_global\b/, [P + " > Oceans > Reefs and mangroves"]],
   // Taken out: no tiles published, or regional repeats of worldwide rows.
   [/annual surface temperature anomal/i, null],
   [/(wdpa|protected areas?).*burn|burn.*(wdpa|protected areas?)/i, null],
@@ -4740,10 +5108,83 @@ const CATALOGUE_BY_TITLE = [
   [/intact forest landscape/i, [P + " > Biodiversity loss"]],
   [/biodiversity hotspots/i, [P + " > Biodiversity loss"]],
   [/\bdams?\b/i, [P + " > Biodiversity loss > Fish"]],
-  [/oil (and|&) gas (concession|block|licen|lease)/i, [P + " > Oil and gas drilling", P + " > Climate > Infrastructure emitting more than one gas"]],
+  [/oil (and|&) gas (concession|block|licen|lease)/i, [P + " > Climate > Infrastructure emitting more than one gas"]],
   [/protected areas?/i, [P + " > Biodiversity loss"]],
   [/nitrogen dioxide|\bno2\b/i, [P + " > Pollution > Nitrogen dioxide"]],
 ];
+// Headings whose lists ran long are split one level further (item 27, round
+// 23). A row filed under one of these headings goes into the first
+// sub-heading whose rule its words match; the last rule of each catches the
+// rest, so no row is left between a heading and its sub-headings. Filed by
+// what a row shows, never by who published it.
+const CATALOGUE_SUBS = {
+  [P + " > Deforestation"]: [
+    [/greenhouse|emission|net flux|removals?\b/i, "Emissions from forests"],
+    [/concession|permit|\bpbph\b|\bfca\b|management objective|logging|timber concession/i, "Logging and timber concessions"],
+    [/rubber|plantation/i, "Timber and rubber plantations"],
+    [/.*/, "Logging and timber concessions"],
+  ],
+  [P + " > Deforestation > Tree cover loss and alerts"]: [
+    [/emission/i, "Emissions from the clearing"],
+    [/driver|agriculture.linked/i, "What drove the loss"],
+    [/alert|trees cut|dist-?alert|\bglad\b|\bradd\b/i, "Alerts"],
+    [/expansion/i, "Plantations spreading"],
+    [/probability|risk|frontera/i, "Where clearing is likely"],
+    [/cattle|pasture|beef/i, "Clearing for cattle"],
+    [/\bsoy|\bcorn\b/i, "Clearing for soy and corn"],
+    [/cocoa/i, "Clearing for cocoa"],
+    [/palm/i, "Clearing for palm oil"],
+    [/pulp|concession/i, "Clearing for wood pulp"],
+    [/.*/, "Loss year by year"],
+  ],
+  [P + " > Biodiversity loss"]: [
+    [/dist-?alert|disturb/i, "Disturbance"],
+    [/protect|conserv|reserve|restoration|easement|leuser|wdpa/i, "Protected and conserved areas"],
+    [/intact|primary forest|integrity/i, "Intact and primary forests"],
+    [/.*/, "Places that matter most for species"],
+  ],
+  [AG]: [
+    [/coffee|arabica|robusta/i, "Coffee"],
+    [/sugar/i, "Sugarcane"],
+    [/pasture|grassland/i, "Pasture and grassland"],
+    [/aqueduct|\bwater\b/i, "Water for crops"],
+    [/deforest/i, "Clearing for farming"],
+    [/.*/, "Plantations"],
+  ],
+  [AG + " > Palm oil"]: [
+    [/lends|invests|financ/i, "Who finances them"],
+    [/\bmills?\b|refiner/i, "Mills and refineries"],
+    [/deforest|emission/i, "Clearing and emissions"],
+    [/concession/i, "Concessions"],
+    [/.*/, "Plantations"],
+  ],
+  [AG + " > Soy, corn and grain"]: [
+    [/\bcorn\b|maize/i, "Corn"],
+    [/\bsoy/i, "Soy"],
+    [/.*/, "Grain"],
+  ],
+  [AG + " > Cocoa and cotton"]: [
+    [/cotton/i, "Cotton"],
+    [/.*/, "Cocoa"],
+  ],
+  [P + " > Meat and agriculture > Meat"]: [
+    [/\bpigs?\b|chicken/i, "Pigs and chickens"],
+    [/.*/, "Cattle and pasture"],
+  ],
+};
+function catalogueSub(path, words) {
+  const rules = CATALOGUE_SUBS[path];
+  if (!rules) return path;
+  for (const [rule, sub] of rules) if (rule.test(words)) return `${path} > ${sub}`;
+  return path;
+}
+// Rows whose words say peat are not land cover rows, whatever their group says
+// (Trase files its peatland area under "Land cover"; item 26).
+function catalogueRefine(paths, words) {
+  let out = paths.filter((x) => !(x === P + " > Forest and land cover" && /\bpeat/i.test(words)));
+  if (!out.length && paths.length) out = [P + " > Peatland"];
+  return [...new Set(out.map((x) => catalogueSub(x, words)))];
+}
 // Where a catalogue layer is, said in its title. Nusantara names the place in
 // most of its ids and covers Equatorial Asia in the rest; a reader clicking
 // "Fire alerts, VIIRS" under Fire should not have to find out by drawing it
@@ -4771,7 +5212,7 @@ const LEFT_OUT = "(left out)";
 function cataloguePlaces(words, title) {
   if (title != null) {
     // The title and, after it, the id (the id rules above end in $ or name it).
-    for (const [rule, paths] of CATALOGUE_BY_TITLE) if (rule.test(title)) return paths ? paths.slice() : [CATALOGUE_TAKEN_OUT];
+    for (const [rule, paths] of CATALOGUE_BY_TITLE) if (rule.test(title)) return paths ? catalogueRefine(paths.slice(), words) : [CATALOGUE_TAKEN_OUT];
   }
   let out = [];
   let dropped = false;
@@ -4785,11 +5226,14 @@ function cataloguePlaces(words, title) {
   // A crop's own heading stands in for the general one; by sector stands in for by gas.
   if (out.some((p) => p.startsWith(AG + " > "))) drop(AG);
   if (out.some((x) => x === P + " > Climate > Methane" || x === P + " > Climate > Nitrous oxide")) drop(P + " > Climate > Carbon dioxide");
-  if (out.includes(AG + " > Detailed spatial plans, Badung")) drop(P + " > Spatial plans");
+  if (out.includes(AG + " > Detailed spatial plans, Badung")) drop(IN(P + " > Deforestation", "plans"));
+  // A share traded under a zero-deforestation commitment is not clearing,
+  // though its name says deforestation (round 23).
+  if (out.includes(P + " > Deforestation > Zero-deforestation commitments")) drop(P + " > Deforestation > Tree cover loss and alerts");
   // A concession or permit whose words name no material and no activity.
   if (!out.length && !dropped && /concession|permit|licen[cs]e|\bizin\b/i.test(words)) out.push(P + " > Other concessions");
   if (!out.length && dropped) return [LEFT_OUT];
-  return out.length ? out : ["Not yet placed"];
+  return out.length ? catalogueRefine(out, words) : ["Not yet placed"];
 }
 
 // The body of the heading a path names. Headings are made by the order, not
@@ -4800,10 +5244,13 @@ function sectionBody(box, path) {
   let where = box;
   for (const name of want) {
     let found = null;
-    for (const sec of where.querySelectorAll(".toc-sec")) {
-      const t = sec.querySelector(".toc-t");
-      if (t && t.textContent.trim().toLowerCase() === name.trim().toLowerCase()) { found = sec; break; }
-    }
+    // A heading directly under this one first: two headings of the same name
+    // at different depths (Agriculture's Plantations and Palm oil's) are told
+    // apart by where they sit. Any depth after that, as before.
+    const named = (sec) => { const t = sec.querySelector(".toc-t"); return t && t.textContent.trim().toLowerCase() === name.trim().toLowerCase(); };
+    const own = where.children ? [...where.children].filter((c) => c.classList && c.classList.contains("toc-sec")) : [];
+    found = own.find(named) || null;
+    if (!found) for (const sec of where.querySelectorAll(".toc-sec")) if (named(sec)) { found = sec; break; }
     if (!found) return null;
     where = found.querySelector(".toc-body") || found;
   }
@@ -4846,6 +5293,8 @@ function catalogueRows(cfg, items) {
   if (leftOut) console.info(`[culprits] ${cfg.id}: ${leftOut} land-cover layers have no row, at the owner's request (22 September)`);
   if (takenOut.length) console.info(`[culprits] ${cfg.id}: taken out by name at the owner's request: ${takenOut.join("; ")}`);
   countHeadings(box);
+  // A layer with sublayers whose parts have just arrived reads them now.
+  if (typeof syncHeadingBoxes === "function") syncHeadingBoxes(box);
   if (box.dataset.catWired) return;
   box.dataset.catWired = "1";
   box.addEventListener("change", (e) => {
@@ -5051,6 +5500,24 @@ const GFW_TITLES = {
   wri_google_tree_cover_loss_drivers: "Tree cover loss by dominant driver, newest, 1 km (WRI and Google)",
   tsc_drivers: "Tree cover loss by dominant driver, second record, tiles unfinished (The Sustainability Consortium)",
   umd_drivers: "Tree cover loss by dominant driver, University of Maryland record (UMD)",
+  // Round 23 (23 September). Global Forest Watch gives the Clark Labs maps of
+  // 2014 and 2018 the 1999 map's title; their ids, files and pixel counts say
+  // which year each is.
+  clark_labs_tropical_pond_aquaculture_1999: "Aquaculture ponds in 1999, tropical coasts (Clark Labs)",
+  clark_labs_tropical_pond_aquaculture_2014: "Aquaculture ponds in 2014, tropical coasts (Clark Labs)",
+  clark_labs_tropical_pond_aquaculture_2018: "Aquaculture ponds in 2018, tropical coasts (Clark Labs)",
+  clark_labs_tropical_pond_aquaculture_change_1999_2018: "Aquaculture ponds gained and lost, 1999 to 2018, tropical coasts (Clark Labs)",
+  gmw_global_mangrove_extent: "Mangroves in 2020, 25 m, worldwide (Global Mangrove Watch v3)",
+  gmw_global_mangrove_extent_2016: "Mangroves in 2016, worldwide (Global Mangrove Watch v2)",
+  gmw_global_mangrove_extent_1996: "Mangroves in 1996, worldwide (Global Mangrove Watch)",
+  jpl_mangrove_aboveground_biomass_stock_2000: "Mangrove biomass above ground in 2000, per hectare, worldwide (NASA JPL)",
+  global_water_watch_anomalies: "Each reservoir month by month through 2025, water area against its usual (Global Water Watch)",
+  global_water_watch_anomalies2: "Each reservoir at one reading, water area against its usual, April 2025 release (Global Water Watch)",
+  jrc_global_forest_cover: "Forest cover in 2020, 10 m, worldwide (EC JRC)",
+  umd_tree_cover_density_2010: "Tree cover density in 2010, share of each 30 m square, worldwide (University of Maryland)",
+  wri_tropical_tree_cover: "Tree cover in 2020, share of each half hectare, the tropics (WRI)",
+  wri_tropical_tree_cover_extent: "Tree cover in 2020, 10 m, where it is 40% or more, the tropics (WRI)",
+  test_wat_006_projected_water_stress: "Water stress projected for the coming decades, Global Forest Watch's test copy (WRI Aqueduct)",
 };
 // What is known about how rows of the same name differ, put first in the
 // row's "i" box, ahead of Global Forest Watch's own description.
@@ -5060,6 +5527,14 @@ const GFW_ABOUT = {
   tsc_drivers: "A second dataset under the Sustainability Consortium's name with the same title. Global Forest Watch lists map tiles for it that it has not finished making; if it still has none when ticked, the row leaves the list. Its record does not say how it differs from the first.",
   umd_drivers: "A dataset of the same title that its id marks as the University of Maryland's. Its record does not say how it differs from the Sustainability Consortium's or from the WRI and Google version.",
   wdpa_protected_areas: "The public release of the World Database on Protected Areas (UNEP-WCMC and IUCN), as Global Forest Watch serves it. There is a second worldwide row, the copy licensed to Global Forest Watch; the records do not say how the two differ beyond that.",
+  // Round 23.
+  clark_labs_tropical_pond_aquaculture_2014: "Global Forest Watch titles this dataset \u201cClark labs Tropical Pond Aquaculture (1999)\u201d; its id, its files and its pixel counts show it is the 2014 map.",
+  clark_labs_tropical_pond_aquaculture_2018: "Global Forest Watch titles this dataset \u201cClark labs Tropical Pond Aquaculture (1999)\u201d; its id, its files and its pixel counts show it is the 2018 map.",
+  gmw_global_mangrove_extent_1996: "Global Forest Watch publishes this year only as tiles it makes from its database when they are asked for, so it fills in slowly, most slowly at the world view.",
+  global_water_watch_anomalies: "One column for each month of 2025: the reservoir's water area that month and how far it is from its usual area. The newest of fourteen releases (25 April 2025).",
+  global_water_watch_anomalies2: "One reading per reservoir: its water area, its monthly area and how far that is from usual. A separate dataset, released once (21 April 2025).",
+  jpl_mangrove_aboveground_biomass_stock_2000: "Simard et al. 2019, NASA JPL. Global Forest Watch records the unit as megagrams of CO\u2082 equivalent per hectare; the key uses the numbers as stored.",
+  test_wat_006_projected_water_stress: "Global Forest Watch gives this dataset no title or description; \u201cwat.006\u201d is Resource Watch's code for Aqueduct's projected water stress. It is published only as tiles made when asked for, so it fills in slowly.",
   wdpa_licensed_protected_areas: "The World Database on Protected Areas as licensed to Global Forest Watch. There is a second worldwide row, the public release; the records do not say how the two differ beyond that.",
 };
 // Where a dataset is, where the record's own wording does not fit a title.
@@ -5088,6 +5563,21 @@ const GFW_KEYS = {
     source: "the first digit of each pixel is its confidence" },
   // Eleven classes; Global Forest Watch's record gives no name for each number,
   // so the key names them by number rather than guessing which is which.
+  // Round 23: two GeoTIFFs of numbers that drew grey and black (item 9). Pixels
+  // of 0 or with no value are left out, so only mangroves and trees are drawn.
+  jpl_mangrove_aboveground_biomass_stock_2000: { ranges: [
+    [0.5, 50, "#4A3346", "under 50"],
+    [50, 100, "#6B4458", "50 to 100"],
+    [100, 200, "#8C5A68", "100 to 200"],
+    [200, 300, "#B07F86", "200 to 300"],
+    [300, 1000, "#E3D7CB", "300 and more"]],
+    source: "value per hectare, as Global Forest Watch stores it (its record says Mg CO\u2082e per hectare)" },
+  umd_tree_cover_density_2010: { ranges: [
+    [1, 25, "#3F4A3A", "1 to 25% tree cover"],
+    [25, 50, "#56664C", "25 to 50%"],
+    [50, 75, "#6F805F", "50 to 75%"],
+    [75, 101, "#8E9E7C", "75 to 100%"]],
+    source: "share of each 30 m square under trees, 2010 (Hansen et al., University of Maryland)" },
   wur_integration_alert_drivers_class: { values: [
     [1, "#8C5A4E", "Class 1"], [2, "#6F5A7A", "Class 2"], [3, "#6E8058", "Class 3"], [4, "#4F6E6A", "Class 4"],
     [5, "#B0707C", "Class 5"], [6, "#A9A39A", "Class 6"], [7, "#5E6D8A", "Class 7"], [8, "#7A6A5C", "Class 8"],
@@ -5178,6 +5668,7 @@ function gfwPickAsset(assets) {
 // (one per kind that can be drawn) instead of two per dataset on each tick,
 // grouped by dataset with the latest version's assets kept. From this the box
 // knows before any row is made which datasets can be drawn at all.
+const versionOrder = (a, b) => String(a).localeCompare(String(b), "en", { numeric: true });
 function gfwAssetIndex(rows) {
   const by = {};
   for (const a of rows || []) {
@@ -5188,7 +5679,10 @@ function gfwAssetIndex(rows) {
   for (const id of Object.keys(by)) {
     const list = by[id];
     const latest = list.filter((a) => a.is_latest);
-    const versions = [...new Set(list.map((a) => String(a.version || "")))].sort();
+    // Numbers in a version read as numbers (round 23, item 18): Aqueduct's
+    // versions run v1.0 to v1.12, and sorted as text v1.9 came last, an older
+    // version with no static tiles, so the newest was never drawn.
+    const versions = [...new Set(list.map((a) => String(a.version || "")))].sort(versionOrder);
     out[id] = latest.length ? latest : list.filter((a) => String(a.version || "") === versions[versions.length - 1]);
   }
   return out;
@@ -5246,7 +5740,7 @@ async function addGfwMenuLayer(cfg) {
     const said = gfwTitle(d);
     const where = String(GFW_WHERE[d.dataset] || meta.geographic_coverage || "").trim();
     return { id: d.dataset, meta,
-      title: where && !new RegExp(where.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(said) ? `${said} \u2014 ${where}` : said };
+      title: where && !new RegExp(where.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(said) && !(/\bworldwide\b/i.test(said) && /^global\b/i.test(where)) ? `${said} \u2014 ${where}` : said };
   })
     .sort((a, b) => a.title.localeCompare(b.title));
   // Each dataset is a row of the layers box, filed by what it shows. Several
@@ -5284,7 +5778,7 @@ async function addGfwMenuLayer(cfg) {
         if (!version) {
           // No version is marked latest (a 404 there): the newest one listed.
           const vs = ((await getJson(`${cfg.api}/dataset/${d.id}`)).data || {}).versions || [];
-          version = vs.slice().sort().pop();
+          version = vs.slice().sort(versionOrder).pop();
         }
         assets = version ? ((await getJson(`${cfg.api}/dataset/${d.id}/${version}/assets`)).data || []) : [];
       }
@@ -5297,8 +5791,21 @@ async function addGfwMenuLayer(cfg) {
       const about = [d.meta.license ? `licence: ${d.meta.license}` : "", d.meta.source ? `source: ${String(d.meta.source).replace(/\[|\]\([^)]*\)/g, "")}` : ""].filter(Boolean).join("; ");
       if (vec) {
         const uri = vec.asset_uri;
-        const buf = await (await fetch(uri.replace("{z}", "0").replace("{x}", "0").replace("{y}", "0"))).arrayBuffer().catch(() => null);
-        const names = buf ? readTileLayers(buf) : [];
+        // The layer names are read from the world tile. A tile made on request
+        // from the database (a dynamic cache) can take minutes for the whole
+        // world, and nothing was drawn until it came (round 23: the 1996
+        // mangroves, the water stress test copy, the reservoir anomalies, the
+        // PANGAEA mines): those, and any static tile that has not come in 8
+        // seconds, are drawn at once under both names Global Forest Watch uses.
+        let names = [];
+        if (!asset.slow) {
+          const ctl = typeof AbortController === "function" ? new AbortController() : null;
+          const timer = ctl ? setTimeout(() => ctl.abort(), 8000) : null;
+          const buf = await fetch(uri.replace("{z}", "0").replace("{x}", "0").replace("{y}", "0"), ctl ? { signal: ctl.signal } : {})
+            .then((r) => r.arrayBuffer()).catch(() => null);
+          if (timer) clearTimeout(timer);
+          names = buf ? readTileLayers(buf) : [];
+        }
         map.addSource(src, { type: "vector", tiles: [uri], minzoom: asset.minzoom, maxzoom: asset.maxzoom });
         for (const n of (names.length ? names : [d.id, "default"])) {
           const base = { source: src, "source-layer": n };
@@ -7197,6 +7704,7 @@ const CORAL_ATLAS_PICTURE_FROM = 12;
 // Below this zoom the world reef map is drawn coarse so that reefs a few
 // hundred metres across are still findable; at and above it, full size.
 const CORAL_WORLD_SHARP = 7;
+const CORAL_WORLD_TINT = "E3D2CC";      // pale bone with a little rose, for the world view only
 function addCoralLayer(cfg) {
   map.addSource(`${cfg.id}-tiles`, {
     type: "vector",
@@ -7238,10 +7746,16 @@ function addCoralLayer(cfg) {
   // pale smudge and undoes it. From zoom CORAL_WORLD_SHARP the squares are
   // small enough for reefs to hold their own, and the full-size picture is
   // used instead.
-  const wcmc = (px) => `tint://${CORAL_CLASSES["Coral/Algae"].slice(1)}/data-gis.unep-wcmc.org/server/rest/services/HabitatsAndBiotopes/Global_Distribution_of_Coral_Reefs/MapServer/export` +
+  // Wider out (round 23, item 7): the reefs outside the Caribbean are atolls and
+  // fringing reefs far narrower than a pixel, and in the Atlas's rose on a dark
+  // sea only Central America's long barrier reef could be seen. The world
+  // picture is drawn in pale bone and each reef pixel is grown one or two
+  // pixels round (tint's +grow), so the Pacific, the Indian Ocean and the Red
+  // Sea show too. Nothing is added: the same reefs, drawn wider.
+  const wcmc = (px, how) => `tint://${how || CORAL_CLASSES["Coral/Algae"].slice(1)}/data-gis.unep-wcmc.org/server/rest/services/HabitatsAndBiotopes/Global_Distribution_of_Coral_Reefs/MapServer/export` +
     `?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857&size=${px},${px}&format=png32&transparent=true&f=image`;
   map.addSource(`${cfg.id}-globe`, { type: "raster", tileSize: 256,
-    attribution: "UNEP-WCMC, WorldFish Centre, WRI, TNC", tiles: [wcmc(96)] });
+    attribution: "UNEP-WCMC, WorldFish Centre, WRI, TNC", tiles: [wcmc(96, CORAL_WORLD_TINT + "+grow")] });
   map.addLayer({ id: `${cfg.id}-world`, type: "raster", source: `${cfg.id}-globe`, maxzoom: CORAL_WORLD_SHARP,
     layout: { visibility: "none" }, paint: { "raster-opacity": 1, "raster-resampling": "nearest" } });
   map.addSource(`${cfg.id}-globe-near`, { type: "raster", tileSize: 256,
@@ -8654,7 +9168,7 @@ const SITE_MAPS = {
       note: "From the Suppression page's export credit agencies map. Its country shading is not carried here, only the agencies." },
     { id: "site_wealth_atlas", name: "The World's Richest Dynasties & Individuals", unit: "families and individuals", colour: "#735E57", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_wealth_atlas.places.geojson",
       note: "From the Suppression page's wealth atlas." },
-    { id: "site_food_system", name: "Who Owns the", unit: "companies", colour: "#6E6A55", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_food_system.places.geojson",
+    { id: "site_food_system", name: "Who Owns the Food Industry", unit: "companies", colour: "#6E6A55", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_food_system.places.geojson",
       note: "From the Suppression page's food system ownership map." },
     { id: "site_world_advertising", typeRows: true, name: "World Advertising 2026 — Companies & Owners", unit: "companies", colour: "#6C5F66", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_world_advertising.places.geojson",
       note: "From the Suppression page's World Advertising 2026 map." },
@@ -8925,6 +9439,8 @@ const OTHER_MAPS = {
       note: "192,584 mine outlines: Maus et al.'s satellite-traced mining areas merged with OpenStreetMap's mines and quarries (Zenodo 7307210, ODbL), with the tree cover loss inside each from 2000 to 2019. Every mine as its own point from the world view, none merged (since 23 September); outlines from zoom 7." },
     { id: "mine_features", name: "Mine features worldwide \u2014 pits, waste dumps, tailings dams and plant, traced one by one (Tang and Werner 2023)", unit: "mine features", colour: "#7A6A5E", route: "pmshapes", ready: true, lazy: true,
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/mine_features.pmtiles", polygonLayer: "mine_features", pointLayer: "mine_feature_points",
+      featureWord: "Mine feature", featureWords: "mine features",
+      stateText: "every feature as a glowing point from the world view, outlines from zoom 7",
       attribution: "Tang and Werner 2023, Communications Earth & Environment (Zenodo 7894216, CC BY 4.0)",
       note: "74,548 outlines drawn tight round each feature of a mine - the pit, the waste rock dump, the tailings dam, the pond, the heap leach pad, the plant - rather than round the whole site, which is how this differs from the Mines row. The release carries an id, a name (mostly blank or a digitising leftover; a few say Au, Cu, Fe, diamond, coal, tungsten), a length and an area, and no commodity or impact figure. Every feature as its own point from the world view, none merged (since 23 September); outlines from zoom 7." },
     { id: "ejatlas", name: "Environmental justice conflicts (EJAtlas)", unit: "conflicts", colour: "#7A5A55", route: "ejatlas", ready: true, lazy: true,
@@ -9273,6 +9789,45 @@ const OTHER_MAPS = {
         { label: "Coastal nitrogen plumes", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_N_plumes.pmtiles" }
       ],
       note: "The model's own published pictures, from a GitHub copy (its server does not let other sites draw them). Each chip is one of the model's own layers." },
+    // ---- round 23 (23 September) ----------------------------------------
+    // Item 23: the EC JRC's Global Surface Water, back, from the JRC's own tiles
+    // (version 2024, 1984 to 2024), in this map's colours (remap://).
+    { id: "jrc_water", name: "Surface water 1984 to 2024: where it is, how often, and how it changed (EC JRC and Google)", unit: "30 m, from every Landsat pass", colour: "#5E7377", route: "rasterlive", ready: true, lazy: true,
+      attribution: "EC JRC/Google, Global Surface Water 1984\u20132024 (Pekel et al. 2016)", maxzoom: 13, rasterPaint: { "raster-opacity": 0.85, "raster-saturation": 0 },
+      choices: [
+        { label: "How often there was water", tiles: GSW_OCCURRENCE,
+          key: [["#A9B4B8", "water now and then"], ["#6C7F88", "about half the time"], ["#2F4652", "water all the time"]] },
+        { label: "Gained and lost", tiles: GSW_CHANGE,
+          key: [["#B07087", "less water than in 1984\u201399"], ["#2A2622", "no change"], ["#8E9E7C", "more water than in 1984\u201399"]] },
+        { label: "Months a year", tiles: GSW_SEASONALITY,
+          key: [["#A9B4B8", "water one month a year"], ["#2F4652", "all twelve months"]] },
+        { label: "Years it came back", tiles: GSW_RECURRENCE,
+          key: [["#8C5A68", "water in few years"], ["#A9B4B8", "water every year"]] },
+        { label: "Before and after", tiles: GSW_TRANSITIONS,
+          key: [["#2F4652", "Permanent water"], ["#6F805F", "New permanent water"], ["#8C4F5A", "Permanent water lost"], ["#8C9DA6", "Seasonal water"],
+                ["#A3AE8E", "New seasonal water"], ["#B07087", "Seasonal water lost"], ["#5E7377", "Seasonal turned permanent"],
+                ["#C9CFD2", "Permanent turned seasonal"], ["#6A6258", "Brief permanent water"], ["#A39C92", "Brief seasonal water"]] },
+        { label: "Anywhere water was ever seen", tiles: GSW_EXTENT, key: [["#5E7377", "water at some time, 1984\u20132024"]] },
+      ],
+      note: "The EC Joint Research Centre's map of every pixel of surface water seen by Landsat from 1984 to 2024, read live from the JRC's own tiles. The JRC's colours are redrawn in this map's own; what each pixel means is unchanged." },
+    // Item 30: the most detailed land cover map published worldwide, by class
+    // and by pixel together, read live from OpenLandMap's copy.
+    { id: "glc_fcs30d", name: "Land cover in 35 classes, 30 m, worldwide, 2000 to 2022 (GLC_FCS30D)", unit: "35 kinds of cover, 30 m", colour: "#6F805F", route: "rasterlive", ready: true, lazy: true,
+      attribution: "GLC_FCS30D, Zhang et al. 2023 (CC BY 4.0), via OpenLandMap", maxzoom: 13, rasterPaint: { "raster-opacity": 0.85, "raster-saturation": 0, "raster-resampling": "nearest" },
+      choices: [2022, 2020, 2015, 2010, 2005, 2000].map((y) => ({ label: String(y), tiles: `cog4326://glc_fcs30d/${y}/{z}/{x}/{y}` })),
+      key: GLC_FCS30D_CLASSES.map(([, c, label]) => [c, label]),
+      note: "Zhang et al. 2023, Earth System Science Data: 35 kinds of land cover at 30 m, the finest class list of any worldwide land cover map - among them rainfed, irrigated and tree cropland, open and closed forest by leaf type, swamp, marsh, mangrove, tidal flat and built-over land. Read square by square from OpenLandMap's Cloud Optimised GeoTIFF of each year. It is land cover, not land use: plantations are forest or cropland here, mines bare ground." },
+    { id: "osm_landuse", name: "Land use plot by plot: homes, industry, shops, quarries, farms, military and more (OpenStreetMap)", unit: "every land use OpenStreetMap records", colour: "#8A7E74", route: "osmlanduse", ready: true, lazy: true,
+      key: OSM_LANDUSE_KEY,
+      note: "Every land use class in OpenStreetMap as OpenFreeMap serves it, and its farmland by kind. No worldwide land use map separates plantations, mining, transmigration or fish ponds the way Indonesia's ministry map does; OpenStreetMap's is the most detailed there is, each plot its own shape, but volunteers map it, so coverage varies from place to place." },
+    // Item 5: aquaculture ponds worldwide, 2020, from Sentinel-2 (Zenodo
+    // record 5643036), built by culprits-tiles-more scripts/aquaculture_ponds.py.
+    { id: "aquaculture_ponds", name: "Aquaculture pond clusters on land, worldwide, 2020, traced from 10 m satellite images (LCAP)", unit: "pond clusters", colour: "#5E7377", route: "pmshapes", ready: true, lazy: true,
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/aquaculture_ponds.pmtiles", polygonLayer: "ponds", pointLayer: "pond_points",
+      featureWord: "Aquaculture pond cluster", featureWords: "pond clusters", buildScript: "scripts/aquaculture_ponds.py",
+      stateText: "every cluster as a glowing point from the world view, outlines from zoom 7",
+      attribution: "Global Landside Clustering of Aquaculture Ponds (LCAP), Zenodo record 5643036",
+      note: "\u201cGlobal mapping of the landside clustering of aquaculture ponds from dense time-series 10 m Sentinel-2 images on Google Earth Engine\u201d (International Journal of Applied Earth Observation and Geoinformation, 2022; data at Zenodo record 5643036): the areas on land where aquaculture ponds cluster, worldwide, for 2020. Ponds on land only: sea cages, rafts and lines are not in it." },
   ],
 };
 
@@ -9515,6 +10070,7 @@ function ensureLayer(cfg) {
     : cfg.route === "cafo" ? Promise.resolve().then(() => addCafoLayer(cfg))
       : cfg.route === "pmtareas" ? addPmtAreasLayer(cfg)
       : cfg.route === "glw" ? Promise.resolve().then(() => addGlwLayer(cfg))
+      : cfg.route === "osmlanduse" ? Promise.resolve().then(() => addOsmLanduseLayer(cfg))
       : cfg.route === "arcgisdyn" ? addArcgisDynLayer(cfg)
       : cfg.route === "giga" ? addGigaLayer(cfg)
       : cfg.route === "gta" ? addGtaLayer(cfg)
@@ -9741,6 +10297,11 @@ const LAYER_KIND = {
   arcgis_ym8xk: ["insentient", "upstream"],
   arcgis_materialresearch: ["insentient", "upstream"],
   glad_loss: ["plant", "downstream"],
+  // Round 23.
+  jrc_water: ["insentient", "downstream"],
+  glc_fcs30d: ["plant", "downstream"],
+  osm_landuse: ["human", "upstream"],
+  aquaculture_ponds: ["animal", "upstream"],
   soilgrids: ["microorganism", "downstream"],
   wastewater: ["insentient", "downstream"],
   wastewater_n_tot: ["insentient", "downstream"], wastewater_n_treated: ["insentient", "downstream"],
@@ -10532,7 +11093,10 @@ const PANEL_ORDER = [
   // Oil and gas concessions (from the catalogues) are filed here as well as
   // under Oil and gas drilling: the wells emit carbon dioxide, methane and,
   // where gas is flared, black carbon.
-  { h: 4, t: "Infrastructure emitting more than one gas" },
+  // The Oil and gas drilling heading is gone (round 23, item 2): the fracking
+  // disclosures and the Pennsylvania heading with its rows are here.
+  { h: 4, t: "Infrastructure emitting more than one gas" }, "skytruth_fracfocus",
+  { h: 5, t: "Pennsylvania" }, "skytruth_pa_permits", "skytruth_pa_spud", "skytruth_pa_violations", "skytruth_well_permits",
   { h: 3, t: "Overpopulation" }, "ct_pop",
   // Pollution by pollutant, as Climate is by gas (22 September, round 2).
   // Climate TRACE's air-pollution row covers every pollutant it reports and
@@ -10561,38 +11125,83 @@ const PANEL_ORDER = [
   { h: 5, t: "Marine slicks" }, "cerulean_slicks", "cerulean_sources", "slick_archive", "skytruth_voc", "skytruth_marine_incidents", "skytruth_posts",
   { h: 3, t: "Fire" },
   { h: 3, t: "Deforestation" },
-  // EIA's Environmental Crime Tracker also records illegal logging and timber
-  // seizures, and smuggled HFC refrigerant gases: copied under both (23 September).
+  // Split one level further where the lists ran long (round 23, item 27); the
+  // catalogue rows find their sub-heading through CATALOGUE_SUBS. Spatial plans
+  // are one row with sublayers here (item 25); the Moratoriums and Spatial
+  // plans headings are gone into it.
+  { h: 4, t: "Logging and timber concessions" },
+  { h: 4, t: "Timber and rubber plantations" },
+  { h: 4, t: "Emissions from forests" },
   { h: 4, t: "Illegal logging and timber trafficking" }, "powerbi_report",
-  { h: 4, t: "Tree cover loss and alerts" }, "glad_loss", "group:forest_alerts",
-  { h: 4, t: "Moratoriums" },
+  { h: 4, t: "Tree cover loss and alerts" },
+  { h: 5, t: "Loss year by year" }, "glad_loss",
+  { h: 5, t: "Alerts" }, "group:forest_alerts",
+  { h: 5, t: "What drove the loss" },
+  { h: 5, t: "Plantations spreading" },
+  { h: 5, t: "Where clearing is likely" },
+  { h: 5, t: "Clearing for cattle" },
+  { h: 5, t: "Clearing for soy and corn" },
+  { h: 5, t: "Clearing for palm oil" },
+  { h: 5, t: "Clearing for cocoa" },
+  { h: 5, t: "Clearing for wood pulp" },
+  { h: 5, t: "Emissions from the clearing" },
+  { h: 4, t: "Zero-deforestation commitments" },
   { h: 4, t: "Wood pulp, Indonesia" }, "trase_pulp_indonesia", "trase_pulp_concessions_2015", "trase_pulp_concessions_2020", "trase_pulp_concessions_2023",
   { h: 4, t: "Companies and financiers" }, "site_forest500_soy", "site_soybean_companies", "soy_organizations", "dff",
-  { h: 3, t: "Biodiversity loss" }, "gsn", "gsn_rankings", "atlas_hotspots", "atlas_cities", "powerbi_report",
+  { h: 4, bundle: "plans", colour: "#6E6A55" },
+  { h: 3, t: "Biodiversity loss" },
+  { h: 4, t: "Places that matter most for species" }, "gsn", "gsn_rankings", "atlas_hotspots", "atlas_cities",
+  { h: 4, t: "Protected and conserved areas" },
+  { h: 4, t: "Intact and primary forests" },
+  { h: 4, t: "Disturbance" },
   { h: 4, t: "Fish" },
+  { h: 4, t: "Wildlife and timber crime" }, "powerbi_report",
   { h: 4, t: "Companies and financiers" }, "pe_subsidising", "pe_bankrolling",
-  { h: 3, t: "Forest and land cover" },
-  { h: 3, t: "Spatial plans" },
+  // Item 30: the most detailed worldwide land cover and land use found.
+  { h: 3, t: "Forest and land cover" }, "glc_fcs30d", "osm_landuse",
+  { h: 4, bundle: "forest", colour: "#62755F" },
   { h: 3, t: "Peatland" },
-  { h: 3, t: "Surface water" },
-  { h: 3, t: "Mining" }, "mines_global", "mine_features",
-  { h: 3, t: "Oil and gas drilling" },
-  { h: 4, t: "Pennsylvania" }, "skytruth_pa_permits", "skytruth_pa_spud", "skytruth_pa_violations", "skytruth_well_permits",
-  { h: 4, t: "United States" }, "skytruth_fracfocus",
+  // Item 23: the EC JRC's own surface water map, back and drawn from its tiles.
+  { h: 3, t: "Surface water" }, "jrc_water",
+  { h: 4, bundle: "waterwatch", colour: "#5E7377" },
+  // Item 14: the mines layers are one row with sublayers.
+  { h: 3, t: "Mining" },
+  { h: 4, bundle: "mines", colour: "#6E5E52" }, "mines_global", "mine_features",
   { h: 3, t: "Meat and agriculture" }, "site_food_system",
   { h: 4, t: "Agriculture" },
-  { h: 5, t: "Palm oil" }, "palmwatch", "trase_palm_indonesia",
-  { h: 5, t: "Soy, corn and grain" }, "trase_silos_brazil", "site_china_grain", "food_soy", "food_maize",
-  { h: 5, t: "Cocoa and cotton" }, "trase_cocoa_ivory",
+  { h: 5, t: "Plantations" },
+  { h: 5, t: "Palm oil" },
+  { h: 6, t: "Concessions" },
+  { h: 6, t: "Plantations" },
+  { h: 6, t: "Mills and refineries" }, "palmwatch", "trase_palm_indonesia",
+  { h: 6, t: "Who finances them" },
+  { h: 6, t: "Clearing and emissions" },
+  { h: 5, t: "Soy, corn and grain" },
+  { h: 6, t: "Soy" }, "trase_silos_brazil", "food_soy",
+  { h: 6, t: "Corn" }, "food_maize",
+  { h: 6, t: "Grain" }, "site_china_grain",
+  { h: 5, t: "Cocoa and cotton" },
+  { h: 6, t: "Cocoa" }, "trase_cocoa_ivory",
+  { h: 6, t: "Cotton" },
+  { h: 5, t: "Coffee" },
+  { h: 5, t: "Sugarcane" },
+  { h: 5, t: "Pasture and grassland" },
+  { h: 5, t: "Water for crops" },
+  { h: 5, t: "Clearing for farming" },
   { h: 5, t: "Farm inputs" }, "fertilizer_facilities",
-  { h: 5, t: "Moratoriums" },
   { h: 5, t: "Detailed spatial plans, Badung" },
   { h: 4, t: "Meat" },
   { h: 5, t: "Facilities" }, "abattoir_facilities", "trase_meat_brazil", "abattoir_cafo",
   { h: 5, t: "Herds" }, "abattoir_glw",
+  { h: 5, t: "Cattle and pasture" },
+  { h: 5, t: "Pigs and chickens" },
+  // Item 11: Fishing above Reefs and mangroves. Items 4, 5, 6: the pond maps
+  // as one row, and the worldwide pond map beside them.
   { h: 3, t: "Oceans" },
+  { h: 4, t: "Fishing" }, "fishing", "aquaculture_ponds",
+  { h: 5, bundle: "ponds", colour: "#5E7377" },
   { h: 4, t: "Reefs and mangroves" }, "allen_coral",
-  { h: 4, t: "Fishing" }, "fishing",
+  { h: 5, bundle: "mangroves", colour: "#62755F" },
   { h: 3, t: "Construction" }, "local_projects",
   // Concessions that name no material or activity a heading covers (23 September).
   { h: 3, t: "Other concessions" },
@@ -10724,7 +11333,9 @@ function syncHeadingBoxes(box) {
   for (const sec of box.querySelectorAll(".toc-sec")) {
     const all = sec.querySelector(".toc-all");
     if (!all) continue;
-    const boxes = [...sec.querySelectorAll("[data-layer]")];
+    // A layer with sublayers reads its catalogue parts too (round 23).
+    const bundle = sec.classList && sec.classList.contains("toc-bundle");
+    const boxes = [...sec.querySelectorAll(bundle ? "[data-layer], [data-cat]" : "[data-layer]")];
     const on = boxes.filter((i) => i.checked).length;
     all.checked = boxes.length > 0 && on === boxes.length;
     all.indeterminate = on > 0 && on < boxes.length;
@@ -10985,15 +11596,22 @@ function arrangePanel() {
   // Each heading is a section that folds; the rows under it go in its body,
   // nested by level. Every section starts folded shut.
   const stack = [{ level: 0, body: frag }];
-  const heading = (h, t) => {
+  const heading = (h, t, item) => {
     while (stack.length > 1 && stack[stack.length - 1].level >= h) stack.pop();
+    // A layer with sublayers (round 23) is built as a heading - it folds, its
+    // tick turns on all it holds, and catalogue rows can be filed into it by
+    // name - but it reads as one row of the box: its tick first, a swatch, the
+    // title as written, and its arrow at the end.
+    const bundle = !!(item && item.bundle);
     const sec = document.createElement("div");
-    sec.className = `toc-sec toc-l${h}`;
+    sec.className = `toc-sec toc-l${h}${bundle ? " toc-bundle" : ""}`;
     const head = document.createElement("button");
     head.type = "button";
-    head.className = `toc-head panel-h panel-h${h}`;
+    head.className = bundle ? "toc-head bundle-h" : `toc-head panel-h panel-h${h}`;
     head.setAttribute("aria-expanded", "false");
-    head.innerHTML = `<span class="toc-arrow">\u25B8</span><span class="toc-t">${escapeHtml(titleCase(t))}</span><span class="toc-n"></span>`;
+    head.innerHTML = bundle
+      ? `<span class="swatch" style="background:${escapeHtml(item.colour || "#6A6258")}"></span><span class="toc-t">${escapeHtml(t)}</span><span class="toc-n"></span><span class="toc-arrow">\u25BE</span>`
+      : `<span class="toc-arrow">\u25B8</span><span class="toc-t">${escapeHtml(titleCase(t))}</span><span class="toc-n"></span>`;
     const body = document.createElement("div");
     body.className = "toc-body";
     body.hidden = true;
@@ -11013,12 +11631,14 @@ function arrangePanel() {
     const all = document.createElement("input");
     all.type = "checkbox";
     all.className = "toc-all";
-    all.title = "Show or hide every layer under this heading";
+    all.title = bundle ? "Show or hide every part of this layer" : "Show or hide every layer under this heading";
     all.setAttribute("aria-label", `Show or hide every layer under ${titleCase(t)}`);
     all.addEventListener("click", (e) => e.stopPropagation());
     all.addEventListener("change", () => {
       const on = all.checked;
-      for (const i of body.querySelectorAll("[data-layer], [data-copy]")) {
+      // A bundle's parts include catalogue rows; a heading's tick still leaves
+      // those alone, as before, since a heading can hold hundreds of them.
+      for (const i of body.querySelectorAll(bundle ? "[data-layer], [data-copy], [data-cat]" : "[data-layer], [data-copy]")) {
         if (i.checked === on) continue;
         i.checked = on;
         if (typeof i.dispatchEvent === "function" && typeof Event === "function") i.dispatchEvent(new Event("change", { bubbles: true }));
@@ -11031,8 +11651,8 @@ function arrangePanel() {
       }
       syncHeadingBoxes(document.getElementById("layers"));
     });
-    line.appendChild(head);
-    line.appendChild(all);
+    if (bundle) { line.appendChild(all); line.appendChild(head); }
+    else { line.appendChild(head); line.appendChild(all); }
     sec.appendChild(line);
     sec.appendChild(body);
     stack[stack.length - 1].body.appendChild(sec);
@@ -11048,7 +11668,9 @@ function arrangePanel() {
       into().appendChild(n);
       continue;
     }
-    if (typeof item === "object") { heading(item.h, item.t); continue; }
+    // A layer with sublayers names its title by key, from BUNDLES, which is
+    // also what the catalogue paths into it are made from.
+    if (typeof item === "object") { heading(item.h, item.t || BUNDLES[item.bundle], item); continue; }
     // A layer that belongs to two subjects is named twice in the order. The
     // first naming moves the row itself; every later one gets a copy that
     // mirrors it - tick either and the layer is drawn once, and both read the
@@ -11087,7 +11709,7 @@ function arrangePanel() {
   }
   syncHeadingBoxes(box);
   box.addEventListener("change", (e) => {
-    if (e && e.target && e.target.dataset && (e.target.dataset.layer || e.target.dataset.group)) syncHeadingBoxes(box);
+    if (e && e.target && e.target.dataset && (e.target.dataset.layer || e.target.dataset.group || e.target.dataset.cat)) syncHeadingBoxes(box);
   });
   countHeadings(box);
   tail.filter((el) => el.classList && el.classList.contains("pending-note")).forEach((el) => box.appendChild(el));
@@ -11110,6 +11732,14 @@ function arrangePanel() {
       ".panel-h3{font-size:11px;opacity:.8;padding-left:10px;font-weight:600}" +
       ".panel-h4{font-size:10.5px;opacity:.7;padding-left:16px;font-style:italic}" +
       ".panel-h5{font-size:10.5px;opacity:.62;padding-left:22px}" +
+      ".panel-h6{font-size:10.5px;opacity:.58;padding-left:28px;font-style:italic}" +
+      ".toc-bundle>.toc-line{gap:6px;margin:3px 0}" +
+      ".toc-bundle .bundle-h{align-items:center;font-size:12px;line-height:1.25;color:var(--ink,#e8e2d6);padding:0;margin:0}" +
+      ".toc-bundle .bundle-h .swatch{width:10px;height:10px;border-radius:2px;margin:0;flex:none}" +
+      ".toc-bundle .bundle-h .toc-arrow{margin-left:4px;width:auto;font-size:11px}" +
+      ".toc-bundle .bundle-h[aria-expanded=\"true\"] .toc-arrow{transform:rotate(180deg)}" +
+      ".toc-bundle>.toc-line>.toc-all{margin:0}" +
+      ".toc-bundle>.toc-body{padding-left:16px;border-left:1px solid rgba(255,255,255,.12);margin-left:4px}" +
       "#layers label.layer,#layers .group>.layer.parent{cursor:grab;user-select:none}" +
       "#layers .fold{display:none;margin-left:auto;padding:0 4px;border:0;background:none;color:var(--dim);cursor:pointer;font-size:11px;line-height:1}" +
       "#layers label.layer:has(+ .facet) .fold{display:inline-block}" +

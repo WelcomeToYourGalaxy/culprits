@@ -5,6 +5,102 @@ touches.
 
 ---
 
+## Round of 23 September (23): the owner's thirty notes on the layers box
+
+Everything below is in `map/app.js` unless named; tests under "round of 23
+September (23)" in `map/test.mjs`. Global Forest Watch's catalogue was read
+item by item through a fetch tool this time (the sandbox shell still cannot
+reach it), so the rules below name real ids.
+
+**Layers with sublayers (bundles).** New in the box: a `PANEL_ORDER` entry
+`{ h, bundle: "<key>" }` whose title is `BUNDLES[key]`. It is built as a
+heading (`arrangePanel`'s `heading(h, t, item)`: it folds, it has a tick,
+catalogue rows are filed into it by path) but drawn as a row: tick first, a
+swatch, its own title (not title-cased), a count, the arrow at the end
+(`.toc-bundle`, `.bundle-h`). Its tick also turns on catalogue rows
+(`[data-cat]`), which a heading's tick still does not; `syncHeadingBoxes`
+reads them for bundles, and `catalogueRows` calls it when rows arrive. A
+catalogue row goes in with `IN(path, key)`. Six: mines (item 14), Clark Labs
+ponds (4, 6), Global Mangrove Watch (8, 10), Global Water Watch (20), forest
+cover (28), spatial plans (25).
+
+**Sub-sub-headings (item 27).** `CATALOGUE_SUBS` sends a row filed under
+Deforestation, Tree cover loss and alerts, Biodiversity loss, Agriculture,
+Palm oil, Soy corn and grain, Cocoa and cotton or Meat into a sub-heading by
+its words; each list ends in a catch-all, so nothing sits between a heading
+and its sub-headings. `catalogueRefine` applies it to both the rules and the
+by-name placements. `sectionBody` now prefers a heading directly under the
+current one, since Agriculture's Plantations and Palm oil's Plantations share
+a name. `.panel-h6` added. Zero-deforestation-commitment rows have their own
+heading (they had all gone under Wood pulp, Indonesia, and under clearing).
+Trase's herd and slaughter measures go under Meat > Cattle and pasture / Pigs
+and chickens rather than Facilities.
+
+**Taken out by name** (`CATALOGUE_BY_TITLE`, top): Trase's shrimp production;
+Clark Labs' 1999-2014 and 2014-2018 change maps; Nusantara's Equatorial Asia
+peatland; `cifor_peatlands` (its one tile set failed to build) and
+`gfwpro_peatlands` (tile sets, no cache or GeoTIFF); Borneo land cover with
+hillshade and rivers; both Rawa Singkil canal layers; Mapbox river basins;
+Mexico land rights; Nusantara's worldwide water change and GFW's copy of the
+JRC surface water map (both replaced by `jrc_water`); and the sixteen land and
+forest cover layers of item 29.
+
+**Oil and gas drilling retired (items 1, 2).** The oil-and-gas rule files under
+Climate > Infrastructure emitting more than one gas, and no longer matches
+"greenhouse gas" (which had put the forest net flux under drilling). The
+fracking row and a Pennsylvania heading (h5) with its four rows are there.
+
+**Titles.** `GFW_TITLES`: the three Clark Labs maps GFW all titles "(1999)"
+are 1999, 2014 and 2018 (ids, files and band statistics differ; the owner
+chose to keep all three plus the 1999-2018 change); mangroves by year; the two
+Global Water Watch layers by what they hold (`global_water_watch_anomalies`:
+a column per month of 2025, newest of 14 releases; `..._anomalies2`: one
+reading per reservoir, one release); the forest cover maps; the water-stress
+test copy. A title that says "worldwide" no longer gets " - Global" added.
+Coral: "Coral reefs, warm-water only (Allen Coral Atlas and UNEP-WCMC)".
+"Who Owns the" is "Who Owns the Food Industry".
+
+**Things that did not draw.**
+- GFW dynamic vector caches (1996 mangroves, water stress test copy, the
+  reservoir anomalies, PANGAEA mines): the row waited for the world tile to
+  read layer names, which on a dynamic cache is built from the database and can
+  take minutes. Dynamic caches no longer wait; static ones wait at most 8 s.
+- Aqueduct crop baseline: GFW marks no version latest, and `gfwAssetIndex`
+  sorted versions as text, so v1.9 beat v1.12. `versionOrder` sorts by number.
+- JPL mangrove biomass and UMD tree cover density 2010 are GeoTIFFs of numbers
+  drawn grey and black; both have `GFW_KEYS` ranges now (zero left out).
+- Trase peat rows: Trase's catalogue lists years its values do not hold
+  (peatland area listed to 2024, published 2015-2023; burned peatland listed,
+  published for no year). `traseYearWithValues` draws the latest year with
+  values and says so on the row; a measure with values in no year anywhere
+  leaves the list.
+- Mine features at the world view: glow at full strength (`GLOW_FULL`), their
+  box names their own source (`cfg.featureWord`, `cfg.attribution` in
+  `addPmShapesLayer`). The build dropped most points at low zoom (tippecanoe's
+  polygon-to-point conversion came after its tiny-polygon folding: 14,169 of
+  74,548 in the world tile). culprits-tiles-more `scripts/mine_features.py` now
+  writes its own points and stops if the world tile does not hold them all;
+  it rebuilds once (`points_at_world_view`).
+- Coral reefs outside the Caribbean: the world picture is pale bone and each
+  reef pixel grown a pixel or two (`tint://RRGGBB+grow`, `growPixels`, the
+  same growth `seen://` uses).
+
+**New rows** (in `OTHER_MAPS`):
+- `jrc_water` (item 23): the EC JRC's Global Surface Water 1984-2024 from the
+  JRC's own tiles (`storage.googleapis.com/water-world/tiles2024/<layer>`), six
+  chips, redrawn in the map's colours by `remap://` (`REMAP`: nearest class or
+  point along a ramp). Whether that bucket sends CORS headers could not be
+  checked from here; glad_loss reads a Google bucket the same way.
+- `glc_fcs30d` (item 30): GLC_FCS30D, 30 m, 35 classes, 2000-2022, read square
+  by square from OpenLandMap's Cloud Optimised GeoTIFFs by `cog4326://`
+  (geotiff.js from jsDelivr, loaded on first use; `cogLevel` picks the
+  overview; each pixel placed on the web mercator grid). OpenLandMap's CORS is
+  unverified; the row says so if the file cannot be read.
+- `osm_landuse` (item 30): OpenStreetMap land use and farmland by kind from
+  OpenFreeMap (`addOsmLanduseLayer`, route `osmlanduse`).
+- `aquaculture_ponds` (item 5): LCAP, Zenodo 5643036, built by the new
+  culprits-tiles-more `scripts/aquaculture_ponds.py` (by hand, or the daily
+  run); the row says "not built yet" until the archive exists.
 ## Atlas plates: the drawn hotspot only counts when it is its outline's size (24 September, later)
 
 The first run with `place_by_outline` placed New Caledonia and Southwest
@@ -902,6 +998,34 @@ list was not made: Nusantara has one moratorium layer and it is a forest one.
 ## Could not get, could not add, or needs the owner (kept current)
 
 Kept as the rounds go; move a line out when it is settled.
+
+- **Round 23, unverified in a browser**: the JRC surface water tiles
+  (`water-world` bucket) and OpenLandMap's GLC_FCS30D GeoTIFFs may not let
+  another site read them (CORS). If either row says it could not be read, the
+  fix is a copy: JRC's tiles through culprits-tiles-more or R2, GLC_FCS30D cut
+  to web tiles on R2 (the worldwide 2022 file is tens of GB, too big for
+  GitHub).
+- **Round 23, Global Forest Watch tiles made on request** (1996 mangroves, the
+  reservoir anomalies, PANGAEA mines, the water-stress test copy): they no
+  longer hold the row up, but GFW builds each square from its database when
+  asked, so they fill in slowly, slowest at the world view. The 1996 mangroves
+  could be built as our own tiles from Global Mangrove Watch v3 on Zenodo if
+  that is too slow.
+- **Round 23, no worldwide land use map with Indonesia's detail**: no map
+  found separates plantations, mining, transmigration and fish ponds
+  worldwide. GLC_FCS30D is the finest land cover by class (35 at 30 m);
+  GLC_FCS10 (10 m, 30 classes, 2023) exists but only as a 128 GB download with
+  no service; OpenStreetMap is the finest land use but volunteer-mapped.
+- **Round 23, Trase**: burned peatland (and burned area) are in Trase's list
+  with no values published for any year; those rows leave the list when
+  ticked. Whether Trase's Indonesia region shapes load was not checkable here
+  (their file server asks for approval from this sandbox).
+- **Round 23, the aquaculture pond clusters' licence** is not confirmed from
+  here (Zenodo refused the fetch); the build writes the record's licence into
+  `tiles/aquaculture_ponds.build.json` - check it before the row is relied on.
+- **Round 23, cifor_peatlands and gfwpro_peatlands**: Global Forest Watch has
+  nothing drawable for either; taken out. CIFOR's tropical wetlands map would
+  need building from its own download.
 
 - **Wageningen driver classes**: the alert-drivers layer is keyed Class 1 to
   11; Global Forest Watch publishes the numbers without names and no public

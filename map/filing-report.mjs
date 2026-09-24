@@ -34,7 +34,7 @@ async function gfw() {
     for (const d of rows) {
       const said = lib.gfwTitle(d);
       const where = String(lib.GFW_WHERE[d.dataset] || (d.metadata || {}).geographic_coverage || "").trim();
-      const title = where && !new RegExp(where.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(said) ? `${said} \u2014 ${where}` : said;
+      const title = where && !new RegExp(where.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(said) && !(/\bworldwide\b/i.test(said) && /^global\b/i.test(where)) ? `${said} \u2014 ${where}` : said;
       out.push({ from: "Global Forest Watch", id: d.dataset, title });
     }
     if (rows.length < 100) break;
