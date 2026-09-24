@@ -953,6 +953,14 @@ saves after each day, stops at 100 minutes, and carries on next run
 (`cerulean_archive/refill.json`). Mines' first file is 96.7 MB (92 MiB), under
 the 95 MiB cut.
 
+## Round of 24 September: ct_gases past normalize
+
+The first real `ct_gases` run (CO2) harvested 111,949,068 rows, then stopped in
+`pipeline/normalize.py`: `climate_trace_co2` was not in sources.json. The
+per-gas ids now take the `climate_trace` registry entry (normalize.py, after
+SOURCES). Watch the next run's time: a row count that size may be near the
+160-minute job limit.
+
 ## Round of 23 September (19): the slick archive, the saves, the city maps
 
 The run of 23 September (logs_97274071361) showed:

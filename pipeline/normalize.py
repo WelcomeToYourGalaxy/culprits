@@ -31,6 +31,12 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 REGISTRY = json.loads((ROOT / "sources.json").read_text())
 SOURCES = {s["id"]: s for s in REGISTRY["sources"]}
+# Climate TRACE by gas (culprits-tiles-more scripts/ct_gases.py) writes one
+# archive per gas under ids like climate_trace_co2; each is Climate TRACE's
+# own record, so it takes that registry entry (23 September: the first run
+# stopped here with "climate_trace_co2 is not in sources.json").
+for _gas in ("co2", "ch4", "n2o", "co2e_20yr", "co2e_100yr"):
+    SOURCES.setdefault(f"climate_trace_{_gas}", SOURCES["climate_trace"])
 
 FIELDS = ("id", "source", "name", "value", "unit", "year", "licence", "url")
 
