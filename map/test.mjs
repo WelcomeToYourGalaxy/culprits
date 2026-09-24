@@ -3483,5 +3483,14 @@ console.log("\nround of 23 September (20): rows refiled and taken out by name");
         f("Mineral exploration licenses \u2014 Liberia") === P + " > Mining" && f("Liberia development licenses (exploration)") === P + " > Mining");
   check("logging roads are under Deforestation, not Construction", f("Logging roads \u2014 Congo Basin") === P + " > Deforestation");
 }
+console.log("\nround of 23 September (21): INCRA's quilombola communities kept");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const places = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return cataloguePlaces;")();
+  const f = (t) => places(t, t).join(" | ");
+  check("INCRA's rural settlements are out, its quilombola communities are under Land and territory",
+        f("INCRA Brazil Rural Settlements incra_bra_rural_settlements") === "(taken out)" &&
+        f("INCRA Brazil Quilombola Communities incra_bra_quilombola_communities") === "Suppression > Of humans > Land and territory");
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

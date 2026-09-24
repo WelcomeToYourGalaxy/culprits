@@ -4717,7 +4717,8 @@ const CATALOGUE_BY_TITLE = [
   [/\bIDNMYSBorneo_Settlement_2017_GHS\b/, null],
   [/\bIDNMYSBorneo_Transmigration_2021(_wms)?\b/, null],
   [/(?=.*congo)(?=.*forest roads?\b)/i, null],
-  [/\bincra\b|(?=.*brazil)(?=.*rural settlements?)/i, null],
+  // Rural settlements only: INCRA's quilombola communities stay (23 September, round 21).
+  [/\bincra_bra_rural_settlements\b|(?=.*brazil)(?=.*rural settlements?)/i, null],
   // Liberia's mineral exploration and development licences are mining rights,
   // issued under its Minerals and Mining Law (23 September).
   [/(?=.*(liberia|\blbr_))(?=.*(exploration|development))(?=.*licen[cs]e)/i, [P + " > Mining"]],
