@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+"""Round 31 (24 September): EJAtlas read as GeoJSON. Run from the repo folder. Safe to run twice."""
+import base64, subprocess, sys, os, tempfile
+DIFF = base64.b64decode("ZGlmZiAtLWdpdCBhL21hcC9hcHAuanMgYi9tYXAvYXBwLmpzCmluZGV4IGYxNWMwMDcuLjZjMmI4ZGQgMTAwNjQ0Ci0tLSBhL21hcC9hcHAuanMKKysrIGIvbWFwL2FwcC5qcwpAQCAtNDM0MCw2ICs0MzQwLDMzIEBAIGZ1bmN0aW9uIHBvaW50T2YocikgewogLy8gRUpBdGxhczogaXRzIGNvbmZsaWN0cywgcGFnZSBieSBwYWdlLgogYXN5bmMgZnVuY3Rpb24gcmVhZEVqYXRsYXMoY2ZnKSB7CiAgIGNvbnN0IGl0ZW1zID0gW107CisgIC8vIFNpbmNlIFNlcHRlbWJlciAyMDI2IHRoZSBsaXN0IHBhZ2VzIGNhcnJ5IG5vIHBvc2l0aW9uIChvbmx5IGlkLCBzbHVnLAorICAvLyBpbWFnZSwgaGVhZGxpbmUgYW5kIG5hbWUpLiBFSkF0bGFzJ3Mgb3duIG1hcCByZWFkcyB0aGUgc2FtZSBsaXN0IGFzCisgIC8vIEdlb0pTT04sID9mb3JtYXQ9Z2VvanNvbiwgd2hpY2ggZG9lczsgdGhhdCBpcyByZWFkIGZpcnN0LCBmb2xsb3dpbmcgYW55CisgIC8vIG5leHQgcGFnZSwgYW5kIHRoZSBvbGQgcmVhZGluZyBzdGF5cyBiZWhpbmQgaXQuCisgIGNvbnN0IGJveCA9IChyKSA9PiB7CisgICAgY29uc3QgdGl0bGUgPSByLnRpdGxlIHx8IHIubmFtZSB8fCByLmhlYWRsaW5lIHx8IGBDb25mbGljdCAke3IuaWR9YDsKKyAgICBjb25zdCBsaW5rID0gci5zbHVnID8gYGh0dHBzOi8vZWphdGxhcy5vcmcvY29uZmxpY3QvJHtlbmNvZGVVUklDb21wb25lbnQoci5zbHVnKX1gIDogKHIudXJsIHx8ICIiKTsKKyAgICByZXR1cm4gYm94T3BlbiArIGA8aDQgc3R5bGU9Im1hcmdpbjowIDAgNnB4Ij4ke2VzY2FwZUh0bWwodGl0bGUpfTwvaDQ+YCArCisgICAgICAoci5pbWFnZSA/IGA8aW1nIHNyYz0iJHtlc2NhcGVIdG1sKHIuaW1hZ2UpfSIgc3R5bGU9Im1heC13aWR0aDoxMDAlO21hcmdpbjo0cHggMCI+YCA6ICIiKSArCisgICAgICAoci5oZWFkbGluZSAmJiByLmhlYWRsaW5lICE9PSB0aXRsZSA/IGA8cD4ke2VzY2FwZUh0bWwoci5oZWFkbGluZSl9PC9wPmAgOiAiIikgKworICAgICAgYDx0YWJsZT4ke2ZpZWxkUm93cyhyLCBbImlkIiwgInNsdWciLCAiaW1hZ2UiLCAiaGVhZGxpbmUiLCAidGl0bGUiLCAibmFtZSIsICJsYXQiLCAibG9uIiwgImxuZyIsICJsYXRpdHVkZSIsICJsb25naXR1ZGUiXSl9PC90YWJsZT5gICsKKyAgICAgIChsaW5rID8gYDxwPjxhIGhyZWY9IiR7ZXNjYXBlSHRtbChsaW5rKX0iIHRhcmdldD0iX2JsYW5rIiByZWw9Im5vb3BlbmVyIj5PcGVuIG9uIEVKQXRsYXM8L2E+PC9wPmAgOiAiIikgKyBgPC9kaXY+YDsKKyAgfTsKKyAgdHJ5IHsKKyAgICBsZXQgZ3VybCA9IGAke2NmZy5hcGl9P2Zvcm1hdD1nZW9qc29uYCwgbiA9IDA7CisgICAgd2hpbGUgKGd1cmwgJiYgbiA8IDYwKSB7CisgICAgICBjb25zdCBqID0gYXdhaXQgZ2V0SnNvbihndXJsLnJlcGxhY2UoL15odHRwOi8sICJodHRwczoiKSwgMTIwMDAwKTsKKyAgICAgIGZvciAoY29uc3QgZiBvZiBqLmZlYXR1cmVzIHx8IFtdKSB7CisgICAgICAgIGlmICghZiB8fCAhZi5nZW9tZXRyeSkgY29udGludWU7CisgICAgICAgIGNvbnN0IHIgPSBPYmplY3QuYXNzaWduKHsgaWQ6IGYuaWQgfSwgZi5wcm9wZXJ0aWVzIHx8IHt9KTsKKyAgICAgICAgY29uc3QgdGl0bGUgPSByLnRpdGxlIHx8IHIubmFtZSB8fCByLmhlYWRsaW5lIHx8IGBDb25mbGljdCAke3IuaWR9YDsKKyAgICAgICAgaXRlbXMucHVzaCh7IGdlb21ldHJ5OiBmLmdlb21ldHJ5LCBrZXk6IGBjJHtyLmlkfWAsIG5hbWU6IHRpdGxlLCBncm91cDogci5jYXRlZ29yeSB8fCByLnR5cGUgfHwgIiIsIGg6IGJveChyKSB9KTsKKyAgICAgIH0KKyAgICAgIGd1cmwgPSBqLm5leHQgfHwgbnVsbDsgbisrOworICAgIH0KKyAgfSBjYXRjaCAoZSkgeyBjb25zb2xlLndhcm4oYFtjdWxwcml0c10gZWphdGxhczogdGhlIEdlb0pTT04gbGlzdCBkaWQgbm90IGFuc3dlciAoJHtlLm1lc3NhZ2V9KTsgdHJ5aW5nIHRoZSBwbGFpbiBsaXN0YCk7IH0KKyAgaWYgKGl0ZW1zLmxlbmd0aCkgcmV0dXJuIHsgdGl0bGU6IGNmZy5uYW1lLCBpdGVtcyB9OwogICBsZXQgdXJsID0gYCR7Y2ZnLmFwaX0/bGltaXQ9NTAwJm9mZnNldD0wYCwgcGFnZXMgPSAwLCBzYW1wbGUgPSBudWxsOwogICAvLyBUaGUgZmlyc3QgcGFnZSBzYXlzIGhvdyBtYW55IHRoZXJlIGFyZTsgdGhlIHJlc3QgYXJlIHRoZW4gcmVhZCBmb3VyIGF0IGEKICAgLy8gdGltZSByYXRoZXIgdGhhbiBvbmUgYWZ0ZXIgYW5vdGhlciAoYWJvdXQgYSBzZWNvbmQgYW5kIGEgcXVhcnRlciBlYWNoKSwKZGlmZiAtLWdpdCBhL21hcC90ZXN0Lm1qcyBiL21hcC90ZXN0Lm1qcwppbmRleCAzZTE3YjAxLi43NmY1NjI4IDEwMDY0NAotLS0gYS9tYXAvdGVzdC5tanMKKysrIGIvbWFwL3Rlc3QubWpzCkBAIC0zNzE5LDYgKzM3MTksOCBAQCBjb25zb2xlLmxvZygiXG5yb3VuZCBvZiAyNCBTZXB0ZW1iZXI6IGEgc2VhcmNoIGJveCBmb3IgdGhlIGxheWVycywgYW5kIHRoZSB1bnBsYQogICBjaGVjaygiYW4gT3VyIFdvcmxkIGluIERhdGEgZmlsZSBlbmRpbmcgaW4gYSB0ZXh0IGNvbHVtbiBzdGlsbCByZWFkcyBpdHMgbnVtYmVycyAoZm9yZWlnbiBhaWQgZHJldyAwIGNvdW50cmllcykiLAogICAgICAgICByb3dzLmxlbmd0aCA9PT0gMSAmJiByb3dzWzBdLmlzbzMgPT09ICJBRkciICYmIHJvd3NbMF0udiA9PT0gMy4xMjkpOwogICBjaGVjaygiYSBoYXJ2ZXN0ZWQgbGF5ZXIgdGhhdCBoYXMgZHJhd24gc3RvcHMgc2F5aW5nIGxvYWRpbmciLCAvXC9cXmxvYWRpbmdcL1wudGVzdFwoc3RhdGVFbFwudGV4dENvbnRlbnQvLnRlc3Qoc3JjKSk7CisgIGNoZWNrKCJFSkF0bGFzIGlzIHJlYWQgYXMgR2VvSlNPTiBmaXJzdCwgdGhlIHdheSBpdHMgb3duIG1hcCByZWFkcyBpdCwgc2luY2UgaXRzIHBsYWluIGxpc3QgbG9zdCBpdHMgcG9zaXRpb25zIiwKKyAgICAgICAgL1wkXHtjZmdcLmFwaVx9XD9mb3JtYXQ9Z2VvanNvbi8udGVzdChzcmMpICYmIC9ndXJsID0galwubmV4dCBcfFx8IG51bGwvLnRlc3Qoc3JjKSk7CiAgIGNoZWNrKCJUcmFzZSdzIHJlZ2lvbiBzaGFwZXMgY29tZSBmcm9tIHRoZSB3ZWVrbHkgY29weSBmaXJzdCwgVHJhc2UncyBvd24gc2VydmVyIHNlY29uZCIsCiAgICAgICAgIC9yZWdpb25zQ29weTogImh0dHBzOlwvXC93ZWxjb21ldG95b3VyZ2FsYXh5XC5naXRodWJcLmlvXC9jdWxwcml0cy10aWxlcy1tb3JlXC90cmFzZVwvcmVnaW9ucyIvLnRlc3Qoc3JjKSAmJgogICAgICAgICAvdHJhc2VDb3B5Rmlyc3RcKGNmZywgIm1ldGFkYXRhXC5qc29uIlwpLy50ZXN0KHNyYykgJiYgL3RyYXNlQ29weUZpcnN0XChjZmcsIGZpbGVcKS8udGVzdChzcmMpKTsK")
+NOTE = """
+## Round 31 (24 September): EJAtlas placed again
+
+EJAtlas's plain list (/api/v1/conflicts/) no longer carries positions. Its own
+map reads /api/v1/conflicts/?format=geojson; readEjatlas now reads that first
+(following any next page) and falls back to the plain list. Also in
+culprits-tiles-more: scripts/coastal_cleanup.py reads every page over every
+date (?page=N&start=1900-01-01&end=today&year=true, as the site's own map
+asks) instead of the single request that stopped at 5,000 sites.
+"""
+def git(*a):
+    return subprocess.run(["git", *a], capture_output=True, text=True)
+if not os.path.exists("map/app.js"):
+    sys.exit("Run this from the right repo folder.")
+with tempfile.NamedTemporaryFile("wb", suffix=".diff", delete=False) as f:
+    f.write(DIFF); path = f.name
+if git("apply", "--check", "-R", path).returncode == 0:
+    print("Already applied. Nothing changed.")
+else:
+    r = git("apply", "--3way", path)
+    if r.returncode != 0:
+        print(r.stdout + r.stderr)
+        git("checkout", "--", "map/app.js", "map/test.mjs")
+        sys.exit("Did not apply; nothing changed. Run git pull --no-edit and try again, or send this message back.")
+    print("Code changes applied.")
+os.unlink(path)
+if NOTE.strip() and os.path.exists("HANDOFF.md"):
+    h = open("HANDOFF.md", encoding="utf-8").read()
+    if "## Round 31 (24 September)" not in h:
+        i = h.index("---") + 3
+        open("HANDOFF.md", "w", encoding="utf-8").write(h[:i] + "\n" + NOTE + h[i:])
+        print("HANDOFF.md note added.")
+    else:
+        print("HANDOFF.md note already there.")

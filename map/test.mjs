@@ -3719,6 +3719,8 @@ console.log("\nround of 24 September: a search box for the layers, and the unpla
   check("an Our World in Data file ending in a text column still reads its numbers (foreign aid drew 0 countries)",
         rows.length === 1 && rows[0].iso3 === "AFG" && rows[0].v === 3.129);
   check("a harvested layer that has drawn stops saying loading", /\/\^loading\/\.test\(stateEl\.textContent/.test(src));
+  check("EJAtlas is read as GeoJSON first, the way its own map reads it, since its plain list lost its positions",
+        /\$\{cfg\.api\}\?format=geojson/.test(src) && /gurl = j\.next \|\| null/.test(src));
   check("Trase's region shapes come from the weekly copy first, Trase's own server second",
         /regionsCopy: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/trase\/regions"/.test(src) &&
         /traseCopyFirst\(cfg, "metadata\.json"\)/.test(src) && /traseCopyFirst\(cfg, file\)/.test(src));

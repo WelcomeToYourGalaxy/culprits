@@ -5,6 +5,16 @@ touches.
 
 ---
 
+## Round 31 (24 September): EJAtlas placed again
+
+EJAtlas's plain list (/api/v1/conflicts/) no longer carries positions. Its own
+map reads /api/v1/conflicts/?format=geojson; readEjatlas now reads that first
+(following any next page) and falls back to the plain list. Also in
+culprits-tiles-more: scripts/coastal_cleanup.py reads every page over every
+date (?page=N&start=1900-01-01&end=today&year=true, as the site's own map
+asks) instead of the single request that stopped at 5,000 sites.
+
+
 ## Round 30 (24 September): what the live layer check found
 
 Checked in the browser by the owner (layer_check.js). Fixed here:

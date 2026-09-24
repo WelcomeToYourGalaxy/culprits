@@ -4340,6 +4340,33 @@ function pointOf(r) {
 // EJAtlas: its conflicts, page by page.
 async function readEjatlas(cfg) {
   const items = [];
+  // Since September 2026 the list pages carry no position (only id, slug,
+  // image, headline and name). EJAtlas's own map reads the same list as
+  // GeoJSON, ?format=geojson, which does; that is read first, following any
+  // next page, and the old reading stays behind it.
+  const box = (r) => {
+    const title = r.title || r.name || r.headline || `Conflict ${r.id}`;
+    const link = r.slug ? `https://ejatlas.org/conflict/${encodeURIComponent(r.slug)}` : (r.url || "");
+    return boxOpen + `<h4 style="margin:0 0 6px">${escapeHtml(title)}</h4>` +
+      (r.image ? `<img src="${escapeHtml(r.image)}" style="max-width:100%;margin:4px 0">` : "") +
+      (r.headline && r.headline !== title ? `<p>${escapeHtml(r.headline)}</p>` : "") +
+      `<table>${fieldRows(r, ["id", "slug", "image", "headline", "title", "name", "lat", "lon", "lng", "latitude", "longitude"])}</table>` +
+      (link ? `<p><a href="${escapeHtml(link)}" target="_blank" rel="noopener">Open on EJAtlas</a></p>` : "") + `</div>`;
+  };
+  try {
+    let gurl = `${cfg.api}?format=geojson`, n = 0;
+    while (gurl && n < 60) {
+      const j = await getJson(gurl.replace(/^http:/, "https:"), 120000);
+      for (const f of j.features || []) {
+        if (!f || !f.geometry) continue;
+        const r = Object.assign({ id: f.id }, f.properties || {});
+        const title = r.title || r.name || r.headline || `Conflict ${r.id}`;
+        items.push({ geometry: f.geometry, key: `c${r.id}`, name: title, group: r.category || r.type || "", h: box(r) });
+      }
+      gurl = j.next || null; n++;
+    }
+  } catch (e) { console.warn(`[culprits] ejatlas: the GeoJSON list did not answer (${e.message}); trying the plain list`); }
+  if (items.length) return { title: cfg.name, items };
   let url = `${cfg.api}?limit=500&offset=0`, pages = 0, sample = null;
   // The first page says how many there are; the rest are then read four at a
   // time rather than one after another (about a second and a quarter each),
