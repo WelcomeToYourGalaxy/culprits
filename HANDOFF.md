@@ -1159,6 +1159,17 @@ saves after each day, stops at 100 minutes, and carries on next run
 (`cerulean_archive/refill.json`). Mines' first file is 96.7 MB (92 MiB), under
 the 95 MiB cut.
 
+## Round of 24 September (2): ct_gases a sector at a time
+
+The CO2 run harvested and normalised all 111,949,068 rows, then was stopped
+by the 160-minute limit while splitting, and kept nothing. The harvester now
+reads `CT_SECTORS` (comma list; unset means every sector, as before), and
+culprits-tiles-more `scripts/ct_gases.py` builds one (gas, sector) pair at a
+time, never-built first, starting a new pair only in the first 45 minutes and
+recording each as it finishes (`tiles/climate_trace_gases.json`: per gas,
+`sectors` and the `archives` the map reads). 24 pairs; run `ct_gases` until
+the log says every pair is built.
+
 ## Round of 24 September: ct_gases past normalize
 
 The first real `ct_gases` run (CO2) harvested 111,949,068 rows, then stopped in

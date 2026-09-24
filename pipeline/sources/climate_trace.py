@@ -104,6 +104,13 @@ SECTORS = [
     "transportation",
     "waste",
 ]
+# CT_SECTORS narrows the harvest to named sectors (24 September): the per-gas
+# build in culprits-tiles-more (scripts/ct_gases.py) takes one sector a time,
+# since a whole gas is over 100 million rows and ran past the job's time limit.
+# Unset, every sector is harvested, as before.
+if os.environ.get("CT_SECTORS"):
+    _only = {x.strip() for x in os.environ["CT_SECTORS"].split(",") if x.strip()}
+    SECTORS = [x for x in SECTORS if x in _only]
 
 # Nothing is cut. Every emissions source Climate TRACE publishes with a
 # coordinate is harvested, and what a reader sees is decided in the map panel
