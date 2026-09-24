@@ -5,6 +5,28 @@ touches.
 
 ---
 
+## Atlas plates: country names by their type size; the drawn hotspot as a last way (24 September)
+
+The lookup file showed why no country was ever set aside: Nominatim's
+settlement search never answers with a country. For "Kenya" it gives villages
+called Kenya in Kenya, for "Malawi" a village in Malawi, for "Philippines" a
+town on Mindanao, and these can lie near where the country's name is printed,
+so they counted as agreeing (Madagascar had been placed by Antananarivo, Kenya
+and Malawi). The Atlas sets country names in 10-point type and towns in 7.5 or
+5.5 point, so `label_candidates` now skips text of `COUNTRY_LABEL_SIZE` (9) or
+more; `country_labels` lists what was skipped as `set_aside_as_countries`. The
+rank rule (`COUNTRY_RANK`) is gone. The maps are one embedded picture per page
+(`--show` lists them). `place_by_outline` finds the colour of the key's
+"<name> Hotspot" swatch in that picture (`key_colour`, `drawn_hotspot_box`),
+takes the box of those pixels, and lays it on the hotspot's outline box at the
+scale bar's scale; kept when the two boxes' edges differ by no more than 3% of
+the plate's width. It is used only where towns cannot place a page, and for
+every plate that towns did place it prints how far the drawn hotspot would put
+the middle (`outline_check_km`), a check on both ways. Tested on a made-up
+page, not yet on the Atlas's own pictures, whose hotspot fill may be shaded
+over by protected areas or see-through; `outline_fit` records the pixel count
+and the width and height ratios so a bad match shows.
+
 ## Atlas plates: one scale and one turn, checked against the page's scale bar (23 September, latest)
 
 Measured on the kept plates: the straight-line (affine) fit could skew and

@@ -20,7 +20,10 @@ the file. That is enough to put the page where it belongs:
      placement must also agree with the page's own scale bar, and turn the
      page no more than MAX_TURN degrees;
      where too few names agree, the scale bar gives the scale, north is up,
-     and at least two towns must agree on the shift;
+     and at least two towns must agree on the shift; where there are not two
+     towns, the hotspot drawn on the page (the key's own colour) is laid on
+     its outline at the bar's scale; country names, set in larger type, are
+     never used;
   4. refine it on every name that agrees, and measure how far each still is
      from its place: that distance is the plate's error, and it is written
      down with the plate and shown on the map;
@@ -89,15 +92,22 @@ HOTSPOTS = [
 
 MIN_AGREE = 5            # names that must agree on the placement
 MAX_ERROR_SHARE = 0.03   # typical error no more than 3% of the plate's width
-# Nominatim's "settlement" type lets countries through, and the plates print
-# country names ("Malawi", "Philippines"): on 23 September every plate placed
-# with 4 names leaned on one. An answer that is a country (OpenStreetMap's
-# place_rank 4 or less, or an address type of country) is set aside. Rank
-# alone cannot tell a city from a region: Manila, Cebu and Chengdu come back
-# as boundaries ranked like counties or provinces, and a first try that kept
-# only rank 13 and finer threw them out (plates2), so nothing else is dropped.
-COUNTRY_RANK = 4
-REGIONS = set()          # names whose only answers were countries
+# The plates print country names ("Malawi", "Philippines") as well as towns.
+# Nominatim's settlement search never answers with the country itself: it
+# answers with villages that share its name (a Kenya in Kenya, a Malawi in
+# Malawi), which can sit near where the country's name is printed and so
+# looked like agreement. The Atlas sets country names in 10-point type and
+# towns in 7.5 or 5.5, so text this size or larger is read as a country's name
+# and set aside (listed on the plate as set_aside_as_countries). Rank cannot
+# do it: Manila, Cebu and Chengdu come back ranked like counties or provinces.
+COUNTRY_LABEL_SIZE = 9.0
+# A page with too few towns can still be placed by the hotspot the Atlas draws
+# on it: the colour of the "... Hotspot" swatch in the page's own key is found
+# in the map picture, and that area's box is laid on the hotspot's own outline
+# box at the scale bar's scale. The fit is kept only when the two boxes are the
+# same size to within the error allowed for towns.
+OUTLINE_TOLERANCE = 18   # 0-255 per colour channel
+OUTLINE_ZOOM = 1.5       # pixels per page point when reading the picture
 # The fit is a similarity: one scale, one turn and a shift, with the page's
 # y running down. The earlier straight-line (affine) fit could also stretch,
 # skew and mirror the page; on 23 September kept plates were skewed by 20 to
@@ -186,9 +196,25 @@ def label_candidates(page, anchor="centre"):
                     continue
                 if any(w.lower() in NOT_PLACES for w in re.split(r"[\s\-()]+", t) if w):
                     continue
+                if span["size"] >= COUNTRY_LABEL_SIZE:
+                    continue
                 x, y = ANCHORS[anchor](span["bbox"])
                 out.append((t, x, y))
     return out
+
+
+def country_labels(page):
+    """Names printed in the Atlas's country type, set aside from the fit."""
+    out = []
+    for block in page.get_text("dict")["blocks"]:
+        for line in block.get("lines", []):
+            for span in line.get("spans", []):
+                t = re.sub(r"\s+", " ", span["text"]).strip(" ,.;:")
+                if (3 <= len(t) <= 40 and not re.search(r"\d", t) and t[:1].isupper() and not t.isupper()
+                        and span["size"] >= COUNTRY_LABEL_SIZE
+                        and not any(w.lower() in NOT_PLACES for w in re.split(r"[\s\-()]+", t) if w)):
+                    out.append(t)
+    return sorted(set(out))
 
 
 def apply(T, x, y):
@@ -388,6 +414,94 @@ def place_by_bar(labels, width_pt, height_pt, bar_km_per_pt):
     return judge(T, found[1], width_pt, height_pt, MAX_ERROR_SHARE, bar_km_per_pt, f"the scale bar and {n} towns")
 
 
+def key_colour(page):
+    """The fill of the swatch beside "<name> Hotspot" in the page's own key
+    (not "Neighboring Hotspot"), as 0-255 RGB, or None."""
+    lines = []
+    for block in page.get_text("dict")["blocks"]:
+        for line in block.get("lines", []):
+            t = " ".join(sp["text"] for sp in line.get("spans", [])).strip()
+            if t.endswith("Hotspot") and not t.startswith("Neighboring"):
+                lines.append(line["bbox"])
+    if not lines:
+        return None
+    lb = lines[0]
+    best = None
+    for d in page.get_drawings():
+        r, fill = d["rect"], d.get("fill")
+        if not fill or r.x1 > lb[0] + 1 or lb[0] - r.x1 > 30:
+            continue
+        if min(r.y1, lb[3]) - max(r.y0, lb[1]) < 0.5 * (lb[3] - lb[1]):
+            continue
+        if not best or r.x1 > best[0].x1:
+            best = (r, fill)
+    if not best:
+        return None
+    return tuple(round(c * 255) for c in best[1][:3])
+
+
+def drawn_hotspot_box(page, colour):
+    """Page-point box of the pixels in the map picture that are the hotspot's
+    key colour, and how many there were."""
+    import pymupdf
+    pics = [im for im in page.get_image_info() if im.get("bbox")]
+    if not pics or not colour:
+        return None
+    b = max(pics, key=lambda im: (im["bbox"][2] - im["bbox"][0]) * (im["bbox"][3] - im["bbox"][1]))["bbox"]
+    clip = pymupdf.Rect(b) & page.rect
+    pix = page.get_pixmap(matrix=pymupdf.Matrix(OUTLINE_ZOOM, OUTLINE_ZOOM), clip=clip, alpha=False)
+    data, n, W, H = pix.samples, pix.n, pix.width, pix.height
+    r0, g0, b0 = colour
+    xs, ys = [], []
+    for y in range(H):
+        row = y * pix.stride
+        for x in range(W):
+            i = row + x * n
+            if abs(data[i] - r0) <= OUTLINE_TOLERANCE and abs(data[i + 1] - g0) <= OUTLINE_TOLERANCE and abs(data[i + 2] - b0) <= OUTLINE_TOLERANCE:
+                xs.append(x)
+                ys.append(y)
+    if len(xs) < 20:
+        return None
+    k = 1.0 / OUTLINE_ZOOM
+    return ((clip.x0 + min(xs) * k, clip.y0 + min(ys) * k, clip.x0 + (max(xs) + 1) * k, clip.y0 + (max(ys) + 1) * k), len(xs))
+
+
+def place_by_outline(page, width_pt, height_pt, bar_km_per_pt, outline_box):
+    """The scale bar's scale, north up, and the drawn hotspot's box laid on
+    the hotspot's own outline box. The error is how far the two boxes' edges
+    differ once their middles are put together."""
+    if not bar_km_per_pt or not outline_box:
+        return None
+    colour = key_colour(page)
+    got = drawn_hotspot_box(page, colour)
+    if not got:
+        return {"kept": False, "reason": "the hotspot's key colour was not found in the map picture"}
+    (px0, py0, px1, py1), count = got
+    w, s_, e, n = outline_box
+    X0, Ys = merc(w, s_)
+    X1, Yn = merc(e, n)
+    s = bar_km_per_pt * 1000
+    xc, yc = (px0 + px1) / 2, (py0 + py1) / 2
+    T = ((s, 0.0, (X0 + X1) / 2 - s * xc), (0.0, -s, (Ys + Yn) / 2 + s * yc))
+    # Each edge's miss, in kilometres on the ground at the hotspot's middle.
+    lat_mid = (s_ + n) / 2
+    k = math.cos(math.radians(lat_mid)) / 1000
+    dx = abs((px1 - px0) * s - (X1 - X0)) / 2 * k
+    dy = abs((py1 - py0) * s - (Yn - Ys)) / 2 * k
+    rms = math.sqrt((dx * dx + dy * dy) / 2)
+    span_km = ground_km(*apply(T, 0, 0), *apply(T, width_pt, 0))
+    corners = [unmerc(*apply(T, x, y)) for x, y in ((0, 0), (width_pt, 0), (width_pt, height_pt), (0, height_pt))]
+    kept = on_earth(T, width_pt, height_pt) and rms <= span_km * MAX_ERROR_SHARE
+    return {"kept": kept,
+            "reason": "" if kept else f"the drawn hotspot and its outline differ by {rms:.0f} km at the edges, more than {MAX_ERROR_SHARE:.0%} of the plate's {span_km:.0f} km",
+            "corners": [[round(lon, 5), round(lat, 5)] for lon, lat in corners],
+            "error_km": round(rms, 1), "width_km": round(span_km), "names": [], "turn_degrees": 0.0,
+            "placed_by": "the scale bar and the hotspot drawn on the page", "scale_vs_bar": 1.0,
+            "outline_fit": {"key_colour": list(colour), "pixels": count, "page_box": [round(v, 1) for v in (px0, py0, px1, py1)],
+                            "width_ratio": round((px1 - px0) * s / (X1 - X0), 3), "height_ratio": round((py1 - py0) * s / (Yn - Ys), 3)},
+            "worst": [], "affine": T}
+
+
 def atlas_words(s):
     """The same word test the map uses to pair a hotspot with its PDF (atlasWords in map/app.js)."""
     return {w for w in re.split(r"[^a-z]+", str(s).lower().replace("&", " and ")) if len(w) > 2 and w not in ("and", "the")}
@@ -480,19 +594,10 @@ def geocode(name, cache, session, box=None):
     key = name + "|v3" if box is None else name + "|v3|" + ",".join(f"{v:.2f}" for v in box)
     if key not in cache:
         cache[key] = ask_nominatim(name, session, box)
-    raw = cache[key]
-    towns = [h for h in raw if not is_country(h)]
-    if raw and not towns:
-        REGIONS.add(name)
-    got = [(lon, lat) for lon, lat, _, _ in towns]
+    got = [(lon, lat) for lon, lat, _, _ in cache[key]]
     if box is not None:
         got = [q for q in (inside(lon, lat, box) for lon, lat in got) if q]
     return got
-
-
-def is_country(hit):
-    _, _, rank, kind = hit
-    return (rank is not None and rank <= COUNTRY_RANK) or kind in ("country", "continent")
 
 
 def ask_nominatim(name, session, box):
@@ -607,16 +712,25 @@ def main(only, show=False):
             tried = place_by_bar(rows, w, h, bar)
             if tried and (tried.get("kept") or not got or not got.get("corners")):
                 got = tried
+        raw_box = boxes.get(slug)
+        outline = place_by_outline(page, w, h, bar, raw_box) if bar and raw_box else None
+        if not (got and got.get("kept")) and outline and (outline.get("kept") or not got):
+            got = outline
         if not got:
             towns = sorted(n for n, _, c in rows if c)
             got = {"kept": False, "reason": f"only {len(towns)} town name{'' if len(towns) == 1 else 's'} on the page could be found"
                    + (f" ({', '.join(towns)})" if towns else "") + "; two are needed"}
         if bar:
             got["scale_bar_km_per_pt"] = round(bar, 4)
+        if outline and outline.get("corners") and got.get("affine") and got is not outline:
+            # How far the town placement's middle is from the drawn hotspot's
+            # placement: an independent check on both, printed and kept.
+            got["outline_check_km"] = round(ground_km(*apply(got["affine"], w / 2, h / 2), *apply(outline["affine"], w / 2, h / 2)), 1)
+            got["outline_fit"] = outline.get("outline_fit")
         entry = {"title": title, "pdf": PDF_BASE + slug + ".pdf", "labels": len(labels), **got}
         if box:
             entry["looked_up_within"] = [round(v, 3) for v in box]
-        countries = sorted(n for n in found if n in REGIONS)
+        countries = country_labels(page)
         if countries:
             entry["set_aside_as_countries"] = countries
         entry.pop("worst", None)
@@ -645,6 +759,8 @@ def main(only, show=False):
         plates[slug] = entry
         say = (f"placed by {got['placed_by']}, typical error {got['error_km']} km on a {got['width_km']} km plate, turned {got['turn_degrees']} degrees"
                + (f", scale {got['scale_vs_bar']} of the bar's" if got.get("scale_vs_bar") else "")) if got.get("kept") else f"not placed: {got['reason']}"
+        if got.get("outline_check_km") is not None:
+            say += f"; the drawn hotspot puts its middle {got['outline_check_km']} km away"
         print(f"{slug}: {say}")
         if got.get("worst"):
             print("    furthest: " + "; ".join(f"{n} {d:.0f} km" for d, n in got["worst"]))

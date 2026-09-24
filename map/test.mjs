@@ -3224,8 +3224,10 @@ console.log("\nthe Atlas's own maps, on this map (22 September)");
   check("…with one scale and one turn, never a skew or a mirror, and checked against the page's own scale bar (23 September)",
         /def fit_similarity\(pairs\):/.test(py) && !/def fit_affine\(/.test(py) && /MAX_TURN = 20/.test(py) &&
         /def read_scale_bar\(page\):/.test(py) && /SCALE_TOLERANCE = 0\.2/.test(py) && /"scale_vs_bar"/.test(py));
-  check("…a page with too few names is placed by its scale bar and at least two agreeing towns, and only countries are set aside",
-        /def place_by_bar\(/.test(py) && /len\(found\[1\]\) < 2/.test(py) && /COUNTRY_RANK = 4/.test(py) && !/MIN_TOWN_RANK/.test(py));
+  check("…a page with too few names is placed by its scale bar and at least two agreeing towns",
+        /def place_by_bar\(/.test(py) && /len\(found\[1\]\) < 2/.test(py) && /COUNTRY_LABEL_SIZE = 9\.0/.test(py) && !/MIN_TOWN_RANK/.test(py));
+  check("…a country's name, set in the Atlas's larger type, is never used, and a page with no two towns is placed by the hotspot it draws, in its key's own colour",
+        /span\["size"\] >= COUNTRY_LABEL_SIZE/.test(py) && /def key_colour\(page\):/.test(py) && /def place_by_outline\(/.test(py) && /"outline_check_km"/.test(py));
 }
 console.log("\nround of 22 September (5): what check-sources found");
 {
