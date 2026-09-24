@@ -2312,6 +2312,7 @@ function setBasemap(kind) {
     // On the Satellite basemap the names are grey, not the label set's colours.
     map.setPaintProperty("labels", "raster-saturation", kind === "satellite" ? -1 : 0);
   }
+  namesRaster();
   defenceMode(kind === "satellite");
   // The same fixed grain as the glow, lighter, over the whole Satellite view.
   if (kind === "satellite") glowGrain();
@@ -2567,6 +2568,7 @@ function leaveEarth() {
   if (drawnProjection() === "mercator") {
     if (typeof map.setProjection === "function") map.setProjection({ type: VIEWS.globe.projection });
     if (typeof map.setTransformConstrain === "function") map.setTransformConstrain(null);
+    if (map._requestedCameraState) map._requestedCameraState = null;
   }
   warmSpace();
   const to = eyesFacing(Date.now());
@@ -2665,6 +2667,12 @@ function setView(kind) {
   if (typeof map.setTransformConstrain === "function") {
     map.setTransformConstrain(proj === "mercator" ? freeConstrain : null);
   }
+  // With 3D terrain on, MapLibre moves the camera through a saved copy of the
+  // view (_requestedCameraState) and keeps that copy across a change of
+  // projection. After globe to flat, the drag kept using the globe's copy,
+  // with the flat map's usual hold on its edges, so the free drag above never
+  // reached it. Dropping the copy makes MapLibre take a fresh one.
+  if (map._requestedCameraState) map._requestedCameraState = null;
   skyForView(proj);
   if (!VIEWS[kind].leave && AWAY) backToMap();
   if (typeof map.triggerRepaint === "function") map.triggerRepaint();
@@ -7366,6 +7374,8 @@ function setBuildings3D(on) {
   }
   map.setLayoutProperty("buildings-3d", "visibility", "visible");
 }
+// The hologram (index.html) puts the buildings back as terrain has them.
+if (typeof window !== "undefined") window.setBuildings3D = setBuildings3D;
 
 function setTerrain(on) {
   TERRAIN_ON = !!on;
@@ -7557,11 +7567,30 @@ function namesApply() {
       map.setLayoutProperty(l.id, "text-field", "");
     }
   }
+  namesRaster();
+}
+// The basemap's place names are one picture layer ("labels"), not words the
+// map sets itself, so the loop above never reached them: they are what show
+// close in, which is why the box did nothing there. They are shown or hidden
+// whole. While the hologram is on it hides them itself and puts them back on
+// the way out, so they are left to it then.
+function namesRaster() {
+  let on = true;
+  try { on = NAMES_ON; } catch (e) { /* called before the setting is read: names on */ }
+  if (typeof map.getLayer !== "function" || !map.getLayer("labels")) return;
+  if (typeof document !== "undefined" && document.body && document.body.classList &&
+      document.body.classList.contains("holo-on")) return;
+  const v = on ? "visible" : "none";
+  if ((map.getLayoutProperty("labels", "visibility") || "visible") !== v) map.setLayoutProperty("labels", "visibility", v);
 }
 function setNames(on) {
   NAMES_ON = !!on;
   try { localStorage.setItem("culprits-names", NAMES_ON ? "on" : "off"); } catch (e) { /* not kept */ }
   namesApply();
+  // The hologram's own names follow this box too.
+  if (typeof document !== "undefined" && typeof CustomEvent === "function") {
+    document.dispatchEvent(new CustomEvent("culprits-names", { detail: { on: NAMES_ON } }));
+  }
 }
 map.on("styledata", () => { if (!NAMES_ON) namesApply(); });
 

@@ -5,6 +5,27 @@ touches.
 
 ---
 
+## Round 26 (24 September): names, hologram, flat-map drag with 3D
+
+- Place names box now hides the basemap's names too. Those are one picture
+  layer ("labels"), which the box never reached, so close in nothing changed.
+  The hologram's own names follow the same box.
+- Hologram close in: 3D terrain's stone buildings (`buildings-3d`) stood over
+  the wireframe and hid it. They are now hidden while the hologram is on (its
+  own glass buildings stand in their place) and put back after.
+- Hologram options all start ticked except Basemap underneath, which is now a
+  box beside "Hologram view" rather than one of its options. Saved choices use
+  a new key (`culprits-holo-2`) so the old defaults (names off) do not carry.
+- The "Hologram view · Natural Earth 1:50m · grid 15°" line at the bottom of
+  the map is gone.
+- Flat map with 3D terrain on could not be dragged past its edges after
+  coming from the globe. With terrain on, MapLibre 5.24 moves the camera
+  through a saved copy (`map._requestedCameraState`) and keeps it across a
+  projection change, so the globe's copy, without the free drag, stayed in
+  charge. setView() and leaveEarth() now drop that copy. Checked in headless
+  Chromium: globe + 3D -> flat, drag right went 0° -> -352° (was stuck at 0°).
+
+
 ## Where things stand (24 September, after round 25): read this first
 
 Every request the owner has made up to round 25 is done and on main (round 25

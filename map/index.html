@@ -36,8 +36,8 @@
       color-mix(in srgb, var(--holo-bg), #000000 35%) 100%)}
   /* Overlays sit just above the map drawing, under popups and every panel,
      and never take a click or a drag. */
-  .holo-scan,.holo-floor,.holo-readout,.holo-rim,.holo-crt{position:absolute;pointer-events:none;display:none}
-  body.holo-on .holo-scan,body.holo-on .holo-readout,body.holo-on .holo-rim{display:block}
+  .holo-scan,.holo-floor,.holo-rim,.holo-crt{position:absolute;pointer-events:none;display:none}
+  body.holo-on .holo-scan,body.holo-on .holo-rim{display:block}
   body.holo-on.holo-floor-on .holo-floor{display:block}
   body.holo-on.holo-fx-on .holo-crt{display:block}
   .holo-rim{left:0;top:0;width:100%;height:100%}
@@ -56,12 +56,15 @@
   .holo-crt{inset:0;border-radius:18px;
     background:radial-gradient(ellipse at center, transparent 58%, rgba(2,4,14,.38) 100%);
     box-shadow:inset 0 0 70px rgba(2,4,14,.55)}
-  .holo-readout{left:50%;bottom:10px;transform:translateX(-50%);white-space:nowrap;
-    font:500 10.5px/1.3 var(--holo-font);letter-spacing:.14em;text-transform:uppercase;
-    color:var(--holo-line);opacity:.7}
   /* The switch in the Basemap box. */
   .holo-ctl{margin-top:5px;padding-top:5px;border-top:1px solid var(--rule)}
   .holo-ctl .nm{font-family:var(--holo-font);font-size:12.5px;letter-spacing:.02em}
+  /* Hologram view and Basemap underneath side by side, the fold button last. */
+  .holo-ctl .holo-row{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+  .holo-ctl .holo-row .holo-fold{padding:0 1px}
+  .holo-ctl .holo-row .layer{margin:0;white-space:nowrap;flex:none}
+  .holo-ctl .holo-row .nm{font-size:11.5px;letter-spacing:0}
+  .holo-ctl .holo-row .layer + .layer .nm{font-size:10.5px}
   .holo-ctl .holo-sub{padding-left:20px}
   .holo-ctl .holo-fold{margin-left:auto;background:none;border:0;color:var(--dim);cursor:pointer;
     font-size:11px;line-height:1.5;padding:0 3px}
@@ -551,7 +554,11 @@
     "sat-relief-colour", "sat-relief-seabed", "sat-relief-shade", "sat-relief-depth", "sat-relief-sea",
     // the Country outlines basemap's close-in detail (OUTLINE_IDS in app.js)
     "outline-relief", "outline-water", "outline-green", "outline-town", "outline-waterway",
-    "outline-rail", "outline-road-minor", "outline-road", "outline-road-major", "outline-buildings"];
+    "outline-rail", "outline-road-minor", "outline-road", "outline-road-major", "outline-buildings",
+    // 3D terrain's stone-coloured buildings (setBuildings3D in app.js). Left
+    // up, they stood over the hologram close in and hid it; the hologram has
+    // its own glass buildings at the same heights.
+    "buildings-3d"];
   // Hologram layers, bottom to top.
   const EARTH_IDS = ["holo-earth", "holo-earth-flat"];
   const DETAIL_IDS = ["holo-relief", "holo-osm-water", "holo-osm-waterway", "holo-osm-road",
@@ -559,9 +566,16 @@
   const HOLO_IDS = EARTH_IDS.concat(["holo-grat"], DETAIL_IDS.slice(0, 5), ["holo-glow", "holo-fringe", "holo-line"], DETAIL_IDS.slice(5));
 
   // The sub-switches, kept for this browser only (nothing else depends on them).
-  const opt = { grat: true, floor: true, stars: true, detail: true, names: false, fx: true, under: false, tint: 55, fold: false };
-  try { Object.assign(opt, JSON.parse(localStorage.getItem("culprits-holo") || "{}")); } catch (e) { /* defaults */ }
-  const keepOpt = () => { try { localStorage.setItem("culprits-holo", JSON.stringify(opt)); } catch (e) { /* not kept */ } };
+  // Every option starts on except the basemap underneath. The key is new
+  // (was "culprits-holo") so choices kept under the old defaults, with place
+  // names off, do not carry over.
+  const opt = { grat: true, floor: true, stars: true, detail: true, names: true, fx: true, under: false, tint: 55, fold: false };
+  const OPT_KEY = "culprits-holo-2";
+  try { Object.assign(opt, JSON.parse(localStorage.getItem(OPT_KEY) || "{}")); } catch (e) { /* defaults */ }
+  const keepOpt = () => { try { localStorage.setItem(OPT_KEY, JSON.stringify(opt)); } catch (e) { /* not kept */ } };
+  // The Place names box in the View section governs every name on the map,
+  // the hologram's included.
+  const namesOn = () => { const b = document.getElementById("names-toggle"); return !b || b.checked; };
 
   let on = false;
   let savedVis = new Map();        // basemap layer -> its visibility before the hologram
@@ -775,7 +789,7 @@
     vis("holo-glow", on ? "visible" : "none");
     vis("holo-line", on ? "visible" : "none");
     vis("holo-fringe", on && opt.fx ? "visible" : "none");
-    vis("holo-labels", on && opt.names ? "visible" : "none");
+    vis("holo-labels", on && opt.names && namesOn() ? "visible" : "none");
     document.body.classList.toggle("holo-on", on);
     document.body.classList.toggle("holo-floor-on", on && opt.floor);
     document.body.classList.toggle("holo-stars-on", on && opt.stars);
@@ -802,7 +816,8 @@
   const basemapTicked = () => { const r = document.querySelector('#basemaps input[name="basemap"]:checked'); return r ? r.value : null; };
   // Which basemap layers the hologram hides: all of them, or with a basemap
   // underneath, only the tile provider's place names.
-  const hiddenIds = () => opt.under ? ["labels"] : BASE_IDS;
+  // Terrain's stone buildings go either way: they would stand over the wireframe.
+  const hiddenIds = () => opt.under ? ["labels", "buildings-3d"] : BASE_IDS;
   function hideBase() {
     for (const id of hiddenIds()) {
       if (!map.getLayer(id)) continue;
@@ -820,6 +835,9 @@
     try { if (typeof window.skyForView === "function" && typeof window.drawnProjection === "function") window.skyForView(window.drawnProjection()); } catch (e) { /* kept */ }
     const kind = basemapTicked();
     if (typeof window.setBasemap === "function" && kind) window.setBasemap(kind);
+    // Terrain may have been switched while the hologram was on.
+    const t = document.getElementById("terrain-toggle");
+    if (typeof window.setBuildings3D === "function" && t) window.setBuildings3D(t.checked);
   }
   function holoSky() {
     const bg = colours().bg;
@@ -930,17 +948,16 @@
     if (overlays) return;
     const cv = map.getCanvas();
     const mk = (cls, tag) => { const el = document.createElement(tag || "div"); el.className = cls; return el; };
-    const els = [mk("holo-rim", "canvas"), mk("holo-scan"), mk("holo-floor"), mk("holo-crt"), mk("holo-readout")];
+    const els = [mk("holo-rim", "canvas"), mk("holo-scan"), mk("holo-floor"), mk("holo-crt")];
     els[2].appendChild(document.createElement("i"));
     // Straight after the canvas: over the map drawing, under popups and controls.
     for (const el of els.slice().reverse()) cv.parentNode.insertBefore(el, cv.nextSibling);
     rim = els[0];
-    overlays = { read: els[4] };
+    overlays = {};
   }
+  // The line along the bottom of the map naming the outlines and grid is gone
+  // (asked for 24 September); only the note in the Basemap box is kept.
   function updateText() {
-    if (overlays) overlays.read.textContent =
-      `Hologram view · Natural Earth 1:${HOLO.res}` + (opt.grat ? ` · grid ${HOLO.gridStep}°` : "") +
-      (opt.under ? ` · over ${(basemapTicked() || "").replace("atlas", "painted atlas")}` : "");
     const n = document.getElementById("holo-note");
     if (n) n.textContent = resNote;
   }
@@ -1015,10 +1032,12 @@
     const tick = (id, key, nm, title) =>
       `<label class="layer"${title ? ` title="${title}"` : ""}><input type="checkbox" id="${id}" data-opt="${key}"${opt[key] ? " checked" : ""}><span class="nm">${nm}</span></label>`;
     d.innerHTML =
+      `<div class="holo-row">` +
       `<label class="layer" title="A wireframe screen: country outlines, no imagery. Your layers stay on.">` +
-      `<input type="checkbox" id="holo-toggle"${on ? " checked" : ""}><span class="nm">Hologram view</span>` +
+      `<input type="checkbox" id="holo-toggle"${on ? " checked" : ""}><span class="nm">Hologram view</span></label>` +
+      tick("holo-under", "under", "Basemap underneath", "The basemap ticked above, under the hologram, dimmed by a navy wash") +
       `<button type="button" class="holo-fold" id="holo-fold" title="Roll the hologram's options up or down"` +
-      ` aria-expanded="${opt.fold ? "false" : "true"}"${on ? "" : " hidden"}>${opt.fold ? "&#9656;" : "&#9662;"}</button></label>` +
+      ` aria-expanded="${opt.fold ? "false" : "true"}"${on ? "" : " hidden"}>${opt.fold ? "&#9656;" : "&#9662;"}</button></div>` +
       `<p class="holo-note" id="holo-note"></p>` +
       `<div class="holo-sub"${on && !opt.fold ? "" : " hidden"}>` +
       tick("holo-grat", "grat", `${HOLO.gridStep}° grid lines`) +
@@ -1027,7 +1046,6 @@
       tick("holo-names", "names", "Place names", "Country, city and sea names, in pale text for the dark screen") +
       tick("holo-detail", "detail", "Close-in detail", "OpenStreetMap coasts, borders, rivers, roads and buildings, and relief shading, drawn as wireframe as you zoom in") +
       tick("holo-fx", "fx", "80s effects", "Colour fringe on the outlines, darker tube edges") +
-      tick("holo-under", "under", "Basemap underneath", "The basemap ticked above, under the hologram, dimmed by a navy wash") +
       `</div>` +
       `<label class="holo-tint"${on && opt.under && !opt.fold ? "" : " hidden"}>wash <input type="range" id="holo-tint" min="0" max="90" step="5" value="${opt.tint}"><span id="holo-tint-n">${opt.tint}%</span></label>`;
     body.appendChild(d);
@@ -1039,8 +1057,7 @@
       f.innerHTML = opt.fold ? "&#9656;" : "&#9662;";
       f.setAttribute("aria-expanded", opt.fold ? "false" : "true");
     };
-    // The options roll up and down with the view still on. The button sits
-    // inside the label, so its click must not reach the tick box.
+    // The options roll up and down with the view still on.
     d.querySelector("#holo-fold").addEventListener("click", (e) => {
       e.preventDefault(); e.stopPropagation();
       opt.fold = !opt.fold; keepOpt(); sync();
@@ -1071,6 +1088,8 @@
   // The Basemap box is filled in once the map has loaded; the switch is added
   // as soon as it appears, and again if the box is ever rebuilt.
   addSwitch();
+  // The Place names box in the View section was switched.
+  document.addEventListener("culprits-names", () => { if (on) showHolo(); });
   const box = document.getElementById("basemaps");
   if (box && window.MutationObserver) new MutationObserver(addSwitch).observe(box, { childList: true, subtree: true });
 })();
