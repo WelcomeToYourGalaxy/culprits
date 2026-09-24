@@ -3228,6 +3228,8 @@ console.log("\nthe Atlas's own maps, on this map (22 September)");
         /def place_by_bar\(/.test(py) && /len\(found\[1\]\) < 2/.test(py) && /COUNTRY_LABEL_SIZE = 9\.0/.test(py) && !/MIN_TOWN_RANK/.test(py));
   check("…a country's name, set in the Atlas's larger type, is never used, and a page with no two towns is placed by the hotspot it draws, in its key's own colour",
         /span\["size"\] >= COUNTRY_LABEL_SIZE/.test(py) && /def key_colour\(page\):/.test(py) && /def place_by_outline\(/.test(py) && /"outline_check_km"/.test(py));
+  check("…only where the drawn hotspot is its outline's size, both ways, within 3%; otherwise it neither places nor checks a plate",
+        /OUTLINE_SIZE_TOLERANCE = 0\.03/.test(py) && /same_size and rms/.test(py) && /outline\.get\("same_size"\) and got\.get\("affine"\)/.test(py));
 }
 console.log("\nround of 22 September (5): what check-sources found");
 {

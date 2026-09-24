@@ -5,6 +5,21 @@ touches.
 
 ---
 
+## Atlas plates: the drawn hotspot only counts when it is its outline's size (24 September, later)
+
+The first run with `place_by_outline` placed New Caledonia and Southwest
+Australia although their drawn hotspots were 0.96 x 0.60 and 0.92 x 0.89 of
+their outlines' size: the edge error was judged against the whole plate's
+width, which is far larger than a small hotspot. Its checks on the town
+placements showed when it can be trusted: where the drawn box matched the
+outline box within 1.3% both ways (Caucasus, Madrean woodlands, Maputaland,
+Central Asia, Southwest China) it put the page's middle 17 to 73 km from the
+towns' placement; elsewhere the hotspot runs off the picture or is painted
+over by protected areas (the Succulent Karoo's Namibian strip is under
+protected-area green) and the distances ran to 1,098 km. So a placement or a
+check by the drawn hotspot now needs both ratios within `OUTLINE_SIZE_TOLERANCE`
+(3%). Of the pages with no two towns, only the Cape (1.005 x 0.994) passes.
+
 ## Atlas plates: country names by their type size; the drawn hotspot as a last way (24 September)
 
 The lookup file showed why no country was ever set aside: Nominatim's

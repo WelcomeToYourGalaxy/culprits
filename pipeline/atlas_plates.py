@@ -107,6 +107,13 @@ COUNTRY_LABEL_SIZE = 9.0
 # box at the scale bar's scale. The fit is kept only when the two boxes are the
 # same size to within the error allowed for towns.
 OUTLINE_TOLERANCE = 18   # 0-255 per colour channel
+# The drawn area's box must be the outline box's size to within this share,
+# both ways. Measured on 24 September: where both came within 1.3%
+# (Caucasus, Madrean woodlands, Maputaland, Central Asia, Southwest China)
+# the drawn hotspot put the page's middle 17 to 73 km from where the towns
+# put it; where they did not, the hotspot runs off the picture or is painted
+# over by protected areas, and the placement means nothing.
+OUTLINE_SIZE_TOLERANCE = 0.03
 OUTLINE_ZOOM = 1.5       # pixels per page point when reading the picture
 # The fit is a similarity: one scale, one turn and a shift, with the page's
 # y running down. The earlier straight-line (affine) fit could also stretch,
@@ -491,14 +498,19 @@ def place_by_outline(page, width_pt, height_pt, bar_km_per_pt, outline_box):
     rms = math.sqrt((dx * dx + dy * dy) / 2)
     span_km = ground_km(*apply(T, 0, 0), *apply(T, width_pt, 0))
     corners = [unmerc(*apply(T, x, y)) for x, y in ((0, 0), (width_pt, 0), (width_pt, height_pt), (0, height_pt))]
-    kept = on_earth(T, width_pt, height_pt) and rms <= span_km * MAX_ERROR_SHARE
-    return {"kept": kept,
-            "reason": "" if kept else f"the drawn hotspot and its outline differ by {rms:.0f} km at the edges, more than {MAX_ERROR_SHARE:.0%} of the plate's {span_km:.0f} km",
+    wr = (px1 - px0) * s / (X1 - X0)
+    hr = (py1 - py0) * s / (Yn - Ys)
+    same_size = abs(wr - 1) <= OUTLINE_SIZE_TOLERANCE and abs(hr - 1) <= OUTLINE_SIZE_TOLERANCE
+    kept = on_earth(T, width_pt, height_pt) and same_size and rms <= span_km * MAX_ERROR_SHARE
+    return {"kept": kept, "same_size": same_size,
+            "reason": "" if kept else (f"the hotspot drawn on the page is {wr:.2f} of its outline's width and {hr:.2f} of its height"
+                                       f" (both must be within {OUTLINE_SIZE_TOLERANCE:.0%}): it runs off the picture or is painted over"
+                                       if not same_size else f"the drawn hotspot and its outline differ by {rms:.0f} km at the edges"),
             "corners": [[round(lon, 5), round(lat, 5)] for lon, lat in corners],
             "error_km": round(rms, 1), "width_km": round(span_km), "names": [], "turn_degrees": 0.0,
             "placed_by": "the scale bar and the hotspot drawn on the page", "scale_vs_bar": 1.0,
             "outline_fit": {"key_colour": list(colour), "pixels": count, "page_box": [round(v, 1) for v in (px0, py0, px1, py1)],
-                            "width_ratio": round((px1 - px0) * s / (X1 - X0), 3), "height_ratio": round((py1 - py0) * s / (Yn - Ys), 3)},
+                            "width_ratio": round(wr, 3), "height_ratio": round(hr, 3)},
             "worst": [], "affine": T}
 
 
@@ -722,7 +734,7 @@ def main(only, show=False):
                    + (f" ({', '.join(towns)})" if towns else "") + "; two are needed"}
         if bar:
             got["scale_bar_km_per_pt"] = round(bar, 4)
-        if outline and outline.get("corners") and got.get("affine") and got is not outline:
+        if outline and outline.get("same_size") and got.get("affine") and got is not outline:
             # How far the town placement's middle is from the drawn hotspot's
             # placement: an independent check on both, printed and kept.
             got["outline_check_km"] = round(ground_km(*apply(got["affine"], w / 2, h / 2), *apply(outline["affine"], w / 2, h / 2)), 1)

@@ -61,23 +61,6 @@
   "placed_by": "30 names",
   "scale_vs_bar": 0.944,
   "scale_bar_km_per_pt": 5.702,
-  "outline_check_km": 214.5,
-  "outline_fit": {
-   "key_colour": [
-    239,
-    230,
-    189
-   ],
-   "pixels": 22676,
-   "page_box": [
-    120.7,
-    46.7,
-    564.7,
-    678.7
-   ],
-   "width_ratio": 0.913,
-   "height_ratio": 0.979
-  },
   "looked_up_within": [
    -63.519,
    -41.497,
@@ -478,23 +461,6 @@
   "placed_by": "15 names",
   "scale_vs_bar": 1.009,
   "scale_bar_km_per_pt": 3.8247,
-  "outline_check_km": 136.6,
-  "outline_fit": {
-   "key_colour": [
-    239,
-    230,
-    189
-   ],
-   "pixels": 27631,
-   "page_box": [
-    477.4,
-    67.3,
-    736.7,
-    540.7
-   ],
-   "width_ratio": 0.85,
-   "height_ratio": 0.818
-  },
   "looked_up_within": [
    -127.909,
    23.617,
@@ -850,6 +816,7 @@
   "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/cape_floristic_region.pdf",
   "labels": 1,
   "kept": true,
+  "same_size": true,
   "reason": "",
   "corners": [
    [
@@ -1281,23 +1248,6 @@
   "placed_by": "8 names",
   "scale_vs_bar": 0.912,
   "scale_bar_km_per_pt": 5.6651,
-  "outline_check_km": 155.7,
-  "outline_fit": {
-   "key_colour": [
-    239,
-    230,
-    189
-   ],
-   "pixels": 701,
-   "page_box": [
-    279.3,
-    64.7,
-    841.3,
-    374.0
-   ],
-   "width_ratio": 1.062,
-   "height_ratio": 0.886
-  },
   "looked_up_within": [
    -92.737,
    7.189,
@@ -2127,23 +2077,6 @@
   "placed_by": "16 names",
   "scale_vs_bar": 0.988,
   "scale_bar_km_per_pt": 5.1552,
-  "outline_check_km": 294.0,
-  "outline_fit": {
-   "key_colour": [
-    239,
-    230,
-    189
-   ],
-   "pixels": 86579,
-   "page_box": [
-    17.3,
-    138.7,
-    642.7,
-    608.0
-   ],
-   "width_ratio": 1.297,
-   "height_ratio": 1.002
-  },
   "looked_up_within": [
    -68.024,
    -30.736,
@@ -2532,23 +2465,6 @@
   "placed_by": "the scale bar and 4 towns",
   "scale_vs_bar": 1.0,
   "scale_bar_km_per_pt": 6.0138,
-  "outline_check_km": 423.9,
-  "outline_fit": {
-   "key_colour": [
-    239,
-    230,
-    189
-   ],
-   "pixels": 13480,
-   "page_box": [
-    506.7,
-    79.3,
-    604.7,
-    617.3
-   ],
-   "width_ratio": 0.386,
-   "height_ratio": 0.955
-  },
   "looked_up_within": [
    -86.249,
    -53.388,
@@ -2939,23 +2855,6 @@
   "placed_by": "4 names",
   "scale_vs_bar": 1.0,
   "scale_bar_km_per_pt": 5.6651,
-  "outline_check_km": 1098.1,
-  "outline_fit": {
-   "key_colour": [
-    239,
-    230,
-    189
-   ],
-   "pixels": 7508,
-   "page_box": [
-    146.0,
-    103.3,
-    746.0,
-    634.0
-   ],
-   "width_ratio": 3.142,
-   "height_ratio": 0.97
-  },
   "looked_up_within": [
    31.082,
    -31.948,
@@ -3322,7 +3221,8 @@
   "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/east_melanesian_islands.pdf",
   "labels": 0,
   "kept": false,
-  "reason": "the drawn hotspot and its outline differ by 226 km at the edges, more than 3% of the plate's 5464 km",
+  "same_size": false,
+  "reason": "the hotspot drawn on the page is 0.81 of its outline's width and 0.90 of its height (both must be within 3%): it runs off the picture or is painted over",
   "corners": [
    [
     123.78457,
@@ -3416,23 +3316,6 @@
   "placed_by": "6 names",
   "scale_vs_bar": 0.916,
   "scale_bar_km_per_pt": 7.8277,
-  "outline_check_km": 170.5,
-  "outline_fit": {
-   "key_colour": [
-    239,
-    230,
-    189
-   ],
-   "pixels": 8911,
-   "page_box": [
-    100.0,
-    70.0,
-    378.7,
-    692.7
-   ],
-   "width_ratio": 1.043,
-   "height_ratio": 1.013
-  },
   "looked_up_within": [
    22.484,
    -30.652,
@@ -4245,23 +4128,6 @@
   "placed_by": "25 names",
   "scale_vs_bar": 0.953,
   "scale_bar_km_per_pt": 4.4163,
-  "outline_check_km": 464.1,
-  "outline_fit": {
-   "key_colour": [
-    239,
-    230,
-    189
-   ],
-   "pixels": 10111,
-   "page_box": [
-    113.3,
-    110.0,
-    868.7,
-    678.0
-   ],
-   "width_ratio": 1.054,
-   "height_ratio": 1.643
-  },
   "looked_up_within": [
    -20.866,
    -4.86,
@@ -4664,23 +4530,6 @@
   "placed_by": "7 names",
   "scale_vs_bar": 0.938,
   "scale_bar_km_per_pt": 5.5758,
-  "outline_check_km": 543.6,
-  "outline_fit": {
-   "key_colour": [
-    239,
-    230,
-    189
-   ],
-   "pixels": 21677,
-   "page_box": [
-    162.0,
-    92.7,
-    924.0,
-    444.7
-   ],
-   "width_ratio": 1.405,
-   "height_ratio": 1.43
-  },
   "looked_up_within": [
    64.413,
    23.021,
@@ -5082,23 +4931,6 @@
   "placed_by": "10 names",
   "scale_vs_bar": 0.977,
   "scale_bar_km_per_pt": 6.2842,
-  "outline_check_km": 241.7,
-  "outline_fit": {
-   "key_colour": [
-    239,
-    230,
-    189
-   ],
-   "pixels": 39387,
-   "page_box": [
-    116.0,
-    148.0,
-    519.3,
-    639.3
-   ],
-   "width_ratio": 0.998,
-   "height_ratio": 0.847
-  },
   "looked_up_within": [
    29.861,
    -14.887,
@@ -5508,23 +5340,6 @@
   "placed_by": "18 names",
   "scale_vs_bar": 0.947,
   "scale_bar_km_per_pt": 7.0237,
-  "outline_check_km": 240.9,
-  "outline_fit": {
-   "key_colour": [
-    239,
-    230,
-    189
-   ],
-   "pixels": 2825,
-   "page_box": [
-    288.0,
-    122.0,
-    674.0,
-    508.0
-   ],
-   "width_ratio": 0.779,
-   "height_ratio": 0.857
-  },
   "looked_up_within": [
    114.881,
    16.695,
@@ -5884,7 +5699,8 @@
   "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/madagascar.pdf",
   "labels": 1,
   "kept": false,
-  "reason": "the drawn hotspot and its outline differ by 462 km at the edges, more than 3% of the plate's 5664 km",
+  "same_size": false,
+  "reason": "the hotspot drawn on the page is 0.90 of its outline's width and 0.56 of its height (both must be within 3%): it runs off the picture or is painted over",
   "corners": [
    [
     24.34056,
@@ -6835,23 +6651,6 @@
   "placed_by": "33 names",
   "scale_vs_bar": 1.003,
   "scale_bar_km_per_pt": 11.3317,
-  "outline_check_km": 866.9,
-  "outline_fit": {
-   "key_colour": [
-    239,
-    230,
-    189
-   ],
-   "pixels": 4782,
-   "page_box": [
-    114.7,
-    56.0,
-    833.3,
-    285.3
-   ],
-   "width_ratio": 0.968,
-   "height_ratio": 0.59
-  },
   "looked_up_within": [
    -51.768,
    3.821,
@@ -7278,23 +7077,6 @@
   "placed_by": "28 names",
   "scale_vs_bar": 0.947,
   "scale_bar_km_per_pt": 5.987,
-  "outline_check_km": 241.8,
-  "outline_fit": {
-   "key_colour": [
-    239,
-    230,
-    189
-   ],
-   "pixels": 9351,
-   "page_box": [
-    267.3,
-    99.3,
-    872.7,
-    517.3
-   ],
-   "width_ratio": 0.791,
-   "height_ratio": 0.88
-  },
   "looked_up_within": [
    -126.298,
    -2.098,
@@ -8478,8 +8260,9 @@
   "title": "New Caledonia",
   "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/new_caledonia.pdf",
   "labels": 0,
-  "kept": true,
-  "reason": "",
+  "kept": false,
+  "same_size": false,
+  "reason": "the hotspot drawn on the page is 0.96 of its outline's width and 0.60 of its height (both must be within 3%): it runs off the picture or is painted over",
   "corners": [
    [
     149.83477,
@@ -8531,345 +8314,6 @@
    "Australia",
    "New Caledonia (France)",
    "Vanuatu"
-  ],
-  "image": "atlas/plates/new_caledonia.webp",
-  "detail": [
-   {
-    "image": "atlas/plates/new_caledonia/d00.webp",
-    "corners": [
-     [
-      149.83477,
-      -14.34972
-     ],
-     [
-      156.99676,
-      -14.34972
-     ],
-     [
-      156.99676,
-      -19.61649
-     ],
-     [
-      149.83477,
-      -19.61649
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/new_caledonia/d01.webp",
-    "corners": [
-     [
-      156.99676,
-      -14.34972
-     ],
-     [
-      164.15875,
-      -14.34972
-     ],
-     [
-      164.15875,
-      -19.61649
-     ],
-     [
-      156.99676,
-      -19.61649
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/new_caledonia/d02.webp",
-    "corners": [
-     [
-      164.15875,
-      -14.34972
-     ],
-     [
-      171.32074,
-      -14.34972
-     ],
-     [
-      171.32074,
-      -19.61649
-     ],
-     [
-      164.15875,
-      -19.61649
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/new_caledonia/d03.webp",
-    "corners": [
-     [
-      171.32074,
-      -14.34972
-     ],
-     [
-      178.48273,
-      -14.34972
-     ],
-     [
-      178.48273,
-      -19.61649
-     ],
-     [
-      171.32074,
-      -19.61649
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/new_caledonia/d10.webp",
-    "corners": [
-     [
-      149.83477,
-      -19.61649
-     ],
-     [
-      156.99676,
-      -19.61649
-     ],
-     [
-      156.99676,
-      -24.71629
-     ],
-     [
-      149.83477,
-      -24.71629
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/new_caledonia/d11.webp",
-    "corners": [
-     [
-      156.99676,
-      -19.61649
-     ],
-     [
-      164.15875,
-      -19.61649
-     ],
-     [
-      164.15875,
-      -24.71629
-     ],
-     [
-      156.99676,
-      -24.71629
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/new_caledonia/d12.webp",
-    "corners": [
-     [
-      164.15875,
-      -19.61649
-     ],
-     [
-      171.32074,
-      -19.61649
-     ],
-     [
-      171.32074,
-      -24.71629
-     ],
-     [
-      164.15875,
-      -24.71629
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/new_caledonia/d13.webp",
-    "corners": [
-     [
-      171.32074,
-      -19.61649
-     ],
-     [
-      178.48273,
-      -19.61649
-     ],
-     [
-      178.48273,
-      -24.71629
-     ],
-     [
-      171.32074,
-      -24.71629
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/new_caledonia/d20.webp",
-    "corners": [
-     [
-      149.83477,
-      -24.71629
-     ],
-     [
-      156.99676,
-      -24.71629
-     ],
-     [
-      156.99676,
-      -29.6155
-     ],
-     [
-      149.83477,
-      -29.6155
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/new_caledonia/d21.webp",
-    "corners": [
-     [
-      156.99676,
-      -24.71629
-     ],
-     [
-      164.15875,
-      -24.71629
-     ],
-     [
-      164.15875,
-      -29.6155
-     ],
-     [
-      156.99676,
-      -29.6155
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/new_caledonia/d22.webp",
-    "corners": [
-     [
-      164.15875,
-      -24.71629
-     ],
-     [
-      171.32074,
-      -24.71629
-     ],
-     [
-      171.32074,
-      -29.6155
-     ],
-     [
-      164.15875,
-      -29.6155
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/new_caledonia/d23.webp",
-    "corners": [
-     [
-      171.32074,
-      -24.71629
-     ],
-     [
-      178.48273,
-      -24.71629
-     ],
-     [
-      178.48273,
-      -29.6155
-     ],
-     [
-      171.32074,
-      -29.6155
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/new_caledonia/d30.webp",
-    "corners": [
-     [
-      149.83477,
-      -29.6155
-     ],
-     [
-      156.99676,
-      -29.6155
-     ],
-     [
-      156.99676,
-      -34.28775
-     ],
-     [
-      149.83477,
-      -34.28775
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/new_caledonia/d31.webp",
-    "corners": [
-     [
-      156.99676,
-      -29.6155
-     ],
-     [
-      164.15875,
-      -29.6155
-     ],
-     [
-      164.15875,
-      -34.28775
-     ],
-     [
-      156.99676,
-      -34.28775
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/new_caledonia/d32.webp",
-    "corners": [
-     [
-      164.15875,
-      -29.6155
-     ],
-     [
-      171.32074,
-      -29.6155
-     ],
-     [
-      171.32074,
-      -34.28775
-     ],
-     [
-      164.15875,
-      -34.28775
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/new_caledonia/d33.webp",
-    "corners": [
-     [
-      171.32074,
-      -29.6155
-     ],
-     [
-      178.48273,
-      -29.6155
-     ],
-     [
-      178.48273,
-      -34.28775
-     ],
-     [
-      171.32074,
-      -34.28775
-     ]
-    ]
-   }
   ]
  },
  "new_zealand": {
@@ -8906,23 +8350,6 @@
   "placed_by": "the scale bar and 2 towns",
   "scale_vs_bar": 1.0,
   "scale_bar_km_per_pt": 8.144,
-  "outline_check_km": 627.0,
-  "outline_fit": {
-   "key_colour": [
-    239,
-    230,
-    189
-   ],
-   "pixels": 1545,
-   "page_box": [
-    360.7,
-    116.0,
-    511.3,
-    428.0
-   ],
-   "width_ratio": 0.399,
-   "height_ratio": 0.558
-  },
   "looked_up_within": [
    150.749,
    -64.519,
@@ -9317,23 +8744,6 @@
   "placed_by": "12 names",
   "scale_vs_bar": 0.948,
   "scale_bar_km_per_pt": 4.7666,
-  "outline_check_km": 100.1,
-  "outline_fit": {
-   "key_colour": [
-    239,
-    230,
-    189
-   ],
-   "pixels": 1621,
-   "page_box": [
-    295.3,
-    208.7,
-    524.0,
-    538.7
-   ],
-   "width_ratio": 0.623,
-   "height_ratio": 0.75
-  },
   "looked_up_within": [
    109.094,
    -1.502,
@@ -10109,8 +9519,9 @@
   "title": "Southwest Australia",
   "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/southwest_australia.pdf",
   "labels": 1,
-  "kept": true,
-  "reason": "",
+  "kept": false,
+  "same_size": false,
+  "reason": "the hotspot drawn on the page is 0.92 of its outline's width and 0.89 of its height (both must be within 3%): it runs off the picture or is painted over",
   "corners": [
    [
     97.72434,
@@ -10160,345 +9571,6 @@
   ],
   "set_aside_as_countries": [
    "Australia"
-  ],
-  "image": "atlas/plates/southwest_australia.webp",
-  "detail": [
-   {
-    "image": "atlas/plates/southwest_australia/d00.webp",
-    "corners": [
-     [
-      97.72434,
-      -17.84434
-     ],
-     [
-      105.8972,
-      -17.84434
-     ],
-     [
-      105.8972,
-      -23.71882
-     ],
-     [
-      97.72434,
-      -23.71882
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/southwest_australia/d01.webp",
-    "corners": [
-     [
-      105.8972,
-      -17.84434
-     ],
-     [
-      114.07005,
-      -17.84434
-     ],
-     [
-      114.07005,
-      -23.71882
-     ],
-     [
-      105.8972,
-      -23.71882
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/southwest_australia/d02.webp",
-    "corners": [
-     [
-      114.07005,
-      -17.84434
-     ],
-     [
-      122.24291,
-      -17.84434
-     ],
-     [
-      122.24291,
-      -23.71882
-     ],
-     [
-      114.07005,
-      -23.71882
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/southwest_australia/d03.webp",
-    "corners": [
-     [
-      122.24291,
-      -17.84434
-     ],
-     [
-      130.41577,
-      -17.84434
-     ],
-     [
-      130.41577,
-      -23.71882
-     ],
-     [
-      122.24291,
-      -23.71882
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/southwest_australia/d10.webp",
-    "corners": [
-     [
-      97.72434,
-      -23.71882
-     ],
-     [
-      105.8972,
-      -23.71882
-     ],
-     [
-      105.8972,
-      -29.34027
-     ],
-     [
-      97.72434,
-      -29.34027
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/southwest_australia/d11.webp",
-    "corners": [
-     [
-      105.8972,
-      -23.71882
-     ],
-     [
-      114.07005,
-      -23.71882
-     ],
-     [
-      114.07005,
-      -29.34027
-     ],
-     [
-      105.8972,
-      -29.34027
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/southwest_australia/d12.webp",
-    "corners": [
-     [
-      114.07005,
-      -23.71882
-     ],
-     [
-      122.24291,
-      -23.71882
-     ],
-     [
-      122.24291,
-      -29.34027
-     ],
-     [
-      114.07005,
-      -29.34027
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/southwest_australia/d13.webp",
-    "corners": [
-     [
-      122.24291,
-      -23.71882
-     ],
-     [
-      130.41577,
-      -23.71882
-     ],
-     [
-      130.41577,
-      -29.34027
-     ],
-     [
-      122.24291,
-      -29.34027
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/southwest_australia/d20.webp",
-    "corners": [
-     [
-      97.72434,
-      -29.34027
-     ],
-     [
-      105.8972,
-      -29.34027
-     ],
-     [
-      105.8972,
-      -34.66813
-     ],
-     [
-      97.72434,
-      -34.66813
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/southwest_australia/d21.webp",
-    "corners": [
-     [
-      105.8972,
-      -29.34027
-     ],
-     [
-      114.07005,
-      -29.34027
-     ],
-     [
-      114.07005,
-      -34.66813
-     ],
-     [
-      105.8972,
-      -34.66813
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/southwest_australia/d22.webp",
-    "corners": [
-     [
-      114.07005,
-      -29.34027
-     ],
-     [
-      122.24291,
-      -29.34027
-     ],
-     [
-      122.24291,
-      -34.66813
-     ],
-     [
-      114.07005,
-      -34.66813
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/southwest_australia/d23.webp",
-    "corners": [
-     [
-      122.24291,
-      -29.34027
-     ],
-     [
-      130.41577,
-      -29.34027
-     ],
-     [
-      130.41577,
-      -34.66813
-     ],
-     [
-      122.24291,
-      -34.66813
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/southwest_australia/d30.webp",
-    "corners": [
-     [
-      97.72434,
-      -34.66813
-     ],
-     [
-      105.8972,
-      -34.66813
-     ],
-     [
-      105.8972,
-      -39.67424
-     ],
-     [
-      97.72434,
-      -39.67424
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/southwest_australia/d31.webp",
-    "corners": [
-     [
-      105.8972,
-      -34.66813
-     ],
-     [
-      114.07005,
-      -34.66813
-     ],
-     [
-      114.07005,
-      -39.67424
-     ],
-     [
-      105.8972,
-      -39.67424
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/southwest_australia/d32.webp",
-    "corners": [
-     [
-      114.07005,
-      -34.66813
-     ],
-     [
-      122.24291,
-      -34.66813
-     ],
-     [
-      122.24291,
-      -39.67424
-     ],
-     [
-      114.07005,
-      -39.67424
-     ]
-    ]
-   },
-   {
-    "image": "atlas/plates/southwest_australia/d33.webp",
-    "corners": [
-     [
-      122.24291,
-      -34.66813
-     ],
-     [
-      130.41577,
-      -34.66813
-     ],
-     [
-      130.41577,
-      -39.67424
-     ],
-     [
-      122.24291,
-      -39.67424
-     ]
-    ]
-   }
   ]
  },
  "succulent_karoo": {
@@ -10536,23 +9608,6 @@
   "placed_by": "the scale bar and 3 towns",
   "scale_vs_bar": 1.0,
   "scale_bar_km_per_pt": 2.5855,
-  "outline_check_km": 260.6,
-  "outline_fit": {
-   "key_colour": [
-    239,
-    230,
-    189
-   ],
-   "pixels": 20029,
-   "page_box": [
-    162.7,
-    78.7,
-    737.3,
-    513.3
-   ],
-   "width_ratio": 1.566,
-   "height_ratio": 1.141
-  },
   "looked_up_within": [
    12.949,
    -35.945,
@@ -10969,23 +10024,6 @@
   "placed_by": "32 names",
   "scale_vs_bar": 1.02,
   "scale_bar_km_per_pt": 6.708,
-  "outline_check_km": 821.1,
-  "outline_fit": {
-   "key_colour": [
-    239,
-    230,
-    189
-   ],
-   "pixels": 10503,
-   "page_box": [
-    317.5,
-    10.7,
-    768.8,
-    508.0
-   ],
-   "width_ratio": 0.975,
-   "height_ratio": 1.287
-  },
   "looked_up_within": [
    84.573,
    -19.054,
@@ -11404,23 +10442,6 @@
   "placed_by": "28 names",
   "scale_vs_bar": 0.97,
   "scale_bar_km_per_pt": 7.8566,
-  "outline_check_km": 100.7,
-  "outline_fit": {
-   "key_colour": [
-    239,
-    230,
-    189
-   ],
-   "pixels": 19147,
-   "page_box": [
-    552.8,
-    66.7,
-    799.4,
-    663.3
-   ],
-   "width_ratio": 0.939,
-   "height_ratio": 0.991
-  },
   "looked_up_within": [
    -85.109,
    -40.011,
@@ -11816,23 +10837,6 @@
   "placed_by": "the scale bar and 2 towns",
   "scale_vs_bar": 1.0,
   "scale_bar_km_per_pt": 4.9622,
-  "outline_check_km": 77.1,
-  "outline_fit": {
-   "key_colour": [
-    239,
-    230,
-    189
-   ],
-   "pixels": 12743,
-   "page_box": [
-    469.3,
-    208.0,
-    852.6,
-    539.3
-   ],
-   "width_ratio": 0.949,
-   "height_ratio": 0.872
-  },
   "looked_up_within": [
    111.068,
    -16.082,
@@ -12226,23 +11230,6 @@
   "placed_by": "8 names",
   "scale_vs_bar": 0.636,
   "scale_bar_km_per_pt": 5.702,
-  "outline_check_km": 772.8,
-  "outline_fit": {
-   "key_colour": [
-    239,
-    230,
-    189
-   ],
-   "pixels": 1246,
-   "page_box": [
-    86.8,
-    102.0,
-    744.1,
-    584.7
-   ],
-   "width_ratio": 3.674,
-   "height_ratio": 1.498
-  },
   "looked_up_within": [
    70.417,
    1.927,
