@@ -2047,6 +2047,43 @@ async function addPmtilesLayer(cfg) {
 
   // Both layers, not just the detail one: below the cluster threshold the
   // aggregate layer is the only thing on screen, and it was unclickable.
+  // An archive over GitHub's cap is cut by zoom into several files
+  // (pipeline/split_archive.py, <id>.build.json listing them). The first file
+  // is the source above; each further file gets its own source and its own
+  // copies of the two layers, drawn only at that file's zooms, so no zoom is
+  // drawn twice. Until the list answers, or if there is none, the first file
+  // draws alone as it always did.
+  fetch(url.replace(/\.pmtiles$/, ".build.json")).then((r) => (r.ok ? r.json() : null)).then((stamp) => {
+    const parts = pmShapeParts(url, stamp);
+    if (parts.length < 2) return;
+    cfg._layerIds = cfg._layerIds || [];
+    const first = parts[0];
+    for (const id of [`${cfg.id}-agg`, `${cfg.id}-pt`]) {
+      if (!map.getLayer(id)) continue;
+      const was = map.getLayer(id);
+      map.setLayerZoomRange(id, Math.max(was.minzoom || 0, first.minzoom), Math.min(was.maxzoom == null ? 24 : was.maxzoom, first.maxzoom));
+    }
+    parts.slice(1).forEach((part, i) => {
+      const psrc = `${src}-part${i + 2}`;
+      if (map.getSource(psrc)) return;
+      map.addSource(psrc, { type: "vector", url: `pmtiles://${part.url}` });
+      for (const kind of ["agg", "pt"]) {
+        const model = map.getLayer(`${cfg.id}-${kind}`);
+        if (!model) continue;
+        const lo = Math.max(model.minzoom || 0, part.minzoom), hi = Math.min(model.maxzoom == null ? 24 : model.maxzoom, part.maxzoom);
+        if (lo >= hi) continue;
+        const lid = `${cfg.id}-${kind}-part${i + 2}`;
+        const spec = { id: lid, type: "circle", source: psrc, "source-layer": owner, minzoom: lo, maxzoom: hi,
+          paint: Object.fromEntries(["circle-color", "circle-opacity", "circle-stroke-color", "circle-stroke-width", "circle-radius", "circle-blur"]
+            .map((k) => [k, map.getPaintProperty(`${cfg.id}-${kind}`, k)]).filter(([, v]) => v !== undefined)) };
+        if (cfg.where) spec.filter = cfg.where;
+        map.addLayer(spec, `${cfg.id}-${kind}`);
+        cfg._layerIds.push(lid);
+        if (cfg.boxes) bindHtmlPopup(lid, (p) => pieceBox(cfg, p)); else bindPopup(lid);
+      }
+    });
+    applyVisibility(cfg.id);
+  }).catch((e) => console.warn(`[culprits] ${cfg.id} build list: ${e.message}`));
   if (cfg.boxes) {
     // The points carry only an id, a title and a date; the record itself is in
     // the copy, in 256 pieces, and a click reads the one piece that holds it.

@@ -300,7 +300,9 @@ TILECHECK
 # MB decimal, which leaves ~4.6 MiB of headroom without crying wolf — an earlier
 # threshold of 99,000,000 flagged 95 and 96 MiB archives that fit perfectly well,
 # and a warning that fires on files which are fine teaches you to ignore it.
+# An archive over the cap is cut by zoom into files GitHub takes (the owner
+# chose no outside storage, 24 September); the map reads the parts list.
 if [ "$SIZE" -gt 100000000 ]; then
-  echo "::warning::${SOURCE}.pmtiles exceeds GitHub's 100 MB file limit — upload to R2 instead"
-  echo "$SOURCE" >> "$OUTDIR/.needs-r2"
+  echo "${SOURCE}.pmtiles is over GitHub's 100 MB cap; cutting it by zoom"
+  python3 "$(dirname "$0")/split_archive.py" "$OUT"
 fi

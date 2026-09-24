@@ -165,6 +165,22 @@ page, not yet on the Atlas's own pictures, whose hotspot fill may be shaded
 over by protected areas or see-through; `outline_fit` records the pixel count
 and the width and height ratios so a bad match shows.
 
+## No outside storage: oversized archives cut by zoom; every row's pieces kept (24 September)
+
+The 24 September refresh built every source and then died uploading the
+registered-facilities archive (101 MB) to R2, whose secrets are not set. The
+owner chose no second account and no data lost. `build_tiles.sh` now calls
+`pipeline/split_archive.py` on an archive over 100 MB: the mines' cut, by zoom
+into `<id>.pmtiles`, `<id>_2.pmtiles`..., each under 95 MB, a single zoom too
+big cut down a line of longitude, every tile counted before anything is kept,
+and `<id>.build.json` listing the parts. `addPmtilesLayer` reads that list
+(`pmShapeParts`) and gives each further file its own source and its own copies
+of the -agg and -pt layers at that file's zooms only. `.needs-r2` is no longer
+written, so the R2 step never runs. `PIECES_LIMIT` is 400 MB: the development
+projects' 401,100 whole rows (119 MB) are kept. Tested on a made-up archive
+cut into 13 files with all 17,635 tiles kept; the real 101 MB archive will cut
+into two.
+
 ## Atlas plates: one scale and one turn, checked against the page's scale bar (23 September, latest)
 
 Measured on the kept plates: the straight-line (affine) fit could skew and

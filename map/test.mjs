@@ -1962,6 +1962,11 @@ console.log("\ncolumns close in, a reload button, mines");
         cutUp[2].maxzoom === 24 && cutUp[3].maxzoom === 24 && cutUp[2].minzoom === 13);
   check("\u2026and a build with no list of files draws from the one archive, as before",
         pmShapeParts(mineUrl, null).length === 1 && pmShapeParts(mineUrl, { zoom: 11 })[0].url === mineUrl);
+  check("a point archive over GitHub's cap is cut by zoom by the pipeline, with no outside storage, and the points route draws each part at its own zooms",
+        /python3 "\$\(dirname "\$0"\)\/split_archive\.py" "\$OUT"/.test(fs.readFileSync(path.join(HERE, "..", "pipeline", "build_tiles.sh"), "utf8")) &&
+        !/needs-r2/.test(fs.readFileSync(path.join(HERE, "..", "pipeline", "build_tiles.sh"), "utf8").replace(/#[^\n]*/g, "")) &&
+        /const psrc = `\$\{src\}-part\$\{i \+ 2\}`/.test(src) && /`\$\{cfg\.id\}-\$\{kind\}-part\$\{i \+ 2\}`/.test(src) &&
+        /PIECES_LIMIT = 400 \* 1024 \* 1024/.test(fs.readFileSync(path.join(HERE, "..", "pipeline", "normalize.py"), "utf8")));
   check("\u2026the row reads that list and switches the extra files on and off with it",
         /\.build\.json/.test(src) && /cfg\._layerIds\.push\(lid\)/.test(src) && /setLayerZoomRange\(`\$\{cfg\.id\}-fill`/.test(src));
 }

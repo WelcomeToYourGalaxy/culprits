@@ -54,7 +54,7 @@ def shard(key):
 # TRACE is one row per source per period, millions of them. Their chosen
 # fields (extra) still reach the tiles; the whole row does not.
 PIECES_SKIP = {"climate_trace"}
-PIECES_LIMIT = 60 * 1024 * 1024
+PIECES_LIMIT = 400 * 1024 * 1024   # 256 files each, so the cap is repo size, not GitHub's per-file 100 MB; the owner chose to keep every row (24 September)
 
 
 def feature(source_id, ident, name, lon, lat, value=None, unit=None,
