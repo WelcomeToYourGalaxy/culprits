@@ -1,0 +1,5456 @@
+{
+ "_meta": {
+  "task": "set tier — cross-bucket country-level entries (completed)",
+  "source": "trackerdata.json depth-0 entries whose url appears in more than one country bucket, not already covered by the ASIA/LATAM/MECA/GAP results",
+  "method": "one decision per distinct url, applied to every bucket it appears in",
+  "count": 680,
+  "distinct_urls": 101,
+  "values_used": [
+   "international",
+   "national",
+   "state"
+  ]
+ },
+ "rows": [
+  {
+   "country": "AFG",
+   "url": "https://www.thegef.org/what-we-do/topics/gef-small-grants-program",
+   "name": "GEF Small Grants Programme — up to US$50,000 direct to communities",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "AFG",
+   "url": "https://digitallibrary.un.org/record/3998322",
+   "name": "PERAC Principles — protected zones when domestic machinery has stopped",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "AGO",
+   "url": "https://www.banktrack.org/page/team_up",
+   "name": "BankTrack — find out which banks finance the project, then use their own complaint channels",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "AGO",
+   "url": "https://apply.ruffordsmallgrants.org/help/criteria",
+   "name": "Rufford Small Grants — Azerbaijan is named eligible, and an individual can apply in their own name",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "AGO",
+   "url": "https://tis.sadc.int/key-documents/protocols/protocol-on-wildlife-conservation-and-law-enforcement/",
+   "name": "SADC Protocol on Wildlife Conservation and Law Enforcement",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "AGO",
+   "url": "https://www.southernafricalitigationcentre.org/",
+   "name": "Southern Africa Litigation Centre (SALC)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 12
+  },
+  {
+   "country": "AGO",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "ALA",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "ALA",
+   "url": "https://www.norden.org/en/information/how-apply-funding-nordic-council-ministers",
+   "name": "Nordic Council of Ministers — Greenland counts toward the three",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "ALB",
+   "url": "https://elaw.org/",
+   "name": "ELAW — Environmental Law Alliance Worldwide",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "ALB",
+   "url": "https://www.energy-community.org/enc-lex/cases/dispute.html",
+   "name": "Energy Community — private bodies may complain, and refusal is appealable",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "ALB",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "ALB",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "AND",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "ARE",
+   "url": "https://www.accountabilitycounsel.org/about-us/frequently-asked-questions-faqs/",
+   "name": "Accountability Counsel — Kuwait is a named dark spot, and the complaint route runs through the lender not the courts",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "ARE",
+   "url": "https://ropme.org/about-ropme/action-plan-legal-documents/",
+   "name": "Kuwait Regional Convention (ROPME) — and its Judicial Commission",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "ARE",
+   "url": "https://www.speciesconservation.org/biodiversity-nature-people/conservation-philanthropy/grants/",
+   "name": "MBZ Species Conservation Fund — frame it as species work, not climate",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "ARE",
+   "url": "https://www.gc4hr.org/",
+   "name": "Regional defenders' centre — the body to have contacted before anyone is detained, covering this country by name",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "ARE",
+   "url": "https://apply.ruffordsmallgrants.org/help/eligibility",
+   "name": "Rufford Small Grants — Oman is named eligible, and an individual can apply where the country has almost no organisations",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "ARM",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "ARM",
+   "url": "https://www.the-case.eu/",
+   "name": "CASE — referral to lawyers, campaign help and emergency funding when a lawsuit is used to silence you",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "ARM",
+   "url": "https://www.caucasus-naturefund.org/our-program/",
+   "name": "Caucasus Nature Fund — matches the state park budget, so cutting the park costs the state euros",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "ARM",
+   "url": "https://edlc.org/our-work/providing-resources/",
+   "name": "Environmental Defender Law Center — pro bono lawyers, case funding, and defence for defenders facing retaliatory suits",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "ARM",
+   "url": "https://www.frontlinedefenders.org/en/programme/protection-grants",
+   "name": "Front Line Defenders — a 24-hour line answered in Russian, and grants that pay the legal fees when you are the one being sued",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "ATG",
+   "url": "https://canari.org/",
+   "name": "CANARI — Caribbean Natural Resources Institute",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "ATG",
+   "url": "https://caribbeanbiodiversityfund.org/",
+   "name": "Caribbean Biodiversity Fund (CBF)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 7
+  },
+  {
+   "country": "AUS",
+   "url": "https://www.edo.org.au/",
+   "name": "Environmental Defenders Office (EDO) — public-interest environmental law",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "AUT",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "AUT",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "AUT",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "AUT",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "AUT",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "AUT",
+   "url": "https://justiceandenvironment.org/",
+   "name": "Justice and Environment — European green-law network",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 15
+  },
+  {
+   "country": "AZE",
+   "url": "https://www.banktrack.org/page/team_up",
+   "name": "BankTrack — find out which banks finance the project, then use their own complaint channels",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "AZE",
+   "url": "https://www.accessnow.org/help/",
+   "name": "Digital Security Helpline — free, 24 hours, answers within two hours, in Russian",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "AZE",
+   "url": "https://www.globalforestwatch.org/",
+   "name": "Global Forest Watch — free satellite monitoring of your own patch, with alerts by email",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "AZE",
+   "url": "https://www.iccaconsortium.org/join-the-consortium/",
+   "name": "ICCA Consortium — it names this country's own customary system, and takes unregistered members",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "AZE",
+   "url": "https://edlc.org/our-work/giving-grants/",
+   "name": "Money for the costs of the case — EDLC's litigation expenses fund, the only one of its type spanning the developing world, plus Global Greengrants' $500–$5,000 grants and the $5k–$15k legal-action window that pays for community security",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "AZE",
+   "url": "https://www.unesco.org/en/ihp/national-committees",
+   "name": "National hydrological committee chair — a named route into the water authority",
+   "tier": "national",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "AZE",
+   "url": "https://aleph.occrp.org/",
+   "name": "OCCRP Aleph",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "AZE",
+   "url": "https://osme.org/grants/",
+   "name": "OSME Conservation Fund — small grants across this whole region, and about half of applications succeed",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 4
+  },
+  {
+   "country": "AZE",
+   "url": "https://apply.ruffordsmallgrants.org/help/criteria",
+   "name": "Rufford Small Grants — Azerbaijan is named eligible, and an individual can apply in their own name",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "BDI",
+   "url": "https://www.accountabilitycounsel.org/about-us/communities-approach/",
+   "name": "Accountability Counsel — the legal non-profit that takes cases only when a community asks first, publishes the criteria it screens by, refers on what it cannot take — and runs a free database of every community complaint ever filed against an internationally financed project",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 1
+  },
+  {
+   "country": "BDI",
+   "url": "https://comifac.org/plan-de-convergence/",
+   "name": "COMIFAC Treaty and Plan de Convergence — and its community protocol",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "BDI",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "BEL",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "BEL",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "BEL",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "BEL",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "BEL",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "BEN",
+   "url": "https://www.inclusivedevelopment.net/follow-the-money-investigations/",
+   "name": "Inclusive Development International — it traces who is actually financing a project, on request from the community",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 7
+  },
+  {
+   "country": "BEN",
+   "url": "https://orfao.uemoa.int/sites/default/files/2026-04/ipar-uemoa-_rapport_sur_les_marches_fonciers_ruraux_en_afrique_de_l_oues_et_les_outils_de_leurs_regulations.pdf",
+   "name": "ORFAO — comparative land-law tables, and a directive in draft",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "BEN",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "BFA",
+   "url": "https://envirodefenders.africa/",
+   "name": "African Environmental Defenders Fund (emergency grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 9
+  },
+  {
+   "country": "BFA",
+   "url": "https://www.bothends.org/en/Our-work/Dossiers/Small-Grants-Big-Impacts/",
+   "name": "Both ENDS — small grants funds for environmental defenders",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "BFA",
+   "url": "https://naturaljustice.org/",
+   "name": "Natural Justice: Lawyers for Communities and the Environment",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 9
+  },
+  {
+   "country": "BFA",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "BGD",
+   "url": "https://foeasiapacific.org/",
+   "name": "Friends of the Earth Asia Pacific",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "BGR",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "BGR",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "BGR",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "BGR",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "BGR",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "BGR",
+   "url": "https://justiceandenvironment.org/",
+   "name": "Justice and Environment — European green-law network",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 15
+  },
+  {
+   "country": "BGR",
+   "url": "https://www.environmentalpartnership.org/Who-we-are/Nadace-Partnerstvi-(CZE)",
+   "name": "Nadace Partnerství — Czech Environmental Partnership Foundation",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "BHR",
+   "url": "https://www.accountabilitycounsel.org/about-us/frequently-asked-questions-faqs/",
+   "name": "Accountability Counsel — Kuwait is a named dark spot, and the complaint route runs through the lender not the courts",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "BHR",
+   "url": "https://www.inclusivedevelopment.net/follow-the-money-investigations/",
+   "name": "Inclusive Development International — it traces who is actually financing a project, on request from the community",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 7
+  },
+  {
+   "country": "BHR",
+   "url": "https://ropme.org/about-ropme/action-plan-legal-documents/",
+   "name": "Kuwait Regional Convention (ROPME) — and its Judicial Commission",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "BHR",
+   "url": "https://www.speciesconservation.org/biodiversity-nature-people/conservation-philanthropy/grants/",
+   "name": "MBZ Species Conservation Fund — frame it as species work, not climate",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "BHR",
+   "url": "https://www.gc4hr.org/",
+   "name": "Regional defenders' centre — the body to have contacted before anyone is detained, covering this country by name",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "BHR",
+   "url": "https://apply.ruffordsmallgrants.org/help/criteria",
+   "name": "Rufford Small Grants — Azerbaijan is named eligible, and an individual can apply in their own name",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "BHR",
+   "url": "https://www.speciesconservation.org/biodiversity-nature-people/conservation-philanthropy/grants/application-criteria/",
+   "name": "Species conservation grants — an individual can apply, and unlisted species count",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 4
+  },
+  {
+   "country": "BHS",
+   "url": "https://caribbeanbiodiversityfund.org/",
+   "name": "Caribbean Biodiversity Fund (CBF)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 7
+  },
+  {
+   "country": "BHS",
+   "url": "https://www.cepf.net/grants/before-you-apply",
+   "name": "Critical Ecosystem Partnership Fund (CEPF)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 4
+  },
+  {
+   "country": "BIH",
+   "url": "https://elaw.org/",
+   "name": "ELAW — Environmental Law Alliance Worldwide",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "BIH",
+   "url": "https://www.energy-community.org/enc-lex/cases/dispute.html",
+   "name": "Energy Community — private bodies may complain, and refusal is appealable",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "BIH",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "BIH",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "BIH",
+   "url": "https://justiceandenvironment.org/",
+   "name": "Justice and Environment — European green-law network",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 15
+  },
+  {
+   "country": "BLZ",
+   "url": "https://caribbeanbiodiversityfund.org/who-we-are/",
+   "name": "Caribbean Biodiversity Fund — regional conservation finance",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "BLZ",
+   "url": "https://marfund.org/en/small-grants-program/",
+   "name": "MAR Fund — Small Grants Program (Mesoamerican Reef)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 4
+  },
+  {
+   "country": "BMU",
+   "url": "https://darwinplus.org.uk/",
+   "name": "Darwin Plus — an individual can lead and take £20,000",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 4
+  },
+  {
+   "country": "BOL",
+   "url": "https://coicamazonia.org/",
+   "name": "COICA — Coordinadora de las Organizaciones Indígenas de la Cuenca Amazónica",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "BRA",
+   "url": "https://coicamazonia.org/",
+   "name": "COICA — Coordinadora de las Organizaciones Indígenas de la Cuenca Amazónica",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "BRA",
+   "url": "https://inece.org/",
+   "name": "INECE — not where you report, but how you find who enforces",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "BRB",
+   "url": "https://canari.org/",
+   "name": "CANARI — Caribbean Natural Resources Institute",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "BRB",
+   "url": "https://caribbeanbiodiversityfund.org/",
+   "name": "Caribbean Biodiversity Fund (CBF)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 7
+  },
+  {
+   "country": "BWA",
+   "url": "https://envirodefenders.africa/",
+   "name": "African Environmental Defenders Fund (emergency grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 9
+  },
+  {
+   "country": "BWA",
+   "url": "https://naturaljustice.org/",
+   "name": "Natural Justice: Lawyers for Communities and the Environment",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 9
+  },
+  {
+   "country": "BWA",
+   "url": "https://www.southernafricalitigationcentre.org/",
+   "name": "Southern Africa Litigation Centre (SALC)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 12
+  },
+  {
+   "country": "BWA",
+   "url": "https://www.uaf-africa.org/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "CAF",
+   "url": "https://au.int/en/treaties/african-convention-conservation-nature-and-natural-resources-revised-version",
+   "name": "African Convention on Nature — check WHICH version binds your state",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 9
+  },
+  {
+   "country": "CAF",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "CAN",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "CHE",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "CHE",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "CHE",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "CHE",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "CHE",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "CHE",
+   "url": "https://www.kvu.ch/de/adressen",
+   "name": "KVU — your cantonal environment office, and the regional conference above it",
+   "tier": "state",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "CHL",
+   "url": "https://aida-americas.org/",
+   "name": "AIDA — Interamerican Association for Environmental Defense",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "CHL",
+   "url": "https://inece.org/",
+   "name": "INECE — not where you report, but how you find who enforces",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "CIV",
+   "url": "https://orfao.uemoa.int/sites/default/files/2026-04/ipar-uemoa-_rapport_sur_les_marches_fonciers_ruraux_en_afrique_de_l_oues_et_les_outils_de_leurs_regulations.pdf",
+   "name": "ORFAO — comparative land-law tables, and a directive in draft",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "CIV",
+   "url": "https://www.uaf-africa.org/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "CMR",
+   "url": "https://comifac.org/plan-de-convergence/",
+   "name": "COMIFAC Treaty and Plan de Convergence — and its community protocol",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "CMR",
+   "url": "https://www.greengrants.org/faqs/",
+   "name": "Global Greengrants — you cannot apply to it; an advisor who lives in the region has to find you",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "CMR",
+   "url": "https://www.uaf-africa.org/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "COD",
+   "url": "https://tis.sadc.int/key-documents/protocols/protocol-on-wildlife-conservation-and-law-enforcement/",
+   "name": "SADC Protocol on Wildlife Conservation and Law Enforcement",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "COD",
+   "url": "https://www.southernafricalitigationcentre.org/",
+   "name": "Southern Africa Litigation Centre (SALC)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 12
+  },
+  {
+   "country": "COD",
+   "url": "https://www.uaf-africa.org/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "COG",
+   "url": "https://comifac.org/plan-de-convergence/",
+   "name": "COMIFAC Treaty and Plan de Convergence — and its community protocol",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "COG",
+   "url": "https://protectdefenders.eu/protecting-defenders/",
+   "name": "ProtectDefenders.eu — an individual can ask without an organisation, in Russian, at any hour",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "COG",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "COK",
+   "url": "https://elaw.org/",
+   "name": "ELAW — Environmental Law Alliance Worldwide",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "COK",
+   "url": "https://www.communitymatters.govt.nz/pacific-development-and-conservation-trust-2",
+   "name": "Pacific Development and Conservation Trust — citizens may apply",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 11
+  },
+  {
+   "country": "COK",
+   "url": "https://www.cepf.net/our-work/biodiversity-hotspots/polynesia-micronesia",
+   "name": "Pacific Development and Conservation Trust — individuals can apply",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "COK",
+   "url": "https://www.unodc.org/roseap/uploads/archive/documents/pacific/2020/UN-PRAC_Paper_-_Status_of_Right_to_Information_in_Pacific_Island_Countries.pdf",
+   "name": "Right to information — what your country actually has",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "COK",
+   "url": "https://www.sprep.org/attachments/Publications/EMG/regional-eia-guidelines.pdf",
+   "name": "SPREP EIA and SEA guidelines — intervene at scoping, not after",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "COK",
+   "url": "https://www.sprep.org/about-us",
+   "name": "SPREP — three conventions, and 26 members is not 12 parties",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "COK",
+   "url": "https://www.sprep.org/convention-secretariat/waigani-convention",
+   "name": "Waigani Convention — radioactive waste, and 200 miles not 12",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "COL",
+   "url": "https://aida-americas.org/",
+   "name": "AIDA — Interamerican Association for Environmental Defense",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "COL",
+   "url": "https://coicamazonia.org/",
+   "name": "COICA — Coordinadora de las Organizaciones Indígenas de la Cuenca Amazónica",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "COM",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "CPV",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "CRI",
+   "url": "https://aida-americas.org/",
+   "name": "AIDA — Interamerican Association for Environmental Defense",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "CUB",
+   "url": "https://caribbeanbiodiversityfund.org/where-we-work/",
+   "name": "Caribbean Biodiversity Fund (CBF)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "CYP",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "CYP",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "CYP",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "CYP",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "CYP",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "CZE",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "CZE",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "CZE",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "CZE",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "CZE",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "CZE",
+   "url": "https://justiceandenvironment.org/",
+   "name": "Justice and Environment — European green-law network",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 15
+  },
+  {
+   "country": "CZE",
+   "url": "https://www.environmentalpartnership.org/Who-we-are/Nadace-Partnerstvi-(CZE)",
+   "name": "Nadace Partnerství — Czech Environmental Partnership Foundation",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "DEU",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "DEU",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "DEU",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "DEU",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "DEU",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "DEU",
+   "url": "https://justiceandenvironment.org/",
+   "name": "Justice and Environment — European green-law network",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 15
+  },
+  {
+   "country": "DJI",
+   "url": "https://au.int/en/treaties/african-convention-conservation-nature-and-natural-resources-revised-version",
+   "name": "African Convention on Nature — check WHICH version binds your state",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 9
+  },
+  {
+   "country": "DJI",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "DMA",
+   "url": "https://canari.org/",
+   "name": "CANARI — Caribbean Natural Resources Institute",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "DMA",
+   "url": "https://caribbeanbiodiversityfund.org/who-we-are/",
+   "name": "Caribbean Biodiversity Fund — regional conservation finance",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "DNK",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "DNK",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "DNK",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "DNK",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "DNK",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "DOM",
+   "url": "https://caribbeanbiodiversityfund.org/",
+   "name": "Caribbean Biodiversity Fund (CBF)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 7
+  },
+  {
+   "country": "DOM",
+   "url": "https://www.cepf.net/grants/before-you-apply",
+   "name": "Critical Ecosystem Partnership Fund (CEPF)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 4
+  },
+  {
+   "country": "DZA",
+   "url": "https://au.int/en/treaties/african-convention-conservation-nature-and-natural-resources-revised-version",
+   "name": "African Convention on Nature — check WHICH version binds your state",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 9
+  },
+  {
+   "country": "DZA",
+   "url": "https://ejatlas.org/about",
+   "name": "The Environmental Justice Atlas — 2,100 community struggles searchable across 100 fields including commodity, company and outcome, with published inclusion criteria and an open invitation to submit your own case",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 1
+  },
+  {
+   "country": "DZA",
+   "url": "https://www.uaf-africa.org/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "ECU",
+   "url": "https://coicamazonia.org/",
+   "name": "COICA — Coordinadora de las Organizaciones Indígenas de la Cuenca Amazónica",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "EGY",
+   "url": "https://au.int/en/treaties/african-convention-conservation-nature-and-natural-resources-revised-version",
+   "name": "African Convention on Nature — check WHICH version binds your state",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 9
+  },
+  {
+   "country": "EGY",
+   "url": "https://www.uaf-africa.org/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "ERI",
+   "url": "https://au.int/en/treaties/african-convention-conservation-nature-and-natural-resources-revised-version",
+   "name": "African Convention on Nature — check WHICH version binds your state",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 9
+  },
+  {
+   "country": "ERI",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "ESP",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "ESP",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "ESP",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "ESP",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "ESP",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "ESP",
+   "url": "https://justiceandenvironment.org/",
+   "name": "Justice and Environment — European green-law network",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 15
+  },
+  {
+   "country": "EST",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "EST",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "EST",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "EST",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "EST",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "EST",
+   "url": "https://justiceandenvironment.org/",
+   "name": "Justice and Environment — European green-law network",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 15
+  },
+  {
+   "country": "ETH",
+   "url": "https://au.int/en/treaties/african-convention-conservation-nature-and-natural-resources-revised-version",
+   "name": "African Convention on Nature — check WHICH version binds your state",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 9
+  },
+  {
+   "country": "ETH",
+   "url": "https://www.uaf-africa.org/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "FIN",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "FIN",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "FIN",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "FIN",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "FIN",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "FJI",
+   "url": "https://elaw.org/",
+   "name": "ELAW — Environmental Law Alliance Worldwide",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "FJI",
+   "url": "https://www.edo.org.au/",
+   "name": "Environmental Defenders Office (EDO) — public-interest environmental law",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "FJI",
+   "url": "https://nakau.org/projects",
+   "name": "Nakau — income instead of logging, with the land staying with the clans",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "FJI",
+   "url": "https://www.communitymatters.govt.nz/pacific-development-and-conservation-trust-2",
+   "name": "Pacific Development and Conservation Trust — citizens may apply",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 11
+  },
+  {
+   "country": "FJI",
+   "url": "https://www.unodc.org/roseap/uploads/archive/documents/pacific/2020/UN-PRAC_Paper_-_Status_of_Right_to_Information_in_Pacific_Island_Countries.pdf",
+   "name": "Right to information — what your country actually has",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "FJI",
+   "url": "https://www.sprep.org/attachments/Publications/EMG/regional-eia-guidelines.pdf",
+   "name": "SPREP EIA and SEA guidelines — intervene at scoping, not after",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "FJI",
+   "url": "https://www.sprep.org/about-us",
+   "name": "SPREP — three conventions, and 26 members is not 12 parties",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "FJI",
+   "url": "https://www.sprep.org/convention-secretariat/waigani-convention",
+   "name": "Waigani Convention — radioactive waste, and 200 miles not 12",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "FLK",
+   "url": "https://darwinplus.org.uk/",
+   "name": "Darwin Plus — an individual can lead and take £20,000",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 4
+  },
+  {
+   "country": "FRA",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "FRA",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "FRA",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "FRA",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "FRO",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "FSM",
+   "url": "https://elaw.org/",
+   "name": "ELAW — Environmental Law Alliance Worldwide",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "FSM",
+   "url": "https://www.ourmicronesia.org/",
+   "name": "Micronesia Conservation Trust (MCT)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "FSM",
+   "url": "https://sdgs.un.org/partnerships/micronesia-challenge",
+   "name": "Micronesia Conservation Trust and your national society — who funds and who acts",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "FSM",
+   "url": "https://www.unodc.org/roseap/uploads/archive/documents/pacific/2020/UN-PRAC_Paper_-_Status_of_Right_to_Information_in_Pacific_Island_Countries.pdf",
+   "name": "Right to information — what your country actually has",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "FSM",
+   "url": "https://www.sprep.org/attachments/Publications/EMG/regional-eia-guidelines.pdf",
+   "name": "SPREP EIA and SEA guidelines — intervene at scoping, not after",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "FSM",
+   "url": "https://www.sprep.org/about-us",
+   "name": "SPREP — three conventions, and 26 members is not 12 parties",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "FSM",
+   "url": "https://www.sprep.org/convention-secretariat/waigani-convention",
+   "name": "Waigani Convention — radioactive waste, and 200 miles not 12",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "GAB",
+   "url": "https://comifac.org/plan-de-convergence/",
+   "name": "COMIFAC Treaty and Plan de Convergence — and its community protocol",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "GAB",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "GBR",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "GBR",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "GBR",
+   "url": "https://inece.org/",
+   "name": "INECE — not where you report, but how you find who enforces",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "GBR",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "GEO",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "GEO",
+   "url": "https://www.the-case.eu/",
+   "name": "CASE — referral to lawyers, campaign help and emergency funding when a lawsuit is used to silence you",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "GEO",
+   "url": "https://www.caucasus-naturefund.org/our-program/",
+   "name": "Caucasus Nature Fund — matches the state park budget, so cutting the park costs the state euros",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "GEO",
+   "url": "https://elaw.org/",
+   "name": "ELAW — Environmental Law Alliance Worldwide",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "GEO",
+   "url": "https://www.frontlinedefenders.org/en/programme/protection-grants",
+   "name": "Front Line Defenders — a 24-hour line answered in Russian, and grants that pay the legal fees when you are the one being sued",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "GEO",
+   "url": "https://www.iucn.nl/en/project/land-acquisition-fund/",
+   "name": "IUCN NL Land Acquisition Fund — it pays for long-term rights over land, not only for buying it",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 4
+  },
+  {
+   "country": "GEO",
+   "url": "https://www.inclusivedevelopment.net/follow-the-money-investigations/",
+   "name": "Inclusive Development International — it traces who is actually financing a project, on request from the community",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 7
+  },
+  {
+   "country": "GHA",
+   "url": "https://sgp.undp.org/",
+   "name": "GEF Small Grants Programme, Ghana — grants straight to community organisations, up to about US$30,000, no intermediary NGO required",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 1
+  },
+  {
+   "country": "GHA",
+   "url": "https://www.uaf-africa.org/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "GIB",
+   "url": "https://darwinplus.org.uk/",
+   "name": "Darwin Plus — an individual can lead and take £20,000",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 4
+  },
+  {
+   "country": "GIN",
+   "url": "https://envirodefenders.africa/",
+   "name": "African Environmental Defenders Fund (emergency grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 9
+  },
+  {
+   "country": "GIN",
+   "url": "https://naturaljustice.org/",
+   "name": "Natural Justice: Lawyers for Communities and the Environment",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 9
+  },
+  {
+   "country": "GIN",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "GLOBAL",
+   "url": "https://www.cepf.net/grants/open-calls-for-proposals/2026-third-cfp-mediterranean-basin",
+   "name": "CEPF Mediterranean Basin — Palestine is named eligible in current calls, and this is the first funding route recorded here",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "GLOBAL",
+   "url": "https://protectdefenders.eu/protecting-defenders/",
+   "name": "ProtectDefenders.eu — an individual can ask without an organisation, in Russian, at any hour",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "GMB",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "GNB",
+   "url": "https://orfao.uemoa.int/sites/default/files/2026-04/ipar-uemoa-_rapport_sur_les_marches_fonciers_ruraux_en_afrique_de_l_oues_et_les_outils_de_leurs_regulations.pdf",
+   "name": "ORFAO — comparative land-law tables, and a directive in draft",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "GNB",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "GNQ",
+   "url": "https://comifac.org/plan-de-convergence/",
+   "name": "COMIFAC Treaty and Plan de Convergence — and its community protocol",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "GNQ",
+   "url": "https://www.frontlinedefenders.org/en/programme/protection-grants",
+   "name": "Front Line Defenders — a 24-hour line answered in Russian, and grants that pay the legal fees when you are the one being sued",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "GNQ",
+   "url": "https://www.thegef.org/what-we-do/topics/gef-small-grants-program",
+   "name": "GEF Small Grants Programme — up to US$50,000 direct to communities",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "GNQ",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "GRC",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "GRC",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "GRC",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "GRC",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "GRC",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "GRC",
+   "url": "https://justiceandenvironment.org/",
+   "name": "Justice and Environment — European green-law network",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 15
+  },
+  {
+   "country": "GRD",
+   "url": "https://canari.org/",
+   "name": "CANARI — Caribbean Natural Resources Institute",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "GRD",
+   "url": "https://caribbeanbiodiversityfund.org/who-we-are/",
+   "name": "Caribbean Biodiversity Fund — regional conservation finance",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "GRL",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "GRL",
+   "url": "https://www.norden.org/en/information/how-apply-funding-nordic-council-ministers",
+   "name": "Nordic Council of Ministers — Greenland counts toward the three",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "GTM",
+   "url": "https://marfund.org/en/small-grants-program/",
+   "name": "MAR Fund — Small Grants Program (Mesoamerican Reef)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 4
+  },
+  {
+   "country": "GUY",
+   "url": "https://coicamazonia.org/",
+   "name": "COICA — Coordinadora de las Organizaciones Indígenas de la Cuenca Amazónica",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "GUY",
+   "url": "https://caribbeanbiodiversityfund.org/who-we-are/",
+   "name": "Caribbean Biodiversity Fund — regional conservation finance",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "HND",
+   "url": "https://marfund.org/en/small-grants-program/",
+   "name": "MAR Fund — Small Grants Program (Mesoamerican Reef)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 4
+  },
+  {
+   "country": "HRV",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "HRV",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "HRV",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "HRV",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "HRV",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "HRV",
+   "url": "https://justiceandenvironment.org/",
+   "name": "Justice and Environment — European green-law network",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 15
+  },
+  {
+   "country": "HTI",
+   "url": "https://caribbeanbiodiversityfund.org/",
+   "name": "Caribbean Biodiversity Fund (CBF)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 7
+  },
+  {
+   "country": "HTI",
+   "url": "https://www.cepf.net/grants/before-you-apply",
+   "name": "Critical Ecosystem Partnership Fund (CEPF)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 4
+  },
+  {
+   "country": "HUN",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "HUN",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "HUN",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "HUN",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "HUN",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "HUN",
+   "url": "https://justiceandenvironment.org/",
+   "name": "Justice and Environment — European green-law network",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 15
+  },
+  {
+   "country": "HUN",
+   "url": "https://www.environmentalpartnership.org/Who-we-are/Nadace-Partnerstvi-(CZE)",
+   "name": "Nadace Partnerství — Czech Environmental Partnership Foundation",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "IDN",
+   "url": "https://foeasiapacific.org/",
+   "name": "Friends of the Earth Asia Pacific",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "IDN",
+   "url": "https://www.samdhana.org/program/grants",
+   "name": "The Samdhana Institute — grants programme",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "IND",
+   "url": "https://foeasiapacific.org/",
+   "name": "Friends of the Earth Asia Pacific",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "IRL",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "IRL",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "IRL",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "IRL",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "IRN",
+   "url": "https://browser.dataspace.copernicus.eu/",
+   "name": "Copernicus Browser — free satellite imagery you can compare across dates, from any browser",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "IRN",
+   "url": "https://www.accessnow.org/help/",
+   "name": "Digital Security Helpline — free, 24 hours, answers within two hours, in Russian",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "IRN",
+   "url": "https://www.iccaconsortium.org/join-the-consortium/",
+   "name": "ICCA Consortium — it names this country's own customary system, and takes unregistered members",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "IRN",
+   "url": "https://ropme.org/about-ropme/action-plan-legal-documents/",
+   "name": "Kuwait Regional Convention (ROPME) — and its Judicial Commission",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "IRN",
+   "url": "https://osme.org/grants/",
+   "name": "OSME Conservation Fund — small grants across this whole region, and about half of applications succeed",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 4
+  },
+  {
+   "country": "IRN",
+   "url": "https://www.inaturalist.org/pages/about",
+   "name": "iNaturalist — photograph what lives on the ground, and it becomes a scientific record",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "IRQ",
+   "url": "https://elaw.org/",
+   "name": "ELAW — Environmental Law Alliance Worldwide",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "IRQ",
+   "url": "https://globalfundcommunityfoundations.org/what-we-do/grants/",
+   "name": "Global Fund for Community Foundations — it pays to build the local fund, not just the project",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "IRQ",
+   "url": "https://www.cltweb.org/",
+   "name": "International Center for Community Land Trusts — how a community comes to own its land permanently",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "IRQ",
+   "url": "https://ropme.org/about-ropme/action-plan-legal-documents/",
+   "name": "Kuwait Regional Convention (ROPME) — and its Judicial Commission",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "IRQ",
+   "url": "https://www.csolifeline.org/",
+   "name": "Lifeline Embattled CSO Assistance Fund — the embattled-organisation fund that names land rights and environmental groups as a priority — three grant types covering trial monitoring, prison visits and equipment replacement, with unregistered groups of two or more eligible, and the published amounts across four funds",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "IRQ",
+   "url": "https://apply.ruffordsmallgrants.org/help/criteria",
+   "name": "Rufford Small Grants — Azerbaijan is named eligible, and an individual can apply in their own name",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "ISL",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "ISL",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "ISL",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "ISL",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "ISL",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "ISR",
+   "url": "https://ecopeaceme.org/",
+   "name": "EcoPeace Middle East",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "ISR",
+   "url": "https://medpan.org/en/medpan-network",
+   "name": "MedPAN — a Mediterranean fund this country is actually eligible for",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "ISR",
+   "url": "https://www.unesco.org/en/ihp/national-committees",
+   "name": "National hydrological committee chair — a named route into the water authority",
+   "tier": "national",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "ITA",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "ITA",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "ITA",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "ITA",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "JAM",
+   "url": "https://canari.org/",
+   "name": "CANARI — Caribbean Natural Resources Institute",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "JAM",
+   "url": "https://caribbeanbiodiversityfund.org/who-we-are/",
+   "name": "Caribbean Biodiversity Fund — regional conservation finance",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "JOR",
+   "url": "https://www.birdlife.org/middle-east/projects/hima-traditional-land-designation",
+   "name": "BirdLife Hima Fund — grants for Important Bird Areas, but you apply through RSCN, not directly",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "JOR",
+   "url": "https://www.cepf.net/grants/open-calls-for-proposals/2026-mediterranean-basin-call-for-letters-of-inquiry-for-large-grants",
+   "name": "CEPF Mediterranean Basin — live calls with published deadlines, and Jordan is named eligible in both",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "JOR",
+   "url": "https://ecopeaceme.org/",
+   "name": "EcoPeace Middle East",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "JOR",
+   "url": "https://www.globalforestwatch.org/",
+   "name": "Global Forest Watch — free satellite monitoring of your own patch, with alerts by email",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "JOR",
+   "url": "https://menarights.org/en/about/what-we-do",
+   "name": "International legal representation — a body that takes your case to UN mechanisms, and has filed on this country",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "JOR",
+   "url": "https://petranationaltrust.org/",
+   "name": "Petra National Trust — the country's oldest heritage organisation, and an annual award that funds heritage projects",
+   "tier": "national",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "JPN",
+   "url": "https://foeasiapacific.org/",
+   "name": "Friends of the Earth Asia Pacific",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "KAZ",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "KAZ",
+   "url": "https://carecnet.org/about-carec/?lang=en",
+   "name": "CAREC — two organisations share the name, neither is a grant fund",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "KAZ",
+   "url": "https://www.cepf.net/our-work/biodiversity-hotspots/mountains-central-asia",
+   "name": "CEPF Mountains of Central Asia — Kazakhstan is a named eligible country, and a new grant portfolio opened in 2026",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "KAZ",
+   "url": "https://elaw.org/",
+   "name": "ELAW — Environmental Law Alliance Worldwide",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "KAZ",
+   "url": "https://edlc.org/our-work/providing-resources/",
+   "name": "Environmental Defender Law Center — pro bono lawyers, case funding, and defence for defenders facing retaliatory suits",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "KAZ",
+   "url": "https://www.thegef.org/what-we-do/topics/gef-small-grants-program",
+   "name": "GEF Small Grants Programme — up to US$50,000 direct to communities",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "KAZ",
+   "url": "https://www.cltweb.org/",
+   "name": "International Center for Community Land Trusts — how a community comes to own its land permanently",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "KAZ",
+   "url": "https://www.unesco.org/en/ihp/national-committees",
+   "name": "National hydrological committee chair — a named route into the water authority",
+   "tier": "national",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "KAZ",
+   "url": "https://protectdefenders.eu/protecting-defenders/",
+   "name": "ProtectDefenders.eu — an individual can ask without an organisation, in Russian, at any hour",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "KEN",
+   "url": "https://envirodefenders.africa/",
+   "name": "African Environmental Defenders Fund (emergency grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 9
+  },
+  {
+   "country": "KEN",
+   "url": "https://naturaljustice.org/",
+   "name": "Natural Justice: Lawyers for Communities and the Environment",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 9
+  },
+  {
+   "country": "KEN",
+   "url": "https://www.uaf-africa.org/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "KGZ",
+   "url": "https://carecnet.org/about-carec/?lang=en",
+   "name": "CAREC — two organisations share the name, neither is a grant fund",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "KGZ",
+   "url": "https://www.cepf.net/",
+   "name": "CEPF Mountains of Central Asia — small grants averaging about $15,000 direct to community groups, but your project must map to a strategic direction",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "KGZ",
+   "url": "https://www.thegef.org/what-we-do/topics/gef-small-grants-program",
+   "name": "GEF Small Grants Programme — up to US$50,000 direct to communities",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "KGZ",
+   "url": "https://www.greengrants.org/faqs/",
+   "name": "Global Greengrants — you cannot apply to it; an advisor who lives in the region has to find you",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "KGZ",
+   "url": "https://www.iucn.nl/en/project/land-acquisition-fund/",
+   "name": "IUCN NL Land Acquisition Fund — it pays for long-term rights over land, not only for buying it",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 4
+  },
+  {
+   "country": "KGZ",
+   "url": "https://docs.mapeo.app/",
+   "name": "Mapeo — a free offline app for a community to map its own land and keep the record",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "KGZ",
+   "url": "https://protectdefenders.eu/protecting-defenders/",
+   "name": "ProtectDefenders.eu — an individual can ask without an organisation, in Russian, at any hour",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "KIR",
+   "url": "https://elaw.org/",
+   "name": "ELAW — Environmental Law Alliance Worldwide",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "KIR",
+   "url": "https://www.communitymatters.govt.nz/pacific-development-and-conservation-trust-2",
+   "name": "Pacific Development and Conservation Trust — citizens may apply",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 11
+  },
+  {
+   "country": "KIR",
+   "url": "https://www.unodc.org/roseap/uploads/archive/documents/pacific/2020/UN-PRAC_Paper_-_Status_of_Right_to_Information_in_Pacific_Island_Countries.pdf",
+   "name": "Right to information — what your country actually has",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "KIR",
+   "url": "https://www.sprep.org/attachments/Publications/EMG/regional-eia-guidelines.pdf",
+   "name": "SPREP EIA and SEA guidelines — intervene at scoping, not after",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "KIR",
+   "url": "https://www.sprep.org/convention-secretariat/waigani-convention",
+   "name": "Waigani Convention — radioactive waste, and 200 miles not 12",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "KNA",
+   "url": "https://caribbeanbiodiversityfund.org/",
+   "name": "Caribbean Biodiversity Fund (CBF)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 7
+  },
+  {
+   "country": "KNA",
+   "url": "https://www.cepf.net/grants/before-you-apply",
+   "name": "Critical Ecosystem Partnership Fund (CEPF)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 4
+  },
+  {
+   "country": "KOR",
+   "url": "https://foeasiapacific.org/",
+   "name": "Friends of the Earth Asia Pacific",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "KWT",
+   "url": "https://www.accountabilitycounsel.org/about-us/frequently-asked-questions-faqs/",
+   "name": "Accountability Counsel — Kuwait is a named dark spot, and the complaint route runs through the lender not the courts",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "KWT",
+   "url": "https://www.inclusivedevelopment.net/follow-the-money-investigations/",
+   "name": "Inclusive Development International — it traces who is actually financing a project, on request from the community",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 7
+  },
+  {
+   "country": "KWT",
+   "url": "https://ropme.org/about-ropme/action-plan-legal-documents/",
+   "name": "Kuwait Regional Convention (ROPME) — and its Judicial Commission",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "KWT",
+   "url": "https://www.speciesconservation.org/biodiversity-nature-people/conservation-philanthropy/grants/",
+   "name": "MBZ Species Conservation Fund — frame it as species work, not climate",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "KWT",
+   "url": "https://www.unesco.org/en/ihp/national-committees",
+   "name": "National hydrological committee chair — a named route into the water authority",
+   "tier": "national",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "KWT",
+   "url": "https://www.gc4hr.org/",
+   "name": "Regional defenders' centre — the body to have contacted before anyone is detained, covering this country by name",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "KWT",
+   "url": "https://apply.ruffordsmallgrants.org/help/criteria",
+   "name": "Rufford Small Grants — Azerbaijan is named eligible, and an individual can apply in their own name",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "KWT",
+   "url": "https://www.speciesconservation.org/biodiversity-nature-people/conservation-philanthropy/grants/application-criteria/",
+   "name": "Species conservation grants — an individual can apply, and unlisted species count",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 4
+  },
+  {
+   "country": "LBN",
+   "url": "https://www.birdlife.org/middle-east/projects/hima-traditional-land-designation",
+   "name": "BirdLife Hima Fund — grants for Important Bird Areas, but you apply through RSCN, not directly",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "LBN",
+   "url": "https://www.cepf.net/grants/open-calls-for-proposals/2026-mediterranean-basin-call-for-letters-of-inquiry-for-large-grants",
+   "name": "CEPF Mediterranean Basin — live calls with published deadlines, and Jordan is named eligible in both",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "LBN",
+   "url": "https://menarights.org/en/about/what-we-do",
+   "name": "International legal representation — a body that takes your case to UN mechanisms, and has filed on this country",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "LBN",
+   "url": "https://themedfund.org/en/become-a-beneficiary/",
+   "name": "The MedFund — recurring costs of marine protected area management, funded for five years",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "LBR",
+   "url": "https://www.uaf-africa.org/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "LBY",
+   "url": "https://au.int/en/treaties/african-convention-conservation-nature-and-natural-resources-revised-version",
+   "name": "African Convention on Nature — check WHICH version binds your state",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 9
+  },
+  {
+   "country": "LBY",
+   "url": "https://www.accessnow.org/help/",
+   "name": "Digital Security Helpline — free, 24 hours, answers within two hours, in Russian",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "LBY",
+   "url": "https://www.thegef.org/what-we-do/topics/gef-small-grants-program",
+   "name": "GEF Small Grants Programme — up to US$50,000 direct to communities",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "LBY",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "LCA",
+   "url": "https://canari.org/",
+   "name": "CANARI — Caribbean Natural Resources Institute",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "LCA",
+   "url": "https://caribbeanbiodiversityfund.org/who-we-are/",
+   "name": "Caribbean Biodiversity Fund — regional conservation finance",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "LIE",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "LIE",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "LIE",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "LIE",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "LIE",
+   "url": "https://www.kvu.ch/de/adressen",
+   "name": "KVU — your cantonal environment office, and the regional conference above it",
+   "tier": "state",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "LKA",
+   "url": "https://foeasiapacific.org/",
+   "name": "Friends of the Earth Asia Pacific",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "LSO",
+   "url": "https://www.southernafricalitigationcentre.org/",
+   "name": "Southern Africa Litigation Centre (SALC)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 12
+  },
+  {
+   "country": "LSO",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "LTU",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "LTU",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "LTU",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "LTU",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "LTU",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "LUX",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "LUX",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "LUX",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "LUX",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "LVA",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "LVA",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "LVA",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "LVA",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "LVA",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "MAR",
+   "url": "https://www.uaf-africa.org/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "MCO",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "MDA",
+   "url": "https://elaw.org/",
+   "name": "ELAW — Environmental Law Alliance Worldwide",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "MDA",
+   "url": "https://www.energy-community.org/enc-lex/cases/dispute.html",
+   "name": "Energy Community — private bodies may complain, and refusal is appealable",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "MDA",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "MDA",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "MDG",
+   "url": "https://envirodefenders.africa/",
+   "name": "African Environmental Defenders Fund (emergency grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 9
+  },
+  {
+   "country": "MDG",
+   "url": "https://naturaljustice.org/",
+   "name": "Natural Justice: Lawyers for Communities and the Environment",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 9
+  },
+  {
+   "country": "MDG",
+   "url": "https://tis.sadc.int/key-documents/protocols/protocol-on-wildlife-conservation-and-law-enforcement/",
+   "name": "SADC Protocol on Wildlife Conservation and Law Enforcement",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "MDG",
+   "url": "https://www.uaf-africa.org/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "MEX",
+   "url": "https://aida-americas.org/",
+   "name": "AIDA — Interamerican Association for Environmental Defense",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "MEX",
+   "url": "https://marfund.org/en/small-grants-program/",
+   "name": "MAR Fund — Small Grants Program (Mesoamerican Reef)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 4
+  },
+  {
+   "country": "MHL",
+   "url": "https://elaw.org/",
+   "name": "ELAW — Environmental Law Alliance Worldwide",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "MHL",
+   "url": "https://www.ourmicronesia.org/",
+   "name": "Micronesia Conservation Trust (MCT)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "MHL",
+   "url": "https://sdgs.un.org/partnerships/micronesia-challenge",
+   "name": "Micronesia Conservation Trust and your national society — who funds and who acts",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "MHL",
+   "url": "https://www.unodc.org/roseap/uploads/archive/documents/pacific/2020/UN-PRAC_Paper_-_Status_of_Right_to_Information_in_Pacific_Island_Countries.pdf",
+   "name": "Right to information — what your country actually has",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "MHL",
+   "url": "https://www.sprep.org/attachments/Publications/EMG/regional-eia-guidelines.pdf",
+   "name": "SPREP EIA and SEA guidelines — intervene at scoping, not after",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "MHL",
+   "url": "https://www.sprep.org/about-us",
+   "name": "SPREP — three conventions, and 26 members is not 12 parties",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "MHL",
+   "url": "https://www.sprep.org/convention-secretariat/waigani-convention",
+   "name": "Waigani Convention — radioactive waste, and 200 miles not 12",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "MKD",
+   "url": "https://elaw.org/",
+   "name": "ELAW — Environmental Law Alliance Worldwide",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "MKD",
+   "url": "https://www.energy-community.org/enc-lex/cases/dispute.html",
+   "name": "Energy Community — private bodies may complain, and refusal is appealable",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "MKD",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "MKD",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "MKD",
+   "url": "https://justiceandenvironment.org/",
+   "name": "Justice and Environment — European green-law network",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 15
+  },
+  {
+   "country": "MLI",
+   "url": "https://orfao.uemoa.int/sites/default/files/2026-04/ipar-uemoa-_rapport_sur_les_marches_fonciers_ruraux_en_afrique_de_l_oues_et_les_outils_de_leurs_regulations.pdf",
+   "name": "ORFAO — comparative land-law tables, and a directive in draft",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "MLI",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "MLT",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "MLT",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "MLT",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "MLT",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "MMR",
+   "url": "https://digitallibrary.un.org/record/3998322",
+   "name": "PERAC Principles — protected zones when domestic machinery has stopped",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "MNE",
+   "url": "https://elaw.org/",
+   "name": "ELAW — Environmental Law Alliance Worldwide",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "MNE",
+   "url": "https://www.energy-community.org/enc-lex/cases/dispute.html",
+   "name": "Energy Community — private bodies may complain, and refusal is appealable",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "MNE",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "MNE",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "MOZ",
+   "url": "https://tis.sadc.int/key-documents/protocols/protocol-on-wildlife-conservation-and-law-enforcement/",
+   "name": "SADC Protocol on Wildlife Conservation and Law Enforcement",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "MOZ",
+   "url": "https://www.southernafricalitigationcentre.org/",
+   "name": "Southern Africa Litigation Centre (SALC)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 12
+  },
+  {
+   "country": "MOZ",
+   "url": "https://www.uaf-africa.org/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "MRT",
+   "url": "https://au.int/en/treaties/african-convention-conservation-nature-and-natural-resources-revised-version",
+   "name": "African Convention on Nature — check WHICH version binds your state",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 9
+  },
+  {
+   "country": "MRT",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "MSR",
+   "url": "https://caribbeanbiodiversityfund.org/where-we-work/",
+   "name": "Caribbean Biodiversity Fund (CBF)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "MUS",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "MWI",
+   "url": "https://www.southernafricalitigationcentre.org/",
+   "name": "Southern Africa Litigation Centre (SALC)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 12
+  },
+  {
+   "country": "MWI",
+   "url": "https://www.uaf-africa.org/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "MYS",
+   "url": "https://foeasiapacific.org/",
+   "name": "Friends of the Earth Asia Pacific",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "NAM",
+   "url": "https://envirodefenders.africa/",
+   "name": "African Environmental Defenders Fund (emergency grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 9
+  },
+  {
+   "country": "NAM",
+   "url": "https://naturaljustice.org/",
+   "name": "Natural Justice: Lawyers for Communities and the Environment",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 9
+  },
+  {
+   "country": "NAM",
+   "url": "https://www.southernafricalitigationcentre.org/",
+   "name": "Southern Africa Litigation Centre (SALC)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 12
+  },
+  {
+   "country": "NAM",
+   "url": "https://www.uaf-africa.org/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "NER",
+   "url": "https://orfao.uemoa.int/sites/default/files/2026-04/ipar-uemoa-_rapport_sur_les_marches_fonciers_ruraux_en_afrique_de_l_oues_et_les_outils_de_leurs_regulations.pdf",
+   "name": "ORFAO — comparative land-law tables, and a directive in draft",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "NER",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "NGA",
+   "url": "https://envirodefenders.africa/",
+   "name": "African Environmental Defenders Fund (emergency grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 9
+  },
+  {
+   "country": "NGA",
+   "url": "https://naturaljustice.org/",
+   "name": "Natural Justice: Lawyers for Communities and the Environment",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 9
+  },
+  {
+   "country": "NGA",
+   "url": "https://www.uaf-africa.org/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "NIU",
+   "url": "https://elaw.org/",
+   "name": "ELAW — Environmental Law Alliance Worldwide",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "NIU",
+   "url": "https://www.communitymatters.govt.nz/pacific-development-and-conservation-trust-2",
+   "name": "Pacific Development and Conservation Trust — citizens may apply",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 11
+  },
+  {
+   "country": "NIU",
+   "url": "https://www.cepf.net/our-work/biodiversity-hotspots/polynesia-micronesia",
+   "name": "Pacific Development and Conservation Trust — individuals can apply",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "NIU",
+   "url": "https://www.unodc.org/roseap/uploads/archive/documents/pacific/2020/UN-PRAC_Paper_-_Status_of_Right_to_Information_in_Pacific_Island_Countries.pdf",
+   "name": "Right to information — what your country actually has",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "NIU",
+   "url": "https://www.sprep.org/attachments/Publications/EMG/regional-eia-guidelines.pdf",
+   "name": "SPREP EIA and SEA guidelines — intervene at scoping, not after",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "NIU",
+   "url": "https://www.sprep.org/about-us",
+   "name": "SPREP — three conventions, and 26 members is not 12 parties",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "NIU",
+   "url": "https://www.sprep.org/convention-secretariat/waigani-convention",
+   "name": "Waigani Convention — radioactive waste, and 200 miles not 12",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "NLD",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "NLD",
+   "url": "https://www.bothends.org/en/Our-work/Dossiers/Small-Grants-Big-Impacts/",
+   "name": "Both ENDS — small grants funds for environmental defenders",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "NLD",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "NLD",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "NLD",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "NLD",
+   "url": "https://inece.org/",
+   "name": "INECE — not where you report, but how you find who enforces",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "NLD",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "NOR",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "NOR",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "NOR",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "NOR",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "NOR",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "NPL",
+   "url": "https://foeasiapacific.org/",
+   "name": "Friends of the Earth Asia Pacific",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "NRU",
+   "url": "https://elaw.org/",
+   "name": "ELAW — Environmental Law Alliance Worldwide",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "NRU",
+   "url": "https://www.communitymatters.govt.nz/pacific-development-and-conservation-trust-2",
+   "name": "Pacific Development and Conservation Trust — citizens may apply",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 11
+  },
+  {
+   "country": "NRU",
+   "url": "https://www.cepf.net/our-work/biodiversity-hotspots/polynesia-micronesia",
+   "name": "Pacific Development and Conservation Trust — individuals can apply",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "NRU",
+   "url": "https://www.unodc.org/roseap/uploads/archive/documents/pacific/2020/UN-PRAC_Paper_-_Status_of_Right_to_Information_in_Pacific_Island_Countries.pdf",
+   "name": "Right to information — what your country actually has",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "NRU",
+   "url": "https://www.sprep.org/attachments/Publications/EMG/regional-eia-guidelines.pdf",
+   "name": "SPREP EIA and SEA guidelines — intervene at scoping, not after",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "NRU",
+   "url": "https://www.sprep.org/about-us",
+   "name": "SPREP — three conventions, and 26 members is not 12 parties",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "NRU",
+   "url": "https://www.sprep.org/convention-secretariat/waigani-convention",
+   "name": "Waigani Convention — radioactive waste, and 200 miles not 12",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "OMN",
+   "url": "https://www.accountabilitycounsel.org/about-us/frequently-asked-questions-faqs/",
+   "name": "Accountability Counsel — Kuwait is a named dark spot, and the complaint route runs through the lender not the courts",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "OMN",
+   "url": "https://www.birdlife.org/middle-east/projects/hima-traditional-land-designation",
+   "name": "BirdLife Hima Fund — grants for Important Bird Areas, but you apply through RSCN, not directly",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "OMN",
+   "url": "https://www.spnl.org/the-power-of-a-local-tradition-hima/",
+   "name": "Hima revival and its fund — community-held protected land, revived at a site in this country",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "OMN",
+   "url": "https://www.inclusivedevelopment.net/follow-the-money-investigations/",
+   "name": "Inclusive Development International — it traces who is actually financing a project, on request from the community",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 7
+  },
+  {
+   "country": "OMN",
+   "url": "https://ropme.org/about-ropme/action-plan-legal-documents/",
+   "name": "Kuwait Regional Convention (ROPME) — and its Judicial Commission",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "OMN",
+   "url": "https://www.speciesconservation.org/biodiversity-nature-people/conservation-philanthropy/grants/",
+   "name": "MBZ Species Conservation Fund — frame it as species work, not climate",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "OMN",
+   "url": "https://www.gc4hr.org/",
+   "name": "Regional defenders' centre — the body to have contacted before anyone is detained, covering this country by name",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "OMN",
+   "url": "https://apply.ruffordsmallgrants.org/help/eligibility",
+   "name": "Rufford Small Grants — Oman is named eligible, and an individual can apply where the country has almost no organisations",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "OMN",
+   "url": "https://www.inaturalist.org/pages/about",
+   "name": "iNaturalist — photograph what lives on the ground, and it becomes a scientific record",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "PER",
+   "url": "https://aida-americas.org/",
+   "name": "AIDA — Interamerican Association for Environmental Defense",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "PER",
+   "url": "https://coicamazonia.org/",
+   "name": "COICA — Coordinadora de las Organizaciones Indígenas de la Cuenca Amazónica",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "PHL",
+   "url": "https://foeasiapacific.org/",
+   "name": "Friends of the Earth Asia Pacific",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "PHL",
+   "url": "https://www.samdhana.org/program/grants",
+   "name": "The Samdhana Institute — grants programme",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "PLW",
+   "url": "https://elaw.org/",
+   "name": "ELAW — Environmental Law Alliance Worldwide",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "PLW",
+   "url": "https://www.ourmicronesia.org/",
+   "name": "Micronesia Conservation Trust (MCT)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "PLW",
+   "url": "https://sdgs.un.org/partnerships/micronesia-challenge",
+   "name": "Micronesia Conservation Trust and your national society — who funds and who acts",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "PLW",
+   "url": "https://www.unodc.org/roseap/uploads/archive/documents/pacific/2020/UN-PRAC_Paper_-_Status_of_Right_to_Information_in_Pacific_Island_Countries.pdf",
+   "name": "Right to information — what your country actually has",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "PLW",
+   "url": "https://www.sprep.org/attachments/Publications/EMG/regional-eia-guidelines.pdf",
+   "name": "SPREP EIA and SEA guidelines — intervene at scoping, not after",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "PLW",
+   "url": "https://www.sprep.org/convention-secretariat/waigani-convention",
+   "name": "Waigani Convention — radioactive waste, and 200 miles not 12",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "PNG",
+   "url": "https://elaw.org/",
+   "name": "ELAW — Environmental Law Alliance Worldwide",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "PNG",
+   "url": "https://www.edo.org.au/",
+   "name": "Environmental Defenders Office (EDO) — public-interest environmental law",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "PNG",
+   "url": "https://foeasiapacific.org/",
+   "name": "Friends of the Earth Asia Pacific",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "PNG",
+   "url": "https://nakau.org/projects",
+   "name": "Nakau — income instead of logging, with the land staying with the clans",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "PNG",
+   "url": "https://www.communitymatters.govt.nz/pacific-development-and-conservation-trust-2",
+   "name": "Pacific Development and Conservation Trust — citizens may apply",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 11
+  },
+  {
+   "country": "PNG",
+   "url": "https://www.unodc.org/roseap/uploads/archive/documents/pacific/2020/UN-PRAC_Paper_-_Status_of_Right_to_Information_in_Pacific_Island_Countries.pdf",
+   "name": "Right to information — what your country actually has",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "PNG",
+   "url": "https://www.sprep.org/attachments/Publications/EMG/regional-eia-guidelines.pdf",
+   "name": "SPREP EIA and SEA guidelines — intervene at scoping, not after",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "PNG",
+   "url": "https://www.sprep.org/about-us",
+   "name": "SPREP — three conventions, and 26 members is not 12 parties",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "PNG",
+   "url": "https://www.sprep.org/convention-secretariat/waigani-convention",
+   "name": "Waigani Convention — radioactive waste, and 200 miles not 12",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "POL",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "POL",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "POL",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "POL",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "POL",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "POL",
+   "url": "https://www.environmentalpartnership.org/Who-we-are/Nadace-Partnerstvi-(CZE)",
+   "name": "Nadace Partnerství — Czech Environmental Partnership Foundation",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "PRK",
+   "url": "https://digitallibrary.un.org/record/3998322",
+   "name": "PERAC Principles — protected zones when domestic machinery has stopped",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "PRT",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "PRT",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "PRT",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "PRT",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "PRT",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "PSE",
+   "url": "https://www.cepf.net/grants/open-calls-for-proposals/2026-third-cfp-mediterranean-basin",
+   "name": "CEPF Mediterranean Basin — Palestine is named eligible in current calls, and this is the first funding route recorded here",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "PSE",
+   "url": "https://ecopeaceme.org/",
+   "name": "EcoPeace Middle East",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "PSE",
+   "url": "https://legalempowermentfund.org/",
+   "name": "Legal Empowerment Fund — core funding for the kind of legal work this territory already does",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "PSE",
+   "url": "https://medpan.org/en/medpan-network",
+   "name": "MedPAN — a Mediterranean fund this country is actually eligible for",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "PSE",
+   "url": "https://petranationaltrust.org/",
+   "name": "Petra National Trust — the country's oldest heritage organisation, and an annual award that funds heritage projects",
+   "tier": "national",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "PSE",
+   "url": "https://www.fpa2.org/en/submit-a-project",
+   "name": "Prince Albert II of Monaco Foundation — Mediterranean basin funding, with a short pre-application",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "QAT",
+   "url": "https://www.accountabilitycounsel.org/about-us/frequently-asked-questions-faqs/",
+   "name": "Accountability Counsel — Kuwait is a named dark spot, and the complaint route runs through the lender not the courts",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "QAT",
+   "url": "https://www.spnl.org/the-power-of-a-local-tradition-hima/",
+   "name": "Hima revival and its fund — community-held protected land, revived at a site in this country",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "QAT",
+   "url": "https://www.inclusivedevelopment.net/follow-the-money-investigations/",
+   "name": "Inclusive Development International — it traces who is actually financing a project, on request from the community",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 7
+  },
+  {
+   "country": "QAT",
+   "url": "https://ropme.org/about-ropme/action-plan-legal-documents/",
+   "name": "Kuwait Regional Convention (ROPME) — and its Judicial Commission",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "QAT",
+   "url": "https://www.speciesconservation.org/biodiversity-nature-people/conservation-philanthropy/grants/",
+   "name": "MBZ Species Conservation Fund — frame it as species work, not climate",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "QAT",
+   "url": "https://osme.org/grants/",
+   "name": "OSME Conservation Fund — small grants across this whole region, and about half of applications succeed",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 4
+  },
+  {
+   "country": "QAT",
+   "url": "https://www.gc4hr.org/",
+   "name": "Regional defenders' centre — the body to have contacted before anyone is detained, covering this country by name",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "QAT",
+   "url": "https://apply.ruffordsmallgrants.org/help/eligibility",
+   "name": "Rufford Small Grants — Oman is named eligible, and an individual can apply where the country has almost no organisations",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "QAT",
+   "url": "https://www.speciesconservation.org/biodiversity-nature-people/conservation-philanthropy/grants/application-criteria/",
+   "name": "Species conservation grants — an individual can apply, and unlisted species count",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 4
+  },
+  {
+   "country": "ROU",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "ROU",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "ROU",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "ROU",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "ROU",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "ROU",
+   "url": "https://justiceandenvironment.org/",
+   "name": "Justice and Environment — European green-law network",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 15
+  },
+  {
+   "country": "ROU",
+   "url": "https://www.environmentalpartnership.org/Who-we-are/Nadace-Partnerstvi-(CZE)",
+   "name": "Nadace Partnerství — Czech Environmental Partnership Foundation",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "RWA",
+   "url": "https://www.uaf-africa.org/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "SAU",
+   "url": "https://www.accountabilitycounsel.org/about-us/frequently-asked-questions-faqs/",
+   "name": "Accountability Counsel — Kuwait is a named dark spot, and the complaint route runs through the lender not the courts",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "SAU",
+   "url": "https://www.inclusivedevelopment.net/follow-the-money-investigations/",
+   "name": "Inclusive Development International — it traces who is actually financing a project, on request from the community",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 7
+  },
+  {
+   "country": "SAU",
+   "url": "https://ropme.org/about-ropme/action-plan-legal-documents/",
+   "name": "Kuwait Regional Convention (ROPME) — and its Judicial Commission",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "SAU",
+   "url": "https://www.speciesconservation.org/biodiversity-nature-people/conservation-philanthropy/grants/",
+   "name": "MBZ Species Conservation Fund — frame it as species work, not climate",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "SAU",
+   "url": "https://www.gc4hr.org/",
+   "name": "Regional defenders' centre — the body to have contacted before anyone is detained, covering this country by name",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "SAU",
+   "url": "https://apply.ruffordsmallgrants.org/help/eligibility",
+   "name": "Rufford Small Grants — Oman is named eligible, and an individual can apply where the country has almost no organisations",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "SAU",
+   "url": "https://www.speciesconservation.org/biodiversity-nature-people/conservation-philanthropy/grants/application-criteria/",
+   "name": "Species conservation grants — an individual can apply, and unlisted species count",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 4
+  },
+  {
+   "country": "SDN",
+   "url": "https://au.int/en/treaties/african-convention-conservation-nature-and-natural-resources-revised-version",
+   "name": "African Convention on Nature — check WHICH version binds your state",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 9
+  },
+  {
+   "country": "SDN",
+   "url": "https://iucnsos.org/initiative/fondation-segre/",
+   "name": "Up to €50,000 where local non-profits are the stated target beneficiaries, an intermediary applying on somebody else's behalf is barred outright, and international applicants must minimise the share spent overseas",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "SDN",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "SEN",
+   "url": "https://envirodefenders.africa/",
+   "name": "African Environmental Defenders Fund (emergency grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 9
+  },
+  {
+   "country": "SEN",
+   "url": "https://naturaljustice.org/",
+   "name": "Natural Justice: Lawyers for Communities and the Environment",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 9
+  },
+  {
+   "country": "SEN",
+   "url": "https://www.uaf-africa.org/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "SHN",
+   "url": "https://darwinplus.org.uk/",
+   "name": "Darwin Plus — an individual can lead and take £20,000",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 4
+  },
+  {
+   "country": "SLB",
+   "url": "https://elaw.org/",
+   "name": "ELAW — Environmental Law Alliance Worldwide",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "SLB",
+   "url": "https://www.edo.org.au/",
+   "name": "Environmental Defenders Office (EDO) — public-interest environmental law",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "SLB",
+   "url": "https://nakau.org/projects",
+   "name": "Nakau — income instead of logging, with the land staying with the clans",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "SLB",
+   "url": "https://www.communitymatters.govt.nz/pacific-development-and-conservation-trust-2",
+   "name": "Pacific Development and Conservation Trust — citizens may apply",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 11
+  },
+  {
+   "country": "SLB",
+   "url": "https://www.unodc.org/roseap/uploads/archive/documents/pacific/2020/UN-PRAC_Paper_-_Status_of_Right_to_Information_in_Pacific_Island_Countries.pdf",
+   "name": "Right to information — what your country actually has",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "SLB",
+   "url": "https://www.sprep.org/attachments/Publications/EMG/regional-eia-guidelines.pdf",
+   "name": "SPREP EIA and SEA guidelines — intervene at scoping, not after",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "SLB",
+   "url": "https://www.sprep.org/about-us",
+   "name": "SPREP — three conventions, and 26 members is not 12 parties",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "SLB",
+   "url": "https://www.sprep.org/convention-secretariat/waigani-convention",
+   "name": "Waigani Convention — radioactive waste, and 200 miles not 12",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "SLE",
+   "url": "https://www.uaf-africa.org/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "SOM",
+   "url": "https://fondationfranklinia.org/en/call-for-proposals-open/",
+   "name": "A foundation funding on-the-ground work on threatened trees for up to 3 years, with overheads capped at 10%, regional calls including one for Eastern Africa, and an unpublished threat assessment accepted if you can justify it",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 1
+  },
+  {
+   "country": "SOM",
+   "url": "https://www.thegef.org/what-we-do/topics/gef-small-grants-program",
+   "name": "GEF Small Grants Programme — up to US$50,000 direct to communities",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "SOM",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "SRB",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "SRB",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "SRB",
+   "url": "https://elaw.org/",
+   "name": "ELAW — Environmental Law Alliance Worldwide",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "SRB",
+   "url": "https://www.energy-community.org/enc-lex/cases/dispute.html",
+   "name": "Energy Community — private bodies may complain, and refusal is appealable",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "SRB",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "SRB",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "SRB",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "SSD",
+   "url": "https://www.thegef.org/what-we-do/topics/gef-small-grants-program",
+   "name": "GEF Small Grants Programme — up to US$50,000 direct to communities",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "SSD",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "STP",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "SUR",
+   "url": "https://coicamazonia.org/",
+   "name": "COICA — Coordinadora de las Organizaciones Indígenas de la Cuenca Amazónica",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "SUR",
+   "url": "https://caribbeanbiodiversityfund.org/who-we-are/",
+   "name": "Caribbean Biodiversity Fund — regional conservation finance",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "SVK",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "SVK",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "SVK",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "SVK",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "SVK",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "SVK",
+   "url": "https://justiceandenvironment.org/",
+   "name": "Justice and Environment — European green-law network",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 15
+  },
+  {
+   "country": "SVK",
+   "url": "https://www.environmentalpartnership.org/Who-we-are/Nadace-Partnerstvi-(CZE)",
+   "name": "Nadace Partnerství — Czech Environmental Partnership Foundation",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "SVN",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "SVN",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "SVN",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "SVN",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "SVN",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "SVN",
+   "url": "https://justiceandenvironment.org/",
+   "name": "Justice and Environment — European green-law network",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 15
+  },
+  {
+   "country": "SWE",
+   "url": "https://unece.org/env/pp/cc/communications-from-the-public",
+   "name": "Aarhus Compliance Committee — one person may bring the State itself",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 36
+  },
+  {
+   "country": "SWE",
+   "url": "https://environment.ec.europa.eu/law-and-governance/environmental-assessments/environmental-impact-assessment-eia_en",
+   "name": "EIA Directive — ask for the screening determination",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 32
+  },
+  {
+   "country": "SWE",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "SWE",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "SWE",
+   "url": "https://environment.ec.europa.eu/topics/industrial-emissions-and-safety/industrial-emissions-portal-regulation-iepr_en",
+   "name": "Industrial Emissions Portal — what the facility actually releases",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 33
+  },
+  {
+   "country": "SWZ",
+   "url": "https://tis.sadc.int/key-documents/protocols/protocol-on-wildlife-conservation-and-law-enforcement/",
+   "name": "SADC Protocol on Wildlife Conservation and Law Enforcement",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "SWZ",
+   "url": "https://www.southernafricalitigationcentre.org/",
+   "name": "Southern Africa Litigation Centre (SALC)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 12
+  },
+  {
+   "country": "SWZ",
+   "url": "https://www.conservationleadershipprogramme.org/awards-opportunities/team-awards/future-conservationist-award/",
+   "name": "Team grants of US$15,000 rising to US$50,000 with no minimum education level required — three nationals of the project country, five years' experience or less, plus leadership training and an alumni network",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 1
+  },
+  {
+   "country": "SWZ",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "SYC",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "SYR",
+   "url": "https://www.accessnow.org/help/",
+   "name": "Digital Security Helpline — free, 24 hours, answers within two hours, in Russian",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "SYR",
+   "url": "https://globalfundcommunityfoundations.org/what-we-do/grants/",
+   "name": "Global Fund for Community Foundations — it pays to build the local fund, not just the project",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "SYR",
+   "url": "https://medpan.org/en/medpan-network",
+   "name": "MedPAN — a Mediterranean fund this country is actually eligible for",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "SYR",
+   "url": "https://digitallibrary.un.org/record/3998322",
+   "name": "PERAC Principles — protected zones when domestic machinery has stopped",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "SYR",
+   "url": "https://petranationaltrust.org/",
+   "name": "Petra National Trust — the country's oldest heritage organisation, and an annual award that funds heritage projects",
+   "tier": "national",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "SYR",
+   "url": "https://www.fpa2.org/en/submit-a-project",
+   "name": "Prince Albert II of Monaco Foundation — Mediterranean basin funding, with a short pre-application",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "SYR",
+   "url": "https://raednetwork.org/en/membership/",
+   "name": "RAED — the Arab environmental network, and its membership list names a coordinator in this country",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "TCD",
+   "url": "https://comifac.org/plan-de-convergence/",
+   "name": "COMIFAC Treaty and Plan de Convergence — and its community protocol",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "TCD",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "TGO",
+   "url": "https://orfao.uemoa.int/sites/default/files/2026-04/ipar-uemoa-_rapport_sur_les_marches_fonciers_ruraux_en_afrique_de_l_oues_et_les_outils_de_leurs_regulations.pdf",
+   "name": "ORFAO — comparative land-law tables, and a directive in draft",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "TGO",
+   "url": "https://www.uaf-africa.org/apply-for-a-grant/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 29
+  },
+  {
+   "country": "TJK",
+   "url": "https://carecnet.org/about-carec/?lang=en",
+   "name": "CAREC — two organisations share the name, neither is a grant fund",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "TJK",
+   "url": "https://www.cepf.net/",
+   "name": "CEPF Mountains of Central Asia — small grants averaging about $15,000 direct to community groups, but your project must map to a strategic direction",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "TJK",
+   "url": "http://www.sic.icwc-aral.uz/releases/rus/tender_docs/tor-grantees-ru.pdf",
+   "name": "Ferghana Valley community adaptation grants — eight local organisations selected, applications in Uzbek",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "TJK",
+   "url": "https://www.thegef.org/what-we-do/topics/gef-small-grants-program",
+   "name": "GEF Small Grants Programme — up to US$50,000 direct to communities",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "TJK",
+   "url": "https://www.iucn.nl/en/project/land-acquisition-fund/",
+   "name": "IUCN NL Land Acquisition Fund — it pays for long-term rights over land, not only for buying it",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 4
+  },
+  {
+   "country": "TJK",
+   "url": "https://www.csolifeline.org/",
+   "name": "Lifeline Embattled CSO Assistance Fund — the embattled-organisation fund that names land rights and environmental groups as a priority — three grant types covering trial monitoring, prison visits and equipment replacement, with unregistered groups of two or more eligible, and the published amounts across four funds",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "TJK",
+   "url": "https://docs.mapeo.app/",
+   "name": "Mapeo — a free offline app for a community to map its own land and keep the record",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "TJK",
+   "url": "https://edlc.org/our-work/giving-grants/",
+   "name": "Money for the costs of the case — EDLC's litigation expenses fund, the only one of its type spanning the developing world, plus Global Greengrants' $500–$5,000 grants and the $5k–$15k legal-action window that pays for community security",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "TJK",
+   "url": "https://protectdefenders.eu/protecting-defenders/",
+   "name": "ProtectDefenders.eu — an individual can ask without an organisation, in Russian, at any hour",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "TJK",
+   "url": "https://apply.ruffordsmallgrants.org/help/eligibility",
+   "name": "Rufford Small Grants — Oman is named eligible, and an individual can apply where the country has almost no organisations",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "TJK",
+   "url": "https://sgp.undp.org/about-us-157/how-to-apply.html",
+   "name": "Small Grants Programme — money paid straight to a community organisation, decided in your own country",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 1
+  },
+  {
+   "country": "TKM",
+   "url": "https://www.cepf.net/our-work/biodiversity-hotspots/mountains-central-asia",
+   "name": "CEPF Mountains of Central Asia — Kazakhstan is a named eligible country, and a new grant portfolio opened in 2026",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "TKM",
+   "url": "https://www.landcoalition.org/en/the-solutions/pastoralists/asia-rangelands-initiative/",
+   "name": "Central Asia Pastoralist Alliance — the bloc that changed pasture law and secured 39 million hectares",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "TKM",
+   "url": "https://browser.dataspace.copernicus.eu/",
+   "name": "Copernicus Browser — free satellite imagery you can compare across dates, from any browser",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "TKM",
+   "url": "https://www.accessnow.org/help/",
+   "name": "Digital Security Helpline — free, 24 hours, answers within two hours, in Russian",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "TKM",
+   "url": "https://www.gbif.org/occurrence/search",
+   "name": "GBIF — three billion species records, searchable by place, and citable with a permanent identifier",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "TKM",
+   "url": "https://www.thegef.org/what-we-do/topics/gef-small-grants-program",
+   "name": "GEF Small Grants Programme — up to US$50,000 direct to communities",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "TKM",
+   "url": "https://osme.org/grants/",
+   "name": "OSME Conservation Fund — small grants across this whole region, and about half of applications succeed",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 4
+  },
+  {
+   "country": "TKM",
+   "url": "https://apply.ruffordsmallgrants.org/help/eligibility",
+   "name": "Rufford Small Grants — Oman is named eligible, and an individual can apply where the country has almost no organisations",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "TLS",
+   "url": "https://www.thegef.org/what-we-do/topics/gef-small-grants-program",
+   "name": "GEF Small Grants Programme — up to US$50,000 direct to communities",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "TON",
+   "url": "https://elaw.org/",
+   "name": "ELAW — Environmental Law Alliance Worldwide",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "TON",
+   "url": "https://nakau.org/projects",
+   "name": "Nakau — income instead of logging, with the land staying with the clans",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "TON",
+   "url": "https://www.communitymatters.govt.nz/pacific-development-and-conservation-trust-2",
+   "name": "Pacific Development and Conservation Trust — citizens may apply",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 11
+  },
+  {
+   "country": "TON",
+   "url": "https://www.unodc.org/roseap/uploads/archive/documents/pacific/2020/UN-PRAC_Paper_-_Status_of_Right_to_Information_in_Pacific_Island_Countries.pdf",
+   "name": "Right to information — what your country actually has",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "TON",
+   "url": "https://www.sprep.org/attachments/Publications/EMG/regional-eia-guidelines.pdf",
+   "name": "SPREP EIA and SEA guidelines — intervene at scoping, not after",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "TON",
+   "url": "https://www.sprep.org/convention-secretariat/waigani-convention",
+   "name": "Waigani Convention — radioactive waste, and 200 miles not 12",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "TTO",
+   "url": "https://canari.org/",
+   "name": "CANARI — Caribbean Natural Resources Institute",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "TTO",
+   "url": "https://caribbeanbiodiversityfund.org/",
+   "name": "Caribbean Biodiversity Fund (CBF)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 7
+  },
+  {
+   "country": "TUN",
+   "url": "https://www.csolifeline.org/",
+   "name": "Lifeline Embattled CSO Assistance Fund — the embattled-organisation fund that names land rights and environmental groups as a priority — three grant types covering trial monitoring, prison visits and equipment replacement, with unregistered groups of two or more eligible, and the published amounts across four funds",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "TUN",
+   "url": "https://www.uaf-africa.org/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "TUR",
+   "url": "https://www.iucn.nl/en/project/land-acquisition-fund/",
+   "name": "IUCN NL Land Acquisition Fund — it pays for long-term rights over land, not only for buying it",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 4
+  },
+  {
+   "country": "TUR",
+   "url": "https://themedfund.org/en/become-a-beneficiary/",
+   "name": "The MedFund — recurring costs of marine protected area management, funded for five years",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "TUV",
+   "url": "https://elaw.org/",
+   "name": "ELAW — Environmental Law Alliance Worldwide",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "TUV",
+   "url": "https://www.edo.org.au/",
+   "name": "Environmental Defenders Office (EDO) — public-interest environmental law",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "TUV",
+   "url": "https://www.communitymatters.govt.nz/pacific-development-and-conservation-trust-2",
+   "name": "Pacific Development and Conservation Trust — citizens may apply",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 11
+  },
+  {
+   "country": "TUV",
+   "url": "https://www.cepf.net/our-work/biodiversity-hotspots/polynesia-micronesia",
+   "name": "Pacific Development and Conservation Trust — individuals can apply",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "TUV",
+   "url": "https://www.unodc.org/roseap/uploads/archive/documents/pacific/2020/UN-PRAC_Paper_-_Status_of_Right_to_Information_in_Pacific_Island_Countries.pdf",
+   "name": "Right to information — what your country actually has",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "TUV",
+   "url": "https://www.sprep.org/attachments/Publications/EMG/regional-eia-guidelines.pdf",
+   "name": "SPREP EIA and SEA guidelines — intervene at scoping, not after",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "TUV",
+   "url": "https://www.sprep.org/about-us",
+   "name": "SPREP — three conventions, and 26 members is not 12 parties",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "TUV",
+   "url": "https://www.sprep.org/convention-secretariat/waigani-convention",
+   "name": "Waigani Convention — radioactive waste, and 200 miles not 12",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "TZA",
+   "url": "https://www.rainforesttrust.org/get-involved/apply-for-funding/",
+   "name": "Rainforest Trust — will fund a local organisation to buy the land outright, as it did at Magombera, and warns you never to pay an intermediary to apply",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 1
+  },
+  {
+   "country": "TZA",
+   "url": "https://www.southernafricalitigationcentre.org/",
+   "name": "Southern Africa Litigation Centre (SALC)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 12
+  },
+  {
+   "country": "TZA",
+   "url": "https://www.uaf-africa.org/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "UGA",
+   "url": "https://www.uaf-africa.org/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "UKR",
+   "url": "https://www.energy-community.org/enc-lex/cases/dispute.html",
+   "name": "Energy Community — private bodies may complain, and refusal is appealable",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "UKR",
+   "url": "https://unece.org/env/eia/points_of_contact.html",
+   "name": "Espoo points of contact — a named official, and ‘were you notified?’",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "UKR",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "UKR",
+   "url": "https://justiceandenvironment.org/",
+   "name": "Justice and Environment — European green-law network",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 15
+  },
+  {
+   "country": "USA",
+   "url": "https://aida-americas.org/",
+   "name": "AIDA — Interamerican Association for Environmental Defense",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "USA",
+   "url": "https://elaw.org/",
+   "name": "ELAW — Environmental Law Alliance Worldwide",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "USA",
+   "url": "https://inece.org/",
+   "name": "INECE — not where you report, but how you find who enforces",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "USA",
+   "url": "https://aleph.occrp.org/",
+   "name": "OCCRP Aleph",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "USA",
+   "url": "https://opencorporates.com/",
+   "name": "OpenCorporates",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 1
+  },
+  {
+   "country": "UZB",
+   "url": "https://www.cepf.net/our-work/biodiversity-hotspots/mountains-central-asia",
+   "name": "CEPF Mountains of Central Asia — Kazakhstan is a named eligible country, and a new grant portfolio opened in 2026",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "UZB",
+   "url": "https://www.landcoalition.org/en/the-solutions/pastoralists/asia-rangelands-initiative/",
+   "name": "Central Asia Pastoralist Alliance — the bloc that changed pasture law and secured 39 million hectares",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "UZB",
+   "url": "http://www.sic.icwc-aral.uz/releases/rus/tender_docs/tor-grantees-ru.pdf",
+   "name": "Ferghana Valley community adaptation grants — eight local organisations selected, applications in Uzbek",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "UZB",
+   "url": "https://www.greengrants.org/faqs/",
+   "name": "Global Greengrants — you cannot apply to it; an advisor who lives in the region has to find you",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "UZB",
+   "url": "https://apply.ruffordsmallgrants.org/help/eligibility",
+   "name": "Rufford Small Grants — Oman is named eligible, and an individual can apply where the country has almost no organisations",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "VCT",
+   "url": "https://canari.org/",
+   "name": "CANARI — Caribbean Natural Resources Institute",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "VCT",
+   "url": "https://caribbeanbiodiversityfund.org/who-we-are/",
+   "name": "Caribbean Biodiversity Fund — regional conservation finance",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "VEN",
+   "url": "https://coicamazonia.org/",
+   "name": "COICA — Coordinadora de las Organizaciones Indígenas de la Cuenca Amazónica",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "VUT",
+   "url": "https://elaw.org/",
+   "name": "ELAW — Environmental Law Alliance Worldwide",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "VUT",
+   "url": "https://www.edo.org.au/",
+   "name": "Environmental Defenders Office (EDO) — public-interest environmental law",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "VUT",
+   "url": "https://nakau.org/projects",
+   "name": "Nakau — income instead of logging, with the land staying with the clans",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "VUT",
+   "url": "https://www.communitymatters.govt.nz/pacific-development-and-conservation-trust-2",
+   "name": "Pacific Development and Conservation Trust — citizens may apply",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 11
+  },
+  {
+   "country": "VUT",
+   "url": "https://www.unodc.org/roseap/uploads/archive/documents/pacific/2020/UN-PRAC_Paper_-_Status_of_Right_to_Information_in_Pacific_Island_Countries.pdf",
+   "name": "Right to information — what your country actually has",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "VUT",
+   "url": "https://www.sprep.org/attachments/Publications/EMG/regional-eia-guidelines.pdf",
+   "name": "SPREP EIA and SEA guidelines — intervene at scoping, not after",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "VUT",
+   "url": "https://www.sprep.org/about-us",
+   "name": "SPREP — three conventions, and 26 members is not 12 parties",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 10
+  },
+  {
+   "country": "VUT",
+   "url": "https://www.sprep.org/convention-secretariat/waigani-convention",
+   "name": "Waigani Convention — radioactive waste, and 200 miles not 12",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "WSM",
+   "url": "https://elaw.org/",
+   "name": "ELAW — Environmental Law Alliance Worldwide",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "WSM",
+   "url": "https://www.communitymatters.govt.nz/pacific-development-and-conservation-trust-2",
+   "name": "Pacific Development and Conservation Trust — citizens may apply",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 11
+  },
+  {
+   "country": "WSM",
+   "url": "https://www.cepf.net/our-work/biodiversity-hotspots/polynesia-micronesia",
+   "name": "Pacific Development and Conservation Trust — individuals can apply",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "WSM",
+   "url": "https://www.unodc.org/roseap/uploads/archive/documents/pacific/2020/UN-PRAC_Paper_-_Status_of_Right_to_Information_in_Pacific_Island_Countries.pdf",
+   "name": "Right to information — what your country actually has",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "WSM",
+   "url": "https://www.sprep.org/attachments/Publications/EMG/regional-eia-guidelines.pdf",
+   "name": "SPREP EIA and SEA guidelines — intervene at scoping, not after",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "WSM",
+   "url": "https://www.sprep.org/convention-secretariat/waigani-convention",
+   "name": "Waigani Convention — radioactive waste, and 200 miles not 12",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 14
+  },
+  {
+   "country": "XKX",
+   "url": "https://elaw.org/",
+   "name": "ELAW — Environmental Law Alliance Worldwide",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "XKX",
+   "url": "https://www.energy-community.org/enc-lex/cases/dispute.html",
+   "name": "Energy Community — private bodies may complain, and refusal is appealable",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "XKX",
+   "url": "https://www.eurosite.org/",
+   "name": "Eurosite / ELCN — who already holds land near you, and the easement route",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 39
+  },
+  {
+   "country": "YEM",
+   "url": "https://www.gbif.org/occurrence/search",
+   "name": "GBIF — three billion species records, searchable by place, and citable with a permanent identifier",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "YEM",
+   "url": "https://legalempowermentfund.org/",
+   "name": "Legal Empowerment Fund — core funding for the kind of legal work this territory already does",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "YEM",
+   "url": "https://www.unesco.org/en/ihp/national-committees",
+   "name": "National hydrological committee chair — a named route into the water authority",
+   "tier": "national",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "YEM",
+   "url": "https://digitallibrary.un.org/record/3998322",
+   "name": "PERAC Principles — protected zones when domestic machinery has stopped",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 5
+  },
+  {
+   "country": "YEM",
+   "url": "https://www.fpa2.org/en/submit-a-project",
+   "name": "Prince Albert II of Monaco Foundation — Mediterranean basin funding, with a short pre-application",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "YEM",
+   "url": "https://raednetwork.org/en/membership/",
+   "name": "RAED — the Arab environmental network, and its membership list names a coordinator in this country",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "YEM",
+   "url": "https://apply.ruffordsmallgrants.org/help/eligibility",
+   "name": "Rufford Small Grants — Oman is named eligible, and an individual can apply where the country has almost no organisations",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 8
+  },
+  {
+   "country": "YEM",
+   "url": "https://iucnsos.org/initiative/fondation-segre/",
+   "name": "Up to €50,000 where local non-profits are the stated target beneficiaries, an intermediary applying on somebody else's behalf is barred outright, and international applicants must minimise the share spent overseas",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 2
+  },
+  {
+   "country": "ZAF",
+   "url": "https://envirodefenders.africa/",
+   "name": "African Environmental Defenders Fund (emergency grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 9
+  },
+  {
+   "country": "ZAF",
+   "url": "https://edlc.org/our-work/giving-grants/",
+   "name": "Money for the costs of the case — EDLC's litigation expenses fund, the only one of its type spanning the developing world, plus Global Greengrants' $500–$5,000 grants and the $5k–$15k legal-action window that pays for community security",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 3
+  },
+  {
+   "country": "ZAF",
+   "url": "https://naturaljustice.org/",
+   "name": "Natural Justice: Lawyers for Communities and the Environment",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 9
+  },
+  {
+   "country": "ZAF",
+   "url": "https://www.southernafricalitigationcentre.org/",
+   "name": "Southern Africa Litigation Centre (SALC)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 12
+  },
+  {
+   "country": "ZAF",
+   "url": "https://www.uaf-africa.org/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "ZMB",
+   "url": "https://www.southernafricalitigationcentre.org/",
+   "name": "Southern Africa Litigation Centre (SALC)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 12
+  },
+  {
+   "country": "ZMB",
+   "url": "https://www.uaf-africa.org/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  },
+  {
+   "country": "ZWE",
+   "url": "https://tis.sadc.int/key-documents/protocols/protocol-on-wildlife-conservation-and-law-enforcement/",
+   "name": "SADC Protocol on Wildlife Conservation and Law Enforcement",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 6
+  },
+  {
+   "country": "ZWE",
+   "url": "https://www.southernafricalitigationcentre.org/",
+   "name": "Southern Africa Litigation Centre (SALC)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 12
+  },
+  {
+   "country": "ZWE",
+   "url": "https://www.uaf-africa.org/",
+   "name": "Urgent Action Fund–Africa (rapid response grants)",
+   "tier": "international",
+   "signal": "cross_bucket_url",
+   "buckets": 25
+  }
+ ]
+}

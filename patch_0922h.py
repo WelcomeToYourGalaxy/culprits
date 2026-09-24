@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+"""
+patch_0922h.py - the refresh workflow asks for the file the harvest writes (.jsonl.gz),
+                 so tile builds run again.
+
+Needs patch_0922g.py applied and committed first.
+Run from the repo folder:  python3 patch_0922h.py
+"""
+import base64, pathlib, subprocess, sys
+
+DIFF = base64.b64decode("""
+ZGlmZiAtLWdpdCBhLy5naXRodWIvd29ya2Zsb3dzL3JlZnJlc2gueW1sIGIvLmdpdGh1Yi93b3JrZmxvd3MvcmVmcmVzaC55bWwK
+aW5kZXggYTRiNmNkMS4uODYyZWMxNCAxMDA2NDQKLS0tIGEvLmdpdGh1Yi93b3JrZmxvd3MvcmVmcmVzaC55bWwKKysrIGIvLmdp
+dGh1Yi93b3JrZmxvd3MvcmVmcmVzaC55bWwKQEAgLTc3LDYgKzc3LDEwIEBAIGpvYnM6CiAgICAgICAgIHJ1bjogfAogICAgICAg
+ICAgIHRlc3QgLWYgbWFwL2RhdGEvYm91bmRhcmllcy5nZW9qc29uIHx8IHB5dGhvbjMgcGlwZWxpbmUvYnVpbGRfYm91bmRhcmll
+cy5weQogCisgICAgICAjIGhhcnZlc3QucHkgd3JpdGVzIGRhdGEvcmF3LzxpZD4uanNvbmwuZ3ogKG9uZSByb3cgYSBsaW5lLCBn
+emlwcGVkLCBzbyBhCisgICAgICAjIDk5LW1pbGxpb24tcm93IHNvdXJjZSBmaXRzIGluIG1lbW9yeSk7IHRoaXMgc3RlcCB1c2Vk
+IHRvIGFzayBmb3IKKyAgICAgICMgZGF0YS9yYXcvPGlkPi5qc29uIGFuZCBldmVyeSBydW4gc2luY2UgaGFzIHN0b3BwZWQgaGVy
+ZSBvbiB0aGUgZmlyc3QKKyAgICAgICMgc291cmNlLiBub3JtYWxpemUucHkgcmVhZHMgdGhlIGd6aXBwZWQgZm9ybSBpdHNlbGYu
+CiAgICAgICAtIG5hbWU6IEJ1aWxkIHRpbGVzIGZvciBjaGFuZ2VkIHNvdXJjZXMKICAgICAgICAgaWY6IHN0ZXBzLmhhcnZlc3Qu
+b3V0cHV0cy5jaGFuZ2VkICE9ICcnCiAgICAgICAgIHJ1bjogfApAQCAtODQsNyArODgsNyBAQCBqb2JzOgogICAgICAgICAgIGZv
+ciBpZCBpbiAkKHRyICcsJyAnICcgPDw8ICIke3sgc3RlcHMuaGFydmVzdC5vdXRwdXRzLmNoYW5nZWQgfX0iKTsgZG8KICAgICAg
+ICAgICAgIHB5dGhvbjMgcGlwZWxpbmUvbm9ybWFsaXplLnB5IFwKICAgICAgICAgICAgICAgLS1zb3VyY2UgIiRpZCIgXAotICAg
+ICAgICAgICAgICAtLWluICJkYXRhL3Jhdy8kaWQuanNvbiIgXAorICAgICAgICAgICAgICAtLWluICJkYXRhL3Jhdy8kaWQuanNv
+bmwuZ3oiIFwKICAgICAgICAgICAgICAgLS1vdXQgImRhdGEvbm9ybWFsaXplZC8kaWQuZ2VvanNvbmwiCiAgICAgICAgICAgICBp
+ZiBbIC1mICJkYXRhL25vcm1hbGl6ZWQvJGlkLmNvdW50cmllcy5qc29uIiBdOyB0aGVuCiAgICAgICAgICAgICAgIG1rZGlyIC1w
+IG1hcC9kYXRhCmRpZmYgLS1naXQgYS9IQU5ET0ZGLm1kIGIvSEFORE9GRi5tZAppbmRleCAyMjQ2ODdjLi5lNWNhYjgzIDEwMDY0
+NAotLS0gYS9IQU5ET0ZGLm1kCisrKyBiL0hBTkRPRkYubWQKQEAgLTI3OCw2ICsyNzgsMzcgQEAgYW5kIG5vIHBpZWNlcyBhcmUg
+d3JpdHRlbikuIFRoZSBwaWVjZXMgYXBwZWFyIHdoZW4gdGhlIHJlZnJlc2ggd29ya2Zsb3cgbmV4dAogcmVidWlsZHMgYSBzb3Vy
+Y2UuIGBmaWVsZFJvd3NgICh0aGUgY29waWVkLWZpbGUgbGF5ZXJzKSBhbHNvIGRyb3BwZWQgZXZlcnkKIG5lc3RlZCB2YWx1ZTsg
+aXQgd3JpdGVzIHRoZW0gb3V0IG5vdy4KIAorIyMgVHdvIHdvcmtmbG93cyB0aGF0IGhhZCBiZWVuIGZhaWxpbmcgKDIyIFNlcHRl
+bWJlcikKKworLSAqKmN1bHByaXRzLCAiUmVmcmVzaCBhdGxhcyB0aWxlcyIqKjogZXZlcnkgcnVuIHNpbmNlIHRoZSBHbG9iYWwg
+Rm9yZXN0IFdhdGNoCisgIGNhdGFsb2d1ZSBjb21taXQgc3RvcHBlZCBhdCB0aGUgZmlyc3Qgc291cmNlIHdpdGgKKyAgYEZpbGVO
+b3RGb3VuZEVycm9yOiBkYXRhL3Jhdy9jbGltYXRlX3RyYWNlLmpzb25gLiBgaGFydmVzdC5weWAgaGFzIHdyaXR0ZW4KKyAgYGRh
+dGEvcmF3LzxpZD4uanNvbmwuZ3pgIHNpbmNlIHRoZW47IHRoZSBidWlsZCBzdGVwIHN0aWxsIGFza2VkIGZvcgorICBgPGlkPi5q
+c29uYC4gVGhlIHN0ZXAgbm93IGFza3MgZm9yIGAuanNvbmwuZ3pgIChub3JtYWxpemUucHkgcmVhZHMgZ3ppcCkuCisgIE5vIHRp
+bGVzIGhhZCBiZWVuIHJlYnVpbHQgaW4gdGhhdCB0aW1lLCBzbyB0aGUgcGllY2VzIGFuZCBUcmFzZSdzIGZpZWxkcyBvbgorICB0
+aGUgZmFjaWxpdGllcyBhbGwgd2FpdCBvbiB0aGUgbmV4dCBydW4uCistICoqY3VscHJpdHMtdGlsZXMtbW9yZSwgc2F2ZS5zaCoq
+OiBhIGZpbGUgb3ZlciA5NSBNQgorICAoYGNlcnVsZWFuX2FyY2hpdmUvMjAyNi0wOS5nZW9qc29uYCkgaXMgbGVmdCBvdXQgb2Yg
+dGhlIGNvbW1pdCBidXQgc3RheXMKKyAgY2hhbmdlZCBpbiB0aGUgd29ya2luZyB0cmVlLCBhbmQgYGdpdCBwdWxsIC0tcmViYXNl
+YCByZWZ1c2VzIHRvIHJ1biBvdmVyIGFuCisgIHVuc3RhZ2VkIGNoYW5nZTsgZXZlcnkgam9iJ3Mgc2F2ZSBmYWlsZWQgZWlnaHQg
+dGltZXMgYW5kIG5vdGhpbmcgd2FzIGtlcHQuCisgIGAtLWF1dG9zdGFzaGAgZml4ZXMgaXQuIFRoYXQgbW9udGhseSBzbGljayBm
+aWxlIHdhbnRzIHRpbGluZyBsaWtlIHRoZSBlYXJsaWVyCisgIG1vbnRocyAodGhlIG1hcCBhbHJlYWR5IHJlYWRzIGEgdGlsZWQg
+bW9udGggd2hlcmUgb25lIGV4aXN0cykuCisKKyMjIENsaW1hdGUgVFJBQ0UgYnkgZ2FzOiB0aGUgcGxhbgorCitDbGltYXRlIFRS
+QUNFJ3Mgc2VjdG9yIHBhY2thZ2VzIGFyZSBwZXIgZ2FzOiBgbGF0ZXN0L3NlY3Rvcl9wYWNrYWdlcy88Z2FzPi8KKzxzZWN0b3I+
+LnppcGAgZm9yIGBjbzJgLCBgY2g0YCwgYG4yb2AsIGBjbzJlXzEwMHlyYCwgYGNvMmVfMjB5cmAuIFRoZSBoYXJ2ZXN0CityZWFk
+cyBvbmx5IGBjbzJlXzEwMHlyYCAoYEdBU2AgaW4gYHBpcGVsaW5lL3NvdXJjZXMvY2xpbWF0ZV90cmFjZS5weWApLiBUaGUKK3Nw
+bGl0OiByZWFkIHRoZSBgY28yYCwgYGNoNGAgYW5kIGBuMm9gIHBhY2thZ2VzIGFzIHdlbGwsIG9uZSBmZWF0dXJlIHBlciBzaXRl
+LAorcGVyaW9kIGFuZCBnYXMgd2l0aCB0aGF0IGdhcydzIHRvbm5lcyBhcyBgdmFsdWVgIGFuZCBgeF9nYXNgIHNldCwgaW50byB0
+aGVpcgorb3duIGFyY2hpdmVzIChgY2xpbWF0ZV90cmFjZV88Z2FzPl88c2VjdG9yPmApLCBhbmQgdGhlIGJveCBnZXRzIGVhY2gg
+c2VjdG9yCitncm91cCBhZ2FpbiB1bmRlciBDYXJib24gZGlveGlkZSwgTWV0aGFuZSBhbmQgTml0cm91cyBveGlkZSwgZWFjaCBk
+cmF3aW5nIG9ubHkKK2l0cyBnYXMncyBhcmNoaXZlLiBFeGFjdCBmb3IgdGhvc2UgdGhyZWUgZ2FzZXM7IEYtZ2FzZXMgYXJlIG5v
+dCBpbiB0aGUKK2ludmVudG9yeSwgYW5kIGJsYWNrIGNhcmJvbiBhbmQgTk94IGFyZSBpbiB0aGUgYWlyLXBvbGx1dGlvbiBzZXQg
+KGBjdF9haXJgKS4KK0Nvc3Q6IHRocmVlIG1vcmUgcGFja2FnZSBkb3dubG9hZHMgcGVyIHNlY3RvciBwZXIgcnVuIChhZ3JpY3Vs
+dHVyZSdzIGNvMmUKK3BhY2thZ2UgYWxvbmUgaXMgMS40IEdCKSwgc28gdGhlIHBlci1nYXMgaGFydmVzdCBzaG91bGQgcnVuIGFz
+IGl0cyBvd24gam9iCit3aXRoIGl0cyBvd24gRVRhZ3MgcmF0aGVyIHRoYW4gaW5zaWRlIHRoZSBleGlzdGluZyBvbmUuIE5vdCB3
+cml0dGVuIHlldC4KKwogIyMgVGhlIGdsb3cgKDIyIFNlcHRlbWJlcik6IHN5bWJvbHMgZ29uZSwgZW1pc3Npb25zIGFzIGEgZmll
+bGQgb2YgbGlnaHQKIAogRXZlcnkgcG9pbnQgbGF5ZXIncyBnZW9tZXRyaWMgc3ltYm9sIGlzIGdvbmUuIGBhZGRIdWRgIChrZXB0
+IHRoZSBuYW1lOyB0aGUK
+""").decode("utf-8")
+
+
+def run(cmd, text=None):
+    return subprocess.run(cmd, input=text, text=True, capture_output=True)
+
+
+def main():
+    if not pathlib.Path("map/app.js").exists():
+        sys.exit("Run this from the culprits folder (cd ~/Desktop/culprits).")
+    app = pathlib.Path("map/app.js").read_text(encoding="utf-8")
+    if "const GLOW = {" not in app:
+        sys.exit("patch_0922g.py has to be applied and committed first.")
+    if run(["git", "apply", "--check", "--reverse", "-"], DIFF).returncode == 0:
+        print("Already applied - nothing to do.")
+        return
+    check = run(["git", "apply", "--check", "-"], DIFF)
+    if check.returncode != 0:
+        print(check.stderr.strip())
+        sys.exit("Does not apply cleanly.")
+    out = run(["git", "apply", "-"], DIFF)
+    if out.returncode != 0:
+        print(out.stderr.strip())
+        sys.exit("git apply failed.")
+    print("Applied. Changed: .github/workflows/refresh.yml, HANDOFF.md")
+    print("Now run both suites:")
+    print("    cd map && node test.mjs && node wire.test.mjs")
+
+
+if __name__ == "__main__":
+    main()

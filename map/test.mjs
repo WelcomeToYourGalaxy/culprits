@@ -3725,5 +3725,35 @@ console.log("\nround of 24 September: a search box for the layers, and the unpla
         /regionsCopy: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/trase\/regions"/.test(src) &&
         /traseCopyFirst\(cfg, "metadata\.json"\)/.test(src) && /traseCopyFirst\(cfg, file\)/.test(src));
 }
+{
+  console.log("\nround 33: ESA's risk list drawn round the globe");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const cut = src.slice(src.indexOf("const NEO_PS = "), src.indexOf("async function addNeoRingLayer("));
+  const neo = new Function(cut + "; return { NEO_PS, neoColour, neoParse, neoSpan, neoAngle };")();
+  const text = `Last Update: 2026-09-24 18:03 UTC
+           Object             |    Diameter    |             VI Max                                   |          VIs                  |
+Num/des.           Name       |   m  |   *=Y   |      Date/Time   |  IP max  | PS max |TS  | Vel km/s | Years     | IP cum   | PS cum |
+AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | NNN.NN | NN |  NNN.NN  | YYYY-YYYY | EEEEEEEE | NNN.NN |
+2023VD3                       |   14 |    *    | 2034-11-08 17:08 |  2.35E-3 |  -2.67 |  0 |   21.01  | 2034-2039 |  2.35E-3 |  -2.67 |
+2008JL3                       |   30 |    *    | 2027-05-01 09:05 |  1.49E-4 |  -2.73 |  0 |   14.01  | 2027-2122 |  1.61E-4 |  -2.73 |
+1979XB                        |  500 |    *    | 2056-12-12 21:38 |  2.34E-7 |  -2.82 |  0 |   27.54  | 2056-2113 |  7.34E-7 |  -2.70 |
+101955       Bennu            |  490 |         | 2182-09-24 16:00 |  3.70E-4 |  -1.40 |  0 |   12.00  | 2178-2290 |  5.70E-4 |  -1.40 |
+`;
+  const { updated, rows } = neo.neoParse(text);
+  check("every object row on ESA's list is read, none dropped, headings left out", rows.length === 4 && /2026-09-24/.test(updated || ""));
+  const b = rows.find(r => /Bennu/.test(r.name || ""));
+  check("each object keeps ESA's own date, probability and Palermo rating",
+        b && b["date of likeliest impact (UTC)"] === "2182-09-24 16:00" && Number(b["impact probability, likeliest date"]) === 3.7e-4 &&
+        Number(b["Palermo rating, likeliest date"]) === -1.4);
+  check("Palermo colours run dark to bone, with no orange, yellow or green",
+        neo.neoColour(-9) === "#4A4552" && neo.neoColour(-1.4) === "#E3D7CB" && neo.neoColour(-3) === "#B07F86" &&
+        neo.NEO_PS.every(([, c]) => !/^#(F[89A-F]|E[89A-F])[89A-F]..?[0-6]/i.test(c)));
+  const span = neo.neoSpan(rows, Date.UTC(2026, 8, 24));
+  check("the ring covers a hundred years at least, and reaches the latest date on the list", span >= 100 && span % 25 === 0 && span >= 2182 - 2026);
+  check("the year guides fall on whole years", /const step = Math\.max\(25, Math\.ceil\(span \/ 4 \/ 25\) \* 25\)/.test(src) && !/k \+= span \/ 4/.test(src));
+  check("the list is ESA's own file first, the daily copy second, and drawn only at world view",
+        /neo\.ssa\.esa\.int\/PSDB-portlet\/download\?file=esa_risk_list/.test(src) && /\/neo\/esa_risk_list\.txt/.test(src) &&
+        /route: "neoring"/.test(src) && /drawnProjection\(\) === "mercator" \|\| map\.getPitch\(\) > 5/.test(src));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

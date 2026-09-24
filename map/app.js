@@ -3850,6 +3850,150 @@ async function addCtGasesLayer(cfg) {
   setLayerState(cfg.id, `${rows.length} rows, one per gas and subsector`);
 }
 
+/* ---------- Near-Earth objects, around the globe (ESA's risk list) ---------- */
+// ESA's NEO Coordination Centre lists every object with a non-zero chance of
+// striking Earth in the next hundred years. None has a known place of impact,
+// so they are not put on the ground: at world view each is drawn in the dark
+// around the globe. Going round the globe clockwise from the top is time, from
+// now to a hundred years ahead, by the date of its likeliest impact; nearer the
+// planet is likelier (its cumulative impact probability); the colour is its
+// Palermo rating; the size its diameter. Where a mark sits says those three
+// things and nothing else: it is not where the object is in the sky.
+const NEO_URL = "https://neo.ssa.esa.int/PSDB-portlet/download?file=esa_risk_list";
+const NEO_COPY = `${CT_GASES_BASE}/neo/esa_risk_list.txt`;
+const NEO_PS = [[-Infinity, "#4A4552", "Palermo below −8"], [-8, "#6E5A7A", "−8 to −6"], [-6, "#8C5A68", "−6 to −4"],
+  [-4, "#B07F86", "−4 to −2"], [-2, "#E3D7CB", "−2 and above"]];
+function neoColour(ps) { let c = NEO_PS[0][1]; for (const [lo, col] of NEO_PS) if (ps >= lo) c = col; return c; }
+function neoParse(text) {
+  let updated = "";
+  const rows = [];
+  for (const l of String(text || "").split(/\r?\n/)) {
+    const u = l.match(/^Last Update:\s*(.*)$/);
+    if (u) { updated = u[1].trim(); continue; }
+    const f = l.split("|").map((x) => x.trim());
+    if (f.length < 11 || !/^\d{4}-\d\d-\d\d/.test(f[3])) continue;
+    const head = l.split("|")[0];
+    const num = (x) => (x === "" ? null : Number(x));
+    // Every column ESA prints, under ESA's own headings.
+    rows.push({ designation: head.slice(0, 12).trim(), name: head.slice(12).trim(), "diameter (m)": num(f[1]),
+      "diameter column *=Y": f[2], "date of likeliest impact (UTC)": f[3], "impact probability, likeliest date": num(f[4]),
+      "Palermo rating, likeliest date": num(f[5]), "Torino rating": num(f[6]), "speed at impact (km/s)": num(f[7]),
+      "years of possible impact": f[8], "impact probability, all dates": num(f[9]), "Palermo rating, all dates": num(f[10]) });
+  }
+  return { updated, rows };
+}
+// Where each mark sits around a globe of radius R centred at cx, cy.
+// The circle runs from now to the latest date on the list, at least a hundred
+// years, in whole quarter-centuries, and stops just short of closing so the
+// last dates do not sit on top of the first.
+function neoSpan(rows, now) {
+  const yr = 365.25 * 864e5;
+  const last = Math.max(0, ...rows.map((r) => (Date.parse(r["date of likeliest impact (UTC)"].replace(" ", "T") + "Z") - now) / yr).filter(isFinite));
+  return Math.max(100, Math.ceil(last / 25) * 25);
+}
+const neoAngle = (t, span) => Math.max(0, Math.min(span, t)) / span * 1.9 * Math.PI - Math.PI / 2;
+function neoPlace(rows, R, cx, cy, now, span) {
+  const yr = 365.25 * 864e5;
+  span = span || neoSpan(rows, now);
+  return rows.map((r) => {
+    const t = (Date.parse(r["date of likeliest impact (UTC)"].replace(" ", "T") + "Z") - now) / yr;
+    const a = neoAngle(t, span);
+    const ip = r["impact probability, all dates"] || r["impact probability, likeliest date"] || 1e-12;
+    const near = Math.max(0, Math.min(1, (Math.log10(ip) + 12) / 10));
+    const d = R * (1.1 + 0.8 * (1 - near));
+    const size = Math.max(2, Math.min(7, 2 + 2 * Math.log10(Math.max(1, (r["diameter (m)"] || 10) / 10))));
+    return { r, x: cx + Math.cos(a) * d, y: cy + Math.sin(a) * d, size, colour: neoColour(r["Palermo rating, all dates"] ?? r["Palermo rating, likeliest date"]) };
+  });
+}
+async function addNeoRingLayer(cfg) {
+  let text = null, fromCopy = false;
+  try { const r = await fetch(NEO_URL); if (r.ok) text = await r.text(); } catch (e) { /* ESA's server does not let the page read it */ }
+  if (!text || !/Last Update/.test(text)) {
+    try { const r = await fetch(NEO_COPY); if (r.ok) { text = await r.text(); fromCopy = true; } } catch (e) { /* none */ }
+  }
+  const { updated, rows } = neoParse(text);
+  if (!rows.length) { setLayerState(cfg.id, "ESA's list could not be read, and there is no copy yet"); return; }
+  const box = map.getContainer();
+  const cv = document.createElement("canvas");
+  cv.className = "neo-ring";
+  cv.style.cssText = "position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none";
+  map.getCanvas().after(cv);
+  const card = document.createElement("div");
+  card.className = "neo-card maplibregl-popup-content";
+  card.style.cssText = "position:absolute;z-index:5;max-width:300px;max-height:320px;overflow:auto;display:none";
+  box.appendChild(card);
+  let on = false, placed = [];
+  const span = neoSpan(rows, Date.now());
+  const draw = () => {
+    const w = box.clientWidth, h = box.clientHeight, dpr = window.devicePixelRatio || 1;
+    if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+    const g = cv.getContext("2d");
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, w, h);
+    placed = [];
+    const R = globeRadiusPx(map.getZoom(), map.getCenter().lat);
+    // World view only: the globe whole on screen, upright, with room round it.
+    if (!on || drawnProjection() === "mercator" || map.getPitch() > 5 || R > Math.min(w, h) * 0.45) return;
+    const cx = w / 2, cy = h / 2;
+    placed = neoPlace(rows, R, cx, cy, Date.now(), span);
+    // Faint guides: a whole year every 25 years or more, round the outside.
+    g.strokeStyle = "rgba(214,204,188,0.12)"; g.fillStyle = "rgba(214,204,188,0.45)";
+    g.font = "10px system-ui,sans-serif"; g.textAlign = "center";
+    const y0 = new Date().getUTCFullYear();
+    const step = Math.max(25, Math.ceil(span / 4 / 25) * 25);
+    for (let k = 0; k <= span; k += step) {
+      const a = neoAngle(k, span);
+      g.beginPath(); g.moveTo(cx + Math.cos(a) * R * 1.05, cy + Math.sin(a) * R * 1.05); g.lineTo(cx + Math.cos(a) * R * 1.95, cy + Math.sin(a) * R * 1.95); g.stroke();
+      g.fillText(String(y0 + k), cx + Math.cos(a) * R * 2.03, cy + Math.sin(a) * R * 2.03 + 3);
+    }
+    for (const p of placed.slice().sort((a, b) => a.size - b.size)) {
+      g.beginPath(); g.arc(p.x, p.y, p.size, 0, 2 * Math.PI);
+      g.fillStyle = p.colour; g.globalAlpha = 0.9; g.fill(); g.globalAlpha = 1;
+      g.lineWidth = 0.6; g.strokeStyle = "rgba(10,10,12,0.8)"; g.stroke();
+    }
+  };
+  const hit = (pt) => {
+    let best = null, bd = 9;
+    for (const p of placed) { const d = Math.hypot(p.x - pt.x, p.y - pt.y) - p.size; if (d < bd) { bd = d; best = p; } }
+    return best;
+  };
+  map.on("render", draw);
+  map.on("resize", draw);
+  map.on("mousemove", (e) => { if (on && placed.length) map.getCanvas().style.cursor = hit(e.point) ? "pointer" : ""; });
+  map.on("click", (e) => {
+    if (!on || !placed.length) return;
+    const p = hit(e.point);
+    if (!p) { card.style.display = "none"; return; }
+    popupClaimedBy = e.originalEvent || e;
+    const r = p.r;
+    card.innerHTML = `<button type="button" class="neo-x" style="float:right;background:none;border:0;cursor:pointer" aria-label="Close">✕</button>` +
+      `<b>${escapeHtml([r.designation, r.name].filter(Boolean).join(" "))}</b>` +
+      `<div class="meta">${escapeHtml(r["date of likeliest impact (UTC)"])} UTC · chance ${Number(r["impact probability, likeliest date"]).toExponential(2)}` +
+      ` · Palermo ${r["Palermo rating, likeliest date"]}</div>` +
+      `<table class="meta">${fieldRows(r)}</table>` +
+      `<div class="meta">ESA NEO Coordination Centre risk list${updated ? `, updated ${escapeHtml(updated)}` : ""}. The mark's place round the globe shows its date and chance, not where it is.</div>`;
+    card.style.left = Math.min(e.point.x + 12, box.clientWidth - 310) + "px";
+    card.style.top = Math.max(8, Math.min(e.point.y - 20, box.clientHeight - 330)) + "px";
+    card.style.display = "block";
+    card.querySelector(".neo-x").onclick = () => { card.style.display = "none"; };
+  });
+  cfg.afterVisibility = (vis) => { on = vis === "visible"; if (!on) card.style.display = "none"; draw(); };
+  on = (visibility.get(cfg.id) || "visible") === "visible";
+  // The key under the row: what the colours mean.
+  const row = document.querySelector(`[data-layer="${cfg.id}"]`);
+  const label = row && row.closest ? row.closest("label") : null;
+  if (label && label.after && !document.querySelector(`.facet[data-key-for="${cfg.id}"]`)) {
+    const el = document.createElement("div");
+    el.className = "facet cat-key";
+    el.dataset.keyFor = cfg.id;
+    el.innerHTML = catalogueKeyHtml({ values: NEO_PS.map(([lo, c, t], i) => [i, c, t]) }) +
+      `<div style="padding-left:18px;font-size:10.5px;color:var(--dim)">Colour: Palermo rating. Round the globe clockwise from the top: the date of likeliest impact, now to ${new Date().getUTCFullYear() + span}. Nearer the globe: likelier. Size: diameter. Shown at world view.</div>`;
+    label.after(el);
+  }
+  setLayerState(cfg.id, `${rows.length} objects${updated ? `, list of ${updated}` : ""}${fromCopy ? " · from today's copy" : ""} · drawn round the globe at world view`);
+  draw();
+}
+
 async function addTraseLayer(cfg) {
   let cat, regions;
   try {
@@ -9975,9 +10119,8 @@ const OTHER_MAPS = {
     { id: "nsf_locations", name: "Next Spaceflight: launch sites", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://nextspaceflight.com/locations/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "esa_risk", name: "Near-Earth-object risk list (ESA)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
-      page: "https://neo.ssa.esa.int/risk-list-plots",
-      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "esa_risk", name: "Asteroids that could strike Earth in the next hundred years (ESA risk list)", unit: "objects", colour: "#B07F86", route: "neoring", ready: true, lazy: true,
+      note: "Every object on ESA's risk list, drawn in the dark round the globe at world view: clockwise from the top is the date of its likeliest impact, nearer the globe is likelier, the colour is its Palermo rating and the size its diameter. None has a known place of impact, so none is put on the ground. Read from ESA's own file, or from a daily copy if ESA's server will not let the page read it." },
     { id: "acgf", name: "ACGF", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://acgf.org/index.htm",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
@@ -10378,6 +10521,7 @@ function ensureLayer(cfg) {
       : cfg.route === "buildings" ? addBuildingTypesLayer(cfg)
       : cfg.route === "spheres" ? addSpheresLayer(cfg)
       : cfg.route === "ctgases" ? addCtGasesLayer(cfg)
+      : cfg.route === "neoring" ? addNeoRingLayer(cfg)
       : ["ejatlas", "geojsonlive", "wpgmza", "atlascities", "trasefac"].includes(cfg.route) ? addLivePlacesLayer(cfg)
       : cfg.route === "wmsmenu" ? addWmsMenuLayer(cfg)
       : cfg.route === "gfwmenu" ? addGfwMenuLayer(cfg)

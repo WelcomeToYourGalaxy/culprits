@@ -5,6 +5,21 @@ touches.
 
 ---
 
+## Round 33 (24 September): ESA's asteroid risk list as a real layer
+
+esa_risk no longer opens ESA's site in a box. Route "neoring" (addNeoRingLayer
+in map/app.js) reads ESA's own list (neo.ssa.esa.int ... esa_risk_list), or the
+daily copy culprits-tiles-more/neo/esa_risk_list.txt if ESA's server refuses
+the page, and draws every object on a canvas round the globe at world view
+(globe or vertical perspective, pitch 5 or less, globe fully on screen):
+- angle round the globe = date of likeliest impact, from this year clockwise;
+  whole-year guides every 25 years or more; the ring spans 100 years at least.
+- distance from the globe = cumulative impact probability (closer = likelier).
+- size = diameter; colour = Palermo rating (muted plum to bone, five bins).
+- click a mark: every field ESA gives, under ESA's own headings.
+Nothing filtered: every row on the list is drawn.
+
+
 ## Round 32 (24 September): Climate TRACE by gas, one subsector at a time
 
 The ct_gases run of 24 September (co2, agriculture) timed out at 160 minutes:
