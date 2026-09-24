@@ -112,6 +112,19 @@ if os.environ.get("CT_SECTORS"):
     _only = {x.strip() for x in os.environ["CT_SECTORS"].split(",") if x.strip()}
     SECTORS = [x for x in SECTORS if x in _only]
 
+# CT_SUBSECTORS narrows it further, to named subsectors (24 September, round
+# 32): one sector of one gas still ran past the job's time limit (carbon
+# dioxide from agriculture is 59.9 million rows in nine subsectors). Compared
+# with each row's own subsector, letters and digits only, so "cropland-fires"
+# and "cropland_fires" are the same. Each CSV in a package holds one subsector,
+# so a CSV whose first row is another subsector is passed over whole, without
+# reading the rest of it. Unset, every subsector is harvested, as before.
+def _slug(x):
+    return "".join(c if c.isalnum() else "_" for c in str(x or "").lower())
+
+
+ONLY_SUBSECTORS = {_slug(x) for x in os.environ.get("CT_SUBSECTORS", "").split(",") if x.strip()}
+
 # Nothing is cut. Every emissions source Climate TRACE publishes with a
 # coordinate is harvested, and what a reader sees is decided in the map panel
 # rather than here.
@@ -205,6 +218,15 @@ def _rows_from_package(path, stats):
                     stats["skipped_files"].append(name)
                     continue
                 used += 1
+                if ONLY_SUBSECTORS:
+                    first = next(reader, None)
+                    if first is None or _slug(first.get("subsector")) not in ONLY_SUBSECTORS:
+                        continue
+                    yield first
+                    for row in reader:
+                        if _slug(row.get("subsector")) in ONLY_SUBSECTORS:
+                            yield row
+                    continue
                 for row in reader:
                     yield row
         if used == 0:

@@ -5,6 +5,22 @@ touches.
 
 ---
 
+## Round 32 (24 September): Climate TRACE by gas, one subsector at a time
+
+The ct_gases run of 24 September (co2, agriculture) timed out at 160 minutes:
+harvest 54 min and normalise 40 min for 59.9 million rows, then two of nine
+subsectors tiled before the third (cattle operations, 18.8 million) ran out
+of time. Nothing was saved, because the pair copied its archives only at the
+end. Now:
+- pipeline/sources/climate_trace.py takes CT_SUBSECTORS; a CSV whose first
+  row is another subsector is passed over whole.
+- culprits-tiles-more scripts/ct_gases.py works in (gas, sector, subsector)
+  units, the subsectors listed from Climate TRACE's own schema CSV; each unit's
+  archives (and any zoom parts with their .build.json) go into tiles/ and the
+  list as soon as they are made. Units are recorded under "units" in
+  tiles/climate_trace_gases.json.
+
+
 ## Round 31 (24 September): EJAtlas placed again
 
 EJAtlas's plain list (/api/v1/conflicts/) no longer carries positions. Its own
