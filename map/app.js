@@ -388,7 +388,7 @@ const LAYERS = [
   // From WelcomeToYourGalaxy/abattoir-atlas: its merged facility records, every
   // one, not the subset its own page draws. Share-alike (OSM rows and OSM-based
   // geocoding), so its archive is isolated, as local_projects is.
-  { id:"abattoir_facilities",  name:"Registered animal-use facilities \u2014 slaughterhouses, farms, dairies, hatcheries and zoos (abattoir atlas)", unit:"facilities", colour:"#80605A", route:"pmtiles", ready:true, off: true,
+  { id:"abattoir_facilities",  name:"Registered animal-use facilities \u2014 sites on official registers: slaughterhouses, farms, dairies, hatcheries and zoos (abattoir atlas)", unit:"facilities", colour:"#80605A", route:"pmtiles", ready:true, off: true,
     isolate:true,
     facet: { property: "x_slaughter", label: "slaughter",
              values: ["yes","no","not stated"],
@@ -400,9 +400,9 @@ const LAYERS = [
                        "no": "registered, does not slaughter",
                        "not stated": "registry does not say" } },
     note: "Most of these are not slaughterhouses: farms, dairies, processors, transporters, hatcheries and zoos are registered animal-use sites too. Slaughter is marked yes or no only where a registry says; for most it says neither. Hollow points are placed at a town, not the site. Records with no position at all are not drawn." },
-  { id:"abattoir_cafo",        name:"Confined animal feeding operations, modelled (Climate TRACE)", unit:"modelled facilities", colour:"#7B6A4E", route:"cafo", ready:true, off: true, lazy:true,
+  { id:"abattoir_cafo",        name:"Confined animal feeding operations \u2014 a model's estimate, not registered sites (Climate TRACE)", unit:"modelled facilities", colour:"#7B6A4E", route:"cafo", ready:true, off: true, lazy:true,
     note: "A model's estimate from satellite imagery and census data, not a permit register: nothing here has necessarily been visited, licensed or confirmed by any authority. Hollow where Climate TRACE give an area rather than the facility's own position." },
-  { id:"abattoir_glw",         name:"Livestock density, modelled (FAO Gridded Livestock of the World 4, 2020)", unit:"animals per square km", colour:"#6E6A55", route:"glw", ready:true, off: true, lazy:true,
+  { id:"abattoir_glw",         name:"Livestock density \u2014 a model's estimate, not a count of farms (FAO Gridded Livestock of the World 4, 2020)", unit:"animals per square km", colour:"#6E6A55", route:"glw", ready:true, off: true, lazy:true,
     note: "A modelled grid of where animals are kept, not a count of farms. FAO fit census totals to land cover and other predictors, so a dense square means the model puts animals there." },
   { id:"slavery_cases",        name:"Identified trafficking cases", unit:"identified cases", colour:"#7A6A72", route:"country", ready:true, off:true,
     note: "Detection, not prevalence. A country with a large count has organisations filing records; a country with none may have no one counting." },
@@ -5382,6 +5382,7 @@ const BUNDLES = {
   waterwatch: "Reservoirs above or below their usual water area (Global Water Watch)",
   forest: "Forest and tree cover in 2000, 2010 and 2020, worldwide and the tropics",
   plans: "Spatial plans, forest estate and the clearing moratorium, Indonesia",
+  idnplant: "Plantations in Indonesia and its neighbours, region by region",
 };
 const IN = (path, key) => `${path} > ${BUNDLES[key]}`;
 const CATALOGUE_PLACES = [
@@ -5399,9 +5400,10 @@ const CATALOGUE_PLACES = [
   [/oil and gas|oil & gas|(?<!greenhouse )\bgas\b|petroleum|geothermal/i, P + " > Climate > Infrastructure emitting more than one gas"],
   // Agriculture, by crop where the box has a heading for it (22 September).
   [/palm|\bmills?\b|refiner/i, AG + " > Palm oil"],
-  [/\bsoy|\bcorn\b|maize|grain|silo/i, AG + " > Soy, corn and grain"],
-  [/cocoa|cotton/i, AG + " > Cocoa and cotton"],
-  [/fertili[sz]er/i, AG + " > Farm inputs"],
+  // Soy, corn and grain under Climate only, by the gas their fields mostly
+  // emit, and fertilizer there too (24 September, at the owner's word).
+  [/\bsoy|\bcorn\b|maize|grain|silo/i, P + " > Climate > Nitrous oxide"],
+  [/fertili[sz]er/i, P + " > Climate > Nitrous oxide"],
   [/plantation|coconut|sugarcane|sago|coffee|crop|agricultur|pasture|yield|mapspam|\bhgu\b/i, AG],
   // Measures about herds and grazing are not facilities: they go under Meat,
   // where CATALOGUE_SUBS files them by animal (round 23).
@@ -5447,7 +5449,7 @@ const CATALOGUE_PLACES = [
   // Spatial plans: the national and provincial plans and the moratorium (PIPPIB)
   // stay; the moratorium is also under Deforestation, being a bar on clearing
   // forest and peat; Badung's detailed plans go under Agriculture, as asked.
-  [/badung/i, AG + " > Detailed spatial plans, Badung"],
+  [/badung/i, null],
   // Spatial plans and the moratorium are one row with sublayers under
   // Deforestation since round 23 (item 25); the Spatial plans and Moratoriums
   // headings are gone.
@@ -5471,6 +5473,15 @@ const CATALOGUE_BY_TITLE = [
   [/^(gross |net )?emissions from (cattle|pasture|beef) deforestation\b/i, [P + " > Climate > Carbon dioxide"]],
   [/^pasture area\b/i, null],
   [/global ?pasture ?watch|\bgpw_grasslands_\d{4}\b|\bwri_globalpasturewatch_grasslands(_\d{4})?\b/i, null],
+  // Taken out (24 September): Badung's detailed spatial plans; the coffee,
+  // cocoa, cotton and sugarcane rows (Merauke's sugarcane concessions among
+  // them), but not the clearing for cocoa, its emissions or its
+  // zero-deforestation share; Trase's seven corn rows.
+  [/badung/i, null],
+  [/^(?!.*(deforest|emission|\bzdc\b|zero.deforestation)).*(coffee|arabica|robusta|cocoa|cotton|sugar)/i, null],
+  [/^(production of )?corn\b.*\(Trase\)/i, null],
+  // Aqueduct's water risk and stress under Water scarcity.
+  [/aqueduct|water stress/i, [P + " > Water scarcity"]],
   // ---- Round 23 (23 September), at the owner's word ---------------------
   // Taken out: Trase's shrimp production (item 3); the Clark Labs change maps
   // other than 1999 to 2018 (items 4 and 6); Nusantara's Equatorial Asia
@@ -5562,7 +5573,7 @@ const CATALOGUE_BY_TITLE = [
   [/logging roads?\b/i, [P + " > Deforestation"]],
   // Placed by name.
   [/tree cover loss by (dominant )?driver|drivers? of tree cover loss/i, [P + " > Deforestation > Tree cover loss and alerts"]],
-  [/soy(bean)? planted area/i, [P + " > Climate > Nitrous oxide > Soy", AG + " > Soy, corn and grain"]],
+  [/soy(bean)? planted area/i, [P + " > Climate > Nitrous oxide > Soy"]],
   [/forest greenhouse gas emissions/i, [P + " > Deforestation"]],
   // Copied under Fire and Mining too (23 September): the alerts cover any loss
   // of plant cover, whatever its cause.
@@ -5607,10 +5618,8 @@ const CATALOGUE_SUBS = {
     [/.*/, "Places that matter most for species"],
   ],
   [AG]: [
-    [/coffee|arabica|robusta/i, "Coffee"],
-    [/sugar/i, "Sugarcane"],
     [/pasture|grassland/i, "Pasture and grassland"],
-    [/aqueduct|\bwater\b/i, "Water for crops"],
+    [/\bwater\b/i, "Water for crops"],
     [/deforest/i, "Clearing for farming"],
     [/.*/, "Plantations"],
   ],
@@ -5621,14 +5630,11 @@ const CATALOGUE_SUBS = {
     [/concession/i, "Concessions"],
     [/.*/, "Plantations"],
   ],
-  [AG + " > Soy, corn and grain"]: [
+  [P + " > Climate > Nitrous oxide"]: [
     [/\bcorn\b|maize/i, "Corn"],
     [/\bsoy/i, "Soy"],
-    [/.*/, "Grain"],
-  ],
-  [AG + " > Cocoa and cotton"]: [
-    [/cotton/i, "Cotton"],
-    [/.*/, "Cocoa"],
+    [/grain|silo/i, "Grain"],
+    [/.*/, ""],
   ],
   [P + " > Meat and agriculture > Meat"]: [
     [/\bpigs?\b|chicken/i, "Pigs and chickens"],
@@ -5638,7 +5644,7 @@ const CATALOGUE_SUBS = {
 function catalogueSub(path, words) {
   const rules = CATALOGUE_SUBS[path];
   if (!rules) return path;
-  for (const [rule, sub] of rules) if (rule.test(words)) return `${path} > ${sub}`;
+  for (const [rule, sub] of rules) if (rule.test(words)) return sub ? `${path} > ${sub}` : path;
   return path;
 }
 // Rows whose words say peat are not land cover rows, whatever their group says
@@ -5646,7 +5652,10 @@ function catalogueSub(path, words) {
 function catalogueRefine(paths, words) {
   let out = paths.filter((x) => !(x === P + " > Forest and land cover" && /\bpeat/i.test(words)));
   if (!out.length && paths.length) out = [P + " > Peatland"];
-  return [...new Set(out.map((x) => catalogueSub(x, words)))];
+  // Plantation rows for Indonesia and its neighbours are one row with
+  // sublayers, detail beside the worldwide planted-trees row (24 September).
+  const idn = /indonesia|papua|kalimantan|merauke|borneo|sumatra|sulawesi|\bjava\b|\bbali\b|equatorial asia|rawa singkil|\briau\b|\baceh\b|\bidn_?/i;
+  return [...new Set(out.map((x) => catalogueSub(x, words)).map((x) => (x === AG + " > Plantations" && idn.test(words) ? IN(AG + " > Plantations", "idnplant") : x)))];
 }
 // Where a catalogue layer is, said in its title. Nusantara names the place in
 // most of its ids and covers Equatorial Asia in the rest; a reader clicking
@@ -5684,10 +5693,15 @@ function cataloguePlaces(words, title) {
     if (path === null) dropped = true; else if (!out.includes(path)) out.push(path);
   }
   const drop = (path) => { const i = out.indexOf(path); if (i > -1) out.splice(i, 1); };
+  // Clearing for soy or corn, its emissions and the shares under a
+  // zero-deforestation commitment are not fields emitting nitrous oxide.
+  if (/deforest|\bzdc\b|zero.deforestation/i.test(words)) drop(P + " > Climate > Nitrous oxide");
   // Rubber was asked to go under Deforestation, not Agriculture, though its rows say "plantation".
   if (/rubber/i.test(words)) drop(AG);
   // A crop's own heading stands in for the general one; by sector stands in for by gas.
   if (out.some((p) => p.startsWith(AG + " > "))) drop(AG);
+  // So does Climate's, for soy, corn and grain (their yields say "yield").
+  if (out.includes(P + " > Climate > Nitrous oxide")) drop(AG);
   if (out.some((x) => x === P + " > Climate > Methane" || x === P + " > Climate > Nitrous oxide")) drop(P + " > Climate > Carbon dioxide");
   if (out.includes(AG + " > Detailed spatial plans, Badung")) drop(IN(P + " > Deforestation", "plans"));
   // A share traded under a zero-deforestation commitment is not clearing,
@@ -11735,32 +11749,23 @@ const PANEL_ORDER = [
   // Item 23: the EC JRC's own surface water map, back and drawn from its tiles.
   { h: 3, t: "Surface water" }, "jrc_water",
   { h: 4, bundle: "waterwatch", colour: "#5E7377" },
+  { h: 3, t: "Water scarcity" },
   // Item 14: the mines layers are one row with sublayers.
   { h: 3, t: "Mining" },
   { h: 4, bundle: "mines", colour: "#6E5E52" }, "mines_global", "mine_features",
   { h: 3, t: "Meat and agriculture" }, "site_food_system",
   { h: 4, t: "Agriculture" },
   { h: 5, t: "Plantations" },
+  { h: 6, bundle: "idnplant", colour: "#6E6A55" },
   { h: 5, t: "Palm oil" },
   { h: 6, t: "Concessions" },
   { h: 6, t: "Plantations" },
   { h: 6, t: "Mills and refineries" }, "palmwatch", "trase_palm_indonesia",
   { h: 6, t: "Who finances them" },
   { h: 6, t: "Clearing and emissions" },
-  { h: 5, t: "Soy, corn and grain" },
-  { h: 6, t: "Soy" }, "trase_silos_brazil", "food_soy",
-  { h: 6, t: "Corn" }, "food_maize",
-  { h: 6, t: "Grain" }, "site_china_grain",
-  { h: 5, t: "Cocoa and cotton" },
-  { h: 6, t: "Cocoa" }, "trase_cocoa_ivory",
-  { h: 6, t: "Cotton" },
-  { h: 5, t: "Coffee" },
-  { h: 5, t: "Sugarcane" },
   { h: 5, t: "Pasture and grassland" },
   { h: 5, t: "Water for crops" },
   { h: 5, t: "Clearing for farming" },
-  { h: 5, t: "Farm inputs" }, "fertilizer_facilities",
-  { h: 5, t: "Detailed spatial plans, Badung" },
   { h: 4, t: "Meat" },
   { h: 5, t: "Facilities" }, "abattoir_facilities", "trase_meat_brazil", "abattoir_cafo",
   { h: 5, t: "Herds" }, "abattoir_glw",
@@ -11852,6 +11857,7 @@ const PANEL_ORDER = [
   { h: 1, t: "Buildings" }, "building_types",
 ];
 const PANEL_REMOVED = new Set([
+  "trase_cocoa_ivory",             // taken out 24 September with the other cocoa rows
   "leverage_chart",
   "cultivated_meat_laws",          // taken out 22 September at the owner's request
   "scribd_doc",                    // the Destruction page document, taken out 22 September (round 2)

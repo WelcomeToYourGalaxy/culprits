@@ -5,6 +5,24 @@ touches.
 
 ---
 
+## Round 36 (24 September): agriculture pared down, at the owner's word
+
+- Soy, corn and grain are under Climate > Nitrous oxide only (catalogue rule
+  and CATALOGUE_SUBS; the Agriculture sub-heading is gone). Their clearing,
+  its emissions and zero-deforestation shares get no Nitrous oxide copy.
+- Fertilizer plants only under Climate > Nitrous oxide; Farm inputs gone.
+- Taken out: Badung's detailed spatial plans (and the heading); coffee, cocoa,
+  cotton and sugarcane rows incl. Merauke's sugarcane concessions and
+  trase_cocoa_ivory (clearing for cocoa, its emissions and ZDC share stay);
+  Trase's seven corn rows.
+- New heading Water scarcity (under Of the planet): Aqueduct's rows.
+- Plantation rows for Indonesia and its neighbours are one row with sublayers
+  (bundle idnplant) under Agriculture > Plantations; worldwide rows beside it.
+- Titles: CAFO and livestock density say "a model's estimate, not registered
+  sites / not a count of farms"; the registered row says "sites on official
+  registers".
+
+
 ## Round 35 (24 September): Materials research from a weekly copy; cattle rows refiled; CAFO and livestock rows fixed
 
 - arcgis_materialresearch (Material Research World Atlas, item

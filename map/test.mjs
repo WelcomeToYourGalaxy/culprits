@@ -2481,8 +2481,9 @@ console.log("\nrows gathered, moved and renamed");
         !/name: "Trase: /.test(src) && !/trasefacmenu/.test(src));
   check("each Trase row sits under the map's own heading, not a Trase one",
         ["trase_pulp_indonesia"].every((i) => order.indexOf(i) > at("Deforestation")) && !order.includes("trase_measures") &&
-        ["trase_palm_indonesia", "trase_silos_brazil", "trase_cocoa_ivory"]
+        ["trase_palm_indonesia"]
           .every((i) => order.lastIndexOf(i) > at("Agriculture") && order.lastIndexOf(i) < at("Meat")) &&
+        order.indexOf("trase_silos_brazil") > at("Nitrous oxide") && order.indexOf("trase_silos_brazil") < at("F-gases") && !order.includes("trase_cocoa_ivory") &&
         order.indexOf("trase_meat_brazil") > at("Meat") && order.indexOf("trase_meat_brazil") < at("Oceans") &&
         !order.includes("group:trase_data"));
   check("a group owns its children, so no row is rendered twice and none falls into Not yet placed",
@@ -2968,12 +2969,12 @@ console.log("\nNusantara's layers spread through the box");
   check("\u2026and every Nusantara alert row is under Deforestation",
         places("Trees cut, Indonesia and Malaysia \u2014 every alert system at once, as Nusantara reads them").join() === "Destruction > Of the planet > Deforestation > Tree cover loss and alerts > Alerts" &&
         places("Trees cut, seen through cloud by radar (RADD), as Nusantara reads it").join() === "Destruction > Of the planet > Deforestation > Tree cover loss and alerts > Alerts");
-  check("\u2026Trase's crops go under their own headings, soy and cocoa and palm, not the general one",
-        places("Production of soy trase").join() === "Destruction > Of the planet > Meat and agriculture > Agriculture > Soy, corn and grain > Soy" &&
-        places("Cocoa area trase").join() === "Destruction > Of the planet > Meat and agriculture > Agriculture > Cocoa and cotton > Cocoa");
-  check("\u2026the moratorium (PIPPIB) is in the spatial plans row under Deforestation; Badung's plans under Agriculture",
+  check("\u2026Trase's soy goes under Climate > Nitrous oxide > Soy, not the general heading; its cocoa area is out (24 September)",
+        places("Production of soy trase").join() === "Destruction > Of the planet > Climate > Nitrous oxide > Soy" &&
+        places("Cocoa area trase", "Cocoa area trase").join() === "(taken out)");
+  check("\u2026the moratorium (PIPPIB) is in the spatial plans row under Deforestation; Badung's plans are out (24 September)",
         places("Moratorium areas (PIPPIB)").join() === "Destruction > Of the planet > Deforestation > Spatial plans, forest estate and the clearing moratorium, Indonesia" &&
-        places("Detailed spatial plan 2023, Badung (RDTR)").join() === "Destruction > Of the planet > Meat and agriculture > Agriculture > Detailed spatial plans, Badung");
+        places("Detailed spatial plan 2023, Badung (RDTR)", "Detailed spatial plan 2023, Badung (RDTR)").join() === "(taken out)");
   check("\u2026a land-cover layer is back under Forest and land cover until the owner decides; mangroves under Reefs and mangroves",
         places("Land cover 2020, Indonesia").join() === "Destruction > Of the planet > Forest and land cover" && places("Mangrove extent").join() === "Destruction > Of the planet > Oceans > Reefs and mangroves" &&
         /leftOut\+\+; item\.leftOut = true; return;/.test(src));
@@ -3133,8 +3134,8 @@ console.log("\nround of 22 September (2): the box refiled, rows taken out");
   check("the drivers of tree cover loss are deforestation, not fire",
         f("Tree cover loss by dominant driver") === P + " > Deforestation > Tree cover loss and alerts > What drove the loss" &&
         f("Drivers of tree cover loss (WRI/Google)") === P + " > Deforestation > Tree cover loss and alerts > What drove the loss");
-  check("soy planted area is under Nitrous oxide > Soy and still under Agriculture",
-        f("Soy planted area \u2014 South America") === `${P} > Climate > Nitrous oxide > Soy | ${AG} > Soy, corn and grain > Soy` &&
+  check("soy planted area is under Nitrous oxide > Soy only (24 September)",
+        f("Soy planted area \u2014 South America") === `${P} > Climate > Nitrous oxide > Soy` &&
         at("Soy", at("Nitrous oxide")) > at("Nitrous oxide") && at("Soy", at("Nitrous oxide")) < at("F-gases"));
   check("protected areas, intact forest landscapes worldwide and biodiversity hotspots are biodiversity loss",
         f("Protected areas (WDPA)") === P + " > Biodiversity loss > Protected and conserved areas" &&
@@ -3614,7 +3615,7 @@ console.log("\nround of 23 September (23): the owner's thirty notes on the layer
         f("Oil palm concessions — Equatorial Asia", "concessioniop_spv") === `${AG} > Palm oil > Concessions` &&
         f("Palm oil mills — Equatorial Asia", "millop_spv") === `${AG} > Palm oil > Mills and refineries` &&
         f("Cattle herd size Production beef CATTLE HEADS trase") === `${P} > Meat and agriculture > Meat > Cattle and pasture` &&
-        f("Soy traded under zero deforestation commitments trase") === `${AG} > Soy, corn and grain > Soy | ${P} > Deforestation > Zero-deforestation commitments` &&
+        f("Soy traded under zero deforestation commitments trase") === `${P} > Deforestation > Zero-deforestation commitments` &&
         at("Palm oil") < at("Concessions") && order[at("Concessions")].h === 6 && /"\.panel-h6\{/.test(src));
   check("…a heading of the same name deeper down is not mistaken for this one", /found = own\.find\(named\) \|\| null;/.test(src));
   check("28: the three forest cover maps are one row with sublayers under Forest and land cover",
@@ -3800,6 +3801,38 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("soy deforestation is still filed as before", at("Soy deforestation (ha) \u2014 Brazil (Trase) X").includes(P + " > Deforestation > Tree cover loss and alerts > Clearing for soy and corn"));
   check("the modelled confined animal facilities and livestock density rows show when ticked (their layers are listed)",
         /cfg\._layerIds = \[`\$\{cfg\.id\}-cafo`\]/.test(src) && /cfg\._layerIds = \[`\$\{cfg\.id\}-glw`\]/.test(src));
+}
+{
+  console.log("\nround 36: agriculture pared down, soy, corn and grain under Climate, Indonesia's plantations one row");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const cut = (from, to) => src.slice(src.indexOf(from), src.indexOf(to));
+  const lib = new Function(cut("const P = \"Destruction > Of the planet\";", "// The body of the heading a path names") + "; return { cataloguePlaces, CATALOGUE_TAKEN_OUT, AG, IN };")();
+  const at = (t) => lib.cataloguePlaces(t, t);
+  const P = "Destruction > Of the planet", N2O = P + " > Climate > Nitrous oxide", OUT = lib.CATALOGUE_TAKEN_OUT;
+  const same = (t, want) => JSON.stringify(at(t)) === JSON.stringify(want);
+  check("Trase's seven corn rows are taken out",
+        ["Corn traded under zero deforestation commitments (%) \u2014 Paraguay (Trase) X", "Corn yield (t/ha) \u2014 Brazil, Paraguay (Trase) X",
+         "Corn yield (first crop) (t/ha) \u2014 Brazil (Trase) X", "Production of corn (second crop) (t) \u2014 Brazil (Trase) X"].every((t) => at(t)[0] === OUT));
+  check("coffee, cocoa, cotton and sugarcane rows are taken out; clearing for cocoa and its emissions stay",
+        ["Coffee yield (t/ha) \u2014 Brazil, Colombia (Trase) X", "Production of cocoa (t) \u2014 Brazil, C\u00f4te d'Ivoire (Trase) X",
+         "Cotton yield (t/ha) \u2014 Brazil (Trase) X", "Sugarcane concessions \u2014 Merauke merauke_sugarcane", "Yield of sugarcane mapspam_yield_sugc"].every((t) => at(t)[0] === OUT) &&
+        at("Cocoa deforestation (ha) \u2014 C\u00f4te d'Ivoire (Trase) X").includes(P + " > Deforestation > Tree cover loss and alerts > Clearing for cocoa") &&
+        at("Gross emissions from cocoa deforestation (t) \u2014 Ghana (Trase) X")[0] !== OUT);
+  check("Badung's detailed spatial plans are taken out", at("Detailed spatial plan \u2014 Bali badung_rdtr")[0] === OUT);
+  check("soy, corn and grain rows are under Climate only; soy clearing is not",
+        same("Soy yield (t/ha) \u2014 Brazil, Paraguay (Trase) X", [N2O + " > Soy"]) && same("Soybean yield mapspam_yield_soyb", [N2O + " > Soy"]) &&
+        same("Soybean planted area \u2014 South America x", [N2O + " > Soy"]) &&
+        !at("Soy deforestation (ha) \u2014 Brazil (Trase) X").some((x) => x.startsWith(N2O)) &&
+        !at("Soy traded under zero deforestation commitments (%) \u2014 Paraguay (Trase) X").some((x) => x.startsWith(N2O)));
+  check("fertilizer is under Climate only", same("Fertilizer use x", [N2O]) && !/\{ h: 5, t: "Farm inputs" \}/.test(src));
+  check("Aqueduct's layers are under Water scarcity", same("Water risk for crops, baseline 2020 (WRI Aqueduct) aqueduct_crop_baseline_2020", [P + " > Water scarcity"]) &&
+        /\{ h: 3, t: "Water scarcity" \}/.test(src));
+  check("plantation rows for Indonesia and its neighbours are one row with sublayers; worldwide ones stay beside it",
+        same("Industrial tree plantations \u2014 Indonesia IDN_HTI_plantation", [lib.IN(lib.AG + " > Plantations", "idnplant")]) &&
+        same("Coconut plantations \u2014 Kalimantan kalimantan_coconut", [lib.IN(lib.AG + " > Plantations", "idnplant")]) &&
+        same("Tree plantations \u2014 158 countries gfw_planted_forests", [lib.AG + " > Plantations"]));
+  check("the modelled rows say so in their titles", /Confined animal feeding operations \\u2014 a model's estimate, not registered sites/.test(src) &&
+        /Livestock density \\u2014 a model's estimate, not a count of farms/.test(src) && /Registered animal-use facilities \\u2014 sites on official registers/.test(src));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
