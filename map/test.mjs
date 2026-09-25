@@ -3143,10 +3143,9 @@ console.log("\nround of 22 September (2): the box refiled, rows taken out");
         f("Biodiversity hotspots (global, land only)") === P + " > Biodiversity loss > Places that matter most for species");
   check("dams go under Biodiversity loss > Fish",
         f("Major dams") === P + " > Biodiversity loss > Fish" && at("Fish") > at("Biodiversity loss") && at("Fish") < at("Forest and land cover"));
-  check("forest greenhouse gas emissions go under Deforestation",
-        f("Forest greenhouse gas emissions") === P + " > Deforestation > Emissions from forests" &&
-        // Round 23 (item 1): the net flux beside it, not under drilling.
-        f("Forest greenhouse gas net flux \u2014 Global gfw_forest_carbon_net_flux") === `${P} > Deforestation > Emissions from forests | ${P} > Climate > Carbon dioxide`);
+  check("forest greenhouse gas emissions and net flux go under Climate only (24 September)",
+        f("Forest greenhouse gas emissions") === P + " > Climate > Carbon dioxide" &&
+        f("Forest greenhouse gas net flux \u2014 Global gfw_forest_carbon_net_flux") === `${P} > Climate > Carbon dioxide`);
   check("DIST-ALERT is under Construction, Biodiversity loss, Fire, Mining and Deforestation",
         f("Global all ecosystem disturbance alerts (DIST-ALERT)") === `${P} > Construction | ${P} > Biodiversity loss > Disturbance | ${P} > Fire | ${P} > Mining | ${P} > Deforestation > Tree cover loss and alerts > Alerts`);
   // Round 23 (item 2): the drilling heading is gone.
@@ -3544,7 +3543,7 @@ console.log("\nround of 23 September (23): the owner's thirty notes on the layer
   const order = o.PANEL_ORDER, at = (t, from = 0) => order.findIndex((x, i) => i >= from && x && x.t === t);
   const bat = (k) => order.findIndex((x) => x && x.bundle === k);
   check("1: the forest net flux is under Deforestation and Carbon dioxide, and \"greenhouse gas\" is not oil and gas",
-        f("Forest greenhouse gas net flux — Global", "gfw_forest_carbon_net_flux") === `${P} > Deforestation > Emissions from forests | ${P} > Climate > Carbon dioxide` &&
+        f("Forest greenhouse gas net flux — Global", "gfw_forest_carbon_net_flux") === `${P} > Climate > Carbon dioxide` &&
         !/Oil and gas drilling/.test(f("Some greenhouse gas layer")));
   check("2: no Oil and gas drilling heading; the fracking row and Pennsylvania under Infrastructure emitting more than one gas",
         at("Oil and gas drilling") === -1 && order.indexOf("skytruth_fracfocus") > at("Infrastructure emitting more than one gas") &&
@@ -3616,12 +3615,12 @@ console.log("\nround of 23 September (23): the owner's thirty notes on the layer
         f("Oil palm concessions — Equatorial Asia", "concessioniop_spv") === `${AG} > Palm oil > Concessions` &&
         f("Palm oil mills — Equatorial Asia", "millop_spv") === `${AG} > Palm oil > Mills and refineries` &&
         f("Cattle herd size Production beef CATTLE HEADS trase") === `${P} > Meat and agriculture > Meat > Cattle and pasture` &&
-        f("Soy traded under zero deforestation commitments trase") === `${P} > Deforestation > Zero-deforestation commitments` &&
+        f("Soy traded under zero deforestation commitments trase") === `${AG} > Soy` &&
         at("Palm oil") < at("Concessions") && order[at("Concessions")].h === 6 && /"\.panel-h6\{/.test(src));
   check("…a heading of the same name deeper down is not mistaken for this one", /found = own\.find\(named\) \|\| null;/.test(src));
   check("28: the three forest cover maps are one row with sublayers under Deforestation (24 September)",
-        ["jrc_global_forest_cover", "umd_tree_cover_density_2010", "wri_tropical_tree_cover", "wri_tropical_tree_cover_extent"]
-          .every((id) => f("x", id) === `${P} > Deforestation > ${B.forest}`));
+        ["jrc_global_forest_cover", "wri_tropical_tree_cover_extent"].every((id) => f("x", id) === `${P} > Deforestation > ${B.forest}`) &&
+        ["umd_tree_cover_density_2000", "umd_tree_cover_density_2010", "wri_tropical_tree_cover"].every((id) => f("x", id) === "(taken out)"));
   check("29: the land and forest cover layers named are out",
         ["esa_land_cover_2015", "idn_land_cover_2017", "Global_LCHS_2024", "LC1970", "LC1970HS", "Global_FC_2025_TTM", "ECJRCV2", "FCHS_2020_ECJRCV2",
          "REGBRNMYSIDN_FCHS_2020_ECJRC", "REGBRNMYSIDN_FC_2020_ECJRC", "Global_FC-FNF_2024_TTM", "Global_FC-FNF_2025_TTM", "Global_FC-FNF-HS_Latest_TTM",
@@ -3659,7 +3658,7 @@ console.log("\nround of 24 September: a search box for the layers, and the unpla
   check("the rows no rule placed are filed by what they show",
         f("inpe_amazon_prodes") === `${P} > Deforestation > Tree cover loss and alerts > Loss year by year` &&
         f("idn_forest_area") === `${P} > Deforestation > ${places.BUNDLES.plans}` &&
-        f("umd_tree_cover_density_2000") === `${P} > Deforestation > ${places.BUNDLES.forest}` &&
+        f("jrc_global_forest_cover") === `${P} > Deforestation > ${places.BUNDLES.forest}` &&
         f("birdlife_endemic_bird_areas") === `${P} > Biodiversity loss > Birds` &&
         f("ibge_bra_biomes") === "Base and reference > Physical and human geography" &&
         f("fao_management_objectives") === `${P} > Deforestation > Forest zoning and management plans`);
@@ -3848,9 +3847,8 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
          ["MapBiomas land cover \u2014 Brazil", "mapbiomas_bra_land_cover"], ["Forest type 2013 \u2014 Honduras", "icf_hnd_forest_type_2013"],
          ["RSPO land cover 2010 \u2014 Southeast Asia", "rspo_southeast_asia_land_cover_2010"], ["Tree cover gain", "umd_tree_cover_gain"],
          ["Land cover \u2014 United States", "usa_land_cover"]].every(([t, id]) => f(t, id) === OUT));
-  check("the JRC's managed land for Canada and the United States is one row under forest management",
-        ["jrc_managed_land_can", "jrc_managed_land_usa"].every((id) => f("JRC Managed Land", id) === lib.IN(P + " > Deforestation > Forest zoning and management plans", "managed")) &&
-        /\{ h: 5, bundle: "managed"/.test(src));
+  check("the JRC's managed land is out (24 September, round 40)",
+        ["jrc_managed_land_can", "jrc_managed_land_usa"].every((id) => f("JRC Managed Land", id) === OUT) && !/\{ h: 5, bundle: "managed"/.test(src));
   check("trees in mosaic landscapes and natural forests worldwide stay", f("Trees in mosaic landscapes", "wri_trees_in_mosaic_landscapes") === P + " > Forest and land cover" &&
         f("Natural forests", "sbtn_natural_forests_map") === P + " > Forest and land cover");
 }
@@ -3945,6 +3943,24 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("upcoming launches are per site, soonest first with dates, and filtered by a date bar", /name: "Upcoming launches per site \(Launch Library 2\)"/.test(src) &&
         /cfg\.route === "ll2" && cfg\.what === "upcoming" \? addLaunchSitesLayer\(cfg\)\n      : cfg\.route === "ll2" \? addLivePlacesLayer/.test(src) &&
         /toISOString\(\)\.slice\(0, 10\) : "date not set"\)\}[\s\S]{1,9}\$\{escapeHtml\(l\.name/.test(src));
+}
+{
+  console.log("\nround 40: zero-deforestation shares with their commodities; forest emissions under Climate");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const cut = (from, to) => src.slice(src.indexOf(from), src.indexOf(to));
+  const lib = new Function(cut("const P = \"Destruction > Of the planet\";", "// The body of the heading a path names") + "; return { cataloguePlaces, CATALOGUE_TAKEN_OUT, AG };")();
+  const f = (t, id = "") => lib.cataloguePlaces(`${t} ${id}`, `${t} ${id}`).join(" | ");
+  const P = "Destruction > Of the planet";
+  check("each zero-deforestation share goes with its commodity; the heading is gone",
+        f("Beef traded under zero deforestation commitments (%) \u2014 Paraguay (Trase)", "X") === P + " > Meat and agriculture > Meat > Cattle and pasture" &&
+        f("Soy exported under a ZDC (%) \u2014 Brazil (Trase)", "X") === lib.AG + " > Soy" &&
+        f("Percentage of (total) cocoa that is exported under a zero deforestation commitment (%) \u2014 C\u00f4te d'Ivoire (Trase)", "X") === lib.AG + " > Cocoa" &&
+        !/\{ h: 4, t: "Zero-deforestation commitments" \}/.test(src));
+  check("soy's companies and financiers are under Agriculture > Soy", /\{ h: 5, t: "Soy" \}, "site_forest500_soy", "site_soybean_companies", "soy_organizations"/.test(src) &&
+        /\{ h: 4, t: "Companies and financiers" \}, "dff",/.test(src));
+  check("forest emissions rows land under Climate, and the heading under Deforestation is gone",
+        f("Gross carbon emissions from forests", "gfw_forest_carbon_gross_emissions") === P + " > Climate > Carbon dioxide" && !/\{ h: 4, t: "Emissions from forests" \}/.test(src));
+  check("Argentina's native forest land plan is out", f("Ordenamiento Territorial de Bosques Nativos \u2014 Argentina", "arg_native_forest_land_plan") === lib.CATALOGUE_TAKEN_OUT);
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

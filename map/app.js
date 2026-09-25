@@ -5622,9 +5622,9 @@ const BUNDLES = {
   forest: "Forest and tree cover in 2000, 2010 and 2020, worldwide and the tropics",
   plans: "Spatial plans, forest estate and the clearing moratorium, Indonesia",
   idnplant: "Plantations in Indonesia and its neighbours, region by region",
-  managed: "Managed land, Canada and the United States (EC Joint Research Centre)",
 };
 const IN = (path, key) => `${path} > ${BUNDLES[key]}`;
+const ZDC = "(zero-deforestation commitment)";
 const CATALOGUE_PLACES = [
   // "Alert" on its own is not deforestation: Nusantara's fire alerts carry it
   // too, and they belong under Fire. So the deforestation rule names the
@@ -5650,7 +5650,7 @@ const CATALOGUE_PLACES = [
   [/\bbeef\b|cattle|slaughter|\bpigs?\b|chickens?|livestock|pasture/i, P + " > Meat and agriculture > Meat"],
   // Zero-deforestation commitments cover beef, soy, corn and cocoa as well as
   // pulp; they had all been filed under Wood pulp, Indonesia (round 23).
-  [/\bzdc\b|zero.deforestation/i, P + " > Deforestation > Zero-deforestation commitments"],
+  [/\bzdc\b|zero.deforestation/i, ZDC],
   [/pulpwood|\bpulp\b/i, P + " > Deforestation > Wood pulp, Indonesia"],
   [/aquaculture|fisher|fishing|shrimp/i, P + " > Oceans > Fishing"],
   // A concession or permit is filed by what it is for - mining under Mining,
@@ -5737,7 +5737,13 @@ const CATALOGUE_BY_TITLE = [
   [/\brspo_southeast_asia_land_cover_2010\b/, null],
   [/\bumd_tree_cover_gain\b|tree cover gain/i, null],
   [/(?=.*land ?cover)(?=.*(united states|\busa?\b|conterminous))/i, null],
-  [/\bjrc_managed_land_(can|usa)\b/, [IN(P + " > Deforestation > Forest zoning and management plans", "managed")]],
+  // Round 40 (24 September, at the owner's word): Argentina's native forest
+  // land plan (OTBN zoning), the JRC's managed land (Canada and the United
+  // States nearly whole, a few areas left out: little to read for clearing),
+  // the tree cover density rows and WRI's tree cover share in the tropics.
+  [/\barg_native_forest_land_plan\b|ordenamiento territorial/i, null],
+  [/\bjrc_managed_land_(can|usa)\b/, null],
+  [/\bumd_tree_cover_density_20(00|10)\b|\bwri_tropical_tree_cover\b(?!_extent)/, null],
   // Biodiversity loss, pared down (24 September, at the owner's word): the
   // public release of the World Database on Protected Areas (December 2025;
   // the licensed copy beside it is the same database, updated to August
@@ -5809,7 +5815,7 @@ const CATALOGUE_BY_TITLE = [
   // emissions, and kept under carbon dioxide (item 1); the Key Biodiversity
   // Areas out of Surface water, which "freshwater" in its coverage had put it
   // under (item 21).
-  [/forest greenhouse gas net flux/i, [P + " > Deforestation", P + " > Climate > Carbon dioxide"]],
+  [/forest greenhouse gas net flux/i, [P + " > Climate > Carbon dioxide"]],
   [/\bbirdlife_key_biodiversity_areas\b/, [P + " > Biodiversity loss"]],
   // Nusantara's copy of the Allen Coral Atlas's reef habitats is a reef layer,
   // beside the Atlas's own row, not a species one ("habitat" put it there).
@@ -5852,7 +5858,7 @@ const CATALOGUE_BY_TITLE = [
   // Placed by name.
   [/tree cover loss by (dominant )?driver|drivers? of tree cover loss/i, [P + " > Deforestation > Tree cover loss and alerts"]],
   [/soy(bean)? planted area/i, [P + " > Climate > Nitrous oxide > Soy"]],
-  [/forest greenhouse gas emissions/i, [P + " > Deforestation"]],
+  [/forest greenhouse gas emissions/i, [P + " > Climate > Carbon dioxide"]],
   // Copied under Fire and Mining too (23 September): the alerts cover any loss
   // of plant cover, whatever its cause.
   [/all[- ]ecosystem disturbance alerts|dist-?alert/i,
@@ -5941,6 +5947,8 @@ function catalogueRefine(paths, words) {
   }
   // Plantation rows for Indonesia and its neighbours are one row with
   // sublayers, detail beside the worldwide planted-trees row (24 September).
+  // Emissions from forests are Climate's, not Deforestation's (24 September).
+  out = out.map((x) => (catalogueSub(x, words) === P + " > Deforestation > Emissions from forests" ? P + " > Climate > Carbon dioxide" : x));
   const idn = /indonesia|papua|kalimantan|merauke|borneo|sumatra|sulawesi|\bjava\b|\bbali\b|equatorial asia|rawa singkil|\briau\b|\baceh\b|\bidn_?/i;
   return [...new Set(out.map((x) => catalogueSub(x, words)).map((x) => (x === AG + " > Plantations" && idn.test(words) ? IN(AG + " > Plantations", "idnplant") : x)))];
 }
@@ -5993,7 +6001,17 @@ function cataloguePlaces(words, title) {
   if (out.includes(AG + " > Detailed spatial plans, Badung")) drop(IN(P + " > Deforestation", "plans"));
   // A share traded under a zero-deforestation commitment is not clearing,
   // though its name says deforestation (round 23).
-  if (out.includes(P + " > Deforestation > Zero-deforestation commitments")) drop(P + " > Deforestation > Tree cover loss and alerts");
+  // A share under a zero-deforestation commitment goes with its commodity
+  // (24 September): beef under Meat, soy and cocoa under Agriculture, palm oil
+  // and pulp with theirs; the Zero-deforestation heading is gone.
+  if (out.includes(ZDC)) {
+    out = [/\bbeef\b|cattle/i.test(words) ? P + " > Meat and agriculture > Meat > Cattle and pasture"
+      : /\bsoy/i.test(words) ? AG + " > Soy"
+      : /cocoa/i.test(words) ? AG + " > Cocoa"
+      : /palm/i.test(words) ? AG + " > Palm oil"
+      : /pulp/i.test(words) ? P + " > Deforestation > Wood pulp, Indonesia"
+      : P + " > Deforestation > Companies and financiers"];
+  }
   // A concession or permit whose words name no material and no activity.
   if (!out.length && !dropped && /concession|permit|licen[cs]e|\bizin\b/i.test(words)) out.push(P + " > Other concessions");
   if (!out.length && dropped) return [LEFT_OUT];
@@ -12000,9 +12018,7 @@ const PANEL_ORDER = [
   { h: 4, bundle: "forest", colour: "#62755F" },
   { h: 4, t: "Logging and timber concessions" },
   { h: 4, t: "Timber and rubber plantations" },
-  { h: 4, t: "Emissions from forests" },
   { h: 4, t: "Forest zoning and management plans" },
-  { h: 5, bundle: "managed", colour: "#62755F" },
   { h: 4, t: "Illegal logging and timber trafficking" }, "powerbi_report",
   { h: 4, t: "Tree cover loss and alerts" },
   { h: 5, t: "Loss year by year" }, "glad_loss",
@@ -12016,9 +12032,8 @@ const PANEL_ORDER = [
   { h: 5, t: "Clearing for cocoa" },
   { h: 5, t: "Clearing for wood pulp" },
   { h: 5, t: "Emissions from the clearing" },
-  { h: 4, t: "Zero-deforestation commitments" },
   { h: 4, t: "Wood pulp, Indonesia" }, "trase_pulp_indonesia", "trase_pulp_concessions_2015", "trase_pulp_concessions_2020", "trase_pulp_concessions_2023",
-  { h: 4, t: "Companies and financiers" }, "site_forest500_soy", "site_soybean_companies", "soy_organizations", "dff",
+  { h: 4, t: "Companies and financiers" }, "dff",
   { h: 4, bundle: "plans", colour: "#6E6A55" },
   { h: 3, t: "Biodiversity loss" },
   { h: 4, t: "Places that matter most for species" }, "gsn_rankings", "atlas_hotspots", "atlas_cities",
@@ -12049,6 +12064,11 @@ const PANEL_ORDER = [
   { h: 6, t: "Mills and refineries" }, "palmwatch", "trase_palm_indonesia",
   { h: 6, t: "Who finances them" },
   { h: 6, t: "Clearing and emissions" },
+  // Soy and cocoa as trade (24 September): the companies and financiers of
+  // soy and the shares of soy and cocoa under zero-deforestation commitments.
+  // Soy's fields are under Climate > Nitrous oxide.
+  { h: 5, t: "Soy" }, "site_forest500_soy", "site_soybean_companies", "soy_organizations",
+  { h: 5, t: "Cocoa" },
   { h: 5, t: "Pasture and grassland" },
   { h: 5, t: "Water for crops" },
   { h: 5, t: "Clearing for farming" },

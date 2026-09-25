@@ -5,6 +5,23 @@ touches.
 
 ---
 
+## Round 40 (24 September): deforestation pared down, at the owner's word
+
+- Taken out: arg_native_forest_land_plan (OTBN zoning); jrc_managed_land_can/usa
+  (and the "managed" bundle); umd_tree_cover_density_2000/2010 and
+  wri_tropical_tree_cover (the forest bundle keeps JRC forest cover 2020 and
+  WRI tree cover extent).
+- Forest emissions (Emissions from forests; forest GHG emissions and net flux)
+  under Climate > Carbon dioxide only; the heading under Deforestation is gone.
+- Zero-deforestation shares go with their commodity (ZDC placeholder in
+  CATALOGUE_PLACES, routed in cataloguePlaces): beef to Meat > Cattle and
+  pasture, soy to Agriculture > Soy, cocoa to Agriculture > Cocoa, palm to
+  Palm oil, pulp to Wood pulp; the Zero-deforestation heading is gone.
+- New Agriculture > Soy (site_forest500_soy, site_soybean_companies,
+  soy_organizations) and Agriculture > Cocoa headings; dff stays under
+  Deforestation > Companies and financiers.
+
+
 ## Round 39 (24 September): rings fit the screen; biosignatures round the globe; UAP and launches by time
 
 - esa_risk ring: outer edge = min(1.95R, half the smaller screen side - 22);
