@@ -463,8 +463,229 @@ const LAYERS = [
     attribution: '<a href="https://allencoralatlas.org" target="_blank" rel="noopener">Allen Coral Atlas</a> (CC BY 4.0)' },
 ];
 
+/* ---------- every layer drawn in the GLAD-S2 colours (round 46) ---------- */
+// Round 44 put the list's swatches in the GLAD-S2 style (cyan, blue, indigo,
+// violet); most layers still drew in their sources' own colours, because their
+// colours come from the source (a server's picture, a colour in each record) or
+// from palettes written for them here, not from the row's swatch. Now every
+// colour a layer is drawn with passes through one mapping on the way to the
+// screen: a hue anywhere on the wheel is placed at the same relative point
+// between cyan (185) and violet (295), so classes and ramps stay apart and in
+// order; greys take one hue per row; near-white and near-black (rims, halos,
+// text) and transparency are left alone. Pictures from servers get the same
+// mapping pixel by pixel. The basemaps, the atlas plates and photographs laid
+// on the map are not touched.
+const GLAD_LO = 185, GLAD_SPAN = 110;
+const GLAD_OUT = new Set();               // colours this mapping has made: never mapped twice
+const PROTOCOL_HANDLERS = {};             // every tile protocol, so a picture can go through two
+{
+  const rawAddProtocol = maplibregl.addProtocol.bind(maplibregl);
+  maplibregl.addProtocol = function (name, fn) { PROTOCOL_HANDLERS[name] = fn; return rawAddProtocol(name, fn); };
+}
+function gladSalt(salt) {
+  let hash = 0;
+  for (const ch of String(salt || "")) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  return GLAD_LO + ((Math.imul(hash, 2654435761) >>> 0) / 4294967296) * GLAD_SPAN;
+}
+// r, g, b 0-255 -> [r, g, b] mapped; greyHue from gladSalt(row).
+function gladRgb(r, g, b, greyHue) {
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 510, d = mx - mn;
+  if (l > 0.88 || l < 0.1) return [r, g, b];
+  const s = d === 0 ? 0 : d / (255 * (1 - Math.abs(2 * l - 1)));
+  let h = 0, hue, sat;
+  if (d) h = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4);
+  h = (h + 360) % 360;
+  if (s < 0.22) { hue = greyHue; sat = 0.55; } else { hue = GLAD_LO + (h / 360) * GLAD_SPAN; sat = Math.min(0.81, Math.max(s, 0.45)); }
+  const a = sat * Math.min(l, 1 - l), f = (n) => { const k = (n + hue / 30) % 12; return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))); };
+  return [f(0), f(8), f(4)];
+}
+function parseCssColour(c) {
+  const t = String(c).trim();
+  let m = /^#([0-9a-f]{3,4})$/i.exec(t);
+  if (m) { const x = m[1].split("").map((ch) => parseInt(ch + ch, 16)); return [x[0], x[1], x[2], x.length > 3 ? x[3] / 255 : 1]; }
+  m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(t);
+  if (m) { const n = parseInt(m[1], 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255, m[2] ? parseInt(m[2], 16) / 255 : 1]; }
+  m = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)$/i.exec(t);
+  if (m) return [Number(m[1]), Number(m[2]), Number(m[3]), m[4] === undefined ? 1 : Number(m[4])];
+  return null;
+}
+function gladCss(c, salt) {
+  if (typeof c !== "string" || GLAD_OUT.has(c)) return c;
+  const p = parseCssColour(c);
+  if (!p || p[3] === 0) return c;
+  const hex = "#" + p.slice(0, 3).map((v) => Math.round(v).toString(16).padStart(2, "0")).join("").toUpperCase();
+  if (GLAD_OUT.has(hex)) return c;
+  const [r, g, b] = gladRgb(p[0], p[1], p[2], gladSalt(salt));
+  const out = p[3] < 1 ? `rgba(${r},${g},${b},${p[3]})`
+    : "#" + [r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("").toUpperCase();
+  GLAD_OUT.add(out);
+  return out;
+}
+// The same mapping as an expression, for colours read from each record.
+function gladExpr(v, salt) {
+  const G = ["var", "__glad"], V = (n) => ["var", n];
+  const hsl = (H, S, L) => ["to-color", ["concat", "hsla(", H, ", ", S, "%, ", L, "%, ", V("a"), ")"]];
+  return ["let", "__glad", ["to-rgba", ["to-color", v]],
+    ["let", "r", ["at", 0, G], "g", ["at", 1, G], "b", ["at", 2, G], "a", ["at", 3, G],
+      ["let", "mx", ["max", V("r"), V("g"), V("b")], "mn", ["min", V("r"), V("g"), V("b")],
+        ["let", "l", ["/", ["+", V("mx"), V("mn")], 510], "d", ["-", V("mx"), V("mn")],
+          ["let", "s", ["case", ["==", V("d"), 0], 0, ["/", V("d"), ["*", 255, ["-", 1, ["abs", ["-", ["*", 2, V("l")], 1]]]]]],
+            "h", ["case", ["==", V("d"), 0], 0,
+              ["==", V("mx"), V("r")], ["%", ["+", ["*", 60, ["%", ["/", ["-", V("g"), V("b")], V("d")], 6]], 360], 360],
+              ["==", V("mx"), V("g")], ["*", 60, ["+", ["/", ["-", V("b"), V("r")], V("d")], 2]],
+              ["*", 60, ["+", ["/", ["-", V("r"), V("g")], V("d")], 4]]],
+            ["case",
+              ["any", ["==", V("a"), 0], [">", V("l"), 0.88], ["<", V("l"), 0.1]], ["rgba", V("r"), V("g"), V("b"), V("a")],
+              ["<", V("s"), 0.22], hsl(Math.round(gladSalt(salt) * 10) / 10, 55, ["*", V("l"), 100]),
+              hsl(["+", GLAD_LO, ["*", V("h"), GLAD_SPAN / 360]], ["*", ["min", 0.81, ["max", V("s"), 0.45]], 100], ["*", V("l"), 100])]]]]]];
+}
+const GLAD_TOP_INPUTS = new Set(['["zoom"]', '["heatmap-density"]', '["line-progress"]']);
+function gladValue(v, salt) {
+  if (typeof v === "string") return gladCss(v, salt);
+  if (v && !Array.isArray(v) && typeof v === "object" && Array.isArray(v.stops))
+    return Object.assign({}, v, { stops: v.stops.map(([k, c]) => [k, gladValue(c, salt)]) });
+  if (!Array.isArray(v) || !v.length) return v;
+  if (v[0] === "let" && v[1] === "__glad") return v;
+  if (v[0] === "literal" || v[0] === "rgb" || v[0] === "rgba") return v[0] === "literal" ? gladValue(v[1], salt) : gladExpr(v, salt);
+  const interp = v[0] === "interpolate" || v[0] === "interpolate-hcl" || v[0] === "interpolate-lab";
+  if ((interp || v[0] === "step") && GLAD_TOP_INPUTS.has(JSON.stringify(interp ? v[2] : v[1]))) {
+    const out = v.slice();
+    for (let i = interp ? 4 : 2; i < out.length; i += 2) out[i] = gladValue(out[i], salt);
+    return out;
+  }
+  // Every output a literal colour: map them in place (cheaper, and a filter or
+  // a key reading the same palette sees the same colours).
+  const outputs = (e) => {
+    if (typeof e === "string") return parseCssColour(e) !== null;
+    if (!Array.isArray(e)) return false;
+    if (e[0] === "match") { for (let i = 3; i < e.length; i += 2) if (!outputs(e[i])) return false; return outputs(e[e.length - 1]); }
+    if (e[0] === "case") { for (let i = 2; i < e.length; i += 2) if (!outputs(e[i])) return false; return outputs(e[e.length - 1]); }
+    return false;
+  };
+  if (outputs(v)) {
+    const walk = (e) => {
+      if (typeof e === "string") return gladCss(e, salt);
+      if (e[0] === "match") { const o = e.slice(); for (let i = 3; i < o.length; i += 2) o[i] = walk(o[i]); o[o.length - 1] = walk(o[o.length - 1]); return o; }
+      const o = e.slice(); for (let i = 2; i < o.length; i += 2) o[i] = walk(o[i]); o[o.length - 1] = walk(o[o.length - 1]); return o;
+    };
+    return walk(v);
+  }
+  return gladExpr(v, salt);
+}
+function gladPixels(px, greyHue) {
+  const seen = new Map();
+  for (let i = 0; i < px.length; i += 4) {
+    if (!px[i + 3]) continue;
+    const key = (px[i] << 16) | (px[i + 1] << 8) | px[i + 2];
+    let c = seen.get(key);
+    if (!c) { c = gladRgb(px[i], px[i + 1], px[i + 2], greyHue); seen.set(key, c); }
+    px[i] = c[0]; px[i + 1] = c[1]; px[i + 2] = c[2];
+  }
+}
+function gladBuffer(d) {
+  if (d instanceof ArrayBuffer) return d.byteLength ? d : null;
+  if (d && ArrayBuffer.isView(d) && d.byteLength) return d.buffer.slice(d.byteOffset, d.byteOffset + d.byteLength);
+  return null;
+}
+async function gladPicture(buf, salt) {
+  let bmp;
+  try { bmp = await createImageBitmap(new Blob([buf])); } catch (e) { return buf; }   // not a picture (vector tiles pass through)
+  const canvas = typeof OffscreenCanvas !== "undefined"
+    ? new OffscreenCanvas(bmp.width, bmp.height)
+    : Object.assign(document.createElement("canvas"), { width: bmp.width, height: bmp.height });
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(bmp, 0, 0);
+  const img = ctx.getImageData(0, 0, bmp.width, bmp.height);
+  gladPixels(img.data, gladSalt(salt));
+  ctx.putImageData(img, 0, 0);
+  const blob = canvas.convertToBlob ? await canvas.convertToBlob({ type: "image/png" })
+    : await new Promise((res) => canvas.toBlob(res, "image/png"));
+  return blob.arrayBuffer();
+}
+// gladpx://<row>/<the tile address, with its own protocol if it has one>
+maplibregl.addProtocol("gladpx", async (params, abortController) => {
+  const m = params.url.match(/^gladpx:\/\/([^/]*)\/(.*)$/);
+  const salt = decodeURIComponent(m[1]), inner = m[2];
+  const scheme = (inner.match(/^([a-z0-9]+):\/\//i) || [])[1];
+  let got;
+  if (!scheme || scheme === "https" || scheme === "http") {
+    const r = await fetch(scheme ? inner : "https://" + inner, { signal: abortController && abortController.signal });
+    if (!r.ok) throw Object.assign(new Error(`${r.status}`), { status: r.status });
+    got = { data: await r.arrayBuffer() };
+  } else if (PROTOCOL_HANDLERS[scheme]) {
+    got = await PROTOCOL_HANDLERS[scheme](Object.assign({}, params, { url: inner }), abortController);
+  } else throw new Error(`no protocol ${scheme}`);
+  const buf = got && gladBuffer(got.data);
+  if (buf) got = Object.assign({}, got, { data: await gladPicture(buf, salt) });
+  return got;
+});
+// Pictures inside this site's own PMTiles archives (the forest management map,
+// the other raster copies): the archive's tiles are mapped as they come out.
+const GLAD_PM_RASTER = new Map();         // archive address -> row
+const GLAD_SKIP_SOURCES = new Set(["base", "s2", "hillshade", "labels"]);
+function gladRowOf(id) {
+  if (!gladRowOf.ids) gladRowOf.ids = LAYERS.concat(...GROUPS.map((g) => g.children || [])).filter((c) => c && c.id).map((c) => c.id);
+  let best = null;
+  for (const r of gladRowOf.ids) if ((id === r || id.startsWith(r + "-") || id.startsWith(r + "_")) && (!best || r.length > best.length)) best = r;
+  return best;
+}
+function gladKept(id) {
+  const row = gladRowOf(id);
+  const cfg = row && (LAYERS.find((c) => c.id === row) || GROUPS.map((g) => (g.children || []).find((c) => c.id === row)).find(Boolean));
+  return !!(cfg && cfg.keepColour);
+}
+function gladSourceSpec(id, spec) {
+  if (!spec || spec.type !== "raster" || GLAD_SKIP_SOURCES.has(id) || /^atlas-plate/.test(id) || gladKept(id)) return spec;
+  const salt = gladRowOf(id) || id;
+  const out = Object.assign({}, spec);
+  if (Array.isArray(spec.tiles)) out.tiles = spec.tiles.map((t) => /^gladpx:/.test(t) ? t : `gladpx://${encodeURIComponent(salt)}/${t}`);
+  else if (typeof spec.url === "string" && /^pmtiles:\/\//.test(spec.url)) GLAD_PM_RASTER.set(spec.url.replace(/^pmtiles:\/\//, ""), salt);
+  return out;
+}
+const GLAD_BASE_LAYERS = /^(bg|base|base-s2|base-close|hillshade|labels|atlas-plate.*)$/;
+function gladLayer(layer) {
+  if (!layer || !layer.id || GLAD_BASE_LAYERS.test(layer.id) || layer.type === "custom" || layer.type === "background" || layer.type === "hillshade") return layer;
+  if (gladKept(layer.id)) return layer;
+  const salt = gladRowOf(layer.id) || layer.id;
+  if (!layer.paint) return layer;
+  const paint = Object.assign({}, layer.paint);
+  for (const k of Object.keys(paint)) {
+    if (/-color$/.test(k)) { try { paint[k] = gladValue(paint[k], salt); } catch (e) { /* kept as given */ } }
+  }
+  // A hue turn written for a server's own palette would now turn the mapped one.
+  if (layer.type === "raster") delete paint["raster-hue-rotate"];
+  return Object.assign({}, layer, { paint });
+}
+function gladPaint(id, prop, v) {
+  if (!/-color$/.test(prop) || GLAD_BASE_LAYERS.test(id) || gladKept(id)) return v;
+  try { return gladValue(v, gladRowOf(id) || id); } catch (e) { return v; }
+}
+// Keys drawn in the layers box and in boxes use the same colours as the map.
+function gladKeys(root) {
+  const els = (root.querySelectorAll ? root.querySelectorAll('i[style*="background"], .lg-key[style*="background"], .sm-key [style*="background"]') : []);
+  for (const el of els) {
+    if (el.dataset.glad || el.classList.contains("swatch")) continue;
+    el.dataset.glad = "1";
+    const host = el.closest("[data-for], [data-key-for], [data-layer], [data-state]");
+    const salt = host ? (host.dataset.for || host.dataset.keyFor || host.dataset.layer || host.dataset.state) : "";
+    const c = el.style.backgroundColor;
+    if (c) { const m = gladCss(c.replace(/\s+/g, ""), salt); if (m !== c) el.style.backgroundColor = m; }
+  }
+}
+if (typeof MutationObserver !== "undefined" && typeof document !== "undefined" && document.body) {
+  new MutationObserver((recs) => { for (const r of recs) for (const n of r.addedNodes) if (n.nodeType === 1) gladKeys(n.parentNode || n); })
+    .observe(document.body, { childList: true, subtree: true });
+}
+
 const protocol = new pmtiles.Protocol();
-maplibregl.addProtocol("pmtiles", protocol.tile);
+maplibregl.addProtocol("pmtiles", async (params, abortController) => {
+  const got = await (protocol.tilev4 ? protocol.tilev4(params, abortController) : protocol.tile(params, abortController));
+  const m = params.url.match(/^pmtiles:\/\/(.+)\/\d+\/\d+\/\d+$/);
+  const salt = m && GLAD_PM_RASTER.get(m[1]);
+  const buf = salt && got && gladBuffer(got.data);
+  if (buf) return Object.assign({}, got, { data: await gladPicture(buf, salt) });
+  return got;
+});
 
 // Cerulean, read directly. Its API is tipg, which serves every collection as
 // vector tiles and as counts, and answers this site's origin with CORS.
@@ -1794,6 +2015,13 @@ function hudNext(layerId) {
   const i = ls.indexOf(layerId);
   return i >= 0 && i + 1 < ls.length ? ls[i + 1] : undefined;
 }
+if (typeof map.addSource === "function") {
+  const rawAddSource = map.addSource.bind(map);
+  map.addSource = function (id, spec) {
+    try { spec = gladSourceSpec(id, spec); } catch (e) { /* its own colours */ }
+    return rawAddSource(id, spec);
+  };
+}
 // Everything done to a round layer is done to its symbol.
 const hudRaw = {};
 function hudWrap(name, make) {
@@ -1813,6 +2041,8 @@ hudWrap("setFilter", (raw) => function (id, f, o) {
   return out;
 });
 hudWrap("setPaintProperty", (raw) => function (id, prop, v, o) {
+  if (prop === "raster-hue-rotate" && !GLAD_BASE_LAYERS.test(id)) return undefined;
+  v = gladPaint(id, prop, v);
   const out = raw(id, prop, v, o);
   for (const h of hudMates(id)) {
     try {
@@ -1848,6 +2078,7 @@ hudWrap("removeLayer", (raw) => function (id) {
 if (typeof map.addLayer === "function") {
   const rawAddLayer = map.addLayer.bind(map);
   map.addLayer = function (layer, before) {
+    try { layer = gladLayer(layer); } catch (e) { /* drawn in its own colours */ }
     try { legibleCircle(layer); } catch (e) { /* drawn as given */ }
     const out = rawAddLayer(layer, before);
     try { if (hudEligible(layer)) addHud(layer, rawAddLayer); } catch (e) { /* round markers stay */ }
@@ -10907,6 +11138,7 @@ function gladColour(c, id) {
 }
 for (const c of LAYERS.concat(...GROUPS.map((g) => g.children || []))) {
   if (c && c.colour && !c.keepColour) c.colour = gladColour(c.colour, c.id);
+  if (c && typeof c.colour === "string") GLAD_OUT.add(c.colour.toUpperCase());
 }
 /* ---------- where a dot is: every point's box says how exact its position is ---------- */
 // Asked for 23 September: each dot's box says whether it is the place itself

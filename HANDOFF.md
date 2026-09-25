@@ -5,6 +5,22 @@ touches.
 
 ---
 
+## Round 46 (24 September): every layer drawn in the GLAD-S2 colours
+
+Round 44 recoloured the list's swatches only; most layers still drew in their
+sources' colours (colours in the records, palettes here, servers' pictures).
+Now one mapping (gladRgb / gladCss / gladValue in app.js) is applied to every
+colour on the way to the screen: map.addLayer and setPaintProperty map every
+*-color paint (literals and match/case outputs in place, zoom ramps stop by
+stop, colours read from records by an expression), map.addSource sends raster
+tiles through gladpx://<row>/<tile address> (pixel by pixel), and raster PMTiles
+archives are mapped as they come out of the pmtiles protocol. Hue 0-360 goes
+to 185-295 in order; greys get one hue per row; near-white, near-black and
+transparency stay. Basemaps (base, s2, hillshade, labels), atlas plates and
+image sources are not touched; a row with keepColour is left alone. Keys in
+the panels follow through a MutationObserver. app.js?v=46.
+
+
 ## Round 45 (24 September): the 500 largest companies, compiled from Wikidata
 
 Fortune's terms forbid copying its Global 500, so its companion row is gone.

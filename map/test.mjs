@@ -4028,7 +4028,33 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         !/fortune500|interactives\.fortune\.com/.test(src) && /"wreckers_umap", "largest_companies", "theyrule"/.test(src));
   check("the row reads the weekly copy and shows every field", /id: "largest_companies", name: "The 500 largest companies by revenue \(compiled from Wikidata\)"[^\n]*route: "geojsonlive"/.test(src) &&
         /culprits-tiles-more\/companies\/largest\.geojson/.test(src) && /largest_companies: "Compiled weekly from Wikidata/.test(src));
-  check("the page asks for this round's script, not a cached one", /app\.js\?v=45/.test(html) && /wire\.js\?v=45/.test(html));
+  check("the page asks for a fresh script", /app\.js\?v=4[5-9]/.test(html) && /wire\.js\?v=4[5-9]/.test(html));
+}
+{
+  console.log("\nround 46: every layer drawn in the GLAD-S2 colours, not only its swatch");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const G = new Function("maplibregl", src.slice(src.indexOf("const GLAD_LO = 185"), src.indexOf("function gladPixels(")) +
+    "; return { gladRgb, gladCss, gladValue, gladSalt, GLAD_OUT };")({ addProtocol() {} });
+  const hue = (hex) => { const n = parseInt(hex.slice(1), 16), r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (!d) return -1;
+    let h = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4); return (h + 360) % 360; };
+  const outs = ["#FF0000", "#E7A63B", "#FFFF00", "#00FF00", "#62755F", "#8A4F46", "#FF00FF", "#6A6258"].map((c) => G.gladCss(c, "row"));
+  check("every colour a layer draws with lands between cyan and violet", outs.every((c) => hue(c) >= 184 && hue(c) <= 296));
+  check("classes stay apart and in order: red, orange, yellow, green come out in rising hue",
+        hue(outs[0]) < hue(outs[1]) && hue(outs[1]) < hue(outs[2]) && hue(outs[2]) < hue(outs[3]));
+  check("near-white, near-black and see-through are left alone", G.gladCss("#FFFFFF", "r") === "#FFFFFF" && G.gladCss("#07100C", "r") === "#07100C" &&
+        G.gladCss("rgba(0,0,0,0)", "r") === "rgba(0,0,0,0)" && G.gladCss("rgba(242,238,230,0.85)", "r") === "rgba(242,238,230,0.85)");
+  check("a colour is never mapped twice", G.gladCss(outs[0], "row") === outs[0]);
+  check("a zoom ramp keeps its shape with its colours mapped; a colour read from each record is mapped as it is drawn",
+        (() => { const z = G.gladValue(["interpolate", ["linear"], ["zoom"], 2, "#FF0000", 8, "#00FF00"], "r"); return z[2][0] === "zoom" && hue(z[4]) >= 184 && hue(z[6]) >= 184; })() &&
+        (() => { const e = G.gladValue(["coalesce", ["get", "c"], "#FF0000"], "r"); return e[0] === "let" && e[1] === "__glad" && G.gladValue(e, "r") === e; })() &&
+        (() => { const m = G.gladValue(["match", ["get", "k"], "a", "#FF0000", "#00FF00"], "r"); return m[2] === "a" && hue(m[3]) >= 184 && hue(m[4]) >= 184; })());
+  check("pictures from servers and this site's own archives go through the same mapping, basemaps and plates excepted",
+        /tiles = spec\.tiles\.map\(\(t\) => \/\^gladpx:\/\.test\(t\) \? t : `gladpx:\/\/\$\{encodeURIComponent\(salt\)\}\/\$\{t\}`\)/.test(src) &&
+        /const GLAD_SKIP_SOURCES = new Set\(\["base", "s2", "hillshade", "labels"\]\)/.test(src) && /GLAD_PM_RASTER\.get\(m\[1\]\)/.test(src));
+  check("every layer added and every colour set passes through it", /try \{ layer = gladLayer\(layer\); \}/.test(src) && /v = gladPaint\(id, prop, v\);/.test(src) && /spec = gladSourceSpec\(id, spec\);/.test(src));
+  check("the page asks for this round's script", /app\.js\?v=46/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
