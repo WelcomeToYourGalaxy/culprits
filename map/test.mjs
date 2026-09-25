@@ -2987,8 +2987,8 @@ console.log("\nNusantara's layers spread through the box");
         places("Fire alerts, VIIRS").includes("Destruction > Of the planet > Fire"));
   check("customary forest is land and territory, not forest cover",
         places("Customary forest (hutan adat)").includes("Suppression > Of humans > Land and territory"));
-  check("boundaries and relief are base and reference (only the GLAD-L coverage stays there since round 44)",
-        places("Coverage Layer for GLAD-L").includes("Base and reference > Boundaries and relief") &&
+  check("nothing stays under boundaries and relief (the GLAD-L coverage went on 25 September)",
+        places("Coverage Layer for GLAD-L")[0] === "(taken out)" &&
         places("Hillshade relief")[0] === "(taken out)");
   check("a layer no rule claims waits in Not yet placed rather than being invented a home",
         places("qqqq zzzz")[0] === "Not yet placed");
@@ -3977,7 +3977,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   console.log("\nround 42: craft in space; one forest cover map; a fresh copy of the code on each round");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
-  check("NASA's Eyes is a row under From Earth > Craft in space", /\{ h: 3, t: "Craft in space" \}, "eyes_craft"/.test(src) && /id: "eyes_craft"[^\n]*route: "companion"/.test(src));
+  check("NASA's Eyes is a row under From Earth > Craft in space", /\{ h: 3, t: "Craft in space" \}, "eyes_craft"/.test(src) && /id: "eyes_craft"[^\n]*route: "(companion|leave)"/.test(src));
   check("the page asks for this round's code, not a copy the browser kept", /<script src="\.\/app\.js\?v=\d+"><\/script>/.test(html) && /<script src="\.\/wire\.js\?v=\d+"><\/script>/.test(html));
 }
 {
@@ -4018,7 +4018,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
          ["Towns and villages \u2014 Equatorial Asia", "towns"], ["Cities boundaries test", "cities_boundaries_test"], ["GADM (4.1) national boundaries - Africa", "gadm_adm0_africa"],
          ["GADM Administrative Boundaries", "gadm_administrative_boundaries"], ["Gadm administrative boundaries disputed", "gadm_administrative_boundaries_disputed"],
          ["Borneo relief, 30 m (SRTM 2000)", "x"], ["News articles, placed \u2014 Equatorial Asia", "news"]].every(([t, id]) => f(t, id) === lib.CATALOGUE_TAKEN_OUT) &&
-        f("Coverage Layer for GLAD-L", "umd_glad_landsat_alerts_coverage").includes("Base and reference > Boundaries and relief"));
+        f("Coverage Layer for GLAD-L", "umd_glad_landsat_alerts_coverage") === lib.CATALOGUE_TAKEN_OUT);
 }
 {
   console.log("\nround 45: the 500 largest companies, compiled from Wikidata, in Fortune's place");
@@ -4054,7 +4054,33 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /tiles = spec\.tiles\.map\(\(t\) => \/\^gladpx:\/\.test\(t\) \? t : `gladpx:\/\/\$\{encodeURIComponent\(salt\)\}\/\$\{t\}`\)/.test(src) &&
         /const GLAD_SKIP_SOURCES = new Set\(\["base", "s2", "hillshade", "labels"\]\)/.test(src) && /GLAD_PM_RASTER\.get\(m\[1\]\)/.test(src));
   check("every layer added and every colour set passes through it", /try \{ layer = gladLayer\(layer\); \}/.test(src) && /v = gladPaint\(id, prop, v\);/.test(src) && /spec = gladSourceSpec\(id, spec\);/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=46/.test(html));
+  check("the page asks for a fresh script", /app\.js\?v=4[6-9]/.test(html));
+}
+{
+  console.log("\nround 47: Eyes leaves Earth; natural disasters; soil biodiversity; keys under Showing; columns stand up");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("the Eyes row leaves Earth as the button does, and coming back unticks it",
+        /id: "eyes_craft"[^\n]*route: "leave"/.test(src) && /if \(vis === "visible" && !AWAY\) leaveEarth\(\);/.test(src) &&
+        /if \(!c \|\| c\.route !== "leave"\) continue;/.test(src) && /cfg\.route === "leave" \? Promise\.resolve\(\)/.test(src));
+  check("the earthquakes are under Destruction > Of the planet > Natural disasters, and nowhere under Base and reference",
+        /\{ h: 3, t: "Natural disasters" \}, "skytruth_quakes",/.test(src) && /\{ h: 2, t: "Physical and human geography" \},\n/.test(src));
+  check("a Soil biodiversity heading under Biodiversity loss holds the Underground Atlas and SoilGrids",
+        /\{ h: 4, t: "Soil biodiversity" \}, "soil_spun", "soilgrids",/.test(src) && /id: "soil_spun"[^\n]*route: "rasterlive"/.test(src) &&
+        /soil\/spun_choices\.json/.test(src) && /if \(!cfg\.choices \|\| !cfg\.choices\.length\) \{ setLayerState/.test(src));
+  check("each layer in the Showing box has its colour key indented under it",
+        /`<span class="lg-un">\$\{c\.unit \|\| ""\}<\/span><\/div>` \+ legendKeyRows\(c\.id\)/.test(src) && /function legendKeyPairs\(id\)/.test(src) && /function watchKeysForLegend\(\)/.test(src));
+  const lk = new Function("document", src.slice(src.indexOf("function legendKeyPairs(id)"), src.indexOf("function legendKeyRows(id)")) + "; return legendKeyPairs;");
+  const mk = (bg, text) => ({ style: { backgroundColor: bg }, closest: () => ({ textContent: text }), parentNode: null });
+  const fakeBox = { querySelectorAll: (q) => /facet/.test(q) ? [{ querySelectorAll: () => [mk("rgb(1, 2, 3)", " Planted forest "), mk("rgb(1, 2, 3)", "Planted forest"), mk("rgb(4, 5, 6)", "Oil palm")] }] : [] };
+  const pairs = lk({ getElementById: () => fakeBox })("forest_management");
+  check("\u2026read from the row's key in the layers box, each colour and meaning once", pairs.length === 2 && pairs[0][1] === "Planted forest" && pairs[1][0] === "rgb(4, 5, 6)");
+  check("columns stand at least three footprints tall, and the map tilts once when they first appear",
+        /Math\.max\(mPerPx \* 1\.5, half \* 2 \* COLUMN_STALK\) \+ Math\.sqrt\(v\)/.test(src) && /const COLUMN_STALK = 3;/.test(src) &&
+        /map\.easeTo\(\{ pitch: COLUMN_TILT, duration: 900 \}\)/.test(src));
+  check("Banking on Climate Chaos is mapped: its banks at their headquarters, every figure in the box", /id: "bocc"[^\n]*route: "geojsonlive"/.test(src) &&
+        /culprits-tiles-more\/bocc\/banks\.geojson" \}\], nameFrom: \["bank"\]/.test(src) && /  bocc: "The report's league tables/.test(src));
+  check("the page asks for this round's script", /app\.js\?v=47/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

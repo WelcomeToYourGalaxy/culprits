@@ -339,6 +339,9 @@
     padding:6px 8px;font-size:11px;line-height:1.35;color:var(--dim);
     max-height:42vh;overflow-y:auto}
   #legend[hidden]{display:none}
+  /* A layer's colour key under it in the Showing box (25 September). */
+  #legend .lg-sub .lg-nm{font-size:11px;color:var(--dim)}
+  #legend .lg-sub .lg-sw{width:9px;height:9px}
   /* Zoom in, zoom out, the compass and the whole-world button: two by two,
      in the view row between the view choices and Leave Earth. */
   .view-zoom{flex:0 0 auto;align-self:center}
@@ -492,8 +495,8 @@
   };
 })();
 </script>
-<script src="./app.js?v=46"></script>
-<script src="./wire.js?v=46"></script>
+<script src="./app.js?v=47"></script>
+<script src="./wire.js?v=47"></script>
 <!-- The drag bar on the layers box's right edge (made by columnEdge() in
      app.js) ran the full height of the column, so it stayed standing beside
      empty map when the box was rolled up or pulled shorter. It is held to the

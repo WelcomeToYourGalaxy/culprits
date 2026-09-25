@@ -2925,6 +2925,13 @@ function leaveEarth() {
 function backToMap() {
   if (!AWAY) return;
   AWAY = false;
+  // A row that took the map away is unticked as it comes back.
+  const everyRow = LAYERS.concat(...GROUPS.map((g) => g.children || []));
+  for (const c of everyRow) {
+    if (!c || c.route !== "leave") continue;
+    const cb = document.querySelector(`[data-layer="${c.id}"]`);
+    if (cb && cb.checked) { cb.checked = false; cb.dispatchEvent(new Event("change", { bubbles: true })); }
+  }
   const f = spaceFrame();
   if (f) f.classList.remove("on");
   showBack(false);
@@ -3992,6 +3999,7 @@ function addRasterChoiceLayer(cfg) {
   }
   const src = `${cfg.id}-img`;
   cfg._pick = cfg._pick || 0;
+  if (!cfg.choices || !cfg.choices.length) { setLayerState(cfg.id, "not built yet: its copy has not been made"); return; }
   map.addSource(src, rasterChoiceSource(cfg));
   // A row whose picture is already in this map's colours (a remap, a class
   // map drawn here) keeps them: no toning down.
@@ -6224,8 +6232,11 @@ function catalogueRefine(paths, words) {
   // Boundaries and relief keeps only the GLAD-L coverage (24 September, round
   // 44): Nusantara's boundaries, imagery, relief, towns, photographs and news,
   // and Global Forest Watch's GADM and test boundaries are taken out.
+  // The GLAD-L coverage row is taken out wherever it was filed (25 September).
+  if (/coverage layer for glad-l|umd_glad_landsat_alerts_coverage/i.test(words)) return [CATALOGUE_TAKEN_OUT];
   const BR = "Base and reference > Boundaries and relief";
-  if (out.includes(BR) && !/coverage layer for glad|umd_glad_landsat_alerts_coverage/i.test(words)) {
+  // The GLAD-L coverage, the last row there, went on 25 September.
+  if (out.includes(BR)) {
     out = out.filter((x) => x !== BR);
     if (!out.length) return [CATALOGUE_TAKEN_OUT];
   }
@@ -8232,7 +8243,10 @@ const COLUMN_PX = 1.5;          // half the footprint, in screen pixels, at worl
 const COLUMN_PX_MAX = 14;       // half the footprint at most, close in
 const COLUMN_GROW = 1.35;       // footprint growth per zoom level past 3
 const COLUMN_TALL = 0.03;       // screen pixels of height per √(t CO₂e)
+const COLUMN_STALK = 3;         // the least height, in footprints
+const COLUMN_TILT = 50;         // degrees the map tilts to when columns first appear
 let columnsTimer = null;
+let columnsTilted = false;
 
 function ctColumnCfgs() {
   return [CT_SECTORS, CT_AGRICULTURE, CT_FORESTRY].flatMap((g) => g.children)
@@ -8273,11 +8287,20 @@ function buildColumns() {
     const dLat = half / 111320, dLng = half / (111320 * Math.max(.05, Math.cos(lat * Math.PI / 180)));
     return { type: "Feature",
       properties: Object.assign({}, p, { colour: cfg.colour, layerName: cfg.name,
-        h: Math.max(mPerPx * 1.5, Math.sqrt(v) * COLUMN_TALL * mPerPx * grow) }),
+        // Every column stands at least three footprints tall (asked for
+        // 25 September): a low one seen from above read as a flat box.
+        h: Math.max(mPerPx * 1.5, half * 2 * COLUMN_STALK) + Math.sqrt(v) * COLUMN_TALL * mPerPx * grow }),
       geometry: { type: "Polygon", coordinates: [[[lng - dLng, lat - dLat], [lng + dLng, lat - dLat],
         [lng + dLng, lat + dLat], [lng - dLng, lat + dLat], [lng - dLng, lat - dLat]]] } };
   });
   src.setData({ type: "FeatureCollection", features });
+  // Seen straight down a column is a square. When columns first appear the
+  // map tilts, once, so they stand up; turning it back flat is left alone.
+  if (features.length && !columnsTilted && typeof map.getPitch === "function" && map.getPitch() < 25 && typeof map.easeTo === "function") {
+    columnsTilted = true;
+    map.easeTo({ pitch: COLUMN_TILT, duration: 900 });
+  }
+  if (!features.length) columnsTilted = false;
   if (rows.length > COLUMN_MAX) console.info(`[culprits] Climate TRACE: the ${COLUMN_MAX.toLocaleString()} largest of ` +
     `${rows.length.toLocaleString()} sources in view are raised as columns; the rest stay as dots.`);
 }
@@ -9925,7 +9948,46 @@ function addTileLayer(cfg) {
 // toggle so it can never name a layer that is not on the map — a legend that
 // drifts from what is displayed is worse than no legend, because a reader
 // trusts it.
+// The colour key a row shows in the layers box, as [colour, meaning] pairs.
+function legendKeyPairs(id) {
+  const box = document.getElementById("layers");
+  if (!box || !box.querySelectorAll) return [];
+  const esc = String(id).replace(/"/g, '\\"');
+  const hosts = box.querySelectorAll(`.facet[data-key-for="${esc}"], .facet[data-raster-for="${esc}"], .facet[data-for="${esc}"]:not(.row-tools)`);
+  const out = [], seen = new Set();
+  for (const h of hosts) {
+    for (const el of h.querySelectorAll('i[style*="background"], .lg-key[style*="background"], span.sw[style*="background"]')) {
+      const colour = el.style && (el.style.backgroundColor || el.style.background);
+      if (!colour || /^(none|transparent)$/i.test(colour)) continue;
+      const holder = el.closest(".sm-key, button, .lg-row, label, li") || el.parentNode;
+      const label = String((holder && holder.textContent) || "").replace(/\s+/g, " ").trim();
+      if (!label || seen.has(colour + "|" + label)) continue;
+      seen.add(colour + "|" + label);
+      out.push([colour, label]);
+    }
+  }
+  return out;
+}
+function legendKeyRows(id) {
+  return legendKeyPairs(id).map(([c, label]) =>
+    `<div class="lg-row lg-sub" style="padding-left:18px"><span class="lg-sw lg-key" style="background:${escapeHtml(c)}"></span>` +
+    `<span class="lg-nm">${escapeHtml(label)}</span></div>`).join("");
+}
+// Keys appear in the layers box once a layer has loaded; the Showing box is
+// written again when they do.
+let legendKeyTimer = null;
+function watchKeysForLegend() {
+  const box = document.getElementById("layers");
+  if (!box || typeof MutationObserver === "undefined" || box.dataset.keyWatch) return;
+  box.dataset.keyWatch = "1";
+  new MutationObserver((recs) => {
+    if (!recs.some((r) => [...r.addedNodes].some((n) => n.nodeType === 1 && (n.matches && n.matches(".facet, .rc-key, .sm-key, i") || (n.querySelector && n.querySelector("i[style*=background]")))))) return;
+    clearTimeout(legendKeyTimer);
+    legendKeyTimer = setTimeout(() => buildLegend(), 250);
+  }).observe(box, { childList: true, subtree: true });
+}
 function buildLegend() {
+  watchKeysForLegend();
   const box = document.getElementById("legend");
   if (!box) return;
 
@@ -9947,12 +10009,14 @@ function buildLegend() {
   // Each line takes a tick of its own, left of its colour, so a layer can be
   // put away from the box that says it is showing rather than by finding its
   // row again in the layers list.
+  // Under each layer, its colours and what they mean, indented (asked for
+  // 25 September): read from the key the layers box shows for that row.
   const rows = shown.map((c) =>
     `<div class="lg-row"><input type="checkbox" class="lg-on" data-lg="${escapeHtml(c.id)}" checked ` +
     `aria-label="Hide ${escapeHtml(c.name)}" title="Hide this layer">` +
     `<span class="lg-sw" style="background:${c.colour}"></span>` +
     `<span class="lg-nm">${c.name}</span>` +
-    `<span class="lg-un">${c.unit || ""}</span></div>`).join("");
+    `<span class="lg-un">${c.unit || ""}</span></div>` + legendKeyRows(c.id)).join("");
 
   // A catalogue row drawn from a key: its title, then each colour and what it
   // means, indented under it (22 September, round 5).
@@ -10150,6 +10214,13 @@ function applyVisibility(id) {
   if (cfg && cfg.points && vis === "visible" && !cfg._pointsTried) {
     cfg._pointsTried = true;
     addPointOverview(cfg).catch((e) => console.warn(`[culprits] ${cfg.id} points: ${e.message}`));
+  }
+  // A row that leaves Earth: ticked, the map hands over to Eyes as the Leave
+  // Earth button does; unticked while away, it comes back.
+  const leaveRow = cfg || (typeof childById === "function" ? childById(id) : null);
+  if (leaveRow && leaveRow.route === "leave") {
+    if (vis === "visible" && !AWAY) leaveEarth();
+    else if (vis !== "visible" && AWAY) backToMap();
   }
   const comp = typeof companions !== "undefined" && companions.get(id);
   if (comp) {
@@ -10770,9 +10841,10 @@ const OTHER_MAPS = {
       points: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/epa_efpoints.pmtiles",
       attribution: "US EPA Envirofacts",
       note: "The facility points behind EPA's Envirofacts multisystem widget, drawn live from EPA's EnviroMapper service; EPA draws them from about state level in; wider out, a copy of every point is drawn, none merged, renewed every four weeks (one file per zoom, so the world view is the heaviest to load)." },
-    { id: "bocc", name: "Banking on Climate Chaos", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
-      page: "https://www.bankingonclimatechaos.org/?bank=JPMorgan%20Chase#fulldata-panel",
-      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "bocc", name: "Banking on Climate Chaos 2026: the 65 largest banks' fossil fuel financing, at their headquarters", unit: "banks", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Banking on Climate Chaos 2026", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/bocc/banks.geojson" }], nameFrom: ["bank"],
+      attribution: "Banking on Climate Chaos 2026 (RAN, BankTrack, IEN, Oil Change International, Reclaim Finance, Sierra Club, Urgewald and others); GLEIF; OpenStreetMap",
+      note: "Each of the 65 banks in the report, at the headquarters its parent company gives in the Global Legal Entity Identifier register (GLEIF), found in OpenStreetMap. Each box gives both of the report's league tables as printed: fossil fuel financing and fossil fuel expansion financing, the 2025 rank, every year 2021 to 2025, the five-year total and the change from 2024, with the legal entity and its LEI. Figures are the report's, attributed to the parent bank. Read from the report itself by culprits-tiles-more (the site offers no data file)." },
     { id: "forest_management", name: "Forest management types worldwide, 2020: untouched, logged or regrowing, planted, plantations, tree crops (VITO, IIASA and WRI)", unit: "kinds of forest", colour: "#8C5A68", route: "rasterparts", ready: true, lazy: true,
       archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/forest_management.pmtiles",
       attribution: "Global Forest Management Type Map 2020 (De Keersmaecker et al., VITO, IIASA, WRI), CC BY 4.0",
@@ -10866,9 +10938,9 @@ const OTHER_MAPS = {
     { id: "giga_countries", name: "School mapping by country (Giga)", unit: "countries", colour: "#627A86", route: "giga", ready: true, lazy: true,
       data: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/giga/countries.json",
       note: "Giga's own figures for every country on its map, copied daily (its service does not let other sites read it)." },
-    { id: "eyes_craft", name: "Spacecraft across the solar system, where they are now (NASA's Eyes on the Solar System)", unit: "opens it in a panel", colour: "#5E6070", route: "companion", ready: true, lazy: true,
+    { id: "eyes_craft", name: "Spacecraft across the solar system, where they are now (NASA's Eyes on the Solar System)", unit: "leaves Earth for Eyes, as the Leave Earth button does", colour: "#5E6070", route: "leave", ready: true, lazy: true,
       page: "https://eyes.nasa.gov/apps/solar-system/#/home?featured=false&logo=false&shareButton=false&hd=true",
-      note: "NASA/JPL's Eyes on the Solar System, whole, in the panel along the bottom: every spacecraft it follows, placed where it is now, with its mission. The same Eyes the map hands over to when you zoom out past the globe." },
+      note: "Ticked, the map turns to Earth's face and size in NASA/JPL's Eyes on the Solar System and hands the screen over, exactly as the Leave Earth button and zooming out past the globe do (asked for 25 September, in place of the panel along the bottom). In Eyes, every spacecraft it follows is placed where it is now, with its mission. The box in the corner, or unticking, brings the map back." },
     { id: "biosignature", name: "Biosignature Evidence Assessment", unit: "worlds", colour: "#B07F86", route: "worldsring", ready: true, lazy: true,
       page: "https://welcometoyourgalaxy.github.io/maps/off-planet-invasion_embed_13_large-script.html",
       note: "Your own assessment from the Off-Planet Invasion page, read from the page itself and drawn round the globe at world view: each world further out the further it is from Earth, coloured by the assessed chance its evidence is biological. A click gives the evidence, its status and the mission that could settle it." },
@@ -10900,6 +10972,10 @@ const OTHER_MAPS = {
       attribution: "Hansen/UMD/Google/USGS/NASA", maxzoom: 12,
       choices: [{ label: "Tree cover loss", tiles: "https://storage.googleapis.com/earthenginepartners-hansen/tiles/gfc_v1.12/loss_alpha/{z}/{x}/{y}.png" }],
       note: "The published Global Forest Change tiles, read live." },
+    { id: "soil_spun", name: "Mycorrhizal fungi underground: richness and endemism, worldwide, 1 km (SPUN Underground Atlas)", unit: "modelled from 2.8 billion fungal DNA sequences", colour: "#6B5A4A", route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPUN Underground Atlas: Van Nuland, Kiers et al. 2025, Nature (CC BY 4.0)", maxzoom: 12,
+      choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/soil/spun_choices.json", choices: [],
+      note: "The most detailed worldwide map of life in the soil that is open to copy: SPUN's Underground Atlas, predicted richness and endemism of the fungi that live with plant roots (arbuscular and ectomycorrhizal), about 1 km across, from 2.8 billion DNA sequences sampled in 130 countries (Van Nuland et al. 2025, Nature). Every map in its data record is a choice here, named from its file; each is shaded in 12 steps between its own 2nd and 98th percentiles, with the key giving each step's values. A model's prediction, not a count. Maps across all soil life (bacteria, fungi, protists, invertebrates) exist, but their present-day grids are not published for copying, and the EU's Global Soil Biodiversity Atlas maps may not be passed on. Copied once by culprits-tiles-more from Zenodo record 10.5281/zenodo.14871588." },
     { id: "soilgrids", name: "Soil properties (SoilGrids, ISRIC)", unit: "soil properties, 250 m", colour: "#6B5A4A", route: "rasterlive", ready: true, lazy: true,
       attribution: "ISRIC SoilGrids (CC BY 4.0)", maxzoom: 14,
       choices: [
@@ -11286,6 +11362,7 @@ function ensureLayer(cfg) {
       : cfg.route === "ctair" || cfg.route === "ctairgas" ? addCtAirLayer(cfg)
       : cfg.route === "gsn" ? addGsnLayer(cfg)
       : cfg.route === "companion" ? Promise.resolve().then(() => addCompanion(cfg))
+      : cfg.route === "leave" ? Promise.resolve().then(() => { setLayerState(cfg.id, cfg.unit); applyVisibility(cfg.id); })
       : cfg.route === "rte" ? addRteLayer(cfg)
       : cfg.route === "ll2" && cfg.what === "upcoming" ? addLaunchSitesLayer(cfg)
       : cfg.route === "ll2" ? addLivePlacesLayer(cfg)
@@ -11520,6 +11597,7 @@ const LAYER_KIND = {
   osm_landuse: ["human", "upstream"],
   aquaculture_ponds: ["animal", "upstream"],
   soilgrids: ["microorganism", "downstream"],
+  soil_spun: ["microorganism", "downstream"],
   wastewater: ["insentient", "downstream"],
   wastewater_n_tot: ["insentient", "downstream"], wastewater_n_treated: ["insentient", "downstream"],
   wastewater_n_septic: ["insentient", "downstream"], wastewater_n_open: ["insentient", "downstream"],
@@ -12041,7 +12119,7 @@ const LAYER_SITE = {
   allen_coral: "https://allencoralatlas.org",
   atlas_cities: "https://atlas-for-the-end-of-the-world.com/hotspot_cities/",
   atlas_hotspots: "https://atlas-for-the-end-of-the-world.com/hotspots/",
-  bocc: "https://www.bankingonclimatechaos.org/?bank=JPMorgan%20Chase#fulldata-panel",
+  bocc: "https://www.bankingonclimatechaos.org/",
   carbon_bombs: "https://github.com/dataforgoodfr/CarbonBombs",
   carbon_majors: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/destruction_embed_3_leaflet-map.html",
   carbon_plumes: "https://carbonmapper.org",
@@ -12128,6 +12206,7 @@ const LAYER_SITE = {
   slavery_routes: "https://github.com/WelcomeToYourGalaxy/anti-slavery-map",
   slavery_sites: "https://github.com/WelcomeToYourGalaxy/anti-slavery-map",
   soilgrids: "https://maps.isric.org/mapserv?map=/map",
+  soil_spun: "https://doi.org/10.5281/zenodo.14871588",
   tableau_zsf: "https://public.tableau.com/shared/ZSF724HPQ?:showVizHome=no&:embed=y",
   theyrule: "https://theyrule.net/",
   trase_cocoa_ivory: "https://trase.earth/open-data",
@@ -12162,7 +12241,7 @@ const LIVE_ROUTES = new Set([
   "worker", "tile", "wmts", "rasterlive", "cerulean", "coral", "carbonmapper",
   "arcgis", "arcgisdyn", "arcgisapp", "umap", "kml", "ll2", "ejatlas", "geojsonlive",
   "wpgmza", "atlascities", "trase", "trasefac", "wmsmenu", "gfwmenu", "giga", "gta",
-  "rte", "owidgrapher", "spheres", "companion", "gsn",
+  "rte", "owidgrapher", "spheres", "companion", "gsn", "leave",
 ]);
 // A row's longer description sits behind a small "i" beside its other marks.
 // It used to be the whole row's hover text, which popped up over the list every
@@ -12232,6 +12311,8 @@ function refreshNote(cfg) {
 // kept here (the source cannot be read by another site, or its server is gone).
 // Every row now carries one mark or the other (22 September, round 3).
 const NOT_LIVE = {
+  bocc: "The report's league tables, read once from the 2026 report; headquarters from GLEIF and OpenStreetMap",
+  soil_spun: "Copied once from the Underground Atlas data record (Zenodo 10.5281/zenodo.14871588)",
   largest_companies: "Compiled weekly from Wikidata by culprits-tiles-more",
   coastal_cleanup: "Ocean Conservancy's cleanup sites, from a copy made daily (their server lets only their own site read it)",
   food_soy: "Built once from the 2017 data package of Halpern et al. 2022; it is not updated",
@@ -12376,6 +12457,8 @@ const PANEL_ORDER = [
   { h: 4, t: "Intact and primary forests" },
   { h: 4, t: "Disturbance" },
   { h: 4, t: "Fish" },
+  // Asked for 25 September: most biodiversity layers leave out the soil.
+  { h: 4, t: "Soil biodiversity" }, "soil_spun", "soilgrids",
   { h: 4, t: "Wildlife and timber crime" }, "powerbi_report",
   { h: 4, t: "Companies and financiers" }, "pe_subsidising", "pe_bankrolling",
   // Item 30: the most detailed worldwide land cover and land use found.
@@ -12421,6 +12504,8 @@ const PANEL_ORDER = [
   { h: 3, t: "Construction" }, "local_projects",
   // Concessions that name no material or activity a heading covers (23 September).
   { h: 3, t: "Other concessions" },
+  // Asked for 25 September: the earthquakes under a heading of their own.
+  { h: 3, t: "Natural disasters" }, "skytruth_quakes",
   { h: 2, t: "Of groups" },
   { h: 3, t: "Of humans" },
   { h: 3, t: "Of animals" }, "final_nail", "powerbi_report",
@@ -12492,7 +12577,7 @@ const PANEL_ORDER = [
 
   { h: 1, t: "Base and reference" },
   { h: 2, t: "Boundaries and relief" },
-  { h: 2, t: "Physical and human geography" }, "soilgrids", "skytruth_quakes",
+  { h: 2, t: "Physical and human geography" },
 
   { h: 1, t: "Buildings" }, "building_types",
 ];

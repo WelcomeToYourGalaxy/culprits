@@ -5,6 +5,26 @@ touches.
 
 ---
 
+## Round 47 (25 September): Eyes leaves Earth; natural disasters; soil biodiversity; keys under Showing; columns stand up; Banking on Climate Chaos mapped
+
+- eyes_craft is route "leave": ticked, it calls leaveEarth() (the Leave Earth
+  button's hand-over to NASA's Eyes); backToMap() unticks it.
+- The GLAD-L coverage row is taken out (catalogueRefine), so nothing is left
+  under Base and reference > Boundaries and relief.
+- skytruth_quakes moved to Destruction > Of the planet > Natural disasters.
+- Biodiversity loss > Soil biodiversity: soil_spun (SPUN Underground Atlas,
+  mycorrhizal richness and endemism, 1 km, CC BY 4.0; choices read from
+  culprits-tiles-more soil/spun_choices.json, built by
+  scripts/soil_biodiversity.py) and soilgrids (moved from Base and reference).
+- The Showing box lists each layer's colour key under it (legendKeyPairs reads
+  the key the layers box shows for that row; rebuilt when keys appear).
+- Climate TRACE columns: every column at least three footprints tall, and the
+  map tilts to 50 degrees once when columns first appear.
+- bocc is now route geojsonlive on culprits-tiles-more bocc/banks.geojson
+  (scripts/bocc.py: the report's two league tables, GLEIF headquarters,
+  OpenStreetMap positions). app.js?v=47.
+
+
 ## Round 46 (24 September): every layer drawn in the GLAD-S2 colours
 
 Round 44 recoloured the list's swatches only; most layers still drew in their
