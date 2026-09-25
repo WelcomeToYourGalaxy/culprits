@@ -68,6 +68,12 @@ def main():
     dropped = []
     for f in src["features"]:
         iso = f["properties"]["ISO3166-1-Alpha-3"]
+        # The source gives France and Norway "-99" (no code), so every country
+        # layer joined by code left them blank (found 25 September). Their own
+        # ISO codes are put back; the other "-99" areas (Kosovo, Somaliland,
+        # sovereign base areas) have none and keep it.
+        iso = {"France": "FRA", "Norway": "NOR"}.get(f["properties"]["name"], iso) if iso == "-99" else iso
+        f["properties"]["ISO3166-1-Alpha-3"] = iso
         g = walk(f["geometry"])
         if not g:
             # A small-island country would otherwise disappear. Retry keeping

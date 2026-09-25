@@ -477,6 +477,11 @@ def popup_types(features):
 # ------------------------------------------------------------------ one map
 
 def build(m):
+    # Maps whose data lives outside their markers are read from the page's own
+    # data by rich_maps.py (25 September, round 48).
+    if m.get("rich"):
+        import rich_maps
+        return rich_maps.build(m)
     import _sitemap
     data = _sitemap.extract(m)
     for note in data.get("notes", []):

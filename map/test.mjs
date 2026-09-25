@@ -355,10 +355,13 @@ console.log("\nmap wiring");
   map.fire("load");
   await new Promise((r) => setTimeout(r, 10));
   const fill = map.getLayer("owid_co2-fill");
+  // Round 48: colour and depth together, on the same log scale; one depth for
+  // every country with data, none for a country without.
   const expr = JSON.stringify(fill.paint["fill-opacity"]);
-  check("choropleth uses a log scale", /log10/.test(expr), expr.slice(0, 90));
-  check("small values keep a visible floor", /0\.12/.test(expr));
-  check("no-data countries stay transparent", expr.includes('"case"'));
+  const colour = JSON.stringify(fill.paint["fill-color"]);
+  check("choropleth uses a log scale", /log10/.test(colour), colour.slice(0, 90));
+  check("small values keep a visible floor", /0\.78/.test(expr) && (colour.match(/#[0-9A-F]{6}/gi) || []).length >= 5);
+  check("no-data countries stay transparent", expr.includes('"case"') && /null\],0,/.test(expr));
 }
 
 // --- fuel filtering happens in the map, not the harvester -----------------
@@ -2590,7 +2593,8 @@ console.log("\nOff-planet sections, Of groups, names, launch links, drag bar, ma
   check("Off-planet has To Earth and From Earth, with their four sections and one empty",
         at("To Earth") < at("Near-Earth object impacts") && at("Unidentified aerial phenomena") < at("From Earth") &&
         at("From Earth") < at("The space industry") && at("Space launches") < at("Protecting extraterrestrial life"));
-  check("Fur Farms (Final Nail) is under Destruction, Of groups, Of animals", order.indexOf("final_nail") === at("Of animals") + 1 && at("Of animals") > at("Of groups") && /name: "Fur Farms \(Final Nail\)"/.test(src));
+  // Round 48 (25 September): the fur farms moved to a heading of their own under Of the planet.
+  check("Fur Farms (Final Nail) is under Destruction, Of the planet, Fur farms", order.indexOf("final_nail") === at("Fur farms") + 1 && at("Fur farms") < at("Of groups") && /name: "Fur Farms \(Final Nail\)"/.test(src));
   check("Pet Food Companies is under The pet industry", order.indexOf("mymaps_supp_a") === at("The pet industry") + 1 && /name: "Pet Food Companies \(Google My Maps\)"/.test(src));
   check("each upcoming launch links to its own pages", /spacelaunchnow\.me\/launch\//.test(src) && /r\.info_urls/.test(src) && /ll2Links\(r\)/.test(src));
   check("page panels have a drag bar", /class="c-grab"/.test(src) && /ns-resize/.test(src));
@@ -3441,7 +3445,7 @@ console.log("\nround of 23 September (13): the crime tracker under every subject
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("EIA's Environmental Crime Tracker is copied under illegal logging, F-gases and the animals as well as biodiversity loss",
         /"Illegal logging and timber trafficking" \}, "powerbi_report"/.test(src) && /"F-gases" \}, "edgar_fgases", "powerbi_report"/.test(src) &&
-        /"Of animals" \}, "final_nail", "powerbi_report"/.test(src));
+        /"Of animals" \}, "powerbi_report"/.test(src));
 }
 console.log("\nround of 23 September (14): the Atlas's city maps laid on the map where placed");
 {
@@ -4080,7 +4084,62 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /map\.easeTo\(\{ pitch: COLUMN_TILT, duration: 900 \}\)/.test(src));
   check("Banking on Climate Chaos is mapped: its banks at their headquarters, every figure in the box", /id: "bocc"[^\n]*route: "geojsonlive"/.test(src) &&
         /culprits-tiles-more\/bocc\/banks\.geojson" \}\], nameFrom: \["bank"\]/.test(src) && /  bocc: "The report's league tables/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=47/.test(html));
+  check("the page asks for this round's script", /app\.js\?v=4[7-9]/.test(html));
+}
+{
+  console.log("\nround 48: rows refiled and taken out; colour scales that can be told apart; the drug and Eyes maps copied whole");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const cut = (from, to) => src.slice(src.indexOf(from), src.indexOf(to));
+  const lib = new Function(
+    cut("const NUSANTARA_NAMES = {", "/* ---------- a catalogue's layers as rows") +
+    cut("const P = \"Destruction > Of the planet\";", "// The body of the heading a path names") +
+    "; return { cataloguePlaces, P, AG };")();
+  const at = (t) => lib.cataloguePlaces(t, t);
+  const P = lib.P, AG = lib.AG;
+  check("WWF's terrestrial ecoregions and SBTN's natural lands are under Biodiversity loss",
+        at("Terrestrial Ecoregions of the World (WWF) wwf_terrestrial_ecoregions").every((x) => x.startsWith(P + " > Biodiversity loss")) &&
+        at("SBTN Natural Lands Map sbtn_natural_lands").every((x) => x.startsWith(P + " > Biodiversity loss")));
+  check("the projected change in dry spells is under Water scarcity", at("Projected change in dry spells").join() === P + " > Water scarcity");
+  check("the negligible-risk layer is under Deforestation", at("Negligible risk x").join() === P + " > Deforestation > Tree cover loss and alerts > Where clearing is likely");
+  check("the palm oil mill sourcing areas are under Palm oil's mills", at("Palm oil mill sourcing areas, 10 km millopbuffer10km_spv").join() === AG + " > Palm oil > Mills and refineries" &&
+        at("Near palm oil mills, 50 km millopbufferol50km_spv").join() === AG + " > Palm oil > Mills and refineries");
+  const out = (t) => at(t).join() === "(taken out)";
+  check("WRI's cities vulnerability, UMD's net tree cover change, TODELETE, test dataset, SICAR and Peru's permanent production forests are taken out",
+        out("Cities socioeconomic vulnerability (WRI)") && out("Net tree cover change umd_net_tree_cover_change") && out("Todelete (Global Forest Watch gives this dataset no title)") &&
+        out("Test dataset 001") && out("Sfb bra sicar (Global Forest Watch gives this dataset no title) sfb_bra_sicar") && out("Permanent production forests — Peru"));
+  check("rows not named are where they were", at("Mining concessions gfw_mining_concessions").some((x) => /Mining/.test(x)));
+  check("the fur farms have a heading of their own under Of the planet", /\{ h: 3, t: "Fur farms" \}, "final_nail",\n  \{ h: 2, t: "Of groups" \}/.test(src));
+  const G = new Function("maplibregl", src.slice(src.indexOf("const GLAD_LO = 185"), src.indexOf("function gladPixels(")) +
+    "; return { gladCss, gladValue, GLAD_SPREAD };")({ addProtocol() {} });
+  const hue = (hex) => { const n = parseInt(hex.slice(1), 16), r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (!d) return -1;
+    let h = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4); return (h + 360) % 360; };
+  const light = (hex) => { const n = parseInt(hex.slice(1), 16), v = [(n >> 16), (n >> 8) & 255, n & 255]; return (Math.max(...v) + Math.min(...v)) / 510; };
+  const rating = ["step", ["get", "score"], "#1A9850", 3, "#91CF60", 5, "#FEE08B", 7, "#FC8D59", 9, "#D73027"];
+  const spread = G.gladValue(rating, "ratings");
+  const cols = [2, 4, 6, 8, 10].map((i) => spread[i]);
+  check("a rating scale is spread from cyan to violet, in order, and over lightness", spread[0] === "step" &&
+        hue(cols[0]) < hue(cols[2]) && hue(cols[2]) < hue(cols[4]) && hue(cols[4]) - hue(cols[0]) > 90 &&
+        Math.abs(light(cols[0]) - light(cols[4])) > 0.3);
+  check("a key built from the same palette shows the same steps", G.gladCss("#FEE08B", "ratings") === cols[2] && G.gladCss("rgb(215,48,39)", "ratings") === cols[4]);
+  const cases = G.gladValue(["case", ["has", "v"], ["step", ["get", "v"], "#aa0000", 1, "#00aa00", 2, "#0000aa"], "#8C877E"], "c2");
+  check("a scale inside a has-test is spread too", cases[0] === "case" && cases[2][0] === "step" && new Set([cases[2][2], cases[2][4], cases[2][6]]).size === 3);
+  check("the country layers use colour and depth on a log scale, with a key under the row",
+        /const STEPS = \["#DCD7CC", "#B8B0A2", "#948B7D", "#6F675B", "#4A443C"\];/.test(src) && /"fill-opacity": \["case", \["==", \["feature-state", key\], null\], 0, 0\.78\]/.test(src));
+  const bounds = JSON.parse(fs.readFileSync(path.join(HERE, "data", "boundaries.geojson"), "utf8"));
+  check("France and Norway carry their codes, so country layers shade them", ["FRA", "NOR"].every((c) => bounds.features.some((f) => f.properties.iso3 === c && f.id === c)));
+  check("a row's swatch shows the colours its places are drawn in", /setRowSwatch\(cfg\.id, swatchFill\(sitemapDrawnColours\(cfg, data\.features\)\)\);/.test(src) &&
+        /swatchFill\(sitemapDrawnColours\(cfg, data\.features, v\.k\)\) \|\| cfg\.colour/.test(src));
+  check("WRI's land greenhouse gas map is stretched by its own statistics, zeros left clear",
+        /const GFW_COG_MEASURED = new Set\(\["wri_land_ghg_monitoring_system"\]\);/.test(src) && /rescale=\$\{lo\},\$\{hi\}/.test(src) &&
+        /if \(asset\.how === "cog" && GFW_COG_MEASURED\.has\(d\.id\)\) asset\.uri \+= await gfwCogScale\(asset\.uri\);/.test(src));
+  const reg = JSON.parse(fs.readFileSync(path.join(HERE, "..", "pipeline", "sitemaps", "registry.json"), "utf8")).maps;
+  check("the drug map and the Eyes network are read from their pages' own data",
+        reg.some((m) => m.id === "capture_map" && m.rich === "capture") && reg.some((m) => m.id === "site_eyes_network" && m.rich === "eyes") &&
+        /id: "capture_map"[^\n]*route: "sitemap"[^\n]*noAreaDots: true/.test(src) &&
+        fs.existsSync(path.join(HERE, "..", "pipeline", "sitemaps", "rich_maps.py")));
+  check("the page asks for this round's script", /app\.js\?v=4[8-9]/.test(html) && /wire\.js\?v=4[8-9]/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

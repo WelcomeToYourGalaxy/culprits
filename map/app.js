@@ -515,6 +515,10 @@ function gladCss(c, salt) {
   if (!p || p[3] === 0) return c;
   const hex = "#" + p.slice(0, 3).map((v) => Math.round(v).toString(16).padStart(2, "0")).join("").toUpperCase();
   if (GLAD_OUT.has(hex)) return c;
+  // A colour that is one step of a spread scale on this row (gladSpread): a key
+  // shows the step the map draws.
+  const spread = GLAD_SPREAD.get(`${salt}|${hex}`);
+  if (spread) return p[3] < 1 ? spread.replace(/^#(..)(..)(..)$/, (m, r, g, b) => `rgba(${parseInt(r, 16)},${parseInt(g, 16)},${parseInt(b, 16)},${p[3]})`) : spread;
   const [r, g, b] = gladRgb(p[0], p[1], p[2], gladSalt(salt));
   const out = p[3] < 1 ? `rgba(${r},${g},${b},${p[3]})`
     : "#" + [r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("").toUpperCase();
@@ -540,6 +544,50 @@ function gladExpr(v, salt) {
               hsl(["+", GLAD_LO, ["*", V("h"), GLAD_SPAN / 360]], ["*", ["min", 0.81, ["max", V("s"), 0.45]], 100], ["*", V("l"), 100])]]]]]];
 }
 const GLAD_TOP_INPUTS = new Set(['["zoom"]', '["heatmap-density"]', '["line-progress"]']);
+// Scales read from the data (25 September, round 48). Mapping each colour of a
+// scale on its own squeezed it: a red-to-yellow-to-green rating spans a third
+// of the wheel, and placed between cyan and violet it came out as three
+// near-identical cyans, so countries rated far apart looked alike. A scale's
+// colours are now spread over the whole span from cyan to violet and over
+// lightness together, in the scale's own order: an ordered scale (step or
+// interpolate) runs light to dark, or dark to light where the source's own
+// scale does; a list of classes (match) takes evenly spaced hues, neighbours
+// alternating lighter and darker. Clear, near-white and near-black steps are
+// left as they are. Each spread colour is kept by row and source colour, so a
+// key built from the same palette shows the same step (gladCss).
+const GLAD_SPREAD = new Map();
+function gladHsl(h, s, l) {
+  const a = s * Math.min(l, 1 - l), f = (n) => { const k = (n + h / 30) % 12; return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))); };
+  return "#" + [f(0), f(8), f(4)].map((x) => x.toString(16).padStart(2, "0")).join("").toUpperCase();
+}
+function gladSpread(v, idx, salt, ordered) {
+  const light = (p) => (Math.max(p[0], p[1], p[2]) + Math.min(p[0], p[1], p[2])) / 510;
+  const hexOf = (p) => "#" + p.slice(0, 3).map((x) => Math.round(x).toString(16).padStart(2, "0")).join("").toUpperCase();
+  const parsed = idx.map((i) => parseCssColour(v[i]));
+  const active = (p) => p && p[3] > 0 && light(p) <= 0.88 && light(p) >= 0.1 && !GLAD_OUT.has(hexOf(p));
+  const distinct = [];
+  for (const p of parsed) if (active(p) && !distinct.includes(hexOf(p))) distinct.push(hexOf(p));
+  if (distinct.length < 3) return null;
+  const n = distinct.length;
+  const firstP = parsed.find(active), lastP = [...parsed].reverse().find(active);
+  const darkening = light(firstP) >= light(lastP);
+  const to = new Map(distinct.map((hx, r) => {
+    const t = r / (n - 1);
+    const l = ordered ? (darkening ? 0.8 - t * 0.38 : 0.42 + t * 0.38) : (r % 2 ? 0.44 : 0.66);
+    const out = gladHsl(GLAD_LO + t * GLAD_SPAN, 0.7, l);
+    GLAD_OUT.add(out);
+    GLAD_SPREAD.set(`${salt}|${hx}`, out);
+    return [hx, out];
+  }));
+  const o = v.slice();
+  idx.forEach((i, j) => {
+    const p = parsed[j];
+    if (!active(p)) { o[i] = typeof v[i] === "string" ? gladCss(v[i], salt) : v[i]; return; }
+    const out = to.get(hexOf(p));
+    o[i] = p[3] < 1 ? out.replace(/^#(..)(..)(..)$/, (m, r, g, b) => `rgba(${parseInt(r, 16)},${parseInt(g, 16)},${parseInt(b, 16)},${p[3]})`) : out;
+  });
+  return o;
+}
 function gladValue(v, salt) {
   if (typeof v === "string") return gladCss(v, salt);
   if (v && !Array.isArray(v) && typeof v === "object" && Array.isArray(v.stops))
@@ -551,6 +599,40 @@ function gladValue(v, salt) {
   if ((interp || v[0] === "step") && GLAD_TOP_INPUTS.has(JSON.stringify(interp ? v[2] : v[1]))) {
     const out = v.slice();
     for (let i = interp ? 4 : 2; i < out.length; i += 2) out[i] = gladValue(out[i], salt);
+    return out;
+  }
+  // A scale over a value from the data: spread (gladSpread) when its colours
+  // are written out; otherwise each output is mapped as the value it is.
+  const literal = (e) => typeof e === "string" && parseCssColour(e) !== null;
+  if (interp || v[0] === "step") {
+    const idx = [];
+    for (let i = interp ? 4 : 2; i < v.length; i += 2) idx.push(i);
+    if (idx.every((i) => literal(v[i]))) {
+      const spread = gladSpread(v, idx, salt, true);
+      if (spread) return spread;
+    } else {
+      const out = v.slice();
+      for (const i of idx) out[i] = gladValue(out[i], salt);
+      return out;
+    }
+  }
+  if (v[0] === "match") {
+    const idx = [];
+    for (let i = 3; i < v.length - 1; i += 2) idx.push(i);
+    idx.push(v.length - 1);
+    if (idx.every((i) => literal(v[i]))) {
+      // Numbered classes (scores, ranks) are a scale in the order written.
+      const numbered = idx.slice(0, -1).every((i) => typeof v[i - 1] === "number");
+      const spread = gladSpread(v, idx, salt, numbered);
+      if (spread) return spread;
+    }
+  }
+  // A choice between scales (a "has" test round a step, say): each branch is
+  // mapped as the value it is.
+  if (v[0] === "case" && !(() => { for (let i = 2; i < v.length; i += 2) if (!literal(v[i])) return false; return literal(v[v.length - 1]); })()) {
+    const out = v.slice();
+    for (let i = 2; i < out.length; i += 2) out[i] = gladValue(out[i], salt);
+    out[out.length - 1] = gladValue(out[out.length - 1], salt);
     return out;
   }
   // Every output a literal colour: map them in place (cheaper, and a filter or
@@ -666,8 +748,8 @@ function gladKeys(root) {
   for (const el of els) {
     if (el.dataset.glad || el.classList.contains("swatch")) continue;
     el.dataset.glad = "1";
-    const host = el.closest("[data-for], [data-key-for], [data-layer], [data-state]");
-    const salt = host ? (host.dataset.for || host.dataset.keyFor || host.dataset.layer || host.dataset.state) : "";
+    const host = el.closest("[data-for], [data-key-for], [data-colour-for], [data-layer], [data-state]");
+    const salt = host ? (host.dataset.for || host.dataset.keyFor || host.dataset.colourFor || host.dataset.layer || host.dataset.state) : "";
     const c = el.style.backgroundColor;
     if (c) { const m = gladCss(c.replace(/\s+/g, ""), salt); if (m !== c) el.style.backgroundColor = m; }
   }
@@ -3296,6 +3378,34 @@ function siteTypeSync(cfg) {
   applySitemapFilters(cfg.id);
 }
 
+// The colours a map's places are drawn with, most used first, as they appear
+// on the map (25 September, round 48). A row's swatch had been the row's own
+// colour while its places drew in the colours their map gives them, so a row
+// in the list and its marks on the map did not match.
+function sitemapDrawnColours(cfg, features, tag) {
+  const n = new Map();
+  for (const f of features || []) {
+    const p = f.properties || {};
+    if (tag && !String(p.f || "").includes(`|${tag}|`)) continue;
+    const c = typeof p.c === "string" && p.c ? p.c : cfg.colour;
+    n.set(c, (n.get(c) || 0) + 1);
+  }
+  return [...n].sort((a, b) => b[1] - a[1]).map(([c, k]) => [gladCss(c, cfg.id), k]);
+}
+function swatchFill(cols) {
+  if (!cols.length) return null;
+  const all = cols.reduce((t, [, k]) => t + k, 0);
+  if (cols.length === 1 || cols[0][1] / all >= 0.8) return cols[0][0];
+  const top = cols.slice(0, 4), w = 100 / top.length;
+  return `linear-gradient(90deg, ${top.map(([c], i) => `${c} ${Math.round(i * w)}% ${Math.round((i + 1) * w)}%`).join(", ")})`;
+}
+function setRowSwatch(id, fill) {
+  const box = document.getElementById("layers");
+  const row = fill && box && box.querySelector ? box.querySelector(`[data-layer="${id}"]`) : null;
+  const sw = row && row.closest && row.closest("label") && row.closest("label").querySelector(".swatch");
+  if (sw) sw.style.background = fill;
+}
+
 async function siteTypeRowsFor(cfg) {
   const box = document.getElementById("layers");
   const own = box && box.querySelector ? box.querySelector(`[data-layer="${cfg.id}"]`) : null;
@@ -3312,7 +3422,7 @@ async function siteTypeRowsFor(cfg) {
     const row = document.createElement("label");
     row.className = "layer layer-cat";
     row.innerHTML = `<input type="checkbox" data-smtype="${escapeHtml(cfg.id)}" data-k="${escapeHtml(v.k)}">` +
-      `<span class="swatch" style="background:${cfg.colour}"></span>` +
+      `<span class="swatch" style="background:${escapeHtml(swatchFill(sitemapDrawnColours(cfg, data.features, v.k)) || cfg.colour)}"></span>` +
       `<span class="body"><span class="nm">${escapeHtml(siteTypeTitle(v.label, mapName.trim()))}${siteLink(cfg.id)}</span>` +
       `<span class="un">${Number(v.n).toLocaleString()} ${escapeHtml(cfg.unit || "places")}</span></span>`;
     return row;
@@ -3423,15 +3533,19 @@ function sitemapChipClicked(btn) {
 const sitemapColourings = new Map();
 
 function colouringExpression(c, year) {
+  // A place with no value for the measure chosen: a pale wash, near white so
+  // it is never read as a step of the scale (a grey here was drawn violet, the
+  // colour of the top step, 25 September).
+  const COLOURING_NONE = "#EAE6DF";
   const prop = String(c.prop || c.k).replace("{year}", year != null ? year : (c.year != null ? c.year : ""));
   if (Array.isArray(c.scores)) {
     const pairs = [];
     c.scores.forEach((s, i) => pairs.push(s, c.colours[i]));
-    return ["match", ["to-number", ["get", prop], -1], ...pairs, "#8C877E"];
+    return ["match", ["to-number", ["get", prop], -1], ...pairs, COLOURING_NONE];
   }
   const expr = ["step", ["to-number", ["get", prop], 0], c.colours[0]];
   (c.breaks || []).forEach((b, i) => expr.push(b, c.colours[i + 1]));
-  return ["case", ["has", prop], expr, "#8C877E"];
+  return ["case", ["has", prop], expr, COLOURING_NONE];
 }
 
 function colouringLegend(c) {
@@ -5977,6 +6091,28 @@ const CATALOGUE_PLACES = [
 // titles each rule caught.
 const CATALOGUE_TAKEN_OUT = "(taken out)";
 const CATALOGUE_BY_TITLE = [
+  // ---- 25 September (round 48), at the owner's word ---------------------
+  // Moved: WWF's terrestrial ecoregions and SBTN's natural lands under
+  // Biodiversity loss; the projected change in dry spells under Water
+  // scarcity; the negligible-risk layer under Deforestation, beside the other
+  // rows on where clearing is likely; Nusantara's palm oil mill sourcing areas
+  // (the "millopbuffer" layers: land within 10 km, 50 km, one or two hours of
+  // a mill) under Palm oil's mills. Taken out: WRI's cities socioeconomic
+  // vulnerability rows, the University of Maryland's net tree cover change
+  // rows, the rows Global Forest Watch titles "TODELETE" or "test dataset",
+  // Brazil's SICAR rural property register (SFB), and Peru's permanent
+  // production forests.
+  [/terrestrial ecoregions/i, [P + " > Biodiversity loss"]],
+  [/(?=.*natural lands?)(?=.*sbtn)/i, [P + " > Biodiversity loss"]],
+  [/dry spells?/i, [P + " > Water scarcity"]],
+  [/negligible risk/i, [P + " > Deforestation > Tree cover loss and alerts > Where clearing is likely"]],
+  [/millop_?buffer|palm oil mill sourcing|near palm oil mills/i, [AG + " > Palm oil > Mills and refineries"]],
+  [/socio-?economic vulnerability/i, null],
+  [/net tree cover change|\bumd_net_tree_cover/i, null],
+  [/todelete/i, null],
+  [/test[ _]?dataset/i, null],
+  [/\bsicar\b|sfb_bra_sicar|sfb bra sicar/i, null],
+  [/permanent production fores/i, null],
   // ---- 24 September, at the owner's word -------------------------------
   // Trase's cattle and pasture clearing under Deforestation only, not Meat;
   // the emissions from that clearing under Climate only; Trase's pasture area
@@ -6762,6 +6898,35 @@ function gfwTitle(d) {
 // answers an outside page (checked 21 September: 200, image/png). That is how
 // DIST-ALERT, the integrated alerts and the WRI/Google drivers now draw.
 const GFW_COG_TILES = "https://tiles.globalforestwatch.org/cog/basic/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=";
+// GeoTIFFs that hold measured amounts (not codes) and come with no colour
+// scale. Asked for plain, the tile service turns each amount straight into a
+// grey level, so every cell with a value, zero included, came out as one
+// shaded sheet over the world (WRI's land greenhouse gas monitoring system, 25
+// September). For these the service is first asked for the file's own
+// statistics, and the picture is stretched from its 2nd to its 98th
+// percentile; cells holding zero are left clear where no value is below zero.
+// If the statistics do not come, the zeros are still left clear.
+const GFW_COG_MEASURED = new Set(["wri_land_ghg_monitoring_system"]);
+async function gfwCogScale(uri) {
+  const file = String(uri).split("?url=")[1];
+  if (!file) return "";
+  const stats = async (extra) => {
+    const j = await getJson(`https://tiles.globalforestwatch.org/cog/basic/statistics?url=${file}&max_size=1024${extra}`, 30000);
+    const b = j && (j.b1 || Object.values(j).find((x) => x && typeof x === "object" && "min" in x));
+    return b || null;
+  };
+  try {
+    let b = await stats("");
+    if (!b) return "";
+    const clear = Number(b.min) >= 0;
+    if (clear) b = (await stats("&nodata=0").catch(() => null)) || b;
+    const lo = Number(b.percentile_2 != null ? b.percentile_2 : b.min), hi = Number(b.percentile_98 != null ? b.percentile_98 : b.max);
+    if (!Number.isFinite(lo) || !Number.isFinite(hi) || hi <= lo) return clear ? "&nodata=0" : "";
+    return `&rescale=${lo},${hi}&colormap_name=viridis${clear ? "&nodata=0" : ""}`;
+  } catch (e) {
+    return "&nodata=0";
+  }
+}
 // The zooms an asset's tiles exist at, as its record says (creation_options or
 // metadata); asking past them is what returned 422 for several datasets.
 function gfwZooms(a) {
@@ -6905,6 +7070,7 @@ async function addGfwMenuLayer(cfg) {
         assets = version ? ((await getJson(`${cfg.api}/dataset/${d.id}/${version}/assets`)).data || []) : [];
       }
       const asset = gfwPickAsset(assets);
+      if (asset.how === "cog" && GFW_COG_MEASURED.has(d.id)) asset.uri += await gfwCogScale(asset.uri);
       const vec = asset.how === "vector" ? { asset_uri: asset.uri } : null;
       const decode = asset.how === "raster" && GFW_DECODE[d.id] && GFW_KEYS[d.id];
       const key = asset.how === "cog" || decode ? GFW_KEYS[d.id] : null;
@@ -8720,10 +8886,7 @@ async function addCountryLayer(cfg) {
   // heavy-tailed: China emits 12,289 Mt against a median country's 11.8, so a
   // square-root ramp gave the median an opacity of 0.02 — data present, nothing
   // visible. Log spreads the middle of the range where most countries sit.
-  //
-  // OPACITY_FLOOR keeps the smallest reporting country distinguishable from a
-  // country with no data at all, which must stay fully transparent.
-  const OPACITY_FLOOR = 0.12, OPACITY_CEIL = 0.72;
+  // A country with no data at all stays fully transparent.
   const lo = Math.log10(Math.max(min, 1e-6));
   const span = Math.max(Math.log10(max) - lo, 0.001);
 
@@ -8732,21 +8895,36 @@ async function addCountryLayer(cfg) {
   // overwrote the first's values for every country.
   const key = `v_${cfg.id}`;
 
+  // A country's place on the log scale, 0 (smallest) to 1 (largest).
+  const at = ["max", 0, ["min", 1, ["/", ["-", ["log10", ["max", ["coalesce", ["feature-state", key], 1e-6], 1e-6]], lo], span]]];
+  // Colour and depth together (25 September, round 48). Depth alone, one
+  // colour faded in and out, left countries rated far apart looking alike. The
+  // five steps are written light to dark and spread from cyan to violet as
+  // they are drawn (gladSpread), so the key below shows the same steps.
+  const STEPS = ["#DCD7CC", "#B8B0A2", "#948B7D", "#6F675B", "#4A443C"];
   map.addLayer({
     id: `${cfg.id}-fill`,
     type: "fill",
     source: "boundaries",
     paint: {
-      "fill-color": cfg.colour,
-      // Square root, not linear: one country holding a third of the total
-      // would otherwise flatten every other country to invisible.
-      "fill-opacity": [
-        "case", ["==", ["feature-state", key], null], 0,
-        ["+", OPACITY_FLOOR, ["*", OPACITY_CEIL - OPACITY_FLOOR,
-          ["/", ["-", ["log10", ["max", ["feature-state", key], 1e-6]], lo], span]]],
-      ],
+      "fill-color": ["interpolate", ["linear"], at, 0, STEPS[0], 0.25, STEPS[1], 0.5, STEPS[2], 0.75, STEPS[3], 1, STEPS[4]],
+      "fill-opacity": ["case", ["==", ["feature-state", key], null], 0, 0.78],
     },
   }, pointLayerAbove());
+  {
+    const row = document.querySelector && document.querySelector(`[data-layer="${cfg.id}"]`);
+    const label = row && row.closest ? row.closest("label") : null;
+    if (label && label.after && !document.querySelector(`.facet[data-key-for="${cfg.id}"]`)) {
+      const fmt = (x) => Number(x.toPrecision(2)).toLocaleString();
+      const val = (t) => Math.pow(10, lo + t * span);
+      const el = document.createElement("div");
+      el.className = "facet cat-key";
+      el.dataset.keyFor = cfg.id;
+      el.innerHTML = catalogueKeyHtml({ values: STEPS.map((c, i) => [i, c,
+        i === 0 ? `${fmt(val(0))} ${cfg.unit || ""} or less` : i === 4 ? `${fmt(val(1))} ${cfg.unit || ""}` : `about ${fmt(val(i / 4))} ${cfg.unit || ""}`]) });
+      label.after(el);
+    }
+  }
 
   map.addLayer({
     id: `${cfg.id}-line`,
@@ -9590,7 +9768,9 @@ async function addSitemapLayer(cfg, given) {
     } });
   // The middle of each area, drawn wider out than an area can be seen at.
   const areas = (data.features || []).filter((f) => f.geometry && /Polygon$/.test(f.geometry.type));
-  if (areas.length) {
+  // Not for countries: a country can be seen at every zoom, and a dot in each
+  // would crowd the marks that are places.
+  if (areas.length && !cfg.noAreaDots) {
     const middleOf = (g) => {
       const pts = [];
       const walk = (c) => { if (c && typeof c[0] === "number") pts.push(c); else if (Array.isArray(c)) c.forEach(walk); };
@@ -9642,6 +9822,7 @@ async function addSitemapLayer(cfg, given) {
   if (Array.isArray(data.overlays) && data.overlays.length) {
     cfg.facet = { property: "ov", label: "layer", values: data.overlays };
   }
+  setRowSwatch(cfg.id, swatchFill(sitemapDrawnColours(cfg, data.features)));
   const n = data.features.length;
   setLayerState(cfg.id, `${n.toLocaleString()} ${cfg.unit}`);
   applyVisibility(cfg.id);
@@ -10413,8 +10594,9 @@ const SITE_MAPS = {
       note: "From the Suppression page's research integrity map." },
     { id: "site_world_entertainment", typeRows: true, name: "World Entertainment 2026 — Companies & Owners", unit: "companies", colour: "#6D5E5A", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_world_entertainment.places.geojson",
       note: "From the Suppression page's World Entertainment 2026 map." },
-    { id: "site_eyes_network", name: "The Network That Tried to Harness the Eyes to Harvest the World", unit: "places", colour: "#5B6360", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_eyes_network.places.geojson",
-      note: "From the Suppression page's sports section network map." },
+    { id: "site_eyes_network", name: "The Network That Tried to Harness the Eyes to Harvest the World", unit: "places and links", colour: "#5B6360", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_eyes_network.places.geojson",
+      // Round 48 (25 September): read from the page's own data (pipeline/sitemaps/rich_maps.py).
+      note: "From the Suppression page's network map, read from the page's own data: each entry's whole write-up (what they did, why, sources, every connection) in its box; the links between entries drawn as lines, documented, inferred and convergence as the page names them; and the page's seven periods to choose from under the row. 15 entries the page gives no place are not on the map; they are named in its boxes as connections." },
     { id: "site_animal_tourism", name: "Animal Tourism Atlas", unit: "locations", colour: "#7C6356", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_animal_tourism.places.geojson",
       note: "From the Suppression page's animal tourism atlas." },
     { id: "site_circus", name: "Global Circus & Animal Shows", unit: "venues", colour: "#7A5E61", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_circus.places.geojson",
@@ -10456,8 +10638,12 @@ const SITE_MAPS = {
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
     { id: "gov_official_map", name: "How to become a government official", unit: "countries and places", colour: "#5F6A66", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/gov_official_map.geojson",
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
-    { id: "capture_map", name: "Drug underworld and capture map", unit: "places and areas", colour: "#6A5A5E", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/capture_map.geojson",
-      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+    // Round 48 (25 September): read from the page's own data (pipeline/sitemaps/
+    // rich_maps.py), not only its marks: each group, case, company and corridor
+    // with its whole write-up, and the countries shaded by the page's measures.
+    { id: "capture_map", name: "Drug underworld and capture map", unit: "places, lines and countries", colour: "#6A5A5E", route: "sitemap", ready: true, lazy: true, noAreaDots: true,
+      dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/capture_map.places.geojson",
+      note: "Everything the map holds: its organised-crime groups by type, public-office cases, companies, trafficking corridors, and every country shaded by any of its six measures (GI-TOC Organized Crime Index 2025 and the map's own composites). Choose what to show and what to colour by under the row." },
   ],
 };
 
@@ -12506,9 +12692,12 @@ const PANEL_ORDER = [
   { h: 3, t: "Other concessions" },
   // Asked for 25 September: the earthquakes under a heading of their own.
   { h: 3, t: "Natural disasters" }, "skytruth_quakes",
+  // Asked for 25 September (round 48): the fur farms under a heading of their
+  // own here, not under Of groups.
+  { h: 3, t: "Fur farms" }, "final_nail",
   { h: 2, t: "Of groups" },
   { h: 3, t: "Of humans" },
-  { h: 3, t: "Of animals" }, "final_nail", "powerbi_report",
+  { h: 3, t: "Of animals" }, "powerbi_report",
   { h: 3, t: "Of plants" },
   { h: 3, t: "Of microorganisms" },
   { h: 3, t: "Of the “insentient”" },

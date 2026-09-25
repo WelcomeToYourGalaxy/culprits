@@ -155,7 +155,8 @@
    "unit": "places",
    "colour": "#5B6360",
    "note": "From the Suppression page's sports section network map.",
-   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_eyes_network.html"
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_eyes_network.html",
+   "rich": "eyes"
   },
   {
    "id": "site_animal_tourism",
@@ -257,6 +258,15 @@
    "note": "From local-map's Indigenous Environmental Conflicts map (local-map repo).",
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/local-map/main/indigenous_conflicts_map_REAL.html",
    "types_from_popup_tag": true
+  },
+  {
+   "id": "capture_map",
+   "name": "Drug underworld and capture map",
+   "unit": "places, lines and countries",
+   "colour": "#6A5A5E",
+   "note": "The Drug underworld and capture map's own data: groups, cases, companies, corridors and country scores.",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/capture/main/index.html",
+   "rich": "capture"
   }
  ]
 }

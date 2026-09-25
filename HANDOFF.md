@@ -5,6 +5,41 @@ touches.
 
 ---
 
+## Round 48 (25 September): owner's list of 25 September
+
+- Refiled (CATALOGUE_BY_TITLE, top): WWF terrestrial ecoregions and SBTN natural
+  lands -> Biodiversity loss; projected change in dry spells -> Water scarcity;
+  negligible risk -> Deforestation > Tree cover loss and alerts > Where clearing
+  is likely; Nusantara palm oil mill sourcing areas (millopbuffer*) -> Palm oil >
+  Mills and refineries. Taken out: WRI cities socioeconomic vulnerability, UMD
+  net tree cover change, TODELETE, test dataset 001, SFB BRA SICAR, Peru
+  permanent production forests. Fur Farms (Final Nail) -> Destruction > Of the
+  planet > Fur farms (own heading).
+- Colour scales: gladSpread spreads a data-driven step/interpolate (and match,
+  numbered = ordered) over the whole cyan-violet span and over lightness, in
+  order; keys look up GLAD_SPREAD so they show the same steps. Country layers
+  (addCountryLayer) now colour + depth on the log scale, key under the row.
+  Sitemap colourings' no-data colour is near-white (#EAE6DF), not a grey that
+  mapped to violet.
+- boundaries.geojson: France and Norway had iso3 "-99" (source quirk), so every
+  country layer left them blank; now FRA/NOR (build_boundaries.py too).
+- Row swatches of sitemap rows (and their type rows) show the colours their
+  places are drawn in (sitemapDrawnColours/swatchFill/setRowSwatch).
+- WRI land GHG monitoring system (GFW COG, no colour scale) drew as one grey
+  sheet: GFW_COG_MEASURED -> gfwCogScale asks the tile service's statistics and
+  adds rescale p2-p98, viridis, nodata=0. Not testable from the sandbox; check
+  on the live map. Only the cropland emissions file of the dataset is drawn
+  (gfwPickAsset's first COG); livestock files exist too.
+- Drug underworld and capture map and the Eyes network now read from their
+  pages' own data: pipeline/sitemaps/rich_maps.py (registry "rich": "capture" /
+  "eyes"; build_boxes.py hands those over). capture_map is route "sitemap"
+  (noAreaDots) with filters Show / Group type / Office / Company sector and six
+  colourings (GI-TOC lenses). Eyes: places with full write-ups, 105 links
+  (documented / inferred / convergence), Period filter from the diagram's bands.
+  Built files are in culprits-tiles-more sitemaps/ (tiles round 48 patch) and
+  rebuilt daily by the sitemaps job.
+
+
 ## Round 47 (25 September): Eyes leaves Earth; natural disasters; soil biodiversity; keys under Showing; columns stand up; Banking on Climate Chaos mapped
 
 - eyes_craft is route "leave": ticked, it calls leaveEarth() (the Leave Earth
