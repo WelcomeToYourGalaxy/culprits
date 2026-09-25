@@ -5,6 +5,22 @@ touches.
 
 ---
 
+## Round 34 (24 September): UFO and UAP sightings (UFOSINT)
+
+Row ufo_sightings under Off-planet > To Earth > Unidentified aerial phenomena:
+route pmtiles (fine dots) over culprits-tiles-more tiles/ufo_sightings.pmtiles
+(one file per zoom 0-10 when one file would pass 95 MB, listed in
+ufo_sightings.build.json), made by scripts/ufosint.py from UFOSINT's public
+SQLite release. Every row kept, duplicates included; hollow = UFOSINT placed it
+from the place name (location.geocode_src). A click reads every field from
+ufosint/pieces/<hh>.json.gz (readPiece now unpacks gzipped pieces). Left out:
+witness_names. UFOSINT holds no licence from NUFORC, MUFON, CUFOS and the rest;
+the owner chose to use it until NUFORC or CUFOS answer.
+Also fixed: a split archive's further files never got the detail layer (its
+zooms were read after being narrowed to the first file's), and the first
+file's glow went on drawing its coarse points at every zoom.
+
+
 ## Round 33 (24 September): ESA's asteroid risk list as a real layer
 
 esa_risk no longer opens ESA's site in a box. Route "neoring" (addNeoRingLayer

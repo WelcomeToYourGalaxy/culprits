@@ -1702,7 +1702,11 @@ function addHud(layer, rawAddLayer) {
   const w = glowWeight(layer);
   const lift = ["+", 0.7, ["*", 0.9, ["sqrt", w]]];   // a speck grows a little with its amount
   const z = (...stops) => ["interpolate", ["linear"], ["zoom"], ...stops];
-  const wide = { minzoom: layer.minzoom != null ? layer.minzoom : 0, maxzoom: GLOW.gone };
+  // A further file of a split archive holds only its own zooms; its glow ends
+  // where it does, or it drew its coarse points again, out of place, over the
+  // finer files' (the UFO sightings, 24 September).
+  const own = /-part\d+$/.test(layer.id) && layer.maxzoom != null ? Math.min(layer.maxzoom, GLOW.gone) : GLOW.gone;
+  const wide = { minzoom: layer.minzoom != null ? layer.minzoom : 0, maxzoom: own };
   const hazeSpec = Object.assign({ id: haze, type: "heatmap", layout: { visibility: vis }, paint: {
       "heatmap-weight": w,
       "heatmap-intensity": z(0, 0.6, 6, 1, 10, 1.4),
@@ -1812,6 +1816,18 @@ hudWrap("setPaintProperty", (raw) => function (id, prop, v, o) {
       if (h.endsWith("-soft") && prop === "circle-radius") raw(h, "circle-radius", mapOutputs(v, (n) => n * 1.5), o);
       if (h.endsWith("-soft") && prop === "circle-opacity" && typeof v === "number") raw(h, "circle-opacity", v * 0.2, o);
       if (h.endsWith("-haze") && prop === "circle-opacity" && typeof v === "number") raw(h, "heatmap-opacity", v * GLOW.hazeOpacity, o);
+    } catch (e) { /* kept */ }
+  }
+  return out;
+});
+// The first file of a split archive has its zooms narrowed after its glow is
+// made; the glow is narrowed with it.
+hudWrap("setLayerZoomRange", (raw) => function (id, lo, hi) {
+  const out = raw(id, lo, hi);
+  for (const h of hudMates(id)) {
+    try {
+      if (h.endsWith("-soft")) raw(h, Math.max(lo, GLOW.fadeOut), hi);
+      else raw(h, lo, Math.min(hi, GLOW.gone));
     } catch (e) { /* kept */ }
   }
   return out;
@@ -2118,10 +2134,15 @@ async function addPmtilesLayer(cfg) {
     if (parts.length < 2) return;
     cfg._layerIds = cfg._layerIds || [];
     const first = parts[0];
+    // Each layer's own zooms, read before the first file's are laid over them:
+    // read after, every further file's copy of the detail layer came out with
+    // no zooms at all and was never added (the UFO sightings, 24 September).
+    const own = {};
     for (const id of [`${cfg.id}-agg`, `${cfg.id}-pt`]) {
       if (!map.getLayer(id)) continue;
       const was = map.getLayer(id);
-      map.setLayerZoomRange(id, Math.max(was.minzoom || 0, first.minzoom), Math.min(was.maxzoom == null ? 24 : was.maxzoom, first.maxzoom));
+      own[id] = { lo: was.minzoom || 0, hi: was.maxzoom == null ? 24 : was.maxzoom };
+      map.setLayerZoomRange(id, Math.max(own[id].lo, first.minzoom), Math.min(own[id].hi, first.maxzoom));
     }
     parts.slice(1).forEach((part, i) => {
       const psrc = `${src}-part${i + 2}`;
@@ -2129,8 +2150,8 @@ async function addPmtilesLayer(cfg) {
       map.addSource(psrc, { type: "vector", url: `pmtiles://${part.url}` });
       for (const kind of ["agg", "pt"]) {
         const model = map.getLayer(`${cfg.id}-${kind}`);
-        if (!model) continue;
-        const lo = Math.max(model.minzoom || 0, part.minzoom), hi = Math.min(model.maxzoom == null ? 24 : model.maxzoom, part.maxzoom);
+        if (!model || !own[`${cfg.id}-${kind}`]) continue;
+        const lo = Math.max(own[`${cfg.id}-${kind}`].lo, part.minzoom), hi = Math.min(own[`${cfg.id}-${kind}`].hi, part.maxzoom);
         if (lo >= hi) continue;
         const lid = `${cfg.id}-${kind}-part${i + 2}`;
         const spec = { id: lid, type: "circle", source: psrc, "source-layer": owner, minzoom: lo, maxzoom: hi,
@@ -2176,10 +2197,20 @@ function pieceOf(key) {
 }
 const pieces = new Map();
 const noPieces = new Set();      // sources whose pieces are not there, so they are not asked for again
-function readPiece(base, key) {
-  const at = `${base}/${pieceOf(key)}.json`;
+// A copy kept gzipped (gz: pieces named <hh>.json.gz, the UFO sightings) is
+// unpacked here; GitHub Pages sends a .gz file as it is stored.
+function readPiece(base, key, gz) {
+  const at = `${base}/${pieceOf(key)}.json${gz ? ".gz" : ""}`;
   if (!pieces.has(at)) {
-    const p = fetch(at).then((r) => { if (!r.ok) throw new Error(`${r.status} at ${at}`); return r.json(); });
+    const p = fetch(at).then(async (r) => {
+      if (!r.ok) throw new Error(`${r.status} at ${at}`);
+      if (!gz) return r.json();
+      const buf = new Uint8Array(await r.arrayBuffer());
+      // Some servers unpack a .gz on the way; only a gzip stream is unpacked here.
+      if (buf[0] !== 0x1f || buf[1] !== 0x8b) return JSON.parse(new TextDecoder().decode(buf));
+      const out = new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"));
+      return JSON.parse(await new Response(out).text());
+    });
     p.catch(() => pieces.delete(at));
     pieces.set(at, p);
   }
@@ -2191,7 +2222,7 @@ function pieceBox(cfg, p) {
     return `<b>${count.toLocaleString()} ${escapeHtml(cfg.unit || "records")}</b>` +
       `<div class="meta">Merged for this zoom. Zoom in to see each one.</div><div class="meta">${escapeHtml(p.source || "")}</div>`;
   }
-  return readPiece(cfg.boxes, p.id).then((piece) => {
+  return readPiece(cfg.boxes, p.id, cfg.boxesGz).then((piece) => {
     const f = piece[String(p.id)];
     if (!f) return `<b>${escapeHtml(p.name || "")}</b><div class="meta">not found in the copy (id ${escapeHtml(p.id)})</div>`;
     const props = f.properties || {};
@@ -10119,6 +10150,12 @@ const OTHER_MAPS = {
     { id: "nsf_locations", name: "Next Spaceflight: launch sites", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://nextspaceflight.com/locations/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "ufo_sightings", name: "UFO and UAP sightings reported worldwide (UFOSINT)", unit: "sightings", colour: "#9A8AA6", route: "pmtiles", ready: true, lazy: true,
+      fine: true, uniformRadius: true,
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ufo_sightings.pmtiles",
+      boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ufosint/pieces", boxesGz: true,
+      attribution: "UFOSINT: UFOCAT (CUFOS), UPDB (PhenomAInon), Capella, UFO-search",
+      note: "Every sighting in UFOSINT's public database, copied whenever UFOSINT publishes a new release: UFOCAT (CUFOS), UPDB, Capella and UFO-search merged, which between them carry NUFORC, MUFON, Blue Book, NICAP and other reports. None are merged or left out, possible duplicates included. Solid where the source gave the position; hollow where UFOSINT placed it by matching the place name to a town. A click shows every field UFOSINT publishes except witnesses' names. UFOSINT holds no licence from these sources." },
     { id: "esa_risk", name: "Asteroids that could strike Earth in the next hundred years (ESA risk list)", unit: "objects", colour: "#B07F86", route: "neoring", ready: true, lazy: true,
       note: "Every object on ESA's risk list, drawn in the dark round the globe at world view: clockwise from the top is the date of its likeliest impact, nearer the globe is likelier, the colour is its Palermo rating and the size its diameter. None has a known place of impact, so none is put on the ground. Read from ESA's own file, or from a daily copy if ESA's server will not let the page read it." },
     { id: "acgf", name: "ACGF", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
@@ -10685,6 +10722,7 @@ const LAYER_KIND = {
   nsf_launches: ["insentient", "upstream"],
   nsf_locations: ["insentient", "upstream"],
   esa_risk: ["insentient", "downstream"],
+  ufo_sightings: ["human", "downstream"],
   acgf: ["human", "upstream"],
   gsn_rankings: ["plant", "downstream"],
   gta_acts: ["human", "upstream"],
@@ -11220,6 +11258,7 @@ const LAYER_SITE = {
   capture_map: "https://github.com/WelcomeToYourGalaxy/maps",
   dff: "https://deforestationfreefunds.org",
   esa_risk: "https://neo.ssa.esa.int/risk-list-plots",
+  ufo_sightings: "https://ufosint.com/",
   fertilizer_facilities: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/fertilizer_facilities.html",
   gfw_catalogue: "https://www.globalforestwatch.org",
   ct_gases: "https://climatetrace.org/data",
@@ -11707,7 +11746,7 @@ const PANEL_ORDER = [
   { h: 1, t: "Off-planet invasion" },
   { h: 2, t: "To Earth" },
   { h: 3, t: "Near-Earth object impacts" }, "esa_risk",
-  { h: 3, t: "Unidentified aerial phenomena" },
+  { h: 3, t: "Unidentified aerial phenomena" }, "ufo_sightings",
   { h: 2, t: "From Earth" },
   { h: 3, t: "The space industry" }, "space_industry",
   { h: 3, t: "Space launches" }, "ll2_pads", "ll2_upcoming",

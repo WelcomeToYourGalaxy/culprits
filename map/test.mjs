@@ -3755,5 +3755,19 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /neo\.ssa\.esa\.int\/PSDB-portlet\/download\?file=esa_risk_list/.test(src) && /\/neo\/esa_risk_list\.txt/.test(src) &&
         /route: "neoring"/.test(src) && /drawnProjection\(\) === "mercator" \|\| map\.getPitch\(\) > 5/.test(src));
 }
+{
+  console.log("\nround 34: UFO and UAP sightings (UFOSINT)");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const fnv = new Function(src.match(/function pieceOf\(key\) \{[\s\S]*?\n\}/)[0] + "; return pieceOf;")();
+  check("the map finds a sighting in the same piece the copy put it in (scripts/ufosint.py puts id 243 in 00)", fnv("243") === "00");
+  check("the row draws UFOSINT's copy with every sighting's record read from gzipped pieces",
+        /id: "ufo_sightings"[\s\S]{0,400}route: "pmtiles"[\s\S]{0,300}tiles\/ufo_sightings\.pmtiles[\s\S]{0,200}ufosint\/pieces", boxesGz: true/.test(src));
+  check("a gzipped piece is unpacked only when it is a gzip stream", /DecompressionStream\("gzip"\)/.test(src) && /buf\[0\] !== 0x1f \|\| buf\[1\] !== 0x8b/.test(src) &&
+        /readPiece\(cfg\.boxes, p\.id, cfg\.boxesGz\)/.test(src));
+  check("it sits under Unidentified aerial phenomena", /\{ h: 3, t: "Unidentified aerial phenomena" \}, "ufo_sightings"/.test(src));
+  check("a split archive's further files keep the detail layer's own zooms (read before the first file's are laid over them)",
+        /own\[id\] = \{ lo: was\.minzoom \|\| 0/.test(src) && /Math\.max\(own\[`\$\{cfg\.id\}-\$\{kind\}`\]\.lo, part\.minzoom\)/.test(src));
+  check("the glow of a split archive's files ends at each file's own zooms", /hudWrap\("setLayerZoomRange"/.test(src) && /-part\\d\+\$\/\.test\(layer\.id\)/.test(src));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
