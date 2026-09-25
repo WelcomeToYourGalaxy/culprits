@@ -4248,6 +4248,37 @@ async function addWorldsRingLayer(cfg) {
   setLayerState(cfg.id, `${worlds.length} worlds · drawn round the globe at world view`);
   draw();
 }
+
+// A picture built as web squares into one or more PMTiles files, each holding
+// a run of zooms (listed in <archive>.build.json with the classes and colours):
+// the Global Forest Management Type Map (24 September).
+async function addRasterPartsLayer(cfg) {
+  let st;
+  try { st = await getJson(cfg.archive.replace(/\.pmtiles$/, ".build.json"), 20000); }
+  catch (e) { setLayerState(cfg.id, `not built yet (${e.message})`); return; }
+  const parts = pmShapeParts(cfg.archive, st);
+  cfg._layerIds = [];
+  parts.forEach((part, i) => {
+    const sid = `${cfg.id}-r${i}`;
+    map.addSource(sid, { type: "raster", tileSize: 256, url: `pmtiles://${part.url}`, attribution: cfg.attribution || "" });
+    map.addLayer({ id: sid, type: "raster", source: sid, minzoom: part.minzoom || 0, maxzoom: Math.min(24, part.maxzoom || 24),
+      layout: { visibility: visibility.get(cfg.id) || "visible" },
+      paint: { "raster-opacity": 0.85, "raster-resampling": "nearest" } }, pointLayerAbove());
+    cfg._layerIds.push(sid);
+  });
+  const row = document.querySelector(`[data-layer="${cfg.id}"]`);
+  const label = row && row.closest ? row.closest("label") : null;
+  if (label && label.after && Array.isArray(st.classes) && !document.querySelector(`.facet[data-key-for="${cfg.id}"]`)) {
+    const el = document.createElement("div");
+    el.className = "facet cat-key";
+    el.dataset.keyFor = cfg.id;
+    el.innerHTML = catalogueKeyHtml({ values: st.classes.map((c) => [c.value, c.colour, c.name]) });
+    label.after(el);
+  }
+  setLayerState(cfg.id, `${(st.classes || []).length} kinds of forest, 100 m, 2020`);
+  applyVisibility(cfg.id);
+  buildLegend();
+}
 async function addNeoRingLayer(cfg) {
   let text = null, fromCopy = false;
   try { const r = await fetch(NEO_URL); if (r.ok) text = await r.text(); } catch (e) { /* ESA's server does not let the page read it */ }
@@ -5810,7 +5841,8 @@ const CATALOGUE_BY_TITLE = [
   [/\blandmark_natural_resource_rights\b/, ["Suppression > Of humans > Land and territory"]],
   [/\bwri_cmr_agro_industrial_zones\b/, [AG + " > Plantations"]],
   [/\bwri_global_power_plant_database\b/, [P + " > Climate > Carbon dioxide"]],
-  [/\bdtu_wb_wind_speed_potential_2001_2010\b|\bibge_bra_biomes\b/, ["Base and reference > Physical and human geography"]],
+  // Taken out 24 September (round 41): wind speed potential and Brazil's biomes.
+  [/\bdtu_wb_wind_speed_potential_2001_2010\b|\bibge_bra_biomes\b/, null],
   // Moved: the forest net flux from drilling to Deforestation, beside the forest
   // emissions, and kept under carbon dioxide (item 1); the Key Biodiversity
   // Areas out of Surface water, which "freshwater" in its coverage had put it
@@ -10481,6 +10513,10 @@ const OTHER_MAPS = {
     { id: "bocc", name: "Banking on Climate Chaos", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://www.bankingonclimatechaos.org/?bank=JPMorgan%20Chase#fulldata-panel",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "forest_management", name: "Forest management types worldwide, 2020: untouched, logged or regrowing, planted, plantations, tree crops (VITO, IIASA and WRI)", unit: "kinds of forest", colour: "#8C5A68", route: "rasterparts", ready: true, lazy: true,
+      archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/forest_management.pmtiles",
+      attribution: "Global Forest Management Type Map 2020 (De Keersmaecker et al., VITO, IIASA, WRI), CC BY 4.0",
+      note: "Every forest on Earth at 100 m in 2020, by how it is managed, in the record's own classes: unmanaged natural forests (primary among them); naturally regenerated forests with visible human activity (where logging shows); planted forest; plantation forest; rubber; oil palm; tree crops; agroforestry; other trees. A copy made once from the Zenodo record (10.5281/zenodo.20396072)." },
     { id: "dff", name: "Deforestation Free Funds", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://deforestationfreefunds.org",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
@@ -10965,6 +11001,7 @@ function ensureLayer(cfg) {
       : cfg.route === "spheres" ? addSpheresLayer(cfg)
       : cfg.route === "ctgases" ? addCtGasesLayer(cfg)
       : cfg.route === "neoring" ? addNeoRingLayer(cfg)
+      : cfg.route === "rasterparts" ? addRasterPartsLayer(cfg)
       : cfg.route === "worldsring" ? addWorldsRingLayer(cfg)
       : cfg.route === "ufo" ? addUfoLayer(cfg)
       : ["ejatlas", "geojsonlive", "wpgmza", "atlascities", "trasefac"].includes(cfg.route) ? addLivePlacesLayer(cfg)
@@ -11108,6 +11145,7 @@ const LAYER_KIND = {
   epa_widget: ["insentient", "downstream"],
   bocc: ["human", "upstream"],
   dff: ["plant", "upstream"],
+  forest_management: ["plant", "downstream"],
   fortune500: ["human", "upstream"],
   theyrule: ["human", "upstream"],
   pe_bankrolling: ["animal", "upstream"],
@@ -12010,7 +12048,7 @@ const PANEL_ORDER = [
   { h: 5, t: "Terrestrial slicks" }, "skytruth_monitor", "skytruth_nrc", "skytruth_posts",
   { h: 5, t: "Marine slicks" }, "cerulean_slicks", "cerulean_sources", "slick_archive", "skytruth_voc", "skytruth_marine_incidents", "skytruth_posts",
   { h: 3, t: "Fire" },
-  { h: 3, t: "Deforestation" },
+  { h: 3, t: "Deforestation" }, "forest_management",
   // Split one level further where the lists ran long (round 23, item 27); the
   // catalogue rows find their sub-heading through CATALOGUE_SUBS. Spatial plans
   // are one row with sublayers here (item 25); the Moratoriums and Spatial
@@ -12158,11 +12196,11 @@ const PANEL_ORDER = [
   { h: 1, t: "Base and reference" },
   { h: 2, t: "Boundaries and relief" },
   { h: 2, t: "Physical and human geography" }, "soilgrids", "skytruth_quakes",
-  { h: 2, t: "Housekeeping" }, "skytruth_tests",
 
   { h: 1, t: "Buildings" }, "building_types",
 ];
 const PANEL_REMOVED = new Set([
+  "skytruth_tests",                // the Housekeeping heading and its row, taken out 24 September
   "gsn",                           // its layers are rows of their own (24 September); the menu row is out of sight
   "trase_cocoa_ivory",             // taken out 24 September with the other cocoa rows
   "leverage_chart",

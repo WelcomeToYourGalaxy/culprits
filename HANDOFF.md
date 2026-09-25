@@ -5,6 +5,17 @@ touches.
 
 ---
 
+## Round 41 (24 September): forest management worldwide; three rows out
+
+- New row forest_management (route rasterparts, addRasterPartsLayer) first
+  under Deforestation: the Global Forest Management Type Map 2020 (VITO, IIASA,
+  WRI; Zenodo 20396072, CC BY 4.0), 100 m, nine classes with the record's own
+  names, drawn from culprits-tiles-more tiles/forest_management.pmtiles (runs
+  of zooms listed in forest_management.build.json), key under the row.
+- Taken out: the Housekeeping heading and skytruth_tests (kept as a layer,
+  PANEL_REMOVED); ibge_bra_biomes; dtu_wb_wind_speed_potential_2001_2010.
+
+
 ## Round 40 (24 September): deforestation pared down, at the owner's word
 
 - Taken out: arg_native_forest_land_plan (OTBN zoning); jrc_managed_land_can/usa

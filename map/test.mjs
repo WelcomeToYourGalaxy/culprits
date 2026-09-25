@@ -1906,8 +1906,8 @@ console.log("\nthe layers box, in the chosen order");
           // Since 22 September the spill reports and the violations are each under one heading only.
           ids.filter((x) => x === "skytruth_nrc").length === 1 && ids.filter((x) => x === "skytruth_pa_violations").length === 1 &&
           at("Pennsylvania") > at("Infrastructure emitting more than one gas"));
-    check("\u2026nothing SkyTruth publishes is left out: the developers' test feed is a row too",
-          /id: "skytruth_tests"[^\n]*route: "pmtiles"/.test(src) && /skytruth\/feed_10101"/.test(src) && ids.includes("skytruth_tests"));
+    check("\u2026the developers' test feed is kept as a layer but out of the box (the owner took Housekeeping out, 24 September)",
+          /id: "skytruth_tests"[^\n]*route: "pmtiles"/.test(src) && /skytruth\/feed_10101"/.test(src) && !ids.includes("skytruth_tests"));
     check("\u2026an alert with no position is counted on its row, not passed over",
           /if \(!ft\.geometry\) \{ nowhere\+\+; return; \}/.test(src) && /more in the copy have no position and cannot be drawn/.test(src));
     check("\u2026and the vessels row no longer claims the last 30 days, which the service never applied",
@@ -3660,7 +3660,7 @@ console.log("\nround of 24 September: a search box for the layers, and the unpla
         f("idn_forest_area") === `${P} > Deforestation > ${places.BUNDLES.plans}` &&
         f("jrc_global_forest_cover") === `${P} > Deforestation > ${places.BUNDLES.forest}` &&
         f("birdlife_endemic_bird_areas") === `${P} > Biodiversity loss > Birds` &&
-        f("ibge_bra_biomes") === "Base and reference > Physical and human geography" &&
+        f("ibge_bra_biomes", "ibge_bra_biomes") === "(taken out)" &&
         f("fao_management_objectives") === `${P} > Deforestation > Forest zoning and management plans`);
 }
 {
@@ -3961,6 +3961,17 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("forest emissions rows land under Climate, and the heading under Deforestation is gone",
         f("Gross carbon emissions from forests", "gfw_forest_carbon_gross_emissions") === P + " > Climate > Carbon dioxide" && !/\{ h: 4, t: "Emissions from forests" \}/.test(src));
   check("Argentina's native forest land plan is out", f("Ordenamiento Territorial de Bosques Nativos \u2014 Argentina", "arg_native_forest_land_plan") === lib.CATALOGUE_TAKEN_OUT);
+}
+{
+  console.log("\nround 41: forest management worldwide; housekeeping, Brazil's biomes and wind speed out");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const cut = (from, to) => src.slice(src.indexOf(from), src.indexOf(to));
+  const lib = new Function(cut("const P = \"Destruction > Of the planet\";", "// The body of the heading a path names") + "; return { cataloguePlaces, CATALOGUE_TAKEN_OUT };")();
+  const f = (t, id = "") => lib.cataloguePlaces(`${t} ${id}`, `${t} ${id}`).join(" | ");
+  check("Brazil's biomes and wind speed potential are out", f("Brazil biomes", "ibge_bra_biomes") === lib.CATALOGUE_TAKEN_OUT && f("Wind speed potential", "dtu_wb_wind_speed_potential_2001_2010") === lib.CATALOGUE_TAKEN_OUT);
+  check("the Housekeeping heading and its row are out", !/t: "Housekeeping"/.test(src) && /"skytruth_tests",\s+\/\/ the Housekeeping heading/.test(src));
+  check("the forest management map is a row under Deforestation, drawn from its copy in runs of zooms", /\{ h: 3, t: "Deforestation" \}, "forest_management",/.test(src) &&
+        /id: "forest_management"[^\n]*route: "rasterparts"/.test(src) && /tiles\/forest_management\.pmtiles/.test(src) && /"raster-resampling": "nearest"/.test(src));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
