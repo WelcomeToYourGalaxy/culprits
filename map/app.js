@@ -10549,9 +10549,10 @@ const OTHER_MAPS = {
     { id: "dff", name: "Deforestation Free Funds", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://deforestationfreefunds.org",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "fortune500", name: "Fortune Global 500, 2024", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
-      page: "https://interactives.fortune.com/global_500_2024/dashboard/index.html",
-      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "largest_companies", name: "The 500 largest companies by revenue (compiled from Wikidata)", unit: "companies, at their headquarters", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "The 500 largest companies by revenue", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/companies/largest.geojson" }],
+      attribution: "Wikidata (CC0); exchange rates from the European Central Bank and the World Bank",
+      note: "Compiled here in place of Fortune's Global 500, whose terms forbid copying it. Every company Wikidata gives a total revenue for, at its latest year, turned into US dollars at that year's average rate (the European Central Bank's, or for currencies it does not publish, the World Bank's official rate), and the 500 largest that Wikidata says are businesses. Each box shows everything gathered: rank, revenue as stated and in dollars, the rate used, headquarters, country, industry, employees, founding date, website, stock exchange, parent and chief executive, with a link to the Wikidata page. Wikidata is edited by anyone, so a figure can be out of date or wrong; the link shows where it came from. A company whose headquarters has no position in Wikidata is listed in the build file, not placed. Rebuilt weekly by culprits-tiles-more." },
     { id: "theyrule", name: "They Rule", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://theyrule.net/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
@@ -11207,7 +11208,7 @@ const LAYER_KIND = {
   bocc: ["human", "upstream"],
   dff: ["plant", "upstream"],
   forest_management: ["plant", "downstream"],
-  fortune500: ["human", "upstream"],
+  largest_companies: ["human", "upstream"],
   theyrule: ["human", "upstream"],
   pe_bankrolling: ["animal", "upstream"],
   pe_subsidising: ["animal", "upstream"],
@@ -11823,7 +11824,7 @@ const LAYER_SITE = {
   esa_risk: "https://neo.ssa.esa.int/risk-list-plots",
   final_nail: "https://finalnail.com/wp-json/wpgmza/v1/features/",
   fishing: "https://globalfishingwatch.org",
-  fortune500: "https://interactives.fortune.com/global_500_2024/dashboard/index.html",
+  largest_companies: "https://query.wikidata.org",
   fractracker_refineries: "https://www.fractracker.org",
   gem_coal: "https://github.com/GreenInfo-Network/coal-tracker-client",
   gfw_catalogue: "https://data-api.globalforestwatch.org",
@@ -11999,6 +12000,7 @@ function refreshNote(cfg) {
 // kept here (the source cannot be read by another site, or its server is gone).
 // Every row now carries one mark or the other (22 September, round 3).
 const NOT_LIVE = {
+  largest_companies: "Compiled weekly from Wikidata by culprits-tiles-more",
   coastal_cleanup: "Ocean Conservancy's cleanup sites, from a copy made daily (their server lets only their own site read it)",
   food_soy: "Built once from the 2017 data package of Halpern et al. 2022; it is not updated",
   wastewater_plumes: "Built once from the Global Wastewater Model's 2021 data package; it is not updated",
@@ -12052,7 +12054,7 @@ const PANEL_ORDER = [
 
   { h: 1, t: "Destruction" },
   { h: 2, t: "Of the planet" },
-  { h: 3, t: "General" }, "ejatlas", "wreckers_umap", "fortune500", "theyrule",
+  { h: 3, t: "General" }, "ejatlas", "wreckers_umap", "largest_companies", "theyrule",
   // Climate is arranged by greenhouse gas, in the Destruction page's own order
   // (22 September): a row goes under the gas its sites mainly emit, and a row
   // whose sites emit more than one in earnest is under Infrastructure, or

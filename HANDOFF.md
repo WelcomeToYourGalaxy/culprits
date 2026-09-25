@@ -5,6 +5,17 @@ touches.
 
 ---
 
+## Round 45 (24 September): the 500 largest companies, compiled from Wikidata
+
+Fortune's terms forbid copying its Global 500, so its companion row is gone.
+In its place (General, same spot) the row largest_companies reads
+culprits-tiles-more companies/largest.geojson, built weekly by
+scripts/largest_companies.py: Wikidata revenue (P2139), latest year per
+company, in dollars at the year's ECB or World Bank rate, top 500 that
+Wikidata says are businesses, placed at headquarters. Every field in the box.
+index.html now asks for app.js?v=45.
+
+
 ## Round 44 (24 September): every row in the GLAD-S2 style; Boundaries and relief pared down
 
 - Colours: gladColour() gives every row (LAYERS and group children) a colour

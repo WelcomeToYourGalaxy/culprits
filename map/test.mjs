@@ -4020,5 +4020,15 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
          ["Borneo relief, 30 m (SRTM 2000)", "x"], ["News articles, placed \u2014 Equatorial Asia", "news"]].every(([t, id]) => f(t, id) === lib.CATALOGUE_TAKEN_OUT) &&
         f("Coverage Layer for GLAD-L", "umd_glad_landsat_alerts_coverage").includes("Base and reference > Boundaries and relief"));
 }
+{
+  console.log("\nround 45: the 500 largest companies, compiled from Wikidata, in Fortune's place");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("the Fortune row is gone and the compiled row stands where it stood",
+        !/fortune500|interactives\.fortune\.com/.test(src) && /"wreckers_umap", "largest_companies", "theyrule"/.test(src));
+  check("the row reads the weekly copy and shows every field", /id: "largest_companies", name: "The 500 largest companies by revenue \(compiled from Wikidata\)"[^\n]*route: "geojsonlive"/.test(src) &&
+        /culprits-tiles-more\/companies\/largest\.geojson/.test(src) && /largest_companies: "Compiled weekly from Wikidata/.test(src));
+  check("the page asks for this round's script, not a cached one", /app\.js\?v=45/.test(html) && /wire\.js\?v=45/.test(html));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
