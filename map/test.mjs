@@ -1847,7 +1847,7 @@ console.log("\nTrase, and coral at world zoom");
           /id: "ct_gases"[^\n]*route: "ctgases"/.test(src) && /cfg\.route === "ctgases" \? addCtGasesLayer\(cfg\)/.test(src));
   }
   check("the catalogues' lists are read once the box is arranged, since their own rows are hidden and never ticked",
-        /const CATALOGUE_ROUTES = new Set\(\["wmsmenu", "gfwmenu", "trase", "ctgases"\]\)/.test(src) &&
+        /const CATALOGUE_ROUTES = new Set\(\["wmsmenu", "gfwmenu", "trase", "ctgases", "gsn"\]\)/.test(src) &&
         /box\.appendChild\(gone\);\n  wireInfoMarks\(\);\n  readCataloguesAtStart\(\);/.test(src) && /PANEL_REMOVED\.has\(c\.id\)\) ensureLayer\(c\)/.test(src));
   check("its shapes are read live from Trase", /regions: "https:\/\/resources\.trase\.earth\/data\/trase-regions"/.test(src));
   check("its values come from the weekly GitHub copy", /catalogue: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/trase\/catalogue\.json"/.test(src));
@@ -2217,7 +2217,7 @@ console.log("\nwhat was still open");
   check("Giga by country, Trase's facilities rows, and two of your own are rows", ["giga_countries", "trase_meat_brazil", "trase_palm_indonesia", "biosignature", "leverage_chart"].every((i) => new RegExp(`id: "${i}"`).test(src)));
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
   const order = new Function(body + "; return PANEL_ORDER;")();
-  check("the waiting rows are placed", ["ejatlas", "gsn", "seas_of_plastic", "coastal_cleanup", "mines_global", "atlas_hotspots", "final_nail", "group:ct_history"].every((i) => order.includes(i)));
+  check("the waiting rows are placed", ["ejatlas", "gsn_rankings", "seas_of_plastic", "coastal_cleanup", "mines_global", "atlas_hotspots", "final_nail", "group:ct_history"].every((i) => order.includes(i)));
 }
 
 console.log("\nvessels of concern drawn; the oil-slick archive");
@@ -2304,7 +2304,7 @@ console.log("\nNusantara Atlas and Global Forest Watch, by category");
   // Superseded with Nusantara's: the catalogue's datasets are rows of the box
   // now, filed by what each shows, and several can be drawn at once.
   check("Global Forest Watch's datasets are rows of the box", !/categoryMenu\(menu, /.test(src) &&
-        (src.match(/^  catalogueRows\(cfg, /gm) || []).length === 4);   // Nusantara, Global Forest Watch, Trase, Climate TRACE by gas
+        (src.match(/^  catalogueRows\(cfg, /gm) || []).length === 5);   // Nusantara, Global Forest Watch, Trase, Climate TRACE by gas, Global Safety Net
   // Superseded: Nusantara's layers are rows of the box itself now, filed by
   // what they show, not a list inside one row.
   check("Nusantara's layers are rows of the box, filed by subject", /catalogueRows\(cfg, items\);/.test(src) && !/menu\.className = "facet ns-list"/.test(src));
@@ -2506,7 +2506,7 @@ console.log("\nthe layers box, as asked for");
         // Round 23: Fishing above Reefs and mangroves (item 11); the Global
         // Safety Net heads the first sub-heading of Biodiversity loss (item 27).
         between("allen_coral", "Reefs and mangroves", "Construction") && at("Fishing") < at("Reefs and mangroves") &&
-        o.PANEL_ORDER[at("Biodiversity loss") + 1].t === "Places that matter most for species" && o.PANEL_ORDER[at("Biodiversity loss") + 2] === "gsn");
+        o.PANEL_ORDER[at("Biodiversity loss") + 1].t === "Places that matter most for species" && o.PANEL_ORDER[at("Biodiversity loss") + 2] === "gsn_rankings");
   check("Agriculture is Meat and agriculture, holding Agriculture and Meat",
         at("Meat and agriculture") > 0 && at("Agriculture") > at("Meat and agriculture") &&
         between("land_matrix", "Land and territory", "Physical suppression") && between("abattoir_facilities", "Facilities", "Herds"));
@@ -3097,7 +3097,7 @@ console.log("\nGlobal Safety Net fixes; My Maps titles");
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
   const order = new Function(body + "; return PANEL_ORDER;")();
   const at = (t) => order.findIndex((x) => x && x.t === t);
-  check("Global Safety Net rows are under Biodiversity loss", order.indexOf("gsn") > at("Biodiversity loss") && order.indexOf("gsn") < at("Mining") && order.indexOf("gsn_rankings") < at("Mining"));
+  check("Global Safety Net rows are under Biodiversity loss (its layers each a row since 24 September)", order.indexOf("gsn_rankings") > at("Biodiversity loss") && order.indexOf("gsn_rankings") < at("Mining") && /"gsn",\s+\/\/ its layers are rows of their own/.test(src));
   check("a GSN tile template is not doubled", /\/\\\{z\\\}\/\.test\(u\) \? u :/.test(src));
   check("My Maps rows take their maps' titles before opening", /function mymapsTitles\(/.test(src) && /map\.on\("load", \(\) => setTimeout\(mymapsTitles, 50\)\)/.test(src));
 }
@@ -3139,7 +3139,7 @@ console.log("\nround of 22 September (2): the box refiled, rows taken out");
         at("Soy", at("Nitrous oxide")) > at("Nitrous oxide") && at("Soy", at("Nitrous oxide")) < at("F-gases"));
   check("protected areas, intact forest landscapes worldwide and biodiversity hotspots are biodiversity loss",
         f("Protected areas (WDPA)") === P + " > Biodiversity loss > Protected and conserved areas" &&
-        f("Intact forest landscapes \u2014 Global") === P + " > Biodiversity loss > Intact and primary forests" &&
+        f("Intact forest landscapes \u2014 Global") === "(taken out)" &&
         f("Biodiversity hotspots (global, land only)") === P + " > Biodiversity loss > Places that matter most for species");
   check("dams go under Biodiversity loss > Fish",
         f("Major dams") === P + " > Biodiversity loss > Fish" && at("Fish") > at("Biodiversity loss") && at("Fish") < at("Forest and land cover"));
@@ -3188,9 +3188,10 @@ console.log("\nround of 22 September (3): the report's findings, live marks, leg
         f("Geostore  burned areas  daily alerts", "geostore__burned_areas__daily_alerts") === "(taken out)" &&
         f("Wdpa protected areas  glad  summary", "wdpa_protected_areas__glad__summary") === "(taken out)" &&
         f("Drivers of disturbance alerts \u2014 Three major forest basins", "wur_alert_drivers") === "(taken out)" &&
-        f("Protected areas \u2014 Global", "wdpa_protected_areas") === P + " > Biodiversity loss > Protected and conserved areas");
-  check("the dated intact forest landscapes stay, under Biodiversity loss",
-        ["2000", "2013", "2016", "2020"].every((y) => f(`Intact Forest Landscapes ${y}`, `ifl_intact_forest_landscapes_${y}`) === P + " > Biodiversity loss > Intact and primary forests"));
+        f("Protected areas \u2014 Global", "wdpa_protected_areas") === "(taken out)" &&
+        f("Protected areas \u2014 Global", "wdpa_licensed_protected_areas") === P + " > Biodiversity loss > Protected and conserved areas");
+  check("the dated intact forest landscapes are out (24 September: only intactness and the integrity index stay there)",
+        ["2000", "2013", "2016", "2020"].every((y) => f(`Intact Forest Landscapes ${y}`, `ifl_intact_forest_landscapes_${y}`) === "(taken out)"));
   const gfw = new Function(src.slice(src.indexOf("const GFW_TITLES = {"), src.indexOf("// Which of a dataset's assets to draw from.")) + "; return { gfwTitle, GFW_WHERE };")();
   check("untitled datasets are named from their records, and the two worldwide protected-area rows say which is which",
         /driver behind each alert/.test(gfw.gfwTitle({ dataset: "wur_integration_alert_drivers_class", metadata: {} })) &&
@@ -3659,7 +3660,7 @@ console.log("\nround of 24 September: a search box for the layers, and the unpla
         f("inpe_amazon_prodes") === `${P} > Deforestation > Tree cover loss and alerts > Loss year by year` &&
         f("idn_forest_area") === `${P} > Deforestation > ${places.BUNDLES.plans}` &&
         f("umd_tree_cover_density_2000") === `${P} > Deforestation > ${places.BUNDLES.forest}` &&
-        f("birdlife_endemic_bird_areas") === `${P} > Biodiversity loss > Places that matter most for species` &&
+        f("birdlife_endemic_bird_areas") === `${P} > Biodiversity loss > Birds` &&
         f("ibge_bra_biomes") === "Base and reference > Physical and human geography" &&
         f("fao_management_objectives") === `${P} > Deforestation > Forest zoning and management plans`);
 }
@@ -3852,6 +3853,29 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /\{ h: 5, bundle: "managed"/.test(src));
   check("trees in mosaic landscapes and natural forests worldwide stay", f("Trees in mosaic landscapes", "wri_trees_in_mosaic_landscapes") === P + " > Forest and land cover" &&
         f("Natural forests", "sbtn_natural_forests_map") === P + " > Forest and land cover");
+}
+{
+  console.log("\nround 38: biodiversity loss pared down; Global Safety Net's layers each a row");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const cut = (from, to) => src.slice(src.indexOf(from), src.indexOf(to));
+  const lib = new Function(cut("const P = \"Destruction > Of the planet\";", "// The body of the heading a path names") + "; return { cataloguePlaces, CATALOGUE_TAKEN_OUT };")();
+  const f = (t, id = "") => lib.cataloguePlaces(`${t} ${id}`, `${t} ${id}`).join(" | ");
+  const P = "Destruction > Of the planet", OUT = lib.CATALOGUE_TAKEN_OUT;
+  check("under Intact and primary forests only intactness and the integrity index stay",
+        f("Biodiversity Intactness \u2014 Forested Biomes Globally", "birdlife_biodiversity_intactness") === P + " > Biodiversity loss > Intact and primary forests" &&
+        f("Forest Landscape Integrity Index \u2014 Global", "wcs_forest_landscape_integrity_index") === P + " > Biodiversity loss > Intact and primary forests" &&
+        f("Primary forests \u2014 Indonesia", "idn_primary_forests") === OUT && f("Intact forest landscapes 2025", "ifl_intact_forest_landscapes_2025") === OUT);
+  check("the rows named are out",
+        [["Tiger Conservation Landscapes", "tcl"], ["Conservation easements \u2014 United States", "usa_conservation_easements"], ["Protected areas \u2014 Peru", "per_protected_areas"],
+         ["KHM Protected Areas", "khm_protected_areas"], ["Federal protected areas \u2014 Brazil", "icmbio_bra_federal_protected_areas"], ["Leuser Ecosystem", "haka_idn_leuser"],
+         ["Protected areas, with their names \u2014 Equatorial Asia", "protectedarea_names"], ["Protected areas, merged \u2014 Equatorial Asia", "protectedarea_merged"],
+         ["Protected areas \u2014 Equatorial Asia", "v3p2_protectedarea"], ["Protected area outlines \u2014 Equatorial Asia", "pa_outline"],
+         ["Hydrological reserves \u2014 Equatorial Asia", "hydroreserve"], ["Forest reserves \u2014 Equatorial Asia", "forestreserve"],
+         ["Ecosystem restoration concessions \u2014 Equatorial Asia", "ere"], ["Conservation landscapes \u2014 Equatorial Asia", "conslandscape"]].every(([t, id]) => f(t, id) === OUT) &&
+        f("Protected areas \u2014 Equatorial Asia", "protectedarea") !== OUT);
+  check("Global Safety Net's layers are rows under Places that matter most for species", f("Rare species (Global Safety Net)", "12") === P + " > Biodiversity loss > Places that matter most for species" &&
+        /title: `\$\{l\.name\} \(Global Safety Net\)`/.test(src));
+  check("the endemic bird areas have a heading of their own", /\{ h: 4, t: "Birds" \}/.test(src) && f("Endemic Bird Areas", "birdlife_endemic_bird_areas") === P + " > Biodiversity loss > Birds");
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

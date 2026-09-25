@@ -5,6 +5,22 @@ touches.
 
 ---
 
+## Round 38 (24 September): biodiversity loss pared down; Global Safety Net's layers each a row
+
+- Intact and primary forests keeps only Biodiversity Intactness (forested
+  biomes) and the Forest Landscape Integrity Index (catalogueRefine).
+- Taken out: wdpa_protected_areas (public release, v202512; the licensed copy
+  wdpa_licensed_protected_areas, to v202608, stays); tiger conservation
+  landscapes; US conservation easements; Peru's, Cambodia's (khm) and ICMBio
+  Brazil's protected areas; Leuser; Nusantara's Equatorial Asia protected-area
+  rows other than plain protected areas (names, merged, outlines, v3p2 copy,
+  hydrological/forest reserves, ecosystem restoration, conservation landscapes).
+- Endemic Bird Areas under a new heading Biodiversity loss > Birds.
+- Global Safety Net: route gsn is a catalogue (CATALOGUE_ROUTES, PANEL_REMOVED,
+  LIVE_ROUTES); each layer is a row "<name> (Global Safety Net)" under Places
+  that matter most for species.
+
+
 ## Round 37 (24 September): forest and land cover pared down, at the owner's word
 
 - The forest cover row (2000, 2010, 2020; bundle "forest") is under Deforestation.

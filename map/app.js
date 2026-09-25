@@ -5499,6 +5499,26 @@ const CATALOGUE_BY_TITLE = [
   [/\bumd_tree_cover_gain\b|tree cover gain/i, null],
   [/(?=.*land ?cover)(?=.*(united states|\busa?\b|conterminous))/i, null],
   [/\bjrc_managed_land_(can|usa)\b/, [IN(P + " > Deforestation > Forest zoning and management plans", "managed")]],
+  // Biodiversity loss, pared down (24 September, at the owner's word): the
+  // public release of the World Database on Protected Areas (December 2025;
+  // the licensed copy beside it is the same database, updated to August
+  // 2026); tiger conservation landscapes; US conservation easements; Peru's,
+  // Cambodia's (KHM) and Brazil's federal (ICMBio) protected areas; the Leuser
+  // ecosystem; and Nusantara's Equatorial Asia protected-area rows other than
+  // its plain protected areas (with names, merged, outlines, the v3p2 copy,
+  // hydrological and forest reserves, ecosystem restoration, conservation
+  // landscapes). The endemic bird areas have a heading of their own.
+  [/\bwdpa_protected_areas\b/, null],
+  [/tiger conservation landscape/i, null],
+  [/conservation easement/i, null],
+  [/(?=.*(\bperu\b|\bper_))(?=.*protected)/i, null],
+  [/\bkhm_protected_areas\b/, null],
+  [/\bicmbio_bra_federal_protected_areas\b/, null],
+  [/\bhaka_idn_leuser\b|\bleuser\b/i, null],
+  [/(?=.*equatorial asia)(?=.*(protect|conserv|reserve|restoration))(?=.*(with (their )?names|merged|outline|v3p\d|hydrolog|forest reserve|ecosystem restoration|conservation landscape))/i, null],
+  [/\bbirdlife_endemic_bird_areas\b/, [P + " > Biodiversity loss > Birds"]],
+  // Global Safety Net's layers, each its own row (24 September).
+  [/\(Global Safety Net\)/, [P + " > Biodiversity loss > Places that matter most for species"]],
   // Aqueduct's water risk and stress under Water scarcity.
   [/aqueduct|water stress/i, [P + " > Water scarcity"]],
   // ---- Round 23 (23 September), at the owner's word ---------------------
@@ -5538,7 +5558,7 @@ const CATALOGUE_BY_TITLE = [
   [/\barg_native_forest_land_plan\b|\bfao_management_objectives\b/, [P + " > Deforestation > Forest zoning and management plans"]],
   [/\barg_otbn_forest_loss\b|\binpe_\w*prodes\b/, [P + " > Deforestation > Tree cover loss and alerts > Loss year by year"]],
   [/\bgfw_emerging_hot_spots\b|\bgfw_places_to_watch\b/, [P + " > Deforestation > Tree cover loss and alerts > Where clearing is likely"]],
-  [/\bbirdlife_alliance_for_zero_extinction_sites\b|\bbirdlife_endemic_bird_areas\b/, [P + " > Biodiversity loss > Places that matter most for species"]],
+  [/\bbirdlife_alliance_for_zero_extinction_sites\b/, [P + " > Biodiversity loss > Places that matter most for species"]],
   [/\bwcs_forest_landscape_integrity_index\b/, [P + " > Biodiversity loss > Intact and primary forests"]],
   [/\bicf_hnd_forest_type_2013\b|\bjrc_managed_land_(can|usa)\b|\brspo_southeast_asia_land_cover_2010\b|\bsbtn_natural_forests_map\b|\bumd_tree_cover_gain\b|\bumd_tree_cover_height_20\d\d\b|\bwri_trees_in_(mosaic|complex)_landscapes\b/,
    [P + " > Forest and land cover"]],
@@ -5671,6 +5691,15 @@ function catalogueSub(path, words) {
 function catalogueRefine(paths, words) {
   let out = paths.filter((x) => !(x === P + " > Forest and land cover" && /\bpeat/i.test(words)));
   if (!out.length && paths.length) out = [P + " > Peatland"];
+  // Under Intact and primary forests only two rows stay (24 September): the
+  // biodiversity intactness of forested biomes and the forest landscape
+  // integrity index, both worldwide.
+  const keepIntact = /intactness|integrity index|forest_landscape_integrity/i.test(words);
+  const subbed = out.map((x) => catalogueSub(x, words));
+  if (!keepIntact && subbed.includes(P + " > Biodiversity loss > Intact and primary forests")) {
+    out = out.filter((x, i) => subbed[i] !== P + " > Biodiversity loss > Intact and primary forests");
+    if (!out.length) return [CATALOGUE_TAKEN_OUT];
+  }
   // Plantation rows for Indonesia and its neighbours are one row with
   // sublayers, detail beside the worldwide planted-trees row (24 September).
   const idn = /indonesia|papua|kalimantan|merauke|borneo|sumatra|sulawesi|\bjava\b|\bbali\b|equatorial asia|rawa singkil|\briau\b|\baceh\b|\bidn_?/i;
@@ -6995,44 +7024,38 @@ async function addGsnLayer(cfg) {
   let list;
   try { list = gsnShown(await getJson(cfg.api, 40000)); }
   catch (e) { setLayerState(cfg.id, `Global Safety Net did not answer (${e.message})`); return; }
-  cfg._layerIds = [];
-  const row = document.querySelector(`[data-layer="${cfg.id}"]`);
-  const anchor = row && row.closest ? row.closest("label") : null;
-  if (anchor && anchor.after) {
-    const el = document.createElement("div");
-    el.className = "facet";
-    el.style.cssText = "display:block;max-height:220px;overflow:auto";
-    el.innerHTML = list.map((l) => `<label title="${escapeHtml(l.description || "")}" style="display:flex;gap:6px;align-items:center;font-size:12px;margin:2px 0;cursor:pointer">` +
-      `<input type="checkbox" data-gsn="${escapeHtml(String(l.id))}"><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${escapeHtml(l.colour || "#777")}"></i>` +
-      `${escapeHtml(l.name)}</label>`).join("");
-    el.addEventListener("change", (e) => {
-      const cb = e.target;
-      if (!cb.dataset || !cb.dataset.gsn) return;
-      e.stopPropagation();
-      const l = list.find((x) => String(x.id) === cb.dataset.gsn);
-      const id = `${cfg.id}-r-${l.id}`;
-      if (cb.checked && !map.getLayer(id)) {
-        // The service gives either a map address to add /tiles/{z}/{x}/{y} to,
-        // or the tile template itself; adding it twice made every tile fail.
-        const u = String(l.gee_tile_url || l.tile_url || l.url || "");
-        const tpl = /\{z\}/.test(u) ? u : `${u.replace(/\/+$/, "")}/tiles/{z}/{x}/{y}`;
-        map.addSource(id, { type: "raster", tileSize: 256, tiles: [tpl],
-          attribution: "Global Safety Net, One Earth / Nature Data Lab" });
-        map.addLayer({ id, type: "raster", source: id, paint: { "raster-opacity": 0.85 } });
-        cfg._layerIds.push(id);
-      }
-      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", cb.checked && (visibility.get(cfg.id) || "visible") === "visible" ? "visible" : "none");
-      const on = el.querySelectorAll("input:checked").length;
-      setLayerState(cfg.id, `${on} of ${list.length} layers shown` + (cb.checked && l.description ? ` \u00b7 ${l.name}: ${l.description.slice(0, 140)}` : ""));
-    });
-    anchor.after(el);
-    // Switching the row on or off keeps each layer's own tick.
-    cfg.afterVisibility = (vis) => el.querySelectorAll("[data-gsn]").forEach((cb) => {
-      const id = `${cfg.id}-r-${cb.dataset.gsn}`;
-      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis === "visible" && cb.checked ? "visible" : "none");
-    });
-  }
-  setLayerState(cfg.id, `${list.length} layers \u2014 tick the ones to show`);
+  // Each of its layers is a row of the box of its own, under Places that
+  // matter most for species (24 September); ticking one draws it.
+  const lid = (l) => `${cfg.id}-r-${l.id}`;
+  cfg._layerIds = list.map(lid);
+  const on = new Set();
+  const apply = (vis) => list.forEach((l) => {
+    if (map.getLayer(lid(l))) map.setLayoutProperty(lid(l), "visibility", vis === "visible" && on.has(l.id) ? "visible" : "none");
+  });
+  cfg.afterVisibility = apply;
+  const items = list.map((l) => ({
+    name: String(l.id), title: `${l.name} (Global Safety Net)`, about: l.description || "",
+    show: (want) => {
+      if (want) {
+        showRowFor(cfg.id);
+        on.add(l.id);
+        if (!map.getLayer(lid(l))) {
+          // The service gives either a map address to add /tiles/{z}/{x}/{y} to,
+          // or the tile template itself; adding it twice made every tile fail.
+          const u = String(l.gee_tile_url || l.tile_url || l.url || "");
+          const tpl = /\{z\}/.test(u) ? u : `${u.replace(/\/+$/, "")}/tiles/{z}/{x}/{y}`;
+          map.addSource(lid(l), { type: "raster", tileSize: 256, tiles: [tpl], attribution: "Global Safety Net, One Earth / Nature Data Lab" });
+          map.addLayer({ id: lid(l), type: "raster", source: lid(l), paint: { "raster-opacity": 0.85 } });
+        }
+      } else on.delete(l.id);
+      apply(visibility.get(cfg.id) || "none");
+      setLayerState(cfg.id, on.size ? `${on.size} of ${list.length} layers drawn` : `${list.length} layers, each a row`);
+    },
+  }));
+  catalogueRows(cfg, items);
+  items.forEach((it) => CATALOGUE_ITEMS.set(it.key, it));
+  setLayerState(cfg.id, `${list.length} layers, each a row`);
+  applyVisibility(cfg.id);
 }
 
 /* ---------- Climate TRACE air pollution: sources, plumes, every pollutant ---------- */
@@ -11547,7 +11570,7 @@ const LIVE_ROUTES = new Set([
   "worker", "tile", "wmts", "rasterlive", "cerulean", "coral", "carbonmapper",
   "arcgis", "arcgisdyn", "arcgisapp", "umap", "kml", "ll2", "ejatlas", "geojsonlive",
   "wpgmza", "atlascities", "trase", "trasefac", "wmsmenu", "gfwmenu", "giga", "gta",
-  "rte", "owidgrapher", "spheres", "companion",
+  "rte", "owidgrapher", "spheres", "companion", "gsn",
 ]);
 // A row's longer description sits behind a small "i" beside its other marks.
 // It used to be the whole row's hover text, which popped up over the list every
@@ -11756,7 +11779,8 @@ const PANEL_ORDER = [
   { h: 4, t: "Companies and financiers" }, "site_forest500_soy", "site_soybean_companies", "soy_organizations", "dff",
   { h: 4, bundle: "plans", colour: "#6E6A55" },
   { h: 3, t: "Biodiversity loss" },
-  { h: 4, t: "Places that matter most for species" }, "gsn", "gsn_rankings", "atlas_hotspots", "atlas_cities",
+  { h: 4, t: "Places that matter most for species" }, "gsn_rankings", "atlas_hotspots", "atlas_cities",
+  { h: 4, t: "Birds" },
   { h: 4, t: "Protected and conserved areas" },
   { h: 4, t: "Intact and primary forests" },
   { h: 4, t: "Disturbance" },
@@ -11877,6 +11901,7 @@ const PANEL_ORDER = [
   { h: 1, t: "Buildings" }, "building_types",
 ];
 const PANEL_REMOVED = new Set([
+  "gsn",                           // its layers are rows of their own (24 September); the menu row is out of sight
   "trase_cocoa_ivory",             // taken out 24 September with the other cocoa rows
   "leverage_chart",
   "cultivated_meat_laws",          // taken out 22 September at the owner's request
@@ -12507,7 +12532,7 @@ function countHeadings(box) {
 // reached the box unless "All on" happened to tick the hidden rows too. Their
 // lists are read once the box is arranged. Reading a list draws nothing and
 // ticks nothing: a catalogue draws only what is ticked under it.
-const CATALOGUE_ROUTES = new Set(["wmsmenu", "gfwmenu", "trase", "ctgases"]);
+const CATALOGUE_ROUTES = new Set(["wmsmenu", "gfwmenu", "trase", "ctgases", "gsn"]);
 function readCataloguesAtStart() {
   for (const g of GROUPS) for (const c of g.children) {
     if (c.ready && CATALOGUE_ROUTES.has(c.route) && PANEL_REMOVED.has(c.id)) ensureLayer(c);
