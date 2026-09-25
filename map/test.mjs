@@ -2604,7 +2604,7 @@ console.log("\nOff-planet sections, Of groups, names, launch links, drag bar, ma
   // Made finer on 22 September: no round blobs. The cores are circles a pixel
   // or two across (full resolution); the haze stays faint; a fixed grain.
   check("\u2026the cores are small specks, the haze faint and never brighter than rose, the dots soft-edged and unseen wider out",
-        /"circle-radius": z\(0, \["\*", 0\.8, lift\]/.test(src) && /hazeOpacity: 0\.3,/.test(src) && /1, "rgba\(176,112,135,0\.6\)"\]/.test(src) &&
+        /"circle-radius": z\(0, \["\*", 0\.8, lift\]/.test(src) && /hazeOpacity: 0\.3,/.test(src) && /1, "rgba\(70,184,216,0\.62\)"\]/.test(src) &&
         /paint\(layer\.id, "circle-blur", 1\)/.test(src) && /z\(GLOW\.fadeOut, 0, GLOW\.gone, 0\.9\)/.test(src));
   check("\u2026no grain over the map: its strength is 0 and it is never made (23 September)",
         /grain: 0,\s/.test(src) && /if \(!GLOW\.grain && !GLOW\.grainSatellite\) return;/.test(src));
@@ -2616,7 +2616,7 @@ console.log("\nOff-planet sections, Of groups, names, launch links, drag bar, ma
           JSON.stringify(G.glowWeight({ source: "s1" })).includes('["get","value"]') && JSON.stringify(G.glowWeight({ source: "s1" })).includes("5000") &&
           JSON.stringify(G.glowWeight({ source: "none" })).includes('["get","_count"]'));
     const colours = JSON.stringify(G.GLOW);
-    check("\u2026its colours run plum, rose and bone, with no orange or yellow", /#6E4A6A/.test(colours) && /#B07087/.test(colours) && /#E8DFD0/.test(colours) && !/#E7A63B/i.test(colours));
+    check("\u2026its colours run indigo, blue and pale cyan (the GLAD-S2 style, round 44), with no orange or yellow", /#3A3F9E/.test(colours) && /#3F7FD6/.test(colours) && /#BFEBF5/.test(colours) && !/#E7A63B/i.test(colours));
     check("\u2026the archive's own largest amount is read for the weight", /glowMaxOf\.set\(src, Number\(attr\.max\)\)/.test(src));
   }
   check("the zoom-8 note is gone", !/every layer shows summed totals/.test(src));
@@ -2987,9 +2987,9 @@ console.log("\nNusantara's layers spread through the box");
         places("Fire alerts, VIIRS").includes("Destruction > Of the planet > Fire"));
   check("customary forest is land and territory, not forest cover",
         places("Customary forest (hutan adat)").includes("Suppression > Of humans > Land and territory"));
-  check("boundaries and relief are base and reference",
-        places("Province boundaries").includes("Base and reference > Boundaries and relief") &&
-        places("Hillshade relief").includes("Base and reference > Boundaries and relief"));
+  check("boundaries and relief are base and reference (only the GLAD-L coverage stays there since round 44)",
+        places("Coverage Layer for GLAD-L").includes("Base and reference > Boundaries and relief") &&
+        places("Hillshade relief")[0] === "(taken out)");
   check("a layer no rule claims waits in Not yet placed rather than being invented a home",
         places("qqqq zzzz")[0] === "Not yet placed");
   check("a heading nothing answers to is not made up", /function sectionBody\(box, path\)/.test(src) && /if \(!found\) return null;/.test(src));
@@ -3508,7 +3508,7 @@ console.log("\nround of 23 September (20): rows refiled and taken out by name");
          "Transmigration roads \u2014 Equatorial Asia base_roadtrans", "Settlements 2017, Borneo (GHSL) IDNMYSBorneo_Settlement_2017_GHS",
          "Transmigration areas 2021, Borneo IDNMYSBorneo_Transmigration_2021", "Transmigration areas 2021, Borneo IDNMYSBorneo_Transmigration_2021_wms",
          "Congo Basin forest roads", "Brazil rural settlements (INCRA)"].every((t) => f(t) === "(taken out)") &&
-        f("Towns and villages \u2014 Equatorial Asia base_populatedplace") !== "(taken out)" &&
+        f("Towns and villages \u2014 Equatorial Asia base_populatedplace") === "(taken out)" &&
         f("Rubber plantations 2020, Kalimantan rubber_kalimantan_2020") === P + " > Deforestation > Timber and rubber plantations");
   check("Liberia's mineral exploration and development licences are under Mining",
         f("Mineral exploration licenses \u2014 Liberia") === P + " > Mining" && f("Liberia development licenses (exploration)") === P + " > Mining");
@@ -3747,7 +3747,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         b && b["date of likeliest impact (UTC)"] === "2182-09-24 16:00" && Number(b["impact probability, likeliest date"]) === 3.7e-4 &&
         Number(b["Palermo rating, likeliest date"]) === -1.4);
   check("Palermo colours run dark to bone, with no orange, yellow or green",
-        neo.neoColour(-9) === "#4A4552" && neo.neoColour(-1.4) === "#E3D7CB" && neo.neoColour(-3) === "#B07F86" &&
+        neo.neoColour(-9) === "#2E3478" && neo.neoColour(-1.4) === "#BFEBF5" && neo.neoColour(-3) === "#46B8D8" &&
         neo.NEO_PS.every(([, c]) => !/^#(F[89A-F]|E[89A-F])[89A-F]..?[0-6]/i.test(c)));
   const span = neo.neoSpan(rows, Date.UTC(2026, 8, 24));
   check("the ring covers a hundred years at least, and reaches the latest date on the list", span >= 100 && span % 25 === 0 && span >= 2182 - 2026);
@@ -3936,7 +3936,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
 ];`}\n</script>`);
   check("the biosignature assessment is read from the page itself: four worlds, their chances and missions", worlds.length === 4 &&
         worlds.map((w) => w.name).join() === "Mars,Europa,Enceladus,K2-18 b" && worlds[2].probMid === 15 && /Orbilander/.test(worlds[2].mission));
-  check("its colours are muted, not the page's orange", W.worldColour(0.8) === "#6E5A7A" && W.worldColour(15) === "#C9A9A6" &&
+  check("its colours are the map's blues, not the page's orange", W.worldColour(0.8) === "#3F4FC4" && W.worldColour(15) === "#8FDCEB" &&
         /id: "biosignature"[^\n]*route: "worldsring"/.test(src));
   check("the UAP row is titled UAP, drawn by year with a bar, and lists every sighting at a spot", /name: "UAP sightings reported worldwide \(UFOSINT\)"/.test(src) &&
         /\["==", \["get", "y"\], -9999\]/.test(src) && /queryRenderedFeatures\(e\.point, \{ layers: lids/.test(src));
@@ -3998,6 +3998,27 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         f("Forest mills", "gfw_forest_mills") === P + " > Deforestation > Logging and timber concessions" &&
         [["Gadm geotrellis features", "gadm_geotrellis_features"], ["Gfw buffered points", "gfw_buffered_points"], ["GFW Pro forest change regions", "gfwpro_forest_change_regions"],
          ["UMD GLAD land disturbance alerts coverage", "umd_glad_dist_alerts_coverage"], ["Field boundaries \u2014 Chaco Chiquitano", "x"]].every(([t, id]) => f(t, id) === OUT));
+}
+{
+  console.log("\nround 44: every row in the GLAD-S2 style; Boundaries and relief pared to the GLAD-L coverage");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const G = new Function(src.slice(src.indexOf("function gladHex("), src.indexOf("for (const c of LAYERS.concat(")) + "; return { gladColour };")();
+  const hue = (hex) => { const n = parseInt(hex.slice(1), 16), r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (!d) return -1;
+    let h = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4); return (h + 360) % 360; };
+  const out = ["#6A6258", "#8A4F46", "#6E5A55", "#5E7377", "#7C6F84", "#B07F86", "#62755F"].map((c, i) => G.gladColour(c, "row" + i));
+  check("every row colour lands between cyan and violet, never green, yellow or orange", out.every((c) => hue(c) >= 180 && hue(c) <= 300));
+  check("rows that were the same grey come out different", new Set(["a", "b", "c", "d"].map((id) => G.gladColour("#6A6258", id))).size > 1);
+  check("the recolour reaches every row and group child", /for \(const c of LAYERS\.concat\(\.\.\.GROUPS\.map\(\(g\) => g\.children \|\| \[\]\)\)\) \{/.test(src));
+  const cut = (from, to) => src.slice(src.indexOf(from), src.indexOf(to));
+  const lib = new Function(cut("const P = \"Destruction > Of the planet\";", "// The body of the heading a path names") + "; return { cataloguePlaces, CATALOGUE_TAKEN_OUT };")();
+  const f = (t, id = "") => lib.cataloguePlaces(`${t} ${id}`, `${t} ${id}`).join(" | ");
+  check("Boundaries and relief keeps only the GLAD-L coverage",
+        [["Bali from the air, 31 May 1965", "BALI_19650531"], ["Country boundaries \u2014 Equatorial Asia", "adm0"], ["Papua, Sentinel-2 true colour \u2014 location 12", "papua_s2_12"],
+         ["Towns and villages \u2014 Equatorial Asia", "towns"], ["Cities boundaries test", "cities_boundaries_test"], ["GADM (4.1) national boundaries - Africa", "gadm_adm0_africa"],
+         ["GADM Administrative Boundaries", "gadm_administrative_boundaries"], ["Gadm administrative boundaries disputed", "gadm_administrative_boundaries_disputed"],
+         ["Borneo relief, 30 m (SRTM 2000)", "x"], ["News articles, placed \u2014 Equatorial Asia", "news"]].every(([t, id]) => f(t, id) === lib.CATALOGUE_TAKEN_OUT) &&
+        f("Coverage Layer for GLAD-L", "umd_glad_landsat_alerts_coverage").includes("Base and reference > Boundaries and relief"));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

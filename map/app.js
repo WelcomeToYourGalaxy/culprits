@@ -1663,13 +1663,16 @@ function hudSize(radius) {
 // and pale bone at the hottest points; no orange or yellow anywhere.
 // The round layer stays the one that is clicked, filtered, recoloured and
 // removed; the other three follow it (the wrappers below).
+// Since 24 September (round 44) in the style of the GLAD-S2 alerts the owner
+// chose: indigo through blue to cyan, bright enough to stand off both the
+// dark satellite imagery and the painted atlas.
 const GLOW = {
-  plum: "#6E4A6A", rose: "#B07087", bone: "#E8DFD0", red: "#C77A8A", white: "#DCD6C6",
-  cyan: "#8C8FA8", amber: "#9E6E82",          // the old symbol glows, mapped into the same range
+  plum: "#3A3F9E", rose: "#3F7FD6", bone: "#BFEBF5", red: "#5A62E0", white: "#DCEBF5",
+  cyan: "#46B8D8", amber: "#7A6BE0",
   haze: ["interpolate", ["linear"], ["heatmap-density"],
-    0, "rgba(60,30,60,0)", 0.3, "rgba(70,40,70,0.12)", 0.7, "rgba(110,74,106,0.4)", 1, "rgba(176,112,135,0.6)"],
+    0, "rgba(40,44,140,0)", 0.3, "rgba(46,60,170,0.14)", 0.7, "rgba(60,110,214,0.42)", 1, "rgba(70,184,216,0.62)"],
   hazeOpacity: 0.3,                            // very faint: the soft spread only
-  core: (w) => ["interpolate", ["linear"], ["sqrt", w], 0, "#6E4A6A", 0.45, "#B07087", 0.8, "#D9B8BF", 1, "#E8DFD0"],
+  core: (w) => ["interpolate", ["linear"], ["sqrt", w], 0, "#3A3F9E", 0.45, "#3F7FD6", 0.8, "#6FC8E6", 1, "#BFEBF5"],
   grainSatellite: 0,                           // the grain over the Satellite basemap, where there is no glow
   grain: 0,                                    // no grain: it textured the whole map, not the dots (taken out 23 September)
   fadeOut: 9, gone: 12,                        // haze and cores: full to 9, gone by 12; the dots the other way
@@ -3969,8 +3972,8 @@ async function addCtGasesLayer(cfg) {
 // things and nothing else: it is not where the object is in the sky.
 const NEO_URL = "https://neo.ssa.esa.int/PSDB-portlet/download?file=esa_risk_list";
 const NEO_COPY = `${CT_GASES_BASE}/neo/esa_risk_list.txt`;
-const NEO_PS = [[-Infinity, "#4A4552", "Palermo below −8"], [-8, "#6E5A7A", "−8 to −6"], [-6, "#8C5A68", "−6 to −4"],
-  [-4, "#B07F86", "−4 to −2"], [-2, "#E3D7CB", "−2 and above"]];
+const NEO_PS = [[-Infinity, "#2E3478", "Palermo below −8"], [-8, "#3F4FC4", "−8 to −6"], [-6, "#3F7FD6", "−6 to −4"],
+  [-4, "#46B8D8", "−4 to −2"], [-2, "#BFEBF5", "−2 and above"]];
 function neoColour(ps) { let c = NEO_PS[0][1]; for (const [lo, col] of NEO_PS) if (ps >= lo) c = col; return c; }
 function neoParse(text) {
   let updated = "";
@@ -4162,7 +4165,7 @@ async function addLaunchSitesLayer(cfg) {
 // rail, logX), is coloured by how likely its evidence is biological (probMid,
 // muted plum to bone, never the page's own orange), and sized as on the page.
 // Read from the page itself, so the map says what the page says.
-const WORLD_PROB = [[-Infinity, "#6E5A7A", "under 1%"], [1, "#8C5A68", "1 to 5%"], [5, "#B07F86", "5 to 10%"], [10, "#C9A9A6", "10 to 20%"], [20, "#E3D7CB", "20% or more"]];
+const WORLD_PROB = [[-Infinity, "#3F4FC4", "under 1%"], [1, "#3F7FD6", "1 to 5%"], [5, "#46B8D8", "5 to 10%"], [10, "#8FDCEB", "10 to 20%"], [20, "#DCEBF5", "20% or more"]];
 function worldColour(p) { let c = WORLD_PROB[0][1]; for (const [lo, col] of WORLD_PROB) if (p >= lo) c = col; return c; }
 function worldsParse(html) {
   const m = /const WORLDS = (\[[\s\S]*?\n\s*\]);/.exec(String(html || ""));
@@ -5987,6 +5990,14 @@ function catalogueRefine(paths, words) {
   // Under Intact and primary forests only two rows stay (24 September): the
   // biodiversity intactness of forested biomes and the forest landscape
   // integrity index, both worldwide.
+  // Boundaries and relief keeps only the GLAD-L coverage (24 September, round
+  // 44): Nusantara's boundaries, imagery, relief, towns, photographs and news,
+  // and Global Forest Watch's GADM and test boundaries are taken out.
+  const BR = "Base and reference > Boundaries and relief";
+  if (out.includes(BR) && !/coverage layer for glad|umd_glad_landsat_alerts_coverage/i.test(words)) {
+    out = out.filter((x) => x !== BR);
+    if (!out.length) return [CATALOGUE_TAKEN_OUT];
+  }
   const keepIntact = /intactness|integrity index|forest_landscape_integrity/i.test(words);
   const subbed = out.map((x) => catalogueSub(x, words));
   if (!keepIntact && subbed.includes(P + " > Biodiversity loss > Intact and primary forests")) {
@@ -10868,6 +10879,34 @@ const TRASE_DATA = {
 };
 
 const GROUPS = [CT_SECTORS, CT_AGRICULTURE, CT_FORESTRY, CT_HISTORY, SITE_MAPS, EXEC_MAP, MONEY_MAP, LEGAL_MAP, LEG_MAP, JUD_MAP, MORE_MAPS, GMO_MAP, OTHER_MAPS, FOREST_ALERTS, TRASE_DATA];
+
+// Every row's colour in the style of the GLAD-S2 alerts (24 September, round
+// 44, asked for by the owner): cyan through blue and indigo to violet, bright
+// and saturated so the marks stand off the dark satellite imagery and the
+// painted atlas alike. A row keeps its place on that spectrum by the hue it
+// had; the old greys, which all shared one hue, are spread over it by their id
+// so neighbouring rows still differ. No green, yellow or orange.
+function gladHex(h, s, l) {
+  const f = (n) => { const k = (n + h / 30) % 12, a = s * Math.min(l, 1 - l); return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))); };
+  return "#" + [f(0), f(8), f(4)].map((v) => v.toString(16).padStart(2, "0")).join("").toUpperCase();
+}
+function gladColour(c, id) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(c || ""));
+  if (!m) return c;
+  const n = parseInt(m[1], 16), r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+  const sat = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  let hue = 0;
+  if (d) hue = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4);
+  hue = (hue + 360) % 360;
+  let hash = 0;
+  for (const ch of String(id || c)) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  const t = sat < 0.22 ? (Math.imul(hash, 2654435761) >>> 0) / 4294967296 : hue / 360;
+  return gladHex(185 + t * 110, 0.62 + ((hash >> 10) % 20) / 100, 0.54 + ((hash >> 16) % 14) / 100);
+}
+for (const c of LAYERS.concat(...GROUPS.map((g) => g.children || []))) {
+  if (c && c.colour && !c.keepColour) c.colour = gladColour(c.colour, c.id);
+}
 /* ---------- where a dot is: every point's box says how exact its position is ---------- */
 // Asked for 23 September: each dot's box says whether it is the place itself
 // (exact coordinates), a town or city, an area's centre, or placed from a name

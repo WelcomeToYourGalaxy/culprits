@@ -5,6 +5,20 @@ touches.
 
 ---
 
+## Round 44 (24 September): every row in the GLAD-S2 style; Boundaries and relief pared down
+
+- Colours: gladColour() gives every row (LAYERS and group children) a colour
+  from cyan through blue and indigo to violet (hue 185-295, bright and
+  saturated), keeping each row's place by its old hue; old greys spread by id.
+  GLOW (haze, cores), NEO_PS and WORLD_PROB moved to the same blues. A row
+  with keepColour: true keeps its own. Palettes of many classes (forest
+  management, OSM land use, Trase ramps, wastewater steps) not yet changed.
+- Boundaries and relief keeps only the GLAD-L coverage (catalogueRefine):
+  Nusantara's boundaries, imagery, relief, towns, photos and news and GFW's
+  GADM and test boundaries are taken out.
+- index.html asks for app.js?v=44.
+
+
 ## Round 43 (24 September): controls moved; alerts and mosaic landscapes filed; internal layers out
 
 - Zoom buttons right of the basemap choices (.bm-row); the north-up compass
