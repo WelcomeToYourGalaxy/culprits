@@ -5828,6 +5828,20 @@ const CATALOGUE_BY_TITLE = [
   // stays, the reference the EU's deforestation regulation measures from.
   [/\bjrc_global_forest_cover\b/, [P + " > Deforestation > Forest cover in 2020"]],
   [/\bumd_tree_cover_density_20(00|10)\b|\bwri_tropical_tree_cover(_extent)?\b/, null],
+  // Round 43 (24 September, at the owner's word). GLAD-S2 alerts in Amazonia
+  // and their coverage under the alerts; WRI's trees in mosaic and complex
+  // landscapes (and their coverage) under Deforestation; the planted-forest
+  // oil palm under Palm oil; forest mills under Logging and timber; taken out:
+  // DIST-ALERT's coverage shape, the Chaco Chiquitano field boundaries, and
+  // Global Forest Watch's internal analysis layers (Geotrellis features,
+  // buffered points, GFW Pro's forest change regions).
+  [/\bumd_glad_sentinel2_alerts(_coverage)?\b|(?=.*glad.?s2)(?=.*amazon)/i, [P + " > Deforestation > Tree cover loss and alerts > Alerts"]],
+  [/trees_in_(mosaic|complex)_landscapes|trees in (mosaic|complex) landscapes/i, [P + " > Deforestation > Trees in mosaic landscapes"]],
+  [/(?=.*planted)(?=.*(oil ?palm|palm oil))/i, [AG + " > Palm oil > Plantations"]],
+  [/forest mills?\b|\bgfw_forest_mills?\b/i, [P + " > Deforestation > Logging and timber concessions"]],
+  [/\bumd_glad_dist_alerts_coverage\b|(?=.*dist.?alert)(?=.*coverage)/i, null],
+  [/(?=.*field boundar)(?=.*(chaco|chiquitano))/i, null],
+  [/\bgadm_geotrellis_features\b|\bgfw_buffered_points\b|\bgfwpro_\w*forest_change\w*\b|(?=.*gfw ?pro)(?=.*forest change)/i, null],
   [/\bidn_forest_moratorium\b|\brtrw_tabanan_2023\b|\b(v3p3_)?spatialplan(forestland|moratorium|rtrwn|rtrwp_papua|rtrwp_papuawest)_spv\b/, [IN(P + " > Deforestation", "plans")]],
   // Round 24: the rows no rule had placed ("Not yet placed"), each filed by
   // what it shows. Indonesia's forest area (kawasan hutan) is the forest
@@ -5838,7 +5852,7 @@ const CATALOGUE_BY_TITLE = [
   [/\bgfw_emerging_hot_spots\b|\bgfw_places_to_watch\b/, [P + " > Deforestation > Tree cover loss and alerts > Where clearing is likely"]],
   [/\bbirdlife_alliance_for_zero_extinction_sites\b/, [P + " > Biodiversity loss > Places that matter most for species"]],
   [/\bwcs_forest_landscape_integrity_index\b/, [P + " > Biodiversity loss > Intact and primary forests"]],
-  [/\bicf_hnd_forest_type_2013\b|\bjrc_managed_land_(can|usa)\b|\brspo_southeast_asia_land_cover_2010\b|\bsbtn_natural_forests_map\b|\bumd_tree_cover_gain\b|\bumd_tree_cover_height_20\d\d\b|\bwri_trees_in_(mosaic|complex)_landscapes\b/,
+  [/\bicf_hnd_forest_type_2013\b|\bjrc_managed_land_(can|usa)\b|\brspo_southeast_asia_land_cover_2010\b|\bsbtn_natural_forests_map\b|\bumd_tree_cover_gain\b|\bumd_tree_cover_height_20\d\d\b/,
    [P + " > Forest and land cover"]],
   [/\blandmark_natural_resource_rights\b/, ["Suppression > Of humans > Land and territory"]],
   [/\bwri_cmr_agro_industrial_zones\b/, [AG + " > Plantations"]],
@@ -8298,10 +8312,13 @@ function sectHead(name, key) {
 // at 48vh and scrolls, so with Basemap last its choices sat below the bottom
 // edge and the heading looked like an empty section.
 function basemapPanelHtml(opts) {
+  // The zoom buttons sit to the right of the basemap choices (24 September).
   return `<div class="sect" data-sect="basemap">` + sectHead("Basemap", "basemap") + `<div class="sect-body">` +
+    `<div class="bm-row"><div class="bm-choices">` +
     opts.map(([k, nm]) =>
       `<label class="layer"><input type="radio" name="basemap" value="${k}"` +
-      `${k === BASEMAP ? " checked" : ""}><span class="nm">${nm}</span></label>`).join("") + `</div></div>`;
+      `${k === BASEMAP ? " checked" : ""}><span class="nm">${nm}</span></label>`).join("") +
+    `</div><div class="view-zoom" id="view-zoom"></div></div></div></div>`;
 }
 
 function viewPanelHtml() {
@@ -8310,7 +8327,8 @@ function viewPanelHtml() {
     Object.entries(VIEWS).map(([k, v]) =>
       `<label class="layer"><input type="radio" name="view" value="${k}"${k === VIEW ? " checked" : ""}>` +
       `<span class="nm">${v.nm}</span></label>`).join("") +
-    `</div><div class="view-zoom" id="view-zoom"></div>` +
+    `</div><div class="compass-holder in-view" id="compass-holder" title="Click to stand the map upright, facing north">` +
+    `<span class="compass-cap">North up, level</span></div>` +
     `<div class="view-go">` +
     `<button type="button" id="to-globe" class="snap" title="Out to the whole world, in the view you are in">` +
     `Snap back to global scale</button>` +
@@ -8321,9 +8339,7 @@ function viewPanelHtml() {
     `<span class="nm">3D terrain</span></label>` +
     `<label class="layer"><input type="checkbox" id="names-toggle"${NAMES_ON ? " checked" : ""}` +
     ` title="Every place name on the map: the basemap's and the layers' own.">` +
-    `<span class="nm">Place names</span></label>` +
-    `<div class="compass-holder" id="compass-holder" title="Click to stand the map upright, facing north">` +
-    `<span class="compass-cap">Click: north up, level</span></div></div>` +
+    `<span class="nm">Place names</span></label></div>` +
     `<div class="how-boxes">` +
     `<p class="how"><b>Mouse</b> Right-drag: tilt and turn. Ctrl + right-drag: roll.</p>` +
     `<p class="how"><b>Trackpad</b> Ctrl + drag: tilt and turn. Ctrl + two-finger click, then drag: roll.</p>` +
@@ -12060,6 +12076,7 @@ const PANEL_ORDER = [
   // are one row with sublayers here (item 25); the Moratoriums and Spatial
   // plans headings are gone into it.
   { h: 4, t: "Forest cover in 2020" },
+  { h: 4, t: "Trees in mosaic landscapes" },
   { h: 4, t: "Logging and timber concessions" },
   { h: 4, t: "Timber and rubber plantations" },
   { h: 4, t: "Forest zoning and management plans" },

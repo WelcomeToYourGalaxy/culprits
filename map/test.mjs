@@ -1315,7 +1315,7 @@ console.log("\nthe wires on the map");
         /window\.__wirePending/.test(src) && /map\.on\("idle", wireFlush\)/.test(src));
   check("the outlines' sea is solid, with no relief on it", /"fill-color": "#0B1017", "fill-opacity": 1/.test(src) &&
         /type: "hillshade", source: "outline-dem", minzoom: 3\.5/.test(src));
-  check("the compass sits lower, centred, with a caption", /class="compass-cap">Click: north up, level</.test(src) &&
+  check("the compass sits between the views and Snap back, with a caption (24 September)", /class="compass-cap">North up, level</.test(src) &&
         /\.compass-holder\{display:flex;flex-direction:column;align-items:center;gap:3px;margin-top:14px\}/.test(index));
   check("story titles in its box are light text", /className: "wire-pop"/.test(src) && /\.wire-pop a\{color:#F2EEE6/.test(index));
   check("every layer can be ticked or unticked at once", /id="layersAllOn"/.test(index) && /id="layersAllOff"/.test(index) &&
@@ -3849,7 +3849,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
          ["Land cover \u2014 United States", "usa_land_cover"]].every(([t, id]) => f(t, id) === OUT));
   check("the JRC's managed land is out (24 September, round 40)",
         ["jrc_managed_land_can", "jrc_managed_land_usa"].every((id) => f("JRC Managed Land", id) === OUT) && !/\{ h: 5, bundle: "managed"/.test(src));
-  check("trees in mosaic landscapes and natural forests worldwide stay", f("Trees in mosaic landscapes", "wri_trees_in_mosaic_landscapes") === P + " > Forest and land cover" &&
+  check("trees in mosaic landscapes (under Deforestation since round 43) and natural forests worldwide stay", f("Trees in mosaic landscapes", "wri_trees_in_mosaic_landscapes") === P + " > Deforestation > Trees in mosaic landscapes" &&
         f("Natural forests", "sbtn_natural_forests_map") === P + " > Forest and land cover");
 }
 {
@@ -3979,6 +3979,25 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   check("NASA's Eyes is a row under From Earth > Craft in space", /\{ h: 3, t: "Craft in space" \}, "eyes_craft"/.test(src) && /id: "eyes_craft"[^\n]*route: "companion"/.test(src));
   check("the page asks for this round's code, not a copy the browser kept", /<script src="\.\/app\.js\?v=\d+"><\/script>/.test(html) && /<script src="\.\/wire\.js\?v=\d+"><\/script>/.test(html));
+}
+{
+  console.log("\nround 43: controls moved; alerts, mosaic landscapes, palm and mills filed; internal layers out");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const cut = (from, to) => src.slice(src.indexOf(from), src.indexOf(to));
+  const lib = new Function(cut("const P = \"Destruction > Of the planet\";", "// The body of the heading a path names") + "; return { cataloguePlaces, CATALOGUE_TAKEN_OUT, AG };")();
+  const f = (t, id = "") => lib.cataloguePlaces(`${t} ${id}`, `${t} ${id}`).join(" | ");
+  const P = "Destruction > Of the planet", OUT = lib.CATALOGUE_TAKEN_OUT;
+  check("the zoom buttons are right of the basemap choices; north-up where they were",
+        /<div class="bm-row"><div class="bm-choices">/.test(src) && /<\/div><div class="view-zoom" id="view-zoom"><\/div><\/div><\/div><\/div>`;/.test(src) &&
+        /<\/div><div class="compass-holder in-view" id="compass-holder"/.test(src));
+  check("GLAD-S2 in Amazonia and its coverage are under the alerts",
+        ["umd_glad_sentinel2_alerts", "umd_glad_sentinel2_alerts_coverage"].every((id) => f("Deforestation alerts (GLAD-S2) \u2014 Amazonia", id) === P + " > Deforestation > Tree cover loss and alerts > Alerts"));
+  check("mosaic landscapes, planted oil palm and forest mills filed; internal layers, DIST-ALERT coverage and the Chaco field boundaries out",
+        f("Trees in mosaic landscapes coverage", "wri_trees_in_mosaic_landscapes_coverage") === P + " > Deforestation > Trees in mosaic landscapes" &&
+        f("Planted forests: oil palm", "gfw_planted_forests_oil_palm") === lib.AG + " > Palm oil > Plantations" &&
+        f("Forest mills", "gfw_forest_mills") === P + " > Deforestation > Logging and timber concessions" &&
+        [["Gadm geotrellis features", "gadm_geotrellis_features"], ["Gfw buffered points", "gfw_buffered_points"], ["GFW Pro forest change regions", "gfwpro_forest_change_regions"],
+         ["UMD GLAD land disturbance alerts coverage", "umd_glad_dist_alerts_coverage"], ["Field boundaries \u2014 Chaco Chiquitano", "x"]].every(([t, id]) => f(t, id) === OUT));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

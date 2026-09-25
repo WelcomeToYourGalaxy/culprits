@@ -342,6 +342,11 @@
   /* Zoom in, zoom out, the compass and the whole-world button: two by two,
      in the view row between the view choices and Leave Earth. */
   .view-zoom{flex:0 0 auto;align-self:center}
+  /* Since 24 September the zoom buttons are right of the basemap choices, and
+     the north-up button is where they were, between the views and Snap back. */
+  .bm-row{display:flex;align-items:center;gap:10px}
+  .bm-choices{flex:1 1 auto;min-width:0}
+  .view-row .compass-holder.in-view{margin-top:0;align-self:center;flex:0 0 auto}
   .view-row .view-choices{flex:0 0 auto}
   /* Snap back over Leave Earth, to the right of the zoom buttons. */
   .view-go{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:4px}
@@ -487,8 +492,8 @@
   };
 })();
 </script>
-<script src="./app.js?v=42"></script>
-<script src="./wire.js?v=42"></script>
+<script src="./app.js?v=43"></script>
+<script src="./wire.js?v=43"></script>
 <!-- The drag bar on the layers box's right edge (made by columnEdge() in
      app.js) ran the full height of the column, so it stayed standing beside
      empty map when the box was rolled up or pulled shorter. It is held to the

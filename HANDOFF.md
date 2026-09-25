@@ -5,6 +5,20 @@ touches.
 
 ---
 
+## Round 43 (24 September): controls moved; alerts and mosaic landscapes filed; internal layers out
+
+- Zoom buttons right of the basemap choices (.bm-row); the north-up compass
+  where they were, between the views and Snap back (.compass-holder.in-view).
+- CATALOGUE_BY_TITLE: umd_glad_sentinel2_alerts(+_coverage) under Tree cover
+  loss and alerts > Alerts; WRI trees in mosaic/complex landscapes (and
+  coverage) under Deforestation > Trees in mosaic landscapes (new h4);
+  planted-forest oil palm under Palm oil > Plantations; forest mills under
+  Logging and timber concessions; taken out: umd_glad_dist_alerts_coverage,
+  Chaco Chiquitano field boundaries, gadm_geotrellis_features,
+  gfw_buffered_points, GFW Pro forest change regions.
+- index.html asks for app.js?v=43.
+
+
 ## Round 42 (24 September): craft in space; one forest cover map; fresh code each round
 
 - New heading From Earth > Craft in space with row eyes_craft: NASA's Eyes on
