@@ -5,6 +5,18 @@ touches.
 
 ---
 
+## Round 42 (24 September): craft in space; one forest cover map; fresh code each round
+
+- New heading From Earth > Craft in space with row eyes_craft: NASA's Eyes on
+  the Solar System (spacecraft where they are now) in the bottom panel.
+- Forest cover: only jrc_global_forest_cover stays, under Deforestation >
+  Forest cover in 2020; wri_tropical_tree_cover_extent taken out too; the
+  "forest" bundle is gone.
+- map/index.html asks for app.js?v=42 and wire.js?v=42: browsers had kept old
+  copies of app.js, so rounds 39 to 41 did not show (the launches' dates).
+  Bump the number with each round that changes app.js or wire.js.
+
+
 ## Round 41 (24 September): forest management worldwide; three rows out
 
 - New row forest_management (route rasterparts, addRasterPartsLayer) first

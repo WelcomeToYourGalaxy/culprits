@@ -5650,7 +5650,6 @@ const BUNDLES = {
   ponds: "Pond aquaculture in the tropics, 1999, 2014 and 2018 (Clark Labs)",
   mangroves: "Mangroves in 1996, 2016 and 2020 (Global Mangrove Watch)",
   waterwatch: "Reservoirs above or below their usual water area (Global Water Watch)",
-  forest: "Forest and tree cover in 2000, 2010 and 2020, worldwide and the tropics",
   plans: "Spatial plans, forest estate and the clearing moratorium, Indonesia",
   idnplant: "Plantations in Indonesia and its neighbours, region by region",
 };
@@ -5825,7 +5824,10 @@ const CATALOGUE_BY_TITLE = [
   [/\bpangaea_global_mining\b|\bgfw_mining_concessions\b|\bIDN_Mining_2023\b|\bconcessionmining_spv\b/, [IN(P + " > Mining", "mines")]],
   [/\bgmw_global_mangrove_extent(_1996|_2016)?\b/, [IN(P + " > Oceans > Reefs and mangroves", "mangroves")]],
   [/\bglobal_water_watch_anomalies2?\b/, [IN(P + " > Surface water", "waterwatch")]],
-  [/\bjrc_global_forest_cover\b|\bumd_tree_cover_density_20(00|10)\b|\bwri_tropical_tree_cover(_extent)?\b/, [IN(P + " > Deforestation", "forest")]],
+  // Round 42 (24 September): of the forest cover maps only the JRC's 2020 map
+  // stays, the reference the EU's deforestation regulation measures from.
+  [/\bjrc_global_forest_cover\b/, [P + " > Deforestation > Forest cover in 2020"]],
+  [/\bumd_tree_cover_density_20(00|10)\b|\bwri_tropical_tree_cover(_extent)?\b/, null],
   [/\bidn_forest_moratorium\b|\brtrw_tabanan_2023\b|\b(v3p3_)?spatialplan(forestland|moratorium|rtrwn|rtrwp_papua|rtrwp_papuawest)_spv\b/, [IN(P + " > Deforestation", "plans")]],
   // Round 24: the rows no rule had placed ("Not yet placed"), each filed by
   // what it shows. Indonesia's forest area (kawasan hutan) is the forest
@@ -10605,6 +10607,9 @@ const OTHER_MAPS = {
     { id: "giga_countries", name: "School mapping by country (Giga)", unit: "countries", colour: "#627A86", route: "giga", ready: true, lazy: true,
       data: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/giga/countries.json",
       note: "Giga's own figures for every country on its map, copied daily (its service does not let other sites read it)." },
+    { id: "eyes_craft", name: "Spacecraft across the solar system, where they are now (NASA's Eyes on the Solar System)", unit: "opens it in a panel", colour: "#5E6070", route: "companion", ready: true, lazy: true,
+      page: "https://eyes.nasa.gov/apps/solar-system/#/home?featured=false&logo=false&shareButton=false&hd=true",
+      note: "NASA/JPL's Eyes on the Solar System, whole, in the panel along the bottom: every spacecraft it follows, placed where it is now, with its mission. The same Eyes the map hands over to when you zoom out past the globe." },
     { id: "biosignature", name: "Biosignature Evidence Assessment", unit: "worlds", colour: "#B07F86", route: "worldsring", ready: true, lazy: true,
       page: "https://welcometoyourgalaxy.github.io/maps/off-planet-invasion_embed_13_large-script.html",
       note: "Your own assessment from the Off-Planet Invasion page, read from the page itself and drawn round the globe at world view: each world further out the further it is from Earth, coloured by the assessed chance its evidence is biological. A click gives the evidence, its status and the mission that could settle it." },
@@ -11132,6 +11137,7 @@ const LAYER_KIND = {
   giga_countries: ["human", "upstream"],
   trase_meat_brazil: ["animal", "upstream"],
   biosignature: ["insentient", "downstream"],
+  eyes_craft: ["insentient", "downstream"],
   leverage_chart: ["human", "upstream"],
   cfr_tracker: ["human", "upstream"],
   tableau_zsf: ["human", "upstream"],
@@ -12053,7 +12059,7 @@ const PANEL_ORDER = [
   // catalogue rows find their sub-heading through CATALOGUE_SUBS. Spatial plans
   // are one row with sublayers here (item 25); the Moratoriums and Spatial
   // plans headings are gone into it.
-  { h: 4, bundle: "forest", colour: "#62755F" },
+  { h: 4, t: "Forest cover in 2020" },
   { h: 4, t: "Logging and timber concessions" },
   { h: 4, t: "Timber and rubber plantations" },
   { h: 4, t: "Forest zoning and management plans" },
@@ -12191,6 +12197,7 @@ const PANEL_ORDER = [
   { h: 2, t: "From Earth" },
   { h: 3, t: "The space industry" }, "space_industry",
   { h: 3, t: "Space launches" }, "ll2_pads", "ll2_upcoming",
+  { h: 3, t: "Craft in space" }, "eyes_craft",
   { h: 3, t: "Protecting extraterrestrial life" }, "biosignature",
 
   { h: 1, t: "Base and reference" },

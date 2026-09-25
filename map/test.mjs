@@ -3618,9 +3618,9 @@ console.log("\nround of 23 September (23): the owner's thirty notes on the layer
         f("Soy traded under zero deforestation commitments trase") === `${AG} > Soy` &&
         at("Palm oil") < at("Concessions") && order[at("Concessions")].h === 6 && /"\.panel-h6\{/.test(src));
   check("…a heading of the same name deeper down is not mistaken for this one", /found = own\.find\(named\) \|\| null;/.test(src));
-  check("28: the three forest cover maps are one row with sublayers under Deforestation (24 September)",
-        ["jrc_global_forest_cover", "wri_tropical_tree_cover_extent"].every((id) => f("x", id) === `${P} > Deforestation > ${B.forest}`) &&
-        ["umd_tree_cover_density_2000", "umd_tree_cover_density_2010", "wri_tropical_tree_cover"].every((id) => f("x", id) === "(taken out)"));
+  check("28: of the forest cover maps only the JRC's 2020 map stays, under Deforestation > Forest cover in 2020 (24 September, round 42)",
+        f("x", "jrc_global_forest_cover") === `${P} > Deforestation > Forest cover in 2020` &&
+        ["umd_tree_cover_density_2000", "umd_tree_cover_density_2010", "wri_tropical_tree_cover", "wri_tropical_tree_cover_extent"].every((id) => f("x", id) === "(taken out)"));
   check("29: the land and forest cover layers named are out",
         ["esa_land_cover_2015", "idn_land_cover_2017", "Global_LCHS_2024", "LC1970", "LC1970HS", "Global_FC_2025_TTM", "ECJRCV2", "FCHS_2020_ECJRCV2",
          "REGBRNMYSIDN_FCHS_2020_ECJRC", "REGBRNMYSIDN_FC_2020_ECJRC", "Global_FC-FNF_2024_TTM", "Global_FC-FNF_2025_TTM", "Global_FC-FNF-HS_Latest_TTM",
@@ -3658,7 +3658,7 @@ console.log("\nround of 24 September: a search box for the layers, and the unpla
   check("the rows no rule placed are filed by what they show",
         f("inpe_amazon_prodes") === `${P} > Deforestation > Tree cover loss and alerts > Loss year by year` &&
         f("idn_forest_area") === `${P} > Deforestation > ${places.BUNDLES.plans}` &&
-        f("jrc_global_forest_cover") === `${P} > Deforestation > ${places.BUNDLES.forest}` &&
+        f("jrc_global_forest_cover") === `${P} > Deforestation > Forest cover in 2020` &&
         f("birdlife_endemic_bird_areas") === `${P} > Biodiversity loss > Birds` &&
         f("ibge_bra_biomes", "ibge_bra_biomes") === "(taken out)" &&
         f("fao_management_objectives") === `${P} > Deforestation > Forest zoning and management plans`);
@@ -3972,6 +3972,13 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("the Housekeeping heading and its row are out", !/t: "Housekeeping"/.test(src) && /"skytruth_tests",\s+\/\/ the Housekeeping heading/.test(src));
   check("the forest management map is a row under Deforestation, drawn from its copy in runs of zooms", /\{ h: 3, t: "Deforestation" \}, "forest_management",/.test(src) &&
         /id: "forest_management"[^\n]*route: "rasterparts"/.test(src) && /tiles\/forest_management\.pmtiles/.test(src) && /"raster-resampling": "nearest"/.test(src));
+}
+{
+  console.log("\nround 42: craft in space; one forest cover map; a fresh copy of the code on each round");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("NASA's Eyes is a row under From Earth > Craft in space", /\{ h: 3, t: "Craft in space" \}, "eyes_craft"/.test(src) && /id: "eyes_craft"[^\n]*route: "companion"/.test(src));
+  check("the page asks for this round's code, not a copy the browser kept", /<script src="\.\/app\.js\?v=\d+"><\/script>/.test(html) && /<script src="\.\/wire\.js\?v=\d+"><\/script>/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
