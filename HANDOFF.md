@@ -5,6 +5,24 @@ touches.
 
 ---
 
+## Round 35 (24 September): Materials research from a weekly copy; cattle rows refiled; CAFO and livestock rows fixed
+
+- arcgis_materialresearch (Material Research World Atlas, item
+  3ff82579637f4c7a96bd62d039ac3e00) has copy + archive: addArcgisCopyLayer reads
+  culprits-tiles-more arcgis/arcgis_materialresearch/manifest.json, draws
+  tiles/arcgis_materialresearch.pmtiles (layer "places": k, i, n, c), a chip per
+  ArcGIS layer, and a click reads every field from gzipped pieces with the app's
+  own popup. No copy yet: read live as before. Made by scripts/arcgis_copy.py.
+- CATALOGUE_BY_TITLE, at the owner's word: Trase's cattle and pasture
+  deforestation under Deforestation > Tree cover loss and alerts > Clearing for
+  cattle only; gross and net emissions from cattle/pasture deforestation under
+  Climate > Carbon dioxide only; Trase's Pasture area and every Global Pasture
+  Watch layer (gpw_grasslands_*, wri_globalpasturewatch_grasslands*) taken out.
+- abattoir_cafo and abattoir_glw never showed when ticked: their layers
+  (<id>-cafo, <id>-glw) were not names applyVisibility knows; now listed in
+  cfg._layerIds.
+
+
 ## Round 34 (24 September): UFO and UAP sightings (UFOSINT)
 
 Row ufo_sightings under Off-planet > To Earth > Unidentified aerial phenomena:

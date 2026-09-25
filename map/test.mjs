@@ -3769,5 +3769,37 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /own\[id\] = \{ lo: was\.minzoom \|\| 0/.test(src) && /Math\.max\(own\[`\$\{cfg\.id\}-\$\{kind\}`\]\.lo, part\.minzoom\)/.test(src));
   check("the glow of a split archive's files ends at each file's own zooms", /hudWrap\("setLayerZoomRange"/.test(src) && /-part\\d\+\$\/\.test\(layer\.id\)/.test(src));
 }
+{
+  console.log("\nround 35: Materials research from a weekly copy");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("Materials research reads its copy (manifest, tiles, gzipped pieces) and falls back to reading live",
+        /id: "arcgis_materialresearch"[\s\S]{0,300}copy: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/arcgis\/arcgis_materialresearch"/.test(src) &&
+        /cfg\.route === "arcgisapp" && cfg\.copy \? addArcgisCopyLayer\(cfg\)/.test(src) &&
+        /no copy yet \(\$\{e\.message\}\); reading live`\); return addLivePlacesLayer\(cfg\)/.test(src));
+  check("a click on the copy shows the app's own popup and every field", /readPiece\(`\$\{cfg\.copy\}\/pieces`, p\.k, true\)/.test(src) &&
+        /withEveryField\(arcgisPopupHtml\(l\.title \|\| man\.title, l\.popupInfo, rec\.a \|\| \{\}\), rec\.a \|\| \{\}\)/.test(src));
+}
+{
+  console.log("\nround 35: cattle and pasture rows filed as asked; the modelled farm rows show when ticked");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const cut = (from, to) => src.slice(src.indexOf(from), src.indexOf(to));
+  const lib = new Function(cut("const P = \"Destruction > Of the planet\";", "// The body of the heading a path names") + "; return { cataloguePlaces, CATALOGUE_TAKEN_OUT };")();
+  const at = (t) => lib.cataloguePlaces(t, t);
+  const P = "Destruction > Of the planet";
+  const only = (t, want) => { const got = at(t); return got.length === 1 && got[0] === want; };
+  check("Trase's cattle and pasture deforestation go under Deforestation only",
+        only("Cattle deforestation (ha) \u2014 Brazil (Trase) CATTLE_DEFORESTATION", P + " > Deforestation > Tree cover loss and alerts > Clearing for cattle") &&
+        only("Cattle deforestation per ton (ha/t) \u2014 Brazil, Paraguay (Trase) X", P + " > Deforestation > Tree cover loss and alerts > Clearing for cattle") &&
+        only("Pasture deforestation (ha) \u2014 Brazil (Trase) X", P + " > Deforestation > Tree cover loss and alerts > Clearing for cattle"));
+  check("the emissions from that clearing go under Climate only",
+        ["Gross emissions from cattle deforestation (t CO\u2082-eq.) \u2014 Brazil (Trase) X", "Net emissions from pasture deforestation (t) \u2014 Brazil (Trase) X",
+         "Gross emissions from cattle deforestation per ton (t) \u2014 Brazil, Paraguay (Trase) X"].every((t) => only(t, P + " > Climate > Carbon dioxide")));
+  check("Trase's pasture area and every Global Pasture Watch layer are taken out",
+        [ "Pasture area (ha) \u2014 Brazil, Paraguay (Trase) PASTURE_AREA", "Grasslands 2023 gpw_grasslands_2023",
+          "Cultivated and natural grasslands wri_globalpasturewatch_grasslands_2010", "Grasslands (Global Pasture Watch) x"].every((t) => at(t)[0] === lib.CATALOGUE_TAKEN_OUT));
+  check("soy deforestation is still filed as before", at("Soy deforestation (ha) \u2014 Brazil (Trase) X").includes(P + " > Deforestation > Tree cover loss and alerts > Clearing for soy and corn"));
+  check("the modelled confined animal facilities and livestock density rows show when ticked (their layers are listed)",
+        /cfg\._layerIds = \[`\$\{cfg\.id\}-cafo`\]/.test(src) && /cfg\._layerIds = \[`\$\{cfg\.id\}-glw`\]/.test(src));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

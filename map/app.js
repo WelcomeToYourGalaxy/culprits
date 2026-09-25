@@ -3667,6 +3667,83 @@ async function readArcgisApp(cfg) {
   return { title, items, note: skipped ? `${skipped} layer${skipped > 1 ? "s" : ""} of the map would not answer` : "" };
 }
 
+// An ArcGIS app too heavy to read live has a weekly copy in culprits-tiles-more
+// (scripts/arcgis_copy.py): its features as tiles (layer "places": k key, i
+// which ArcGIS layer, n name, c colour), its layers in manifest.json, and every
+// field of every feature in gzipped pieces. Drawn from the copy; read live, as
+// before, if the copy cannot be read. A chip per ArcGIS layer turns it on or off.
+async function addArcgisCopyLayer(cfg) {
+  let man;
+  try { man = await getJson(`${cfg.copy}/manifest.json`, 20000); }
+  catch (e) { console.warn(`[culprits] ${cfg.id}: no copy yet (${e.message}); reading live`); return addLivePlacesLayer(cfg); }
+  relabelRow(cfg.id, man.title);
+  const layers = man.layers || [];
+  const byI = new Map(layers.map((l) => [Number(l.i), l]));
+  const on = new Set(layers.map((l) => Number(l.i)));
+  let parts = [{ url: cfg.archive, from: 0, to: 24 }];
+  try {
+    const st = await getJson(cfg.archive.replace(/\.pmtiles$/, ".build.json"), 15000);
+    if (st && Array.isArray(st.parts) && st.parts.length) {
+      const top = Math.max(...st.parts.map((q) => Number(q.to)));
+      parts = st.parts.map((q) => ({ url: cfg.archive.replace(/[^/]+$/, q.file), from: Number(q.from), to: Number(q.to) === top ? 24 : Number(q.to) }));
+    }
+  } catch (e) { /* no list: the one file */ }
+  const vis = visibility.get(cfg.id) || "visible";
+  const colour = ["coalesce", ["get", "c"], cfg.colour];
+  const kinds = [
+    ["fill", ["==", ["geometry-type"], "Polygon"], { "fill-color": colour, "fill-opacity": 0.35 }],
+    ["line", ["!=", ["geometry-type"], "Point"], { "line-color": colour, "line-width": ["interpolate", ["linear"], ["zoom"], 2, 0.4, 10, 1.2], "line-opacity": 0.8 }],
+    ["circle", ["==", ["geometry-type"], "Point"], { "circle-color": colour, "circle-opacity": 0.85, "circle-stroke-color": "#17150F", "circle-stroke-width": 0.6,
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 2, 8, 3.5, 14, 6] }],
+  ];
+  const which = () => ["in", ["get", "i"], ["literal", [...on]]];
+  const drawn = [];
+  cfg._layerIds = cfg._layerIds || [];
+  parts.forEach((part, pi) => {
+    const sid = `${cfg.id}-copy${pi}`;
+    if (!map.getSource(sid)) map.addSource(sid, { type: "vector", url: `pmtiles://${part.url}`, attribution: cfg.attribution || "" });
+    for (const [type, geom, paint] of kinds) {
+      const lid = `${cfg.id}-copy${pi}-${type}`;
+      if (map.getLayer(lid)) continue;
+      map.addLayer({ id: lid, type, source: sid, "source-layer": "places", minzoom: part.from, maxzoom: Math.min(24, part.to + 1),
+        filter: ["all", geom, which()], layout: { visibility: vis }, paint });
+      drawn.push([lid, geom]);
+      cfg._layerIds.push(lid);
+      if (type === "line") continue;
+      bindHtmlPopup(lid, (p) => readPiece(`${cfg.copy}/pieces`, p.k, true).then((piece) => {
+        const rec = piece[String(p.k)];
+        if (!rec) return `<b>${escapeHtml(p.n || "")}</b><div class="meta">not found in the copy</div>`;
+        const l = byI.get(Number(rec.i)) || {};
+        return withEveryField(arcgisPopupHtml(l.title || man.title, l.popupInfo, rec.a || {}), rec.a || {});
+      }));
+    }
+  });
+  // The chips: one per ArcGIS layer, with its count.
+  const box = document.getElementById("layers");
+  const row = box && box.querySelector && box.querySelector(`[data-layer="${cfg.id}"]`);
+  const anchor = row && row.closest ? row.closest("label") : null;
+  if (anchor && document.createElement && layers.length > 1 && !box.querySelector(`.facet[data-copy-for="${cfg.id}"]`)) {
+    const el = document.createElement("div");
+    el.className = "facet";
+    el.dataset.copyFor = cfg.id;
+    el.innerHTML = layers.map((l) => `<button type="button" class="chip on" data-ci="${Number(l.i)}">${escapeHtml(l.title || "")} (${Number(l.features || 0).toLocaleString()})</button>`).join("");
+    el.addEventListener("click", (ev) => {
+      const b = ev.target.closest && ev.target.closest("[data-ci]");
+      if (!b) return;
+      const i = Number(b.dataset.ci);
+      if (on.has(i)) on.delete(i); else on.add(i);
+      b.classList.toggle("on", on.has(i));
+      for (const [lid, geom] of drawn) if (map.getLayer(lid)) map.setFilter(lid, ["all", geom, which()]);
+    });
+    if (anchor.after) anchor.after(el);
+  }
+  const skipped = (man.skipped || []).length;
+  setLayerState(cfg.id, `${Number(man.features || 0).toLocaleString()} ${cfg.unit} in ${layers.length} layer${layers.length === 1 ? "" : "s"} \u00b7 from the weekly copy` +
+    (skipped ? ` \u00b7 ${skipped} layer${skipped > 1 ? "s" : ""} of the app would not answer` : ""));
+  applyVisibility(cfg.id);
+  buildLegend();
+}
+
 /* ---------- pictures read live, with a choice of the source's own layers ---------- */
 function addRasterChoiceLayer(cfg) {
   // A row whose build writes its own list of chips (choicesUrl) reads it first:
@@ -4395,6 +4472,7 @@ function addGlwLayer(cfg) {
     attribution: 'Livestock density: FAO, Gridded Livestock of the World 4 (2020), CC BY 4.0 \u2014 modelled, not counted' });
   map.addLayer({ id: `${cfg.id}-glw`, type: "raster", source: `${cfg.id}-glw-src`, layout: { visibility: "none" },
     paint: { "raster-opacity": 0.6, "raster-saturation": -0.55 } }, pointLayerAbove());
+  cfg._layerIds = [`${cfg.id}-glw`];
   setLayerState(cfg.id, "FAO's modelled grid of how many animals are kept where, 2020");
   applyVisibility(cfg.id);
 }
@@ -4441,6 +4519,9 @@ function addCafoLayer(cfg) {
     : Object.keys(p).every((k) => k === "id" || k === "precise")
       ? readPiece(CAFO_PIECES, p.id).then((piece) => cafoBox(Object.assign({}, (piece[p.id] || {}).properties || {}, { precise: p.precise })))
       : cafoBox(p));
+  // Its layer is not one applyVisibility knows by name: without this list the
+  // row was ticked and the points stayed hidden (24 September).
+  cfg._layerIds = [`${cfg.id}-cafo`];
   setLayerState(cfg.id, "Climate TRACE's modelled confined animal facilities");
   applyVisibility(cfg.id);
 }
@@ -5382,6 +5463,14 @@ const CATALOGUE_PLACES = [
 // titles each rule caught.
 const CATALOGUE_TAKEN_OUT = "(taken out)";
 const CATALOGUE_BY_TITLE = [
+  // ---- 24 September, at the owner's word -------------------------------
+  // Trase's cattle and pasture clearing under Deforestation only, not Meat;
+  // the emissions from that clearing under Climate only; Trase's pasture area
+  // and every Global Pasture Watch layer taken out.
+  [/^(cattle|pasture) deforestation\b/i, [P + " > Deforestation > Tree cover loss and alerts > Clearing for cattle"]],
+  [/^(gross |net )?emissions from (cattle|pasture|beef) deforestation\b/i, [P + " > Climate > Carbon dioxide"]],
+  [/^pasture area\b/i, null],
+  [/global ?pasture ?watch|\bgpw_grasslands_\d{4}\b|\bwri_globalpasturewatch_grasslands(_\d{4})?\b/i, null],
   // ---- Round 23 (23 September), at the owner's word ---------------------
   // Taken out: Trase's shrimp production (item 3); the Clark Labs change maps
   // other than 1999 to 2018 (items 4 and 6); Nusantara's Equatorial Asia
@@ -10191,7 +10280,9 @@ const OTHER_MAPS = {
       note: "Read live from the ArcGIS map linked on the Destruction page (arcg.is/ym8XK); the row takes its own title once it loads." },
     { id: "arcgis_materialresearch", name: "Materials research (ArcGIS)", unit: "places", colour: "#665E6C", route: "arcgisapp", ready: true, lazy: true,
       item: "3ff82579637f4c7a96bd62d039ac3e00",
-      note: "Read live from the ArcGIS experience linked on the Destruction page (arcg.is/4q8m4); the row takes its own title once it loads." },
+      copy: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/arcgis/arcgis_materialresearch",
+      archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/arcgis_materialresearch.pmtiles",
+      note: "The ArcGIS experience linked on the Destruction page (arcg.is/4q8m4), from a weekly copy of every feature of every layer, every field kept (its census-tract layer was too heavy to read live); read live if the copy cannot be. A chip per layer. The row takes its own title once it loads." },
     { id: "glad_loss", name: "Tree cover loss (Global Forest Change, UMD GLAD)", unit: "loss since 2000, 30 m", colour: "#8A4F46", route: "rasterlive", ready: true, lazy: true,
       attribution: "Hansen/UMD/Google/USGS/NASA", maxzoom: 12,
       choices: [{ label: "Tree cover loss", tiles: "https://storage.googleapis.com/earthenginepartners-hansen/tiles/gfc_v1.12/loss_alpha/{z}/{x}/{y}.png" }],
@@ -10536,6 +10627,7 @@ function ensureLayer(cfg) {
       : cfg.route === "shapes" ? addShapesLayer(cfg)
       : cfg.route === "sitemap" ? addSitemapLayer(cfg)
       : cfg.route === "arcgis" ? Promise.resolve().then(() => addArcgisLayer(cfg))
+      : cfg.route === "arcgisapp" && cfg.copy ? addArcgisCopyLayer(cfg)
       : cfg.route === "umap" || cfg.route === "kml" || cfg.route === "arcgisapp" ? addLivePlacesLayer(cfg)
       : cfg.route === "rasterlive" ? Promise.resolve().then(() => addRasterChoiceLayer(cfg))
       : cfg.route === "trase" ? addTraseLayer(cfg)
