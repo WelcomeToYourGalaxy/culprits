@@ -5,6 +5,24 @@ touches.
 
 ---
 
+## Round 39 (24 September): rings fit the screen; biosignatures round the globe; UAP and launches by time
+
+- esa_risk ring: outer edge = min(1.95R, half the smaller screen side - 22);
+  drawn once there is a 45 px band round the globe (it used to need the globe
+  small enough for a 2R ring, so it came into view just before Eyes).
+- biosignature: route worldsring (addWorldsRingLayer) reads WORLDS from the
+  owner's page and draws the four worlds across the top of the globe, further
+  out = further from Earth (logX), colour = probMid (WORLD_PROB, muted).
+- ufo_sightings: "UAP sightings reported worldwide (UFOSINT)", route ufo
+  (addUfoLayer) over the format-2 copy (one point per spot and year: y, n,
+  ids); a year bar (timeBar) with an undated tick; a click lists every
+  sighting at the spot, each opening to every field. No USO category: nothing
+  UFOSINT publishes marks a sighting as underwater.
+- ll2_upcoming: "Upcoming launches per site"; addLaunchSitesLayer draws one
+  point per pad; its box lists the launches soonest first with the date beside
+  each name, each opening to the full record; a date bar filters them.
+
+
 ## Round 38 (24 September): biodiversity loss pared down; Global Safety Net's layers each a row
 
 - Intact and primary forests keeps only Biodiversity Intactness (forested

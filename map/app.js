@@ -4000,7 +4000,8 @@ function neoSpan(rows, now) {
   return Math.max(100, Math.ceil(last / 25) * 25);
 }
 const neoAngle = (t, span) => Math.max(0, Math.min(span, t)) / span * 1.9 * Math.PI - Math.PI / 2;
-function neoPlace(rows, R, cx, cy, now, span) {
+function neoPlace(rows, R, cx, cy, now, span, outer) {
+  outer = outer || R * 1.9;
   const yr = 365.25 * 864e5;
   span = span || neoSpan(rows, now);
   return rows.map((r) => {
@@ -4008,10 +4009,244 @@ function neoPlace(rows, R, cx, cy, now, span) {
     const a = neoAngle(t, span);
     const ip = r["impact probability, all dates"] || r["impact probability, likeliest date"] || 1e-12;
     const near = Math.max(0, Math.min(1, (Math.log10(ip) + 12) / 10));
-    const d = R * (1.1 + 0.8 * (1 - near));
+    const d = R * 1.1 + (outer - R * 1.1) * (1 - near);
     const size = Math.max(2, Math.min(7, 2 + 2 * Math.log10(Math.max(1, (r["diameter (m)"] || 10) / 10))));
     return { r, x: cx + Math.cos(a) * d, y: cy + Math.sin(a) * d, size, colour: neoColour(r["Palermo rating, all dates"] ?? r["Palermo rating, likeliest date"]) };
   });
+}
+
+// A bar of two handles under a row, choosing a span of years or dates: the
+// UAP sightings and the upcoming launches (24 September). values are numbers;
+// fmt says each in words; onChange(lo, hi, extra) is called as the handles move.
+function timeBar(cfg, { min, max, step = 1, fmt = String, undated = null }, onChange) {
+  const box = document.getElementById("layers");
+  const row = box && box.querySelector && box.querySelector(`[data-layer="${cfg.id}"]`);
+  const anchor = row && row.closest ? row.closest("label") : null;
+  if (!anchor || !document.createElement || box.querySelector(`.facet[data-time-for="${cfg.id}"]`)) return;
+  const el = document.createElement("div");
+  el.className = "facet time-bar";
+  el.dataset.timeFor = cfg.id;
+  el.style.cssText = "display:block;font-size:11.5px;color:var(--dim)";
+  el.innerHTML = `<div style="display:flex;justify-content:space-between"><span data-t="lo"></span><span data-t="hi"></span></div>` +
+    `<div style="position:relative;height:18px">` +
+    `<input type="range" data-t="a" min="${min}" max="${max}" step="${step}" value="${min}" aria-label="From" style="position:absolute;left:0;right:0;width:100%;accent-color:#8A9DA6">` +
+    `<input type="range" data-t="b" min="${min}" max="${max}" step="${step}" value="${max}" aria-label="To" style="position:absolute;left:0;right:0;width:100%;accent-color:#8A9DA6"></div>` +
+    (undated ? `<label style="display:flex;gap:5px;align-items:center;cursor:pointer"><input type="checkbox" data-t="u" checked> ${escapeHtml(undated)}</label>` : "");
+  const a = el.querySelector('[data-t="a"]'), b = el.querySelector('[data-t="b"]'), u = el.querySelector('[data-t="u"]');
+  const say = () => {
+    let lo = Number(a.value), hi = Number(b.value);
+    if (lo > hi) [lo, hi] = [hi, lo];
+    el.querySelector('[data-t="lo"]').textContent = fmt(lo);
+    el.querySelector('[data-t="hi"]').textContent = fmt(hi);
+    onChange(lo, hi, u ? u.checked : true);
+  };
+  for (const i of [a, b, u].filter(Boolean)) i.addEventListener("input", (e) => { e.stopPropagation(); say(); });
+  el.addEventListener("change", (e) => e.stopPropagation());
+  anchor.after(el);
+  say();
+}
+
+// UAP sightings (UFOSINT): each point is the sightings reported at one spot in
+// one year (y, n, ids); a click lists every one of them shown, each opening to
+// every field UFOSINT publishes, read from the gzipped pieces.
+async function addUfoLayer(cfg) {
+  let st = {};
+  try { st = await getJson(cfg.archiveUrl.replace(/\.pmtiles$/, ".build.json"), 20000); }
+  catch (e) { setLayerState(cfg.id, `not built yet (${e.message})`); return; }
+  if (st.format !== 2) { setLayerState(cfg.id, "the copy is being rebuilt for the year bar; run ufosint once more"); return; }
+  const parts = pmShapeParts(cfg.archiveUrl, st);
+  const years = st.years || [1900, new Date().getUTCFullYear()];
+  let win = ["all"];
+  const lids = [];
+  cfg._layerIds = lids;
+  const n = ["coalesce", ["get", "n"], 1];
+  parts.forEach((part, i) => {
+    const sid = `${cfg.id}-src${i}`, lid = `${cfg.id}-pts${i}`;
+    map.addSource(sid, { type: "vector", url: `pmtiles://${part.url}`, attribution: cfg.attribution || "" });
+    map.addLayer({ id: lid, type: "circle", source: sid, "source-layer": cfg.id,
+      minzoom: part.minzoom || 0, maxzoom: Math.min(24, part.maxzoom || 24), layout: { visibility: visibility.get(cfg.id) || "visible" },
+      paint: { "circle-color": cfg.colour,
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, ["+", 1, ["*", 0.7, ["log10", n]]], 8, ["+", 2.5, ["*", 1.4, ["log10", n]]], 14, ["+", 4, ["*", 2, ["log10", n]]]],
+        "circle-opacity": ["case", ["==", ["get", "x_precision"], "locality"], 0, 0.8],
+        "circle-stroke-color": cfg.colour, "circle-stroke-width": ["case", ["==", ["get", "x_precision"], "locality"], 1, 0] } });
+    lids.push(lid);
+    map.on("click", lid, async (e) => {
+      const claim = e.originalEvent || e;
+      if (popupClaimedBy === claim) return;
+      popupClaimedBy = claim;
+      const here = map.queryRenderedFeatures(e.point, { layers: lids.filter((l) => map.getLayer(l)) });
+      const ids = [...new Set(here.flatMap((f) => String(f.properties.ids || "").split(",").filter(Boolean)))];
+      const pop = new maplibregl.Popup({ maxWidth: "360px" }).setLngLat(e.lngLat)
+        .setHTML(`<div class="meta">${ids.length.toLocaleString()} sightings here · reading them…</div>`).addTo(map);
+      const shown = ids.slice(0, 80);
+      const recs = [];
+      for (const id of shown) {
+        try { const piece = await readPiece(cfg.boxes, id, true); if (piece[id]) recs.push(piece[id].properties || {}); } catch (err) { /* piece not read */ }
+      }
+      recs.sort((a, b) => String(a.sighting_datetime || a.date_event || "").localeCompare(String(b.sighting_datetime || b.date_event || "")));
+      pop.setHTML(`<b>${ids.length.toLocaleString()} UAP sighting${ids.length === 1 ? "" : "s"} reported here</b>` +
+        `<div class="meta">${here.some((f) => f.properties.x_precision === "locality") ? "Placed by UFOSINT from the place name: the town, not the spot." : "Where the source put it."}</div>` +
+        `<div style="max-height:300px;overflow:auto">` + recs.map((r) =>
+          `<details><summary>${escapeHtml(String(r.date_event || r.date_event_raw || "undated"))} · ${escapeHtml(String(r.shape || r.standardized_shape || ""))} · ${escapeHtml(String(r.source_database || ""))}</summary>` +
+          `<table class="meta">${fieldRows(r, ["title"])}</table></details>`).join("") + `</div>` +
+        (ids.length > shown.length ? `<div class="meta">The first ${shown.length} of ${ids.length.toLocaleString()}; zoom in or narrow the years for the rest.</div>` : ""));
+    });
+    map.on("mouseenter", lid, () => (map.getCanvas().style.cursor = "pointer"));
+    map.on("mouseleave", lid, () => (map.getCanvas().style.cursor = ""));
+  });
+  timeBar(cfg, { min: years[0], max: years[1], fmt: (y) => (y < 0 ? `${-y} BC` : String(y)),
+    undated: `sightings with no date (${Number(st.undated_with_position || 0).toLocaleString()})` }, (lo, hi, withUndated) => {
+    win = ["any", ["all", [">=", ["get", "y"], lo], ["<=", ["get", "y"], hi]]];
+    if (withUndated) win.push(["==", ["get", "y"], -9999]);
+    for (const l of lids) if (map.getLayer(l)) map.setFilter(l, win);
+  });
+  setLayerState(cfg.id, `${Number(st.alerts_with_position).toLocaleString()} ${cfg.unit} at ${Number(st.spots).toLocaleString()} spots` +
+    (st.no_position ? ` · ${Number(st.no_position).toLocaleString()} more with no position cannot be drawn` : ""));
+  applyVisibility(cfg.id);
+  buildLegend();
+}
+
+// Upcoming launches, one point per launch site (24 September): the site's box
+// lists its launches in date order with the date beside each, each opening to
+// its full record; the bar under the row keeps the launches within a span of dates.
+async function addLaunchSitesLayer(cfg) {
+  let got;
+  try { got = await readLaunchLibrary(cfg); }
+  catch (e) { setLayerState(cfg.id, `the source did not answer (${e.message})`); return; }
+  const launches = got.items.filter((it) => it.geometry).map((it) => Object.assign({}, it, { t: it.when ? it.when.getTime() : NaN }));
+  const src = `${cfg.id}-sites`;
+  const day = 864e5;
+  const times = launches.map((l) => l.t).filter(Number.isFinite);
+  const t0 = Math.floor((times.length ? Math.min(...times) : Date.now()) / day), t1 = Math.ceil((times.length ? Math.max(...times) : Date.now()) / day);
+  let lo = t0, hi = t1;
+  const sites = () => {
+    const by = new Map();
+    for (const l of launches) {
+      const d = Number.isFinite(l.t) ? l.t / day : null;
+      if (d !== null && (d < lo || d > hi + 1)) continue;
+      const k = l.padKey;
+      if (!by.has(k)) by.set(k, { geometry: l.geometry, pad: l.padName, list: [] });
+      by.get(k).list.push(l);
+    }
+    return { type: "FeatureCollection", features: [...by.entries()].map(([k, v]) => ({ type: "Feature", geometry: v.geometry,
+      properties: { k, n: v.list.length } })) , by };
+  };
+  let cur = sites();
+  map.addSource(src, { type: "geojson", data: { type: "FeatureCollection", features: cur.features } });
+  map.addLayer({ id: `${cfg.id}-pt`, type: "circle", source: src, layout: { visibility: visibility.get(cfg.id) || "visible" },
+    paint: { "circle-color": cfg.colour, "circle-opacity": 0.85, "circle-stroke-color": "#17150F", "circle-stroke-width": 0.6,
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, ["+", 3, ["*", 1.5, ["log10", ["get", "n"]]]], 10, ["+", 6, ["*", 2, ["log10", ["get", "n"]]]]] } }, pointLayerAbove());
+  bindHtmlPopup(`${cfg.id}-pt`, (p) => {
+    const v = cur.by.get(p.k);
+    if (!v) return "";
+    const list = v.list.slice().sort((a, b) => (Number.isFinite(a.t) ? a.t : Infinity) - (Number.isFinite(b.t) ? b.t : Infinity));
+    return `<b>${escapeHtml(v.pad || "Launch site")}</b><div class="meta">${list.length} upcoming launch${list.length === 1 ? "" : "es"} in the dates chosen, soonest first</div>` +
+      `<div style="max-height:320px;overflow:auto">` + list.map((l) =>
+        `<details><summary>${escapeHtml(l.when ? l.when.toISOString().slice(0, 10) : "date not set")} · ${escapeHtml(l.name || "")}</summary>${l.h}</details>`).join("") + `</div>`;
+  });
+  const fmt = (d) => new Date(d * day).toISOString().slice(0, 10);
+  timeBar(cfg, { min: t0, max: t1, fmt }, (a, b) => {
+    lo = a; hi = b; cur = sites();
+    const s = map.getSource(src);
+    if (s) s.setData({ type: "FeatureCollection", features: cur.features });
+    setLayerState(cfg.id, `${cur.features.reduce((x, f) => x + f.properties.n, 0).toLocaleString()} launches at ${cur.features.length} sites` + (got.note ? ` · ${got.note}` : ""));
+  });
+  cfg._layerIds = [`${cfg.id}-pt`];
+  applyVisibility(cfg.id);
+  buildLegend();
+}
+
+// The owner's Biosignature Evidence Assessment, drawn round the globe at world
+// view the way the asteroid list is (24 September): each world's mark sits
+// further out the further the world is from Earth (the page's own logarithmic
+// rail, logX), is coloured by how likely its evidence is biological (probMid,
+// muted plum to bone, never the page's own orange), and sized as on the page.
+// Read from the page itself, so the map says what the page says.
+const WORLD_PROB = [[-Infinity, "#6E5A7A", "under 1%"], [1, "#8C5A68", "1 to 5%"], [5, "#B07F86", "5 to 10%"], [10, "#C9A9A6", "10 to 20%"], [20, "#E3D7CB", "20% or more"]];
+function worldColour(p) { let c = WORLD_PROB[0][1]; for (const [lo, col] of WORLD_PROB) if (p >= lo) c = col; return c; }
+function worldsParse(html) {
+  const m = /const WORLDS = (\[[\s\S]*?\n\s*\]);/.exec(String(html || ""));
+  if (!m) return [];
+  try { return new Function(`return ${m[1]};`)() || []; } catch (e) { return []; }
+}
+async function addWorldsRingLayer(cfg) {
+  let worlds = [];
+  try { const r = await fetch(cfg.page); if (r.ok) worlds = worldsParse(await r.text()); } catch (e) { /* not read */ }
+  if (!worlds.length) { setLayerState(cfg.id, "the assessment page could not be read"); return; }
+  worlds = worlds.slice().sort((a, b) => (a.logX || 0) - (b.logX || 0));
+  const box = map.getContainer();
+  const cv = document.createElement("canvas");
+  cv.className = "worlds-ring";
+  cv.style.cssText = "position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none";
+  map.getCanvas().after(cv);
+  const card = document.createElement("div");
+  card.className = "neo-card maplibregl-popup-content";
+  card.style.cssText = "position:absolute;z-index:5;max-width:300px;max-height:340px;overflow:auto;display:none";
+  box.appendChild(card);
+  let on = false, placed = [];
+  const draw = () => {
+    const w = box.clientWidth, h = box.clientHeight, dpr = window.devicePixelRatio || 1;
+    if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+    const g = cv.getContext("2d");
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, w, h);
+    placed = [];
+    const R = globeRadiusPx(map.getZoom(), map.getCenter().lat);
+    const outer = Math.min(R * 1.95, Math.min(w, h) / 2 - 22);
+    if (!on || drawnProjection() === "mercator" || map.getPitch() > 5 || outer - R * 1.1 < 45) return;
+    const cx = w / 2, cy = h / 2;
+    // Across the top of the globe, nearest world on the left.
+    worlds.forEach((wd, i) => {
+      const a = (-150 + (120 * i) / Math.max(1, worlds.length - 1)) * Math.PI / 180;
+      const d = R * 1.1 + (outer - R * 1.1) * Math.max(0, Math.min(1, Number(wd.logX) || 0));
+      placed.push({ wd, x: cx + Math.cos(a) * d, y: cy + Math.sin(a) * d, size: 4 + 8 * (Number(wd.size) || 0.3), colour: worldColour(Number(wd.probMid)) });
+    });
+    g.font = "11px system-ui,sans-serif"; g.textAlign = "center";
+    for (const p of placed) {
+      g.beginPath(); g.arc(p.x, p.y, p.size, 0, 2 * Math.PI);
+      g.fillStyle = p.colour; g.globalAlpha = 0.92; g.fill(); g.globalAlpha = 1;
+      g.lineWidth = 0.8; g.strokeStyle = "rgba(10,10,12,0.8)"; g.stroke();
+      g.fillStyle = "rgba(227,215,203,0.85)";
+      g.fillText(`${p.wd.name} · ${p.wd.prob}`, p.x, p.y - p.size - 5);
+    }
+  };
+  const hit = (pt) => placed.find((p) => Math.hypot(p.x - pt.x, p.y - pt.y) <= p.size + 6);
+  map.on("render", draw);
+  map.on("resize", draw);
+  map.on("mousemove", (e) => { if (on && placed.length && hit(e.point)) map.getCanvas().style.cursor = "pointer"; });
+  map.on("click", (e) => {
+    if (!on || !placed.length) return;
+    const p = hit(e.point);
+    if (!p) { card.style.display = "none"; return; }
+    popupClaimedBy = e.originalEvent || e;
+    const wd = p.wd;
+    const show = Object.fromEntries(Object.entries(wd).filter(([k]) => !["id", "color", "x", "y", "gap"].includes(k)));
+    card.innerHTML = `<button type="button" class="neo-x" style="float:right;background:none;border:0;cursor:pointer" aria-label="Close">✕</button>` +
+      `<b>${escapeHtml(wd.name)}</b> <span class="meta">${escapeHtml(wd.sub || "")}</span>` +
+      `<div class="meta">${escapeHtml(wd.badge || "")} · chance the evidence is biological: ${escapeHtml(wd.prob || "")}</div>` +
+      `<p class="meta">${escapeHtml(wd.evidence || "")}</p><p class="meta">${escapeHtml(wd.status || "")}</p>` +
+      `<p class="meta"><b>${escapeHtml(wd.mission || "")}</b>, ${escapeHtml(wd.when || "")}: ${escapeHtml(wd.missionText || "")}</p>` +
+      `<details><summary class="meta">Every field</summary><table class="meta">${fieldRows(show)}</table></details>` +
+      `<div class="meta">From the Biosignature Evidence Assessment (Off-Planet Invasion page). No confirmed extraterrestrial life has been discovered. The mark's place shows distance from Earth, not where the world is in the sky.</div>`;
+    card.style.left = Math.min(e.point.x + 12, box.clientWidth - 310) + "px";
+    card.style.top = Math.max(8, Math.min(e.point.y - 20, box.clientHeight - 350)) + "px";
+    card.style.display = "block";
+    card.querySelector(".neo-x").onclick = () => { card.style.display = "none"; };
+  });
+  cfg.afterVisibility = (vis) => { on = vis === "visible"; if (!on) card.style.display = "none"; draw(); };
+  on = (visibility.get(cfg.id) || "visible") === "visible";
+  const row = document.querySelector(`[data-layer="${cfg.id}"]`);
+  const label = row && row.closest ? row.closest("label") : null;
+  if (label && label.after && !document.querySelector(`.facet[data-key-for="${cfg.id}"]`)) {
+    const el = document.createElement("div");
+    el.className = "facet cat-key";
+    el.dataset.keyFor = cfg.id;
+    el.innerHTML = catalogueKeyHtml({ values: WORLD_PROB.map(([lo, c, t], i) => [i, c, t]) }) +
+      `<div style="padding-left:18px;font-size:10.5px;color:var(--dim)">Colour: the assessed chance a world's evidence is biological. Further from the globe: further from Earth (logarithmic). Shown at world view.</div>`;
+    label.after(el);
+  }
+  setLayerState(cfg.id, `${worlds.length} worlds · drawn round the globe at world view`);
+  draw();
 }
 async function addNeoRingLayer(cfg) {
   let text = null, fromCopy = false;
@@ -4041,9 +4276,13 @@ async function addNeoRingLayer(cfg) {
     placed = [];
     const R = globeRadiusPx(map.getZoom(), map.getCenter().lat);
     // World view only: the globe whole on screen, upright, with room round it.
-    if (!on || drawnProjection() === "mercator" || map.getPitch() > 5 || R > Math.min(w, h) * 0.45) return;
+    // The ring fits the screen (24 September): it used to reach twice the
+    // globe's size, so it came into view only just before the hand-over to
+    // Eyes. Now it shows as soon as there is a band of 45 pixels round the globe.
+    const outer = Math.min(R * 1.95, Math.min(w, h) / 2 - 22);
+    if (!on || drawnProjection() === "mercator" || map.getPitch() > 5 || outer - R * 1.1 < 45) return;
     const cx = w / 2, cy = h / 2;
-    placed = neoPlace(rows, R, cx, cy, Date.now(), span);
+    placed = neoPlace(rows, R, cx, cy, Date.now(), span, outer);
     // Faint guides: a whole year every 25 years or more, round the outside.
     g.strokeStyle = "rgba(214,204,188,0.12)"; g.fillStyle = "rgba(214,204,188,0.45)";
     g.font = "10px system-ui,sans-serif"; g.textAlign = "center";
@@ -4051,8 +4290,8 @@ async function addNeoRingLayer(cfg) {
     const step = Math.max(25, Math.ceil(span / 4 / 25) * 25);
     for (let k = 0; k <= span; k += step) {
       const a = neoAngle(k, span);
-      g.beginPath(); g.moveTo(cx + Math.cos(a) * R * 1.05, cy + Math.sin(a) * R * 1.05); g.lineTo(cx + Math.cos(a) * R * 1.95, cy + Math.sin(a) * R * 1.95); g.stroke();
-      g.fillText(String(y0 + k), cx + Math.cos(a) * R * 2.03, cy + Math.sin(a) * R * 2.03 + 3);
+      g.beginPath(); g.moveTo(cx + Math.cos(a) * R * 1.05, cy + Math.sin(a) * R * 1.05); g.lineTo(cx + Math.cos(a) * outer, cy + Math.sin(a) * outer); g.stroke();
+      g.fillText(String(y0 + k), cx + Math.cos(a) * (outer + 12), cy + Math.sin(a) * (outer + 12) + 3);
     }
     for (const p of placed.slice().sort((a, b) => a.size - b.size)) {
       g.beginPath(); g.arc(p.x, p.y, p.size, 0, 2 * Math.PI);
@@ -6866,7 +7105,8 @@ async function readLaunchLibrary(cfg) {
       const rocket = (r.rocket && r.rocket.configuration && (r.rocket.configuration.full_name || r.rocket.configuration.name)) || "";
       const m = r.mission || {};
       const when = r.net ? new Date(r.net) : null;
-      items.push({ geometry: g, key: `l${r.id}`, name: r.name || "", group: (r.status && r.status.name) || "",
+      items.push({ geometry: g, key: `l${r.id}`, name: r.name || "", group: (r.status && r.status.name) || "", when,
+        padKey: String(pad.id != null ? pad.id : `${g.coordinates}`), padName: [pad.name, pad.location && pad.location.name].filter(Boolean).join(", "),
         h: boxOpen + (ll2Img(r.image) ? `<img src="${escapeHtml(ll2Img(r.image))}" style="max-width:100%;margin-bottom:6px">` : "") +
           `<h4 style="margin:0 0 6px">${escapeHtml(r.name || "")}</h4>` +
           `<div>${when ? escapeHtml(when.toUTCString().replace(" GMT", " UTC")) : ""}${r.status ? " \u00b7 " + escapeHtml(r.status.name) : ""}</div>` +
@@ -10129,7 +10369,7 @@ const OTHER_MAPS = {
     { id: "ll2_pads", name: "Launch sites (Launch Library 2)", unit: "launch pads", colour: "#5E6070", route: "ll2", ready: true, lazy: true,
       what: "pads", copy: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ll2/pads.json",
       note: "Every launch pad in Launch Library 2, The Space Devs' open database, read live." },
-    { id: "ll2_upcoming", name: "Upcoming launches (Launch Library 2)", unit: "launches", colour: "#6E5A6E", route: "ll2", ready: true, lazy: true,
+    { id: "ll2_upcoming", name: "Upcoming launches per site (Launch Library 2)", unit: "launches", colour: "#6E5A6E", route: "ll2", ready: true, lazy: true,
       what: "upcoming", copy: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ll2/upcoming.json",
       note: "Every scheduled launch in Launch Library 2, placed at its pad, read live." },
     { id: "space_industry", name: "The space industry (openmaps.space)", unit: "places", colour: "#5E6070", route: "geojsonlive", ready: true, lazy: true,
@@ -10295,8 +10535,7 @@ const OTHER_MAPS = {
     { id: "nsf_locations", name: "Next Spaceflight: launch sites", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://nextspaceflight.com/locations/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "ufo_sightings", name: "UFO and UAP sightings reported worldwide (UFOSINT)", unit: "sightings", colour: "#9A8AA6", route: "pmtiles", ready: true, lazy: true,
-      fine: true, uniformRadius: true,
+    { id: "ufo_sightings", name: "UAP sightings reported worldwide (UFOSINT)", unit: "sightings", colour: "#9A8AA6", route: "ufo", ready: true, lazy: true,
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ufo_sightings.pmtiles",
       boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ufosint/pieces", boxesGz: true,
       attribution: "UFOSINT: UFOCAT (CUFOS), UPDB (PhenomAInon), Capella, UFO-search",
@@ -10312,9 +10551,9 @@ const OTHER_MAPS = {
     { id: "giga_countries", name: "School mapping by country (Giga)", unit: "countries", colour: "#627A86", route: "giga", ready: true, lazy: true,
       data: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/giga/countries.json",
       note: "Giga's own figures for every country on its map, copied daily (its service does not let other sites read it)." },
-    { id: "biosignature", name: "Biosignature Evidence Assessment", unit: "opens it in a panel", colour: "#5E6070", route: "companion", ready: true, lazy: true,
+    { id: "biosignature", name: "Biosignature Evidence Assessment", unit: "worlds", colour: "#B07F86", route: "worldsring", ready: true, lazy: true,
       page: "https://welcometoyourgalaxy.github.io/maps/off-planet-invasion_embed_13_large-script.html",
-      note: "Your own assessment from the Off-Planet Invasion page, whole, in the panel along the bottom." },
+      note: "Your own assessment from the Off-Planet Invasion page, read from the page itself and drawn round the globe at world view: each world further out the further it is from Earth, coloured by the assessed chance its evidence is biological. A click gives the evidence, its status and the mission that could settle it." },
     { id: "leverage_chart", name: "The Leverage Chart", unit: "opens it in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://welcometoyourgalaxy.github.io/maps/leverage-chart.html",
       note: "Your own chart from the Solution page, whole, in the panel along the bottom." },
@@ -10701,12 +10940,15 @@ function ensureLayer(cfg) {
       : cfg.route === "gsn" ? addGsnLayer(cfg)
       : cfg.route === "companion" ? Promise.resolve().then(() => addCompanion(cfg))
       : cfg.route === "rte" ? addRteLayer(cfg)
+      : cfg.route === "ll2" && cfg.what === "upcoming" ? addLaunchSitesLayer(cfg)
       : cfg.route === "ll2" ? addLivePlacesLayer(cfg)
       : cfg.route === "owidgrapher" ? addOwidGrapherLayer(cfg)
       : cfg.route === "buildings" ? addBuildingTypesLayer(cfg)
       : cfg.route === "spheres" ? addSpheresLayer(cfg)
       : cfg.route === "ctgases" ? addCtGasesLayer(cfg)
       : cfg.route === "neoring" ? addNeoRingLayer(cfg)
+      : cfg.route === "worldsring" ? addWorldsRingLayer(cfg)
+      : cfg.route === "ufo" ? addUfoLayer(cfg)
       : ["ejatlas", "geojsonlive", "wpgmza", "atlascities", "trasefac"].includes(cfg.route) ? addLivePlacesLayer(cfg)
       : cfg.route === "wmsmenu" ? addWmsMenuLayer(cfg)
       : cfg.route === "gfwmenu" ? addGfwMenuLayer(cfg)

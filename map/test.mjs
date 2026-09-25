@@ -3763,7 +3763,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   const fnv = new Function(src.match(/function pieceOf\(key\) \{[\s\S]*?\n\}/)[0] + "; return pieceOf;")();
   check("the map finds a sighting in the same piece the copy put it in (scripts/ufosint.py puts id 243 in 00)", fnv("243") === "00");
   check("the row draws UFOSINT's copy with every sighting's record read from gzipped pieces",
-        /id: "ufo_sightings"[\s\S]{0,400}route: "pmtiles"[\s\S]{0,300}tiles\/ufo_sightings\.pmtiles[\s\S]{0,200}ufosint\/pieces", boxesGz: true/.test(src));
+        /id: "ufo_sightings"[\s\S]{0,400}route: "ufo"[\s\S]{0,300}tiles\/ufo_sightings\.pmtiles[\s\S]{0,200}ufosint\/pieces", boxesGz: true/.test(src));
   check("a gzipped piece is unpacked only when it is a gzip stream", /DecompressionStream\("gzip"\)/.test(src) && /buf\[0\] !== 0x1f \|\| buf\[1\] !== 0x8b/.test(src) &&
         /readPiece\(cfg\.boxes, p\.id, cfg\.boxesGz\)/.test(src));
   check("it sits under Unidentified aerial phenomena", /\{ h: 3, t: "Unidentified aerial phenomena" \}, "ufo_sightings"/.test(src));
@@ -3876,6 +3876,75 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("Global Safety Net's layers are rows under Places that matter most for species", f("Rare species (Global Safety Net)", "12") === P + " > Biodiversity loss > Places that matter most for species" &&
         /title: `\$\{l\.name\} \(Global Safety Net\)`/.test(src));
   check("the endemic bird areas have a heading of their own", /\{ h: 4, t: "Birds" \}/.test(src) && f("Endemic Bird Areas", "birdlife_endemic_bird_areas") === P + " > Biodiversity loss > Birds");
+}
+{
+  console.log("\nround 39: rings fit the screen, the assessment round the globe, UAP and launches by time");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const neo = new Function(src.slice(src.indexOf("const NEO_PS = "), src.indexOf("\n// A bar of two handles")) + "; return { neoPlace };")();
+  const row = { "date of likeliest impact (UTC)": "2100-01-01 00:00", "impact probability, all dates": 1e-12, "diameter (m)": 100 };
+  const far = neo.neoPlace([row], 100, 0, 0, Date.UTC(2026, 0, 1), 100, 150)[0];
+  check("the asteroid ring fits the screen: its furthest mark sits at the outer edge given", Math.abs(Math.hypot(far.x, far.y) - 150) < 1e-6 &&
+        /const outer = Math\.min\(R \* 1\.95, Math\.min\(w, h\) \/ 2 - 22\);/.test(src) && /outer - R \* 1\.1 < 45\) return;/.test(src));
+  const W = new Function(src.slice(src.indexOf("const WORLD_PROB = "), src.indexOf("async function addWorldsRingLayer(")) + "; return { worldsParse, worldColour };")();
+  const worlds = W.worldsParse(`<script>\n    ${`const WORLDS = [
+    {
+        id: 'mars', name: 'Mars', color: '#e07a5f',
+        sub: 'Cheyava Falls, Jezero Crater',
+        where: '140 million miles · Jezero Crater',
+        prob: '3–8%', probMid: 5.5, logX: 0.13, size: 0.30, x: 17, y: 60,
+        note: 'Strongest evidence to date. Only returned samples can confirm it.',
+        badge: 'Strongest candidate',
+        evidence: 'Leopard-spot textures carrying vivianite and greigite alongside organic molecules. On Earth, patterns like these form where microbes have processed sediment.',
+        status: 'Peer-reviewed in Nature, September 2025. The rock is 2 to 3 billion years old. Non-biological chemistry cannot be ruled out from orbit or from the rover deck.',
+        mission: 'Mars Sample Return', when: '2030 – 2039',
+        missionText: 'Earth Return Orbiter around 2030, Sample Retrieval Lander around 2031, samples on Earth between 2035 and 2039. Architecture under review until mid-2026. China\\u2019s Tianwen-3 may return samples as early as 2031.'
+    },
+    {
+        id: 'europa', name: 'Europa', color: '#e6b98c',
+        sub: 'Jupiter II',
+        where: '390 million miles · moon of Jupiter',
+        prob: '5–15%', probMid: 10, logX: 0.35, size: 0.34, x: 40, y: 30,
+        note: 'Highest habitability score in the solar system. No biosignature yet.',
+        badge: 'Prime target',
+        evidence: 'A liquid ocean beneath 15 to 25 km of ice, holding organic molecules and energy sources — every ingredient life is known to require.',
+        status: 'The ocean is likely in contact with a rocky seafloor, which would drive hydrothermal chemistry. Nothing resembling a biosignature has been detected.',
+        mission: 'Europa Clipper', when: 'Arrives 2030',
+        missionText: 'Launched October 2024. More than 50 close flybys to assess the ocean\\u2019s habitability and search for biosignatures venting through the ice.'
+    },
+    {
+        id: 'enceladus', name: 'Enceladus', color: '#9fd8ee',
+        sub: 'Saturn II',
+        where: '790 million miles · moon of Saturn',
+        prob: '10–20%', probMid: 15, logX: 0.56, size: 0.30, x: 63, y: 58, gap: 30,
+        note: 'Best conditions for life existing now, anywhere in the solar system.',
+        badge: 'Prime target',
+        evidence: 'Cryovolcanic plumes throw ocean water into space, where spacecraft can fly through it. October 2025 analyses found complex organics, including aromatic compounds, amino acids and phosphorus.',
+        status: 'Caroline Freissinet, NASA astrobiologist, described every condition for life to arise and persist being present in one place at one time. Hydrothermal activity is evident. The plume samples the ocean directly.',
+        mission: 'Enceladus Orbilander', when: 'Launch 2038 · Landing early 2050s',
+        missionText: 'Proposed NASA Flagship, roughly $4.9B, project start FY2029. A 7.5-year cruise, a 4.5-year Saturn tour, 1.5 years in orbit, then two years on the surface searching for biosignatures.'
+    },
+    {
+        id: 'k2-18b', name: 'K2-18 b', color: '#7aa7ff',
+        sub: 'Leo, 124 light-years',
+        where: '730 trillion miles · constellation Leo',
+        prob: '<1%', probMid: 0.8, logX: 0.94, size: 0.40, x: 84, y: 27,
+        note: 'Extremely low. The signal itself is still unconfirmed.',
+        badge: 'Highly controversial',
+        evidence: 'A tentative dimethyl sulfide detection at 3-sigma. On Earth, DMS comes almost entirely from marine phytoplankton.',
+        status: 'A NASA reanalysis in July 2025 found no conclusive evidence. The signal sits below the 5-sigma threshold. The planet may be a gas-rich mini-Neptune with no habitable surface at all.',
+        mission: 'JWST observations', when: '2026 · ongoing',
+        missionText: '16 to 24 further hours of JWST time, aiming at 5-sigma. ESA\\u2019s Ariel, launching 2029, will provide comparative atmospheres across many exoplanets.'
+    }
+];`}\n</script>`);
+  check("the biosignature assessment is read from the page itself: four worlds, their chances and missions", worlds.length === 4 &&
+        worlds.map((w) => w.name).join() === "Mars,Europa,Enceladus,K2-18 b" && worlds[2].probMid === 15 && /Orbilander/.test(worlds[2].mission));
+  check("its colours are muted, not the page's orange", W.worldColour(0.8) === "#6E5A7A" && W.worldColour(15) === "#C9A9A6" &&
+        /id: "biosignature"[^\n]*route: "worldsring"/.test(src));
+  check("the UAP row is titled UAP, drawn by year with a bar, and lists every sighting at a spot", /name: "UAP sightings reported worldwide \(UFOSINT\)"/.test(src) &&
+        /\["==", \["get", "y"\], -9999\]/.test(src) && /queryRenderedFeatures\(e\.point, \{ layers: lids/.test(src));
+  check("upcoming launches are per site, soonest first with dates, and filtered by a date bar", /name: "Upcoming launches per site \(Launch Library 2\)"/.test(src) &&
+        /cfg\.route === "ll2" && cfg\.what === "upcoming" \? addLaunchSitesLayer\(cfg\)\n      : cfg\.route === "ll2" \? addLivePlacesLayer/.test(src) &&
+        /toISOString\(\)\.slice\(0, 10\) : "date not set"\)\}[\s\S]{1,9}\$\{escapeHtml\(l\.name/.test(src));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
