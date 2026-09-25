@@ -3618,14 +3618,14 @@ console.log("\nround of 23 September (23): the owner's thirty notes on the layer
         f("Soy traded under zero deforestation commitments trase") === `${P} > Deforestation > Zero-deforestation commitments` &&
         at("Palm oil") < at("Concessions") && order[at("Concessions")].h === 6 && /"\.panel-h6\{/.test(src));
   check("…a heading of the same name deeper down is not mistaken for this one", /found = own\.find\(named\) \|\| null;/.test(src));
-  check("28: the three forest cover maps are one row with sublayers under Forest and land cover",
+  check("28: the three forest cover maps are one row with sublayers under Deforestation (24 September)",
         ["jrc_global_forest_cover", "umd_tree_cover_density_2010", "wri_tropical_tree_cover", "wri_tropical_tree_cover_extent"]
-          .every((id) => f("x", id) === `${P} > Forest and land cover > ${B.forest}`));
+          .every((id) => f("x", id) === `${P} > Deforestation > ${B.forest}`));
   check("29: the land and forest cover layers named are out",
         ["esa_land_cover_2015", "idn_land_cover_2017", "Global_LCHS_2024", "LC1970", "LC1970HS", "Global_FC_2025_TTM", "ECJRCV2", "FCHS_2020_ECJRCV2",
          "REGBRNMYSIDN_FCHS_2020_ECJRC", "REGBRNMYSIDN_FC_2020_ECJRC", "Global_FC-FNF_2024_TTM", "Global_FC-FNF_2025_TTM", "Global_FC-FNF-HS_Latest_TTM",
          "REGBRNIDNMYS_FC-FNF-HS_Latest_TTM", "REGBRNMYSIDN_FCLandArea_2020_ECJRC", "IDNMYSBorneo_LCIndustrial_1970"].every((id) => f("x", id) === "(taken out)") &&
-        f("Forest cover 2020, Indonesia's own (Ministry of Environment and Forestry)", "IDN_FC2020_KLHK") === `${P} > Forest and land cover`);
+        f("Forest cover 2020, Indonesia's own (Ministry of Environment and Forestry)", "IDN_FC2020_KLHK") === "(taken out)");
   const cog = new Function(src.slice(src.indexOf("function tileDegrees"), src.indexOf("async function cogSquare")) + "; return { cogLevel, tileDegrees };")();
   check("30: GLC_FCS30D's 35 classes, drawn from OpenLandMap's GeoTIFFs square by square, and OpenStreetMap's land use, under Forest and land cover",
         /id: "glc_fcs30d"[^\n]*route: "rasterlive"/.test(src) && /cog4326:\/\/glc_fcs30d\/\$\{y\}\/\{z\}\/\{x\}\/\{y\}/.test(src) &&
@@ -3658,7 +3658,7 @@ console.log("\nround of 24 September: a search box for the layers, and the unpla
   check("the rows no rule placed are filed by what they show",
         f("inpe_amazon_prodes") === `${P} > Deforestation > Tree cover loss and alerts > Loss year by year` &&
         f("idn_forest_area") === `${P} > Deforestation > ${places.BUNDLES.plans}` &&
-        f("umd_tree_cover_density_2000") === `${P} > Forest and land cover > ${places.BUNDLES.forest}` &&
+        f("umd_tree_cover_density_2000") === `${P} > Deforestation > ${places.BUNDLES.forest}` &&
         f("birdlife_endemic_bird_areas") === `${P} > Biodiversity loss > Places that matter most for species` &&
         f("ibge_bra_biomes") === "Base and reference > Physical and human geography" &&
         f("fao_management_objectives") === `${P} > Deforestation > Forest zoning and management plans`);
@@ -3833,6 +3833,25 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         same("Tree plantations \u2014 158 countries gfw_planted_forests", [lib.AG + " > Plantations"]));
   check("the modelled rows say so in their titles", /Confined animal feeding operations \\u2014 a model's estimate, not registered sites/.test(src) &&
         /Livestock density \\u2014 a model's estimate, not a count of farms/.test(src) && /Registered animal-use facilities \\u2014 sites on official registers/.test(src));
+}
+{
+  console.log("\nround 37: forest and land cover pared down");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const cut = (from, to) => src.slice(src.indexOf(from), src.indexOf(to));
+  const lib = new Function(cut("const P = \"Destruction > Of the planet\";", "// The body of the heading a path names") + "; return { cataloguePlaces, CATALOGUE_TAKEN_OUT, IN, BUNDLES };")();
+  const f = (t, id = "") => lib.cataloguePlaces(`${t} ${id}`, `${t} ${id}`).join(" | ");
+  const P = "Destruction > Of the planet", OUT = lib.CATALOGUE_TAKEN_OUT;
+  check("the rows named are taken out",
+        [["GNW Carbon Model - Forest Age", "gfw_forest_age"], ["GNW Carbon Model - Litter Carbon", "gfw_litter_carbon"], ["Natural forests \u2014 Indonesia", "idn_natural_forest"],
+         ["Tree height 2020 \u2014 Indonesia and Malaysia (ETH Zurich)", "REGIDNMYS_TreeHeight_2020_ETHZurich"], ["Tree cover height 2020", "umd_tree_cover_height_2020"],
+         ["MapBiomas land cover \u2014 Brazil", "mapbiomas_bra_land_cover"], ["Forest type 2013 \u2014 Honduras", "icf_hnd_forest_type_2013"],
+         ["RSPO land cover 2010 \u2014 Southeast Asia", "rspo_southeast_asia_land_cover_2010"], ["Tree cover gain", "umd_tree_cover_gain"],
+         ["Land cover \u2014 United States", "usa_land_cover"]].every(([t, id]) => f(t, id) === OUT));
+  check("the JRC's managed land for Canada and the United States is one row under forest management",
+        ["jrc_managed_land_can", "jrc_managed_land_usa"].every((id) => f("JRC Managed Land", id) === lib.IN(P + " > Deforestation > Forest zoning and management plans", "managed")) &&
+        /\{ h: 5, bundle: "managed"/.test(src));
+  check("trees in mosaic landscapes and natural forests worldwide stay", f("Trees in mosaic landscapes", "wri_trees_in_mosaic_landscapes") === P + " > Forest and land cover" &&
+        f("Natural forests", "sbtn_natural_forests_map") === P + " > Forest and land cover");
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

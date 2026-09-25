@@ -5,6 +5,19 @@ touches.
 
 ---
 
+## Round 37 (24 September): forest and land cover pared down, at the owner's word
+
+- The forest cover row (2000, 2010, 2020; bundle "forest") is under Deforestation.
+- Taken out (CATALOGUE_BY_TITLE): every "GNW" row (Global Nature Watch carbon
+  model and forest age: nothing published that draws); Indonesia's natural
+  forest; IDN_FC2020_KLHK; every tree height row; mapbiomas_bra_land_cover;
+  icf_hnd_forest_type_2013; rspo_southeast_asia_land_cover_2010;
+  umd_tree_cover_gain; the United States land cover.
+- jrc_managed_land_can and _usa are one row with sublayers (bundle "managed")
+  under Deforestation > Forest zoning and management plans. JRC is the EU's
+  Joint Research Centre, not a mining company, so not under Mining.
+
+
 ## Round 36 (24 September): agriculture pared down, at the owner's word
 
 - Soy, corn and grain are under Climate > Nitrous oxide only (catalogue rule

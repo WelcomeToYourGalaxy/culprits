@@ -5383,6 +5383,7 @@ const BUNDLES = {
   forest: "Forest and tree cover in 2000, 2010 and 2020, worldwide and the tropics",
   plans: "Spatial plans, forest estate and the clearing moratorium, Indonesia",
   idnplant: "Plantations in Indonesia and its neighbours, region by region",
+  managed: "Managed land, Canada and the United States (EC Joint Research Centre)",
 };
 const IN = (path, key) => `${path} > ${BUNDLES[key]}`;
 const CATALOGUE_PLACES = [
@@ -5480,6 +5481,24 @@ const CATALOGUE_BY_TITLE = [
   [/badung/i, null],
   [/^(?!.*(deforest|emission|\bzdc\b|zero.deforestation)).*(coffee|arabica|robusta|cocoa|cotton|sugar)/i, null],
   [/^(production of )?corn\b.*\(Trase\)/i, null],
+  // Forest and land cover, pared down (24 September, at the owner's word):
+  // the Global Nature Watch carbon model and forest age rows (nothing
+  // published that draws), Indonesia's natural forest and its ministry's own
+  // forest cover, every tree height row, Brazil's land use and cover
+  // (MapBiomas), Honduras's forest types, RSPO's land cover of Southeast
+  // Asia, tree cover gain (nothing published), and the United States land
+  // cover taken out. The JRC's managed land for Canada and the United States
+  // is one row with two sublayers, under forest management.
+  [/\bGNW\b/, null],
+  [/(?=.*natural forests?)(?=.*indonesia)/i, null],
+  [/\bIDN_FC2020_KLHK\b|forest cover 2020, indonesia's own/i, null],
+  [/tree height|tree_cover_height|treeheight/i, null],
+  [/\bmapbiomas_bra_land_cover\b/, null],
+  [/\bicf_hnd_forest_type_2013\b/, null],
+  [/\brspo_southeast_asia_land_cover_2010\b/, null],
+  [/\bumd_tree_cover_gain\b|tree cover gain/i, null],
+  [/(?=.*land ?cover)(?=.*(united states|\busa?\b|conterminous))/i, null],
+  [/\bjrc_managed_land_(can|usa)\b/, [IN(P + " > Deforestation > Forest zoning and management plans", "managed")]],
   // Aqueduct's water risk and stress under Water scarcity.
   [/aqueduct|water stress/i, [P + " > Water scarcity"]],
   // ---- Round 23 (23 September), at the owner's word ---------------------
@@ -5510,7 +5529,7 @@ const CATALOGUE_BY_TITLE = [
   [/\bpangaea_global_mining\b|\bgfw_mining_concessions\b|\bIDN_Mining_2023\b|\bconcessionmining_spv\b/, [IN(P + " > Mining", "mines")]],
   [/\bgmw_global_mangrove_extent(_1996|_2016)?\b/, [IN(P + " > Oceans > Reefs and mangroves", "mangroves")]],
   [/\bglobal_water_watch_anomalies2?\b/, [IN(P + " > Surface water", "waterwatch")]],
-  [/\bjrc_global_forest_cover\b|\bumd_tree_cover_density_20(00|10)\b|\bwri_tropical_tree_cover(_extent)?\b/, [IN(P + " > Forest and land cover", "forest")]],
+  [/\bjrc_global_forest_cover\b|\bumd_tree_cover_density_20(00|10)\b|\bwri_tropical_tree_cover(_extent)?\b/, [IN(P + " > Deforestation", "forest")]],
   [/\bidn_forest_moratorium\b|\brtrw_tabanan_2023\b|\b(v3p3_)?spatialplan(forestland|moratorium|rtrwn|rtrwp_papua|rtrwp_papuawest)_spv\b/, [IN(P + " > Deforestation", "plans")]],
   // Round 24: the rows no rule had placed ("Not yet placed"), each filed by
   // what it shows. Indonesia's forest area (kawasan hutan) is the forest
@@ -11713,10 +11732,12 @@ const PANEL_ORDER = [
   // catalogue rows find their sub-heading through CATALOGUE_SUBS. Spatial plans
   // are one row with sublayers here (item 25); the Moratoriums and Spatial
   // plans headings are gone into it.
+  { h: 4, bundle: "forest", colour: "#62755F" },
   { h: 4, t: "Logging and timber concessions" },
   { h: 4, t: "Timber and rubber plantations" },
   { h: 4, t: "Emissions from forests" },
   { h: 4, t: "Forest zoning and management plans" },
+  { h: 5, bundle: "managed", colour: "#62755F" },
   { h: 4, t: "Illegal logging and timber trafficking" }, "powerbi_report",
   { h: 4, t: "Tree cover loss and alerts" },
   { h: 5, t: "Loss year by year" }, "glad_loss",
@@ -11744,7 +11765,6 @@ const PANEL_ORDER = [
   { h: 4, t: "Companies and financiers" }, "pe_subsidising", "pe_bankrolling",
   // Item 30: the most detailed worldwide land cover and land use found.
   { h: 3, t: "Forest and land cover" }, "glc_fcs30d", "osm_landuse",
-  { h: 4, bundle: "forest", colour: "#62755F" },
   { h: 3, t: "Peatland" },
   // Item 23: the EC JRC's own surface water map, back and drawn from its tiles.
   { h: 3, t: "Surface water" }, "jrc_water",
