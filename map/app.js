@@ -6631,7 +6631,7 @@ function catalogueRows(cfg, items) {
       const row = document.createElement("label");
       row.className = "layer layer-cat" + (n ? " layer-copy" : "");
       row.innerHTML =
-        `<input type="checkbox" data-${n ? "cat-copy" : "cat"}="${escapeHtml(key)}">` +
+        `<input type="checkbox" data-${n ? "cat-copy" : "cat"}="${escapeHtml(key)}" data-kind="${escapeHtml(catalogueKind(cfg, item))}">` +
         `<span class="swatch" style="background:${cfg.colour}"></span>` +
         `<span class="body"><span class="nm">${escapeHtml(item.title)}${liveMark(cfg)}` +
         `${siteLink(cfg.id)}${infoMark(item.about)}</span>` +
@@ -7322,6 +7322,7 @@ async function addGfwMenuLayer(cfg) {
     }
   };
   const rows = items.map((d) => ({
+    kind: d.cog ? "shape" : index ? { vector: "", raster: "shape", cog: "shape" }[gfwPickAsset(index[d.dataset || d.id] || []).how] : undefined,
     name: d.id, title: d.title, about: `${GFW_ABOUT[d.id] ? GFW_ABOUT[d.id] + " \u2014 " : ""}${d.meta.function || ""} ${d.meta.overview || ""}`.trim(),
     show: (want) => { if (want) put(d); else { take(d); rowSay(d.key, cfg.catUnit || ""); } },
   }));
@@ -11324,21 +11325,6 @@ const OTHER_MAPS = {
       files: [{ label: "Samples", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/soil/nematodes_samples.geojson" }, { label: "Samples pooled by 1 km square, with their environment", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/soil/nematodes_aggregated.geojson" }],
       attribution: "van den Hoogen, Geisen, Wall et al. 2020, Scientific Data 7, 103 (CC0)",
       note: "The global database of soil nematode abundance and functional group composition: 6,825 soil samples from every continent, each with its count of nematodes per 100 g of dry soil by feeding group (bacteria, fungi, plant, omnivore, predator feeders). Both files of its data record are drawn whole, the samples and the samples pooled by 1 km square with the environmental figures the 2019 global maps were modelled from; every column is in the box. Copied from figshare (10.6084/m9.figshare.c.4718003) by culprits-tiles-more." },
-    // Round 50: copies of three Global Forest Watch datasets its tile service
-    // draws slowly, made by culprits-tiles-more scripts/gfw_copies.py (every
-    // feature, every field, latest version).
-    { id: "copy_endemic_bird_areas", name: "Endemic Bird Areas (BirdLife International, Global Forest Watch's copy)", unit: "areas", colour: "#5E6470", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Endemic Bird Areas", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gfw/birdlife_endemic_bird_areas.geojson" }],
-      attribution: "BirdLife International, via Global Forest Watch",
-      note: "Every Endemic Bird Area and every field, copied whole from Global Forest Watch's latest version, so it draws at once." },
-    { id: "copy_per_forest_concessions", name: "Forest concessions, Peru (Global Forest Watch)", unit: "concessions", colour: "#6E5E52", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Forest concessions, Peru", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gfw/per_forest_concessions.geojson" }],
-      attribution: "Global Forest Watch (per_forest_concessions)",
-      note: "Every concession and every field, copied whole from Global Forest Watch's latest version, so it draws at once." },
-    { id: "copy_osinfor_per_forest_concessions", name: "Forest concessions, Peru (OSINFOR, Global Forest Watch)", unit: "concessions", colour: "#6E5E52", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Forest concessions, Peru (OSINFOR)", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gfw/osinfor_per_forest_concessions.geojson" }],
-      attribution: "OSINFOR, via Global Forest Watch",
-      note: "Every concession and every field, copied whole from Global Forest Watch's latest version, so it draws at once." },
     { id: "soilgrids", name: "Soil properties (SoilGrids, ISRIC)", unit: "soil properties, 250 m", colour: "#6B5A4A", route: "rasterlive", ready: true, lazy: true,
       attribution: "ISRIC SoilGrids (CC BY 4.0)", maxzoom: 14,
       choices: [
@@ -11961,9 +11947,6 @@ const LAYER_KIND = {
   aquaculture_ponds: ["animal", "upstream"],
   soilgrids: ["microorganism", "downstream"],
   soil_nematodes: ["animal", "downstream"],
-  copy_endemic_bird_areas: ["animal", "downstream"],
-  copy_per_forest_concessions: ["plant", "upstream"],
-  copy_osinfor_per_forest_concessions: ["plant", "upstream"],
   soil_spun: ["microorganism", "downstream"],
   wastewater: ["insentient", "downstream"],
   wastewater_n_tot: ["insentient", "downstream"], wastewater_n_treated: ["insentient", "downstream"],
@@ -12574,9 +12557,6 @@ const LAYER_SITE = {
   slavery_sites: "https://github.com/WelcomeToYourGalaxy/anti-slavery-map",
   soilgrids: "https://maps.isric.org/mapserv?map=/map",
   soil_nematodes: "https://doi.org/10.6084/m9.figshare.c.4718003",
-  copy_endemic_bird_areas: "https://data-api.globalforestwatch.org/dataset/birdlife_endemic_bird_areas",
-  copy_per_forest_concessions: "https://data-api.globalforestwatch.org/dataset/per_forest_concessions",
-  copy_osinfor_per_forest_concessions: "https://data-api.globalforestwatch.org/dataset/osinfor_per_forest_concessions",
   soil_spun: "https://doi.org/10.5281/zenodo.14871588",
   tableau_zsf: "https://public.tableau.com/shared/ZSF724HPQ?:showVizHome=no&:embed=y",
   theyrule: "https://theyrule.net/",
@@ -12685,9 +12665,6 @@ const NOT_LIVE = {
   bocc: "The report's league tables, read once from the 2026 report; headquarters from GLEIF and OpenStreetMap",
   soil_spun: "Copied once from the Underground Atlas data record (Zenodo 10.5281/zenodo.14871588)",
   soil_nematodes: "Copied from its figshare data record; copied again only when a file changes",
-  copy_endemic_bird_areas: "Copied from Global Forest Watch; copied again when it publishes a new version",
-  copy_per_forest_concessions: "Copied from Global Forest Watch; copied again when it publishes a new version",
-  copy_osinfor_per_forest_concessions: "Copied from Global Forest Watch; copied again when it publishes a new version",
   largest_companies: "Compiled weekly from Wikidata by culprits-tiles-more",
   coastal_cleanup: "Ocean Conservancy's cleanup sites, from a copy made daily (their server lets only their own site read it)",
   food_soy: "Built once from the 2017 data package of Halpern et al. 2022; it is not updated",
@@ -12807,7 +12784,7 @@ const PANEL_ORDER = [
   // plans headings are gone into it.
   { h: 4, t: "Forest cover in 2020" },
   { h: 4, t: "Trees in mosaic landscapes" },
-  { h: 4, t: "Logging and timber concessions" }, "copy_per_forest_concessions", "copy_osinfor_per_forest_concessions",
+  { h: 4, t: "Logging and timber concessions" },
   { h: 4, t: "Timber and rubber plantations" },
   { h: 4, t: "Forest zoning and management plans" },
   { h: 4, t: "Illegal logging and timber trafficking" }, "powerbi_report",
@@ -12828,7 +12805,7 @@ const PANEL_ORDER = [
   { h: 4, bundle: "plans", colour: "#6E6A55" },
   { h: 3, t: "Biodiversity loss" },
   { h: 4, t: "Places that matter most for species" }, "gsn_rankings", "atlas_hotspots", "atlas_cities",
-  { h: 4, t: "Birds" }, "copy_endemic_bird_areas",
+  { h: 4, t: "Birds" },
   { h: 4, t: "Protected and conserved areas" },
   { h: 4, t: "Intact and primary forests" },
   { h: 4, t: "Disturbance" },
@@ -12945,6 +12922,10 @@ const PANEL_ORDER = [
   { h: 2, t: "Of microscopics" }, "site_enslaved_microbes",
   { h: 2, t: "Of the “insentient”" }, "site_insentient",
 
+  // Asked for 26 September (round 56): a category of the owner's own choosing,
+  // above Off-planet invasion; empty until they name its layers.
+  { h: 1, t: "Selected Layers" },
+
   { h: 1, t: "Off-planet invasion" },
   { h: 2, t: "To Earth" },
   { h: 3, t: "Near-Earth object impacts" }, "esa_risk",
@@ -12954,14 +12935,11 @@ const PANEL_ORDER = [
   { h: 3, t: "Space launches" }, "ll2_pads", "ll2_upcoming",
   { h: 3, t: "Craft in space" }, "eyes_craft",
   { h: 3, t: "Protecting extraterrestrial life" }, "biosignature",
-
-  { h: 1, t: "Base and reference" },
-  { h: 2, t: "Boundaries and relief" },
-  { h: 2, t: "Physical and human geography" },
-
-  { h: 1, t: "Buildings" }, "building_types",
+  // Base and reference (empty since 25 September) and Buildings taken out, the
+  // Buildings row with it (26 September, round 56).
 ];
 const PANEL_REMOVED = new Set([
+  "building_types",                // taken out with its heading, 26 September (round 56)
   "skytruth_tests",                // the Housekeeping heading and its row, taken out 24 September
   "gsn",                           // its layers are rows of their own (24 September); the menu row is out of sight
   "trase_cocoa_ivory",             // taken out 24 September with the other cocoa rows
@@ -13404,6 +13382,7 @@ function arrangePanel() {
   pinBuildings(box);
   addRowTools(box);
   layerSearch(box);
+  layerKindSwitch(box);
   if (!document.getElementById("panel-h-style")) {
     const st = document.createElement("style");
     st.id = "panel-h-style";
@@ -13540,6 +13519,78 @@ function applyLayerSearch(box, query) {
   }
   for (const note of box.querySelectorAll(".toc-note")) note.classList.toggle("search-hide", true);
   return n;
+}
+/* ---------- every layer of one kind on or off at once (round 56) ---------- */
+// Asked for 26 September: switches to turn on, or off, every layer that marks
+// positions (points), every layer that draws areas (shapes), and every layer
+// that shades whole countries (national highlights); any of them together.
+// A row's kind is read from how it is drawn: its route, and its unit where the
+// unit says countries or areas. Catalogue rows (Global Forest Watch, Nusantara,
+// Trase, Climate TRACE's gases, Global Safety Net) are included, at the owner's
+// word, knowing that hundreds of rows at once are slow; they are ticked a few at
+// a time so the page keeps answering. Rows whose kind cannot be told from what
+// they are (pages in a panel, the Eyes and ring views, trade flow lines) are
+// left to be ticked by hand.
+const KIND_POINT = new Set(["pmtiles", "sitemap", "geojsonlive", "kml", "umap", "wpgmza", "trasefac", "ctairgas", "ctair", "worker",
+  "ejatlas", "carbonmapper", "atlascities", "ufo", "gta", "cafo", "arcgisapp"]);
+const KIND_SHAPE = new Set(["pmshapes", "pmtareas", "arcgis", "arcgisdyn", "rasterlive", "rasterparts", "tile", "osmlanduse", "coral",
+  "glw", "shapes", "cerulean", "slickarchive"]);
+const KIND_NATIONAL = new Set(["giga", "country", "owidgrapher"]);
+function layerKind(cfg) {
+  if (!cfg || !cfg.route) return "";
+  const u = String(cfg.unit || "");
+  if (KIND_NATIONAL.has(cfg.route) || /\bcountr/i.test(u)) return "national";
+  if (/\b(areas?|zones|territor\w*|outlines?|clusters|concessions|per map cell|per square|cover|hotspots)\b|\b\d+ m\b/i.test(u)) return "shape";
+  if (KIND_SHAPE.has(cfg.route)) return "shape";
+  if (KIND_POINT.has(cfg.route)) return "point";
+  return "";
+}
+const POINT_WORDS = /\b(mills?|points?|plants?|refiner\w*|facilit\w*|stations?|ports?|villages?|towns?|settlements?|sites?|photos?|news|dams?|power)\b/i;
+function catalogueKind(cfg, item) {
+  if (item && item.kind) return item.kind;
+  const words = `${(item && item.title) || ""} ${(item && item.name) || ""}`;
+  if (cfg.route === "trase") return "national";
+  if (cfg.route === "ctgases") return "point";
+  if (cfg.route === "gsn") return "shape";
+  return POINT_WORDS.test(words) ? "point" : "shape";
+}
+function layerKindSwitch(box) {
+  if (!box || typeof document.createElement !== "function" || document.getElementById("kind-switch")) return;
+  const search = document.getElementById("layer-search");
+  const at = search && search.parentElement ? search.parentElement : null;
+  const wrap = document.createElement("div");
+  wrap.id = "kind-switch";
+  wrap.className = "kind-switch";
+  wrap.innerHTML = `<span class="ks-l">Turn on every</span>` + [["point", "Points"], ["shape", "Shapes"], ["national", "National highlights"]]
+    .map(([k, t]) => `<button type="button" class="chip" data-kind-all="${k}" aria-pressed="false">${t}</button>`).join("");
+  if (at && at.after) at.after(wrap); else if (box.parentElement) box.parentElement.insertBefore(wrap, box);
+  const cfgs = new Map(LAYERS.concat(...GROUPS.map((g) => g.children || [])).filter(Boolean).map((c) => [c.id, c]));
+  const kindOf = (el) => el.dataset.layer ? (PANEL_REMOVED.has(el.dataset.layer) ? "" : layerKind(cfgs.get(el.dataset.layer))) : (el.dataset.kind || "");
+  let queue = [], running = false;
+  const pump = () => {
+    if (!queue.length) { running = false; return; }
+    running = true;
+    for (const [el, on] of queue.splice(0, 8)) {
+      if (el.checked === on) continue;
+      el.checked = on;
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    setTimeout(pump, 150);
+  };
+  wrap.addEventListener("click", (e) => {
+    const btn = e.target && e.target.closest ? e.target.closest("[data-kind-all]") : null;
+    if (!btn) return;
+    const on = btn.getAttribute("aria-pressed") !== "true";
+    btn.setAttribute("aria-pressed", String(on));
+    btn.classList.toggle("on", on);
+    const k = btn.dataset.kindAll;
+    const els = [...box.querySelectorAll("input[data-layer], input[data-cat]")].filter((el) => kindOf(el) === k);
+    queue = queue.filter(([el]) => kindOf(el) !== k).concat(els.map((el) => [el, on]));
+    if (!running) pump();
+  });
+  addStyle(".kind-switch{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin:0 0 6px;font-size:11px;color:var(--dim)}" +
+    ".kind-switch .chip{font:inherit;font-size:11px;padding:2px 7px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:none;color:var(--ink,#e8e2d6);cursor:pointer}" +
+    ".kind-switch .chip.on{background:rgba(120,160,220,.28);border-color:rgba(150,180,230,.6)}", "kind-switch");
 }
 function layerSearch(box) {
   if (!box || !box.parentElement || typeof document.createElement !== "function" || document.getElementById("layer-search")) return;

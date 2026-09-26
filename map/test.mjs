@@ -1918,7 +1918,7 @@ console.log("\nthe layers box, in the chosen order");
   }
   check("nothing is both placed and removed", ids.every((id) => !order.PANEL_REMOVED.has(id)));
   const heads = order.PANEL_ORDER.filter((x) => typeof x === "object" && x.h === 1).map((x) => x.t);
-  check("the four sections come first, in order", heads.slice(0, 4).join("|") === "On-planet invasion|Destruction|Suppression|Off-planet invasion");
+  check("the four sections come first, in order, with Selected Layers above Off-planet (round 56)", heads.slice(0, 5).join("|") === "On-planet invasion|Destruction|Suppression|Selected Layers|Off-planet invasion");
   check("unplaced layers get their own heading, not the bin", /heading\(1, "Not yet placed"\)/.test(src));
   check("removed rows stay findable by the code", /gone\.hidden = true/.test(src));
   check("the Trase row no longer shares an id", (src.match(/id: ?"trase"/g) || []).length === 1);
@@ -2016,7 +2016,7 @@ console.log("\nsuppression in the given order; news box filters");
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
   const order = new Function(body + "; return PANEL_ORDER;")();
   const at = (t) => order.findIndex((x) => x && x.t === t);
-  check("Off-planet invasion is its own section, after Suppression", at("Off-planet invasion") > at("Suppression") && at("Off-planet invasion") < at("Buildings"));
+  check("Off-planet invasion is its own section, after Suppression", at("Off-planet invasion") > at("Suppression") && at("Buildings") === -1);
   check("Suppression opens on Of humans, then its four kinds in order",
         at("Of humans") < at("Physical suppression") && at("Physical suppression") < at("Suppression by \u201crepresentation\u201d within it") &&
         at("Suppression by \u201crepresentation\u201d within it") < at("Suppression by information") && at("Suppression by information") < at("Suppression by social molds"));
@@ -2069,7 +2069,7 @@ console.log("\nbuilding types, one layer");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
   const o = new Function(body + "; return { PANEL_ORDER, PANEL_REMOVED };")();
-  check("Building types is one row", o.PANEL_ORDER.includes("building_types") && !o.PANEL_ORDER.includes("fin_bank"));
+  check("Building types is taken out with its heading (round 56)", !o.PANEL_ORDER.includes("building_types") && !o.PANEL_ORDER.includes("fin_bank"));
   check("…and the forty separate rows are out of the box", ["fin_bank", "jud_courts", "activist_prisons", "slavery_facilities"].every((i) => o.PANEL_REMOVED.has(i)));
   const cols = new Function(src.slice(src.indexOf("function buildingColours("), src.indexOf("async function addBuildingTypesLayer(")) + "; return buildingColours;")();
   const c = cols(["Banks", "Courts", "Police stations"]);
@@ -2535,7 +2535,7 @@ console.log("\nLive Projects to Resist, drawn here");
 console.log("\nBuildings");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("the row and its heading are called Buildings", /id: "building_types", name: "Buildings"/.test(src) && /\{ h: 1, t: "Buildings" \}/.test(src));
+  check("the Buildings row stays defined but out of the box", /id: "building_types", name: "Buildings"/.test(src) && !/\{ h: 1, t: "Buildings" \}/.test(src) && /"building_types",\s+\/\/ taken out/.test(src));
   check("each kind of building is its own line, with its colour and count, not a drop-down",
         !/aria-label="Kind of building"/.test(src) && /class="bt-kind"><input type="checkbox" data-bt-kind=/.test(src));
   check("each kind is its own archive, loaded when ticked; an older single archive still reads", /files\[t\]/.test(src) && /const single = !Object\.keys\(files\)\.length/.test(src));
@@ -2922,13 +2922,12 @@ console.log("\na row can sit under more than one subject");
   const at = (t) => order.findIndex((x) => x && x.t === t);
   check("the eight new headings are in, in the order's own style",
         // Spatial plans is one row with sublayers under Deforestation since round 23.
-        ["Fire", "Peatland", "Surface water", "Base and reference", "Land and territory"].every((t) => at(t) > -1) && at("Spatial plans") === -1 &&
+        ["Fire", "Peatland", "Surface water", "Land and territory"].every((t) => at(t) > -1) && at("Base and reference") === -1 && at("Spatial plans") === -1 &&
         at("Land held under permit") === -1 && at("Forest and land cover") > -1);
   check("the planet's new headings sit under Of the planet, before Of groups",
         ["Fire", "Peatland", "Surface water", "Other concessions", "General", "Oil spills and slicks"]
           .every((t) => at(t) > at("Of the planet") && at(t) < at("Of groups")));
-  check("Base and reference is its own section, beside Buildings", at("Base and reference") < at("Buildings") &&
-        order[at("Base and reference")].h === 1);
+  check("Base and reference and Buildings are taken out (round 56)", at("Base and reference") === -1 && at("Buildings") === -1);
 }
 
 console.log("\nNusantara's layers spread through the box");
@@ -4068,7 +4067,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /id: "eyes_craft"[^\n]*route: "leave"/.test(src) && /if \(vis === "visible" && !AWAY\) leaveEarth\(\);/.test(src) &&
         /if \(!c \|\| c\.route !== "leave"\) continue;/.test(src) && /cfg\.route === "leave" \? Promise\.resolve\(\)/.test(src));
   check("the earthquakes are under Destruction > Of the planet > Natural disasters, and nowhere under Base and reference",
-        /\{ h: 3, t: "Natural disasters" \}, "skytruth_quakes",/.test(src) && /\{ h: 2, t: "Physical and human geography" \},\n/.test(src));
+        /\{ h: 3, t: "Natural disasters" \}, "skytruth_quakes",/.test(src) && !/"Physical and human geography"/.test(src));
   check("a Soil biodiversity heading under Biodiversity loss holds the Underground Atlas and SoilGrids",
         /\{ h: 4, t: "Soil biodiversity" \}, "soil_spun", ("soil_nematodes", )?("soil_earthworms", )?"soilgrids",/.test(src) && /id: "soil_spun"[^\n]*route: "rasterlive"/.test(src) &&
         /soil\/spun_choices\.json/.test(src) && /if \(!cfg\.choices \|\| !cfg\.choices\.length\) \{ setLayerState/.test(src));
@@ -4199,10 +4198,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /const asset = d\.cog \? \{ how: "cog", uri: GFW_COG_TILES \+ encodeURIComponent\(d\.cog\)/.test(src) && /GFW_COG_MEASURED\.has\(ds\)/.test(src));
   check("soil nematodes are under Soil biodiversity, both files of the record drawn",
         /"soil_spun", "soil_nematodes", ("soil_earthworms", )?"soilgrids"/.test(src) && /soil\/nematodes_samples\.geojson/.test(src) && /soil\/nematodes_aggregated\.geojson/.test(src));
-  check("the copies of Endemic Bird Areas and Peru's concessions are under Birds and Logging",
-        /\{ h: 4, t: "Birds" \}, "copy_endemic_bird_areas"/.test(src) &&
-        /"Logging and timber concessions" \}, "copy_per_forest_concessions", "copy_osinfor_per_forest_concessions"/.test(src) &&
-        /gfw\/birdlife_endemic_bird_areas\.geojson/.test(src));
+  check("the copies of Endemic Bird Areas and Peru's concessions are gone again (GFW refuses the downloads, round 56)", !/copy_(endemic_bird_areas|per_forest|osinfor)/.test(src));
   check("the page asks for this round's script", /app\.js\?v=(5\d|[6-9]\d)/.test(html) && /wire\.js\?v=(5\d|[6-9]\d)/.test(html));
 }
 {
@@ -4236,6 +4232,24 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("the hotspot plates are drawn from the copied PDFs by pdf.js, over the pictures",
         /const ATLAS_PDFS = "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/atlas\/pdfs\/";/.test(src) &&
         /if \(what\.plate\) atlasVector\(what\.plate, p,/.test(src) && /map\.off\("moveend", atlasPlateOff\.vec\)/.test(src));
+}
+{
+  console.log("\nround 56: Selected Layers; Base and reference and Buildings out; every layer of a kind on at once");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const kind = new Function(src.slice(src.indexOf("const KIND_POINT"), src.indexOf("function layerKindSwitch(")) + "; return { layerKind, catalogueKind };")();
+  check("rows are told apart by how they are drawn",
+        kind.layerKind({ route: "pmtiles", unit: "plants" }) === "point" && kind.layerKind({ route: "sitemap", unit: "venues" }) === "point" &&
+        kind.layerKind({ route: "country", unit: "Mt" }) === "national" && kind.layerKind({ route: "shapes", unit: "countries" }) === "national" &&
+        kind.layerKind({ route: "shapes", unit: "routes" }) === "shape" && kind.layerKind({ route: "rasterlive", unit: "30 m" }) === "shape" &&
+        kind.layerKind({ route: "geojsonlive", unit: "countries" }) === "national" && kind.layerKind({ route: "arcgisapp", unit: "biodiversity hotspots" }) === "shape" &&
+        kind.layerKind({ route: "companion", unit: "opens the page itself in a panel" }) === "");
+  check("catalogue rows carry a kind too",
+        kind.catalogueKind({ route: "trase" }, { title: "x" }) === "national" && kind.catalogueKind({ route: "wmsmenu" }, { title: "Palm oil mills" }) === "point" &&
+        kind.catalogueKind({ route: "wmsmenu" }, { title: "Logging concessions" }) === "shape" && kind.catalogueKind({ route: "gfwmenu" }, { title: "x", kind: "shape" }) === "shape" &&
+        /data-kind="\$\{escapeHtml\(catalogueKind\(cfg, item\)\)\}"/.test(src));
+  check("three switches, any of them together, ticking a few rows at a time",
+        /\["point", "Points"\], \["shape", "Shapes"\], \["national", "National highlights"\]/.test(src) && /queue\.splice\(0, 8\)/.test(src) && /  layerKindSwitch\(box\);/.test(src));
+  check("Selected Layers sits above Off-planet invasion", /\{ h: 1, t: "Selected Layers" \},\n\n  \{ h: 1, t: "Off-planet invasion" \}/.test(src));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

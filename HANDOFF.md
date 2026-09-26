@@ -5,6 +5,21 @@ touches.
 
 ---
 
+## Round 56 (26 September)
+
+- "Selected Layers" h1 above Off-planet invasion, empty until the owner names
+  its layers. Base and reference and Buildings headings taken out;
+  building_types in PANEL_REMOVED.
+- Kind switches under the layer search ("Turn on every": Points, Shapes,
+  National highlights; any together): layerKind(cfg) from route and unit,
+  catalogueKind(cfg, item) for catalogue rows (data-kind on their inputs; GFW
+  from its asset). Catalogue rows included at the owner's word; ticked 8 at a
+  time every 150 ms.
+- GFW's download/gpkg answers 403 without an API key, so gfw_copies.py is
+  deleted from culprits-tiles-more (round 56 tiles patch) and the three copy_*
+  rows are gone; GFW's own rows for those datasets stay.
+
+
 ## Round 55 (26 September)
 
 - soil_earthworms (round 53) taken out at the owner's word: they wanted soil
