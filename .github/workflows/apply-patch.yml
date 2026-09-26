@@ -1,0 +1,85 @@
+# Applies the patch files uploaded to patches/ on github.com, so a round needs
+# nothing on the owner's computer. Each patch is run, the map's three test
+# suites must pass, and the result is saved with the patch file removed. A patch
+# that fails, or whose changes fail the tests, is moved to patches/failed/ and
+# nothing else it did is kept; the run then shows red with the reason in its log.
+# Afterwards the map is republished (a save made by this workflow cannot start
+# pages.yml on its own, so it is asked to run).
+name: apply-patch
+on:
+  push:
+    branches: [main]
+    paths: ["patches/*.py"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: apply-patch
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Apply, test, save
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -u
+          git config user.name "apply-patch"
+          git config user.email "actions@users.noreply.github.com"
+          shopt -s nullglob
+          ran=0; bad=0
+          for p in patches/*.py; do
+            ran=1
+            echo "::group::$p"
+            ok=1
+            python3 "$p" || ok=0
+            if [ $ok = 1 ]; then
+              node map/test.mjs > /tmp/t1.txt 2>&1 || { ok=0; grep -E "FAIL|passed" /tmp/t1.txt | tail -40; }
+              node map/wire.test.mjs > /tmp/t2.txt 2>&1 || { ok=0; tail -20 /tmp/t2.txt; }
+              node worker/test.mjs > /tmp/t3.txt 2>&1 || { ok=0; tail -20 /tmp/t3.txt; }
+              tail -n 2 /tmp/t1.txt /tmp/t2.txt /tmp/t3.txt
+            fi
+            echo "::endgroup::"
+            name=$(basename "$p")
+            if [ $ok = 1 ]; then
+              git rm -q "$p"
+              git add -A
+              git commit -q -m "Apply $name" || true
+              echo "Applied $name."
+            else
+              git reset -q --hard HEAD
+              git clean -q -fd
+              mkdir -p patches/failed
+              git mv "$p" "patches/failed/$name"
+              git commit -q -m "Could not apply $name"
+              echo "::error::$name did not apply or its tests failed; moved to patches/failed/. Nothing else it did was kept."
+              bad=1
+            fi
+          done
+          [ $ran = 1 ] || { echo "No patches waiting."; exit 0; }
+          for i in 1 2 3 4 5; do
+            if git pull -q --rebase origin main && git push -q origin HEAD:main; then
+              echo "Saved."
+              gh workflow run pages.yml --ref main || echo "Pages will republish on its next run."
+              exit $bad
+            fi
+            git rebase --abort >/dev/null 2>&1 || true
+            sleep $((RANDOM % 20 + 5))
+          done
+          echo "::error::Could not save after 5 tries."
+          exit 1
