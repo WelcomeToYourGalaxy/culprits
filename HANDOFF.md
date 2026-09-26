@@ -5,6 +5,20 @@ touches.
 
 ---
 
+## Round 53 (26 September)
+
+- soil_earthworms (Soil biodiversity): GBIF occurrence density tiles, live,
+  order Crassiclitellata (backbone key 5958860; Lumbricidae 6103 sits in it),
+  choices "Each record" (classic.point) and "Records per hexagon" (hex, 30 per
+  tile). Chosen because sWorm / Phillips 2019 state no licence.
+- culprits-tiles-more round 53: scripts/atlas_pages_probe.py (by hand) saves
+  every hotspot PDF's pages 2+ as text/pictures/rectangles JSON and pages 8-12
+  as 1200 px pictures to probe/atlas_pages/, to write the placement of the
+  Atlas's detailed city inset maps (owner, 26 September: pages 8-12 hold more
+  detailed maps to integrate). Global Safety Net rankings: not wanted (owner).
+- Needs rounds 50 and 52 first.
+
+
 ## Round 52 (26 September)
 
 - Taken out at the owner's word: GFW's ci_biodiversity_hotspots (duplicate of

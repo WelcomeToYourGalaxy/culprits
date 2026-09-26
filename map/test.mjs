@@ -4070,7 +4070,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("the earthquakes are under Destruction > Of the planet > Natural disasters, and nowhere under Base and reference",
         /\{ h: 3, t: "Natural disasters" \}, "skytruth_quakes",/.test(src) && /\{ h: 2, t: "Physical and human geography" \},\n/.test(src));
   check("a Soil biodiversity heading under Biodiversity loss holds the Underground Atlas and SoilGrids",
-        /\{ h: 4, t: "Soil biodiversity" \}, "soil_spun", ("soil_nematodes", )?"soilgrids",/.test(src) && /id: "soil_spun"[^\n]*route: "rasterlive"/.test(src) &&
+        /\{ h: 4, t: "Soil biodiversity" \}, "soil_spun", ("soil_nematodes", )?("soil_earthworms", )?"soilgrids",/.test(src) && /id: "soil_spun"[^\n]*route: "rasterlive"/.test(src) &&
         /soil\/spun_choices\.json/.test(src) && /if \(!cfg\.choices \|\| !cfg\.choices\.length\) \{ setLayerState/.test(src));
   check("each layer in the Showing box has its colour key indented under it",
         /`<span class="lg-un">\$\{c\.unit \|\| ""\}<\/span><\/div>` \+ legendKeyRows\(c\.id\)/.test(src) && /function legendKeyPairs\(id\)/.test(src) && /function watchKeysForLegend\(\)/.test(src));
@@ -4198,7 +4198,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("a part draws its own GeoTIFF, stretched by its own statistics",
         /const asset = d\.cog \? \{ how: "cog", uri: GFW_COG_TILES \+ encodeURIComponent\(d\.cog\)/.test(src) && /GFW_COG_MEASURED\.has\(ds\)/.test(src));
   check("soil nematodes are under Soil biodiversity, both files of the record drawn",
-        /"soil_spun", "soil_nematodes", "soilgrids"/.test(src) && /soil\/nematodes_samples\.geojson/.test(src) && /soil\/nematodes_aggregated\.geojson/.test(src));
+        /"soil_spun", "soil_nematodes", ("soil_earthworms", )?"soilgrids"/.test(src) && /soil\/nematodes_samples\.geojson/.test(src) && /soil\/nematodes_aggregated\.geojson/.test(src));
   check("the copies of Endemic Bird Areas and Peru's concessions are under Birds and Logging",
         /\{ h: 4, t: "Birds" \}, "copy_endemic_bird_areas"/.test(src) &&
         /"Logging and timber concessions" \}, "copy_per_forest_concessions", "copy_osinfor_per_forest_concessions"/.test(src) &&
@@ -4214,6 +4214,13 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   const t = "Biodiversity hotspots — Global (land only) ci_biodiversity_hotspots";
   check("Global Forest Watch's biodiversity hotspots row is taken out; the Atlas's hotspots row stays",
         lib.cataloguePlaces(t, t).join() === "(taken out)" && /id: "atlas_hotspots"/.test(src));
+}
+{
+  console.log("\nround 53: earthworms from GBIF, live");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("earthworm records are under Soil biodiversity, drawn live from GBIF's map service for order Crassiclitellata",
+        /"soil_nematodes", "soil_earthworms", "soilgrids"/.test(src) &&
+        /id: "soil_earthworms"[^\n]*route: "rasterlive"/.test(src) && /api\.gbif\.org\/v2\/map\/occurrence\/density\/\{z\}\/\{x\}\/\{y\}@1x\.png\?taxonKey=5958860&style=classic\.point/.test(src));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
