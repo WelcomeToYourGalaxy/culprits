@@ -5,6 +5,18 @@ touches.
 
 ---
 
+## Round 54 (26 September): Atlas hotspot plates sharp at any zoom
+
+- atlasVector / atlasPageClip: once the view is closer than the plate's fit
+  zoom + 1, the part of the hotspot PDF's first page in view is drawn by
+  pdf.js 3.11.174 (cdnjs, loaded on first use) at screen resolution and laid
+  as image source "atlas-plate-vector" (blob URL, updateImage) over the
+  pictures; the detail squares are hidden while it shows. Falls back to the
+  pictures if the PDF or pdf.js cannot be read.
+- PDFs copied by culprits-tiles-more scripts/atlas_pdfs.py to atlas/pdfs/
+  (the Atlas's server gives no CORS). index.html v=54.
+
+
 ## Round 53 (26 September)
 
 - soil_earthworms (Soil biodiversity): GBIF occurrence density tiles, live,

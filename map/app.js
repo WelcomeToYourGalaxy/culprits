@@ -5443,6 +5443,8 @@ function atlasPanel() {
 function atlasPlateOff() {
   for (const id of atlasLayers()) { map.removeLayer(id); if (map.getSource(id)) map.removeSource(id); }
   if (atlasPlateOff.move) { map.off("moveend", atlasPlateOff.move); atlasPlateOff.move = null; }
+  if (atlasPlateOff.vec) { map.off("moveend", atlasPlateOff.vec); atlasPlateOff.vec = null; }
+  atlasVector.slug = null;
   atlasOwner = null;
   const el = document.getElementById("atlas-panel");
   if (el) el.hidden = true;
@@ -5470,6 +5472,106 @@ function atlasDetail(p, fitZoom) {
   atlasPlateOff.move = add;
   map.on("moveend", add);
 }
+// Close in, the page drawn from the PDF itself (26 September): the pictures
+// blur past their own detail, where the PDF's lines and names are drawings
+// and stay sharp at any size. Each time the view settles, the part of the page
+// on screen is drawn by pdf.js at the screen's own resolution and laid exactly
+// where that part of the plate lies. The PDFs are copies in culprits-tiles-more
+// (scripts/atlas_pdfs.py): the Atlas's server does not let other sites read
+// them. Where the PDF cannot be read, the pictures stay as they were.
+const ATLAS_PDFS = "https://welcometoyourgalaxy.github.io/culprits-tiles-more/atlas/pdfs/";
+const PDFJS = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
+let pdfjsLoading = null;
+function pdfjsReady() {
+  if (typeof window !== "undefined" && window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if (!pdfjsLoading) pdfjsLoading = new Promise((ok, no) => {
+    const el = document.createElement("script");
+    el.src = PDFJS + "pdf.min.js";
+    el.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS + "pdf.worker.min.js"; ok(window.pdfjsLib); };
+    el.onerror = () => { pdfjsLoading = null; no(new Error("pdf.js did not load")); };
+    document.head.appendChild(el);
+  });
+  return pdfjsLoading;
+}
+// The plate's corners (top left, top right, bottom right, bottom left of the
+// page) in any flat coordinates, the page's size in points, and the view's four
+// corners in the same coordinates: the part of the page in view, as a box in
+// page points (u across, v down), a little wider than the view, or null.
+function atlasPageClip(corners, W, H, view, margin = 0.08) {
+  const [tl, tr, , bl] = corners;
+  const ax = (tr[0] - tl[0]) / W, ay = (tr[1] - tl[1]) / W, bx = (bl[0] - tl[0]) / H, by = (bl[1] - tl[1]) / H;
+  const det = ax * by - bx * ay;
+  if (!det) return null;
+  const toPage = ([x, y]) => { const dx = x - tl[0], dy = y - tl[1]; return [(dx * by - dy * bx) / det, (ax * dy - ay * dx) / det]; };
+  const pts = view.map(toPage);
+  let u0 = Math.min(...pts.map((q) => q[0])), u1 = Math.max(...pts.map((q) => q[0]));
+  let v0 = Math.min(...pts.map((q) => q[1])), v1 = Math.max(...pts.map((q) => q[1]));
+  const mu = (u1 - u0) * margin, mv = (v1 - v0) * margin;
+  u0 = Math.max(0, u0 - mu); u1 = Math.min(W, u1 + mu); v0 = Math.max(0, v0 - mv); v1 = Math.min(H, v1 + mv);
+  if (!(u1 > u0 && v1 > v0)) return null;
+  const at = (u, v) => [tl[0] + ax * u + bx * v, tl[1] + ay * u + by * v];
+  return { u0, v0, u1, v1, corners: [at(u0, v0), at(u1, v0), at(u1, v1), at(u0, v1)] };
+}
+function atlasVector(slug, p, fitZoom) {
+  const id = "atlas-plate-vector";
+  let page = null, busy = false, again = false, lastUrl = null;
+  const merc = (ll) => { const m = maplibregl.MercatorCoordinate.fromLngLat({ lng: ll[0], lat: ll[1] }); return [m.x, m.y]; };
+  const lngLat = (xy) => { const l = new maplibregl.MercatorCoordinate(xy[0], xy[1], 0).toLngLat(); return [l.lng, l.lat]; };
+  const opacity = () => { const i = document.querySelector("#atlas-panel .ap-fade input"); return i ? 1 - Number(i.value) / 100 : 0.85; };
+  const hideDetail = (hide) => { for (const l of atlasLayers()) if (/^atlas-plate-d\d/.test(l)) map.setLayoutProperty(l, "visibility", hide ? "none" : "visible"); };
+  const draw = async () => {
+    if (!page || atlasVector.slug !== slug) return;
+    if (busy) { again = true; return; }
+    if (map.getZoom() < fitZoom + 1) { if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "none"); hideDetail(false); return; }
+    const cv = map.getCanvas(), w = cv.clientWidth || cv.width, h = cv.clientHeight || cv.height;
+    const view = [[0, 0], [w, 0], [w, h], [0, h]].map((q) => { const l = map.unproject(q); return merc([l.lng, l.lat]); });
+    const [x0, y0, x1, y1] = page.view;
+    const W = x1 - x0, H = y1 - y0;
+    const clip = atlasPageClip(p.corners.map(merc), W, H, view);
+    if (!clip) { if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "none"); return; }
+    const geo = clip.corners.map(lngLat);
+    const sc = geo.map((ll) => map.project({ lng: ll[0], lat: ll[1] }));
+    const dpr = Math.min(2, (typeof window !== "undefined" && window.devicePixelRatio) || 1);
+    const pxW = Math.hypot(sc[1].x - sc[0].x, sc[1].y - sc[0].y) * dpr;
+    const scale = Math.min(pxW, 4096) / (clip.u1 - clip.u0);
+    const cw = Math.max(1, Math.round((clip.u1 - clip.u0) * scale)), ch = Math.max(1, Math.round((clip.v1 - clip.v0) * scale));
+    if (ch > 4096) return;
+    busy = true;
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = cw; canvas.height = ch;
+      const vp = page.getViewport({ scale, offsetX: -clip.u0 * scale, offsetY: -clip.v0 * scale });
+      await page.render({ canvasContext: canvas.getContext("2d"), viewport: vp }).promise;
+      const blob = await new Promise((ok) => canvas.toBlob(ok, "image/png"));
+      if (!blob || atlasVector.slug !== slug) return;
+      const url = URL.createObjectURL(blob);
+      const src = map.getSource(id);
+      if (src && src.updateImage) src.updateImage({ url, coordinates: geo });
+      else {
+        map.addSource(id, { type: "image", url, coordinates: geo });
+        map.addLayer({ id, type: "raster", source: id, paint: { "raster-opacity": opacity(), "raster-fade-duration": 0 } });
+      }
+      map.setLayoutProperty(id, "visibility", "visible");
+      hideDetail(true);
+      if (lastUrl) URL.revokeObjectURL(lastUrl);
+      lastUrl = url;
+    } catch (e) {
+      console.warn(`[culprits] atlas ${slug}: the page could not be drawn from its PDF (${e.message})`);
+    } finally {
+      busy = false;
+      if (again) { again = false; draw(); }
+    }
+  };
+  atlasVector.slug = slug;
+  pdfjsReady()
+    .then((lib) => lib.getDocument({ url: ATLAS_PDFS + slug + ".pdf", cMapUrl: PDFJS + "cmaps/", cMapPacked: true,
+      standardFontDataUrl: PDFJS + "standard_fonts/" }).promise)
+    .then((doc) => doc.getPage(1))
+    .then((pg) => { page = pg; draw(); })
+    .catch((e) => console.info(`[culprits] atlas ${slug}: drawn from its pictures (${e.message})`));
+  atlasPlateOff.vec = draw;
+  map.on("moveend", draw);
+}
 // what: { plate, doc } for a hotspot, { page } for a city; bounds: the
 // hotspot's own outline, used when there is no placed plate.
 async function showAtlas(what, bounds, owner) {
@@ -5491,6 +5593,7 @@ async function showAtlas(what, bounds, owner) {
     const box = [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]];
     const fit = typeof map.cameraForBounds === "function" ? map.cameraForBounds(box, { padding: 30 }) : null;
     atlasDetail(p, fit && Number.isFinite(fit.zoom) ? fit.zoom : 4);
+    if (what.plate) atlasVector(what.plate, p, fit && Number.isFinite(fit.zoom) ? fit.zoom : 4);
     if (typeof map.fitBounds === "function") map.fitBounds(box, { padding: 30, duration: 1400 });
     return;
   }

@@ -4222,5 +4222,22 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /"soil_nematodes", "soil_earthworms", "soilgrids"/.test(src) &&
         /id: "soil_earthworms"[^\n]*route: "rasterlive"/.test(src) && /api\.gbif\.org\/v2\/map\/occurrence\/density\/\{z\}\/\{x\}\/\{y\}@1x\.png\?taxonKey=5958860&style=classic\.point/.test(src));
 }
+{
+  console.log("\nround 54: the Atlas's hotspot pages drawn from their PDFs close in");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const clipOf = new Function(src.slice(src.indexOf("function atlasPageClip("), src.indexOf("function atlasVector(")) + "; return atlasPageClip;")();
+  // A page 100 x 50 points laid unturned on a box 0..10 across, 0..5 down.
+  const corners = [[0, 0], [10, 0], [10, 5], [0, 5]];
+  const c = clipOf(corners, 100, 50, [[2, 1], [4, 1], [4, 2], [2, 2]], 0);
+  check("the part of the page in view is found in page points", c && Math.abs(c.u0 - 20) < 1e-9 && Math.abs(c.u1 - 40) < 1e-9 && Math.abs(c.v0 - 10) < 1e-9 && Math.abs(c.v1 - 20) < 1e-9);
+  check("and laid back where it lies", [[2, 1], [4, 1], [4, 2], [2, 2]].every((q, i) => Math.abs(c.corners[i][0] - q[0]) < 1e-9 && Math.abs(c.corners[i][1] - q[1]) < 1e-9));
+  // Turned a quarter: the page's top runs down the box's left side.
+  const turned = clipOf([[0, 0], [0, 10], [5, 10], [5, 0]], 100, 50, [[-1, -1], [9, -1], [9, 11], [-1, 11]], 0);
+  check("a turned page is read the right way round, and a view past its edges stops at them", turned && turned.u0 === 0 && turned.u1 === 100 && turned.v0 === 0 && turned.v1 === 50);
+  check("a view off the page draws nothing", clipOf(corners, 100, 50, [[20, 20], [30, 20], [30, 30], [20, 30]]) === null);
+  check("the hotspot plates are drawn from the copied PDFs by pdf.js, over the pictures",
+        /const ATLAS_PDFS = "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/atlas\/pdfs\/";/.test(src) &&
+        /if \(what\.plate\) atlasVector\(what\.plate, p,/.test(src) && /map\.off\("moveend", atlasPlateOff\.vec\)/.test(src));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
