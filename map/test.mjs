@@ -4251,5 +4251,46 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /\["point", "Points"\], \["shape", "Shapes"\], \["national", "National highlights"\]/.test(src) && /queue\.splice\(0, 8\)/.test(src) && /  layerKindSwitch\(box\);/.test(src));
   check("Selected Layers sits above Off-planet invasion", /\{ h: 1, t: "Selected Layers" \},\n\n  \{ h: 1, t: "Off-planet invasion" \}/.test(src));
 }
+{
+  console.log("\nround 57: kinds by what is drawn, a loading line, columns that keep up with the zoom, no purple on country layers or the hologram");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const kind = new Function(src.slice(src.indexOf("const KIND_POINT"), src.indexOf("function layerKindSwitch(")) + "; return { layerKind, catalogueKind, drawnKind };")();
+  check("FracTracker's basins map and rows counted in basins or buffers are shapes",
+        kind.layerKind({ id: "fractracker_refineries", route: "arcgisapp", unit: "refineries" }) === "shape" &&
+        kind.layerKind({ id: "x", route: "pmtiles", unit: "oil and gas basins" }) === "shape" &&
+        kind.catalogueKind({ route: "wmsmenu" }, { title: "Near palm oil mills, 50 km" }) === "shape" &&
+        kind.catalogueKind({ route: "wmsmenu" }, { title: "Palm oil mills" }) === "point");
+  check("a drawn row's kind is read from its layers: marks make it points, areas alone a shape",
+        kind.drawnKind("a", [{ id: "a-fill", type: "fill" }, { id: "a-line", type: "line" }]) === "shape" &&
+        kind.drawnKind("a", [{ id: "a-fill", type: "fill" }, { id: "a-pt", type: "circle" }]) === "point" &&
+        kind.drawnKind("a", [{ id: "ab-pt", type: "circle" }]) === "" &&
+        /KIND_SEEN\.get\(id\) \|\| layerKind\(cfgs\.get\(id\)\)/.test(src));
+  check("bulk ticking shows how far it has got, holds the legend until the end, and says when it is drawn",
+        /Turning on \$\{Math\.min\(done, total\)\.toLocaleString\(\)\} of/.test(src) && /class="ks-spin"/.test(src) &&
+        /if \(legendHold\) \{ legendHeld = true; return; \}/.test(src) && /map\.once\("idle", stop\)/.test(src));
+  const H = new Function(src.slice(src.indexOf("const COLUMN_HEIGHT"), src.indexOf("function ctColumnCfgs(")) + "; return COLUMN_HEIGHT;")();
+  const at = (z) => { let lo = 3; while (lo + 2 < H.length - 2 && H[lo + 2] <= z) lo += 2; const [za, zb] = [H[lo], H[lo + 2]];
+    const val = (e) => typeof e[1] === "string" ? 1 : e[2]; const t = (Math.pow(0.5, z - za) - 1) / (Math.pow(0.5, zb - za) - 1);
+    return val(H[lo + 1]) + (val(H[lo + 3]) - val(H[lo + 1])) * t; };
+  check("a column's height halves with each zoom level, smoothly, between redraws",
+        H[1][0] === "exponential" && H[1][1] === 0.5 && [0, 3.3, 7.5, 14.2, 20].every((z) => Math.abs(at(z) / Math.pow(2, -z) - 1) < 1e-9) &&
+        /"fill-extrusion-height": COLUMN_HEIGHT/.test(src) && /map\.on\("zoom", columnsOnZoom\)/.test(src) &&
+        /e\.isSourceLoaded && !\(typeof map\.isMoving === "function" && map\.isMoving\(\)\)/.test(src));
+  const G = new Function("maplibregl", src.slice(src.indexOf("const GLAD_LO = 185"), src.indexOf("function gladPixels(")) +
+    "; return { gladCss, gladValue, GLAD_NATIONAL };")({ addProtocol() {} });
+  const hue = (hex) => { const n = parseInt(hex.slice(1), 16), r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (!d) return -1;
+    let h = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4); return (h + 360) % 360; };
+  G.GLAD_NATIONAL.add("nat");
+  const steps = G.gladValue(["interpolate", ["linear"], ["get", "t"], 0, "#DCD7CC", 0.25, "#B8B0A2", 0.5, "#948B7D", 0.75, "#6F675B", 1, "#4A443C"], "nat");
+  const cols = [4, 6, 8, 10, 12].map((i) => steps[i]);
+  check("a country layer's five steps run cyan to blue, none violet, still told apart",
+        cols.every((c) => hue(c) >= 184 && hue(c) <= 236) && new Set(cols).size === 5 && ["#FF00FF", "#8A4F46", "#6A6258"].every((c) => hue(G.gladCss(c, "nat")) <= 236));
+  check("country rows are named for it when the rows are read", /\["giga", "country", "owidgrapher", "trase"\]\.includes\(c\.route\)/.test(src));
+  check("the hologram keeps its own blues: its layers are not remapped, and its fringe and ground are not purple",
+        /\|holo-\.\*\)\$\/;/.test(src) && /--holo-fringe: #6fb0bd;/.test(html) && /--holo-bg:     #081729;/.test(html) && !/#8e86c8/.test(html));
+  check("the page asks for this round's script", /app\.js\?v=(5[7-9]|[6-9]\d)/.test(html));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

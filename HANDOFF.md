@@ -5,6 +5,29 @@ touches.
 
 ---
 
+## Round 57 (26 September)
+
+- Kind switches: FracTracker's map (fractracker_refineries) draws the world's
+  oil and gas basins and US shale basins, both areas, so it is a shape
+  (KIND_OVERRIDE). Units and catalogue titles with basins, buffers, "near",
+  "within", "N km", concessions or areas are shapes (AREA_WORDS). After a
+  Points switch finishes, any row it ticked that drew only fills/lines/rasters
+  (drawnKind) is unticked and remembered as a shape in this browser
+  (KIND_SEEN, localStorage "culprits-kind-seen").
+- Bulk ticking shows a spinner and "Turning on N of M layers…", then
+  "Drawing…" until the map is idle (at most a minute). The legend is held
+  while rows are ticked in bulk and built once at the end (legendHold).
+- Climate TRACE columns: height is written for zoom 0 (property hz) and scaled
+  by the map at every zoom (COLUMN_HEIGHT, exponential 0.5); while zooming the
+  footprints are redrawn from the rows already read every 120 ms
+  (columnsOnZoom); tiles arriving mid-move wait for moveend.
+- Country layers (routes giga/country/owidgrapher/trase, or units naming
+  countries: GLAD_NATIONAL) keep to cyan-blue, hue 185-227
+  (GLAD_NATIONAL_SPAN 42), no violet. Hologram layers (holo-*) are left out of
+  the GLAD mapping, which had turned their blues indigo and violet; fringe
+  #6fb0bd, background #081729, ground #0f2440. index.html v=57.
+
+
 ## Round 56 (26 September)
 
 - "Selected Layers" h1 above Off-planet invasion, empty until the owner names

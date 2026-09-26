@@ -11,13 +11,13 @@
 <style id="holo-style">
   :root{
     /* Change the hologram's colours here, and only here. */
-    --holo-bg:     #0a1230;                  /* screen background (lighter at centre) */
-    --holo-earth:  #111d45;                  /* the planet's face, a shade lighter than space */
+    --holo-bg:     #081729;                  /* screen background (lighter at centre) */
+    --holo-earth:  #0f2440;                  /* the planet's face, a shade lighter than space */
     --holo-line:   #7fb8d9;                  /* country outlines and the planet's rim */
     --holo-glow:   #5b9cc8;                  /* soft glow under lines and markers */
     --holo-grid:   rgba(127,184,217,0.15);   /* 15° grid lines and the floor grid */
     --holo-detail: #6d9fc0;                  /* close-in OpenStreetMap lines and buildings */
-    --holo-fringe: #8e86c8;                  /* 80s colour fringe beside the outlines */
+    --holo-fringe: #6fb0bd;                  /* 80s colour fringe beside the outlines (a sea blue, not purple, round 57) */
     --holo-font: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   }
   /* The screen behind the map. The map canvas is see-through where nothing is
@@ -495,8 +495,8 @@
   };
 })();
 </script>
-<script src="./app.js?v=56"></script>
-<script src="./wire.js?v=56"></script>
+<script src="./app.js?v=57"></script>
+<script src="./wire.js?v=57"></script>
 <!-- The drag bar on the layers box's right edge (made by columnEdge() in
      app.js) ran the full height of the column, so it stayed standing beside
      empty map when the box was rolled up or pulled shorter. It is held to the
@@ -594,10 +594,10 @@
 
   const cssVar = (n, fb) => (getComputedStyle(document.documentElement).getPropertyValue(n).trim() || fb);
   const colours = () => ({
-    bg: cssVar("--holo-bg", "#0a1230"), earth: cssVar("--holo-earth", "#111d45"),
+    bg: cssVar("--holo-bg", "#081729"), earth: cssVar("--holo-earth", "#0f2440"),
     line: cssVar("--holo-line", "#7fb8d9"), glow: cssVar("--holo-glow", "#5b9cc8"),
     grid: cssVar("--holo-grid", "rgba(127,184,217,0.15)"), detail: cssVar("--holo-detail", "#6d9fc0"),
-    fringe: cssVar("--holo-fringe", "#8e86c8"),
+    fringe: cssVar("--holo-fringe", "#6fb0bd"),
   });
   // Any CSS colour -> [r, g, b], so a colour can be used at its own alphas.
   function rgbOf(c) {

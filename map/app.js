@@ -476,6 +476,11 @@ const LAYERS = [
 // mapping pixel by pixel. The basemaps, the atlas plates and photographs laid
 // on the map are not touched.
 const GLAD_LO = 185, GLAD_SPAN = 110;
+// Country layers (national highlights) keep to cyan and blue, without the
+// violet and purple end (asked for 26 September, round 57). Their rows are
+// named in GLAD_NATIONAL when the rows are read.
+const GLAD_NATIONAL = new Set(), GLAD_NATIONAL_SPAN = 42;
+const gladSpan = (salt) => GLAD_NATIONAL.has(String(salt || "")) ? GLAD_NATIONAL_SPAN : GLAD_SPAN;
 const GLAD_OUT = new Set();               // colours this mapping has made: never mapped twice
 const PROTOCOL_HANDLERS = {};             // every tile protocol, so a picture can go through two
 {
@@ -485,17 +490,17 @@ const PROTOCOL_HANDLERS = {};             // every tile protocol, so a picture c
 function gladSalt(salt) {
   let hash = 0;
   for (const ch of String(salt || "")) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
-  return GLAD_LO + ((Math.imul(hash, 2654435761) >>> 0) / 4294967296) * GLAD_SPAN;
+  return GLAD_LO + ((Math.imul(hash, 2654435761) >>> 0) / 4294967296) * gladSpan(salt);
 }
 // r, g, b 0-255 -> [r, g, b] mapped; greyHue from gladSalt(row).
-function gladRgb(r, g, b, greyHue) {
+function gladRgb(r, g, b, greyHue, span) {
   const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 510, d = mx - mn;
   if (l > 0.88 || l < 0.1) return [r, g, b];
   const s = d === 0 ? 0 : d / (255 * (1 - Math.abs(2 * l - 1)));
   let h = 0, hue, sat;
   if (d) h = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4);
   h = (h + 360) % 360;
-  if (s < 0.22) { hue = greyHue; sat = 0.55; } else { hue = GLAD_LO + (h / 360) * GLAD_SPAN; sat = Math.min(0.81, Math.max(s, 0.45)); }
+  if (s < 0.22) { hue = greyHue; sat = 0.55; } else { hue = GLAD_LO + (h / 360) * (span || GLAD_SPAN); sat = Math.min(0.81, Math.max(s, 0.45)); }
   const a = sat * Math.min(l, 1 - l), f = (n) => { const k = (n + hue / 30) % 12; return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))); };
   return [f(0), f(8), f(4)];
 }
@@ -519,7 +524,7 @@ function gladCss(c, salt) {
   // shows the step the map draws.
   const spread = GLAD_SPREAD.get(`${salt}|${hex}`);
   if (spread) return p[3] < 1 ? spread.replace(/^#(..)(..)(..)$/, (m, r, g, b) => `rgba(${parseInt(r, 16)},${parseInt(g, 16)},${parseInt(b, 16)},${p[3]})`) : spread;
-  const [r, g, b] = gladRgb(p[0], p[1], p[2], gladSalt(salt));
+  const [r, g, b] = gladRgb(p[0], p[1], p[2], gladSalt(salt), gladSpan(salt));
   const out = p[3] < 1 ? `rgba(${r},${g},${b},${p[3]})`
     : "#" + [r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("").toUpperCase();
   GLAD_OUT.add(out);
@@ -541,7 +546,7 @@ function gladExpr(v, salt) {
             ["case",
               ["any", ["==", V("a"), 0], [">", V("l"), 0.88], ["<", V("l"), 0.1]], ["rgba", V("r"), V("g"), V("b"), V("a")],
               ["<", V("s"), 0.22], hsl(Math.round(gladSalt(salt) * 10) / 10, 55, ["*", V("l"), 100]),
-              hsl(["+", GLAD_LO, ["*", V("h"), GLAD_SPAN / 360]], ["*", ["min", 0.81, ["max", V("s"), 0.45]], 100], ["*", V("l"), 100])]]]]]];
+              hsl(["+", GLAD_LO, ["*", V("h"), gladSpan(salt) / 360]], ["*", ["min", 0.81, ["max", V("s"), 0.45]], 100], ["*", V("l"), 100])]]]]]];
 }
 const GLAD_TOP_INPUTS = new Set(['["zoom"]', '["heatmap-density"]', '["line-progress"]']);
 // Scales read from the data (25 September, round 48). Mapping each colour of a
@@ -574,7 +579,7 @@ function gladSpread(v, idx, salt, ordered) {
   const to = new Map(distinct.map((hx, r) => {
     const t = r / (n - 1);
     const l = ordered ? (darkening ? 0.8 - t * 0.38 : 0.42 + t * 0.38) : (r % 2 ? 0.44 : 0.66);
-    const out = gladHsl(GLAD_LO + t * GLAD_SPAN, 0.7, l);
+    const out = gladHsl(GLAD_LO + t * gladSpan(salt), 0.7, l);
     GLAD_OUT.add(out);
     GLAD_SPREAD.set(`${salt}|${hx}`, out);
     return [hx, out];
@@ -724,7 +729,9 @@ function gladSourceSpec(id, spec) {
   else if (typeof spec.url === "string" && /^pmtiles:\/\//.test(spec.url)) GLAD_PM_RASTER.set(spec.url.replace(/^pmtiles:\/\//, ""), salt);
   return out;
 }
-const GLAD_BASE_LAYERS = /^(bg|base|base-s2|base-close|hillshade|labels|atlas-plate.*)$/;
+// The hologram's own layers keep the hologram's colours: mapped, its pale
+// blue lines came out indigo and violet (round 57).
+const GLAD_BASE_LAYERS = /^(bg|base|base-s2|base-close|hillshade|labels|atlas-plate.*|holo-.*)$/;
 function gladLayer(layer) {
   if (!layer || !layer.id || GLAD_BASE_LAYERS.test(layer.id) || layer.type === "custom" || layer.type === "background" || layer.type === "hillshade") return layer;
   if (gladKept(layer.id)) return layer;
@@ -8569,6 +8576,18 @@ const COLUMN_STALK = 3;         // the least height, in footprints
 const COLUMN_TILT = 50;         // degrees the map tilts to when columns first appear
 let columnsTimer = null;
 let columnsTilted = false;
+// Round 57: the columns were rebuilt only once the map had stopped, so while
+// zooming they grew and shrank with the ground (twice as big per zoom level),
+// then jumped; and each archive's tiles arriving rebuilt them again, some
+// sooner than others. Now a column's height is written for zoom 0 and the map
+// scales it smoothly at every zoom (COLUMN_HEIGHT), and while the zoom is
+// changing the footprints are redrawn from the sources already read, a few
+// times a second, all together.
+let columnRows = [];
+let columnZoomTimer = null;
+const COLUMN_ZOOM_MS = 120;
+const COLUMN_HEIGHT = ["interpolate", ["exponential", 0.5], ["zoom"], 0, ["get", "hz"],
+  ...[6, 12, 18, 24].flatMap((z) => [z, ["*", ["get", "hz"], Math.pow(2, -z)]])];
 
 function ctColumnCfgs() {
   return [CT_SECTORS, CT_AGRICULTURE, CT_FORESTRY].flatMap((g) => g.children)
@@ -8584,8 +8603,6 @@ function scheduleColumns() {
 function buildColumns() {
   const src = map.getSource("ct-columns");
   if (!src || typeof map.querySourceFeatures !== "function") return;
-  const z = map.getZoom();
-  const mPerPx = 40075016 / (512 * Math.pow(2, z));   // metres per screen pixel at the equator
   const rows = [];
   for (const cfg of ctColumnCfgs()) {
     const owner = cfg.sourceOf || cfg.id;
@@ -8601,7 +8618,25 @@ function buildColumns() {
     }
   }
   rows.sort((a, b) => b.v - a.v);
-  const kept = rows.slice(0, COLUMN_MAX);
+  columnRows = rows.slice(0, COLUMN_MAX);
+  const n = drawColumns(columnRows);
+  // Seen straight down a column is a square. When columns first appear the
+  // map tilts, once, so they stand up; turning it back flat is left alone.
+  if (n && !columnsTilted && typeof map.getPitch === "function" && map.getPitch() < 25 && typeof map.easeTo === "function") {
+    columnsTilted = true;
+    map.easeTo({ pitch: COLUMN_TILT, duration: 900 });
+  }
+  if (!n) columnsTilted = false;
+  if (rows.length > COLUMN_MAX) console.info(`[culprits] Climate TRACE: the ${COLUMN_MAX.toLocaleString()} largest of ` +
+    `${rows.length.toLocaleString()} sources in view are raised as columns; the rest stay as dots.`);
+}
+
+// The columns drawn at the present zoom from rows already read.
+function drawColumns(kept) {
+  const src = map.getSource("ct-columns");
+  if (!src) return 0;
+  const z = map.getZoom();
+  const mPerPx = 40075016 / (512 * Math.pow(2, z));   // metres per screen pixel at the equator
   const halves = columnHalves(kept, z);
   const grow = Math.sqrt(halves.want / COLUMN_PX);
   const features = kept.map(({ lng, lat, v, cfg, p }, i) => {
@@ -8611,20 +8646,21 @@ function buildColumns() {
       properties: Object.assign({}, p, { colour: cfg.colour, layerName: cfg.name,
         // Every column stands at least three footprints tall (asked for
         // 25 September): a low one seen from above read as a flat box.
-        h: Math.max(mPerPx * 1.5, half * 2 * COLUMN_STALK) + Math.sqrt(v) * COLUMN_TALL * mPerPx * grow }),
+        // hz: the height at zoom 0; COLUMN_HEIGHT halves it per zoom level,
+        // so it keeps its size on the screen between redraws.
+        hz: (Math.max(mPerPx * 1.5, half * 2 * COLUMN_STALK) + Math.sqrt(v) * COLUMN_TALL * mPerPx * grow) * Math.pow(2, z) }),
       geometry: { type: "Polygon", coordinates: [[[lng - dLng, lat - dLat], [lng + dLng, lat - dLat],
         [lng + dLng, lat + dLat], [lng - dLng, lat + dLat], [lng - dLng, lat - dLat]]] } };
   });
   src.setData({ type: "FeatureCollection", features });
-  // Seen straight down a column is a square. When columns first appear the
-  // map tilts, once, so they stand up; turning it back flat is left alone.
-  if (features.length && !columnsTilted && typeof map.getPitch === "function" && map.getPitch() < 25 && typeof map.easeTo === "function") {
-    columnsTilted = true;
-    map.easeTo({ pitch: COLUMN_TILT, duration: 900 });
-  }
-  if (!features.length) columnsTilted = false;
-  if (rows.length > COLUMN_MAX) console.info(`[culprits] Climate TRACE: the ${COLUMN_MAX.toLocaleString()} largest of ` +
-    `${rows.length.toLocaleString()} sources in view are raised as columns; the rest stay as dots.`);
+  return features.length;
+}
+
+// While the zoom changes: the footprints redrawn from the rows already read,
+// at most every COLUMN_ZOOM_MS, every column at once.
+function columnsOnZoom() {
+  if (columnZoomTimer || !columnRows.length) return;
+  columnZoomTimer = setTimeout(() => { columnZoomTimer = null; drawColumns(columnRows); }, COLUMN_ZOOM_MS);
 }
 
 // Half the footprint of each column, in screen pixels: larger as the map zooms
@@ -8662,7 +8698,7 @@ function addColumnLayer() {
   if (map.getSource("ct-columns")) return;
   map.addSource("ct-columns", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
   map.addLayer({ id: "ct-columns", type: "fill-extrusion", source: "ct-columns",
-    paint: { "fill-extrusion-color": ["get", "colour"], "fill-extrusion-height": ["get", "h"],
+    paint: { "fill-extrusion-color": ["get", "colour"], "fill-extrusion-height": COLUMN_HEIGHT,
              "fill-extrusion-base": 0, "fill-extrusion-opacity": .92,
              "fill-extrusion-vertical-gradient": true } });
   bindHtmlPopup("ct-columns", (p) => {
@@ -8675,8 +8711,11 @@ function addColumnLayer() {
       (n > 1 ? "" : `<div style="max-height:200px;overflow:auto"><table class="meta">${fieldRows(p, ["_count", "layerName", "name", "value"])}</table></div>`);
   });
   map.on("moveend", scheduleColumns);
+  map.on("zoom", columnsOnZoom);
+  // Tiles arriving while the map moves wait for moveend, so the columns are
+  // rebuilt once, together, rather than archive by archive mid-zoom.
   map.on("sourcedata", (e) => {
-    if (e && e.sourceId && /^climate_trace/.test(e.sourceId) && e.isSourceLoaded) scheduleColumns();
+    if (e && e.sourceId && /^climate_trace/.test(e.sourceId) && e.isSourceLoaded && !(typeof map.isMoving === "function" && map.isMoving())) scheduleColumns();
   });
 }
 
@@ -9055,8 +9094,9 @@ async function addCountryLayer(cfg) {
   const at = ["max", 0, ["min", 1, ["/", ["-", ["log10", ["max", ["coalesce", ["feature-state", key], 1e-6], 1e-6]], lo], span]]];
   // Colour and depth together (25 September, round 48). Depth alone, one
   // colour faded in and out, left countries rated far apart looking alike. The
-  // five steps are written light to dark and spread from cyan to violet as
-  // they are drawn (gladSpread), so the key below shows the same steps.
+  // five steps are written light to dark and spread from cyan to blue as they
+  // are drawn (gladSpread; no violet since round 57), so the key below shows
+  // the same steps.
   const STEPS = ["#DCD7CC", "#B8B0A2", "#948B7D", "#6F675B", "#4A443C"];
   map.addLayer({
     id: `${cfg.id}-fill`,
@@ -10323,7 +10363,12 @@ function watchKeysForLegend() {
     legendKeyTimer = setTimeout(() => buildLegend(), 250);
   }).observe(box, { childList: true, subtree: true });
 }
+// While a Turn on every switch ticks rows in bulk the legend is built once at
+// the end, not once per row (round 57): rebuilt hundreds of times it was a
+// large part of the wait.
+let legendHold = false, legendHeld = false;
 function buildLegend() {
+  if (legendHold) { legendHeld = true; return; }
   watchKeysForLegend();
   const box = document.getElementById("legend");
   if (!box) return;
@@ -11547,7 +11592,7 @@ function gladHex(h, s, l) {
   const f = (n) => { const k = (n + h / 30) % 12, a = s * Math.min(l, 1 - l); return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))); };
   return "#" + [f(0), f(8), f(4)].map((v) => v.toString(16).padStart(2, "0")).join("").toUpperCase();
 }
-function gladColour(c, id) {
+function gladColour(c, id, span) {
   const m = /^#?([0-9a-f]{6})$/i.exec(String(c || ""));
   if (!m) return c;
   const n = parseInt(m[1], 16), r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
@@ -11559,10 +11604,11 @@ function gladColour(c, id) {
   let hash = 0;
   for (const ch of String(id || c)) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
   const t = sat < 0.22 ? (Math.imul(hash, 2654435761) >>> 0) / 4294967296 : hue / 360;
-  return gladHex(185 + t * 110, 0.62 + ((hash >> 10) % 20) / 100, 0.54 + ((hash >> 16) % 14) / 100);
+  return gladHex(185 + t * (span || 110), 0.62 + ((hash >> 10) % 20) / 100, 0.54 + ((hash >> 16) % 14) / 100);
 }
 for (const c of LAYERS.concat(...GROUPS.map((g) => g.children || []))) {
-  if (c && c.colour && !c.keepColour) c.colour = gladColour(c.colour, c.id);
+  if (c && c.id && (["giga", "country", "owidgrapher", "trase"].includes(c.route) || /\bcountr/i.test(String(c.unit || "")))) GLAD_NATIONAL.add(c.id);
+  if (c && c.colour && !c.keepColour) c.colour = gladColour(c.colour, c.id, GLAD_NATIONAL.has(c.id) ? GLAD_NATIONAL_SPAN : 110);
   if (c && typeof c.colour === "string") GLAD_OUT.add(c.colour.toUpperCase());
 }
 /* ---------- where a dot is: every point's box says how exact its position is ---------- */
@@ -13536,15 +13582,21 @@ const KIND_POINT = new Set(["pmtiles", "sitemap", "geojsonlive", "kml", "umap", 
 const KIND_SHAPE = new Set(["pmshapes", "pmtareas", "arcgis", "arcgisdyn", "rasterlive", "rasterparts", "tile", "osmlanduse", "coral",
   "glw", "shapes", "cerulean", "slickarchive"]);
 const KIND_NATIONAL = new Set(["giga", "country", "owidgrapher"]);
+// Rows whose route says points but which draw areas (round 57: FracTracker's
+// map draws the world's oil and gas basins and the US shale basins, both
+// outlines).
+const KIND_OVERRIDE = { fractracker_refineries: "shape" };
 function layerKind(cfg) {
   if (!cfg || !cfg.route) return "";
+  if (KIND_OVERRIDE[cfg.id]) return KIND_OVERRIDE[cfg.id];
   const u = String(cfg.unit || "");
   if (KIND_NATIONAL.has(cfg.route) || /\bcountr/i.test(u)) return "national";
-  if (/\b(areas?|zones|territor\w*|outlines?|clusters|concessions|per map cell|per square|cover|hotspots)\b|\b\d+ m\b/i.test(u)) return "shape";
+  if (/\b(areas?|zones|territor\w*|outlines?|clusters|concessions|per map cell|per square|cover|hotspots|basins?|buffers?)\b|\b\d+ m\b/i.test(u)) return "shape";
   if (KIND_SHAPE.has(cfg.route)) return "shape";
   if (KIND_POINT.has(cfg.route)) return "point";
   return "";
 }
+const AREA_WORDS = /\b(buffers?|near|within|basins?|concessions?|areas?|zones?|\d+ ?km)\b|buffer/i;
 const POINT_WORDS = /\b(mills?|points?|plants?|refiner\w*|facilit\w*|stations?|ports?|villages?|towns?|settlements?|sites?|photos?|news|dams?|power)\b/i;
 function catalogueKind(cfg, item) {
   if (item && item.kind) return item.kind;
@@ -13552,7 +13604,28 @@ function catalogueKind(cfg, item) {
   if (cfg.route === "trase") return "national";
   if (cfg.route === "ctgases") return "point";
   if (cfg.route === "gsn") return "shape";
+  // "Near palm oil mills, 50 km" is the area round the mills, not the mills.
+  if (AREA_WORDS.test(words)) return "shape";
   return POINT_WORDS.test(words) ? "point" : "shape";
+}
+// What a row turned out to draw, once drawn: a row a switch ticked as points
+// that drew only areas is unticked and filed with the shapes from then on
+// (round 57). Kept in this browser only.
+const KIND_SEEN_KEY = "culprits-kind-seen";
+const KIND_SEEN = new Map();
+try { for (const [k, v] of Object.entries(JSON.parse(localStorage.getItem(KIND_SEEN_KEY) || "{}"))) KIND_SEEN.set(k, v); } catch (e) { /* none kept */ }
+const MARK_TYPES = new Set(["circle", "symbol", "heatmap"]);
+// The kind a drawn row shows: "point" if it draws any marks, "shape" if it
+// draws areas and lines only, "" if nothing of it is drawn yet.
+function drawnKind(id, layers) {
+  let marks = 0, areas = 0;
+  for (const l of layers) {
+    if (!l || !l.id || (l.id !== id && !l.id.startsWith(id + "-") && !l.id.startsWith(id + "_"))) continue;
+    if (/-(soft|haze|core)$/.test(l.id)) continue;
+    if (MARK_TYPES.has(l.type)) marks++;
+    else if (l.type === "fill" || l.type === "line" || l.type === "raster") areas++;
+  }
+  return marks ? "point" : areas ? "shape" : "";
 }
 function layerKindSwitch(box) {
   if (!box || typeof document.createElement !== "function" || document.getElementById("kind-switch")) return;
@@ -13562,19 +13635,59 @@ function layerKindSwitch(box) {
   wrap.id = "kind-switch";
   wrap.className = "kind-switch";
   wrap.innerHTML = `<span class="ks-l">Turn on every</span>` + [["point", "Points"], ["shape", "Shapes"], ["national", "National highlights"]]
-    .map(([k, t]) => `<button type="button" class="chip" data-kind-all="${k}" aria-pressed="false">${t}</button>`).join("");
+    .map(([k, t]) => `<button type="button" class="chip" data-kind-all="${k}" aria-pressed="false">${t}</button>`).join("") +
+    `<span class="ks-busy" role="status" aria-live="polite" hidden><i class="ks-spin" aria-hidden="true"></i><span class="ks-t"></span></span>`;
   if (at && at.after) at.after(wrap); else if (box.parentElement) box.parentElement.insertBefore(wrap, box);
   const cfgs = new Map(LAYERS.concat(...GROUPS.map((g) => g.children || [])).filter(Boolean).map((c) => [c.id, c]));
-  const kindOf = (el) => el.dataset.layer ? (PANEL_REMOVED.has(el.dataset.layer) ? "" : layerKind(cfgs.get(el.dataset.layer))) : (el.dataset.kind || "");
-  let queue = [], running = false;
+  const kindOf = (el) => {
+    const id = el.dataset.layer;
+    if (!id) return el.dataset.kind || "";
+    if (PANEL_REMOVED.has(id)) return "";
+    return KIND_SEEN.get(id) || layerKind(cfgs.get(id));
+  };
+  const busy = wrap.querySelector(".ks-busy"), busyText = wrap.querySelector(".ks-t");
+  let queue = [], running = false, total = 0, done = 0, pointRows = new Set();
+  const say = (t) => { busy.hidden = !t; busyText.textContent = t || ""; };
+  // Rows the Points switch ticked that drew only areas go back off and are
+  // filed with the shapes.
+  const sortOut = () => {
+    const layers = typeof map.getStyle === "function" ? (map.getStyle().layers || []) : [];
+    let moved = 0;
+    for (const id of pointRows) {
+      const k = drawnKind(id, layers);
+      if (!k) continue;
+      pointRows.delete(id);
+      if (k === "point") continue;
+      KIND_SEEN.set(id, k);
+      const el = box.querySelector(`input[data-layer="${id}"]`);
+      if (el && el.checked) { el.checked = false; el.dispatchEvent(new Event("change", { bubbles: true })); moved++; }
+    }
+    if (moved) try { localStorage.setItem(KIND_SEEN_KEY, JSON.stringify(Object.fromEntries(KIND_SEEN))); } catch (e) { /* not kept */ }
+    return moved;
+  };
+  const finish = () => {
+    legendHold = false;
+    if (legendHeld) { legendHeld = false; buildLegend(); }
+    say("Drawing…");
+    const end = () => { sortOut(); if (!running) say(""); };
+    if (typeof map.once === "function" && typeof map.loaded === "function" && !map.loaded()) {
+      let over = false;
+      const stop = () => { if (over) return; over = true; end(); };
+      map.once("idle", stop);
+      setTimeout(stop, 60000);       // said to be done after a minute whatever is still coming
+    } else end();
+  };
   const pump = () => {
-    if (!queue.length) { running = false; return; }
+    if (!queue.length) { running = false; finish(); return; }
     running = true;
+    legendHold = true;
     for (const [el, on] of queue.splice(0, 8)) {
+      done++;
       if (el.checked === on) continue;
       el.checked = on;
       el.dispatchEvent(new Event("change", { bubbles: true }));
     }
+    say(`Turning on ${Math.min(done, total).toLocaleString()} of ${total.toLocaleString()} layers…`);
     setTimeout(pump, 150);
   };
   wrap.addEventListener("click", (e) => {
@@ -13585,12 +13698,18 @@ function layerKindSwitch(box) {
     btn.classList.toggle("on", on);
     const k = btn.dataset.kindAll;
     const els = [...box.querySelectorAll("input[data-layer], input[data-cat]")].filter((el) => kindOf(el) === k);
+    if (k === "point") for (const el of els) if (el.dataset.layer) { if (on) pointRows.add(el.dataset.layer); else pointRows.delete(el.dataset.layer); }
     queue = queue.filter(([el]) => kindOf(el) !== k).concat(els.map((el) => [el, on]));
-    if (!running) pump();
+    total = done + queue.length;
+    if (!running) { done = 0; total = queue.length; pump(); }
   });
   addStyle(".kind-switch{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin:0 0 6px;font-size:11px;color:var(--dim)}" +
     ".kind-switch .chip{font:inherit;font-size:11px;padding:2px 7px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:none;color:var(--ink,#e8e2d6);cursor:pointer}" +
-    ".kind-switch .chip.on{background:rgba(120,160,220,.28);border-color:rgba(150,180,230,.6)}", "kind-switch");
+    ".kind-switch .chip.on{background:rgba(120,160,220,.28);border-color:rgba(150,180,230,.6)}" +
+    ".kind-switch .ks-busy{display:inline-flex;align-items:center;gap:5px;flex-basis:100%}" +
+    ".kind-switch .ks-busy[hidden]{display:none}" +
+    ".kind-switch .ks-spin{width:10px;height:10px;border-radius:50%;border:2px solid rgba(150,180,230,.25);border-top-color:rgba(150,180,230,.9);animation:ks-spin .8s linear infinite}" +
+    "@keyframes ks-spin{to{transform:rotate(360deg)}}", "kind-switch");
 }
 function layerSearch(box) {
   if (!box || !box.parentElement || typeof document.createElement !== "function" || document.getElementById("layer-search")) return;
