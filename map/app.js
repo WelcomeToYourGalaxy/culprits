@@ -376,7 +376,12 @@ const LAYERS = [
   { id:"hydrowaste",           name:"Wastewater treatment plants (HydroWASTE)", unit:"plants", colour:"#5E7278", route:"pmtiles", ready:true, off: true,
     note: "HydroWASTE v1.0: 58,502 wastewater treatment plants, with the population each serves, the treated wastewater it discharges, its level of treatment, its estimated outfall and the river's dilution there (Ehalt Macedo et al., Earth System Science Data 2022; CC BY 4.0). The database behind HydroFATE's map, whose own page cannot be read to draw here. Every column is kept." },
   { id:"slavery_sites",        name:"Brick kilns and artisanal mining", unit:"sites", colour:"#8A6B62", route:"pmtiles", ready:true, off: true,
-    note: "Sector infrastructure, not confirmed exploitation. These are sites in sectors where forced and child labour concentrate; where IPIS actually observed it, the site says so." },
+    // Round 58: each kiln at its own place, from culprits-tiles-more
+    // scripts/slavery_sites.py; the old copy (kilns at their pictures' grid
+    // points) is used until that has run.
+    archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/slavery_sites.pmtiles",
+    archiveBefore: `${TILE_BASE}/slavery_sites.pmtiles`,
+    note: "Sector infrastructure, not confirmed exploitation. These are sites in sectors where forced and child labour concentrate; where IPIS actually observed it, the site says so. Each brick kiln is placed at the centre of its box in the SentinelKilnDB satellite picture it was found in (within about 60 m); before 26 September they sat at the pictures' own grid points, some of them over water." },
   { id:"slavery_ports",        name:"Ports with high-risk vessel calls", unit:"ports", colour:"#5F7480", route:"pmtiles", ready:true, off: true,
     note: "Scored on the share of calling fishing vessels flagged high-risk by a published behavioural model. A property of the calls, not of the port." },
   { id:"slavery_fishing",      name:"Ocean squares where forced-labour fishing is predicted (model, no vessel named)", unit:"model cells, 2.5\u00b0", colour:"#4E6A70", route:"pmtiles", ready:true, off: true,
@@ -578,7 +583,10 @@ function gladSpread(v, idx, salt, ordered) {
   const darkening = light(firstP) >= light(lastP);
   const to = new Map(distinct.map((hx, r) => {
     const t = r / (n - 1);
-    const l = ordered ? (darkening ? 0.8 - t * 0.38 : 0.42 + t * 0.38) : (r % 2 ? 0.44 : 0.66);
+    // In the narrower country span, classes take three depths rather than two
+    // so that more of them stay apart (round 58).
+    const l = ordered ? (darkening ? 0.8 - t * 0.38 : 0.42 + t * 0.38)
+      : gladSpan(salt) < GLAD_SPAN ? [0.7, 0.5, 0.34][r % 3] : (r % 2 ? 0.44 : 0.66);
     const out = gladHsl(GLAD_LO + t * gladSpan(salt), 0.7, l);
     GLAD_OUT.add(out);
     GLAD_SPREAD.set(`${salt}|${hx}`, out);
@@ -1996,10 +2004,12 @@ const glowMaxOf = new Map();                   // source id -> the largest "valu
 // strength and could not be seen from the world view. The aquaculture ponds are
 // the same kind of layer.
 const GLOW_FULL = new Set(["skytruth_voc", "mine_features", "aquaculture_ponds"]);
-const glowFull = (layer) => GLOW_FULL.has(String(layer.source || "").replace(/-(src|pm)$/, ""));
+const glowFull = (layer) => GLOW_FULL.has(String(layer.source || "").replace(/-(src|pm)$/, "")) ||
+  (/^points-bundle-/.test(String(layer.source || "")) && GLOW_FULL.has(String(layer["source-layer"] || "")));
 function glowWeight(layer) {
   if (glowFull(layer)) return 1;
-  const max = glowMaxOf.get(layer.source);
+  // A shared file (round 58) keeps each row's largest amount under the row.
+  const max = glowMaxOf.get(`${layer.source}|${layer["source-layer"] || ""}`) || glowMaxOf.get(layer.source);
   const count = ["max", 1, ["coalesce", ["to-number", ["get", "_count"]], 1]];
   if (!max) return ["min", 1, ["/", ["log2", ["+", 1, count]], 10]];
   // Amount over the layer's largest amount; a merged point carries its members' sum already.
@@ -2271,6 +2281,28 @@ const MAGNITUDE_RADIUS = [
     0, 2.5, 1, 4, 3, 7, 6, 12],
 ];
 
+/* ---------- points from many rows in a few shared files (round 58) ---------- */
+// culprits-tiles-more scripts/point_bundles.py joins the archives of the rows in
+// its bundles/members.json into a few files, each row its own layer inside,
+// every field kept; bundles/points.json says which file holds which row. When
+// the Turn on every: Points switch turns rows on, the rows in those files read
+// them from the shared file, so the map asks for each square once per file
+// rather than once per row. A row ticked by hand reads its own archive.
+const POINT_BUNDLES_URL = "https://welcometoyourgalaxy.github.io/culprits-tiles-more/bundles/points.json";
+const POINT_BUNDLE_OF = new Map();      // row (archive owner) -> { n, url }
+const POINT_BUNDLE_USE = new Set();     // rows the switch is turning on through a shared file
+const PM_ARCHIVES = new Map();          // archive address -> its PMTiles reader, shared by the rows that read it
+let pointBundlesRead = null;
+function readPointBundles() {
+  if (!pointBundlesRead) {
+    pointBundlesRead = getJson(POINT_BUNDLES_URL, 15000).then((j) => {
+      for (const b of (j && j.bundles) || []) for (const r of b.rows || []) POINT_BUNDLE_OF.set(r, { n: b.n || b.file, url: b.url });
+      return POINT_BUNDLE_OF;
+    }).catch(() => POINT_BUNDLE_OF);   // no shared files yet: every row reads its own
+  }
+  return pointBundlesRead;
+}
+
 async function addPmtilesLayer(cfg) {
   // Per layer, defaulting to no change. Set radiusScale on a layer whose dots
   // crowd at low zoom; everything else keeps the shared ramp exactly.
@@ -2281,9 +2313,14 @@ async function addPmtilesLayer(cfg) {
   const owner = cfg.sourceOf || cfg.id;
   // History years live on R2, not in the repo, so a layer may name its own
   // archive. Everything else resolves against the repo's tiles directory.
-  const url = cfg.archiveUrl || `${TILE_BASE}/${owner}.pmtiles`;
+  let url = cfg.archiveUrl || `${TILE_BASE}/${owner}.pmtiles`;
+  const ownUrl = url;
+  const bundle = POINT_BUNDLE_USE.has(owner) && !cfg.facet ? POINT_BUNDLE_OF.get(owner) : null;
+  if (bundle) url = bundle.url;
   try {
-    const head = await fetch(url, { method: "HEAD" });
+    let head = await fetch(url, { method: "HEAD" });
+    // A row moving to a new copy keeps its old one until the new one is built.
+    if (!head.ok && cfg.archiveBefore) { url = cfg.archiveBefore; head = await fetch(url, { method: "HEAD" }); }
     if (!head.ok) throw new Error(`${head.status} at ${url}`);
   } catch (e) {
     // The file as well as the failure: "Failed to fetch" on its own cannot be
@@ -2294,16 +2331,18 @@ async function addPmtilesLayer(cfg) {
     return;
   }
 
-  const src = `${owner}-src`;
+  const src = bundle ? `points-bundle-${bundle.n}` : `${owner}-src`;
+  const glowKey = bundle ? `${src}|${owner}` : src;
   // Added once; a second layer over the same archive reuses it.
+  let archive = PM_ARCHIVES.get(url) || null;
   if (!map.getSource(src)) {
     // Registered with the protocol BEFORE the source exists, so the map reuses
     // this instance instead of building a second one for the same file. One
     // header fetch and one root-directory fetch per archive, not two.
-    let archive = null;
     try {
       archive = new pmtiles.PMTiles(url);
       protocol.add(archive);
+      PM_ARCHIVES.set(url, archive);
     } catch (e) {
       // No instance is not fatal — the protocol makes its own from the URL, as
       // it did before. Only the deduplication and the facet read are lost.
@@ -2312,18 +2351,6 @@ async function addPmtilesLayer(cfg) {
     }
 
     map.addSource(src, { type: "vector", url: `pmtiles://${url}` });
-    // The largest amount in the archive, from tippecanoe's own statistics, so
-    // the glow can weigh each source by its share of it. Read before the
-    // layers are added, since their weight expression is set at that moment.
-    if (archive && !glowMaxOf.has(src)) {
-      try {
-        const meta = await archive.getMetadata();
-        const stats = (meta && (meta.tilestats || (typeof meta.json === "string" ? JSON.parse(meta.json).tilestats : undefined))) || {};
-        const lay = (stats.layers || []).find((l) => l.layer === owner) || (stats.layers || [])[0];
-        const attr = lay && (lay.attributes || []).find((x) => x.attribute === "value");
-        if (attr && Number.isFinite(Number(attr.max)) && Number(attr.max) > 0) glowMaxOf.set(src, Number(attr.max));
-      } catch (e) { /* no statistics: the glow weighs points alike */ }
-    }
     // An archive that declares its own facet values is asked for them, so a
     // year archive offers its twelve months rather than the shared list's
     // sixty-six. Failure here is not fatal: the declared list stands and the
@@ -2334,6 +2361,19 @@ async function addPmtilesLayer(cfg) {
       // After the map has drawn, not while it is drawing.
       map.once("idle", () => learnFacetValues(cfg, archive));
     }
+  }
+  // The largest amount in the archive, from tippecanoe's own statistics, so
+  // the glow can weigh each source by its share of it. Read before the
+  // layers are added, since their weight expression is set at that moment.
+  // In a shared file, each row's own layer is read (round 58).
+  if (archive && !glowMaxOf.has(glowKey)) {
+    try {
+      const meta = await archive.getMetadata();
+      const stats = (meta && (meta.tilestats || (typeof meta.json === "string" ? JSON.parse(meta.json).tilestats : undefined))) || {};
+      const lay = (stats.layers || []).find((l) => l.layer === owner) || (bundle ? null : (stats.layers || [])[0]);
+      const attr = lay && (lay.attributes || []).find((x) => x.attribute === "value");
+      if (attr && Number.isFinite(Number(attr.max)) && Number(attr.max) > 0) glowMaxOf.set(glowKey, Number(attr.max));
+    } catch (e) { /* no statistics: the glow weighs points alike */ }
   }
 
   // Aggregate view. tippecanoe summed `value` into the clustered features, so
@@ -2452,7 +2492,7 @@ async function addPmtilesLayer(cfg) {
   // copies of the two layers, drawn only at that file's zooms, so no zoom is
   // drawn twice. Until the list answers, or if there is none, the first file
   // draws alone as it always did.
-  fetch(url.replace(/\.pmtiles$/, ".build.json")).then((r) => (r.ok ? r.json() : null)).then((stamp) => {
+  fetch(ownUrl.replace(/\.pmtiles$/, ".build.json")).then((r) => (r.ok ? r.json() : null)).then((stamp) => {
     const parts = pmShapeParts(url, stamp);
     if (parts.length < 2) return;
     cfg._layerIds = cfg._layerIds || [];
@@ -2493,7 +2533,7 @@ async function addPmtilesLayer(cfg) {
     // the copy, in 256 pieces, and a click reads the one piece that holds it.
     bindHtmlPopup(`${cfg.id}-agg`, (p) => pieceBox(cfg, p));
     bindHtmlPopup(`${cfg.id}-pt`, (p) => pieceBox(cfg, p));
-    fetch(url.replace(/\.pmtiles$/, ".build.json")).then((r) => (r.ok ? r.json() : null)).then((b) => {
+    fetch(ownUrl.replace(/\.pmtiles$/, ".build.json")).then((r) => (r.ok ? r.json() : null)).then((b) => {
       if (!b) return;
       setLayerState(cfg.id, `${Number(b.alerts_with_position).toLocaleString()} ${cfg.unit}` +
         (b.no_position ? ` \u00b7 ${Number(b.no_position).toLocaleString()} more in the copy have no position and cannot be drawn` : ""));
@@ -4554,15 +4594,37 @@ async function addWorldsRingLayer(cfg) {
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, w, h);
     placed = [];
+    if (!on) return;
     const R = globeRadiusPx(map.getZoom(), map.getCenter().lat);
     const outer = Math.min(R * 1.95, Math.min(w, h) / 2 - 22);
-    if (!on || drawnProjection() === "mercator" || map.getPitch() > 5 || outer - R * 1.1 < 45) return;
+    const flat = drawnProjection() === "mercator";
+    if (!flat && (map.getPitch() > 5 || outer - R * 1.1 < 45)) return;
     const cx = w / 2, cy = h / 2;
+    if (flat) {
+      // The flat map has no globe to go round (round 58): the worlds sit on a
+      // rail across the top of the view, nearest on the left, further right
+      // the further from Earth, on the page's own logarithmic scale. Labels
+      // take turns above and below the rail so neighbours can be read.
+      // Between the layers box and the right-hand column, so neither covers it.
+      const edge = (sel, side) => { const el = document.querySelector(sel); if (!el || !el.getBoundingClientRect) return null;
+        const r = el.getBoundingClientRect(), b = box.getBoundingClientRect(); return r.width ? (side === "l" ? r.right - b.left : r.left - b.left) : null; };
+      const pl = edge(".panel", "l"), pr = edge(".right-col", "r");
+      const left = Math.max(40, (pl || 0) + 30), right = Math.min(w - 40, (pr || w) - 30), y = 58;
+      if (right - left < 160) return;
+      g.strokeStyle = "rgba(227,215,203,0.35)"; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(left, y); g.lineTo(right, y); g.stroke();
+      g.font = "10.5px system-ui,sans-serif"; g.fillStyle = "rgba(227,215,203,0.7)"; g.textAlign = "left";
+      g.fillText("Earth", left, y + 28); g.textAlign = "right"; g.fillText("further from Earth \u2192", right, y + 28);
+      worlds.forEach((wd, i) => {
+        const x = left + (right - left) * Math.max(0, Math.min(1, Number(wd.logX) || 0));
+        placed.push({ wd, x, y, size: 4 + 8 * (Number(wd.size) || 0.3), colour: worldColour(Number(wd.probMid)), up: i % 2 === 0 });
+      });
+    } else
     // Across the top of the globe, nearest world on the left.
     worlds.forEach((wd, i) => {
       const a = (-150 + (120 * i) / Math.max(1, worlds.length - 1)) * Math.PI / 180;
       const d = R * 1.1 + (outer - R * 1.1) * Math.max(0, Math.min(1, Number(wd.logX) || 0));
-      placed.push({ wd, x: cx + Math.cos(a) * d, y: cy + Math.sin(a) * d, size: 4 + 8 * (Number(wd.size) || 0.3), colour: worldColour(Number(wd.probMid)) });
+      placed.push({ wd, x: cx + Math.cos(a) * d, y: cy + Math.sin(a) * d, size: 4 + 8 * (Number(wd.size) || 0.3), colour: worldColour(Number(wd.probMid)), up: true });
     });
     g.font = "11px system-ui,sans-serif"; g.textAlign = "center";
     for (const p of placed) {
@@ -4570,8 +4632,24 @@ async function addWorldsRingLayer(cfg) {
       g.fillStyle = p.colour; g.globalAlpha = 0.92; g.fill(); g.globalAlpha = 1;
       g.lineWidth = 0.8; g.strokeStyle = "rgba(10,10,12,0.8)"; g.stroke();
       g.fillStyle = "rgba(227,215,203,0.85)";
-      g.fillText(`${p.wd.name} · ${p.wd.prob}`, p.x, p.y - p.size - 5);
+      g.font = "11px system-ui,sans-serif"; g.textAlign = "center";
+      g.fillText(`${p.wd.name} · ${p.wd.prob}`, p.x, p.up ? p.y - p.size - 5 : p.y + p.size + 13);
     }
+  };
+  // Turned on while the map is close in, tilted, or too near for the ring,
+  // the map pulls back to where the worlds show (round 58), so nobody is left
+  // looking at a patch of ground wondering where they went.
+  const pullBack = () => {
+    if (typeof map.easeTo !== "function") return;
+    const lat = map.getCenter().lat, room = Math.min(box.clientWidth, box.clientHeight) / 2 - 22;
+    if (drawnProjection() === "mercator") {
+      if (map.getZoom() > 2.2 || map.getPitch() > 5) map.easeTo({ zoom: Math.min(map.getZoom(), 1.6), pitch: 0, duration: 1200 });
+      return;
+    }
+    let z = map.getZoom();
+    const fits = (zz) => { const R = globeRadiusPx(zz, lat); return Math.min(R * 1.95, room) - R * 1.1 >= 110; };
+    while (z > 0 && !fits(z)) z -= 0.1;
+    if (z < map.getZoom() - 0.05 || map.getPitch() > 5) map.easeTo({ zoom: Math.max(0, z), pitch: 0, bearing: 0, duration: 1200 });
   };
   const hit = (pt) => placed.find((p) => Math.hypot(p.x - pt.x, p.y - pt.y) <= p.size + 6);
   map.on("render", draw);
@@ -4596,8 +4674,9 @@ async function addWorldsRingLayer(cfg) {
     card.style.display = "block";
     card.querySelector(".neo-x").onclick = () => { card.style.display = "none"; };
   });
-  cfg.afterVisibility = (vis) => { on = vis === "visible"; if (!on) card.style.display = "none"; draw(); };
+  cfg.afterVisibility = (vis) => { const was = on; on = vis === "visible"; if (!on) card.style.display = "none"; if (on && !was) pullBack(); draw(); };
   on = (visibility.get(cfg.id) || "visible") === "visible";
+  if (on) pullBack();
   const row = document.querySelector(`[data-layer="${cfg.id}"]`);
   const label = row && row.closest ? row.closest("label") : null;
   if (label && label.after && !document.querySelector(`.facet[data-key-for="${cfg.id}"]`)) {
@@ -4605,10 +4684,10 @@ async function addWorldsRingLayer(cfg) {
     el.className = "facet cat-key";
     el.dataset.keyFor = cfg.id;
     el.innerHTML = catalogueKeyHtml({ values: WORLD_PROB.map(([lo, c, t], i) => [i, c, t]) }) +
-      `<div style="padding-left:18px;font-size:10.5px;color:var(--dim)">Colour: the assessed chance a world's evidence is biological. Further from the globe: further from Earth (logarithmic). Shown at world view.</div>`;
+      `<div style="padding-left:18px;font-size:10.5px;color:var(--dim)">Colour: the assessed chance a world's evidence is biological. Further from the globe (on the flat map, further right along the top): further from Earth (logarithmic). The map pulls back to world view when this is turned on.</div>`;
     label.after(el);
   }
-  setLayerState(cfg.id, `${worlds.length} worlds · drawn round the globe at world view`);
+  setLayerState(cfg.id, `${worlds.length} worlds · round the globe at world view, along the top on the flat map`);
   draw();
 }
 
@@ -9837,6 +9916,120 @@ function shapeText(v) {
   return String(v == null ? "" : v).replace(/<[^>]*>/g, " ").replace(/&/g, "&amp;")
     .replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\s+/g, " ").trim();
 }
+/* ---------- shapes coloured by their own figures and classes (round 58) ---------- */
+// Asked for 26 September: country layers that carry a rating, score or class
+// (the modern slavery estimates, the genetic-engineering regimes) drew every
+// country in one colour, so the figures could only be read by clicking. Each
+// such layer is now shaded by its own field: figures light to dark on a log
+// scale (the spreads are wide), classes in colours told apart, with a key
+// under the row. Where a layer offers more than one field (the treaties), a
+// menu in the key picks which. The labels are the source maps' own.
+// Countries a layer has no figure for are left clear.
+const SHAPE_STEPS = ["#DCD7CC", "#B8B0A2", "#948B7D", "#6F675B", "#4A443C"];
+const SHAPE_CLASS_COLOURS = ["#5B9BD5", "#D99B3C", "#8A5FB0", "#4F9A6E", "#B5524A", "#C9C27A", "#3F6FA8", "#9A6A4A"];
+const SHAPE_YES_NO = [[true, "Party"], [false, "Not a party"]];
+const SHAPE_COLOUR_BY = {
+  // The figure per 1,000 is in each country's write-up (Walk Free's Global
+  // Slavery Index, as the anti-slavery map's harvest_scale.py words it).
+  slavery_prevalence: [{ label: "people in modern slavery per 1,000 (estimate)", field: "per_1000", fromDetails: /([\d.]+) people per 1,000/, scale: "log" }],
+  gmo_trials: [{ label: "release authorisations", field: "count", scale: "log" }],
+  // REGIMES in the Genetic engineering map's index.html.
+  gmo_regime: [{ label: "regime", field: "regime", national: true,
+    // The map draws a carve-out in the colour of the scheme it is cut out of,
+    // technique-based for all of them (its own note on REGIMEON).
+    classes: [["technique", "Technique-based"], ["carveout", "Technique-based, with a carve-out"], ["trait", "Trait-based"]] }],
+  // TREATY_DEFS in the Genetic engineering map's index.html.
+  gmo_treaties: [
+    { label: "Cartagena Protocol — biosafety", field: "cartagena", classes: SHAPE_YES_NO },
+    { label: "Nagoya–Kuala Lumpur — liability", field: "nagoya_kl", classes: SHAPE_YES_NO },
+    { label: "UPOV 1991 — restricts saved seed", field: "upov91", classes: SHAPE_YES_NO },
+    { label: "UPOV 1978 — saved seed permitted", field: "upov78", classes: SHAPE_YES_NO },
+    { label: "Plant Treaty — shared crop genetics", field: "plant_treaty", classes: SHAPE_YES_NO },
+    { label: "party to any of the five", field: "any", classes: SHAPE_YES_NO },
+    { label: "how many of the five", field: "_treaties", countOf: ["cartagena", "nagoya_kl", "upov91", "upov78", "plant_treaty"] },
+  ],
+  cultivated_meat_laws: [{ label: "status", field: "status_label", classes: "auto" }],
+  site_settler_colonialism: [{ label: "kind", field: "catLabel", classes: "auto", national: true }],
+};
+// Fills in figures a layer keeps elsewhere: in its write-ups, or as a count
+// of yes-or-no fields.
+async function shapeValues(url, data, by) {
+  let details = null;
+  for (const spec of by) {
+    if (spec.fromDetails && !details) { try { details = await loadShapeDetails(url); } catch (e) { details = {}; } }
+    for (const f of data.features) {
+      const p = f.properties || (f.properties = {});
+      if (spec.fromDetails) {
+        const d = p._k != null && details ? details[p._k] : null;
+        const m = d ? spec.fromDetails.exec(Object.values(d).join(" ")) : null;
+        if (m && isFinite(Number(m[1]))) p[spec.field] = Number(m[1]);
+      }
+      if (spec.countOf) p[spec.field] = spec.countOf.filter((k) => p[k] === true).length;
+    }
+  }
+}
+// The fill colour for one choice, and its key: [colour, label] pairs.
+function shapeColouring(spec, data) {
+  const get = ["get", spec.field];
+  if (spec.scale) {
+    const vals = data.features.map((f) => Number((f.properties || {})[spec.field])).filter((v) => isFinite(v) && (spec.scale !== "log" || v > 0));
+    if (!vals.length) return null;
+    const log = spec.scale === "log";
+    const tr = (v) => (log ? Math.log10(v) : v);
+    const lo = tr(Math.min(...vals)), hi = tr(Math.max(...vals)), span = Math.max(hi - lo, 1e-9);
+    const input = log ? ["log10", ["max", ["to-number", get, 0], 1e-9]] : ["to-number", get, 0];
+    const at = ["max", 0, ["min", 1, ["/", ["-", input, lo], span]]];
+    const ramp = ["interpolate", ["linear"], at, 0, SHAPE_STEPS[0], 0.25, SHAPE_STEPS[1], 0.5, SHAPE_STEPS[2], 0.75, SHAPE_STEPS[3], 1, SHAPE_STEPS[4]];
+    const has = log ? ["all", ["==", ["typeof", get], "number"], [">", get, 0]] : ["==", ["typeof", get], "number"];
+    const fmt = (t) => { const v = log ? Math.pow(10, lo + t * span) : lo + t * span; return Number(v.toPrecision(2)).toLocaleString(); };
+    return { expr: ["case", has, ramp, "rgba(0,0,0,0)"],
+      key: SHAPE_STEPS.map((c, i) => [c, i === 0 ? `${fmt(0)} or less` : i === 4 ? `${fmt(1)}` : `about ${fmt(i / 4)}`]) };
+  }
+  // A count: each number its own step, none light, all dark.
+  if (spec.countOf) {
+    const n = spec.countOf.length;
+    const step = (i) => { const t = i / n * 4, a = Math.floor(Math.min(t, 3.999)), f = t - a;
+      const rgb = (h) => [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16));
+      const x = rgb(SHAPE_STEPS[a]), y = rgb(SHAPE_STEPS[a + 1]);
+      return "#" + [0, 1, 2].map((j) => Math.round(x[j] + (y[j] - x[j]) * f).toString(16).padStart(2, "0")).join("").toUpperCase(); };
+    const m = ["match", ["to-number", get, -1]];
+    const key = [];
+    for (let i = 0; i <= n; i++) { m.push(i, step(i)); key.push([step(i), i === 0 ? "none" : i === n ? `all ${n}` : String(i)]); }
+    m.push("rgba(0,0,0,0)");
+    return { expr: m, key };
+  }
+  let classes = spec.classes;
+  if (classes === "auto") {
+    const n = new Map();
+    for (const f of data.features) { const v = (f.properties || {})[spec.field]; if (v != null && v !== "") n.set(v, (n.get(v) || 0) + 1); }
+    classes = [...n.entries()].sort((a, b) => b[1] - a[1]).map(([v]) => [v, String(v)]);
+  }
+  if (!classes || !classes.length) return null;
+  // Two classes are told apart by depth; more by colour.
+  const colours = classes.length === 2 ? [SHAPE_STEPS[4], SHAPE_STEPS[0]] : classes.map((c, i) => SHAPE_CLASS_COLOURS[i % SHAPE_CLASS_COLOURS.length]);
+  const m = ["match", ["to-string", get]];
+  classes.forEach(([v], i) => m.push(String(v), colours[i]));
+  m.push("rgba(0,0,0,0)");
+  return { expr: m, key: classes.map(([, label], i) => [colours[i], label]) };
+}
+function shapeKey(cfg, by, chosen, colouring) {
+  const box = document.getElementById("layers");
+  const row = box && box.querySelector ? box.querySelector(`[data-layer="${cfg.id}"]`) : null;
+  const label = row && row.closest ? row.closest("label") : null;
+  if (!label || !label.after || typeof document.createElement !== "function") return;
+  let el = box.querySelector(`.facet[data-key-for="${cfg.id}"]`);
+  if (!el) {
+    el = document.createElement("div");
+    el.className = "facet cat-key";
+    el.dataset.keyFor = cfg.id;
+    label.after(el);
+  }
+  const pick = by.length > 1
+    ? `<div style="padding-left:18px"><select data-shape-by="${escapeHtml(cfg.id)}" aria-label="Shade the countries by" style="font:inherit;font-size:11px;max-width:100%">` +
+      by.map((b, i) => `<option value="${i}"${i === chosen ? " selected" : ""}>${escapeHtml(b.label)}</option>`).join("") + `</select></div>`
+    : `<div style="padding-left:18px;font-size:10.5px;color:var(--dim)">Shaded by ${escapeHtml(by[chosen].label)}</div>`;
+  el.innerHTML = pick + catalogueKeyHtml({ values: colouring.key.map(([c, t], i) => [i, c, t]) });
+}
 async function addShapesLayer(cfg) {
   const url = cfg.dataUrl || `${DATA_BASE}/shapes/${cfg.id}.geojson`;
   let data;
@@ -9850,12 +10043,19 @@ async function addShapesLayer(cfg) {
     return;
   }
   const source = `${cfg.id}-shapes`;
+  const by = SHAPE_COLOUR_BY[cfg.id];
+  let colouring = null;
+  if (by) {
+    if (by.some((b) => b.national)) GLAD_NATIONAL.add(cfg.id);
+    await shapeValues(url, data, by);
+    colouring = shapeColouring(by[0], data);
+  }
   map.addSource(source, { type: "geojson", data, attribution: cfg.attribution || "" });
-  const colour = ["coalesce", ["get", "_map_colour"], cfg.colour];
+  const colour = colouring ? colouring.expr : ["coalesce", ["get", "_map_colour"], cfg.colour];
   const areas = ["match", ["geometry-type"], ["Polygon", "MultiPolygon"], true, false];
   const lines = ["match", ["geometry-type"], ["LineString", "MultiLineString"], true, false];
   map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source, filter: areas,
-    paint: { "fill-color": colour, "fill-opacity": 0.42 } });
+    paint: { "fill-color": colour, "fill-opacity": colouring ? 0.72 : 0.42 } });
   map.addLayer({ id: `${cfg.id}-line`, type: "line", source,
     filter: ["match", ["geometry-type"], ["Point", "MultiPoint"], false, true],
     paint: { "line-color": colour, "line-opacity": 0.85,
@@ -9887,6 +10087,24 @@ async function addShapesLayer(cfg) {
   bindHtmlPopup(`${cfg.id}-fill`, popup);
   bindHtmlPopup(`${cfg.id}-line`, popup);
   bindHtmlPopup(`${cfg.id}-pt`, popup);
+  if (colouring) {
+    shapeKey(cfg, by, 0, colouring);
+    const box = document.getElementById("layers");
+    const sel = box && box.querySelector ? box.querySelector(`select[data-shape-by="${cfg.id}"]`) : null;
+    if (sel) {
+      sel.addEventListener("change", (e) => {
+        e.stopPropagation();
+        const i = Number(sel.value), c = shapeColouring(by[i], data);
+        if (!c) return;
+        map.setPaintProperty(`${cfg.id}-fill`, "fill-color", c.expr);
+        map.setPaintProperty(`${cfg.id}-line`, "line-color", c.expr);
+        const keep = sel.closest ? sel.closest(".facet") : null;
+        if (keep) keep.querySelectorAll(".lg-row").forEach((r) => r.remove());
+        if (keep) keep.insertAdjacentHTML("beforeend", catalogueKeyHtml({ values: c.key.map(([col, t], j) => [j, col, t]) }));
+        buildLegend();
+      });
+    }
+  }
   setLayerState(cfg.id, `${data.features.length.toLocaleString()} ${cfg.unit}`);
   applyVisibility(cfg.id);
   buildLegend();
@@ -13591,12 +13809,14 @@ function layerKind(cfg) {
   if (KIND_OVERRIDE[cfg.id]) return KIND_OVERRIDE[cfg.id];
   const u = String(cfg.unit || "");
   if (KIND_NATIONAL.has(cfg.route) || /\bcountr/i.test(u)) return "national";
-  if (/\b(areas?|zones|territor\w*|outlines?|clusters|concessions|per map cell|per square|cover|hotspots|basins?|buffers?)\b|\b\d+ m\b/i.test(u)) return "shape";
+  if (/\b(areas?|zones|territor\w*|outlines?|clusters|concessions|per map cell|per square|cover|hotspots)\b|\b\d+ m\b/i.test(u)) return "shape";
   if (KIND_SHAPE.has(cfg.route)) return "shape";
   if (KIND_POINT.has(cfg.route)) return "point";
   return "";
 }
-const AREA_WORDS = /\b(buffers?|near|within|basins?|concessions?|areas?|zones?|\d+ ?km)\b|buffer/i;
+// Only a buffer is taken from the words (round 58: concessions, areas and
+// the like can be points; what a row draws decides, see drawnKind).
+const AREA_WORDS = /buffer|\bnear\b[^,]*,\s*\d+ ?km\b/i;
 const POINT_WORDS = /\b(mills?|points?|plants?|refiner\w*|facilit\w*|stations?|ports?|villages?|towns?|settlements?|sites?|photos?|news|dams?|power)\b/i;
 function catalogueKind(cfg, item) {
   if (item && item.kind) return item.kind;
@@ -13608,15 +13828,17 @@ function catalogueKind(cfg, item) {
   if (AREA_WORDS.test(words)) return "shape";
   return POINT_WORDS.test(words) ? "point" : "shape";
 }
-// What a row turned out to draw, once drawn: a row a switch ticked as points
-// that drew only areas is unticked and filed with the shapes from then on
-// (round 57). Kept in this browser only.
+// What a row turned out to draw, once drawn (round 57; both ways since round
+// 58): a row a switch ticked as points that drew only areas is unticked and
+// filed with the shapes, and a row the Shapes or National highlights switch
+// ticked that drew only marks is unticked and filed with the points. A row
+// that draws both stays where it was put. Kept in this browser only.
 const KIND_SEEN_KEY = "culprits-kind-seen";
 const KIND_SEEN = new Map();
 try { for (const [k, v] of Object.entries(JSON.parse(localStorage.getItem(KIND_SEEN_KEY) || "{}"))) KIND_SEEN.set(k, v); } catch (e) { /* none kept */ }
 const MARK_TYPES = new Set(["circle", "symbol", "heatmap"]);
-// The kind a drawn row shows: "point" if it draws any marks, "shape" if it
-// draws areas and lines only, "" if nothing of it is drawn yet.
+// The kind a drawn row shows: "point" if it draws marks only, "shape" if it
+// draws areas, lines or pictures only, "both", or "" if nothing is drawn yet.
 function drawnKind(id, layers) {
   let marks = 0, areas = 0;
   for (const l of layers) {
@@ -13625,7 +13847,7 @@ function drawnKind(id, layers) {
     if (MARK_TYPES.has(l.type)) marks++;
     else if (l.type === "fill" || l.type === "line" || l.type === "raster") areas++;
   }
-  return marks ? "point" : areas ? "shape" : "";
+  return marks && areas ? "both" : marks ? "point" : areas ? "shape" : "";
 }
 function layerKindSwitch(box) {
   if (!box || typeof document.createElement !== "function" || document.getElementById("kind-switch")) return;
@@ -13646,18 +13868,20 @@ function layerKindSwitch(box) {
     return KIND_SEEN.get(id) || layerKind(cfgs.get(id));
   };
   const busy = wrap.querySelector(".ks-busy"), busyText = wrap.querySelector(".ks-t");
-  let queue = [], running = false, total = 0, done = 0, pointRows = new Set();
+  let queue = [], running = false, total = 0, done = 0;
+  const tickedAs = new Map();        // row -> the switch that ticked it
   const say = (t) => { busy.hidden = !t; busyText.textContent = t || ""; };
-  // Rows the Points switch ticked that drew only areas go back off and are
-  // filed with the shapes.
+  // Rows a switch ticked that turned out to draw only the other kind go back
+  // off and are filed with that kind.
   const sortOut = () => {
     const layers = typeof map.getStyle === "function" ? (map.getStyle().layers || []) : [];
     let moved = 0;
-    for (const id of pointRows) {
+    for (const [id, as] of tickedAs) {
       const k = drawnKind(id, layers);
       if (!k) continue;
-      pointRows.delete(id);
-      if (k === "point") continue;
+      tickedAs.delete(id);
+      const wrong = as === "point" ? k === "shape" : k === "point";
+      if (!wrong) continue;
       KIND_SEEN.set(id, k);
       const el = box.querySelector(`input[data-layer="${id}"]`);
       if (el && el.checked) { el.checked = false; el.dispatchEvent(new Event("change", { bubbles: true })); moved++; }
@@ -13697,11 +13921,20 @@ function layerKindSwitch(box) {
     btn.setAttribute("aria-pressed", String(on));
     btn.classList.toggle("on", on);
     const k = btn.dataset.kindAll;
-    const els = [...box.querySelectorAll("input[data-layer], input[data-cat]")].filter((el) => kindOf(el) === k);
-    if (k === "point") for (const el of els) if (el.dataset.layer) { if (on) pointRows.add(el.dataset.layer); else pointRows.delete(el.dataset.layer); }
-    queue = queue.filter(([el]) => kindOf(el) !== k).concat(els.map((el) => [el, on]));
-    total = done + queue.length;
-    if (!running) { done = 0; total = queue.length; pump(); }
+    const go = () => {
+      const els = [...box.querySelectorAll("input[data-layer], input[data-cat]")].filter((el) => kindOf(el) === k);
+      for (const el of els) if (el.dataset.layer) { if (on) tickedAs.set(el.dataset.layer, k); else tickedAs.delete(el.dataset.layer); }
+      // Rows whose points are in a shared file read them from it (round 58).
+      if (k === "point" && on) for (const el of els) {
+        const c = el.dataset.layer && cfgs.get(el.dataset.layer);
+        const owner = c && (c.sourceOf || c.id);
+        if (owner && POINT_BUNDLE_OF.has(owner) && !el.checked) POINT_BUNDLE_USE.add(owner);
+      }
+      queue = queue.filter(([el]) => kindOf(el) !== k).concat(els.map((el) => [el, on]));
+      total = done + queue.length;
+      if (!running) { done = 0; total = queue.length; pump(); }
+    };
+    if (k === "point" && on) { say("Finding the shared files\u2026"); readPointBundles().then(go); } else go();
   });
   addStyle(".kind-switch{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin:0 0 6px;font-size:11px;color:var(--dim)}" +
     ".kind-switch .chip{font:inherit;font-size:11px;padding:2px 7px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:none;color:var(--ink,#e8e2d6);cursor:pointer}" +

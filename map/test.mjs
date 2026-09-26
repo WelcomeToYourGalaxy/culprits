@@ -2621,7 +2621,7 @@ console.log("\nOff-planet sections, Of groups, names, launch links, drag bar, ma
           JSON.stringify(G.glowWeight({ source: "none" })).includes('["get","_count"]'));
     const colours = JSON.stringify(G.GLOW);
     check("\u2026its colours run indigo, blue and pale cyan (the GLAD-S2 style, round 44), with no orange or yellow", /#3A3F9E/.test(colours) && /#3F7FD6/.test(colours) && /#BFEBF5/.test(colours) && !/#E7A63B/i.test(colours));
-    check("\u2026the archive's own largest amount is read for the weight", /glowMaxOf\.set\(src, Number\(attr\.max\)\)/.test(src));
+    check("\u2026the archive's own largest amount is read for the weight", /glowMaxOf\.set\((src|glowKey), Number\(attr\.max\)\)/.test(src));
   }
   check("the zoom-8 note is gone", !/every layer shows summed totals/.test(src));
   const tc = new Function(src.slice(src.indexOf("const TITLE_SMALL"), src.indexOf("function pinBuildings(")) + "; return titleCase;")();
@@ -4256,14 +4256,15 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   const kind = new Function(src.slice(src.indexOf("const KIND_POINT"), src.indexOf("function layerKindSwitch(")) + "; return { layerKind, catalogueKind, drawnKind };")();
-  check("FracTracker's basins map and rows counted in basins or buffers are shapes",
+  check("FracTracker's basins map and buffers round mills are shapes",
         kind.layerKind({ id: "fractracker_refineries", route: "arcgisapp", unit: "refineries" }) === "shape" &&
-        kind.layerKind({ id: "x", route: "pmtiles", unit: "oil and gas basins" }) === "shape" &&
+        kind.catalogueKind({ route: "wmsmenu" }, { title: "millopbufferol_spv" }) === "shape" &&
         kind.catalogueKind({ route: "wmsmenu" }, { title: "Near palm oil mills, 50 km" }) === "shape" &&
         kind.catalogueKind({ route: "wmsmenu" }, { title: "Palm oil mills" }) === "point");
   check("a drawn row's kind is read from its layers: marks make it points, areas alone a shape",
         kind.drawnKind("a", [{ id: "a-fill", type: "fill" }, { id: "a-line", type: "line" }]) === "shape" &&
-        kind.drawnKind("a", [{ id: "a-fill", type: "fill" }, { id: "a-pt", type: "circle" }]) === "point" &&
+        kind.drawnKind("a", [{ id: "a-fill", type: "fill" }, { id: "a-pt", type: "circle" }]) === "both" &&
+        kind.drawnKind("a", [{ id: "a-pt", type: "circle" }, { id: "a-pt-soft", type: "circle" }]) === "point" &&
         kind.drawnKind("a", [{ id: "ab-pt", type: "circle" }]) === "" &&
         /KIND_SEEN\.get\(id\) \|\| layerKind\(cfgs\.get\(id\)\)/.test(src));
   check("bulk ticking shows how far it has got, holds the legend until the end, and says when it is drawn",
@@ -4291,6 +4292,46 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("the hologram keeps its own blues: its layers are not remapped, and its fringe and ground are not purple",
         /\|holo-\.\*\)\$\/;/.test(src) && /--holo-fringe: #6fb0bd;/.test(html) && /--holo-bg:     #081729;/.test(html) && !/#8e86c8/.test(html));
   check("the page asks for this round's script", /app\.js\?v=(5[7-9]|[6-9]\d)/.test(html));
+}
+{
+  console.log("\nround 58: kinds by what is drawn both ways, field names across, country layers shaded by their figures, kilns in place, worlds on the flat map, shared point files");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const kind = new Function(src.slice(src.indexOf("const KIND_POINT"), src.indexOf("function layerKindSwitch(")) + "; return { layerKind, catalogueKind, drawnKind };")();
+  check("words no longer make points into shapes: a points archive counted in concessions or basins stays with the points unless it draws areas",
+        kind.layerKind({ id: "x", route: "pmtiles", unit: "oil and gas basins" }) === "point" &&
+        kind.catalogueKind({ route: "wmsmenu" }, { title: "Palm oil mills near the coast" }) === "point" &&
+        kind.catalogueKind({ route: "wmsmenu" }, { title: "Near palm oil mills, 50 km" }) === "shape" &&
+        /const wrong = as === "point" \? k === "shape" : k === "point";/.test(src));
+  check("a field name in a box is never squeezed to a letter a line", /\.maplibregl-popup th,\.leaflet-popup-content th,table\.meta th\{min-width:6em\}/.test(html));
+  const S = new Function("loadShapeDetails", src.slice(src.indexOf("const SHAPE_STEPS"), src.indexOf("function shapeKey(")) +
+    "; return { SHAPE_COLOUR_BY, shapeValues, shapeColouring };")(async () => ({ 0: { list: "x, 13.0 people per 1,000. y" }, 1: { list: "2.5 people per 1,000" } }));
+  const data = { features: [{ properties: { _k: "0" } }, { properties: { _k: "1" } }, { properties: {} }] };
+  await S.shapeValues("u", data, S.SHAPE_COLOUR_BY.slavery_prevalence);
+  const sc = S.shapeColouring(S.SHAPE_COLOUR_BY.slavery_prevalence[0], data);
+  check("the slavery estimates are shaded by people per 1,000, read from each country's write-up, with a five-step key",
+        data.features[0].properties.per_1000 === 13 && data.features[1].properties.per_1000 === 2.5 && data.features[2].properties.per_1000 === undefined &&
+        sc.expr[0] === "case" && sc.key.length === 5 && /13/.test(sc.key[4][1]));
+  const reg = S.shapeColouring(S.SHAPE_COLOUR_BY.gmo_regime[0], { features: [{ properties: { regime: "trait" } }] });
+  check("the regimes are shaded by class, in the map's own words, a colour each",
+        reg.expr[0] === "match" && reg.key.map((k) => k[1]).join("|") === "Technique-based|Technique-based, with a carve-out|Trait-based" && new Set(reg.key.map((k) => k[0])).size === 3);
+  const td = { features: [{ properties: { cartagena: true, nagoya_kl: true, upov91: false, upov78: false, plant_treaty: true } }] };
+  await S.shapeValues("u", td, S.SHAPE_COLOUR_BY.gmo_treaties);
+  const tc = S.shapeColouring(S.SHAPE_COLOUR_BY.gmo_treaties[6], td);
+  check("the treaties can be shaded treaty by treaty or by how many of the five, picked in the key",
+        td.features[0].properties._treaties === 3 && tc.key.length === 6 && tc.key[0][1] === "none" && tc.key[5][1] === "all 5" &&
+        S.SHAPE_COLOUR_BY.gmo_treaties.length === 7 && /select data-shape-by=/.test(src) && /GLAD_NATIONAL\.add\(cfg\.id\)/.test(src));
+  check("the brick kilns come from the copy that places each kiln in its own box, the old copy standing in until it is built",
+        /archiveUrl: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/tiles\/slavery_sites\.pmtiles",\n    archiveBefore: `\$\{TILE_BASE\}\/slavery_sites\.pmtiles`/.test(src) &&
+        /if \(!head\.ok && cfg\.archiveBefore\)/.test(src));
+  check("the worlds show on the flat map too, and the map pulls back to them when they are turned on",
+        /const flat = drawnProjection\(\) === "mercator";/.test(src) && /further from Earth \\u2192/.test(src) && /if \(on && !was\) pullBack\(\);/.test(src));
+  check("rows the Points switch turns on read their points from a shared file when there is one",
+        /const POINT_BUNDLES_URL = "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/bundles\/points\.json";/.test(src) &&
+        /const src = bundle \? `points-bundle-\$\{bundle\.n\}` : `\$\{owner\}-src`;/.test(src) &&
+        /if \(owner && POINT_BUNDLE_OF\.has\(owner\) && !el\.checked\) POINT_BUNDLE_USE\.add\(owner\);/.test(src) &&
+        /fetch\(ownUrl\.replace\(\/\\\.pmtiles\$\/, "\.build\.json"\)\)/.test(src));
+  check("the page asks for this round's script", /app\.js\?v=(5[8-9]|[6-9]\d)/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

@@ -5,6 +5,46 @@ touches.
 
 ---
 
+## Round 58 (26 September)
+
+- Kind switches: the word rules of round 57 are narrowed to buffers ("buffer",
+  or "near …, N km") so concessions, areas and basins no longer turn point rows
+  into shapes by their words; drawnKind now returns "both" for rows drawing
+  marks and areas, and sortOut moves a row either way (a Points-ticked row that
+  drew only areas to shapes; a Shapes- or National-ticked row that drew only
+  marks to points), kept in KIND_SEEN.
+- Field names in boxes: th min-width 6em (index.html) — with
+  overflow-wrap:anywhere a long value squeezed the name column to a letter.
+- Shapes coloured by their own figures (SHAPE_COLOUR_BY, shapeValues,
+  shapeColouring, shapeKey): slavery_prevalence by people per 1,000 read from
+  each country's write-up (details.json), log scale; gmo_trials by count, log;
+  gmo_regime by regime (the GMO map's REGIMES words; carve-out labelled
+  "Technique-based, with a carve-out" as that map draws it); gmo_treaties per
+  treaty (TREATY_DEFS words) or how many of the five, picked in a menu in the
+  key; cultivated_meat_laws and site_settler_colonialism by class. Countries
+  with no figure are clear. gmo_regime and settler colonialism join
+  GLAD_NATIONAL (no violet). In the country span, unordered classes take three
+  depths (gladSpread).
+- slavery_sites reads culprits-tiles-more tiles/slavery_sites.pmtiles (scripts/
+  slavery_sites.py: each SentinelKilnDB kiln at its box centre in its 128 px,
+  10 m/px picture named after its centre, per the dataset's tile_processing.py;
+  overlaps under 40 m joined; IPIS mining rows from points.json as they are),
+  falling back to map/tiles/slavery_sites.pmtiles (archiveBefore) until built.
+  The script saves probe/kilns/sample.json showing the dataset's rows; check it
+  after the first run.
+- Biosignature worlds: on the flat map, a rail across the top between the
+  layers box and the right column; turning the row on pulls the map back to
+  where the worlds show (pullBack).
+- Shared point files: culprits-tiles-more scripts/point_bundles.py joins the
+  archives in bundles/members.json (73 rows; split, over 40 MB, raster or
+  missing ones left out) with tile-join by max zoom into
+  tiles/points_bundle_N.pmtiles, listed in bundles/points.json. The Points
+  switch reads that list (readPointBundles) and rows it turns on in a bundle
+  draw from source points-bundle-N (POINT_BUNDLE_USE); glow statistics per
+  row (glowKey); .build.json read from the row's own archive (ownUrl). A row
+  ticked by hand reads its own archive. index.html v=58.
+
+
 ## Round 57 (26 September)
 
 - Kind switches: FracTracker's map (fractracker_refineries) draws the world's

@@ -414,6 +414,11 @@
   /* Not inside a site map's own box (.wtyg-box): those carry their map's styling. */
   /* A box that lists every field a source publishes can be long: it scrolls rather than running off the screen. */
   .maplibregl-popup:not(.wtyg-box) .maplibregl-popup-content{max-height:60vh;overflow-y:auto;overflow-wrap:anywhere}
+  /* Field names in a box's tables read across (round 58). The box lets text
+     break anywhere, so beside a long value a name was squeezed into a column
+     one or two letters wide and read top to bottom. A name's column is now
+     never narrower than this. */
+  .maplibregl-popup th,.leaflet-popup-content th,table.meta th{min-width:6em}
   .maplibregl-popup:not(.wtyg-box) .maplibregl-popup-content b{display:block;margin-bottom:3px}
   .maplibregl-popup:not(.wtyg-box) .maplibregl-popup-content .meta{color:var(--dim);font-size:12px;margin-top:5px}
   .maplibregl-popup-tip{border-top-color:var(--peat2)!important;border-bottom-color:var(--peat2)!important}
@@ -495,8 +500,8 @@
   };
 })();
 </script>
-<script src="./app.js?v=57"></script>
-<script src="./wire.js?v=57"></script>
+<script src="./app.js?v=58"></script>
+<script src="./wire.js?v=58"></script>
 <!-- The drag bar on the layers box's right edge (made by columnEdge() in
      app.js) ran the full height of the column, so it stayed standing beside
      empty map when the box was rolled up or pulled shorter. It is held to the
