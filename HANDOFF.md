@@ -5,6 +5,23 @@ touches.
 
 ---
 
+## Round 49 (25 September): Land and territory pared down, LandMark one row
+
+At the owner's word, from the filing report of 25 September:
+- Taken out: FAO Forestry Employment; Nusantara's social forestry rows
+  (socialforestryhk/hadat/wiladat/hd_spv). FUNAI, INCRA quilombola and the two
+  LandMark tenure indicator rows stay.
+- LandMark: landmark_ip_lc_and_indicative_poly and _points are one row with two
+  sublayers (BUNDLES.landmark, under Land and territory; titles in GFW_TITLES).
+  Older copies taken out: landmark_icls, landmark_indigenous_and_community_lands
+  (+ _points), landmark_indicative_lands (+ _points),
+  landmark_ip_lc_and_indicative_poly_preprocessed,
+  gfw_indigenous_community_and_indicative_lands. Country figures stay.
+- GFW working files taken out: gfw_planted_forests_whitelist (SDPT whitelist),
+  gfw_pixel_area, umd_area_2013, to_delete (round 48's rule looked for
+  "todelete" and missed GFW's "to_delete").
+
+
 ## Round 48 (25 September): owner's list of 25 September
 
 - Refiled (CATALOGUE_BY_TITLE, top): WWF terrestrial ecoregions and SBTN natural

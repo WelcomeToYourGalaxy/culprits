@@ -6008,6 +6008,7 @@ const BUNDLES = {
   waterwatch: "Reservoirs above or below their usual water area (Global Water Watch)",
   plans: "Spatial plans, forest estate and the clearing moratorium, Indonesia",
   idnplant: "Plantations in Indonesia and its neighbours, region by region",
+  landmark: "Indigenous Peoples' and local communities' lands and territories, worldwide (LandMark)",
 };
 const IN = (path, key) => `${path} > ${BUNDLES[key]}`;
 const ZDC = "(zero-deforestation commitment)";
@@ -6113,6 +6114,22 @@ const CATALOGUE_BY_TITLE = [
   [/test[ _]?dataset/i, null],
   [/\bsicar\b|sfb_bra_sicar|sfb bra sicar/i, null],
   [/permanent production fores/i, null],
+  // ---- 25 September (round 49), at the owner's word ---------------------
+  // Land and territory: FAO's forestry employment and Nusantara's four social
+  // forestry rows (community, customary and village forest, customary
+  // territories) taken out. LandMark kept as one row with two sublayers, its
+  // 2026 lands and territories as areas and as points; the older copies taken
+  // out (Indigenous and community lands 2020 and 2024, the community-level
+  // points 2024, the indicative lands and their points 2024, the untitled
+  // "preprocessed" copy 2025, Global Forest Watch's own 2024 copy). Its
+  // country figures (natural resource rights, tenure indicators, share of land
+  // and population Indigenous) stay. Global Forest Watch's working files
+  // (SDPT whitelist, pixel area, UMD area 2013, "To delete") taken out.
+  [/\blandmark_ip_lc_and_indicative_(poly|points)\b/, [IN("Suppression > Of humans > Land and territory", "landmark")]],
+  [/\bfao_forestry_employment\b/, null],
+  [/socialforestry(hk|hadat|wiladat|hd)_spv/, null],
+  [/\blandmark_icls\b|\blandmark_indigenous_and_community_lands(_points)?\b|\blandmark_indicative_lands(_points)?\b|\blandmark_ip_lc_and_indicative_poly_preprocessed\b|\bgfw_indigenous_community_and_indicative_lands\b/, null],
+  [/\bgfw_planted_forests_whitelist\b|\bgfw_pixel_area\b|\bumd_area_2013\b|\bto[ _]?delete\b/i, null],
   // ---- 24 September, at the owner's word -------------------------------
   // Trase's cattle and pasture clearing under Deforestation only, not Meat;
   // the emissions from that clearing under Climate only; Trase's pasture area
@@ -6705,6 +6722,9 @@ async function addWmsMenuLayer(cfg) {
 // same work as the Mines row, in Global Forest Watch's copy. Any other untitled
 // dataset shows its id in words, marked as having no title, rather than a guess.
 const GFW_TITLES = {
+  // The two parts of the LandMark row (round 49).
+  landmark_ip_lc_and_indicative_poly: "Lands and territories with known boundaries, as areas, worldwide (LandMark)",
+  landmark_ip_lc_and_indicative_points: "Lands and territories with no known boundary, as points, worldwide (LandMark)",
   pangaea_global_mining: "Mining areas worldwide \u2014 outlines by Maus et al., from the PANGAEA data library (Global Forest Watch\u2019s copy)",
   // Named from their ids and records (22 September, round 3).
   wur_integration_alert_drivers_class: "Drivers of disturbance alerts \u2014 the driver behind each alert (Wageningen University)",
@@ -12710,6 +12730,7 @@ const PANEL_ORDER = [
   { h: 1, t: "Suppression" },
   { h: 2, t: "Of humans" },
   { h: 3, t: "Land and territory" }, "land_matrix",
+  { h: 4, bundle: "landmark", colour: "#6A5E66" },
   { h: 3, t: "Physical suppression" },
   { h: 4, t: "Control of physical resources" },
   { h: 5, t: "Banks and monetary power" }, "site_central_banks", "site_banking_dynasties", "cfr_tracker", "tableau_zsf", "site_export_credit", "troutwood",

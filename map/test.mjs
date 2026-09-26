@@ -4139,7 +4139,41 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         reg.some((m) => m.id === "capture_map" && m.rich === "capture") && reg.some((m) => m.id === "site_eyes_network" && m.rich === "eyes") &&
         /id: "capture_map"[^\n]*route: "sitemap"[^\n]*noAreaDots: true/.test(src) &&
         fs.existsSync(path.join(HERE, "..", "pipeline", "sitemaps", "rich_maps.py")));
-  check("the page asks for this round's script", /app\.js\?v=4[8-9]/.test(html) && /wire\.js\?v=4[8-9]/.test(html));
+  check("the page asks for this round's script", /app\.js\?v=(4[8-9]|[5-9]\d)/.test(html) && /wire\.js\?v=(4[8-9]|[5-9]\d)/.test(html));
+}
+{
+  console.log("\nround 49: Land and territory pared down; LandMark one row with two parts; Global Forest Watch's working files out");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const cut = (from, to) => src.slice(src.indexOf(from), src.indexOf(to));
+  const lib = new Function(
+    cut("const NUSANTARA_NAMES = {", "/* ---------- a catalogue's layers as rows") +
+    cut("const P = \"Destruction > Of the planet\";", "// The body of the heading a path names") +
+    "; return { cataloguePlaces };")();
+  const at = (t) => lib.cataloguePlaces(t, t).join();
+  const LT = "Suppression > Of humans > Land and territory";
+  const LM = LT + " > Indigenous Peoples' and local communities' lands and territories, worldwide (LandMark)";
+  check("LandMark's 2026 areas and points are the two parts of one row",
+        at("Lands and territories with known boundaries, as areas, worldwide (LandMark) landmark_ip_lc_and_indicative_poly") === LM &&
+        at("Lands and territories with no known boundary, as points, worldwide (LandMark) landmark_ip_lc_and_indicative_points") === LM &&
+        /\{ h: 3, t: "Land and territory" \}, "land_matrix",\n  \{ h: 4, bundle: "landmark"/.test(src));
+  const out = (t) => at(t) === "(taken out)";
+  check("the older LandMark copies are taken out",
+        ["landmark_icls", "landmark_indigenous_and_community_lands", "landmark_indigenous_and_community_lands_points", "landmark_indicative_lands",
+         "landmark_indicative_lands_points", "landmark_ip_lc_and_indicative_poly_preprocessed", "gfw_indigenous_community_and_indicative_lands"]
+          .every((id) => out(`Indigenous and community lands ${id}`)));
+  check("FAO's forestry employment and Nusantara's four social forestry rows are taken out",
+        out("FAO Forestry Employment fao_forestry_employment") &&
+        ["hk", "hadat", "wiladat", "hd"].every((k) => out(`Customary forest (hutan adat) — Equatorial Asia socialforestry${k}_spv`)));
+  check("LandMark's country figures, FUNAI, INCRA and the tenure indicators stay under Land and territory",
+        at("LandMark Natural Resource Rights landmark_natural_resource_rights") === LT &&
+        at("FUNAI Brazil Indigenous Territories funai_bra_indigenous_territories") === LT &&
+        at("INCRA Brazil Quilombola Communities incra_bra_quilombola_communities") === LT &&
+        at("Indicators of Tenure Security in National Law: Local Communities' Land and Resource Rights landmark_tenure_indicators_comm") === LT);
+  check("Global Forest Watch's working files are taken out, \"To delete\" included",
+        out("SDPT Whitelist (iso) gfw_planted_forests_whitelist") && out("Pixel Area gfw_pixel_area") &&
+        out("Umd area 2013 umd_area_2013") && out("To delete (Global Forest Watch gives this dataset no title) to_delete"));
+  check("the page asks for this round's script", /app\.js\?v=49/.test(html) && /wire\.js\?v=49/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
