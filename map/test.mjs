@@ -1104,6 +1104,8 @@ console.log("\none world, and the globe");
   map.setMinZoom = (z) => minZooms.push(z);
   const eased = [];
   map.easeTo = (o) => eased.push(o);
+  const cont = { _l: {}, addEventListener(ev, fn) { (this._l[ev] ||= []).push(fn); }, appendChild() {} };
+  map.getContainer = () => cont;
   map.fire("load"); await new Promise((r) => setTimeout(r, 5));
   const panel = els.get("basemaps");
   check("the settings box offers the two views and the way out", /value="globe" checked/.test(panel.innerHTML) &&
@@ -1117,6 +1119,13 @@ console.log("\none world, and the globe");
   map.setZoom(1.5); map.fire("zoom");
   check("nearing the way out loads Eyes quietly, still hidden", /^https:\/\/eyes\.nasa\.gov\/apps\/solar-system\/#\/earth\?featured=false/.test(frame.src) && !(frame.classList.list || []).includes("on"));
   map.setZoom(-3); map.fire("zoom");
+  await new Promise((r) => setTimeout(r, 50));
+  check("reaching the edge does not leave by itself (round 59)", !(frame.classList.list || []).includes("on") && eased.length === 0);
+  const wheel = () => (cont._l.wheel || []).forEach((fn) => fn({ deltaY: 40 }));
+  wheel();
+  await new Promise((r) => setTimeout(r, 300));
+  check("…one scroll outward there says another will leave", eased.length === 0);
+  wheel();
   await new Promise((r) => setTimeout(r, 1000));
   check("zooming out past the globe hands the screen over", (frame.classList.list || []).includes("on") &&
         (el("map").classList.list || []).includes("away") && el("spaceBack").hidden === false);
@@ -1251,9 +1260,13 @@ console.log("\ncoming back, and room to move");
   map.easeTo = (o) => { eased.push(o); if (o.zoom != null) map.zoom = o.zoom; };
   map.jumpTo = (o) => { if (o.zoom != null) map.zoom = o.zoom; };
   map.getCenter = () => ({ lng: 12, lat: 24 });
+  const cont = { _l: {}, addEventListener(ev, fn) { (this._l[ev] ||= []).push(fn); }, appendChild() {} };
+  map.getContainer = () => cont;
   map.fire("load"); await new Promise((r) => setTimeout(r, 5));
   map.setZoom(4.5); map.fire("zoom");
   map.setZoom(0.4); map.fire("zoom");
+  const wheel = () => (cont._l.wheel || []).forEach((fn) => fn({ deltaY: 40 }));
+  wheel(); await new Promise((r) => setTimeout(r, 300)); wheel();
   await new Promise((r) => setTimeout(r, 1000));
   check("leaving eases to the hand-over size", eased.length === 1 && eased[0].zoom === 0.8);
   el("spaceBack").fire("click", {});
@@ -1475,7 +1488,7 @@ console.log("\nreading the map");
   check("the squares below the drawing zoom are a step finer than the view's tiles",
         /const wide = map\.getZoom\(\) < cfg\.drawFrom;/.test(src) && /\+ \(wide \? 1 : 0\)/.test(src));
   check("aggregate circles are small and sharp at world view",
-        /"circle-blur": 0,/.test(src) && /0,  \["\*", 0\.18 \* scale, MAGNITUDE_RADIUS\]/.test(src));
+        /"circle-blur": 0,/.test(src) && /0,  \["max", 2, \["\*", 0\.18 \* scale, MAGNITUDE_RADIUS\]\]/.test(src));
 }
 
 
@@ -2429,7 +2442,7 @@ console.log("\nheading ticks, chips in words, a named archive");
   const order = new Function(body + "; return PANEL_ORDER;")();
   const at = (t) => order.findIndex((x) => x && x.t === t);
   check("every heading takes a tick that shows or hides everything under it",
-        /all\.className = "toc-all"/.test(src) && /for \(const i of body\.querySelectorAll\(bundle \? "\[data-layer\], \[data-copy\], \[data-cat\]" : "\[data-layer\], \[data-copy\]"\)\)/.test(src));
+        /all\.className = "toc-all"/.test(src) && /for \(const i of body\.querySelectorAll\(bundle \? "\[data-layer\], \[data-copy\], \[data-cat\](, \[data-smtype\])?" : "\[data-layer\], \[data-copy\]"\)\)/.test(src));
   check("unticking a heading clears its layers and its groups' boxes too",
         /for \(const g of body\.querySelectorAll\("\[data-group\]"\)\) \{\n\s*g\.checked = on;/.test(src));
   check("the tick reads its layers: all, none or part-way",
@@ -2512,7 +2525,7 @@ console.log("\nthe layers box, as asked for");
         o.PANEL_ORDER[at("Biodiversity loss") + 1].t === "Places that matter most for species" && o.PANEL_ORDER[at("Biodiversity loss") + 2] === "gsn_rankings");
   check("Agriculture is Meat and agriculture, holding Agriculture and Meat",
         at("Meat and agriculture") > 0 && at("Agriculture") > at("Meat and agriculture") &&
-        between("land_matrix", "Land and territory", "Physical suppression") && between("abattoir_facilities", "Facilities", "Herds"));
+        between("land_matrix", "Agriculture", "Plantations") && between("abattoir_facilities", "Facilities", "Herds"));
   check("the Power BI row is named for what it shows", /id: "powerbi_report", name: "Environmental Crime Tracker"/.test(src));
   check("every row carries the fold control, ticked or not, groups included",
         /"#layers label\.layer:has\(\+ \.facet\) \.fold\{display:inline-block\}"/.test(src) &&
@@ -2922,7 +2935,7 @@ console.log("\na row can sit under more than one subject");
   const at = (t) => order.findIndex((x) => x && x.t === t);
   check("the eight new headings are in, in the order's own style",
         // Spatial plans is one row with sublayers under Deforestation since round 23.
-        ["Fire", "Peatland", "Surface water", "Land and territory"].every((t) => at(t) > -1) && at("Base and reference") === -1 && at("Spatial plans") === -1 &&
+        ["Fire", "Peatland", "Surface water", "Invasion of humans"].every((t) => at(t) > -1) && at("Base and reference") === -1 && at("Spatial plans") === -1 &&
         at("Land held under permit") === -1 && at("Forest and land cover") > -1);
   check("the planet's new headings sit under Of the planet, before Of groups",
         ["Fire", "Peatland", "Surface water", "Other concessions", "General", "Oil spills and slicks"]
@@ -2989,7 +3002,7 @@ console.log("\nNusantara's layers spread through the box");
         places("Fire alerts, VIIRS")[0] === "Destruction > Of the planet > Deforestation" ||
         places("Fire alerts, VIIRS").includes("Destruction > Of the planet > Fire"));
   check("customary forest is land and territory, not forest cover",
-        places("Customary forest (hutan adat)").includes("Suppression > Of humans > Land and territory"));
+        places("Customary forest (hutan adat)").includes("On-planet invasion > Post-birth invasion > Invasion of humans"));
   check("nothing stays under boundaries and relief (the GLAD-L coverage went on 25 September)",
         places("Coverage Layer for GLAD-L")[0] === "(taken out)" &&
         places("Hillshade relief")[0] === "(taken out)");
@@ -3524,7 +3537,7 @@ console.log("\nround of 23 September (21): INCRA's quilombola communities kept")
   const f = (t) => places(t, t).join(" | ");
   check("INCRA's rural settlements are out, its quilombola communities are under Land and territory",
         f("INCRA Brazil Rural Settlements incra_bra_rural_settlements") === "(taken out)" &&
-        f("INCRA Brazil Quilombola Communities incra_bra_quilombola_communities") === "Suppression > Of humans > Land and territory");
+        f("INCRA Brazil Quilombola Communities incra_bra_quilombola_communities") === "On-planet invasion > Post-birth invasion > Invasion of humans");
 }
 console.log("\nround of 23 September (22): Liberia's development agreements and the resource rights placed");
 {
@@ -3533,7 +3546,7 @@ console.log("\nround of 23 September (22): Liberia's development agreements and 
   const f = (t) => places(t, t).join(" | ");
   check("Liberia's Mineral Development Agreements are under Mining, the resource rights under Land and territory",
         f("Liberia Mineral Development Agreement lbr_mineral_development_agreement") === "Destruction > Of the planet > Mining" &&
-        f("Resource rights \u2014 Currently available for Cameroon, Equatorial Guinea, Liberia and Namibia gfw_resource_rights") === "Suppression > Of humans > Land and territory");
+        f("Resource rights \u2014 Currently available for Cameroon, Equatorial Guinea, Liberia and Namibia gfw_resource_rights") === "On-planet invasion > Post-birth invasion > Invasion of humans");
 }
 console.log("\nround of 23 September (23): the owner's thirty notes on the layers box");
 {
@@ -3575,7 +3588,7 @@ console.log("\nround of 23 September (23): the owner's thirty notes on the layer
   check("11: Fishing sits above Reefs and mangroves", at("Fishing") > at("Oceans") && at("Fishing") < at("Reefs and mangroves"));
   check("12: the food system row is Who Owns the Food Industry", /id: "site_food_system", name: "Who Owns the Food Industry"/.test(src));
   check("13: the mine features glow at full strength, their boxes name their own source, and their build puts every point in the world view",
-        /const GLOW_FULL = new Set\(\["skytruth_voc", "mine_features", "aquaculture_ponds"\]\);/.test(src) &&
+        /const GLOW_FULL = new Set\(\["skytruth_voc", "mine_features", "aquaculture_ponds"(, "remains_findings")?\]\);/.test(src) &&
         /replace\(\/-\(src\|pm\)\$\/, ""\)/.test(src) && /featureWord: "Mine feature"/.test(src) && /escapeHtml\(cfg\.attribution \|\| "Maus et al/.test(src));
   check("14: the mines layers are one row with sublayers under Mining",
         bat("mines") > at("Mining") && order[bat("mines") + 1] === "mines_global" && order[bat("mines") + 2] === "mine_features" &&
@@ -4150,12 +4163,12 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
     cut("const P = \"Destruction > Of the planet\";", "// The body of the heading a path names") +
     "; return { cataloguePlaces };")();
   const at = (t) => lib.cataloguePlaces(t, t).join();
-  const LT = "Suppression > Of humans > Land and territory";
+  const LT = "On-planet invasion > Post-birth invasion > Invasion of humans";
   const LM = LT + " > Indigenous Peoples' and local communities' lands and territories, worldwide (LandMark)";
   check("LandMark's 2026 areas and points are the two parts of one row",
         at("Lands and territories with known boundaries, as areas, worldwide (LandMark) landmark_ip_lc_and_indicative_poly") === LM &&
         at("Lands and territories with no known boundary, as points, worldwide (LandMark) landmark_ip_lc_and_indicative_points") === LM &&
-        /\{ h: 3, t: "Land and territory" \}, "land_matrix",\n  \{ h: 4, bundle: "landmark"/.test(src));
+        /\{ h: 4, bundle: "indigenous_conflicts", colour: "#6B5A4A" \}, "site_indigenous_conflicts",\n  \{ h: 4, bundle: "landmark"/.test(src));
   const out = (t) => at(t) === "(taken out)";
   check("the older LandMark copies are taken out",
         ["landmark_icls", "landmark_indigenous_and_community_lands", "landmark_indigenous_and_community_lands_points", "landmark_indicative_lands",
@@ -4290,7 +4303,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         cols.every((c) => hue(c) >= 184 && hue(c) <= 236) && new Set(cols).size === 5 && ["#FF00FF", "#8A4F46", "#6A6258"].every((c) => hue(G.gladCss(c, "nat")) <= 236));
   check("country rows are named for it when the rows are read", /\["giga", "country", "owidgrapher", "trase"\]\.includes\(c\.route\)/.test(src));
   check("the hologram keeps its own blues: its layers are not remapped, and its fringe and ground are not purple",
-        /\|holo-\.\*\)\$\/;/.test(src) && /--holo-fringe: #6fb0bd;/.test(html) && /--holo-bg:     #081729;/.test(html) && !/#8e86c8/.test(html));
+        /\|holo-\.\*(\|[a-z-]+)*\)\$\/;/.test(src) && /--holo-fringe: #6fb0bd;/.test(html) && /--holo-bg:     #081729;/.test(html) && !/#8e86c8/.test(html));
   check("the page asks for this round's script", /app\.js\?v=(5[7-9]|[6-9]\d)/.test(html));
 }
 {
@@ -4332,6 +4345,31 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /if \(owner && POINT_BUNDLE_OF\.has\(owner\) && !el\.checked\) POINT_BUNDLE_USE\.add\(owner\);/.test(src) &&
         /fetch\(ownUrl\.replace\(\/\\\.pmtiles\$\/, "\.build\.json"\)\)/.test(src));
   check("the page asks for this round's script", /app\.js\?v=(5[8-9]|[6-9]\d)/.test(html));
+}
+{
+  console.log("\nround 59: a magnifier on the asteroid ring, UAP squares, leaving Earth on purpose, visible findings, the satellite land tint, Indigenous conflicts as one layer, Land and territory moved");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("where asteroid marks bunch, a lens shows them apart and a click holds it to pick from",
+        /const LENS_R = 90, LENS_K = 4, CROWD_PX = 16;/.test(src) && /lens = \{ x: e\.point\.x, y: e\.point\.y \}; hover = null;/.test(src) && /if \(inLens\(pt\)\) \{/.test(src));
+  check("the UAP rows read the summed squares at wide views and offer to zoom in to them",
+        /if \(!\(st\.format >= 2\)\)/.test(src) && /const squares = here\.filter\(\(f\) => f\.properties\.sq\);/.test(src) && /Zoom in to them/.test(src));
+  check("leaving Earth needs a second, separate scroll outward at the edge, with a line saying so",
+        /const LEAVE_GAP_MS = 250;/.test(src) && /Scroll out once more to leave Earth/.test(src) && !/if \(wasAbove && z <= edge\(\) \+ 0\.02\)/.test(src));
+  check("dots of layers with no amounts are never under 2 pixels, and the Unearthings findings glow in full",
+        /0,  \["max", 2, \["\*", 0\.18 \* scale, MAGNITUDE_RADIUS\]\]/.test(src) && /"aquaculture_ponds", "remains_findings"\]/.test(src));
+  check("the satellite land tint keeps its own earth tones; the sea keeps the mapped blues",
+        /\|holo-\.\*\|sat-relief-colour\)\$\//.test(src) && !/sat-relief-sea\)\$\//.test(src));
+  const o = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("];", src.indexOf("const PANEL_ORDER = [")) + 2) + "; return { PANEL_ORDER };")();
+  const order = o.PANEL_ORDER;
+  const at = (t) => order.findIndex((x) => x && (x.t === t || x.bundle === t));
+  check("Indigenous Environmental Conflicts is one layer with its kinds under it, beside LandMark, under Invasion of humans",
+        at("indigenous_conflicts") > at("Invasion of humans") && order[at("indigenous_conflicts") + 1] === "site_indigenous_conflicts" &&
+        at("landmark") > at("indigenous_conflicts") && at("landmark") < at("Of countries by countries") && at("Land and territory") === -1 &&
+        /indigenous_conflicts: "Indigenous Environmental Conflicts",/.test(src) && /\[data-cat\], \[data-smtype\]/.test(src));
+  check("the Land Matrix is under Meat and agriculture > Agriculture; the old Land and territory paths now lead to Invasion of humans",
+        order[at("Agriculture") + 1] === "land_matrix" && !/Suppression > Of humans > Land and territory/.test(src));
+  check("the page asks for this round's script", /app\.js\?v=(59|[6-9]\d)/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

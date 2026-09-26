@@ -739,7 +739,11 @@ function gladSourceSpec(id, spec) {
 }
 // The hologram's own layers keep the hologram's colours: mapped, its pale
 // blue lines came out indigo and violet (round 57).
-const GLAD_BASE_LAYERS = /^(bg|base|base-s2|base-close|hillshade|labels|atlas-plate.*|holo-.*)$/;
+// The Satellite basemap's land tint keeps its own earth tones (round 59, asked
+// 26 September): mapped, its greens, ochres and browns came out cyan to violet
+// and drowned the relief. Its sea layers (sat-relief-seabed, sat-relief-sea)
+// keep the mapped blues, which the owner likes over the water.
+const GLAD_BASE_LAYERS = /^(bg|base|base-s2|base-close|hillshade|labels|atlas-plate.*|holo-.*|sat-relief-colour)$/;
 function gladLayer(layer) {
   if (!layer || !layer.id || GLAD_BASE_LAYERS.test(layer.id) || layer.type === "custom" || layer.type === "background" || layer.type === "hillshade") return layer;
   if (gladKept(layer.id)) return layer;
@@ -2003,7 +2007,7 @@ const glowMaxOf = new Map();                   // source id -> the largest "valu
 // a pit or a dump a few hundred metres across, glowed at a tenth of full
 // strength and could not be seen from the world view. The aquaculture ponds are
 // the same kind of layer.
-const GLOW_FULL = new Set(["skytruth_voc", "mine_features", "aquaculture_ponds"]);
+const GLOW_FULL = new Set(["skytruth_voc", "mine_features", "aquaculture_ponds", "remains_findings"]);
 const glowFull = (layer) => GLOW_FULL.has(String(layer.source || "").replace(/-(src|pm)$/, "")) ||
   (/^points-bundle-/.test(String(layer.source || "")) && GLOW_FULL.has(String(layer["source-layer"] || "")));
 function glowWeight(layer) {
@@ -2438,9 +2442,12 @@ async function addPmtilesLayer(cfg) {
         // merged into one blob over each continent — the global view carried
         // less information than an empty map. The relative sizes are untouched:
         // a big cluster is still visibly bigger than a small one at every zoom.
-        0,  ["*", 0.18 * scale, MAGNITUDE_RADIUS],
-        3,  ["*", 0.30 * scale, MAGNITUDE_RADIUS],
-        6,  ["*", 0.60 * scale, MAGNITUDE_RADIUS],
+        // Never under 2 pixels (round 59): a layer with no amounts, like the
+        // nine Unearthings findings, drew half-pixel dots at world view and
+        // looked as if it had not loaded.
+        0,  ["max", 2, ["*", 0.18 * scale, MAGNITUDE_RADIUS]],
+        3,  ["max", 2, ["*", 0.30 * scale, MAGNITUDE_RADIUS]],
+        6,  ["max", 2.5, ["*", 0.60 * scale, MAGNITUDE_RADIUS]],
         10, ["*", 1.00 * scale, MAGNITUDE_RADIUS],
       ],
     },
@@ -3094,20 +3101,53 @@ function watchSpaceEdge() {
 
 // Zooming out past the globe is what leaves Earth. The map is stopped a little
 // below the hand-over size so the last turn of the wheel has somewhere to go.
+// Round 59 (asked 26 September): the owner found the map leaving by itself.
+// Any zoom that reached the edge left, including the map's own moves (a ring
+// row pulling back to world view) and the tail of a trackpad's glide. Now only
+// the reader's own scrolling leaves, and only on purpose: at the edge, one
+// scroll outward shows a line saying that another will leave Earth, and a
+// second, separate scroll outward within a few seconds does. The Leave Earth
+// button still leaves at once.
+const LEAVE_GAP_MS = 250;        // wheel events closer than this are one scroll
+const LEAVE_WINDOW_MS = 4000;    // how long the line waits for the second scroll
 function watchForLeaving() {
   const edge = () => handoffZoom() - 0.1;
-  // Only a zoom-out the reader makes leaves Earth. Without this the map would
-  // hand over as it opened, because it opens near the hand-over size.
-  let wasAbove = false;
+  let warned = 0, lastWheel = 0, gestureWarned = false;
+  const hint = document.createElement ? document.createElement("div") : null;
+  if (hint) {
+    hint.id = "leave-hint";
+    hint.hidden = true;
+    hint.textContent = "Scroll out once more to leave Earth for NASA\u2019s Eyes on the Solar System";
+    hint.style.cssText = "position:absolute;left:50%;bottom:18%;transform:translateX(-50%);z-index:6;pointer-events:none;" +
+      "padding:6px 12px;border-radius:14px;background:rgba(10,12,18,.82);color:#E3DBCB;font:12px system-ui,sans-serif;" +
+      "border:1px solid rgba(214,204,188,.25)";
+    const box = map.getContainer && map.getContainer();
+    if (box && box.appendChild) box.appendChild(hint);
+  }
+  const say = (on) => { if (hint) hint.hidden = !on; };
+  const atEdge = () => map.getZoom() <= edge() + 0.02;
   const check = () => {
     if (!VIEWS[VIEW].leave || AWAY || leaving) return;
-    const z = map.getZoom();
-    if (z > edge() + 0.25) wasAbove = true;
-    if (z < handoffZoom() + 1.2) warmSpace();
-    if (wasAbove && z <= edge() + 0.02) { wasAbove = false; leaveEarth(); }
+    if (map.getZoom() < handoffZoom() + 1.2) warmSpace();
+    if (!atEdge()) { warned = 0; say(false); }
   };
   map.on("zoom", check);
   map.on("moveend", check);
+  const box = map.getContainer && map.getContainer();
+  if (box && box.addEventListener) box.addEventListener("wheel", (e) => {
+    if (!VIEWS[VIEW].leave || AWAY || leaving) return;
+    const now = Date.now(), fresh = now - lastWheel > LEAVE_GAP_MS;
+    lastWheel = now;
+    if (fresh) gestureWarned = false;
+    if (e.deltaY <= 0 || !atEdge()) return;
+    // The same scroll that brought the map to the edge, still gliding: ignored.
+    if (!fresh && !warned) return;
+    if (warned && fresh && !gestureWarned && now - warned < LEAVE_WINDOW_MS) { warned = 0; say(false); leaveEarth(); return; }
+    if (fresh || !warned) {
+      warned = now; gestureWarned = true; say(true);
+      setTimeout(() => { if (warned && Date.now() - warned >= LEAVE_WINDOW_MS) { warned = 0; say(false); } }, LEAVE_WINDOW_MS + 50);
+    }
+  }, { passive: true });
   const setEdge = () => { if (typeof map.setMinZoom === "function") map.setMinZoom(VIEWS[VIEW].leave ? edge() : -2); };
   map.on("resize", setEdge);
   setEdge();
@@ -4456,7 +4496,7 @@ async function addUfoLayer(cfg) {
   let st = {};
   try { st = await getJson(cfg.archiveUrl.replace(/\.pmtiles$/, ".build.json"), 20000); }
   catch (e) { setLayerState(cfg.id, `not built yet (${e.message})`); return; }
-  if (st.format !== 2) { setLayerState(cfg.id, "the copy is being rebuilt for the year bar; run ufosint once more"); return; }
+  if (!(st.format >= 2)) { setLayerState(cfg.id, "the copy is being rebuilt for the year bar; run ufosint once more"); return; }
   const parts = pmShapeParts(cfg.archiveUrl, st);
   const years = st.years || [1900, new Date().getUTCFullYear()];
   let win = ["all"];
@@ -4478,6 +4518,20 @@ async function addUfoLayer(cfg) {
       if (popupClaimedBy === claim) return;
       popupClaimedBy = claim;
       const here = map.queryRenderedFeatures(e.point, { layers: lids.filter((l) => map.getLayer(l)) });
+      // Wide views (format 3, round 59) draw sightings summed by square and
+      // year: the box says how many, and zooms in to them on request.
+      const squares = here.filter((f) => f.properties.sq);
+      if (squares.length && squares.length === here.length) {
+        const total = squares.reduce((a, f) => a + Number(f.properties.n || 0), 0);
+        const years = [...new Set(squares.map((f) => Number(f.properties.y)))].filter((y) => y !== -9999).sort((a, b) => a - b);
+        const pop = new maplibregl.Popup({ maxWidth: "300px" }).setLngLat(e.lngLat).setHTML(
+          `<b>${total.toLocaleString()} UAP sighting${total === 1 ? "" : "s"} reported round here</b>` +
+          `<div class="meta">${years.length ? `${years[0]}${years.length > 1 ? `\u2013${years[years.length - 1]}` : ""}` : "undated"} \u00b7 summed at this zoom; each one opens from zoom ${st.detail_from || 6}.</div>` +
+          `<button type="button" class="chip ufo-in" style="margin-top:4px">Zoom in to them</button>`).addTo(map);
+        const btn = pop.getElement && pop.getElement().querySelector(".ufo-in");
+        if (btn) btn.onclick = () => { pop.remove(); map.easeTo({ center: e.lngLat, zoom: Math.max(map.getZoom() + 2, st.detail_from || 6), duration: 900 }); };
+        return;
+      }
       const ids = [...new Set(here.flatMap((f) => String(f.properties.ids || "").split(",").filter(Boolean)))];
       const pop = new maplibregl.Popup({ maxWidth: "360px" }).setLngLat(e.lngLat)
         .setHTML(`<div class="meta">${ids.length.toLocaleString()} sightings here · reading them…</div>`).addTo(map);
@@ -4739,6 +4793,35 @@ async function addNeoRingLayer(cfg) {
   card.style.cssText = "position:absolute;z-index:5;max-width:300px;max-height:320px;overflow:auto;display:none";
   box.appendChild(card);
   let on = false, placed = [];
+  // A magnifier for crowded stretches of the ring (round 58, asked 26
+  // September): hovering where marks bunch shows them four times further apart
+  // in a round lens; a click there pins the lens, and a click on a mark in the
+  // lens opens that object. A click outside the lens closes it.
+  const LENS_R = 90, LENS_K = 4, CROWD_PX = 16;
+  let hover = null, lens = null;
+  const near = (pt, px) => placed.filter((p) => Math.hypot(p.x - pt.x, p.y - pt.y) - p.size < px);
+  const inLens = (pt) => lens && Math.hypot(pt.x - lens.x, pt.y - lens.y) <= LENS_R;
+  const lensPos = (c, p) => ({ x: c.x + (p.x - c.x) * LENS_K, y: c.y + (p.y - c.y) * LENS_K, size: Math.max(4, p.size * 1.6), p });
+  const drawLens = (g, c) => {
+    const shown = placed.map((p) => lensPos(c, p)).filter((q) => Math.hypot(q.x - c.x, q.y - c.y) < LENS_R - 4);
+    g.save();
+    g.beginPath(); g.arc(c.x, c.y, LENS_R, 0, 2 * Math.PI);
+    g.fillStyle = "rgba(8,10,16,0.92)"; g.fill();
+    g.lineWidth = 1.2; g.strokeStyle = "rgba(214,204,188,0.55)"; g.stroke();
+    g.clip();
+    for (const q of shown.sort((a, b) => a.size - b.size)) {
+      g.beginPath(); g.arc(q.x, q.y, q.size, 0, 2 * Math.PI);
+      g.fillStyle = q.p.colour; g.globalAlpha = 0.95; g.fill(); g.globalAlpha = 1;
+      g.lineWidth = 0.8; g.strokeStyle = "rgba(10,10,12,0.9)"; g.stroke();
+    }
+    if (shown.length <= 14) {
+      g.font = "9.5px system-ui,sans-serif"; g.textAlign = "left"; g.fillStyle = "rgba(227,215,203,0.85)";
+      for (const q of shown) g.fillText(String(q.p.r.designation || q.p.r.name || ""), q.x + q.size + 3, q.y + 3);
+    }
+    g.restore();
+    return shown;
+  };
+  let lensShown = [];
   const span = neoSpan(rows, Date.now());
   const draw = () => {
     const w = box.clientWidth, h = box.clientHeight, dpr = window.devicePixelRatio || 1;
@@ -4771,19 +4854,41 @@ async function addNeoRingLayer(cfg) {
       g.fillStyle = p.colour; g.globalAlpha = 0.9; g.fill(); g.globalAlpha = 1;
       g.lineWidth = 0.6; g.strokeStyle = "rgba(10,10,12,0.8)"; g.stroke();
     }
+    lensShown = [];
+    if (lens) lensShown = drawLens(g, lens);
+    else if (hover && near(hover, CROWD_PX).length > 1) drawLens(g, hover);
   };
   const hit = (pt) => {
+    if (inLens(pt)) {
+      let best = null, bd = 8;
+      for (const q of lensShown) { const d = Math.hypot(q.x - pt.x, q.y - pt.y) - q.size; if (d < bd) { bd = d; best = q.p; } }
+      return best;
+    }
     let best = null, bd = 9;
     for (const p of placed) { const d = Math.hypot(p.x - pt.x, p.y - pt.y) - p.size; if (d < bd) { bd = d; best = p; } }
     return best;
   };
   map.on("render", draw);
   map.on("resize", draw);
-  map.on("mousemove", (e) => { if (on && placed.length) map.getCanvas().style.cursor = hit(e.point) ? "pointer" : ""; });
+  map.on("mousemove", (e) => {
+    if (!on || !placed.length) { if (hover) { hover = null; draw(); } return; }
+    hover = lens ? null : { x: e.point.x, y: e.point.y };
+    map.getCanvas().style.cursor = hit(e.point) || (!lens && near(e.point, CROWD_PX).length > 1) ? "pointer" : "";
+    draw();
+  });
+  map.on("movestart", () => { lens = null; hover = null; });
   map.on("click", (e) => {
     if (!on || !placed.length) return;
+    const inside = inLens(e.point);
+    if (lens && !inside) { lens = null; draw(); }
+    if (!inside && near(e.point, CROWD_PX).length > 1) {
+      // A crowded spot: the lens is pinned there, for choosing from.
+      popupClaimedBy = e.originalEvent || e;
+      lens = { x: e.point.x, y: e.point.y }; hover = null; card.style.display = "none"; draw();
+      return;
+    }
     const p = hit(e.point);
-    if (!p) { card.style.display = "none"; return; }
+    if (!p) { if (!inside) card.style.display = "none"; if (inside) popupClaimedBy = e.originalEvent || e; return; }
     popupClaimedBy = e.originalEvent || e;
     const r = p.r;
     card.innerHTML = `<button type="button" class="neo-x" style="float:right;background:none;border:0;cursor:pointer" aria-label="Close">✕</button>` +
@@ -4797,7 +4902,7 @@ async function addNeoRingLayer(cfg) {
     card.style.display = "block";
     card.querySelector(".neo-x").onclick = () => { card.style.display = "none"; };
   });
-  cfg.afterVisibility = (vis) => { on = vis === "visible"; if (!on) card.style.display = "none"; draw(); };
+  cfg.afterVisibility = (vis) => { on = vis === "visible"; if (!on) { card.style.display = "none"; lens = null; } draw(); };
   on = (visibility.get(cfg.id) || "visible") === "visible";
   // The key under the row: what the colours mean.
   const row = document.querySelector(`[data-layer="${cfg.id}"]`);
@@ -4807,7 +4912,7 @@ async function addNeoRingLayer(cfg) {
     el.className = "facet cat-key";
     el.dataset.keyFor = cfg.id;
     el.innerHTML = catalogueKeyHtml({ values: NEO_PS.map(([lo, c, t], i) => [i, c, t]) }) +
-      `<div style="padding-left:18px;font-size:10.5px;color:var(--dim)">Colour: Palermo rating. Round the globe clockwise from the top: the date of likeliest impact, now to ${new Date().getUTCFullYear() + span}. Nearer the globe: likelier. Size: diameter. Shown at world view.</div>`;
+      `<div style="padding-left:18px;font-size:10.5px;color:var(--dim)">Colour: Palermo rating. Round the globe clockwise from the top: the date of likeliest impact, now to ${new Date().getUTCFullYear() + span}. Nearer the globe: likelier. Size: diameter. Shown at world view. Where marks bunch, hovering shows them magnified; click to hold the magnifier and pick one.</div>`;
     label.after(el);
   }
   setLayerState(cfg.id, `${rows.length} objects${updated ? `, list of ${updated}` : ""}${fromCopy ? " · from today's copy" : ""} · drawn round the globe at world view`);
@@ -6199,6 +6304,7 @@ const BUNDLES = {
   idnplant: "Plantations in Indonesia and its neighbours, region by region",
   landmark: "Indigenous Peoples' and local communities' lands and territories, worldwide (LandMark)",
   landghg: "Greenhouse gases from cropland and livestock, CO2 equivalent (WRI land greenhouse gas monitoring system)",
+  indigenous_conflicts: "Indigenous Environmental Conflicts",
 };
 const IN = (path, key) => `${path} > ${BUNDLES[key]}`;
 const ZDC = "(zero-deforestation commitment)";
@@ -6261,7 +6367,7 @@ const CATALOGUE_PLACES = [
   [/mangrove|reef|benthic|coral/i, P + " > Oceans > Reefs and mangroves"],
   [/water|aqueduct|\brivers?\b|watershed|flood|\bpond\b|canal/i, P + " > Surface water"],
   [/customary|\badat\b|indigenous|community land|tenure|land rights|quilombola|village forest|community forest|social forestry|rural settlement|forestry employment/i,
-   "Suppression > Of humans > Land and territory"],
+   "On-planet invasion > Post-birth invasion > Invasion of humans"],
   [/\broads?\b|transmigration|settlement|capital|\bikn\b|infrastructure|\burban|\bbuilt\b/i, P + " > Construction"],
   // Spatial plans: the national and provincial plans and the moratorium (PIPPIB)
   // stay; the moratorium is also under Deforestation, being a bar on clearing
@@ -6324,7 +6430,7 @@ const CATALOGUE_BY_TITLE = [
   // country figures (natural resource rights, tenure indicators, share of land
   // and population Indigenous) stay. Global Forest Watch's working files
   // (SDPT whitelist, pixel area, UMD area 2013, "To delete") taken out.
-  [/\blandmark_ip_lc_and_indicative_(poly|points)\b/, [IN("Suppression > Of humans > Land and territory", "landmark")]],
+  [/\blandmark_ip_lc_and_indicative_(poly|points)\b/, [IN("On-planet invasion > Post-birth invasion > Invasion of humans", "landmark")]],
   [/\bfao_forestry_employment\b/, null],
   [/socialforestry(hk|hadat|wiladat|hd)_spv/, null],
   [/\blandmark_icls\b|\blandmark_indigenous_and_community_lands(_points)?\b|\blandmark_indicative_lands(_points)?\b|\blandmark_ip_lc_and_indicative_poly_preprocessed\b|\bgfw_indigenous_community_and_indicative_lands\b/, null],
@@ -6448,7 +6554,7 @@ const CATALOGUE_BY_TITLE = [
   [/\bwcs_forest_landscape_integrity_index\b/, [P + " > Biodiversity loss > Intact and primary forests"]],
   [/\bicf_hnd_forest_type_2013\b|\bjrc_managed_land_(can|usa)\b|\brspo_southeast_asia_land_cover_2010\b|\bsbtn_natural_forests_map\b|\bumd_tree_cover_gain\b|\bumd_tree_cover_height_20\d\d\b/,
    [P + " > Forest and land cover"]],
-  [/\blandmark_natural_resource_rights\b/, ["Suppression > Of humans > Land and territory"]],
+  [/\blandmark_natural_resource_rights\b/, ["On-planet invasion > Post-birth invasion > Invasion of humans"]],
   [/\bwri_cmr_agro_industrial_zones\b/, [AG + " > Plantations"]],
   [/\bwri_global_power_plant_database\b/, [P + " > Climate > Carbon dioxide"]],
   // Taken out 24 September (round 41): wind speed potential and Brazil's biomes.
@@ -6494,7 +6600,7 @@ const CATALOGUE_BY_TITLE = [
   // Global Forest Watch's resource rights (Cameroon, Equatorial Guinea, Liberia,
   // Namibia) under Land and territory (23 September, round 22).
   [/\blbr_mineral_development_agreement\b|(?=.*liberia)(?=.*mineral development agreement)/i, [P + " > Mining"]],
-  [/\bgfw_resource_rights\b/, ["Suppression > Of humans > Land and territory"]],
+  [/\bgfw_resource_rights\b/, ["On-planet invasion > Post-birth invasion > Invasion of humans"]],
   // Logging roads in the Congo Basin: Deforestation only, not Construction.
   [/logging roads?\b/i, [P + " > Deforestation"]],
   // Placed by name.
@@ -12977,7 +13083,13 @@ const PANEL_ORDER = [
   { h: 3, t: "Human reproduction and gene therapy" }, "gmo_therapy", "gmo_fertility",
   { h: 2, t: "Post-birth invasion" },
   { h: 3, t: "Invasion of nonhumans" },
-  { h: 3, t: "Invasion of humans" }, "site_settler_colonialism", "site_indigenous_conflicts",
+  // Round 59 (26 September): the Indigenous Environmental Conflicts rows are
+  // one layer with a row per kind of conflict under it, and everything that
+  // was under Suppression > Land and territory is here, the Land Matrix
+  // excepted (under Meat and agriculture > Agriculture).
+  { h: 3, t: "Invasion of humans" }, "site_settler_colonialism",
+  { h: 4, bundle: "indigenous_conflicts", colour: "#6B5A4A" }, "site_indigenous_conflicts",
+  { h: 4, bundle: "landmark", colour: "#6A5E66" },
   { h: 3, t: "Of countries by countries" }, "site_secret_societies", "gm",
   { h: 2, t: "Post-life invasion" }, "remains_records", "remains_findings", "remains_cemeteries",
 
@@ -13089,7 +13201,7 @@ const PANEL_ORDER = [
   { h: 3, t: "Mining" },
   { h: 4, bundle: "mines", colour: "#6E5E52" }, "mines_global", "mine_features",
   { h: 3, t: "Meat and agriculture" }, "site_food_system",
-  { h: 4, t: "Agriculture" },
+  { h: 4, t: "Agriculture" }, "land_matrix",
   { h: 5, t: "Plantations" },
   { h: 6, bundle: "idnplant", colour: "#6E6A55" },
   { h: 5, t: "Palm oil" },
@@ -13140,8 +13252,6 @@ const PANEL_ORDER = [
 
   { h: 1, t: "Suppression" },
   { h: 2, t: "Of humans" },
-  { h: 3, t: "Land and territory" }, "land_matrix",
-  { h: 4, bundle: "landmark", colour: "#6A5E66" },
   { h: 3, t: "Physical suppression" },
   { h: 4, t: "Control of physical resources" },
   { h: 5, t: "Banks and monetary power" }, "site_central_banks", "site_banking_dynasties", "cfr_tracker", "tableau_zsf", "site_export_credit", "troutwood",
@@ -13564,7 +13674,7 @@ function arrangePanel() {
       const on = all.checked;
       // A bundle's parts include catalogue rows; a heading's tick still leaves
       // those alone, as before, since a heading can hold hundreds of them.
-      for (const i of body.querySelectorAll(bundle ? "[data-layer], [data-copy], [data-cat]" : "[data-layer], [data-copy]")) {
+      for (const i of body.querySelectorAll(bundle ? "[data-layer], [data-copy], [data-cat], [data-smtype]" : "[data-layer], [data-copy]")) {
         if (i.checked === on) continue;
         i.checked = on;
         if (typeof i.dispatchEvent === "function" && typeof Event === "function") i.dispatchEvent(new Event("change", { bubbles: true }));

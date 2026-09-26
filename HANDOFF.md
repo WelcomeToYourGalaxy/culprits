@@ -5,6 +5,39 @@ touches.
 
 ---
 
+## Round 59 (26 September)
+
+- Asteroid ring (addNeoRingLayer): a lens (LENS_R 90 px, x4) shows marks that
+  bunch within CROWD_PX of the pointer; a click on a crowded spot pins it, a
+  click on a mark in it opens that object, a click outside or any map move
+  closes it.
+- UAP sightings: culprits-tiles-more scripts/ufosint.py format 3 draws zooms
+  0-5 as sightings summed by square and year (BANDS: 2 degrees to z1, 0.5 to
+  z3, 0.1 to z5; each square at the mean of its sightings, property sq), and
+  every spot with its ids from zoom 6 (detail_from); the world tile no longer
+  holds 227,000 spots. The map accepts format >= 2; a click on a square says
+  how many and offers to zoom in. Run ufosint by hand once.
+- Leaving for Eyes (watchForLeaving): no longer on reaching the edge. At the
+  edge, one separate scroll outward shows "Scroll out once more…"
+  (#leave-hint); a second separate scroll within 4 s leaves. The glide of the
+  scroll that reached the edge is ignored; the map's own moves never leave.
+- pmtiles aggregate dots never under 2 px (2.5 at zoom 6): the nine
+  Unearthings findings (remains_findings) drew as half-pixel dots at world view
+  and looked unloaded; they also glow in full (GLOW_FULL).
+- Satellite basemap: sat-relief-colour (the land tint) is left out of the GLAD
+  mapping (GLAD_BASE_LAYERS), so the land keeps its earth tones; the sea
+  layers keep the mapped blues.
+- Indigenous Environmental Conflicts is a bundle (BUNDLES.indigenous_conflicts)
+  holding its kind-of-conflict rows; a bundle's tick now includes
+  [data-smtype] rows.
+- Suppression > Of humans > Land and territory is gone: its rows, the LandMark
+  bundle and every catalogue path now go to On-planet invasion > Post-birth
+  invasion > Invasion of humans; land_matrix is under Meat and agriculture >
+  Agriculture. index.html v=59.
+- Waiting: the owner's message ended at "change post birth invasion to" - the
+  new name was not given.
+
+
 ## Round 58 (26 September)
 
 - Kind switches: the word rules of round 57 are narrowed to buffers ("buffer",
