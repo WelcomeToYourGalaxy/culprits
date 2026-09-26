@@ -5,6 +5,153 @@ touches.
 
 ---
 
+## Round 64 (26 September)
+
+- Rounds 61 to 63 had been moved to patches/failed: each needs the round
+  before it, and round 60 was never uploaded. This one patch carries rounds
+  60 to 64 together, from round 59; the failed files can be deleted.
+- The Showing box now reads every colour key under a row: a site map's
+  "Colour by" key (data-colour-for: capture map, PalmWatch), the building
+  types' kinds (data-kinds) and the social spheres' kinds.
+
+## Round 63 (26 September)
+
+- Every row carries LIVE or NOT LIVE: a site map's kind rows take the map's
+  mark (liveMark), Guerillamap's row says LIVE, and headingLiveMark puts a
+  mark beside each layer with sublayers and each heading of level 3 or more
+  (LIVE, NOT LIVE, or both with how many of each), recounted with the
+  headings' row counts. The banking dynasties' charts (a copy) say NOT LIVE;
+  the biosignature worlds (read from their page each time, route worldsring)
+  say LIVE.
+- Biosignature worlds on the flat map: while the row is on in the flat view,
+  flatConstrain (the map's transformConstrain) lets the map pull back into
+  space (FREE_FLAT); otherwise MapLibre's own rule, which holds the flat map
+  to the screen's height, applies as before. The map eases to the whole
+  world, centred, and each world is placed out from the flat world's edge,
+  fanned across the top, further out the further from Earth (logX), with a
+  dotted line back to the edge. Changing view with the row on pulls back for
+  the view now drawn. The row keeps its own colours (keepColour).
+- policy_rates and imbalances (route tracker, addTrackerLayer), in place of
+  CFR's trackers, whose Terms of Use forbid reproducing their content for a
+  public purpose: the BIS central bank policy rates (every monthly value; the
+  euro area's rate given to each member from the month it took the euro) and
+  the IMF's current account balances (% of GDP and US$ billions, World
+  Economic Outlook, forecasts marked), from culprits-tiles-more
+  scripts/trackers.py (round 63 tiles patch; run it once by hand). A menu
+  picks the measure, a slider the month or year, a button plays through.
+  Fixed steps in blues and teals (keepColour; the legend's key rows now
+  carry data-key-for so a kept row's key is not remapped). The CFR rows stay,
+  opening CFR's own pages.
+- Giga school points wait on a Giga API key (gigamaps@unicef.org; keys are
+  requested on maps.giga.global's API page). The key goes in as a repository
+  secret and refresh.yml must pass it to the scripts.
+
+## Round 62 (26 September)
+
+- Of animals: every layer straight under it, no sub-headings (Zoos, Pet Food
+  Companies, the fighting, circus, racing, rodeo and tourism maps). Names:
+  "Zoos", "Pet Food Companies". resourcetrade.earth first under Trade.
+- infoMark draws no bubble for a note that only says which page's map a layer
+  came from.
+- Country colours further apart: GLAD_NATIONAL_SPAN 55, ordered steps from
+  lightness 0.88 to 0.35 at saturation 0.78. A match of country names to the
+  steps of OWID_RAMP or SHAPE_STEPS (GLAD_RAMP_STEPS) is now spread as a
+  ranking, lightest to darkest; before, it was spread as unordered classes,
+  so neighbouring ranks could look alike or out of order.
+- Keys under shaded rows, read by the Showing box: SHAPE_COLOUR_BY for
+  site_earmarked_funding (donated / received, parsed from the map's own
+  "$23M donated" text, log scale), site_trade_profits (foreign value added,
+  read from the maps repo's embed 20 table D, OECD TiVA 2020, joined on
+  ISO_A3, the embed's own steps), slavery_routes, gmo_cultivation and
+  gmo_incidents (one-colour keys). Shapes with a per-country "entries" count
+  (the government maps) are shaded by it; shapes all one colour get a
+  one-colour key. Giga, Global Trade Alert and resourcetrade.earth write
+  keys too (rankPairs leaves out empty steps).
+- Global Trade Alert: ratings in the GTA handbook's words (harmful, almost
+  certainly / likely, discriminating against foreign commercial interests;
+  liberalising), what a state act is, dots in blues; steps read from the
+  countries on the map only (blocs and pairs with one act had pushed every
+  country into the top step); "implementers", not "countries".
+- resourcetrade.earth: five tiers by value, each with its own width and
+  depth, largest on top, wider when zoomed in; a menu keeps the largest 25,
+  50 or 100.
+- Trafficking routes (cfg.routes): curves, width by people, largest on top;
+  menus for the least people on a route (opens at 100 or more) and one
+  country's routes. Lines between countries, and GTA, keep to cyan and blue.
+- Export credit agencies (cfg.pointsOnly): the 80 agencies only. The source
+  map's countries were its plain background (one fill for all), not data.
+  Key: OECD Arrangement participant / not / placed at its city only.
+- Social spheres: a link's box names the people in both.
+- Banking dynasties: all 126 places the source map plots are on the map (11
+  more cities in its list have no coordinates in the page and are not
+  plotted there either). New row site_banking_dynasties_charts opens the
+  section's own page (timeline 1250 to 2025, charts) in the bottom panel,
+  from culprits-tiles-more pages/banking_dynasties.html (round 62 tiles
+  patch, cut from the Suppression page's srcdoc unchanged).
+
+## Round 61 (26 September)
+
+- Build queue (queueNext): a layer still building after QUEUE_SLOT_MS (15 s)
+  gives up its place and finishes in its own time. In a browser test (local
+  harness serving both repos) the three largest Climate TRACE archives held
+  all three places for good and every layer behind them read "waiting behind
+  N other layers…" - the likely cause of most rows the owner listed as not
+  working. getJson now retries once with twice the time on a timeout.
+- readUmap reads the map's settings from culprits-tiles-more
+  umap/<id>/map.json (umap_copy.py now saves it) before uMap itself.
+- pe_banks (geojsonlive, pe/banks.geojson from culprits-tiles-more
+  scripts/pe_banks.py): Bankrolling Extinction's 50 banks at their GLEIF
+  headquarters, Table 2 as printed, Figure 1's bars measured (the owner chose
+  "measured, marked approximate"); checked against the report's 52 billion
+  average and "more than 210 billion" largest; shares of assets agree within
+  0.2 points of amount / assets. Four banks at the smallest bar length get no
+  amount.
+- Atlas conflicts pages (culprits-tiles-more scripts/atlas_insets.py ->
+  atlas/insets.json): the "| CONFLICTS" page's map placed by its numbered
+  cities (Nominatim, north-up one-scale fit, outliers dropped, kept under 2%
+  error) and each city's round inset cut from its page. atlasInsets(slug) lays
+  the map over page 1 (atlas-plate-conflicts; page-1 detail and vector layers
+  go under it) and a numbered marker per city opening its inset, title and
+  2015/2030 populations. Tested on Mesoamerica with rough coordinates: fits.
+- defor_funds.py (culprits-tiles-more, step one, nothing on the map yet):
+  Forest 500 rankings from api.forestiq.org (every row) and the latest SEC
+  N-PORT quarter (User-Agent with welcometoyourgalaxy@gmail.com, as the owner
+  gave), matched by exact ticker, then the issuer LEI those holdings agree on;
+  defor_funds/report.json lists every unmatched company and why;
+  probe/nport/tickers_sample.json shows how funds write tickers.
+- live_sources_probe.py (by hand): status, time and CORS header of each live
+  source behind the rows the owner listed (OWID, EJAtlas, GSN, USDA, GFW,
+  Trase, uMap, Launch Library, Carbon Mapper, Nusantara, the wastewater
+  model). The wastewater copies (tiles/wastewater_N_*.pmtiles) do not exist:
+  scripts/wastewater.py gets nothing back from mazu.nceas.ucsb.edu.
+- Names: kinds under the enslavement maps and The Insentient read as the kind
+  alone (siteTypeTitle); Animal Fighting Locations, Animal Tourism, Global
+  Rodeo & Charreada; mymaps_supp_b is "Zoos and Aquariums" (fixedName, not
+  renamed by its source) under Spectacle and sport; the empty Other heading
+  there is gone. index.html v=61.
+- EU animal-health establishments (abattoir-atlas raw/eu_traces_animal_health,
+  29,340 rows, 14 TRACES sections) compiled for the owner as one CSV with the
+  atlas's positions (sent in chat, not in the repo). No semen collection
+  centres are among them.
+
+## Round 60 (26 September)
+
+- Selected Layers is one row with sublayers (BUNDLES.selected, a bundle at
+  level 1) at the very top of the box, above On-planet invasion; it stays empty
+  until the owner names its layers.
+- "Post-birth invasion" is "Invasion of the living"; "Post-life invasion" is
+  "Invasion of the after-life". Catalogue paths into Invasion of humans follow.
+- land_matrix sits directly under Meat and agriculture (it was under its
+  Agriculture sub-heading in round 59).
+- Row tools: the arrow (.fold) shows only on rows with something under them
+  beyond the transparency bar (CSS :has(+ .facet:not(.row-tools)) or
+  :has(+ .row-tools + .facet)); folding never hides the transparency bar. The
+  dotted grip is hidden where the pointer is a mouse (the row itself drags);
+  kept on touch screens.
+- refreshNote says nothing where a copy's rhythm is not stated (was "copy;
+  renewed when rebuilt, no set rhythm"). index.html v=60.
+
+
 ## Round 59 (26 September)
 
 - Asteroid ring (addNeoRingLayer): a lens (LENS_R 90 px, x4) shows marks that

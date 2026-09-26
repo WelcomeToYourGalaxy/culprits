@@ -484,7 +484,7 @@ const GLAD_LO = 185, GLAD_SPAN = 110;
 // Country layers (national highlights) keep to cyan and blue, without the
 // violet and purple end (asked for 26 September, round 57). Their rows are
 // named in GLAD_NATIONAL when the rows are read.
-const GLAD_NATIONAL = new Set(), GLAD_NATIONAL_SPAN = 42;
+const GLAD_NATIONAL = new Set(), GLAD_NATIONAL_SPAN = 55;
 const gladSpan = (salt) => GLAD_NATIONAL.has(String(salt || "")) ? GLAD_NATIONAL_SPAN : GLAD_SPAN;
 const GLAD_OUT = new Set();               // colours this mapping has made: never mapped twice
 const PROTOCOL_HANDLERS = {};             // every tile protocol, so a picture can go through two
@@ -566,6 +566,10 @@ const GLAD_TOP_INPUTS = new Set(['["zoom"]', '["heatmap-density"]', '["line-prog
 // left as they are. Each spread colour is kept by row and source colour, so a
 // key built from the same palette shows the same step (gladCss).
 const GLAD_SPREAD = new Map();
+// The steps of the map's own ramps (OWID_RAMP and SHAPE_STEPS, written out
+// again here since those are defined further down): a list of countries
+// matched to these is a ranking (round 62).
+const GLAD_RAMP_STEPS = new Set(["#E3D9CF", "#C9B3A5", "#AC8A7B", "#8A6356", "#5F3F36", "#DCD7CC", "#B8B0A2", "#948B7D", "#6F675B", "#4A443C"]);
 function gladHsl(h, s, l) {
   const a = s * Math.min(l, 1 - l), f = (n) => { const k = (n + h / 30) % 12; return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))); };
   return "#" + [f(0), f(8), f(4)].map((x) => x.toString(16).padStart(2, "0")).join("").toUpperCase();
@@ -578,16 +582,22 @@ function gladSpread(v, idx, salt, ordered) {
   const distinct = [];
   for (const p of parsed) if (active(p) && !distinct.includes(hexOf(p))) distinct.push(hexOf(p));
   if (distinct.length < 3) return null;
+  // Countries matched by name to the steps of a ramp (round 62): the steps are
+  // put back in the ramp's order, lightest first, since the countries come in
+  // any order.
+  if (ordered === "ramp") distinct.sort((a, b) => light(parseCssColour(b)) - light(parseCssColour(a)));
   const n = distinct.length;
   const firstP = parsed.find(active), lastP = [...parsed].reverse().find(active);
-  const darkening = light(firstP) >= light(lastP);
+  const darkening = ordered === "ramp" || light(firstP) >= light(lastP);
   const to = new Map(distinct.map((hx, r) => {
     const t = r / (n - 1);
     // In the narrower country span, classes take three depths rather than two
     // so that more of them stay apart (round 58).
-    const l = ordered ? (darkening ? 0.8 - t * 0.38 : 0.42 + t * 0.38)
+    // Round 62: steps further apart in depth (0.88 to 0.35, was 0.8 to 0.42);
+    // the owner found neighbouring steps too alike to read.
+    const l = ordered ? (darkening ? 0.88 - t * 0.53 : 0.35 + t * 0.53)
       : gladSpan(salt) < GLAD_SPAN ? [0.7, 0.5, 0.34][r % 3] : (r % 2 ? 0.44 : 0.66);
-    const out = gladHsl(GLAD_LO + t * gladSpan(salt), 0.7, l);
+    const out = gladHsl(GLAD_LO + t * gladSpan(salt), 0.78, l);
     GLAD_OUT.add(out);
     GLAD_SPREAD.set(`${salt}|${hx}`, out);
     return [hx, out];
@@ -636,7 +646,9 @@ function gladValue(v, salt) {
     if (idx.every((i) => literal(v[i]))) {
       // Numbered classes (scores, ranks) are a scale in the order written.
       const numbered = idx.slice(0, -1).every((i) => typeof v[i - 1] === "number");
-      const spread = gladSpread(v, idx, salt, numbered);
+      // Every output a step of one of the map's ramps: a ranking, whatever the keys.
+      const ranked = !numbered && idx.slice(0, -1).every((i) => GLAD_RAMP_STEPS.has(String(v[i]).toUpperCase()));
+      const spread = gladSpread(v, idx, salt, ranked ? "ramp" : numbered);
       if (spread) return spread;
     }
   }
@@ -769,6 +781,8 @@ function gladKeys(root) {
     el.dataset.glad = "1";
     const host = el.closest("[data-for], [data-key-for], [data-colour-for], [data-layer], [data-state]");
     const salt = host ? (host.dataset.for || host.dataset.keyFor || host.dataset.colourFor || host.dataset.layer || host.dataset.state) : "";
+    // A row that keeps its own colours keeps them in its key too (round 63).
+    try { if (salt && gladKept(salt)) continue; } catch (e) { /* rows not read yet */ }
     const c = el.style.backgroundColor;
     if (c) { const m = gladCss(c.replace(/\s+/g, ""), salt); if (m !== c) el.style.backgroundColor = m; }
   }
@@ -1685,8 +1699,25 @@ window.atlasTune = (next) => {
   return ATLAS_TUNE;
 };
 
+// The flat map is normally held so that it fills the screen top to bottom
+// (MapLibre's own rule). While the biosignature worlds are shown round it
+// (round 62), it may be pulled back further, into space, so there is room for
+// them: FREE_FLAT lifts the rule; otherwise MapLibre's own applies.
+let FREE_FLAT = false;
+function flatConstrain(lngLat, zoom) {
+  let t = null;
+  try { t = map.transform; } catch (e) { /* the map is still being made */ }
+  if (FREE_FLAT || !t || typeof t.defaultConstrain !== "function") {
+    if (!FREE_FLAT && !t) return { center: lngLat, zoom };
+    if (FREE_FLAT) return { center: new maplibregl.LngLat(Math.max(-180, Math.min(180, lngLat.lng)), Math.max(-85, Math.min(85, lngLat.lat))), zoom: Math.max(-2, zoom) };
+    return { center: lngLat, zoom };
+  }
+  return t.defaultConstrain(lngLat, zoom);
+}
+
 const map = new maplibregl.Map({
   container: "map",
+  transformConstrain: flatConstrain,
   // One world. Repeated copies east and west read as more planet than there is.
   renderWorldCopies: false,
   // Speed. A Retina screen draws four pixels for every one; capped at 1.5 the
@@ -3455,7 +3486,10 @@ const sitemapFilters = new Map();     // map id -> { filters, picked: [Set], bas
 // the box is arranged, so the rows are there before anything is ticked.
 const siteTypeRows = new Map();      // map id -> { fi, picked: Set, busy }
 
-function siteTypeTitle(label, mapName) { return `${label} \u2014 ${mapName}`; }
+// A kind's row reads as the kind alone under maps whose heading already says
+// which map it is (round 61: the owner found "— The Unnecessary Enslavement of
+// Microorganisms 2026" after every row); elsewhere the map's name follows.
+function siteTypeTitle(label, mapName, id) { return ["site_enslaved_microbes", "site_enslaved_plants", "site_insentient"].includes(id) ? String(label) : `${label} \u2014 ${mapName}`; }
 
 function siteTypeSync(cfg) {
   const tr = siteTypeRows.get(cfg.id);
@@ -3510,7 +3544,7 @@ async function siteTypeRowsFor(cfg) {
     row.className = "layer layer-cat";
     row.innerHTML = `<input type="checkbox" data-smtype="${escapeHtml(cfg.id)}" data-k="${escapeHtml(v.k)}">` +
       `<span class="swatch" style="background:${escapeHtml(swatchFill(sitemapDrawnColours(cfg, data.features, v.k)) || cfg.colour)}"></span>` +
-      `<span class="body"><span class="nm">${escapeHtml(siteTypeTitle(v.label, mapName.trim()))}${siteLink(cfg.id)}</span>` +
+      `<span class="body"><span class="nm">${escapeHtml(siteTypeTitle(v.label, mapName.trim(), cfg.id))}${liveMark(cfg)}${siteLink(cfg.id)}</span>` +
       `<span class="un">${Number(v.n).toLocaleString()} ${escapeHtml(cfg.unit || "places")}</span></span>`;
     return row;
   });
@@ -3807,14 +3841,26 @@ async function addLivePlacesLayer(cfg) {
     console.error(`[culprits] ${cfg.id}: ${e.message}`);
     return;
   }
-  relabelRow(cfg.id, got.title);
+  // A row the owner has named keeps its name (round 61: Zoos and Aquariums).
+  if (!cfg.fixedName) relabelRow(cfg.id, got.title);
   const { data, boxes } = livePlacesToSitemap(cfg, got.items);
   sitemapBoxes.set(cfg.id, Promise.resolve(boxes));
   await addSitemapLayer(cfg, data);
   if (got.note) setLayerState(cfg.id, `${data.features.length.toLocaleString()} ${cfg.unit} \u00b7 ${got.note}`);
 }
 
+// A read that gets no answer in its time is tried once more with twice the
+// time (round 61): with many layers loading, a small file waited behind the
+// big ones and a row gave up ("0 cities", "did not answer") though the file
+// was there.
 async function getJson(url, ms = 25000) {
+  try { return await getJsonOnce(url, ms); }
+  catch (e) {
+    if (!/^no answer in/.test(e.message)) throw e;
+    return getJsonOnce(url, ms * 2);
+  }
+}
+async function getJsonOnce(url, ms) {
   const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
   const timer = ctrl ? setTimeout(() => ctrl.abort(), ms) : null;
   let r;
@@ -3849,7 +3895,11 @@ function umapPopup(template, p) {
 }
 
 async function readUmap(cfg) {
-  const m = await getJson(`${cfg.umap}/map/${cfg.umapId}/geojson/`);
+  // The map's settings from the daily copy first (round 61: read live they
+  // failed, and the row with them), then from uMap itself.
+  let m;
+  try { m = await getJson(`https://welcometoyourgalaxy.github.io/culprits-tiles-more/umap/${cfg.umapId}/map.json`); }
+  catch (e) { m = await getJson(`${cfg.umap}/map/${cfg.umapId}/geojson/`); }
   const props = m.properties || {};
   const layers = props.datalayers || m.datalayers || [];
   const items = [];
@@ -4655,24 +4705,32 @@ async function addWorldsRingLayer(cfg) {
     if (!flat && (map.getPitch() > 5 || outer - R * 1.1 < 45)) return;
     const cx = w / 2, cy = h / 2;
     if (flat) {
-      // The flat map has no globe to go round (round 58): the worlds sit on a
-      // rail across the top of the view, nearest on the left, further right
-      // the further from Earth, on the page's own logarithmic scale. Labels
-      // take turns above and below the rail so neighbours can be read.
-      // Between the layers box and the right-hand column, so neither covers it.
+      // Round 62 (asked for by the owner): as round the globe, but round the
+      // flat map. The map pulls back until the whole flat world sits in space
+      // with room round it; each world is placed out from the world's edge,
+      // fanned across the top, further out the further it is from Earth (the
+      // page's own logarithmic rail, logX), with a faint line back to the edge.
       const edge = (sel, side) => { const el = document.querySelector(sel); if (!el || !el.getBoundingClientRect) return null;
         const r = el.getBoundingClientRect(), b = box.getBoundingClientRect(); return r.width ? (side === "l" ? r.right - b.left : r.left - b.left) : null; };
       const pl = edge(".panel", "l"), pr = edge(".right-col", "r");
-      const left = Math.max(40, (pl || 0) + 30), right = Math.min(w - 40, (pr || w) - 30), y = 58;
-      if (right - left < 160) return;
-      g.strokeStyle = "rgba(227,215,203,0.35)"; g.lineWidth = 1;
-      g.beginPath(); g.moveTo(left, y); g.lineTo(right, y); g.stroke();
-      g.font = "10.5px system-ui,sans-serif"; g.fillStyle = "rgba(227,215,203,0.7)"; g.textAlign = "left";
-      g.fillText("Earth", left, y + 28); g.textAlign = "right"; g.fillText("further from Earth \u2192", right, y + 28);
+      const L = Math.max(22, (pl || 0) + 18), Rt = Math.min(w - 22, (pr || w) - 18), T = 22, B = h - 22;
+      const tl = map.project([-180, 85.05]), br = map.project([180, -85.05]);
+      const hw = (br.x - tl.x) / 2, hh = (br.y - tl.y) / 2, rcx = (tl.x + br.x) / 2, rcy = (tl.y + br.y) / 2;
+      if (!(hw > 0) || tl.y - T < 50) return;
+      const n = worlds.length;
       worlds.forEach((wd, i) => {
-        const x = left + (right - left) * Math.max(0, Math.min(1, Number(wd.logX) || 0));
-        placed.push({ wd, x, y, size: 4 + 8 * (Number(wd.size) || 0.3), colour: worldColour(Number(wd.probMid)), up: i % 2 === 0 });
+        const a = (-168 + (156 * i) / Math.max(1, n - 1)) * Math.PI / 180, c = Math.cos(a), sn = Math.sin(a);
+        const out = Math.min(Math.abs(c) > 1e-6 ? hw / Math.abs(c) : Infinity, Math.abs(sn) > 1e-6 ? hh / Math.abs(sn) : Infinity);
+        const scr = Math.min(c > 1e-6 ? (Rt - rcx) / c : c < -1e-6 ? (L - rcx) / c : Infinity,
+                             sn > 1e-6 ? (B - rcy) / sn : sn < -1e-6 ? (T - rcy) / sn : Infinity);
+        const lo = out + 16, hi = Math.max(lo + 30, scr - 14);
+        const d = lo + (hi - lo) * Math.max(0, Math.min(1, Number(wd.logX) || 0));
+        placed.push({ wd, x: rcx + c * d, y: rcy + sn * d, ex: rcx + c * out, ey: rcy + sn * out, lo: L, hi: Rt,
+          size: 4 + 8 * (Number(wd.size) || 0.3), colour: worldColour(Number(wd.probMid)), up: i % 2 === 0 });
       });
+      g.setLineDash([2, 4]); g.lineWidth = 0.8; g.strokeStyle = "rgba(227,215,203,0.3)";
+      for (const p of placed) { g.beginPath(); g.moveTo(p.ex, p.ey); g.lineTo(p.x, p.y); g.stroke(); }
+      g.setLineDash([]);
     } else
     // Across the top of the globe, nearest world on the left.
     worlds.forEach((wd, i) => {
@@ -4687,7 +4745,10 @@ async function addWorldsRingLayer(cfg) {
       g.lineWidth = 0.8; g.strokeStyle = "rgba(10,10,12,0.8)"; g.stroke();
       g.fillStyle = "rgba(227,215,203,0.85)";
       g.font = "11px system-ui,sans-serif"; g.textAlign = "center";
-      g.fillText(`${p.wd.name} · ${p.wd.prob}`, p.x, p.up ? p.y - p.size - 5 : p.y + p.size + 13);
+      // A label kept on screen, clear of the side boxes (round 62).
+      const txt = `${p.wd.name} · ${p.wd.prob}`, half = g.measureText(txt).width / 2;
+      const lx = p.lo != null ? Math.max(p.lo + half, Math.min(p.hi - half, p.x)) : p.x;
+      g.fillText(txt, lx, p.up ? p.y - p.size - 5 : p.y + p.size + 13);
     }
   };
   // Turned on while the map is close in, tilted, or too near for the ring,
@@ -4697,7 +4758,17 @@ async function addWorldsRingLayer(cfg) {
     if (typeof map.easeTo !== "function") return;
     const lat = map.getCenter().lat, room = Math.min(box.clientWidth, box.clientHeight) / 2 - 22;
     if (drawnProjection() === "mercator") {
-      if (map.getZoom() > 2.2 || map.getPitch() > 5) map.easeTo({ zoom: Math.min(map.getZoom(), 1.6), pitch: 0, duration: 1200 });
+      // The whole flat world in space, with room above and beside it for the
+      // worlds (round 62): its square at most half the height and the width
+      // between the side boxes, centred.
+      const el = (sel) => { const e = document.querySelector(sel); return e && e.getBoundingClientRect ? e.getBoundingClientRect() : null; };
+      const b = box.getBoundingClientRect(), p = el(".panel"), q = el(".right-col");
+      const between = Math.max(200, (q && q.width ? q.left - b.left : b.width) - (p && p.width ? p.right - b.left : 0));
+      const side = Math.min(box.clientHeight * 0.5, between * 0.55);
+      const z = Math.log2(side / 512);
+      const mid = ((p && p.width ? p.right - b.left : 0) + (q && q.width ? q.left - b.left : b.width)) / 2 - box.clientWidth / 2;
+      if (map.getZoom() > z + 0.05 || map.getPitch() > 5 || Math.abs(map.getCenter().lat) > 5)
+        map.easeTo({ center: [0, 0], zoom: z, pitch: 0, bearing: 0, offset: [mid, box.clientHeight * 0.12], duration: 1200 });
       return;
     }
     let z = map.getZoom();
@@ -4728,8 +4799,20 @@ async function addWorldsRingLayer(cfg) {
     card.style.display = "block";
     card.querySelector(".neo-x").onclick = () => { card.style.display = "none"; };
   });
-  cfg.afterVisibility = (vis) => { const was = on; on = vis === "visible"; if (!on) card.style.display = "none"; if (on && !was) pullBack(); draw(); };
+  const free = () => {
+    const want = on && drawnProjection() === "mercator";
+    if (FREE_FLAT === want) return;
+    FREE_FLAT = want;
+    // Held again: the map goes back to filling the screen.
+    if (!want && typeof map.jumpTo === "function") map.jumpTo({ center: map.getCenter(), zoom: map.getZoom() });
+  };
+  cfg.afterVisibility = (vis) => { const was = on; on = vis === "visible"; free(); if (!on) card.style.display = "none"; if (on && !was) pullBack(); draw(); };
+  // Changing between the globe and the flat map with the worlds shown: pulled
+  // back again for the view now drawn.
+  let lastProj = drawnProjection();
+  map.on("styledata", () => { const pj = drawnProjection(); if (pj !== lastProj) { lastProj = pj; free(); if (on) setTimeout(pullBack, 300); } });
   on = (visibility.get(cfg.id) || "visible") === "visible";
+  free();
   if (on) pullBack();
   const row = document.querySelector(`[data-layer="${cfg.id}"]`);
   const label = row && row.closest ? row.closest("label") : null;
@@ -4738,10 +4821,10 @@ async function addWorldsRingLayer(cfg) {
     el.className = "facet cat-key";
     el.dataset.keyFor = cfg.id;
     el.innerHTML = catalogueKeyHtml({ values: WORLD_PROB.map(([lo, c, t], i) => [i, c, t]) }) +
-      `<div style="padding-left:18px;font-size:10.5px;color:var(--dim)">Colour: the assessed chance a world's evidence is biological. Further from the globe (on the flat map, further right along the top): further from Earth (logarithmic). The map pulls back to world view when this is turned on.</div>`;
+      `<div style="padding-left:18px;font-size:10.5px;color:var(--dim)">Colour: the assessed chance a world's evidence is biological. Further from the globe, or from the edge of the flat map: further from Earth (logarithmic). The map pulls back to world view when this is turned on.</div>`;
     label.after(el);
   }
-  setLayerState(cfg.id, `${worlds.length} worlds · round the globe at world view, along the top on the flat map`);
+  setLayerState(cfg.id, `${worlds.length} worlds · round the globe, or round the flat map, at world view`);
   draw();
 }
 
@@ -5633,6 +5716,9 @@ function atlasPanel() {
 }
 function atlasPlateOff() {
   for (const id of atlasLayers()) { map.removeLayer(id); if (map.getSource(id)) map.removeSource(id); }
+  for (const m of atlasInsets.markers || []) m.remove();
+  atlasInsets.markers = [];
+  atlasInsets.slug = null;
   if (atlasPlateOff.move) { map.off("moveend", atlasPlateOff.move); atlasPlateOff.move = null; }
   if (atlasPlateOff.vec) { map.off("moveend", atlasPlateOff.vec); atlasPlateOff.vec = null; }
   atlasVector.slug = null;
@@ -5657,7 +5743,8 @@ function atlasDetail(p, fitZoom) {
       const lons = d.corners.map((c) => c[0]), lats = d.corners.map((c) => c[1]);
       if (Math.max(...lons) < b.getWest() || Math.min(...lons) > b.getEast() || Math.max(...lats) < b.getSouth() || Math.min(...lats) > b.getNorth()) return;
       map.addSource(id, { type: "image", url: plateUrl(d.image), coordinates: d.corners });
-      map.addLayer({ id, type: "raster", source: id, minzoom: fitZoom + 1, paint: { "raster-opacity": opacity(), "raster-fade-duration": 0 } });
+      map.addLayer({ id, type: "raster", source: id, minzoom: fitZoom + 1, paint: { "raster-opacity": opacity(), "raster-fade-duration": 0 } },
+        map.getLayer("atlas-plate-conflicts") ? "atlas-plate-conflicts" : undefined);
     });
   };
   atlasPlateOff.move = add;
@@ -5740,7 +5827,8 @@ function atlasVector(slug, p, fitZoom) {
       if (src && src.updateImage) src.updateImage({ url, coordinates: geo });
       else {
         map.addSource(id, { type: "image", url, coordinates: geo });
-        map.addLayer({ id, type: "raster", source: id, paint: { "raster-opacity": opacity(), "raster-fade-duration": 0 } });
+        map.addLayer({ id, type: "raster", source: id, paint: { "raster-opacity": opacity(), "raster-fade-duration": 0 } },
+          map.getLayer("atlas-plate-conflicts") ? "atlas-plate-conflicts" : undefined);
       }
       map.setLayoutProperty(id, "visibility", "visible");
       hideDetail(true);
@@ -5762,6 +5850,45 @@ function atlasVector(slug, p, fitZoom) {
     .catch((e) => console.info(`[culprits] atlas ${slug}: drawn from its pictures (${e.message})`));
   atlasPlateOff.vec = draw;
   map.on("moveend", draw);
+}
+// The hotspot's conflicts page and its city insets (round 61, asked 26
+// September: the later pages' more detailed maps shown with the hotspot).
+// culprits-tiles-more scripts/atlas_insets.py places the conflicts map by its
+// own numbered cities and cuts each city's round inset from its page. The map
+// is laid over page 1; each numbered city is a mark that opens its inset, its
+// title and its population projections as printed. The insets carry no scale
+// bar, so they are shown as pictures, not stretched over the ground.
+const ATLAS_INSETS = "https://welcometoyourgalaxy.github.io/culprits-tiles-more/atlas/insets.json";
+let atlasInsetsIndex = null;
+async function atlasInsets(slug) {
+  if (!atlasInsetsIndex) atlasInsetsIndex = getJson(ATLAS_INSETS, 30000).catch(() => { atlasInsetsIndex = null; return {}; });
+  atlasInsets.slug = slug;
+  const r = (await atlasInsetsIndex)[slug];
+  if (!r || atlasInsets.slug !== slug) return;
+  const opacity = () => { const i = document.querySelector("#atlas-panel .ap-fade input"); return i ? 1 - Number(i.value) / 100 : 0.85; };
+  if (r.kept && Array.isArray(r.corners) && r.corners.length === 4 && r.image && !map.getSource("atlas-plate-conflicts")) {
+    map.addSource("atlas-plate-conflicts", { type: "image", url: r.image, coordinates: r.corners });
+    map.addLayer({ id: "atlas-plate-conflicts", type: "raster", source: "atlas-plate-conflicts", paint: { "raster-opacity": opacity(), "raster-fade-duration": 0 } });
+  }
+  atlasInsets.markers = [];
+  if (typeof maplibregl.Marker !== "function") return;
+  for (const c of r.cities || []) {
+    if (!Number.isFinite(c.lon) || !Number.isFinite(c.lat)) continue;
+    const el = document.createElement("button");
+    el.type = "button";
+    el.className = "atlas-city-mark";
+    el.textContent = String(c.n);
+    el.title = c.title;
+    el.style.cssText = "min-width:18px;height:18px;padding:0 4px;border-radius:9px;border:1px solid rgba(240,236,222,.8);" +
+      "background:rgba(23,21,15,.85);color:#F2EEE6;font:600 10px system-ui,sans-serif;cursor:pointer;line-height:16px";
+    const html = `<b>${escapeHtml(c.n + ". " + c.title)}</b>` +
+      (c.image ? `<div style="text-align:center;margin:6px 0"><img src="${escapeHtml(c.image)}" alt="" style="width:240px;max-width:100%;border-radius:50%"></div>` : "") +
+      ((c.population_2015 || c.population_2030) ? `<div class="meta">Population projections: 2015 ${escapeHtml(c.population_2015 || "\u2013")} \u00b7 2030 ${escapeHtml(c.population_2030 || "\u2013")}</div>` : "") +
+      `<div class="meta">From the Atlas for the End of the World, page ${escapeHtml(String(c.page || ""))}. Placed at the city's position in OpenStreetMap; the inset has no scale bar of its own.</div>`;
+    const m = new maplibregl.Marker({ element: el }).setLngLat([c.lon, c.lat])
+      .setPopup(new maplibregl.Popup({ maxWidth: "280px", offset: 12 }).setHTML(html)).addTo(map);
+    atlasInsets.markers.push(m);
+  }
 }
 // what: { plate, doc } for a hotspot, { page } for a city; bounds: the
 // hotspot's own outline, used when there is no placed plate.
@@ -5785,6 +5912,7 @@ async function showAtlas(what, bounds, owner) {
     const fit = typeof map.cameraForBounds === "function" ? map.cameraForBounds(box, { padding: 30 }) : null;
     atlasDetail(p, fit && Number.isFinite(fit.zoom) ? fit.zoom : 4);
     if (what.plate) atlasVector(what.plate, p, fit && Number.isFinite(fit.zoom) ? fit.zoom : 4);
+    if (what.plate) atlasInsets(what.plate);
     if (typeof map.fitBounds === "function") map.fitBounds(box, { padding: 30, duration: 1400 });
     return;
   }
@@ -6305,6 +6433,7 @@ const BUNDLES = {
   landmark: "Indigenous Peoples' and local communities' lands and territories, worldwide (LandMark)",
   landghg: "Greenhouse gases from cropland and livestock, CO2 equivalent (WRI land greenhouse gas monitoring system)",
   indigenous_conflicts: "Indigenous Environmental Conflicts",
+  selected: "Selected Layers",
 };
 const IN = (path, key) => `${path} > ${BUNDLES[key]}`;
 const ZDC = "(zero-deforestation commitment)";
@@ -6367,7 +6496,7 @@ const CATALOGUE_PLACES = [
   [/mangrove|reef|benthic|coral/i, P + " > Oceans > Reefs and mangroves"],
   [/water|aqueduct|\brivers?\b|watershed|flood|\bpond\b|canal/i, P + " > Surface water"],
   [/customary|\badat\b|indigenous|community land|tenure|land rights|quilombola|village forest|community forest|social forestry|rural settlement|forestry employment/i,
-   "On-planet invasion > Post-birth invasion > Invasion of humans"],
+   "On-planet invasion > Invasion of the living > Invasion of humans"],
   [/\broads?\b|transmigration|settlement|capital|\bikn\b|infrastructure|\burban|\bbuilt\b/i, P + " > Construction"],
   // Spatial plans: the national and provincial plans and the moratorium (PIPPIB)
   // stay; the moratorium is also under Deforestation, being a bar on clearing
@@ -6430,7 +6559,7 @@ const CATALOGUE_BY_TITLE = [
   // country figures (natural resource rights, tenure indicators, share of land
   // and population Indigenous) stay. Global Forest Watch's working files
   // (SDPT whitelist, pixel area, UMD area 2013, "To delete") taken out.
-  [/\blandmark_ip_lc_and_indicative_(poly|points)\b/, [IN("On-planet invasion > Post-birth invasion > Invasion of humans", "landmark")]],
+  [/\blandmark_ip_lc_and_indicative_(poly|points)\b/, [IN("On-planet invasion > Invasion of the living > Invasion of humans", "landmark")]],
   [/\bfao_forestry_employment\b/, null],
   [/socialforestry(hk|hadat|wiladat|hd)_spv/, null],
   [/\blandmark_icls\b|\blandmark_indigenous_and_community_lands(_points)?\b|\blandmark_indicative_lands(_points)?\b|\blandmark_ip_lc_and_indicative_poly_preprocessed\b|\bgfw_indigenous_community_and_indicative_lands\b/, null],
@@ -6554,7 +6683,7 @@ const CATALOGUE_BY_TITLE = [
   [/\bwcs_forest_landscape_integrity_index\b/, [P + " > Biodiversity loss > Intact and primary forests"]],
   [/\bicf_hnd_forest_type_2013\b|\bjrc_managed_land_(can|usa)\b|\brspo_southeast_asia_land_cover_2010\b|\bsbtn_natural_forests_map\b|\bumd_tree_cover_gain\b|\bumd_tree_cover_height_20\d\d\b/,
    [P + " > Forest and land cover"]],
-  [/\blandmark_natural_resource_rights\b/, ["On-planet invasion > Post-birth invasion > Invasion of humans"]],
+  [/\blandmark_natural_resource_rights\b/, ["On-planet invasion > Invasion of the living > Invasion of humans"]],
   [/\bwri_cmr_agro_industrial_zones\b/, [AG + " > Plantations"]],
   [/\bwri_global_power_plant_database\b/, [P + " > Climate > Carbon dioxide"]],
   // Taken out 24 September (round 41): wind speed potential and Brazil's biomes.
@@ -6600,7 +6729,7 @@ const CATALOGUE_BY_TITLE = [
   // Global Forest Watch's resource rights (Cameroon, Equatorial Guinea, Liberia,
   // Namibia) under Land and territory (23 September, round 22).
   [/\blbr_mineral_development_agreement\b|(?=.*liberia)(?=.*mineral development agreement)/i, [P + " > Mining"]],
-  [/\bgfw_resource_rights\b/, ["On-planet invasion > Post-birth invasion > Invasion of humans"]],
+  [/\bgfw_resource_rights\b/, ["On-planet invasion > Invasion of the living > Invasion of humans"]],
   // Logging roads in the Congo Basin: Deforestation only, not Construction.
   [/logging roads?\b/i, [P + " > Deforestation"]],
   // Placed by name.
@@ -7599,6 +7728,7 @@ function spheresControls(cfg, html, D, kinds) {
   const picked = new Set();
   const el = document.createElement("div");
   el.className = "facet";
+  el.dataset.keyFor = cfg.id;   // its kinds' colours are its key (round 64)
   const people = (D.people || []).slice().sort((a, b) => a.name.localeCompare(b.name));
   const sectors = (D.sectors || []).map((s) => s.name).sort();
   el.innerHTML = `<span class="chip reset" data-sk="">All kinds</span>` + used.map((k) =>
@@ -7639,11 +7769,14 @@ async function addSpheresLayer(cfg) {
   try { D = spheresData(html); } catch (e) { setLayerState(cfg.id, e.message); return; }
   const kinds = spheresKinds(html);
   const N = new Map(D.nodes.map((n) => [n.id, n]));
+  const P = new Map((D.people || []).map((q) => [q.id, q.name]));
   const pts = D.nodes.map((n) => ({ type: "Feature", geometry: { type: "Point", coordinates: [n.lng, n.lat] },
     properties: { id: n.id, name: n.name, kind: n.kind, c: kinds[n.kind] || cfg.colour, linked: n.linked ? 1 : 0 } }));
   const lines = (D.edges || []).filter((e) => N.has(e.a) && N.has(e.b)).map((e) => ({ type: "Feature",
     geometry: { type: "LineString", coordinates: [[N.get(e.a).lng, N.get(e.a).lat], [N.get(e.b).lng, N.get(e.b).lat]] },
-    properties: { w: e.w || 1, a: N.get(e.a).name, b: N.get(e.b).name, n: (e.via || []).length } }));
+    // Who sits in both, by name (round 62: the owner asked for the people, not only how many).
+    properties: { w: e.w || 1, a: N.get(e.a).name, b: N.get(e.b).name, n: (e.via || []).length,
+                  who: (e.via || []).map((id) => P.get(id) || id).join("\n") } }));
   map.addSource(`${cfg.id}-lines`, { type: "geojson", data: { type: "FeatureCollection", features: lines } });
   map.addSource(`${cfg.id}-places`, { type: "geojson", data: { type: "FeatureCollection", features: pts } });
   map.addLayer({ id: `${cfg.id}-line`, type: "line", source: `${cfg.id}-lines`,
@@ -7657,7 +7790,8 @@ async function addSpheresLayer(cfg) {
     popupClaimedBy = e.originalEvent || e;
     spheresCard(cfg, html, f.properties.id);
   });
-  bindHtmlPopup(`${cfg.id}-line`, (p) => `<b>${escapeHtml(p.a)} \u2194 ${escapeHtml(p.b)}</b><div class="meta">${Number(p.n || p.w)} people sit in both</div>`);
+  bindHtmlPopup(`${cfg.id}-line`, (p) => `<b>${escapeHtml(p.a)} \u2194 ${escapeHtml(p.b)}</b><div class="meta">${Number(p.n || p.w)} ${Number(p.n || p.w) === 1 ? "person sits" : "people sit"} in both:</div>` +
+    (p.who ? `<div class="meta" style="max-height:220px;overflow:auto">${String(p.who).split("\n").map((x) => escapeHtml(x)).join("<br>")}</div>` : ""));
   map.on("mouseenter", `${cfg.id}-pt`, () => { map.getCanvas().style.cursor = "pointer"; });
   map.on("mouseleave", `${cfg.id}-pt`, () => { map.getCanvas().style.cursor = ""; });
   spheresControls(cfg, html, D, kinds);
@@ -7800,6 +7934,19 @@ function owidPick(rows, year) {
     if (!had || r.year > had.year) by.set(r.iso3, r);
   }
   return by;
+}
+// A ranking's key: each step's range, the empty ones (where many share the
+// lowest figure) left out.
+function rankPairs(vals, breaks, ramp, fmt) {
+  const out = [];
+  if (!vals.length) return out;
+  const min = Math.min(...vals);
+  for (let i = 0; i <= breaks.length; i++) {
+    const lo = i ? breaks[i - 1] : min, hi = breaks[i];
+    if (i < breaks.length && !(lo < hi)) continue;
+    out.push([ramp[Math.min(i + (ramp.length - 1 - breaks.length), ramp.length - 1)], i === breaks.length ? `${fmt(lo)} or more` : `${fmt(lo)} to under ${fmt(hi)}`]);
+  }
+  return out;
 }
 function owidBreaks(values) {
   const v = values.slice().sort((a, b) => a - b);
@@ -7978,9 +8125,26 @@ async function addRteLayer(cfg) {
   const C = new Map((models.countries || []).filter((c) => c.lat != null && c.lng != null).map((c) => [c.id, c]));
   const years = (models.years || []).map((y) => Number(y.id)).sort((a, b) => b - a);
   map.addSource(`${cfg.id}-src`, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-  map.addLayer({ id: `${cfg.id}-line`, type: "line", source: `${cfg.id}-src`, layout: { "line-cap": "round" },
-    paint: { "line-color": cfg.colour, "line-opacity": 0.75,
-             "line-width": ["interpolate", ["linear"], ["get", "share"], 0, 0.8, 1, 7] } });
+  // Round 62: the owner found the widths hard to tell apart. Each flow now
+  // falls in one of five tiers by its trade value (fifths of the year's
+  // flows); a tier has its own width and depth, the largest drawn on top,
+  // wider as the map zooms in. A key under the row gives each tier's values,
+  // and a menu keeps only the largest flows when the map is crowded.
+  const RTE_W = [0.5, 1, 1.7, 2.6, 4], RTE_C = SHAPE_STEPS;
+  const tier = ["to-number", ["get", "tier"], 0];
+  map.addLayer({ id: `${cfg.id}-line`, type: "line", source: `${cfg.id}-src`, layout: { "line-cap": "round", "line-sort-key": tier },
+    paint: { "line-color": ["match", tier, 0, RTE_C[0], 1, RTE_C[1], 2, RTE_C[2], 3, RTE_C[3], RTE_C[4]],
+             "line-opacity": ["match", tier, 0, 0.45, 1, 0.6, 2, 0.75, 0.9],
+             "line-width": ["interpolate", ["linear"], ["zoom"],
+               1, ["match", tier, 0, RTE_W[0], 1, RTE_W[1], 2, RTE_W[2], 3, RTE_W[3], RTE_W[4]],
+               6, ["*", 1.6, ["match", tier, 0, RTE_W[0], 1, RTE_W[1], 2, RTE_W[2], 3, RTE_W[3], RTE_W[4]]]] } });
+  let rteAll = [], rteKeep = 0;
+  const rteShow = () => {
+    const src = map.getSource(`${cfg.id}-src`);
+    if (!src) return;
+    const feats = rteKeep ? rteAll.slice().sort((a, b) => b.properties.value - a.properties.value).slice(0, rteKeep) : rteAll;
+    src.setData({ type: "FeatureCollection", features: feats });
+  };
   const draw = async (year) => {
     setLayerState(cfg.id, `reading ${year}\u2026`);
     let j;
@@ -7996,7 +8160,23 @@ async function addRteLayer(cfg) {
                       // Every field of the flow's record, for its box (round 29).
                       _all: JSON.stringify(r) } };
     });
-    map.getSource(`${cfg.id}-src`).setData({ type: "FeatureCollection", features: feats });
+    const vals = feats.map((f) => Number(f.properties.value) || 0).filter((v) => v > 0);
+    const breaks = owidBreaks(vals);
+    for (const f of feats) { const v = Number(f.properties.value) || 0; let i = 0; while (i < breaks.length && v >= breaks[i]) i++; f.properties.tier = Math.min(i + (4 - breaks.length), 4); }
+    rteAll = feats;
+    rteShow();
+    const keyEl = document.querySelector(`.facet[data-key-for="${cfg.id}"]`);
+    if (keyEl && vals.length) {
+      const fmt = (v) => Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 });
+      const pairs = [];
+      for (let i = 0; i <= breaks.length; i++) {
+        const lo = i ? breaks[i - 1] : Math.min(...vals), t = Math.min(i + (4 - breaks.length), 4);
+        pairs.push([RTE_C[t], (i === breaks.length ? `${fmt(lo)} or more` : `${fmt(lo)} to under ${fmt(breaks[i])}`) + ` (line ${["thinnest", "thin", "middling", "wide", "widest"][t]})`]);
+      }
+      keyEl.innerHTML = `<div style="padding-left:18px;font-size:10.5px;color:var(--dim)">Trade value of each flow, as resourcetrade.earth publishes it</div>` +
+        catalogueKeyHtml({ values: pairs.map(([c, t], k) => [k, c, t]) });
+      buildLegend();
+    }
     const left = (j.main || []).length - rows.length;
     setLayerState(cfg.id, `${feats.length} largest flows of ${Number(j.total || 0).toLocaleString()} in ${year}` +
       (left ? ` (${left} to or from unplaced areas)` : "") + (cfg._fromCopy ? " \u00b7 from today's copy" : ""));
@@ -8015,9 +8195,16 @@ async function addRteLayer(cfg) {
   if (anchor && anchor.after) {
     const el = document.createElement("div");
     el.className = "facet";
-    el.innerHTML = `<select aria-label="Year">${years.map((y) => `<option value="${y}">${y}</option>`).join("")}</select>`;
+    el.innerHTML = `<select aria-label="Year">${years.map((y) => `<option value="${y}">${y}</option>`).join("")}</select> ` +
+      `<select aria-label="How many flows" data-rte-keep><option value="0">every flow read</option><option value="25">the largest 25</option>` +
+      `<option value="50">the largest 50</option><option value="100">the largest 100</option></select>`;
     el.querySelector("select").addEventListener("change", (e) => draw(Number(e.target.value)));
+    el.querySelector("[data-rte-keep]").addEventListener("change", (e) => { rteKeep = Number(e.target.value); rteShow(); });
     anchor.after(el);
+    const key = document.createElement("div");
+    key.className = "facet cat-key";
+    key.dataset.keyFor = cfg.id;
+    el.after(key);
   }
   await draw(years[0]);
   applyVisibility(cfg.id);
@@ -8238,7 +8425,15 @@ async function addCtAirLayer(cfg) {
 }
 
 /* ---------- Global Trade Alert: state acts by country ---------- */
-const GTA_EVAL = { Red: "#8F4E40", Amber: "#8A7560", Green: "#62755F" };
+// Global Trade Alert rates each act with a traffic light; its handbook's own
+// words for each are used here, not the colour names (round 62, asked for by
+// the owner). The dots are in the map's colours: darkest the most harmful.
+const GTA_EVAL = { Red: "#26307E", Amber: "#4A78C2", Green: "#8CCFDC" };
+const GTA_WORDS = { Red: "harmful: almost certainly discriminates against foreign commercial interests",
+  Amber: "harmful: likely involves discrimination against foreign commercial interests",
+  Green: "liberalising: liberalises trade on a non-discriminatory basis (the same terms for every country)" };
+const GTA_ABOUT = "A state act is one announcement of a policy by a government (a law, a decree, a subsidy, a tariff change); " +
+  "each holds one or more interventions, the policy tools it uses. Global Trade Alert rates each for what it does to foreign firms.";
 // The country a shape stands for: whichever of its fields names a country in the data.
 function gtaNameOf(props, known) {
   for (const k of ["name", "NAME", "name_long", "admin", "ADMIN", "name_en", "country", "Country"]) if (props[k] && known.has(props[k])) return props[k];
@@ -8255,8 +8450,11 @@ async function addGtaLayer(cfg) {
   map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source: `${cfg.id}-src`, paint: { "fill-color": "rgba(0,0,0,0)", "fill-opacity": 0.75 } });
   map.addLayer({ id: `${cfg.id}-line`, type: "line", source: `${cfg.id}-src`, paint: { "line-color": "#1D1B17", "line-width": 0.3, "line-opacity": 0.5 } });
   const ramp = OWID_RAMP;
+  // The steps are read from the countries on the map alone: the blocs and
+  // pairs, most with one act, pulled every country into the top step.
+  const onMap = new Set(feats.map((f) => f.properties.gta).filter(Boolean));
   const shade = (measure) => {
-    const vals = Object.values(C).map((c) => c[measure] || 0).filter((v) => v > 0);
+    const vals = Object.entries(C).filter(([nm]) => onMap.has(nm)).map(([, c]) => c[measure] || 0).filter((v) => v > 0);
     const breaks = owidBreaks(vals);
     const expr = ["match", ["coalesce", ["get", "gta"], ""]];
     for (const [nm, c] of Object.entries(C)) {
@@ -8267,14 +8465,21 @@ async function addGtaLayer(cfg) {
     }
     expr.push("rgba(0,0,0,0)");
     map.setPaintProperty(`${cfg.id}-fill`, "fill-color", expr.length > 3 ? expr : "rgba(0,0,0,0)");
+    // Its key, in the menu and the Showing box (round 62).
+    const fmt = (v) => Number(v).toLocaleString();
+    const pairs = rankPairs(vals, breaks, ramp, fmt);
+    const keyEl = document.querySelector(`.facet[data-key-for="${cfg.id}"]`);
+    if (keyEl && vals.length) keyEl.innerHTML = catalogueKeyHtml({ values: pairs.map(([c, t], j) => [j, c, t]) });
+    if (vals.length) buildLegend();
   };
   bindHtmlPopup(`${cfg.id}-fill`, (p) => {
     const c = C[p.gta];
     if (!c) return `<b>${escapeHtml(p.name)}</b><div class="meta">No state acts named for this country.</div>`;
     const dot = (e) => e ? `<i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${GTA_EVAL[e] || "#777"};margin-right:4px"></i>` : "";
     return `<b>${escapeHtml(p.gta)}</b>` +
-      `<div class="meta">${c.total.toLocaleString()} state acts: ${dot("Red")}${c.red.toLocaleString()} Red, ${dot("Amber")}${c.amber.toLocaleString()} Amber, ` +
-      `${dot("Green")}${c.green.toLocaleString()} Green; ${c.in_force.toLocaleString()} with a measure in force</div>` +
+      `<div class="meta">${c.total.toLocaleString()} state acts; ${c.in_force.toLocaleString()} with a measure in force:</div>` +
+      `<div class="meta">${dot("Red")}${c.red.toLocaleString()} ${GTA_WORDS.Red}<br>${dot("Amber")}${c.amber.toLocaleString()} ${GTA_WORDS.Amber}<br>` +
+      `${dot("Green")}${c.green.toLocaleString()} ${GTA_WORDS.Green}</div>` +
       `<div class="meta" style="max-height:120px;overflow:auto">By type: ${Object.entries(c.types || {}).map(([t, n]) => `${escapeHtml(t)} (${n})`).join(", ")}</div>` +
       `<div class="meta" style="max-height:220px;overflow:auto">${(c.latest || []).map((a) => `<div style="margin:5px 0">${dot(a.eval)}<b>${escapeHtml(a.date || "")}</b> ` +
         `${escapeHtml(a.title)}<br><span style="font-size:11px">${escapeHtml(a.text || "")}</span></div>`).join("")}</div>` +
@@ -8285,15 +8490,27 @@ async function addGtaLayer(cfg) {
   if (anchor && anchor.after) {
     const el = document.createElement("div");
     el.className = "facet";
-    el.innerHTML = `<select aria-label="Shade by"><option value="total">All state acts</option><option value="red">Rated Red</option>` +
-      `<option value="amber">Rated Amber</option><option value="green">Rated Green</option><option value="in_force">With a measure in force</option></select>`;
+    el.innerHTML = `<div style="font-size:10.5px;color:var(--dim)">${escapeHtml(GTA_ABOUT)}</div>` +
+      `<select aria-label="Shade by" style="max-width:100%"><option value="total">All state acts</option>` +
+      `<option value="red" title="${escapeHtml(GTA_WORDS.Red)}">Harmful, almost certainly</option>` +
+      `<option value="amber" title="${escapeHtml(GTA_WORDS.Amber)}">Harmful, likely</option>` +
+      `<option value="green" title="${escapeHtml(GTA_WORDS.Green)}">Liberalising</option>` +
+      `<option value="in_force">With a measure in force</option></select>` +
+      `<div style="font-size:10.5px;color:var(--dim)">Harmful, almost certainly: ${escapeHtml(GTA_WORDS.Red.replace(/^harmful: /, ""))}. ` +
+      `Harmful, likely: ${escapeHtml(GTA_WORDS.Amber.replace(/^harmful: /, ""))}. Liberalising: ${escapeHtml(GTA_WORDS.Green.replace(/^liberalising: /, ""))}.</div>`;
     el.querySelector("select").addEventListener("change", (e) => shade(e.target.value));
     anchor.after(el);
+    const key = document.createElement("div");
+    key.className = "facet cat-key";
+    key.dataset.keyFor = cfg.id;
+    el.after(key);
   }
   shade("total");
   const placed = new Set(feats.map((f) => f.properties.gta).filter(Boolean));
-  setLayerState(cfg.id, `${Number(data.acts || 0).toLocaleString()} state acts by ${known.size} countries` +
-    (known.size > placed.size ? ` (${known.size - placed.size} names not on the shapes)` : ""));
+  // Global Trade Alert names blocs and pairs of countries as well ("EU",
+  // "France and Italy"); only single countries have a shape to shade.
+  setLayerState(cfg.id, `${Number(data.acts || 0).toLocaleString()} state acts by ${known.size} implementers` +
+    (known.size > placed.size ? ` (${placed.size} of them countries on the map; ${known.size - placed.size} are blocs, groups or names with no shape)` : ""));
   applyVisibility(cfg.id);
   buildLegend();
 }
@@ -8420,16 +8637,24 @@ async function addGigaLayer(cfg) {
   const shade = (m) => {
     const expr = ["match", ["get", "iso3"]];
     const val = (c) => m === "schools" ? (c.entity_counts || {}).school || 0 : m === "share" ? c.schools_with_data_percentage || 0 : null;
+    // Its key, in the menu and the Showing box (round 62).
+    const pairs = [];
     if (m === "schools" || m === "share") {
-      const breaks = owidBreaks([...C.values()].map(val).filter((v) => v > 0));
+      const vals = [...C.values()].map(val).filter((v) => v > 0);
+      const breaks = owidBreaks(vals);
       for (const [iso, c] of C) { const v = val(c); if (!v) continue; let i = 0; while (i < breaks.length && v >= breaks[i]) i++; expr.push(iso, OWID_RAMP[Math.min(i + (4 - breaks.length), 4)]); }
+      const fmt = (v) => Number(v).toLocaleString(undefined, { maximumFractionDigits: 1 }) + (m === "share" ? "%" : "");
+      pairs.push(...rankPairs(vals, breaks, OWID_RAMP, fmt));
     } else {
       const cats = [...new Set([...C.values()].map((c) => c[m]).filter(Boolean))].sort();
       const pal = ["#3F5663", "#8A9DA6", "#B3C0C6", "#CDAEA4", "#8C5548", "#62755F"];
       for (const [iso, c] of C) if (c[m]) expr.push(iso, pal[cats.indexOf(c[m]) % pal.length]);
+      cats.forEach((t, i) => pairs.push([pal[i % pal.length], String(t).replace(/_/g, " ")]));
     }
     expr.push("rgba(0,0,0,0)");
     map.setPaintProperty(`${cfg.id}-fill`, "fill-color", expr.length > 3 ? expr : "rgba(0,0,0,0)");
+    const keyEl = document.querySelector(`.facet[data-key-for="${cfg.id}"]`);
+    if (keyEl) { keyEl.innerHTML = catalogueKeyHtml({ values: pairs.map(([c, t], j) => [j, c, t]) }); buildLegend(); }
   };
   bindHtmlPopup(`${cfg.id}-fill`, (p) => {
     const c = C.get(p.iso3);
@@ -8456,10 +8681,150 @@ async function addGigaLayer(cfg) {
       `<option value="connectivity_availability">Connectivity data</option><option value="coverage_availability">Coverage data</option></select>`;
     el.querySelector("select").addEventListener("change", (e) => shade(e.target.value));
     anchor.after(el);
+    const key = document.createElement("div");
+    key.className = "facet cat-key";
+    key.dataset.keyFor = cfg.id;
+    el.after(key);
   }
   shade("schools");
   const w = data.world && data.world.school;
   setLayerState(cfg.id, `${C.size} countries` + (w ? ` \u00b7 ${Number(w.entities_total).toLocaleString()} schools mapped worldwide` : ""));
+  applyVisibility(cfg.id);
+  buildLegend();
+}
+
+/* ---------- trackers: policy rates (BIS) and current accounts (IMF), period by period ---------- */
+// In place of CFR's two trackers, whose terms do not allow their data to be
+// shown elsewhere (round 63): the same kinds of figures from their primary
+// sources, copied daily by culprits-tiles-more scripts/trackers.py. Each
+// country is shaded by its figure for the month or year the slider is on; a
+// menu picks the measure; the play button runs through the periods.
+const TRACKER_SEQ = ["#E6E1D6", "#BFE3E8", "#86CCD8", "#4FA6C8", "#3470B4", "#243F8E", "#18215E"];
+const TRACKER_DIV = ["#16275E", "#2F5597", "#6F93C4", "#C4D3E4", "#CDE8E6", "#7FC4C4", "#3A9A9E", "#1D6468"];
+const TRACKER_MEASURES = {
+  rates: [
+    { key: "rate", label: "policy rate, % a year", breaks: [0, 1, 2.5, 5, 10, 20], colours: TRACKER_SEQ,
+      names: ["below 0%", "0 to 1%", "1 to 2.5%", "2.5 to 5%", "5 to 10%", "10 to 20%", "20% or more"] },
+    { key: "change", label: "change over the past 12 months, percentage points", breaks: [-2, -0.5, -1e-9, 1e-9, 0.5, 2],
+      colours: [TRACKER_DIV[7], TRACKER_DIV[6], TRACKER_DIV[5], TRACKER_DIV[3], TRACKER_DIV[2], TRACKER_DIV[1], TRACKER_DIV[0]],
+      names: ["cut by 2 points or more", "cut by 0.5 to 2 points", "cut by less than 0.5", "unchanged", "raised by less than 0.5", "raised by 0.5 to 2 points", "raised by 2 points or more"] },
+  ],
+  imbalances: [
+    { key: "BCA_NGDPD", label: "current account balance, % of GDP", breaks: [-10, -5, -2, 0, 2, 5, 10], colours: TRACKER_DIV,
+      names: ["deficit of 10% or more", "deficit of 5 to 10%", "deficit of 2 to 5%", "deficit under 2%", "surplus under 2%", "surplus of 2 to 5%", "surplus of 5 to 10%", "surplus of 10% or more"] },
+    { key: "BCA", label: "current account balance, billions of US dollars", breaks: [-300, -100, -20, 0, 20, 100, 300], colours: TRACKER_DIV,
+      names: ["deficit of 300 or more", "deficit of 100 to 300", "deficit of 20 to 100", "deficit under 20", "surplus under 20", "surplus of 20 to 100", "surplus of 100 to 300", "surplus of 300 or more"] },
+  ],
+};
+function trackerClass(m, v) { let i = 0; while (i < m.breaks.length && v >= m.breaks[i]) i++; return i; }
+// A month twelve months before another ("2024-03" -> "2023-03").
+function trackerYearBefore(p) { const [y, mo] = p.split("-"); return `${Number(y) - 1}-${mo}`; }
+function trackerValue(cfg, d, iso, m, p) {
+  const c = d.countries[iso];
+  if (!c) return null;
+  if (cfg.kind === "rates") {
+    const now = c.rates[p];
+    if (m.key === "rate") return typeof now === "number" ? now : null;
+    const then = c.rates[trackerYearBefore(p)];
+    return typeof now === "number" && typeof then === "number" ? Math.round((now - then) * 1000) / 1000 : null;
+  }
+  const v = (c[m.key] || {})[p];
+  return typeof v === "number" ? v : null;
+}
+async function addTrackerLayer(cfg) {
+  let d, shapes;
+  try { [d, shapes] = await Promise.all([getJson(cfg.data, 60000), getJson(BOUNDARIES_URL)]); }
+  catch (e) { setLayerState(cfg.id, `not built yet (${e.message})`); return; }
+  const periods = cfg.kind === "rates" ? d.months || [] : d.years || [];
+  const measures = TRACKER_MEASURES[cfg.kind];
+  if (!periods.length || !measures) { setLayerState(cfg.id, "no figures in the copy yet"); return; }
+  const src = `${cfg.id}-src`;
+  map.addSource(src, { type: "geojson", data: { type: "FeatureCollection", features: shapes.features.filter((f) => d.countries[f.properties.iso3]) } });
+  map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source: src, paint: { "fill-color": "rgba(0,0,0,0)", "fill-opacity": 0.78 } });
+  map.addLayer({ id: `${cfg.id}-line`, type: "line", source: src, paint: { "line-color": "#1D1B17", "line-width": 0.3, "line-opacity": 0.5 } });
+  const thisYear = String(new Date().getFullYear());
+  let at = cfg.kind === "rates" ? periods.length - 1 : Math.max(0, periods.includes(thisYear) ? periods.indexOf(thisYear) : periods.length - 1);
+  let mi = 0;
+  const fmtP = (p) => cfg.kind === "rates" ? new Date(`${p}-01T00:00:00Z`).toLocaleDateString(undefined, { year: "numeric", month: "long", timeZone: "UTC" })
+    : p + (p >= thisYear ? " (IMF forecast)" : "");
+  const shade = () => {
+    const m = measures[mi], p = periods[at];
+    const expr = ["match", ["get", "iso3"]];
+    let n = 0;
+    for (const iso of Object.keys(d.countries)) {
+      const v = trackerValue(cfg, d, iso, m, p);
+      if (v === null) continue;
+      expr.push(iso, m.colours[trackerClass(m, v)]);
+      n++;
+    }
+    expr.push("rgba(0,0,0,0)");
+    if (map.getLayer(`${cfg.id}-fill`)) map.setPaintProperty(`${cfg.id}-fill`, "fill-color", n ? expr : "rgba(0,0,0,0)");
+    const box = document.querySelector(`.facet[data-tracker-for="${cfg.id}"]`);
+    if (box) {
+      box.querySelector("[data-tr-at]").textContent = fmtP(p);
+      box.querySelector("[data-tr-key]").innerHTML = catalogueKeyHtml({ values: m.names.map((t, i) => [i, m.colours[i], t]) });
+    }
+    setLayerState(cfg.id, `${n} countries with a figure for ${fmtP(p)}`);
+    buildLegend();
+  };
+  bindHtmlPopup(`${cfg.id}-fill`, (props) => {
+    const iso = props.iso3, c = d.countries[iso];
+    if (!c) return "";
+    const p = periods[at];
+    const nm = cfg.kind === "rates" ? ((d.banks[c.bank] || {}).name || props.name) : (c.name || props.name);
+    const n = (v, dp = 2) => (v === null || v === undefined ? "no figure" : Number(v).toLocaleString(undefined, { maximumFractionDigits: dp }));
+    let body = "";
+    if (cfg.kind === "rates") {
+      const r = c.rates[p], ch = trackerValue(cfg, d, iso, measures[1], p);
+      // Every month the rate changed, newest first: the whole record in short.
+      const ms = Object.keys(c.rates).sort();
+      const steps = ms.filter((mo, i) => i === 0 || c.rates[mo] !== c.rates[ms[i - 1]]).reverse();
+      body = `<div class="meta">${escapeHtml(fmtP(p))}: ${r === undefined ? "no figure" : `${n(r)}% a year`}` +
+        (ch === null ? "" : `; ${ch === 0 ? "unchanged" : ch < 0 ? `cut by ${n(-ch)} points` : `raised by ${n(ch)} points`} over 12 months`) + `</div>` +
+        (c.euro_from ? `<div class="meta">From ${escapeHtml(c.euro_from)} this is the euro area's rate (the European Central Bank's); ${escapeHtml(props.name)} took the euro then.</div>` : "") +
+        `<div class="meta">Every change (${steps.length.toLocaleString()}), newest first:</div>` +
+        `<div class="meta" style="max-height:200px;overflow:auto">${steps.map((mo) => `${escapeHtml(mo)}: ${n(c.rates[mo])}%`).join("<br>")}</div>`;
+    } else {
+      body = measures.map((m) => `<div class="meta">${escapeHtml(m.label)}, ${escapeHtml(fmtP(p))}: ${n((c[m.key] || {})[p], 1)}</div>`).join("") +
+        `<div class="meta" style="max-height:200px;overflow:auto"><table class="meta"><tr><th>year</th>${measures.map((m) => `<th>${escapeHtml(m.key === "BCA" ? "US$ bn" : "% of GDP")}</th>`).join("")}</tr>` +
+        periods.slice().reverse().filter((y) => measures.some((m) => typeof (c[m.key] || {})[y] === "number"))
+          .map((y) => `<tr><td>${escapeHtml(y)}${y >= thisYear ? "*" : ""}</td>${measures.map((m) => `<td>${n((c[m.key] || {})[y], 1)}</td>`).join("")}</tr>`).join("") +
+        `</table></div><div class="meta">* the IMF's forecast</div>`;
+    }
+    return `<b>${escapeHtml(props.name)}</b>` + (cfg.kind === "rates" && nm !== props.name ? `<div class="meta">${escapeHtml(nm)}</div>` : "") + body +
+      `<div class="meta">${escapeHtml(d.credit || "")}</div>`;
+  });
+  const row = document.querySelector(`[data-layer="${cfg.id}"]`);
+  const anchor = row && row.closest ? row.closest("label") : null;
+  if (anchor && anchor.after && document.createElement) {
+    const el = document.createElement("div");
+    el.className = "facet";
+    el.dataset.trackerFor = cfg.id;
+    el.dataset.keyFor = cfg.id;
+    el.style.cssText = "display:block;font-size:11.5px;color:var(--dim)";
+    el.innerHTML = `<select data-tr-m aria-label="Shade by" style="max-width:100%">${measures.map((m, i) => `<option value="${i}">${escapeHtml(m.label)}</option>`).join("")}</select>` +
+      `<div style="display:flex;gap:6px;align-items:center;margin-top:4px"><button type="button" data-tr-play class="chip" aria-label="Play through the periods">▶</button>` +
+      `<input type="range" data-tr-slide min="0" max="${periods.length - 1}" step="1" value="${at}" aria-label="Month or year" style="flex:1;accent-color:#8A9DA6"></div>` +
+      `<div data-tr-at style="color:var(--bone)"></div><div data-tr-key></div>` +
+      `<div style="font-size:10.5px">${escapeHtml(d.credit || "")}. Copied daily.</div>`;
+    const slide = el.querySelector("[data-tr-slide]"), play = el.querySelector("[data-tr-play]");
+    slide.addEventListener("input", (e) => { e.stopPropagation(); at = Number(slide.value); shade(); });
+    el.querySelector("[data-tr-m]").addEventListener("change", (e) => { e.stopPropagation(); mi = Number(e.target.value); shade(); });
+    let timer = null;
+    play.addEventListener("click", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (timer) { clearInterval(timer); timer = null; play.textContent = "▶"; return; }
+      if (at >= periods.length - 1) at = 0;
+      play.textContent = "❚❚";
+      timer = setInterval(() => {
+        if (at >= periods.length - 1) { clearInterval(timer); timer = null; play.textContent = "▶"; return; }
+        at++; slide.value = String(at); shade();
+      }, cfg.kind === "rates" ? 120 : 450);
+    });
+    el.addEventListener("change", (e) => e.stopPropagation());
+    anchor.after(el);
+  }
+  shade();
   applyVisibility(cfg.id);
   buildLegend();
 }
@@ -10056,6 +10421,29 @@ const SHAPE_COLOUR_BY = {
   ],
   cultivated_meat_laws: [{ label: "status", field: "status_label", classes: "auto" }],
   site_settler_colonialism: [{ label: "kind", field: "catLabel", classes: "auto", national: true }],
+  // One kind of mark each: a key of one colour, saying what the colour marks
+  // (round 62: every shaded layer gets a key).
+  slavery_routes: [
+    { label: "people recorded on the route", field: "n", scale: "log" },
+    { label: "the main kind of exploitation recorded", field: "kind", classes: "auto" },
+  ],
+  gmo_cultivation: [{ label: "cultivation", single: "genetically engineered crops grown here (ISAAA brief)", national: true }],
+  gmo_incidents: [{ label: "incidents", single: "a contamination incident recorded here", national: true }],
+  // The map's own words per country: "$23M donated", "$195M received"
+  // (round 62: the owner found every country one colour).
+  site_earmarked_funding: [
+    { label: "earmarked funding donated (US$ million)", field: "_donated", fromText: { field: "donor_amount", re: /\$([\d,.]+)M donated/ }, scale: "log", national: true },
+    { label: "earmarked funding received (US$ million)", field: "_received", fromText: { field: "recipient_amount", re: /\$([\d,.]+)M received/ }, scale: "log", national: true },
+  ],
+  // The figures are not in the shapes file: they are in the source map's own
+  // page (the maps repository's embed 20, its table D: foreign value added as
+  // a share of exports, OECD TiVA 2023 edition, year 2020), read here and
+  // joined on the country code. The steps are the source map's own.
+  site_trade_profits: [{ label: "foreign value added, % of exports (OECD TiVA, 2020)", field: "foreign_value_added_%_of_exports", national: true,
+    fromPage: { url: "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/suppression_embed_20_leaflet-map.html",
+      re: /"([A-Z]{3})":\{n:"[^"]*",f:([\d.]+),d:[\d.]+\}/g, keys: ["ISO_A3", "ADM0_A3", "iso_a3"] },
+    steps: [10, 15, 20, 25, 30, 35, 40, 50], unitSuffix: "%",
+    hint: "Light: the country keeps most of the value of its exports. Dark: other countries capture most of it." }],
 };
 // Fills in figures a layer keeps elsewhere: in its write-ups, or as a count
 // of yes-or-no fields.
@@ -10063,8 +10451,27 @@ async function shapeValues(url, data, by) {
   let details = null;
   for (const spec of by) {
     if (spec.fromDetails && !details) { try { details = await loadShapeDetails(url); } catch (e) { details = {}; } }
+    let page = null;
+    if (spec.fromPage) {
+      page = new Map();
+      try {
+        const r = await fetch(spec.fromPage.url);
+        if (!r.ok) throw new Error(`${r.status} at ${spec.fromPage.url}`);
+        const text = await r.text();
+        for (const m of text.matchAll(spec.fromPage.re)) if (isFinite(Number(m[2]))) page.set(m[1], Number(m[2]));
+      } catch (e) { console.error(`[culprits] figures for the shading not read: ${e.message}`); }
+    }
     for (const f of data.features) {
       const p = f.properties || (f.properties = {});
+      if (page) {
+        const code = spec.fromPage.keys.map((k) => p[k]).find((c) => page.has(c));
+        if (code) p[spec.field] = page.get(code);
+      }
+      if (spec.fromText) {
+        const m = spec.fromText.re.exec(String(p[spec.fromText.field] || ""));
+        const v = m ? Number(m[1].replace(/,/g, "")) : NaN;
+        if (isFinite(v)) p[spec.field] = v;
+      }
       if (spec.fromDetails) {
         const d = p._k != null && details ? details[p._k] : null;
         const m = d ? spec.fromDetails.exec(Object.values(d).join(" ")) : null;
@@ -10073,6 +10480,13 @@ async function shapeValues(url, data, by) {
       if (spec.countOf) p[spec.field] = spec.countOf.filter((k) => p[k] === true).length;
     }
   }
+}
+// A colour t of the way (0 to 1) along the light-to-dark steps.
+function shapeStepColour(t) {
+  const x4 = Math.max(0, Math.min(1, t)) * 4, a = Math.floor(Math.min(x4, 3.999)), f = x4 - a;
+  const rgb = (h) => [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16));
+  const x = rgb(SHAPE_STEPS[a]), y = rgb(SHAPE_STEPS[a + 1]);
+  return "#" + [0, 1, 2].map((j) => Math.round(x[j] + (y[j] - x[j]) * f).toString(16).padStart(2, "0")).join("").toUpperCase();
 }
 // The fill colour for one choice, and its key: [colour, label] pairs.
 function shapeColouring(spec, data) {
@@ -10091,13 +10505,20 @@ function shapeColouring(spec, data) {
     return { expr: ["case", has, ramp, "rgba(0,0,0,0)"],
       key: SHAPE_STEPS.map((c, i) => [c, i === 0 ? `${fmt(0)} or less` : i === 4 ? `${fmt(1)}` : `about ${fmt(i / 4)}`]) };
   }
+  if (spec.single) return { expr: spec.colour || SHAPE_STEPS[3], key: [[spec.colour || SHAPE_STEPS[3], spec.single]] };
+  // Steps at the source's own thresholds, light to dark.
+  if (spec.steps) {
+    const t = spec.steps, u = spec.unitSuffix || "", n = t.length;
+    const expr = ["step", ["to-number", get, 0], shapeStepColour(0)];
+    t.forEach((v, i) => expr.push(v, shapeStepColour((i + 1) / n)));
+    const key = [[shapeStepColour(0), `under ${t[0]}${u}`]];
+    t.forEach((v, i) => key.push([shapeStepColour((i + 1) / n), i === n - 1 ? `${v}${u} or more` : `${v}${u} to ${t[i + 1]}${u}`]));
+    return { expr: ["case", ["==", ["typeof", get], "number"], expr, "rgba(0,0,0,0)"], key };
+  }
   // A count: each number its own step, none light, all dark.
   if (spec.countOf) {
     const n = spec.countOf.length;
-    const step = (i) => { const t = i / n * 4, a = Math.floor(Math.min(t, 3.999)), f = t - a;
-      const rgb = (h) => [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16));
-      const x = rgb(SHAPE_STEPS[a]), y = rgb(SHAPE_STEPS[a + 1]);
-      return "#" + [0, 1, 2].map((j) => Math.round(x[j] + (y[j] - x[j]) * f).toString(16).padStart(2, "0")).join("").toUpperCase(); };
+    const step = (i) => shapeStepColour(i / n);
     const m = ["match", ["to-number", get, -1]];
     const key = [];
     for (let i = 0; i <= n; i++) { m.push(i, step(i)); key.push([step(i), i === 0 ? "none" : i === n ? `all ${n}` : String(i)]); }
@@ -10118,6 +10539,22 @@ function shapeColouring(spec, data) {
   m.push("rgba(0,0,0,0)");
   return { expr: m, key: classes.map(([, label], i) => [colours[i], label]) };
 }
+// A key under a row, written once from the row's own colours and words.
+function rowKey(id, pairs, hint) {
+  const box = document.getElementById("layers");
+  const row = box && box.querySelector ? box.querySelector(`[data-layer="${id}"]`) : null;
+  const label = row && row.closest ? row.closest("label") : null;
+  if (!label || !label.after || typeof document.createElement !== "function") return;
+  let el = box.querySelector(`.facet[data-key-for="${id}"]`);
+  if (!el) {
+    el = document.createElement("div");
+    el.className = "facet cat-key";
+    el.dataset.keyFor = id;
+    label.after(el);
+  }
+  el.innerHTML = (hint ? `<div style="padding-left:18px;font-size:10.5px;color:var(--dim)">${escapeHtml(hint)}</div>` : "") +
+    catalogueKeyHtml({ values: pairs.map(([c, t], i) => [i, c, t]) });
+}
 function shapeKey(cfg, by, chosen, colouring) {
   const box = document.getElementById("layers");
   const row = box && box.querySelector ? box.querySelector(`[data-layer="${cfg.id}"]`) : null;
@@ -10133,8 +10570,9 @@ function shapeKey(cfg, by, chosen, colouring) {
   const pick = by.length > 1
     ? `<div style="padding-left:18px"><select data-shape-by="${escapeHtml(cfg.id)}" aria-label="Shade the countries by" style="font:inherit;font-size:11px;max-width:100%">` +
       by.map((b, i) => `<option value="${i}"${i === chosen ? " selected" : ""}>${escapeHtml(b.label)}</option>`).join("") + `</select></div>`
-    : `<div style="padding-left:18px;font-size:10.5px;color:var(--dim)">Shaded by ${escapeHtml(by[chosen].label)}</div>`;
-  el.innerHTML = pick + catalogueKeyHtml({ values: colouring.key.map(([c, t], i) => [i, c, t]) });
+    : by[chosen].single ? "" : `<div style="padding-left:18px;font-size:10.5px;color:var(--dim)">Shaded by ${escapeHtml(by[chosen].label)}</div>`;
+  const hint = by[chosen].hint ? `<div style="padding-left:18px;font-size:10.5px;color:var(--dim)">${escapeHtml(by[chosen].hint)}</div>` : "";
+  el.innerHTML = pick + hint + catalogueKeyHtml({ values: colouring.key.map(([c, t], i) => [i, c, t]) });
 }
 async function addShapesLayer(cfg) {
   const url = cfg.dataUrl || `${DATA_BASE}/shapes/${cfg.id}.geojson`;
@@ -10149,12 +10587,31 @@ async function addShapesLayer(cfg) {
     return;
   }
   const source = `${cfg.id}-shapes`;
-  const by = SHAPE_COLOUR_BY[cfg.id];
+  let by = SHAPE_COLOUR_BY[cfg.id];
+  // Round 62: a shaded layer with no colours of its own gets a key. Where each
+  // country carries a count of the entries the source lists for it (the
+  // government maps), the count shades it; where every area is drawn in one
+  // colour, the key says what that colour marks.
+  const areasOf = data.features.filter((f) => f.geometry && /Polygon$/.test(f.geometry.type));
+  if (!by && areasOf.length && areasOf.every((f) => isFinite(Number((f.properties || {}).entries)) && Number(f.properties.entries) > 0))
+    by = [{ label: "entries the source lists for each", field: "entries", scale: "log", national: /countr/i.test(String(cfg.unit || "")) }];
+  if (!by && areasOf.length && new Set(areasOf.map((f) => (f.properties || {})._map_colour || cfg.colour)).size === 1) {
+    const c = (areasOf[0].properties || {})._map_colour || cfg.colour;
+    by = [{ label: "one colour", single: `${cfg.unit || "areas"} the source marks`, colour: c }];
+  }
   let colouring = null;
   if (by) {
     if (by.some((b) => b.national)) GLAD_NATIONAL.add(cfg.id);
     await shapeValues(url, data, by);
     colouring = shapeColouring(by[0], data);
+  }
+  // Routes (round 62: the owner found the trafficking lines a tangle): each
+  // straight line becomes a curve, so lines between neighbours of one country
+  // part; the larger are wider and drawn on top.
+  const R = cfg.routes;
+  if (R) for (const f of data.features) {
+    const g = f.geometry;
+    if (g && g.type === "LineString" && g.coordinates.length === 2) g.coordinates = rteArc(g.coordinates[0], g.coordinates[1]);
   }
   map.addSource(source, { type: "geojson", data, attribution: cfg.attribution || "" });
   const colour = colouring ? colouring.expr : ["coalesce", ["get", "_map_colour"], cfg.colour];
@@ -10162,10 +10619,13 @@ async function addShapesLayer(cfg) {
   const lines = ["match", ["geometry-type"], ["LineString", "MultiLineString"], true, false];
   map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source, filter: areas,
     paint: { "fill-color": colour, "fill-opacity": colouring ? 0.72 : 0.42 } });
+  const routeN = R ? ["max", 1, ["to-number", ["get", R.field], 1]] : null;
   map.addLayer({ id: `${cfg.id}-line`, type: "line", source,
     filter: ["match", ["geometry-type"], ["Point", "MultiPoint"], false, true],
-    paint: { "line-color": colour, "line-opacity": 0.85,
-             "line-width": ["case", lines, 1.6, 0.6] } });
+    layout: R ? { "line-sort-key": routeN, "line-cap": "round" } : {},
+    paint: { "line-color": colour, "line-opacity": R ? 0.7 : 0.85,
+             "line-width": R ? ["interpolate", ["linear"], ["log10", routeN], 0, 0.35, 1, 0.7, 2, 1.4, 3, 2.8, 4, 5]
+               : ["case", lines, 1.6, 0.6] } });
   map.addLayer({ id: `${cfg.id}-pt`, type: "circle", source,
     filter: ["match", ["geometry-type"], ["Point", "MultiPoint"], true, false],
     paint: { "circle-color": colour, "circle-radius": 4,
@@ -10193,6 +10653,7 @@ async function addShapesLayer(cfg) {
   bindHtmlPopup(`${cfg.id}-fill`, popup);
   bindHtmlPopup(`${cfg.id}-line`, popup);
   bindHtmlPopup(`${cfg.id}-pt`, popup);
+  if (R) shapeRoutes(cfg, data);
   if (colouring) {
     shapeKey(cfg, by, 0, colouring);
     const box = document.getElementById("layers");
@@ -10214,6 +10675,40 @@ async function addShapesLayer(cfg) {
   setLayerState(cfg.id, `${data.features.length.toLocaleString()} ${cfg.unit}`);
   applyVisibility(cfg.id);
   buildLegend();
+}
+
+// Menus under a routes row: the least number of people a route must carry to
+// be drawn, and one country's routes alone.
+function shapeRoutes(cfg, data) {
+  const R = cfg.routes;
+  const box = document.getElementById("layers");
+  const row = box && box.querySelector ? box.querySelector(`[data-layer="${cfg.id}"]`) : null;
+  const label = row && row.closest ? row.closest("label") : null;
+  if (!label || !label.after || typeof document.createElement !== "function") return;
+  const codes = [...new Set(data.features.flatMap((f) => [(f.properties || {})[R.from], (f.properties || {})[R.to]]).filter(Boolean))].sort();
+  const el = document.createElement("div");
+  el.className = "facet";
+  el.style.paddingLeft = "18px";
+  el.innerHTML = `<select data-routes-least aria-label="Least people on a route" style="font:inherit;font-size:11px">` +
+    R.least.map((n) => `<option value="${n}">${n === 1 ? "every route" : `routes with ${n.toLocaleString()} or more people`}</option>`).join("") + `</select> ` +
+    `<select data-routes-country aria-label="One country's routes" style="font:inherit;font-size:11px;max-width:100%"><option value="">every country</option>` +
+    codes.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("") + `</select>`;
+  label.after(el);
+  const base = ["match", ["geometry-type"], ["Point", "MultiPoint"], false, true];
+  const basePt = ["match", ["geometry-type"], ["Point", "MultiPoint"], true, false];
+  const apply = () => {
+    const least = Number(el.querySelector("[data-routes-least]").value) || 1;
+    const c = el.querySelector("[data-routes-country]").value;
+    const keep = ["all", [">=", ["to-number", ["get", R.field], 0], least]];
+    if (c) keep.push(["any", ["==", ["get", R.from], c], ["==", ["get", R.to], c]]);
+    if (map.getLayer(`${cfg.id}-line`)) map.setFilter(`${cfg.id}-line`, ["all", base, keep]);
+    if (map.getLayer(`${cfg.id}-pt`)) map.setFilter(`${cfg.id}-pt`, ["all", basePt, keep]);
+  };
+  el.addEventListener("change", (e) => { e.stopPropagation(); apply(); });
+  // Every route is a lot at once: the map opens on those with 100 or more.
+  const start = el.querySelector("[data-routes-least]");
+  if (R.least.includes(100)) start.value = "100";
+  apply();
 }
 
 const shapeDetails = new Map();
@@ -10254,8 +10749,13 @@ async function addSitemapLayer(cfg, given) {
     console.error(`[culprits] ${cfg.id}: ${e.message}`);
     return;
   }
+  // A map whose countries were only its background (round 62: the export
+  // credit agencies map's political base layer, every country one fill) keeps
+  // its places alone.
+  if (cfg.pointsOnly) data = Object.assign({}, data, { features: (data.features || []).filter((f) => f.geometry && /Point$/.test(f.geometry.type)) });
   const source = `${cfg.id}-places`;
   map.addSource(source, { type: "geojson", data });
+  if (cfg.key) rowKey(cfg.id, cfg.key, cfg.keyHint);
   const colour = ["coalesce", ["get", "c"], cfg.colour];
   map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source,
     filter: ["match", ["geometry-type"], ["Polygon", "MultiPolygon"], true, false],
@@ -10654,7 +11154,10 @@ function legendKeyPairs(id) {
   const box = document.getElementById("layers");
   if (!box || !box.querySelectorAll) return [];
   const esc = String(id).replace(/"/g, '\\"');
-  const hosts = box.querySelectorAll(`.facet[data-key-for="${esc}"], .facet[data-raster-for="${esc}"], .facet[data-for="${esc}"]:not(.row-tools)`);
+  // Round 64: also a site map's "Colour by" key (capture map, PalmWatch), the
+  // building types' kinds and Trase's key, which the Showing box had missed.
+  const hosts = box.querySelectorAll(`.facet[data-key-for="${esc}"], .facet[data-raster-for="${esc}"], .facet[data-for="${esc}"]:not(.row-tools), ` +
+    `.facet[data-colour-for="${esc}"], .facet[data-kinds="${esc}"], .facet[data-trase-for="${esc}"]`);
   const out = [], seen = new Set();
   for (const h of hosts) {
     for (const el of h.querySelectorAll('i[style*="background"], .lg-key[style*="background"], span.sw[style*="background"]')) {
@@ -10671,7 +11174,7 @@ function legendKeyPairs(id) {
 }
 function legendKeyRows(id) {
   return legendKeyPairs(id).map(([c, label]) =>
-    `<div class="lg-row lg-sub" style="padding-left:18px"><span class="lg-sw lg-key" style="background:${escapeHtml(c)}"></span>` +
+    `<div class="lg-row lg-sub" data-key-for="${escapeHtml(id)}" style="padding-left:18px"><span class="lg-sw lg-key" style="background:${escapeHtml(c)}"></span>` +
     `<span class="lg-nm">${escapeHtml(label)}</span></div>`).join("");
 }
 // Keys appear in the layers box once a layer has loaded; the Showing box is
@@ -11084,7 +11587,7 @@ const SITE_MAPS = {
   children: [
     { id: "site_animal_sacrifice", name: "Animal Sacrifice Map", unit: "sites", colour: "#7A4F4A", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_animal_sacrifice.places.geojson",
       note: "From the Destruction page's animal sacrifice map." },
-    { id: "site_animal_fighting", name: "Animal Fighting Locations Map", unit: "venues", colour: "#84594F", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_animal_fighting.places.geojson",
+    { id: "site_animal_fighting", name: "Animal Fighting Locations", unit: "venues", colour: "#84594F", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_animal_fighting.places.geojson",
       note: "From the Destruction page's animal fighting map (maps repo)." },
     { id: "carbon_plumes", name: "Methane and carbon dioxide plumes (Carbon Mapper)", unit: "plumes", colour: "#6D6A5E", route: "carbonmapper", ready: true, lazy: true,
       attribution: '<a href="https://carbonmapper.org" target="_blank" rel="noopener">Carbon Mapper</a>',
@@ -11105,8 +11608,14 @@ const SITE_MAPS = {
       note: "From the Suppression page's central banks map." },
     { id: "site_banking_dynasties", name: "Global Banking Dynasties", unit: "dynasty seats", colour: "#6A5D6B", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_banking_dynasties.places.geojson",
       note: "From the Suppression page's banking dynasties map." },
+    { id: "site_banking_dynasties_charts", name: "Global Banking Dynasties: timeline and comparisons", unit: "opens the page itself in a panel", colour: "#6A5D6B", route: "companion", ready: true, lazy: true,
+      page: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/pages/banking_dynasties.html",
+      note: "The rest of the Suppression page's banking dynasties section, whole and run by its own code, in the panel along the bottom: its timeline of 25 families from 1250 to 2025, and its charts of peak wealth, banks, properties, workforce, longevity and overlap. Its map is the row above." },
     { id: "site_export_credit", name: "Export Credit Agencies of the World", unit: "agencies", colour: "#5E6A63", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_export_credit.places.geojson",
-      note: "From the Suppression page's export credit agencies map. Its country shading is not carried here, only the agencies." },
+      pointsOnly: true,
+      // The source map's own marker colours (green for OECD, amber otherwise), as softened here.
+      key: [["#7BB26A", "OECD Arrangement participant"], ["#B9767F", "not an Arrangement participant"], ["#5E6A63", "placed at its head-office city; no building coordinate"]],
+      note: "From the Suppression page's export credit agencies map: its 80 agencies at their head offices. The map's countries were its plain background (every country one fill), not figures, so they are left out (round 62)." },
     { id: "site_wealth_atlas", name: "The World's Richest Dynasties & Individuals", unit: "families and individuals", colour: "#735E57", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_wealth_atlas.places.geojson",
       note: "From the Suppression page's wealth atlas." },
     { id: "site_food_system", name: "Who Owns the Food Industry", unit: "companies", colour: "#6E6A55", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_food_system.places.geojson",
@@ -11122,13 +11631,13 @@ const SITE_MAPS = {
     { id: "site_eyes_network", name: "The Network That Tried to Harness the Eyes to Harvest the World", unit: "places and links", colour: "#5B6360", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_eyes_network.places.geojson",
       // Round 48 (25 September): read from the page's own data (pipeline/sitemaps/rich_maps.py).
       note: "From the Suppression page's network map, read from the page's own data: each entry's whole write-up (what they did, why, sources, every connection) in its box; the links between entries drawn as lines, documented, inferred and convergence as the page names them; and the page's seven periods to choose from under the row. 15 entries the page gives no place are not on the map; they are named in its boxes as connections." },
-    { id: "site_animal_tourism", name: "Animal Tourism Atlas", unit: "locations", colour: "#7C6356", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_animal_tourism.places.geojson",
+    { id: "site_animal_tourism", name: "Animal Tourism", unit: "locations", colour: "#7C6356", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_animal_tourism.places.geojson",
       note: "From the Suppression page's animal tourism atlas." },
     { id: "site_circus", name: "Global Circus & Animal Shows", unit: "venues", colour: "#7A5E61", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_circus.places.geojson",
       note: "From the Suppression page's circus map." },
     { id: "site_animal_racing", name: "Global Animal Racing & Sports", unit: "venues", colour: "#7B6452", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_animal_racing.places.geojson",
       note: "From the Suppression page's animal racing map (maps repo)." },
-    { id: "site_rodeo", name: "Global Rodeo & Charreada Map", unit: "events and arenas", colour: "#80665A", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_rodeo.places.geojson",
+    { id: "site_rodeo", name: "Global Rodeo & Charreada", unit: "events and arenas", colour: "#80665A", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_rodeo.places.geojson",
       note: "From the Suppression page's rodeo and charreada map." },
     { id: "site_enslaved_plants", typeRows: true, name: "The Unnecessary Enslavement of Plants 2026", unit: "companies", colour: "#62705A", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_enslaved_plants.places.geojson",
       note: "From the Suppression page's plant enslavement map." },
@@ -11149,9 +11658,9 @@ const SITE_MAPS = {
     { id: "enviro_law_by_country", name: "Environmental law by country and region (enviro-atlas)", unit: "countries", colour: "#5A6B72", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/enviro_law_by_country.geojson",
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
     { id: "site_earmarked_funding", name: "Earmarked funding to international organisations", unit: "countries", colour: "#6A5E66", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_earmarked_funding.geojson",
-      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+      note: "Each country shaded by what the source map says it gave in earmarked funding, or received; a menu in the key picks which. Countries it gives no figure for are left clear." },
     { id: "site_trade_profits", name: "Who captures the profits in global trade (OECD TiVA)", unit: "countries", colour: "#6E6358", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_trade_profits.geojson",
-      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+      note: "Foreign value added: the share of a country's export value that comes from other countries' inputs, and so goes to them. The figures are read from the source map's own page (OECD TiVA 2023 edition, year 2020, 76 countries)." },
     { id: "site_settler_colonialism", name: "Settler colonialism and native displacement", unit: "territories", colour: "#6B5A52", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_settler_colonialism.geojson",
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
     { id: "site_social_spheres", name: "The Social Spheres", unit: "bodies and the people between them", colour: "#5E6068", route: "spheres", ready: true, lazy: true,
@@ -11332,7 +11841,8 @@ const MORE_MAPS = {
     { id: "slavery_prevalence", name: "Modern slavery prevalence estimates (anti-slavery map)", unit: "countries", colour: "#735C5E", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/slavery_prevalence.geojson",
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
     { id: "slavery_routes", name: "Trafficking routes, country to country (anti-slavery map)", unit: "routes", colour: "#7A6060", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/slavery_routes.geojson",
-      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+      routes: { field: "n", from: "from", to: "to", least: [1, 10, 100, 1000] },
+      note: "Each line joins the country where a case began to the country where it was found (Counter-Trafficking Data Collaborative), drawn as a curve between their middles: not a path anyone travelled. Wider and darker, more people recorded. Menus under the row keep only the larger routes, or those of one country." },
     { id: "slavery_trackers", name: "Anti-slavery trackers by country", unit: "countries", colour: "#6C6064", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/slavery_trackers.geojson",
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
     { id: "cultivated_meat_laws", name: "Restrictions on cultivated meat (abattoir atlas)", unit: "countries", colour: "#7A5E58", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/cultivated_meat_laws.geojson",
@@ -11467,10 +11977,10 @@ const OTHER_MAPS = {
     { id: "space_industry", name: "The space industry (openmaps.space)", unit: "places", colour: "#5E6070", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Places", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/openmaps/space_industry.geojson" }],
       note: "openmaps.space's space industry map: every place it lists, with the organisations there, copied daily from its own data file." },
-    { id: "mymaps_supp_a", name: "Pet Food Companies (Google My Maps)", unit: "placemarks", colour: "#6A5E66", route: "kml", ready: true, lazy: true,
+    { id: "mymaps_supp_a", name: "Pet Food Companies", fixedName: true, unit: "placemarks", colour: "#6A5E66", route: "kml", ready: true, lazy: true,
       kml: "https://www.google.com/maps/d/kml?mid=1vrnqSW4cWWdnjz6cJ-qFMmd0zbJzYd6V&forcekml=1",
       note: "Read live from the map's Google My Maps file; the row takes the map's own title once it loads." },
-    { id: "mymaps_supp_b", name: "Suppression page map (Google My Maps)", unit: "placemarks", colour: "#6A5E66", route: "kml", ready: true, lazy: true,
+    { id: "mymaps_supp_b", name: "Zoos", fixedName: true, unit: "placemarks", colour: "#6A5E66", route: "kml", ready: true, lazy: true,
       kml: "https://www.google.com/maps/d/kml?mid=1seBCggQGg1tcRYpqpZ5ZKJaxHs4&forcekml=1",
       note: "Read live from the map's Google My Maps file; the row takes the map's own title once it loads." },
     { id: "rte_trade", name: "Resource trade flows (resourcetrade.earth, Chatham House)", unit: "trade flows", colour: "#8A6356", route: "rte", ready: true, lazy: true,
@@ -11517,6 +12027,12 @@ const OTHER_MAPS = {
     { id: "gta_acts", name: "State acts by country (Global Trade Alert)", unit: "state acts", colour: "#8A6356", route: "gta", ready: true, lazy: true,
       data: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gta/countries.json", shapes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gta/world.geojson",
       note: "Every state act in Global Trade Alert's database, summed by the country that took it, from a daily copy." },
+    { id: "policy_rates", name: "Central bank policy rates, month by month (BIS)", unit: "countries", colour: "#4F7FA8", route: "tracker", ready: true, lazy: true, keepColour: true,
+      kind: "rates", data: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trackers/policy_rates.json",
+      note: "The interest rate each central bank sets, every month the Bank for International Settlements publishes, in place of CFR's Global Monetary Policy Tracker (CFR's terms do not allow its data to be shown elsewhere; the BIS allows its statistics to be reproduced with the BIS named). A menu shades by the rate or by how much it moved over twelve months; the slider picks the month and the button plays through them. Euro-area countries show the European Central Bank's rate from the month each took the euro. Copied daily." },
+    { id: "imbalances", name: "Current account balances: global imbalances, year by year (IMF)", unit: "countries", colour: "#3C98AB", route: "tracker", ready: true, lazy: true, keepColour: true,
+      kind: "imbalances", data: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trackers/imbalances.json",
+      note: "Each country's current account: what it earns from the rest of the world (exports, income from abroad) less what it pays out. A surplus country lends to the rest of the world; a deficit country borrows from it. From the International Monetary Fund's World Economic Outlook, in place of CFR's Global Imbalances Tracker (the IMF allows its data to be published with the IMF named). As a share of GDP or in US dollars; this year and later are the IMF's forecasts. Copied daily." },
     { id: "cfr_tracker", name: "Global Monetary Policy Tracker (CFR)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://public.tableau.com/views/CFRGlobalMonetaryPolicyTrackerNEW/GlobalMonetaryPolicyTracker?:showVizHome=no&:embed=y",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
@@ -11573,6 +12089,13 @@ const OTHER_MAPS = {
     { id: "pe_bankrolling", name: "Bankrolling Extinction (Portfolio Earth)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://portfolio.earth/campaigns/bankrolling-extinction/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    // Round 61: the 50 banks of Bankrolling Extinction at their headquarters
+    // (culprits-tiles-more scripts/pe_banks.py). Their amounts are measured
+    // from Figure 1's bars, which print no numbers, at the owner's word.
+    { id: "pe_banks", name: "Bankrolling Extinction: the 50 largest banks' finance linked to biodiversity loss, 2019, at their headquarters (Portfolio Earth)", unit: "banks", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Bankrolling Extinction", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/pe/banks.geojson" }], nameFrom: ["bank"],
+      attribution: "Bankrolling Extinction (Portfolio Earth, 2020); GLEIF; OpenStreetMap",
+      note: "Each of the report's 50 banks at the headquarters its parent company gives in the Global Legal Entity Identifier register (GLEIF), found in OpenStreetMap. Each box gives the report's Table 2 as printed (S&P Global rank, country, region, total assets 2019) and the bank's loans and underwriting linked to biodiversity risk in 2019, with the part linked to direct risk and both as a share of assets. Figure 1 prints no numbers for these: they are measured from the length of its bars, rounded to the nearest billion USD, and approximate (checked against the report's own average, 52 billion, and largest, more than 210 billion). Four banks' bars are drawn at one smallest length; their boxes say so rather than give an amount. Portfolio Earth publishes no data file and states no licence." },
     { id: "pe_subsidising", name: "Subsidising Extinction (Portfolio Earth)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://portfolio.earth/campaigns/subsidising-extinction/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
@@ -11652,7 +12175,7 @@ const OTHER_MAPS = {
     { id: "eyes_craft", name: "Spacecraft across the solar system, where they are now (NASA's Eyes on the Solar System)", unit: "leaves Earth for Eyes, as the Leave Earth button does", colour: "#5E6070", route: "leave", ready: true, lazy: true,
       page: "https://eyes.nasa.gov/apps/solar-system/#/home?featured=false&logo=false&shareButton=false&hd=true",
       note: "Ticked, the map turns to Earth's face and size in NASA/JPL's Eyes on the Solar System and hands the screen over, exactly as the Leave Earth button and zooming out past the globe do (asked for 25 September, in place of the panel along the bottom). In Eyes, every spacecraft it follows is placed where it is now, with its mission. The box in the corner, or unticking, brings the map back." },
-    { id: "biosignature", name: "Biosignature Evidence Assessment", unit: "worlds", colour: "#B07F86", route: "worldsring", ready: true, lazy: true,
+    { id: "biosignature", name: "Biosignature Evidence Assessment", unit: "worlds", colour: "#46B8D8", keepColour: true, route: "worldsring", ready: true, lazy: true,
       page: "https://welcometoyourgalaxy.github.io/maps/off-planet-invasion_embed_13_large-script.html",
       note: "Your own assessment from the Off-Planet Invasion page, read from the page itself and drawn round the globe at world view: each world further out the further it is from Earth, coloured by the assessed chance its evidence is biological. A click gives the evidence, its status and the mission that could settle it." },
     { id: "leverage_chart", name: "The Leverage Chart", unit: "opens it in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
@@ -11931,7 +12454,9 @@ function gladColour(c, id, span) {
   return gladHex(185 + t * (span || 110), 0.62 + ((hash >> 10) % 20) / 100, 0.54 + ((hash >> 16) % 14) / 100);
 }
 for (const c of LAYERS.concat(...GROUPS.map((g) => g.children || []))) {
-  if (c && c.id && (["giga", "country", "owidgrapher", "trase"].includes(c.route) || /\bcountr/i.test(String(c.unit || "")))) GLAD_NATIONAL.add(c.id);
+  // Round 62: Global Trade Alert's countries, and the lines between countries
+  // (trade flows, trafficking routes), keep to cyan and blue too.
+  if (c && c.id && (["giga", "country", "owidgrapher", "trase", "gta", "rte"].includes(c.route) || c.routes || /\bcountr/i.test(String(c.unit || "")))) GLAD_NATIONAL.add(c.id);
   if (c && c.colour && !c.keepColour) c.colour = gladColour(c.colour, c.id, GLAD_NATIONAL.has(c.id) ? GLAD_NATIONAL_SPAN : 110);
   if (c && typeof c.colour === "string") GLAD_OUT.add(c.colour.toUpperCase());
 }
@@ -12032,6 +12557,12 @@ const created = new Set();
 // wait their turn. The row says where it is in the queue, so a layer that has
 // not drawn yet does not read as a layer that failed.
 const QUEUE_AT_ONCE = 3;
+// A layer still building after this long gives up its place in the queue and
+// finishes in its own time (round 61). Three slow ones (the largest Climate
+// TRACE archives, a source that never answers) had held all three places, and
+// every layer behind them waited for good, reading "waiting behind…": the owner
+// found dozens of layers that "did not work".
+const QUEUE_SLOT_MS = 15000;
 let queueRunning = 0;
 const queueWaiting = [];
 function queueNext() {
@@ -12039,8 +12570,11 @@ function queueNext() {
     const next = queueWaiting.shift();
     queueRunning++;
     setLayerState(next.id, "loading\u2026");
+    let freed = false;
+    const free = () => { if (freed) return; freed = true; queueRunning--; queueNext(); };
+    const slow = setTimeout(free, QUEUE_SLOT_MS);
     Promise.resolve().then(next.job).then(next.done, next.fail)
-      .then(() => { queueRunning--; queueNext(); });
+      .then(() => { clearTimeout(slow); free(); });
   }
   queueWaiting.forEach((w, i) => setLayerState(w.id, `waiting behind ${i + 1} other layer${i ? "s" : ""}\u2026`));
 }
@@ -12077,6 +12611,7 @@ function ensureLayer(cfg) {
       : cfg.route === "osmlanduse" ? Promise.resolve().then(() => addOsmLanduseLayer(cfg))
       : cfg.route === "arcgisdyn" ? addArcgisDynLayer(cfg)
       : cfg.route === "giga" ? addGigaLayer(cfg)
+      : cfg.route === "tracker" ? addTrackerLayer(cfg)
       : cfg.route === "gta" ? addGtaLayer(cfg)
       : cfg.route === "ctair" || cfg.route === "ctairgas" ? addCtAirLayer(cfg)
       : cfg.route === "gsn" ? addGsnLayer(cfg)
@@ -12219,11 +12754,14 @@ const LAYER_KIND = {
   mine_features: ["insentient", "downstream"],
   slick_archive: ["animal", "downstream"],
   giga_countries: ["human", "upstream"],
+  policy_rates: ["human", "upstream"],
+  imbalances: ["human", "upstream"],
   trase_meat_brazil: ["animal", "upstream"],
   biosignature: ["insentient", "downstream"],
   eyes_craft: ["insentient", "downstream"],
   leverage_chart: ["human", "upstream"],
   cfr_tracker: ["human", "upstream"],
+  site_banking_dynasties_charts: ["human", "upstream"],
   tableau_zsf: ["human", "upstream"],
   troutwood: ["human", "upstream"],
   ect_secrets: ["human", "upstream"],
@@ -12239,6 +12777,7 @@ const LAYER_KIND = {
   largest_companies: ["human", "upstream"],
   theyrule: ["human", "upstream"],
   pe_bankrolling: ["animal", "upstream"],
+  pe_banks: ["animal", "upstream"],
   pe_subsidising: ["animal", "upstream"],
   powerbi_report: ["human", "upstream"],
   scribd_doc: ["human", "upstream"],
@@ -12767,7 +13306,7 @@ function gmInit() {
   row.innerHTML =
     `<input type="checkbox" data-gm="1">` +
     `<span class="swatch" style="background:#6E7B84"></span>` +
-    `<span class="body"><span class="nm">Guerillamap overlays</span>` +
+    `<span class="body"><span class="nm">Guerillamap overlays<span class="live" title="Read from guerillamap.com itself when this row is ticked">LIVE</span></span>` +
     `<span class="un">fossil fuel and nuclear infrastructure, active fires — ` +
     `loads guerillamap.com in a frame</span></span>`;
   box.appendChild(row);
@@ -12801,10 +13340,13 @@ const LAYER_SITE = {
   gfw_catalogue: "https://www.globalforestwatch.org",
   ct_gases: "https://climatetrace.org/data",
   giga_countries: "https://giga.global",
+  policy_rates: "https://data.bis.org/topics/CBPOL",
+  imbalances: "https://www.imf.org/external/datamapper/BCA_NGDPD@WEO",
   gpw_map: "https://globalplasticwatch.org/map",
   gta_acts: "https://globaltradealert.org",
   mymaps_supp_a: "https://www.google.com/maps/d/viewer?mid=1vrnqSW4cWWdnjz6cJ-qFMmd0zbJzYd6V",
   pe_bankrolling: "https://portfolio.earth/campaigns/bankrolling-extinction/",
+  pe_banks: "https://portfolio.earth/campaigns/bankrolling-extinction/",
   pe_subsidising: "https://portfolio.earth/campaigns/subsidising-extinction/",
   powerbi_report: "https://app.powerbi.com/view?r=eyJrIjoiZGJmNGIwODgtMTgyMS00NmVlLWJmNWUtZTAzZDBlMmQ1ODI2IiwidCI6IjBiMzNkZjAwLTYzNGMtNDBlYy1iOGQ5LTZhMGI2MjYyNmU1ZCJ9",
   seas_of_plastic: "https://app.dumpark.com/seas-of-plastic-2/",
@@ -12845,6 +13387,7 @@ const LAYER_SITE = {
   carbon_plumes: "https://carbonmapper.org",
   cerulean_slicks: "https://cerulean.skytruth.org",
   cerulean_sources: "https://cerulean.skytruth.org",
+  site_banking_dynasties_charts: "https://www.welcometoyourgalaxy.com/suppression.html",
   cfr_tracker: "https://public.tableau.com/views/CFRGlobalMonetaryPolicyTrackerNEW/GlobalMonetaryPolicyTracker?:showVizHome=no&:embed=y",
   ct_pop: "https://tiles.climatetrace.org/ghsl-pop-1km/all",
   dff: "https://deforestationfreefunds.org",
@@ -12878,6 +13421,7 @@ const LAYER_SITE = {
   owid_co2: "https://github.com/owid/co2-data",
   palmwatch: "https://palmwatch.inclusivedevelopment.net/",
   pe_bankrolling: "https://portfolio.earth/campaigns/bankrolling-extinction/",
+  pe_banks: "https://portfolio.earth/campaigns/bankrolling-extinction/",
   pe_subsidising: "https://portfolio.earth/campaigns/subsidising-extinction/",
   pirg_plastic: "https://pirg.org/resources/where-is-plastic-produced/",
   power_plants: "https://github.com/wri/global-power-plant-database",
@@ -12963,6 +13507,8 @@ const LIVE_ROUTES = new Set([
   "arcgis", "arcgisdyn", "arcgisapp", "umap", "kml", "ll2", "ejatlas", "geojsonlive",
   "wpgmza", "atlascities", "trase", "trasefac", "wmsmenu", "gfwmenu", "giga", "gta",
   "rte", "owidgrapher", "spheres", "companion", "gsn", "leave",
+  // The biosignature worlds are read from the assessment page itself each time.
+  "worldsring",
 ]);
 // A row's longer description sits behind a small "i" beside its other marks.
 // It used to be the whole row's hover text, which popped up over the list every
@@ -12970,6 +13516,9 @@ const LIVE_ROUTES = new Set([
 function infoMark(text) {
   const t = String(text || "").replace(/\s+/g, " ").trim();
   if (!t) return "";
+  // A note that only says which page's map a layer came from tells the reader
+  // nothing the row does not (round 62): no bubble for it.
+  if (/^From (the |local-map)[^.]*\.$/.test(t) || /^From the Suppression page's network map/.test(t)) return "";
   return `<span class="info" tabindex="0" role="note" aria-label="About this layer" data-tip="${escapeHtml(t)}">i</span>`;
 }
 function wireInfoMarks() {
@@ -13024,15 +13573,19 @@ function refreshNote(cfg) {
       : /four weeks|monthly/.test(said) ? "copy renewed every four weeks"
       : /weekly|each week|every week/.test(said) ? "copy renewed weekly"
       : /built once|not updated|made once|retired|is gone|fixed .*release/.test(said) ? "copy made once; not renewed"
-      : "copy; renewed when rebuilt, no set rhythm";
+      // Where nothing says how often, nothing is said (round 60): "no set
+      // rhythm" under dozens of rows told the reader nothing.
+      : "";
   }
-  return `<span class="refresh">${escapeHtml(t)}</span>`;
+  return t ? `<span class="refresh">${escapeHtml(t)}</span>` : "";
 }
 // Rows whose way of reading would count as live, but which draw from a copy
 // kept here (the source cannot be read by another site, or its server is gone).
 // Every row now carries one mark or the other (22 September, round 3).
 const NOT_LIVE = {
+  site_banking_dynasties_charts: "The Suppression page's own banking dynasties section, from a copy made once (round 62)",
   bocc: "The report's league tables, read once from the 2026 report; headquarters from GLEIF and OpenStreetMap",
+  pe_banks: "Read once from the 2020 report (Table 2, and Figure 1's bars measured); headquarters from GLEIF and OpenStreetMap",
   soil_spun: "Copied once from the Underground Atlas data record (Zenodo 10.5281/zenodo.14871588)",
   soil_nematodes: "Copied from its figshare data record; copied again only when a file changes",
   largest_companies: "Compiled weekly from Wikidata by culprits-tiles-more",
@@ -13077,11 +13630,16 @@ const NOT_LIVE = {
 // "Not yet placed" at the end, so nothing disappears unseen; ids in
 // PANEL_REMOVED are taken out of the box.
 const PANEL_ORDER = [
+  // One layer at the very top, above every section (round 60): its rows are
+  // the ones the owner names.
+  { h: 1, bundle: "selected", colour: "#5E6470" },
   { h: 1, t: "On-planet invasion" },
   { h: 2, t: "Pre-birth frontlines" },
   { h: 3, t: "Genetic engineering" }, "gmo_env", "gmo_decisions", "gmo_ogtr", "gmo_cultivation", "gmo_gmofree", "gmo_incidents", "gmo_regime", "gmo_treaties", "gmo_trials",
   { h: 3, t: "Human reproduction and gene therapy" }, "gmo_therapy", "gmo_fertility",
-  { h: 2, t: "Post-birth invasion" },
+  // Renamed 26 September (round 60): the living, from birth to death, and
+  // the after-life, beside the pre-birth frontlines.
+  { h: 2, t: "Invasion of the living" },
   { h: 3, t: "Invasion of nonhumans" },
   // Round 59 (26 September): the Indigenous Environmental Conflicts rows are
   // one layer with a row per kind of conflict under it, and everything that
@@ -13091,7 +13649,7 @@ const PANEL_ORDER = [
   { h: 4, bundle: "indigenous_conflicts", colour: "#6B5A4A" }, "site_indigenous_conflicts",
   { h: 4, bundle: "landmark", colour: "#6A5E66" },
   { h: 3, t: "Of countries by countries" }, "site_secret_societies", "gm",
-  { h: 2, t: "Post-life invasion" }, "remains_records", "remains_findings", "remains_cemeteries",
+  { h: 2, t: "Invasion of the after-life" }, "remains_records", "remains_findings", "remains_cemeteries",
 
   { h: 1, t: "Destruction" },
   { h: 2, t: "Of the planet" },
@@ -13189,7 +13747,7 @@ const PANEL_ORDER = [
   // Asked for 25 September: most biodiversity layers leave out the soil.
   { h: 4, t: "Soil biodiversity" }, "soil_spun", "soil_nematodes", "soilgrids",
   { h: 4, t: "Wildlife and timber crime" }, "powerbi_report",
-  { h: 4, t: "Companies and financiers" }, "pe_subsidising", "pe_bankrolling",
+  { h: 4, t: "Companies and financiers" }, "pe_subsidising", "pe_bankrolling", "pe_banks",
   // Item 30: the most detailed worldwide land cover and land use found.
   { h: 3, t: "Forest and land cover" }, "glc_fcs30d", "osm_landuse",
   { h: 3, t: "Peatland" },
@@ -13200,8 +13758,8 @@ const PANEL_ORDER = [
   // Item 14: the mines layers are one row with sublayers.
   { h: 3, t: "Mining" },
   { h: 4, bundle: "mines", colour: "#6E5E52" }, "mines_global", "mine_features",
-  { h: 3, t: "Meat and agriculture" }, "site_food_system",
-  { h: 4, t: "Agriculture" }, "land_matrix",
+  { h: 3, t: "Meat and agriculture" }, "site_food_system", "land_matrix",
+  { h: 4, t: "Agriculture" },
   { h: 5, t: "Plantations" },
   { h: 6, bundle: "idnplant", colour: "#6E6A55" },
   { h: 5, t: "Palm oil" },
@@ -13254,8 +13812,8 @@ const PANEL_ORDER = [
   { h: 2, t: "Of humans" },
   { h: 3, t: "Physical suppression" },
   { h: 4, t: "Control of physical resources" },
-  { h: 5, t: "Banks and monetary power" }, "site_central_banks", "site_banking_dynasties", "cfr_tracker", "tableau_zsf", "site_export_credit", "troutwood",
-  { h: 5, t: "Trade" }, "site_trade_profits", "rte_trade", "gta_acts",
+  { h: 5, t: "Banks and monetary power" }, "site_central_banks", "site_banking_dynasties", "site_banking_dynasties_charts", "policy_rates", "imbalances", "cfr_tracker", "tableau_zsf", "site_export_credit", "troutwood",
+  { h: 5, t: "Trade" }, "rte_trade", "site_trade_profits", "gta_acts",
   { h: 5, t: "Funding of international bodies" }, "site_earmarked_funding",
   { h: 4, t: "Economic inequality within it" },
   { h: 5, t: "Wealth concentration" }, "site_wealth_atlas", "site_social_spheres",
@@ -13287,19 +13845,15 @@ const PANEL_ORDER = [
   { h: 4, t: "Holidays" },
   { h: 4, t: "Sex" },
   { h: 4, t: "Drugs" }, "capture_map",
-  { h: 2, t: "Of animals" },
-  { h: 3, t: "Slavery" }, "gmo_animal_research", "gmo_animal_trade",
-  { h: 3, t: "Spectacle and sport" }, "site_animal_fighting", "site_circus", "site_animal_racing", "site_rodeo", "site_animal_tourism",
-  { h: 3, t: "Other" }, "mymaps_supp_b",
-  { h: 3, t: "The pet industry" }, "mymaps_supp_a",
+  // Every layer straight under Of animals, no sub-headings (round 62).
+  { h: 2, t: "Of animals" }, "gmo_animal_research", "gmo_animal_trade",
+  "site_animal_fighting", "site_circus", "site_animal_racing", "site_rodeo", "site_animal_tourism", "mymaps_supp_b", "mymaps_supp_a",
   { h: 2, t: "Of plants" }, "site_enslaved_plants", "mymaps_trees",
   { h: 2, t: "Of microscopics" }, "site_enslaved_microbes",
   { h: 2, t: "Of the “insentient”" }, "site_insentient",
 
   // Asked for 26 September (round 56): a category of the owner's own choosing,
   // above Off-planet invasion; empty until they name its layers.
-  { h: 1, t: "Selected Layers" },
-
   { h: 1, t: "Off-planet invasion" },
   { h: 2, t: "To Earth" },
   { h: 3, t: "Near-Earth object impacts" }, "esa_risk",
@@ -13521,7 +14075,8 @@ function addRowTools(box) {
         } else {
           folded = !lead.classList.contains("folded");
           lead.classList.toggle("folded", folded);
-          rowNodes(lead).slice(1).forEach((n) => n.classList.toggle("fold-hide", folded));
+          // The transparency bar stays whether the arrow is up or down (round 60).
+          rowNodes(lead).slice(1).filter((n) => !n.classList.contains("row-tools")).forEach((n) => n.classList.toggle("fold-hide", folded));
         }
         f.textContent = folded ? "\u25BE" : "\u25B4";
         f.setAttribute("aria-expanded", String(!folded));
@@ -13780,7 +14335,12 @@ function arrangePanel() {
       ".toc-bundle>.toc-body{padding-left:16px;border-left:1px solid rgba(255,255,255,.12);margin-left:4px}" +
       "#layers label.layer,#layers .group>.layer.parent{cursor:grab;user-select:none}" +
       "#layers .fold{display:none;margin-left:auto;padding:0 4px;border:0;background:none;color:var(--dim);cursor:pointer;font-size:11px;line-height:1}" +
-      "#layers label.layer:has(+ .facet) .fold{display:inline-block}" +
+      // The arrow only on rows with sublayers beyond the transparency bar
+      // (round 60): keys, kinds, filters, pickers.
+      "#layers label.layer:has(+ .facet:not(.row-tools)) .fold,#layers label.layer:has(+ .row-tools + .facet) .fold{display:inline-block}" +
+      // No dotted grip where a mouse can drag the row itself; kept on touch
+      // screens, where it is the only way to drag.
+      "@media (pointer:fine){#layers .grip{display:none}}" +
       "#layers .layer.parent .fold{display:inline-block}" +
       "#layers label.layer:has(+ .facet) .grip{margin-left:0}" +
       "#layers .facet.fold-hide{display:none}" +
@@ -14098,7 +14658,31 @@ function countHeadings(box) {
     const n = [...sec.querySelectorAll(ROW_TICKS)].filter((i) => !(i.closest && i.closest("[data-removed]"))).length;
     const el = sec.querySelector(".toc-n");
     if (el) el.textContent = n ? String(n) : "none yet";
+    headingLiveMark(sec);
   }
+}
+// A layer with sublayers, and a small heading, says whether what is under it
+// is live (round 62: every layer the owner sees as a row carries one mark or
+// the other). Under a heading where some rows are live and some copies, both
+// marks show, with how many of each.
+function headingLiveMark(sec) {
+  const head = sec.querySelector(".toc-head");
+  if (!head || !/toc-l[3-9]|toc-bundle/.test(sec.className)) return;
+  const marks = [...sec.querySelectorAll(".toc-body .nm .live")].filter((m) => !(m.closest && m.closest("[data-removed]")));
+  const live = marks.filter((m) => !m.classList.contains("notlive")).length, copy = marks.length - live;
+  let el = head.querySelector(".toc-live");
+  if (!marks.length) { if (el) el.remove(); return; }
+  if (!el) {
+    el = document.createElement("span");
+    el.className = "toc-live";
+    const t = head.querySelector(".toc-t");
+    if (t && t.after) t.after(el); else head.appendChild(el);
+  }
+  el.innerHTML = live && copy
+    ? `<span class="live" title="${live} of the layers here are read from their source when ticked">LIVE ${live}</span>` +
+      `<span class="live notlive" title="${copy} of the layers here are drawn from a copy kept here">NOT LIVE ${copy}</span>`
+    : live ? `<span class="live" title="Every layer here is read from its source when ticked">LIVE</span>`
+      : `<span class="live notlive" title="Every layer here is drawn from a copy kept here">NOT LIVE</span>`;
 }
 
 // The catalogues' own rows are out of sight (PANEL_REMOVED) and lazy, and a lazy

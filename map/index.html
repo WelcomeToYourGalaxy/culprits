@@ -392,8 +392,12 @@
   .pulled-shut{overflow:hidden !important}
   /* Live rows say so, beside the title. */
   #layers .nm .live{margin-left:5px;padding:0 3px;border:1px solid var(--rule);border-radius:2px;
-    color:var(--dim);font-size:8.5px;letter-spacing:.08em;vertical-align:1px}
+    color:var(--dim);font-size:8.5px;letter-spacing:.08em;vertical-align:1px;white-space:nowrap}
   #layers .nm .live.notlive{border-style:dashed;opacity:.75}
+  /* The same marks beside a heading or a layer with sublayers (round 62). */
+  #layers .toc-live .live{margin-left:5px;padding:0 3px;border:1px solid var(--rule);border-radius:2px;
+    color:var(--dim);font-size:8.5px;letter-spacing:.08em;vertical-align:1px;font-weight:400;text-transform:none;white-space:nowrap}
+  #layers .toc-live .live.notlive{border-style:dashed;opacity:.75}
   #layers .nm .refresh{margin-left:5px;font-size:9px;color:var(--dim);opacity:.8;white-space:nowrap}
   .panel,#legend{overflow:auto}
   /* The grip stays on the box's edge while its contents scroll under it. */
@@ -500,8 +504,8 @@
   };
 })();
 </script>
-<script src="./app.js?v=59"></script>
-<script src="./wire.js?v=59"></script>
+<script src="./app.js?v=64"></script>
+<script src="./wire.js?v=61"></script>
 <!-- The drag bar on the layers box's right edge (made by columnEdge() in
      app.js) ran the full height of the column, so it stayed standing beside
      empty map when the box was rolled up or pulled shorter. It is held to the

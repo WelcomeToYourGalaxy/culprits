@@ -1931,7 +1931,8 @@ console.log("\nthe layers box, in the chosen order");
   }
   check("nothing is both placed and removed", ids.every((id) => !order.PANEL_REMOVED.has(id)));
   const heads = order.PANEL_ORDER.filter((x) => typeof x === "object" && x.h === 1).map((x) => x.t);
-  check("the four sections come first, in order, with Selected Layers above Off-planet (round 56)", heads.slice(0, 5).join("|") === "On-planet invasion|Destruction|Suppression|Selected Layers|Off-planet invasion");
+  check("Selected Layers is one layer at the very top (round 60), then the four sections in order",
+        order.PANEL_ORDER[0].bundle === "selected" && heads.slice(1, 5).join("|") === "On-planet invasion|Destruction|Suppression|Off-planet invasion");
   check("unplaced layers get their own heading, not the bin", /heading\(1, "Not yet placed"\)/.test(src));
   check("removed rows stay findable by the code", /gone\.hidden = true/.test(src));
   check("the Trase row no longer shares an id", (src.match(/id: ?"trase"/g) || []).length === 1);
@@ -2095,7 +2096,7 @@ console.log("\nOur World in Data shading; the genetic engineering map moved");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
   const order = new Function(body + "; return PANEL_ORDER;")();
-  const pre = order.findIndex((x) => x && x.t === "Pre-birth frontlines"), post = order.findIndex((x) => x && x.t === "Post-birth invasion");
+  const pre = order.findIndex((x) => x && x.t === "Pre-birth frontlines"), post = order.findIndex((x) => x && x.t === "Invasion of the living");
   const gs = ["gmo_cultivation", "gmo_gmofree", "gmo_incidents", "gmo_regime", "gmo_treaties", "gmo_trials"].map((i) => order.indexOf(i));
   check("the Genetic engineering map's six layers are each a row under Pre-birth frontlines", gs.every((g) => g > pre && g < post) && !order.includes("group:gmo_map_layers"));
   const parse = new Function(src.slice(src.indexOf("function owidParse("), src.indexOf("function owidBreaks(")) + "; return [owidParse, owidPick];")();
@@ -2154,7 +2155,7 @@ console.log("\nthe Suppression page's two Google My Maps maps");
 console.log("\nresource trade flows");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("it is a row under Control of physical resources, under Trade", /id: "rte_trade"/.test(src) && /\{ h: 5, t: "Trade" \}, "site_trade_profits", "rte_trade", "gta_acts"/.test(src));
+  check("it is a row under Control of physical resources, under Trade", /id: "rte_trade"/.test(src) && /\{ h: 5, t: "Trade" \}, "rte_trade", "site_trade_profits", "gta_acts"/.test(src));
   check("read live, with the daily copy when it cannot be", /api\.resourcetrade\.earth\/api\/rt\/2\.7/.test(src) && /cfg\._fromCopy = true/.test(src));
   const arc = new Function(src.slice(src.indexOf("function rteArc("), src.indexOf("async function addRteLayer(")) + "; return rteArc;")();
   const a = arc([0, 0], [10, 0]);
@@ -2209,7 +2210,7 @@ console.log("\nClimate TRACE air pollution");
 console.log("\nGlobal Trade Alert");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("it is a row under Control of physical resources", /id: "gta_acts"/.test(src) && /"rte_trade", "gta_acts",/.test(src));
+  check("it is a row under Control of physical resources", /id: "gta_acts"/.test(src) && /"site_trade_profits", "gta_acts",/.test(src));
   const nameOf = new Function(src.slice(src.indexOf("function gtaNameOf("), src.indexOf("async function addGtaLayer(")) + "; return gtaNameOf;")();
   const known = new Set(["Italy", "United States of America"]);
   check("a shape is joined by whichever field names the country", nameOf({ NAME: "Italy" }, known) === "Italy" && nameOf({ label: "United States of America" }, known) === "United States of America" && nameOf({ name: "Atlantis" }, known) === null);
@@ -2525,10 +2526,10 @@ console.log("\nthe layers box, as asked for");
         o.PANEL_ORDER[at("Biodiversity loss") + 1].t === "Places that matter most for species" && o.PANEL_ORDER[at("Biodiversity loss") + 2] === "gsn_rankings");
   check("Agriculture is Meat and agriculture, holding Agriculture and Meat",
         at("Meat and agriculture") > 0 && at("Agriculture") > at("Meat and agriculture") &&
-        between("land_matrix", "Agriculture", "Plantations") && between("abattoir_facilities", "Facilities", "Herds"));
+        between("land_matrix", "Meat and agriculture", "Agriculture") && between("abattoir_facilities", "Facilities", "Herds"));
   check("the Power BI row is named for what it shows", /id: "powerbi_report", name: "Environmental Crime Tracker"/.test(src));
   check("every row carries the fold control, ticked or not, groups included",
-        /"#layers label\.layer:has\(\+ \.facet\) \.fold\{display:inline-block\}"/.test(src) &&
+        /"#layers label\.layer:has\(\+ \.facet:not\(\.row-tools\)\) \.fold,#layers label\.layer:has\(\+ \.row-tools \+ \.facet\) \.fold\{display:inline-block\}"/.test(src) &&
         /"#layers \.layer\.parent \.fold\{display:inline-block\}"/.test(src) &&
         /const group = lead\.classList\.contains\("parent"\)/.test(src));
   check("the mines draw only where their own tiles hold something",
@@ -2594,7 +2595,7 @@ console.log("\nthe Satellite basemap as a planetary-defence view; folding a row'
         !/Math\.sin\(Date\.now\(\)/.test(src) && /setInterval\(defenceTick, 500\)/.test(src));
   check("the threat colour is a red, with no orange, yellow or neon", /threat: "#B8473E"/.test(src));
   check("the frame takes no clicks, and the one thing that moves stops for reduced motion", /#defence-hud\{position:absolute;inset:0;pointer-events:none/.test(index) && /prefers-reduced-motion: reduce\)\{\.defence-ping\{animation:none;display:none\}\}/.test(index));
-  check("each ticked row with boxes under it has a fold button", /f\.className = "fold";/.test(src) && /has\(\+ \.facet\) \.fold\{display:inline-block\}/.test(src));
+  check("each ticked row with boxes under it has a fold button", /f\.className = "fold";/.test(src) && /has\(\+ \.row-tools \+ \.facet\) \.fold\{display:inline-block\}/.test(src));
 }
 
 console.log("\nOff-planet sections, Of groups, names, launch links, drag bar, markers, headings");
@@ -2608,7 +2609,7 @@ console.log("\nOff-planet sections, Of groups, names, launch links, drag bar, ma
         at("From Earth") < at("The space industry") && at("Space launches") < at("Protecting extraterrestrial life"));
   // Round 48 (25 September): the fur farms moved to a heading of their own under Of the planet.
   check("Fur Farms (Final Nail) is under Destruction, Of the planet, Fur farms", order.indexOf("final_nail") === at("Fur farms") + 1 && at("Fur farms") < at("Of groups") && /name: "Fur Farms \(Final Nail\)"/.test(src));
-  check("Pet Food Companies is under The pet industry", order.indexOf("mymaps_supp_a") === at("The pet industry") + 1 && /name: "Pet Food Companies \(Google My Maps\)"/.test(src));
+  check("Pet Food Companies is straight under Of animals (round 62)", order.indexOf("mymaps_supp_a") > at("Of animals") && at("The pet industry") === -1 && /name: "Pet Food Companies", fixedName: true/.test(src));
   check("each upcoming launch links to its own pages", /spacelaunchnow\.me\/launch\//.test(src) && /r\.info_urls/.test(src) && /ll2Links\(r\)/.test(src));
   check("page panels have a drag bar", /class="c-grab"/.test(src) && /ns-resize/.test(src));
   // Superseded on 22 September: the symbols gave way to a glow. Every point
@@ -2968,7 +2969,7 @@ console.log("\nNusantara's layers spread through the box");
         places("Concessions of other kinds").join() === "Destruction > Of the planet > Other concessions" &&
         places("National Strategic Project concessions, Merauke").join() === "Destruction > Of the planet > Other concessions" &&
         places("Some permit").join() === "Destruction > Of the planet > Other concessions" &&
-        atH("Other") > atH("Of groups") &&
+        (atH("Other") === -1 || atH("Other") > atH("Of groups")) &&
         atH("Other concessions") > atH("Construction") && atH("Other concessions") < atH("Of groups"));
   // 22 September: the box rearranged to the owner's list.
   // 22 September, later the same day: Climate arranged by gas, in the Destruction page's order.
@@ -3002,7 +3003,7 @@ console.log("\nNusantara's layers spread through the box");
         places("Fire alerts, VIIRS")[0] === "Destruction > Of the planet > Deforestation" ||
         places("Fire alerts, VIIRS").includes("Destruction > Of the planet > Fire"));
   check("customary forest is land and territory, not forest cover",
-        places("Customary forest (hutan adat)").includes("On-planet invasion > Post-birth invasion > Invasion of humans"));
+        places("Customary forest (hutan adat)").includes("On-planet invasion > Invasion of the living > Invasion of humans"));
   check("nothing stays under boundaries and relief (the GLAD-L coverage went on 25 September)",
         places("Coverage Layer for GLAD-L")[0] === "(taken out)" &&
         places("Hillshade relief")[0] === "(taken out)");
@@ -3537,7 +3538,7 @@ console.log("\nround of 23 September (21): INCRA's quilombola communities kept")
   const f = (t) => places(t, t).join(" | ");
   check("INCRA's rural settlements are out, its quilombola communities are under Land and territory",
         f("INCRA Brazil Rural Settlements incra_bra_rural_settlements") === "(taken out)" &&
-        f("INCRA Brazil Quilombola Communities incra_bra_quilombola_communities") === "On-planet invasion > Post-birth invasion > Invasion of humans");
+        f("INCRA Brazil Quilombola Communities incra_bra_quilombola_communities") === "On-planet invasion > Invasion of the living > Invasion of humans");
 }
 console.log("\nround of 23 September (22): Liberia's development agreements and the resource rights placed");
 {
@@ -3546,7 +3547,7 @@ console.log("\nround of 23 September (22): Liberia's development agreements and 
   const f = (t) => places(t, t).join(" | ");
   check("Liberia's Mineral Development Agreements are under Mining, the resource rights under Land and territory",
         f("Liberia Mineral Development Agreement lbr_mineral_development_agreement") === "Destruction > Of the planet > Mining" &&
-        f("Resource rights \u2014 Currently available for Cameroon, Equatorial Guinea, Liberia and Namibia gfw_resource_rights") === "On-planet invasion > Post-birth invasion > Invasion of humans");
+        f("Resource rights \u2014 Currently available for Cameroon, Equatorial Guinea, Liberia and Namibia gfw_resource_rights") === "On-planet invasion > Invasion of the living > Invasion of humans");
 }
 console.log("\nround of 23 September (23): the owner's thirty notes on the layers box");
 {
@@ -4163,7 +4164,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
     cut("const P = \"Destruction > Of the planet\";", "// The body of the heading a path names") +
     "; return { cataloguePlaces };")();
   const at = (t) => lib.cataloguePlaces(t, t).join();
-  const LT = "On-planet invasion > Post-birth invasion > Invasion of humans";
+  const LT = "On-planet invasion > Invasion of the living > Invasion of humans";
   const LM = LT + " > Indigenous Peoples' and local communities' lands and territories, worldwide (LandMark)";
   check("LandMark's 2026 areas and points are the two parts of one row",
         at("Lands and territories with known boundaries, as areas, worldwide (LandMark) landmark_ip_lc_and_indicative_poly") === LM &&
@@ -4262,7 +4263,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /data-kind="\$\{escapeHtml\(catalogueKind\(cfg, item\)\)\}"/.test(src));
   check("three switches, any of them together, ticking a few rows at a time",
         /\["point", "Points"\], \["shape", "Shapes"\], \["national", "National highlights"\]/.test(src) && /queue\.splice\(0, 8\)/.test(src) && /  layerKindSwitch\(box\);/.test(src));
-  check("Selected Layers sits above Off-planet invasion", /\{ h: 1, t: "Selected Layers" \},\n\n  \{ h: 1, t: "Off-planet invasion" \}/.test(src));
+  check("Selected Layers is one layer above everything (round 60)", /const PANEL_ORDER = \[\n[^\n]*\n[^\n]*\n  \{ h: 1, bundle: "selected", colour: "#5E6470" \},\n  \{ h: 1, t: "On-planet invasion" \},/.test(src));
 }
 {
   console.log("\nround 57: kinds by what is drawn, a loading line, columns that keep up with the zoom, no purple on country layers or the hologram");
@@ -4300,8 +4301,8 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   const steps = G.gladValue(["interpolate", ["linear"], ["get", "t"], 0, "#DCD7CC", 0.25, "#B8B0A2", 0.5, "#948B7D", 0.75, "#6F675B", 1, "#4A443C"], "nat");
   const cols = [4, 6, 8, 10, 12].map((i) => steps[i]);
   check("a country layer's five steps run cyan to blue, none violet, still told apart",
-        cols.every((c) => hue(c) >= 184 && hue(c) <= 236) && new Set(cols).size === 5 && ["#FF00FF", "#8A4F46", "#6A6258"].every((c) => hue(G.gladCss(c, "nat")) <= 236));
-  check("country rows are named for it when the rows are read", /\["giga", "country", "owidgrapher", "trase"\]\.includes\(c\.route\)/.test(src));
+        cols.every((c) => hue(c) >= 184 && hue(c) <= 241) && new Set(cols).size === 5 && ["#FF00FF", "#8A4F46", "#6A6258"].every((c) => hue(G.gladCss(c, "nat")) <= 241));
+  check("country rows are named for it when the rows are read", /\["giga", "country", "owidgrapher", "trase"(, "gta", "rte")?\]\.includes\(c\.route\)/.test(src));
   check("the hologram keeps its own blues: its layers are not remapped, and its fringe and ground are not purple",
         /\|holo-\.\*(\|[a-z-]+)*\)\$\/;/.test(src) && /--holo-fringe: #6fb0bd;/.test(html) && /--holo-bg:     #081729;/.test(html) && !/#8e86c8/.test(html));
   check("the page asks for this round's script", /app\.js\?v=(5[7-9]|[6-9]\d)/.test(html));
@@ -4338,7 +4339,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /archiveUrl: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/tiles\/slavery_sites\.pmtiles",\n    archiveBefore: `\$\{TILE_BASE\}\/slavery_sites\.pmtiles`/.test(src) &&
         /if \(!head\.ok && cfg\.archiveBefore\)/.test(src));
   check("the worlds show on the flat map too, and the map pulls back to them when they are turned on",
-        /const flat = drawnProjection\(\) === "mercator";/.test(src) && /further from Earth \\u2192/.test(src) && /if \(on && !was\) pullBack\(\);/.test(src));
+        /const flat = drawnProjection\(\) === "mercator";/.test(src) && /if \(on && !was\) pullBack\(\);/.test(src));
   check("rows the Points switch turns on read their points from a shared file when there is one",
         /const POINT_BUNDLES_URL = "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/bundles\/points\.json";/.test(src) &&
         /const src = bundle \? `points-bundle-\$\{bundle\.n\}` : `\$\{owner\}-src`;/.test(src) &&
@@ -4367,9 +4368,152 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         at("indigenous_conflicts") > at("Invasion of humans") && order[at("indigenous_conflicts") + 1] === "site_indigenous_conflicts" &&
         at("landmark") > at("indigenous_conflicts") && at("landmark") < at("Of countries by countries") && at("Land and territory") === -1 &&
         /indigenous_conflicts: "Indigenous Environmental Conflicts",/.test(src) && /\[data-cat\], \[data-smtype\]/.test(src));
-  check("the Land Matrix is under Meat and agriculture > Agriculture; the old Land and territory paths now lead to Invasion of humans",
-        order[at("Agriculture") + 1] === "land_matrix" && !/Suppression > Of humans > Land and territory/.test(src));
+  check("the Land Matrix is under Meat and agriculture; the old Land and territory paths now lead to Invasion of humans",
+        order.indexOf("land_matrix") > at("Meat and agriculture") && order.indexOf("land_matrix") < at("Agriculture") && !/Suppression > Of humans > Land and territory/.test(src));
   check("the page asks for this round's script", /app\.js\?v=(59|[6-9]\d)/.test(html));
+}
+{
+  console.log("\nround 60: Selected Layers on top, the living and the after-life, one arrow only where there is more to show, no empty rhythm notes");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("the two invasions of people are named for the living and the after-life",
+        /\{ h: 2, t: "Invasion of the living" \}/.test(src) && /\{ h: 2, t: "Invasion of the after-life" \}, "remains_records"/.test(src) &&
+        !/Post-birth invasion|Post-life invasion/.test(src.replace(/\/\/[^\n]*/g, "")));
+  check("folding leaves the transparency bar in place", /filter\(\(n\) => !n\.classList\.contains\("row-tools"\)\)\.forEach\(\(n\) => n\.classList\.toggle\("fold-hide", folded\)\)/.test(src));
+  check("no dotted grip where a mouse can drag the row itself", /@media \(pointer:fine\)\{#layers \.grip\{display:none\}\}/.test(src));
+  check("a row whose copy has no stated rhythm carries no note", !/no set rhythm"/.test(src) && /return t \? `<span class="refresh">/.test(src));
+  check("the page asks for this round's script", /app\.js\?v=(6\d|[7-9]\d)/.test(html));
+}
+{
+  console.log("\nround 61: the build queue never stalls, Bankrolling Extinction's banks, the Atlas conflicts pages, names");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("a layer still building after 15 s gives up its place in the queue", /const QUEUE_SLOT_MS = 15000;/.test(src) &&
+        /const slow = setTimeout\(free, QUEUE_SLOT_MS\);/.test(src) && /\.then\(\(\) => \{ clearTimeout\(slow\); free\(\); \}\);/.test(src));
+  check("Bankrolling Extinction's 50 banks are a row at their headquarters, their measured amounts said to be measured",
+        /id: "pe_banks"[^\n]*route: "geojsonlive"/.test(src) && /culprits-tiles-more\/pe\/banks\.geojson/.test(src) && /measured from the length of its bars/.test(src) &&
+        /"Companies and financiers" \}, "pe_subsidising", "pe_bankrolling", "pe_banks",/.test(src));
+  check("an opened hotspot shows its conflicts page over page 1 and a mark per city opening its inset",
+        /if \(what\.plate\) atlasInsets\(what\.plate\);/.test(src) && /map\.addLayer\(\{ id: "atlas-plate-conflicts", type: "raster"/.test(src) &&
+        /new maplibregl\.Marker\(\{ element: el \}\)/.test(src) && /for \(const m of atlasInsets\.markers \|\| \[\]\) m\.remove\(\);/.test(src));
+  const t = new Function(src.match(/function siteTypeTitle[^\n]*\n/)[0] + "; return siteTypeTitle;")();
+  check("the enslavement and insentient maps' kinds read as the kind alone; other maps keep their name after it",
+        t("Yeast", "The Unnecessary Enslavement of Microorganisms 2026", "site_enslaved_microbes") === "Yeast" &&
+        t("Yeast", "X", "site_world_news") === "Yeast — X");
+  check("rows renamed: Animal Fighting Locations, Animal Tourism, Global Rodeo & Charreada; Zoos and Aquariums under Spectacle and sport, keeping its name",
+        /name: "Animal Fighting Locations",/.test(src) && /name: "Animal Tourism",/.test(src) && /name: "Global Rodeo & Charreada",/.test(src) &&
+        /id: "mymaps_supp_b", name: "Zoos", fixedName: true/.test(src) && /"site_animal_tourism", "mymaps_supp_b",/.test(src) &&
+        /if \(!cfg\.fixedName\) relabelRow\(cfg\.id, got\.title\);/.test(src));
+  check("a read with no answer is tried once more with twice the time; uMap's settings come from the daily copy first",
+        /if \(!\/\^no answer in\/\.test\(e\.message\)\) throw e;\n    return getJsonOnce\(url, ms \* 2\);/.test(src) &&
+        /culprits-tiles-more\/umap\/\$\{cfg\.umapId\}\/map\.json/.test(src));
+  check("the page asks for this round's script", /app\.js\?v=(6[1-9]|[7-9]\d)/.test(html));
+}
+{
+  console.log("\nround 62: every layer straight under Of animals, keys for shaded layers, figures for earmarked funding and trade profits, stronger steps, Global Trade Alert in words, trade flows by tier, routes untangled, agencies without their background, people on the spheres' links, the dynasties' charts");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER"), src.indexOf("];", src.indexOf("const PANEL_ORDER")) + 2);
+  const order = new Function(body + "; return PANEL_ORDER;")();
+  const at = (t) => order.findIndex((x) => x && x.t === t);
+  const oa = order.findIndex((x, i) => x && x.t === "Of animals" && order[i + 1] === "gmo_animal_research");
+  const next = order.findIndex((x, i) => i > oa && x && typeof x === "object" && x.h <= 2);
+  const under = order.slice(oa + 1, next);
+  check("Of animals holds its layers directly, no sub-headings, Zoos among them",
+        under.every((x) => typeof x === "string") && ["gmo_animal_research", "site_animal_fighting", "site_rodeo", "mymaps_supp_b", "mymaps_supp_a"].every((id) => under.includes(id)) &&
+        /id: "mymaps_supp_b", name: "Zoos", fixedName: true/.test(src));
+  check("resourcetrade.earth heads the Trade list", /\{ h: 5, t: "Trade" \}, "rte_trade",/.test(src));
+  const im = new Function("escapeHtml", src.match(/function infoMark\([\s\S]*?\n\}\n/)[0] + "; return infoMark;")(String);
+  check("an info bubble that only names where a layer came from is not drawn",
+        im("From the Suppression page's network map of eyes.") === "" && im("From local-map's X map.") === "" && im("Giga's own figures.") !== "");
+  const S = new Function(src.slice(src.indexOf("const SHAPE_STEPS"), src.indexOf("function shapeKey(")) + "; return { SHAPE_COLOUR_BY, shapeValues, shapeColouring, shapeStepColour };")();
+  const earm = S.SHAPE_COLOUR_BY.site_earmarked_funding;
+  const feats = [{ properties: { donor_amount: "$19,522M donated", recipient_amount: "No data" } }, { properties: { donor_amount: "Not a donor country", recipient_amount: "$195M received" } }];
+  S.shapeValues("", { features: feats }, earm);
+  check("earmarked funding is shaded by the sums the map writes, donated or received",
+        feats[0].properties._donated === 19522 && feats[1].properties._received === 195 && feats[0].properties._received === undefined && earm.length === 2 && earm.every((b) => b.scale === "log"));
+  const tp = S.SHAPE_COLOUR_BY.site_trade_profits[0];
+  const page = `const D = {"MAR":{n:"Morocco",f:25.3,d:74.7},"LAO":{n:"Lao PDR",f:12.3,d:87.7}};`;
+  const got = [...page.matchAll(tp.fromPage.re)].map((m) => [m[1], Number(m[2])]);
+  const c = S.shapeColouring(tp, { features: [] });
+  check("trade profits read the source map's own figures and steps (under 10 % to 50 % or more)",
+        JSON.stringify(got) === '[["MAR",25.3],["LAO",12.3]]' && tp.fromPage.keys.includes("ISO_A3") && c.key.length === 9 && c.key[0][1] === "under 10%" && c.key[8][1] === "50% or more" && c.expr[2][0] === "step");
+  check("a layer of one colour gets a one-colour key; per-country counts shade the government maps",
+        JSON.stringify(S.shapeColouring({ single: "x", colour: "#123456" }, { features: [] }).key) === '[["#123456","x"]]' &&
+        /by = \[\{ label: "entries the source lists for each", field: "entries", scale: "log"/.test(src));
+  const G = new Function("maplibregl", src.slice(src.indexOf("const GLAD_LO = 185"), src.indexOf("function gladPixels(")) +
+    "; return { gladValue, GLAD_NATIONAL };")({ addProtocol() {} });
+  G.GLAD_NATIONAL.add("n62");
+  const ramp = ["#E3D9CF", "#C9B3A5", "#AC8A7B", "#8A6356", "#5F3F36"];
+  const m = G.gladValue(["match", ["get", "iso"], "AAA", ramp[4], "BBB", ramp[0], "CCC", ramp[2], "rgba(0,0,0,0)"], "n62");
+  const L = (h) => { const n = parseInt(h.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255; return (Math.max(r, g, b) + Math.min(r, g, b)) / 510; };
+  const RS = new Function(src.match(/const GLAD_RAMP_STEPS = [^\n]*\n/)[0] + src.match(/const OWID_RAMP = [^\n]*\n/)[0] + src.match(/const SHAPE_STEPS = [^\n]*\n/)[0] + "; return [GLAD_RAMP_STEPS, OWID_RAMP, SHAPE_STEPS];")();
+  check("countries matched by name to a ramp keep the ramp's order, lightest to darkest",
+        L(m[5]) > L(m[7]) && L(m[7]) > L(m[3]) && [...RS[1], ...RS[2]].every((c) => RS[0].has(c)));
+  check("Global Trade Alert's ratings are in its own words, not colours, with what a state act is",
+        !/Rated Red|Rated Amber|Rated Green/.test(src) && /Almost certainly discriminates|almost certainly discriminates against foreign commercial interests/.test(src) &&
+        /A state act is one announcement of a policy by a government/.test(src) && /Harmful, likely/.test(src) && /Liberalising/.test(src));
+  const rp = new Function(src.match(/function rankPairs\([\s\S]*?\n\}\n/)[0] + "; return rankPairs;")();
+  check("a ranking's key leaves out empty steps", rp([1, 1, 1, 5, 9], [1, 5], ["a", "b", "c"], String).map((x) => x[1]).join("|") === "1 to under 5|5 or more");
+  check("trade flows: five tiers by value, each its own width and depth, largest on top, a key, and a menu for the largest",
+        /const RTE_W = \[0\.5, 1, 1\.7, 2\.6, 4\]/.test(src) && /"line-sort-key": tier/.test(src) && /data-rte-keep/.test(src) && /line \$\{\["thinnest", "thin", "middling", "wide", "widest"\]\[t\]\}/.test(src));
+  check("trafficking routes: curves, width by people, largest on top, menus for the least people and one country, opening at 100 or more",
+        /routes: \{ field: "n", from: "from", to: "to", least: \[1, 10, 100, 1000\] \}/.test(src) && /g\.coordinates = rteArc\(g\.coordinates\[0\], g\.coordinates\[1\]\)/.test(src) &&
+        /function shapeRoutes\(cfg, data\)/.test(src) && /start\.value = "100"/.test(src));
+  check("lines between countries and Global Trade Alert keep to cyan and blue", /\["giga", "country", "owidgrapher", "trase", "gta", "rte"\]\.includes\(c\.route\) \|\| c\.routes/.test(src));
+  check("export credit agencies: the places alone, keyed by the source's own marker colours",
+        /pointsOnly: true,/.test(src) && /if \(cfg\.pointsOnly\) data = /.test(src) && /"OECD Arrangement participant"/.test(src) && /if \(cfg\.key\) rowKey\(cfg\.id, cfg\.key, cfg\.keyHint\);/.test(src));
+  check("the social spheres' links name the people in both", /who: \(e\.via \|\| \[\]\)\.map\(\(id\) => P\.get\(id\) \|\| id\)\.join/.test(src) && /String\(p\.who\)\.split/.test(src));
+  check("the banking dynasties' timeline and charts open in a panel, from the copy in culprits-tiles-more",
+        /id: "site_banking_dynasties_charts",[^\n]*route: "companion"/.test(src) && /culprits-tiles-more\/pages\/banking_dynasties\.html/.test(src) &&
+        order.indexOf("site_banking_dynasties_charts") === order.indexOf("site_banking_dynasties") + 1);
+  check("Giga's and Global Trade Alert's shading have keys", (src.match(/key\.dataset\.keyFor = cfg\.id;/g) || []).length >= 3);
+  check("the page asks for this round's script", /app\.js\?v=(6[2-9]|[7-9]\d)/.test(html));
+}
+{
+  console.log("\nround 63: every row live or not live, the worlds round the flat map, policy rates and current accounts in place of CFR's trackers");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("a site map's kind rows and Guerillamap's row carry a mark",
+        /siteTypeTitle\(v\.label, mapName\.trim\(\), cfg\.id\)\)\}\$\{liveMark\(cfg\)\}/.test(src) && /Guerillamap overlays<span class="live"/.test(src));
+  check("a layer with sublayers and a small heading say live, not live, or how many of each",
+        /function headingLiveMark\(sec\)/.test(src) && /headingLiveMark\(sec\);/.test(src) && /toc-l\[3-9\]\|toc-bundle/.test(src) &&
+        /LIVE \$\{live\}/.test(src) && /NOT LIVE \$\{copy\}/.test(src) && /#layers \.toc-live \.live\{/.test(html));
+  check("the dynasties' copy says not live; the worlds, read from their page, say live",
+        /site_banking_dynasties_charts: "The Suppression page's own banking dynasties section, from a copy made once/.test(src) && /"worldsring",\n\]\);/.test(src));
+  check("the flat map may pull back into space while the worlds are shown, and is held again after",
+        /transformConstrain: flatConstrain,/.test(src) && /if \(FREE_FLAT\) return \{ center: new maplibregl\.LngLat/.test(src) &&
+        /return t\.defaultConstrain\(lngLat, zoom\);/.test(src) && /const want = on && drawnProjection\(\) === "mercator";/.test(src));
+  check("round the flat map, each world is placed out from the world's edge by its distance, with a line back",
+        /const tl = map\.project\(\[-180, 85\.05\]\), br = map\.project\(\[180, -85\.05\]\);/.test(src) &&
+        /const d = lo \+ \(hi - lo\) \* Math\.max\(0, Math\.min\(1, Number\(wd\.logX\) \|\| 0\)\);/.test(src) && /g\.setLineDash\(\[2, 4\]\)/.test(src) &&
+        /map\.easeTo\(\{ center: \[0, 0\], zoom: z, pitch: 0, bearing: 0/.test(src));
+  const T = new Function(src.slice(src.indexOf("const TRACKER_SEQ"), src.indexOf("async function addTrackerLayer(")) + "; return { TRACKER_MEASURES, trackerClass, trackerYearBefore, trackerValue };")();
+  const rate = T.TRACKER_MEASURES.rates[0], chg = T.TRACKER_MEASURES.rates[1], ca = T.TRACKER_MEASURES.imbalances[0];
+  check("policy rate steps: below 0 to 20% or more", T.trackerClass(rate, -0.5) === 0 && T.trackerClass(rate, 0) === 1 && T.trackerClass(rate, 25) === 6 && rate.names.length === rate.colours.length);
+  check("a rate's change over twelve months: unchanged is its own step",
+        T.trackerYearBefore("2024-03") === "2023-03" && chg.names[T.trackerClass(chg, 0)] === "unchanged" && chg.names[T.trackerClass(chg, -0.25)] === "cut by less than 0.5" && chg.names[T.trackerClass(chg, 3)] === "raised by 2 points or more");
+  const d = { countries: { USA: { rates: { "2023-03": 4.75, "2024-03": 5.33 } }, DEU: { BCA_NGDPD: { "2024": 6.2 } } } };
+  check("figures are read for the month or year chosen, and nothing is made up where there is none",
+        T.trackerValue({ kind: "rates" }, d, "USA", chg, "2024-03") === 0.58 && T.trackerValue({ kind: "rates" }, d, "USA", chg, "2024-04") === null &&
+        T.trackerValue({ kind: "imbalances" }, d, "DEU", ca, "2024") === 6.2 && ca.names[T.trackerClass(ca, 6.2)] === "surplus of 5 to 10%" && ca.names[T.trackerClass(ca, -1)] === "deficit under 2%");
+  check("the two tracker rows read the daily copies, keep their own colours, and sit beside CFR's",
+        /id: "policy_rates",[^\n]*route: "tracker"[^\n]*keepColour: true/.test(src) && /culprits-tiles-more\/trackers\/policy_rates\.json/.test(src) &&
+        /id: "imbalances",[^\n]*route: "tracker"/.test(src) && /"policy_rates", "imbalances", "cfr_tracker", "tableau_zsf"/.test(src) &&
+        /: cfg\.route === "tracker" \? addTrackerLayer\(cfg\)/.test(src) && /if \(salt && gladKept\(salt\)\) continue;/.test(src));
+  check("no violet or purple in the trackers' colours", [...new Set([...T.TRACKER_MEASURES.rates, ...T.TRACKER_MEASURES.imbalances].flatMap((m) => m.colours))].every((h) => {
+    const n = parseInt(h.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), dd = mx - mn;
+    if (dd < 12) return true; let hue = mx === r ? 60 * (((g - b) / dd) % 6) : mx === g ? 60 * ((b - r) / dd + 2) : 60 * ((r - g) / dd + 4); hue = (hue + 360) % 360;
+    return hue >= 160 && hue <= 236 || (hue < 60 && dd < 30); }));
+  check("the page asks for this round's script", /app\.js\?v=(6[3-9]|[7-9]\d)/.test(html));
+}
+{
+  console.log("\nround 64: every colour key reaches the Showing box");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("the Showing box reads a site map's Colour by key, the building kinds and the social spheres' kinds",
+        /\.facet\[data-colour-for="\$\{esc\}"\], \.facet\[data-kinds="\$\{esc\}"\]/.test(src) && /el\.dataset\.keyFor = cfg\.id;   \/\/ its kinds' colours are its key/.test(src));
+  check("the page asks for this round's script", /app\.js\?v=(6[4-9]|[7-9]\d)/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
