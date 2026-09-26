@@ -6120,6 +6120,10 @@ const CATALOGUE_BY_TITLE = [
   // emissions per hectare), under Climate. Its figures are CO2 equivalent, all
   // gases together, so not under one gas.
   [/\bwri_land_ghg_monitoring_system\b/, [IN(P + " > Climate", "landghg")]],
+  // Round 52 (26 September, at the owner's word): Global Forest Watch's copy of
+  // Conservation International's biodiversity hotspots taken out; the Atlas's
+  // hotspots row draws the same 2016.1 outlines and opens the Atlas's pages.
+  [/\bci_biodiversity_hotspots\b/, null],
   // ---- 25 September (round 49), at the owner's word ---------------------
   // Land and territory: FAO's forestry employment and Nusantara's four social
   // forestry rows (community, customary and village forest, customary

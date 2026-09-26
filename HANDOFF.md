@@ -5,6 +5,16 @@ touches.
 
 ---
 
+## Round 52 (26 September)
+
+- Taken out at the owner's word: GFW's ci_biodiversity_hotspots (duplicate of
+  atlas_hotspots). Aquaculture ponds kept (owner, 26 September).
+- Needs round 50 applied first (patches apply in name order).
+- culprits-tiles-more round 52: scripts/defor_funds_probe.py reads the latest
+  SEC N-PORT quarter (tables, columns, samples) and Forest 500's data links
+  into probe/nport/ and probe/forest500/, for the deforestation-funds builder.
+
+
 ## Round 50 (25 September): unstarted map work, first part
 
 - WRI land GHG monitoring system: GFW_COG_SPLIT / gfwCogParts make one row per

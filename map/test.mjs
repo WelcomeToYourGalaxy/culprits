@@ -4203,7 +4203,17 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /\{ h: 4, t: "Birds" \}, "copy_endemic_bird_areas"/.test(src) &&
         /"Logging and timber concessions" \}, "copy_per_forest_concessions", "copy_osinfor_per_forest_concessions"/.test(src) &&
         /gfw\/birdlife_endemic_bird_areas\.geojson/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=50/.test(html) && /wire\.js\?v=50/.test(html));
+  check("the page asks for this round's script", /app\.js\?v=(5\d|[6-9]\d)/.test(html) && /wire\.js\?v=(5\d|[6-9]\d)/.test(html));
+}
+{
+  console.log("\nround 52: the duplicate hotspots row out");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const cut = (from, to) => src.slice(src.indexOf(from), src.indexOf(to));
+  const lib = new Function(cut("const NUSANTARA_NAMES = {", "/* ---------- a catalogue's layers as rows") +
+    cut("const P = \"Destruction > Of the planet\";", "// The body of the heading a path names") + "; return { cataloguePlaces };")();
+  const t = "Biodiversity hotspots — Global (land only) ci_biodiversity_hotspots";
+  check("Global Forest Watch's biodiversity hotspots row is taken out; the Atlas's hotspots row stays",
+        lib.cataloguePlaces(t, t).join() === "(taken out)" && /id: "atlas_hotspots"/.test(src));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
