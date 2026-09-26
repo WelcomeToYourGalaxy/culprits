@@ -5,6 +5,30 @@ touches.
 
 ---
 
+## Round 50 (25 September): unstarted map work, first part
+
+- WRI land GHG monitoring system: GFW_COG_SPLIT / gfwCogParts make one row per
+  saved GeoTIFF (cropland emissions, livestock emissions, livestock emissions
+  per hectare), titled from the file name, together as BUNDLES.landghg under
+  Destruction > Of the planet > Climate (CO2 equivalent, all gases). Each part
+  draws its own COG (d.cog) stretched by gfwCogScale.
+- soil_nematodes (Soil biodiversity): van den Hoogen et al. 2020 Sci Data,
+  figshare collection 4718003, CC0; samples and 1 km pooled files, every
+  column. Built by culprits-tiles-more scripts/soil_nematodes.py.
+- Copies of slow GFW datasets (culprits-tiles-more scripts/gfw_copies.py,
+  latest version as GeoPackage via the data API's download/gpkg, every
+  feature and field, 5 decimals): copy_endemic_bird_areas (Birds),
+  copy_per_forest_concessions and copy_osinfor_per_forest_concessions
+  (Logging and timber concessions). The GFW catalogue rows stay until the
+  copies are seen working; then take them out.
+- culprits-tiles-more scripts/pe_probe.py saves Portfolio Earth's report text
+  to probe/pe/ for the next round's builder (banks at headquarters).
+- Not done, and why: GSN country rankings (the site's terms forbid automated
+  copying; the xlsx comes from the site); earthworms (sWorm, iDiv 1880: no
+  licence stated). Deforestation-funds: workable from SEC N-PORT holdings
+  (public) x Forest 500 companies (CC BY-NC 4.0); not built yet.
+
+
 ## Round 49 (25 September): Land and territory pared down, LandMark one row
 
 At the owner's word, from the filing report of 25 September:

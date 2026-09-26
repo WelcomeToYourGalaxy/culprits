@@ -4032,7 +4032,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         !/fortune500|interactives\.fortune\.com/.test(src) && /"wreckers_umap", "largest_companies", "theyrule"/.test(src));
   check("the row reads the weekly copy and shows every field", /id: "largest_companies", name: "The 500 largest companies by revenue \(compiled from Wikidata\)"[^\n]*route: "geojsonlive"/.test(src) &&
         /culprits-tiles-more\/companies\/largest\.geojson/.test(src) && /largest_companies: "Compiled weekly from Wikidata/.test(src));
-  check("the page asks for a fresh script", /app\.js\?v=4[5-9]/.test(html) && /wire\.js\?v=4[5-9]/.test(html));
+  check("the page asks for a fresh script", /app\.js\?v=(4[5-9]|[5-9]\d)/.test(html) && /wire\.js\?v=(4[5-9]|[5-9]\d)/.test(html));
 }
 {
   console.log("\nround 46: every layer drawn in the GLAD-S2 colours, not only its swatch");
@@ -4058,7 +4058,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /tiles = spec\.tiles\.map\(\(t\) => \/\^gladpx:\/\.test\(t\) \? t : `gladpx:\/\/\$\{encodeURIComponent\(salt\)\}\/\$\{t\}`\)/.test(src) &&
         /const GLAD_SKIP_SOURCES = new Set\(\["base", "s2", "hillshade", "labels"\]\)/.test(src) && /GLAD_PM_RASTER\.get\(m\[1\]\)/.test(src));
   check("every layer added and every colour set passes through it", /try \{ layer = gladLayer\(layer\); \}/.test(src) && /v = gladPaint\(id, prop, v\);/.test(src) && /spec = gladSourceSpec\(id, spec\);/.test(src));
-  check("the page asks for a fresh script", /app\.js\?v=4[6-9]/.test(html));
+  check("the page asks for a fresh script", /app\.js\?v=(4[6-9]|[5-9]\d)/.test(html));
 }
 {
   console.log("\nround 47: Eyes leaves Earth; natural disasters; soil biodiversity; keys under Showing; columns stand up");
@@ -4070,7 +4070,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("the earthquakes are under Destruction > Of the planet > Natural disasters, and nowhere under Base and reference",
         /\{ h: 3, t: "Natural disasters" \}, "skytruth_quakes",/.test(src) && /\{ h: 2, t: "Physical and human geography" \},\n/.test(src));
   check("a Soil biodiversity heading under Biodiversity loss holds the Underground Atlas and SoilGrids",
-        /\{ h: 4, t: "Soil biodiversity" \}, "soil_spun", "soilgrids",/.test(src) && /id: "soil_spun"[^\n]*route: "rasterlive"/.test(src) &&
+        /\{ h: 4, t: "Soil biodiversity" \}, "soil_spun", ("soil_nematodes", )?"soilgrids",/.test(src) && /id: "soil_spun"[^\n]*route: "rasterlive"/.test(src) &&
         /soil\/spun_choices\.json/.test(src) && /if \(!cfg\.choices \|\| !cfg\.choices\.length\) \{ setLayerState/.test(src));
   check("each layer in the Showing box has its colour key indented under it",
         /`<span class="lg-un">\$\{c\.unit \|\| ""\}<\/span><\/div>` \+ legendKeyRows\(c\.id\)/.test(src) && /function legendKeyPairs\(id\)/.test(src) && /function watchKeysForLegend\(\)/.test(src));
@@ -4084,7 +4084,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /map\.easeTo\(\{ pitch: COLUMN_TILT, duration: 900 \}\)/.test(src));
   check("Banking on Climate Chaos is mapped: its banks at their headquarters, every figure in the box", /id: "bocc"[^\n]*route: "geojsonlive"/.test(src) &&
         /culprits-tiles-more\/bocc\/banks\.geojson" \}\], nameFrom: \["bank"\]/.test(src) && /  bocc: "The report's league tables/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=4[7-9]/.test(html));
+  check("the page asks for this round's script", /app\.js\?v=(4[7-9]|[5-9]\d)/.test(html));
 }
 {
   console.log("\nround 48: rows refiled and taken out; colour scales that can be told apart; the drug and Eyes maps copied whole");
@@ -4133,7 +4133,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /swatchFill\(sitemapDrawnColours\(cfg, data\.features, v\.k\)\) \|\| cfg\.colour/.test(src));
   check("WRI's land greenhouse gas map is stretched by its own statistics, zeros left clear",
         /const GFW_COG_MEASURED = new Set\(\["wri_land_ghg_monitoring_system"\]\);/.test(src) && /rescale=\$\{lo\},\$\{hi\}/.test(src) &&
-        /if \(asset\.how === "cog" && GFW_COG_MEASURED\.has\(d\.id\)\) asset\.uri \+= await gfwCogScale\(asset\.uri\);/.test(src));
+        /if \(asset\.how === "cog" && GFW_COG_MEASURED\.has\((d\.id|ds)\)\) asset\.uri \+= await gfwCogScale\(asset\.uri\);/.test(src));
   const reg = JSON.parse(fs.readFileSync(path.join(HERE, "..", "pipeline", "sitemaps", "registry.json"), "utf8")).maps;
   check("the drug map and the Eyes network are read from their pages' own data",
         reg.some((m) => m.id === "capture_map" && m.rich === "capture") && reg.some((m) => m.id === "site_eyes_network" && m.rich === "eyes") &&
@@ -4173,7 +4173,37 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("Global Forest Watch's working files are taken out, \"To delete\" included",
         out("SDPT Whitelist (iso) gfw_planted_forests_whitelist") && out("Pixel Area gfw_pixel_area") &&
         out("Umd area 2013 umd_area_2013") && out("To delete (Global Forest Watch gives this dataset no title) to_delete"));
-  check("the page asks for this round's script", /app\.js\?v=49/.test(html) && /wire\.js\?v=49/.test(html));
+  check("the page asks for this round's script", /app\.js\?v=(49|[5-9]\d)/.test(html) && /wire\.js\?v=(49|[5-9]\d)/.test(html));
+}
+{
+  console.log("\nround 50: WRI's land greenhouse gases split by file; soil nematodes; our own copies of three slow Global Forest Watch datasets");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const parts = new Function(src.slice(src.indexOf("const GFW_COG_SPLIT"), src.indexOf("// The zooms an asset's tiles exist at")) + "; return gfwCogParts;")();
+  const cog = (f, st) => ({ asset_type: "COG", status: st || "saved", asset_uri: `s3://gfw-data-lake/wri_land_ghg_monitoring_system/v1.0.3/raster/epsg-4326/cog/${f}.tif` });
+  const got = parts({ id: "wri_land_ghg_monitoring_system", title: "x", meta: {} },
+    { wri_land_ghg_monitoring_system: [cog("cropland_emissions"), cog("livestock_emissions"), cog("livestock_emissions_per_ha_v3"), cog("net_flux_per_year", "failed")] });
+  check("each saved GeoTIFF of WRI's land greenhouse gas system is its own row, named from its file; failed ones are not",
+        got.length === 3 && got[0].title === "Cropland emissions, CO2 equivalent (WRI land greenhouse gas monitoring system)" &&
+        got[2].title === "Livestock emissions per hectare, CO2 equivalent (WRI land greenhouse gas monitoring system)" &&
+        got.every((d) => d.dataset === "wri_land_ghg_monitoring_system" && /^s3:/.test(d.cog)) && new Set(got.map((d) => d.id)).size === 3);
+  check("other datasets are left as one row", parts({ id: "other" }, { other: [cog("a"), cog("b")] }).length === 1);
+  const cut = (from, to) => src.slice(src.indexOf(from), src.indexOf(to));
+  const lib = new Function(cut("const NUSANTARA_NAMES = {", "/* ---------- a catalogue's layers as rows") +
+    cut("const P = \"Destruction > Of the planet\";", "// The body of the heading a path names") + "; return { cataloguePlaces };")();
+  const t = "Cropland emissions, CO2 equivalent (WRI land greenhouse gas monitoring system) wri_land_ghg_monitoring_system--cropland_emissions";
+  check("the parts sit together as one row with sublayers under Climate",
+        lib.cataloguePlaces(t, t).join() === "Destruction > Of the planet > Climate > Greenhouse gases from cropland and livestock, CO2 equivalent (WRI land greenhouse gas monitoring system)" &&
+        /\{ h: 3, t: "Climate" \},\n  \{ h: 4, bundle: "landghg"/.test(src));
+  check("a part draws its own GeoTIFF, stretched by its own statistics",
+        /const asset = d\.cog \? \{ how: "cog", uri: GFW_COG_TILES \+ encodeURIComponent\(d\.cog\)/.test(src) && /GFW_COG_MEASURED\.has\(ds\)/.test(src));
+  check("soil nematodes are under Soil biodiversity, both files of the record drawn",
+        /"soil_spun", "soil_nematodes", "soilgrids"/.test(src) && /soil\/nematodes_samples\.geojson/.test(src) && /soil\/nematodes_aggregated\.geojson/.test(src));
+  check("the copies of Endemic Bird Areas and Peru's concessions are under Birds and Logging",
+        /\{ h: 4, t: "Birds" \}, "copy_endemic_bird_areas"/.test(src) &&
+        /"Logging and timber concessions" \}, "copy_per_forest_concessions", "copy_osinfor_per_forest_concessions"/.test(src) &&
+        /gfw\/birdlife_endemic_bird_areas\.geojson/.test(src));
+  check("the page asks for this round's script", /app\.js\?v=50/.test(html) && /wire\.js\?v=50/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

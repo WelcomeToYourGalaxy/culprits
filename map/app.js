@@ -6009,6 +6009,7 @@ const BUNDLES = {
   plans: "Spatial plans, forest estate and the clearing moratorium, Indonesia",
   idnplant: "Plantations in Indonesia and its neighbours, region by region",
   landmark: "Indigenous Peoples' and local communities' lands and territories, worldwide (LandMark)",
+  landghg: "Greenhouse gases from cropland and livestock, CO2 equivalent (WRI land greenhouse gas monitoring system)",
 };
 const IN = (path, key) => `${path} > ${BUNDLES[key]}`;
 const ZDC = "(zero-deforestation commitment)";
@@ -6114,6 +6115,11 @@ const CATALOGUE_BY_TITLE = [
   [/test[ _]?dataset/i, null],
   [/\bsicar\b|sfb_bra_sicar|sfb bra sicar/i, null],
   [/permanent production fores/i, null],
+  // Round 50: WRI's land greenhouse gas monitoring system, one row whose parts
+  // are its GeoTIFFs (cropland emissions, livestock emissions, livestock
+  // emissions per hectare), under Climate. Its figures are CO2 equivalent, all
+  // gases together, so not under one gas.
+  [/\bwri_land_ghg_monitoring_system\b/, [IN(P + " > Climate", "landghg")]],
   // ---- 25 September (round 49), at the owner's word ---------------------
   // Land and territory: FAO's forestry employment and Nusantara's four social
   // forestry rows (community, customary and village forest, customary
@@ -6722,6 +6728,7 @@ async function addWmsMenuLayer(cfg) {
 // same work as the Mines row, in Global Forest Watch's copy. Any other untitled
 // dataset shows its id in words, marked as having no title, rather than a guess.
 const GFW_TITLES = {
+  wri_land_ghg_monitoring_system: "Land greenhouse gases, CO2 equivalent (WRI land greenhouse gas monitoring system)",
   // The two parts of the LandMark row (round 49).
   landmark_ip_lc_and_indicative_poly: "Lands and territories with known boundaries, as areas, worldwide (LandMark)",
   landmark_ip_lc_and_indicative_points: "Lands and territories with no known boundary, as points, worldwide (LandMark)",
@@ -6927,6 +6934,24 @@ const GFW_COG_TILES = "https://tiles.globalforestwatch.org/cog/basic/tiles/WebMe
 // percentile; cells holding zero are left clear where no value is below zero.
 // If the statistics do not come, the zeros are still left clear.
 const GFW_COG_MEASURED = new Set(["wri_land_ghg_monitoring_system"]);
+// Datasets whose GeoTIFFs are separate maps (25 September, round 50): WRI's
+// land greenhouse gas monitoring system holds cropland emissions, livestock
+// emissions and livestock emissions per hectare, and only the first was drawn.
+// Each saved GeoTIFF of these becomes its own row, named from its file name,
+// and they sit together as one row with sublayers.
+const GFW_COG_SPLIT = new Set(["wri_land_ghg_monitoring_system"]);
+function gfwCogParts(d, index) {
+  if (!GFW_COG_SPLIT.has(d.id) || !index || !index[d.id]) return [d];
+  const cogs = index[d.id].filter((a) => /^COG$/i.test(a.asset_type || "") && String(a.status || "saved").toLowerCase() === "saved" && /^s3:\/\//.test(a.asset_uri || ""));
+  if (cogs.length < 2) return [d];
+  return cogs.map((a) => {
+    const file = String(a.asset_uri).split("/").pop().replace(/\.tif$/i, "");
+    const words = file.replace(/_v\d+$/i, "").replace(/_/g, " ").replace(/\bper ha\b/i, "per hectare");
+    const cap = words.charAt(0).toUpperCase() + words.slice(1);
+    return Object.assign({}, d, { id: `${d.id}--${file}`, dataset: d.id, cog: a.asset_uri,
+      title: `${cap}, CO2 equivalent (WRI land greenhouse gas monitoring system)` });
+  });
+}
 async function gfwCogScale(uri) {
   const file = String(uri).split("?url=")[1];
   if (!file) return "";
@@ -7049,6 +7074,7 @@ async function addGfwMenuLayer(cfg) {
     return { id: d.dataset, meta,
       title: where && !new RegExp(where.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(said) && !(/\bworldwide\b/i.test(said) && /^global\b/i.test(where)) ? `${said} \u2014 ${where}` : said };
   })
+    .flatMap((d) => gfwCogParts(d, index))
     .sort((a, b) => a.title.localeCompare(b.title));
   // Each dataset is a row of the layers box, filed by what it shows. Several
   // can be drawn at once now: the menu drew one at a time and cleared the last,
@@ -7078,7 +7104,8 @@ async function addGfwMenuLayer(cfg) {
     const src = `${cfg.id}-${safe(d.id)}`;
     const ids = [];
     try {
-      let assets = index ? (index[d.id] || []) : null;
+      const ds = d.dataset || d.id;
+      let assets = index ? (index[ds] || []) : null;
       if (!assets) {
         let version = null;
         try { version = (await getJson(`${cfg.api}/dataset/${d.id}/latest`)).data.version; } catch (e) { /* none marked latest */ }
@@ -7089,8 +7116,9 @@ async function addGfwMenuLayer(cfg) {
         }
         assets = version ? ((await getJson(`${cfg.api}/dataset/${d.id}/${version}/assets`)).data || []) : [];
       }
-      const asset = gfwPickAsset(assets);
-      if (asset.how === "cog" && GFW_COG_MEASURED.has(d.id)) asset.uri += await gfwCogScale(asset.uri);
+      // A part of a split dataset draws its own GeoTIFF (gfwCogParts).
+      const asset = d.cog ? { how: "cog", uri: GFW_COG_TILES + encodeURIComponent(d.cog), minzoom: 0, maxzoom: 12 } : gfwPickAsset(assets);
+      if (asset.how === "cog" && GFW_COG_MEASURED.has(ds)) asset.uri += await gfwCogScale(asset.uri);
       const vec = asset.how === "vector" ? { asset_uri: asset.uri } : null;
       const decode = asset.how === "raster" && GFW_DECODE[d.id] && GFW_KEYS[d.id];
       const key = asset.how === "cog" || decode ? GFW_KEYS[d.id] : null;
@@ -11182,6 +11210,28 @@ const OTHER_MAPS = {
       attribution: "SPUN Underground Atlas: Van Nuland, Kiers et al. 2025, Nature (CC BY 4.0)", maxzoom: 12,
       choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/soil/spun_choices.json", choices: [],
       note: "The most detailed worldwide map of life in the soil that is open to copy: SPUN's Underground Atlas, predicted richness and endemism of the fungi that live with plant roots (arbuscular and ectomycorrhizal), about 1 km across, from 2.8 billion DNA sequences sampled in 130 countries (Van Nuland et al. 2025, Nature). Every map in its data record is a choice here, named from its file; each is shaded in 12 steps between its own 2nd and 98th percentiles, with the key giving each step's values. A model's prediction, not a count. Maps across all soil life (bacteria, fungi, protists, invertebrates) exist, but their present-day grids are not published for copying, and the EU's Global Soil Biodiversity Atlas maps may not be passed on. Copied once by culprits-tiles-more from Zenodo record 10.5281/zenodo.14871588." },
+    // Round 50 (25 September): soil nematodes, the samples behind the global
+    // nematode maps (van den Hoogen et al.), CC0; copied by culprits-tiles-more
+    // scripts/soil_nematodes.py with every column of every sample.
+    { id: "soil_nematodes", name: "Soil nematodes: every sample, worldwide (van den Hoogen et al.)", unit: "soil samples", colour: "#6B5A4A", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Samples", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/soil/nematodes_samples.geojson" }, { label: "Samples pooled by 1 km square, with their environment", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/soil/nematodes_aggregated.geojson" }],
+      attribution: "van den Hoogen, Geisen, Wall et al. 2020, Scientific Data 7, 103 (CC0)",
+      note: "The global database of soil nematode abundance and functional group composition: 6,825 soil samples from every continent, each with its count of nematodes per 100 g of dry soil by feeding group (bacteria, fungi, plant, omnivore, predator feeders). Both files of its data record are drawn whole, the samples and the samples pooled by 1 km square with the environmental figures the 2019 global maps were modelled from; every column is in the box. Copied from figshare (10.6084/m9.figshare.c.4718003) by culprits-tiles-more." },
+    // Round 50: copies of three Global Forest Watch datasets its tile service
+    // draws slowly, made by culprits-tiles-more scripts/gfw_copies.py (every
+    // feature, every field, latest version).
+    { id: "copy_endemic_bird_areas", name: "Endemic Bird Areas (BirdLife International, Global Forest Watch's copy)", unit: "areas", colour: "#5E6470", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Endemic Bird Areas", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gfw/birdlife_endemic_bird_areas.geojson" }],
+      attribution: "BirdLife International, via Global Forest Watch",
+      note: "Every Endemic Bird Area and every field, copied whole from Global Forest Watch's latest version, so it draws at once." },
+    { id: "copy_per_forest_concessions", name: "Forest concessions, Peru (Global Forest Watch)", unit: "concessions", colour: "#6E5E52", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Forest concessions, Peru", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gfw/per_forest_concessions.geojson" }],
+      attribution: "Global Forest Watch (per_forest_concessions)",
+      note: "Every concession and every field, copied whole from Global Forest Watch's latest version, so it draws at once." },
+    { id: "copy_osinfor_per_forest_concessions", name: "Forest concessions, Peru (OSINFOR, Global Forest Watch)", unit: "concessions", colour: "#6E5E52", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Forest concessions, Peru (OSINFOR)", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gfw/osinfor_per_forest_concessions.geojson" }],
+      attribution: "OSINFOR, via Global Forest Watch",
+      note: "Every concession and every field, copied whole from Global Forest Watch's latest version, so it draws at once." },
     { id: "soilgrids", name: "Soil properties (SoilGrids, ISRIC)", unit: "soil properties, 250 m", colour: "#6B5A4A", route: "rasterlive", ready: true, lazy: true,
       attribution: "ISRIC SoilGrids (CC BY 4.0)", maxzoom: 14,
       choices: [
@@ -11803,6 +11853,10 @@ const LAYER_KIND = {
   osm_landuse: ["human", "upstream"],
   aquaculture_ponds: ["animal", "upstream"],
   soilgrids: ["microorganism", "downstream"],
+  soil_nematodes: ["animal", "downstream"],
+  copy_endemic_bird_areas: ["animal", "downstream"],
+  copy_per_forest_concessions: ["plant", "upstream"],
+  copy_osinfor_per_forest_concessions: ["plant", "upstream"],
   soil_spun: ["microorganism", "downstream"],
   wastewater: ["insentient", "downstream"],
   wastewater_n_tot: ["insentient", "downstream"], wastewater_n_treated: ["insentient", "downstream"],
@@ -12412,6 +12466,10 @@ const LAYER_SITE = {
   slavery_routes: "https://github.com/WelcomeToYourGalaxy/anti-slavery-map",
   slavery_sites: "https://github.com/WelcomeToYourGalaxy/anti-slavery-map",
   soilgrids: "https://maps.isric.org/mapserv?map=/map",
+  soil_nematodes: "https://doi.org/10.6084/m9.figshare.c.4718003",
+  copy_endemic_bird_areas: "https://data-api.globalforestwatch.org/dataset/birdlife_endemic_bird_areas",
+  copy_per_forest_concessions: "https://data-api.globalforestwatch.org/dataset/per_forest_concessions",
+  copy_osinfor_per_forest_concessions: "https://data-api.globalforestwatch.org/dataset/osinfor_per_forest_concessions",
   soil_spun: "https://doi.org/10.5281/zenodo.14871588",
   tableau_zsf: "https://public.tableau.com/shared/ZSF724HPQ?:showVizHome=no&:embed=y",
   theyrule: "https://theyrule.net/",
@@ -12519,6 +12577,10 @@ function refreshNote(cfg) {
 const NOT_LIVE = {
   bocc: "The report's league tables, read once from the 2026 report; headquarters from GLEIF and OpenStreetMap",
   soil_spun: "Copied once from the Underground Atlas data record (Zenodo 10.5281/zenodo.14871588)",
+  soil_nematodes: "Copied from its figshare data record; copied again only when a file changes",
+  copy_endemic_bird_areas: "Copied from Global Forest Watch; copied again when it publishes a new version",
+  copy_per_forest_concessions: "Copied from Global Forest Watch; copied again when it publishes a new version",
+  copy_osinfor_per_forest_concessions: "Copied from Global Forest Watch; copied again when it publishes a new version",
   largest_companies: "Compiled weekly from Wikidata by culprits-tiles-more",
   coastal_cleanup: "Ocean Conservancy's cleanup sites, from a copy made daily (their server lets only their own site read it)",
   food_soy: "Built once from the 2017 data package of Halpern et al. 2022; it is not updated",
@@ -12582,6 +12644,7 @@ const PANEL_ORDER = [
   // gas; a true per-gas split waits on the per-gas columns the source
   // publishes (they now reach the pieces, not yet the tiles).
   { h: 3, t: "Climate" },
+  { h: 4, bundle: "landghg", colour: "#5E6470" },
   // The Climate TRACE groups stay by sector until each site is split by the
   // gas it emits (22 September): filed under one gas each, the gases a
   // sector also emits were drowned out.
@@ -12637,7 +12700,7 @@ const PANEL_ORDER = [
   // plans headings are gone into it.
   { h: 4, t: "Forest cover in 2020" },
   { h: 4, t: "Trees in mosaic landscapes" },
-  { h: 4, t: "Logging and timber concessions" },
+  { h: 4, t: "Logging and timber concessions" }, "copy_per_forest_concessions", "copy_osinfor_per_forest_concessions",
   { h: 4, t: "Timber and rubber plantations" },
   { h: 4, t: "Forest zoning and management plans" },
   { h: 4, t: "Illegal logging and timber trafficking" }, "powerbi_report",
@@ -12658,13 +12721,13 @@ const PANEL_ORDER = [
   { h: 4, bundle: "plans", colour: "#6E6A55" },
   { h: 3, t: "Biodiversity loss" },
   { h: 4, t: "Places that matter most for species" }, "gsn_rankings", "atlas_hotspots", "atlas_cities",
-  { h: 4, t: "Birds" },
+  { h: 4, t: "Birds" }, "copy_endemic_bird_areas",
   { h: 4, t: "Protected and conserved areas" },
   { h: 4, t: "Intact and primary forests" },
   { h: 4, t: "Disturbance" },
   { h: 4, t: "Fish" },
   // Asked for 25 September: most biodiversity layers leave out the soil.
-  { h: 4, t: "Soil biodiversity" }, "soil_spun", "soilgrids",
+  { h: 4, t: "Soil biodiversity" }, "soil_spun", "soil_nematodes", "soilgrids",
   { h: 4, t: "Wildlife and timber crime" }, "powerbi_report",
   { h: 4, t: "Companies and financiers" }, "pe_subsidising", "pe_bankrolling",
   // Item 30: the most detailed worldwide land cover and land use found.
