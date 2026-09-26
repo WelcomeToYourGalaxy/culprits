@@ -11339,16 +11339,6 @@ const OTHER_MAPS = {
       files: [{ label: "Forest concessions, Peru (OSINFOR)", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gfw/osinfor_per_forest_concessions.geojson" }],
       attribution: "OSINFOR, via Global Forest Watch",
       note: "Every concession and every field, copied whole from Global Forest Watch's latest version, so it draws at once." },
-    // Round 53 (26 September): earthworms, where they have been recorded. The
-    // modelled world maps of earthworm diversity (Phillips et al. 2019, sWorm)
-    // state no licence, so GBIF's record of every georeferenced earthworm
-    // observation is drawn live instead: order Crassiclitellata, GBIF backbone
-    // key 5958860 (the order the family Lumbricidae sits in there).
-    { id: "soil_earthworms", name: "Earthworms: every recorded sighting with a position, worldwide (GBIF)", unit: "occurrence records", colour: "#6B5A4A", route: "rasterlive", ready: true, lazy: true,
-      attribution: "GBIF.org occurrence data (records under CC0, CC BY or CC BY-NC, as each publisher sets)", maxzoom: 14,
-      choices: [{ label: "Each record", tiles: "https://api.gbif.org/v2/map/occurrence/density/{z}/{x}/{y}@1x.png?taxonKey=5958860&style=classic.point" },
-                { label: "Records per hexagon", tiles: "https://api.gbif.org/v2/map/occurrence/density/{z}/{x}/{y}@1x.png?taxonKey=5958860&bin=hex&hexPerTile=30&style=classic.poly" }],
-      note: "Every georeferenced record of earthworms (order Crassiclitellata) that museums, surveys and observers have published to GBIF, drawn live from GBIF's own map service: about 266,000 records when added. Where earthworms have been looked for and written down, not a model of where they live; many places have never been surveyed." },
     { id: "soilgrids", name: "Soil properties (SoilGrids, ISRIC)", unit: "soil properties, 250 m", colour: "#6B5A4A", route: "rasterlive", ready: true, lazy: true,
       attribution: "ISRIC SoilGrids (CC BY 4.0)", maxzoom: 14,
       choices: [
@@ -11971,7 +11961,6 @@ const LAYER_KIND = {
   aquaculture_ponds: ["animal", "upstream"],
   soilgrids: ["microorganism", "downstream"],
   soil_nematodes: ["animal", "downstream"],
-  soil_earthworms: ["animal", "downstream"],
   copy_endemic_bird_areas: ["animal", "downstream"],
   copy_per_forest_concessions: ["plant", "upstream"],
   copy_osinfor_per_forest_concessions: ["plant", "upstream"],
@@ -12585,7 +12574,6 @@ const LAYER_SITE = {
   slavery_sites: "https://github.com/WelcomeToYourGalaxy/anti-slavery-map",
   soilgrids: "https://maps.isric.org/mapserv?map=/map",
   soil_nematodes: "https://doi.org/10.6084/m9.figshare.c.4718003",
-  soil_earthworms: "https://www.gbif.org/species/5958860",
   copy_endemic_bird_areas: "https://data-api.globalforestwatch.org/dataset/birdlife_endemic_bird_areas",
   copy_per_forest_concessions: "https://data-api.globalforestwatch.org/dataset/per_forest_concessions",
   copy_osinfor_per_forest_concessions: "https://data-api.globalforestwatch.org/dataset/osinfor_per_forest_concessions",
@@ -12846,7 +12834,7 @@ const PANEL_ORDER = [
   { h: 4, t: "Disturbance" },
   { h: 4, t: "Fish" },
   // Asked for 25 September: most biodiversity layers leave out the soil.
-  { h: 4, t: "Soil biodiversity" }, "soil_spun", "soil_nematodes", "soil_earthworms", "soilgrids",
+  { h: 4, t: "Soil biodiversity" }, "soil_spun", "soil_nematodes", "soilgrids",
   { h: 4, t: "Wildlife and timber crime" }, "powerbi_report",
   { h: 4, t: "Companies and financiers" }, "pe_subsidising", "pe_bankrolling",
   // Item 30: the most detailed worldwide land cover and land use found.

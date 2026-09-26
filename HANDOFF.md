@@ -5,6 +5,13 @@ touches.
 
 ---
 
+## Round 55 (26 September)
+
+- soil_earthworms (round 53) taken out at the owner's word: they wanted soil
+  biodiversity as a whole. Permission requests drafted for the owner to send:
+  JRC ESDAC (Global Soil Biodiversity Atlas index) and the sWorm authors.
+
+
 ## Round 54 (26 September): Atlas hotspot plates sharp at any zoom
 
 - atlasVector / atlasPageClip: once the view is closer than the plate's fit

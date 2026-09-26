@@ -4216,11 +4216,9 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         lib.cataloguePlaces(t, t).join() === "(taken out)" && /id: "atlas_hotspots"/.test(src));
 }
 {
-  console.log("\nround 53: earthworms from GBIF, live");
+  console.log("\nround 55: the earthworm records taken out again (the owner wanted soil biodiversity as a whole)");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("earthworm records are under Soil biodiversity, drawn live from GBIF's map service for order Crassiclitellata",
-        /"soil_nematodes", "soil_earthworms", "soilgrids"/.test(src) &&
-        /id: "soil_earthworms"[^\n]*route: "rasterlive"/.test(src) && /api\.gbif\.org\/v2\/map\/occurrence\/density\/\{z\}\/\{x\}\/\{y\}@1x\.png\?taxonKey=5958860&style=classic\.point/.test(src));
+  check("no earthworm row; Soil biodiversity holds the fungi, the nematodes and SoilGrids", !/soil_earthworms/.test(src) && /"soil_spun", "soil_nematodes", "soilgrids",/.test(src));
 }
 {
   console.log("\nround 54: the Atlas's hotspot pages drawn from their PDFs close in");
