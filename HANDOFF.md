@@ -5,6 +5,33 @@ touches.
 
 ---
 
+## Round 74 (27 September)
+
+- The Guerillamap row is out (gmInit returns before building it; GM_ROW = false
+  brings it back). In its place, group MILITARY and bundle "military" ("Wars,
+  militaries and weapons, past and current") under On-planet invasion > Of
+  countries by countries, with bundle "milcompare" inside it.
+- Live: mil_aircraft (route adsbmil: https://api.adsb.lol/v2/mil, then
+  api.airplanes.live/v2/mil, re-read every 60 s, arrows by track); mil_news
+  (route gdeltgeo: GDELT GEO 2.0 PointData GeoJSON over 7 days for a fighting
+  query, links rebuilt from its html; falls back to the daily copy
+  military/news.geojson); seven owidgrapher rows (SIPRI spending % GDP, % of
+  government spending, US$; armed forces personnel; FAS warheads; nuclear tests
+  per year; position on nuclear weapons).
+- Daily copies from culprits-tiles-more scripts/military.py (round74_tiles):
+  UCDP GED + candidate events as tiles/mil_conflicts.pmtiles with gzipped
+  pieces military/ucdp (every field; facet x_kind); Wikidata military
+  installations, units at headquarters, nuclear test sites, terrorist attacks
+  (classes found by English label, then every subclass); OpenStreetMap
+  minefields (Overpass); alliances as shapes/mil_alliances.geojson with its own
+  menu (addShapesLayer now takes data.menu when SHAPE_COLOUR_BY has none).
+- Could not be built from open data: air and naval base activity; military
+  vessels' positions (no open AIS); nuclear missile ranges and nuclear weapons
+  storage sites (no open dataset of deployed sites); equipment counts and the
+  Firepower Index (Global Firepower, no licence; owner to ask). Uyghur
+  detention sites (ASPI Xinjiang Data Project): terms not found; owner to ask.
+
+
 ## Round 73 (27 September)
 
 - New row other_invaded (shapes route, box: "invaded"), under Invasion of

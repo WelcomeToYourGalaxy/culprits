@@ -3866,6 +3866,7 @@ async function addLivePlacesLayer(cfg) {
         : cfg.route === "ll2" ? await readLaunchLibrary(cfg)
         : cfg.route === "ejatlas" ? await readEjatlas(cfg)
         : cfg.route === "geojsonlive" ? await readGeojsonFiles(cfg)
+        : cfg.route === "gdeltgeo" ? await readGdeltGeo(cfg)
         : cfg.route === "wpgmza" ? await readWpgmza(cfg)
         : cfg.route === "atlascities" ? await readAtlasCities(cfg)
         : cfg.route === "trasefac" ? await readTraseFacilities(cfg)
@@ -6479,6 +6480,8 @@ const BUNDLES = {
   // Round 72: Brazil's own registers of Indigenous territories (FUNAI) and
   // quilombola territories (INCRA) are parts of this layer, at the owner's word.
   landmark: "Indigenous Peoples' and local communities' lands and territories, worldwide (LandMark, with Brazil's FUNAI and INCRA)",
+  military: "Wars, militaries and weapons, past and current",
+  milcompare: "Armies, spending and nuclear weapons, country by country",
   // Round 72: the two resource rights rows are one layer, at the owner's word.
   resrights: "Community rights to natural resources, worldwide and in Cameroon, Equatorial Guinea, Liberia and Namibia (LandMark and Global Forest Watch)",
   landghg: "Greenhouse gases from cropland and livestock, CO2 equivalent (WRI land greenhouse gas monitoring system)",
@@ -10750,7 +10753,7 @@ async function addShapesLayer(cfg) {
     return;
   }
   const source = `${cfg.id}-shapes`;
-  let by = SHAPE_COLOUR_BY[cfg.id];
+  let by = SHAPE_COLOUR_BY[cfg.id] || (Array.isArray(data.menu) && data.menu.length ? data.menu : undefined);
   // Round 62: a shaded layer with no colours of its own gets a key. Where each
   // country carries a count of the entries the source lists for it (the
   // government maps), the count shades it; where every area is drawn in one
@@ -10887,6 +10890,86 @@ function shapeRoutes(cfg, data) {
 }
 
 const shapeDetails = new Map();
+// ---- round 74: news of fighting (GDELT) and military aircraft (ADS-B) ------
+const GDELT_QUERY = '(airstrike OR shelling OR "armed clashes" OR militants OR "killed in fighting" OR "drone strike" OR bombing OR insurgents OR "military offensive")';
+// GDELT's box for a place lists the articles as links; only the links are
+// kept, rebuilt here, so nothing else of a third party's markup is drawn.
+function gdeltLinks(html) {
+  const out = [];
+  const re = /<a[^>]*href="(https?:[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+  let m;
+  while ((m = re.exec(String(html || ""))) && out.length < 60) {
+    const words = m[2].replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+    out.push(`<li><a href="${escapeHtml(m[1])}" target="_blank" rel="noopener">${escapeHtml(words || m[1])}</a></li>`);
+  }
+  return out.length ? `<ul style="margin:6px 0 0 16px;padding:0">${out.join("")}</ul>` : "";
+}
+async function readGdeltGeo(cfg) {
+  let gj = null, note = "";
+  try {
+    gj = await getJson(`https://api.gdeltproject.org/api/v2/geo/geo?query=${encodeURIComponent(GDELT_QUERY)}&mode=PointData&format=GeoJSON&timespan=7d&maxpoints=1000`, 30000);
+  } catch (e) {
+    gj = await getJson(cfg.copyUrl, 60000);
+    note = `GDELT did not answer (${e.message}); drawn from the copy made ${gj.made || "earlier"}`;
+  }
+  const items = (gj.features || []).map((f, i) => {
+    const p = f.properties || {};
+    const name = p.name || "A place named in the news";
+    return { geometry: f.geometry, key: `n${i}`, name, group: "",
+      h: boxOpen + `<h4 style="margin:0 0 6px">${escapeHtml(name)}</h4>` +
+        `<div>${Number(p.count || 0).toLocaleString()} article${Number(p.count) === 1 ? "" : "s"} in the last seven days name this place.</div>` +
+        gdeltLinks(p.html) + `<div style="margin-top:6px;opacity:.75;font-size:11px">GDELT Project, GEO 2.0 API. A place named is not always where the fighting was.</div></div>` };
+  }).filter((it) => it.geometry);
+  return { title: cfg.name, items, note };
+}
+
+// adsb.lol first (ODbL), airplanes.live second; both answer without a key.
+const ADSB_SOURCES = ["https://api.adsb.lol/v2/mil", "https://api.airplanes.live/v2/mil"];
+async function readAdsbMil() {
+  let last;
+  for (const u of ADSB_SOURCES) {
+    try { const j = await getJson(u, 20000); if (j && Array.isArray(j.ac)) return { j, from: u }; }
+    catch (e) { last = e; }
+  }
+  throw last || new Error("no source answered");
+}
+function adsbFeatures(list) {
+  return list.filter((a) => isFinite(Number(a.lat)) && isFinite(Number(a.lon))).map((a) => ({
+    type: "Feature", geometry: { type: "Point", coordinates: [Number(a.lon), Number(a.lat)] },
+    properties: { callsign: String(a.flight || "").trim() || null, registration: a.r || null, type: a.t || null, description: a.desc || null,
+      operator: a.ownOp || null, altitude_ft: a.alt_baro === "ground" ? "on the ground" : a.alt_baro, ground_speed_kt: a.gs, heading: isFinite(Number(a.track)) ? Number(a.track) : 0,
+      squawk: a.squawk || null, hex: a.hex, seen_seconds_ago: a.seen } }));
+}
+async function addAdsbMilLayer(cfg) {
+  const src = `${cfg.id}-src`;
+  map.addSource(src, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+  map.addLayer({ id: `${cfg.id}-pt`, type: "circle", source: src,
+    paint: { "circle-color": cfg.colour, "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 2.5, 6, 4, 10, 6],
+             "circle-stroke-color": "#D6CCBC", "circle-stroke-width": 0.8 } });
+  // Which way each is heading: a short line out of the dot is drawn as a
+  // text arrow turned to its track.
+  map.addLayer({ id: `${cfg.id}-cap`, type: "symbol", source: src, minzoom: 3,
+    layout: { "text-field": "↑", "text-size": 12, "text-rotate": ["get", "heading"], "text-rotation-alignment": "map", "text-allow-overlap": true, "text-offset": [0, -0.9] },
+    paint: { "text-color": "#D6CCBC", "text-halo-color": "#17150F", "text-halo-width": 1 } });
+  bindHtmlPopup(`${cfg.id}-pt`, (p) => boxOpen + `<h4 style="margin:0 0 6px">${escapeHtml(p.callsign || p.registration || p.hex)}</h4><table>${fieldRows(p, ["heading"])}</table>` +
+    `<div style="margin-top:6px"><a href="https://globe.adsb.lol/?icao=${escapeHtml(p.hex)}" target="_blank" rel="noopener">Follow it on adsb.lol</a></div></div>`);
+  const draw = async () => {
+    if (visibility.get(cfg.id) !== "visible" && cfg._drawnOnce) return;
+    try {
+      const { j, from } = await readAdsbMil();
+      const feats = adsbFeatures(j.ac);
+      map.getSource(src).setData({ type: "FeatureCollection", features: feats });
+      cfg._drawnOnce = true;
+      setLayerState(cfg.id, `${feats.length.toLocaleString()} aircraft heard now · from ${from.replace(/^https:\/\//, "").split("/")[0]}`);
+    } catch (e) {
+      setLayerState(cfg.id, `no ADS-B source answered this page (${e.message}); tried adsb.lol and airplanes.live`);
+    }
+  };
+  await draw();
+  cfg._timer = setInterval(draw, 60000);
+  applyVisibility(cfg.id);
+}
+
 // ---- the other countries' invasion (round 73) -----------------------------
 const INVADED_URL = "https://welcometoyourgalaxy.github.io/culprits-tiles-more/invaded/countries.json";
 let invadedRead = null;
@@ -13143,7 +13226,61 @@ const TRASE_DATA = {
   ],
 };
 
-const GROUPS = [CT_SECTORS, CT_AGRICULTURE, CT_FORESTRY, CT_HISTORY, SITE_MAPS, EXEC_MAP, MONEY_MAP, LEGAL_MAP, LEG_MAP, JUD_MAP, MORE_MAPS, GMO_MAP, OTHER_MAPS, FOREST_ALERTS, TRASE_DATA];
+// ---- wars, militaries and weapons (round 74, asked 27 September) ---------
+// The map's own layers in place of Guerillamap, whose map could only be
+// linked to: everything it shows that an open source publishes, past and
+// current. The aircraft, the news and the country figures are read live; the
+// rest are daily copies made by culprits-tiles-more scripts/military.py.
+const MILITARY = {
+  id: "military_layers",
+  name: "Wars, militaries and weapons",
+  group: true,
+  ready: true,
+  children: [
+    { id: "mil_news", name: "News of fighting in the last seven days, placed where the reports name (GDELT)", unit: "places named", colour: "#7A5A58", route: "gdeltgeo", ready: true, lazy: true,
+      copyUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/news.geojson",
+      note: "Read live from the GDELT Project's GEO 2.0 API: news in every language GDELT watches, over the last seven days, about airstrikes, shelling, clashes, militants, drone strikes, bombings and offensives, placed where the articles name. A place named is not always where fighting happened. When GDELT does not answer, the day's copy is drawn and the row says so." },
+    { id: "mil_conflicts", name: "Armed conflict events since 1989, each with at least one death (UCDP)", unit: "events", colour: "#7E5A5A", route: "pmtiles", ready: true, lazy: true,
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/mil_conflicts.pmtiles", boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/ucdp", boxesGz: true,
+      facet: { property: "x_kind", label: "kind", values: ["state-based conflict", "non-state conflict", "one-sided violence against civilians"] },
+      note: "The Uppsala Conflict Data Program's Georeferenced Event Dataset (CC BY 4.0), every event in its latest global release with the monthly candidate events of this year added: fighting between states and armed groups, between armed groups, and armed groups or states killing civilians. Dots are sized by UCDP's best estimate of deaths. Every field UCDP gives is in the box. Copied daily." },
+    { id: "mil_attacks", name: "Terrorist attacks recorded in Wikidata, by decade", unit: "attacks", colour: "#7A5E66", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Attacks", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/attacks.geojson" }],
+      note: "Every attack Wikidata files as a terrorist attack and places, with its date, deaths, injured and perpetrator where recorded. Wikidata is edited by anyone and is far from complete; the Global Terrorism Database forbids republishing its records, so it is not used. Attacks on civilians by armed groups are also in the conflict events row, under one-sided violence. Copied daily." },
+    { id: "mil_aircraft", name: "Military aircraft in the air now (ADS-B, adsb.lol)", unit: "aircraft", colour: "#5E6D8A", route: "adsbmil", ready: true, lazy: true,
+      note: "Aircraft whose transponder address is registered as military, as volunteer ADS-B receivers hear them, read live from adsb.lol's open API (ODbL) and read again every minute while ticked. Many military flights switch their transponders off or are not heard, so this is what is visible, not all there is." },
+    { id: "mil_sites", name: "Military bases, air bases, naval bases and installations, in use and closed (Wikidata)", unit: "installations", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Installations", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/sites.geojson" }],
+      note: "Every military base, air base, naval base, airfield, barracks and other military installation Wikidata places, with the state that runs it, the country it is in, and when it opened and closed where recorded. Those run by another state than the one they stand in are marked. Copied daily." },
+    { id: "mil_units", name: "Military units at their headquarters, active and disbanded (Wikidata)", unit: "units", colour: "#5E6470", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Units", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/units.geojson" }],
+      note: "Every military unit in Wikidata with a headquarters it places: the headquarters, not where the unit is deployed. Copied daily." },
+    { id: "mil_test_sites", name: "Nuclear test sites (Wikidata)", unit: "sites", colour: "#7A6A5E", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Test sites", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/test_sites.geojson" }],
+      note: "Nuclear weapons test sites in Wikidata, with who ran them and when they opened and closed where recorded. How many tests each state carried out, year by year, is in the country figures below. Copied daily." },
+    { id: "mil_minefields", name: "Minefields mapped in OpenStreetMap, marked and cleared", unit: "minefields", colour: "#7E6660", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Minefields", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/minefields.geojson" }],
+      note: "Areas OpenStreetMap's mappers tag as minefields, and those tagged as former minefields; each at the middle of the area mapped. Far from every minefield is mapped. Copied daily (© OpenStreetMap contributors, ODbL)." },
+    { id: "mil_alliances", name: "Military alliances each state belongs to, now and in the past (Wikidata)", unit: "countries", colour: "#5E6A70", route: "shapes", ready: true, lazy: true,
+      dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/mil_alliances.geojson",
+      note: "Every state's memberships of military alliances as Wikidata records them, with the years. Shade by how many it belongs to now, or by one alliance at a time from the menu. Copied daily." },
+    { id: "mil_spend_gdp", name: "Military spending as a share of GDP (SIPRI, via Our World in Data)", unit: "% of GDP", colour: "#6E5F52", route: "owidgrapher", ready: true, lazy: true, slug: "military-spending-as-a-share-of-gdp-sipri",
+      note: "Read live from Our World in Data each time it is ticked; the chart's own data, by country and year." },
+    { id: "mil_spend_gov", name: "Military spending as a share of government spending (SIPRI, via Our World in Data)", unit: "% of government spending", colour: "#6E5F52", route: "owidgrapher", ready: true, lazy: true, slug: "military-expenditure-as-a-share-of-government-spending",
+      note: "Read live from Our World in Data each time it is ticked; the chart's own data, by country and year." },
+    { id: "mil_spend_usd", name: "Military spending in US dollars (SIPRI, via Our World in Data)", unit: "US dollars", colour: "#6E5F52", route: "owidgrapher", ready: true, lazy: true, slug: "military-spending-sipri",
+      note: "Read live from Our World in Data each time it is ticked; the chart's own data, by country and year." },
+    { id: "mil_personnel", name: "Armed forces personnel (World Bank, via Our World in Data)", unit: "people", colour: "#6E5F52", route: "owidgrapher", ready: true, lazy: true, slug: "armed-forces-personnel",
+      note: "Read live from Our World in Data each time it is ticked; the chart's own data, by country and year." },
+    { id: "mil_warheads", name: "Nuclear warheads each state holds (Federation of American Scientists, via Our World in Data)", unit: "warheads", colour: "#6E5F52", route: "owidgrapher", ready: true, lazy: true, slug: "nuclear-warhead-stockpiles-lines",
+      note: "Read live from Our World in Data each time it is ticked; the chart's own data, by country and year." },
+    { id: "mil_tests", name: "Nuclear weapons tests each state carried out, by year (Our World in Data)", unit: "tests", colour: "#6E5F52", route: "owidgrapher", ready: true, lazy: true, slug: "number-of-nuclear-weapons-tests",
+      note: "Read live from Our World in Data each time it is ticked; the chart's own data, by country and year." },
+    { id: "mil_nuclear_position", name: "Each state's position on nuclear weapons (Our World in Data)", unit: "countries", colour: "#6E5F52", route: "owidgrapher", ready: true, lazy: true, slug: "country-position-nuclear-weapons",
+      note: "Read live from Our World in Data each time it is ticked; the chart's own data, by country and year." },
+  ],
+};
+const GROUPS = [CT_SECTORS, CT_AGRICULTURE, CT_FORESTRY, CT_HISTORY, SITE_MAPS, EXEC_MAP, MONEY_MAP, LEGAL_MAP, LEG_MAP, JUD_MAP, MORE_MAPS, GMO_MAP, OTHER_MAPS, FOREST_ALERTS, TRASE_DATA, MILITARY];
 
 // Every row's colour in the style of the GLAD-S2 alerts (24 September, round
 // 44, asked for by the owner): cyan through blue and indigo to violet, bright
@@ -13352,7 +13489,8 @@ function ensureLayer(cfg) {
       : cfg.route === "rasterparts" ? addRasterPartsLayer(cfg)
       : cfg.route === "worldsring" ? addWorldsRingLayer(cfg)
       : cfg.route === "ufo" ? addUfoLayer(cfg)
-      : ["ejatlas", "geojsonlive", "wpgmza", "atlascities", "trasefac"].includes(cfg.route) ? addLivePlacesLayer(cfg)
+      : cfg.route === "adsbmil" ? addAdsbMilLayer(cfg)
+      : ["ejatlas", "geojsonlive", "wpgmza", "atlascities", "trasefac", "gdeltgeo"].includes(cfg.route) ? addLivePlacesLayer(cfg)
       : cfg.route === "wmsmenu" ? addWmsMenuLayer(cfg)
       : cfg.route === "gfwmenu" ? addGfwMenuLayer(cfg)
       : addPmtilesLayer(cfg);
@@ -13616,6 +13754,8 @@ const LAYER_KIND = {
 // Whole families of layers share a label: every office, court and ministry is
 // human and upstream; every Climate TRACE asset is insentient and upstream.
 const KIND_PREFIXES = [
+  // Round 74: wars, militaries and weapons fall on people, downstream of them.
+  ["mil_", ["human", "downstream"]],
   ["climate_trace", ["insentient", "upstream"]],
   ["exec_", ["human", "upstream"]],
   ["fin_", ["human", "upstream"]],
@@ -14023,11 +14163,13 @@ function gmInit() {
   const follow = document.getElementById("gmFollow");
   if (follow) follow.addEventListener("change", () => gmSync(true));
 
-  // Opened from its own row in the panel rather than on by default: it is a
-  // third-party frame that fetches on load, and one that fails should not be
-  // the first thing a reader meets.
+  // The Guerillamap row is taken out (round 74, asked 27 September): it could
+  // only link to another site. The map's own layers under "Wars, militaries
+  // and weapons, past and current" show what it showed, from open sources.
+  // Set GM_ROW to true to bring the row back.
+  const GM_ROW = false;
   const box = document.getElementById("layers");
-  if (!box) return;
+  if (!box || !GM_ROW) return;
   const row = document.createElement("label");
   row.className = "layer";
   row.innerHTML =
@@ -14238,7 +14380,7 @@ const LIVE_ROUTES = new Set([
   "worker", "tile", "wmts", "rasterlive", "cerulean", "coral", "carbonmapper",
   "arcgis", "arcgisdyn", "arcgisapp", "umap", "kml", "ll2", "ejatlas", "geojsonlive",
   "wpgmza", "atlascities", "trase", "trasefac", "wmsmenu", "gfwmenu", "giga", "gta",
-  "rte", "owidgrapher", "spheres", "companion", "gsn", "leave",
+  "rte", "owidgrapher", "spheres", "companion", "gsn", "leave", "adsbmil", "gdeltgeo",
   // The biosignature worlds are read from the assessment page itself each time.
   "worldsring",
 ]);
@@ -14292,6 +14434,7 @@ function liveMark(cfg) {
 // (and, for the rows read by area, as the map moves). A copy's rhythm is read
 // from what its own description says; where nothing says, the note says so.
 const REFRESH = {
+  adsbmil: "read again every minute while ticked",
   worker: "read afresh as the map moves",
   cerulean: "read afresh as the map moves",
 };
@@ -14315,6 +14458,11 @@ function refreshNote(cfg) {
 // kept here (the source cannot be read by another site, or its server is gone).
 // Every row now carries one mark or the other (22 September, round 3).
 const NOT_LIVE = {
+  mil_attacks: "Copied daily from Wikidata by culprits-tiles-more",
+  mil_sites: "Copied daily from Wikidata by culprits-tiles-more",
+  mil_units: "Copied daily from Wikidata by culprits-tiles-more",
+  mil_test_sites: "Copied daily from Wikidata by culprits-tiles-more",
+  mil_minefields: "Copied daily from OpenStreetMap by culprits-tiles-more",
   site_banking_dynasties_charts: "The Suppression page's own banking dynasties section, from a copy made once (round 62)",
   bocc: "The report's league tables, read once from the 2026 report; headquarters from GLEIF and OpenStreetMap",
   pe_banks: "Read once from the 2020 report (Table 2, and Figure 1's bars measured); headquarters from GLEIF and OpenStreetMap",
@@ -14383,7 +14531,12 @@ const PANEL_ORDER = [
   { h: 4, bundle: "indigenous_conflicts", colour: "#6B5A4A" }, "site_indigenous_conflicts",
   { h: 4, bundle: "landmark", colour: "#6A5E66" },
   { h: 4, bundle: "resrights", colour: "#5E6A66" },
-  { h: 3, t: "Of countries by countries" }, "site_secret_societies", "gm",
+  // Round 74 (27 September): the map's own conflict and military layers in
+  // place of the Guerillamap row, which could only link to another site.
+  { h: 3, t: "Of countries by countries" }, "site_secret_societies",
+  { h: 4, bundle: "military", colour: "#6A5E5A" }, "mil_news", "mil_conflicts", "mil_attacks", "mil_aircraft", "mil_sites", "mil_units",
+  "mil_test_sites", "mil_minefields", "mil_alliances",
+  { h: 5, bundle: "milcompare", colour: "#6E5F52" }, "mil_spend_gdp", "mil_spend_gov", "mil_spend_usd", "mil_personnel", "mil_warheads", "mil_tests", "mil_nuclear_position",
   { h: 2, t: "Invasion of the after-life" }, "remains_records", "remains_findings", "remains_cemeteries",
 
   { h: 1, t: "Destruction" },

@@ -4645,5 +4645,32 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("the settler shapes carry the countries they lie in", /props\["iso3"\] = ",".join\(isos\)/.test(bs));
   check("the page asks for this round's script", /app\.js\?v=(7[3-9]|[89]\d)/.test(html));
 }
+{
+  console.log("\nround 74: the map's own wars, militaries and weapons in place of Guerillamap");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const order = new Function(body + "; return PANEL_ORDER;")();
+  const ids = ["mil_news", "mil_conflicts", "mil_attacks", "mil_aircraft", "mil_sites", "mil_units", "mil_test_sites", "mil_minefields", "mil_alliances",
+    "mil_spend_gdp", "mil_spend_gov", "mil_spend_usd", "mil_personnel", "mil_warheads", "mil_tests", "mil_nuclear_position"];
+  const at = order.findIndex((x) => x && x.bundle === "military");
+  check("the rows sit in one layer under Of countries by countries, the country figures as a layer inside it, and the Guerillamap row is gone",
+        at > -1 && ids.every((id) => order.indexOf(id) > at) && !order.includes("gm") && /const GM_ROW = false;/.test(src) &&
+        order.findIndex((x) => x && x.bundle === "milcompare") > at && ids.every((id) => new RegExp(`id: "${id}", name:`).test(src)));
+  const g = new Function("escapeHtml", src.slice(src.indexOf("function gdeltLinks("), src.indexOf("async function readGdeltGeo(")) + "; return gdeltLinks;")(
+    (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])));
+  const links = g('<a href="https://x.org/a" target="_blank">Shelling <b>hits</b></a><script>alert(1)</script><a href="javascript:x">no</a>');
+  check("GDELT's article list is rebuilt from its links alone", /href="https:\/\/x\.org\/a"/.test(links) && !/script|javascript/.test(links));
+  const A = new Function(src.slice(src.indexOf("function adsbFeatures("), src.indexOf("async function addAdsbMilLayer(")) + "; return adsbFeatures;")();
+  const f = A([{ hex: "ae1234", flight: "RCH123  ", t: "C17", lat: 50, lon: 8, alt_baro: 31000, track: 90 }, { hex: "x", lat: null }]);
+  check("an aircraft is drawn where it is heard, with its callsign and type; one with no position is left out",
+        f.length === 1 && f[0].properties.callsign === "RCH123" && f[0].properties.type === "C17" && f[0].properties.heading === 90);
+  check("the aircraft and the news are read live; the aircraft again every minute",
+        /"adsbmil", "gdeltgeo",/.test(src) && /cfg\._timer = setInterval\(draw, 60000\);/.test(src) && /copyUrl: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/military\/news\.geojson"/.test(src));
+  check("the conflict events read UCDP's copy square by square, every field from gzipped pieces, and can be narrowed by kind",
+        /id: "mil_conflicts"[^\n]*route: "pmtiles"[^\n]*\n\s*archiveUrl: "[^"]*\/tiles\/mil_conflicts\.pmtiles", boxes: "[^"]*\/military\/ucdp", boxesGz: true,/.test(src));
+  check("a shaded layer may carry its own menu", /let by = SHAPE_COLOUR_BY\[cfg\.id\] \|\| \(Array\.isArray\(data\.menu\)/.test(src));
+  check("the page asks for this round's script", /app\.js\?v=(7[4-9]|[89]\d)/.test(html));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
