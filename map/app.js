@@ -861,7 +861,7 @@ function gladKept(id) {
 function gladSourceSpec(id, spec) {
   // Pictures this map draws in its own colours (round 82b: the EPA density
   // pictures, the nitrogen dioxide relief) are not mapped again.
-  if (!spec || spec.type !== "raster" || GLAD_SKIP_SOURCES.has(id) || /^atlas-plate/.test(id) || /-dens-src\d+$|^no2-/.test(id) || gladKept(id)) return spec;
+  if (!spec || spec.type !== "raster" || GLAD_SKIP_SOURCES.has(id) || /^atlas-plate/.test(id) || /-dens-src\d+$/.test(id) || gladKept(id)) return spec;
   const salt = gladRowOf(id) || id;
   const out = Object.assign({}, spec);
   if (Array.isArray(spec.tiles)) out.tiles = spec.tiles.map((t) => /^gladpx:/.test(t) ? t : `gladpx://${encodeURIComponent(salt)}/${t}`);
@@ -4039,7 +4039,7 @@ function livePlacesToSitemap(cfg, items) {
     if (!it.geometry) continue;
     const g = it.group || "";
     if (g) groups.set(g, (groups.get(g) || 0) + 1);
-    const c = it.hollow || it.colour === AMOUNT_NONE || ((cfg.colourBy || cfg.groupColours) && it.colour) ? it.colour : softColour(it.colour, cfg.colour);
+    const c = it.hollow || it.colour === AMOUNT_NONE || ((cfg.colourBy || cfg.groupColours || cfg.periods) && it.colour) ? it.colour : softColour(it.colour, cfg.colour);
     features.push({ type: "Feature", geometry: it.geometry,
       properties: { k: it.key, p: 1, t: it.name ? 1 : 0, n: it.name || "", c,
                     f: g ? `|g:${g}|` : "", ...(it.hollow ? { o: 0.15, s: it.colour, w: 1.8 } : {}) } });
@@ -5291,6 +5291,7 @@ async function addTraseLayer(cfg) {
   const take = (e) => {
     for (const id of drawn.get(e.metric) || []) if (map.getLayer(id)) map.removeLayer(id);
     if (map.getSource(`${cfg.id}-${safe(e.metric)}`)) map.removeSource(`${cfg.id}-${safe(e.metric)}`);
+    if (map.getSource(`${cfg.id}-${safe(e.metric)}-mid`)) map.removeSource(`${cfg.id}-${safe(e.metric)}-mid`);
     drawn.delete(e.metric);
     cfg._layerIds = [].concat(...drawn.values());
     const menus = document.querySelector(`.facet[data-trase-for="${e.key}"]`);
@@ -5303,11 +5304,22 @@ async function addTraseLayer(cfg) {
     if (!map.getSource(src)) {
       map.addSource(src, { type: "geojson", data: { type: "FeatureCollection", features: [] }, attribution: cfg.attribution });
       map.addLayer({ id: `${src}-fill`, type: "fill", source: src,
-        paint: { "fill-color": ["coalesce", ["get", "_c"], "rgba(0,0,0,0)"], "fill-opacity": 0.72 } });
+        paint: { "fill-color": ["coalesce", ["get", "_c"], "rgba(0,0,0,0)"], "fill-opacity": 0.85 } });
+      // Round 83b (asked 27 September: concession areas and the like were too
+      // faint or too small to see from far out): each region with a figure is
+      // edged in its own colour, a line that shows even where the region is
+      // smaller than a pixel, and wider out a dot at its middle.
       map.addLayer({ id: `${src}-line`, type: "line", source: src,
-        paint: { "line-color": "#1D1B17", "line-width": 0.3, "line-opacity": 0.5 } });
+        paint: { "line-color": ["coalesce", ["get", "_c"], "rgba(29,27,23,0.5)"],
+                 "line-width": ["interpolate", ["linear"], ["zoom"], 0, 1.6, 6, 1, 10, 0.5],
+                 "line-opacity": ["case", ["has", "_c"], 0.95, 0.4] } });
+      map.addSource(`${src}-mid`, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      map.addLayer({ id: `${src}-mid`, type: "circle", source: `${src}-mid`, maxzoom: 6,
+        paint: { "circle-color": ["get", "_c"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 2.5, 5, 4],
+                 "circle-opacity": 0.95, "circle-stroke-color": "#0B1220", "circle-stroke-width": 0.5 } });
       bindHtmlPopup(`${src}-fill`, (p) => traseBox(e, p));
-      drawn.set(e.metric, [`${src}-fill`, `${src}-line`]);
+      bindHtmlPopup(`${src}-mid`, (p) => traseBox(e, p));
+      drawn.set(e.metric, [`${src}-fill`, `${src}-line`, `${src}-mid`]);
       cfg._layerIds = [].concat(...drawn.values());
     }
     e.pick = e.pick || { level: "", year: "" };
@@ -5459,6 +5471,13 @@ async function traseDraw(cfg, e) {
     f.properties._c = ramp[Math.min(i + (ramp.length - 1 - breaks.length), ramp.length - 1)];
   }
   src.setData({ type: "FeatureCollection", features });
+  const mid = map.getSource(`${cfg.id}-${String(e.metric).replace(/[^a-z0-9_]/gi, "_")}-mid`);
+  if (mid) mid.setData({ type: "FeatureCollection", features: features.filter((f) => f.properties && f.properties._c && f.geometry).map((f) => {
+    let sx = 0, sy = 0, n = 0;
+    const walk = (c) => { if (typeof c[0] === "number") { sx += c[0]; sy += c[1]; n++; } else c.forEach(walk); };
+    walk(f.geometry.coordinates || []);
+    return n ? { type: "Feature", properties: f.properties, geometry: { type: "Point", coordinates: [sx / n, sy / n] } } : null;
+  }).filter(Boolean) });
   const legend = document.querySelector(`[data-trase-for="${e.key}"] [data-trase-legend]`);
   if (legend) {
     const edges = [null, ...breaks];
@@ -6313,6 +6332,17 @@ async function readAtlasCities(cfg) {
 
 // Trase's facilities maps: the current file from the weekly manifest, read live from Trase.
 async function readTraseFacilities(cfg) {
+  // A row of several periods (round 83b): each period's file, its areas a chip.
+  if (cfg.periods) {
+    const items = [];
+    for (const p of cfg.periods) {
+      const got = await readTraseFacilities(Object.assign({}, cfg, { periods: null, facilityType: p.facilityType, file: p.file }));
+      for (const it of got.items) items.push(Object.assign(it, { key: `${p.label}:${it.key}`, group: p.label, colour: p.colour }));
+    }
+    cfg.keepColour = true;
+    cfg.key = cfg.periods.map((p) => [p.colour, p.label]);
+    return { title: cfg.name, items };
+  }
   let file = cfg.file, base = "https://resources.trase.earth/data/facilities-data/";
   try {
     const m = await getJson(cfg.manifest);
@@ -6905,6 +6935,13 @@ const CATALOGUE_BY_TITLE = [
   // the two together, each in three copies. The worldwide VIIRS detections
   // (NASA, under Fire) stay.
   [/\b(v3p\d_)?alertfire_(combine|modis|viirs)\b/i, null],
+  // ---- 27 September (round 83b) -----------------------------------------
+  // Tree cover loss from fires under Fire only, not Deforestation.
+  [/tree cover loss (due to|from|by) fires?/i, [P + " > Fire"]],
+  // The planted area on peatland under Peatland.
+  [/planted area on peat/i, [P + " > Peatland"]],
+  // The industrial timber plantations, 2024 and 2025, are one row now (nus_itp).
+  [/\b(v3p\d_)?Global_PlantationITP_20\d\d\b/, null],
   // ---- 25 September (round 48), at the owner's word ---------------------
   // Moved: WWF's terrestrial ecoregions and SBTN's natural lands under
   // Biodiversity loss; the projected change in dry spells under Water
@@ -7262,6 +7299,13 @@ const NUSANTARA_WHERE = [
   [/kalimantan/i, "Kalimantan"],
   [/^IDN_|_KLHK|^IDN/i, "Indonesia"],
 ];
+// Round 83b (asked 27 September): the rubber plantation rows are not worldwide
+// (the map covers the countries it covers, which its record does not list), so
+// "worldwide" and "global" are taken out of their titles.
+function notWorldwide(t) {
+  if (!/rubber/i.test(t)) return t;
+  return String(t).replace(/\s*\u2014\s*(worldwide|global[^\u2014]*)$/i, "").replace(/,?\s*\bworldwide\b/ig, "").replace(/\bglobal\s+/ig, "").trim();
+}
 function nusantaraWhere(id) {
   for (const [rule, where] of NUSANTARA_WHERE) if (rule.test(id)) return where;
   return "Equatorial Asia";
@@ -7271,7 +7315,7 @@ const LEFT_OUT = "(left out)";
 function cataloguePlaces(words, title) {
   if (title != null) {
     // The title and, after it, the id (the id rules above end in $ or name it).
-    for (const [rule, paths] of CATALOGUE_BY_TITLE) if (rule.test(title)) return paths ? catalogueRefine(paths.slice(), words) : [CATALOGUE_TAKEN_OUT];
+    for (const [rule, paths] of CATALOGUE_BY_TITLE) if (rule.test(title)) return paths ? catalogueLastWord(catalogueRefine(paths.slice(), words), words) : [CATALOGUE_TAKEN_OUT];
   }
   let out = [];
   let dropped = false;
@@ -7307,7 +7351,17 @@ function cataloguePlaces(words, title) {
   // A concession or permit whose words name no material and no activity.
   if (!out.length && !dropped && /concession|permit|licen[cs]e|\bizin\b/i.test(words)) out.push(P + " > Other concessions");
   if (!out.length && dropped) return [LEFT_OUT];
-  return out.length ? catalogueRefine(out, words) : ["Not yet placed"];
+  return out.length ? catalogueLastWord(catalogueRefine(out, words), words) : ["Not yet placed"];
+}
+// Round 83b (asked 27 September): under Loss year by year only the GLAD row
+// (placed by hand) and the tree cover loss for the global land area stay; every
+// other row that would be filed there is taken out, or kept only in its other
+// homes.
+function catalogueLastWord(paths, words) {
+  const yby = / > Loss year by year$/;
+  if (!paths.some((x) => yby.test(x)) || /global land area/i.test(words)) return paths;
+  const rest = paths.filter((x) => !yby.test(x));
+  return rest.length ? rest : [CATALOGUE_TAKEN_OUT];
 }
 
 // The body of the heading a path names. Headings are made by the order, not
@@ -7438,7 +7492,7 @@ async function addWmsMenuLayer(cfg) {
         const id = nm.textContent;
       const said = NUSANTARA_NAMES[id] || (tt && tt.textContent) || id;
       const where = nusantaraWhere(id);
-      layers.push({ base, name: id, title: new RegExp(where, "i").test(said) ? said : `${said} \u2014 ${where}`,
+      layers.push({ base, name: id, title: notWorldwide(new RegExp(where, "i").test(said) ? said : `${said} \u2014 ${where}`),
         about: (ab && ab.textContent) || "" });
       }
     } catch (e) { console.warn(`[culprits] ${cfg.id}: ${base}: ${e.message}`); }
@@ -8041,12 +8095,15 @@ async function addGfwMenuLayer(cfg) {
   }
   // Where a dataset is, as GFW themselves record it. Left off where they
   // record nothing rather than guessed at from the name.
+  // Round 83b: the global land area tree cover loss says its years.
+  const titleFix = (t) => /rubber/i.test(t) ? notWorldwide(t) : /^tree cover loss\b/i.test(t) && /global land area/i.test(t) && !/\b20\d\d\b/.test(t)
+    ? t.replace(/^tree cover loss/i, "Tree cover loss, 2000 to 2012") : t;
   let items = all.filter((d) => !leftOut.includes(d.dataset)).map((d) => {
     const meta = d.metadata || {};
     const said = gfwTitle(d);
     const where = String(GFW_WHERE[d.dataset] || meta.geographic_coverage || "").trim();
     return { id: d.dataset, meta,
-      title: where && !new RegExp(where.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(said) && !(/\bworldwide\b/i.test(said) && /^global\b/i.test(where)) ? `${said} \u2014 ${where}` : said };
+      title: titleFix(where && !new RegExp(where.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(said) && !(/\bworldwide\b/i.test(said) && /^global\b/i.test(where)) ? `${said} \u2014 ${where}` : said) };
   })
     .flatMap((d) => gfwCogParts(d, index))
     .sort((a, b) => a.title.localeCompare(b.title));
@@ -10016,7 +10073,7 @@ function addColumnLayer() {
 const NO2_KEY = [[[0, 0, 3], 5], [[85, 15, 109], 10], [[186, 54, 85], 30], [[249, 140, 9], 100], [[252, 254, 164], 300]];
 const NO2_RAMP = [[5, [0, 70, 200, 0]], [10, [0, 120, 255, 150]], [30, [0, 210, 255, 195]], [100, [0, 255, 180, 225]], [300, [170, 255, 90, 245]]];
 const NO2_HEIGHT = 150000;              // metres at 300 or more, before the zoom's own scaling
-const no2Relief = { on: false, cfg: null, cache: new Map() };
+const no2Cache = new Map();
 function no2Amount(r, g, b) {
   let best = Infinity, val = null;
   for (let i = 0; i < NO2_KEY.length - 1; i++) {
@@ -10060,7 +10117,7 @@ async function no2Decode(buf) {
 // The amounts of one tile, from the service or, wider out, from its children.
 function no2Values(z, x, y) {
   const k = `${z}/${x}/${y}`;
-  if (no2Relief.cache.has(k)) return no2Relief.cache.get(k);
+  if (no2Cache.has(k)) return no2Cache.get(k);
   const p = (async () => {
     const url = no2Relief.cfg.tiles.replace("{z}", z).replace("{x}", x).replace("{y}", y);
     try {
@@ -10081,12 +10138,20 @@ function no2Values(z, x, y) {
     });
     return out;
   })();
-  no2Relief.cache.set(k, p);
-  if (no2Relief.cache.size > 600) no2Relief.cache.delete(no2Relief.cache.keys().next().value);
+  no2Cache.set(k, p);
+  if (no2Cache.size > 600) no2Cache.delete(no2Cache.keys().next().value);
   return p;
 }
-async function no2Tile(kind, z, x, y) {
-  const vals = await no2Values(z, x, y);
+// Layers raised as relief (round 83b: nitrogen dioxide and population
+// density). Each gives its amounts per square, a colour for an amount and a
+// height (0 to 1) for it; relief://<row>/<col|dem>/z/x/y draws either. The
+// ground is held by the relief row turned on last; when it goes, the one
+// before it takes the ground back, and with none left the map's own terrain
+// setting returns.
+const RELIEFS = new Map();              // row -> { values(z, x, y), colour(v), height(v), top }
+const reliefStack = [];                 // rows holding the ground, last on top
+async function reliefTile(r, kind, z, x, y) {
+  const vals = await r.values(z, x, y);
   const cv = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(256, 256) : Object.assign(document.createElement("canvas"), { width: 256, height: 256 });
   const ctx = cv.getContext("2d");
   const img = ctx.createImageData(256, 256);
@@ -10094,12 +10159,11 @@ async function no2Tile(kind, z, x, y) {
   for (let i = 0; i < 256 * 256; i++) {
     const v = vals ? vals[i] : 0;
     if (kind === "col") {
-      const c = no2Colour(v);
+      const c = r.colour(v);
       d[i * 4] = c[0]; d[i * 4 + 1] = c[1]; d[i * 4 + 2] = c[2]; d[i * 4 + 3] = c[3];
     } else {
       // Mapbox's height code: -10000 + (R * 65536 + G * 256 + B) / 10 metres.
-      const t = v > 5 ? Math.min(1, Math.log(v / 5) / Math.log(60)) : 0;
-      const code = Math.round((t * NO2_HEIGHT + 10000) * 10);
+      const code = Math.round((Math.max(0, Math.min(1, r.height(v))) * r.top + 10000) * 10);
       d[i * 4] = (code >> 16) & 255; d[i * 4 + 1] = (code >> 8) & 255; d[i * 4 + 2] = code & 255; d[i * 4 + 3] = 255;
     }
   }
@@ -10107,48 +10171,130 @@ async function no2Tile(kind, z, x, y) {
   const blob = cv.convertToBlob ? await cv.convertToBlob({ type: "image/png" }) : await new Promise((res) => cv.toBlob(res, "image/png"));
   return blob.arrayBuffer();
 }
-maplibregl.addProtocol("no2", async (params) => {
-  const m = params.url.match(/^no2:\/\/(col|dem)\/(\d+)\/(\d+)\/(\d+)/);
-  if (!m || !no2Relief.cfg) throw new Error("no nitrogen dioxide row");
-  return { data: await no2Tile(m[1], Number(m[2]), Number(m[3]), Number(m[4])) };
+maplibregl.addProtocol("relief", async (params) => {
+  const m = params.url.match(/^relief:\/\/([^/]+)\/(col|dem)\/(\d+)\/(\d+)\/(\d+)/);
+  const r = m && RELIEFS.get(m[1]);
+  if (!r) throw new Error("no relief row");
+  return { data: await reliefTile(r, m[2], Number(m[3]), Number(m[4]), Number(m[5])) };
 });
 // How tall the relief stands at this zoom: tall enough to read from space,
 // low enough close in not to wall off the view.
-function no2Lift() {
+function reliefLift() {
   const z = map.getZoom();
   return Math.max(0.03, Math.min(1, Math.pow(2, 3 - z)));
 }
-function no2Ground(on) {
+const no2Relief = { get on() { return reliefStack.length > 0; } };
+function reliefGround(id, on) {
   if (typeof map.setTerrain !== "function") return;
-  no2Relief.on = on;
-  if (on) {
-    map.setTerrain({ source: "no2-dem", exaggeration: no2Lift() });
-    if (typeof map.easeTo === "function" && map.getPitch && map.getPitch() < 30) map.easeTo({ pitch: 50, duration: 800 });
+  const i = reliefStack.indexOf(id);
+  if (i > -1) reliefStack.splice(i, 1);
+  if (on) reliefStack.push(id);
+  const top = reliefStack[reliefStack.length - 1];
+  if (top) {
+    map.setTerrain({ source: `${top}-dem`, exaggeration: reliefLift() });
+    if (on && typeof map.easeTo === "function" && map.getPitch && map.getPitch() < 30) map.easeTo({ pitch: 50, duration: 800 });
   } else if (TERRAIN_ON) {
     liftNow = null;
     setTerrain(true);
   } else map.setTerrain(null);
 }
-function addNo2Relief(cfg) {
-  no2Relief.cfg = cfg;
-  map.addSource("no2-col", { type: "raster", tiles: ["no2://col/{z}/{x}/{y}"], tileSize: 256, maxzoom: 12, attribution: cfg.attribution });
-  map.addSource("no2-dem", { type: "raster-dem", tiles: ["no2://dem/{z}/{x}/{y}"], tileSize: 256, maxzoom: 12, encoding: "mapbox" });
-  map.addSource("no2-shade", { type: "raster-dem", tiles: ["no2://dem/{z}/{x}/{y}"], tileSize: 256, maxzoom: 12, encoding: "mapbox" });
-  map.addLayer({ id: "no2-hill", type: "hillshade", source: "no2-shade", layout: { visibility: visibility.get(cfg.id) || "visible" },
+if (typeof map.on === "function") map.on("zoomend", () => {
+  const top = reliefStack[reliefStack.length - 1];
+  if (top && map.getSource(`${top}-dem`)) map.setTerrain({ source: `${top}-dem`, exaggeration: reliefLift() });
+});
+const hexOf = (c) => "#" + c.slice(0, 3).map((x) => x.toString(16).padStart(2, "0")).join("").toUpperCase();
+// The row's picture, its height and shading, and its key.
+function addReliefLayers(cfg, r, key, hint) {
+  RELIEFS.set(cfg.id, r);
+  const vis = visibility.get(cfg.id) || "visible";
+  map.addSource(`${cfg.id}-col`, { type: "raster", tiles: [`relief://${cfg.id}/col/{z}/{x}/{y}`], tileSize: 256, maxzoom: r.maxzoom, attribution: cfg.attribution });
+  map.addSource(`${cfg.id}-dem`, { type: "raster-dem", tiles: [`relief://${cfg.id}/dem/{z}/{x}/{y}`], tileSize: 256, maxzoom: r.maxzoom, encoding: "mapbox" });
+  map.addSource(`${cfg.id}-shade`, { type: "raster-dem", tiles: [`relief://${cfg.id}/dem/{z}/{x}/{y}`], tileSize: 256, maxzoom: r.maxzoom, encoding: "mapbox" });
+  map.addLayer({ id: `${cfg.id}-hill`, type: "hillshade", source: `${cfg.id}-shade`, layout: { visibility: vis },
     paint: { "hillshade-shadow-color": "#001a3a", "hillshade-highlight-color": "#b6fff0", "hillshade-accent-color": "#00c8ff",
              "hillshade-exaggeration": 0.6 } }, pointLayerAbove());
-  map.addLayer({ id: "no2-fill", type: "raster", source: "no2-col", layout: { visibility: visibility.get(cfg.id) || "visible" },
+  map.addLayer({ id: `${cfg.id}-fill`, type: "raster", source: `${cfg.id}-col`, layout: { visibility: vis },
     paint: { "raster-opacity": 0.85, "raster-resampling": "linear" } }, pointLayerAbove());
-  cfg._layerIds = ["no2-hill", "no2-fill"];
-  cfg.afterVisibility = (vis) => no2Ground(vis === "visible");
-  map.on("zoomend", () => { if (no2Relief.on) map.setTerrain({ source: "no2-dem", exaggeration: no2Lift() }); });
-  NO2_RAMP.forEach(([, c]) => GLAD_OUT.add("#" + c.slice(0, 3).map((x) => x.toString(16).padStart(2, "0")).join("").toUpperCase()));
-  rowKey(cfg.id, NO2_RAMP.slice(1).map(([v, c], i) => ["#" + c.slice(0, 3).map((x) => x.toString(16).padStart(2, "0")).join("").toUpperCase(),
-    i === NO2_RAMP.length - 2 ? `${v} or more, highest ground` : `about ${v}`]),
-    "Colour and height both follow the amount; the land's own altitude is not shown while this is on");
-  setLayerState(cfg.id, "read live from Global Forest Watch's tiles \u00b7 tilt the map to see the relief");
+  cfg._layerIds = [`${cfg.id}-hill`, `${cfg.id}-fill`];
+  cfg.afterVisibility = (v) => reliefGround(cfg.id, v === "visible");
+  key.forEach(([c]) => GLAD_OUT.add(c));
+  rowKey(cfg.id, key, hint);
   applyVisibility(cfg.id);
   buildLegend();
+}
+function addNo2Relief(cfg) {
+  no2Relief.cfg = cfg;
+  const r = { values: no2Values, colour: no2Colour, top: NO2_HEIGHT, maxzoom: 12,
+    height: (v) => (v > 5 ? Math.log(v / 5) / Math.log(60) : 0) };
+  addReliefLayers(cfg, r, NO2_RAMP.slice(1).map(([v, c], i) => [hexOf(c), i === NO2_RAMP.length - 2 ? `${v} or more, highest ground` : `about ${v}`]),
+    "Colour and height both follow the amount; the land's own altitude is not shown while this is on");
+  setLayerState(cfg.id, "read live from Global Forest Watch's tiles · tilt the map to see the relief");
+}
+
+/* ---------- population density as relief (round 83b) ---------- */
+// Asked 27 September: the population density layer "hypsometric, not in
+// altitude, by density". culprits-tiles-more scripts/ghsl_pop.py writes GHSL's
+// 2020 population as people per square km, coded as height tiles, zooms 0 to
+// 6; each is read here, drawn in this map's colours and raised by density
+// (on a log scale: 50,000 or more stands highest). Until that copy is built,
+// Climate TRACE's flat picture of the same data is drawn as before.
+const POP_RAMP = [[1, [0, 60, 180, 0]], [10, [0, 110, 255, 120]], [100, [0, 200, 255, 180]], [1000, [0, 255, 190, 215]],
+  [10000, [150, 255, 110, 240]], [50000, [230, 255, 220, 250]]];
+function rampColour(ramp, v) {
+  if (!(v > ramp[0][0])) return [0, 0, 0, 0];
+  for (let i = 1; i < ramp.length; i++) {
+    const [v1, c1] = ramp[i];
+    if (v <= v1 || i === ramp.length - 1) {
+      const [v0, c0] = ramp[i - 1];
+      const t = Math.max(0, Math.min(1, Math.log(v / v0) / Math.log(v1 / v0)));
+      return c0.map((x, k) => Math.round(x + t * (c1[k] - x)));
+    }
+  }
+  return ramp[ramp.length - 1][1];
+}
+async function addPopRelief(cfg) {
+  let archive = null;
+  try {
+    const head = await fetch(cfg.archive, { method: "HEAD" });
+    if (head.ok) archive = new pmtiles.PMTiles(cfg.archive);
+  } catch (e) { /* not built yet */ }
+  if (!archive) { setLayerState(cfg.id, "the relief copy is not built yet; Climate TRACE's flat picture is drawn meanwhile"); return addRasterChoiceLayer(cfg); }
+  const top = 6, cache = new Map();
+  const decode = async (buf) => {
+    const bmp = await createImageBitmap(new Blob([buf]));
+    const cv = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(256, 256) : Object.assign(document.createElement("canvas"), { width: 256, height: 256 });
+    const ctx = cv.getContext("2d");
+    ctx.drawImage(bmp, 0, 0, 256, 256);
+    const px = ctx.getImageData(0, 0, 256, 256).data, out = new Float32Array(256 * 256);
+    for (let i = 0; i < out.length; i++) out[i] = Math.max(0, (px[i * 4] * 65536 + px[i * 4 + 1] * 256 + px[i * 4 + 2]) / 10 - 10000);
+    return out;
+  };
+  // Past zoom 6 a square is cut from its zoom-6 parent, pixel for pixel.
+  const values = (z, x, y) => {
+    const k = `${z}/${x}/${y}`;
+    if (cache.has(k)) return cache.get(k);
+    const p = (async () => {
+      if (z <= top) {
+        const t = await archive.getZxy(z, x, y);
+        return t && t.data ? decode(t.data) : null;
+      }
+      const up = z - top, px = x >> up, py = y >> up;
+      const parent = await values(top, px, py);
+      if (!parent) return null;
+      const n = 1 << up, ox = (x - (px << up)) * (256 / n), oy = (y - (py << up)) * (256 / n), out = new Float32Array(256 * 256);
+      for (let j = 0; j < 256; j++) for (let i = 0; i < 256; i++) out[j * 256 + i] = parent[Math.floor(oy + j / n) * 256 + Math.floor(ox + i / n)];
+      return out;
+    })();
+    cache.set(k, p);
+    if (cache.size > 800) cache.delete(cache.keys().next().value);
+    return p;
+  };
+  cfg.keepColour = true;
+  const r = { values, colour: (v) => rampColour(POP_RAMP, v), top: 150000, maxzoom: 10,
+    height: (v) => (v > 1 ? Math.log10(v) / Math.log10(50000) : 0) };
+  addReliefLayers(cfg, r, POP_RAMP.slice(1).map(([v, c], i) => [hexOf(c), `${v.toLocaleString()}${i === POP_RAMP.length - 2 ? " or more, highest ground" : ""} people per square km`]),
+    "Colour and height both follow how many people live there; the land's own altitude is not shown while this is on");
+  setLayerState(cfg.id, "GHSL 2020, people per square km · tilt the map to see the relief");
 }
 
 /* ---------- 3D terrain ---------- */
@@ -14617,14 +14763,18 @@ const OTHER_MAPS = {
     // Round 82b (asked 27 September): the nitrogen dioxide row, back under its
     // heading (it came from Global Forest Watch's catalogue, which no longer
     // lists it as drawable) and raised as a relief of its own intensity.
-    { id: "no2_tropomi", name: "Nitrogen dioxide in the air, last month's average, raised by how much there is (Sentinel-5P TROPOMI, via Global Forest Watch)", unit: "tropospheric NO\u2082", colour: "#00C8FF", route: "no2relief", ready: true, lazy: true,
+    { id: "no2_tropomi", keepColour: true, name: "Nitrogen dioxide in the air, last month's average, raised by how much there is (Sentinel-5P TROPOMI, via Global Forest Watch)", unit: "tropospheric NO\u2082", colour: "#00C8FF", route: "no2relief", ready: true, lazy: true,
       tiles: "https://tiles.globalforestwatch.org/tropomi_avg_nitrogen_dioxide_last_month/latest/default/{z}/{x}/{y}.png",
       attribution: "Copernicus Sentinel-5P TROPOMI; tiles by Global Forest Watch (Resource Watch layer)",
       note: "The satellite's average of nitrogen dioxide over the last month, as Global Forest Watch serves it for Resource Watch. Its picture is read pixel by pixel back into amounts (from the layer's own key: 5, 10, 30, 100, 300 or more), then drawn in this map's colours and raised: the ground under the map is swapped for a surface whose height is the amount, not the altitude, with shading from its slopes, so the dirtiest air stands as the highest ground. Unticked, the ground returns to what it was. The layer's record gives no unit for the key's numbers." },
-    { id: "ct_pop", name: "Population density, 1 km (GHSL via Climate TRACE)", unit: "people per square km", colour: "#6A6258", route: "rasterlive", ready: true, lazy: true,
-      attribution: "Climate TRACE; GHSL population", maxzoom: 12,
+    // Round 83b (asked 27 September): raised as relief by density, from GHSL's
+    // own numbers (culprits-tiles-more scripts/ghsl_pop.py); Climate TRACE's flat
+    // picture of the same data is drawn until that copy is built.
+    { id: "ct_pop", name: "Population density, 2020, 1 km, raised by how many people live there (GHSL)", unit: "people per square km", colour: "#00E5C3", route: "poprelief", ready: true, lazy: true,
+      archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ghsl_pop.pmtiles",
+      attribution: "GHS-POP R2023A, European Commission JRC (CC BY 4.0); Climate TRACE", maxzoom: 12,
       choices: [{ label: "Population", tiles: "https://tiles.climatetrace.org/ghsl-pop-1km/all/{z}/{x}/{y}.png" }],
-      note: "The population layer Climate TRACE's air-pollution pages draw underneath, read live." },
+      note: "The European Commission's Global Human Settlement Layer: where people lived in 2020, about 1 km, as people per square km. Drawn in this map's colours and raised: the ground under the map is swapped for a surface whose height is the density, not the altitude, with shading from its slopes, so the most crowded places stand highest. Unticked, the ground returns to what it was. Built once from GHSL's release (it is not updated); until it is built, the flat picture Climate TRACE's air-pollution pages draw of the same data is shown." },
     { id: "gta_acts", name: "State acts by country (Global Trade Alert)", unit: "state acts", colour: "#8A6356", route: "gta", ready: true, lazy: true,
       data: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gta/countries.json", shapes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gta/world.geojson",
       note: "Every state act in Global Trade Alert's database, summed by the country that took it, from a daily copy." },
@@ -14839,7 +14989,7 @@ const OTHER_MAPS = {
     { id: "arcgis_ym8xk", name: "Vinyl chloride (ArcGIS)", unit: "places", colour: "#5E6070", route: "arcgisapp", ready: true, lazy: true,
       item: "b1b5b5e0d08c4024a50caa88e6442281",
       note: "Read live from the ArcGIS map linked on the Destruction page (arcg.is/ym8XK); the row takes its own title once it loads." },
-    { id: "arcgis_materialresearch", name: "Toxic manufacturing plants and the schools within 3 miles of them, US and worldwide (Material Research World Atlas, ArcGIS)", unit: "places", colour: "#665E6C", route: "arcgisapp", ready: true, lazy: true,
+    { id: "arcgis_materialresearch", name: "Toxic manufacturing plants, US and worldwide (Material Research World Atlas, ArcGIS)", unit: "places", colour: "#665E6C", route: "arcgisapp", ready: true, lazy: true,
       copy: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/arcgis/arcgis_materialresearch",
       archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/arcgis_materialresearch.pmtiles",
       fixedName: true,
@@ -14849,14 +14999,25 @@ const OTHER_MAPS = {
       // tract (ten layers) and the USA's detailed water bodies, a base map;
       // those are left out of the row. Its two school layers stay: each is the
       // schools within 3 miles of one of the atlas's plants, not every school.
-      dropLayers: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
+      // Round 83b: the two school layers are out too, at the owner's word.
+      dropLayers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
       layerTitles: { 0: "Toxic manufacturing plants, US, with their census tracts", 1: "Public schools within 3 miles of a plant, US",
         2: "Private schools within 3 miles of a plant, US", 14: "Toxic manufacturing plants, worldwide" },
-      note: "The ArcGIS experience linked on the Destruction page (arcg.is/4q8m4), titled Material Research World Atlas: its layers of toxic manufacturing plants (US and worldwide) and of the public and private schools within 3 miles of a US plant, from a weekly copy with every field kept. Its social vulnerability and water body layers are not about pollution and are left out. A chip per layer." },
+      note: "The ArcGIS experience linked on the Destruction page (arcg.is/4q8m4), titled Material Research World Atlas: its layers of toxic manufacturing plants (US and worldwide), from a weekly copy with every field kept. Its school, social vulnerability and water body layers are left out. A chip per layer." },
     { id: "glad_loss", name: "Tree cover loss (Global Forest Change, UMD GLAD)", unit: "loss since 2000, 30 m", colour: "#8A4F46", route: "rasterlive", ready: true, lazy: true,
       attribution: "Hansen/UMD/Google/USGS/NASA", maxzoom: 12,
       choices: [{ label: "Tree cover loss", tiles: "https://storage.googleapis.com/earthenginepartners-hansen/tiles/gfc_v1.12/loss_alpha/{z}/{x}/{y}.png" }],
+      // Round 83b (asked 27 September: too faint over the atlas basemap): full
+      // strength, lifted and sharpened.
+      rasterPaint: { "raster-opacity": 1, "raster-brightness-min": 0.35, "raster-contrast": 0.4, "raster-saturation": 0.4 },
       note: "The published Global Forest Change tiles, read live." },
+    // Round 83b (asked 27 September): Nusantara Atlas's industrial timber
+    // plantations of 2024 and 2025 as one row, the year picked in its filter.
+    { id: "nus_itp", name: "Industrial timber plantations, 2024 or 2025 (Nusantara Atlas, TheTreeMap)", unit: "plantations", colour: "#00C8FF", route: "rasterlive", ready: true, lazy: true,
+      attribution: "Nusantara Atlas (TheTreeMap)", maxzoom: 16,
+      choices: ["2025", "2024"].map((y) => ({ label: y, tiles: "https://map.nusantara-atlas.org/geoserver/atlas-workspace-v3/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap" +
+        `&LAYERS=Global_PlantationITP_${y}&STYLES=&SRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=true` })),
+      note: "TheTreeMap's industrial timber plantations (acacia, eucalyptus and other plantation trees grown for pulp and timber), as the Nusantara Atlas publishes them for 2024 and 2025; a chip picks the year. Read live from the Atlas's own map server; the record does not list which countries it covers." },
     { id: "soil_spun", name: "Mycorrhizal fungi underground: richness and endemism, worldwide, 1 km (SPUN Underground Atlas)", unit: "modelled from 2.8 billion fungal DNA sequences", colour: "#6B5A4A", route: "rasterlive", ready: true, lazy: true,
       attribution: "SPUN Underground Atlas: Van Nuland, Kiers et al. 2025, Nature (CC BY 4.0)", maxzoom: 12,
       choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/soil/spun_choices.json", choices: [],
@@ -15071,21 +15232,17 @@ const TRASE_DATA = {
         file: "id_wood_mills_facilities_v2026_02_10.geo.json",
         attribution: "Trase (CC BY 4.0)",
         note: "Trase's Indonesian wood pulp mills. Read live from Trase's own files each time the row is ticked (CC BY 4.0)." },
-      { id: "trase_pulp_concessions_2015", name: "Wood pulp concessions 2015–2019 (Trase)", unit: "concessions", colour: "#6F7560", route: "trasefac", ready: true, lazy: true,
-        manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json", facilityType: "indonesia-wood-pulp-concessions-2015-2019",
-        file: "indonesia_wood_pulp_concessions_2015_2019_v2026_02_20.geo.json",
+      // Round 83b (asked 27 September): the three periods are one row, each a
+      // chip of its filter, in its own colour.
+      { id: "trase_pulp_concessions", name: "Wood pulp concessions, Indonesia, 2015 to 2024 (Trase)", unit: "concessions", colour: "#00C8A0", route: "trasefac", ready: true, lazy: true,
+        manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json",
+        periods: [
+          { label: "2015 to 2019", facilityType: "indonesia-wood-pulp-concessions-2015-2019", file: "indonesia_wood_pulp_concessions_2015_2019_v2026_02_20.geo.json", colour: "#1466FF" },
+          { label: "2020 to 2022", facilityType: "indonesia-wood-pulp-concessions-2020-2022", file: "indonesia_wood_pulp_concessions_2020_2022_v2026_02_20.geo.json", colour: "#00C8FF" },
+          { label: "2023 to 2024", facilityType: "indonesia-wood-pulp-concessions-2023-2024", file: "indonesia_wood_pulp_concessions_2023_2024_v2026_02_20.geo.json", colour: "#39FF88" },
+        ],
         attribution: "Trase (CC BY 4.0)",
-        note: "The areas Trase records as wood pulp concessions over 2015\u20132019, drawn as areas. Read live from Trase's own files each time the row is ticked (CC BY 4.0)." },
-      { id: "trase_pulp_concessions_2020", name: "Wood pulp concessions 2020–2022 (Trase)", unit: "concessions", colour: "#5E6A63", route: "trasefac", ready: true, lazy: true,
-        manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json", facilityType: "indonesia-wood-pulp-concessions-2020-2022",
-        file: "indonesia_wood_pulp_concessions_2020_2022_v2026_02_20.geo.json",
-        attribution: "Trase (CC BY 4.0)",
-        note: "The areas Trase records as wood pulp concessions over 2020\u20132022, drawn as areas. Read live from Trase's own files each time the row is ticked (CC BY 4.0)." },
-      { id: "trase_pulp_concessions_2023", name: "Wood pulp concessions 2023–2024 (Trase)", unit: "concessions", colour: "#59665C", route: "trasefac", ready: true, lazy: true,
-        manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json", facilityType: "indonesia-wood-pulp-concessions-2023-2024",
-        file: "indonesia_wood_pulp_concessions_2023_2024_v2026_02_20.geo.json",
-        attribution: "Trase (CC BY 4.0)",
-        note: "The areas Trase records as wood pulp concessions over 2023\u20132024, drawn as areas. Read live from Trase's own files each time the row is ticked (CC BY 4.0)." },
+        note: "The areas Trase records as wood pulp concessions in Indonesia, for each of its three periods (2015 to 2019, 2020 to 2022, 2023 to 2024); pick the periods in the row's filter. Read from Trase's own files, or the weekly copy where its server does not let other sites read them (CC BY 4.0)." },
   ],
 };
 
@@ -15402,6 +15559,7 @@ function ensureLayer(cfg) {
       : cfg.route === "wmsmenu" ? addWmsMenuLayer(cfg)
       : cfg.route === "gfwmenu" ? addGfwMenuLayer(cfg)
       : cfg.route === "no2relief" ? Promise.resolve().then(() => addNo2Relief(cfg))
+      : cfg.route === "poprelief" ? addPopRelief(cfg)
       : cfg.route === "country" ? addCountryLayer(cfg)
       : addPmtilesLayer(cfg);
     return build;
@@ -15580,6 +15738,7 @@ const LAYER_KIND = {
   gta_acts: ["human", "upstream"],
   ct_air: ["human", "downstream"],
   no2_tropomi: ["human", "downstream"],
+  nus_itp: ["plant", "downstream"],
   ct_air_pm2_5: ["human", "downstream"],
   ct_air_bc: ["human", "downstream"],
   ct_air_oc: ["human", "downstream"],
@@ -16211,7 +16370,7 @@ const LAYER_SITE = {
   cerulean_sources: "https://cerulean.skytruth.org",
   site_banking_dynasties_charts: "https://www.welcometoyourgalaxy.com/suppression.html",
   cfr_tracker: "https://public.tableau.com/views/CFRGlobalMonetaryPolicyTrackerNEW/GlobalMonetaryPolicyTracker?:showVizHome=no&:embed=y",
-  ct_pop: "https://tiles.climatetrace.org/ghsl-pop-1km/all",
+  ct_pop: "https://human-settlement.emergency.copernicus.eu/ghs_pop2023.php",
   dff: "https://deforestationfreefunds.org",
   ejatlas: "https://ejatlas.org/api/v1/conflicts/",
   epa_tri_sites: "https://data.epa.gov/efservice/tri_facility",
@@ -16314,9 +16473,7 @@ const LAYER_SITE = {
   trase_measures: "https://resources.trase.earth/data/trase-regions",
   trase_meat_brazil: "https://trase.earth/open-data",
   trase_palm_indonesia: "https://trase.earth/open-data",
-  trase_pulp_concessions_2015: "https://trase.earth/open-data",
-  trase_pulp_concessions_2020: "https://trase.earth/open-data",
-  trase_pulp_concessions_2023: "https://trase.earth/open-data",
+  trase_pulp_concessions: "https://trase.earth/open-data",
   trase_pulp_indonesia: "https://trase.earth/open-data",
   trase_silos_brazil: "https://trase.earth/open-data",
   troutwood: "https://map.troutwood.com/",
@@ -16482,9 +16639,7 @@ const NOT_LIVE = {
   trase_cocoa_ivory: "Trase's facilities file, from a copy made weekly (its file server does not let other sites read it)",
   trase_palm_indonesia: "Trase's facilities file, from a copy made weekly (its file server does not let other sites read it)",
   trase_pulp_indonesia: "Trase's facilities file, from a copy made weekly (its file server does not let other sites read it)",
-  trase_pulp_concessions_2015: "Trase's facilities file, from a copy made weekly (its file server does not let other sites read it)",
-  trase_pulp_concessions_2020: "Trase's facilities file, from a copy made weekly (its file server does not let other sites read it)",
-  trase_pulp_concessions_2023: "Trase's facilities file, from a copy made weekly (its file server does not let other sites read it)",
+  trase_pulp_concessions: "Trase's facilities file, from a copy made weekly (its file server does not let other sites read it)",
 };
 
 /* ---------- the layers box, in the order and under the headings chosen ---------- */
@@ -16625,11 +16780,7 @@ const PANEL_ORDER = [
   // carbon and biomass", which held only the mangrove biomass).
   { h: 4, t: "Forest cover" },
   // Round 75: the mangroves' biomass, at the owner's word.
-  { h: 4, t: "Mangroves" },
-  { h: 4, t: "Logging and timber concessions" },
-  { h: 4, t: "Timber and rubber plantations" },
-  { h: 4, t: "Forest zoning and management plans" },
-  { h: 4, t: "Illegal logging and timber trafficking" }, "powerbi_report",
+  // Round 83b: Tree cover loss and alerts right under Forest cover.
   { h: 4, t: "Tree cover loss and alerts" },
   { h: 5, t: "Loss year by year" }, "glad_loss",
   { h: 5, t: "Alerts" }, "group:forest_alerts",
@@ -16642,7 +16793,12 @@ const PANEL_ORDER = [
   { h: 5, t: "Clearing for cocoa" },
   { h: 5, t: "Clearing for wood pulp" },
   { h: 5, t: "Emissions from the clearing" },
-  { h: 4, t: "Wood pulp, Indonesia" }, "trase_pulp_indonesia", "trase_pulp_concessions_2015", "trase_pulp_concessions_2020", "trase_pulp_concessions_2023",
+  { h: 4, t: "Mangroves" },
+  { h: 4, t: "Logging and timber concessions" },
+  { h: 4, t: "Timber and rubber plantations" }, "nus_itp",
+  { h: 4, t: "Forest zoning and management plans" },
+  { h: 4, t: "Illegal logging and timber trafficking" }, "powerbi_report",
+  { h: 4, t: "Wood pulp, Indonesia" }, "trase_pulp_indonesia", "trase_pulp_concessions",
   { h: 4, t: "Companies and financiers" }, "dff",
   { h: 4, bundle: "plans", colour: "#6E6A55" },
   { h: 3, t: "Biodiversity loss" },
@@ -17446,7 +17602,7 @@ function headingPump() {
 const KIND_POINT = new Set(["pmtiles", "sitemap", "geojsonlive", "kml", "umap", "wpgmza", "trasefac", "ctairgas", "ctair", "worker",
   "ejatlas", "carbonmapper", "atlascities", "ufo", "gta", "cafo", "arcgisapp", "remains", "remainsfac", "remainsfind"]);
 const KIND_SHAPE = new Set(["pmshapes", "pmtareas", "arcgis", "arcgisdyn", "rasterlive", "rasterparts", "tile", "osmlanduse", "coral",
-  "glw", "shapes", "cerulean", "slickarchive", "no2relief"]);
+  "glw", "shapes", "cerulean", "slickarchive", "no2relief", "poprelief"]);
 const KIND_NATIONAL = new Set(["giga", "country", "owidgrapher"]);
 // Rows whose route says points but which draw areas (round 57: FracTracker's
 // map draws the world's oil and gas basins and the US shale basins, both

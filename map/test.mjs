@@ -2495,9 +2495,8 @@ console.log("\nrows gathered, moved and renamed");
          ["trase_cocoa_ivory", String.raw`Cocoa cooperatives, C\u00f4te d'Ivoire (Trase)`],
          ["trase_palm_indonesia", String.raw`Palm oil mills, Indonesia (Trase)`],
          ["trase_pulp_indonesia", String.raw`Wood pulp mills, Indonesia (Trase)`],
-         ["trase_pulp_concessions_2015", "Wood pulp concessions 2015–2019 (Trase)"],
-         ["trase_pulp_concessions_2020", "Wood pulp concessions 2020–2022 (Trase)"],
-         ["trase_pulp_concessions_2023", "Wood pulp concessions 2023–2024 (Trase)"]]
+         // Round 83b: the three periods are one row.
+         ["trase_pulp_concessions", "Wood pulp concessions, Indonesia, 2015 to 2024 (Trase)"]]
           .every(([i, n]) => src.includes(`id: "${i}", name: "${n}"`)) &&
         !/name: "Trase: /.test(src) && !/trasefacmenu/.test(src));
   check("each Trase row sits under the map's own heading, not a Trase one",
@@ -3055,10 +3054,9 @@ console.log("\nrows that show nearly the same thing say how they differ");
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("const PANEL_REMOVED"));
   const order = new Function(body + "; return PANEL_ORDER;")();
   const at = (t) => order.findIndex((x) => x && x.t === t);
-  check("the three pulp-concession periods sit under one heading of their own",
-        at("Wood pulp, Indonesia") > -1 &&
-        ["trase_pulp_concessions_2015", "trase_pulp_concessions_2020", "trase_pulp_concessions_2023"]
-          .every((i) => order.indexOf(i) > at("Wood pulp, Indonesia")));
+  check("the pulp concessions, one row with its three periods since round 83b, sit under one heading of their own",
+        at("Wood pulp, Indonesia") > -1 && order.indexOf("trase_pulp_concessions") > at("Wood pulp, Indonesia") &&
+        /periods: \[/.test(src));
 }
 
 console.log("\nreallocated rows say where they are; the emptied rows leave the box");
@@ -3695,7 +3693,8 @@ console.log("\nround of 24 September: a search box for the layers, and the unpla
   const places = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return { cataloguePlaces, BUNDLES };")();
   const P = "Destruction > Of the planet", f = (id) => places.cataloguePlaces(`x ${id}`, `x ${id}`).join(" | ");
   check("the rows no rule placed are filed by what they show",
-        f("inpe_amazon_prodes") === `${P} > Deforestation > Tree cover loss and alerts > Loss year by year` &&
+        // Round 83b: under Loss year by year only GLAD and the global land area stay.
+        f("inpe_amazon_prodes") === "(taken out)" &&
         f("idn_forest_area") === `${P} > Deforestation > ${places.BUNDLES.plans}` &&
         f("jrc_global_forest_cover") === `${P} > Deforestation > Forest cover` &&
         f("birdlife_endemic_bird_areas") === `${P} > Biodiversity loss > Birds` &&
@@ -4874,7 +4873,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("the slicks' timeline runs month by month, to the month's last day",
         mb.monthsBetween("2023-11", "2024-02").join() === "2023-11,2023-12,2024-01,2024-02" && mb.monthEnd("2024-02") === "2024-02-29");
   check("the wastewater outlets glow as a hotspot spectrum with its key", /const HOTSPOT = new Set\(\["wastewater_n_tot"/.test(src) && /if \(HOTSPOT\.has\(owner\)\) rowKey\(cfg\.id, HOT_KEY/.test(src));
-  check("the Material Research atlas keeps only its pollution layers", /dropLayers: \[3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13\]/.test(src));
+  check("the Material Research atlas keeps only its pollution layers", /dropLayers: \[(1, 2, )?3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13\]/.test(src));
   check("the page asks for this round's script", /app\.js\?v=(8[1-9]|9\d)/.test(html));
 }
 {
@@ -4891,8 +4890,8 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   const amt = new Function("NO2_KEY", src.slice(src.indexOf("function no2Amount("), src.indexOf("function no2Colour(")) + "; return no2Amount;")(N.NO2_KEY);
   check("a picture's colour is read back into its amount along the layer's own key",
         Math.abs(amt(85, 15, 109) - 10) < 0.01 && Math.abs(amt(249, 140, 9) - 100) < 0.5 && amt(252, 254, 164) >= 299);
-  check("the relief holds the ground while shown and gives it back after", /map\.setTerrain\(\{ source: "no2-dem", exaggeration: no2Lift\(\) \}\)/.test(src) &&
-        /cfg\.afterVisibility = \(vis\) => no2Ground\(vis === "visible"\);/.test(src) && /if \(no2Relief\.on\) return;/.test(src));
+  check("the relief holds the ground while shown and gives it back after", /map\.setTerrain\(\{ source: `\$\{top\}-dem`, exaggeration: reliefLift\(\) \}\)/.test(src) &&
+        /cfg\.afterVisibility = \(v\) => reliefGround\(cfg\.id, v === "visible"\);/.test(src) && /if \(no2Relief\.on\) return;/.test(src));
   check("the active fire row asks NASA's map service for pictures of all three VIIRS satellites", /VIIRS_SNPP_Thermal_Anomalies_375m_All,VIIRS_NOAA20_Thermal_Anomalies_375m_All,VIIRS_NOAA21_Thermal_Anomalies_375m_All/.test(src) &&
         /wms\/epsg3857\/best\/wms\.cgi/.test(src));
   const lib = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return { cataloguePlaces, CATALOGUE_TAKEN_OUT };")();
@@ -4912,6 +4911,32 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("the mangrove biomass is ringed wider out by the mangroves' outline", /jpl_mangrove_aboveground_biomass_stock_2000: \{ dataset: "gmw_global_mangrove_extent", until: 8/.test(src));
   check("Global Forest Watch's areas and servers' white areas are drawn in neon", /const hue = gladSalt\(d\.id\), neon = gladHsl\(hue, 0\.95, 0\.5\)/.test(src) && /take a light neon of the row's own hue/.test(src));
   check("the page asks for this round's script", /app\.js\?v=(8[2-9]|9\d)/.test(html));
+}
+{
+  console.log("\nround 83b: population as relief; one timber plantation row; one pulp concession row; Trase easier to see; tree cover loss pared");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const o = new Function(body + "; return { PANEL_ORDER };")();
+  const at = (t) => o.PANEL_ORDER.findIndex((x) => x && x.t === t);
+  check("population density is raised by density from GHSL's numbers, with Climate TRACE's picture until they are built",
+        /id: "ct_pop", name: "Population density, 2020, 1 km, raised by how many people live there \(GHSL\)"[^\n]*route: "poprelief"/.test(src) &&
+        /tiles\/ghsl_pop\.pmtiles/.test(src) && /return addRasterChoiceLayer\(cfg\);/.test(src));
+  check("the timber plantations of 2024 and 2025 are one row with a year chip, the catalogue's two taken out",
+        /id: "nus_itp"[^\n]*route: "rasterlive"/.test(src) && /\["2025", "2024"\]\.map/.test(src) && o.PANEL_ORDER.includes("nus_itp"));
+  const lib = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return { cataloguePlaces, CATALOGUE_TAKEN_OUT };")();
+  const f = (t, id = "") => lib.cataloguePlaces(`${t} ${id}`, `${t} ${id}`).join(" | ");
+  check("…and the catalogue's two years are out", f("Industrial timber plantations 2024", "Global_PlantationITP_2024") === lib.CATALOGUE_TAKEN_OUT);
+  check("tree cover loss from fires is under Fire only; the planted area on peatland under Peatland",
+        f("Tree cover loss due to fires") === "Destruction > Of the planet > Fire" && f("Planted area on peatland") === "Destruction > Of the planet > Peatland");
+  check("under Loss year by year only GLAD and the global land area stay", f("Tree cover loss — Global land area", "umd_tree_cover_loss") !== lib.CATALOGUE_TAKEN_OUT &&
+        f("Tree cover loss in Argentina", "arg_otbn_forest_loss") === lib.CATALOGUE_TAKEN_OUT);
+  check("Tree cover loss and alerts sits right under Forest cover", at("Tree cover loss and alerts") === at("Forest cover") + 1);
+  const nw = new Function(src.match(/function notWorldwide\(t\) \{[\s\S]*?\n\}\n/)[0] + "; return notWorldwide;")();
+  check("the rubber plantations are not called worldwide", nw("Rubber plantations 2025 \u2014 worldwide") === "Rubber plantations 2025" && nw("Oil palm \u2014 worldwide") === "Oil palm \u2014 worldwide");
+  check("Trase's regions are edged in their own colours with a dot at their middle wider out", /id: `\$\{src\}-mid`, type: "circle"/.test(src) && /"line-color": \["coalesce", \["get", "_c"\]/.test(src));
+  check("the Material Research atlas keeps only its plants", /dropLayers: \[1, 2, 3,/.test(src));
+  check("the page asks for this round's script", /app\.js\?v=(8[3-9]|9\d)/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

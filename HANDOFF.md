@@ -5,6 +5,34 @@ touches.
 
 ---
 
+## Round 83b (27 September)
+
+Needs round 82b first (runs after it by name).
+
+- Relief made general: RELIEFS, reliefTile, protocol relief://<row>/<col|dem>,
+  reliefStack/reliefGround (the last relief row turned on holds the ground;
+  with none, the map's own terrain setting returns), addReliefLayers. The
+  nitrogen dioxide row uses it; its sources are now no2_tropomi-col/-dem/-shade.
+- ct_pop (route poprelief, addPopRelief): GHSL 2020 people per square km from
+  culprits-tiles-more tiles/ghsl_pop.pmtiles (scripts/ghsl_pop.py, zooms 0-6,
+  Mapbox height code), raised by density on a log scale (50,000/km2 highest),
+  neon colours (POP_RAMP); Climate TRACE's flat picture until the copy exists.
+- Material Research atlas: its two school layers dropped too (dropLayers 1-13).
+- Rubber rows: "worldwide"/"global" taken out of their titles (notWorldwide).
+- nus_itp: Nusantara's industrial timber plantations 2024/2025 as one
+  rasterlive row (WMS v3), the catalogue's two rows taken out.
+- trase_pulp_concessions: the three periods as one trasefac row (cfg.periods,
+  each a chip and a colour).
+- Trase measures: regions edged in their own colour, and a dot at each
+  region's middle below zoom 6 (<src>-mid).
+- Catalogue: tree cover loss from fires under Fire only; planted area on
+  peatland under Peatland; under Loss year by year only glad_loss and the
+  global land area row (catalogueLastWord); that row titled "Tree cover loss,
+  2000 to 2012" (titleFix).
+- glad_loss drawn at full strength, lifted and sharpened.
+- Tree cover loss and alerts moved right under Forest cover.
+
+
 ## Round 82b (27 September)
 
 Needs round 81b first (runs after it by name).
