@@ -5,6 +5,26 @@ touches.
 
 ---
 
+## Round 68 (26 September)
+
+- Wastewater watersheds (owner's go-ahead, 26 September): the shapes were
+  already built and published (culprits-tiles-more
+  tiles/wastewater_watersheds.pmtiles, 79 MB, zoom 9, 134,846 watersheds;
+  wastewater/watersheds.key.json), and the row draws them; the "not built"
+  lines in the older notes are out of date.
+- Its shading: the key's steps were cut at equal counts of watersheds. Half
+  carry no nitrogen and most very little, so the top step began at 18 t a year
+  and held 9,648 watersheds with 98% of all the nitrogen, and all of Europe
+  came out one shade. The row now gives logSteps (1e5 to 1e10 g: 0.1, 1, 10,
+  100, 1,000 and 10,000 tonnes a year) and addPmtAreasLayer uses them before
+  the key's; it also writes the steps as the row's key (rowKey), so they show
+  under the row and in the Showing box. Nothing is filtered.
+- Wreckers of the Earth: the layer copies are in culprits-tiles-more umap/,
+  but umap/409815/map.json (added to umap_copy.py in round 61) is not there
+  yet, so the row still draws nothing until the nightly refresh runs, or
+  refresh is run by hand with umap_copy.
+
+
 ## Round 67 (26 September)
 
 - Hologram view: the switch is put in the basemap list (.bm-choices) as its

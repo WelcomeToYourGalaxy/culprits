@@ -5396,7 +5396,12 @@ async function addPmtAreasLayer(cfg) {
   if (!cfg || map.getSource(`${cfg.id}-src`)) return;
   let key = {};
   try { key = await getJson(cfg.keyUrl, 20000); } catch (e) { setLayerState(cfg.id, `not built yet (${e.message})`); return; }
-  const breaks = (key.breaks || []).filter((b) => Number.isFinite(b)).slice(0, AREA_RAMP.length - 1);
+  // Round 67: steps of ten on a log scale when the row asks for them. The
+  // key's own steps were cut at equal counts of watersheds; half carry no
+  // nitrogen and most very little, so the top step began at 18 t a year and
+  // held 9,648 watersheds with 98% of all the nitrogen: all of Europe came out
+  // one shade. Every watershed is still drawn; only the steps moved.
+  const breaks = (cfg.logSteps || (key.breaks || []).filter((b) => Number.isFinite(b))).slice(0, AREA_RAMP.length - 1);
   const v = ["to-number", ["get", "value"], 0];
   const colour = breaks.length ? ["step", v, AREA_RAMP[0], ...breaks.flatMap((b, i) => [b, AREA_RAMP[i + 1]])] : AREA_RAMP[3];
   map.addSource(`${cfg.id}-src`, { type: "vector", url: `pmtiles://${cfg.archiveUrl}`, attribution: "Tuholske et al. 2021, Global Wastewater Model, KNB" });
@@ -5406,6 +5411,12 @@ async function addPmtAreasLayer(cfg) {
     paint: { "line-color": "#C7ABA2", "line-width": 0.4, "line-opacity": 0.5 } }, pointLayerAbove());
   cfg._layerIds = [`${cfg.id}-fill`, `${cfg.id}-line`];
   bindHtmlPopup(`${cfg.id}-fill`, (p) => pieceBox(cfg, p));
+  if (breaks.length && cfg.stepLabel) {
+    const lab = cfg.stepLabel;
+    rowKey(cfg.id, AREA_RAMP.slice(0, breaks.length + 1).map((c, i) =>
+      [c, (i === 0 ? `none to ${lab(breaks[0])}` : i === breaks.length ? `${lab(breaks[i - 1])} or more` : `${lab(breaks[i - 1])} to ${lab(breaks[i])}`) + (cfg.stepUnit || "")]));
+    if (typeof buildLegend === "function") buildLegend();
+  }
   setLayerState(cfg.id, breaks.length ? `${(key.count || 0).toLocaleString()} areas, in ${breaks.length + 1} steps` : "areas");
   applyVisibility(cfg.id);
 }
@@ -12281,7 +12292,10 @@ const OTHER_MAPS = {
     { id: "wastewater_watersheds", name: "Nitrogen from human wastewater, by the watershed it drains from (Tuholske et al.)", unit: "grams of nitrogen a year", colour: "#5E7377", route: "pmtareas", ready: true, lazy: true,
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_watersheds.pmtiles", keyUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/wastewater/watersheds.key.json",
       boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/wastewater/pieces", sourceLayer: "watersheds",
-      note: "The Global Wastewater Model's watersheds: the land each coastal outlet drains, shaded by all the nitrogen from human wastewater that reaches the sea from it, dark to light on a log scale cut at the values' own steps. A click shows every figure the model gives for it. Built once from the model's 2021 data package (scripts/wastewater_watersheds.py in culprits-tiles-more); it is not updated." },
+      // Grams a year, in steps of ten from 0.1 to 10,000 tonnes (round 67).
+      logSteps: [1e5, 1e6, 1e7, 1e8, 1e9, 1e10],
+      stepLabel: (g) => (g / 1e6).toLocaleString("en", { maximumFractionDigits: 1 }), stepUnit: " tonnes a year",
+      note: "The Global Wastewater Model's watersheds: the land each coastal outlet drains, shaded by all the nitrogen from human wastewater that reaches the sea from it, dark to light in steps of ten, from under 0.1 tonne a year to 10,000 tonnes or more (about half the 134,846 watersheds carry none). A click shows every figure the model gives for it. Built once from the model's 2021 data package (scripts/wastewater_watersheds.py in culprits-tiles-more); it is not updated." },
     { id: "wastewater_plumes", name: "Nitrogen from human wastewater in coastal waters, 2015 (Tuholske et al.)", unit: "per map cell", colour: "#5E7377", route: "rasterlive", ready: true, lazy: true,
       attribution: "Tuholske et al. 2021, Global Wastewater Model (KNB doi:10.5063/F76B09)", maxzoom: 6,
       choices: [
