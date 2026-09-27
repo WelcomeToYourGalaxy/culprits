@@ -207,6 +207,59 @@ const CT_HISTORY = {
   })),
 };
 
+// Round 76 (27 September): the Genetic engineering map's key filters, as it
+// words them - releases by whether still in date, the decade granted, the
+// consent phase and the release scale; organisations by what kind of body they
+// are, what they work on and on which organisms. Every box starts ticked; a
+// record that does not carry the field is never hidden by it.
+const GMO_KEY_DECADE = { label: "Decade granted", property: "x_decade",
+  values: ["1980s", "1990s", "2000s", "2010s", "2020s", "no date given"] };
+const GMO_REL_KEYS = [
+  { label: "Status", property: "x_lapsed", values: ["in date", "expired"],
+    labels: { "in date": "Still in date", expired: "Granted, since expired" } },
+  GMO_KEY_DECADE,
+  { label: "Consent phase", property: "x_phase", values: ["under assessment", "consented"],
+    labels: { "under assessment": "Under assessment", consented: "Consented" } },
+  { label: "Release scale", property: "x_scale",
+    values: ["small, one site", "a few sites", "medium, several sites or states", "large, ten or more sites", "largest, forty sites or ten states"] },
+];
+const GMO_ORG_KEYS = [
+  { label: "Kind of body", property: "x_otype", values: ["company", "institute", "ministry", "association", "registry"] },
+  { label: "Subjects", property: "x_subjects", list: true,
+    values: ["plants and crops", "animals", "human medicine and reproduction", "wild release", "microbes and fermentation",
+             "tools, patents and platforms", "money", "rules and influence"] },
+  { label: "Organisms", property: "x_organisms", list: true, values: ["lab_animals", "human", "microbes"],
+    labels: { lab_animals: "laboratory animals", human: "humans", microbes: "microbes" } },
+];
+// Unticked values per row and field.
+const keyOff = new Map();
+function keyFilterExpr(cfg) {
+  const off = keyOff.get(cfg.id);
+  if (!off || !cfg.keys) return null;
+  const parts = [];
+  for (const k of cfg.keys) {
+    const gone = off.get(k.property);
+    if (!gone || !gone.size) continue;
+    const kept = k.values.filter((v) => !gone.has(v));
+    const missing = ["any", ["!", ["has", k.property]], ["==", ["get", k.property], null]];
+    const match = k.list
+      ? ["any", ...kept.map((v) => ["in", `|${v}|`, ["to-string", ["get", k.property]]]), false]
+      : ["in", ["get", k.property], ["literal", kept]];
+    parts.push(["any", missing, match]);
+  }
+  return parts.length ? ["all", ...parts] : null;
+}
+function keysRow(cfg) {
+  const box = document.createElement("div");
+  box.className = "facet key-filters";
+  box.dataset.for = cfg.id;
+  box.innerHTML = cfg.keys.map((k) =>
+    `<div class="kf-h">${escapeHtml(k.label)}</div>` + k.values.map((v) =>
+      `<label class="kf"><input type="checkbox" checked data-kf="${cfg.id}" data-kp="${escapeHtml(k.property)}" data-kv="${escapeHtml(v)}">` +
+      `${escapeHtml((k.labels && k.labels[v]) || v.charAt(0).toUpperCase() + v.slice(1))}</label>`).join("")).join("");
+  return box;
+}
+
 const LAYERS = [
   { id:"owid_co2",             name:"National CO₂ emissions (Our World in Data)", unit:"Mt CO₂/yr", colour:"#8A5750", route:"country", ready:true, off:true },
   // Every row is ONE MONTH for one source, not one facility: 2021-01 through
@@ -339,11 +392,14 @@ const LAYERS = [
   // The releases archive holds several different registers; each is its own
   // row here, drawn from the same archive with its own filter.
   { id:"gmo_env", sourceOf:"gmo_releases", name:"Engineered crops and trees released outdoors (US APHIS)", unit:"authorisations", colour:"#7C6F84", route:"pmtiles", ready:true, off: true,
+    keys: GMO_REL_KEYS,
     where: ["in", ["coalesce", ["get", "x_src"], ["get", "id"]], ["literal", ["aphis:epermits", "aphis:efile"]]],
     note: "US Department of Agriculture authorisations to release genetically engineered plants and trees into the environment. APHIS publishes the state, not the field, so most draw hollow at a state's centre." },
   { id:"gmo_decisions", sourceOf:"gmo_releases", name:"National biosafety decisions (CBD Biosafety Clearing-House)", unit:"decisions", colour:"#6F6A84", route:"pmtiles", ready:true, off: true,
+    keys: [GMO_KEY_DECADE],
     where: ["==", ["coalesce", ["get", "x_src"], ["get", "id"]], "bch:decision"] },
   { id:"gmo_ogtr", sourceOf:"gmo_releases", name:"Gene technology licences (Australia OGTR)", unit:"licences", colour:"#84707A", route:"pmtiles", ready:true, off: true,
+    keys: GMO_REL_KEYS,
     where: ["==", ["slice", ["coalesce", ["get", "x_src"], ["get", "id"]], 0, 4], "ogtr"] },
   { id:"gmo_therapy", sourceOf:"gmo_releases", name:"Gene and cell therapy trial sponsors", unit:"sponsors", colour:"#6E7484", route:"pmtiles", ready:true, off: true,
     where: ["==", ["coalesce", ["get", "x_src"], ["get", "id"]], "clinical:sponsor"] },
@@ -359,6 +415,7 @@ const LAYERS = [
   // (PJ_SEED), which the harvest now adds to projects.json as the map does.
   // The organisations, by the map's own twelve lenses (its source codes).
   { id:"gmo_industry", sourceOf:"gmo_releases", name:"Genetic-engineering companies, labs, funders, regulators and trade bodies (Genetic engineering map)", unit:"organisations", colour:"#72697E", route:"pmtiles", ready:true, off: true,
+    keys: GMO_ORG_KEYS,
     where: ["all", ["==", ["slice", ["coalesce", ["get", "x_src"], ["get", "id"]], 0, 9], "industry:"], ["!", ["in", ["coalesce", ["get", "x_src"], ["get", "id"]], ["literal", ["industry:animals", "industry:repro"]]]]],
     facet: { property: "x_src", label: "lens",
              values: ["industry:seed", "industry:editing", "industry:synthesis", "industry:cro", "industry:livestock", "industry:wild",
@@ -370,6 +427,7 @@ const LAYERS = [
                        "industry:money": "Money & Backers", "industry:rules": "Rules, Records & Advocacy" } },
     note: "The organisations the Genetic engineering map names, each at its head office: the laboratories, plants and fields they run are somewhere else, and almost none of them are published. Filed by the map's own lenses." },
   { id:"gmo_escapes", sourceOf:"gmo_releases", name:"Escapes and contamination by engineered organisms (Genetic engineering map)", unit:"incidents", colour:"#7E6660", route:"pmtiles", ready:true, off: true,
+    keys: [GMO_KEY_DECADE],
     where: ["==", ["slice", ["coalesce", ["get", "x_src"], ["get", "id"]], 0, 7], "escape:"],
     note: "The escapes, unapproved varieties in trade and transgenes in wild relatives the Genetic engineering map records, each placed at the area the record names." },
   { id:"wastewater_n_tot", name:"Nitrogen from human wastewater reaching the sea, all of it, by coastal outlet (Tuholske et al.)", unit:"grams of nitrogen a year", colour:"#5E7377", route:"pmtiles", ready:true, off: true,
@@ -10352,13 +10410,15 @@ function addCeruleanLayer(cfg) {
 }
 
 // One popup per click, sharing the claim with bindPopup.
-function bindHtmlPopup(layerId, html) {
+function bindHtmlPopup(layerId, html, opts) {
   map.on("click", layerId, (e) => {
     const claim = e.originalEvent || e;
     if (popupClaimedBy === claim) return;
     popupClaimedBy = claim;
     const out = html(e.features[0].properties);
-    const pop = new maplibregl.Popup({ closeButton: true, maxWidth: "300px" }).setLngLat(e.lngLat);
+    // A layer may ask for a wider box in its own style (round 76: the
+    // Genetic engineering map's country write-ups).
+    const pop = new maplibregl.Popup(Object.assign({ closeButton: true, maxWidth: "300px" }, opts || {})).setLngLat(e.lngLat);
     if (out && typeof out.then === "function") {
       // The box's long text is fetched on this first click; say so meanwhile.
       pop.setHTML(`<div class="meta">loading\u2026</div>`).addTo(map);
@@ -10934,9 +10994,16 @@ async function addShapesLayer(cfg) {
           return more ? h + `<div class="inv-more"><div class="inv-h1">Also, from other sources</div>${more}</div>` : h;
         }).catch(() => h))
       : plain;
-  bindHtmlPopup(`${cfg.id}-fill`, popup);
-  bindHtmlPopup(`${cfg.id}-line`, popup);
-  bindHtmlPopup(`${cfg.id}-pt`, popup);
+  // Round 76: a country on the Genetic engineering map's shaded layers opens
+  // with that map's own write-up of it and its "What you can do" list.
+  const gmoIso = (p) => p.iso || (/^[A-Z]{3}$/.test(String(p.name || "")) ? p.name : "");
+  const withGmo = GMO_COUNTRY_LAYERS.has(cfg.id)
+    ? (p) => Promise.resolve(popup(p)).then((h) => gmoCountryHtml(gmoIso(p)).then((more) => `<div class="gmo-wb">${h}${more}</div>`))
+    : popup;
+  const popOpts = GMO_COUNTRY_LAYERS.has(cfg.id) ? { maxWidth: "380px", className: "gmo-box" } : undefined;
+  bindHtmlPopup(`${cfg.id}-fill`, withGmo, popOpts);
+  bindHtmlPopup(`${cfg.id}-line`, withGmo, popOpts);
+  bindHtmlPopup(`${cfg.id}-pt`, withGmo, popOpts);
   if (R) shapeRoutes(cfg, data);
   if (colouring) {
     shapeKey(cfg, by, 0, colouring);
@@ -12206,7 +12273,129 @@ function bindGmoPopup(layerId) {
   map.on("mouseleave", layerId, () => (map.getCanvas().style.cursor = ""));
 }
 // The map's own colours for its boxes (its popup and #recList).
+// ---- round 76: the Genetic engineering map's country write-ups, its "What
+// you can do" lists, open consultations, guides and international bodies ------
+// Copied daily by culprits-tiles-more (scripts/gmo_boxes.py), which opens the
+// map itself and keeps what it builds, so the words are the map's own.
+const GMO_BOXES = "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gmo";
+const GMO_COUNTRY_LAYERS = new Set(["gmo_regime", "gmo_treaties", "gmo_incidents", "gmo_cultivation", "gmo_gmofree"]);
+const gmoCountryCache = new Map();
+function gmoCountryHtml(iso) {
+  if (!/^[A-Z]{3}$/.test(String(iso || ""))) return Promise.resolve("");
+  if (!gmoCountryCache.has(iso)) {
+    const p = getJson(`${GMO_BOXES}/countries/${iso}.json`, 30000).then((d) => {
+      const law = String(d.law || ""), act = String(d.act || "");
+      if (!law && !act) return "";
+      return `<div class="gmo-cw"><div class="gmo-cw-h">${escapeHtml(d.name || iso)}, from the Genetic engineering map</div>${law}${act}</div>`;
+    }).catch(() => "");
+    gmoCountryCache.set(iso, p);
+  }
+  return gmoCountryCache.get(iso);
+}
+// The decisions list's three menus, as the Genetic engineering map filters
+// them (its _bchFilter, same ids): by use, organism and applicant.
+if (typeof window !== "undefined") window._bchFilter = function (a3) {
+  const box = document.getElementById(`bchL${a3}`);
+  if (!box) return;
+  const val = (p) => { const e = document.getElementById(p + a3); return e ? e.value : ""; };
+  const wUse = val("bchS"), wCrop = val("bchC"), wDev = val("bchD");
+  const keep = (have, want) => (!want ? true : want === "\u0000none" ? !have : have === want);
+  const rows = box.querySelectorAll(".bch-row");
+  let shown = 0;
+  rows.forEach((r) => {
+    const u = (r.getAttribute("data-uses") || "").split(" ").filter(Boolean);
+    const ok = (!wUse ? true : wUse === "\u0000none" ? !u.length : u.includes(wUse)) &&
+      keep(r.getAttribute("data-crop") || "", wCrop) && keep(r.getAttribute("data-dev") || "", wDev);
+    r.style.display = ok ? "" : "none";
+    if (ok) shown++;
+  });
+  const cn = document.getElementById(`bchN${a3}`);
+  if (cn) cn.textContent = shown === rows.length ? `${rows.length} decisions` : `${shown} of ${rows.length}`;
+};
+// A panel along the bottom, like a companion page, holding HTML rather than a
+// page: the open consultations and the four how-to guides.
+async function addGmoPanel(cfg) {
+  let c = companions.get(cfg.id);
+  if (!c) {
+    const el = document.createElement("div");
+    el.className = "companion gmo-wb gmo-panel";
+    el.style.cssText = "position:fixed;left:0;right:0;bottom:0;height:46vh;z-index:40;display:flex;flex-direction:column;" +
+      "background:#0c1122;border-top:1px solid rgba(46,62,114,.6);color:#e0ddd5";
+    el.innerHTML = `<div class="c-bar" style="display:flex;align-items:center;gap:11px;padding:6px 12px;font-size:12.5px">` +
+      `<span style="color:#eaf1ff">${escapeHtml(cfg.name)}</span><span style="margin-left:auto"></span>` +
+      `<button type="button" style="font:inherit;background:none;color:#9fb2cf;border:1px solid rgba(127,168,204,.4);border-radius:2px;padding:1px 7px;cursor:pointer">close</button></div>` +
+      `<div class="gmo-panel-body" style="flex:1;overflow:auto;padding:4px 14px 14px"><div class="meta">loading\u2026</div></div>`;
+    document.body.appendChild(el);
+    c = { el, frame: null, follow: null };
+    companions.set(cfg.id, c);
+    el.querySelector("button").addEventListener("click", () => {
+      const cb = document.querySelector(`[data-layer="${cfg.id}"]`);
+      if (cb) { cb.checked = false; cb.dispatchEvent(new Event("change", { bubbles: true })); }
+    });
+    const body = el.querySelector(".gmo-panel-body");
+    try {
+      const d = await getJson(cfg.dataUrl, 30000);
+      const age = d.made ? Math.floor((Date.now() / 1000 - d.made) / 86400) : null;
+      body.innerHTML =
+        `<div class="gmo-cw-h">Open consultations</div>` +
+        `<div class="cons-note">Read from the Genetic engineering map ${age == null ? "" : age < 1 ? "today" : `${age} day${age === 1 ? "" : "s"} ago`}; a window's days to close are counted from then.</div>` +
+        (d.consultations || `<div class="cons-note">Nothing was copied.</div>`) +
+        `<div class="gmo-cw-h" style="margin-top:12px">How-to guides</div>` +
+        (d.guides || []).map((g) => `<div class="res-card"><a class="res-src" href="${escapeHtml(g.url)}" target="_blank" rel="noopener">${escapeHtml(g.title)} (PDF) \u2197</a></div>`).join("");
+      setLayerState(cfg.id, "open along the bottom of the screen");
+    } catch (e) {
+      body.innerHTML = `<div class="cons-note">Not copied yet (${escapeHtml(e.message)}).</div>`;
+      setLayerState(cfg.id, "not copied yet");
+    }
+  }
+  applyVisibility(cfg.id);
+}
+
 const GMO_BOX_CSS = `
+.gmo-cw{margin-top:8px;padding-top:6px;border-top:1px solid rgba(127,168,204,.28)}
+.gmo-cw-h{font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#7fa8cc;margin:2px 0 5px}
+.gmo-wb .res-cat{border-top:1px solid rgba(120,140,180,.22)}
+.gmo-wb .res-head{display:flex;align-items:center;gap:6px;padding:5px 0;cursor:pointer;font-size:9.4px;letter-spacing:.4px;text-transform:uppercase;color:#c3d0e6}
+.gmo-wb .res-car{font-size:8px;color:#8fa4c6;transition:transform .12s}
+.gmo-wb .res-cat.open>.res-head .res-car{transform:rotate(90deg)}
+.gmo-wb .res-lab{flex:1 1 auto}
+.gmo-wb .res-n{flex:0 0 auto;min-width:15px;text-align:center;font-size:8.5px;color:#9fb0cf;background:rgba(120,140,180,.18);border-radius:3px;padding:1px 4px}
+.gmo-wb .res-body{display:none;padding:2px 0 6px 10px}
+.gmo-wb .res-cat.open>.res-body{display:block}
+.gmo-wb .res-card{margin:5px 0;padding:6px 8px;border-radius:5px;background:rgba(74,93,47,.16);border-left:2px solid rgba(122,150,80,.6)}
+.gmo-wb .res-name{font-weight:700;font-size:10px;color:#dfe7f5}
+.gmo-wb .res-lens{display:inline-block;margin:3px 0;font-size:7.8px;letter-spacing:.5px;padding:1px 5px;border-radius:3px;color:#bcd6a8;background:rgba(122,150,80,.22)}
+.gmo-wb .res-d{font-size:9.3px;line-height:1.5;color:#c3c9d9;margin-top:2px}
+.gmo-wb .res-conf{margin-top:3px;font-size:8.4px;line-height:1.4;color:#93866a;font-style:italic}
+.gmo-wb .res-src{display:inline-block;margin-top:4px;font-size:9px;color:#bcd6a8;text-decoration:none;border-bottom:1px dotted rgba(188,214,168,.5)}
+.gmo-wb .res-soon{border-left-color:#B07F72!important;background:rgba(176,127,114,.16)!important}
+.gmo-wb .pj-act{margin-top:8px;padding:7px 9px;border-radius:5px;background:rgba(74,93,47,.14);border-left:2px solid rgba(122,150,80,.75);font-size:9.6px;line-height:1.5;color:#c9d3e4}
+.gmo-wb .pj-act-h{font-weight:700;font-size:10px;color:#dfe7f5;margin-bottom:3px}
+.gmo-wb .rgm-lead{font-size:11.5px;color:#dfe6f0;display:flex;align-items:center;gap:6px;margin:0 0 5px}
+.gmo-wb .rgm-sw{width:14px;height:8px;border:2px solid #7d8f45;border-radius:2px;flex:0 0 auto}
+.gmo-wb .rgm-tag{margin-left:6px;font-size:9px;color:#a79bc0;border:1px solid rgba(167,155,192,.5);border-radius:3px;padding:0 4px;white-space:nowrap}
+.gmo-wb .rgm-p{font-size:10.5px;line-height:1.55;color:#c3cee0;margin:0 0 5px}
+.gmo-wb .rgm-p a{color:#9dc0dd}
+.gmo-wb .rgm-conf{font-size:9.5px;line-height:1.45;color:#8a94a8;font-style:italic;margin:0 0 5px}
+.gmo-wb .bch-filters{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin:3px 0 5px}
+.gmo-wb .bch-sel{font-size:10.5px;background:#0f1526;color:#dbe2ee;border:1px solid #2a3450;border-radius:4px;padding:1px 3px;max-width:150px}
+.gmo-wb .bch-count{font-size:10px;color:#8fa0b8;margin-left:auto}
+.gmo-wb .bch-list{max-height:230px;overflow-y:auto;margin:2px 0 6px;border-left:2px solid rgba(83,137,164,.45);padding-left:8px}
+.gmo-wb .bch-row{padding:4px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+.gmo-wb .bch-t{font-size:11.5px;line-height:1.35}
+.gmo-wb .bch-t a{color:#9dc0dd}
+.gmo-wb .bch-m{font-size:10px;color:#8fa0b8;margin-top:1px}
+.gmo-wb .cons-note{font-size:10px;color:#8d97ad;font-style:italic;line-height:1.5;padding:4px 0}
+.gmo-wb .wire-item{display:block;padding:6px 0 6px 8px;border-bottom:1px solid rgba(255,255,255,.06);text-decoration:none;border-left:2px solid rgba(122,150,80,.6)}
+.gmo-wb .wire-h{display:block;color:#d9deec;font-size:11.5px;line-height:1.35}
+.gmo-wb .wire-item:hover .wire-h{color:#fff;text-decoration:underline}
+.gmo-wb .wire-m{display:block;color:#8997ad;font-size:10px;margin-top:2px}
+.gmo-tr{margin:6px 0;padding:6px 8px;border-left:2px solid rgba(83,137,164,.5);font-size:11px;line-height:1.45}
+.gmo-tr a{color:#9dc0dd}
+#layers .key-filters{display:block;padding:2px 0 6px 22px}
+#layers .kf-h{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:6px 0 2px}
+#layers .kf{display:flex;align-items:center;gap:6px;margin:2px 0;font-size:12px;line-height:1.3;cursor:pointer}
+#layers .kf input{margin:0}
 .maplibregl-popup.gmo-box .maplibregl-popup-content{background:#0c1122;border:1px solid rgba(46,62,114,.5);border-radius:10px;color:#e0ddd5;font:13px/1.5 Marcellus,Georgia,serif;max-height:430px;overflow-y:auto;padding:14px 16px}
 .maplibregl-popup.gmo-box .maplibregl-popup-tip{border-top-color:#0c1122!important;border-bottom-color:#0c1122!important}
 .gmo-pop b,.maplibregl-popup.gmo-box .maplibregl-popup-content .gmo-pop b{color:#fff;font-size:14px;display:inline;margin:0}
@@ -12348,9 +12537,9 @@ function applyFacet(cfg) {
   // `where` defines what the layer IS (climate_trace_cafo is one definition out
   // of a shared archive). The facet narrows within that. Replacing rather than
   // combining would silently turn the CAFO layer back into every source.
-  const filter = cfg.where
-    ? (picked ? ["all", cfg.where, picked] : cfg.where)
-    : picked;
+  const keyed = typeof keyFilterExpr === "function" ? keyFilterExpr(cfg) : null;
+  const parts = [cfg.where, picked, keyed].filter(Boolean);
+  const filter = parts.length > 1 ? ["all", ...parts] : (parts[0] || null);
   // Same four ids applyVisibility walks. -fill and -line are here because a
   // polygon layer can carry `where` or a facet just as a point layer can, and
   // a filter that reaches only the circle layers would leave the polygons
@@ -12764,6 +12953,14 @@ const GMO_MAP = {
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
     { id: "gmo_treaties", name: "Biosafety and seed treaties (Genetic engineering map)", unit: "countries", colour: "#665E6C", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/gmo_treaties.geojson",
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+    // Round 76: the map's international bodies (25, with their 84 trackers and
+    // registers) and its consultations and guides, copied daily.
+    { id: "gmo_bodies", name: "International bodies that record or rule on genetic engineering, and their registers (Genetic engineering map)", unit: "bodies", colour: "#5E6470", route: "sitemap", ready: true, lazy: true,
+      dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gmo/bodies.places.geojson",
+      note: "The international bodies the Genetic engineering map names (its internationalBodies list), each at its seat, with every register, tracker and database it lists for them in the box; copied daily from the map by culprits-tiles-more." },
+    { id: "gmo_act", name: "What you can do: open consultations and how-to guides (Genetic engineering map)", unit: "opens a panel along the bottom", colour: "#5E6E5C", route: "gmopanel", ready: true, lazy: true,
+      dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gmo/panel.json",
+      note: "The comment windows open now on genetic engineering, country by country, with the days left to close, and the map's four how-to guides (testing for escaped GMOs, stopping a release, making a GMO-free zone, changing the industry); copied daily from the map by culprits-tiles-more. A country's own list of what you can do opens with the country on the shaded layers." },
     { id: "gmo_trials", name: "Field trials (Genetic engineering map)", unit: "countries and regions", colour: "#6E6456", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/gmo_trials.geojson",
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
   ],
@@ -13591,6 +13788,7 @@ function ensureLayer(cfg) {
       : cfg.route === "ctair" || cfg.route === "ctairgas" ? addCtAirLayer(cfg)
       : cfg.route === "gsn" ? addGsnLayer(cfg)
       : cfg.route === "companion" ? Promise.resolve().then(() => addCompanion(cfg))
+      : cfg.route === "gmopanel" ? addGmoPanel(cfg)
       : cfg.route === "leave" ? Promise.resolve().then(() => { setLayerState(cfg.id, cfg.unit); applyVisibility(cfg.id); })
       : cfg.route === "rte" ? addRteLayer(cfg)
       : cfg.route === "ll2" && cfg.what === "upcoming" ? addLaunchSitesLayer(cfg)
@@ -13854,6 +14052,8 @@ const LAYER_KIND = {
   capture_map: ["human", "upstream"],
   gmo_cultivation: ["plant", "downstream"],
   gmo_trials: ["plant", "downstream"],
+  gmo_bodies: ["plant", "downstream"],
+  gmo_act: ["plant", "downstream"],
   gmo_incidents: ["plant", "downstream"],
   gmo_gmofree: ["plant", "upstream"],
   gmo_regime: ["plant", "upstream"],
@@ -13954,6 +14154,7 @@ function buildPanel() {
       `<span class="un" data-state="${cfg.id}">${cfg.unit}</span></span>`;
     box.appendChild(row);
     if (cfg.facet) box.appendChild(facetRow(cfg));
+    if (cfg.keys) box.appendChild(keysRow(cfg));
   });
 
   // The group renders only if it has children. With no year archives on R2 the
@@ -13994,6 +14195,19 @@ function buildPanel() {
   });
 
   box.addEventListener("change", (e) => {
+    // A key filter's box (round 76): narrows its row, draws nothing new.
+    if (e.target.dataset && e.target.dataset.kf) {
+      const t = e.target, id = t.dataset.kf;
+      const cfg = LAYERS.find((l) => l.id === id) || childById(id);
+      if (!cfg) return;
+      const off = keyOff.get(id) || new Map();
+      const gone = off.get(t.dataset.kp) || new Set();
+      if (t.checked) gone.delete(t.dataset.kv); else gone.add(t.dataset.kv);
+      off.set(t.dataset.kp, gone);
+      keyOff.set(id, off);
+      applyFacet(cfg);
+      return;
+    }
     // The group parent ticks and unticks every child, then falls through to
     // the per-child handling below by dispatching nothing — each child's state
     // is set directly here so one click does not fire six change events.
@@ -14397,6 +14611,8 @@ const LAYER_SITE = {
   gmo_regime: "https://github.com/WelcomeToYourGalaxy/GMO-map",
   gmo_treaties: "https://github.com/WelcomeToYourGalaxy/GMO-map",
   gmo_trials: "https://github.com/WelcomeToYourGalaxy/GMO-map",
+  gmo_bodies: "https://welcometoyourgalaxy.github.io/GMO-map/",
+  gmo_act: "https://welcometoyourgalaxy.github.io/GMO-map/",
   gpw_map: "https://globalplasticwatch.org/map",
   gsn: "https://api.gsn.naturedatalab.org/geo-analysis/layers",
   gsn_rankings: "https://www.globalsafetynet.app/rankings/",
@@ -14633,7 +14849,7 @@ const PANEL_ORDER = [
   { h: 1, bundle: "selected", colour: "#5E6470" },
   { h: 1, t: "On-planet invasion" },
   { h: 2, t: "Pre-birth frontlines" },
-  { h: 3, t: "Genetic engineering" }, "gmo_env", "gmo_decisions", "gmo_ogtr", "gmo_industry", "gmo_escapes", "gmo_cultivation", "gmo_gmofree", "gmo_incidents", "gmo_regime", "gmo_treaties", "gmo_trials",
+  { h: 3, t: "Genetic engineering" }, "gmo_env", "gmo_decisions", "gmo_ogtr", "gmo_industry", "gmo_escapes", "gmo_cultivation", "gmo_gmofree", "gmo_incidents", "gmo_regime", "gmo_treaties", "gmo_trials", "gmo_bodies", "gmo_act",
   { h: 3, t: "Human reproduction and gene therapy" }, "gmo_therapy", "gmo_fertility",
   // Renamed 26 September (round 60): the living, from birth to death, and
   // the after-life, beside the pre-birth frontlines.

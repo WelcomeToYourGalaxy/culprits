@@ -569,7 +569,7 @@ console.log("\nmap wiring");
   // A facet must narrow what `where` selects, never replace it: replacing would
   // turn climate_trace_cafo back into every Climate TRACE source on first click.
   check("a facet is ANDed with the layer's `where`, not substituted for it",
-        /\["all", cfg\.where, picked\]/.test(facet));
+        /const parts = \[cfg\.where, picked, keyed\]\.filter\(Boolean\);/.test(facet) && /\["all", \.\.\.parts\]/.test(facet));
 }
 
 // --- layer groups ----------------------------------------------------------
@@ -4721,6 +4721,33 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("the quilombola communities are out; the mangroves' biomass is under Deforestation",
         /\[\/\\bincra_bra_quilombola_communities\\b\|quilombola\/i, null\]/.test(src) && /mangrove biomass\/i, \[P \+ " > Deforestation > Forest carbon and biomass"\]/.test(src));
   check("the page asks for this round's script", /app\.js\?v=(7[5-9]|[89]\d)/.test(html));
+}
+{
+  console.log("\nround 76: the Genetic engineering map's country write-ups, what you can do, consultations, bodies and key filters");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const py = fs.readFileSync(path.join(HERE, "..", "pipeline", "sources", "gmo_releases.py"), "utf8");
+  check("a country on the shaded Genetic engineering layers opens with the map's own write-up and its What you can do list",
+        /const GMO_COUNTRY_LAYERS = new Set\(\["gmo_regime", "gmo_treaties", "gmo_incidents", "gmo_cultivation", "gmo_gmofree"\]\);/.test(src) &&
+        /getJson\(`\$\{GMO_BOXES\}\/countries\/\$\{iso\}\.json`/.test(src) && /bindHtmlPopup\(`\$\{cfg\.id\}-fill`, withGmo, popOpts\);/.test(src));
+  check("the decisions list keeps its three menus", /window\._bchFilter = function \(a3\)/.test(src));
+  check("the international bodies and the consultations and guides are rows of their own",
+        /id: "gmo_bodies"[^\n]*route: "sitemap"/.test(src) && /id: "gmo_act"[^\n]*route: "gmopanel"/.test(src) &&
+        /cfg\.route === "gmopanel" \? addGmoPanel\(cfg\)/.test(src) && /"gmo_trials", "gmo_bodies", "gmo_act",/.test(src));
+  const code = src.slice(src.indexOf("const GMO_KEY_DECADE"), src.indexOf("function keysRow("));
+  const K = new Function(code + "; return { keyFilterExpr, keyOff, GMO_REL_KEYS, GMO_ORG_KEYS };")();
+  K.keyOff.set("r", new Map([["x_lapsed", new Set(["expired"])]]));
+  const e = JSON.stringify(K.keyFilterExpr({ id: "r", keys: K.GMO_REL_KEYS }));
+  check("the key filters: releases by status, decade, consent phase and scale; organisations by kind, subject and organism",
+        K.GMO_REL_KEYS.map((k) => k.label).join() === "Status,Decade granted,Consent phase,Release scale" &&
+        K.GMO_ORG_KEYS.map((k) => k.label).join() === "Kind of body,Subjects,Organisms" &&
+        /"in date"/.test(e) && !/"expired"/.test(e) && /\["!",\["has","x_lapsed"\]\]/.test(e) && K.keyFilterExpr({ id: "none", keys: K.GMO_REL_KEYS }) === null);
+  check("…the rows carry them, and the filter narrows the row's own definition",
+        /id:"gmo_env"[^\n]*\n    keys: GMO_REL_KEYS,/.test(src) && /id:"gmo_industry"[^\n]*\n    keys: GMO_ORG_KEYS,/.test(src) &&
+        /const parts = \[cfg\.where, picked, keyed\]\.filter\(Boolean\);/.test(src));
+  check("…and the records carry the fields, read as the map reads them",
+        /"lapsed": \("expired" if r\.get\("lapsed"\) is True/.test(py) && /"subjects": _subjects\(r\)/.test(py) && /def _subjects\(r\):/.test(py));
+  check("the page asks for this round's script", /app\.js\?v=(7[6-9]|[89]\d)/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

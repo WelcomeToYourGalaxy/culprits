@@ -5,6 +5,30 @@ touches.
 
 ---
 
+## Round 76 (27 September)
+
+- The Genetic engineering map's remaining parts, copied daily by
+  culprits-tiles-more scripts/gmo_boxes.py (round76_tiles), which opens the
+  map in a headless browser and keeps what the map itself builds:
+  gmo/countries/<ISO3>.json (its _regimeBox write-up and pjCountryResources
+  "What you can do" list), gmo/panel.json (open consultations, the four guide
+  PDFs), gmo/bodies.places.geojson + .boxes.json (25 international bodies, 84
+  registers and trackers).
+- A country clicked on gmo_regime, gmo_treaties, gmo_incidents,
+  gmo_cultivation or gmo_gmofree opens with the write-up and the list
+  (GMO_COUNTRY_LAYERS, gmoCountryHtml; bindHtmlPopup takes popup options);
+  window._bchFilter ports the decisions list's three menus.
+- New rows: gmo_bodies (sitemap), gmo_act (route gmopanel: a bottom panel).
+- Key filters (cfg.keys, keysRow, keyOff, keyFilterExpr, ANDed in applyFacet):
+  gmo_env and gmo_ogtr by status, decade, consent phase, release scale;
+  gmo_decisions and gmo_escapes by decade; gmo_industry by kind of body,
+  subjects, organisms. Fields added in pipeline/sources/gmo_releases.py
+  (x_lapsed, x_decade, x_phase, x_scale, x_otype, x_subjects, x_organisms);
+  they reach the tiles at the next weekly build.
+- round76_tiles also removes scripts/coverage_check.py (round 75), at the
+  owner's word: none of those layers is deleted.
+
+
 ## Round 75 (27 September)
 
 - Climate rebuilt in the Destruction page's order: General (the three Climate

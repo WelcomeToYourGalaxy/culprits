@@ -139,6 +139,17 @@ def fetch():
                 "state": r.get("state") or None,
                 "extent": r.get("size") or None,
                 "status": r.get("status") or None,
+                # Round 76: what the Genetic engineering map's key filters on,
+                # read from the same fields it reads (pjRelPasses, pjSubjOf).
+                # A field the record does not carry is left empty, and an empty
+                # field is never hidden by a filter.
+                "lapsed": ("expired" if r.get("lapsed") is True else "in date" if r.get("lapsed") is False else None),
+                "decade": (f"{(_year(r.get('date')) // 10) * 10}s" if _year(r.get("date")) else "no date given"),
+                "phase": {"pre": "under assessment", "post": "consented", "live": "consented"}.get(r.get("phase")) if r.get("phase") else None,
+                "scale": SCALE.get(r.get("impact")) if r.get("impact") else None,
+                "otype": (r.get("otype") or "company") if register == "industry" else None,
+                "subjects": _subjects(r) if register == "industry" else None,
+                "organisms": ("|" + "|".join(r.get("species")) + "|") if isinstance(r.get("species"), list) and r.get("species") else None,
             },
         })
 
@@ -151,6 +162,43 @@ def fetch():
     imprecise = sum(1 for r in out if r["extra"]["precision"])
     print(f"  {imprecise:,} of {len(out):,} carry no site coordinate and draw hollow")
     return out
+
+
+# The Genetic engineering map's release scale (its SCALE labels, by impact).
+SCALE = {1: "small, one site", 2: "a few sites", 3: "medium, several sites or states",
+         4: "large, ten or more sites", 5: "largest, forty sites or ten states"}
+# Its subjects (PJ_SUBJ): which tags go under which, and where an unmapped tag's
+# facet puts it.
+SUBJ_TAGS = {
+    "plants and crops": ["seed:traits", "seed:germplasm", "seed:majors", "seed:licensees", "seed:distribution", "editing:agtech", "deextinct:trees"],
+    "animals": ["animals:models", "animals:breeders", "animals:primates", "animals:services", "livestock:livestock", "livestock:cloning",
+                "livestock:aqua", "livestock:pets", "deextinct:rescue", "deextinct:biobank", "deextinct:ventures"],
+    "human medicine and reproduction": ["clinical:therapy", "clinical:trials", "clinical:vectors", "clinical:germline", "repro:clinics",
+                                        "repro:banks", "repro:surrogacy", "repro:screening"],
+    "wild release": ["wild:insects", "wild:microbes", "wild:drives"],
+    "microbes and fermentation": ["editing:synbio", "synthesis:synth", "synthesis:seq", "synthesis:reagents", "synthesis:repos", "cro:cdmo"],
+    "tools, patents and platforms": ["editing:platform", "editing:patents", "rules:ip", "cro:cro", "clinical:cro"],
+    "money": ["money:vc", "money:markets", "money:public", "money:philanthropy", "money:defence"],
+    "rules and influence": ["rules:regulators", "rules:standards", "rules:associations", "rules:influence", "cro:regulatory"],
+}
+TAG_SUBJ = {}
+for _k, _tags in SUBJ_TAGS.items():
+    for _t in _tags:
+        TAG_SUBJ.setdefault(_t, []).append(_k)
+FACET_SUBJ = {"seed": "plants and crops", "editing": "plants and crops", "animals": "animals", "livestock": "animals",
+              "deextinct": "animals", "clinical": "human medicine and reproduction", "repro": "human medicine and reproduction",
+              "wild": "wild release", "synthesis": "microbes and fermentation", "cro": "microbes and fermentation",
+              "money": "money", "rules": "rules and influence"}
+
+
+def _subjects(r):
+    """|subject|subject| from the record's tags, as the map's pjSubjOf reads them."""
+    out = []
+    for t in r.get("tags") or []:
+        for k in TAG_SUBJ.get(t) or [FACET_SUBJ.get(str(t).split(":")[0])]:
+            if k and k not in out:
+                out.append(k)
+    return ("|" + "|".join(out) + "|") if out else None
 
 
 def _year(date):
