@@ -4515,5 +4515,13 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /\.facet\[data-colour-for="\$\{esc\}"\], \.facet\[data-kinds="\$\{esc\}"\]/.test(src) && /el\.dataset\.keyFor = cfg\.id;   \/\/ its kinds' colours are its key/.test(src));
   check("the page asks for this round's script", /app\.js\?v=(6[4-9]|[7-9]\d)/.test(html));
 }
+{
+  console.log("\nround 65: the dynasties' missing cities named in the row, keys read with their counts apart");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("the dynasties row says its 11 cities are placed hollow at the city", /the 11 cities its list gives a family without a coordinate, drawn hollow at the city/.test(src));
+  check("a key's words keep a space between a kind and its count", /parts\.map\(\(n\) => n\.textContent \|\| ""\)\.join\(" "\)/.test(src));
+  check("the page asks for this round's script", /app\.js\?v=(6[5-9]|[7-9]\d)/.test(html));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

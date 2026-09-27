@@ -11164,7 +11164,9 @@ function legendKeyPairs(id) {
       const colour = el.style && (el.style.backgroundColor || el.style.background);
       if (!colour || /^(none|transparent)$/i.test(colour)) continue;
       const holder = el.closest(".sm-key, button, .lg-row, label, li") || el.parentNode;
-      const label = String((holder && holder.textContent) || "").replace(/\s+/g, " ").trim();
+      // Its parts' words with a space between (a kind and its count ran together).
+      const parts = holder && holder.childNodes && typeof holder.childNodes[Symbol.iterator] === "function" ? [...holder.childNodes] : null;
+      const label = String(parts ? parts.map((n) => n.textContent || "").join(" ") : (holder && holder.textContent) || "").replace(/\s+/g, " ").trim();
       if (!label || seen.has(colour + "|" + label)) continue;
       seen.add(colour + "|" + label);
       out.push([colour, label]);
@@ -11607,7 +11609,7 @@ const SITE_MAPS = {
     { id: "site_central_banks", name: "Central Banks", unit: "banks", colour: "#5C6570", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_central_banks.places.geojson",
       note: "From the Suppression page's central banks map." },
     { id: "site_banking_dynasties", name: "Global Banking Dynasties", unit: "dynasty seats", colour: "#6A5D6B", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_banking_dynasties.places.geojson",
-      note: "From the Suppression page's banking dynasties map." },
+      note: "From the Suppression page's banking dynasties map: every place it plots, and (round 65) the 11 cities its list gives a family without a coordinate, drawn hollow at the city as OpenStreetMap places it." },
     { id: "site_banking_dynasties_charts", name: "Global Banking Dynasties: timeline and comparisons", unit: "opens the page itself in a panel", colour: "#6A5D6B", route: "companion", ready: true, lazy: true,
       page: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/pages/banking_dynasties.html",
       note: "The rest of the Suppression page's banking dynasties section, whole and run by its own code, in the panel along the bottom: its timeline of 25 families from 1250 to 2025, and its charts of peak wealth, banks, properties, workforce, longevity and overlap. Its map is the row above." },

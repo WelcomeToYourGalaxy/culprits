@@ -5,6 +5,24 @@ touches.
 
 ---
 
+## Round 65 (26 September)
+
+- Banking dynasties: the 11 family-city pairs the section lists without a
+  coordinate (so its own map never plots them) are added hollow at the city
+  by culprits-tiles-more scripts/dynasty_cities.py (round 65 tiles patch):
+  OpenStreetMap's position for the city and its country, the family's colour
+  as the ring, and a box saying it is placed at the city. Runs with the
+  refresh; a pair already added is left alone.
+- legendKeyPairs joins a key's parts with a space (the building kinds read
+  "Banks382,338").
+- Browser check with the latest culprits-tiles-more files: Global Trade Alert,
+  Buildings, space industry, upcoming launches, published aggregate findings,
+  Hotspot Cities (33 placed), oil slick archive, vessels of concern, Trase
+  measures and facilities, materials research, Coastal Cleanup, Waste Atlas
+  cities and the soybean companies all draw. Wreckers of the Earth waits for
+  umap_copy's first nightly run.
+
+
 ## Round 64 (26 September)
 
 - Rounds 61 to 63 had been moved to patches/failed: each needs the round
