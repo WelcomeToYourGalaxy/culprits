@@ -5,6 +5,48 @@ touches.
 
 ---
 
+## Round 82b (27 September)
+
+Needs round 81b first (runs after it by name).
+
+- Colours: the owner prefers 80s neon greens and blues to the purple end.
+  GLAD_LO/GLAD_SPAN 115/105 (neon green to electric blue, no violet),
+  saturation held 0.7-0.97 (GLAD_SAT_LO/HI); gladColour (row swatches) the
+  same; GLOW, HOT_RAMP, AMOUNT_RAMP and the plastics colours redone; rows
+  coloured by their own figures keep them (cfg.keepColour set by
+  colourByAmount/colourByGroup); keys of the map's own ramps go in GLAD_OUT.
+  Unkeyed GFW pictures are no longer desaturated. Servers' near-white areas
+  (gladPixels) take a light neon of the row's hue. GFW vector datasets each
+  take their own neon fill and a lighter rim (was cfg.colour and #D6CCBC).
+- no2_tropomi (route no2relief, addNo2Relief): GFW's TROPOMI monthly average
+  tiles (tropomi_avg_nitrogen_dioxide_last_month), decoded along the Resource
+  Watch key (NO2_KEY) into amounts; protocol no2:// makes a neon picture and a
+  Mapbox-encoded height tile; while shown the terrain is no2-dem (height =
+  amount, NO2_HEIGHT 150 km at 300+, scaled by zoom in no2Lift) with a neon
+  hillshade; unticked, the map's own terrain setting returns (liftTerrain
+  yields while no2Relief.on). Below zoom 3 tiles are built from children, max.
+- remains_fire: GIBS publishes thermal anomalies as vector data, so the PNG
+  WMTS address never answered. Now GIBS WMS (epsg3857), SNPP + NOAA-20 +
+  NOAA-21 _All layers, today and yesterday (UTC) as chips.
+- Catalogue: Nusantara's nine alertfire_* rows out (CATALOGUE_BY_TITLE);
+  gfwTitle no longer appends "gives this dataset no title"; GFW_TITLES_BY and
+  GFW_ABOUT_BY (gfwAbout) title and describe the trees in mosaic/complex
+  landscapes and the Congo Basin logging roads; GFW datasets sharing a title
+  make one row (the drawable one).
+- Headings: "Forest cover" (was Forest cover in 2020) with the trees in mosaic
+  and complex landscapes; "Mangroves" (was Forest carbon and biomass).
+- Mangrove biomass ringed wider out than zoom 8 by Global Mangrove Watch's
+  outlines (GFW_HALO).
+- forest_management: classColours, applied pixel by pixel through
+  GLAD_CLASS_PALETTE, key in the same colours.
+- culprits-tiles-more: epa_density.py in neon (rebuilds once, PALETTE
+  "neon-1"); catalogue_probe.py writes probe/catalogues/ (every GFW dataset
+  with its assets, every Nusantara layer, a test tile of each fire, burn,
+  concession, Peru and NO2 dataset) for the owner's open items.
+- Open: "global burned areas failed to fetch" and the Peru concessions pair
+  need the probe's lists to name the rows exactly.
+
+
 ## Round 81b (27 September)
 
 Built beside the other chat's rounds; needs round 80 (runs after it by name).

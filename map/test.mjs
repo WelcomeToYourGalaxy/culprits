@@ -2626,7 +2626,7 @@ console.log("\nOff-planet sections, Of groups, names, launch links, drag bar, ma
   // Made finer on 22 September: no round blobs. The cores are circles a pixel
   // or two across (full resolution); the haze stays faint; a fixed grain.
   check("\u2026the cores are small specks, the haze faint and never brighter than rose, the dots soft-edged and unseen wider out",
-        /"circle-radius": z\(0, \["\*", 0\.8, lift\]/.test(src) && /hazeOpacity: 0\.3,/.test(src) && /1, "rgba\(70,184,216,0\.62\)"\]/.test(src) &&
+        /"circle-radius": z\(0, \["\*", 0\.8, lift\]/.test(src) && /hazeOpacity: 0\.3,/.test(src) && /1, "rgba\(40,255,190,0\.64\)"\]/.test(src) &&
         /paint\(layer\.id, "circle-blur", 1\)/.test(src) && /z\(GLOW\.fadeOut, 0, GLOW\.gone, 0\.9\)/.test(src));
   check("\u2026no grain over the map: its strength is 0 and it is never made (23 September)",
         /grain: 0,\s/.test(src) && /if \(!GLOW\.grain && !GLOW\.grainSatellite\) return;/.test(src));
@@ -2638,7 +2638,7 @@ console.log("\nOff-planet sections, Of groups, names, launch links, drag bar, ma
           JSON.stringify(G.glowWeight({ source: "s1" })).includes('["get","value"]') && JSON.stringify(G.glowWeight({ source: "s1" })).includes("5000") &&
           JSON.stringify(G.glowWeight({ source: "none" })).includes('["get","_count"]'));
     const colours = JSON.stringify(G.GLOW);
-    check("\u2026its colours run indigo, blue and pale cyan (the GLAD-S2 style, round 44), with no orange or yellow", /#3A3F9E/.test(colours) && /#3F7FD6/.test(colours) && /#BFEBF5/.test(colours) && !/#E7A63B/i.test(colours));
+    check("\u2026its colours run neon blue, cyan and pale mint (round 82b), with no orange or yellow", /#0B4F9C/.test(colours) && /#00A8E8/.test(colours) && /#C8FFF0/.test(colours) && !/#E7A63B/i.test(colours));
     check("\u2026the archive's own largest amount is read for the weight", /glowMaxOf\.set\((src|glowKey), Number\(attr\.max\)\)/.test(src));
   }
   check("the zoom-8 note is gone", !/every layer shows summed totals/.test(src));
@@ -2781,7 +2781,7 @@ console.log("\nNusantara's layers say what they show");
           /leftOut = all\.filter\(\(d\) => gfwPickAsset\(index\[d\.dataset\] \|\| \[\]\)\.how === "none"\)/.test(src) && /more are downloads only and have no row/.test(src));
     check("\u2026a dataset with no title is named where what it is can be shown, and otherwise says it has none",
           /Maus et al/.test(G.gfwTitle({ dataset: "pangaea_global_mining", metadata: {} })) &&
-          G.gfwTitle({ dataset: "wur_x_class", metadata: {} }) === "Wur x class (Global Forest Watch gives this dataset no title)" &&
+          G.gfwTitle({ dataset: "wur_x_class", metadata: {} }) === "Wur x class (Global Forest Watch)" &&
           G.gfwTitle({ dataset: "a", metadata: { title: "Tree cover" } }) === "Tree cover");
     const harvester = fs.readFileSync(path.join(HERE, "..", "pipeline", "sources", "abattoir_facilities.py"), "utf8");
     check("a harvested layer's box shows every field its source published, not the first six, and scrolls when long",
@@ -3246,7 +3246,7 @@ console.log("\nround of 22 September (4): rows of the same name told apart");
   check("the two worldwide protected-area rows are told apart", wdpa[0] !== wdpa[1] && wdpa.every((t) => /World Database on Protected Areas/.test(t)));
   check("what is known about how they differ goes first in each row's i box",
         [...ids, "wdpa_protected_areas", "wdpa_licensed_protected_areas"].every((id) => g.GFW_ABOUT[id]) &&
-        /about: `\$\{GFW_ABOUT\[d\.id\] \? GFW_ABOUT\[d\.id\] \+ " \\u2014 " : ""\}/.test(src));
+        /about: `\$\{gfwAbout\(d\.id\) \? gfwAbout\(d\.id\) \+ " \\u2014 " : ""\}/.test(src));
   check("the check script asks each failing source and each grey picture, and changes nothing",
         fs.existsSync(path.join(HERE, "check-sources.mjs")) && !/writeFile/.test(fs.readFileSync(path.join(HERE, "check-sources.mjs"), "utf8")));
 }
@@ -3658,7 +3658,7 @@ console.log("\nround of 23 September (23): the owner's thirty notes on the layer
         at("Palm oil") < at("Concessions") && order[at("Concessions")].h === 6 && /"\.panel-h6\{/.test(src));
   check("…a heading of the same name deeper down is not mistaken for this one", /found = own\.find\(named\) \|\| null;/.test(src));
   check("28: of the forest cover maps only the JRC's 2020 map stays, under Deforestation > Forest cover in 2020 (24 September, round 42)",
-        f("x", "jrc_global_forest_cover") === `${P} > Deforestation > Forest cover in 2020` &&
+        f("x", "jrc_global_forest_cover") === `${P} > Deforestation > Forest cover` &&
         ["umd_tree_cover_density_2000", "umd_tree_cover_density_2010", "wri_tropical_tree_cover", "wri_tropical_tree_cover_extent"].every((id) => f("x", id) === "(taken out)"));
   check("29: the land and forest cover layers named are out",
         ["esa_land_cover_2015", "idn_land_cover_2017", "Global_LCHS_2024", "LC1970", "LC1970HS", "Global_FC_2025_TTM", "ECJRCV2", "FCHS_2020_ECJRCV2",
@@ -3697,7 +3697,7 @@ console.log("\nround of 24 September: a search box for the layers, and the unpla
   check("the rows no rule placed are filed by what they show",
         f("inpe_amazon_prodes") === `${P} > Deforestation > Tree cover loss and alerts > Loss year by year` &&
         f("idn_forest_area") === `${P} > Deforestation > ${places.BUNDLES.plans}` &&
-        f("jrc_global_forest_cover") === `${P} > Deforestation > Forest cover in 2020` &&
+        f("jrc_global_forest_cover") === `${P} > Deforestation > Forest cover` &&
         f("birdlife_endemic_bird_areas") === `${P} > Biodiversity loss > Birds` &&
         f("ibge_bra_biomes", "ibge_bra_biomes") === "(taken out)" &&
         f("fao_management_objectives") === `${P} > Deforestation > Forest zoning and management plans`);
@@ -3889,7 +3889,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
          ["Land cover \u2014 United States", "usa_land_cover"]].every(([t, id]) => f(t, id) === OUT));
   check("the JRC's managed land is out (24 September, round 40)",
         ["jrc_managed_land_can", "jrc_managed_land_usa"].every((id) => f("JRC Managed Land", id) === OUT) && !/\{ h: 5, bundle: "managed"/.test(src));
-  check("trees in mosaic landscapes (under Deforestation since round 43) and natural forests worldwide stay", f("Trees in mosaic landscapes", "wri_trees_in_mosaic_landscapes") === P + " > Deforestation > Trees in mosaic landscapes" &&
+  check("trees in mosaic landscapes (under Deforestation since round 43) and natural forests worldwide stay", f("Trees in mosaic landscapes", "wri_trees_in_mosaic_landscapes") === P + " > Deforestation > Forest cover" &&
         f("Natural forests", "sbtn_natural_forests_map") === P + " > Forest and land cover");
 }
 {
@@ -4033,7 +4033,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("GLAD-S2 in Amazonia and its coverage are under the alerts",
         ["umd_glad_sentinel2_alerts", "umd_glad_sentinel2_alerts_coverage"].every((id) => f("Deforestation alerts (GLAD-S2) \u2014 Amazonia", id) === P + " > Deforestation > Tree cover loss and alerts > Alerts"));
   check("mosaic landscapes, planted oil palm and forest mills filed; internal layers, DIST-ALERT coverage and the Chaco field boundaries out",
-        f("Trees in mosaic landscapes coverage", "wri_trees_in_mosaic_landscapes_coverage") === P + " > Deforestation > Trees in mosaic landscapes" &&
+        f("Trees in mosaic landscapes coverage", "wri_trees_in_mosaic_landscapes_coverage") === P + " > Deforestation > Forest cover" &&
         f("Planted forests: oil palm", "gfw_planted_forests_oil_palm") === lib.AG + " > Palm oil > Plantations" &&
         f("Forest mills", "gfw_forest_mills") === P + " > Deforestation > Logging and timber concessions" &&
         [["Gadm geotrellis features", "gadm_geotrellis_features"], ["Gfw buffered points", "gfw_buffered_points"], ["GFW Pro forest change regions", "gfwpro_forest_change_regions"],
@@ -4047,7 +4047,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
     const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (!d) return -1;
     let h = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4); return (h + 360) % 360; };
   const out = ["#6A6258", "#8A4F46", "#6E5A55", "#5E7377", "#7C6F84", "#B07F86", "#62755F"].map((c, i) => G.gladColour(c, "row" + i));
-  check("every row colour lands between cyan and violet, never green, yellow or orange", out.every((c) => hue(c) >= 180 && hue(c) <= 300));
+  check("every row colour lands between neon green and electric blue (round 82b), never yellow, orange or purple", out.every((c) => hue(c) >= 110 && hue(c) <= 225));
   check("rows that were the same grey come out different", new Set(["a", "b", "c", "d"].map((id) => G.gladColour("#6A6258", id))).size > 1);
   check("the recolour reaches every row and group child", /for \(const c of LAYERS\.concat\(\.\.\.GROUPS\.map\(\(g\) => g\.children \|\| \[\]\)\)\) \{/.test(src));
   const cut = (from, to) => src.slice(src.indexOf(from), src.indexOf(to));
@@ -4074,22 +4074,22 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   console.log("\nround 46: every layer drawn in the GLAD-S2 colours, not only its swatch");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
-  const G = new Function("maplibregl", src.slice(src.indexOf("const GLAD_LO = 185"), src.indexOf("function gladPixels(")) +
+  const G = new Function("maplibregl", src.slice(src.indexOf("const GLAD_LO = "), src.indexOf("function gladPixels(")) +
     "; return { gladRgb, gladCss, gladValue, gladSalt, GLAD_OUT };")({ addProtocol() {} });
   const hue = (hex) => { const n = parseInt(hex.slice(1), 16), r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
     const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (!d) return -1;
     let h = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4); return (h + 360) % 360; };
   const outs = ["#FF0000", "#E7A63B", "#FFFF00", "#00FF00", "#62755F", "#8A4F46", "#FF00FF", "#6A6258"].map((c) => G.gladCss(c, "row"));
-  check("every colour a layer draws with lands between cyan and violet", outs.every((c) => hue(c) >= 184 && hue(c) <= 296));
+  check("every colour a layer draws with lands between neon green and electric blue (round 82b)", outs.every((c) => hue(c) >= 114 && hue(c) <= 221));
   check("classes stay apart and in order: red, orange, yellow, green come out in rising hue",
         hue(outs[0]) < hue(outs[1]) && hue(outs[1]) < hue(outs[2]) && hue(outs[2]) < hue(outs[3]));
   check("near-white, near-black and see-through are left alone", G.gladCss("#FFFFFF", "r") === "#FFFFFF" && G.gladCss("#07100C", "r") === "#07100C" &&
         G.gladCss("rgba(0,0,0,0)", "r") === "rgba(0,0,0,0)" && G.gladCss("rgba(242,238,230,0.85)", "r") === "rgba(242,238,230,0.85)");
   check("a colour is never mapped twice", G.gladCss(outs[0], "row") === outs[0]);
   check("a zoom ramp keeps its shape with its colours mapped; a colour read from each record is mapped as it is drawn",
-        (() => { const z = G.gladValue(["interpolate", ["linear"], ["zoom"], 2, "#FF0000", 8, "#00FF00"], "r"); return z[2][0] === "zoom" && hue(z[4]) >= 184 && hue(z[6]) >= 184; })() &&
+        (() => { const z = G.gladValue(["interpolate", ["linear"], ["zoom"], 2, "#FF0000", 8, "#00FF00"], "r"); return z[2][0] === "zoom" && hue(z[4]) >= 114 && hue(z[6]) >= 114; })() &&
         (() => { const e = G.gladValue(["coalesce", ["get", "c"], "#FF0000"], "r"); return e[0] === "let" && e[1] === "__glad" && G.gladValue(e, "r") === e; })() &&
-        (() => { const m = G.gladValue(["match", ["get", "k"], "a", "#FF0000", "#00FF00"], "r"); return m[2] === "a" && hue(m[3]) >= 184 && hue(m[4]) >= 184; })());
+        (() => { const m = G.gladValue(["match", ["get", "k"], "a", "#FF0000", "#00FF00"], "r"); return m[2] === "a" && hue(m[3]) >= 114 && hue(m[4]) >= 114; })());
   check("pictures from servers and this site's own archives go through the same mapping, basemaps and plates excepted",
         /tiles = spec\.tiles\.map\(\(t\) => \/\^gladpx:\/\.test\(t\) \? t : `gladpx:\/\/\$\{encodeURIComponent\(salt\)\}\/\$\{t\}`\)/.test(src) &&
         /const GLAD_SKIP_SOURCES = new Set\(\["base", "s2", "hillshade", "labels"\]\)/.test(src) && /GLAD_PM_RASTER\.get\(m\[1\]\)/.test(src));
@@ -4146,7 +4146,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         out("Test dataset 001") && out("Sfb bra sicar (Global Forest Watch gives this dataset no title) sfb_bra_sicar") && out("Permanent production forests — Peru"));
   check("rows not named are where they were", at("Mining concessions gfw_mining_concessions").some((x) => /Mining/.test(x)));
   check("the fur farms have a heading of their own under Of the planet", /\{ h: 3, t: "Fur farms" \}, "final_nail",\n  \{ h: 2, t: "Of groups" \}/.test(src));
-  const G = new Function("maplibregl", src.slice(src.indexOf("const GLAD_LO = 185"), src.indexOf("function gladPixels(")) +
+  const G = new Function("maplibregl", src.slice(src.indexOf("const GLAD_LO = "), src.indexOf("function gladPixels(")) +
     "; return { gladCss, gladValue, GLAD_SPREAD };")({ addProtocol() {} });
   const hue = (hex) => { const n = parseInt(hex.slice(1), 16), r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
     const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (!d) return -1;
@@ -4315,7 +4315,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         H[1][0] === "exponential" && H[1][1] === 0.5 && [0, 3.3, 7.5, 14.2, 20].every((z) => Math.abs(at(z) / Math.pow(2, -z) - 1) < 1e-9) &&
         /"fill-extrusion-height": COLUMN_HEIGHT/.test(src) && /map\.on\("zoom", columnsOnZoom\)/.test(src) &&
         /e\.isSourceLoaded && !\(typeof map\.isMoving === "function" && map\.isMoving\(\)\)/.test(src));
-  const G = new Function("maplibregl", src.slice(src.indexOf("const GLAD_LO = 185"), src.indexOf("function gladPixels(")) +
+  const G = new Function("maplibregl", src.slice(src.indexOf("const GLAD_LO = "), src.indexOf("function gladPixels(")) +
     "; return { gladCss, gladValue, GLAD_NATIONAL };")({ addProtocol() {} });
   const hue = (hex) => { const n = parseInt(hex.slice(1), 16), r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
     const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (!d) return -1;
@@ -4323,8 +4323,8 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   G.GLAD_NATIONAL.add("nat");
   const steps = G.gladValue(["interpolate", ["linear"], ["get", "t"], 0, "#DCD7CC", 0.25, "#B8B0A2", 0.5, "#948B7D", 0.75, "#6F675B", 1, "#4A443C"], "nat");
   const cols = [4, 6, 8, 10, 12].map((i) => steps[i]);
-  check("a country layer's five steps run cyan to blue, none violet, still told apart",
-        cols.every((c) => hue(c) >= 184 && hue(c) <= 241) && new Set(cols).size === 5 && ["#FF00FF", "#8A4F46", "#6A6258"].every((c) => hue(G.gladCss(c, "nat")) <= 241));
+  check("a country layer's five steps run neon green to teal (round 82b), still told apart",
+        cols.every((c) => hue(c) >= 114 && hue(c) <= 171) && new Set(cols).size === 5 && ["#FF00FF", "#8A4F46", "#6A6258"].every((c) => hue(G.gladCss(c, "nat")) <= 171));
   check("country rows are named for it when the rows are read", /\["giga", "country", "owidgrapher", "trase"(, "gta", "rte")?\]\.includes\(c\.route\)/.test(src));
   check("the hologram keeps its own blues: its layers are not remapped, and its fringe and ground are not purple",
         /\|holo-\.\*(\|[a-z.*-]+)*\)\$\/;/.test(src) && /--holo-fringe: #6fb0bd;/.test(html) && /--holo-bg:     #081729;/.test(html) && !/#8e86c8/.test(html));
@@ -4464,7 +4464,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("a layer of one colour gets a one-colour key; per-country counts shade the government maps",
         JSON.stringify(S.shapeColouring({ single: "x", colour: "#123456" }, { features: [] }).key) === '[["#123456","x"]]' &&
         /by = \[\{ label: "entries the source lists for each", field: "entries", scale: "log"/.test(src));
-  const G = new Function("maplibregl", src.slice(src.indexOf("const GLAD_LO = 185"), src.indexOf("function gladPixels(")) +
+  const G = new Function("maplibregl", src.slice(src.indexOf("const GLAD_LO = "), src.indexOf("function gladPixels(")) +
     "; return { gladValue, GLAD_NATIONAL };")({ addProtocol() {} });
   G.GLAD_NATIONAL.add("n62");
   const ramp = ["#E3D9CF", "#C9B3A5", "#AC8A7B", "#8A6356", "#5F3F36"];
@@ -4503,7 +4503,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /function headingLiveMark\(sec\)/.test(src) && /headingLiveMark\(sec\);/.test(src) && /if \(!\/toc-bundle\/\.test\(sec\.className\)\)/.test(src) &&
         /LIVE \$\{live\}/.test(src) && /NOT LIVE \$\{copy\}/.test(src) && /#layers \.toc-live \.live\{/.test(html));
   check("the dynasties' copy says not live; the worlds, read from their page, say live",
-        /site_banking_dynasties_charts: "The Suppression page's own banking dynasties section, from a copy made once/.test(src) && /"worldsring",\n\]\);/.test(src));
+        /site_banking_dynasties_charts: "The Suppression page's own banking dynasties section, from a copy made once/.test(src) && /"worldsring",\n(  \/\/[^\n]*\n  "no2relief",\n)?\]\);/.test(src));
   check("the flat map may pull back into space while the worlds are shown, and is held again after",
         /transformConstrain: flatConstrain,/.test(src) && /if \(FREE_FLAT\) return \{ center: new maplibregl\.LngLat/.test(src) &&
         /return t\.defaultConstrain\(lngLat, zoom\);/.test(src) && /const want = on && drawnProjection\(\) === "mercator";/.test(src));
@@ -4726,7 +4726,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("the forest carbon flux maps draw from Global Forest Watch's own coloured tiles", /\/dynamic\/\{z\}\/\{x\}\/\{y\}\.png\?tree_cover_density_threshold=30/.test(src) &&
         /gfw_forest_carbon_gross_removals: \{ minzoom: 2, maxzoom: 12 \}/.test(src));
   check("the quilombola communities are out; the mangroves' biomass is under Deforestation",
-        /\[\/\\bincra_bra_quilombola_communities\\b\|quilombola\/i, null\]/.test(src) && /mangrove biomass\/i, \[P \+ " > Deforestation > Forest carbon and biomass"\]/.test(src));
+        /\[\/\\bincra_bra_quilombola_communities\\b\|quilombola\/i, null\]/.test(src) && /mangrove biomass\/i, \[P \+ " > Deforestation > Mangroves"\]/.test(src));
   check("the page asks for this round's script", /app\.js\?v=(7[5-9]|[89]\d)/.test(html));
 }
 {
@@ -4876,6 +4876,42 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("the wastewater outlets glow as a hotspot spectrum with its key", /const HOTSPOT = new Set\(\["wastewater_n_tot"/.test(src) && /if \(HOTSPOT\.has\(owner\)\) rowKey\(cfg\.id, HOT_KEY/.test(src));
   check("the Material Research atlas keeps only its pollution layers", /dropLayers: \[3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13\]/.test(src));
   check("the page asks for this round's script", /app\.js\?v=(8[1-9]|9\d)/.test(html));
+}
+{
+  console.log("\nround 82b: neon greens and blues; nitrogen dioxide as relief; the fire rows; forest cover and mangroves");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const o = new Function(body + "; return { PANEL_ORDER };")();
+  const at = (t) => o.PANEL_ORDER.findIndex((x) => x && x.t === t);
+  check("the map-wide colours run neon green to electric blue, vivid", /const GLAD_LO = 115, GLAD_SPAN = 105;/.test(src) && /const GLAD_SAT_LO = 0\.7, GLAD_SAT_HI = 0\.97;/.test(src));
+  check("the nitrogen dioxide row is back under its heading, read from the tiles Global Forest Watch serves",
+        o.PANEL_ORDER[o.PANEL_ORDER.indexOf("no2_tropomi") - 1].t === "Nitrogen dioxide" && /tropomi_avg_nitrogen_dioxide_last_month\/latest\/default/.test(src));
+  const N = new Function(src.slice(src.indexOf("const NO2_KEY = "), src.indexOf("const no2Relief = ")) + "; return { NO2_KEY };")();
+  const amt = new Function("NO2_KEY", src.slice(src.indexOf("function no2Amount("), src.indexOf("function no2Colour(")) + "; return no2Amount;")(N.NO2_KEY);
+  check("a picture's colour is read back into its amount along the layer's own key",
+        Math.abs(amt(85, 15, 109) - 10) < 0.01 && Math.abs(amt(249, 140, 9) - 100) < 0.5 && amt(252, 254, 164) >= 299);
+  check("the relief holds the ground while shown and gives it back after", /map\.setTerrain\(\{ source: "no2-dem", exaggeration: no2Lift\(\) \}\)/.test(src) &&
+        /cfg\.afterVisibility = \(vis\) => no2Ground\(vis === "visible"\);/.test(src) && /if \(no2Relief\.on\) return;/.test(src));
+  check("the active fire row asks NASA's map service for pictures of all three VIIRS satellites", /VIIRS_SNPP_Thermal_Anomalies_375m_All,VIIRS_NOAA20_Thermal_Anomalies_375m_All,VIIRS_NOAA21_Thermal_Anomalies_375m_All/.test(src) &&
+        /wms\/epsg3857\/best\/wms\.cgi/.test(src));
+  const lib = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return { cataloguePlaces, CATALOGUE_TAKEN_OUT };")();
+  const f = (t, id = "") => lib.cataloguePlaces(`${t} ${id}`, `${t} ${id}`).join(" | ");
+  check("the nine Equatorial Asia fire alert rows are out",
+        ["alertfire_modis", "alertfire_viirs", "alertfire_combine", "v3p2_alertfire_modis", "v3p3_alertfire_combine", "v3p2_alertfire_viirs"].every((id) => f("Fire alerts", id) === lib.CATALOGUE_TAKEN_OUT));
+  check("Forest cover and Mangroves are the headings; the trees in mosaic and complex landscapes under Forest cover, the mangrove biomass under Mangroves",
+        at("Forest cover") > -1 && at("Mangroves") > -1 && at("Forest cover in 2020") === -1 && at("Forest carbon and biomass") === -1 && at("Trees in mosaic landscapes") === -1 &&
+        f("Trees in complex landscapes", "wri_trees_in_complex_landscapes") === "Destruction > Of the planet > Deforestation > Forest cover" &&
+        f("x", "jpl_mangrove_aboveground_biomass_stock_2000") === "Destruction > Of the planet > Deforestation > Mangroves");
+  const g = new Function(src.slice(src.indexOf("const GFW_TITLES = {"), src.indexOf("// Which of a dataset's assets to draw from.")) + "; return { gfwTitle, gfwAbout };")();
+  check("the logging roads and the trees in mosaic landscapes are titled and described; no title says Global Forest Watch gave none",
+        /Congo Basin/.test(g.gfwTitle({ dataset: "osm_logging_roads", metadata: {} })) && /Sentinel-2/.test(g.gfwAbout("wri_trees_in_mosaic_landscapes")) &&
+        !/gives this dataset no title/.test(g.gfwTitle({ dataset: "abc_def", metadata: {} })));
+  check("two datasets of one title make one row, the one with tiles", /datasets repeat another's title and have no row/.test(src) && /const keep = g\.find\(drawable\) \|\| g\[0\];/.test(src));
+  check("the forest management classes each take their own colour, far apart", /classColours: \["#39FF14", "#00B3FF", "#C6FF00"/.test(src) && /GLAD_CLASS_PALETTE\.set\(cfg\.id, pal\)/.test(src));
+  check("the mangrove biomass is ringed wider out by the mangroves' outline", /jpl_mangrove_aboveground_biomass_stock_2000: \{ dataset: "gmw_global_mangrove_extent", until: 8/.test(src));
+  check("Global Forest Watch's areas and servers' white areas are drawn in neon", /const hue = gladSalt\(d\.id\), neon = gladHsl\(hue, 0\.95, 0\.5\)/.test(src) && /take a light neon of the row's own hue/.test(src));
+  check("the page asks for this round's script", /app\.js\?v=(8[2-9]|9\d)/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

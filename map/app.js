@@ -580,7 +580,12 @@ const LAYERS = [
 // text) and transparency are left alone. Pictures from servers get the same
 // mapping pixel by pixel. The basemaps, the atlas plates and photographs laid
 // on the map are not touched.
-const GLAD_LO = 185, GLAD_SPAN = 110;
+// Round 82b (asked 27 September): the owner prefers 80s neon greens and blues
+// to the purple end, so the span now runs from neon green (115) through cyan
+// to electric blue (220), with no violet, and colours are held vivid
+// (saturation 0.7 to 0.97, was 0.45 to 0.81).
+const GLAD_LO = 115, GLAD_SPAN = 105;
+const GLAD_SAT_LO = 0.7, GLAD_SAT_HI = 0.97;
 // Country layers (national highlights) keep to cyan and blue, without the
 // violet and purple end (asked for 26 September, round 57). Their rows are
 // named in GLAD_NATIONAL when the rows are read.
@@ -605,7 +610,7 @@ function gladRgb(r, g, b, greyHue, span) {
   let h = 0, hue, sat;
   if (d) h = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4);
   h = (h + 360) % 360;
-  if (s < 0.22) { hue = greyHue; sat = 0.55; } else { hue = GLAD_LO + (h / 360) * (span || GLAD_SPAN); sat = Math.min(0.81, Math.max(s, 0.45)); }
+  if (s < 0.22) { hue = greyHue; sat = 0.75; } else { hue = GLAD_LO + (h / 360) * (span || GLAD_SPAN); sat = Math.min(GLAD_SAT_HI, Math.max(s, GLAD_SAT_LO)); }
   const a = sat * Math.min(l, 1 - l), f = (n) => { const k = (n + hue / 30) % 12; return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))); };
   return [f(0), f(8), f(4)];
 }
@@ -650,8 +655,8 @@ function gladExpr(v, salt) {
               ["*", 60, ["+", ["/", ["-", V("r"), V("g")], V("d")], 4]]],
             ["case",
               ["any", ["==", V("a"), 0], [">", V("l"), 0.88], ["<", V("l"), 0.1]], ["rgba", V("r"), V("g"), V("b"), V("a")],
-              ["<", V("s"), 0.22], hsl(Math.round(gladSalt(salt) * 10) / 10, 55, ["*", V("l"), 100]),
-              hsl(["+", GLAD_LO, ["*", V("h"), gladSpan(salt) / 360]], ["*", ["min", 0.81, ["max", V("s"), 0.45]], 100], ["*", V("l"), 100])]]]]]];
+              ["<", V("s"), 0.22], hsl(Math.round(gladSalt(salt) * 10) / 10, 75, ["*", V("l"), 100]),
+              hsl(["+", GLAD_LO, ["*", V("h"), gladSpan(salt) / 360]], ["*", ["min", GLAD_SAT_HI, ["max", V("s"), GLAD_SAT_LO]], 100], ["*", V("l"), 100])]]]]]];
 }
 const GLAD_TOP_INPUTS = new Set(['["zoom"]', '["heatmap-density"]', '["line-progress"]']);
 // Scales read from the data (25 September, round 48). Mapping each colour of a
@@ -697,7 +702,7 @@ function gladSpread(v, idx, salt, ordered) {
     // the owner found neighbouring steps too alike to read.
     const l = ordered ? (darkening ? 0.88 - t * 0.53 : 0.35 + t * 0.53)
       : gladSpan(salt) < GLAD_SPAN ? [0.7, 0.5, 0.34][r % 3] : (r % 2 ? 0.44 : 0.66);
-    const out = gladHsl(GLAD_LO + t * gladSpan(salt), 0.78, l);
+    const out = gladHsl(GLAD_LO + t * gladSpan(salt), 0.95, l);
     GLAD_OUT.add(out);
     GLAD_SPREAD.set(`${salt}|${hx}`, out);
     return [hx, out];
@@ -779,13 +784,25 @@ function gladValue(v, salt) {
   }
   return gladExpr(v, salt);
 }
-function gladPixels(px, greyHue) {
-  const seen = new Map();
+// A row whose picture is a set of classes may name a colour for each class
+// (round 82b, the forest management map: mapped along the span, its nine
+// classes came out as near-identical blues). Keyed by row; a pixel of a
+// class's source colour takes its own colour, the rest are mapped as usual.
+const GLAD_CLASS_PALETTE = new Map();     // row -> Map(source rgb number -> [r, g, b])
+function gladPixels(px, greyHue, classes) {
+  const seen = new Map(classes || []);
   for (let i = 0; i < px.length; i += 4) {
     if (!px[i + 3]) continue;
     const key = (px[i] << 16) | (px[i + 1] << 8) | px[i + 2];
     let c = seen.get(key);
-    if (!c) { c = gladRgb(px[i], px[i + 1], px[i + 2], greyHue); seen.set(key, c); }
+    if (!c) {
+      // Near-white areas in a server's picture (round 82b: the concessions drew
+      // bland white) take a light neon of the row's own hue.
+      const mx = Math.max(px[i], px[i + 1], px[i + 2]), mn = Math.min(px[i], px[i + 1], px[i + 2]);
+      if ((mx + mn) / 510 > 0.88) { const h = gladHsl(greyHue, 0.95, 0.72); c = [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16)); }
+      else c = gladRgb(px[i], px[i + 1], px[i + 2], greyHue);
+      seen.set(key, c);
+    }
     px[i] = c[0]; px[i + 1] = c[1]; px[i + 2] = c[2];
   }
 }
@@ -803,7 +820,7 @@ async function gladPicture(buf, salt) {
   const ctx = canvas.getContext("2d");
   ctx.drawImage(bmp, 0, 0);
   const img = ctx.getImageData(0, 0, bmp.width, bmp.height);
-  gladPixels(img.data, gladSalt(salt));
+  gladPixels(img.data, gladSalt(salt), GLAD_CLASS_PALETTE.get(salt));
   ctx.putImageData(img, 0, 0);
   const blob = canvas.convertToBlob ? await canvas.convertToBlob({ type: "image/png" })
     : await new Promise((res) => canvas.toBlob(res, "image/png"));
@@ -842,7 +859,9 @@ function gladKept(id) {
   return !!(cfg && cfg.keepColour);
 }
 function gladSourceSpec(id, spec) {
-  if (!spec || spec.type !== "raster" || GLAD_SKIP_SOURCES.has(id) || /^atlas-plate/.test(id) || gladKept(id)) return spec;
+  // Pictures this map draws in its own colours (round 82b: the EPA density
+  // pictures, the nitrogen dioxide relief) are not mapped again.
+  if (!spec || spec.type !== "raster" || GLAD_SKIP_SOURCES.has(id) || /^atlas-plate/.test(id) || /-dens-src\d+$|^no2-/.test(id) || gladKept(id)) return spec;
   const salt = gladRowOf(id) || id;
   const out = Object.assign({}, spec);
   if (Array.isArray(spec.tiles)) out.tiles = spec.tiles.map((t) => /^gladpx:/.test(t) ? t : `gladpx://${encodeURIComponent(salt)}/${t}`);
@@ -2128,12 +2147,13 @@ function hudSize(radius) {
 // chose: indigo through blue to cyan, bright enough to stand off both the
 // dark satellite imagery and the painted atlas.
 const GLOW = {
-  plum: "#3A3F9E", rose: "#3F7FD6", bone: "#BFEBF5", red: "#5A62E0", white: "#DCEBF5",
-  cyan: "#46B8D8", amber: "#7A6BE0",
+  // Round 82b: neon greens and blues (was indigo through blue to cyan).
+  plum: "#0B4F9C", rose: "#00A8E8", bone: "#C8FFF0", red: "#1E7BFF", white: "#E4FFF8",
+  cyan: "#00E5D4", amber: "#2EE88A",
   haze: ["interpolate", ["linear"], ["heatmap-density"],
-    0, "rgba(40,44,140,0)", 0.3, "rgba(46,60,170,0.14)", 0.7, "rgba(60,110,214,0.42)", 1, "rgba(70,184,216,0.62)"],
+    0, "rgba(10,80,160,0)", 0.3, "rgba(0,120,220,0.16)", 0.7, "rgba(0,200,230,0.44)", 1, "rgba(40,255,190,0.64)"],
   hazeOpacity: 0.3,                            // very faint: the soft spread only
-  core: (w) => ["interpolate", ["linear"], ["sqrt", w], 0, "#3A3F9E", 0.45, "#3F7FD6", 0.8, "#6FC8E6", 1, "#BFEBF5"],
+  core: (w) => ["interpolate", ["linear"], ["sqrt", w], 0, "#0B4F9C", 0.45, "#00A8E8", 0.8, "#00F0C8", 1, "#C8FFF0"],
   grainSatellite: 0,                           // the grain over the Satellite basemap, where there is no glow
   grain: 0,                                    // no grain: it textured the whole map, not the dots (taken out 23 September)
   fadeOut: 9, gone: 12,                        // haze and cores: full to 9, gone by 12; the dots the other way
@@ -2153,9 +2173,9 @@ const GLOW_FULL = new Set(["skytruth_voc", "mine_features", "aquaculture_ponds",
 // spectrum instead: indigo where outlets (weighed by their nitrogen) are
 // sparse, through blue and cyan, to pale ivory where they are densest.
 const HOTSPOT = new Set(["wastewater_n_tot", "wastewater_n_treated", "wastewater_n_septic", "wastewater_n_open"]);
-const HOT_RAMP = [[0.02, "rgba(58,40,120,0.45)"], [0.2, "rgba(70,70,190,0.7)"], [0.45, "rgba(60,130,214,0.82)"],
-  [0.7, "rgba(80,190,222,0.9)"], [0.9, "rgba(170,228,238,0.95)"], [1, "rgba(236,232,218,1)"]];
-const HOT_KEY = [["#3A2878", "sparse"], ["#4646BE", "thin"], ["#3C82D6", "moderate"], ["#50BEDE", "crowded"], ["#AAE4EE", "very crowded"], ["#ECE8DA", "densest"]];
+const HOT_RAMP = [[0.02, "rgba(10,50,140,0.5)"], [0.2, "rgba(20,110,255,0.72)"], [0.45, "rgba(0,200,255,0.84)"],
+  [0.7, "rgba(0,255,200,0.9)"], [0.9, "rgba(120,255,120,0.95)"], [1, "rgba(230,255,220,1)"]];
+const HOT_KEY = [["#0A328C", "sparse"], ["#146EFF", "thin"], ["#00C8FF", "moderate"], ["#00FFC8", "crowded"], ["#78FF78", "very crowded"], ["#E6FFDC", "densest"]];
 const HUD_SKIP = new Set();              // rows coloured by their own figures (round 81)
 const hotspotOf = (layer) => HOTSPOT.has(String(layer.source || "").replace(/-(src|pm)$/, "")) ||
   (/^points-bundle-/.test(String(layer.source || "")) && HOTSPOT.has(String(layer["source-layer"] || "")));
@@ -2230,6 +2250,8 @@ function addHud(layer, rawAddLayer) {
     glowGrain();
   } catch (e) { /* this layer keeps its round markers alone */ }
 }
+// The map's own ramps are drawn as written; their keys are not moved either (round 82b).
+HOT_KEY.forEach(([c]) => GLAD_OUT.add(c));
 // The grain: made once, from a fixed seed, so it is the same on every redraw
 // and every visit; screen-fixed, under the controls and popups. "soft-light"
 // leaves near-black almost untouched and textures the lit parts most. It
@@ -5077,13 +5099,26 @@ async function addRasterPartsLayer(cfg) {
       paint: { "raster-opacity": 0.85, "raster-resampling": "nearest" } }, pointLayerAbove());
     cfg._layerIds.push(sid);
   });
+  // Its own colour for each class, far apart (round 82b).
+  let classes = Array.isArray(st.classes) ? st.classes : [];
+  if (cfg.classColours && classes.length) {
+    const pal = new Map();
+    classes = classes.map((c, i) => {
+      const p = parseCssColour(c.colour), to = cfg.classColours[i % cfg.classColours.length];
+      const q = parseCssColour(to);
+      if (p && q) pal.set((p[0] << 16) | (p[1] << 8) | p[2], q.slice(0, 3));
+      GLAD_OUT.add(to.toUpperCase());
+      return Object.assign({}, c, { colour: to.toUpperCase() });
+    });
+    GLAD_CLASS_PALETTE.set(cfg.id, pal);
+  }
   const row = document.querySelector(`[data-layer="${cfg.id}"]`);
   const label = row && row.closest ? row.closest("label") : null;
-  if (label && label.after && Array.isArray(st.classes) && !document.querySelector(`.facet[data-key-for="${cfg.id}"]`)) {
+  if (label && label.after && classes.length && !document.querySelector(`.facet[data-key-for="${cfg.id}"]`)) {
     const el = document.createElement("div");
     el.className = "facet cat-key";
     el.dataset.keyFor = cfg.id;
-    el.innerHTML = catalogueKeyHtml({ values: st.classes.map((c) => [c.value, c.colour, c.name]) });
+    el.innerHTML = catalogueKeyHtml({ values: classes.map((c) => [c.value, c.colour, c.name]) });
     label.after(el);
   }
   setLayerState(cfg.id, `${(st.classes || []).length} kinds of forest, 100 m, 2020`);
@@ -5879,12 +5914,13 @@ async function readGeojsonFiles(cfg) {
 // the place does give, at the rate the places giving both show between them
 // (Waste Atlas dumpsites: waste per person working informally there); an
 // estimated place is drawn as a ring and its box says how it was worked out.
-const AMOUNT_RAMP = ["#2E3496", "#3450BE", "#3A76D6", "#46A0DE", "#78C8E8", "#C8EEF6"];
+const AMOUNT_RAMP = ["#0A3C96", "#1466FF", "#00AEEF", "#00E5C3", "#4CFF8A", "#D4FFE4"];
 const AMOUNT_NONE = "#8A8F93";
 // A row coloured by the kind of place (round 81, the plastics rows): each kind
 // its own colour and chip, and the key lists them with how many of each.
 function colourByGroup(cfg, items) {
   HUD_SKIP.add(cfg.id);
+  cfg.keepColour = true;
   const n = new Map();
   for (const it of items) {
     it.colour = cfg.groupColours[it.group] || AMOUNT_NONE;
@@ -5909,6 +5945,8 @@ function amountWords(v) {
 function colourByAmount(cfg, items) {
   const cb = cfg.colourBy;
   HUD_SKIP.add(cfg.id);
+  // Its colours are its key: not moved again by the map-wide mapping (round 82b).
+  cfg.keepColour = true;
   for (const it of items) {
     const a = amountOf(it._p && it._p[cb.field]);
     it._v = a ? a.v : null;
@@ -6862,6 +6900,11 @@ const CATALOGUE_PLACES = [
 // titles each rule caught.
 const CATALOGUE_TAKEN_OUT = "(taken out)";
 const CATALOGUE_BY_TITLE = [
+  // ---- 27 September (round 82b), at the owner's word --------------------
+  // Nusantara's fire alerts for Equatorial Asia, all nine: MODIS, VIIRS and
+  // the two together, each in three copies. The worldwide VIIRS detections
+  // (NASA, under Fire) stay.
+  [/\b(v3p\d_)?alertfire_(combine|modis|viirs)\b/i, null],
   // ---- 25 September (round 48), at the owner's word ---------------------
   // Moved: WWF's terrestrial ecoregions and SBTN's natural lands under
   // Biodiversity loss; the projected change in dry spells under Water
@@ -7007,7 +7050,7 @@ const CATALOGUE_BY_TITLE = [
   [/\bglobal_water_watch_anomalies2?\b/, [IN(P + " > Surface water", "waterwatch")]],
   // Round 42 (24 September): of the forest cover maps only the JRC's 2020 map
   // stays, the reference the EU's deforestation regulation measures from.
-  [/\bjrc_global_forest_cover\b/, [P + " > Deforestation > Forest cover in 2020"]],
+  [/\bjrc_global_forest_cover\b/, [P + " > Deforestation > Forest cover"]],
   [/\bumd_tree_cover_density_20(00|10)\b|\bwri_tropical_tree_cover(_extent)?\b/, null],
   // Round 43 (24 September, at the owner's word). GLAD-S2 alerts in Amazonia
   // and their coverage under the alerts; WRI's trees in mosaic and complex
@@ -7017,7 +7060,8 @@ const CATALOGUE_BY_TITLE = [
   // Global Forest Watch's internal analysis layers (Geotrellis features,
   // buffered points, GFW Pro's forest change regions).
   [/\bumd_glad_sentinel2_alerts(_coverage)?\b|(?=.*glad.?s2)(?=.*amazon)/i, [P + " > Deforestation > Tree cover loss and alerts > Alerts"]],
-  [/trees_in_(mosaic|complex)_landscapes|trees in (mosaic|complex) landscapes/i, [P + " > Deforestation > Trees in mosaic landscapes"]],
+  // Round 82b: under Forest cover, the heading of their own gone.
+  [/trees_in_(mosaic|complex)_landscapes|trees in (mosaic|complex) landscapes/i, [P + " > Deforestation > Forest cover"]],
   [/(?=.*planted)(?=.*(oil ?palm|palm oil))/i, [AG + " > Palm oil > Plantations"]],
   [/forest mills?\b|\bgfw_forest_mills?\b/i, [P + " > Deforestation > Logging and timber concessions"]],
   [/\bumd_glad_dist_alerts_coverage\b|(?=.*dist.?alert)(?=.*coverage)/i, null],
@@ -7086,7 +7130,7 @@ const CATALOGUE_BY_TITLE = [
   [/tree cover loss by (dominant )?driver|drivers? of tree cover loss/i, [P + " > Deforestation > Tree cover loss and alerts"]],
   [/soy(bean)? planted area/i, [P + " > Climate > Nitrous oxide"]],
   [/forest greenhouse gas emissions/i, [P + " > Climate > Carbon dioxide"]],
-  [/\bjpl_mangrove_aboveground_biomass|mangrove biomass/i, [P + " > Deforestation > Forest carbon and biomass"]],
+  [/\bjpl_mangrove_aboveground_biomass|mangrove biomass/i, [P + " > Deforestation > Mangroves"]],
   // Copied under Fire and Mining too (23 September): the alerts cover any loss
   // of plant cover, whatever its cause.
   [/all[- ]ecosystem disturbance alerts|dist-?alert/i,
@@ -7693,15 +7737,42 @@ function catalogueKeyHide(key) {
   if (el) el.remove();
   buildLegend();
 }
+// Pictures ringed wider out by another dataset's outlines of the same places (round 82b).
+const GFW_HALO = {
+  jpl_mangrove_aboveground_biomass_stock_2000: { dataset: "gmw_global_mangrove_extent", until: 8, words: "Global Mangrove Watch's outline of the mangroves (2020)" },
+};
 const GFW_WHERE = {
   intl_rivers_dam_hotspots: "the world\u2019s 50 major river basins",
 };
+// Titles written here for datasets named by a pattern (round 82b): the trees in
+// mosaic and complex landscapes said too little, and the Congo Basin's logging
+// roads came up as their id with a note that Global Forest Watch gives no title.
+const GFW_TITLES_BY = [
+  [/^wri_trees_in_mosaic_landscapes_coverage$/, "Where the trees in mosaic landscapes map has data, the tropics (WRI)"],
+  [/^wri_trees_in_mosaic_landscapes$/, "Trees outside dense forest, in farms, towns, drylands and forest edges, 10 m, 2020, the tropics (WRI Trees in Mosaic Landscapes, now Tropical Tree Cover)"],
+  [/trees_in_complex_landscapes_coverage/, "Where the trees in complex landscapes map has data (WRI)"],
+  [/trees_in_complex_landscapes/, "Trees in complex landscapes: trees outside dense forest, 10 m (WRI)"],
+  [/logging_roads/, "Logging roads, Congo Basin, as mapped in OpenStreetMap (Global Forest Watch)"],
+];
+const GFW_ABOUT_BY = [
+  [/trees_in_(mosaic|complex)_landscapes/, "WRI's map of trees that forest maps miss: those in farmland, towns, drylands and fragmented forest edges. Each 10 m pixel holds the likelihood that a tree's canopy covers its centre, read from Sentinel-2 imagery for 2020 (Brandt, Ertel and others, WRI). Global Forest Watch now calls it Tropical Tree Cover; it covers the tropics only. The coverage rows show where it has data, not trees."],
+  [/logging_roads/, "Roads cut for logging in the Congo Basin forests, traced from satellite imagery by volunteers into OpenStreetMap, as Global Forest Watch serves them."],
+];
+function gfwAbout(id) {
+  if (GFW_ABOUT[id]) return GFW_ABOUT[id];
+  const hit = GFW_ABOUT_BY.find(([re]) => re.test(String(id)));
+  return hit ? hit[1] : "";
+}
 function gfwTitle(d) {
   const meta = d.metadata || {};
   if (GFW_TITLES[d.dataset]) return GFW_TITLES[d.dataset];
+  const by = GFW_TITLES_BY.find(([re]) => re.test(String(d.dataset)));
+  if (by) return by[1];
   if (meta.title) return meta.title;
+  // A dataset with no title is named by its id in words; that it has none is
+  // said in its description, not in its title (round 82b).
   const words = String(d.dataset).replace(/_/g, " ");
-  return `${words.charAt(0).toUpperCase()}${words.slice(1)} (Global Forest Watch gives this dataset no title)`;
+  return `${words.charAt(0).toUpperCase()}${words.slice(1)} (Global Forest Watch)`;
 }
 // Which of a dataset's assets to draw from. Only one marked "saved": a tile
 // cache still "pending" has no tiles behind it (tsc_drivers), and drew nothing.
@@ -7970,7 +8041,7 @@ async function addGfwMenuLayer(cfg) {
   }
   // Where a dataset is, as GFW themselves record it. Left off where they
   // record nothing rather than guessed at from the name.
-  const items = all.filter((d) => !leftOut.includes(d.dataset)).map((d) => {
+  let items = all.filter((d) => !leftOut.includes(d.dataset)).map((d) => {
     const meta = d.metadata || {};
     const said = gfwTitle(d);
     const where = String(GFW_WHERE[d.dataset] || meta.geographic_coverage || "").trim();
@@ -7979,6 +8050,24 @@ async function addGfwMenuLayer(cfg) {
   })
     .flatMap((d) => gfwCogParts(d, index))
     .sort((a, b) => a.title.localeCompare(b.title));
+  // Two datasets under one title (round 82b, asked 27 September: the second
+  // "Forest concessions" of Peru would not load and repeated the first): one
+  // row is kept, the one Global Forest Watch publishes map tiles for, or the
+  // first; the others are named in the console.
+  {
+    const byTitle = new Map();
+    for (const d of items) { const k = d.title.toLowerCase(); if (!byTitle.has(k)) byTitle.set(k, []); byTitle.get(k).push(d); }
+    const drawable = (d) => !index || gfwPickAsset(index[d.dataset || d.id] || []).how !== "none";
+    const twins = [];
+    items = items.filter((d) => {
+      const g = byTitle.get(d.title.toLowerCase());
+      if (g.length < 2) return true;
+      const keep = g.find(drawable) || g[0];
+      if (keep !== d) twins.push(d.id);
+      return keep === d;
+    });
+    if (twins.length) console.info(`[culprits] ${cfg.id}: ${twins.length} datasets repeat another's title and have no row: ${twins.join(", ")}`);
+  }
   // Each dataset is a row of the layers box, filed by what it shows. Several
   // can be drawn at once now: the menu drew one at a time and cleared the last,
   // which made comparing two of them impossible.
@@ -8057,18 +8146,22 @@ async function addGfwMenuLayer(cfg) {
           names = buf ? readTileLayers(buf) : [];
         }
         map.addSource(src, { type: "vector", tiles: [uri], minzoom: asset.minzoom, maxzoom: asset.maxzoom });
+        // Each dataset its own neon green or blue (round 82b: the concessions drew
+        // as bland white edges round dull fills), its edge a lighter step of it.
+        const hue = gladSalt(d.id), neon = gladHsl(hue, 0.95, 0.5), rim = gladHsl(hue, 0.95, 0.68);
+        GLAD_OUT.add(neon); GLAD_OUT.add(rim);
         for (const n of (names.length ? names : [d.id, "default"])) {
           const base = { source: src, "source-layer": n };
-          map.addLayer({ id: `${src}-f-${safe(n)}`, type: "fill", ...base, filter: ["==", ["geometry-type"], "Polygon"], paint: { "fill-color": cfg.colour, "fill-opacity": 0.5 } });
+          map.addLayer({ id: `${src}-f-${safe(n)}`, type: "fill", ...base, filter: ["==", ["geometry-type"], "Polygon"], paint: { "fill-color": neon, "fill-opacity": 0.42 } });
           // A light edge on every area, never thinner than a pixel, so areas far
           // smaller than a pixel at the world view (mines, concessions) still show
           // as specks; it was a near-black edge on a dark map (22 September, round 3).
           map.addLayer({ id: `${src}-o-${safe(n)}`, type: "line", ...base, filter: ["==", ["geometry-type"], "Polygon"],
-            paint: { "line-color": "#D6CCBC", "line-opacity": ["interpolate", ["linear"], ["zoom"], 0, 0.95, 10, 0.75],
+            paint: { "line-color": rim, "line-opacity": ["interpolate", ["linear"], ["zoom"], 0, 0.95, 10, 0.75],
                      "line-width": ["interpolate", ["linear"], ["zoom"], 0, 1.6, 6, 1.2, 12, 0.9] } });
           ids.push(`${src}-o-${safe(n)}`);
-          map.addLayer({ id: `${src}-l-${safe(n)}`, type: "line", ...base, filter: ["==", ["geometry-type"], "LineString"], paint: { "line-color": cfg.colour, "line-width": 1.2 } });
-          map.addLayer({ id: `${src}-p-${safe(n)}`, type: "circle", ...base, filter: ["==", ["geometry-type"], "Point"], paint: { "circle-color": cfg.colour, "circle-radius": 3, "circle-stroke-width": 0.5, "circle-stroke-color": "#17150F" } });
+          map.addLayer({ id: `${src}-l-${safe(n)}`, type: "line", ...base, filter: ["==", ["geometry-type"], "LineString"], paint: { "line-color": rim, "line-width": 1.4 } });
+          map.addLayer({ id: `${src}-p-${safe(n)}`, type: "circle", ...base, filter: ["==", ["geometry-type"], "Point"], paint: { "circle-color": neon, "circle-radius": 3, "circle-stroke-width": 0.5, "circle-stroke-color": "#17150F" } });
           for (const id of [`${src}-f-${safe(n)}`, `${src}-l-${safe(n)}`, `${src}-p-${safe(n)}`]) {
             ids.push(id);
             bindHtmlPopup(id, (p) => `<b>${escapeHtml(d.title)}</b><table class="meta">${fieldRows(p)}</table>`);
@@ -8082,9 +8175,32 @@ async function addGfwMenuLayer(cfg) {
         // between codes; others are toned down as before.
         map.addLayer({ id: `${src}-r`, type: "raster", source: src, paint: key
           ? { "raster-opacity": 0.9, "raster-resampling": "nearest" }
-          : { "raster-opacity": 0.8, "raster-saturation": -0.3 } });
+          : { "raster-opacity": 0.85 } });
         ids.push(`${src}-r`);
         if (key) catalogueKeyShow(d.key, d.title, key);
+        // A picture of places too small to see from far out (round 82b: the
+        // mangrove biomass) is ringed, wider out, by the outlines of the same
+        // places from another dataset, bright and wide, fading as the picture
+        // itself becomes big enough to see.
+        const halo = GFW_HALO[d.id];
+        if (halo) {
+          const ha = index ? gfwPickAsset(index[halo.dataset] || []) : null;
+          if (ha && ha.how === "vector") {
+            const hs = `${src}-halo`;
+            map.addSource(hs, { type: "vector", tiles: [ha.uri], minzoom: ha.minzoom, maxzoom: ha.maxzoom });
+            const glow = gladHsl(gladSalt(d.id), 0.95, 0.62);
+            GLAD_OUT.add(glow);
+            for (const n of [halo.dataset, "default"]) {
+              const hid = `${hs}-${safe(n)}`;
+              map.addLayer({ id: hid, type: "line", source: hs, "source-layer": n, maxzoom: halo.until,
+                paint: { "line-color": glow, "line-blur": 1.5,
+                         "line-width": ["interpolate", ["linear"], ["zoom"], 0, 3, 4, 4, halo.until, 1],
+                         "line-opacity": ["interpolate", ["linear"], ["zoom"], 0, 0.9, halo.until - 1, 0.6, halo.until, 0] } }, `${src}-r`);
+              ids.push(hid);
+            }
+            rowSay(d.key, `wider out than zoom ${halo.until}, each place is ringed by ${halo.words} so it can be found`);
+          }
+        }
       } else {
         setLayerState(cfg.id, `${d.title}: Global Forest Watch publishes no map tiles for this dataset (download only)`);
         rowSay(d.key, (asset.waiting
@@ -8123,7 +8239,7 @@ async function addGfwMenuLayer(cfg) {
   };
   const rows = items.map((d) => ({
     kind: d.cog ? "shape" : index ? { vector: "", raster: "shape", cog: "shape" }[gfwPickAsset(index[d.dataset || d.id] || []).how] : undefined,
-    name: d.id, title: d.title, about: `${GFW_ABOUT[d.id] ? GFW_ABOUT[d.id] + " \u2014 " : ""}${d.meta.function || ""} ${d.meta.overview || ""}`.trim(),
+    name: d.id, title: d.title, about: `${gfwAbout(d.id) ? gfwAbout(d.id) + " \u2014 " : ""}${d.meta.function || ""} ${d.meta.overview || ""}`.trim(),
     show: (want) => { if (want) put(d); else { take(d); rowSay(d.key, cfg.catUnit || ""); } },
   }));
   catalogueRows(cfg, rows);
@@ -9167,6 +9283,7 @@ async function addArcgisDynLayer(cfg) {
   });
   if (densityKey) {
     const steps = densityKey.steps || [], cols = densityKey.colours || [];
+    cols.forEach((c) => GLAD_OUT.add(String(c).toUpperCase()));
     rowKey(cfg.id, steps.map((n, i) => [cols[i] || cfg.colour, i === steps.length - 1 ? `${n} or more facilities in one pixel` : `${n}${steps[i + 1] - 1 > n ? ` to ${steps[i + 1] - 1}` : ""} ${n === 1 && steps[i + 1] === 2 ? "facility" : "facilities"} in one pixel`]),
       `Wider out than zoom ${densityFrom}: every facility counted into the pixel it falls in; zoom in to click each one`);
   }
@@ -9884,6 +10001,156 @@ function addColumnLayer() {
   });
 }
 
+/* ---------- nitrogen dioxide as relief (round 82b) ---------- */
+// Asked 27 September: the nitrogen dioxide layer "hypsometric/3D, but not its
+// altitudes, just its air quality intensities". Global Forest Watch serves the
+// TROPOMI monthly average only as coloured pictures, so each picture is read
+// back into amounts along its own key (the colour nearest each pixel on the
+// key's line, and the amount between that key's two steps on a log scale), and
+// from the amounts two tiles are made here: a picture in this map's colours,
+// and a height tile the map stands its ground on. While the row is shown the
+// ground's height is the amount of nitrogen dioxide, not the land's altitude;
+// unticked, the map's own terrain setting is put back. Below zoom 3, where the
+// service has no tiles, each tile is made from its four children, keeping the
+// highest amount in each pixel so small hot spots still show from far out.
+const NO2_KEY = [[[0, 0, 3], 5], [[85, 15, 109], 10], [[186, 54, 85], 30], [[249, 140, 9], 100], [[252, 254, 164], 300]];
+const NO2_RAMP = [[5, [0, 70, 200, 0]], [10, [0, 120, 255, 150]], [30, [0, 210, 255, 195]], [100, [0, 255, 180, 225]], [300, [170, 255, 90, 245]]];
+const NO2_HEIGHT = 150000;              // metres at 300 or more, before the zoom's own scaling
+const no2Relief = { on: false, cfg: null, cache: new Map() };
+function no2Amount(r, g, b) {
+  let best = Infinity, val = null;
+  for (let i = 0; i < NO2_KEY.length - 1; i++) {
+    const [a, va] = NO2_KEY[i], [c, vc] = NO2_KEY[i + 1];
+    const d = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    const len = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
+    const t = Math.max(0, Math.min(1, ((r - a[0]) * d[0] + (g - a[1]) * d[1] + (b - a[2]) * d[2]) / len));
+    const e = (r - a[0] - t * d[0]) ** 2 + (g - a[1] - t * d[1]) ** 2 + (b - a[2] - t * d[2]) ** 2;
+    if (e < best) { best = e; val = va * Math.pow(vc / va, t); }
+  }
+  return val;
+}
+function no2Colour(v) {
+  if (!(v > NO2_RAMP[0][0])) return [0, 0, 0, 0];
+  for (let i = 1; i < NO2_RAMP.length; i++) {
+    const [v1, c1] = NO2_RAMP[i];
+    if (v <= v1 || i === NO2_RAMP.length - 1) {
+      const [v0, c0] = NO2_RAMP[i - 1];
+      const t = Math.max(0, Math.min(1, Math.log(v / v0) / Math.log(v1 / v0)));
+      return c0.map((x, k) => Math.round(x + t * (c1[k] - x)));
+    }
+  }
+  return NO2_RAMP[NO2_RAMP.length - 1][1];
+}
+async function no2Decode(buf) {
+  const bmp = await createImageBitmap(new Blob([buf]));
+  const cv = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(256, 256) : Object.assign(document.createElement("canvas"), { width: 256, height: 256 });
+  const ctx = cv.getContext("2d");
+  ctx.drawImage(bmp, 0, 0, 256, 256);
+  const px = ctx.getImageData(0, 0, 256, 256).data;
+  const out = new Float32Array(256 * 256), seen = new Map();
+  for (let i = 0; i < out.length; i++) {
+    if (px[i * 4 + 3] < 8) continue;
+    const key = (px[i * 4] << 16) | (px[i * 4 + 1] << 8) | px[i * 4 + 2];
+    let v = seen.get(key);
+    if (v === undefined) { v = no2Amount(px[i * 4], px[i * 4 + 1], px[i * 4 + 2]); seen.set(key, v); }
+    out[i] = v;
+  }
+  return out;
+}
+// The amounts of one tile, from the service or, wider out, from its children.
+function no2Values(z, x, y) {
+  const k = `${z}/${x}/${y}`;
+  if (no2Relief.cache.has(k)) return no2Relief.cache.get(k);
+  const p = (async () => {
+    const url = no2Relief.cfg.tiles.replace("{z}", z).replace("{x}", x).replace("{y}", y);
+    try {
+      const r = await fetch(url);
+      if (r.ok) return await no2Decode(await r.arrayBuffer());
+    } catch (e) { /* from the children, below */ }
+    if (z >= 3) return null;
+    const kids = await Promise.all([[0, 0], [1, 0], [0, 1], [1, 1]].map(([dx, dy]) => no2Values(z + 1, 2 * x + dx, 2 * y + dy)));
+    if (!kids.some(Boolean)) return null;
+    const out = new Float32Array(256 * 256);
+    kids.forEach((kid, q) => {
+      if (!kid) return;
+      const ox = (q % 2) * 128, oy = Math.floor(q / 2) * 128;
+      for (let yy = 0; yy < 128; yy++) for (let xx = 0; xx < 128; xx++) {
+        const i = (yy * 2) * 256 + xx * 2;
+        out[(oy + yy) * 256 + ox + xx] = Math.max(kid[i], kid[i + 1], kid[i + 256], kid[i + 257]);
+      }
+    });
+    return out;
+  })();
+  no2Relief.cache.set(k, p);
+  if (no2Relief.cache.size > 600) no2Relief.cache.delete(no2Relief.cache.keys().next().value);
+  return p;
+}
+async function no2Tile(kind, z, x, y) {
+  const vals = await no2Values(z, x, y);
+  const cv = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(256, 256) : Object.assign(document.createElement("canvas"), { width: 256, height: 256 });
+  const ctx = cv.getContext("2d");
+  const img = ctx.createImageData(256, 256);
+  const d = img.data;
+  for (let i = 0; i < 256 * 256; i++) {
+    const v = vals ? vals[i] : 0;
+    if (kind === "col") {
+      const c = no2Colour(v);
+      d[i * 4] = c[0]; d[i * 4 + 1] = c[1]; d[i * 4 + 2] = c[2]; d[i * 4 + 3] = c[3];
+    } else {
+      // Mapbox's height code: -10000 + (R * 65536 + G * 256 + B) / 10 metres.
+      const t = v > 5 ? Math.min(1, Math.log(v / 5) / Math.log(60)) : 0;
+      const code = Math.round((t * NO2_HEIGHT + 10000) * 10);
+      d[i * 4] = (code >> 16) & 255; d[i * 4 + 1] = (code >> 8) & 255; d[i * 4 + 2] = code & 255; d[i * 4 + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  const blob = cv.convertToBlob ? await cv.convertToBlob({ type: "image/png" }) : await new Promise((res) => cv.toBlob(res, "image/png"));
+  return blob.arrayBuffer();
+}
+maplibregl.addProtocol("no2", async (params) => {
+  const m = params.url.match(/^no2:\/\/(col|dem)\/(\d+)\/(\d+)\/(\d+)/);
+  if (!m || !no2Relief.cfg) throw new Error("no nitrogen dioxide row");
+  return { data: await no2Tile(m[1], Number(m[2]), Number(m[3]), Number(m[4])) };
+});
+// How tall the relief stands at this zoom: tall enough to read from space,
+// low enough close in not to wall off the view.
+function no2Lift() {
+  const z = map.getZoom();
+  return Math.max(0.03, Math.min(1, Math.pow(2, 3 - z)));
+}
+function no2Ground(on) {
+  if (typeof map.setTerrain !== "function") return;
+  no2Relief.on = on;
+  if (on) {
+    map.setTerrain({ source: "no2-dem", exaggeration: no2Lift() });
+    if (typeof map.easeTo === "function" && map.getPitch && map.getPitch() < 30) map.easeTo({ pitch: 50, duration: 800 });
+  } else if (TERRAIN_ON) {
+    liftNow = null;
+    setTerrain(true);
+  } else map.setTerrain(null);
+}
+function addNo2Relief(cfg) {
+  no2Relief.cfg = cfg;
+  map.addSource("no2-col", { type: "raster", tiles: ["no2://col/{z}/{x}/{y}"], tileSize: 256, maxzoom: 12, attribution: cfg.attribution });
+  map.addSource("no2-dem", { type: "raster-dem", tiles: ["no2://dem/{z}/{x}/{y}"], tileSize: 256, maxzoom: 12, encoding: "mapbox" });
+  map.addSource("no2-shade", { type: "raster-dem", tiles: ["no2://dem/{z}/{x}/{y}"], tileSize: 256, maxzoom: 12, encoding: "mapbox" });
+  map.addLayer({ id: "no2-hill", type: "hillshade", source: "no2-shade", layout: { visibility: visibility.get(cfg.id) || "visible" },
+    paint: { "hillshade-shadow-color": "#001a3a", "hillshade-highlight-color": "#b6fff0", "hillshade-accent-color": "#00c8ff",
+             "hillshade-exaggeration": 0.6 } }, pointLayerAbove());
+  map.addLayer({ id: "no2-fill", type: "raster", source: "no2-col", layout: { visibility: visibility.get(cfg.id) || "visible" },
+    paint: { "raster-opacity": 0.85, "raster-resampling": "linear" } }, pointLayerAbove());
+  cfg._layerIds = ["no2-hill", "no2-fill"];
+  cfg.afterVisibility = (vis) => no2Ground(vis === "visible");
+  map.on("zoomend", () => { if (no2Relief.on) map.setTerrain({ source: "no2-dem", exaggeration: no2Lift() }); });
+  NO2_RAMP.forEach(([, c]) => GLAD_OUT.add("#" + c.slice(0, 3).map((x) => x.toString(16).padStart(2, "0")).join("").toUpperCase()));
+  rowKey(cfg.id, NO2_RAMP.slice(1).map(([v, c], i) => ["#" + c.slice(0, 3).map((x) => x.toString(16).padStart(2, "0")).join("").toUpperCase(),
+    i === NO2_RAMP.length - 2 ? `${v} or more, highest ground` : `about ${v}`]),
+    "Colour and height both follow the amount; the land's own altitude is not shown while this is on");
+  setLayerState(cfg.id, "read live from Global Forest Watch's tiles \u00b7 tilt the map to see the relief");
+  applyVisibility(cfg.id);
+  buildLegend();
+}
+
 /* ---------- 3D terrain ---------- */
 
 // Ground height, draped under the imagery. Mapzen's terrarium tiles on AWS
@@ -9930,6 +10197,7 @@ function terrainLift() {
 }
 let liftNow = null;
 function liftTerrain() {
+  if (no2Relief.on) return;           // the nitrogen dioxide relief holds the ground (round 82b)
   if (!TERRAIN_ON || typeof map.setTerrain !== "function" || !map.getSource("terrain-dem")) return;
   const v = terrainLift();
   if (v === liftNow) return;
@@ -14112,10 +14380,19 @@ const MORE_MAPS = {
       facFile: "remains_local_museum", facLabel: "Museum (may hold remains \u2014 unconfirmed)",
       note: "Institutions that might hold ancestors. Most do not: an OpenStreetMap museum tag says nothing about whether a museum holds human remains. The set a researcher would have to ask, from the map's own file." },
     { id: "remains_fire", name: "Active fire, last 24 hours (NASA VIIRS)", unit: "thermal anomalies, 375 m", colour: "#8C5548", route: "rasterlive", ready: true, lazy: true,
-      attribution: "Fire: NASA EOSDIS GIBS / VIIRS", maxzoom: 7,
-      choices: [{ label: "VIIRS NOAA-20, day", tiles: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_NOAA20_Thermal_Anomalies_375m_Day/default/default/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png" }],
-      rasterPaint: { "raster-saturation": -0.6, "raster-opacity": 0.85 },
-      note: "NASA VIIRS thermal anomalies, refreshed daily. Fire exposes remains with no permit and no applicant (the Unearthings map's words); under Fire too." },
+      // Round 82b (asked 27 September: it never loaded): GIBS publishes the fire
+      // detections as vector data, not as the picture tiles this asked for, so
+      // every tile failed. Its WMS draws the same detections as pictures, all
+      // three VIIRS satellites together, today's and yesterday's (UTC), which
+      // together cover the last 24 hours.
+      attribution: "Fire: NASA EOSDIS GIBS / VIIRS (Suomi NPP, NOAA-20, NOAA-21)", maxzoom: 12,
+      choices: [["today (UTC), as far as it has come in", 0], ["yesterday (UTC)", 1]].map(([label, back]) => ({ label,
+        tiles: "https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0" +
+          "&LAYERS=VIIRS_SNPP_Thermal_Anomalies_375m_All,VIIRS_NOAA20_Thermal_Anomalies_375m_All,VIIRS_NOAA21_Thermal_Anomalies_375m_All" +
+          "&STYLES=&CRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=true" +
+          `&TIME=${new Date(Date.now() - back * 864e5).toISOString().slice(0, 10)}` })),
+      rasterPaint: { "raster-opacity": 0.95 },
+      note: "Every fire and hot spot NASA's three VIIRS satellites detected today and yesterday (UTC), 375 m, drawn by NASA's own map service each time it is ticked; a chip picks the day. Fire exposes remains with no permit and no applicant (the Unearthings map's words); under Fire too." },
     { id: "remains_help", name: "Resources and how-to guides, by what you want to do and where (Unearthings)", unit: "opens a panel along the bottom", colour: "#6f9e8c", route: "remainspanel", panel: "lens", ready: true, lazy: true,
       note: "The map's resource lenses: every body and instrument it names, with where each serves, whether its link still works, and its nine step-by-step guides for the jurisdictions with a verified legal hook. Read from the map each time it is ticked." },
     { id: "remains_wire", name: "News of unearthings, repatriations and desecration (Unearthings wire)", unit: "opens a panel along the bottom", colour: "#6A6257", route: "remainspanel", panel: "wire", ready: true, lazy: true,
@@ -14337,6 +14614,13 @@ const OTHER_MAPS = {
     { id: "ct_air_nox", name: "Nitrogen oxides from urban air-pollution sources (Climate TRACE)", unit: "tonnes a year", colour: "#7A5A55", route: "ctairgas", gas: "nox", ready: true, lazy: true,
       list: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/sources.geojson", gases: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/gases.json",
       note: "Every source Climate TRACE's city air-pollution pages cover, sized by its nitrogen oxides in a year, from a weekly copy of Climate TRACE's figures; a click reads its plume and every pollutant live." },
+    // Round 82b (asked 27 September): the nitrogen dioxide row, back under its
+    // heading (it came from Global Forest Watch's catalogue, which no longer
+    // lists it as drawable) and raised as a relief of its own intensity.
+    { id: "no2_tropomi", name: "Nitrogen dioxide in the air, last month's average, raised by how much there is (Sentinel-5P TROPOMI, via Global Forest Watch)", unit: "tropospheric NO\u2082", colour: "#00C8FF", route: "no2relief", ready: true, lazy: true,
+      tiles: "https://tiles.globalforestwatch.org/tropomi_avg_nitrogen_dioxide_last_month/latest/default/{z}/{x}/{y}.png",
+      attribution: "Copernicus Sentinel-5P TROPOMI; tiles by Global Forest Watch (Resource Watch layer)",
+      note: "The satellite's average of nitrogen dioxide over the last month, as Global Forest Watch serves it for Resource Watch. Its picture is read pixel by pixel back into amounts (from the layer's own key: 5, 10, 30, 100, 300 or more), then drawn in this map's colours and raised: the ground under the map is swapped for a surface whose height is the amount, not the altitude, with shading from its slopes, so the dirtiest air stands as the highest ground. Unticked, the ground returns to what it was. The layer's record gives no unit for the key's numbers." },
     { id: "ct_pop", name: "Population density, 1 km (GHSL via Climate TRACE)", unit: "people per square km", colour: "#6A6258", route: "rasterlive", ready: true, lazy: true,
       attribution: "Climate TRACE; GHSL population", maxzoom: 12,
       choices: [{ label: "Population", tiles: "https://tiles.climatetrace.org/ghsl-pop-1km/all/{z}/{x}/{y}.png" }],
@@ -14393,6 +14677,8 @@ const OTHER_MAPS = {
       note: "Each of the 65 banks in the report, at the headquarters its parent company gives in the Global Legal Entity Identifier register (GLEIF), found in OpenStreetMap. Each box gives both of the report's league tables as printed: fossil fuel financing and fossil fuel expansion financing, the 2025 rank, every year 2021 to 2025, the five-year total and the change from 2024, with the legal entity and its LEI. Figures are the report's, attributed to the parent bank. Read from the report itself by culprits-tiles-more (the site offers no data file)." },
     { id: "forest_management", name: "Forest management types worldwide, 2020: untouched, logged or regrowing, planted, plantations, tree crops (VITO, IIASA and WRI)", unit: "kinds of forest", colour: "#8C5A68", route: "rasterparts", ready: true, lazy: true,
       archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/forest_management.pmtiles",
+      // Round 82b: nine colours far apart in hue and depth, in the owner's neon greens and blues.
+      classColours: ["#39FF14", "#00B3FF", "#C6FF00", "#00FFC8", "#1F4BFF", "#7DF9FF", "#0FA95B", "#E6FFF5", "#0A6BA8"],
       attribution: "Global Forest Management Type Map 2020 (De Keersmaecker et al., VITO, IIASA, WRI), CC BY 4.0",
       note: "Every forest on Earth at 100 m in 2020, by how it is managed, in the record's own classes: unmanaged natural forests (primary among them); naturally regenerated forests with visible human activity (where logging shows); planted forest; plantation forest; rubber; oil palm; tree crops; agroforestry; other trees. A copy made once from the Zenodo record (10.5281/zenodo.20396072)." },
     { id: "dff", name: "Deforestation Free Funds", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
@@ -14533,14 +14819,14 @@ const OTHER_MAPS = {
     // every record kept and labelled with its source, none merged.
     { id: "plastics_plants", name: "Plants making plastic and its building blocks, worldwide (built from EPA, the EU register, Climate TRACE, OpenStreetMap and Wikidata)", unit: "plants", colour: "#5E6070", route: "geojsonlive", ready: true, lazy: true, fixedName: true,
       files: [{ label: "Plastics plants", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/plastics/plants.geojson" }],
-      groupColours: { "Plastic resin and polymer plants": "#3A76D6", "Ethylene and propylene crackers (the building blocks of plastic)": "#6A4FB0",
-        "Plastic goods factories": "#78C8E8" }, groupHint: "Coloured by what the plant makes",
+      groupColours: { "Plastic resin and polymer plants": "#00AEEF", "Ethylene and propylene crackers (the building blocks of plastic)": "#39FF14",
+        "Plastic goods factories": "#7DF9FF" }, groupHint: "Coloured by what the plant makes",
       attribution: "US EPA TRI; European Environment Agency (E-PRTR); Climate TRACE (CC BY 4.0); © OpenStreetMap contributors (ODbL); Wikidata (CC0)",
       note: "No open worldwide register of plastics plants exists (the industry's own, such as Polyglobe, are sold by subscription), so this row is built from every public source that gives plant locations: the US Toxics Release Inventory (every facility whose main activity is plastics material and resin manufacturing, with the chemicals it reports and its releases), the EU's industrial emissions register (every installation making basic plastic materials), Climate TRACE's ethylene and propylene crackers worldwide (the building blocks of polyethylene, polypropylene and PVC, with capacity and emissions), and places OpenStreetMap and Wikidata record as making plastic, polymers or resin. Each record says which source it is from; the same plant can appear once from each source. Registers cover the countries that keep them, so the United States and Europe are the most complete." },
     { id: "vinyl_chloride_plants", name: "Plants making or releasing vinyl chloride, the gas PVC is made from (built from EPA, the EU register, OpenStreetMap and Wikidata)", unit: "plants", colour: "#5E6070", route: "geojsonlive", ready: true, lazy: true, fixedName: true,
       files: [{ label: "Vinyl chloride", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/plastics/vinyl_chloride.geojson" }],
-      groupColours: { "Reporting vinyl chloride releases, United States": "#3450BE", "Reporting vinyl chloride releases, Europe": "#46A0DE",
-        "Vinyl chloride and PVC plants in open maps": "#8A7CD0" }, groupHint: "Coloured by where the record comes from",
+      groupColours: { "Reporting vinyl chloride releases, United States": "#1466FF", "Reporting vinyl chloride releases, Europe": "#00E5C3",
+        "Vinyl chloride and PVC plants in open maps": "#B6FF3B" }, groupHint: "Coloured by where the record comes from",
       attribution: "US EPA TRI; European Environment Agency (E-PRTR); © OpenStreetMap contributors (ODbL); Wikidata (CC0)",
       note: "Every facility the US Toxics Release Inventory and the EU's industrial emissions register list as releasing vinyl chloride, with the amount they report for the latest year, and the places OpenStreetMap and Wikidata record as making vinyl chloride or PVC. Built by culprits-tiles-more (scripts/plastics.py); each record says which source it is from." },
     { id: "mymaps_trees", name: "Christmas Trees (Google My Maps)", unit: "placemarks", colour: "#5F6E5C", route: "kml", ready: true, lazy: true,
@@ -14912,13 +15198,14 @@ function gladColour(c, id, span) {
   let hash = 0;
   for (const ch of String(id || c)) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
   const t = sat < 0.22 ? (Math.imul(hash, 2654435761) >>> 0) / 4294967296 : hue / 360;
-  return gladHex(185 + t * (span || 110), 0.62 + ((hash >> 10) % 20) / 100, 0.54 + ((hash >> 16) % 14) / 100);
+  // Round 82b: neon green (115) to electric blue (220), vivid.
+  return gladHex(115 + t * (span || 105), 0.85 + ((hash >> 10) % 12) / 100, 0.5 + ((hash >> 16) % 14) / 100);
 }
 for (const c of LAYERS.concat(...GROUPS.map((g) => g.children || []))) {
   // Round 62: Global Trade Alert's countries, and the lines between countries
   // (trade flows, trafficking routes), keep to cyan and blue too.
   if (c && c.id && (["giga", "country", "owidgrapher", "trase", "gta", "rte"].includes(c.route) || c.routes || /\bcountr/i.test(String(c.unit || "")))) GLAD_NATIONAL.add(c.id);
-  if (c && c.colour && !c.keepColour) c.colour = gladColour(c.colour, c.id, GLAD_NATIONAL.has(c.id) ? GLAD_NATIONAL_SPAN : 110);
+  if (c && c.colour && !c.keepColour) c.colour = gladColour(c.colour, c.id, GLAD_NATIONAL.has(c.id) ? GLAD_NATIONAL_SPAN : 105);
   if (c && typeof c.colour === "string") GLAD_OUT.add(c.colour.toUpperCase());
 }
 /* ---------- where a dot is: every point's box says how exact its position is ---------- */
@@ -15114,6 +15401,7 @@ function ensureLayer(cfg) {
       : ["ejatlas", "geojsonlive", "wpgmza", "atlascities", "trasefac", "gdeltgeo", "gdeltarchive", "usnifleet"].includes(cfg.route) ? addLivePlacesLayer(cfg)
       : cfg.route === "wmsmenu" ? addWmsMenuLayer(cfg)
       : cfg.route === "gfwmenu" ? addGfwMenuLayer(cfg)
+      : cfg.route === "no2relief" ? Promise.resolve().then(() => addNo2Relief(cfg))
       : cfg.route === "country" ? addCountryLayer(cfg)
       : addPmtilesLayer(cfg);
     return build;
@@ -15291,6 +15579,7 @@ const LAYER_KIND = {
   gsn_rankings: ["plant", "downstream"],
   gta_acts: ["human", "upstream"],
   ct_air: ["human", "downstream"],
+  no2_tropomi: ["human", "downstream"],
   ct_air_pm2_5: ["human", "downstream"],
   ct_air_bc: ["human", "downstream"],
   ct_air_oc: ["human", "downstream"],
@@ -16058,6 +16347,8 @@ const LIVE_ROUTES = new Set([
   "remains", "remainsfac", "remainsfind", "remainspanel",
   // The biosignature worlds are read from the assessment page itself each time.
   "worldsring",
+  // Round 82b: the nitrogen dioxide relief, read from Global Forest Watch's tiles.
+  "no2relief",
 ]);
 // A row's longer description sits behind a small "i" beside its other marks.
 // It used to be the whole row's hover text, which popped up over the list every
@@ -16303,7 +16594,7 @@ const PANEL_ORDER = [
   { h: 5, t: "Carbon monoxide" }, "ct_air_co",
   { h: 5, t: "Ammonia" }, "ct_air_nh3",
   { h: 5, t: "Nitrogen oxides" }, "ct_air_nox",
-  { h: 5, t: "Nitrogen dioxide" },
+  { h: 5, t: "Nitrogen dioxide" }, "no2_tropomi",
   { h: 4, t: "Water pollution" },
   // The model's map server is gone; its data package is drawn instead
   // (pipeline/wastewater_build.py, 23 September). Round 81: the four outlet
@@ -16329,10 +16620,12 @@ const PANEL_ORDER = [
   // catalogue rows find their sub-heading through CATALOGUE_SUBS. Spatial plans
   // are one row with sublayers here (item 25); the Moratoriums and Spatial
   // plans headings are gone into it.
-  { h: 4, t: "Forest cover in 2020" },
+  // Round 82b (asked 27 September): "Forest cover" (was "Forest cover in 2020"),
+  // with the trees in mosaic and complex landscapes; "Mangroves" (was "Forest
+  // carbon and biomass", which held only the mangrove biomass).
+  { h: 4, t: "Forest cover" },
   // Round 75: the mangroves' biomass, at the owner's word.
-  { h: 4, t: "Forest carbon and biomass" },
-  { h: 4, t: "Trees in mosaic landscapes" },
+  { h: 4, t: "Mangroves" },
   { h: 4, t: "Logging and timber concessions" },
   { h: 4, t: "Timber and rubber plantations" },
   { h: 4, t: "Forest zoning and management plans" },
@@ -17153,7 +17446,7 @@ function headingPump() {
 const KIND_POINT = new Set(["pmtiles", "sitemap", "geojsonlive", "kml", "umap", "wpgmza", "trasefac", "ctairgas", "ctair", "worker",
   "ejatlas", "carbonmapper", "atlascities", "ufo", "gta", "cafo", "arcgisapp", "remains", "remainsfac", "remainsfind"]);
 const KIND_SHAPE = new Set(["pmshapes", "pmtareas", "arcgis", "arcgisdyn", "rasterlive", "rasterparts", "tile", "osmlanduse", "coral",
-  "glw", "shapes", "cerulean", "slickarchive"]);
+  "glw", "shapes", "cerulean", "slickarchive", "no2relief"]);
 const KIND_NATIONAL = new Set(["giga", "country", "owidgrapher"]);
 // Rows whose route says points but which draw areas (round 57: FracTracker's
 // map draws the world's oil and gas basins and the US shale basins, both
