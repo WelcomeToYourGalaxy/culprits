@@ -474,6 +474,7 @@
       "access_evidence": "Harvester run live against raw.githubusercontent; row counts and field names in the notes are observed, not inferred.",
       "notes": "Own repo, WelcomeToYourGalaxy/GMO-map. It declares NO LICENCE FILE, which defaults to all rights reserved — not a problem for self-use, but the upstream terms below travel with the data and are the ones that bind republication. 43,741 records observed. 41,948 of them (95.9%) carry precise:false — APHIS publishes release states and never field coordinates, so those sit at state centroids and must draw hollow. Upstream has already excluded 6,085 never-authorised records (10.1% of 60,242 seen) and says so in its own `dropped` block. Five registers present: aphis 22,111, industry 16,337, bch 3,025, clinical 2,231, ogtr 37.",
       "discovery": "resolve() reads projects.json through discover.github_file(), so the blob SHA is the change signal.",
+      "pieces_by": "at",
       "layer": {
         "kind": "point",
         "value": null,

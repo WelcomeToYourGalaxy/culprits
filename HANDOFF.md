@@ -5,6 +5,56 @@ touches.
 
 ---
 
+## Round 71 (27 September)
+
+- Satellite basemap: sat-relief-seabed and sat-relief-sea are in
+  GLAD_BASE_LAYERS now, so they keep SAT_RELIEF's own muted navies. The owner
+  asked for "the neon over the water" to go; since round 59 those two had kept
+  the GLAD-mapped blues.
+- Hologram view (map/index.html, holo-script) is a radio, not a checkbox.
+  Picking it clears the basemap radios unless Basemap underneath is ticked
+  (showBaseTick; lastBase remembers the one it came from). Picking a basemap
+  while it is on turns the hologram off, unless Basemap underneath is ticked,
+  when that basemap is the one shown under it.
+- Buildings (building_types) is back: `{ h: 1, t: "Buildings" }` last in
+  PANEL_ORDER (pinBuildings holds it at the foot), out of PANEL_REMOVED.
+- Genetic engineering registers (gmo_releases and its rows):
+  - The harvester (pipeline/sources/gmo_releases.py) gave every record the id
+    of its register ("bch:decision" for all 3,028 decisions), so the pieces
+    kept one record per register and a click showed another record's
+    description. Ids are now a hash per record. The register travels as
+    x_src and the place as x_at ("lon,lat" to 5 places).
+  - sources.json `pieces_by: "at"`: normalize.write files the pieces by x_at,
+    each key a list of every record there with its id as `_id`.
+  - The harvester also reads PJ_SEED from GMO-map's index.html (995 records
+    the map writes into its own page: 969 organisations, 26 escapes) and adds
+    those projects.json does not hold, keyed url|name as the map does.
+  - Rows filter on ["coalesce", ["get","x_src"], ["get","id"]], so they draw
+    from the old archive and the new. New rows gmo_industry (facet on x_src by
+    the map's lenses) and gmo_escapes, under Genetic engineering.
+  - bindGmoPopup (in place of bindPopup for gmo_releases owners): reads the
+    place's piece; one record opens gmoRecordHtml (the map's pjPopupHtml: address
+    grade, deadline, label, type, date and age, description with the [CBI] note,
+    scale and the APHIS note, source, same owner from GMO-map's
+    harvest/ownership.json, Dig deeper links); several open #gmo-reclist, the
+    map's #recList: place and tally, the place note, search, kind and date
+    pills, categories and organisms folding, newest first, each record opening
+    its box. Only records in ticked rows (and their chosen lenses) are listed.
+    Before the refresh, with no x_at, it lists the features under the click
+    from what the tiles carry.
+  - Needs one run of "Refresh atlas tiles" (or Monday's) to rebuild
+    gmo_releases.pmtiles and map/data/pieces/gmo_releases (about 47 MB, 256 files).
+- Still to bring over from the GMO map: the country write-up on clicking a
+  shaded country (_regimeBox: law regime and carve-out, every decision filed,
+  GMO-free declarations, cultivation, trials, incidents, treaties); the
+  "What you can do" country panel (harvest/resources.json, 196 countries);
+  the open consultations panel (harvest/consultations.json); the 25
+  international bodies with their 84 resources (internationalBodies); the four
+  how-to guides (guides/*.pdf); and the key box filters (still in date,
+  decade granted, consent phase, release scale, subjects, entity and
+  organism types).
+
+
 ## Round 70 (26 September)
 
 - Owner, 26 September: they already have a central banks layer, so the

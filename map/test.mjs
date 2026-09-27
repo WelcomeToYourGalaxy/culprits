@@ -2030,7 +2030,7 @@ console.log("\nsuppression in the given order; news box filters");
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
   const order = new Function(body + "; return PANEL_ORDER;")();
   const at = (t) => order.findIndex((x) => x && x.t === t);
-  check("Off-planet invasion is its own section, after Suppression", at("Off-planet invasion") > at("Suppression") && at("Buildings") === -1);
+  check("Off-planet invasion is its own section, after Suppression, with Buildings last", at("Off-planet invasion") > at("Suppression") && at("Buildings") > at("Off-planet invasion"));
   check("Suppression opens on Of humans, then its four kinds in order",
         at("Of humans") < at("Physical suppression") && at("Physical suppression") < at("Suppression by \u201crepresentation\u201d within it") &&
         at("Suppression by \u201crepresentation\u201d within it") < at("Suppression by information") && at("Suppression by information") < at("Suppression by social molds"));
@@ -2083,7 +2083,7 @@ console.log("\nbuilding types, one layer");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
   const o = new Function(body + "; return { PANEL_ORDER, PANEL_REMOVED };")();
-  check("Building types is taken out with its heading (round 56)", !o.PANEL_ORDER.includes("building_types") && !o.PANEL_ORDER.includes("fin_bank"));
+  check("Buildings is back in the box under its own heading (round 71)", o.PANEL_ORDER.includes("building_types") && !o.PANEL_REMOVED.has("building_types") && !o.PANEL_ORDER.includes("fin_bank"));
   check("…and the forty separate rows are out of the box", ["fin_bank", "jud_courts", "activist_prisons", "slavery_facilities"].every((i) => o.PANEL_REMOVED.has(i)));
   const cols = new Function(src.slice(src.indexOf("function buildingColours("), src.indexOf("async function addBuildingTypesLayer(")) + "; return buildingColours;")();
   const c = cols(["Banks", "Courts", "Police stations"]);
@@ -2549,7 +2549,7 @@ console.log("\nLive Projects to Resist, drawn here");
 console.log("\nBuildings");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("the Buildings row stays defined but out of the box", /id: "building_types", name: "Buildings"/.test(src) && !/\{ h: 1, t: "Buildings" \}/.test(src) && /"building_types",\s+\/\/ taken out/.test(src));
+  check("the Buildings row is defined and in the box under its heading", /id: "building_types", name: "Buildings"/.test(src) && /\{ h: 1, t: "Buildings" \}, "building_types",/.test(src) && !/"building_types",\s+\/\/ taken out/.test(src));
   check("each kind of building is its own line, with its colour and count, not a drop-down",
         !/aria-label="Kind of building"/.test(src) && /class="bt-kind"><input type="checkbox" data-bt-kind=/.test(src));
   check("each kind is its own archive, loaded when ticked; an older single archive still reads", /files\[t\]/.test(src) && /const single = !Object\.keys\(files\)\.length/.test(src));
@@ -2941,7 +2941,7 @@ console.log("\na row can sit under more than one subject");
   check("the planet's new headings sit under Of the planet, before Of groups",
         ["Fire", "Peatland", "Surface water", "Other concessions", "General", "Oil spills and slicks"]
           .every((t) => at(t) > at("Of the planet") && at(t) < at("Of groups")));
-  check("Base and reference and Buildings are taken out (round 56)", at("Base and reference") === -1 && at("Buildings") === -1);
+  check("Base and reference is taken out (round 56); Buildings is back (round 71)", at("Base and reference") === -1 && at("Buildings") > -1);
 }
 
 console.log("\nNusantara's layers spread through the box");
@@ -4370,8 +4370,8 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /const LEAVE_GAP_MS = 250;/.test(src) && /Scroll out once more to leave Earth/.test(src) && !/if \(wasAbove && z <= edge\(\) \+ 0\.02\)/.test(src));
   check("dots of layers with no amounts are never under 2 pixels, and the Unearthings findings glow in full",
         /0,  \["max", 2, \["\*", 0\.18 \* scale, MAGNITUDE_RADIUS\]\]/.test(src) && /"aquaculture_ponds", "remains_findings"\]/.test(src));
-  check("the satellite land tint keeps its own earth tones; the sea keeps the mapped blues",
-        /\|holo-\.\*\|sat-relief-colour(\|[a-z.*-]+)*\)\$\//.test(src) && !/sat-relief-sea\)\$\//.test(src));
+  check("the satellite land tint keeps its own earth tones",
+        /\|holo-\.\*\|sat-relief-colour(\|[a-z.*-]+)*\)\$\//.test(src));
   const o = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("];", src.indexOf("const PANEL_ORDER = [")) + 2) + "; return { PANEL_ORDER };")();
   const order = o.PANEL_ORDER;
   const at = (t) => order.findIndex((x) => x && (x.t === t || x.bundle === t));
@@ -4533,6 +4533,55 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("the dynasties row says its 11 cities are placed hollow at the city", /the 11 cities its list gives a family without a coordinate, drawn hollow at the city/.test(src));
   check("a key's words keep a space between a kind and its count", /parts\.map\(\(n\) => n\.textContent \|\| ""\)\.join\(" "\)/.test(src));
   check("the page asks for this round's script", /app\.js\?v=(6[5-9]|[7-9]\d)/.test(html));
+}
+{
+  console.log("\nround 71: the Genetic engineering map's own boxes and records; hologram as a basemap; the sea's own navies; Buildings back");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const a = src.indexOf("/* ---------- the Genetic engineering map's own boxes"), b = src.indexOf("\nfunction setLayerState(id, text) {");
+  const esc = src.slice(src.indexOf("function escapeHtml(s) {"), src.indexOf("\n}\n", src.indexOf("function escapeHtml(s) {")) + 2);
+  const G = new Function("visibility", "facetState", "LAYERS", "map", "readPiece", "maplibregl", "document",
+    esc + "\nlet popupClaimedBy = null;\n" + src.slice(a, b) +
+    "; return { GMO_PICK, gmoKind, gmoShown, gmoTally, gmoTree, gmoPlace, gmoRecordHtml, gmoLabel, gmoPlaceNote };");
+  const vis = new Map([["gmo_decisions", "visible"]]);
+  const lay = [{ id: "gmo_industry", facet: { property: "x_src" } }];
+  const fs2 = new Map();
+  const T = G(vis, fs2, lay, { on() {} }, () => Promise.reject(new Error("no")), {}, undefined);
+  const dec = { name: "Commission Implementing Decision (EU) 2026/2117", source: "bch:decision", type: "soybean, national biosafety decision", state: "EU", date: "2026-09-23", precise: false,
+    desc: "A decision on a living modified organism, filed by the country itself.", url: "https://bch.cbd.int/x" };
+  const permit = { name: "93-120-18n — Potato", source: "aphis:epermits", type: "Potato, environmental release", state: "ID, ND", desc: "Notification [CBI].", size: "2 declared release locations", status: "Acknowledged" };
+  const firm = { name: "Bayer Crop Science", source: "industry:seed", type: "Seed & trait company", state: "Monheim" };
+  check("every register row's test on a record matches its filter on the tiles",
+        T.GMO_PICK.gmo_decisions(dec) && !T.GMO_PICK.gmo_decisions(permit) && T.GMO_PICK.gmo_env(permit) && T.GMO_PICK.gmo_industry(firm) &&
+        !T.GMO_PICK.gmo_industry({ source: "industry:repro" }) && T.GMO_PICK.gmo_escapes({ source: "escape:crop" }) && T.GMO_PICK.gmo_ogtr({ source: "ogtr:DIR-201" }));
+  check("a record is listed only when its row is ticked, and inside the row's chosen lenses",
+        T.gmoShown(dec) && !T.gmoShown(permit) && !T.gmoShown(firm) &&
+        (vis.set("gmo_industry", "visible"), T.gmoShown(firm)) && (fs2.set("gmo_industry", new Set(["industry:rules"])), !T.gmoShown(firm)));
+  check("the kinds and their counts are the map's own", T.gmoKind(dec) === "biosafety" && T.gmoKind(permit) === "release" && T.gmoKind(firm) === "industry" &&
+        T.gmoTally([dec, dec, permit]) === "2 biosafety decisions · 1 release authorisation");
+  const tree = T.gmoTree([dec, permit, { ...dec, type: "maize, national biosafety decision" }]);
+  check("a list is grouped by the type's category, then its organism", tree[0][0] === "National biosafety decision" && tree[0][1].get("Soybean").length === 1 && tree[0][1].get("Maize").length === 1);
+  check("a pile is named after its place", T.gmoPlace([dec, dec]) === "European Union" && T.gmoPlace([permit]) === "Idaho");
+  const box = T.gmoRecordHtml(permit);
+  check("a record's box carries its description, the [CBI] note, the scale note and the Dig deeper links",
+        /Notification \[CBI\]\./.test(box) && /confidential business information/.test(box) && /Sorting aid, not a measurement/.test(box) && /Dig deeper/.test(box) &&
+        /Town or region only/.test(T.gmoRecordHtml(dec)) && /filed by the country itself/.test(T.gmoRecordHtml(dec)));
+  check("the note over a list says why its records sit where they do", /Cartagena Protocol apply to a whole country/.test(T.gmoPlaceNote([dec])));
+  check("the registers' rows filter on the record's register, not its id, and open the map's own boxes",
+        /where: \["==", \["coalesce", \["get", "x_src"\], \["get", "id"\]\], "bch:decision"\]/.test(src) &&
+        /\} else if \(owner === "gmo_releases"\) \{\n[^\n]*\n[^\n]*\n    bindGmoPopup\(`\$\{cfg\.id\}-agg`\);/.test(src) && /readPiece\(GMO_PIECES, p\.x_at\)/.test(src));
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const o = new Function(body + "; return { PANEL_ORDER, PANEL_REMOVED };")();
+  check("the map's organisations and its escapes are rows under Genetic engineering",
+        /"gmo_ogtr", "gmo_industry", "gmo_escapes", "gmo_cultivation"/.test(src) && /id:"gmo_industry", sourceOf:"gmo_releases"/.test(src) && /id:"gmo_escapes", sourceOf:"gmo_releases"/.test(src) &&
+        !/name:"[^"]*:[^"]*\(Genetic engineering map\)"/.test(src));
+  check("Buildings is back, last in the box", o.PANEL_ORDER[o.PANEL_ORDER.length - 1] === "building_types" && !o.PANEL_REMOVED.has("building_types"));
+  check("the Satellite basemap's sea layers keep their own navies, not the mapped blues",
+        /\|sat-relief-seabed\|sat-relief-sea\|holo-\.\*\|sat-relief-colour\|outline-\.\*\)\$\/;/.test(src));
+  check("Hologram view is a round choice among the basemaps and clears the one it came from unless it is shown underneath",
+        /<input type="radio" id="holo-toggle"/.test(html) && !/<input type="checkbox" id="holo-toggle"/.test(html) &&
+        /showBaseTick\(opt\.under\);/.test(html) && /if \(on && !opt\.under\) \{\n\s*disable\(\);/.test(html));
+  check("the page asks for this round's script", /app\.js\?v=(7[1-9]|[89]\d)/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

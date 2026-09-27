@@ -136,14 +136,20 @@ def write_countries(rows, path):
     return len(out)
 
 
-def write(features, path, pieces_dir=None):
+def write(features, path, pieces_dir=None, pieces_by=None):
     """Line-delimited GeoJSON — what tippecanoe wants, and streamable.
 
     With pieces_dir, every feature's whole source row ("_raw", from the
     harvester's "raw") goes to <pieces_dir>/<hh>.json, keyed by the feature's
     id, so the map can show every field the source published on a click
     without carrying it in the tiles. Nothing is dropped: a row that is not a
-    JSON value is written as text."""
+    JSON value is written as text.
+
+    With pieces_by (a source's "pieces_by" in sources.json, naming one of its
+    extra fields), the pieces are filed by that field instead: each key holds
+    the list of every row that shares it, each row with its feature id as
+    "_id". The Genetic engineering registers use it for the place, so a click
+    reads every record at that point in one file (round 71)."""
     pathlib.Path(path).parent.mkdir(parents=True, exist_ok=True)
     n = 0
     raws = {}
@@ -155,7 +161,12 @@ def write(features, path, pieces_dir=None):
         for f in features:
             raw = f.pop("_raw", None)
             if raw is not None and pieces_dir:
-                raws[f["properties"]["id"]] = raw
+                if pieces_by:
+                    row = dict(raw) if isinstance(raw, dict) else {"row": raw}
+                    row["_id"] = f["properties"]["id"]
+                    raws.setdefault(str(f["properties"].get("x_" + pieces_by)), []).append(row)
+                else:
+                    raws[f["properties"]["id"]] = raw
             fh.write(json.dumps(f, separators=(",", ":")) + "\n")
             n += 1
     if pieces_dir:
@@ -233,7 +244,8 @@ def main():
         print(f"{args.source}: {n} country aggregates -> {out}")
     else:
         feats = (feature(args.source, **row) for row in rows)
-        n = write(feats, args.outfile, pieces_dir=f"map/data/pieces/{args.source}")
+        n = write(feats, args.outfile, pieces_dir=f"map/data/pieces/{args.source}",
+                  pieces_by=(SOURCES.get(args.source) or {}).get("pieces_by"))
         print(f"{args.source}: {n} features -> {args.outfile}")
 
 

@@ -339,22 +339,39 @@ const LAYERS = [
   // The releases archive holds several different registers; each is its own
   // row here, drawn from the same archive with its own filter.
   { id:"gmo_env", sourceOf:"gmo_releases", name:"Engineered crops and trees released outdoors (US APHIS)", unit:"authorisations", colour:"#7C6F84", route:"pmtiles", ready:true, off: true,
-    where: ["in", ["get", "id"], ["literal", ["aphis:epermits", "aphis:efile"]]],
+    where: ["in", ["coalesce", ["get", "x_src"], ["get", "id"]], ["literal", ["aphis:epermits", "aphis:efile"]]],
     note: "US Department of Agriculture authorisations to release genetically engineered plants and trees into the environment. APHIS publishes the state, not the field, so most draw hollow at a state's centre." },
   { id:"gmo_decisions", sourceOf:"gmo_releases", name:"National biosafety decisions (CBD Biosafety Clearing-House)", unit:"decisions", colour:"#6F6A84", route:"pmtiles", ready:true, off: true,
-    where: ["==", ["get", "id"], "bch:decision"] },
+    where: ["==", ["coalesce", ["get", "x_src"], ["get", "id"]], "bch:decision"] },
   { id:"gmo_ogtr", sourceOf:"gmo_releases", name:"Gene technology licences (Australia OGTR)", unit:"licences", colour:"#84707A", route:"pmtiles", ready:true, off: true,
-    where: ["==", ["slice", ["get", "id"], 0, 4], "ogtr"] },
+    where: ["==", ["slice", ["coalesce", ["get", "x_src"], ["get", "id"]], 0, 4], "ogtr"] },
   { id:"gmo_therapy", sourceOf:"gmo_releases", name:"Gene and cell therapy trial sponsors", unit:"sponsors", colour:"#6E7484", route:"pmtiles", ready:true, off: true,
-    where: ["==", ["get", "id"], "clinical:sponsor"] },
+    where: ["==", ["coalesce", ["get", "x_src"], ["get", "id"]], "clinical:sponsor"] },
   { id:"gmo_fertility", sourceOf:"gmo_releases", name:"Fertility clinics (Assisted Reproduction)", unit:"clinics", colour:"#846F74", route:"pmtiles", ready:true, off: true,
-    where: ["==", ["get", "id"], "industry:repro"] },
+    where: ["==", ["coalesce", ["get", "x_src"], ["get", "id"]], "industry:repro"] },
   { id:"gmo_animal_research", sourceOf:"gmo_releases", name:"Animal research facilities", unit:"facilities", colour:"#7A6A6A", route:"pmtiles", ready:true, off: true,
-    where: ["all", ["==", ["get", "id"], "industry:animals"],
+    where: ["all", ["==", ["coalesce", ["get", "x_src"], ["get", "id"]], "industry:animals"],
             ["in", ["get", "x_type"], ["literal", ["Animal Welfare Act research facility", "Accredited animal research organisation", "CCAC certified institution"]]]] },
   { id:"gmo_animal_trade", sourceOf:"gmo_releases", name:"Animal breeders, dealers, exhibitors and carriers (USDA Animal Welfare Act)", unit:"licensees", colour:"#74695E", route:"pmtiles", ready:true, off: true,
-    where: ["all", ["==", ["get", "id"], "industry:animals"],
+    where: ["all", ["==", ["coalesce", ["get", "x_src"], ["get", "id"]], "industry:animals"],
             ["!", ["in", ["get", "x_type"], ["literal", ["Animal Welfare Act research facility", "Accredited animal research organisation", "CCAC certified institution"]]]]] },
+  // Round 71: the records written into the Genetic engineering map's own page
+  // (PJ_SEED), which the harvest now adds to projects.json as the map does.
+  // The organisations, by the map's own twelve lenses (its source codes).
+  { id:"gmo_industry", sourceOf:"gmo_releases", name:"Genetic-engineering companies, labs, funders, regulators and trade bodies (Genetic engineering map)", unit:"organisations", colour:"#72697E", route:"pmtiles", ready:true, off: true,
+    where: ["all", ["==", ["slice", ["coalesce", ["get", "x_src"], ["get", "id"]], 0, 9], "industry:"], ["!", ["in", ["coalesce", ["get", "x_src"], ["get", "id"]], ["literal", ["industry:animals", "industry:repro"]]]]],
+    facet: { property: "x_src", label: "lens",
+             values: ["industry:seed", "industry:editing", "industry:synthesis", "industry:cro", "industry:livestock", "industry:wild",
+                      "industry:deextinct", "industry:clinical", "industry:money", "industry:rules"],
+             labels: { "industry:seed": "Seed & Traits", "industry:editing": "Gene Editing & Synthetic Biology",
+                       "industry:synthesis": "DNA Synthesis & Sequencing", "industry:cro": "Contract Research & Manufacturing",
+                       "industry:livestock": "Livestock, Aquaculture & Pets", "industry:wild": "Insects, Microbes & Open Release",
+                       "industry:deextinct": "De-extinction & Conservation Biotech", "industry:clinical": "Human Clinical & Therapeutic",
+                       "industry:money": "Money & Backers", "industry:rules": "Rules, Records & Advocacy" } },
+    note: "The organisations the Genetic engineering map names, each at its head office: the laboratories, plants and fields they run are somewhere else, and almost none of them are published. Filed by the map's own lenses." },
+  { id:"gmo_escapes", sourceOf:"gmo_releases", name:"Escapes and contamination by engineered organisms (Genetic engineering map)", unit:"incidents", colour:"#7E6660", route:"pmtiles", ready:true, off: true,
+    where: ["==", ["slice", ["coalesce", ["get", "x_src"], ["get", "id"]], 0, 7], "escape:"],
+    note: "The escapes, unapproved varieties in trade and transgenes in wild relatives the Genetic engineering map records, each placed at the area the record names." },
   { id:"wastewater_n_tot", name:"Nitrogen from human wastewater reaching the sea, all of it, by coastal outlet (Tuholske et al.)", unit:"grams of nitrogen a year", colour:"#5E7377", route:"pmtiles", ready:true, off: true,
     archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_n_tot.pmtiles",
     boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/wastewater/pieces",
@@ -754,12 +771,13 @@ function gladSourceSpec(id, spec) {
 // The Satellite basemap's land tint keeps its own earth tones (round 59, asked
 // 26 September): mapped, its greens, ochres and browns came out cyan to violet
 // and drowned the relief. Its sea layers (sat-relief-seabed, sat-relief-sea)
-// keep the mapped blues, which the owner likes over the water.
+// kept the mapped blues until round 71 (27 September), when the owner asked
+// for the neon over the water to go: they keep their own muted navies now.
 // The Country outlines basemap keeps its own dark greens, greys and slate
 // (round 66, asked 26 September): mapped, its land came out purple and its
 // roads violet, which the GLAD mapping was never meant to reach (it says the
 // basemaps are not touched).
-const GLAD_BASE_LAYERS = /^(bg|base|base-s2|base-close|hillshade|labels|atlas-plate.*|holo-.*|sat-relief-colour|outline-.*)$/;
+const GLAD_BASE_LAYERS = /^(bg|base|base-s2|base-close|hillshade|labels|atlas-plate.*|sat-relief-seabed|sat-relief-sea|holo-.*|sat-relief-colour|outline-.*)$/;
 function gladLayer(layer) {
   if (!layer || !layer.id || GLAD_BASE_LAYERS.test(layer.id) || layer.type === "custom" || layer.type === "background" || layer.type === "hillshade") return layer;
   if (gladKept(layer.id)) return layer;
@@ -2580,6 +2598,11 @@ async function addPmtilesLayer(cfg) {
       setLayerState(cfg.id, `${Number(b.alerts_with_position).toLocaleString()} ${cfg.unit}` +
         (b.no_position ? ` \u00b7 ${Number(b.no_position).toLocaleString()} more in the copy have no position and cannot be drawn` : ""));
     }).catch(() => {});
+  } else if (owner === "gmo_releases") {
+    // The Genetic engineering map's own boxes: one record, or the list of
+    // every record at the point (round 71).
+    bindGmoPopup(`${cfg.id}-agg`);
+    bindGmoPopup(`${cfg.id}-pt`);
   } else {
     bindPopup(`${cfg.id}-agg`, owner);
     bindPopup(`${cfg.id}-pt`, owner);
@@ -11404,6 +11427,449 @@ function bindPopup(layerId, source) {
   map.on("mouseleave", layerId, () => (map.getCanvas().style.cursor = ""));
 }
 
+/* ---------- the Genetic engineering map's own boxes (round 71) ---------- */
+// The registers' rows (gmo_env and those after it) are drawn from one archive,
+// and many records share one point: every national biosafety decision sits at
+// its country, every US permit at its state. A click showed the top one only,
+// and its description was often another record's (the ids were the register's
+// name, shared by thousands). Now, as on the Genetic engineering map itself:
+// one record opens its own box, and a point holding several opens the list of
+// every record there, which can be searched, narrowed by kind and date, and
+// opened one by one. The records come from the pieces, filed by place (x_at).
+const GMO_MAP_BASE = "https://welcometoyourgalaxy.github.io/GMO-map/";
+const GMO_PIECES = "data/pieces/gmo_releases";
+const gmoSrc = (r) => String((r && r.source) || "");
+// Which records each row holds: the same test as its `where`, on the record.
+const GMO_ANIMAL_RESEARCH = ["Animal Welfare Act research facility", "Accredited animal research organisation", "CCAC certified institution"];
+const GMO_PICK = {
+  gmo_env: (r) => ["aphis:epermits", "aphis:efile"].includes(gmoSrc(r)),
+  gmo_decisions: (r) => gmoSrc(r) === "bch:decision",
+  gmo_ogtr: (r) => gmoSrc(r).slice(0, 4) === "ogtr",
+  gmo_therapy: (r) => gmoSrc(r) === "clinical:sponsor",
+  gmo_fertility: (r) => gmoSrc(r) === "industry:repro",
+  gmo_animal_research: (r) => gmoSrc(r) === "industry:animals" && GMO_ANIMAL_RESEARCH.includes(r.type),
+  gmo_animal_trade: (r) => gmoSrc(r) === "industry:animals" && !GMO_ANIMAL_RESEARCH.includes(r.type),
+  gmo_industry: (r) => gmoSrc(r).slice(0, 9) === "industry:" && !["industry:animals", "industry:repro"].includes(gmoSrc(r)),
+  gmo_escapes: (r) => gmoSrc(r).slice(0, 7) === "escape:",
+};
+// The map's kinds (pjKind), and their nouns (PJ_KIND_NOUN).
+function gmoKind(r) {
+  const s = gmoSrc(r);
+  return s.indexOf("industry:repro") === 0 ? "repro"
+    : s.indexOf("industry:animals") === 0 ? "animals"
+    : s.indexOf("industry") === 0 ? "industry"
+    : s.indexOf("escape") === 0 ? "escape"
+    : s.indexOf("clinical") === 0 ? "clinical"
+    : (s.indexOf("bch") === 0 || /national biosafety decision/i.test(String(r.type || ""))) ? "biosafety"
+    : "release";
+}
+const GMO_KIND_NOUN = {
+  industry: ["industry entry", "industry entries"], escape: ["spread record", "spread records"],
+  release: ["release authorisation", "release authorisations"], biosafety: ["biosafety decision", "biosafety decisions"],
+  clinical: ["clinical trial sponsor", "clinical trial sponsors"], repro: ["fertility clinic", "fertility clinics"],
+  animals: ["animal facility", "animal facilities"],
+};
+const GMO_KIND_PILL = { industry: "Organisations", escape: "Spread", release: "Release authorisations",
+  biosafety: "Biosafety decisions", clinical: "Trial sponsors", repro: "Fertility clinics", animals: "Animal facilities" };
+function gmoTally(rows) {
+  const n = {};
+  for (const r of rows) { const k = gmoKind(r); n[k] = (n[k] || 0) + 1; }
+  return Object.keys(n).sort((a, b) => n[b] - n[a])
+    .map((k) => `${n[k].toLocaleString()} ${(GMO_KIND_NOUN[k] || [k, k])[n[k] === 1 ? 0 : 1]}`).join(" · ");
+}
+// Is this record in a row that is ticked, and inside that row's chosen facet?
+function gmoShown(r) {
+  for (const [id, pick] of Object.entries(GMO_PICK)) {
+    if (visibility.get(id) !== "visible" || !pick(r)) continue;
+    const chosen = facetState.get(id);
+    const cfg = LAYERS.find((c) => c.id === id);
+    if (chosen && chosen.size && cfg && cfg.facet && cfg.facet.property === "x_src" && !chosen.has(gmoSrc(r))) continue;
+    return true;
+  }
+  return false;
+}
+
+// Titles, as the map makes them (pjNameClean, pjStripBoiler, pjPhrase,
+// pjIsGeneric, pjLabel): some registers publish flag values or dataset
+// prefixes as a record's name.
+const GMO_GEN_W = new Set(("project projects site sites development developments construction constructions building buildings build works work permit permits permitting planning application applications approval approvals proposed planned existing new under the a an of for and to at in on road roads street highway railway rail bridge house houses housing residential commercial industrial mixed use apartment apartments dwelling dwellings structure warehouse shed extension alteration alterations addition additions renovation demolition unit units facility plant scheme phase general misc miscellaneous various other unknown none unnamed untitled tbd na n/a yes no not specified type land area consists consist consisting comprises comprise comprising comprised following sought permission retention erection provision installation associated ancillary related including include includes together with all any this that it is are be will shall from by detail details description record records entry item number ref reference file files reg regs register registration refs doc docs document documents form forms case cases folder sheet table column field fields row rows index key code codes serial batch lot seq sequence version revision draft copy page part section appendix attachment status stage decision outcome result pending active current old test sample default temp temporary placeholder blank empty").split(" "));
+function gmoStripBoiler(x) {
+  let t = String(x == null ? "" : x).trim(), prev = null;
+  const R = [
+    /^(the\s+)?(proposed\s+)?development\s+(will\s+)?(consists?|comprises?|consisting|comprising)\s*(of\s+)?(the\s+following\s+)?(works?)?\s*[:,]?\s*/i,
+    /^permission\s+is\s+(hereby\s+)?sought\s+(for\s+)?/i, /^(planning\s+)?permission\s+(for|to)\s+/i,
+    /^application\s+(is\s+made\s+)?(for|to)\s+/i, /^retention\s+(of\s+)?/i,
+    /^(the\s+)?(erection|construction|provision|installation|demolition|alteration|extension|redevelopment)\s+of\s+/i,
+    /^to\s+(construct|erect|build|develop|provide|install|demolish)\s+/i, /^proposed\s+/i, /^the\s+/i];
+  while (t !== prev) { prev = t; for (const re of R) t = t.replace(re, ""); t = t.trim(); }
+  return t;
+}
+function gmoIsGeneric(nm, ty) {
+  const raw = String(nm == null ? "" : nm).trim();
+  if (!raw || raw.length < 4) return true;
+  if (ty && raw.toLowerCase() === String(ty).toLowerCase().trim()) return true;
+  const toks = raw.toLowerCase().replace(/[^a-z0-9/ ]/g, " ").split(/\s+/).filter(Boolean);
+  return !toks.some((t) => !GMO_GEN_W.has(t) && !/^\d+$/.test(t));
+}
+function gmoNameClean(s) {
+  let n = String(s == null ? "" : s).trim();
+  n = n.replace(/^\s*[A-Za-z][A-Za-z /&]{2,45}?(projects?|permits?|permitting|applications?|approvals?|dataset|datasets|layer|records?|licen[cs]es?)\s*[:–—-]\s*/i, "");
+  n = n.replace(/^\s*(re:|fwd:|project\s*[:-]\s*)/i, "");
+  n = gmoStripBoiler(n);
+  if (n.length > 110 || n.split(/\s+/).length > 14) {
+    n = n.split(/(?<=[a-z0-9])[.;:|–—]\s*/)[0];
+    n = n.split(/\s+/).slice(0, 12).join(" ");
+  }
+  return n.replace(/\s{2,}/g, " ").trim().slice(0, 110);
+}
+function gmoPhrase(d) {
+  let t = gmoStripBoiler(String(d == null ? "" : d).replace(/\s+/g, " ").trim());
+  t = t.split(/(?<=[a-z0-9])[.;|–—]\s*/)[0].trim();
+  if (t.length < 10 || gmoIsGeneric(t, "")) return "";
+  if (/\b(directive|open the|see the|refer to|this dataset|source:|public[- ]participation|planning authority'?s file|largest projects?|category of)\b/i.test(t)) return "";
+  const toks = t.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter((w) => w && !GMO_GEN_W.has(w) && !/^\d+$/.test(w));
+  if (toks.length < 2) return "";
+  if (t.length > 62) { t = t.slice(0, 62); t = t.slice(0, Math.max(t.lastIndexOf(" "), 30)).replace(/[\s,;:-]+$/, "") + "…"; }
+  return t;
+}
+function gmoLabel(q) {
+  const n = gmoNameClean(q.name);
+  if (n && !gmoIsGeneric(n, q.type)) return n;
+  const dp = gmoPhrase(q.desc); if (dp) return dp;
+  const ty = String(q.type == null ? "" : q.type).trim();
+  const place = [q.city, q.state, q.country].map((c) => String(c == null ? "" : c).trim()).find(Boolean) || "";
+  if (ty && place) return `${ty} — ${place}`;
+  return ty || (place ? `Project — ${place}` : "Untitled project");
+}
+function gmoTerms(q, relaxed) {
+  const clean = (s) => String(s == null ? "" : s).trim();
+  const nm = gmoNameClean(q.name), ty = clean(q.type), co = clean(q.company);
+  const place = [clean(q.city), clean(q.state), clean(q.country)].filter(Boolean).filter((x, i, a) => a.indexOf(x) === i).slice(0, 2).join(" ");
+  const parts = [];
+  if (!gmoIsGeneric(nm, ty)) { parts.push(relaxed ? nm.slice(0, 70) : `"${nm.slice(0, 90)}"`); if (place) parts.push(place); }
+  else {
+    if (co) parts.push(relaxed ? co.slice(0, 50) : `"${co.slice(0, 60)}"`);
+    if (!co) { const dp = gmoPhrase(q.desc); if (dp) parts.push(dp); }
+    if (ty) parts.push(ty.slice(0, 40));
+    if (place) parts.push(place);
+    if (!parts.length) parts.push("development", "planning application");
+  }
+  let t = parts.join(" ").replace(/\s+/g, " ").trim();
+  if (relaxed) t = t.replace(/"/g, "").split(" ").slice(0, 7).join(" ");
+  return t;
+}
+function gmoAge(d) {
+  const n = Math.floor((Date.now() - new Date(d)) / 86400000);
+  if (isNaN(n) || n < 0) return "";
+  if (n <= 7) return " · new this week";
+  if (n <= 30) return ` · ${n} days ago`;
+  if (n <= 365) return ` · ${Math.round(n / 30)} months ago`;
+  return ` · ${(n / 365).toFixed(1)} years ago`;
+}
+// How precise the position is (ADDR_GRADE), said only when it is not the site.
+const GMO_ADDR = {
+  administrative: ["○ Registered address", "This is the address on the registration, which for a university or a clinic group is usually a head office. The work may be in another building or another city."],
+  state: ["≈ State or province only", "No town resolved, so this sits at the centre of the state or province. Several of those are wider than a small country."],
+  centroid: ["≈ Town or region only", "No address was published, so this sits at the centre of the area. It is not a location."],
+};
+function gmoAddr(q) {
+  const g = q.addr_grade || (q.precise === false ? "centroid" : null);
+  const a = g && GMO_ADDR[g];
+  return a ? `<div class="gmo-approx">${a[0]} — ${a[1]}</div>` : "";
+}
+// Who else belongs to the same owner (harvest/ownership.json on the map's
+// site, read the first time a box asks for it).
+let gmoOwnIdx = null, gmoOwnAsked = false;
+function gmoOwnLoad() {
+  if (gmoOwnAsked) return Promise.resolve(gmoOwnIdx);
+  gmoOwnAsked = true;
+  return fetch(GMO_MAP_BASE + "harvest/ownership.json").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    gmoOwnIdx = {};
+    for (const g of (d && d.groups) || []) for (const m of g.members || []) if (m && m.name) (gmoOwnIdx[m.name.toLowerCase()] = gmoOwnIdx[m.name.toLowerCase()] || []).push(g);
+    return gmoOwnIdx;
+  }).catch((e) => { console.warn("[culprits] genetic engineering map: ownership.json not read:", e.message || e); return null; });
+}
+function gmoOwnerNote(p) {
+  if (!gmoOwnIdx || !p || !p.name) return "";
+  const gs = gmoOwnIdx[String(p.name).toLowerCase()];
+  if (!gs || !gs.length) return "";
+  const g = gs[0], others = (g.members || []).filter((m) => m.name && m.name.toLowerCase() !== String(p.name).toLowerCase());
+  if (!others.length) return "";
+  const stated = String(g.basis || "").indexOf("stated") === 0;
+  return `<div class="gmo-own"><div class="gmo-own-h">Same owner: ${escapeHtml(g.owner)}</div>` +
+    `<div class="gmo-own-p">${g.sites} sites${g.countries && g.countries.length ? " in " + escapeHtml(g.countries.slice(0, 4).join(", ")) : ""}. ` +
+    (stated ? "The register itself names this owner." : "Inferred from the sites trading under one name — a name can be licensed or sold, so this is weaker than a filing.") + `</div>` +
+    `<div class="gmo-own-p" style="opacity:.8">${escapeHtml(others.slice(0, 8).map((m) => m.name).join(" · "))}${others.length > 8 ? ` … and ${others.length - 8} more` : ""}</div></div>`;
+}
+// One record's box (pjPopupHtml).
+function gmoRecordHtml(q) {
+  let dl = "";
+  if (q.deadline) {
+    const dd = Math.ceil((new Date(q.deadline) - new Date()) / 86400000);
+    dl = dd >= 0 ? `<div class="gmo-dl open">Comments close ${escapeHtml(q.deadline)} — ${dd === 0 ? "today" : dd + " day" + (dd === 1 ? "" : "s") + " left"}</div>`
+      : `<div class="gmo-dl shut">Comment window closed ${escapeHtml(q.deadline)}</div>`;
+  }
+  const qn = encodeURIComponent(gmoTerms(q, true)), qq = encodeURIComponent(gmoTerms(q, false));
+  const src = gmoSrc(q);
+  return `<div class="gmo-pop">` + gmoAddr(q) + dl + `<b>${escapeHtml(gmoLabel(q))}</b>` +
+    (gmoIsGeneric(gmoNameClean(q.name), q.type) ? `<div class="d" style="opacity:.72">Source feed gave no usable title — open the source for the official description.</div>` : "") +
+    `<br><span class="t">${escapeHtml(q.type || "project")}</span>${escapeHtml(q.state || "")}` +
+    (q.date ? `<div class="d gmo-date">Filed / dated ${escapeHtml(q.date)}${gmoAge(q.date)}</div>` : "") +
+    (q.company ? ` · ${escapeHtml(q.company)}` : "") +
+    `<div class="d">${escapeHtml(q.desc || "")}` +
+    (/\[CBI\]/.test(String(q.desc || "")) ? `<span class="d-note">[CBI] is where the applicant claimed confidential business information and the regulator published the record with that part removed. The gap is in the source, not here.</span>` : "") +
+    `</div>` +
+    (q.size ? `<div class="d">Scale: ${escapeHtml(q.size)}${q.status ? " · " + escapeHtml(q.status) : ""}` +
+      (src.indexOf("aphis") === 0 ? `<span class="d-note">Sorting aid, not a measurement. The current US system publishes a count of declared locations and no area; acreage appears only on older records carried over from the system it replaced.</span>` : "") + `</div>`
+      : (q.status ? `<div class="d">${escapeHtml(q.status)}</div>` : "")) +
+    (q.url ? `<div class="d"><a href="${escapeHtml(q.url)}" target="_blank" rel="noopener">Open source →</a></div>` : "") +
+    gmoOwnerNote(q) +
+    `<div class="gmo-dig"><b>Dig deeper — join this fight:</b> ` +
+    `<a href="https://news.google.com/search?q=${qn}" target="_blank" rel="noopener">News</a>` +
+    ` · <a href="https://duckduckgo.com/?q=${qn}+news" target="_blank" rel="noopener">News (web)</a>` +
+    ` · <a href="https://duckduckgo.com/?q=${qq}" target="_blank" rel="noopener">Web</a>` +
+    (q.lat != null ? ` · <a href="https://www.openstreetmap.org/#map=15/${q.lat}/${q.lng}" target="_blank" rel="noopener">Area map</a>` : "") +
+    `</div></div>`;
+}
+// The standing note over a list: why these records sit where they do
+// (pjPlaceNote), for the registers present.
+function gmoPlaceNote(rows) {
+  const k = new Set(rows.map(gmoKind)), s = new Set(rows.map((r) => gmoSrc(r).split(":")[0]));
+  const bits = [];
+  if (k.has("repro") || k.has("animals")) bits.push("<b>Why these sit where they do.</b> Each register publishes a different amount, and the dot is only ever as precise as its source. A clinic with a published street address is at its own door. AAALAC gives a city and no address, so those are the middle of a city. China’s list gives addresses that no geocoder here can read, so all but one of its 664 sit at the centre of a province. USDA APHIS gives a mailing city, and where even that will not resolve, the centre of a state — several of which are wider than a small country. Every record says which of these it is.");
+  if (k.has("industry")) bits.push("<b>These are head offices.</b> The laboratories, plants and fields these companies run are somewhere else, and almost none of them are published.");
+  if (s.has("aphis")) bits.push("<b>APHIS names the states a permit covers, never the sites</b> — there is no point data to place, only a state. One permit can cover several states, so a record counted here may name others. <b>Australia’s OGTR publishes the actual locations of field trials, and EU member states publish theirs under the deliberate release directive — in several countries down to the municipality or the parcel. The United States is the outlier here, not the norm.</b>");
+  if (s.has("bch")) bits.push("<b>Decisions filed under the Cartagena Protocol apply to a whole country</b> and carry no location at all. No register in this dataset publishes coordinates, so there is no point data to place — only the country.");
+  if (s.has("clinical")) bits.push("<b>Trial sponsors are placed at their country</b>, not at the hospitals running the trials. No register in this dataset publishes coordinates, so there is no point data to place — only the country.");
+  if (s.has("ogtr")) bits.push("<b>These are real sites.</b> Australia’s OGTR publishes trial locations, as do EU member states under the deliberate release directive. Most other registers publish a state or a country and no more.");
+  return bits.join(" ");
+}
+// The place a pile sits at (pjCluTitle): the first state each record names.
+const GMO_US = { AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California", CO: "Colorado", CT: "Connecticut", DE: "Delaware", FL: "Florida", GA: "Georgia", HI: "Hawaii", ID: "Idaho", IL: "Illinois", IN: "Indiana", IA: "Iowa", KS: "Kansas", KY: "Kentucky", LA: "Louisiana", ME: "Maine", MD: "Maryland", MA: "Massachusetts", MI: "Michigan", MN: "Minnesota", MS: "Mississippi", MO: "Missouri", MT: "Montana", NE: "Nebraska", NV: "Nevada", NH: "New Hampshire", NJ: "New Jersey", NM: "New Mexico", NY: "New York", NC: "North Carolina", ND: "North Dakota", OH: "Ohio", OK: "Oklahoma", OR: "Oregon", PA: "Pennsylvania", RI: "Rhode Island", SC: "South Carolina", SD: "South Dakota", TN: "Tennessee", TX: "Texas", UT: "Utah", VT: "Vermont", VA: "Virginia", WA: "Washington", WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming", DC: "District of Columbia", PR: "Puerto Rico", VI: "US Virgin Islands", GU: "Guam", AS: "American Samoa", MP: "Northern Mariana Islands" };
+const GMO_COUNTRY = { AR: "Argentina", AT: "Austria", AU: "Australia", BD: "Bangladesh", BE: "Belgium", BF: "Burkina Faso", BG: "Bulgaria", BO: "Bolivia", BR: "Brazil", CA: "Canada", CH: "Switzerland", CL: "Chile", CN: "China", CO: "Colombia", CR: "Costa Rica", CU: "Cuba", CZ: "Czechia", DE: "Germany", DK: "Denmark", EG: "Egypt", ES: "Spain", ET: "Ethiopia", EU: "European Union", FI: "Finland", FR: "France", GB: "United Kingdom", GH: "Ghana", GR: "Greece", HU: "Hungary", ID: "Indonesia", IE: "Ireland", IL: "Israel", IN: "India", IR: "Iran", IT: "Italy", JP: "Japan", KE: "Kenya", KR: "South Korea", MA: "Morocco", MX: "Mexico", MY: "Malaysia", NG: "Nigeria", NL: "Netherlands", NO: "Norway", NZ: "New Zealand", PE: "Peru", PH: "Philippines", PK: "Pakistan", PL: "Poland", PT: "Portugal", PY: "Paraguay", RO: "Romania", RU: "Russia", SD: "Sudan", SE: "Sweden", SG: "Singapore", SK: "Slovakia", SZ: "Eswatini", TH: "Thailand", TR: "Türkiye", TW: "Taiwan", TZ: "Tanzania", UA: "Ukraine", UY: "Uruguay", VN: "Viet Nam", ZA: "South Africa", ZM: "Zambia" };
+function gmoPlace(rows) {
+  const first = {};
+  for (const r of rows) {
+    let head = (String(r.state || "").trim().split(",")[0] || "").trim();
+    if (!head) continue;
+    if (head.length === 2) { const u = head.toUpperCase(); head = gmoSrc(r).indexOf("aphis") === 0 ? (GMO_US[u] || u) : (GMO_COUNTRY[u] || GMO_US[u] || u); }
+    first[head] = (first[head] || 0) + 1;
+  }
+  const keys = Object.keys(first).sort((a, b) => first[b] - first[a]);
+  let where = keys.length ? keys[0] : "This area";
+  if (keys.length === 2) where += " and " + keys[1];
+  else if (keys.length > 2) where += ` and ${keys.length - 1} other places`;
+  return where;
+}
+// A type "<organism>, <category>" is a category with the organism under it
+// (pjTreeRows); a type with no comma is a category in its own right.
+function gmoTree(rows) {
+  const cats = new Map();
+  for (const r of rows) {
+    let t = String(r.type || "").trim();
+    if (!t) t = "Type not recorded by the register";
+    const ix = t.lastIndexOf(",");
+    let cat = t, leaf = "";
+    if (ix > 0) { cat = t.slice(ix + 1).trim(); leaf = t.slice(0, ix).trim(); }
+    cat = cat.charAt(0).toUpperCase() + cat.slice(1);
+    leaf = leaf ? leaf.charAt(0).toUpperCase() + leaf.slice(1) : "";
+    if (!cats.has(cat)) cats.set(cat, new Map());
+    const lv = cats.get(cat);
+    if (!lv.has(leaf)) lv.set(leaf, []);
+    lv.get(leaf).push(r);
+  }
+  const size = (m) => [...m.values()].reduce((n, a) => n + a.length, 0);
+  return [...cats.entries()].sort((a, b) => size(b[1]) - size(a[1]));
+}
+
+// The records panel: one at a time, over the map, as the map's own is.
+const GMO_LIST = { rows: [], q: "", kind: "", yrs: 0, open: new Set(), shown: new Set(), cap: 200 };
+function gmoPanel() {
+  let box = document.getElementById("gmo-reclist");
+  if (box) return box;
+  box = document.createElement("div");
+  box.id = "gmo-reclist";
+  box.hidden = true;
+  box.innerHTML = `<div class="gmo-rh"><div class="gmo-rt"></div><div class="gmo-rn"></div>` +
+    `<button type="button" class="gmo-rx" title="Close">×</button></div><div class="gmo-rf"></div><div class="gmo-rb"></div>`;
+  document.body.appendChild(box);
+  box.querySelector(".gmo-rx").addEventListener("click", () => { box.hidden = true; });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") box.hidden = true; });
+  box.querySelector(".gmo-rf").addEventListener("input", (e) => {
+    if (!e.target.classList.contains("gmo-q")) return;
+    GMO_LIST.q = e.target.value; const pos = e.target.selectionStart; gmoDraw();
+    const q2 = box.querySelector(".gmo-q"); if (q2) { q2.focus(); try { q2.setSelectionRange(pos, pos); } catch (_) { /* kept */ } }
+  });
+  box.addEventListener("click", (e) => {
+    // Inside an opened record: its links and text, not the row's toggle.
+    if (e.target.closest(".gmo-pop") || e.target.closest("a")) return;
+    const t = e.target.closest("[data-gk],[data-gy],[data-gc],[data-gl],[data-gr],[data-gmore]");
+    if (!t) return;
+    const d = t.dataset;
+    if (d.gk !== undefined) GMO_LIST.kind = d.gk;
+    else if (d.gy !== undefined) GMO_LIST.yrs = +d.gy;
+    else if (d.gc !== undefined || d.gl !== undefined) { const k = d.gc !== undefined ? "c:" + d.gc : "l:" + d.gl; GMO_LIST.open.has(k) ? GMO_LIST.open.delete(k) : GMO_LIST.open.add(k); }
+    else if (d.gr !== undefined) { GMO_LIST.shown.has(d.gr) ? GMO_LIST.shown.delete(d.gr) : GMO_LIST.shown.add(d.gr); }
+    else if (d.gmore !== undefined) GMO_LIST.cap += 500;
+    gmoDraw();
+  });
+  return box;
+}
+function gmoPass(r) {
+  if (GMO_LIST.kind && gmoKind(r) !== GMO_LIST.kind) return false;
+  if (GMO_LIST.q) {
+    const s = [r.name, r.company, r.status, r.state, r.type].join(" ").toLowerCase();
+    if (s.indexOf(GMO_LIST.q.toLowerCase()) < 0) return false;
+  }
+  if (GMO_LIST.yrs) {
+    const t = Date.parse(r.date || "");
+    if (isNaN(t) || (Date.now() - t) / 31557600000 > GMO_LIST.yrs) return false;
+  }
+  return true;
+}
+function gmoLine(r, i) {
+  const meta = [r.date, r.company, r.status].filter(Boolean).map(escapeHtml).join(" · ");
+  const nm = escapeHtml(gmoLabel(r));
+  const open = GMO_LIST.shown.has(String(i));
+  return `<div class="gmo-rec" data-gr="${i}">` +
+    (r.url ? `<a href="${escapeHtml(r.url)}" target="_blank" rel="noopener">${nm}</a>` : `<span>${nm}</span>`) +
+    `<span class="gmo-more">${open ? "hide" : "details"}</span>` +
+    (meta ? `<div class="gmo-meta">${meta}</div>` : "") +
+    (open ? gmoRecordHtml(r) : "") + `</div>`;
+}
+function gmoDraw() {
+  const box = gmoPanel();
+  const all = GMO_LIST.rows, rows = all.filter(gmoPass);
+  // Kind and date pills only where there is a choice to make.
+  const kinds = {}; let dated = 0;
+  for (const r of all) { const k = gmoKind(r); kinds[k] = (kinds[k] || 0) + 1; if (!isNaN(Date.parse(r.date || ""))) dated++; }
+  const kk = Object.keys(kinds).sort((a, b) => kinds[b] - kinds[a]);
+  let f = `<div class="gmo-frow"><input class="gmo-q" placeholder="filter these records…" value="${escapeHtml(GMO_LIST.q)}">` +
+    `<span class="gmo-count">${rows.length.toLocaleString()} of ${all.length.toLocaleString()}</span></div>`;
+  if (kk.length > 1) f += `<div class="gmo-pills"><span class="gmo-pill${GMO_LIST.kind === "" ? " on" : ""}" data-gk="">All ${all.length}</span>` +
+    kk.map((k) => `<span class="gmo-pill${GMO_LIST.kind === k ? " on" : ""}" data-gk="${k}">${GMO_KIND_PILL[k] || k} ${kinds[k]}</span>`).join("") + `</div>`;
+  if (dated > 1) f += `<div class="gmo-pills">` + [[0, "Any date"], [1, "12 months"], [5, "5 years"], [10, "10 years"]]
+    .map(([y, l]) => `<span class="gmo-pill${GMO_LIST.yrs === y ? " on" : ""}" data-gy="${y}">${l}</span>`).join("") + `</div>`;
+  const fr = box.querySelector(".gmo-rf");
+  const had = document.activeElement && document.activeElement.classList && document.activeElement.classList.contains("gmo-q");
+  fr.innerHTML = f;
+  if (had) { const q = fr.querySelector(".gmo-q"); if (q) q.focus(); }
+  // Newest first inside every group.
+  const idx = new Map(all.map((r, i) => [r, i]));
+  const byDate = (a, b) => String(b.date || "").localeCompare(String(a.date || ""));
+  let h = "", drawn = 0;
+  const tree = gmoTree(rows);
+  for (const [cat, leaves] of tree) {
+    const tot = [...leaves.values()].reduce((n, a) => n + a.length, 0);
+    const oc = GMO_LIST.open.has("c:" + cat) || tree.length === 1;
+    h += `<div class="gmo-cat" data-gc="${escapeHtml(cat)}"><span class="gmo-tw">${oc ? "▾" : "▸"}</span>${escapeHtml(cat)}<span class="gmo-n"> (${tot.toLocaleString()})</span></div>`;
+    if (!oc) continue;
+    const lk = [...leaves.keys()].sort((a, b) => leaves.get(b).length - leaves.get(a).length);
+    for (const leaf of lk) {
+      const rs = leaves.get(leaf).slice().sort(byDate);
+      if (!leaf) { for (const r of rs) { if (drawn++ >= GMO_LIST.cap) break; h += `<div class="gmo-l1">${gmoLine(r, idx.get(r))}</div>`; } continue; }
+      const key = cat + "|" + leaf, lo = GMO_LIST.open.has("l:" + key) || lk.length === 1;
+      h += `<div class="gmo-leaf" data-gl="${escapeHtml(key)}"><span class="gmo-tw">${lo ? "▾" : "▸"}</span>${escapeHtml(leaf)}<span class="gmo-n"> (${rs.length.toLocaleString()})</span></div>`;
+      if (!lo) continue;
+      for (const r of rs) { if (drawn++ >= GMO_LIST.cap) break; h += `<div class="gmo-l2">${gmoLine(r, idx.get(r))}</div>`; }
+    }
+  }
+  if (drawn > GMO_LIST.cap) h += `<div class="gmo-cap" data-gmore="1">Showing the first ${GMO_LIST.cap.toLocaleString()} opened — show more</div>`;
+  box.querySelector(".gmo-rb").innerHTML = h || `<div class="gmo-meta">No records match.</div>`;
+}
+function gmoShowList(rows) {
+  const box = gmoPanel();
+  Object.assign(GMO_LIST, { rows, q: "", kind: "", yrs: 0, open: new Set(), shown: new Set(), cap: 200 });
+  box.querySelector(".gmo-rt").innerHTML = `<span class="gmo-t">${escapeHtml(gmoPlace(rows))}</span><span class="gmo-kinds">${escapeHtml(gmoTally(rows))}</span>`;
+  box.querySelector(".gmo-rn").innerHTML = gmoPlaceNote(rows);
+  box.hidden = false;
+  gmoDraw();
+  if (!gmoOwnAsked && rows.some((r) => ["animals", "repro", "industry"].includes(gmoKind(r)))) gmoOwnLoad().then(() => { if (!box.hidden) gmoDraw(); });
+}
+// The tiles alone, before the pieces are filed by place: what they carry.
+function gmoFromTile(p) {
+  return { name: p.name, source: p.x_src || p.id, type: p.x_type, state: p.x_state, company: p.x_applicant,
+           size: p.x_extent, status: p.x_status, url: p.url, date: p.year ? String(p.year) : "", precise: p.x_precision ? false : undefined };
+}
+function bindGmoPopup(layerId) {
+  map.on("click", layerId, (e) => {
+    const claim = e.originalEvent || e;
+    if (popupClaimedBy === claim) return;
+    popupClaimedBy = claim;
+    const p = e.features[0].properties;
+    const open = (rows) => {
+      rows = rows.filter(gmoShown);
+      if (!rows.length) return;
+      if (rows.length > 1) { gmoShowList(rows); return; }
+      const q = rows[0];
+      const popup = new maplibregl.Popup({ closeButton: true, maxWidth: "340px", className: "gmo-box" })
+        .setLngLat(e.lngLat).setHTML(gmoRecordHtml(q)).addTo(map);
+      if (!gmoOwnAsked && ["animals", "repro", "industry"].includes(gmoKind(q)))
+        gmoOwnLoad().then(() => { if (popup.isOpen()) popup.setHTML(gmoRecordHtml(q)); });
+    };
+    if (!p.x_at) { open(e.features.map((f) => gmoFromTile(f.properties))); return; }
+    readPiece(GMO_PIECES, p.x_at).then((piece) => {
+      const rows = piece && piece[p.x_at];
+      open(Array.isArray(rows) && rows.length ? rows : e.features.map((f) => gmoFromTile(f.properties)));
+    }).catch(() => open(e.features.map((f) => gmoFromTile(f.properties))));
+  });
+  map.on("mouseenter", layerId, () => (map.getCanvas().style.cursor = "pointer"));
+  map.on("mouseleave", layerId, () => (map.getCanvas().style.cursor = ""));
+}
+// The map's own colours for its boxes (its popup and #recList).
+const GMO_BOX_CSS = `
+.maplibregl-popup.gmo-box .maplibregl-popup-content{background:#0c1122;border:1px solid rgba(46,62,114,.5);border-radius:10px;color:#e0ddd5;font:13px/1.5 Marcellus,Georgia,serif;max-height:430px;overflow-y:auto;padding:14px 16px}
+.maplibregl-popup.gmo-box .maplibregl-popup-tip{border-top-color:#0c1122!important;border-bottom-color:#0c1122!important}
+.gmo-pop b,.maplibregl-popup.gmo-box .maplibregl-popup-content .gmo-pop b{color:#fff;font-size:14px;display:inline;margin:0}
+.gmo-pop .t{display:inline-block;background:rgba(46,62,114,.35);border:1px solid #364eb1;border-radius:16px;padding:1px 7px;font-size:10px;color:#a2b1d5;margin-right:5px}
+.gmo-pop .d{font-size:12px;line-height:1.42;margin-top:5px;color:#cfd8e3}
+.gmo-pop a{color:#9dc0dd}
+.gmo-pop .d-note{display:block;font-size:9.5px;line-height:1.45;color:#8d99b4;margin-top:3px;padding-left:7px;border-left:2px solid rgba(120,140,180,.35)}
+.gmo-approx{font-size:10px;color:#9fb2cf;background:rgba(127,168,204,.08);border:1px dashed rgba(127,168,204,.4);border-radius:4px;padding:2px 5px;margin:0 0 5px}
+.gmo-dl{font-size:10px;border-radius:4px;padding:2px 5px;margin:0 0 5px;display:inline-block;border:1px solid rgba(127,168,204,.4)}
+.gmo-dig{margin-top:6px;padding-top:5px;border-top:1px dashed rgba(44,69,154,.35);font-size:11px;color:#cfd8e3}
+.gmo-dig b,.maplibregl-popup.gmo-box .maplibregl-popup-content .gmo-dig b{font-size:11px;color:#cfd8e3}
+.gmo-own{margin:8px 0 2px;padding:7px 9px;border:1px solid rgba(127,168,204,.22);border-radius:8px;background:rgba(47,67,161,.07)}
+.gmo-own-h{font-size:10.5px;font-weight:700;color:#7fa8cc;margin:0 0 4px}
+.gmo-own-p{font-size:10.5px;line-height:1.55;color:#c3cee0;margin:0 0 4px}
+#gmo-reclist{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:70;width:min(700px,94vw);max-height:78vh;background:rgba(8,14,32,.975);border:1px solid rgba(127,168,204,.45);border-radius:11px;color:#c3cee0;font:11px/1.4 Marcellus,Georgia,serif;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 18px 60px rgba(0,0,0,.6)}
+#gmo-reclist[hidden]{display:none}
+.gmo-rh{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-bottom:1px solid rgba(127,168,204,.22);color:#eaf1ff;font-weight:600}
+.gmo-rt{flex:0 1 auto;max-width:46%}
+.gmo-t{display:block}
+.gmo-kinds{display:block;margin-top:2px;font-weight:400;font-size:9.5px;color:#8fa4c0}
+.gmo-rn{font-size:9.5px;font-weight:400;color:#7d8ba1;line-height:1.5;flex:1 1 auto;min-width:0;border-left:1px solid rgba(127,168,204,.16);padding-left:10px;max-height:132px;overflow-y:auto}
+.gmo-rn b{color:#9fb2cf}
+.gmo-rx{background:none;border:0;cursor:pointer;color:#7fa8cc;font-size:17px;line-height:1}
+.gmo-rf{display:flex;flex-direction:column;gap:6px;padding:7px 10px;border-bottom:1px solid rgba(127,168,204,.16)}
+.gmo-frow{display:flex;align-items:center;gap:8px}
+.gmo-q{width:100%;background:rgba(127,168,204,.08);border:1px solid rgba(127,168,204,.32);border-radius:6px;color:#dce6f5;font-size:10.5px;font-family:inherit;padding:5px 7px;outline:none}
+.gmo-count{color:#7d8ba1;font-size:9.5px;white-space:nowrap}
+.gmo-pills{display:flex;flex-wrap:wrap;gap:4px}
+.gmo-pill{cursor:pointer;font-size:9px;padding:3px 7px;border-radius:9px;border:1px solid rgba(127,168,204,.3);color:#8fa0b8;white-space:nowrap;user-select:none}
+.gmo-pill.on{background:rgba(127,168,204,.2);border-color:#9dc0dd;color:#eaf1ff;font-weight:700}
+.gmo-rb{overflow-y:auto;padding:4px 10px 9px}
+.gmo-cat,.gmo-leaf{display:flex;align-items:center;gap:5px;cursor:pointer}
+.gmo-cat{padding:7px 0 6px;border-bottom:1px solid rgba(127,168,204,.14);color:#eaf1ff;font-weight:600}
+.gmo-leaf{padding:5px 0 5px 15px;color:#c3cee0}
+.gmo-cat:hover,.gmo-leaf:hover{color:#7fa8cc}
+.gmo-tw{color:#7fa8cc;font-size:9px;width:9px}
+.gmo-n{color:#7d8ba1;font-weight:400}
+.gmo-rec{padding:4px 0;border-bottom:1px solid rgba(127,168,204,.08);cursor:pointer}
+.gmo-rec a{color:#9dc0dd;text-decoration:none}
+.gmo-rec .gmo-pop{margin:6px 0 4px;padding:8px 10px;background:#0c1122;border:1px solid rgba(46,62,114,.5);border-radius:8px;cursor:auto}
+.gmo-more{margin-left:8px;color:#7fa8cc;font-size:9px}
+.gmo-meta{color:#7d8ba1;font-size:9.5px;margin-top:2px}
+.gmo-l1{padding-left:15px}.gmo-l2{padding-left:30px}
+.gmo-cap{padding:7px 0;color:#7fa8cc;cursor:pointer}
+`;
+if (typeof document !== "undefined" && document.head && document.createElement) {
+  const st = document.createElement("style");
+  st.id = "gmo-box-css";
+  st.textContent = GMO_BOX_CSS;
+  document.head.appendChild(st);
+}
+
 function setLayerState(id, text) {
   const el = document.querySelector(`[data-state="${id}"]`);
   if (el) el.textContent = text;
@@ -13449,6 +13915,8 @@ const LAYER_SITE = {
   gfw_catalogue: "https://data-api.globalforestwatch.org",
   glad_loss: "https://storage.googleapis.com/earthenginepartners-hansen/tiles/gfc_v1.12/loss_alpha",
   gmo_cultivation: "https://github.com/WelcomeToYourGalaxy/GMO-map",
+  gmo_escapes: "https://github.com/WelcomeToYourGalaxy/GMO-map",
+  gmo_industry: "https://github.com/WelcomeToYourGalaxy/GMO-map",
   gmo_gmofree: "https://github.com/WelcomeToYourGalaxy/GMO-map",
   gmo_incidents: "https://github.com/WelcomeToYourGalaxy/GMO-map",
   gmo_regime: "https://github.com/WelcomeToYourGalaxy/GMO-map",
@@ -13683,7 +14151,7 @@ const PANEL_ORDER = [
   { h: 1, bundle: "selected", colour: "#5E6470" },
   { h: 1, t: "On-planet invasion" },
   { h: 2, t: "Pre-birth frontlines" },
-  { h: 3, t: "Genetic engineering" }, "gmo_env", "gmo_decisions", "gmo_ogtr", "gmo_cultivation", "gmo_gmofree", "gmo_incidents", "gmo_regime", "gmo_treaties", "gmo_trials",
+  { h: 3, t: "Genetic engineering" }, "gmo_env", "gmo_decisions", "gmo_ogtr", "gmo_industry", "gmo_escapes", "gmo_cultivation", "gmo_gmofree", "gmo_incidents", "gmo_regime", "gmo_treaties", "gmo_trials",
   { h: 3, t: "Human reproduction and gene therapy" }, "gmo_therapy", "gmo_fertility",
   // Renamed 26 September (round 60): the living, from birth to death, and
   // the after-life, beside the pre-birth frontlines.
@@ -13911,11 +14379,12 @@ const PANEL_ORDER = [
   { h: 3, t: "Space launches" }, "ll2_pads", "ll2_upcoming",
   { h: 3, t: "Craft in space" }, "eyes_craft",
   { h: 3, t: "Extraterrestrial life" }, "biosignature",
-  // Base and reference (empty since 25 September) and Buildings taken out, the
-  // Buildings row with it (26 September, round 56).
+  // Base and reference (empty since 25 September) taken out; Buildings was
+  // taken out with it (26 September, round 56) and put back at the owner's
+  // asking (27 September, round 71), held at the foot of the box as before.
+  { h: 1, t: "Buildings" }, "building_types",
 ];
 const PANEL_REMOVED = new Set([
-  "building_types",                // taken out with its heading, 26 September (round 56)
   "skytruth_tests",                // the Housekeeping heading and its row, taken out 24 September
   "gsn",                           // its layers are rows of their own (24 September); the menu row is out of sight
   "trase_cocoa_ivory",             // taken out 24 September with the other cocoa rows

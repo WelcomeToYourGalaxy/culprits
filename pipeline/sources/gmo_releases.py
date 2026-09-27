@@ -27,10 +27,22 @@ own `dropped` block. That is the source's decision, made before this harvester
 sees the data; the count is printed each run so it stays visible.
 """
 
+import hashlib
+import json
+
+import requests
+
 import _wtyg
 
 REPO = "GMO-map"
 PATH = "projects.json"
+# The map's own page carries a second set of records written into it by hand
+# (PJ_SEED): about a thousand organisations - seed and trait firms, gene-editing
+# and DNA-synthesis companies, contract labs, funders, regulators and trade
+# bodies - and the recorded escapes and contamination cases. The map merges
+# them with projects.json, keyed on url|name so a record never appears twice,
+# and so does this (round 71). Before that none of them reached the atlas.
+PAGE = "index.html"
 
 # The register a record came from is the first segment of its `source` field:
 # "ogtr:DIR-201" -> ogtr. Five registers in the current file.
@@ -40,7 +52,30 @@ REGISTERS = {
     "bch": "CBD Biosafety Clearing-House",
     "clinical": "clinical trial sponsor",
     "ogtr": "Australia OGTR",
+    "escape": "escape and contamination record",
 }
+
+
+def _seed():
+    """The records written into the map's own page, or [] if it cannot be read."""
+    try:
+        r = requests.get(_wtyg.raw_url(REPO, PAGE), headers=_wtyg.UA, timeout=_wtyg.TIMEOUT)
+        r.raise_for_status()
+        text = r.text
+        at = text.index("var PJ_SEED=") + len("var PJ_SEED=")
+        data, _ = json.JSONDecoder().raw_decode(text[at:])
+        return data.get("projects") or []
+    except Exception as e:  # the file's records still go through
+        print(f"  gmo_releases: the page's own records could not be read ({e}); projects.json only")
+        return []
+
+
+def _key(r):
+    # The map's merge key: String(url) + "|" + name, where a missing url reads
+    # "undefined" in the browser.
+    u = r.get("url")
+    return f"{'undefined' if u is None else u}|{r.get('name')}"
+
 
 
 def resolve():
@@ -49,7 +84,14 @@ def resolve():
 
 def fetch():
     data, _ = _wtyg.repo_json(REPO, PATH)
-    rows = data["projects"]
+    rows = list(data["projects"])
+    # Every row of projects.json is kept; a hand-written record is added only
+    # where the file does not already hold it, as the map itself does.
+    have = {_key(r) for r in rows}
+    seed = [r for r in _seed() if _key(r) not in have]
+    rows += seed
+    print(f"gmo_releases: {len(seed):,} records from the map's own page added to projects.json's {len(data['projects']):,}")
+    seen_ids = {}
 
     out = []
     skipped_coords = 0
@@ -59,10 +101,18 @@ def fetch():
             skipped_coords += 1
             continue
 
-        register = (r.get("source") or "").split(":")[0]
+        src = r.get("source") or ""
+        register = src.split(":")[0]
+        # One id per record. It was the register's name ("bch:decision"), which
+        # 3,028 decisions shared, so the pieces kept one record per register and
+        # a click showed another record's description (round 71).
+        h = hashlib.sha1("|".join(str(r.get(k)) for k in ("source", "url", "name", "date", "state", "type")).encode("utf-8")).hexdigest()[:12]
+        n = seen_ids.get(h, 0)
+        seen_ids[h] = n + 1
+        ident = f"{h}-{n}" if n else h
 
         out.append({
-            "ident": r.get("source") or r.get("name"),
+            "ident": ident,
             "name": r.get("name"),
             "lon": lon,
             "lat": lat,
@@ -77,6 +127,11 @@ def fetch():
             # normalize.py files it in map/data/pieces/<source>/ and the map shows it on click.
             "raw": r,
             "extra": {
+                # The register and entry kind ("bch:decision", "industry:seed"),
+                # which the map's rows filter on, and the place, which the whole
+                # records at that point are filed under in the pieces.
+                "src": src or None,
+                "at": f"{float(lon):.5f},{float(lat):.5f}",
                 "precision": _wtyg.precision_from(r),
                 "register": REGISTERS.get(register, register or None),
                 "type": r.get("type"),

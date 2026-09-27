@@ -518,7 +518,7 @@
   };
 })();
 </script>
-<script src="./app.js?v=70"></script>
+<script src="./app.js?v=71"></script>
 <script src="./wire.js?v=67"></script>
 <!-- The drag bar on the layers box's right edge (made by columnEdge() in
      app.js) ran the full height of the column, so it stayed standing beside
@@ -1067,8 +1067,10 @@
       `<label class="layer"${title ? ` title="${title}"` : ""}><input type="checkbox" id="${id}" data-opt="${key}"${opt[key] ? " checked" : ""}><span class="nm">${nm}</span></label>`;
     d.innerHTML =
       `<div class="holo-row">` +
+      // A round choice like the three basemaps above it (round 71): picking it
+      // clears the basemap it came from, unless Basemap underneath is ticked.
       `<label class="layer" title="A wireframe screen: country outlines, no imagery. Your layers stay on.">` +
-      `<input type="checkbox" id="holo-toggle"${on ? " checked" : ""}><span class="nm">Hologram view</span></label>` +
+      `<input type="radio" id="holo-toggle"${on ? " checked" : ""}><span class="nm">Hologram view</span></label>` +
       tick("holo-under", "under", "Basemap underneath", "The basemap ticked above, under the hologram, dimmed by a navy wash") +
       `<button type="button" class="holo-fold" id="holo-fold" title="Roll the hologram's options up or down"` +
       ` aria-expanded="${opt.fold ? "false" : "true"}"${on ? "" : " hidden"}>${opt.fold ? "&#9656;" : "&#9662;"}</button></div>` +
@@ -1096,12 +1098,30 @@
       e.preventDefault(); e.stopPropagation();
       opt.fold = !opt.fold; keepOpt(); sync();
     });
+    // The basemap the hologram was picked over, kept for Basemap underneath.
+    const baseRadios = () => [...document.querySelectorAll('#basemaps input[name="basemap"]')];
+    let lastBase = basemapTicked() || "atlas";
+    const showBaseTick = (show) => {
+      for (const r of baseRadios()) r.checked = show && r.value === lastBase;
+    };
     d.addEventListener("change", (e) => {
       const t = e.target;
-      if (t.id === "holo-toggle") { t.checked ? enable() : disable(); sync(); return; }
+      if (t.id === "holo-toggle") {
+        if (!t.checked) return;
+        lastBase = basemapTicked() || lastBase;
+        enable();
+        // Only one choice stands, as with the other basemaps; the one it came
+        // from stays ticked only when it is shown underneath.
+        showBaseTick(opt.under);
+        sync(); return;
+      }
       const key = t.dataset && t.dataset.opt;
       if (!key) return;
-      if (key === "under") setUnder(t.checked);
+      if (key === "under") {
+        if (t.checked) showBaseTick(true);
+        else { lastBase = basemapTicked() || lastBase; if (on) showBaseTick(false); }
+        setUnder(t.checked);
+      }
       else {
         opt[key] = t.checked;
         if (key === "detail") outlineFade();
@@ -1115,8 +1135,20 @@
       d.querySelector("#holo-tint-n").textContent = opt.tint + "%";
       earthPaint(); showHolo(); keepOpt();
     });
-    // The readout names the basemap underneath; keep it right when it changes.
-    body.addEventListener("change", (e) => { if (e.target && e.target.name === "basemap") updateText(); });
+    // A basemap picked while the hologram is on: with nothing underneath, it
+    // takes over from the hologram; with Basemap underneath ticked, it is the
+    // one shown under it.
+    body.addEventListener("change", (e) => {
+      if (!e.target || e.target.name !== "basemap") return;
+      lastBase = e.target.value;
+      if (on && !opt.under) {
+        disable();
+        const h = document.getElementById("holo-toggle");
+        if (h) h.checked = false;
+        sync();
+      }
+      updateText();
+    });
     updateText();
   }
   // The Basemap box is filled in once the map has loaded; the switch is added
