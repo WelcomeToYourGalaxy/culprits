@@ -248,8 +248,8 @@ const LAYERS = [
   // broken map rather than an unbuilt source. ready:false names them once in
   // the unbuilt list instead, which is what the panel is for. Flip back to true
   // once map/tiles/<id>.pmtiles exists, or once a harvester is registered.
-  { id:"carbon_majors",        name:"Carbon major HQs",        unit:"company headquarters", colour:"#7E6B8F", route:"pmtiles", ready:true, off: true,
-    note: "From the Destruction page's Carbon Majors headquarters map (maps repo): the addresses written into that map." },
+  { id:"carbon_majors",        name:"Headquarters of the oil, gas, coal and cement producers behind most fossil-fuel CO\u2082 (the Carbon Majors)", unit:"company headquarters", colour:"#7E6B8F", route:"pmtiles", ready:true, off: true,
+    note: "The Carbon Majors database (InfluenceMap, from Richard Heede's research) traces most of the carbon dioxide from fossil fuels and cement since 1854 to a short list of producers: investor-owned companies, state-owned companies and nation-states. This row puts each at its headquarters, from the Destruction page's Carbon Majors map (maps repo): the addresses written into that map." },
   { id:"fertilizer_facilities",name:"Fertilizer plants",       unit:"ammonia / urea", colour:"#8A7C5C", route:"pmtiles", ready:true, off: true },
   { id:"soy_organizations",    name:"Soy industry bodies",     unit:"trade organisations", colour:"#6F7F72", route:"pmtiles", ready:true, off: true },
   { id:"trase",                name:"Commodity supply chains", unit:"ha",         colour:"#62755F", route:"pmtiles", ready:false },
@@ -3836,7 +3836,14 @@ function relabelRow(id, title) {
   const box = document.getElementById("layers");
   const row = box && box.querySelector && box.querySelector(`[data-layer="${id}"]`);
   const nm = row && row.closest && row.closest("label") && row.closest("label").querySelector(".nm");
-  if (nm) nm.textContent = title;
+  if (!nm) return;
+  // Only the name's own words change (round 75): setting the whole text wiped
+  // the LIVE or NOT LIVE mark, the refresh note and the links after it, which
+  // is why EJAtlas's row lost its mark once it loaded.
+  const words = [...nm.childNodes].find((n) => n.nodeType === 3 && n.data.trim());
+  if (words) words.data = title;
+  else if (typeof nm.insertBefore === "function" && typeof document.createTextNode === "function") nm.insertBefore(document.createTextNode(title), nm.firstChild);
+  else nm.textContent = title;
 }
 
 // items: [{ geometry, key, name, colour, group, h, t }]
@@ -4379,6 +4386,14 @@ function traseSlug(name) {
 function traseBreaks(values) {
   const v = values.filter((x) => typeof x === "number" && isFinite(x)).sort((a, b) => a - b);
   if (!v.length) return [];
+  // Where a fifth or more of the regions hold nothing, the steps were all
+  // zero and every region with any amount came out in the one top colour.
+  // Now none is one step, and the rest are stepped among themselves.
+  const pos = v.filter((x) => x > 0);
+  if (pos.length && v[0] >= 0 && pos.length <= v.length * 0.8) {
+    const qp = (p) => pos[Math.min(pos.length - 1, Math.floor(p * pos.length))];
+    return [...new Set([pos[0], qp(0.25), qp(0.5), qp(0.75)])].sort((a, b) => a - b);
+  }
   const q = (p) => v[Math.min(v.length - 1, Math.floor(p * v.length))];
   return [...new Set([q(0.2), q(0.4), q(0.6), q(0.8)])];
 }
@@ -4465,15 +4480,24 @@ function ctGasRows(index) {
       const label = String(a.label || a.subsector || a.id).replace(/\b\w/, (c) => c.toUpperCase());
       rows.push({ gas, name: a.id, title: `${label} \u2014 ${g.name || gas}, tonnes a year, every site and period (Climate TRACE)`,
         fileBy: `${g.name || gas} emissions climate trace`, about: `Each source's ${g.name || gas} emissions as Climate TRACE estimates them, by period.`,
-        cfg: Object.assign(ctChild(a.id, label, CT_GASES_BASE), { colour: CT_COLOURS[`climate_trace_${a.subsector}`] || "#8F4E40" }) });
+        cfg: Object.assign(ctChild(a.id, label, CT_GASES_BASE), { colour: CT_COLOURS[`climate_trace_${a.subsector}`] || "#8F4E40",
+          unit: `t ${g.name || gas}/yr`, gwp: (typeof CT_GWP !== "undefined" && CT_GWP[gas]) || 1, gasName: g.name || gas }) });
+      if (typeof CT_GAS_CFGS !== "undefined") CT_GAS_CFGS.set(a.id, rows[rows.length - 1].cfg);
     }
   }
   return rows;
 }
 async function addCtGasesLayer(cfg) {
-  let index;
-  try { index = await getJson(`${CT_GASES_BASE}/tiles/climate_trace_gases.json`, 30000); }
-  catch (e) { setLayerState(cfg.id, `not built yet (${e.message})`); return; }
+  // Round 75: methane and nitrous oxide are built by jobs of their own
+  // (scripts/ct_gases_ch4.py, ct_gases_n2o.py), each keeping its own list;
+  // carbon dioxide keeps the first list. A list not made yet is passed over.
+  const index = {};
+  const lists = await Promise.all(["", "_ch4", "_n2o"].map((x) =>
+    getJson(`${CT_GASES_BASE}/tiles/climate_trace_gases${x}.json`, 30000).catch(() => null)));
+  for (const l of lists) for (const [gas, g] of Object.entries(l || {})) {
+    if (!index[gas] || ((g.archives || []).length > (index[gas].archives || []).length)) index[gas] = g;
+  }
+  if (!Object.keys(index).length) { setLayerState(cfg.id, "not built yet"); return; }
   const rows = ctGasRows(index).map((r) => Object.assign(r, {
     show: (want) => {
       visibility.set(r.cfg.id, want ? "visible" : "none");
@@ -6182,6 +6206,7 @@ async function addCarbonMapperLayer(cfg) {
     const g = it.geometry_json || it.geometry;
     const at = g && g.coordinates;
     if (!at || !isFinite(Number(at[0])) || !isFinite(Number(at[1]))) return null;
+    if (cfg.gasOnly && String(it.gas || "").toUpperCase() !== cfg.gasOnly) return null;
     return { type: "Feature", geometry: { type: "Point", coordinates: [Number(at[0]), Number(at[1])] },
       properties: {
         plume_id: it.plume_id || it.id || "", gas: it.gas || "",
@@ -6208,8 +6233,9 @@ async function addCarbonMapperLayer(cfg) {
     const draw = (done) => {
       held = feats;
       if (map.getSource(src)) map.getSource(src).setData({ type: "FeatureCollection", features: feats });
-      setLayerState(cfg.id, `${feats.length.toLocaleString()} plumes` +
-        (total ? ` of ${total.toLocaleString()} published` : "") +
+      if (typeof scheduleColumns === "function") scheduleColumns();
+      setLayerState(cfg.id, `${feats.length.toLocaleString()} ${cfg.gasOnly === "CO2" ? "carbon dioxide " : cfg.gasOnly === "CH4" ? "methane " : ""}plumes` +
+        (total ? (cfg.gasOnly ? ` among the newest of ${total.toLocaleString()} published` : ` of ${total.toLocaleString()} published`) : "") +
         (done ? ` \u00b7 their own pictures from zoom ${CARBON_PLUME_ZOOM}` : ", still reading\u2026"));
     };
     let page = 0, ended = false;
@@ -6479,7 +6505,7 @@ const BUNDLES = {
   idnplant: "Plantations in Indonesia and its neighbours, region by region",
   // Round 72: Brazil's own registers of Indigenous territories (FUNAI) and
   // quilombola territories (INCRA) are parts of this layer, at the owner's word.
-  landmark: "Indigenous Peoples' and local communities' lands and territories, worldwide (LandMark, with Brazil's FUNAI and INCRA)",
+  landmark: "Indigenous Peoples' and local communities' lands and territories, worldwide (LandMark, with Brazil's FUNAI)",
   military: "Wars, militaries and weapons, past and current",
   milcompare: "Armies, spending and nuclear weapons, country by country",
   // Round 72: the two resource rights rows are one layer, at the owner's word.
@@ -6502,7 +6528,10 @@ const CATALOGUE_PLACES = [
   // and gas rows go under the climate heading for sites that emit more than one
   // gas. "Greenhouse gas" is not oil and gas: it filed Global Forest Watch's
   // forest net flux under drilling.
-  [/oil and gas|oil & gas|(?<!greenhouse )\bgas\b|petroleum|geothermal/i, P + " > Climate > Infrastructure emitting more than one gas"],
+  // Round 75: that heading is gone; oil and gas go under Methane's
+  // infrastructure and under Oil spills and slicks.
+  [/oil and gas|oil & gas|(?<!greenhouse )\bgas\b|petroleum|geothermal/i, P + " > Climate > Methane"],
+  [/oil and gas|oil & gas|(?<!greenhouse )\bgas\b|petroleum/i, P + " > Pollution > Oil spills and slicks > Where oil and gas is drilled"],
   // Agriculture, by crop where the box has a heading for it (22 September).
   [/palm|\bmills?\b|refiner/i, AG + " > Palm oil"],
   // Soy, corn and grain under Climate only, by the gas their fields mostly
@@ -6596,7 +6625,7 @@ const CATALOGUE_BY_TITLE = [
   // are its GeoTIFFs (cropland emissions, livestock emissions, livestock
   // emissions per hectare), under Climate. Its figures are CO2 equivalent, all
   // gases together, so not under one gas.
-  [/\bwri_land_ghg_monitoring_system\b/, [IN(P + " > Climate", "landghg")]],
+  [/\bwri_land_ghg_monitoring_system\b/, [IN(P + " > Climate > General", "landghg")]],
   // Round 52 (26 September, at the owner's word): Global Forest Watch's copy of
   // Conservation International's biodiversity hotspots taken out; the Atlas's
   // hotspots row draws the same 2016.1 outlines and opens the Atlas's pages.
@@ -6616,7 +6645,9 @@ const CATALOGUE_BY_TITLE = [
   // Round 72 (27 September): FUNAI's Indigenous territories and INCRA's
   // quilombola territories inside the LandMark layer; the two resource rights
   // rows as one layer.
-  [/\bfunai_bra_indigenous_territories\b|\bincra_bra_quilombola_communities\b/, [IN("On-planet invasion > Invasion of the living > Invasion of humans", "landmark")]],
+  [/\bfunai_bra_indigenous_territories\b/, [IN("On-planet invasion > Invasion of the living > Invasion of humans", "landmark")]],
+  // Round 75 (27 September): INCRA's quilombola communities taken out, at the owner's word.
+  [/\bincra_bra_quilombola_communities\b|quilombola/i, null],
   [/\blandmark_natural_resource_rights\b|\bgfw_resource_rights\b/, [IN("On-planet invasion > Invasion of the living > Invasion of humans", "resrights")]],
   [/\bfao_forestry_employment\b/, null],
   [/socialforestry(hk|hadat|wiladat|hd)_spv/, null],
@@ -6790,8 +6821,9 @@ const CATALOGUE_BY_TITLE = [
   [/logging roads?\b/i, [P + " > Deforestation"]],
   // Placed by name.
   [/tree cover loss by (dominant )?driver|drivers? of tree cover loss/i, [P + " > Deforestation > Tree cover loss and alerts"]],
-  [/soy(bean)? planted area/i, [P + " > Climate > Nitrous oxide > Soy"]],
+  [/soy(bean)? planted area/i, [P + " > Climate > Nitrous oxide"]],
   [/forest greenhouse gas emissions/i, [P + " > Climate > Carbon dioxide"]],
+  [/\bjpl_mangrove_aboveground_biomass|mangrove biomass/i, [P + " > Deforestation > Forest carbon and biomass"]],
   // Copied under Fire and Mining too (23 September): the alerts cover any loss
   // of plant cover, whatever its cause.
   [/all[- ]ecosystem disturbance alerts|dist-?alert/i,
@@ -6799,7 +6831,7 @@ const CATALOGUE_BY_TITLE = [
   [/intact forest landscape/i, [P + " > Biodiversity loss"]],
   [/biodiversity hotspots/i, [P + " > Biodiversity loss"]],
   [/\bdams?\b/i, [P + " > Biodiversity loss > Fish"]],
-  [/oil (and|&) gas (concession|block|licen|lease)/i, [P + " > Climate > Infrastructure emitting more than one gas"]],
+  [/oil (and|&) gas (concession|block|licen|lease)/i, [P + " > Climate > Methane > Infrastructure", P + " > Pollution > Oil spills and slicks > Where oil and gas is drilled"]],
   [/protected areas?/i, [P + " > Biodiversity loss"]],
   [/nitrogen dioxide|\bno2\b/i, [P + " > Pollution > Nitrogen dioxide"]],
 ];
@@ -6847,11 +6879,20 @@ const CATALOGUE_SUBS = {
     [/concession/i, "Concessions"],
     [/.*/, "Plantations"],
   ],
+  // Round 75: each gas split into Emissions, Culprits, Infrastructure and
+  // Priority emitters. Catalogue rows are measures of emissions and of the
+  // crops behind them, so they go under Emissions, bar storage and the oil and
+  // gas concessions and wells, which are infrastructure.
+  [P + " > Climate > Carbon dioxide"]: [
+    [/.*/, "Emissions"],
+  ],
+  [P + " > Climate > Methane"]: [
+    [/oil and gas|oil & gas|(?<!greenhouse )\bgas\b|petroleum|geothermal|concession|\bwells?\b/i, "Infrastructure"],
+    [/.*/, "Emissions"],
+  ],
   [P + " > Climate > Nitrous oxide"]: [
-    [/\bcorn\b|maize/i, "Corn"],
-    [/\bsoy/i, "Soy"],
-    [/grain|silo/i, "Grain"],
-    [/.*/, ""],
+    [/silo|storage|warehouse/i, "Infrastructure"],
+    [/.*/, "Emissions"],
   ],
   [P + " > Meat and agriculture > Meat"]: [
     [/\bpigs?\b|chicken/i, "Pigs and chickens"],
@@ -7418,6 +7459,29 @@ const GFW_COG_TILES = "https://tiles.globalforestwatch.org/cog/basic/tiles/WebMe
 // percentile; cells holding zero are left clear where no value is below zero.
 // If the statistics do not come, the zeros are still left clear.
 const GFW_COG_MEASURED = new Set(["wri_land_ghg_monitoring_system"]);
+// Round 75 (27 September): the forest carbon flux model's three maps (gross
+// emissions, gross removals, net flux) did not draw, or drew for minutes: they
+// have no picture tiles, only 30 m GeoTIFFs of the whole world, and the one
+// picked was a raw measure the tile service turned into grey. Global Forest
+// Watch's own map draws them from its "dynamic" picture tiles, already
+// coloured, at 30% tree cover (Resource Watch layers for these datasets, read
+// 27 September; checked that a tile answers for version v20260327). Those
+// are drawn here the same way, at the dataset's latest version.
+const GFW_DYNAMIC = {
+  gfw_forest_carbon_gross_emissions: { minzoom: 2, maxzoom: 12 },
+  gfw_forest_carbon_gross_removals: { minzoom: 2, maxzoom: 12 },
+  gfw_forest_carbon_net_flux: { minzoom: 2, maxzoom: 12 },
+};
+async function gfwDynamicAsset(api, ds, assets) {
+  const spec = GFW_DYNAMIC[ds];
+  if (!spec) return null;
+  let version = ((assets || []).find((a) => a.version) || {}).version;
+  if (!version) {
+    try { version = (await getJson(`${api}/dataset/${ds}/latest`)).data.version; } catch (e) { return null; }
+  }
+  return { how: "raster", uri: `https://tiles.globalforestwatch.org/${ds}/${version}/dynamic/{z}/{x}/{y}.png?tree_cover_density_threshold=30`,
+    minzoom: spec.minzoom, maxzoom: spec.maxzoom, dynamic: true };
+}
 // Datasets whose GeoTIFFs are separate maps (25 September, round 50): WRI's
 // land greenhouse gas monitoring system holds cropland emissions, livestock
 // emissions and livestock emissions per hectare, and only the first was drawn.
@@ -7694,7 +7758,8 @@ async function addGfwMenuLayer(cfg) {
         assets = version ? ((await getJson(`${cfg.api}/dataset/${d.id}/${version}/assets`)).data || []) : [];
       }
       // A part of a split dataset draws its own GeoTIFF (gfwCogParts).
-      const asset = d.cog ? { how: "cog", uri: GFW_COG_TILES + encodeURIComponent(d.cog), minzoom: 0, maxzoom: 12 } : gfwPickAsset(assets);
+      const asset = d.cog ? { how: "cog", uri: GFW_COG_TILES + encodeURIComponent(d.cog), minzoom: 0, maxzoom: 12 }
+        : (await gfwDynamicAsset(cfg.api, ds, assets)) || gfwPickAsset(assets);
       if (asset.how === "cog" && GFW_COG_MEASURED.has(ds)) asset.uri += await gfwCogScale(asset.uri);
       const vec = asset.how === "vector" ? { asset_uri: asset.uri } : null;
       const decode = asset.how === "raster" && GFW_DECODE[d.id] && GFW_KEYS[d.id];
@@ -9294,10 +9359,30 @@ const COLUMN_HEIGHT = ["interpolate", ["exponential", 0.5], ["zoom"], 0, ["get",
   ...[6, 12, 18, 24].flatMap((z) => [z, ["*", ["get", "hz"], Math.pow(2, -z)]])];
 
 function ctColumnCfgs() {
-  return [CT_SECTORS, CT_AGRICULTURE, CT_FORESTRY].flatMap((g) => g.children)
+  return [CT_SECTORS, CT_AGRICULTURE, CT_FORESTRY].flatMap((g) => g.children).concat([...CT_GAS_CFGS.values()])
     .filter((c) => created.has(c.id) && (visibility.get(c.id) || "visible") === "visible" &&
                    map.getSource(`${c.sourceOf || c.id}-src`));
 }
+// Round 75: columns for other rows with an amount at each point, at the
+// owner's word - Carbon Mapper's plumes and Climate TRACE's black carbon. The
+// height is the amount turned into tonnes of CO2 equivalent a year, so every
+// column on the map is measured the same way: a plume's rate in kg per hour
+// as if it kept up all year (x 8.76), methane at 29.8 times carbon dioxide
+// (IPCC AR6, 100 years, fossil methane) and black carbon at 900 (IPCC AR5's
+// central 100-year figure). The box says the amount as the source gives it.
+const COLUMN_EXTRA = {
+  carbon_plumes: { field: "emission", factor: 8.76 * 29.8,
+    say: (v) => `${Math.round(v).toLocaleString()} kg of methane an hour, as measured at one pass; the column is that rate kept up for a year, as CO\u2082 equivalent (\u00d729.8)` },
+  carbon_plumes_co2: { field: "emission", factor: 8.76,
+    say: (v) => `${Math.round(v).toLocaleString()} kg of carbon dioxide an hour, as measured at one pass; the column is that rate kept up for a year` },
+  ct_air_bc: { field: "value", factor: 900,
+    say: (v) => `${v.toLocaleString(undefined, { maximumFractionDigits: 1 })} t of black carbon a year; the column is that as CO\u2082 equivalent (\u00d7900, IPCC AR5)` },
+};
+// Climate TRACE's per-gas rows (scripts/ct_gases.py), kept as they are made so
+// their columns stand with the rest: each row's tonnes of its own gas, turned
+// into CO2 equivalent over 100 years (IPCC AR6: methane 29.8, nitrous oxide 273).
+const CT_GAS_CFGS = new Map();
+const CT_GWP = { co2: 1, ch4: 29.8, n2o: 273 };
 
 function scheduleColumns() {
   clearTimeout(columnsTimer);
@@ -9318,7 +9403,27 @@ function buildColumns() {
       const key = `${f.properties.id}|${lng.toFixed(4)}|${lat.toFixed(4)}`;
       if (seen.has(key)) continue;          // a point on a tile edge comes back twice
       seen.add(key);
-      rows.push({ lng, lat, v: Math.max(0, Number(f.properties.value) || 0), cfg, p: f.properties });
+      const raw = Math.max(0, Number(f.properties.value) || 0);
+      rows.push({ lng, lat, v: raw * (cfg.gwp || 1), cfg, p: cfg.gwp && cfg.gwp !== 1
+        ? Object.assign({}, f.properties, { colSay: `${Math.round(raw).toLocaleString()} t of ${cfg.gasName || "this gas"} a year; the column is that as CO\u2082 equivalent (\u00d7${cfg.gwp})` })
+        : f.properties });
+    }
+  }
+  for (const id of Object.keys(COLUMN_EXTRA)) {
+    const x = COLUMN_EXTRA[id];
+    if ((visibility.get(id) || "none") !== "visible" || !map.getSource(`${id}-src`)) continue;
+    const cfg = typeof childById === "function" ? childById(id) : null;
+    if (!cfg) continue;
+    const seen = new Set();
+    for (const f of map.querySourceFeatures(`${id}-src`)) {
+      if (!f.geometry || f.geometry.type !== "Point") continue;
+      const raw = Number(f.properties[x.field]);
+      if (!isFinite(raw) || raw <= 0) continue;
+      const [lng, lat] = f.geometry.coordinates;
+      const key = `${f.properties.plume_id || f.properties.id || ""}|${lng.toFixed(4)}|${lat.toFixed(4)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      rows.push({ lng, lat, v: raw * x.factor, cfg, p: Object.assign({}, f.properties, { colSay: x.say(raw) }) });
     }
   }
   rows.sort((a, b) => b.v - a.v);
@@ -9410,9 +9515,10 @@ function addColumnLayer() {
     const v = Number(p.value);
     return `<b>${escapeHtml(n > 1 ? `${n.toLocaleString()} sources here` : (p.name || "Emitting asset"))}</b>` +
       `<div class="meta">${escapeHtml(p.layerName || "")}</div>` +
-      (isFinite(v) ? `<div class="meta">${Math.round(v).toLocaleString()} t CO\u2082e/yr (GWP-100)` +
+      (p.colSay ? `<div class="meta">${escapeHtml(p.colSay)}</div>`
+        : isFinite(v) ? `<div class="meta">${Math.round(v).toLocaleString()} t CO\u2082e/yr (GWP-100)` +
         (n > 1 ? ", together" : "") + `</div>` : "") +
-      (n > 1 ? "" : `<div style="max-height:200px;overflow:auto"><table class="meta">${fieldRows(p, ["_count", "layerName", "name", "value"])}</table></div>`);
+      (n > 1 ? "" : `<div style="max-height:200px;overflow:auto"><table class="meta">${fieldRows(p, ["_count", "layerName", "name", "value", "colSay", "picture", "bounds"])}</table></div>`);
   });
   map.on("moveend", scheduleColumns);
   map.on("zoom", columnsOnZoom);
@@ -12191,11 +12297,11 @@ function applyVisibility(id) {
   const vis = visibility.get(id) || "visible";
   // An Atlas row unticked takes its map and its panel with it.
   if (vis !== "visible" && typeof atlasOwner !== "undefined" && atlasOwner === id) atlasPlateOff();
-  [`${id}-agg`, `${id}-cl`, `${id}-pt`, `${id}-fill`, `${id}-line`, `${id}-raster`, `${id}-world`, `${id}-cap`].forEach((l) => {
+  [`${id}-agg`, `${id}-cl`, `${id}-pt`, `${id}-fill`, `${id}-line`, `${id}-edge`, `${id}-areapt`, `${id}-raster`, `${id}-world`, `${id}-cap`].forEach((l) => {
     if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", vis);
   });
   const cfg = LAYERS.find((l) => l.id === id);
-  if (/^climate_trace/.test(id)) scheduleColumns();
+  if (/^climate_trace/.test(id) || COLUMN_EXTRA[id]) scheduleColumns();
   // The points file is asked for the first time the layer is switched on.
   if (cfg && cfg.points && vis === "visible" && !cfg._pointsTried) {
     cfg._pointsTried = true;
@@ -12366,7 +12472,14 @@ const SITE_MAPS = {
       note: "From the Destruction page's animal sacrifice map." },
     { id: "site_animal_fighting", name: "Animal Fighting Locations", unit: "venues", colour: "#84594F", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_animal_fighting.places.geojson",
       note: "From the Destruction page's animal fighting map (maps repo)." },
-    { id: "carbon_plumes", name: "Methane and carbon dioxide plumes (Carbon Mapper)", unit: "plumes", colour: "#6D6A5E", route: "carbonmapper", ready: true, lazy: true,
+    // Round 75: one row per gas, methane under Methane and carbon dioxide under
+    // Carbon dioxide, each raised as columns by its emission rate. Climate
+    // TRACE does not hold these: its figures are modelled yearly totals per
+    // site, Carbon Mapper's are single overflights.
+    { id: "carbon_plumes_co2", name: "Carbon dioxide plumes (Carbon Mapper)", unit: "plumes", colour: "#6E6358", route: "carbonmapper", gasOnly: "CO2", ready: true, lazy: true,
+      attribution: '<a href="https://carbonmapper.org" target="_blank" rel="noopener">Carbon Mapper</a>',
+      note: "Read live from Carbon Mapper's own data platform: the carbon dioxide plumes among the newest 10,000 plumes it publishes, each with the emission rate measured at that moment, raised as a column by that rate, and from zoom 10 each plume's own picture laid where Carbon Mapper say it belongs." },
+    { id: "carbon_plumes", name: "Methane plumes (Carbon Mapper)", unit: "plumes", colour: "#6D6A5E", route: "carbonmapper", gasOnly: "CH4", ready: true, lazy: true,
       attribution: '<a href="https://carbonmapper.org" target="_blank" rel="noopener">Carbon Mapper</a>',
       note: "Read live from Carbon Mapper's own data platform: the newest 10,000 plumes it publishes, each with the emission rate measured at that moment, and from zoom 10 each plume's own picture laid where Carbon Mapper say it belongs. The row says how many of the published total it is holding." },
     { id: "site_carbon_mapper_waste", name: "Methane plumes from waste sites \u2014 the set on our own page (Carbon Mapper)", unit: "plume sources", colour: "#6D6A5E", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_carbon_mapper_waste.places.geojson",
@@ -13329,6 +13442,7 @@ const POSITION_BY_ROW = {
   wastewater_n_septic: "A modelled coastal outlet: where the model has this watershed's wastewater reach the sea, not a pipe or plant.",
   wastewater_n_open: "A modelled coastal outlet: where the model has this watershed's wastewater reach the sea, not a pipe or plant.",
   carbon_plumes: "Where the plume was detected from the air or from orbit, at the moment of the pass.",
+  carbon_plumes_co2: "Where the plume was detected from the air or from orbit, at the moment of the pass.",
   epa_widget: "EPA's recorded coordinates for the facility.",
   ll2_pads: "The launch pad's own coordinates, as Launch Library 2 gives them.",
 };
@@ -13586,6 +13700,7 @@ const LAYER_KIND = {
   site_rodeo: ["animal", "downstream"],
   site_carbon_mapper_waste: ["insentient", "downstream"],
   carbon_plumes: ["insentient", "downstream"],
+  carbon_plumes_co2: ["insentient", "downstream"],
   site_forest500_soy: ["plant", "upstream"],
   site_china_grain: ["plant", "upstream"],
   site_soybean_companies: ["plant", "upstream"],
@@ -14254,6 +14369,7 @@ const LAYER_SITE = {
   carbon_bombs: "https://github.com/dataforgoodfr/CarbonBombs",
   carbon_majors: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/destruction_embed_3_leaflet-map.html",
   carbon_plumes: "https://carbonmapper.org",
+  carbon_plumes_co2: "https://carbonmapper.org",
   cerulean_slicks: "https://cerulean.skytruth.org",
   cerulean_sources: "https://cerulean.skytruth.org",
   site_banking_dynasties_charts: "https://www.welcometoyourgalaxy.com/suppression.html",
@@ -14541,37 +14657,51 @@ const PANEL_ORDER = [
 
   { h: 1, t: "Destruction" },
   { h: 2, t: "Of the planet" },
-  { h: 3, t: "General" }, "ejatlas", "wreckers_umap", "largest_companies", "theyrule",
-  // Climate is arranged by greenhouse gas, in the Destruction page's own order
-  // (22 September): a row goes under the gas its sites mainly emit, and a row
-  // whose sites emit more than one in earnest is under Infrastructure, or
-  // copied under each gas. The Climate TRACE groups carry each site's CO2e
-  // total, not a figure per gas, so they are placed by their sectors' main
-  // gas; a true per-gas split waits on the per-gas columns the source
-  // publishes (they now reach the pieces, not yet the tiles).
+  { h: 3, t: "General" }, "ejatlas", "wreckers_umap", "theyrule",
+  // Round 75 (27 September, at the owner's word): Climate in the Destruction
+  // page's order - General, then carbon dioxide, methane, nitrous oxide,
+  // F-gases and black carbon - each gas split into what is emitted, who is
+  // behind it and (where there is any) the infrastructure and the priority
+  // emitters. A Climate TRACE subsector is also named under the gas it mainly
+  // emits, as a copy of its row in the group under General; the per-gas rows
+  // (tonnes of that gas alone, scripts/ct_gases.py) are filed under their gas
+  // by CATALOGUE_SUBS. The heading "Infrastructure emitting more than one gas"
+  // and its Pennsylvania rows are gone.
   { h: 3, t: "Climate" },
-  { h: 4, bundle: "landghg", colour: "#5E6470" },
-  // The Climate TRACE groups stay by sector until each site is split by the
-  // gas it emits (22 September): filed under one gas each, the gases a
-  // sector also emits were drowned out.
-  { h: 4, t: "Emitting sites by sector, until split by gas" }, "group:climate_trace_sectors", "group:climate_trace_agriculture", "group:climate_trace_forestry", "group:ct_history",
-  // Carbon bombs, the Carbon Majors and Banking on Climate Chaos under Carbon
-  // dioxide, and nitrogen dioxide moved to Pollution (22 September, round 2).
-  { h: 4, t: "Carbon dioxide" }, "owid_co2", "gem_coal", "power_plants", "fractracker_refineries", "carbon_plumes", "carbon_bombs", "carbon_majors", "bocc", "wasteatlas_wte",
-  { h: 4, t: "Methane" }, "carbon_plumes", "hydrowaste", "wasteatlas_dumpsites", "wasteatlas_landfills",
-  { h: 4, t: "Nitrous oxide" }, "fertilizer_facilities",
-  { h: 5, t: "Soy" }, "trase_silos_brazil", "food_soy",
-  { h: 5, t: "Corn" }, "food_maize",
-  { h: 5, t: "Grain" }, "site_china_grain",
+  { h: 4, t: "General" },
+  "group:climate_trace_sectors", "group:climate_trace_agriculture", "group:climate_trace_forestry", "group:ct_history",
+  { h: 5, bundle: "landghg", colour: "#5E6470" },
+  { h: 4, t: "Carbon dioxide" },
+  { h: 5, t: "Emissions" }, "owid_co2", "climate_trace_power", "climate_trace_manufacturing", "climate_trace_transportation",
+  "climate_trace_buildings", "climate_trace_fossil_fuel_operations", "climate_trace_flu_forest_land_clearing",
+  "climate_trace_flu_forest_land_degradation", "climate_trace_flu_forest_land_fires", "climate_trace_flu_net_forest_land",
+  "climate_trace_flu_shrubgrass_fires", "climate_trace_flu_wetland_fires", "climate_trace_flu_net_soil_organic_carbon",
+  "climate_trace_flu_removals", "carbon_plumes_co2", "gem_coal", "power_plants", "fractracker_refineries",
+  { h: 5, t: "Culprits" }, "carbon_majors", "bocc",
+  { h: 5, t: "Priority emitters" }, "carbon_bombs",
+  // Methane in the page's order: livestock, fossil fuel production and
+  // transmission, wastewater, rice, landfills.
+  { h: 4, t: "Methane" },
+  { h: 5, t: "Emissions" }, "climate_trace_ag_enteric_fermentation_cattle_operation", "climate_trace_ag_enteric_fermentation_cattle_pasture",
+  "climate_trace_ag_manure_management_cattle_operation", "climate_trace_fossil_fuel_operations", "carbon_plumes",
+  "hydrowaste", "climate_trace_ag_rice_cultivation", "climate_trace_waste", "wasteatlas_dumpsites", "wasteatlas_landfills",
+  "climate_trace_flu_wetland_fires", "climate_trace_flu_water_reservoirs",
+  { h: 5, t: "Culprits" }, "carbon_majors", "bocc",
+  { h: 5, t: "Infrastructure" }, "skytruth_fracfocus",
+  { h: 5, t: "Priority emitters" }, "carbon_bombs",
+  // Nitrous oxide in the page's order: grazing animals and manure, synthetic
+  // fertiliser, then crops (corn and soy) with their areas.
+  { h: 4, t: "Nitrous oxide" },
+  { h: 5, t: "Emissions" }, "climate_trace_ag_manure_left_on_pasture_cattle", "climate_trace_ag_manure_applied_to_soils",
+  "climate_trace_ag_manure_management_cattle_operation", "climate_trace_ag_synthetic_fertilizer_application",
+  "climate_trace_ag_crop_residues", "climate_trace_ag_cropland_fires", "food_maize", "food_soy",
+  { h: 5, t: "Culprits" }, "site_soybean_companies", "site_forest500_soy", "soy_organizations",
+  { h: 5, t: "Infrastructure" }, "trase_silos_brazil", "site_china_grain",
+  { h: 5, t: "Priority emitters" }, "fertilizer_facilities",
   { h: 4, t: "F-gases" }, "edgar_fgases", "powerbi_report",
-  { h: 4, t: "Black carbon" }, "fractracker_refineries", "ct_air_bc",
-  // Oil and gas concessions (from the catalogues) are filed here as well as
-  // under Oil and gas drilling: the wells emit carbon dioxide, methane and,
-  // where gas is flared, black carbon.
-  // The Oil and gas drilling heading is gone (round 23, item 2): the fracking
-  // disclosures and the Pennsylvania heading with its rows are here.
-  { h: 4, t: "Infrastructure emitting more than one gas" }, "skytruth_fracfocus",
-  { h: 5, t: "Pennsylvania" }, "skytruth_pa_permits", "skytruth_pa_spud", "skytruth_pa_violations", "skytruth_well_permits",
+  // Refineries are not under Black carbon (round 75): they put out well under
+  // one per cent of it; Climate TRACE's black carbon row stays.
+  { h: 4, t: "Black carbon" }, "ct_air_bc",
   { h: 3, t: "Overpopulation" }, "ct_pop",
   // Pollution by pollutant, as Climate is by gas (22 September, round 2).
   // Climate TRACE's air-pollution row covers every pollutant it reports and
@@ -14597,6 +14727,8 @@ const PANEL_ORDER = [
   { h: 5, t: "Waste and dumping" }, "gpw_map", "seas_of_plastic", "coastal_cleanup",
   { h: 4, t: "Oil spills and slicks" },
   { h: 5, t: "Terrestrial slicks" }, "skytruth_monitor", "skytruth_nrc", "skytruth_posts",
+  // Round 75: the wells and the oil and gas concessions, where spills start.
+  { h: 5, t: "Where oil and gas is drilled" }, "skytruth_fracfocus",
   { h: 5, t: "Marine slicks" }, "cerulean_slicks", "cerulean_sources", "slick_archive", "skytruth_voc", "skytruth_marine_incidents", "skytruth_posts",
   { h: 3, t: "Fire" },
   { h: 3, t: "Deforestation" }, "forest_management",
@@ -14605,6 +14737,8 @@ const PANEL_ORDER = [
   // are one row with sublayers here (item 25); the Moratoriums and Spatial
   // plans headings are gone into it.
   { h: 4, t: "Forest cover in 2020" },
+  // Round 75: the mangroves' biomass, at the owner's word.
+  { h: 4, t: "Forest carbon and biomass" },
   { h: 4, t: "Trees in mosaic landscapes" },
   { h: 4, t: "Logging and timber concessions" },
   { h: 4, t: "Timber and rubber plantations" },
@@ -14704,7 +14838,7 @@ const PANEL_ORDER = [
   { h: 5, t: "Trade" }, "rte_trade", "site_trade_profits", "gta_acts",
   { h: 5, t: "Funding of international bodies" }, "site_earmarked_funding",
   { h: 4, t: "Economic inequality within it" },
-  { h: 5, t: "Wealth concentration" }, "site_wealth_atlas", "site_social_spheres",
+  { h: 5, t: "Wealth concentration" }, "site_wealth_atlas", "site_social_spheres", "largest_companies",
   { h: 5, t: "Public finance and tax" }, "owid_interest", "owid_corptax", "owid_aid",
   { h: 5, t: "School" }, "giga_countries",
   { h: 4, t: "Law enforcement" },
@@ -14757,6 +14891,8 @@ const PANEL_ORDER = [
   { h: 1, t: "Buildings" }, "building_types",
 ];
 const PANEL_REMOVED = new Set([
+  // Round 75 (27 September): SkyTruth's Pennsylvania-only rows, at the owner's word.
+  "skytruth_pa_permits", "skytruth_pa_spud", "skytruth_pa_violations", "skytruth_well_permits",
   "skytruth_tests",                // the Housekeeping heading and its row, taken out 24 September
   "gsn",                           // its layers are rows of their own (24 September); the menu row is out of sight
   "trase_cocoa_ivory",             // taken out 24 September with the other cocoa rows
@@ -15165,6 +15301,23 @@ function arrangePanel() {
       continue;
     }
     const nodes = panelNodes(box, item);
+    // A row inside a group already placed (a Climate TRACE subsector, round
+    // 75) is named under a second heading as a copy, the group keeping it.
+    if (!nodes.length && typeof frag.querySelector === "function") {
+      const inner = frag.querySelector(`[data-layer="${item}"]`);
+      const lead = inner && inner.closest && inner.closest("label");
+      const copy = lead ? copyRow(lead, item) : null;
+      // The copy says which group it comes from: "power" alone under Carbon
+      // dioxide would not say whose power sites, or that they are all gases.
+      const group = inner && inner.closest ? inner.closest(".group") : null;
+      const gnm = group && group.querySelector(".layer.parent .nm");
+      const gname = gnm ? String(([...gnm.childNodes].find((n) => n.nodeType === 3 && n.data.trim()) || {}).data || "").trim() : "";
+      const cnm = copy && copy.querySelector(".nm");
+      const words = cnm && [...cnm.childNodes].find((n) => n.nodeType === 3 && n.data.trim());
+      if (words && gname) words.data = `${words.data.trim().charAt(0).toUpperCase()}${words.data.trim().slice(1)} \u2014 ${gname.charAt(0).toLowerCase()}${gname.slice(1)}, all gases as CO\u2082e `;
+      if (copy) { into().appendChild(copy); placed.add(item); leads.set(item, lead); }
+      continue;
+    }
     nodes.forEach((n) => into().appendChild(n));
     if (nodes.length) { placed.add(item); leads.set(item, nodes[0]); }
   }

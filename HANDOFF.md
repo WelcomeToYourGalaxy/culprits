@@ -5,6 +5,40 @@ touches.
 
 ---
 
+## Round 75 (27 September)
+
+- Climate rebuilt in the Destruction page's order: General (the three Climate
+  TRACE groups, past years, and the WRI land greenhouse gas layer), Carbon
+  dioxide, Methane, Nitrous oxide, F-gases, Black carbon. Each gas has
+  Emissions / Culprits / (Infrastructure) / Priority emitters. Climate TRACE
+  subsectors are named under their main gas as copies of their group rows
+  (arrangePanel copies a row found inside an already placed group, titled
+  "<Subsector> — <group>, all gases as CO₂e"). Catalogue rows go to Emissions
+  (CATALOGUE_SUBS), oil and gas to Methane > Infrastructure and Pollution >
+  Oil spills and slicks > Where oil and gas is drilled; silos to N2O
+  Infrastructure. "Infrastructure emitting more than one gas" and Pennsylvania
+  (skytruth_pa_*, skytruth_well_permits → PANEL_REMOVED) are gone.
+- Moves: largest_companies → Wealth concentration; wasteatlas_wte only under
+  Solid waste; refineries out of Black carbon; mangrove biomass (JPL) →
+  Deforestation > Forest carbon and biomass; INCRA quilombola taken out.
+- Carbon Mapper split: carbon_plumes (CH4, gasOnly) and carbon_plumes_co2.
+  Columns (COLUMN_EXTRA) for both and for ct_air_bc, heights in t CO2e/yr
+  (plume kg/h × 8.76, CH4 × 29.8, BC × 900); Climate TRACE per-gas rows get
+  columns too (CT_GAS_CFGS, CT_GWP).
+- Climate TRACE per gas: map reads climate_trace_gases.json, _ch4.json and
+  _n2o.json; the tiles repo builds CH4 and N2O in jobs of their own
+  (round75_tiles: ct_gases_ch4.py, ct_gases_n2o.py; ct_gases.py is CO2 only).
+- Fixes: relabelRow no longer wipes the LIVE/NOT LIVE mark (EJAtlas);
+  applyVisibility also hides -edge and -areapt (FracTracker basins stayed);
+  traseBreaks gives zero its own step (RTRS one colour); GFW forest carbon
+  flux datasets drawn from GFW's dynamic coloured tiles (GFW_DYNAMIC).
+- Carbon Majors row renamed to say who they are.
+- Coverage check (round75_tiles: scripts/coverage_check.py → coverage/report.json,
+  run the refresh by hand): WRI plants, Waste Atlas WtE, FracTracker refineries
+  and Carbon Mapper plumes against Climate TRACE sites. No layer is deleted
+  until it reports.
+
+
 ## Round 74 (27 September)
 
 - The Guerillamap row is out (gmInit returns before building it; GM_ROW = false

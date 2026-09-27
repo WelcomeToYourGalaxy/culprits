@@ -1859,7 +1859,7 @@ console.log("\nTrase, and coral at world zoom");
     check("Climate TRACE by gas: a row per gas and subsector, drawing its own archive from the tiles repo, filed by the gas in its title",
           rows.length === 2 && rows[0].title === "Rice cultivation \u2014 methane, tonnes a year, every site and period (Climate TRACE)" &&
           rows[0].cfg.archiveUrl === "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/climate_trace_ch4_rice_cultivation.pmtiles" &&
-          places(rows[0].fileBy).join() === "Destruction > Of the planet > Climate > Methane" && places(rows[1].fileBy).join() === "Destruction > Of the planet > Climate > Carbon dioxide" &&
+          places(rows[0].fileBy).join() === "Destruction > Of the planet > Climate > Methane > Emissions" && places(rows[1].fileBy).join() === "Destruction > Of the planet > Climate > Carbon dioxide > Emissions" &&
           /id: "ct_gases"[^\n]*route: "ctgases"/.test(src) && /cfg\.route === "ctgases" \? addCtGasesLayer\(cfg\)/.test(src));
   }
   check("the catalogues' lists are read once the box is arranged, since their own rows are hidden and never ticked",
@@ -1888,8 +1888,9 @@ console.log("\nthe layers box, in the chosen order");
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
   const order = new Function(body + "; return { PANEL_ORDER, PANEL_REMOVED };")();
   const ids = order.PANEL_ORDER.filter((x) => typeof x === "string" && !x.startsWith("group:") && x !== "gm");
-  check("every id in the order is a real layer", ids.every((id) => new RegExp(`id: ?"${id}"`).test(src)),
-        ids.filter((id) => !new RegExp(`id: ?"${id}"`).test(src)).join(", "));
+  // A row inside a group (a Climate TRACE subsector) counts: round 75 names them under their gas.
+  const real = (id) => new RegExp(`id: ?"${id}"|\\["${id}", "`).test(src);
+  check("every id in the order is a real layer", ids.every(real), ids.filter((id) => !real(id)).join(", "));
   // Superseded: a layer that belongs to two subjects is named under both, and the
   // box makes the second naming a copy of the row (copyRow), never a second layer.
   const twice = ids.filter((id, i) => ids.indexOf(id) !== i);
@@ -1905,7 +1906,7 @@ console.log("\nthe layers box, in the chosen order");
     // Tiles since 22 September: a feed's copy ran to 86 MB in one file, and a
     // browser had to read all of it to draw a point.
     check("SkyTruth Monitor's alert feeds are rows drawn from tiles, each with its own pieces to read a record from",
-          feeds.every((id) => new RegExp(`id: "${id}"[^\\n]*route: "pmtiles"[^\\n]*archiveUrl: "[^"]*/tiles/${id}\\.pmtiles"`).test(src) && ids.includes(id)) &&
+          feeds.every((id) => new RegExp(`id: "${id}"[^\\n]*route: "pmtiles"[^\\n]*archiveUrl: "[^"]*/tiles/${id}\\.pmtiles"`).test(src) && (ids.includes(id) || order.PANEL_REMOVED.has(id))) &&
           (src.match(/boxes: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/skytruth\/(feed_\d+|vessels_of_concern)"/g) || []).length === 11 &&
           !/skytruth\/feed_\d+\.geojson/.test(src));
     const pieceOf = new Function(src.match(/function pieceOf[\s\S]*?\n}\n/)[0] + "; return pieceOf;")();
@@ -1916,12 +1917,13 @@ console.log("\nthe layers box, in the chosen order");
     // Round 23 (item 2): the Oil and gas drilling heading is gone; the fracking
     // disclosures and the Pennsylvania heading are under Infrastructure
     // emitting more than one gas.
-    check("\u2026filed by what they show: spill reports under slicks and pollution, drilling under the climate heading for sites emitting several gases",
-          at("Oil and gas drilling") === -1 && order.PANEL_ORDER.indexOf("skytruth_fracfocus") > at("Infrastructure emitting more than one gas") &&
-          order.PANEL_ORDER.indexOf("skytruth_fracfocus") < at("Pennsylvania") && at("Pennsylvania") < at("Overpopulation") &&
-          // Since 22 September the spill reports and the violations are each under one heading only.
-          ids.filter((x) => x === "skytruth_nrc").length === 1 && ids.filter((x) => x === "skytruth_pa_violations").length === 1 &&
-          at("Pennsylvania") > at("Infrastructure emitting more than one gas"));
+    // Round 75: the wells under Methane's infrastructure and where spills start;
+    // the Pennsylvania rows and the several-gases heading are gone.
+    check("\u2026filed by what they show: spill reports under slicks and pollution, the wells under Methane's infrastructure and Oil spills",
+          at("Oil and gas drilling") === -1 && at("Infrastructure emitting more than one gas") === -1 && at("Pennsylvania") === -1 &&
+          order.PANEL_ORDER.indexOf("skytruth_fracfocus") > at("Methane") && order.PANEL_ORDER.lastIndexOf("skytruth_fracfocus") > at("Where oil and gas is drilled") &&
+          ids.filter((x) => x === "skytruth_nrc").length === 1 && !ids.includes("skytruth_pa_violations") &&
+          ["skytruth_pa_permits", "skytruth_pa_spud", "skytruth_pa_violations", "skytruth_well_permits"].every((i) => order.PANEL_REMOVED.has(i)));
     check("\u2026the developers' test feed is kept as a layer but out of the box (the owner took Housekeeping out, 24 September)",
           /id: "skytruth_tests"[^\n]*route: "pmtiles"/.test(src) && /skytruth\/feed_10101"/.test(src) && !ids.includes("skytruth_tests"));
     check("\u2026an alert with no position is counted on its row, not passed over",
@@ -2962,7 +2964,7 @@ console.log("\nNusantara's layers spread through the box");
         places("Mining concessions").join() === "Destruction > Of the planet > Mining" &&
         places("Plantation land-use rights (HGU)").join() === "Destruction > Of the planet > Meat and agriculture > Agriculture > Plantations" &&
         places("Cumulative deforestation for planted pulpwood inside concession trase").includes("Destruction > Of the planet > Deforestation > Wood pulp, Indonesia") &&
-        places("Oil and gas concessions").join() === "Destruction > Of the planet > Climate > Infrastructure emitting more than one gas" &&
+        places("Oil and gas concessions").join() === "Destruction > Of the planet > Climate > Methane > Infrastructure,Destruction > Of the planet > Pollution > Oil spills and slicks > Where oil and gas is drilled" &&
         !/"Destruction > Of the planet > Land held under permit"/.test(src));
   check("\u2026one that names no material or activity goes under Other concessions; rubber under Deforestation",
         places("Rubber plantations 2020, Kalimantan").join() === "Destruction > Of the planet > Deforestation > Timber and rubber plantations" &&
@@ -2974,20 +2976,23 @@ console.log("\nNusantara's layers spread through the box");
   // 22 September: the box rearranged to the owner's list.
   // 22 September, later the same day: Climate arranged by gas, in the Destruction page's order.
   check("Climate is arranged by gas, in the page's order, and an emissions row goes under the gas it names, else carbon dioxide",
-        ["Carbon dioxide", "Methane", "Nitrous oxide", "F-gases", "Black carbon", "Infrastructure emitting more than one gas"].every((g, i, a) => atH(g) > atH("Climate") && (!i || atH(g) > atH(a[i - 1]))) &&
-        atH("By sector") === -1 && atH("By greenhouse gas") === -1 &&
-        places("Total GhG emissions trase").join() === "Destruction > Of the planet > Climate > Carbon dioxide" &&
-        places("Methane emissions from peat trase").includes("Destruction > Of the planet > Climate > Methane") &&
-        places("Carbon flux").join() === "Destruction > Of the planet > Climate > Carbon dioxide");
-  check("\u2026Carbon Mapper's plumes are under Methane and copied under Carbon dioxide; grain, soy and corn under Nitrous oxide; the refineries under Carbon dioxide",
-        orderH.filter((x) => x === "carbon_plumes").length === 2 && orderH.filter((x) => x === "fractracker_refineries").length === 2 &&
+        ["General", "Carbon dioxide", "Methane", "Nitrous oxide", "F-gases", "Black carbon"].every((g, i, a) => orderH.findIndex((x, k) => k > atH("Climate") && x && x.t === g) > atH("Climate") && (!i || atH(g) > atH(a[i - 1]))) &&
+        atH("By sector") === -1 && atH("By greenhouse gas") === -1 && atH("Infrastructure emitting more than one gas") === -1 &&
+        places("Total GhG emissions trase").join() === "Destruction > Of the planet > Climate > Carbon dioxide > Emissions" &&
+        places("Methane emissions from peat trase").includes("Destruction > Of the planet > Climate > Methane > Emissions") &&
+        places("Carbon flux").join() === "Destruction > Of the planet > Climate > Carbon dioxide > Emissions");
+  // Round 75: Carbon Mapper is a row per gas; the refineries are no longer under Black carbon.
+  check("\u2026Carbon Mapper's methane under Methane and its carbon dioxide under Carbon dioxide; grain, soy and corn under Nitrous oxide; the refineries under Carbon dioxide",
+        orderH.filter((x) => x === "carbon_plumes").length === 1 && orderH.indexOf("carbon_plumes") > atH("Methane") &&
+        orderH.indexOf("carbon_plumes_co2") > atH("Carbon dioxide") && orderH.indexOf("carbon_plumes_co2") < atH("Methane") &&
+        orderH.filter((x) => x === "fractracker_refineries").length === 1 &&
         orderH.indexOf("site_china_grain") > atH("Nitrous oxide") && orderH.indexOf("site_china_grain") < atH("F-gases") &&
         orderH.indexOf("fractracker_refineries") > atH("Carbon dioxide") && orderH.indexOf("fractracker_refineries") < atH("Methane"));
   check("\u2026and every Nusantara alert row is under Deforestation",
         places("Trees cut, Indonesia and Malaysia \u2014 every alert system at once, as Nusantara reads them").join() === "Destruction > Of the planet > Deforestation > Tree cover loss and alerts > Alerts" &&
         places("Trees cut, seen through cloud by radar (RADD), as Nusantara reads it").join() === "Destruction > Of the planet > Deforestation > Tree cover loss and alerts > Alerts");
-  check("\u2026Trase's soy goes under Climate > Nitrous oxide > Soy, not the general heading; its cocoa area is out (24 September)",
-        places("Production of soy trase").join() === "Destruction > Of the planet > Climate > Nitrous oxide > Soy" &&
+  check("\u2026Trase's soy goes under Climate > Nitrous oxide > Emissions (round 75), not the general heading; its cocoa area is out (24 September)",
+        places("Production of soy trase").join() === "Destruction > Of the planet > Climate > Nitrous oxide > Emissions" &&
         places("Cocoa area trase", "Cocoa area trase").join() === "(taken out)");
   check("\u2026the moratorium (PIPPIB) is in the spatial plans row under Deforestation; Badung's plans are out (24 September)",
         places("Moratorium areas (PIPPIB)").join() === "Destruction > Of the planet > Deforestation > Spatial plans, forest estate and the clearing moratorium, Indonesia" &&
@@ -3151,9 +3156,9 @@ console.log("\nround of 22 September (2): the box refiled, rows taken out");
   check("the drivers of tree cover loss are deforestation, not fire",
         f("Tree cover loss by dominant driver") === P + " > Deforestation > Tree cover loss and alerts > What drove the loss" &&
         f("Drivers of tree cover loss (WRI/Google)") === P + " > Deforestation > Tree cover loss and alerts > What drove the loss");
-  check("soy planted area is under Nitrous oxide > Soy only (24 September)",
-        f("Soy planted area \u2014 South America") === `${P} > Climate > Nitrous oxide > Soy` &&
-        at("Soy", at("Nitrous oxide")) > at("Nitrous oxide") && at("Soy", at("Nitrous oxide")) < at("F-gases"));
+  check("soy planted area is under Nitrous oxide > Emissions only (round 75: the crop areas with the emissions)",
+        f("Soy planted area \u2014 South America") === `${P} > Climate > Nitrous oxide > Emissions` &&
+        at("Emissions", at("Nitrous oxide")) > at("Nitrous oxide") && at("Emissions", at("Nitrous oxide")) < at("F-gases"));
   check("protected areas, intact forest landscapes worldwide and biodiversity hotspots are biodiversity loss",
         f("Protected areas (WDPA)") === P + " > Biodiversity loss > Protected and conserved areas" &&
         f("Intact forest landscapes \u2014 Global") === "(taken out)" &&
@@ -3161,13 +3166,13 @@ console.log("\nround of 22 September (2): the box refiled, rows taken out");
   check("dams go under Biodiversity loss > Fish",
         f("Major dams") === P + " > Biodiversity loss > Fish" && at("Fish") > at("Biodiversity loss") && at("Fish") < at("Forest and land cover"));
   check("forest greenhouse gas emissions and net flux go under Climate only (24 September)",
-        f("Forest greenhouse gas emissions") === P + " > Climate > Carbon dioxide" &&
-        f("Forest greenhouse gas net flux \u2014 Global gfw_forest_carbon_net_flux") === `${P} > Climate > Carbon dioxide`);
+        f("Forest greenhouse gas emissions") === P + " > Climate > Carbon dioxide > Emissions" &&
+        f("Forest greenhouse gas net flux \u2014 Global gfw_forest_carbon_net_flux") === `${P} > Climate > Carbon dioxide > Emissions`);
   check("DIST-ALERT is under Construction, Biodiversity loss, Fire, Mining and Deforestation",
         f("Global all ecosystem disturbance alerts (DIST-ALERT)") === `${P} > Construction | ${P} > Biodiversity loss > Disturbance | ${P} > Fire | ${P} > Mining | ${P} > Deforestation > Tree cover loss and alerts > Alerts`);
   // Round 23 (item 2): the drilling heading is gone.
-  check("oil and gas concessions go under Climate's infrastructure emitting more than one gas, not Mining",
-        f("Oil and gas concessions") === `${P} > Climate > Infrastructure emitting more than one gas`);
+  check("oil and gas concessions go under Methane's infrastructure and where oil and gas is drilled, not Mining (round 75)",
+        f("Oil and gas concessions") === `${P} > Climate > Methane > Infrastructure | ${P} > Pollution > Oil spills and slicks > Where oil and gas is drilled`);
   check("the named rows are taken out",
         ["Annual surface temperature anomalies", "Burned areas in WDPA protected areas", "Burned area, two years at a time \u2014 Equatorial Asia",
          "Burned area \u2014 Indonesia"].every((t) => f(t) === "(taken out)"));
@@ -3316,7 +3321,7 @@ console.log("\nround of 23 September: one row per air pollutant");
   check("\u2026each under its own heading in Pollution, between General and Nitrogen dioxide",
         ["Fine particles (PM2.5)", "Black carbon", "Organic carbon", "Sulphur dioxide", "Volatile organic compounds", "Carbon monoxide", "Ammonia", "Nitrogen oxides"]
           .every((t, i) => { const h = at(t, pol); return h > at("General and all pollutants", pol) && h < at("Nitrogen dioxide", pol) && o[h + 1] === `ct_air_${gases[i]}`; }));
-  check("\u2026black carbon copied under Climate's Black carbon too", o.indexOf("ct_air_bc") > at("Black carbon") && o.indexOf("ct_air_bc") < at("Infrastructure emitting more than one gas"));
+  check("\u2026black carbon copied under Climate's Black carbon too", o.indexOf("ct_air_bc") > at("Black carbon") && o.indexOf("ct_air_bc") < at("Overpopulation"));
   check("\u2026every source kept, sized and glowing by that pollutant's yearly amount, from the weekly copy",
         /glowMaxOf\.set\(src, max\)/.test(src) && /\["get", "value"\], 0\]\], cfg\._max\]/.test(src) && /ct_air\/gases\.json/.test(src));
   check("\u2026and the rows say NOT LIVE, the click still reads live", /ct_air_\$\{g\}`,\s*"The yearly amounts come from a weekly copy/.test(src));
@@ -3423,9 +3428,10 @@ console.log("\nround of 23 September (8): Waste Atlas rows; soy and maize from H
         kinds.every((k) => new RegExp(`id: "wasteatlas_${k}"[^\\n]*route: "geojsonlive"`).test(src)) && /only: \["category", "Dumpsites"\]/.test(src) &&
         /got\.features = got\.features\.filter\(\(ft\) => String\(\(ft\.properties \|\| \{\}\)\[f\.only\[0\]\]\) === f\.only\[1\]\)/.test(src));
   const at = (t) => o.findIndex((x) => x && x.t === t);
-  check("\u2026all under Pollution > Solid waste, dumpsites and landfills copied under Methane, incinerators under Carbon dioxide",
+  // Round 75: the incinerators only under Solid waste, at the owner's word.
+  check("\u2026all under Pollution > Solid waste, dumpsites and landfills copied under Methane, the incinerators under Solid waste only",
         kinds.every((k) => o.lastIndexOf(`wasteatlas_${k}`) > at("Solid waste")) &&
-        /\{ h: 4, t: "Methane" \}, [^\n]*"wasteatlas_dumpsites", "wasteatlas_landfills"/.test(src) && /\{ h: 4, t: "Carbon dioxide" \}, [^\n]*"wasteatlas_wte"/.test(src));
+        /"climate_trace_waste", "wasteatlas_dumpsites", "wasteatlas_landfills"/.test(src) && o.filter((x) => x === "wasteatlas_wte").length === 1);
   check("soy and maize each have a row with the four pressures as chips, under Nitrous oxide and under Agriculture",
         ["soyb", "maiz"].every((c) => ["ghg", "water", "nutrient", "disturbance"].every((p) => src.includes(`food_${c}_${p}.pmtiles`))) &&
         o.includes("food_soy") && o.includes("food_maize"));
@@ -3510,7 +3516,7 @@ console.log("\nround of 23 September (18): every field in the boxes that picked 
   check("Global Trade Alert's box lists every type of act, not the first six", !/Object\.entries\(c\.types \|\| \{\}\)\.slice\(0, 6\)/.test(src));
   check("Giga's box shows every field of the country's record", /fieldRows\(c, \["flag", "name", "entity_counts"/.test(src));
   check("a reef patch's box shows every field the Atlas gives it", /fieldRows\(p, \["class_name", "area_sqkm"\]\)/.test(src));
-  check("a Climate TRACE column's box shows every field, not five", /fieldRows\(p, \["_count", "layerName", "name", "value"\]\)/.test(src) && !/\["x_asset_definition", "x_period", "x_capacity"/.test(src));
+  check("a Climate TRACE column's box shows every field, not five", /fieldRows\(p, \["_count", "layerName", "name", "value", "colSay", "picture", "bounds"\]\)/.test(src) && !/\["x_asset_definition", "x_period", "x_capacity"/.test(src));
   check("a click on EPA's picture lists every facility it touches, not the first eight", /const hits = j\.results \|\| \[\];/.test(src));
   check("a shape's own words and list are shown whole, in a box that scrolls", !/shapeText\(p\.from_the_map\)\.slice\(0, 1200\)/.test(src) && !/list\.slice\(0, 40\)/.test(src));
 }
@@ -3548,7 +3554,7 @@ console.log("\nround of 23 September (21): INCRA's quilombola communities kept")
   const f = (t) => places(t, t).join(" | ");
   check("INCRA's rural settlements are out, its quilombola communities are part of the LandMark layer (round 72)",
         f("INCRA Brazil Rural Settlements incra_bra_rural_settlements") === "(taken out)" &&
-        f("INCRA Brazil Quilombola Communities incra_bra_quilombola_communities") === "On-planet invasion > Invasion of the living > Invasion of humans > Indigenous Peoples' and local communities' lands and territories, worldwide (LandMark, with Brazil's FUNAI and INCRA)");
+        f("INCRA Brazil Quilombola Communities incra_bra_quilombola_communities") === "(taken out)");
 }
 console.log("\nround of 23 September (22): Liberia's development agreements and the resource rights placed");
 {
@@ -3570,13 +3576,12 @@ console.log("\nround of 23 September (23): the owner's thirty notes on the layer
   const order = o.PANEL_ORDER, at = (t, from = 0) => order.findIndex((x, i) => i >= from && x && x.t === t);
   const bat = (k) => order.findIndex((x) => x && x.bundle === k);
   check("1: the forest net flux is under Deforestation and Carbon dioxide, and \"greenhouse gas\" is not oil and gas",
-        f("Forest greenhouse gas net flux — Global", "gfw_forest_carbon_net_flux") === `${P} > Climate > Carbon dioxide` &&
+        f("Forest greenhouse gas net flux — Global", "gfw_forest_carbon_net_flux") === `${P} > Climate > Carbon dioxide > Emissions` &&
         !/Oil and gas drilling/.test(f("Some greenhouse gas layer")));
-  check("2: no Oil and gas drilling heading; the fracking row and Pennsylvania under Infrastructure emitting more than one gas",
-        at("Oil and gas drilling") === -1 && order.indexOf("skytruth_fracfocus") > at("Infrastructure emitting more than one gas") &&
-        at("Pennsylvania") > order.indexOf("skytruth_fracfocus") && order[at("Pennsylvania")].h === 5 &&
-        ["skytruth_pa_permits", "skytruth_pa_spud", "skytruth_pa_violations", "skytruth_well_permits"].every((i) => order.indexOf(i) > at("Pennsylvania") && order.indexOf(i) < at("Overpopulation")) &&
-        f("Oil and gas concessions — Argentina", "gfw_oil_gas") === `${P} > Climate > Infrastructure emitting more than one gas`);
+  check("2: no Oil and gas drilling heading; the fracking row under Methane's infrastructure; Pennsylvania gone (round 75)",
+        at("Oil and gas drilling") === -1 && at("Pennsylvania") === -1 && order.indexOf("skytruth_fracfocus") > at("Methane") &&
+        ["skytruth_pa_permits", "skytruth_pa_spud", "skytruth_pa_violations", "skytruth_well_permits"].every((i) => order.indexOf(i) === -1) &&
+        f("Oil and gas concessions — Argentina", "gfw_oil_gas") === `${P} > Climate > Methane > Infrastructure | ${P} > Pollution > Oil spills and slicks > Where oil and gas is drilled`);
   check("3: Trase's shrimp production is out", f("Production of shrimp (t) — Ecuador, Indonesia (Trase)", "SHRIMP_TN") === "(taken out)");
   check("4, 6, 19: the Clark Labs maps of 1999, 2014, 2018 and the 1999 to 2018 change are one row under Fishing only; the other changes are out",
         ["1999", "2014", "2018", "change_1999_2018"].every((y) => f("Aquaculture ponds", `clark_labs_tropical_pond_aquaculture_${y}`) === `${P} > Oceans > Fishing > ${B.ponds}`) &&
@@ -3822,7 +3827,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         only("Pasture deforestation (ha) \u2014 Brazil (Trase) X", P + " > Deforestation > Tree cover loss and alerts > Clearing for cattle"));
   check("the emissions from that clearing go under Climate only",
         ["Gross emissions from cattle deforestation (t CO\u2082-eq.) \u2014 Brazil (Trase) X", "Net emissions from pasture deforestation (t) \u2014 Brazil (Trase) X",
-         "Gross emissions from cattle deforestation per ton (t) \u2014 Brazil, Paraguay (Trase) X"].every((t) => only(t, P + " > Climate > Carbon dioxide")));
+         "Gross emissions from cattle deforestation per ton (t) \u2014 Brazil, Paraguay (Trase) X"].every((t) => only(t, P + " > Climate > Carbon dioxide > Emissions")));
   check("Trase's pasture area and every Global Pasture Watch layer are taken out",
         [ "Pasture area (ha) \u2014 Brazil, Paraguay (Trase) PASTURE_AREA", "Grasslands 2023 gpw_grasslands_2023",
           "Cultivated and natural grasslands wri_globalpasturewatch_grasslands_2010", "Grasslands (Global Pasture Watch) x"].every((t) => at(t)[0] === lib.CATALOGUE_TAKEN_OUT));
@@ -3848,11 +3853,11 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         at("Gross emissions from cocoa deforestation (t) \u2014 Ghana (Trase) X")[0] !== OUT);
   check("Badung's detailed spatial plans are taken out", at("Detailed spatial plan \u2014 Bali badung_rdtr")[0] === OUT);
   check("soy, corn and grain rows are under Climate only; soy clearing is not",
-        same("Soy yield (t/ha) \u2014 Brazil, Paraguay (Trase) X", [N2O + " > Soy"]) && same("Soybean yield mapspam_yield_soyb", [N2O + " > Soy"]) &&
-        same("Soybean planted area \u2014 South America x", [N2O + " > Soy"]) &&
+        same("Soy yield (t/ha) \u2014 Brazil, Paraguay (Trase) X", [N2O + " > Emissions"]) && same("Soybean yield mapspam_yield_soyb", [N2O + " > Emissions"]) &&
+        same("Soybean planted area \u2014 South America x", [N2O + " > Emissions"]) &&
         !at("Soy deforestation (ha) \u2014 Brazil (Trase) X").some((x) => x.startsWith(N2O)) &&
         !at("Soy traded under zero deforestation commitments (%) \u2014 Paraguay (Trase) X").some((x) => x.startsWith(N2O)));
-  check("fertilizer is under Climate only", same("Fertilizer use x", [N2O]) && !/\{ h: 5, t: "Farm inputs" \}/.test(src));
+  check("fertilizer is under Climate only", same("Fertilizer use x", [N2O + " > Emissions"]) && !/\{ h: 5, t: "Farm inputs" \}/.test(src));
   check("Aqueduct's layers are under Water scarcity", same("Water risk for crops, baseline 2020 (WRI Aqueduct) aqueduct_crop_baseline_2020", [P + " > Water scarcity"]) &&
         /\{ h: 3, t: "Water scarcity" \}/.test(src));
   check("plantation rows for Indonesia and its neighbours are one row with sublayers; worldwide ones stay beside it",
@@ -3987,7 +3992,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("soy's companies and financiers are under Agriculture > Soy", /\{ h: 5, t: "Soy" \}, "site_forest500_soy", "site_soybean_companies", "soy_organizations"/.test(src) &&
         /\{ h: 4, t: "Companies and financiers" \}, "dff",/.test(src));
   check("forest emissions rows land under Climate, and the heading under Deforestation is gone",
-        f("Gross carbon emissions from forests", "gfw_forest_carbon_gross_emissions") === P + " > Climate > Carbon dioxide" && !/\{ h: 4, t: "Emissions from forests" \}/.test(src));
+        f("Gross carbon emissions from forests", "gfw_forest_carbon_gross_emissions") === P + " > Climate > Carbon dioxide > Emissions" && !/\{ h: 4, t: "Emissions from forests" \}/.test(src));
   check("Argentina's native forest land plan is out", f("Ordenamiento Territorial de Bosques Nativos \u2014 Argentina", "arg_native_forest_land_plan") === lib.CATALOGUE_TAKEN_OUT);
 }
 {
@@ -4053,7 +4058,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   check("the Fortune row is gone and the compiled row stands where it stood",
-        !/fortune500|interactives\.fortune\.com/.test(src) && /"wreckers_umap", "largest_companies", "theyrule"/.test(src));
+        !/fortune500|interactives\.fortune\.com/.test(src) && /"site_social_spheres", "largest_companies",/.test(src));
   check("the row reads the weekly copy and shows every field", /id: "largest_companies", name: "The 500 largest companies by revenue \(compiled from Wikidata\)"[^\n]*route: "geojsonlive"/.test(src) &&
         /culprits-tiles-more\/companies\/largest\.geojson/.test(src) && /largest_companies: "Compiled weekly from Wikidata/.test(src));
   check("the page asks for a fresh script", /app\.js\?v=(4[5-9]|[5-9]\d)/.test(html) && /wire\.js\?v=(4[5-9]|[5-9]\d)/.test(html));
@@ -4176,7 +4181,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
     "; return { cataloguePlaces };")();
   const at = (t) => lib.cataloguePlaces(t, t).join();
   const LT = "On-planet invasion > Invasion of the living > Invasion of humans";
-  const LM = LT + " > Indigenous Peoples' and local communities' lands and territories, worldwide (LandMark, with Brazil's FUNAI and INCRA)";
+  const LM = LT + " > Indigenous Peoples' and local communities' lands and territories, worldwide (LandMark, with Brazil's FUNAI)";
   check("LandMark's 2026 areas and points are the two parts of one row",
         at("Lands and territories with known boundaries, as areas, worldwide (LandMark) landmark_ip_lc_and_indicative_poly") === LM &&
         at("Lands and territories with no known boundary, as points, worldwide (LandMark) landmark_ip_lc_and_indicative_points") === LM &&
@@ -4192,7 +4197,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("the tenure indicators stay under Invasion of humans; FUNAI and INCRA are parts of LandMark's layer, the resource rights one layer (round 72)",
         at("LandMark Natural Resource Rights landmark_natural_resource_rights") === "On-planet invasion > Invasion of the living > Invasion of humans > Community rights to natural resources, worldwide and in Cameroon, Equatorial Guinea, Liberia and Namibia (LandMark and Global Forest Watch)" &&
         at("FUNAI Brazil Indigenous Territories funai_bra_indigenous_territories") === LM &&
-        at("INCRA Brazil Quilombola Communities incra_bra_quilombola_communities") === LM &&
+        at("INCRA Brazil Quilombola Communities incra_bra_quilombola_communities") === "(taken out)" &&
         at("Indicators of Tenure Security in National Law: Local Communities' Land and Resource Rights landmark_tenure_indicators_comm") === LT);
   check("Global Forest Watch's working files are taken out, \"To delete\" included",
         out("SDPT Whitelist (iso) gfw_planted_forests_whitelist") && out("Pixel Area gfw_pixel_area") &&
@@ -4217,8 +4222,8 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
     cut("const P = \"Destruction > Of the planet\";", "// The body of the heading a path names") + "; return { cataloguePlaces };")();
   const t = "Cropland emissions, CO2 equivalent (WRI land greenhouse gas monitoring system) wri_land_ghg_monitoring_system--cropland_emissions";
   check("the parts sit together as one row with sublayers under Climate",
-        lib.cataloguePlaces(t, t).join() === "Destruction > Of the planet > Climate > Greenhouse gases from cropland and livestock, CO2 equivalent (WRI land greenhouse gas monitoring system)" &&
-        /\{ h: 3, t: "Climate" \},\n  \{ h: 4, bundle: "landghg"/.test(src));
+        lib.cataloguePlaces(t, t).join() === "Destruction > Of the planet > Climate > General > Greenhouse gases from cropland and livestock, CO2 equivalent (WRI land greenhouse gas monitoring system)" &&
+        /\{ h: 4, t: "General" \},\n  "group:climate_trace_sectors"[^\n]*\n  \{ h: 5, bundle: "landghg"/.test(src));
   check("a part draws its own GeoTIFF, stretched by its own statistics",
         /const asset = d\.cog \? \{ how: "cog", uri: GFW_COG_TILES \+ encodeURIComponent\(d\.cog\)/.test(src) && /GFW_COG_MEASURED\.has\(ds\)/.test(src));
   check("soil nematodes are under Soil biodiversity, both files of the record drawn",
@@ -4671,6 +4676,51 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /id: "mil_conflicts"[^\n]*route: "pmtiles"[^\n]*\n\s*archiveUrl: "[^"]*\/tiles\/mil_conflicts\.pmtiles", boxes: "[^"]*\/military\/ucdp", boxesGz: true,/.test(src));
   check("a shaded layer may carry its own menu", /let by = SHAPE_COLOUR_BY\[cfg\.id\] \|\| \(Array\.isArray\(data\.menu\)/.test(src));
   check("the page asks for this round's script", /app\.js\?v=(7[4-9]|[89]\d)/.test(html));
+}
+{
+  console.log("\nround 75: Climate by gas, each split into emissions, culprits, infrastructure and priority emitters");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const { PANEL_ORDER: o, PANEL_REMOVED: gone } = new Function(body + "; return { PANEL_ORDER, PANEL_REMOVED };")();
+  const clim = o.findIndex((x) => x && x.t === "Climate");
+  const h = (t, from = clim) => o.findIndex((x, i) => i > from && x && x.t === t);
+  const co2 = h("Carbon dioxide"), ch4 = h("Methane"), n2o = h("Nitrous oxide"), fg = h("F-gases"), bc = h("Black carbon");
+  const within = (id, a, b) => o.some((x, i) => x === id && i > a && i < b);
+  check("General first, holding the Climate TRACE groups and the land greenhouse gas layer",
+        h("General") < co2 && o.findIndex((x) => x && x.bundle === "landghg") > h("General") && o.indexOf("group:climate_trace_sectors") < co2);
+  check("carbon dioxide: Climate TRACE and the other emissions, then the Carbon Majors and the banks, then the carbon bombs",
+        within("climate_trace_power", h("Emissions", co2), h("Culprits", co2)) && within("carbon_majors", h("Culprits", co2), h("Priority emitters", co2)) &&
+        within("bocc", h("Culprits", co2), h("Priority emitters", co2)) && within("carbon_bombs", h("Priority emitters", co2), ch4));
+  check("methane in the page's order: livestock, fossil fuels, wastewater, rice, landfills; the wells as infrastructure",
+        ["climate_trace_ag_enteric_fermentation_cattle_operation", "climate_trace_fossil_fuel_operations", "hydrowaste", "climate_trace_ag_rice_cultivation", "wasteatlas_landfills"]
+          .every((id, i, a) => within(id, ch4, n2o) && (!i || o.indexOf(id, ch4) > o.indexOf(a[i - 1], ch4))) &&
+        within("skytruth_fracfocus", h("Infrastructure", ch4), n2o));
+  check("nitrous oxide: manure and fertiliser with the crop areas; soy's companies; silos and grain stores as infrastructure; the largest fertiliser plants",
+        ["climate_trace_ag_manure_applied_to_soils", "climate_trace_ag_synthetic_fertilizer_application", "food_soy", "food_maize"].every((id) => within(id, h("Emissions", n2o), h("Culprits", n2o))) &&
+        within("trase_silos_brazil", h("Infrastructure", n2o), fg) && within("site_china_grain", h("Infrastructure", n2o), fg) &&
+        within("fertilizer_facilities", h("Priority emitters", n2o), fg));
+  check("black carbon without the refineries; F-gases before it",
+        fg < bc && within("ct_air_bc", bc, h("Overpopulation")) && !within("fractracker_refineries", bc, h("Overpopulation")));
+  check("the Pennsylvania rows and the several-gases heading are gone; the waste-to-energy plants are under Solid waste only",
+        h("Pennsylvania") === -1 && h("Infrastructure emitting more than one gas") === -1 && gone.has("skytruth_pa_spud") && o.filter((x) => x === "wasteatlas_wte").length === 1);
+  check("the 500 largest companies under Wealth concentration", o.indexOf("largest_companies") > h("Wealth concentration", 0));
+  check("a row inside a group already placed is named again as a copy", /const inner = frag\.querySelector\(`\[data-layer="\$\{item\}"\]`\);/.test(src));
+  check("a row taking its source's title keeps its LIVE or NOT LIVE mark", /const words = \[\.\.\.nm\.childNodes\]\.find/.test(src) && !/if \(nm\) nm\.textContent = title;/.test(src));
+  check("unticking a row hides its area edges too", /`\$\{id\}-edge`, `\$\{id\}-areapt`/.test(src));
+  const tb = new Function(src.match(/function traseBreaks[\s\S]*?\n}\n/)[0] + "; return traseBreaks;")();
+  const br = tb([0, 0, 0, 0, 0, 0, 5, 10, 20, 400]);
+  check("Trase: regions with none are a step of their own, the rest stepped among themselves", br[0] === 5 && br.length > 2);
+  check("Carbon Mapper is a row per gas, raised as columns by its rate",
+        /id: "carbon_plumes_co2"[^\n]*gasOnly: "CO2"/.test(src) && /id: "carbon_plumes"[^\n]*gasOnly: "CH4"/.test(src) &&
+        /if \(cfg\.gasOnly && String\(it\.gas \|\| ""\)\.toUpperCase\(\) !== cfg\.gasOnly\) return null;/.test(src) &&
+        /carbon_plumes: \{ field: "emission", factor: 8\.76 \* 29\.8/.test(src) && /ct_air_bc: \{ field: "value", factor: 900/.test(src));
+  check("Climate TRACE's methane and nitrous oxide lists are read beside carbon dioxide's", /\["", "_ch4", "_n2o"\]\.map/.test(src) && /const CT_GWP = \{ co2: 1, ch4: 29\.8, n2o: 273 \};/.test(src));
+  check("the forest carbon flux maps draw from Global Forest Watch's own coloured tiles", /\/dynamic\/\{z\}\/\{x\}\/\{y\}\.png\?tree_cover_density_threshold=30/.test(src) &&
+        /gfw_forest_carbon_gross_removals: \{ minzoom: 2, maxzoom: 12 \}/.test(src));
+  check("the quilombola communities are out; the mangroves' biomass is under Deforestation",
+        /\[\/\\bincra_bra_quilombola_communities\\b\|quilombola\/i, null\]/.test(src) && /mangrove biomass\/i, \[P \+ " > Deforestation > Forest carbon and biomass"\]/.test(src));
+  check("the page asks for this round's script", /app\.js\?v=(7[5-9]|[89]\d)/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
