@@ -3388,8 +3388,8 @@ console.log("\nround of 23 September (5): the Atlas panel pared down; no grain; 
         /el\.style\.maxHeight = h \+ "px";/.test(src) && !/el\.style\.flex = "0 0 auto";/.test(src) && /\.left-col \.panel\{flex:0 1 auto\}/.test(fs.readFileSync(path.join(HERE, "index.html"), "utf8")) &&
         /\.left-col \.panel > \.pull-grip\{position:sticky;bottom:0/.test(fs.readFileSync(path.join(HERE, "index.html"), "utf8")));
   check("the largest banks row reads its weekly copy, filed under Banks and monetary power (round 69)",
-        /id: "largest_banks", name: "The 250 largest banks by total assets \(compiled from Wikidata\)"[^\n]*route: "geojsonlive"/.test(src) &&
-        /culprits-tiles-more\/banks\/largest\.geojson/.test(src) && /"Banks and monetary power" \}, "largest_banks"/.test(src) &&
+        /id: "largest_banks", name: "The 250 largest corporate banks by total assets \(compiled from Wikidata\)"[^\n]*route: "geojsonlive"/.test(src) &&
+        /culprits-tiles-more\/banks\/largest\.geojson/.test(src) && /"Banks and monetary power" \}, "largest_banks", "development_banks"/.test(src) && /culprits-tiles-more\/banks\/development\.geojson/.test(src) &&
         /largest_banks: "Compiled weekly from Wikidata/.test(src));
   check("the watersheds are shaded in steps of ten, with a key (round 67)",
         /logSteps: \[1e5, 1e6, 1e7, 1e8, 1e9, 1e10\]/.test(src) && /const breaks = \(cfg\.logSteps \|\|/.test(src) && /none to \$\{lab\(breaks\[0\]\)\}/.test(src));

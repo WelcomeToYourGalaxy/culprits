@@ -5,6 +5,22 @@ touches.
 
 ---
 
+## Round 70 (26 September)
+
+- Owner, 26 September: they already have a central banks layer, so the
+  largest banks row is corporate banks only, and development banks go in a
+  row of their own. culprits-tiles-more scripts/largest_banks.py (round 70
+  tiles patch) now sorts every item with total assets by Wikidata class,
+  found by English name at build time ("central bank", "development bank",
+  "multilateral development bank"; the build stops if one is missing):
+  central banks are left out (listed in banks/largest.build.json),
+  development banks all go to banks/development.geojson, and the 250 largest
+  other banks to banks/largest.geojson.
+- Rows: largest_banks renamed "The 250 largest corporate banks by total
+  assets"; new development_banks ("Development banks by total assets, national
+  and multilateral"), filed beside it under Banks and monetary power.
+
+
 ## Round 69 (26 September)
 
 - largest_banks (asked 26 September: the owner's own layer of the world's
