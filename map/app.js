@@ -430,26 +430,49 @@ const LAYERS = [
     keys: [GMO_KEY_DECADE],
     where: ["==", ["slice", ["coalesce", ["get", "x_src"], ["get", "id"]], 0, 7], "escape:"],
     note: "The escapes, unapproved varieties in trade and transgenes in wild relatives the Genetic engineering map records, each placed at the area the record names." },
-  { id:"wastewater_n_tot", name:"Nitrogen from human wastewater reaching the sea, all of it, by coastal outlet (Tuholske et al.)", unit:"grams of nitrogen a year", colour:"#5E7377", route:"pmtiles", ready:true, off: true,
+  { id:"wastewater_n_tot", name:"Nitrogen entering the sea at each coastal outlet, from all human wastewater (Tuholske et al.)", unit:"grams of nitrogen a year", colour:"#5E7377", route:"pmtiles", ready:true, off: true,
     archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_n_tot.pmtiles",
     boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/wastewater/pieces",
-    note: "The Global Wastewater Model (Tuholske et al. 2021, KNB doi:10.5063/F76B09): each of its 134,846 pour points, where a watershed's wastewater reaches the coast, weighed by this share of its nitrogen. Built from the model's data package; every field it gives is kept, the unit included. The model is not updated." },
-  { id:"wastewater_n_treated", name:"Nitrogen from sewage treatment plants reaching the sea, by coastal outlet (Tuholske et al.)", unit:"grams of nitrogen a year", colour:"#5E7377", route:"pmtiles", ready:true, off: true,
+    hotspotHint: "How crowded the outlets are, each weighed by its nitrogen; zoomed in, each outlet on its own",
+    note: "The Global Wastewater Model (Tuholske et al. 2021, KNB doi:10.5063/F76B09): each of its 134,846 pour points, the spot on the coast where a watershed's wastewater enters the sea, weighed by this share of its nitrogen in grams a year. Not the same as the coastal waters row: that one is the model's picture of how this nitrogen then spreads out through the sea, cell by cell. Built from the model's data package; every field it gives is kept, the unit included. The model is not updated." },
+  { id:"wastewater_n_treated", name:"Nitrogen entering the sea at each coastal outlet, from sewage treatment plants (Tuholske et al.)", unit:"grams of nitrogen a year", colour:"#5E7377", route:"pmtiles", ready:true, off: true,
     archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_n_treated.pmtiles",
     boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/wastewater/pieces",
-    note: "The Global Wastewater Model (Tuholske et al. 2021, KNB doi:10.5063/F76B09): each of its 134,846 pour points, where a watershed's wastewater reaches the coast, weighed by this share of its nitrogen. Built from the model's data package; every field it gives is kept, the unit included. The model is not updated." },
-  { id:"wastewater_n_septic", name:"Nitrogen from septic systems reaching the sea, by coastal outlet (Tuholske et al.)", unit:"grams of nitrogen a year", colour:"#5E7377", route:"pmtiles", ready:true, off: true,
+    hotspotHint: "How crowded the outlets are, each weighed by its nitrogen; zoomed in, each outlet on its own",
+    note: "The Global Wastewater Model (Tuholske et al. 2021, KNB doi:10.5063/F76B09): each of its 134,846 pour points, the spot on the coast where a watershed's wastewater enters the sea, weighed by this share of its nitrogen in grams a year. Not the same as the coastal waters row: that one is the model's picture of how this nitrogen then spreads out through the sea, cell by cell. Built from the model's data package; every field it gives is kept, the unit included. The model is not updated." },
+  { id:"wastewater_n_septic", name:"Nitrogen entering the sea at each coastal outlet, from septic systems (Tuholske et al.)", unit:"grams of nitrogen a year", colour:"#5E7377", route:"pmtiles", ready:true, off: true,
     archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_n_septic.pmtiles",
     boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/wastewater/pieces",
-    note: "The Global Wastewater Model (Tuholske et al. 2021, KNB doi:10.5063/F76B09): each of its 134,846 pour points, where a watershed's wastewater reaches the coast, weighed by this share of its nitrogen. Built from the model's data package; every field it gives is kept, the unit included. The model is not updated." },
-  { id:"wastewater_n_open", name:"Nitrogen from untreated human waste reaching the sea, by coastal outlet (Tuholske et al.)", unit:"grams of nitrogen a year", colour:"#5E7377", route:"pmtiles", ready:true, off: true,
+    hotspotHint: "How crowded the outlets are, each weighed by its nitrogen; zoomed in, each outlet on its own",
+    note: "The Global Wastewater Model (Tuholske et al. 2021, KNB doi:10.5063/F76B09): each of its 134,846 pour points, the spot on the coast where a watershed's wastewater enters the sea, weighed by this share of its nitrogen in grams a year. Not the same as the coastal waters row: that one is the model's picture of how this nitrogen then spreads out through the sea, cell by cell. Built from the model's data package; every field it gives is kept, the unit included. The model is not updated." },
+  { id:"wastewater_n_open", name:"Nitrogen entering the sea at each coastal outlet, from untreated human waste (Tuholske et al.)", unit:"grams of nitrogen a year", colour:"#5E7377", route:"pmtiles", ready:true, off: true,
     archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_n_open.pmtiles",
     boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/wastewater/pieces",
-    note: "The Global Wastewater Model (Tuholske et al. 2021, KNB doi:10.5063/F76B09): each of its 134,846 pour points, where a watershed's wastewater reaches the coast, weighed by this share of its nitrogen. Built from the model's data package; every field it gives is kept, the unit included. The model is not updated." },
+    hotspotHint: "How crowded the outlets are, each weighed by its nitrogen; zoomed in, each outlet on its own",
+    note: "The Global Wastewater Model (Tuholske et al. 2021, KNB doi:10.5063/F76B09): each of its 134,846 pour points, the spot on the coast where a watershed's wastewater enters the sea, weighed by this share of its nitrogen in grams a year. Not the same as the coastal waters row: that one is the model's picture of how this nitrogen then spreads out through the sea, cell by cell. Built from the model's data package; every field it gives is kept, the unit included. The model is not updated." },
   { id:"wastewater_n_countries", name:"Nitrogen from human wastewater reaching the sea, by country (Tuholske et al.)", unit:"grams of nitrogen a year", colour:"#5E7377", route:"country", ready:true, off: true,
     note: "The country totals the Global Wastewater Model's data package gives (Tuholske et al. 2021, KNB doi:10.5063/F76B09), with its split by treatment, septic and untreated." },
   { id:"hydrowaste",           name:"Wastewater treatment plants (HydroWASTE)", unit:"plants", colour:"#5E7278", route:"pmtiles", ready:true, off: true,
-    note: "HydroWASTE v1.0: 58,502 wastewater treatment plants, with the population each serves, the treated wastewater it discharges, its level of treatment, its estimated outfall and the river's dilution there (Ehalt Macedo et al., Earth System Science Data 2022; CC BY 4.0). The database behind HydroFATE's map, whose own page cannot be read to draw here. Every column is kept." },
+    // Round 81: the copy in this repository was built with points merged (at
+    // its deepest zoom 1,090 dots stood for about 2,800 plants), and its box
+    // read only fields named x_..., so every plant showed as "Unnamed" with
+    // none of its figures. Rebuilt from HydroWASTE's own file, every plant on
+    // its own (culprits-tiles-more scripts/hydrowaste.py), and boxed from its
+    // own columns; the old copy is used until the new one is there.
+    archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/hydrowaste.pmtiles",
+    archiveBefore: `${TILE_BASE}/hydrowaste.pmtiles`,
+    fieldBox: { title: ["WWTP_NAME"], fallback: "Wastewater treatment plant", credit: "HydroWASTE v1.0 (Ehalt Macedo et al. 2022), CC BY 4.0",
+      doc: "https://doi.org/10.6084/m9.figshare.14847786",
+      labels: [["COUNTRY", "Country"], ["STATUS", "Status"], ["POP_SERVED", "People served"], ["LEVEL", "Level of treatment"],
+        ["WASTE_DIS", "Treated wastewater discharged (cubic metres a day)"], ["DESIGN_CAP", "Design capacity (population equivalent)"],
+        ["RIVER_DIS", "River flow at the outfall (cubic metres a second)"], ["DF", "Dilution factor at the outfall (river flow over the plant's discharge)"],
+        ["COAST_10KM", "Outfall within 10 km of the coast (1 yes, 0 no)"], ["COAST_50KM", "Outfall within 50 km of the coast (1 yes, 0 no)"],
+        ["LAT_WWTP", "Plant latitude"], ["LON_WWTP", "Plant longitude"], ["LAT_OUT", "Estimated outfall latitude"], ["LON_OUT", "Estimated outfall longitude"],
+        ["QUAL_LOC", "Quality of the location (HydroWASTE's code)"], ["QUAL_POP", "Quality of the people served (code)"],
+        ["QUAL_WASTE", "Quality of the discharge (code)"], ["QUAL_LEVEL", "Quality of the treatment level (code)"], ["QUAL_CAP", "Quality of the capacity (code)"],
+        ["SOURCE", "Source dataset (HydroWASTE's number)"], ["SOURCE_REGION", "Source region"], ["ORG_ID", "Plant's id in its source"],
+        ["WASTE_ID", "HydroWASTE id"], ["HYRIV_ID", "Receiving river (HydroRIVERS id)"], ["CNTRY_ISO", "Country code"]] },
+    note: "HydroWASTE v1.0: 58,502 wastewater treatment plants, with the population each serves, the treated wastewater it discharges, its level of treatment, its estimated outfall and the river's dilution there (Ehalt Macedo et al., Earth System Science Data 2022; CC BY 4.0). The database behind HydroFATE's map, whose own page cannot be read to draw here. Every plant is drawn on its own and every column is kept; HydroWASTE gives a name for most plants, not all." },
   { id:"slavery_sites",        name:"Brick kilns and artisanal mining", unit:"sites", colour:"#8A6B62", route:"pmtiles", ready:true, off: true,
     // Round 58: each kiln at its own place, from culprits-tiles-more
     // scripts/slavery_sites.py; the old copy (kilns at their pictures' grid
@@ -501,6 +524,8 @@ const LAYERS = [
   // browser downloads it). See CERULEAN below for the limits this works within.
   { id:"cerulean_slicks",      name:"Oil slicks (Cerulean)",   unit:"potential slicks, Sentinel-1", colour:"#5A5750", route:"cerulean", ready:true, off: true,
     collection: "public.slick_plus", drawFrom: 6,
+    // Round 81: a timeline, and the slick archive folded in as "the copy kept daily".
+    timeline: { from: "2023-01", column: "slick_timestamp", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/cerulean_archive" },
     // Every slick as a point, below drawFrom: pipeline/cerulean/harvest_points.py.
     points: "cerulean_slick_points", pointsUntil: 6, pointsColour: "#8A9AA2", pointsCollection: "public.slick_plus",
     // Every field the collection publishes except centerlines — a skeleton of
@@ -2067,7 +2092,10 @@ function hudImages() {
 }
 const hudOf = new Map();       // circle layer id -> its symbol layer id
 function hudEligible(layer) {
-  if (!layer || layer.type !== "circle" || !layer.id || /^(wire-|ct-)/.test(layer.id) || /-(halo|hud|glow|haze|core|soft)$/.test(layer.id)) return false;
+  // Rows coloured by their own figures (round 81) keep their colours at every
+  // zoom: the glow would paint them all in its one range.
+  if (layer && layer.id && HUD_SKIP.has(rowOfLayer(layer.id))) return false;
+  if (!layer || layer.type !== "circle" || !layer.id || /^(wire-|ct-)/.test(layer.id) || /-(halo|hud|glow|haze|core|soft|ring)$/.test(layer.id)) return false;
   const c = JSON.stringify((layer.paint || {})["circle-color"] || "");
   return !/rgba\(0,\s*0,\s*0,\s*0\)|transparent/.test(c);
 }
@@ -2119,6 +2147,18 @@ const glowMaxOf = new Map();                   // source id -> the largest "valu
 // strength and could not be seen from the world view. The aquaculture ponds are
 // the same kind of layer.
 const GLOW_FULL = new Set(["skytruth_voc", "mine_features", "aquaculture_ponds", "remains_findings"]);
+// Round 81 (asked 27 September): the wastewater outlets along every coast read
+// as one even band of a single colour, so where they crowd could not be told
+// from where they are sparse. Rows named here draw their wide glow as a hotspot
+// spectrum instead: indigo where outlets (weighed by their nitrogen) are
+// sparse, through blue and cyan, to pale ivory where they are densest.
+const HOTSPOT = new Set(["wastewater_n_tot", "wastewater_n_treated", "wastewater_n_septic", "wastewater_n_open"]);
+const HOT_RAMP = [[0.02, "rgba(58,40,120,0.45)"], [0.2, "rgba(70,70,190,0.7)"], [0.45, "rgba(60,130,214,0.82)"],
+  [0.7, "rgba(80,190,222,0.9)"], [0.9, "rgba(170,228,238,0.95)"], [1, "rgba(236,232,218,1)"]];
+const HOT_KEY = [["#3A2878", "sparse"], ["#4646BE", "thin"], ["#3C82D6", "moderate"], ["#50BEDE", "crowded"], ["#AAE4EE", "very crowded"], ["#ECE8DA", "densest"]];
+const HUD_SKIP = new Set();              // rows coloured by their own figures (round 81)
+const hotspotOf = (layer) => HOTSPOT.has(String(layer.source || "").replace(/-(src|pm)$/, "")) ||
+  (/^points-bundle-/.test(String(layer.source || "")) && HOTSPOT.has(String(layer["source-layer"] || "")));
 const glowFull = (layer) => GLOW_FULL.has(String(layer.source || "").replace(/-(src|pm)$/, "")) ||
   (/^points-bundle-/.test(String(layer.source || "")) && GLOW_FULL.has(String(layer["source-layer"] || "")));
 function glowWeight(layer) {
@@ -2145,7 +2185,16 @@ function addHud(layer, rawAddLayer) {
   // finer files' (the UFO sightings, 24 September).
   const own = /-part\d+$/.test(layer.id) && layer.maxzoom != null ? Math.min(layer.maxzoom, GLOW.gone) : GLOW.gone;
   const wide = { minzoom: layer.minzoom != null ? layer.minzoom : 0, maxzoom: own };
-  const hazeSpec = Object.assign({ id: haze, type: "heatmap", layout: { visibility: vis }, paint: {
+  const hot = hotspotOf(layer);
+  const hazeSpec = Object.assign({ id: haze, type: "heatmap", layout: { visibility: vis }, paint: hot ? {
+      // A hotspot row: its spread is the point of it, drawn strongly, in steps
+      // of colour by how crowded (and how large) the points around are.
+      "heatmap-weight": ["max", 0.08, w],
+      "heatmap-intensity": z(0, 0.9, 4, 1.3, 8, 1.8, 11, 2.2),
+      "heatmap-radius": z(0, 6, 3, 10, 6, 16, 9, 24, 11, 30),
+      "heatmap-opacity": z(GLOW.fadeOut, 0.85, GLOW.gone, 0),
+      "heatmap-color": ["interpolate", ["linear"], ["heatmap-density"], 0, "rgba(0,0,0,0)", ...HOT_RAMP.flat()],
+    } : {
       "heatmap-weight": w,
       "heatmap-intensity": z(0, 0.6, 6, 1, 10, 1.4),
       "heatmap-radius": z(0, 14, 4, 22, 8, 36, 11, 48),
@@ -2262,7 +2311,7 @@ hudWrap("setPaintProperty", (raw) => function (id, prop, v, o) {
     try {
       if (h.endsWith("-soft") && prop === "circle-radius") raw(h, "circle-radius", mapOutputs(v, (n) => n * 1.5), o);
       if (h.endsWith("-soft") && prop === "circle-opacity" && typeof v === "number") raw(h, "circle-opacity", v * 0.2, o);
-      if (h.endsWith("-haze") && prop === "circle-opacity" && typeof v === "number") raw(h, "heatmap-opacity", v * GLOW.hazeOpacity, o);
+      if (h.endsWith("-haze") && prop === "circle-opacity" && typeof v === "number") raw(h, "heatmap-opacity", v * (HOTSPOT.has(rowOfLayer(id)) ? 0.85 : GLOW.hazeOpacity), o);
     } catch (e) { /* kept */ }
   }
   return out;
@@ -2641,7 +2690,7 @@ async function addPmtilesLayer(cfg) {
         if (cfg.where) spec.filter = cfg.where;
         map.addLayer(spec, `${cfg.id}-${kind}`);
         cfg._layerIds.push(lid);
-        if (cfg.boxes) bindHtmlPopup(lid, (p) => pieceBox(cfg, p)); else bindPopup(lid, owner);
+        if (cfg.boxes) bindHtmlPopup(lid, (p) => pieceBox(cfg, p)); else if (cfg.fieldBox) bindHtmlPopup(lid, (p) => fieldBoxHtml(cfg, p)); else bindPopup(lid, owner);
       }
     });
     applyVisibility(cfg.id);
@@ -2656,6 +2705,9 @@ async function addPmtilesLayer(cfg) {
       setLayerState(cfg.id, `${Number(b.alerts_with_position).toLocaleString()} ${cfg.unit}` +
         (b.no_position ? ` \u00b7 ${Number(b.no_position).toLocaleString()} more in the copy have no position and cannot be drawn` : ""));
     }).catch(() => {});
+  } else if (cfg.fieldBox) {
+    bindHtmlPopup(`${cfg.id}-agg`, (p) => fieldBoxHtml(cfg, p), { maxWidth: "340px" });
+    bindHtmlPopup(`${cfg.id}-pt`, (p) => fieldBoxHtml(cfg, p), { maxWidth: "340px" });
   } else if (owner === "gmo_releases") {
     // The Genetic engineering map's own boxes: one record, or the list of
     // every record at the point (round 71).
@@ -2669,8 +2721,61 @@ async function addPmtilesLayer(cfg) {
   // it had drawn (the Unearthings findings, 24 September).
   const stateEl = typeof document !== "undefined" && document.querySelector ? document.querySelector(`[data-state="${cfg.id}"]`) : null;
   if (stateEl && /^loading/.test(stateEl.textContent || "")) setLayerState(cfg.id, `drawn from its archive \u00b7 zoom in for each ${cfg.unit ? cfg.unit.replace(/s$/, "") : "one"}`);
+  // A row of a few points that must be found from the world view (round 81,
+  // the vessels of concern: thirteen ships, too faint to see): larger, sharper
+  // dots with a pale rim, and a wide soft ring round each, at every zoom.
+  if (cfg.standout) {
+    const r = ["interpolate", ["linear"], ["zoom"], 0, 5, 4, 6.5, 8, 8, 12, 10];
+    for (const lid of [`${cfg.id}-agg`, `${cfg.id}-pt`]) {
+      if (!map.getLayer(lid)) continue;
+      map.setPaintProperty(lid, "circle-radius", r);
+      map.setPaintProperty(lid, "circle-blur", 0.15);
+      map.setPaintProperty(lid, "circle-opacity", 0.95);
+      map.setPaintProperty(lid, "circle-color", cfg.standout.fill);
+      map.setPaintProperty(lid, "circle-stroke-color", cfg.standout.rim);
+      map.setPaintProperty(lid, "circle-stroke-width", 1.6);
+    }
+    const ring = `${cfg.id}-ring`;
+    if (!map.getLayer(ring) && map.getLayer(`${cfg.id}-agg`)) {
+      map.addLayer({ id: ring, type: "circle", source: src, "source-layer": owner, layout: { visibility: visibility.get(cfg.id) || "visible" },
+        paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 16, 6, 22, 12, 26], "circle-color": cfg.standout.fill,
+                 "circle-opacity": 0.18, "circle-blur": 1, "circle-stroke-width": 0 } }, `${cfg.id}-agg`);
+      cfg._layerIds = (cfg._layerIds || []).concat([ring]);
+    }
+    rowKey(cfg.id, [[cfg.standout.fill, cfg.standout.say || "each one, with a soft ring so it can be found from far out"]]);
+  }
+  // A hotspot row's key (round 81): the colours of its spread, sparse to densest.
+  if (HOTSPOT.has(owner)) rowKey(cfg.id, HOT_KEY,
+    cfg.hotspotHint || "How crowded the points are, each weighed by its amount; zoomed in, each point on its own");
   applyVisibility(cfg.id);
   buildLegend();
+}
+
+// A box written from the record's own columns (round 81, HydroWASTE): its
+// name, then each column the row names in plain words, then every other
+// column as the source names it. A point that stands for several (an old
+// merged copy) says so rather than showing one member's name.
+const FIELD_BOX_SKIP = new Set(["value", "clustered", "point_count", "point_count_abbreviated", "sqrt_point_count", "_count"]);
+function fieldBoxHtml(cfg, p) {
+  const fb = cfg.fieldBox || {};
+  const n = Number(p.point_count || p._count || 1);
+  if (n > 1 || p.clustered === true || p.clustered === "true") return `<b>${n.toLocaleString()} ${escapeHtml(cfg.unit || "places")} here</b>` +
+    `<div class="meta">Merged in the older copy at this zoom; zoom in, or wait for the new copy, to open each one.</div>`;
+  const title = (fb.title || []).map((k) => p[k]).find((v) => v != null && v !== "") || fb.fallback || cfg.name;
+  const used = new Set([...(fb.title || []), ...FIELD_BOX_SKIP]);
+  const fmt = (v) => (typeof v === "number" ? v.toLocaleString(undefined, { maximumFractionDigits: 3 }) : String(v));
+  const rows = [];
+  for (const [k, label] of fb.labels || []) {
+    used.add(k);
+    if (p[k] == null || p[k] === "") continue;
+    rows.push(`<tr><th style="text-align:left;padding-right:8px;vertical-align:top">${escapeHtml(label)}</th><td>${escapeHtml(fmt(p[k]))}</td></tr>`);
+  }
+  for (const k of Object.keys(p)) {
+    if (used.has(k) || p[k] == null || p[k] === "") continue;
+    rows.push(`<tr><th style="text-align:left;padding-right:8px;vertical-align:top">${escapeHtml(k.replace(/_/g, " "))}</th><td>${escapeHtml(fmt(p[k]))}</td></tr>`);
+  }
+  return `<b>${escapeHtml(String(title))}</b><div style="max-height:260px;overflow:auto"><table class="meta">${rows.join("")}</table></div>` +
+    `<div class="meta">${escapeHtml(fb.credit || "")}${fb.doc ? ` \u00b7 <a href="${escapeHtml(fb.doc)}" target="_blank" rel="noopener">what the codes mean</a>` : ""}</div>`;
 }
 
 // Which of a copy's 256 pieces a record is in: FNV-1a over its id, two hex
@@ -3912,9 +4017,10 @@ function livePlacesToSitemap(cfg, items) {
     if (!it.geometry) continue;
     const g = it.group || "";
     if (g) groups.set(g, (groups.get(g) || 0) + 1);
+    const c = it.hollow || it.colour === AMOUNT_NONE || ((cfg.colourBy || cfg.groupColours) && it.colour) ? it.colour : softColour(it.colour, cfg.colour);
     features.push({ type: "Feature", geometry: it.geometry,
-      properties: { k: it.key, p: 1, t: it.name ? 1 : 0, n: it.name || "", c: softColour(it.colour, cfg.colour),
-                    f: g ? `|g:${g}|` : "" } });
+      properties: { k: it.key, p: 1, t: it.name ? 1 : 0, n: it.name || "", c,
+                    f: g ? `|g:${g}|` : "", ...(it.hollow ? { o: 0.15, s: it.colour, w: 1.8 } : {}) } });
     if (!boxes[it.key]) boxes[it.key] = { h: it.h, t: it.name ? `<b>${escapeHtml(it.name)}</b>` : "", o: { maxWidth: 340, maxHeight: 420 } };
   }
   const filters = groups.size > 1
@@ -3949,6 +4055,7 @@ async function addLivePlacesLayer(cfg) {
   const { data, boxes } = livePlacesToSitemap(cfg, got.items);
   sitemapBoxes.set(cfg.id, Promise.resolve(boxes));
   await addSitemapLayer(cfg, data);
+  if (got.key) { rowKey(cfg.id, got.key, got.keyHint); buildLegend(); }
   if (got.note) setLayerState(cfg.id, `${data.features.length.toLocaleString()} ${cfg.unit} \u00b7 ${got.note}`);
 }
 
@@ -4271,8 +4378,12 @@ async function addArcgisCopyLayer(cfg) {
   let man;
   try { man = await getJson(`${cfg.copy}/manifest.json`, 20000); }
   catch (e) { console.warn(`[culprits] ${cfg.id}: no copy yet (${e.message}); reading live`); return addLivePlacesLayer(cfg); }
-  relabelRow(cfg.id, man.title);
-  const layers = man.layers || [];
+  if (!cfg.fixedName) relabelRow(cfg.id, man.title);
+  // Round 81: a row may leave out layers of the app that are not about its
+  // subject (they stay in the copy), and give the rest plain names.
+  const drop = new Set((cfg.dropLayers || []).map(Number));
+  const layers = (man.layers || []).filter((l) => !drop.has(Number(l.i)))
+    .map((l) => (cfg.layerTitles && cfg.layerTitles[l.i] ? Object.assign({}, l, { title: cfg.layerTitles[l.i] }) : l));
   const byI = new Map(layers.map((l) => [Number(l.i), l]));
   const on = new Set(layers.map((l) => Number(l.i)));
   let parts = [{ url: cfg.archive, from: 0, to: 24 }];
@@ -4333,7 +4444,8 @@ async function addArcgisCopyLayer(cfg) {
     if (anchor.after) anchor.after(el);
   }
   const skipped = (man.skipped || []).length;
-  setLayerState(cfg.id, `${Number(man.features || 0).toLocaleString()} ${cfg.unit} in ${layers.length} layer${layers.length === 1 ? "" : "s"} \u00b7 from the weekly copy` +
+  const shown = drop.size ? layers.reduce((a, l) => a + Number(l.features || 0), 0) : Number(man.features || 0);
+  setLayerState(cfg.id, `${shown.toLocaleString()} ${cfg.unit} in ${layers.length} layer${layers.length === 1 ? "" : "s"} \u00b7 from the weekly copy` +
     (skipped ? ` \u00b7 ${skipped} layer${skipped > 1 ? "s" : ""} of the app would not answer` : ""));
   applyVisibility(cfg.id);
   buildLegend();
@@ -5509,8 +5621,13 @@ async function addPmtAreasLayer(cfg) {
   // nitrogen and most very little, so the top step began at 18 t a year and
   // held 9,648 watersheds with 98% of all the nitrogen: all of Europe came out
   // one shade. Every watershed is still drawn; only the steps moved.
-  const breaks = (cfg.logSteps || (key.breaks || []).filter((b) => Number.isFinite(b))).slice(0, AREA_RAMP.length - 1);
-  const v = ["to-number", ["get", "value"], 0];
+  // A row weighed by area (round 81) reads the per-area figure once the
+  // archive carries it; until then its totals, under the title that says so.
+  const pa = cfg.perArea && key.perArea ? cfg.perArea : null;
+  if (cfg.perArea && !pa && cfg.perArea.before) relabelRow(cfg.id, cfg.perArea.before);
+  const stepsCfg = pa || cfg;
+  const breaks = (stepsCfg.logSteps || (key.breaks || []).filter((b) => Number.isFinite(b))).slice(0, AREA_RAMP.length - 1);
+  const v = ["to-number", ["get", pa ? pa.field : "value"], 0];
   const colour = breaks.length ? ["step", v, AREA_RAMP[0], ...breaks.flatMap((b, i) => [b, AREA_RAMP[i + 1]])] : AREA_RAMP[3];
   map.addSource(`${cfg.id}-src`, { type: "vector", url: `pmtiles://${cfg.archiveUrl}`, attribution: "Tuholske et al. 2021, Global Wastewater Model, KNB" });
   map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source: `${cfg.id}-src`, "source-layer": cfg.sourceLayer, layout: { visibility: "none" },
@@ -5519,10 +5636,11 @@ async function addPmtAreasLayer(cfg) {
     paint: { "line-color": "#C7ABA2", "line-width": 0.4, "line-opacity": 0.5 } }, pointLayerAbove());
   cfg._layerIds = [`${cfg.id}-fill`, `${cfg.id}-line`];
   bindHtmlPopup(`${cfg.id}-fill`, (p) => pieceBox(cfg, p));
-  if (breaks.length && cfg.stepLabel) {
-    const lab = cfg.stepLabel;
+  if (breaks.length && stepsCfg.stepLabel) {
+    const lab = stepsCfg.stepLabel;
     rowKey(cfg.id, AREA_RAMP.slice(0, breaks.length + 1).map((c, i) =>
-      [c, (i === 0 ? `none to ${lab(breaks[0])}` : i === breaks.length ? `${lab(breaks[i - 1])} or more` : `${lab(breaks[i - 1])} to ${lab(breaks[i])}`) + (cfg.stepUnit || "")]));
+      [c, (i === 0 ? `none to ${lab(breaks[0])}` : i === breaks.length ? `${lab(breaks[i - 1])} or more` : `${lab(breaks[i - 1])} to ${lab(breaks[i])}`) + (stepsCfg.stepUnit || "")]),
+      pa ? "Each watershed's nitrogen divided by its area, so large and small watersheds compare fairly" : cfg.perArea ? "Totals for now: the per-area figure comes with the archive's next build" : undefined);
     if (typeof buildLegend === "function") buildLegend();
   }
   setLayerState(cfg.id, breaks.length ? `${(key.count || 0).toLocaleString()} areas, in ${breaks.length + 1} steps` : "areas");
@@ -5741,13 +5859,93 @@ async function readGeojsonFiles(cfg) {
       const first = (cfg.nameFrom || []).map((k) => p[k]).find((v) => v !== undefined && v !== null && v !== "");
       const name = first || p.name || p.Name || p.title || p.Source || (p.TripId != null ? `Trip ${p.TripId}` : "") || p.Ocean || f.label;
       items.push({ geometry: ft.geometry, key: `${f.label}:${i}`, name: String(name), group: p.group != null ? String(p.group) : f.label,
+        _p: cfg.colourBy ? p : null,
         // A copy that carries its source's own box (_html) shows that; otherwise every field.
         h: p._html ? boxOpen + p._html + `</div>`
           : boxOpen + `<h4 style="margin:0 0 6px">${escapeHtml(name)}</h4><table>${fieldRows(p)}</table></div>` });
     });
   }
-  return { title: cfg.name, items,
-    note: nowhere ? `${nowhere.toLocaleString()} more in the file have no position and cannot be drawn` : "" };
+  const coloured = cfg.colourBy ? colourByAmount(cfg, items) : cfg.groupColours ? colourByGroup(cfg, items) : null;
+  return { title: cfg.name, items, key: coloured && coloured.key, keyHint: coloured && coloured.hint,
+    note: [nowhere ? `${nowhere.toLocaleString()} more in the file have no position and cannot be drawn` : "", coloured ? coloured.note : ""].filter(Boolean).join(" \u00b7 ") };
+}
+
+// Round 81 (asked 27 September): a row coloured by one of its own figures,
+// in six steps of the map's colours, darkest the least; a place with no figure
+// is grey, and each step is also a chip in the row's filter. The figure is
+// read from the words the source writes ("2,320,000 t", "7,200,000 -
+// 10,300,000 t": a range is taken at its middle, and the box says so).
+// estimate: where the figure is missing, it is estimated from another field
+// the place does give, at the rate the places giving both show between them
+// (Waste Atlas dumpsites: waste per person working informally there); an
+// estimated place is drawn as a ring and its box says how it was worked out.
+const AMOUNT_RAMP = ["#2E3496", "#3450BE", "#3A76D6", "#46A0DE", "#78C8E8", "#C8EEF6"];
+const AMOUNT_NONE = "#8A8F93";
+// A row coloured by the kind of place (round 81, the plastics rows): each kind
+// its own colour and chip, and the key lists them with how many of each.
+function colourByGroup(cfg, items) {
+  HUD_SKIP.add(cfg.id);
+  const n = new Map();
+  for (const it of items) {
+    it.colour = cfg.groupColours[it.group] || AMOUNT_NONE;
+    n.set(it.group, (n.get(it.group) || 0) + 1);
+    delete it._p;
+  }
+  const key = Object.entries(cfg.groupColours).filter(([g]) => n.has(g)).map(([g, c]) => [c, `${g} (${n.get(g).toLocaleString()})`]);
+  for (const [g, k] of n) if (!cfg.groupColours[g]) key.push([AMOUNT_NONE, `${g} (${k.toLocaleString()})`]);
+  return { key, hint: cfg.groupHint || "Coloured by kind of place", note: "" };
+}
+function amountOf(s) {
+  const t = String(s == null ? "" : s);
+  const nums = (t.match(/\d[\d,]*(?:\.\d+)?/g) || []).map((x) => Number(x.replace(/,/g, ""))).filter((x) => isFinite(x));
+  if (!nums.length) return null;
+  const range = nums.length >= 2 && /\d\s*-\s*\d/.test(t);
+  return { v: range ? (nums[0] + nums[1]) / 2 : nums[0], range };
+}
+function amountWords(v) {
+  return v >= 1e6 ? `${(v / 1e6).toLocaleString("en", { maximumFractionDigits: 1 })} million`
+    : Number(v).toLocaleString("en", { maximumFractionDigits: 0 });
+}
+function colourByAmount(cfg, items) {
+  const cb = cfg.colourBy;
+  HUD_SKIP.add(cfg.id);
+  for (const it of items) {
+    const a = amountOf(it._p && it._p[cb.field]);
+    it._v = a ? a.v : null;
+    it._range = a && a.range;
+  }
+  let rate = null, estimated = 0;
+  if (cb.estimate) {
+    let sumV = 0, sumE = 0;
+    for (const it of items) {
+      const e = amountOf(it._p && it._p[cb.estimate.field]);
+      it._e = e && e.v > 0 ? e.v : null;
+      if (it._v != null && it._e != null) { sumV += it._v; sumE += it._e; }
+    }
+    rate = sumE > 0 ? sumV / sumE : null;
+    for (const it of items) if (it._v == null && it._e != null && rate) { it._v = it._e * rate; it._est = true; estimated++; }
+  }
+  const steps = cb.steps, fmt = amountWords;
+  const label = (i) => i === 0 ? `under ${fmt(steps[0])} ${cb.unit}` : i === steps.length ? `${fmt(steps[i - 1])} ${cb.unit} or more` : `${fmt(steps[i - 1])} to ${fmt(steps[i])} ${cb.unit}`;
+  let none = 0;
+  for (const it of items) {
+    if (it._v == null) { it.colour = AMOUNT_NONE; it.group = "No figure given"; none++; }
+    else {
+      let i = 0; while (i < steps.length && it._v >= steps[i]) i++;
+      it.colour = AMOUNT_RAMP[i];
+      it.group = label(i);
+      if (it._est) { it.hollow = true; it.group += ", estimated"; }
+    }
+    const said = it._v == null ? "" : it._est
+      ? `<p class="meta"><b>Coloured by an estimate:</b> about ${fmt(it._v)} ${escapeHtml(cb.unit)}. The site gives no ${escapeHtml(cb.field.toLowerCase())} here, so it is worked out from its ${escapeHtml(it._e.toLocaleString())} ${escapeHtml(cb.estimate.unit)}, at the ${fmt(rate)} ${escapeHtml(cb.unit)} per person that the ${items.filter((x) => x._p && amountOf(x._p[cb.field]) && x._e != null).length} places giving both figures show between them. A rough guide only.</p>`
+      : `<p class="meta"><b>Coloured by:</b> ${escapeHtml(cb.field)}, ${fmt(it._v)} ${escapeHtml(cb.unit)}${it._range ? " (the middle of the range the site gives)" : ""}.</p>`;
+    if (said) it.h = it.h.replace(/<\/div>$/, `${said}</div>`);
+    delete it._p;
+  }
+  const key = AMOUNT_RAMP.map((c, i) => [c, label(i)]);
+  if (estimated) key.push([AMOUNT_RAMP[3], "ring: estimated from the people working informally there"]);
+  if (none) key.push([AMOUNT_NONE, "no figure given"]);
+  return { key, hint: `Coloured by ${cb.field.toLowerCase()}`, note: estimated ? `${estimated} estimated from ${cb.estimate.field.toLowerCase()}` : "" };
 }
 
 // WP Go Maps (Final Nail): its markers as published.
@@ -6573,6 +6771,11 @@ const BUNDLES = {
   landghg: "Greenhouse gases from cropland and livestock, CO2 equivalent (WRI land greenhouse gas monitoring system)",
   indigenous_conflicts: "Indigenous Environmental Conflicts",
   selected: "Selected Layers",
+  // Round 81: the four outlet rows as one layer, as the coastal waters row has
+  // its four choices in one (asked 27 September).
+  wwoutlets: "Nitrogen from human wastewater entering the sea at each coastal outlet, by where the wastewater came from (Tuholske et al.)",
+  wastecountries: "Countries' waste figures, one measure a layer (Waste Atlas)",
+  oilslicks: "Oil slicks seen from space, with SkyTruth's own write-ups at sea and on land (Cerulean and SkyTruth)",
 };
 const IN = (path, key) => `${path} > ${BUNDLES[key]}`;
 const ZDC = "(zero-deforestation commitment)";
@@ -6591,7 +6794,7 @@ const CATALOGUE_PLACES = [
   // Round 75: that heading is gone; oil and gas go under Methane's
   // infrastructure and under Oil spills and slicks.
   [/oil and gas|oil & gas|(?<!greenhouse )\bgas\b|petroleum|geothermal/i, P + " > Climate > Methane"],
-  [/oil and gas|oil & gas|(?<!greenhouse )\bgas\b|petroleum/i, P + " > Pollution > Oil spills and slicks > Where oil and gas is drilled"],
+  [/oil and gas|oil & gas|(?<!greenhouse )\bgas\b|petroleum/i, P + " > Pollution > Land pollution > Where oil and gas is drilled"],
   // Agriculture, by crop where the box has a heading for it (22 September).
   [/palm|\bmills?\b|refiner/i, AG + " > Palm oil"],
   // Soy, corn and grain under Climate only, by the gas their fields mostly
@@ -6625,8 +6828,8 @@ const CATALOGUE_PLACES = [
   [/methane|\bch4\b/i, P + " > Climate > Methane"],
   [/nitrous|\bn2o\b/i, P + " > Climate > Nitrous oxide"],
   [/carbon|emission|biomass|climate|\bco2\b|flux|removals|temperature|precipitation/i, P + " > Climate > Carbon dioxide"],
-  [/nitrogen dioxide|\bno2\b|\bnox\b|nitric oxide/i, P + " > Pollution > Nitrogen dioxide"],
-  [/air quality|aerosol|pm2/i, P + " > Pollution > General and all pollutants"],
+  [/nitrogen dioxide|\bno2\b|\bnox\b|nitric oxide/i, P + " > Pollution > Air pollution > Nitrogen dioxide"],
+  [/air quality|aerosol|pm2/i, P + " > Pollution > Air pollution > General and all pollutants"],
   [/protect|conserv|reserve|restoration|biodivers|intact forest|primary forest|wdpa|ramsar|species|habitat|ecozone|ecosystem|\bkba\b/i,
    P + " > Biodiversity loss"],
   [/peat/i, P + " > Peatland"],
@@ -6891,9 +7094,9 @@ const CATALOGUE_BY_TITLE = [
   [/intact forest landscape/i, [P + " > Biodiversity loss"]],
   [/biodiversity hotspots/i, [P + " > Biodiversity loss"]],
   [/\bdams?\b/i, [P + " > Biodiversity loss > Fish"]],
-  [/oil (and|&) gas (concession|block|licen|lease)/i, [P + " > Climate > Methane > Infrastructure", P + " > Pollution > Oil spills and slicks > Where oil and gas is drilled"]],
+  [/oil (and|&) gas (concession|block|licen|lease)/i, [P + " > Climate > Methane > Infrastructure", P + " > Pollution > Land pollution > Where oil and gas is drilled"]],
   [/protected areas?/i, [P + " > Biodiversity loss"]],
-  [/nitrogen dioxide|\bno2\b/i, [P + " > Pollution > Nitrogen dioxide"]],
+  [/nitrogen dioxide|\bno2\b/i, [P + " > Pollution > Air pollution > Nitrogen dioxide"]],
 ];
 // Headings whose lists ran long are split one level further (item 27, round
 // 23). A row filed under one of these headings goes into the first
@@ -8646,6 +8849,12 @@ async function addCtAirLayer(cfg) {
     }) };
     if (max > 0) glowMaxOf.set(src, max);
     cfg._max = max;
+    cfg._colMax = max;
+  } else {
+    // The sources row: its column is its fine particles, in tonnes a year.
+    let m = 0;
+    for (const f of gj.features || []) m = Math.max(m, Number(f.properties && f.properties.pm25_kg_hr) || 0);
+    cfg._colMax = m * 8.76;
   }
   map.addSource(src, { type: "geojson", data: gj });
   map.addSource(`${cfg.id}-plume`, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
@@ -8698,8 +8907,14 @@ async function addCtAirLayer(cfg) {
   map.on("mouseleave", `${cfg.id}-pt`, () => { map.getCanvas().style.cursor = ""; });
   setLayerState(cfg.id, `${(gj.features || []).length.toLocaleString()} sources` +
     (cfg.gas ? ` \u00b7 ${withAmount.toLocaleString()} with a yearly figure copied so far` : "") + ` \u00b7 click one for its plume and pollutants`);
+  // Its key (round 81): what the columns measure, on which scale.
+  const col = COLUMN_EXTRA[cfg.id];
+  if (col && cfg._colMax > 0) rowKey(cfg.id, [[cfg.colour, `Columns: height by tonnes of ${col.words} a year`],
+    [cfg.colour, `Own scale: the tallest is the largest source, ${Math.round(cfg._colMax).toLocaleString()} t a year`]],
+    "Tilt the map to see the columns; they are not comparable with the greenhouse gas columns");
   applyVisibility(cfg.id);
   buildLegend();
+  scheduleColumns();
 }
 
 /* ---------- Global Trade Alert: state acts by country ---------- */
@@ -8810,8 +9025,19 @@ async function addArcgisDynLayer(cfg) {
   if (anchor && anchor.after) {
     const el = document.createElement("div");
     el.className = "facet";
-    el.innerHTML = layers.map((l) => `<button type="button" class="chip on" data-dl="${l.id}">${escapeHtml(l.name)}</button>`).join("");
+    el.innerHTML = layers.map((l) => `<button type="button" class="chip on" data-dl="${l.id}">${escapeHtml(l.name)}</button>`).join("") +
+      // Round 81: the Toxics Release Inventory copy (every TRI facility at every
+      // zoom) is one of this layer's kinds, at the owner's word, as the
+      // Superfund sites and water dischargers are. The chip turns its row on and off.
+      (cfg.triRow ? `<button type="button" class="chip" data-tri="${escapeHtml(cfg.triRow)}">Factories reporting toxic chemical releases, every one (Toxics Release Inventory copy)</button>` : "");
     el.addEventListener("click", (e) => {
+      const t = e.target.closest && e.target.closest("[data-tri]");
+      if (t) {
+        e.stopPropagation();
+        const tick = document.querySelector(`input[data-layer="${t.dataset.tri}"]`);
+        if (tick) { tick.checked = !tick.checked; tick.dispatchEvent(new Event("change", { bubbles: true })); t.classList.toggle("on", tick.checked); }
+        return;
+      }
       const b = e.target.closest && e.target.closest("[data-dl]");
       if (!b) return;
       e.stopPropagation();
@@ -8821,8 +9047,48 @@ async function addArcgisDynLayer(cfg) {
       const s = map.getSource(src);
       if (s && s.setTiles) s.setTiles(tilesFor());
       for (const l of ptsLayers) if (map.getLayer(l)) map.setFilter(l, ptsFilter());
+      densityShow();
     });
     anchor.after(el);
+    if (cfg.triRow) {
+      const tick = document.querySelector(`input[data-layer="${cfg.triRow}"]`);
+      const chip = el.querySelector("[data-tri]");
+      if (tick && chip) {
+        chip.classList.toggle("on", !!tick.checked);
+        tick.addEventListener("change", () => chip.classList.toggle("on", !!tick.checked));
+      }
+    }
+  }
+  // Round 81 (asked 27 September: the layer was slow to load): wider out than
+  // zoom 6 each kind is drawn from a picture of its points (culprits-tiles-more
+  // scripts/epa_density.py), every point counted into the pixel it falls in,
+  // a few kilobytes a square instead of the 16 to 25 MB of points each zoom's
+  // file held. From zoom 6 the points themselves are drawn, as before.
+  const densityIds = [];
+  let densityFrom = 0, densityKey = null;
+  function densityShow() {
+    for (const [lid, id] of densityIds) if (map.getLayer(id)) map.setPaintProperty(id, "raster-opacity", on.has(lid) ? 0.9 : 0);
+  }
+  if (cfg.density) {
+    try {
+      const d = await getJson(cfg.density, 15000);
+      const base = cfg.density.replace(/[^/]+$/, "");
+      for (const part of (d && d.layers) || []) {
+        const sid = `${cfg.id}-dens-src${part.lid}`, lid = `${cfg.id}-dens${part.lid}`;
+        if (map.getSource(sid)) continue;
+        map.addSource(sid, { type: "raster", url: `pmtiles://${base}${part.file}`, tileSize: 256, attribution: cfg.attribution || "" });
+        map.addLayer({ id: lid, type: "raster", source: sid, maxzoom: Number(d.to_zoom) + 1,
+          layout: { visibility: visibility.get(cfg.id) || "visible" }, paint: { "raster-opacity": 0.9, "raster-resampling": "nearest" } }, `${cfg.id}-raster`);
+        densityIds.push([Number(part.lid), lid]);
+        cfg._layerIds = cfg._layerIds || [];
+        cfg._layerIds.push(lid);
+      }
+      if (densityIds.length) {
+        densityFrom = Number(d.to_zoom) + 1;
+        densityKey = d;
+        densityShow();
+      }
+    } catch (e) { /* not built yet: the points are drawn at every zoom, as before */ }
   }
   // Wider out than EPA draws: the weekly copy of every point. A merged point
   // stands for points of several kinds, so the kind buttons leave it shown.
@@ -8845,6 +9111,8 @@ async function addArcgisDynLayer(cfg) {
     cfg._layerIds = cfg._layerIds || [];
     parts.forEach((part, i) => {
       const sid = `${cfg.id}-pts-src${i || ""}`, lid = `${cfg.id}-pts${i || ""}`;
+      // Zooms the pictures cover are not read as points at all.
+      if (densityFrom && part.to < densityFrom) return;
       try {
         map.addSource(sid, { type: "vector", url: `pmtiles://${part.url}`, attribution: cfg.attribution || "" });
         const n = ["coalesce", ["get", "point_count"], 1];
@@ -8897,7 +9165,12 @@ async function addArcgisDynLayer(cfg) {
         `<div class="meta">${hits.length.toLocaleString()} ${hits.length === 1 ? "record" : "records"} here \u00b7 US EPA Envirofacts</div>`).addTo(map);
     } catch (err) { /* nothing there */ }
   });
-  setLayerState(cfg.id, `${layers.length} kinds of facility \u00b7 ${cfg.points ? "a weekly copy of every point wider out; EPA's own picture from about state level in" : "drawn from about state level in"}`);
+  if (densityKey) {
+    const steps = densityKey.steps || [], cols = densityKey.colours || [];
+    rowKey(cfg.id, steps.map((n, i) => [cols[i] || cfg.colour, i === steps.length - 1 ? `${n} or more facilities in one pixel` : `${n}${steps[i + 1] - 1 > n ? ` to ${steps[i + 1] - 1}` : ""} ${n === 1 && steps[i + 1] === 2 ? "facility" : "facilities"} in one pixel`]),
+      `Wider out than zoom ${densityFrom}: every facility counted into the pixel it falls in; zoom in to click each one`);
+  }
+  setLayerState(cfg.id, `${layers.length} kinds of facility \u00b7 ${densityKey ? `every point as a picture wider out than zoom ${densityFrom}, each point from zoom ${densityFrom}` : cfg.points ? "a weekly copy of every point wider out" : "drawn from about state level in"}; EPA's own picture from about state level in`);
   applyVisibility(cfg.id);
   buildLegend();
 }
@@ -9439,7 +9712,26 @@ const COLUMN_EXTRA = {
     say: (v) => `${Math.round(v).toLocaleString()} kg of carbon dioxide an hour, as measured at one pass; the column is that rate kept up for a year` },
   ct_air_bc: { field: "value", factor: 900,
     say: (v) => `${v.toLocaleString(undefined, { maximumFractionDigits: 1 })} t of black carbon a year; the column is that as CO\u2082 equivalent (\u00d7900, IPCC AR5)` },
+  // Round 81 (27 September, at the owner's word): the other air pollutants as
+  // columns too, and the urban sources row by its fine particles. None of them
+  // has an agreed CO2 equivalent, so each row stands on its own scale: its
+  // largest source is as tall as a 10-million-tonne CO2e column, and the rest
+  // in proportion to it (heights still by the square root, like every column).
+  // The box and the key under the row say so.
+  ct_air: ctAirColumn("pm25_kg_hr", "fine particles (PM2.5)", 8.76),
+  ...Object.fromEntries([["pm2_5", "fine particles (PM2.5)"], ["oc", "organic carbon"], ["so2", "sulphur dioxide"],
+    ["vocs", "volatile organic compounds"], ["co", "carbon monoxide"], ["nh3", "ammonia"], ["nox", "nitrogen oxides"]]
+    .map(([g, words]) => [`ct_air_${g}`, ctAirColumn("value", words, 1)])),
 };
+// A pollutant row's column: tonnes a year (the urban sources row gives kg an
+// hour, turned into tonnes a year by x 8.76), on the row's own scale.
+const COLUMN_OWN_TOP = 1e7;
+function ctAirColumn(field, words, toTonnes) {
+  return { field, own: true, toTonnes, words,
+    factor: (cfg) => cfg && cfg._colMax > 0 ? COLUMN_OWN_TOP / cfg._colMax : 1,
+    say: (v, cfg) => `${(v * toTonnes).toLocaleString(undefined, { maximumFractionDigits: 1 })} t of ${words} a year` +
+      (cfg && cfg._colMax > 0 ? `; the column is on this row's own scale, the tallest being its largest source (${Math.round(cfg._colMax).toLocaleString()} t a year)` : "") };
+}
 // Climate TRACE's per-gas rows (scripts/ct_gases.py), kept as they are made so
 // their columns stand with the rest: each row's tonnes of its own gas, turned
 // into CO2 equivalent over 100 years (IPCC AR6: methane 29.8, nitrous oxide 273).
@@ -9485,7 +9777,8 @@ function buildColumns() {
       const key = `${f.properties.plume_id || f.properties.id || ""}|${lng.toFixed(4)}|${lat.toFixed(4)}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      rows.push({ lng, lat, v: raw * x.factor, cfg, p: Object.assign({}, f.properties, { colSay: x.say(raw) }) });
+      const k = typeof x.factor === "function" ? x.factor(cfg) : x.factor;
+      rows.push({ lng, lat, v: raw * (x.toTonnes || 1) * k, cfg, p: Object.assign({}, f.properties, { colSay: x.say(raw, cfg) }) });
     }
   }
   rows.sort((a, b) => b.v - a.v);
@@ -9932,14 +10225,54 @@ function pointLayerAbove() {
   return undefined;
 }
 
+// Country figures read from a copy that is not in this repository (round 81:
+// Waste Atlas's country profiles, one measure a row). Each country is found
+// by its name in the map's own country shapes, or by the names below where
+// Waste Atlas writes them the World Bank's way; every figure the profile
+// gives rides along to the box.
+const WASTEATLAS_URL = "https://welcometoyourgalaxy.github.io/culprits-tiles-more/wasteatlas/places.geojson";
+const WASTEATLAS_ISO = { "HONG KONG SAR, CHINA": "HKG", "MACAO SAR, CHINA": "MAC", "KOREA REP.": "KOR", "UNITED STATES": "USA",
+  "EGYPT, ARAB. REP.": "EGY", "VENEZUELA, RB": "VEN", "SERBIA": "SRB", "BRUNEI DARUSSALAM": "BRN", "CAPE VERDE": "CPV",
+  "COTE D IVOIRE": "CIV", "IRAN, ISLAMIC REP.": "IRN", "CZECH REPUBLIC": "CZE", "GAMBIA, THE": "GMB", "PALESTINIAN TERRITORIES": "PSE",
+  "LAO PDR": "LAO", "YEMEN, REP.": "YEM", "FYROM": "MKD", "RUSSIAN FEDERATION": "RUS", "SLOVAK REPUBLIC": "SVK",
+  "SAO TOME AND PRINCIPE": "STP", "TANZANIA": "TZA", "CONGO, REP.": "COG", "SYRIAN ARAB REPUBLIC": "SYR",
+  "CONGO, DEM. REPUBLIC": "COD", "SWAZILAND": "SWZ", "ST. LUCIA": "LCA", "KYRGYZ REPUBLIC": "KGZ" };
+let wasteAtlasRead = null;
+async function countryTotalsFrom(cfg) {
+  const tf = cfg.totalsFrom;
+  if (tf.kind !== "wasteatlas") throw new Error(`no reader for ${tf.kind}`);
+  if (!wasteAtlasRead) wasteAtlasRead = Promise.all([getJson(WASTEATLAS_URL, 60000), getJson(BOUNDARIES_URL, 60000)]);
+  let gj, shapes;
+  try { [gj, shapes] = await wasteAtlasRead; } catch (e) { wasteAtlasRead = null; throw e; }
+  const byName = new Map((shapes.features || []).map((f) => [String(f.properties.name || "").toUpperCase(), f.properties.iso3]));
+  const out = {}, unplaced = [];
+  for (const f of gj.features || []) {
+    const p = f.properties || {};
+    if (p.category !== "country") continue;
+    const iso = WASTEATLAS_ISO[p.name] || byName.get(String(p.name || "").toUpperCase());
+    if (!iso) { unplaced.push(p.name); continue; }
+    const a = amountOf(p[tf.field]);
+    const rec = { value: a ? a.v : null, unit: cfg.unit };
+    for (const [k, v] of Object.entries(p)) {
+      if (["nr", "number", "city_number", "location_number", "lat", "lng", "category"].includes(k)) continue;
+      rec[`x_${k}`] = v;
+    }
+    if (rec.value != null) out[iso] = rec;
+  }
+  if (unplaced.length) setTimeout(() => setLayerState(cfg.id, `${Object.keys(out).length} countries \u00b7 no country shape on this map for ${unplaced.join(", ")}`), 0);
+  return out;
+}
 async function addCountryLayer(cfg) {
   ensureBoundaries();
 
   let totals;
   try {
-    const r = await fetch(`${DATA_BASE}/${cfg.id}.countries.json`);
-    if (!r.ok) throw new Error(`${r.status}`);
-    totals = await r.json();
+    if (cfg.totalsFrom) totals = await countryTotalsFrom(cfg);
+    else {
+      const r = await fetch(`${DATA_BASE}/${cfg.id}.countries.json`);
+      if (!r.ok) throw new Error(`${r.status}`);
+      totals = await r.json();
+    }
   } catch (e) {
     setLayerState(cfg.id, `unavailable (${e.message})`);
     return;
@@ -9954,8 +10287,11 @@ async function addCountryLayer(cfg) {
   // square-root ramp gave the median an opacity of 0.02 — data present, nothing
   // visible. Log spreads the middle of the range where most countries sit.
   // A country with no data at all stays fully transparent.
-  const lo = Math.log10(Math.max(min, 1e-6));
-  const span = Math.max(Math.log10(max) - lo, 0.001);
+  // A share out of a hundred (round 81, Waste Atlas's rates) is spread evenly
+  // from none to all instead.
+  const lin = cfg.linear;
+  const lo = lin ? lin[0] : Math.log10(Math.max(min, 1e-6));
+  const span = lin ? lin[1] - lin[0] : Math.max(Math.log10(max) - lo, 0.001);
 
   // Country layers share one boundaries source, so each needs its own
   // feature-state key. A shared "v" meant the second layer to load silently
@@ -9963,7 +10299,8 @@ async function addCountryLayer(cfg) {
   const key = `v_${cfg.id}`;
 
   // A country's place on the log scale, 0 (smallest) to 1 (largest).
-  const at = ["max", 0, ["min", 1, ["/", ["-", ["log10", ["max", ["coalesce", ["feature-state", key], 1e-6], 1e-6]], lo], span]]];
+  const at = lin ? ["max", 0, ["min", 1, ["/", ["-", ["coalesce", ["feature-state", key], 0], lo], span]]]
+    : ["max", 0, ["min", 1, ["/", ["-", ["log10", ["max", ["coalesce", ["feature-state", key], 1e-6], 1e-6]], lo], span]]];
   // Colour and depth together (25 September, round 48). Depth alone, one
   // colour faded in and out, left countries rated far apart looking alike. The
   // five steps are written light to dark and spread from cyan to blue as they
@@ -9984,7 +10321,7 @@ async function addCountryLayer(cfg) {
     const label = row && row.closest ? row.closest("label") : null;
     if (label && label.after && !document.querySelector(`.facet[data-key-for="${cfg.id}"]`)) {
       const fmt = (x) => Number(x.toPrecision(2)).toLocaleString();
-      const val = (t) => Math.pow(10, lo + t * span);
+      const val = (t) => (lin ? lo + t * span : Math.pow(10, lo + t * span));
       const el = document.createElement("div");
       el.className = "facet cat-key";
       el.dataset.keyFor = cfg.id;
@@ -10029,8 +10366,9 @@ async function addCountryLayer(cfg) {
         // Every other figure the country's record carries (round 29).
         `<table class="meta">${fieldRows(Object.fromEntries(Object.entries(totals[e.features[0].id] || {})
           .filter(([k]) => k !== "value" && k !== "unit").map(([k, v]) => [k.replace(/^x_/, ""), v])))}</table>` +
-        `<div class="meta" style="color:#8F4E40">Country total — the source ` +
-        `records no site coordinates for these.</div>`
+        (cfg.countryNote ? `<div class="meta">${escapeHtml(cfg.countryNote)}</div>`
+          : `<div class="meta" style="color:#8F4E40">Country total — the source ` +
+        `records no site coordinates for these.</div>`)
       )
       .addTo(map);
   });
@@ -10413,6 +10751,168 @@ function addCeruleanLayer(cfg) {
   buildLegend();
 }
 
+/* ---------- Cerulean's slicks by date, live or from the kept copy (round 81) ---------- */
+// Asked 27 September: a timeline for the oil slicks, and the slick archive
+// (every slick kept by month from a daily copy) folded into this row rather
+// than a row of its own. Under the row: the months to show, from and to, a
+// play button that steps through them a month at a time, and where to draw
+// them from: Cerulean's live service (every month since January 2023, asked
+// for by date) or the copy kept daily (the months it holds; it stays whatever
+// happens to the live service). "Every month" is the row as it was.
+// The months chosen, as Cerulean's service (tipg) takes them: a datetime
+// range, on the slick's own time (slick_timestamp).
+function ceruleanDt(cfg) {
+  return cfg && cfg._dt ? `&datetime=${encodeURIComponent(cfg._dt)}&datetime-column=${encodeURIComponent((cfg.timeline && cfg.timeline.column) || "slick_timestamp")}` : "";
+}
+function monthsBetween(a, b) {
+  const out = [];
+  let [y, m] = a.split("-").map(Number);
+  const [y1, m1] = b.split("-").map(Number);
+  while (y < y1 || (y === y1 && m <= m1)) { out.push(`${y}-${String(m).padStart(2, "0")}`); m++; if (m > 12) { m = 1; y++; } }
+  return out;
+}
+function monthEnd(m) {
+  const [y, mo] = m.split("-").map(Number);
+  return new Date(Date.UTC(y, mo, 0)).toISOString().slice(0, 10);
+}
+async function ceruleanTimeline(cfg) {
+  const tl = cfg.timeline;
+  const now = new Date();
+  const months = monthsBetween(tl.from, `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`);
+  let index = {}, tiled = {};
+  try { index = await getJson(`${tl.archive}/index.json`, 20000); } catch (e) { /* no kept copy yet */ }
+  try { tiled = await getJson(`${tl.archive}/tiles.json`, 20000); } catch (e) { /* none tiled yet */ }
+  const kept = Object.keys(index).sort();
+  const row = document.querySelector(`[data-layer="${cfg.id}"]`);
+  const anchor = row && row.closest ? row.closest("label") : null;
+  if (!anchor || !anchor.after || document.querySelector(`.facet[data-timeline-for="${cfg.id}"]`)) return;
+  const el = document.createElement("div");
+  el.className = "facet slick-timeline";
+  el.dataset.timelineFor = cfg.id;
+  const opts = (sel) => `<option value="">every month</option>` + months.map((m) => `<option value="${m}"${m === sel ? " selected" : ""}>${m}</option>`).join("");
+  el.innerHTML = `<div class="st-l">When</div>` +
+    `<label>from <select data-st="from" aria-label="From month">${opts("")}</select></label> ` +
+    `<label>to <select data-st="to" aria-label="To month">${opts("")}</select></label> ` +
+    `<button type="button" class="chip" data-st="play" title="Step through the months one at a time">\u25B6 play</button>` +
+    `<div class="st-l">Drawn from</div>` +
+    `<label><input type="radio" name="st-src-${cfg.id}" value="live" checked> the live service</label> ` +
+    `<label><input type="radio" name="st-src-${cfg.id}" value="kept"${kept.length ? "" : " disabled"}> the copy kept daily` +
+    (kept.length ? ` (${kept[0]} to ${kept[kept.length - 1]}, ${kept.reduce((a, m) => a + Number(index[m] || 0), 0).toLocaleString()} slicks)` : " (none kept yet)") + `</label>`;
+  anchor.after(el);
+  const fromSel = el.querySelector('[data-st="from"]'), toSel = el.querySelector('[data-st="to"]');
+  const arcIds = [];
+  let arcShown = "";
+  const liveIds = [`${cfg.id}-fill`, `${cfg.id}-line`, `${cfg.id}-agg`, `${cfg.id}-cap`, `${cfg.id}-pt`];
+  const hideLive = (hide) => {
+    for (const id of liveIds) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", hide || (visibility.get(cfg.id) || "visible") !== "visible" ? "none" : "visible");
+  };
+  const clearArc = () => {
+    for (const id of arcIds) if (map.getLayer(id)) map.removeLayer(id);
+    for (let i = 0; map.getSource(`${cfg.id}-arc${i}`); i++) map.removeSource(`${cfg.id}-arc${i}`);
+    if (map.getSource(`${cfg.id}-arcgj`)) map.removeSource(`${cfg.id}-arcgj`);
+    arcIds.length = 0;
+    cfg._layerIds = (cfg._layerIds || []).filter((id) => !/-arc/.test(id));
+    arcShown = "";
+  };
+  const slickBox = (p) => {
+    const foot = `<div class="meta">SkyTruth Cerulean, from the copy kept daily</div>`;
+    if (p.id == null || !Object.keys(p).every((k) => k === "id" || k === "t")) return `<b>Oil slick</b><table class="meta">${fieldRows(p)}</table>${foot}`;
+    return fetch(`${CERULEAN}/collections/public.slick_plus/items/${encodeURIComponent(p.id)}?bbox-only=true`)
+      .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
+      .then((j) => `<b>Oil slick</b><table class="meta">${fieldRows(j.properties || {}, ["centerlines"])}</table>${foot}`)
+      .catch((e) => `<b>Oil slick ${escapeHtml(String(p.id))}</b><div class="meta">${escapeHtml(String(p.t || ""))}</div>` +
+        `<div class="meta">Its record could not be read from Cerulean just now (${escapeHtml(e.message)}); the shape is kept here.</div>${foot}`);
+  };
+  const drawKept = async (list) => {
+    const want = list.join(",");
+    if (arcShown === want) return;
+    clearArc();
+    arcShown = want;
+    const vis = visibility.get(cfg.id) || "visible";
+    let i = 0, plain = [];
+    for (const m of list) {
+      if (!tiled[m]) { if (index[m]) plain.push(m); continue; }
+      for (const file of [].concat(tiled[m])) {
+        const sid = `${cfg.id}-arc${i}`, sfx = String(i);
+        map.addSource(sid, { type: "vector", url: `pmtiles://${tl.archive}/${file}` });
+        map.addLayer({ id: `${cfg.id}-arcfill${sfx}`, type: "fill", source: sid, "source-layer": "slicks", minzoom: 7, layout: { visibility: vis },
+          paint: { "fill-color": cfg.colour, "fill-opacity": 0.45 } });
+        map.addLayer({ id: `${cfg.id}-arcline${sfx}`, type: "line", source: sid, "source-layer": "slicks", minzoom: 7, layout: { visibility: vis },
+          paint: { "line-color": "#B8A79E", "line-width": 1 } });
+        map.addLayer({ id: `${cfg.id}-arcpt${sfx}`, type: "circle", source: sid, "source-layer": "slick_points", maxzoom: 7, layout: { visibility: vis },
+          paint: { "circle-color": cfg.pointsColour || "#B8A79E", "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 2.2, 6, 3.6],
+                   "circle-stroke-color": "#1D1B17", "circle-stroke-width": 0.5, "circle-opacity": 0.9 } });
+        arcIds.push(`${cfg.id}-arcfill${sfx}`, `${cfg.id}-arcline${sfx}`, `${cfg.id}-arcpt${sfx}`);
+        bindHtmlPopup(`${cfg.id}-arcfill${sfx}`, slickBox);
+        bindHtmlPopup(`${cfg.id}-arcpt${sfx}`, slickBox);
+        i++;
+      }
+    }
+    if (plain.length) {
+      // Months the daily job has not tiled yet, read whole.
+      const feats = [];
+      for (const m of plain) { try { feats.push(...((await getJson(`${tl.archive}/${m}.geojson`, 60000)).features || [])); } catch (e) { /* that month could not be read */ } }
+      map.addSource(`${cfg.id}-arcgj`, { type: "geojson", data: { type: "FeatureCollection", features: feats } });
+      map.addLayer({ id: `${cfg.id}-arcgjfill`, type: "fill", source: `${cfg.id}-arcgj`, layout: { visibility: vis }, paint: { "fill-color": cfg.colour, "fill-opacity": 0.45 } });
+      map.addLayer({ id: `${cfg.id}-arcgjline`, type: "line", source: `${cfg.id}-arcgj`, layout: { visibility: vis }, paint: { "line-color": "#B8A79E", "line-width": 1.2 } });
+      arcIds.push(`${cfg.id}-arcgjfill`, `${cfg.id}-arcgjline`);
+      bindHtmlPopup(`${cfg.id}-arcgjfill`, slickBox);
+    }
+    cfg._layerIds = (cfg._layerIds || []).concat(arcIds);
+  };
+  const apply = async () => {
+    let a = fromSel.value, b = toSel.value;
+    if (a && b && a > b) [a, b] = [b, a];
+    const kept_ = el.querySelector(`input[name="st-src-${cfg.id}"]:checked`).value === "kept";
+    const list = !a && !b ? months : monthsBetween(a || months[0], b || months[months.length - 1]);
+    const words = !a && !b ? "" : list.length === 1 ? `in ${list[0]}` : `from ${list[0]} to ${list[list.length - 1]}`;
+    cfg._dtWords = words || null;
+    if (kept_) {
+      cfg._arc = true;
+      hideLive(true);
+      const have = list.filter((m) => index[m]);
+      await drawKept(have);
+      const n = have.reduce((s, m) => s + Number(index[m] || 0), 0);
+      setLayerState(cfg.id, have.length ? `${n.toLocaleString()} slicks ${words || "in every month kept"}, from the copy kept daily (${have.length} month${have.length === 1 ? "" : "s"})`
+        : `the copy kept daily holds none of these months (it holds ${kept[0] || "none"} to ${kept[kept.length - 1] || ""})`);
+    } else {
+      cfg._arc = false;
+      clearArc();
+      hideLive(false);
+      cfg._dt = words ? `${list[0]}-01T00:00:00Z/${monthEnd(list[list.length - 1])}T23:59:59Z` : null;
+      const src = map.getSource(`${cfg.id}-tiles`);
+      const base = CERULEAN.replace(/^https:\/\//, "cerulean://");
+      if (src && src.setTiles) src.setTiles([`${base}/collections/${cfg.collection}/tiles/WebMercatorQuad/{z}/{x}/{y}` +
+        `?properties=${cfg.properties.join(",")}${ceruleanDt(cfg)}`]);
+      // The undated points give way to the counted squares while months are chosen.
+      if (map.getLayer(`${cfg.id}-pt`)) map.setFilter(`${cfg.id}-pt`, cfg._dt ? ["==", 1, 0] : null);
+      ceruleanTotals.delete(cfg.id);
+      refreshCerulean(cfg).catch(() => {});
+    }
+    applyVisibility(cfg.id);
+  };
+  // Ticking the row back on shows everything under its name; while the kept
+  // copy is chosen, the live layers are put away again.
+  cfg.afterVisibility = (vis) => { if (vis === "visible" && cfg._arc) hideLive(true); };
+  el.addEventListener("change", () => { apply(); });
+  let playing = null;
+  el.querySelector('[data-st="play"]').addEventListener("click", (e) => {
+    const btn = e.currentTarget;
+    if (playing) { clearInterval(playing); playing = null; btn.classList.remove("on"); btn.textContent = "\u25B6 play"; return; }
+    btn.classList.add("on"); btn.textContent = "\u275A\u275A stop";
+    let i = Math.max(0, months.indexOf(fromSel.value));
+    const step = () => {
+      if (i >= months.length) { clearInterval(playing); playing = null; btn.classList.remove("on"); btn.textContent = "\u25B6 play"; return; }
+      fromSel.value = months[i]; toSel.value = months[i]; i++;
+      apply();
+    };
+    step();
+    playing = setInterval(step, 2500);
+  });
+  addStyle(".slick-timeline{font-size:11px;color:var(--dim);padding-left:18px}.slick-timeline .st-l{margin:4px 0 2px;font-weight:600}" +
+    ".slick-timeline select{font:inherit;font-size:11px}.slick-timeline label{white-space:nowrap}", "slick-timeline");
+}
+
 // One popup per click, sharing the claim with bindPopup.
 function bindHtmlPopup(layerId, html, opts) {
   map.on("click", layerId, (e) => {
@@ -10460,11 +10960,11 @@ const COUNT_PARALLEL = 4;             // their server is slow; do not queue 30 a
 const COUNT_FROM = 3;                 // wider than this, one total instead of squares
 
 async function ceruleanCount(cfg, z, x, y) {
-  const key = `${cfg.id} ${z}/${x}/${y}`;
+  const key = `${cfg.id} ${cfg._dt || ""} ${z}/${x}/${y}`;
   const hit = ceruleanCounts.get(key);
   if (hit && Date.now() - hit.at < COUNT_TTL_MS) return hit.n;
   const [w, s, e, n] = tileBounds(z, x, y).map((v) => v.toFixed(5));
-  const url = `${CERULEAN}/collections/${cfg.collection}/items?bbox=${w},${s},${e},${n}&limit=0`;
+  const url = `${CERULEAN}/collections/${cfg.collection}/items?bbox=${w},${s},${e},${n}&limit=0${ceruleanDt(cfg)}`;
   for (let attempt = 0; ; attempt++) {
     try {
       const r = await fetch(url);
@@ -10482,7 +10982,7 @@ async function ceruleanCount(cfg, z, x, y) {
 // One number for the whole collection, asked once per page view.
 const ceruleanTotals = new Map();     // id -> number, or a pending promise
 async function ceruleanTotal(cfg) {
-  const url = `${CERULEAN}/collections/${cfg.collection}/items?limit=0`;
+  const url = `${CERULEAN}/collections/${cfg.collection}/items?limit=0${ceruleanDt(cfg)}`;
   for (let attempt = 0; ; attempt++) {
     try {
       const r = await fetch(url);
@@ -10509,7 +11009,10 @@ async function refreshCerulean(cfg) {
   // From zoom 3 the squares are small enough to say something, and each is
   // counted live rather than estimated.
   // With every slick drawn as a point, the counted squares are not needed.
-  if (cfg._points && map.getZoom() < cfg.drawFrom) {
+  // The points carry no date, so while months are chosen (round 81) the
+  // counted squares stand in for them.
+  if (cfg._arc) return;
+  if (cfg._points && !cfg._dt && map.getZoom() < cfg.drawFrom) {
     const empty = { type: "FeatureCollection", features: [] };
     counts.setData(empty);
     caps.setData(empty);
@@ -10522,7 +11025,7 @@ async function refreshCerulean(cfg) {
     caps.setData(empty);
     const total = ceruleanTotals.get(cfg.id);
     if (typeof total === "number") {
-      setLayerState(cfg.id, `${total.toLocaleString()} potential slicks since January 2023 — ` +
+      setLayerState(cfg.id, `${total.toLocaleString()} potential slicks ${cfg._dtWords || "since January 2023"} — ` +
                             `zoom in to ${COUNT_FROM} to count them by area, ${cfg.drawFrom} to draw them`);
     } else {
       setLayerState(cfg.id, `zoom in to ${COUNT_FROM} to count them by area`);
@@ -13187,6 +13690,12 @@ function applyVisibility(id) {
   if (rc && rc.linked) for (const l of rc.linked) { visibility.set(l, vis); if (l !== id) applyVisibility(l); }
   if (rc && typeof rc.afterVisibility === "function") rc.afterVisibility(vis);
   if (cfg && cfg.route === "cerulean" && vis === "visible") {
+    // Its timeline is set up the first time it is shown (round 81), so nothing
+    // is asked for while the row is off.
+    if (cfg.timeline && !cfg._timelineStarted && map.getSource(`${cfg.id}-tiles`)) {
+      cfg._timelineStarted = true;
+      ceruleanTimeline(cfg).catch((e) => console.warn(`[culprits] ${cfg.id} timeline: ${e.message}`));
+    }
     refreshCerulean(cfg).catch((e) => setLayerState(id, `unavailable (${e.message})`));
   }
 }
@@ -13700,27 +14209,54 @@ const OTHER_MAPS = {
     { id: "gfw_catalogue", name: "Global Forest Watch / Global Nature Watch: every dataset", unit: "datasets", colour: "#62755F", route: "gfwmenu", ready: true, lazy: true,
       api: "https://data-api.globalforestwatch.org",
       note: "Its whole data catalogue, read live; a dataset draws from its own published tiles when it has them." },
-    { id: "wasteatlas_dumpsites", name: "Dumpsites (Waste Atlas)", unit: "dumpsites", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
+    { id: "wasteatlas_dumpsites", name: "Dumpsites, coloured by the estimated waste in them (Waste Atlas)", unit: "dumpsites", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
+      colourBy: { field: "Estimated amount of included waste", steps: [5e5, 1e6, 3e6, 1e7, 3e7], unit: "t of waste", estimate: { field: "Informal Sector", unit: "people working informally" } },
       files: [{ label: "Dumpsites", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/wasteatlas/places.geojson", only: ["category", "Dumpsites"] }],
       note: "Waste Atlas (D-Waste, with ISWA and the University of Leeds): the markers its own map draws with the category Dumpsites, every figure in its box kept; copied weekly by culprits-tiles-more, since the site answers only over plain http." },
-    { id: "wasteatlas_landfills", name: "Sanitary landfills (Waste Atlas)", unit: "landfills", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
+    { id: "wasteatlas_landfills", name: "Sanitary landfills, coloured by the waste disposed in them (Waste Atlas)", unit: "landfills", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
+      colourBy: { field: "Amount of waste disposed", steps: [1e5, 5e5, 2e6, 5e6, 2e7], unit: "t of waste disposed" },
       files: [{ label: "Sanitary landfills", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/wasteatlas/places.geojson", only: ["category", "Sanitary Landfills"] }],
       note: "Waste Atlas (D-Waste, with ISWA and the University of Leeds): the markers its own map draws with the category Sanitary Landfills, every figure in its box kept; copied weekly by culprits-tiles-more, since the site answers only over plain http." },
-    { id: "wasteatlas_wte", name: "Waste-to-energy plants (incinerators) (Waste Atlas)", unit: "plants", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
+    { id: "wasteatlas_wte", name: "Waste-to-energy plants (incinerators), coloured by yearly capacity (Waste Atlas)", unit: "plants", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
+      colourBy: { field: "Annual capacity", steps: [3e4, 1e5, 2e5, 4e5, 8e5], unit: "t a year" },
       files: [{ label: "Waste-to-energy plants (incinerators)", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/wasteatlas/places.geojson", only: ["category", "WtE"] }],
       note: "Waste Atlas (D-Waste, with ISWA and the University of Leeds): the markers its own map draws with the category WtE, every figure in its box kept; copied weekly by culprits-tiles-more, since the site answers only over plain http." },
-    { id: "wasteatlas_mbt", name: "Mechanical-biological treatment plants (Waste Atlas)", unit: "plants", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
+    { id: "wasteatlas_mbt", name: "Mechanical-biological treatment plants, coloured by yearly capacity (Waste Atlas)", unit: "plants", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
+      colourBy: { field: "Annual capacity", steps: [4e4, 8e4, 1.5e5, 2.5e5, 4e5], unit: "t a year" },
       files: [{ label: "Mechanical-biological treatment plants", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/wasteatlas/places.geojson", only: ["category", "MBT"] }],
       note: "Waste Atlas (D-Waste, with ISWA and the University of Leeds): the markers its own map draws with the category MBT, every figure in its box kept; copied weekly by culprits-tiles-more, since the site answers only over plain http." },
-    { id: "wasteatlas_bt", name: "Biological treatment plants (Waste Atlas)", unit: "plants", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
+    { id: "wasteatlas_bt", name: "Biological treatment plants, coloured by yearly capacity (Waste Atlas)", unit: "plants", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
+      colourBy: { field: "Annual capacity", steps: [5e3, 2e4, 5e4, 1e5, 3e5], unit: "t a year" },
       files: [{ label: "Biological treatment plants", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/wasteatlas/places.geojson", only: ["category", "Biological Treatment"] }],
       note: "Waste Atlas (D-Waste, with ISWA and the University of Leeds): the markers its own map draws with the category Biological Treatment, every figure in its box kept; copied weekly by culprits-tiles-more, since the site answers only over plain http." },
-    { id: "wasteatlas_cities", name: "Cities' waste figures (Waste Atlas)", unit: "cities", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
+    { id: "wasteatlas_cities", name: "Cities' waste, coloured by the municipal solid waste each makes a year (Waste Atlas)", unit: "cities", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
+      colourBy: { field: "Municipal Solid Waste generation", steps: [5e3, 5e4, 2e5, 1e6, 5e6], unit: "t a year" },
       files: [{ label: "Cities' waste figures", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/wasteatlas/places.geojson", only: ["category", "city"] }],
       note: "Waste Atlas (D-Waste, with ISWA and the University of Leeds): the markers its own map draws with the category city, every figure in its box kept; copied weekly by culprits-tiles-more, since the site answers only over plain http." },
-    { id: "wasteatlas_countries", name: "Countries' waste figures (Waste Atlas)", unit: "countries", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Countries' waste figures", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/wasteatlas/places.geojson", only: ["category", "country"] }],
-      note: "Waste Atlas (D-Waste, with ISWA and the University of Leeds): the markers its own map draws with the category country, every figure in its box kept; copied weekly by culprits-tiles-more, since the site answers only over plain http." },
+    { id: "wasteatlas_nat_msw", name: "Municipal solid waste made a year, by country (Waste Atlas)", unit: "t a year", colour: "#6A6258", route: "country", ready: true, lazy: true,
+      totalsFrom: { kind: "wasteatlas", field: "Municipal Solid Waste generation" }, countryNote: "Waste Atlas's country profile, as the site last published it",
+      note: "Waste Atlas (D-Waste, with ISWA and the University of Leeds): each country's figure for Municipal Solid Waste generation from its country profiles, shading the whole country; the box gives all of the country's figures. Copied weekly by culprits-tiles-more; the site's figures are about 2016." },
+    { id: "wasteatlas_nat_stress", name: "Environmental stress, municipal solid waste per square km of land, by country (Waste Atlas)", unit: "t per square km", colour: "#6A6258", route: "country", ready: true, lazy: true,
+      totalsFrom: { kind: "wasteatlas", field: "Environmental Stress" }, countryNote: "Waste Atlas's country profile, as the site last published it",
+      note: "Waste Atlas (D-Waste, with ISWA and the University of Leeds): each country's figure for Environmental Stress from its country profiles, shading the whole country; the box gives all of the country's figures. Copied weekly by culprits-tiles-more; the site's figures are about 2016." },
+    { id: "wasteatlas_nat_percap", name: "Municipal solid waste made per person a year, by country (Waste Atlas)", unit: "kg per person a year", colour: "#6A6258", route: "country", ready: true, lazy: true,
+      totalsFrom: { kind: "wasteatlas", field: "Generation per capita" }, countryNote: "Waste Atlas's country profile, as the site last published it",
+      note: "Waste Atlas (D-Waste, with ISWA and the University of Leeds): each country's figure for Generation per capita from its country profiles, shading the whole country; the box gives all of the country's figures. Copied weekly by culprits-tiles-more; the site's figures are about 2016." },
+    { id: "wasteatlas_nat_gni", name: "Income per person (GNI per capita, PPP, current international $), by country (Waste Atlas)", unit: "international $ a year", colour: "#6A6258", route: "country", ready: true, lazy: true,
+      totalsFrom: { kind: "wasteatlas", field: "GNI per capita, PPP (current international $)" }, countryNote: "Waste Atlas's country profile, as the site last published it",
+      note: "Waste Atlas (D-Waste, with ISWA and the University of Leeds): each country's figure for GNI per capita, PPP (current international $) from its country profiles, shading the whole country; the box gives all of the country's figures. Copied weekly by culprits-tiles-more; the site's figures are about 2016." },
+    { id: "wasteatlas_nat_collect", linear: [0, 100], name: "Share of waste collected, by country (Waste Atlas)", unit: "% collected", colour: "#6A6258", route: "country", ready: true, lazy: true,
+      totalsFrom: { kind: "wasteatlas", field: "Collection coverage" }, countryNote: "Waste Atlas's country profile, as the site last published it",
+      note: "Waste Atlas (D-Waste, with ISWA and the University of Leeds): each country's figure for Collection coverage from its country profiles, shading the whole country; the box gives all of the country's figures. Copied weekly by culprits-tiles-more; the site's figures are about 2016." },
+    { id: "wasteatlas_nat_recycle", linear: [0, 100], name: "Recycling rate, by country (Waste Atlas)", unit: "% recycled", colour: "#6A6258", route: "country", ready: true, lazy: true,
+      totalsFrom: { kind: "wasteatlas", field: "Recycling rate" }, countryNote: "Waste Atlas's country profile, as the site last published it",
+      note: "Waste Atlas (D-Waste, with ISWA and the University of Leeds): each country's figure for Recycling rate from its country profiles, shading the whole country; the box gives all of the country's figures. Copied weekly by culprits-tiles-more; the site's figures are about 2016." },
+    { id: "wasteatlas_nat_unsound", linear: [0, 100], name: "Share of waste disposed of unsoundly (open dumping and burning), by country (Waste Atlas)", unit: "% unsoundly disposed", colour: "#6A6258", route: "country", ready: true, lazy: true,
+      totalsFrom: { kind: "wasteatlas", field: "Unsound disposal" }, countryNote: "Waste Atlas's country profile, as the site last published it",
+      note: "Waste Atlas (D-Waste, with ISWA and the University of Leeds): each country's figure for Unsound disposal from its country profiles, shading the whole country; the box gives all of the country's figures. Copied weekly by culprits-tiles-more; the site's figures are about 2016." },
+    { id: "wasteatlas_nat_intensity", name: "Waste made per dollar spent (waste intensive consumption), by country (Waste Atlas)", unit: "kg per $", colour: "#6A6258", route: "country", ready: true, lazy: true,
+      totalsFrom: { kind: "wasteatlas", field: "Waste intensive consumption" }, countryNote: "Waste Atlas's country profile, as the site last published it",
+      note: "Waste Atlas (D-Waste, with ISWA and the University of Leeds): each country's figure for Waste intensive consumption from its country profiles, shading the whole country; the box gives all of the country's figures. Copied weekly by culprits-tiles-more; the site's figures are about 2016." },
     { id: "coastal_cleanup", name: "Coastal Cleanup (Ocean Conservancy)", unit: "cleanup sites", colour: "#5F6B70", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Cleanups", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/coastal/cleanups.geojson" }],
       note: "Ocean Conservancy's cleanup sites, copied daily by culprits-tiles-more (its server lets only its own site read it)." },
@@ -13847,8 +14383,10 @@ const OTHER_MAPS = {
       // the row draws a weekly copy of every point (scripts/epa_efpoints.py in
       // culprits-tiles-more); each point's full record is fetched from EPA on click.
       points: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/epa_efpoints.pmtiles",
+      density: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/epa_density.json",
+      triRow: "epa_tri_sites",
       attribution: "US EPA Envirofacts",
-      note: "The facility points behind EPA's Envirofacts multisystem widget, drawn live from EPA's EnviroMapper service; EPA draws them from about state level in; wider out, a copy of every point is drawn, none merged, renewed every four weeks (one file per zoom, so the world view is the heaviest to load)." },
+      note: "The facility points behind EPA's Envirofacts multisystem widget, drawn live from EPA's EnviroMapper service from about state level in. Wider out, a copy of every point renewed every four weeks: from zoom 6 each point, and wider out than that a picture of every point, counted into the pixel it falls in, so the world view loads at once. The Toxics Release Inventory's full list of reporting factories is one of its kinds." },
     { id: "bocc", name: "Banking on Climate Chaos 2026: the 65 largest banks' fossil fuel financing, at their headquarters", unit: "banks", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Banking on Climate Chaos 2026", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/bocc/banks.geojson" }], nameFrom: ["bank"],
       attribution: "Banking on Climate Chaos 2026 (RAN, BankTrack, IEN, Oil Change International, Reclaim Finance, Sierra Club, Urgewald and others); GLEIF; OpenStreetMap",
@@ -13903,6 +14441,7 @@ const OTHER_MAPS = {
     // It said "last 30 days". It never was: SkyTruth's service does not apply the
     // days it is asked for, and the copy holds ships from 2019 and 2024.
     { id: "skytruth_voc", name: "Vessels of concern (SkyTruth Monitor)", unit: "alerts", colour: "#5E7377", route: "pmtiles", ready: true, lazy: true,
+      standout: { fill: "#6FC8E6", rim: "#E6F4F7", say: "a disabled or sunken ship SkyTruth lists as a spill threat, ringed so it can be found from far out" },
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_voc.pmtiles", boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/vessels_of_concern",
       note: "SkyTruth's own list of disabled and sunken ships that threaten a spill, every one it lists whatever its date, from a daily copy of its service." },
     // SkyTruth Monitor's alert feeds, one row each, from the same daily copy.
@@ -13912,6 +14451,15 @@ const OTHER_MAPS = {
     { id: "skytruth_posts", name: "Taylor Energy, derailments and refuge spills, written up by SkyTruth (SkyTruth Monitor)", unit: "write-ups", colour: "#5E6B70", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_posts.pmtiles",
       boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_2",
       note: "Every alert SkyTruth's service will give, from a daily copy read square by square as tiles: the service hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. A click reads the alert's own text from the copy. SkyTruth's own posts about incidents it followed, placed where each happened." },
+    // Round 81 (asked 27 September): the write-ups as two parts of the oil
+    // slicks layer, those at sea and those on land (culprits-tiles-more
+    // scripts/skytruth_water.py places each against Natural Earth's coastline).
+    { id: "skytruth_posts_sea", name: "Slicks and spills at sea written up by SkyTruth, Taylor Energy's leaking platform among them (SkyTruth Monitor)", unit: "write-ups", colour: "#5E6B70", route: "geojsonlive", ready: true, lazy: true, fixedName: true,
+      files: [{ label: "At sea", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/posts_sea.geojson" }],
+      note: "SkyTruth's own posts about incidents it followed, those whose point lies off the land: Taylor Energy's platform 23051 leaking in the Gulf of Mexico since 2004, other platform and pipeline leaks, and slicks seen from space. Each with SkyTruth's own text, from a daily copy. At sea or on land is decided by testing the point against Natural Earth's 1:10 million coastline." },
+    { id: "skytruth_posts_land", name: "Spills, explosions and derailments on land written up by SkyTruth (SkyTruth Monitor)", unit: "write-ups", colour: "#6A5A4E", route: "geojsonlive", ready: true, lazy: true, fixedName: true,
+      files: [{ label: "On land", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/posts_land.geojson" }],
+      note: "SkyTruth's own posts about incidents it followed, those whose point lies on land (lakes and rivers count as land at this scale): well-site explosions, crude oil train derailments, spills into creeks and refuges. Each with SkyTruth's own text, from a daily copy. At sea or on land is decided by testing the point against Natural Earth's 1:10 million coastline." },
     { id: "skytruth_marine_incidents", name: "Sinkings, groundings and mystery slicks, as US responders wrote them up (SkyTruth Monitor)", unit: "incident reports", colour: "#5A6772", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_marine_incidents.pmtiles",
       boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_3",
       note: "Every alert SkyTruth's service will give, from a daily copy read square by square as tiles: the service hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. A click reads the alert's own text from the copy. Incident reports in the words of the responders, NOAA's and the Coast Guard's among them." },
@@ -13979,6 +14527,22 @@ const OTHER_MAPS = {
     { id: "mymaps_chlorine", name: "Plastics and chlorine (Google My Maps)", unit: "placemarks", colour: "#5F6B70", route: "kml", ready: true, lazy: true,
       kml: "https://www.google.com/maps/d/kml?mid=1PwPKisRf73FPC6hTtZDCv2s_B6_x0Pk7&forcekml=1",
       note: "Read live from the map's Google My Maps file; the row takes the map's own title once it loads." },
+    // Round 81 (asked 27 September): no open worldwide list of plastics plants
+    // exists, so these two are built from the public registers and open maps
+    // that do give plant locations (culprits-tiles-more scripts/plastics.py),
+    // every record kept and labelled with its source, none merged.
+    { id: "plastics_plants", name: "Plants making plastic and its building blocks, worldwide (built from EPA, the EU register, Climate TRACE, OpenStreetMap and Wikidata)", unit: "plants", colour: "#5E6070", route: "geojsonlive", ready: true, lazy: true, fixedName: true,
+      files: [{ label: "Plastics plants", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/plastics/plants.geojson" }],
+      groupColours: { "Plastic resin and polymer plants": "#3A76D6", "Ethylene and propylene crackers (the building blocks of plastic)": "#6A4FB0",
+        "Plastic goods factories": "#78C8E8" }, groupHint: "Coloured by what the plant makes",
+      attribution: "US EPA TRI; European Environment Agency (E-PRTR); Climate TRACE (CC BY 4.0); © OpenStreetMap contributors (ODbL); Wikidata (CC0)",
+      note: "No open worldwide register of plastics plants exists (the industry's own, such as Polyglobe, are sold by subscription), so this row is built from every public source that gives plant locations: the US Toxics Release Inventory (every facility whose main activity is plastics material and resin manufacturing, with the chemicals it reports and its releases), the EU's industrial emissions register (every installation making basic plastic materials), Climate TRACE's ethylene and propylene crackers worldwide (the building blocks of polyethylene, polypropylene and PVC, with capacity and emissions), and places OpenStreetMap and Wikidata record as making plastic, polymers or resin. Each record says which source it is from; the same plant can appear once from each source. Registers cover the countries that keep them, so the United States and Europe are the most complete." },
+    { id: "vinyl_chloride_plants", name: "Plants making or releasing vinyl chloride, the gas PVC is made from (built from EPA, the EU register, OpenStreetMap and Wikidata)", unit: "plants", colour: "#5E6070", route: "geojsonlive", ready: true, lazy: true, fixedName: true,
+      files: [{ label: "Vinyl chloride", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/plastics/vinyl_chloride.geojson" }],
+      groupColours: { "Reporting vinyl chloride releases, United States": "#3450BE", "Reporting vinyl chloride releases, Europe": "#46A0DE",
+        "Vinyl chloride and PVC plants in open maps": "#8A7CD0" }, groupHint: "Coloured by where the record comes from",
+      attribution: "US EPA TRI; European Environment Agency (E-PRTR); © OpenStreetMap contributors (ODbL); Wikidata (CC0)",
+      note: "Every facility the US Toxics Release Inventory and the EU's industrial emissions register list as releasing vinyl chloride, with the amount they report for the latest year, and the places OpenStreetMap and Wikidata record as making vinyl chloride or PVC. Built by culprits-tiles-more (scripts/plastics.py); each record says which source it is from." },
     { id: "mymaps_trees", name: "Christmas Trees (Google My Maps)", unit: "placemarks", colour: "#5F6E5C", route: "kml", ready: true, lazy: true,
       kml: "https://www.google.com/maps/d/kml?mid=1c-vPoGf79mfQezTgcFoKb-xN4A4&forcekml=1",
       note: "Read live from the map's Google My Maps file; the row takes the map's own title once it loads." },
@@ -13989,11 +14553,20 @@ const OTHER_MAPS = {
     { id: "arcgis_ym8xk", name: "Vinyl chloride (ArcGIS)", unit: "places", colour: "#5E6070", route: "arcgisapp", ready: true, lazy: true,
       item: "b1b5b5e0d08c4024a50caa88e6442281",
       note: "Read live from the ArcGIS map linked on the Destruction page (arcg.is/ym8XK); the row takes its own title once it loads." },
-    { id: "arcgis_materialresearch", name: "Materials research (ArcGIS)", unit: "places", colour: "#665E6C", route: "arcgisapp", ready: true, lazy: true,
-      item: "3ff82579637f4c7a96bd62d039ac3e00",
+    { id: "arcgis_materialresearch", name: "Toxic manufacturing plants and the schools within 3 miles of them, US and worldwide (Material Research World Atlas, ArcGIS)", unit: "places", colour: "#665E6C", route: "arcgisapp", ready: true, lazy: true,
       copy: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/arcgis/arcgis_materialresearch",
       archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/arcgis_materialresearch.pmtiles",
-      note: "The ArcGIS experience linked on the Destruction page (arcg.is/4q8m4), from a weekly copy of every feature of every layer, every field kept (its census-tract layer was too heavy to read live); read live if the copy cannot be. A chip per layer. The row takes its own title once it loads." },
+      fixedName: true,
+      item: "3ff82579637f4c7a96bd62d039ac3e00",
+      // Round 81 (asked 27 September): only the layers about pollution. The
+      // atlas also carries the CDC's Social Vulnerability Index by county and
+      // tract (ten layers) and the USA's detailed water bodies, a base map;
+      // those are left out of the row. Its two school layers stay: each is the
+      // schools within 3 miles of one of the atlas's plants, not every school.
+      dropLayers: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
+      layerTitles: { 0: "Toxic manufacturing plants, US, with their census tracts", 1: "Public schools within 3 miles of a plant, US",
+        2: "Private schools within 3 miles of a plant, US", 14: "Toxic manufacturing plants, worldwide" },
+      note: "The ArcGIS experience linked on the Destruction page (arcg.is/4q8m4), titled Material Research World Atlas: its layers of toxic manufacturing plants (US and worldwide) and of the public and private schools within 3 miles of a US plant, from a weekly copy with every field kept. Its social vulnerability and water body layers are not about pollution and are left out. A chip per layer." },
     { id: "glad_loss", name: "Tree cover loss (Global Forest Change, UMD GLAD)", unit: "loss since 2000, 30 m", colour: "#8A4F46", route: "rasterlive", ready: true, lazy: true,
       attribution: "Hansen/UMD/Google/USGS/NASA", maxzoom: 12,
       choices: [{ label: "Tree cover loss", tiles: "https://storage.googleapis.com/earthenginepartners-hansen/tiles/gfc_v1.12/loss_alpha/{z}/{x}/{y}.png" }],
@@ -14053,14 +14626,22 @@ const OTHER_MAPS = {
         { label: "Hydrochlorofluorocarbons (HCFCs)", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/edgar_fgases_hcfcs.pmtiles" }
       ],
       note: "EDGAR's gridded emissions of each group of fluorinated gases (refrigerants, foam blowing, solvents, electrical insulation, aluminium and chip making), every 0.1-degree cell with a value, from the latest year in EDGAR's release, coloured dark to light on a log scale cut at the values' own steps. Each chip is one gas group in tonnes of that gas; the groups are not added together, as a tonne of one warms very differently from a tonne of another. The year, file and unit of each are in edgar/edgar_fgases_<gas>.key.json in culprits-tiles-more. Built from EDGAR's yearly release; it is not updated between releases." },
-    { id: "wastewater_watersheds", name: "Nitrogen from human wastewater, by the watershed it drains from (Tuholske et al.)", unit: "grams of nitrogen a year", colour: "#5E7377", route: "pmtareas", ready: true, lazy: true,
+    { id: "wastewater_watersheds", name: "Nitrogen from human wastewater per square kilometre of the watershed it drains from, weighted by watershed area (Tuholske et al.)", unit: "grams of nitrogen a year", colour: "#5E7377", route: "pmtareas", ready: true, lazy: true,
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_watersheds.pmtiles", keyUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/wastewater/watersheds.key.json",
       boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/wastewater/pieces", sourceLayer: "watersheds",
       // Grams a year, in steps of ten from 0.1 to 10,000 tonnes (round 67).
       logSteps: [1e5, 1e6, 1e7, 1e8, 1e9, 1e10],
       stepLabel: (g) => (g / 1e6).toLocaleString("en", { maximumFractionDigits: 1 }), stepUnit: " tonnes a year",
-      note: "The Global Wastewater Model's watersheds: the land each coastal outlet drains, shaded by all the nitrogen from human wastewater that reaches the sea from it, dark to light in steps of ten, from under 0.1 tonne a year to 10,000 tonnes or more (about half the 134,846 watersheds carry none). A click shows every figure the model gives for it. Built once from the model's 2021 data package (scripts/wastewater_watersheds.py in culprits-tiles-more); it is not updated." },
-    { id: "wastewater_plumes", name: "Nitrogen from human wastewater in coastal waters, 2015 (Tuholske et al.)", unit: "per map cell", colour: "#5E7377", route: "rasterlive", ready: true, lazy: true,
+      // Round 81: weighed by area at the owner's word - a large watershed
+      // gathers more simply by being large. Grams a year per square km,
+      // in steps of ten, from 0.01 to 1,000 kg per square km a year. Until the
+      // archive is rebuilt with each watershed's area, the totals are shown
+      // and the row says so.
+      perArea: { field: "per_km2", logSteps: [1e1, 1e2, 1e3, 1e4, 1e5, 1e6],
+        stepLabel: (g) => (g / 1e3).toLocaleString("en", { maximumFractionDigits: 2 }), stepUnit: " kg per square km a year",
+        before: "Nitrogen from human wastewater, by the watershed it drains from, not yet weighted by area (Tuholske et al.)" },
+      note: "The Global Wastewater Model's watersheds: the land each coastal outlet drains, shaded by the nitrogen from human wastewater that reaches the sea from it for each square kilometre of the watershed (its total divided by its area, measured from its outline), dark to light in steps of ten (about half the 134,846 watersheds carry none). A click shows every figure the model gives for it. Built once from the model's 2021 data package (scripts/wastewater_watersheds.py in culprits-tiles-more); it is not updated." },
+    { id: "wastewater_plumes", name: "Nitrogen from human wastewater spreading through coastal waters, per map cell, 2015 (Tuholske et al.)", unit: "per map cell", colour: "#5E7377", route: "rasterlive", ready: true, lazy: true,
       attribution: "Tuholske et al. 2021, Global Wastewater Model (KNB doi:10.5063/F76B09)", maxzoom: 6,
       choices: [
         { label: "All wastewater", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_plume_tot.pmtiles" },
@@ -14068,7 +14649,7 @@ const OTHER_MAPS = {
         { label: "From septic systems", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_plume_septic.pmtiles" },
         { label: "Untreated", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_plume_open.pmtiles" }
       ],
-      note: "The model's coastal plumes: how the nitrogen from each watershed's wastewater spreads into the sea, per map cell. Drawn from the model's own rasters (scripts/wastewater_plumes.py in culprits-tiles-more), read at about 4 km and coloured dark to light on a log scale cut at the values' own steps. Built once from the 2021 data package; the model is not updated." },
+      note: "The model's coastal plumes: how the nitrogen from each watershed's wastewater spreads into the sea after it leaves the coastal outlet, per map cell. The outlet rows mark only the spot where it enters; its four choices are the same four sources as theirs (all, sewage treatment, septic, untreated), drawn as spread rather than as points. Drawn from the model's own rasters (scripts/wastewater_plumes.py in culprits-tiles-more), read at about 4 km and coloured dark to light on a log scale cut at the values' own steps. Built once from the 2021 data package; the model is not updated." },
     { id: "wastewater", name: "Global Wastewater Model (Tuholske et al.)", unit: "nitrogen from human wastewater", colour: "#5E7377", route: "rasterlive", ready: true, lazy: true,
       attribution: "Tuholske et al. 2021, Global Wastewater Model", maxzoom: 10,
       choices: [
@@ -14350,7 +14931,14 @@ for (const c of LAYERS.concat(...GROUPS.map((g) => g.children || []))) {
 const POSITION_BY_ROW = {
   atlas_cities: "Placed from the city's name through an OpenStreetMap lookup: the city, not a site in it.",
   wasteatlas_cities: "Waste Atlas's marker for the city; its figures are for the whole city, not this point.",
-  wasteatlas_countries: "Waste Atlas's marker for the country; its figures are for the whole country, not this point.",
+  wasteatlas_nat_msw: "Waste Atlas's figure for the whole country, shading its outline.",
+  wasteatlas_nat_stress: "Waste Atlas's figure for the whole country, shading its outline.",
+  wasteatlas_nat_percap: "Waste Atlas's figure for the whole country, shading its outline.",
+  wasteatlas_nat_gni: "Waste Atlas's figure for the whole country, shading its outline.",
+  wasteatlas_nat_collect: "Waste Atlas's figure for the whole country, shading its outline.",
+  wasteatlas_nat_recycle: "Waste Atlas's figure for the whole country, shading its outline.",
+  wasteatlas_nat_unsound: "Waste Atlas's figure for the whole country, shading its outline.",
+  wasteatlas_nat_intensity: "Waste Atlas's figure for the whole country, shading its outline.",
   wastewater_n_tot: "A modelled coastal outlet: where the model has this watershed's wastewater reach the sea, not a pipe or plant.",
   wastewater_n_treated: "A modelled coastal outlet: where the model has this watershed's wastewater reach the sea, not a pipe or plant.",
   wastewater_n_septic: "A modelled coastal outlet: where the model has this watershed's wastewater reach the sea, not a pipe or plant.",
@@ -14526,6 +15114,7 @@ function ensureLayer(cfg) {
       : ["ejatlas", "geojsonlive", "wpgmza", "atlascities", "trasefac", "gdeltgeo", "gdeltarchive", "usnifleet"].includes(cfg.route) ? addLivePlacesLayer(cfg)
       : cfg.route === "wmsmenu" ? addWmsMenuLayer(cfg)
       : cfg.route === "gfwmenu" ? addGfwMenuLayer(cfg)
+      : cfg.route === "country" ? addCountryLayer(cfg)
       : addPmtilesLayer(cfg);
     return build;
   })
@@ -14683,6 +15272,8 @@ const LAYER_KIND = {
   skytruth_voc: ["animal", "downstream"],
   skytruth_nrc: ["animal", "downstream"],
   skytruth_posts: ["animal", "downstream"],
+  skytruth_posts_sea: ["animal", "downstream"],
+  skytruth_posts_land: ["insentient", "downstream"],
   skytruth_marine_incidents: ["animal", "downstream"],
   skytruth_pa_permits: ["animal", "downstream"],
   skytruth_pa_spud: ["animal", "downstream"],
@@ -14737,11 +15328,20 @@ const LAYER_KIND = {
   wasteatlas_mbt: ["insentient", "downstream"],
   wasteatlas_bt: ["insentient", "downstream"],
   wasteatlas_cities: ["insentient", "downstream"],
-  wasteatlas_countries: ["insentient", "downstream"],
+  wasteatlas_nat_msw: ["insentient", "downstream"],
+  wasteatlas_nat_stress: ["insentient", "downstream"],
+  wasteatlas_nat_percap: ["insentient", "downstream"],
+  wasteatlas_nat_gni: ["insentient", "downstream"],
+  wasteatlas_nat_collect: ["insentient", "downstream"],
+  wasteatlas_nat_recycle: ["insentient", "downstream"],
+  wasteatlas_nat_unsound: ["insentient", "downstream"],
+  wasteatlas_nat_intensity: ["insentient", "downstream"],
   atlas_hotspots: ["plant", "downstream"],
   atlas_cities: ["human", "downstream"],
   wreckers_umap: ["insentient", "upstream"],
   mymaps_chlorine: ["insentient", "upstream"],
+  plastics_plants: ["insentient", "upstream"],
+  vinyl_chloride_plants: ["insentient", "upstream"],
   mymaps_trees: ["plant", "downstream"],
   fractracker_refineries: ["insentient", "upstream"],
   arcgis_ym8xk: ["insentient", "upstream"],
@@ -15283,11 +15883,20 @@ const LAYER_SITE = {
   wasteatlas_mbt: "http://www.atlas.d-waste.com/",
   wasteatlas_bt: "http://www.atlas.d-waste.com/",
   wasteatlas_cities: "http://www.atlas.d-waste.com/",
-  wasteatlas_countries: "http://www.atlas.d-waste.com/",
+  wasteatlas_nat_msw: "http://www.atlas.d-waste.com/",
+  wasteatlas_nat_stress: "http://www.atlas.d-waste.com/",
+  wasteatlas_nat_percap: "http://www.atlas.d-waste.com/",
+  wasteatlas_nat_gni: "http://www.atlas.d-waste.com/",
+  wasteatlas_nat_collect: "http://www.atlas.d-waste.com/",
+  wasteatlas_nat_recycle: "http://www.atlas.d-waste.com/",
+  wasteatlas_nat_unsound: "http://www.atlas.d-waste.com/",
+  wasteatlas_nat_intensity: "http://www.atlas.d-waste.com/",
   skytruth_monitor: "https://monitor.skytruth.org/",
   skytruth_voc: "https://monitor.skytruth.org/",
   skytruth_nrc: "https://monitor.skytruth.org/",
   skytruth_posts: "https://monitor.skytruth.org/",
+  skytruth_posts_sea: "https://monitor.skytruth.org/",
+  skytruth_posts_land: "https://monitor.skytruth.org/",
   skytruth_marine_incidents: "https://monitor.skytruth.org/",
   skytruth_pa_permits: "https://monitor.skytruth.org/",
   skytruth_pa_spud: "https://monitor.skytruth.org/",
@@ -15524,6 +16133,11 @@ function refreshNote(cfg) {
 // kept here (the source cannot be read by another site, or its server is gone).
 // Every row now carries one mark or the other (22 September, round 3).
 const NOT_LIVE = {
+  // Round 81.
+  plastics_plants: "Built daily by culprits-tiles-more from the registers and open maps it names; each source is read again weekly",
+  vinyl_chloride_plants: "Built daily by culprits-tiles-more from the registers and open maps it names; each source is read again weekly",
+  skytruth_posts_sea: "Copied daily from SkyTruth Monitor by culprits-tiles-more",
+  skytruth_posts_land: "Copied daily from SkyTruth Monitor by culprits-tiles-more",
   mil_attacks: "Copied daily from Wikidata by culprits-tiles-more",
   mil_sites: "Copied daily from Wikidata by culprits-tiles-more",
   mil_osm: "Copied daily from OpenStreetMap by culprits-tiles-more",
@@ -15552,7 +16166,14 @@ const NOT_LIVE = {
   wasteatlas_mbt: "Waste Atlas\u2019s markers, from a copy made weekly (the site answers only over plain http)",
   wasteatlas_bt: "Waste Atlas\u2019s markers, from a copy made weekly (the site answers only over plain http)",
   wasteatlas_cities: "Waste Atlas\u2019s markers, from a copy made weekly (the site answers only over plain http)",
-  wasteatlas_countries: "Waste Atlas\u2019s markers, from a copy made weekly (the site answers only over plain http)",
+  wasteatlas_nat_msw: "Waste Atlas\u2019s country profiles, from a copy made weekly (the site answers only over plain http)",
+  wasteatlas_nat_stress: "Waste Atlas\u2019s country profiles, from a copy made weekly (the site answers only over plain http)",
+  wasteatlas_nat_percap: "Waste Atlas\u2019s country profiles, from a copy made weekly (the site answers only over plain http)",
+  wasteatlas_nat_gni: "Waste Atlas\u2019s country profiles, from a copy made weekly (the site answers only over plain http)",
+  wasteatlas_nat_collect: "Waste Atlas\u2019s country profiles, from a copy made weekly (the site answers only over plain http)",
+  wasteatlas_nat_recycle: "Waste Atlas\u2019s country profiles, from a copy made weekly (the site answers only over plain http)",
+  wasteatlas_nat_unsound: "Waste Atlas\u2019s country profiles, from a copy made weekly (the site answers only over plain http)",
+  wasteatlas_nat_intensity: "Waste Atlas\u2019s country profiles, from a copy made weekly (the site answers only over plain http)",
   space_industry: "openmaps.space's places, from a copy made daily",
   gta_acts: "Global Trade Alert's acts, from a copy made daily",
   giga_countries: "Giga's figures, from a copy made daily (its service does not let other sites read it)",
@@ -15660,33 +16281,48 @@ const PANEL_ORDER = [
   // one per cent of it; Climate TRACE's black carbon row stays.
   { h: 4, t: "Black carbon" }, "ct_air_bc",
   { h: 3, t: "Overpopulation" }, "ct_pop",
-  // Pollution by pollutant, as Climate is by gas (22 September, round 2).
-  // Climate TRACE's air-pollution row covers every pollutant it reports and
-  // sits under General until it is split into a row per pollutant.
+  // Pollution by where it goes (round 81, asked 27 September): all-around
+  // (several at once), air, water and land; air pollution by pollutant as
+  // Climate is by gas (22 September, round 2).
   { h: 3, t: "Pollution" },
-  { h: 4, t: "General and all pollutants" }, "ct_air", "epa_tri_sites", "epa_widget",
-  { h: 4, t: "Fine particles (PM2.5)" }, "ct_air_pm2_5",
-  { h: 4, t: "Black carbon" }, "ct_air_bc",
-  { h: 4, t: "Organic carbon" }, "ct_air_oc",
-  { h: 4, t: "Sulphur dioxide" }, "ct_air_so2",
-  { h: 4, t: "Volatile organic compounds" }, "ct_air_vocs",
-  { h: 4, t: "Carbon monoxide" }, "ct_air_co",
-  { h: 4, t: "Ammonia" }, "ct_air_nh3",
-  { h: 4, t: "Nitrogen oxides" }, "ct_air_nox",
-  { h: 4, t: "Nitrogen dioxide" },
+  { h: 4, t: "All-around pollution" },
+  // Every kind of EPA site, the Toxics Release Inventory's factories among
+  // them as one of its kinds (round 81), and the toxic plants atlas.
+  { h: 5, t: "Toxic sites of every kind" }, "epa_widget", "arcgis_materialresearch",
+  { h: 5, t: "Plastics" },
+  // PIRG's page is out (round 81); the two built rows replace it.
+  { h: 6, t: "Production" }, "plastics_plants", "vinyl_chloride_plants", "mymaps_chlorine", "arcgis_ym8xk", "arcgis_materialresearch",
+  { h: 6, t: "Waste and dumping" }, "gpw_map", "seas_of_plastic", "coastal_cleanup",
+  { h: 4, t: "Air pollution" },
+  { h: 5, t: "General and all pollutants" }, "ct_air",
+  { h: 5, t: "Fine particles (PM2.5)" }, "ct_air_pm2_5",
+  { h: 5, t: "Black carbon" }, "ct_air_bc",
+  { h: 5, t: "Organic carbon" }, "ct_air_oc",
+  { h: 5, t: "Sulphur dioxide" }, "ct_air_so2",
+  { h: 5, t: "Volatile organic compounds" }, "ct_air_vocs",
+  { h: 5, t: "Carbon monoxide" }, "ct_air_co",
+  { h: 5, t: "Ammonia" }, "ct_air_nh3",
+  { h: 5, t: "Nitrogen oxides" }, "ct_air_nox",
+  { h: 5, t: "Nitrogen dioxide" },
+  { h: 4, t: "Water pollution" },
   // The model's map server is gone; its data package is drawn instead
-  // (pipeline/wastewater_build.py, 23 September).
-  { h: 4, t: "Wastewater" }, "hydrowaste", "wastewater_n_tot", "wastewater_n_treated", "wastewater_n_septic", "wastewater_n_open", "wastewater_watersheds", "wastewater_n_countries", "wastewater_plumes",
-  // Waste Atlas (item 44), one row per kind of place it maps (23 September).
-  { h: 4, t: "Solid waste" }, "wasteatlas_dumpsites", "wasteatlas_landfills", "wasteatlas_wte", "wasteatlas_mbt", "wasteatlas_bt", "wasteatlas_cities", "wasteatlas_countries",
-  { h: 4, t: "Plastics" },
-  { h: 5, t: "Production" }, "pirg_plastic", "mymaps_chlorine", "arcgis_ym8xk", "arcgis_materialresearch",
-  { h: 5, t: "Waste and dumping" }, "gpw_map", "seas_of_plastic", "coastal_cleanup",
-  { h: 4, t: "Oil spills and slicks" },
-  { h: 5, t: "Terrestrial slicks" }, "skytruth_monitor", "skytruth_nrc", "skytruth_posts",
+  // (pipeline/wastewater_build.py, 23 September). Round 81: the four outlet
+  // rows are one layer.
+  { h: 5, t: "Wastewater" }, "hydrowaste", "wastewater_plumes", "wastewater_watersheds", "wastewater_n_countries",
+  { h: 6, bundle: "wwoutlets", colour: "#5E7377" }, "wastewater_n_tot", "wastewater_n_treated", "wastewater_n_septic", "wastewater_n_open",
+  // Round 81: the slick archive is the oil slicks row's "copy kept daily", and
+  // SkyTruth's write-ups are two parts of that layer, at sea and on land.
+  { h: 5, t: "Oil spills and slicks at sea" }, "cerulean_sources", "skytruth_voc", "skytruth_marine_incidents",
+  { h: 6, bundle: "oilslicks", colour: "#5A5750" }, "cerulean_slicks", "skytruth_posts_sea", "skytruth_posts_land",
+  { h: 5, t: "Plastic in the sea" }, "seas_of_plastic", "coastal_cleanup",
+  { h: 4, t: "Land pollution" },
+  // Waste Atlas (item 44), one row per kind of place it maps (23 September);
+  // round 81: its countries as national highlights, one measure a layer.
+  { h: 5, t: "Solid waste" }, "wasteatlas_dumpsites", "wasteatlas_landfills", "wasteatlas_wte", "wasteatlas_mbt", "wasteatlas_bt", "wasteatlas_cities",
+  { h: 6, bundle: "wastecountries", colour: "#6A6258" }, "wasteatlas_nat_msw", "wasteatlas_nat_stress", "wasteatlas_nat_percap", "wasteatlas_nat_gni", "wasteatlas_nat_collect", "wasteatlas_nat_recycle", "wasteatlas_nat_unsound", "wasteatlas_nat_intensity",
+  { h: 5, t: "Oil and chemical spills on land" }, "skytruth_nrc", "skytruth_monitor", "skytruth_posts_land",
   // Round 75: the wells and the oil and gas concessions, where spills start.
   { h: 5, t: "Where oil and gas is drilled" }, "skytruth_fracfocus",
-  { h: 5, t: "Marine slicks" }, "cerulean_slicks", "cerulean_sources", "slick_archive", "skytruth_voc", "skytruth_marine_incidents", "skytruth_posts",
   { h: 3, t: "Fire" }, "remains_fire",
   { h: 3, t: "Deforestation" }, "forest_management",
   // Split one level further where the lists ran long (round 23, item 27); the
@@ -15867,6 +16503,11 @@ const PANEL_REMOVED = new Set([
   // merged into another, and pages asked to be removed.
   "site_cartel_cells", "site_export_credit_shading", "giga_schools", "nsf_locations",
   "ect_secrets", "isds_tracker", "bffp_audit", "epa_tri", "unep_coral",
+  // Round 81 (27 September): the Toxics Release Inventory copy is a kind
+  // (chip) of the EPA sites layer; the slick archive is the oil slicks row's
+  // kept copy; SkyTruth's write-ups are the oil slicks layer's two parts; PIRG's
+  // page is replaced by the built plastics rows.
+  "epa_tri_sites", "slick_archive", "skytruth_posts", "pirg_plastic",
   // Split into its registers (gmo_env and the rows after it) on 20 September.
   "gmo_releases",
   // Removed at the owner's request, 20 September.
@@ -16214,10 +16855,9 @@ function arrangePanel() {
       const on = all.checked;
       // A bundle's parts include catalogue rows; a heading's tick still leaves
       // those alone, as before, since a heading can hold hundreds of them.
+      const els = [];
       for (const i of body.querySelectorAll(bundle ? "[data-layer], [data-copy], [data-cat], [data-smtype]" : "[data-layer], [data-copy]")) {
-        if (i.checked === on) continue;
-        i.checked = on;
-        if (typeof i.dispatchEvent === "function" && typeof Event === "function") i.dispatchEvent(new Event("change", { bubbles: true }));
+        if (i.checked !== on) els.push(i);
       }
       // A group's own box follows its children rather than being left ticked
       // over layers that are no longer drawn.
@@ -16225,7 +16865,7 @@ function arrangePanel() {
         g.checked = on;
         g.indeterminate = false;
       }
-      syncHeadingBoxes(document.getElementById("layers"));
+      headingTicks(els, on);
     });
     if (bundle) { line.appendChild(all); line.appendChild(head); }
     else { line.appendChild(head); line.appendChild(all); }
@@ -16456,6 +17096,49 @@ function applyLayerSearch(box, query) {
   for (const note of box.querySelectorAll(".toc-note")) note.classList.toggle("search-hide", true);
   return n;
 }
+/* ---------- a heading's tick, turning on every layer under it (round 81) ---------- */
+// Asked 27 September: the Turn on every switches read the rows' points from a
+// few shared files (round 58) and tick rows a few at a time; a heading's own
+// tick did neither, so a heading with many layers under it asked for every
+// square once per row, all at once. Now it works the same way: rows whose
+// points are in a shared file read them from it, and the rows are ticked eight
+// at a time, with the Showing box written once at the end.
+function headingRowCfg(id) {
+  if (!id) return null;
+  const c = typeof childById === "function" ? childById(id) : null;
+  return c || LAYERS.find((l) => l.id === id) || null;
+}
+let headingQueue = [], headingRunning = false;
+function headingTicks(els, on) {
+  const go = () => {
+    if (on) for (const el of els) {
+      const c = headingRowCfg(el.dataset && (el.dataset.layer || el.dataset.copy));
+      const owner = c && (c.sourceOf || c.id);
+      if (owner && POINT_BUNDLE_OF.has(owner)) POINT_BUNDLE_USE.add(owner);
+    }
+    headingQueue = headingQueue.filter(([el]) => !els.includes(el)).concat(els.map((el) => [el, on]));
+    if (!headingRunning) headingPump();
+  };
+  if (on && els.length > 1 && typeof readPointBundles === "function") readPointBundles().then(go, go); else go();
+}
+function headingPump() {
+  if (!headingQueue.length) {
+    headingRunning = false;
+    legendHold = false;
+    if (legendHeld) { legendHeld = false; buildLegend(); }
+    syncHeadingBoxes(document.getElementById("layers"));
+    return;
+  }
+  headingRunning = true;
+  legendHold = true;
+  for (const [el, on] of headingQueue.splice(0, 8)) {
+    if (el.checked === on) continue;
+    el.checked = on;
+    if (typeof el.dispatchEvent === "function" && typeof Event === "function") el.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  setTimeout(headingPump, headingQueue.length ? 150 : 0);
+}
+
 /* ---------- every layer of one kind on or off at once (round 56) ---------- */
 // Asked for 26 September: switches to turn on, or off, every layer that marks
 // positions (points), every layer that draws areas (shapes), and every layer

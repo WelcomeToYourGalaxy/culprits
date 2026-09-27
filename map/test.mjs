@@ -2190,7 +2190,7 @@ console.log("\nClimate TRACE air pollution");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("the air-pollution sources are under Pollution > General and all pollutants, and population density under Overpopulation", /id: "ct_air"/.test(src) && /id: "ct_pop"/.test(src) &&
-        /\{ h: 4, t: "General and all pollutants" \}, "ct_air", "epa_tri_sites", "epa_widget",/.test(src) && /\{ h: 3, t: "Overpopulation" \}, "ct_pop",/.test(src));
+        /\{ h: 5, t: "General and all pollutants" \}, "ct_air",/.test(src) && /\{ h: 3, t: "Overpopulation" \}, "ct_pop",/.test(src));
   check("a plume is drawn as one still hotspot, graded by its concentration, not a set of outlines",
         /function ctPlumeShape\(gj\)/.test(src) && /type: "heatmap", source: `\$\{cfg\.id\}-plume`/.test(src) && /"fill-opacity": \["interpolate", \["linear"\], \["get", "_strength"\]/.test(src));
   {
@@ -2201,7 +2201,7 @@ console.log("\nClimate TRACE air pollution");
   check("\u2026its figures and plume are read through the Worker, since Climate TRACE sends no CORS header",
         /\$\{WORKER\}\/ct-asset\?id=/.test(src) && /\$\{WORKER\}\/ct-plume\?file=/.test(src) &&
         /url\.pathname === "\/v1\/ct-asset" \|\| url\.pathname === "\/v1\/ct-plume"/.test(fs.readFileSync(path.join(HERE, "..", "worker", "index.js"), "utf8")));
-  check("nitrogen dioxide rows go under their own heading under Pollution", /\{ h: 4, t: "Nitrogen dioxide" \},/.test(src) && /nitrogen dioxide\|\\bno2\\b\|\\bnox\\b\|nitric oxide\/i, P \+ " > Pollution > Nitrogen dioxide"/.test(src));
+  check("nitrogen dioxide rows go under their own heading under Pollution", /\{ h: 5, t: "Nitrogen dioxide" \},/.test(src) && /nitrogen dioxide\|\\bno2\\b\|\\bnox\\b\|nitric oxide\/i, P \+ " > Pollution > Air pollution > Nitrogen dioxide"/.test(src));
   check("every pollutant Climate TRACE reports can be chosen", ["pm2_5", "bc", "oc", "so2", "vocs", "co", "nh3", "nox", "co2e_100yr"].every((g) => src.includes(`["${g}",`)));
   check("a click reads the plume and the figures live", /ct-plume\?file=\$\{encodeURIComponent\(p\.plume\)\}/.test(src) && /api\.c10e\.org\/v7\/app\/asset/.test(fs.readFileSync(path.join(HERE, "..", "worker", "index.js"), "utf8")));
   const html = new Function("escapeHtml", "CT_GASES", src.slice(src.indexOf("function ctAssetHtml("), src.indexOf("async function addCtAirLayer(")) + "; return ctAssetHtml;")((s) => String(s), [["pm2_5", "PM2.5"]]);
@@ -2243,7 +2243,9 @@ console.log("\nvessels of concern drawn; the oil-slick archive");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("vessels of concern are drawn from the daily copy, as tiles since 22 September", /id: "skytruth_voc"[^\n]*route: "pmtiles"/.test(src) && /skytruth\/vessels_of_concern"/.test(src));
-  check("the slick archive is a row beside the live slicks", /id: "slick_archive"/.test(src) && /"cerulean_sources", "slick_archive",/.test(src));
+  // Round 81: the archive is the oil slicks row's "copy kept daily", with a timeline.
+  check("the slick archive is folded into the live slicks row, with a timeline", /id: "slick_archive"/.test(src) && /"epa_tri_sites", "slick_archive", "skytruth_posts", "pirg_plastic",/.test(src) &&
+        /timeline: \{ from: "2023-01", column: "slick_timestamp", archive: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/cerulean_archive" \}/.test(src) && /async function ceruleanTimeline\(cfg\)/.test(src));
 }
 
 console.log("\nzoos and pet industry placed");
@@ -2661,7 +2663,7 @@ console.log("\nGuerillamap panel, Pollution, the releases split");
   const o = new Function(body + "; return { PANEL_ORDER, PANEL_REMOVED };")();
   const at = (t) => o.PANEL_ORDER.findIndex((x) => x && x.t === t);
   check("Guerillamap opens as a bottom panel with a drag strip, over the map", /\.gm\{position:fixed;right:0;bottom:0;left:0;height:46vh;z-index:40/.test(index) && /class="gm-grab"/.test(index) && !/#map\.gm-open/.test(index));
-  check("Plastics sits under Pollution", at("Pollution") > 0 && o.PANEL_ORDER[at("Plastics")].h === 4 && at("Plastics") > at("Pollution") && at("Toxic pollution") === -1);
+  check("Plastics sits under Pollution > All-around pollution", at("Pollution") > 0 && o.PANEL_ORDER[at("Plastics")].h === 5 && at("Plastics") > at("All-around pollution") && at("All-around pollution") > at("Pollution") && at("Toxic pollution") === -1);
   const kids = ["gmo_env", "gmo_decisions", "gmo_ogtr", "gmo_therapy", "gmo_fertility", "gmo_animal_research", "gmo_animal_trade"];
   check("the releases layer is split into its registers, each its own row", o.PANEL_REMOVED.has("gmo_releases") &&
         kids.every((k) => o.PANEL_ORDER.includes(k) && new RegExp(`id:"${k}", sourceOf:"gmo_releases"`).test(src)));
@@ -2941,7 +2943,7 @@ console.log("\na row can sit under more than one subject");
         ["Fire", "Peatland", "Surface water", "Invasion of humans"].every((t) => at(t) > -1) && at("Base and reference") === -1 && at("Spatial plans") === -1 &&
         at("Land held under permit") === -1 && at("Forest and land cover") > -1);
   check("the planet's new headings sit under Of the planet, before Of groups",
-        ["Fire", "Peatland", "Surface water", "Other concessions", "General", "Oil spills and slicks"]
+        ["Fire", "Peatland", "Surface water", "Other concessions", "General", "Oil spills and slicks at sea"]
           .every((t) => at(t) > at("Of the planet") && at(t) < at("Of groups")));
   check("Base and reference is taken out (round 56); Buildings is back (round 71)", at("Base and reference") === -1 && at("Buildings") > -1);
 }
@@ -2964,7 +2966,7 @@ console.log("\nNusantara's layers spread through the box");
         places("Mining concessions").join() === "Destruction > Of the planet > Mining" &&
         places("Plantation land-use rights (HGU)").join() === "Destruction > Of the planet > Meat and agriculture > Agriculture > Plantations" &&
         places("Cumulative deforestation for planted pulpwood inside concession trase").includes("Destruction > Of the planet > Deforestation > Wood pulp, Indonesia") &&
-        places("Oil and gas concessions").join() === "Destruction > Of the planet > Climate > Methane > Infrastructure,Destruction > Of the planet > Pollution > Oil spills and slicks > Where oil and gas is drilled" &&
+        places("Oil and gas concessions").join() === "Destruction > Of the planet > Climate > Methane > Infrastructure,Destruction > Of the planet > Pollution > Land pollution > Where oil and gas is drilled" &&
         !/"Destruction > Of the planet > Land held under permit"/.test(src));
   check("\u2026one that names no material or activity goes under Other concessions; rubber under Deforestation",
         places("Rubber plantations 2020, Kalimantan").join() === "Destruction > Of the planet > Deforestation > Timber and rubber plantations" &&
@@ -3137,10 +3139,13 @@ console.log("\nACGF removed; oil slicks grouped; the slick archive seen from afa
   const o = new Function(body + "; return { PANEL_ORDER, PANEL_REMOVED };")();
   const at = (t) => o.PANEL_ORDER.findIndex((x) => x && x.t === t);
   check("ACGF is removed", o.PANEL_REMOVED.has("acgf") && !o.PANEL_ORDER.includes("acgf"));
-  check("Terrestrial slicks comes first, then Marine slicks with the four marine rows",
-        at("Oil slicks") < at("Terrestrial slicks") && at("Terrestrial slicks") < at("Marine slicks") &&
-        o.PANEL_ORDER.indexOf("skytruth_monitor") > at("Terrestrial slicks") && o.PANEL_ORDER.indexOf("skytruth_monitor") < at("Marine slicks") &&
-        ["cerulean_slicks", "cerulean_sources", "slick_archive", "skytruth_voc"].every((i) => o.PANEL_ORDER.indexOf(i) > at("Marine slicks") && o.PANEL_ORDER.indexOf(i) < at("Construction")));
+  // Round 81: slicks at sea under Water pollution, spills on land under Land pollution.
+  check("slicks at sea under Water pollution, spills on land under Land pollution, the slicks layer with its two SkyTruth parts",
+        at("Water pollution") < at("Oil spills and slicks at sea") && at("Oil spills and slicks at sea") < at("Land pollution") &&
+        at("Land pollution") < at("Oil and chemical spills on land") &&
+        o.PANEL_ORDER.indexOf("skytruth_monitor") > at("Oil and chemical spills on land") &&
+        ["cerulean_slicks", "cerulean_sources", "skytruth_voc", "skytruth_posts_sea"].every((i) => o.PANEL_ORDER.indexOf(i) > at("Oil spills and slicks at sea") && o.PANEL_ORDER.indexOf(i) < at("Plastic in the sea")) &&
+        o.PANEL_ORDER.some((x) => x && x.bundle === "oilslicks") && o.PANEL_ORDER.lastIndexOf("skytruth_posts_land") > at("Oil and chemical spills on land"));
   check("the slick archive draws a point per slick wider out", /id: `\$\{cfg\.id\}-pt`, type: "circle", source: `\$\{src\}-pt`, maxzoom: 7/.test(src));
 }
 
@@ -3172,16 +3177,17 @@ console.log("\nround of 22 September (2): the box refiled, rows taken out");
         f("Global all ecosystem disturbance alerts (DIST-ALERT)") === `${P} > Construction | ${P} > Biodiversity loss > Disturbance | ${P} > Fire | ${P} > Mining | ${P} > Deforestation > Tree cover loss and alerts > Alerts`);
   // Round 23 (item 2): the drilling heading is gone.
   check("oil and gas concessions go under Methane's infrastructure and where oil and gas is drilled, not Mining (round 75)",
-        f("Oil and gas concessions") === `${P} > Climate > Methane > Infrastructure | ${P} > Pollution > Oil spills and slicks > Where oil and gas is drilled`);
+        f("Oil and gas concessions") === `${P} > Climate > Methane > Infrastructure | ${P} > Pollution > Land pollution > Where oil and gas is drilled`);
   check("the named rows are taken out",
         ["Annual surface temperature anomalies", "Burned areas in WDPA protected areas", "Burned area, two years at a time \u2014 Equatorial Asia",
          "Burned area \u2014 Indonesia"].every((t) => f(t) === "(taken out)"));
   check("a biodiversity hotspot is not a fire hotspot", !places("Biodiversity hotspots").includes(P + " > Fire") && places("Fire hotspots").includes(P + " > Fire"));
   check("nitrogen dioxide is under Pollution, not Climate",
-        f("Air quality: nitrogen dioxide satellite measurements") === P + " > Pollution > Nitrogen dioxide" &&
-        at("Nitrogen dioxide") > at("Pollution") && at("Nitrogen dioxide") < at("Fire"));
-  check("Pollution is by pollutant: General and all pollutants, Nitrogen dioxide, Wastewater, Plastics, Oil spills",
-        ["General and all pollutants", "Nitrogen dioxide", "Wastewater", "Plastics", "Oil spills and slicks"]
+        f("Air quality: nitrogen dioxide satellite measurements") === P + " > Pollution > Air pollution > Nitrogen dioxide" &&
+        at("Nitrogen dioxide") > at("Air pollution") && at("Nitrogen dioxide") < at("Fire"));
+  // Round 81: by where it goes, air pollution by pollutant.
+  check("Pollution is by where it goes: all-around, air (by pollutant), water, land",
+        ["All-around pollution", "Plastics", "Air pollution", "General and all pollutants", "Nitrogen dioxide", "Water pollution", "Wastewater", "Land pollution", "Solid waste"]
           .every((t, i, a) => at(t, at("Pollution")) > at("Pollution") && (!i || at(t, at("Pollution")) > at(a[i - 1], at("Pollution")))) &&
         at("Air") === -1 && at("Toxic releases and regulated sites, US") === -1);
   const co2 = at("Carbon dioxide"), ch4 = at("Methane");
@@ -3397,7 +3403,7 @@ console.log("\nround of 23 September (5): the Atlas panel pared down; no grain; 
         /culprits-tiles-more\/banks\/largest\.geojson/.test(src) && /"Banks and monetary power" \}, "largest_banks", "development_banks"/.test(src) && /culprits-tiles-more\/banks\/development\.geojson/.test(src) &&
         /largest_banks: "Compiled weekly from Wikidata/.test(src));
   check("the watersheds are shaded in steps of ten, with a key (round 67)",
-        /logSteps: \[1e5, 1e6, 1e7, 1e8, 1e9, 1e10\]/.test(src) && /const breaks = \(cfg\.logSteps \|\|/.test(src) && /none to \$\{lab\(breaks\[0\]\)\}/.test(src));
+        /logSteps: \[1e5, 1e6, 1e7, 1e8, 1e9, 1e10\]/.test(src) && /const breaks = \(stepsCfg\.logSteps \|\|/.test(src) && /none to \$\{lab\(breaks\[0\]\)\}/.test(src));
   check("the Country outlines basemap keeps its own colours (round 66)", /\|sat-relief-colour\|outline-\.\*\)\$\/;/.test(src));
   check("space rows retitled (round 66)", /\{ h: 3, t: "Extraterrestrial life" \}/.test(src) && /name: "Spacecraft in space, going galactic \(NASA's Eyes on the Solar System\)"/.test(src));
   check("the news wires' open-and-shut arrow sits at the right-hand end of the bar",
@@ -3423,7 +3429,8 @@ console.log("\nround of 23 September (8): Waste Atlas rows; soy and maize from H
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
   const o = new Function(body + "; return { PANEL_ORDER };")().PANEL_ORDER;
-  const kinds = ["dumpsites", "landfills", "wte", "mbt", "bt", "cities", "countries"];
+  // Round 81: the countries are national highlights, one measure a row.
+  const kinds = ["dumpsites", "landfills", "wte", "mbt", "bt", "cities"];
   check("Waste Atlas is one row per kind of place, each reading only its own kind from the weekly copy",
         kinds.every((k) => new RegExp(`id: "wasteatlas_${k}"[^\\n]*route: "geojsonlive"`).test(src)) && /only: \["category", "Dumpsites"\]/.test(src) &&
         /got\.features = got\.features\.filter\(\(ft\) => String\(\(ft\.properties \|\| \{\}\)\[f\.only\[0\]\]\) === f\.only\[1\]\)/.test(src));
@@ -3454,7 +3461,7 @@ console.log("\nround of 23 September (10): the wastewater plumes");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("the model's coastal plumes are a row under Wastewater, one chip per source of the nitrogen",
         ["tot", "treated", "septic", "open"].every((k) => src.includes(`wastewater_plume_${k}.pmtiles`)) &&
-        /"wastewater_n_countries", "wastewater_plumes",/.test(src));
+        /"hydrowaste", "wastewater_plumes", "wastewater_watersheds", "wastewater_n_countries",/.test(src));
 }
 console.log("\nround of 23 September (11): the modelled farms' squares made light");
 {
@@ -3493,7 +3500,7 @@ console.log("\nround of 23 September (16): watersheds, six more type rows, Trase
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("the wastewater model's watersheds are a row under Wastewater, shaded in the steps their build wrote, each record read from its piece",
-        /id: "wastewater_watersheds"[^\n]*route: "pmtareas"/.test(src) && /"wastewater_n_open", "wastewater_watersheds",/.test(src) &&
+        /id: "wastewater_watersheds"[^\n]*route: "pmtareas"/.test(src) && /"wastewater_plumes", "wastewater_watersheds",/.test(src) &&
         /async function addPmtAreasLayer\(cfg\)/.test(src) && /bindHtmlPopup\(`\$\{cfg\.id\}-fill`, \(p\) => pieceBox\(cfg, p\)\)/.test(src));
   const ramp = src.match(/const AREA_RAMP = \[([^\]]*)\]/)[1].match(/#[0-9A-F]{6}/gi);
   const warm = (h) => { const r = parseInt(h.slice(1, 3), 16), g = parseInt(h.slice(3, 5), 16), b = parseInt(h.slice(5, 7), 16); return r > 150 && g > 110 && b < 90; };
@@ -3581,7 +3588,7 @@ console.log("\nround of 23 September (23): the owner's thirty notes on the layer
   check("2: no Oil and gas drilling heading; the fracking row under Methane's infrastructure; Pennsylvania gone (round 75)",
         at("Oil and gas drilling") === -1 && at("Pennsylvania") === -1 && order.indexOf("skytruth_fracfocus") > at("Methane") &&
         ["skytruth_pa_permits", "skytruth_pa_spud", "skytruth_pa_violations", "skytruth_well_permits"].every((i) => order.indexOf(i) === -1) &&
-        f("Oil and gas concessions — Argentina", "gfw_oil_gas") === `${P} > Climate > Methane > Infrastructure | ${P} > Pollution > Oil spills and slicks > Where oil and gas is drilled`);
+        f("Oil and gas concessions — Argentina", "gfw_oil_gas") === `${P} > Climate > Methane > Infrastructure | ${P} > Pollution > Land pollution > Where oil and gas is drilled`);
   check("3: Trase's shrimp production is out", f("Production of shrimp (t) — Ecuador, Indonesia (Trase)", "SHRIMP_TN") === "(taken out)");
   check("4, 6, 19: the Clark Labs maps of 1999, 2014, 2018 and the 1999 to 2018 change are one row under Fishing only; the other changes are out",
         ["1999", "2014", "2018", "change_1999_2018"].every((y) => f("Aquaculture ponds", `clark_labs_tropical_pond_aquaculture_${y}`) === `${P} > Oceans > Fishing > ${B.ponds}`) &&
@@ -4818,6 +4825,57 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /id: "mil_missile_ranges"[^\n]*route: "companion"/.test(src) && /pageAt: \(c, z\) => `https:\/\/nuclearsecrecy\.com\/missilemap\/\?mc=/.test(src) &&
         /frame\.src = typeof cfg\.pageAt === "function" \? cfg\.pageAt\(map\.getCenter\(\), map\.getZoom\(\)\) : cfg\.page;/.test(src));
   check("the page asks for this round's script", /app\.js\?v=(8\d|9\d)/.test(html));
+}
+{
+  console.log("\nround 81: pollution by where it goes, columns for air pollutants, colour-coded waste, the EPA pictures, the slicks' timeline");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const o = new Function(body + "; return { PANEL_ORDER, PANEL_REMOVED };")();
+  const at = (t) => o.PANEL_ORDER.findIndex((x) => x && x.t === t);
+  check("Pollution is split into all-around, air, water and land",
+        at("Pollution") < at("All-around pollution") && at("All-around pollution") < at("Air pollution") && at("Air pollution") < at("Water pollution") &&
+        at("Water pollution") < at("Land pollution") && at("Land pollution") < at("Fire"));
+  check("the Toxics Release Inventory copy is a kind of the EPA sites layer, not a row of its own",
+        o.PANEL_REMOVED.has("epa_tri_sites") && !o.PANEL_ORDER.includes("epa_tri_sites") && /triRow: "epa_tri_sites"/.test(src) && /data-tri=/.test(src));
+  check("PIRG's page is out, and the two built plastics rows are in",
+        o.PANEL_REMOVED.has("pirg_plastic") && ["plastics_plants", "vinyl_chloride_plants"].every((i) => o.PANEL_ORDER.includes(i) && new RegExp(`id: "${i}"[^\\n]*route: "geojsonlive"`).test(src)));
+  check("the four outlet rows are one layer, the countries' waste figures eight national highlights, the slicks one layer with SkyTruth's two parts",
+        o.PANEL_ORDER.some((x) => x && x.bundle === "wwoutlets") && o.PANEL_ORDER.some((x) => x && x.bundle === "wastecountries") &&
+        o.PANEL_ORDER.some((x) => x && x.bundle === "oilslicks") &&
+        ["msw", "stress", "percap", "gni", "collect", "recycle", "unsound", "intensity"].every((k) => new RegExp(`id: "wasteatlas_nat_${k}"[^\\n]*route: "country"`).test(src)));
+  check("the watersheds' title says they are weighed by area", /id: "wastewater_watersheds", name: "[^"]*weighted by watershed area/.test(src));
+  const A = new Function("escapeHtml", "const HUD_SKIP = new Set();\n" + src.slice(src.indexOf("const AMOUNT_RAMP = "), src.indexOf("// WP Go Maps (Final Nail)")) +
+    "; return { amountOf, colourByAmount };")((s) => String(s));
+  check("a figure is read from the site's own words, a range at its middle",
+        A.amountOf("2,320,000 t").v === 2320000 && A.amountOf("7,200,000 - 10,300,000 t").v === 8750000 && A.amountOf("We need your support") === null);
+  const items = [
+    { h: "<div>a</div>", _p: { "Estimated amount of included waste": "4,000,000 t", "Informal Sector": "100 people" } },
+    { h: "<div>b</div>", _p: { "Estimated amount of included waste": "We need your support", "Informal Sector": "50 people" } },
+    { h: "<div>c</div>", _p: { "Estimated amount of included waste": "We need your support", "Informal Sector": "We need your support" } },
+  ];
+  const out = A.colourByAmount({ id: "x", colourBy: { field: "Estimated amount of included waste", steps: [5e5, 1e6, 3e6, 1e7, 3e7], unit: "t of waste",
+    estimate: { field: "Informal Sector", unit: "people working informally" } } }, items);
+  check("a dumpsite with no figure is estimated from its informal workers at the rate the others show, drawn as a ring, and says so",
+        items[1]._v === 2000000 && items[1].hollow === true && /Coloured by an estimate/.test(items[1].h) && items[2].group === "No figure given" &&
+        out.key.some(([, t]) => /ring: estimated/.test(t)));
+  const fb = new Function("escapeHtml", src.slice(src.indexOf("const FIELD_BOX_SKIP"), src.indexOf("// Which of a copy's 256 pieces")) + "; return fieldBoxHtml;")((s) => String(s));
+  const hw = { name: "HydroWASTE", unit: "plants", fieldBox: { title: ["WWTP_NAME"], fallback: "Wastewater treatment plant", labels: [["POP_SERVED", "People served"]] } };
+  check("a HydroWASTE plant's box gives its name and every column, plain words first",
+        /<b>Fort Severn Lagoon<\/b>/.test(fb(hw, { WWTP_NAME: "Fort Severn Lagoon", POP_SERVED: 179, QUAL_LOC: "2" })) &&
+        /People served/.test(fb(hw, { WWTP_NAME: "X", POP_SERVED: 179 })) && /QUAL LOC/.test(fb(hw, { WWTP_NAME: "X", QUAL_LOC: "2" })) &&
+        /merged/i.test(fb(hw, { clustered: true, point_count: 4 })));
+  check("the air pollutants stand as columns on their own scale, the urban sources by their fine particles",
+        ["pm2_5", "oc", "so2", "vocs", "co", "nh3", "nox"].every((g) => src.includes(`["${g}", "`)) && /ct_air: ctAirColumn\("pm25_kg_hr", "fine particles \(PM2\.5\)", 8\.76\)/.test(src) &&
+        /const COLUMN_OWN_TOP = 1e7;/.test(src));
+  check("the EPA layer draws a picture of every point wider out than zoom 6",
+        /density: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/tiles\/epa_density\.json"/.test(src) && /if \(densityFrom && part\.to < densityFrom\) return;/.test(src));
+  const mb = new Function(src.slice(src.indexOf("function monthsBetween("), src.indexOf("async function ceruleanTimeline(")) + "; return { monthsBetween, monthEnd };")();
+  check("the slicks' timeline runs month by month, to the month's last day",
+        mb.monthsBetween("2023-11", "2024-02").join() === "2023-11,2023-12,2024-01,2024-02" && mb.monthEnd("2024-02") === "2024-02-29");
+  check("the wastewater outlets glow as a hotspot spectrum with its key", /const HOTSPOT = new Set\(\["wastewater_n_tot"/.test(src) && /if \(HOTSPOT\.has\(owner\)\) rowKey\(cfg\.id, HOT_KEY/.test(src));
+  check("the Material Research atlas keeps only its pollution layers", /dropLayers: \[3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13\]/.test(src));
+  check("the page asks for this round's script", /app\.js\?v=(8[1-9]|9\d)/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

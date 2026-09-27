@@ -5,6 +5,65 @@ touches.
 
 ---
 
+## Round 81b (27 September)
+
+Built beside the other chat's rounds; needs round 80 (runs after it by name).
+
+- Pollution is split by where it goes: All-around pollution (EPA sites of every
+  kind, the toxic plants atlas, Plastics), Air pollution (Climate TRACE's urban
+  sources, then one heading per pollutant, Nitrogen dioxide last), Water
+  pollution (Wastewater; Oil spills and slicks at sea; Plastic in the sea) and
+  Land pollution (Solid waste; Oil and chemical spills on land; Where oil and
+  gas is drilled). Catalogue paths follow (Air pollution > Nitrogen dioxide,
+  Land pollution > Where oil and gas is drilled).
+- Air pollutant columns: COLUMN_EXTRA gains ct_air (pm25_kg_hr x 8.76 t/yr)
+  and ct_air_{pm2_5,oc,so2,vocs,co,nh3,nox} via ctAirColumn: each row on its
+  own scale, the largest source as tall as a 10 Mt CO2e column
+  (COLUMN_OWN_TOP); key under each row (rowKey). Black carbon keeps x900.
+- Heading ticks (headingTicks/headingPump): rows whose points are in a shared
+  file read it (POINT_BUNDLE_USE), eight rows per 150 ms, legend once.
+- EPA sites (epa_widget): wider out than zoom 6 each EPA kind is a picture
+  (culprits-tiles-more scripts/epa_density.py, tiles/epa_density_<lid>.pmtiles,
+  about 1 MB in all instead of 16-25 MB per zoom); vector parts below zoom 6
+  are no longer read once the pictures exist. The TRI copy (epa_tri_sites) is
+  a chip of this row (triRow) and out of the box (PANEL_REMOVED).
+- HydroWASTE: the repo copy was clustered (1,090 dots at z9 stood for about
+  2,800 plants) and bindPopup read only x_ fields, so every box said
+  "Unnamed". Now fieldBox (fieldBoxHtml) boxes it from its own columns, and the
+  archive is rebuilt unclustered by tiles scripts/hydrowaste.py
+  (archiveBefore = the old copy until then).
+- Tuholske: the four outlet rows are one layer (BUNDLES.wwoutlets), retitled
+  "entering the sea at each coastal outlet", their glow a hotspot spectrum
+  (HOTSPOT, HOT_RAMP, HOT_KEY). The plumes row is retitled "spreading through
+  coastal waters". Watersheds are shaded per square km (cfg.perArea, field
+  per_km2) once tiles scripts/wastewater_watersheds.py has rebuilt with areas
+  (it now runs on its own once when the key lacks perArea); until then the row
+  keeps the totals and its old title (relabelRow).
+- Waste Atlas: dumpsites, landfills, incinerators, MBT, biological treatment
+  and cities coloured by their figure (colourBy, colourByAmount, AMOUNT_RAMP,
+  six steps, key and chips). Dumpsites with no amount are estimated from their
+  informal workers at the rate of the sites giving both, drawn as rings.
+  Countries are eight national-highlight rows (BUNDLES.wastecountries,
+  route country with totalsFrom, WASTEATLAS_ISO for World Bank names; shares
+  on a linear 0-100 scale). wasteatlas_countries is gone.
+- Plastics: pirg_plastic out; plastics_plants and vinyl_chloride_plants
+  (geojsonlive, groupColours) from tiles scripts/plastics.py (US TRI NAICS
+  325211 and CAS 75-01-4, EU E-PRTR 4(a)(viii) and vinyl chloride via
+  DISCODATA, Climate TRACE steam crackers, OpenStreetMap, Wikidata).
+- Material Research World Atlas: dropLayers 3-13 (CDC SVI and water bodies),
+  plain chip names (layerTitles), retitled.
+- Oil slicks: cerulean_slicks gets a timeline (ceruleanTimeline: from/to
+  months, play, live service via datetime + datetime-column=slick_timestamp,
+  or the copy kept daily = the old slick_archive, now PANEL_REMOVED). Set up
+  the first time the row is shown. BUNDLES.oilslicks holds cerulean_slicks and
+  SkyTruth's write-ups split at sea / on land (skytruth_posts_sea/_land from
+  tiles scripts/skytruth_water.py, Natural Earth 10m land). skytruth_posts out.
+- Vessels of concern: cfg.standout (bigger, rimmed dots, a soft ring layer).
+- Not done: making the nitrogen dioxide layer a relief of its intensities
+  waits on the owner naming which row it is (none of the map's own rows is
+  NO2; it arrives from a catalogue).
+
+
 ## Round 80 (27 September)
 
 - GDELT's GEO 2.0 API answers 404. military.py news() now reads GDELT 2.0's
