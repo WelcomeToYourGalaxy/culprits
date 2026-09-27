@@ -10551,6 +10551,18 @@ const SHAPE_STEPS = ["#DCD7CC", "#B8B0A2", "#948B7D", "#6F675B", "#4A443C"];
 const SHAPE_CLASS_COLOURS = ["#5B9BD5", "#D99B3C", "#8A5FB0", "#4F9A6E", "#B5524A", "#C9C27A", "#3F6FA8", "#9A6A4A"];
 const SHAPE_YES_NO = [[true, "Party"], [false, "Not a party"]];
 const SHAPE_COLOUR_BY = {
+  // Round 73: the measures of the other countries' invasion.
+  other_invaded: [
+    { label: "Indigenous Peoples' and communities' share of the land (LandMark)", field: "ind_land_pct", steps: [1, 5, 10, 25, 50], unitSuffix: "%", national: true },
+    { label: "Indigenous share of the population (LandMark)", field: "ind_pop_pct", steps: [1, 5, 10, 25, 50], unitSuffix: "%", national: true },
+    { label: "ILO Convention 169 on Indigenous and tribal peoples", field: "ilo169", national: true, classes: [["ratified", "ratified"], ["not ratified", "not ratified"]] },
+    { label: "colonial rule still in place", field: "colonial", national: true, classes: [["A Non-Self-Governing Territory (UN list)", "a Non-Self-Governing Territory (UN list)"],
+      ["A dependency of another state", "a dependency of another state"], ["Holds territories of its own", "holds territories of its own"], ["none recorded", "none recorded"]] },
+    { label: "land in deals of 200 hectares or more since 2000 (Land Matrix)", field: "land_deal_ha", scale: "log", national: true },
+    { label: "external debt, % of national income (World Bank)", field: "debt_pct_gni", steps: [25, 50, 75, 100, 150], unitSuffix: "%", national: true },
+    { label: "territory it took by conquest or annexation since 1816 (Correlates of War)", field: "conquests_made", scale: "log", national: true },
+    { label: "territory taken from it by conquest or annexation since 1816 (Correlates of War)", field: "conquests_suffered", scale: "log", national: true },
+  ],
   // The figure per 1,000 is in each country's write-up (Walk Free's Global
   // Slavery Index, as the anti-slavery map's harvest_scale.py words it).
   slavery_prevalence: [{ label: "people in modern slavery per 1,000 (estimate)", field: "per_1000", fromDetails: /([\d.]+) people per 1,000/, scale: "log" }],
@@ -10783,7 +10795,7 @@ async function addShapesLayer(cfg) {
              "circle-stroke-width": 0.6, "circle-stroke-color": "#17150F" } });
   const render = (p) => {
     const title = p.name || p.country || p.title || cfg.name;
-    const skip = new Set(["name", "country", "title", "list", "from_the_map", "entries"]);
+    const skip = new Set(["name", "country", "title", "list", "from_the_map", "entries", "iso3"]);
     const rows = Object.entries(p).filter(([k, v]) => !k.startsWith("_") && !skip.has(k) && v !== "" && v != null)
       .map(([k, v]) => `${shapeText(k.replace(/[_.]/g, " "))}: ${shapeText(v)}`);   // every field, in full
     // Whole, in a box that scrolls: the text and the list were cut at 1,200
@@ -10798,9 +10810,21 @@ async function addShapesLayer(cfg) {
         shown.join("<br>") + `</div>` : "");
   };
   // A layer built with its long text kept apart reads it on the first click.
-  const popup = (p) => (data.details && p._k != null
+  const plain = (p) => (data.details && p._k != null
     ? loadShapeDetails(url).then((d) => render(Object.assign({}, p, d[p._k] || {})))
     : render(p));
+  // Round 73: the other countries' box is built from the compiled facts; the
+  // settler colonialism boxes add the same facts for their countries.
+  const popup = cfg.box === "invaded"
+    ? (p) => invadedFacts().then((all) => invadedBoxHtml(all[p.iso3], p.iso3, p.name, true))
+    : cfg.id === "site_settler_colonialism"
+      ? (p) => Promise.resolve(plain(p)).then((h) => invadedFacts().then((all) => {
+          const isos = String(p.iso3 || "").split(",").filter(Boolean);
+          // Said of the whole country: most of these sources count countries, not regions.
+          const more = isos.map((i) => invadedBoxHtml(all[i], i, all[i] ? `${all[i].name}, the whole country` : "", false)).join("");
+          return more ? h + `<div class="inv-more"><div class="inv-h1">Also, from other sources</div>${more}</div>` : h;
+        }).catch(() => h))
+      : plain;
   bindHtmlPopup(`${cfg.id}-fill`, popup);
   bindHtmlPopup(`${cfg.id}-line`, popup);
   bindHtmlPopup(`${cfg.id}-pt`, popup);
@@ -10863,6 +10887,62 @@ function shapeRoutes(cfg, data) {
 }
 
 const shapeDetails = new Map();
+// ---- the other countries' invasion (round 73) -----------------------------
+const INVADED_URL = "https://welcometoyourgalaxy.github.io/culprits-tiles-more/invaded/countries.json";
+let invadedRead = null;
+function invadedFacts() {
+  if (!invadedRead) {
+    invadedRead = fetch(INVADED_URL).then((r) => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); });
+    invadedRead.catch(() => { invadedRead = null; });
+  }
+  return invadedRead;
+}
+const invLink = (u, t) => (u ? ` <a href="${escapeHtml(u)}" target="_blank" rel="noopener">${escapeHtml(t)}</a>` : "");
+const invNum = (v) => (v == null || v === "" ? "" : Number(Math.abs(Number(v)) >= 100 ? Math.round(Number(v)) : v).toLocaleString());
+function invadedBoxHtml(c, iso, title, full) {
+  if (!c) return full ? `<b>${escapeHtml(title || iso)}</b><div class="meta">Nothing compiled for this country yet.</div>` : "";
+  const sec = (h, rows) => (rows.length ? `<div class="inv-h">${h}</div>` + rows.map((r) => `<div class="inv-r">${r}</div>`).join("") : "");
+  const ind = c.indigenous || {}, lm = ind.landmark || {}, land = lm.land || {}, pop = lm.population || {};
+  const a = [];
+  if (land.ic_t != null) a.push(`Indigenous Peoples and local communities hold ${escapeHtml(land.ic_t)}% of the land` +
+    (land.ic_f != null ? ` (${escapeHtml(land.ic_f)}% acknowledged by the government, ${escapeHtml(land.ic_nf ?? "?")}% not)` : "") +
+    (land.ic_notes ? `. ${escapeHtml(land.ic_notes)}` : "") + invLink(land.more_info || "https://www.landmarkmap.org/", "LandMark"));
+  if (pop.pct != null) a.push(`Indigenous share of the population: ${escapeHtml(pop.pct)}%` + (pop.pop ? ` (${escapeHtml(pop.pop)} people)` : "") +
+    (pop.peoples ? `. Peoples named: ${escapeHtml(pop.peoples)}` : "") + invLink("https://www.landmarkmap.org/", "LandMark"));
+  if (ind.ilo169) a.push(`ILO Convention 169 on Indigenous and tribal peoples: ${ind.ilo169.ratified ? "ratified" : "not ratified"}.` + invLink(ind.ilo169.url, "ILO"));
+  if (ind.undrip) a.push(`At the UN vote on the Declaration on the Rights of Indigenous Peoples in 2007 it ${ind.undrip.vote_2007 === "against" ? "voted against" : "abstained"}` +
+    (ind.undrip.later_supported ? `; it said it supported the Declaration in ${ind.undrip.later_supported}` : "") + "." + invLink(ind.undrip.url, "UN"));
+  if (ind.iwgia) a.push(`IWGIA's yearly report on Indigenous peoples here:` + invLink(ind.iwgia.url, "The Indigenous World"));
+  const col = c.colonial || {}, b = [];
+  if (col.nsgt) b.push(`On the UN's list of Non-Self-Governing Territories` + (col.nsgt.administering_name ? `, administered by ${escapeHtml(col.nsgt.administering_name)}` : ", with no administering power the UN names") + "." + invLink(col.nsgt.url, "UN"));
+  if (col.dependency_of) b.push(`A dependent territory of ${col.dependency_of.map((d) => escapeHtml(d.name)).join(" and ")}.` + invLink(col.wikidata, "Wikidata"));
+  if (col.holds && col.holds.length) b.push(`Holds ${col.holds.length} territor${col.holds.length === 1 ? "y" : "ies"} elsewhere: ` +
+    col.holds.map((t) => escapeHtml(t.name) + (t.nsgt ? " (on the UN's list)" : "")).join(", ") + ".");
+  const eco = c.economic || {}, e = [];
+  if (eco.land_deals) { const d = eco.land_deals; e.push(`${invNum(d.deals)} land deal${d.deals === 1 ? "" : "s"} of 200 hectares or more since 2000, ${invNum(d.hectares)} hectares` +
+    (d.investor_countries ? `; investors from ${escapeHtml(d.investor_countries)}` : "") + (d.crops ? `; for ${escapeHtml(d.crops)}` : "") + "." + invLink(d.url, "Land Matrix")); }
+  if (eco.debt) e.push(`External debt: ${invNum(eco.debt.external_debt_pct_gni)}% of national income (${eco.debt.year}).` + invLink(eco.debt.url, "World Bank"));
+  const cq = c.conquest || {}, q = [];
+  const line = (x, dir) => `${x.year}: ${escapeHtml(x.territory)}, ${x.procedure}${dir === "took" ? " from " : " by "}${escapeHtml(x.other)}` +
+    (x.area_km2 ? `, ${invNum(x.area_km2)} km²` : "") + (x.armed_conflict ? ", with fighting" : "") +
+    (x.passed_on ? `; COW records it changing hands again in ${x.passed_on.year}, to ${escapeHtml(x.passed_on.to)}` : (x.whole_unit ? "; COW records no later change" : ""));
+  if (cq.gained && cq.gained.length) q.push(`Took by conquest or annexation:<br>` + cq.gained.map((x) => line(x, "took")).join("<br>"));
+  if (cq.lost && cq.lost.length) q.push(`Taken from it by conquest or annexation:<br>` + cq.lost.map((x) => line(x, "lost")).join("<br>"));
+  if (q.length) q.push(`<span class="inv-src">Correlates of War Territorial Change, v6 (Tir, Schafer, Diehl and Goertz 1998), 1816 to 2018. A piece of a state's land cannot be followed after it changes hands.` +
+    invLink("https://correlatesofwar.org/data-sets/territorial-change/", "COW") + "</span>");
+  const body = sec("Indigenous peoples", a) + sec("Colonial rule still in place", b) + sec("Economic invasion", e) + sec("Past conquest", q);
+  if (!body && !full) return "";
+  return (full ? `<b>${escapeHtml(c.name || title || iso)}</b>` : title ? `<div class="inv-h0">${escapeHtml(title)}</div>` : "") +
+    (body || `<div class="meta">No source compiled here names anything for this country.</div>`);
+}
+if (typeof document !== "undefined" && document.head && document.createElement) {
+  const st = document.createElement("style");
+  st.textContent = ".inv-h{margin:8px 0 3px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}" +
+    ".inv-r{font-size:12px;line-height:1.45;margin:0 0 4px}.inv-r a,.inv-src a{color:#A9B7BD}.inv-src{display:block;font-size:10.5px;color:var(--dim);margin-top:3px}" +
+    ".inv-more{margin-top:8px;border-top:1px solid var(--rule);padding-top:4px}.inv-h1{font-size:12px;color:var(--bone);margin:4px 0 0}.inv-h0{font-weight:600;margin-top:6px}";
+  document.head.appendChild(st);
+}
+
 function loadShapeDetails(url) {
   const at = url.replace(/\.geojson$/, ".details.json");
   if (!shapeDetails.has(at)) {
@@ -12275,8 +12355,16 @@ const SITE_MAPS = {
       note: "Each country shaded by what the source map says it gave in earmarked funding, or received; a menu in the key picks which. Countries it gives no figure for are left clear." },
     { id: "site_trade_profits", name: "Who captures the profits in global trade (OECD TiVA)", unit: "countries", colour: "#6E6358", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_trade_profits.geojson",
       note: "Foreign value added: the share of a country's export value that comes from other countries' inputs, and so goes to them. The figures are read from the source map's own page (OECD TiVA 2023 edition, year 2020, 76 countries)." },
+    // Round 73 (27 September): every country the settler colonialism layer
+    // does not draw whole, and how each is invaded, from published sources
+    // (culprits-tiles-more scripts/invaded_countries.py, daily). Its box is
+    // built from invaded/countries.json; the settler layer's boxes read the
+    // same facts.
+    { id: "other_invaded", name: "How every other country is invaded, by its Indigenous peoples' situation, colonial rule, economic invasion and past conquest (LandMark, ILO, UN, IWGIA, Land Matrix, World Bank, Correlates of War)", unit: "countries", colour: "#6A5E5A", route: "shapes", ready: true, lazy: true,
+      dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/other_invaded.geojson", box: "invaded",
+      note: "Every country the settler colonialism layer does not draw whole. Shade it by one measure at a time from the menu; a click shows all four kinds of invasion for the country, each fact with its source. Compiled daily; a source that does not answer keeps its last copy." },
     { id: "site_settler_colonialism", name: "Settler colonialism and native displacement", unit: "territories", colour: "#6B5A52", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_settler_colonialism.geojson",
-      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+      note: "Each territory on its real boundaries (round 72): whole countries on their national outlines, regions on their provinces, states or districts, as its box says under \u201cdrawn as\u201d. The map\u2019s own words for each, and since round 73 the same facts the other-countries layer gives for its country." },
     { id: "site_social_spheres", name: "The Social Spheres", unit: "bodies and the people between them", colour: "#5E6068", route: "spheres", ready: true, lazy: true,
       page: "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/social_spheres.html",
       note: "Read live from the map's own page in the maps repo; a click opens the map's own card, run by its own code." },
@@ -13503,6 +13591,7 @@ const LAYER_KIND = {
   site_environment_law_shapes: ["human", "upstream"],
   enviro_law_by_country: ["human", "upstream"],
   site_settler_colonialism: ["human", "downstream"],
+  other_invaded: ["human", "downstream"],
   site_subsistence_cultures: ["human", "downstream"],
   site_self_sufficiency: ["human", "downstream"],
   site_enslaved_plants: ["plant", "downstream"],
@@ -14095,6 +14184,7 @@ const LAYER_SITE = {
   site_rodeo: "https://www.welcometoyourgalaxy.com/suppression.html",
   site_secret_societies: "https://www.welcometoyourgalaxy.com/on-planet-invasion.html",
   site_settler_colonialism: "https://github.com/WelcomeToYourGalaxy/maps",
+  other_invaded: "https://github.com/WelcomeToYourGalaxy/culprits-tiles-more/blob/main/scripts/invaded_countries.py",
   site_social_spheres: "https://github.com/WelcomeToYourGalaxy/maps",
   site_soybean_companies: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/soybean_companies.html",
   site_trade_profits: "https://github.com/WelcomeToYourGalaxy/maps",
@@ -14289,7 +14379,7 @@ const PANEL_ORDER = [
   // one layer with a row per kind of conflict under it, and everything that
   // was under Suppression > Land and territory is here, the Land Matrix
   // excepted (under Meat and agriculture > Agriculture).
-  { h: 3, t: "Invasion of humans" }, "site_settler_colonialism",
+  { h: 3, t: "Invasion of humans" }, "site_settler_colonialism", "other_invaded",
   { h: 4, bundle: "indigenous_conflicts", colour: "#6B5A4A" }, "site_indigenous_conflicts",
   { h: 4, bundle: "landmark", colour: "#6A5E66" },
   { h: 4, bundle: "resrights", colour: "#5E6A66" },

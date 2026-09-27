@@ -554,6 +554,15 @@ def real_boundaries(e, feats):
         out = json.loads(json.dumps(out), parse_float=lambda x: round(float(x), 4))
         f["geometry"] = out
         props["drawn_as"] = want["basis"]
+        # The countries it lies in, so its box can add what is compiled for
+        # them (round 73, invaded/countries.json).
+        isos = []
+        for part in want["parts"]:
+            code = part.get("adm0") or part.get("adm1") or part.get("adm2") or part.get("adm4")
+            if code and code not in isos:
+                isos.append(code)
+        if isos:
+            props["iso3"] = ",".join(isos)
     return feats, problems
 
 

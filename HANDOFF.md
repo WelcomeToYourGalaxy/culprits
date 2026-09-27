@@ -5,6 +5,28 @@ touches.
 
 ---
 
+## Round 73 (27 September)
+
+- New row other_invaded (shapes route, box: "invaded"), under Invasion of
+  humans after site_settler_colonialism: every country the settler layer does
+  not draw whole, from culprits-tiles-more shapes/other_invaded.geojson, shaded
+  by a menu (SHAPE_COLOUR_BY.other_invaded: LandMark land and population
+  shares, ILO 169, colonial status, Land Matrix hectares, World Bank external
+  debt % GNI, COW conquests made and suffered). Its box (invadedBoxHtml) is
+  built from invaded/countries.json: Indigenous peoples (LandMark, ILO 169,
+  the 2007 UNDRIP vote, IWGIA link where its country page answers), colonial
+  rule (UN NSGT list, Wikidata dependent territories, territories held),
+  economic invasion (Land Matrix, World Bank DT.DOD.DECT.GN.ZS), past conquest
+  (COW Territorial Change v6, procedure 1 conquest and 2 annexation; a whole
+  unit is followed to its next change of hands, a piece cannot be).
+- The settler colonialism boxes add the same facts for the countries each
+  entry lies in (props iso3, written by build_shapes.py real_boundaries),
+  headed "Also, from other sources" and said of the whole country.
+- culprits-tiles-more round73_tiles.py adds scripts/invaded_countries.py (runs
+  daily). Owner asked 27 September; they chose all four kinds and to add them
+  to the settler descriptions.
+
+
 ## Round 72 (27 September)
 
 - Live marks: category headings carry none now (headingLiveMark returns and

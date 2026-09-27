@@ -4620,5 +4620,30 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("FUNAI and INCRA are parts of the LandMark layer; the resource rights are one layer",
         /\{ h: 4, bundle: "landmark", colour: "#6A5E66" \},\n  \{ h: 4, bundle: "resrights", colour: "#5E6A66" \},/.test(src));
 }
+{
+  console.log("\nround 73: every other country, and how it is invaded; the same facts in the settler colonialism boxes");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const a = src.indexOf("const INVADED_URL"), b = src.indexOf("\nif (typeof document !== \"undefined\" && document.head && document.createElement) {\n  const st = document.createElement(\"style\");\n  st.textContent = \".inv-h{");
+  const esc = src.slice(src.indexOf("function escapeHtml(s) {"), src.indexOf("\n}\n", src.indexOf("function escapeHtml(s) {")) + 2);
+  const T = new Function("fetch", esc + src.slice(a, b) + "; return { invadedBoxHtml };")(() => Promise.reject(new Error("no")));
+  const c = { name: "Bolivia", indigenous: { landmark: { land: { ic_t: "36.2" }, population: { pct: "41", peoples: "Aymara, Quechua" } }, ilo169: { ratified: true, url: "u" } },
+    colonial: {}, economic: { land_deals: { deals: 5, hectares: 34450.4, url: "l" }, debt: { external_debt_pct_gni: 40.1, year: 2024, url: "w" } },
+    conquest: { gained: [], lost: [{ year: 1884, territory: "part of Bolivia", procedure: "conquest", other: "Chile", area_km2: 50215, armed_conflict: true, whole_unit: false, passed_on: null }] } };
+  const h = T.invadedBoxHtml(c, "BOL", "", true);
+  check("a country's box gives its four kinds of invasion, each fact with its source",
+        /<b>Bolivia<\/b>/.test(h) && /hold 36\.2% of the land/.test(h) && /ratified\./.test(h) && /34,450 hectares/.test(h) && /40\.1% of national income \(2024\)/.test(h) &&
+        /1884: part of Bolivia, conquest by Chile, 50,215 km², with fighting/.test(h) && /Correlates of War Territorial Change, v6/.test(h) && !/Colonial rule still in place/.test(h));
+  check("a country nothing is compiled for says so, and adds nothing to a settler box",
+        /Nothing compiled/.test(T.invadedBoxHtml(undefined, "XXX", "X", true)) && T.invadedBoxHtml(undefined, "XXX", "", false) === "");
+  check("the layer is a row under Invasion of humans, shaded by a menu of measures",
+        /"site_settler_colonialism", "other_invaded",/.test(src) && /id: "other_invaded", name: "How every other country is invaded/.test(src) &&
+        /other_invaded: \[\n    \{ label: "Indigenous Peoples' and communities' share of the land \(LandMark\)"/.test(src) && /box: "invaded"/.test(src));
+  check("the settler colonialism boxes add the compiled facts, said of the whole country",
+        /cfg\.id === "site_settler_colonialism"/.test(src) && /\$\{all\[i\]\.name\}, the whole country/.test(src) && /Also, from other sources/.test(src));
+  const bs = fs.readFileSync(path.join(HERE, "..", "pipeline", "shapes", "build_shapes.py"), "utf8");
+  check("the settler shapes carry the countries they lie in", /props\["iso3"\] = ",".join\(isos\)/.test(bs));
+  check("the page asks for this round's script", /app\.js\?v=(7[3-9]|[89]\d)/.test(html));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
