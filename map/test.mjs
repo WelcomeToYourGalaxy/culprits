@@ -4788,7 +4788,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   check("the news is kept a month to a file and read as one row with a chip per month",
         /id: "mil_news_archive"[^\n]*route: "gdeltarchive"/.test(src) && /async function readGdeltArchive\(cfg\)/.test(src) &&
-        /items\.push\(\{ geometry: f\.geometry, key: `\$\{m\}:\$\{i\}`, name: p\.name \|\| "A place named in the news", group: m,/.test(src) &&
+        /items\.push\(\{ geometry: f\.geometry, key: `\$\{m\}:\$\{i\}`, name: p\.name \|\| "A place named in the news", group: cfg\.copyUrl \? "" : m,/.test(src) &&
         /"mil_news", "mil_news_archive", "mil_conflicts"/.test(src));
   check("OpenStreetMap's military places and MIRTA are rows of the military layer, marked NOT LIVE",
         /id: "mil_osm"[^\n]*route: "geojsonlive"/.test(src) && /id: "mil_mirta"[^\n]*route: "geojsonlive"/.test(src) &&
@@ -4800,13 +4800,24 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   check("the three rows sit in the military layer",
-        /"mil_nuclear_storage", "mil_russia_storage", "mil_usni_fleet", "mil_osm"/.test(src) &&
+        /"mil_nuclear_storage", "mil_russia_storage", "mil_missile_ranges", "mil_usni_fleet", "mil_osm"/.test(src) &&
         /id: "mil_nuclear_storage"[^\n]*route: "geojsonlive"/.test(src) && /id: "mil_usni_fleet"[^\n]*route: "usnifleet"/.test(src));
   check("Russia's storage map is shown whole, not copied (its licence allows no derivatives)",
         /id: "mil_russia_storage"[^\n]*route: "companion"/.test(src) && /page: "https:\/\/russianforces\.org\/maps\/Russia-12thGUMO\.html"/.test(src));
   check("each USNI week is a chip, every heading's words quoted, and the box says the mark is the middle of the area",
         /group: `week of \$\{w\}`/.test(src) && /USNI gives no coordinates, and warships often switch their transponders off/.test(src));
   check("the page asks for this round's script", /app\.js\?v=(79|[89]\d)/.test(html));
+}
+{
+  console.log("\nround 80: news from GDELT's event files; MISSILEMAP");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("the seven-day news row reads the daily copy, GDELT's GEO API being gone",
+        /id: "mil_news"[^\n]*route: "gdeltarchive"/.test(src) && /copyUrl: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/military\/news\.geojson"/.test(src));
+  check("MISSILEMAP opens where the map is looking, its launch site there",
+        /id: "mil_missile_ranges"[^\n]*route: "companion"/.test(src) && /pageAt: \(c, z\) => `https:\/\/nuclearsecrecy\.com\/missilemap\/\?mc=/.test(src) &&
+        /frame\.src = typeof cfg\.pageAt === "function" \? cfg\.pageAt\(map\.getCenter\(\), map\.getZoom\(\)\) : cfg\.page;/.test(src));
+  check("the page asks for this round's script", /app\.js\?v=(8\d|9\d)/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

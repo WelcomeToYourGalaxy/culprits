@@ -5,6 +5,24 @@ touches.
 
 ---
 
+## Round 80 (27 September)
+
+- GDELT's GEO 2.0 API answers 404. military.py news() now reads GDELT 2.0's
+  15-minute event files (CAMEO roots 18, 19, 20; ActionGeo place; SOURCEURL),
+  catching up from military/news/cursor.json (at most two days), into the
+  monthly archive and a seven-day news.geojson. mil_news reads that copy
+  (route gdeltarchive with copyUrl); the box counts events and days.
+- Overpass: overpass-api.de answered 406; requests now send Accept and
+  Content-Type, four servers are tried, and a kind no server answers keeps its
+  places from the last copy.
+- MIRTA: catalog.data.gov's API answers 404; read from ArcGIS items
+  8acd7277c2d04bc294c927fc7149c626 (points) then fc0f38c5a19a46dbacd92f2fb823ef8c.
+- invaded_countries.py: GFW LandMark tiles are gzipped; gunzipped before decoding.
+- mil_missile_ranges: MISSILEMAP (Alex Wellerstein) in the companion panel,
+  opened at the map's centre (cfg.pageAt); each nuclear storage site links it
+  with the site as launch point (nuclear_sites.py).
+
+
 ## Round 79 (27 September)
 
 - mil_nuclear_storage (geojsonlive, military/nuclear_sites.geojson from

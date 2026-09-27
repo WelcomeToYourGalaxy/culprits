@@ -8546,7 +8546,9 @@ function addCompanion(cfg) {
     grabbers.forEach((g) => { g.addEventListener("pointermove", move); g.addEventListener("pointerup", end); g.addEventListener("pointercancel", end); });
     if (c.follow) c.follow.addEventListener("change", () => companionSync(cfg));
     map.on("moveend", () => companionSync(cfg));
-    frame.src = cfg.page;
+    // A page that can be told where to look opens where this map is looking
+    // (round 80: MISSILEMAP, centred and with its launch site here).
+    frame.src = typeof cfg.pageAt === "function" ? cfg.pageAt(map.getCenter(), map.getZoom()) : cfg.page;
   }
   setLayerState(cfg.id, "open along the bottom of the screen");
   applyVisibility(cfg.id);
@@ -11088,24 +11090,27 @@ function gdeltLinks(html) {
 // limited to GDELT's seven days. Each place carries the days it was named and
 // every article link seen for it; the months are chips of the row.
 async function readGdeltArchive(cfg) {
-  const idx = await getJson(`${cfg.archive}/index.json`, 30000);
-  const months = (idx.months || []).map((m) => m.month).sort();
+  // The seven-day row reads one file, the archive a file a month.
+  const months = cfg.copyUrl ? ["the last seven days"]
+    : ((await getJson(`${cfg.archive}/index.json`, 30000)).months || []).map((m) => m.month).sort();
   const items = [];
   for (const m of months) {
     let gj;
-    try { gj = await getJson(`${cfg.archive}/${m}.geojson`, 60000); } catch (e) { continue; }
+    try { gj = await getJson(cfg.copyUrl || `${cfg.archive}/${m}.geojson`, 60000); } catch (e) { continue; }
     (gj.features || []).forEach((f, i) => {
       const p = f.properties || {};
-      const days = Array.isArray(p.days) ? p.days : [];
+      const days = (Array.isArray(p.days) ? p.days : []).slice().sort();
       const links = Array.isArray(p.links) ? p.links : [];
-      items.push({ geometry: f.geometry, key: `${m}:${i}`, name: p.name || "A place named in the news", group: m,
+      items.push({ geometry: f.geometry, key: `${m}:${i}`, name: p.name || "A place named in the news", group: cfg.copyUrl ? "" : m,
         h: boxOpen + `<h4 style="margin:0 0 6px">${escapeHtml(p.name || "A place named in the news")}</h4>` +
-          `<div>Named in the news of fighting on ${days.length} day${days.length === 1 ? "" : "s"} in ${escapeHtml(m)}, from ${escapeHtml(p.first || "")} to ${escapeHtml(p.last || "")}; each day's copy covers the seven days before it.</div>` +
+          (p.events != null
+            ? `<div>${Number(p.events).toLocaleString()} event${Number(p.events) === 1 ? "" : "s"} of fighting coded here (assault, fight or unconventional mass violence) on ${days.length} day${days.length === 1 ? "" : "s"}${days.length ? `, ${escapeHtml(days[0])} to ${escapeHtml(days[days.length - 1])}` : ""}.</div>`
+            : `<div>Named in the news of fighting on ${days.length} day${days.length === 1 ? "" : "s"} in ${escapeHtml(m)}, from ${escapeHtml(p.first || "")} to ${escapeHtml(p.last || "")}; each day's copy covers the seven days before it.</div>`) +
           (links.length ? `<ul style="margin:6px 0 0 16px;padding:0">${links.map((x) => `<li><a href="${escapeHtml(x.u)}" target="_blank" rel="noopener">${escapeHtml(x.t || x.u)}</a>${x.seen ? ` <span style="opacity:.7">(first kept ${escapeHtml(x.seen)})</span>` : ""}</li>`).join("")}</ul>` : "") +
-          `<div style="margin-top:6px;opacity:.75;font-size:11px">GDELT Project, GEO 2.0 API, kept daily by this map. A place named is not always where the fighting was.</div></div>` });
+          `<div style="margin-top:6px;opacity:.75;font-size:11px">GDELT Project, coded by machine from the news and kept daily by this map: the place is where GDELT puts the action, which is not always where the fighting was, and one event is often reported many times.</div></div>` });
     });
   }
-  return { title: cfg.name, items, note: months.length ? `${months.length} month${months.length === 1 ? "" : "s"} kept, since ${months[0]}` : "nothing kept yet" };
+  return { title: cfg.name, items, note: cfg.copyUrl ? "" : months.length ? `${months.length} month${months.length === 1 ? "" : "s"} kept, since ${months[0]}` : "nothing kept yet" };
 }
 // Round 79: USNI News's weekly Fleet and Marine Tracker, a heading to a mark
 // (culprits-tiles-more scripts/usni_fleet.py), each week a chip of the row.
@@ -14228,9 +14233,11 @@ const MILITARY = {
   group: true,
   ready: true,
   children: [
-    { id: "mil_news", name: "News of fighting in the last seven days, placed where the reports name (GDELT)", unit: "places named", colour: "#7A5A58", route: "gdeltgeo", ready: true, lazy: true,
+    // Round 80: GDELT's GEO API answers 404, so the row reads the daily copy
+    // built from GDELT's own event files (culprits-tiles-more military.py).
+    { id: "mil_news", name: "News of fighting in the last seven days, placed where GDELT codes the action (GDELT events)", unit: "places", colour: "#7A5A58", route: "gdeltarchive", ready: true, lazy: true,
       copyUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/news.geojson",
-      note: "Read live from the GDELT Project's GEO 2.0 API: news in every language GDELT watches, over the last seven days, about airstrikes, shelling, clashes, militants, drone strikes, bombings and offensives, placed where the articles name. A place named is not always where fighting happened. When GDELT does not answer, the day's copy is drawn and the row says so." },
+      note: "The events GDELT codes as fighting - assault, fight, unconventional mass violence - from the news in every language it reads, over the last seven days, each at the place it gives for the action with the articles it was coded from. Copied daily by culprits-tiles-more from GDELT's 15-minute event files; GDELT's GEO API, which this row read before, no longer answers." },
     { id: "mil_conflicts", name: "Armed conflict events since 1989, each with at least one death (UCDP)", unit: "events", colour: "#7E5A5A", route: "pmtiles", ready: true, lazy: true,
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/mil_conflicts.pmtiles", boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/ucdp", boxesGz: true,
       facet: { property: "x_kind", label: "kind", values: ["state-based conflict", "non-state conflict", "one-sided violence against civilians"] },
@@ -14257,6 +14264,12 @@ const MILITARY = {
     { id: "mil_usni_fleet", name: "US Navy ships at sea, week by week (USNI News Fleet and Marine Tracker)", unit: "areas named", colour: "#5E6470", route: "usnifleet", ready: true, lazy: true,
       archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/usni",
       note: "Each weekly Fleet and Marine Tracker, a mark to each sea, ocean or port it names, with its paragraphs quoted whole and linked; every week kept, each a chip. USNI gives no coordinates, so each mark is the middle of the area named. Copied daily by culprits-tiles-more." },
+    // Round 80: missile ranges drawn by MISSILEMAP (Alex Wellerstein), whose
+    // figures come mostly from CSIS Missile Threat; embedded as its author asks.
+    { id: "mil_missile_ranges", name: "Missile ranges from any launch site (MISSILEMAP by Alex Wellerstein; figures mostly from CSIS Missile Threat)", unit: "opens the tool itself in a panel", colour: "#6E5F52", route: "companion", ready: true, lazy: true,
+      page: "https://nuclearsecrecy.com/missilemap/",
+      pageAt: (c, z) => `https://nuclearsecrecy.com/missilemap/?mc=${c.lat.toFixed(4)},${c.lng.toFixed(4)}&s=${c.lat.toFixed(4)},${c.lng.toFixed(4)}&z=${Math.max(2, Math.min(8, Math.round(z + 1)))}`,
+      note: "Alex Wellerstein's MISSILEMAP, opened where this map is looking with its launch site there: pick a missile by country and it draws the range, accuracy and blast. Its figures come mostly from the CSIS Missile Threat project, the rest from Wikipedia and experts. Embedded whole, as its author asks. Each nuclear storage site's box links it with that site as the launch point." },
     { id: "mil_osm", name: "Military airfields, bases, naval bases, barracks, ranges and training areas, in use and no longer (OpenStreetMap)", unit: "places", colour: "#6E6358", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "OpenStreetMap", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/osm_military.geojson" }],
       note: "Every place OpenStreetMap tags military=airfield, base, naval_base, barracks, range, training_area or nuclear_explosion_site (and was:/disused: ones), each at its middle, every tag kept; kinds are chips of the row. A copy renewed daily by culprits-tiles-more from Overpass. ODbL." },
@@ -15591,7 +15604,7 @@ const PANEL_ORDER = [
   // place of the Guerillamap row, which could only link to another site.
   { h: 3, t: "Of countries by countries" }, "site_secret_societies",
   { h: 4, bundle: "military", colour: "#6A5E5A" }, "mil_news", "mil_news_archive", "mil_conflicts", "mil_attacks", "mil_aircraft", "mil_sites", "mil_units",
-  "mil_nuclear_storage", "mil_russia_storage", "mil_usni_fleet", "mil_osm", "mil_mirta", "mil_test_sites", "mil_minefields", "mil_alliances",
+  "mil_nuclear_storage", "mil_russia_storage", "mil_missile_ranges", "mil_usni_fleet", "mil_osm", "mil_mirta", "mil_test_sites", "mil_minefields", "mil_alliances",
   { h: 5, bundle: "milcompare", colour: "#6E5F52" }, "mil_spend_gdp", "mil_spend_gov", "mil_spend_usd", "mil_personnel", "mil_warheads", "mil_tests", "mil_nuclear_position",
   // Round 77: the whole Unearthings map, in its own order.
   { h: 2, t: "Invasion of the after-life" }, "remains_records", "remains_units", "remains_findings", "remains_cemeteries",
