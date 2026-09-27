@@ -755,7 +755,11 @@ function gladSourceSpec(id, spec) {
 // 26 September): mapped, its greens, ochres and browns came out cyan to violet
 // and drowned the relief. Its sea layers (sat-relief-seabed, sat-relief-sea)
 // keep the mapped blues, which the owner likes over the water.
-const GLAD_BASE_LAYERS = /^(bg|base|base-s2|base-close|hillshade|labels|atlas-plate.*|holo-.*|sat-relief-colour)$/;
+// The Country outlines basemap keeps its own dark greens, greys and slate
+// (round 66, asked 26 September): mapped, its land came out purple and its
+// roads violet, which the GLAD mapping was never meant to reach (it says the
+// basemaps are not touched).
+const GLAD_BASE_LAYERS = /^(bg|base|base-s2|base-close|hillshade|labels|atlas-plate.*|holo-.*|sat-relief-colour|outline-.*)$/;
 function gladLayer(layer) {
   if (!layer || !layer.id || GLAD_BASE_LAYERS.test(layer.id) || layer.type === "custom" || layer.type === "background" || layer.type === "hillshade") return layer;
   if (gladKept(layer.id)) return layer;
@@ -9078,13 +9082,16 @@ function makePullable(el, edge) {
   const settle = (h) => { if (el.classList) el.classList.toggle("pulled-shut", h <= PULL_MIN + 4); };
   const move = (e) => {
     const y = e.clientY != null ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : from);
-    el.style.maxHeight = "none";
-    // The layers box grows to fill its column (flex 1 1 auto), which undid any
-    // height the pull set: pulled up, it did not get shorter and its bar stayed
-    // put. A pulled box keeps the height it is pulled to (23 September).
-    el.style.flex = "0 0 auto";
+    // Round 66: a pull sets the most the box may show, not its height. The
+    // box is as tall as what is in it and no taller (no empty space under the
+    // last row), however far it is pulled. The layers box may also still give
+    // way (flex 0 1 auto): pulled right down and then a layer ticked, the
+    // Showing box comes up under it and the layers box gets shorter to make
+    // room, rather than being held at its height and covered.
+    el.style.height = "";
+    el.style.flex = "";
     const h = pullHeight(height, y - from, edge, PULL_MIN, ceiling());
-    el.style.height = h + "px";
+    el.style.maxHeight = h + "px";
     settle(h);
   };
   const stop = () => {
@@ -12158,7 +12165,7 @@ const OTHER_MAPS = {
     { id: "nsf_locations", name: "Next Spaceflight: launch sites", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://nextspaceflight.com/locations/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "ufo_sightings", name: "UAP sightings reported worldwide (UFOSINT)", unit: "sightings", colour: "#9A8AA6", route: "ufo", ready: true, lazy: true,
+    { id: "ufo_sightings", name: "Unidentified anomalous phenomena (UAP) sightings reported worldwide (UFOSINT)", unit: "sightings", colour: "#9A8AA6", route: "ufo", ready: true, lazy: true,
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ufo_sightings.pmtiles",
       boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ufosint/pieces", boxesGz: true,
       attribution: "UFOSINT: UFOCAT (CUFOS), UPDB (PhenomAInon), Capella, UFO-search",
@@ -12174,7 +12181,7 @@ const OTHER_MAPS = {
     { id: "giga_countries", name: "School mapping by country (Giga)", unit: "countries", colour: "#627A86", route: "giga", ready: true, lazy: true,
       data: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/giga/countries.json",
       note: "Giga's own figures for every country on its map, copied daily (its service does not let other sites read it)." },
-    { id: "eyes_craft", name: "Spacecraft across the solar system, where they are now (NASA's Eyes on the Solar System)", unit: "leaves Earth for Eyes, as the Leave Earth button does", colour: "#5E6070", route: "leave", ready: true, lazy: true,
+    { id: "eyes_craft", name: "Spacecraft in space, going galactic (NASA's Eyes on the Solar System)", unit: "leaves Earth for Eyes, as the Leave Earth button does", colour: "#5E6070", route: "leave", ready: true, lazy: true,
       page: "https://eyes.nasa.gov/apps/solar-system/#/home?featured=false&logo=false&shareButton=false&hd=true",
       note: "Ticked, the map turns to Earth's face and size in NASA/JPL's Eyes on the Solar System and hands the screen over, exactly as the Leave Earth button and zooming out past the globe do (asked for 25 September, in place of the panel along the bottom). In Eyes, every spacecraft it follows is placed where it is now, with its mission. The box in the corner, or unticking, brings the map back." },
     { id: "biosignature", name: "Biosignature Evidence Assessment", unit: "worlds", colour: "#46B8D8", keepColour: true, route: "worldsring", ready: true, lazy: true,
@@ -13864,7 +13871,7 @@ const PANEL_ORDER = [
   { h: 3, t: "The space industry" }, "space_industry",
   { h: 3, t: "Space launches" }, "ll2_pads", "ll2_upcoming",
   { h: 3, t: "Craft in space" }, "eyes_craft",
-  { h: 3, t: "Protecting extraterrestrial life" }, "biosignature",
+  { h: 3, t: "Extraterrestrial life" }, "biosignature",
   // Base and reference (empty since 25 September) and Buildings taken out, the
   // Buildings row with it (26 September, round 56).
 ];

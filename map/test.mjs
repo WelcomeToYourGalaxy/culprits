@@ -2606,7 +2606,7 @@ console.log("\nOff-planet sections, Of groups, names, launch links, drag bar, ma
   const at = (t) => order.findIndex((x) => x && x.t === t);
   check("Off-planet has To Earth and From Earth, with their four sections and one empty",
         at("To Earth") < at("Near-Earth object impacts") && at("Unidentified aerial phenomena") < at("From Earth") &&
-        at("From Earth") < at("The space industry") && at("Space launches") < at("Protecting extraterrestrial life"));
+        at("From Earth") < at("The space industry") && at("Space launches") < at("Extraterrestrial life"));
   // Round 48 (25 September): the fur farms moved to a heading of their own under Of the planet.
   check("Fur Farms (Final Nail) is under Destruction, Of the planet, Fur farms", order.indexOf("final_nail") === at("Fur farms") + 1 && at("Fur farms") < at("Of groups") && /name: "Fur Farms \(Final Nail\)"/.test(src));
   check("Pet Food Companies is straight under Of animals (round 62)", order.indexOf("mymaps_supp_a") > at("Of animals") && at("The pet industry") === -1 && /name: "Pet Food Companies", fixedName: true/.test(src));
@@ -3384,7 +3384,11 @@ console.log("\nround of 23 September (5): the Atlas panel pared down; no grain; 
   const py = fs.readFileSync(path.join(HERE, "..", "pipeline", "atlas_plates.py"), "utf8");
   check("\u2026the detail squares are drawn from the PDF at four times the size, each placed by the page's own fit",
         /DETAIL_SCALE = 4/.test(py) && /"detail"/.test(py));
-  check("a pulled box keeps the height it is pulled to, the layers box included", /el\.style\.flex = "0 0 auto";/.test(src));
+  check("a pull sets the most a box shows, so it is never taller than its list and the layers box still gives way to the Showing box (round 66)",
+        /el\.style\.maxHeight = h \+ "px";/.test(src) && !/el\.style\.flex = "0 0 auto";/.test(src) && /\.left-col \.panel\{flex:0 1 auto\}/.test(fs.readFileSync(path.join(HERE, "index.html"), "utf8")) &&
+        /\.left-col \.panel > \.pull-grip\{position:sticky;bottom:0/.test(fs.readFileSync(path.join(HERE, "index.html"), "utf8")));
+  check("the Country outlines basemap keeps its own colours (round 66)", /\|sat-relief-colour\|outline-\.\*\)\$\/;/.test(src));
+  check("space rows retitled (round 66)", /\{ h: 3, t: "Extraterrestrial life" \}/.test(src) && /name: "Spacecraft in space, going galactic \(NASA's Eyes on the Solar System\)"/.test(src));
   check("the news wires' open-and-shut arrow sits at the right-hand end of the bar",
         /id="wireEnd"/.test(wire) && /\.wire-toggle \.wire-caret\{display:none\}/.test(wire));
 }
@@ -3955,7 +3959,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         worlds.map((w) => w.name).join() === "Mars,Europa,Enceladus,K2-18 b" && worlds[2].probMid === 15 && /Orbilander/.test(worlds[2].mission));
   check("its colours are the map's blues, not the page's orange", W.worldColour(0.8) === "#3F4FC4" && W.worldColour(15) === "#8FDCEB" &&
         /id: "biosignature"[^\n]*route: "worldsring"/.test(src));
-  check("the UAP row is titled UAP, drawn by year with a bar, and lists every sighting at a spot", /name: "UAP sightings reported worldwide \(UFOSINT\)"/.test(src) &&
+  check("the UAP row is titled UAP, drawn by year with a bar, and lists every sighting at a spot", /name: "Unidentified anomalous phenomena \(UAP\) sightings reported worldwide \(UFOSINT\)"/.test(src) &&
         /\["==", \["get", "y"\], -9999\]/.test(src) && /queryRenderedFeatures\(e\.point, \{ layers: lids/.test(src));
   check("upcoming launches are per site, soonest first with dates, and filtered by a date bar", /name: "Upcoming launches per site \(Launch Library 2\)"/.test(src) &&
         /cfg\.route === "ll2" && cfg\.what === "upcoming" \? addLaunchSitesLayer\(cfg\)\n      : cfg\.route === "ll2" \? addLivePlacesLayer/.test(src) &&
@@ -4304,7 +4308,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         cols.every((c) => hue(c) >= 184 && hue(c) <= 241) && new Set(cols).size === 5 && ["#FF00FF", "#8A4F46", "#6A6258"].every((c) => hue(G.gladCss(c, "nat")) <= 241));
   check("country rows are named for it when the rows are read", /\["giga", "country", "owidgrapher", "trase"(, "gta", "rte")?\]\.includes\(c\.route\)/.test(src));
   check("the hologram keeps its own blues: its layers are not remapped, and its fringe and ground are not purple",
-        /\|holo-\.\*(\|[a-z-]+)*\)\$\/;/.test(src) && /--holo-fringe: #6fb0bd;/.test(html) && /--holo-bg:     #081729;/.test(html) && !/#8e86c8/.test(html));
+        /\|holo-\.\*(\|[a-z.*-]+)*\)\$\/;/.test(src) && /--holo-fringe: #6fb0bd;/.test(html) && /--holo-bg:     #081729;/.test(html) && !/#8e86c8/.test(html));
   check("the page asks for this round's script", /app\.js\?v=(5[7-9]|[6-9]\d)/.test(html));
 }
 {
@@ -4360,7 +4364,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("dots of layers with no amounts are never under 2 pixels, and the Unearthings findings glow in full",
         /0,  \["max", 2, \["\*", 0\.18 \* scale, MAGNITUDE_RADIUS\]\]/.test(src) && /"aquaculture_ponds", "remains_findings"\]/.test(src));
   check("the satellite land tint keeps its own earth tones; the sea keeps the mapped blues",
-        /\|holo-\.\*\|sat-relief-colour\)\$\//.test(src) && !/sat-relief-sea\)\$\//.test(src));
+        /\|holo-\.\*\|sat-relief-colour(\|[a-z.*-]+)*\)\$\//.test(src) && !/sat-relief-sea\)\$\//.test(src));
   const o = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("];", src.indexOf("const PANEL_ORDER = [")) + 2) + "; return { PANEL_ORDER };")();
   const order = o.PANEL_ORDER;
   const at = (t) => order.findIndex((x) => x && (x.t === t || x.bundle === t));

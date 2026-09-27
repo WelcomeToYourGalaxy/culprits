@@ -5,6 +5,29 @@ touches.
 
 ---
 
+## Round 66 (26 September)
+
+- Layers box: as tall as its list and no taller (.left-col .panel is flex
+  0 1 auto, was 1 1 auto, so it filled the column with empty box under the
+  last heading and its grip sat mid-box after the list). The grip is sticky
+  on the box's bottom edge. A pull now sets max-height rather than height and
+  no longer fixes flex at 0 0 auto, so a box pulled right down still gives
+  way when the Showing box comes up under it instead of being covered. The
+  empty #note paragraph is hidden (.note:empty).
+- Country outlines basemap: its outline-* layers join GLAD_BASE_LAYERS. The
+  GLAD mapping (round 46) had been turning its land purple and its roads
+  violet; it now draws in the colours written in addOutlineLayers and
+  OUTLINE_DETAIL again.
+- Titles: the heading "Protecting extraterrestrial life" is "Extraterrestrial
+  life"; eyes_craft is "Spacecraft in space, going galactic (NASA's Eyes on
+  the Solar System)"; ufo_sightings is "Unidentified anomalous phenomena (UAP)
+  sightings reported worldwide (UFOSINT)". The two space launch rows keep
+  "(Launch Library 2)": it is their data source (The Space Devs' API).
+- Biosignature row checked in a browser with a copy of the maps page: it is
+  read from off-planet-invasion_embed_13_large-script.html each time it is
+  ticked, and its 4 worlds draw round the globe.
+
+
 ## Round 65 (26 September)
 
 - Banking dynasties: the 11 family-city pairs the section lists without a
