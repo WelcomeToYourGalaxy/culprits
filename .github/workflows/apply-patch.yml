@@ -65,7 +65,7 @@ jobs:
               git reset -q --hard HEAD
               git clean -q -fd
               mkdir -p patches/failed
-              git mv "$p" "patches/failed/$name"
+              git mv -f "$p" "patches/failed/$name"
               git commit -q -m "Could not apply $name"
               echo "::error::$name did not apply or its tests failed; moved to patches/failed/. Nothing else it did was kept."
               bad=1
