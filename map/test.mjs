@@ -3546,18 +3546,18 @@ console.log("\nround of 23 September (21): INCRA's quilombola communities kept")
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const places = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return cataloguePlaces;")();
   const f = (t) => places(t, t).join(" | ");
-  check("INCRA's rural settlements are out, its quilombola communities are under Land and territory",
+  check("INCRA's rural settlements are out, its quilombola communities are part of the LandMark layer (round 72)",
         f("INCRA Brazil Rural Settlements incra_bra_rural_settlements") === "(taken out)" &&
-        f("INCRA Brazil Quilombola Communities incra_bra_quilombola_communities") === "On-planet invasion > Invasion of the living > Invasion of humans");
+        f("INCRA Brazil Quilombola Communities incra_bra_quilombola_communities") === "On-planet invasion > Invasion of the living > Invasion of humans > Indigenous Peoples' and local communities' lands and territories, worldwide (LandMark, with Brazil's FUNAI and INCRA)");
 }
 console.log("\nround of 23 September (22): Liberia's development agreements and the resource rights placed");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const places = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return cataloguePlaces;")();
   const f = (t) => places(t, t).join(" | ");
-  check("Liberia's Mineral Development Agreements are under Mining, the resource rights under Land and territory",
+  check("Liberia's Mineral Development Agreements are under Mining, the resource rights in one layer with LandMark's (round 72)",
         f("Liberia Mineral Development Agreement lbr_mineral_development_agreement") === "Destruction > Of the planet > Mining" &&
-        f("Resource rights \u2014 Currently available for Cameroon, Equatorial Guinea, Liberia and Namibia gfw_resource_rights") === "On-planet invasion > Invasion of the living > Invasion of humans");
+        f("Resource rights \u2014 Currently available for Cameroon, Equatorial Guinea, Liberia and Namibia gfw_resource_rights") === "On-planet invasion > Invasion of the living > Invasion of humans > Community rights to natural resources, worldwide and in Cameroon, Equatorial Guinea, Liberia and Namibia (LandMark and Global Forest Watch)");
 }
 console.log("\nround of 23 September (23): the owner's thirty notes on the layers box");
 {
@@ -3665,7 +3665,7 @@ console.log("\nround of 23 September (23): the owner's thirty notes on the layer
         Math.abs(cog.tileDegrees(1, 0, 0).north - 85.0511) < 0.001 && cog.tileDegrees(1, 1, 1).west === 0);
   check("layers with sublayers read as one row: tick first, own title, tick reaching their catalogue parts, reading all, none or part-way",
         /if \(bundle\) \{ line\.appendChild\(all\); line\.appendChild\(head\); \}/.test(src) &&
-        /querySelectorAll\(bundle \? "\[data-layer\], \[data-cat\]" : "\[data-layer\]"\)/.test(src) &&
+        /querySelectorAll\(bundle \? "\[data-layer\], \[data-cat\], \[data-smtype\]" : "\[data-layer\]"\)/.test(src) &&
         /e\.target\.dataset\.cat\)\) syncHeadingBoxes\(box\);/.test(src) && /if \(typeof syncHeadingBoxes === "function"\) syncHeadingBoxes\(box\);/.test(src) &&
         Object.keys(B).every((k) => bat(k) > -1));
 }
@@ -4176,7 +4176,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
     "; return { cataloguePlaces };")();
   const at = (t) => lib.cataloguePlaces(t, t).join();
   const LT = "On-planet invasion > Invasion of the living > Invasion of humans";
-  const LM = LT + " > Indigenous Peoples' and local communities' lands and territories, worldwide (LandMark)";
+  const LM = LT + " > Indigenous Peoples' and local communities' lands and territories, worldwide (LandMark, with Brazil's FUNAI and INCRA)";
   check("LandMark's 2026 areas and points are the two parts of one row",
         at("Lands and territories with known boundaries, as areas, worldwide (LandMark) landmark_ip_lc_and_indicative_poly") === LM &&
         at("Lands and territories with no known boundary, as points, worldwide (LandMark) landmark_ip_lc_and_indicative_points") === LM &&
@@ -4189,10 +4189,10 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("FAO's forestry employment and Nusantara's four social forestry rows are taken out",
         out("FAO Forestry Employment fao_forestry_employment") &&
         ["hk", "hadat", "wiladat", "hd"].every((k) => out(`Customary forest (hutan adat) — Equatorial Asia socialforestry${k}_spv`)));
-  check("LandMark's country figures, FUNAI, INCRA and the tenure indicators stay under Land and territory",
-        at("LandMark Natural Resource Rights landmark_natural_resource_rights") === LT &&
-        at("FUNAI Brazil Indigenous Territories funai_bra_indigenous_territories") === LT &&
-        at("INCRA Brazil Quilombola Communities incra_bra_quilombola_communities") === LT &&
+  check("the tenure indicators stay under Invasion of humans; FUNAI and INCRA are parts of LandMark's layer, the resource rights one layer (round 72)",
+        at("LandMark Natural Resource Rights landmark_natural_resource_rights") === "On-planet invasion > Invasion of the living > Invasion of humans > Community rights to natural resources, worldwide and in Cameroon, Equatorial Guinea, Liberia and Namibia (LandMark and Global Forest Watch)" &&
+        at("FUNAI Brazil Indigenous Territories funai_bra_indigenous_territories") === LM &&
+        at("INCRA Brazil Quilombola Communities incra_bra_quilombola_communities") === LM &&
         at("Indicators of Tenure Security in National Law: Local Communities' Land and Resource Rights landmark_tenure_indicators_comm") === LT);
   check("Global Forest Watch's working files are taken out, \"To delete\" included",
         out("SDPT Whitelist (iso) gfw_planted_forests_whitelist") && out("Pixel Area gfw_pixel_area") &&
@@ -4487,8 +4487,8 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   check("a site map's kind rows and Guerillamap's row carry a mark",
         /siteTypeTitle\(v\.label, mapName\.trim\(\), cfg\.id\)\)\}\$\{liveMark\(cfg\)\}/.test(src) && /Guerillamap overlays<span class="live"/.test(src));
-  check("a layer with sublayers and a small heading say live, not live, or how many of each",
-        /function headingLiveMark\(sec\)/.test(src) && /headingLiveMark\(sec\);/.test(src) && /toc-l\[3-9\]\|toc-bundle/.test(src) &&
+  check("a layer with sublayers says live, not live, or how many of each; category headings say nothing (round 72)",
+        /function headingLiveMark\(sec\)/.test(src) && /headingLiveMark\(sec\);/.test(src) && /if \(!\/toc-bundle\/\.test\(sec\.className\)\)/.test(src) &&
         /LIVE \$\{live\}/.test(src) && /NOT LIVE \$\{copy\}/.test(src) && /#layers \.toc-live \.live\{/.test(html));
   check("the dynasties' copy says not live; the worlds, read from their page, say live",
         /site_banking_dynasties_charts: "The Suppression page's own banking dynasties section, from a copy made once/.test(src) && /"worldsring",\n\]\);/.test(src));
@@ -4582,6 +4582,43 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /<input type="radio" id="holo-toggle"/.test(html) && !/<input type="checkbox" id="holo-toggle"/.test(html) &&
         /showBaseTick\(opt\.under\);/.test(html) && /if \(on && !opt\.under\) \{\n\s*disable\(\);/.test(html));
   check("the page asks for this round's script", /app\.js\?v=(7[1-9]|[89]\d)/.test(html));
+}
+{
+  console.log("\nround 72: marks only beside layers; the conflicts layer's own tick; site boxes spaced as on their pages; land layers coloured by their own kinds; real boundaries");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const a = src.indexOf("const GFW_COLOUR_BY = {"), b = src.indexOf("const GFW_COLOUR_OFF = new Map();");
+  let painted = {}, keys = [];
+  const handlers = {};
+  const fakeMap = { querySourceFeatures: () => [
+      { properties: { current_avg_scr_cat: "Low", current_avg_scr: 0.2 } }, { properties: { current_avg_scr_cat: "High", current_avg_scr: 0.9 } },
+      { properties: { current_avg_scr_cat: "Medium", current_avg_scr: 0.5 } }, { properties: {} }],
+    getLayer: () => true, setPaintProperty: (id, p, v) => { painted[id] = v; }, on: (e, f) => { handlers[e] = f; }, off() {} };
+  const G = new Function("map", "gladPaint", "catalogueKeyShow", "catalogueKeyHide", "setTimeout", "clearTimeout",
+    src.slice(a, b) + "; return { gfwColourBy, gfwKindOrder, gfwKindColours, GFW_COLOUR_BY };");
+  const T = G(fakeMap, (id, p, v) => v, (k, t, key) => keys.push(key), () => {}, (f) => { f(); return 0; }, () => {});
+  T.gfwColourBy({ id: "landmark_tenure_indicators_ip", key: "k1", title: "t" }, "s", ["l"], ["s-f-l", "s-o-l"]);
+  const e = painted["s-f-l"];
+  check("a tenure indicator is coloured by its score's category, light to dark by the average score, with a key",
+        Array.isArray(e) && e[0] === "match" && e[2] === "Low" && e[4] === "Medium" && e[6] === "High" && e[8] === "not stated" && e[3] === "#E3D9CF" && e[9] === "#77726A" &&
+        keys.length === 1 && keys[0].values.length === 4 && !("s-o-l" in painted));
+  check("an unordered field keeps distinct colours for each kind; LandMark's lands by holder and acknowledgement",
+        new Set(T.gfwKindColours(["a", "b", "c"], {})).size === 3 && T.GFW_COLOUR_BY.landmark_ip_lc_and_indicative_poly.fields.join() === "identity,form_rec");
+  check("category headings carry no live mark; a layer's own sublayers do",
+        /if \(!\/toc-bundle\/\.test\(sec\.className\)\) \{ const old = head\.querySelector\("\.toc-live"\); if \(old\) old\.remove\(\); return; \}/.test(src));
+  check("a layer made only of a site map's kinds can be ticked as a whole",
+        /bundle \? "\[data-layer\], \[data-cat\], \[data-smtype\]" : "\[data-layer\]"/.test(src));
+  const LL = new Function(src.slice(src.indexOf("const LEAFLET_CSS_LAST"), src.indexOf("function injectSitemapStyles(")) + "; return leafletCssLast;")();
+  check("maps whose page loads Leaflet's styles last get them last here too, so their boxes keep Leaflet's margins",
+        LL({ id: "site_secret_societies" }, { page: "https://x/maps/site/site_secret_societies.html" }) && !LL({ id: "site_rodeo" }, { page: "https://x/site_rodeo.html" }) &&
+        /leaflet-after-\$\{cfg\.id\}/.test(src));
+  check("a site map's box carries its position line inside it", /const at = h\.indexOf\('<\/div><\/div><div class="leaflet-popup-tip-container">'\);/.test(src));
+  const J = JSON.parse(fs.readFileSync(path.join(HERE, "..", "pipeline", "shapes", "jurisdictions", "site_settler_colonialism.json"), "utf8")).entries;
+  const bs = fs.readFileSync(path.join(HERE, "..", "pipeline", "shapes", "build_shapes.py"), "utf8");
+  check("every settler colonialism entry is named with real jurisdictions, said in its box",
+        Object.keys(J).length === 90 && Object.values(J).every((j) => j.parts.length && j.basis) &&
+        /feats, juris = real_boundaries\(e, feats\)/.test(bs) && /props\["drawn_as"\] = want\["basis"\]/.test(bs));
+  check("FUNAI and INCRA are parts of the LandMark layer; the resource rights are one layer",
+        /\{ h: 4, bundle: "landmark", colour: "#6A5E66" \},\n  \{ h: 4, bundle: "resrights", colour: "#5E6A66" \},/.test(src));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

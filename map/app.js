@@ -6476,7 +6476,11 @@ const BUNDLES = {
   waterwatch: "Reservoirs above or below their usual water area (Global Water Watch)",
   plans: "Spatial plans, forest estate and the clearing moratorium, Indonesia",
   idnplant: "Plantations in Indonesia and its neighbours, region by region",
-  landmark: "Indigenous Peoples' and local communities' lands and territories, worldwide (LandMark)",
+  // Round 72: Brazil's own registers of Indigenous territories (FUNAI) and
+  // quilombola territories (INCRA) are parts of this layer, at the owner's word.
+  landmark: "Indigenous Peoples' and local communities' lands and territories, worldwide (LandMark, with Brazil's FUNAI and INCRA)",
+  // Round 72: the two resource rights rows are one layer, at the owner's word.
+  resrights: "Community rights to natural resources, worldwide and in Cameroon, Equatorial Guinea, Liberia and Namibia (LandMark and Global Forest Watch)",
   landghg: "Greenhouse gases from cropland and livestock, CO2 equivalent (WRI land greenhouse gas monitoring system)",
   indigenous_conflicts: "Indigenous Environmental Conflicts",
   selected: "Selected Layers",
@@ -6606,6 +6610,11 @@ const CATALOGUE_BY_TITLE = [
   // and population Indigenous) stay. Global Forest Watch's working files
   // (SDPT whitelist, pixel area, UMD area 2013, "To delete") taken out.
   [/\blandmark_ip_lc_and_indicative_(poly|points)\b/, [IN("On-planet invasion > Invasion of the living > Invasion of humans", "landmark")]],
+  // Round 72 (27 September): FUNAI's Indigenous territories and INCRA's
+  // quilombola territories inside the LandMark layer; the two resource rights
+  // rows as one layer.
+  [/\bfunai_bra_indigenous_territories\b|\bincra_bra_quilombola_communities\b/, [IN("On-planet invasion > Invasion of the living > Invasion of humans", "landmark")]],
+  [/\blandmark_natural_resource_rights\b|\bgfw_resource_rights\b/, [IN("On-planet invasion > Invasion of the living > Invasion of humans", "resrights")]],
   [/\bfao_forestry_employment\b/, null],
   [/socialforestry(hk|hadat|wiladat|hd)_spv/, null],
   [/\blandmark_icls\b|\blandmark_indigenous_and_community_lands(_points)?\b|\blandmark_indicative_lands(_points)?\b|\blandmark_ip_lc_and_indicative_poly_preprocessed\b|\bgfw_indigenous_community_and_indicative_lands\b/, null],
@@ -6729,7 +6738,6 @@ const CATALOGUE_BY_TITLE = [
   [/\bwcs_forest_landscape_integrity_index\b/, [P + " > Biodiversity loss > Intact and primary forests"]],
   [/\bicf_hnd_forest_type_2013\b|\bjrc_managed_land_(can|usa)\b|\brspo_southeast_asia_land_cover_2010\b|\bsbtn_natural_forests_map\b|\bumd_tree_cover_gain\b|\bumd_tree_cover_height_20\d\d\b/,
    [P + " > Forest and land cover"]],
-  [/\blandmark_natural_resource_rights\b/, ["On-planet invasion > Invasion of the living > Invasion of humans"]],
   [/\bwri_cmr_agro_industrial_zones\b/, [AG + " > Plantations"]],
   [/\bwri_global_power_plant_database\b/, [P + " > Climate > Carbon dioxide"]],
   // Taken out 24 September (round 41): wind speed potential and Brazil's biomes.
@@ -6775,7 +6783,6 @@ const CATALOGUE_BY_TITLE = [
   // Global Forest Watch's resource rights (Cameroon, Equatorial Guinea, Liberia,
   // Namibia) under Land and territory (23 September, round 22).
   [/\blbr_mineral_development_agreement\b|(?=.*liberia)(?=.*mineral development agreement)/i, [P + " > Mining"]],
-  [/\bgfw_resource_rights\b/, ["On-planet invasion > Invasion of the living > Invasion of humans"]],
   // Logging roads in the Congo Basin: Deforestation only, not Construction.
   [/logging roads?\b/i, [P + " > Deforestation"]],
   // Placed by name.
@@ -7500,6 +7507,98 @@ const GFW_DRAWN_BY = {
   gfw_integrated_dist_alerts: "Any loss of plant cover, worldwide (DIST-ALERT)",
 };
 
+// Datasets drawn in one colour everywhere although each record says which kind
+// it is (round 72, asked 27 September: the tenure indicators and the LandMark
+// rows were one colour across every country). Each is coloured by its own
+// field, with a key; the kinds are read from the tiles as they arrive, so no
+// category is assumed that the data does not carry. An ordered measure goes
+// light to dark: by the average of the score its categories summarise
+// (orderBy), or by the first number in each category's own words.
+const GFW_COLOUR_BY = {
+  landmark_ip_lc_and_indicative_poly: { fields: ["identity", "form_rec"], say: "who holds it, and whether the government acknowledges it" },
+  landmark_ip_lc_and_indicative_points: { fields: ["identity", "form_rec"], say: "who holds it, and whether the government acknowledges it" },
+  landmark_natural_resource_rights: { fields: ["nat_resrc"], say: "the resource the right is to" },
+  gfw_resource_rights: { fields: ["legal_term"], say: "the legal form of the right" },
+  landmark_tenure_indicators_ip: { fields: ["current_avg_scr_cat"], orderBy: "current_avg_scr", say: "LandMark's average score over its ten indicators of legal security" },
+  landmark_tenure_indicators_comm: { fields: ["current_avg_scr_cat"], orderBy: "current_avg_scr", say: "LandMark's average score over its ten indicators of legal security" },
+  landmark_percent_of_land_indigenous_per_country: { fields: ["ic_t_cat"], ordered: true, say: "the share of the country's land held by Indigenous Peoples and communities" },
+  landmark_indigenous_population_per_country: { fields: ["pctcat"], ordered: true, say: "the Indigenous share of the country's population" },
+};
+const GFW_KINDS = ["#8C5A4E", "#6F5A7A", "#6E8058", "#4F6E6A", "#B0707C", "#A9A39A", "#5E6D8A", "#7A6A4E", "#556B78", "#8A7A96", "#6B7F6A", "#9A8070"];
+const GFW_STEPS = ["#E3D9CF", "#C9B3A5", "#AC8A7B", "#8A6356", "#5F3F36"];
+function gfwKindExpr(fields) {
+  const one = (f) => ["to-string", ["coalesce", ["get", f], "not stated"]];
+  return fields.length === 1 ? one(fields[0]) : ["concat", ...fields.flatMap((f, i) => (i ? [", ", one(f)] : [one(f)]))];
+}
+function gfwKindOf(props, fields) {
+  return fields.map((f) => (props[f] == null || props[f] === "" ? "not stated" : String(props[f]))).join(", ");
+}
+// The kinds in the order they are drawn: light to dark for an ordered measure.
+function gfwKindOrder(kinds, spec, means) {
+  const first = (k) => { const m = String(k).match(/-?\d+(\.\d+)?/); return m ? Number(m[0]) : Infinity; };
+  const list = [...kinds];
+  const last = (a, b) => (a === "not stated") - (b === "not stated");
+  if (spec.orderBy) return list.sort((a, b) => last(a, b) || (means.get(a) ?? Infinity) - (means.get(b) ?? Infinity) || a.localeCompare(b));
+  if (spec.ordered) return list.sort((a, b) => last(a, b) || first(a) - first(b) || a.localeCompare(b));
+  return list.sort((a, b) => last(a, b) || a.localeCompare(b));
+}
+// A record that states no kind is drawn grey, outside the scale.
+function gfwKindColours(order, spec) {
+  const said = order.filter((k) => k !== "not stated"), n = said.length;
+  const col = new Map(said.map((k, i) => [k, !(spec.orderBy || spec.ordered) ? GFW_KINDS[i % GFW_KINDS.length]
+    : GFW_STEPS[n === 1 ? 2 : Math.round(i * (GFW_STEPS.length - 1) / (n - 1))]]));
+  return order.map((k) => col.get(k) || "#77726A");
+}
+function gfwColourBy(d, src, names, ids) {
+  const spec = GFW_COLOUR_BY[d.id];
+  if (!spec || typeof map.querySourceFeatures !== "function") return null;
+  const kinds = new Set(), sums = new Map();
+  let shown = "";
+  const read = () => {
+    let grew = false;
+    for (const n of names) {
+      let fs = [];
+      try { fs = map.querySourceFeatures(src, { sourceLayer: n }); } catch (e) { fs = []; }
+      for (const f of fs) {
+        const p = f.properties || {}, k = gfwKindOf(p, spec.fields);
+        if (!kinds.has(k)) { kinds.add(k); grew = true; }
+        if (spec.orderBy && Number.isFinite(Number(p[spec.orderBy])) && p[spec.orderBy] !== null && p[spec.orderBy] !== "") {
+          const s = sums.get(k) || [0, 0]; s[0] += Number(p[spec.orderBy]); s[1]++; sums.set(k, s);
+        }
+      }
+    }
+    if (!grew && shown) return;
+    const means = new Map([...sums].map(([k, [t, c]]) => [k, t / c]));
+    const order = gfwKindOrder(kinds, spec, means);
+    if (!order.length) return;
+    const cols = gfwKindColours(order, spec);
+    const expr = ["match", gfwKindExpr(spec.fields), ...order.flatMap((k, i) => [k, cols[i]]), "#6A6258"];
+    const key = order.length === 1 ? ["literal", cols[0]] : null;
+    let drawn = null;
+    for (const id of ids) {
+      const prop = /-f-/.test(id) ? "fill-color" : /-p-/.test(id) ? "circle-color" : /-l-/.test(id) ? "line-color" : null;
+      if (!prop || !map.getLayer(id)) continue;
+      const v = key ? cols[0] : gladPaint(id, prop, expr);
+      if (!drawn) drawn = v;
+      map.setPaintProperty(id, prop, v);
+    }
+    // The key shows the colours the map draws.
+    const outCols = Array.isArray(drawn) && drawn[0] === "match" ? order.map((k, i) => drawn[3 + i * 2]) : order.map(() => drawn);
+    const sig = order.join("|");
+    if (sig === shown) return;
+    shown = sig;
+    catalogueKeyHide(d.key);
+    catalogueKeyShow(d.key, d.title, { values: order.map((k, i) => [k, outCols[i], k]), source: `coloured by ${spec.say}, as the data gives it` });
+  };
+  let timer = null;
+  const later = () => { clearTimeout(timer); timer = setTimeout(read, 250); };
+  const onData = (e) => { if (e && e.sourceId === src) later(); };
+  map.on("sourcedata", onData);
+  later();
+  return () => { map.off("sourcedata", onData); clearTimeout(timer); catalogueKeyHide(d.key); };
+}
+const GFW_COLOUR_OFF = new Map();          // dataset -> stops its colouring
+
 async function addGfwMenuLayer(cfg) {
   const all = [];
   for (let page = 1; page < 30; page++) {
@@ -7565,6 +7664,7 @@ async function addGfwMenuLayer(cfg) {
     : `${items.length} datasets, each a row below`) + (leftOut.length ? ` \u00b7 ${leftOut.length} more are downloads only and have no row` : ""));
   const take = (d) => {
     if (GFW_KEYS[d.id]) catalogueKeyHide(d.key);
+    if (GFW_COLOUR_OFF.has(d.id)) { GFW_COLOUR_OFF.get(d.id)(); GFW_COLOUR_OFF.delete(d.id); }
     for (const id of drawn.get(d.id) || []) if (map.getLayer(id)) map.removeLayer(id);
     if (map.getSource(`${cfg.id}-${safe(d.id)}`)) map.removeSource(`${cfg.id}-${safe(d.id)}`);
     drawn.delete(d.id);
@@ -7643,6 +7743,8 @@ async function addGfwMenuLayer(cfg) {
             bindHtmlPopup(id, (p) => `<b>${escapeHtml(d.title)}</b><table class="meta">${fieldRows(p)}</table>`);
           }
         }
+        const stop = gfwColourBy(d, src, names.length ? names : [d.id, "default"], ids);
+        if (stop) GFW_COLOUR_OFF.set(d.id, stop);
       } else if (ras) {
         map.addSource(src, { type: "raster", tileSize: 256, tiles: [ras.asset_uri], minzoom: asset.minzoom, maxzoom: asset.maxzoom });
         // Keyed pictures keep their key's colours exactly and are not blurred
@@ -10954,6 +11056,22 @@ function addStyle(text, key) {
   document.head.appendChild(el);
 }
 
+// Maps whose page loads Leaflet's stylesheet after its own styles (round 72).
+// On those pages Leaflet's rules win the ties: the secret societies map resets
+// every margin and padding inside its wrapper, and Leaflet's popup margin,
+// loaded later, puts the space back. Here the map's own styles came last, so
+// its box text sat against the box's border. For these maps Leaflet's rules
+// are added again after the map's own, in the page's order.
+const LEAFLET_CSS_LAST = new Set(["destruction_embed_1_leaflet-map.html", "destruction_embed_3_leaflet-map.html",
+  "destruction_embed_4_leaflet-map.html", "destruction_embed_9_leaflet-map.html", "leverage-chart.html",
+  "off-planet-invasion_embed_14_leaflet-map.html", "racing-map-embed.html", "suppression_embed_20_leaflet-map.html",
+  "suppression_embed_23_leaflet-map.html", "suppression_embed_24_leaflet-map.html", "suppression_embed_25_leaflet-map.html",
+  "suppression_embed_26_leaflet-map.html", "suppression_embed_27_leaflet-map.html", "suppression_embed_28_leaflet-map.html",
+  "site_export_credit.html", "site_eyes_network.html", "site_secret_societies.html"]);
+function leafletCssLast(cfg, boxes) {
+  const page = String((boxes && boxes.page) || cfg.url || cfg.dataUrl || "").split(/[?#]/)[0].split("/").pop();
+  return LEAFLET_CSS_LAST.has(page) || LEAFLET_CSS_LAST.has(`${String(cfg.id || "")}.html`);
+}
 function injectSitemapStyles(cfg, boxes) {
   ensureBoxCss();
   for (const href of boxes.stylesheets || []) {
@@ -10964,6 +11082,8 @@ function injectSitemapStyles(cfg, boxes) {
     document.head.appendChild(link);
   }
   addStyle(boxes.css || "", `map-${cfg.id}`);
+  if (leafletCssLast(cfg, boxes)) addStyle(LEAFLET_BOX_CSS.split(":where(.wtyg-leaflet)").join(`:where(.wtyg-map-${cfg.id})`)
+    .split("\n").filter((l) => /^:where/.test(l) && !/^:where\([^)]*\) \*\{/.test(l)).join("\n"), `leaflet-after-${cfg.id}`);
 }
 
 // Layout only: the map's containers carry their colours and fonts into the box,
@@ -13028,7 +13148,15 @@ function positionNotesInit() {
   const setHTML = P.setHTML;
   P.setHTML = function (html) {
     const h = String(html == null ? "" : html);
-    return setHTML.call(this, POSITION_SAID.test(h) ? h : h + line());
+    if (POSITION_SAID.test(h)) return setHTML.call(this, h);
+    // A site map's own box has no background of its own around it: the line
+    // goes inside the box, after its text, or it sat on the map (round 72).
+    const at = h.indexOf('</div></div><div class="leaflet-popup-tip-container">');
+    if (at >= 0 && /wtyg-leaflet/.test(h)) {
+      const add = line().replace('class="meta"', 'class="meta wtyg-pos"').replace("margin-top:6px", "margin-top:8px;font-size:11px;color:#8c877c");
+      return setHTML.call(this, h.slice(0, at) + add + h.slice(at));
+    }
+    return setHTML.call(this, h + line());
   };
   if (P.setDOMContent) {
     const setDOM = P.setDOMContent;
@@ -14164,6 +14292,7 @@ const PANEL_ORDER = [
   { h: 3, t: "Invasion of humans" }, "site_settler_colonialism",
   { h: 4, bundle: "indigenous_conflicts", colour: "#6B5A4A" }, "site_indigenous_conflicts",
   { h: 4, bundle: "landmark", colour: "#6A5E66" },
+  { h: 4, bundle: "resrights", colour: "#5E6A66" },
   { h: 3, t: "Of countries by countries" }, "site_secret_societies", "gm",
   { h: 2, t: "Invasion of the after-life" }, "remains_records", "remains_findings", "remains_cemeteries",
 
@@ -14442,7 +14571,10 @@ function syncHeadingBoxes(box) {
     if (!all) continue;
     // A layer with sublayers reads its catalogue parts too (round 23).
     const bundle = sec.classList && sec.classList.contains("toc-bundle");
-    const boxes = [...sec.querySelectorAll(bundle ? "[data-layer], [data-cat]" : "[data-layer]")];
+    // A site map's kinds are parts of a layer too (round 72): the Indigenous
+    // Environmental Conflicts layer is made only of them, and its tick was
+    // left disabled, with nothing to turn on.
+    const boxes = [...sec.querySelectorAll(bundle ? "[data-layer], [data-cat], [data-smtype]" : "[data-layer]")];
     const on = boxes.filter((i) => i.checked).length;
     all.checked = boxes.length > 0 && on === boxes.length;
     all.indeterminate = on > 0 && on < boxes.length;
@@ -15178,13 +15310,15 @@ function countHeadings(box) {
     headingLiveMark(sec);
   }
 }
-// A layer with sublayers, and a small heading, says whether what is under it
-// is live (round 62: every layer the owner sees as a row carries one mark or
-// the other). Under a heading where some rows are live and some copies, both
-// marks show, with how many of each.
+// A layer with sublayers says whether what is under it is live (round 62:
+// every layer the owner sees as a row carries one mark or the other). Under
+// one where some parts are live and some copies, both marks show, with how
+// many of each. Category headings carry no mark (round 72, asked 27
+// September): the marks belong beside each layer's own title.
 function headingLiveMark(sec) {
   const head = sec.querySelector(".toc-head");
-  if (!head || !/toc-l[3-9]|toc-bundle/.test(sec.className)) return;
+  if (!head) return;
+  if (!/toc-bundle/.test(sec.className)) { const old = head.querySelector(".toc-live"); if (old) old.remove(); return; }
   const marks = [...sec.querySelectorAll(".toc-body .nm .live")].filter((m) => !(m.closest && m.closest("[data-removed]")));
   const live = marks.filter((m) => !m.classList.contains("notlive")).length, copy = marks.length - live;
   let el = head.querySelector(".toc-live");

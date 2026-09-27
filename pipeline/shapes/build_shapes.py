@@ -473,6 +473,90 @@ KINDS = {"geojson": from_geojson, "records_by_iso": from_records, "tree": from_t
          "country_docs": from_country_docs}
 
 
+
+# ---------------------------------------------------------------- real boundaries
+# A map that drew its areas as rough boxes around a place (the settler
+# colonialism map) is redrawn on real jurisdiction boundaries (round 72): each
+# entry's units are named in pipeline/shapes/jurisdictions/<id>.json and taken
+# from WelcomeToYourGalaxy/cgaz-boundaries (geoBoundaries, CC BY 4.0) or from
+# the national outlines in map/data/boundaries.geojson. The units of an entry
+# are merged into one shape. An entry the file does not name, or a unit that
+# cannot be found, keeps the map's own shape and is reported by name.
+JURIS = ROOT / "pipeline" / "shapes" / "jurisdictions"
+CGAZ = "https://raw.githubusercontent.com/WelcomeToYourGalaxy/cgaz-boundaries/main/"
+_cgaz = {}
+
+
+def _cgaz_units(iso, level):
+    key = f"{iso}{'' if level == 1 else level}"
+    if key not in _cgaz:
+        r = requests.get(CGAZ + key + ".geojson", headers=UA, timeout=120)
+        r.raise_for_status()
+        _cgaz[key] = {}
+        for f in r.json().get("features", []):
+            _cgaz[key].setdefault((f.get("properties") or {}).get("shapeName"), []).append(f["geometry"])
+    return _cgaz[key]
+
+
+def _shapely():
+    try:
+        import shapely  # noqa: F401
+    except ImportError:
+        subprocess.run([sys.executable, "-m", "pip", "install", "-q", "shapely"], check=False)
+    from shapely.geometry import shape, mapping, box
+    from shapely.ops import unary_union
+    return shape, mapping, box, unary_union
+
+
+def real_boundaries(e, feats):
+    jf = JURIS / f"{e['id']}.json"
+    if not jf.exists():
+        return feats, []
+    spec = json.loads(jf.read_text())["entries"]
+    shape, mapping, box, unary_union = _shapely()
+    by_name = {f["properties"]["name"].lower(): f for f in BOUNDS}
+    problems = []
+    for f in feats:
+        props = f.get("properties") or {}
+        want = spec.get(props.get("name"))
+        if not want:
+            problems.append(f"{props.get('name')}: not named in {jf.name}")
+            continue
+        geoms, lost = [], []
+        for part in want["parts"]:
+            if "adm0" in part or "adm0name" in part:
+                src = OUTLINE.get(part.get("adm0")) if "adm0" in part else by_name.get(part["adm0name"].lower())
+                if not src:
+                    lost.append(part.get("adm0") or part.get("adm0name"))
+                    continue
+                g = shape(src["geometry"])
+                if part.get("clip"):
+                    g = g.intersection(box(*part["clip"]))
+                geoms.append(g)
+                continue
+            level = 1 if "adm1" in part else 2 if "adm2" in part else 4
+            iso = part.get("adm1") or part.get("adm2") or part.get("adm4")
+            try:
+                units = _cgaz_units(iso, level)
+            except Exception as ex:
+                lost.append(f"{iso} level {level} ({ex})")
+                continue
+            for n in part["names"]:
+                if n not in units:
+                    lost.append(f"{iso} {n}")
+                    continue
+                geoms.extend(shape(g) for g in units[n])
+        if lost or not geoms:
+            problems.append(f"{props.get('name')}: {', '.join(lost) or 'no units'}")
+            continue
+        merged = unary_union([g.buffer(0) for g in geoms]).simplify(0.01, preserve_topology=True)
+        out = mapping(merged)
+        out = json.loads(json.dumps(out), parse_float=lambda x: round(float(x), 4))
+        f["geometry"] = out
+        props["drawn_as"] = want["basis"]
+    return feats, problems
+
+
 def main():
     wanted = set(sys.argv[1].split(",")) if len(sys.argv) > 1 else None
     OUT.mkdir(parents=True, exist_ok=True)
@@ -493,6 +577,9 @@ def main():
         if not feats:
             print(f"  wait  {e['id']}: nothing to draw")
             continue
+        feats, juris = real_boundaries(e, feats)
+        for j in juris:
+            print(f"  note  {e['id']}: kept the map's own shape for {j}")
         # Long text (per-country lists, the map's own words) goes in a second
         # file that the map fetches on the first click, so ticking the layer
         # only downloads the shapes. Every field is kept.

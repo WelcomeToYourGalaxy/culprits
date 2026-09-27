@@ -1,0 +1,916 @@
+{
+ "_about": "Real jurisdiction boundaries for each entry of the settler colonialism map (round 72). adm0: an outline from map/data/boundaries.geojson (adm0name: by its name; clip: only the parts inside a box). adm1, adm2, adm4: units from WelcomeToYourGalaxy/cgaz-boundaries (<ISO>.geojson, <ISO>2.geojson, <ISO>4.geojson), matched by shapeName exactly. basis: what is drawn, said in the entry's box.",
+ "entries": {
+  "Canada": {
+   "parts": [
+    {
+     "adm0": "CAN"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Greenland": {
+   "parts": [
+    {
+     "adm0": "GRL"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "United States": {
+   "parts": [
+    {
+     "adm0": "USA"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Brazil": {
+   "parts": [
+    {
+     "adm0": "BRA"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Australia": {
+   "parts": [
+    {
+     "adm0": "AUS"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Argentina": {
+   "parts": [
+    {
+     "adm0": "ARG"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Kazakhstan": {
+   "parts": [
+    {
+     "adm0": "KAZ"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Mexico": {
+   "parts": [
+    {
+     "adm0": "MEX"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "French Polynesia": {
+   "parts": [
+    {
+     "adm0": "PYF"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Chile": {
+   "parts": [
+    {
+     "adm0": "CHL"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Algeria": {
+   "parts": [
+    {
+     "adm0": "DZA"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Peru": {
+   "parts": [
+    {
+     "adm0": "PER"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Libya": {
+   "parts": [
+    {
+     "adm0": "LBY"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Colombia": {
+   "parts": [
+    {
+     "adm0": "COL"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Angola": {
+   "parts": [
+    {
+     "adm0": "AGO"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Venezuela": {
+   "parts": [
+    {
+     "adm0": "VEN"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Bolivia": {
+   "parts": [
+    {
+     "adm0": "BOL"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "New Zealand / Aotearoa": {
+   "parts": [
+    {
+     "adm0": "NZL"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Namibia": {
+   "parts": [
+    {
+     "adm0": "NAM"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "South Africa": {
+   "parts": [
+    {
+     "adm0": "ZAF"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Mozambique": {
+   "parts": [
+    {
+     "adm0": "MOZ"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Paraguay": {
+   "parts": [
+    {
+     "adm0": "PRY"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Western Sahara": {
+   "parts": [
+    {
+     "adm0": "ESH"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Zimbabwe": {
+   "parts": [
+    {
+     "adm0": "ZWE"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Ecuador": {
+   "parts": [
+    {
+     "adm0": "ECU"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Cuba": {
+   "parts": [
+    {
+     "adm0": "CUB"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Bahamas": {
+   "parts": [
+    {
+     "adm0": "BHS"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Guyana": {
+   "parts": [
+    {
+     "adm0": "GUY"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Uruguay": {
+   "parts": [
+    {
+     "adm0": "URY"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Tunisia": {
+   "parts": [
+    {
+     "adm0": "TUN"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Nicaragua": {
+   "parts": [
+    {
+     "adm0": "NIC"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Honduras": {
+   "parts": [
+    {
+     "adm0": "HND"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Guatemala": {
+   "parts": [
+    {
+     "adm0": "GTM"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Panama": {
+   "parts": [
+    {
+     "adm0": "PAN"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Suriname": {
+   "parts": [
+    {
+     "adm0": "SUR"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Liberia": {
+   "parts": [
+    {
+     "adm0": "LBR"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Costa Rica": {
+   "parts": [
+    {
+     "adm0": "CRI"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Dominican Republic": {
+   "parts": [
+    {
+     "adm0": "DOM"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "New Caledonia (Kanaky)": {
+   "parts": [
+    {
+     "adm0": "NCL"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Taiwan": {
+   "parts": [
+    {
+     "adm0": "TWN"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Belize": {
+   "parts": [
+    {
+     "adm0": "BLZ"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Wallis and Futuna": {
+   "parts": [
+    {
+     "adm0": "WLF"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "El Salvador": {
+   "parts": [
+    {
+     "adm0": "SLV"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Jamaica": {
+   "parts": [
+    {
+     "adm0": "JAM"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Israel": {
+   "parts": [
+    {
+     "adm0": "ISR"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Trinidad and Tobago": {
+   "parts": [
+    {
+     "adm0": "TTO"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "American Samoa": {
+   "parts": [
+    {
+     "adm0": "ASM"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Puerto Rico": {
+   "parts": [
+    {
+     "adm0": "PRI"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "US Virgin Islands": {
+   "parts": [
+    {
+     "adm0": "VIR"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Guam": {
+   "parts": [
+    {
+     "adm0": "GUM"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "Barbados": {
+   "parts": [
+    {
+     "adm0": "BRB"
+    }
+   ],
+   "basis": "the whole country or territory, as the map names it"
+  },
+  "French Guiana": {
+   "parts": [
+    {
+     "adm0": "FRA",
+     "clip": [
+      -55,
+      1.5,
+      -51,
+      6.5
+     ]
+    }
+   ],
+   "basis": "French Guiana, the part of France's outline in South America"
+  },
+  "Northern Cyprus": {
+   "parts": [
+    {
+     "adm0name": "Northern Cyprus"
+    }
+   ],
+   "basis": "the area under the Turkish Cypriot administration, as Natural Earth draws it"
+  },
+  "DR Congo (Batwa/Pygmy)": {
+   "parts": [
+    {
+     "adm0": "COD"
+    }
+   ],
+   "basis": "the whole of the Democratic Republic of the Congo: the map's text names no smaller area where this happens"
+  },
+  "Thailand (Hill Tribes)": {
+   "parts": [
+    {
+     "adm0": "THA"
+    }
+   ],
+   "basis": "the whole of Thailand: the map's text names no smaller area where this happens"
+  },
+  "Central African Republic (Aka/Bayaka)": {
+   "parts": [
+    {
+     "adm0": "CAF"
+    }
+   ],
+   "basis": "the whole of the Central African Republic: the map's text names no smaller area where this happens"
+  },
+  "Laos (Hmong, Khmu)": {
+   "parts": [
+    {
+     "adm0": "LAO"
+    }
+   ],
+   "basis": "the whole of Laos: the map's text names no smaller area where this happens"
+  },
+  "Republic of Congo (Forest Peoples)": {
+   "parts": [
+    {
+     "adm0": "COG"
+    }
+   ],
+   "basis": "the whole of the Republic of the Congo: the map's text names no smaller area where this happens"
+  },
+  "Gabon (Baka)": {
+   "parts": [
+    {
+     "adm0": "GAB"
+    }
+   ],
+   "basis": "the whole of Gabon: the map's text names no smaller area where this happens"
+  },
+  "Nepal (Janajati)": {
+   "parts": [
+    {
+     "adm0": "NPL"
+    }
+   ],
+   "basis": "the whole of Nepal: the map's text names no smaller area where this happens"
+  },
+  "Cameroon (Baka/Bagyeli)": {
+   "parts": [
+    {
+     "adm0": "CMR"
+    }
+   ],
+   "basis": "the whole of Cameroon: the map's text names no smaller area where this happens"
+  },
+  "Sri Lanka (Veddah)": {
+   "parts": [
+    {
+     "adm0": "LKA"
+    }
+   ],
+   "basis": "the whole of Sri Lanka: the map's text names no smaller area where this happens"
+  },
+  "Burundi (Batwa)": {
+   "parts": [
+    {
+     "adm0": "BDI"
+    }
+   ],
+   "basis": "the whole of Burundi: the map's text names no smaller area where this happens"
+  },
+  "Rwanda (Batwa)": {
+   "parts": [
+    {
+     "adm0": "RWA"
+    }
+   ],
+   "basis": "the whole of Rwanda: the map's text names no smaller area where this happens"
+  },
+  "Russia (Siberia & Far East)": {
+   "parts": [
+    {
+     "adm1": "RUS",
+     "names": [
+      "Altai Krai",
+      "Altai Republic",
+      "Irkutsk Oblast",
+      "Kemerovo Oblast",
+      "Krasnoyarsk Krai",
+      "Novosibirsk Oblast",
+      "Omsk Oblast",
+      "Tomsk Oblast",
+      "Tuva",
+      "Khakassia",
+      "Amur Oblast",
+      "Buryatia",
+      "Chukotka Autonomous Okrug",
+      "Jewish Autonomous Oblast",
+      "Kamchatka Krai",
+      "Khabarovsk Krai",
+      "Magadan Oblast",
+      "Primorsky Krai",
+      "Sakha Republic",
+      "Sakhalin Oblast",
+      "Zabaykalsky Krai",
+      "Tyumen Oblast",
+      "Khanty-Mansiysk Autonomous Okrug – Ugra",
+      "Yamalo-Nenets Autonomous Okrug"
+     ]
+    }
+   ],
+   "basis": "Russia's Siberian and Far Eastern Federal Districts, with the three West Siberian regions of the Urals district (Tyumen, Khanty-Mansi, Yamalo-Nenets), homeland of the Nenets and Khanty the text names"
+  },
+  "India (Adivasi Territories)": {
+   "parts": [
+    {
+     "adm1": "IND",
+     "names": [
+      "Andhra Pradesh",
+      "Telangāna",
+      "Chhattīsgarh",
+      "Gujarāt",
+      "Himāchal Pradesh",
+      "Jhārkhand",
+      "Madhya Pradesh",
+      "Mahārāshtra",
+      "Odisha",
+      "Rājasthān",
+      "Assam",
+      "Meghālaya",
+      "Tripura",
+      "Mizoram"
+     ]
+    }
+   ],
+   "basis": "the ten states with Scheduled Areas under the Fifth Schedule of India's Constitution and the four north-eastern states with Tribal Areas under the Sixth Schedule; the Scheduled Areas themselves are parts of these states"
+  },
+  "Inner Mongolia": {
+   "parts": [
+    {
+     "adm1": "CHN",
+     "names": [
+      "Inner Mongolia Autonomous Region"
+     ]
+    }
+   ],
+   "basis": "the Inner Mongolia Autonomous Region"
+  },
+  "Xinjiang (Uyghur Region)": {
+   "parts": [
+    {
+     "adm1": "CHN",
+     "names": [
+      "Xinjiang Uyghur Autonomous Region"
+     ]
+    }
+   ],
+   "basis": "the Xinjiang Uyghur Autonomous Region"
+  },
+  "Tibet": {
+   "parts": [
+    {
+     "adm1": "CHN",
+     "names": [
+      "Tibet Autonomous Region"
+     ]
+    }
+   ],
+   "basis": "the Tibet Autonomous Region (Tibetan areas of Qinghai, Sichuan, Gansu and Yunnan are not included, as the map names only Tibet)"
+  },
+  "Myanmar (Karen, Kachin, Shan, Others)": {
+   "parts": [
+    {
+     "adm1": "MMR",
+     "names": [
+      "Kayin",
+      "Kachin",
+      "Shan",
+      "Chin",
+      "Rakhine"
+     ]
+    }
+   ],
+   "basis": "the Kayin (Karen), Kachin, Shan, Chin and Rakhine (Rohingya) states, the peoples the map's text names"
+  },
+  "Philippines (Lumad, Igorot)": {
+   "parts": [
+    {
+     "adm1": "PHL",
+     "names": [
+      "CAR",
+      "ARMM",
+      "Northern Mindanao",
+      "Davao Region",
+      "Soccsksargen",
+      "Caraga",
+      "Zamboanga Peninsula",
+      "Mimaropa"
+     ]
+    }
+   ],
+   "basis": "the Cordillera (Igorot), the regions of Mindanao (Lumad) and Mimaropa (Mindoro, the Mangyan), the places the map's text names"
+  },
+  "Sápmi (Sámi Territories)": {
+   "parts": [
+    {
+     "adm1": "NOR",
+     "names": [
+      "Troms og Finnmark",
+      "Nordland",
+      "Trøndelag"
+     ]
+    },
+    {
+     "adm1": "SWE",
+     "names": [
+      "Norrbottens län",
+      "Västerbottens län",
+      "Jämtlands län"
+     ]
+    },
+    {
+     "adm1": "FIN",
+     "names": [
+      "Lapland"
+     ]
+    },
+    {
+     "adm1": "RUS",
+     "names": [
+      "Murmansk Oblast"
+     ]
+    }
+   ],
+   "basis": "the northern counties of Norway (with Trøndelag, where the Fosen wind farms the text names stand), Sweden and Finland, and Russia's Murmansk Oblast"
+  },
+  "West Papua": {
+   "parts": [
+    {
+     "adm1": "IDN",
+     "names": [
+      "Papua",
+      "West Papua"
+     ]
+    }
+   ],
+   "basis": "Indonesia's Papua and West Papua provinces as they were before the 2022 division"
+  },
+  "Kenya (Ogiek, Sengwer, Maasai)": {
+   "parts": [
+    {
+     "adm1": "KEN",
+     "names": [
+      "Nakuru",
+      "Narok",
+      "Elgeyo-Marakwet",
+      "Kajiado"
+     ]
+    }
+   ],
+   "basis": "the counties of the Mau Forest (Nakuru, Narok) and the Embobut Forest (Elgeyo-Marakwet) the text names, and Kajiado, Maasai country beside Narok"
+  },
+  "Pakistan (Balochistan)": {
+   "parts": [
+    {
+     "adm1": "PAK",
+     "names": [
+      "Balochistan"
+     ]
+    }
+   ],
+   "basis": "Balochistan province"
+  },
+  "Japan (Hokkaido - Ainu)": {
+   "parts": [
+    {
+     "adm1": "JPN",
+     "names": [
+      "Hokkaido"
+     ]
+    }
+   ],
+   "basis": "Hokkaido"
+  },
+  "Japan (Okinawa/Ryukyu)": {
+   "parts": [
+    {
+     "adm1": "JPN",
+     "names": [
+      "Okinawa Prefecture"
+     ]
+    }
+   ],
+   "basis": "Okinawa Prefecture"
+  },
+  "Hawaii": {
+   "parts": [
+    {
+     "adm1": "USA",
+     "names": [
+      "Hawaii"
+     ]
+    }
+   ],
+   "basis": "the state of Hawaii"
+  },
+  "Uganda (Batwa & Others)": {
+   "parts": [
+    {
+     "adm2": "UGA",
+     "names": [
+      "Kinkiizi",
+      "Bufumbira",
+      "Rubanda",
+      "Kween",
+      "Dodoth"
+     ]
+    }
+   ],
+   "basis": "the counties holding Bwindi (Kinkiizi, Rubanda, Bufumbira) and Mgahinga (Bufumbira), the Benet's Mount Elgon lands (Kween) and the Ik's Kaabong (Dodoth)"
+  },
+  "Botswana (San/Bushmen)": {
+   "parts": [
+    {
+     "adm1": "BWA",
+     "names": [
+      "Ghanzi District",
+      "Central District"
+     ]
+    }
+   ],
+   "basis": "the Ghanzi and Central districts, across which the Central Kalahari Game Reserve lies"
+  },
+  "Tanzania (Maasai Territories)": {
+   "parts": [
+    {
+     "adm2": "TZA",
+     "names": [
+      "Ngorongoro"
+     ]
+    }
+   ],
+   "basis": "Ngorongoro District, which holds both the Ngorongoro Conservation Area and Loliondo"
+  },
+  "Georgia (Abkhazia & South Ossetia)": {
+   "parts": [
+    {
+     "adm1": "GEO",
+     "names": [
+      "Abkhazia"
+     ]
+    },
+    {
+     "adm4": "GEO",
+     "names": [
+      "Цхинвал",
+      "Цхинвалы район",
+      "Дзауы район",
+      "Знауыры район",
+      "Ленингоры район"
+     ]
+    }
+   ],
+   "basis": "Abkhazia, and South Ossetia as its de facto districts (Tskhinvali, Java, Znauri, Leningor)"
+  },
+  "Vietnam (Central Highlands)": {
+   "parts": [
+    {
+     "adm1": "VNM",
+     "names": [
+      "Kon Tum",
+      "Gia Lai",
+      "Đắk Lắk",
+      "Đắk Nông",
+      "Lâm Đồng"
+     ]
+    }
+   ],
+   "basis": "the five Central Highlands provinces as they were before Vietnam's 2025 merger of provinces"
+  },
+  "Ukraine (Donbas - Pre-2022)": {
+   "parts": [
+    {
+     "adm1": "UKR",
+     "names": [
+      "Donetsk Oblast",
+      "Luhansk Oblast"
+     ]
+    }
+   ],
+   "basis": "the Donetsk and Luhansk oblasts; the parts seized in 2014 were smaller than these"
+  },
+  "Crimea": {
+   "parts": [
+    {
+     "adm1": "UKR",
+     "names": [
+      "Autonomous Republic of Crimea",
+      "Sevastopol"
+     ]
+    }
+   ],
+   "basis": "the Autonomous Republic of Crimea and Sevastopol"
+  },
+  "Ethiopia (Lower Omo Valley)": {
+   "parts": [
+    {
+     "adm2": "ETH",
+     "names": [
+      "South Omo"
+     ]
+    }
+   ],
+   "basis": "the South Omo zone, which holds the Lower Omo Valley"
+  },
+  "Moldova (Transnistria)": {
+   "parts": [
+    {
+     "adm1": "MDA",
+     "names": [
+      "Transnistria"
+     ]
+    }
+   ],
+   "basis": "Transnistria"
+  },
+  "Bangladesh (Chittagong Hill Tracts)": {
+   "parts": [
+    {
+     "adm2": "BGD",
+     "names": [
+      "Rangamati",
+      "Khagrachhari",
+      "Bandarban"
+     ]
+    }
+   ],
+   "basis": "the three hill districts (Rangamati, Khagrachhari, Bandarban) that make up the Chittagong Hill Tracts"
+  },
+  "Azerbaijan (Nagorno-Karabakh - Historical)": {
+   "parts": [
+    {
+     "adm2": "AZE",
+     "names": [
+      "Khankendi City",
+      "Khojaly District",
+      "Khojavend District",
+      "Shusha City",
+      "Shusha District",
+      "Kalbajar District",
+      "Lachin District",
+      "Qubadli District",
+      "Zangilan District",
+      "Jabrayil District",
+      "Fuzuli District",
+      "Agdam District"
+     ]
+    }
+   ],
+   "basis": "Nagorno-Karabakh's districts today (Khankendi, Khojaly, Khojavend, Shusha) and the seven surrounding districts the text calls the surrounding Azerbaijani territories; part of the old region now lies in Tartar District, not drawn"
+  },
+  "West Bank (Israeli Settlements)": {
+   "parts": [
+    {
+     "adm1": "PSE",
+     "names": [
+      "West Bank"
+     ]
+    }
+   ],
+   "basis": "the West Bank; the settlements themselves are places inside it"
+  }
+ }
+}

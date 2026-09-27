@@ -5,6 +5,45 @@ touches.
 
 ---
 
+## Round 72 (27 September)
+
+- Live marks: category headings carry none now (headingLiveMark returns and
+  removes any for toc-l* sections); a layer with sublayers (toc-bundle) keeps
+  its LIVE / NOT LIVE marks.
+- A bundle's tick counts [data-smtype] rows too (syncHeadingBoxes): the
+  Indigenous Environmental Conflicts layer is made only of site-map kind rows,
+  and its tick was disabled.
+- Site map boxes: LEAFLET_CSS_LAST lists the pages that load Leaflet's CSS after
+  their own styles (found by scanning WelcomeToYourGalaxy/maps); for those,
+  injectSitemapStyles adds LEAFLET_BOX_CSS again after the map's css, scoped to
+  that map, so Leaflet's popup margins win as on the page (the secret societies
+  map's `* {margin:0;padding:0}` had put its text against the box border). The
+  Position line goes inside a site map's box (before the tip container).
+- GFW vector rows coloured by their own field (GFW_COLOUR_BY, gfwColourBy): the
+  kinds are read from the loaded tiles (querySourceFeatures on sourcedata),
+  ordered where the field is a measure (tenure indicators by the mean of
+  current_avg_scr; LandMark shares by the first number in the category), put
+  through gladPaint, and shown as a key with catalogueKeyShow. "not stated" is
+  grey and last. LandMark lands by identity + form_rec; natural resource rights
+  by nat_resrc; gfw_resource_rights by legal_term.
+- BUNDLES.landmark renamed "... (LandMark, with Brazil's FUNAI and INCRA)";
+  funai_bra_indigenous_territories and incra_bra_quilombola_communities filed
+  into it. New bundle resrights holds landmark_natural_resource_rights and
+  gfw_resource_rights (owner, 27 September).
+- Settler colonialism on real boundaries: pipeline/shapes/jurisdictions/
+  site_settler_colonialism.json names each of the 90 entries' units (adm0 from
+  map/data/boundaries.geojson; adm1/2/4 from cgaz-boundaries by exact
+  shapeName) with a `basis` sentence; build_shapes.py real_boundaries() merges
+  them with shapely (installed if missing), simplifies at 0.01 degrees, rounds
+  to 4 places and writes the basis as `drawn_as`. Checked here: all 90 found,
+  1.4 MB. culprits-tiles-more's daily site_shapes run rebuilds the file.
+- Still to come (owner's order): round 73, a layer for every country the
+  settler layer leaves out (Indigenous peoples' situation, colonial rule still
+  in place, economic invasion, past conquest still standing), and the same
+  facts added to the settler descriptions; round 74, the live conflict and
+  military map in place of Guerillamap.
+
+
 ## Round 71 (27 September)
 
 - Satellite basemap: sat-relief-seabed and sat-relief-sea are in
