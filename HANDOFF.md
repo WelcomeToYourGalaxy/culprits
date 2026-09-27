@@ -5,6 +5,28 @@ touches.
 
 ---
 
+## Round 67 (26 September)
+
+- Hologram view: the switch is put in the basemap list (.bm-choices) as its
+  fourth line, in the same type as the three above, with no rule over it;
+  Basemap underneath sits indented under it.
+- News wires, Subjects list: a "Done: show the news" button at the top of the
+  list (always in view; the list can run past the box's foot). Esc closes the
+  list too, as a click outside it already did.
+- News wires, Filters: the Time row is moved into the filters' two-column grid
+  after the last filter (held by reference as $whenRow, since the grid is
+  rewritten on every change), so it takes the cell beside Language, under News
+  source, instead of a full-width row under them all.
+- A news mark's box: stories sent to the map carry their language
+  (toTheMap), and the box has a Language menu whenever it lists more than one
+  story, with "Language not stated" where some have none; each story's line
+  names its language.
+- UAP heading: "Unidentified anomalous phenomena", the term the US government
+  (FY2023 NDAA, AARO) and NASA have used since December 2022, matching the row.
+- Browser check: basemap list, subject list with Done, Time in the grid (read
+  from the capture wire), and a mark's box with the Language menu.
+
+
 ## Round 66 (26 September)
 
 - Layers box: as tall as its list and no taller (.left-col .panel is flex

@@ -302,6 +302,14 @@ if (args.includes("--live") || dirAt !== -1) {
   check("the topic row is a list to tick, under a heading per subject when there are several",
         /function topicRow\(k, many\)/.test(src) && /const grouped = k\.subs\.length > 1/.test(src) && /wire-topic-subj/.test(src));
 }
+{
+  const src = fs.readFileSync(new URL('./wire.js', import.meta.url), 'utf8');
+  check("the subjects list has a Done button and closes on Esc (round 67)",
+        /data-done="1"/.test(src) && /if \(t\.dataset\.done\)/.test(src) && /e\.key !== 'Escape'/.test(src));
+  check("Time sits in the filters' grid after the last filter (round 67)",
+        /\$filters\.insertBefore\(\$whenRow, \$filters\.querySelector\('\.wire-unread'\)\)/.test(src) && /\.wire-facets \.wire-when\{/.test(src));
+  check("stories sent to the map carry their language (round 67)", /lang: s\.lang \|\| null/.test(src));
+}
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

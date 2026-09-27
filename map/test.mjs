@@ -2605,7 +2605,7 @@ console.log("\nOff-planet sections, Of groups, names, launch links, drag bar, ma
   const order = new Function(body + "; return PANEL_ORDER;")();
   const at = (t) => order.findIndex((x) => x && x.t === t);
   check("Off-planet has To Earth and From Earth, with their four sections and one empty",
-        at("To Earth") < at("Near-Earth object impacts") && at("Unidentified aerial phenomena") < at("From Earth") &&
+        at("To Earth") < at("Near-Earth object impacts") && at("Unidentified anomalous phenomena") < at("From Earth") &&
         at("From Earth") < at("The space industry") && at("Space launches") < at("Extraterrestrial life"));
   // Round 48 (25 September): the fur farms moved to a heading of their own under Of the planet.
   check("Fur Farms (Final Nail) is under Destruction, Of the planet, Fur farms", order.indexOf("final_nail") === at("Fur farms") + 1 && at("Fur farms") < at("Of groups") && /name: "Fur Farms \(Final Nail\)"/.test(src));
@@ -3689,7 +3689,7 @@ console.log("\nround of 24 September: a search box for the layers, and the unpla
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const body = src.slice(src.indexOf("function wirePopFilters("), src.indexOf("function wirePopPick("));
   check("each popup filter label is its own span, not bare text squeezed a letter a line",
-        (body.match(/<span class=\"wf-l\">/g) || []).length === 3 && !/wire-pop-sort\">\$\{label\} /.test(body) &&
+        (body.match(/<span class=\"wf-l\">/g) || []).length === 4 && !/wire-pop-sort\">\$\{label\} /.test(body) &&
         /\.wf-l\{flex:0 0 64px;white-space:nowrap/.test(src) && /min-width:0;width:0/.test(src));
 }
 {
@@ -3786,7 +3786,8 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /id: "ufo_sightings"[\s\S]{0,400}route: "ufo"[\s\S]{0,300}tiles\/ufo_sightings\.pmtiles[\s\S]{0,200}ufosint\/pieces", boxesGz: true/.test(src));
   check("a gzipped piece is unpacked only when it is a gzip stream", /DecompressionStream\("gzip"\)/.test(src) && /buf\[0\] !== 0x1f \|\| buf\[1\] !== 0x8b/.test(src) &&
         /readPiece\(cfg\.boxes, p\.id, cfg\.boxesGz\)/.test(src));
-  check("it sits under Unidentified aerial phenomena", /\{ h: 3, t: "Unidentified aerial phenomena" \}, "ufo_sightings"/.test(src));
+  check("it sits under Unidentified anomalous phenomena (the official term since the US FY2023 NDAA)", /\{ h: 3, t: "Unidentified anomalous phenomena" \}, "ufo_sightings"/.test(src));
+  check("a news mark's box offers a Language menu (round 67)", /<select data-wf="lang">/.test(src) && /is\(s, "lang", f\.lang\)/.test(src));
   check("a split archive's further files keep the detail layer's own zooms (read before the first file's are laid over them)",
         /own\[id\] = \{ lo: was\.minzoom \|\| 0/.test(src) && /Math\.max\(own\[`\$\{cfg\.id\}-\$\{kind\}`\]\.lo, part\.minzoom\)/.test(src));
   check("the glow of a split archive's files ends at each file's own zooms", /hudWrap\("setLayerZoomRange"/.test(src) && /-part\\d\+\$\/\.test\(layer\.id\)/.test(src));

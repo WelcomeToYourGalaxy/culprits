@@ -3381,8 +3381,16 @@ function wirePopFilters(list) {
   };
   // Newest day first, which is the order the list itself opens in.
   const days = [...new Set(list.map(wireDay).filter(Boolean))].sort().reverse();
+  // Language (round 67): shown whenever the mark has more than one story, even
+  // if they share one language, so the reader can see which it is.
+  const langs = [...new Set(list.map((s) => s.lang).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
+  const langMissing = list.some((s) => !s.lang);
+  const langRow = langs.length ? `<label class="wire-pop-sort"><span class="wf-l">Language</span><select data-wf="lang"><option value="">All</option>` +
+    langs.map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("") +
+    (langMissing ? `<option value="${WIRE_NOT_GIVEN}">Language not stated</option>` : "") + `</select></label>` : "";
   return menu("subject", "Subject", "No subject given") +
     menu("outlet", "Source", "No source named") +
+    langRow +
     menu("place", "Place", "No place named") +
     row("day", "Date", days, list.some((s) => !wireDay(s)), "No date given", wireDayLabel) +
     `<label class="wire-pop-sort"><span class="wf-l">Headline</span><input data-wf="title" type="search" placeholder="words in the headline" ` +
@@ -3395,7 +3403,7 @@ function wirePopPick(list, f) {
   const words = String(f.title || "").toLocaleLowerCase().split(/\s+/).filter(Boolean);
   const is = (s, key, want) => !want || (want === "\u0000none" ? !s[key] : s[key] === want);
   const onDay = (s, want) => !want || (want === "\u0000none" ? !wireDay(s) : wireDay(s) === want);
-  return list.filter((s) => is(s, "subject", f.subject) && is(s, "outlet", f.outlet) && is(s, "place", f.place) &&
+  return list.filter((s) => is(s, "subject", f.subject) && is(s, "outlet", f.outlet) && is(s, "place", f.place) && is(s, "lang", f.lang) &&
     onDay(s, f.day) && words.every((w) => String(s.title || "").toLocaleLowerCase().includes(w)));
 }
 
@@ -3415,7 +3423,7 @@ function wirePopRows(list, by) {
     `<div class="meta" style="margin:6px 0 0">` +
     (s.url ? `<a href="${escapeHtml(s.url)}" target="_blank" rel="noopener">${escapeHtml(s.title)}</a>`
            : escapeHtml(s.title)) +
-    `<br>${escapeHtml([s.subject, s.outlet, s.date != null ? new Date(s.date).toLocaleDateString() : ""]
+    `<br>${escapeHtml([s.subject, s.outlet, s.lang, s.date != null ? new Date(s.date).toLocaleDateString() : ""]
       .filter(Boolean).join(" · "))}</div>`).join("");
 }
 
@@ -13866,7 +13874,7 @@ const PANEL_ORDER = [
   { h: 1, t: "Off-planet invasion" },
   { h: 2, t: "To Earth" },
   { h: 3, t: "Near-Earth object impacts" }, "esa_risk",
-  { h: 3, t: "Unidentified aerial phenomena" }, "ufo_sightings",
+  { h: 3, t: "Unidentified anomalous phenomena" }, "ufo_sightings",
   { h: 2, t: "From Earth" },
   { h: 3, t: "The space industry" }, "space_industry",
   { h: 3, t: "Space launches" }, "ll2_pads", "ll2_upcoming",

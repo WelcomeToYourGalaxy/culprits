@@ -66,6 +66,12 @@
   .holo-ctl .holo-row .nm{font-size:11.5px;letter-spacing:0}
   .holo-ctl .holo-row .layer + .layer .nm{font-size:10.5px}
   .holo-ctl .holo-sub{padding-left:20px}
+  /* Round 67: the fourth line of the basemap list, set like the three above
+     it (no rule over it, the same type); Basemap underneath stays beside it. */
+  .bm-choices .holo-ctl{margin-top:0;padding-top:0;border-top:0}
+  .bm-choices .holo-ctl .holo-row > .layer:first-child .nm{font-family:inherit;font-size:inherit;letter-spacing:0}
+  .bm-choices .holo-ctl .holo-row > .layer + .layer{padding-left:20px}
+  .bm-choices .holo-ctl .holo-row > .layer + .layer .nm{font-family:inherit;font-size:11.5px;color:var(--dim)}
   .holo-ctl .holo-fold{margin-left:auto;background:none;border:0;color:var(--dim);cursor:pointer;
     font-size:11px;line-height:1.5;padding:0 3px}
   .holo-ctl .holo-fold:hover{color:var(--bone)}
@@ -512,8 +518,8 @@
   };
 })();
 </script>
-<script src="./app.js?v=66"></script>
-<script src="./wire.js?v=61"></script>
+<script src="./app.js?v=67"></script>
+<script src="./wire.js?v=67"></script>
 <!-- The drag bar on the layers box's right edge (made by columnEdge() in
      app.js) ran the full height of the column, so it stayed standing beside
      empty map when the box was rolled up or pulled shorter. It is held to the
@@ -1050,7 +1056,10 @@
 
   /* ---------- the switch, in the Basemap box ---------- */
   function addSwitch() {
-    const body = document.querySelector('#basemaps .sect[data-sect="basemap"] .sect-body');
+    // In the list of basemaps itself, as its fourth line (round 67), not a
+    // section of its own under the three.
+    const body = document.querySelector('#basemaps .sect[data-sect="basemap"] .bm-choices') ||
+      document.querySelector('#basemaps .sect[data-sect="basemap"] .sect-body');
     if (!body || document.getElementById("holo-toggle")) return;
     const d = document.createElement("div");
     d.className = "holo-ctl";

@@ -733,6 +733,14 @@ const CSS = `
 .wire-facets .wire-topics{margin:2px 0 4px;max-height:200px}
 .wire-facets.topics-open{max-height:none;overflow:visible}
 .wire-pickbar button{flex:1}
+.wire .wire-done{position:sticky;top:-2px;z-index:1;display:block;width:100%;margin:6px 0 2px;padding:5px 8px;font-size:12.5px;
+  color:var(--peat,#17150F);background:var(--bone,#DCD6C6);border-color:var(--bone,#DCD6C6)}
+.wire .wire-done:hover{color:var(--peat,#17150F);background:#F2EEE6}
+/* Time sits in the filters' grid (round 67): next to Language, under News
+   source, rather than a full-width row under them all. */
+.wire-facets .wire-when{flex-direction:column;align-items:stretch;gap:0;padding:0;font-size:11.5px}
+.wire-facets .wire-when label{flex:none}
+.wire-facets .wire-when select{flex:none;width:100%}
 .wire-filter{display:flex;align-items:center;gap:7px;padding:3px 10px;color:var(--dim,#948D7C);font-size:12px}
 .wire-filter select{flex:1;min-width:0}
 .wire-unread{padding:3px 10px;color:#B98A80;font-size:11.5px}
@@ -882,9 +890,15 @@ function build() {
     state.pickerOpen = false;
     renderPicker();
   });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || !state.pickerOpen) return;
+    state.pickerOpen = false; renderPicker(); layout();
+    if ($pickBtn.focus) $pickBtn.focus();
+  });
   $picker.addEventListener('click', (e) => {
     const t = e.target.closest && e.target.closest('button');
     if (!t || !t.dataset) return;
+    if (t.dataset.done) { state.pickerOpen = false; renderPicker(); layout(); return; }
     if (t.dataset.all) { state.picked = SUBJECTS.map((s) => s.id); state.picked.forEach((id) => load(id, false)); }
     else if (t.dataset.none) { state.picked = []; }
     else return;
@@ -1010,7 +1024,7 @@ function layout() {
   // so it still fits when the box is short.
   if (box && box.style && box.querySelector) {
     const tall = (sel) => { const el = box.querySelector(sel); return el ? el.getBoundingClientRect().height : 0; };
-    const room = Math.max(0, box.getBoundingClientRect().height - tall('.wire-bar') - tall('.wire-tools') - tall('.wire-subjrow') - tall('.wire-fold') - tall('.wire-when'));
+    const room = Math.max(0, box.getBoundingClientRect().height - tall('.wire-bar') - tall('.wire-tools') - tall('.wire-subjrow') - tall('.wire-fold') - tall('.wire-foldbody > .wire-when'));
     box.style.setProperty('--wire-facets-max', Math.floor(room * 0.4) + 'px');
     box.style.setProperty('--wire-list-min', Math.floor(room * 0.6) + 'px');
   }
@@ -1165,6 +1179,10 @@ function renderPicker() {
       '<button type="button" class="wire-btn" data-all="1">Select all</button>' +
       '<button type="button" class="wire-btn" data-none="1">Clear all</button>' +
     '</div>' + all.map(row).join('');
+  // Round 67: a plain way out of the list to the stories, at the top where it
+  // is always in view (a click anywhere outside the list, or Esc, does the same).
+  $picker.insertAdjacentHTML('afterbegin', '<button type="button" class="wire-btn wire-done" data-done="1">' +
+    (state.picked.length ? 'Done: show the news' : 'Close this list') + '</button>');
   if (focused) { const el = $picker.querySelector('[data-pick="' + focused + '"]'); if (el) el.focus(); }
 }
 
@@ -1178,9 +1196,16 @@ const HIDDEN_ROWS = new Set(['Substance score', 'Direction', 'Why it was kept', 
 const ROW_ORDER = ['Topic', 'Region', 'Country', 'Who reports it', 'News source', 'Language'];
 function rowRank(label) { const i = ROW_ORDER.indexOf(label); return i === -1 ? ROW_ORDER.length : i; }
 
+let $whenRow = null;
 function renderFilters(focusId) {
   const active = focusId || (document.activeElement && box.contains(document.activeElement) ? document.activeElement.id : null);
-  if (!state.picked.length) { $filters.innerHTML = ''; return; }
+  // The Time row is kept by reference: rewriting the filters would drop it.
+  if (!$whenRow) $whenRow = box.querySelector('.wire-when');
+  if ($whenRow && $whenRow.parentNode === $filters) $filters.parentNode.appendChild($whenRow);
+  if (!state.picked.length) {
+    $filters.innerHTML = '';
+    return;
+  }
   const sh = shared();
 
   // One row per kind of filter across every ticked subject. A subject that
@@ -1229,6 +1254,8 @@ function renderFilters(focusId) {
   $filters.innerHTML = rows + unread.map((u) =>
     '<p class="wire-unread">' + esc(BY_ID[u.id].name) + ' could not be read (' + esc(String(u.error)) + '). ' +
     '<button type="button" class="wire-btn" data-retry="' + u.id + '">Try again</button></p>').join('');
+  // Time takes the next cell of the grid, after the last filter.
+  if ($whenRow) $filters.insertBefore($whenRow, $filters.querySelector('.wire-unread'));
   if (active) { const el = document.getElementById(active); if (el && $filters.contains(el)) el.focus(); }
 }
 
@@ -1258,7 +1285,7 @@ function topicRow(k, many) {
 function toTheMap(all) {
   const on = !$onMap || $onMap.checked;
   const list = on ? all.map(({ s, id }) => ({
-    title: s.title, url: s.url, outlet: s.outlet, place: s.place, date: s.date,
+    title: s.title, url: s.url, outlet: s.outlet, place: s.place, date: s.date, lang: s.lang || null,
     subject: BY_ID[id] ? BY_ID[id].name : id, at: s.at || null, iso: s.iso || null,
   })) : [];
   // If the map's script has not run yet, leave the list where it will look.
