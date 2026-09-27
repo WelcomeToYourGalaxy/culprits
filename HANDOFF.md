@@ -5,6 +5,25 @@ touches.
 
 ---
 
+## Round 79 (27 September)
+
+- mil_nuclear_storage (geojsonlive, military/nuclear_sites.geojson from
+  culprits-tiles-more scripts/nuclear_sites.py): the storage sites the Nuclear
+  Notebook names, with its words and estimates (Europe: "The changing nuclear
+  landscape in Europe", Dec 2025; US: "United States nuclear weapons, 2026").
+  Stated coordinates where given, else Wikidata's by name (linked).
+- mil_russia_storage: russianforces.org's 12th GUMO map in the companion
+  panel (CC BY-NC-ND 4.0: not copied).
+- mil_usni_fleet (route usnifleet, readUsniFleet): USNI News Fleet and Marine
+  Tracker, weekly, headings placed at area centres (scripts/usni_fleet.py
+  AREAS table), paragraphs quoted; unplaced headings listed on the row.
+- Probe (scripts/site_probe.py, run by hand): what theyrule.net and
+  unroca.org load (requests, data starts, They Rule's source-map data files),
+  written to probe/sites/ for the next round.
+- Not built: missile ranges (CSIS Missile Threat is all rights reserved and
+  its missile pages could not be read; ranges wait on the owner).
+
+
 ## Round 78 (27 September)
 
 - mil_news_archive (route gdeltarchive, readGdeltArchive): the daily GDELT

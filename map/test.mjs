@@ -4795,5 +4795,18 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /"mil_osm", "mil_mirta", "mil_test_sites"/.test(src) && /mil_osm: "Copied daily from OpenStreetMap/.test(src) && /mil_mirta: "Copied daily from catalog\.data\.gov/.test(src));
   check("the page asks for this round's script", /app\.js\?v=(7[8-9]|[89]\d)/.test(html));
 }
+{
+  console.log("\nround 79: nuclear weapons storage, Russia's storage map, the US Navy at sea");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("the three rows sit in the military layer",
+        /"mil_nuclear_storage", "mil_russia_storage", "mil_usni_fleet", "mil_osm"/.test(src) &&
+        /id: "mil_nuclear_storage"[^\n]*route: "geojsonlive"/.test(src) && /id: "mil_usni_fleet"[^\n]*route: "usnifleet"/.test(src));
+  check("Russia's storage map is shown whole, not copied (its licence allows no derivatives)",
+        /id: "mil_russia_storage"[^\n]*route: "companion"/.test(src) && /page: "https:\/\/russianforces\.org\/maps\/Russia-12thGUMO\.html"/.test(src));
+  check("each USNI week is a chip, every heading's words quoted, and the box says the mark is the middle of the area",
+        /group: `week of \$\{w\}`/.test(src) && /USNI gives no coordinates, and warships often switch their transponders off/.test(src));
+  check("the page asks for this round's script", /app\.js\?v=(79|[89]\d)/.test(html));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

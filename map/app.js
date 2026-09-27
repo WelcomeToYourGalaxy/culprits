@@ -3933,6 +3933,7 @@ async function addLivePlacesLayer(cfg) {
         : cfg.route === "geojsonlive" ? await readGeojsonFiles(cfg)
         : cfg.route === "gdeltgeo" ? await readGdeltGeo(cfg)
         : cfg.route === "gdeltarchive" ? await readGdeltArchive(cfg)
+        : cfg.route === "usnifleet" ? await readUsniFleet(cfg)
         : cfg.route === "wpgmza" ? await readWpgmza(cfg)
         : cfg.route === "atlascities" ? await readAtlasCities(cfg)
         : cfg.route === "trasefac" ? await readTraseFacilities(cfg)
@@ -11106,6 +11107,30 @@ async function readGdeltArchive(cfg) {
   }
   return { title: cfg.name, items, note: months.length ? `${months.length} month${months.length === 1 ? "" : "s"} kept, since ${months[0]}` : "nothing kept yet" };
 }
+// Round 79: USNI News's weekly Fleet and Marine Tracker, a heading to a mark
+// (culprits-tiles-more scripts/usni_fleet.py), each week a chip of the row.
+async function readUsniFleet(cfg) {
+  const idx = await getJson(`${cfg.archive}/index.json`, 30000);
+  const weeks = (idx.weeks || []).slice().sort();
+  const items = [];
+  const unplaced = [];
+  for (const w of weeks) {
+    let gj;
+    try { gj = await getJson(`${cfg.archive}/${w}.geojson`, 60000); } catch (e) { continue; }
+    (gj.unplaced || []).forEach((u) => unplaced.push(`${u} (${w})`));
+    (gj.features || []).forEach((f, i) => {
+      const p = f.properties || {};
+      items.push({ geometry: f.geometry, key: `${w}:${i}`, name: p.name || "", group: `week of ${w}`,
+        h: boxOpen + `<h4 style="margin:0 0 6px">${escapeHtml(p.name || "")}, week of ${escapeHtml(w)}</h4>` +
+          String(p.said || "").split(/\n\n+/).map((x) => `<p style="margin:0 0 6px">${escapeHtml(x)}</p>`).join("") +
+          (gj.total ? `<div style="opacity:.8">${escapeHtml(gj.total)}</div>` : "") +
+          `<div style="margin-top:6px"><a href="${escapeHtml(p.article || gj.article || "")}" target="_blank" rel="noopener">${escapeHtml(p.title || gj.title || "USNI News Fleet and Marine Tracker")}</a></div>` +
+          `<div style="margin-top:6px;opacity:.75;font-size:11px">Drawn at the middle of the area USNI names; USNI gives no coordinates, and warships often switch their transponders off.</div></div>` });
+    });
+  }
+  return { title: cfg.name, items, note: (weeks.length ? `${weeks.length} week${weeks.length === 1 ? "" : "s"} kept` : "nothing kept yet") +
+    (unplaced.length ? ` \u00b7 not placed: ${unplaced.join("; ")}` : "") };
+}
 async function readGdeltGeo(cfg) {
   let gj = null, note = "";
   try {
@@ -14220,6 +14245,18 @@ const MILITARY = {
     { id: "mil_news_archive", name: "News of fighting, every day since the map began keeping it, by month (GDELT)", unit: "places named", colour: "#7A5A58", route: "gdeltarchive", ready: true, lazy: true,
       archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/news",
       note: "Each day the seven days of news about fighting that GDELT places on the map are kept, a month to a file, with every article link seen for each place; a copy renewed daily by culprits-tiles-more. Months are chips of the row." },
+    // Round 79: nuclear weapons storage as the Nuclear Notebook states it;
+    // Russia's storage sites on their own map (its licence allows no copies);
+    // the US Navy at sea as USNI News words it each week.
+    { id: "mil_nuclear_storage", name: "Nuclear weapons storage sites, as the Nuclear Notebook states them (FAS, Bulletin of the Atomic Scientists)", unit: "sites", colour: "#7E5A5A", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Nuclear Notebook", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/nuclear_sites.geojson" }],
+      note: "The US bombs in Europe (Aviano, Ghedi, Incirlik, Kleine Brogel, Volkel, Büchel), RAF Lakenheath (status uncertain), the depot near Asipovichy in Belarus, and the US storage locations the Notebook names, each with the Notebook's own words and estimate. Positions as the Notebook or FAS state them, otherwise Wikidata's, said in each box. Copied daily by culprits-tiles-more." },
+    { id: "mil_russia_storage", name: "Russia's nuclear weapons storage sites: 12 national-level and about 35 base-level (Russian Strategic Nuclear Forces)", unit: "opens the map itself in a panel", colour: "#6A5E5A", route: "companion", ready: true, lazy: true,
+      page: "https://russianforces.org/maps/Russia-12thGUMO.html",
+      note: "Pavel Podvig's map of the 12th Main Directorate's storage facilities, shown whole in the panel along the bottom: its licence (CC BY-NC-ND 4.0) does not allow its points to be copied onto this map. Hover a dot for the facility's name." },
+    { id: "mil_usni_fleet", name: "US Navy ships at sea, week by week (USNI News Fleet and Marine Tracker)", unit: "areas named", colour: "#5E6470", route: "usnifleet", ready: true, lazy: true,
+      archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/usni",
+      note: "Each weekly Fleet and Marine Tracker, a mark to each sea, ocean or port it names, with its paragraphs quoted whole and linked; every week kept, each a chip. USNI gives no coordinates, so each mark is the middle of the area named. Copied daily by culprits-tiles-more." },
     { id: "mil_osm", name: "Military airfields, bases, naval bases, barracks, ranges and training areas, in use and no longer (OpenStreetMap)", unit: "places", colour: "#6E6358", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "OpenStreetMap", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/osm_military.geojson" }],
       note: "Every place OpenStreetMap tags military=airfield, base, naval_base, barracks, range, training_area or nuclear_explosion_site (and was:/disused: ones), each at its middle, every tag kept; kinds are chips of the row. A copy renewed daily by culprits-tiles-more from Overpass. ODbL." },
@@ -14473,7 +14510,7 @@ function ensureLayer(cfg) {
       : cfg.route === "worldsring" ? addWorldsRingLayer(cfg)
       : cfg.route === "ufo" ? addUfoLayer(cfg)
       : cfg.route === "adsbmil" ? addAdsbMilLayer(cfg)
-      : ["ejatlas", "geojsonlive", "wpgmza", "atlascities", "trasefac", "gdeltgeo", "gdeltarchive"].includes(cfg.route) ? addLivePlacesLayer(cfg)
+      : ["ejatlas", "geojsonlive", "wpgmza", "atlascities", "trasefac", "gdeltgeo", "gdeltarchive", "usnifleet"].includes(cfg.route) ? addLivePlacesLayer(cfg)
       : cfg.route === "wmsmenu" ? addWmsMenuLayer(cfg)
       : cfg.route === "gfwmenu" ? addGfwMenuLayer(cfg)
       : addPmtilesLayer(cfg);
@@ -15477,6 +15514,7 @@ const NOT_LIVE = {
   mil_attacks: "Copied daily from Wikidata by culprits-tiles-more",
   mil_sites: "Copied daily from Wikidata by culprits-tiles-more",
   mil_osm: "Copied daily from OpenStreetMap by culprits-tiles-more",
+  mil_nuclear_storage: "Written from the Nuclear Notebook; positions looked up daily by culprits-tiles-more",
   mil_mirta: "Copied daily from catalog.data.gov by culprits-tiles-more",
   mil_units: "Copied daily from Wikidata by culprits-tiles-more",
   mil_test_sites: "Copied daily from Wikidata by culprits-tiles-more",
@@ -15553,7 +15591,7 @@ const PANEL_ORDER = [
   // place of the Guerillamap row, which could only link to another site.
   { h: 3, t: "Of countries by countries" }, "site_secret_societies",
   { h: 4, bundle: "military", colour: "#6A5E5A" }, "mil_news", "mil_news_archive", "mil_conflicts", "mil_attacks", "mil_aircraft", "mil_sites", "mil_units",
-  "mil_osm", "mil_mirta", "mil_test_sites", "mil_minefields", "mil_alliances",
+  "mil_nuclear_storage", "mil_russia_storage", "mil_usni_fleet", "mil_osm", "mil_mirta", "mil_test_sites", "mil_minefields", "mil_alliances",
   { h: 5, bundle: "milcompare", colour: "#6E5F52" }, "mil_spend_gdp", "mil_spend_gov", "mil_spend_usd", "mil_personnel", "mil_warheads", "mil_tests", "mil_nuclear_position",
   // Round 77: the whole Unearthings map, in its own order.
   { h: 2, t: "Invasion of the after-life" }, "remains_records", "remains_units", "remains_findings", "remains_cemeteries",
