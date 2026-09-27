@@ -4068,7 +4068,7 @@ async function addLivePlacesLayer(cfg) {
         : await readArcgisApp(cfg);
     if (cfg.pdfs) linkAtlasPdfs(cfg, got.items);
   } catch (e) {
-    setLayerState(cfg.id, `the source did not answer (${e.message})`);
+    setLayerState(cfg.id, cfg.waiting && /\b404\b/.test(e.message) ? cfg.waiting : `the source did not answer (${e.message})`);
     console.error(`[culprits] ${cfg.id}: ${e.message}`);
     return;
   }
@@ -6942,6 +6942,10 @@ const CATALOGUE_BY_TITLE = [
   [/planted area on peat/i, [P + " > Peatland"]],
   // The industrial timber plantations, 2024 and 2025, are one row now (nus_itp).
   [/\b(v3p\d_)?Global_PlantationITP_20\d\d\b/, null],
+  // ---- 27 September (round 84b) -----------------------------------------
+  // GLAD-S2's Amazonia alerts out; the integrated alerts (GLAD-L, GLAD-S2 and
+  // RADD together) stay, in the forest alerts row.
+  [/\bumd_glad_sentinel2_alerts(_coverage)?\b|(?=.*glad.?s2)(?=.*amazon)/i, null],
   // ---- 25 September (round 48), at the owner's word ---------------------
   // Moved: WWF's terrestrial ecoregions and SBTN's natural lands under
   // Biodiversity loss; the projected change in dry spells under Water
@@ -10654,6 +10658,8 @@ const WASTEATLAS_ISO = { "HONG KONG SAR, CHINA": "HKG", "MACAO SAR, CHINA": "MAC
 let wasteAtlasRead = null;
 async function countryTotalsFrom(cfg) {
   const tf = cfg.totalsFrom;
+  // A copy written as the map's own country totals (round 84b).
+  if (tf.kind === "json") return getJson(tf.url, 30000);
   if (tf.kind !== "wasteatlas") throw new Error(`no reader for ${tf.kind}`);
   if (!wasteAtlasRead) wasteAtlasRead = Promise.all([getJson(WASTEATLAS_URL, 60000), getJson(BOUNDARIES_URL, 60000)]);
   let gj, shapes;
@@ -14979,6 +14985,24 @@ const OTHER_MAPS = {
         "Vinyl chloride and PVC plants in open maps": "#B6FF3B" }, groupHint: "Coloured by where the record comes from",
       attribution: "US EPA TRI; European Environment Agency (E-PRTR); © OpenStreetMap contributors (ODbL); Wikidata (CC0)",
       note: "Every facility the US Toxics Release Inventory and the EU's industrial emissions register list as releasing vinyl chloride, with the amount they report for the latest year, and the places OpenStreetMap and Wikidata record as making vinyl chloride or PVC. Built by culprits-tiles-more (scripts/plastics.py); each record says which source it is from." },
+    // Round 84b (asked 27 September): environmental crimes punished by
+    // governments, from their own registers (culprits-tiles-more
+    // scripts/env_enforcement.py); Brazil's IBAMA first, others as their
+    // registers are read.
+    { id: "ibama_embargos", name: "Areas shut down for environmental crimes, Brazil, every embargo (IBAMA)", unit: "embargoes", colour: "#00E5C3", route: "pmtiles", ready: true, lazy: true,
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ibama_embargos.pmtiles", boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/enforcement/ibama_embargos", boxesGz: true,
+      note: "Every embargo Brazil's environment agency IBAMA has recorded: an area it has ordered shut down because of an environmental offence there, such as illegal clearing, burning, mining or fishing. Each at the coordinates IBAMA gives for it, with every field of the record. From IBAMA's open data, copied weekly (open licence)." },
+    { id: "ibama_infractions", name: "Environmental crime notices issued, Brazil, every infraction notice (IBAMA)", unit: "notices", colour: "#1E90FF", route: "pmtiles", ready: true, lazy: true,
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ibama_infractions.pmtiles", boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/enforcement/ibama_infractions", boxesGz: true,
+      note: "Every infraction notice (auto de infração) IBAMA has issued for an environmental offence and gives coordinates for: the offence, the law broken, the fine, the date. From IBAMA's open data, copied weekly (open licence)." },
+    { id: "raisg_illegal_mining", name: "Illegal mining across the Amazon, its sites, areas and rivers (RAISG)", unit: "places", colour: "#39FF88", route: "geojsonlive", ready: true, lazy: true, fixedName: true,
+      files: [{ label: "Illegal mining", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/raisg/illegal_mining.geojson" }],
+      waiting: "waiting for RAISG's file: it is given only to registered users, so it is downloaded by hand from raisg.org and uploaded to culprits-tiles-more's raisg folder",
+      note: "RAISG's map of illegal mining in the Amazon's nine countries: the mining sites, the areas mined and the rivers dredged, each with RAISG's own fields and sources. From RAISG's file, which it gives to registered users (culprits-tiles-more scripts/raisg.py)." },
+    { id: "gw_defenders", name: "Land and environmental defenders killed or disappeared since 2012, by country (Global Witness)", unit: "defenders killed or disappeared", colour: "#00B3FF", route: "country", ready: true, lazy: true,
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/global_witness/countries.json" },
+      countryNote: "Global Witness's own count, as its data page publishes it (non-commercial reuse allowed)",
+      note: "Every killing and long-term disappearance of a land or environmental defender Global Witness has documented since 2012, many of them Indigenous people defending their land, totalled by country from its data page, every figure it gives kept in the box. Copied weekly (culprits-tiles-more scripts/global_witness.py)." },
     { id: "mymaps_trees", name: "Christmas Trees (Google My Maps)", unit: "placemarks", colour: "#5F6E5C", route: "kml", ready: true, lazy: true,
       kml: "https://www.google.com/maps/d/kml?mid=1c-vPoGf79mfQezTgcFoKb-xN4A4&forcekml=1",
       note: "Read live from the map's Google My Maps file; the row takes the map's own title once it loads." },
@@ -15182,13 +15206,13 @@ const FOREST_ALERTS = {
       note: "Pan-tropical only. GLAD and RADD do not cover boreal or temperate forest — use the global layers for those.",
       attribution: '<a href="https://www.globalforestwatch.org" target="_blank" rel="noopener">Global Forest Watch</a>' },
     { id:"gfw_dist",             name:"Any loss of plant cover, worldwide \u2014 cutting, fire, drought or harvest alike, last 30 days (DIST-ALERT)", unit:"alerts", colour:"#7A5B4E", route:"tile", ready:true, off: true, lazy:true,
-      bounds: [-180, -30, 180, 30],
+      // Worldwide (round 84b): the tropics-only bounds hid everything outside 30 degrees.
       tilePath: "gfw_tile", tileMaxZoom: 22, tileQuery: "kind=dist&days=30", off: true,
       recolor: "#7A5B4E",
       note: "Global coverage, including boreal and temperate forest. Detects vegetation disturbance generally, so it catches fire and harvest as well as clearing.",
       attribution: '<a href="https://www.globalforestwatch.org" target="_blank" rel="noopener">Global Forest Watch</a>' },
     { id:"gfw_dist_year",        name:"Any loss of plant cover, worldwide \u2014 the same, gathered over a year (DIST-ALERT)", unit:"alerts", colour:"#6E5E57", route:"tile", ready:true, off: true, lazy:true,
-      bounds: [-180, -30, 180, 30],
+      // Worldwide (round 84b): the tropics-only bounds hid everything outside 30 degrees.
       tilePath: "gfw_tile", tileMaxZoom: 22, tileQuery: "kind=dist&days=365", off: true,
       recolor: "#6E5E57",
       note: "The same global product over a twelve-month window, for seeing a season's cumulative loss rather than this month's.",
@@ -15558,6 +15582,11 @@ function ensureLayer(cfg) {
       : ["ejatlas", "geojsonlive", "wpgmza", "atlascities", "trasefac", "gdeltgeo", "gdeltarchive", "usnifleet"].includes(cfg.route) ? addLivePlacesLayer(cfg)
       : cfg.route === "wmsmenu" ? addWmsMenuLayer(cfg)
       : cfg.route === "gfwmenu" ? addGfwMenuLayer(cfg)
+      // Round 84b: the Worker's picture rows (the three forest alert rows) are
+      // built lazily too; they fell through to the archive builder and said
+      // "archive missing 404".
+      : cfg.route === "tile" ? Promise.resolve().then(() => addTileLayer(cfg))
+      : cfg.route === "worker" ? Promise.resolve().then(() => addLiveLayer(cfg))
       : cfg.route === "no2relief" ? Promise.resolve().then(() => addNo2Relief(cfg))
       : cfg.route === "poprelief" ? addPopRelief(cfg)
       : cfg.route === "country" ? addCountryLayer(cfg)
@@ -15788,6 +15817,10 @@ const LAYER_KIND = {
   atlas_cities: ["human", "downstream"],
   wreckers_umap: ["insentient", "upstream"],
   mymaps_chlorine: ["insentient", "upstream"],
+  ibama_embargos: ["insentient", "downstream"],
+  ibama_infractions: ["insentient", "downstream"],
+  raisg_illegal_mining: ["insentient", "downstream"],
+  gw_defenders: ["human", "downstream"],
   plastics_plants: ["insentient", "upstream"],
   vinyl_chloride_plants: ["insentient", "upstream"],
   mymaps_trees: ["plant", "downstream"],
@@ -16343,6 +16376,10 @@ const LAYER_SITE = {
   skytruth_voc: "https://monitor.skytruth.org/",
   skytruth_nrc: "https://monitor.skytruth.org/",
   skytruth_posts: "https://monitor.skytruth.org/",
+  ibama_embargos: "https://dadosabertos.ibama.gov.br/dataset/fiscalizacao-termo-de-embargo",
+  ibama_infractions: "https://dadosabertos.ibama.gov.br/dataset/fiscalizacao-auto-de-infracao",
+  raisg_illegal_mining: "https://www.raisg.org/en/maps/",
+  gw_defenders: "https://globalwitness.org/en/campaigns/land-and-environmental-defenders/in-numbers-lethal-attacks-against-defenders-since-2012/",
   skytruth_posts_sea: "https://monitor.skytruth.org/",
   skytruth_posts_land: "https://monitor.skytruth.org/",
   skytruth_marine_incidents: "https://monitor.skytruth.org/",
@@ -16581,6 +16618,11 @@ function refreshNote(cfg) {
 // kept here (the source cannot be read by another site, or its server is gone).
 // Every row now carries one mark or the other (22 September, round 3).
 const NOT_LIVE = {
+  // Round 84b.
+  ibama_embargos: "Copied weekly from IBAMA's open data by culprits-tiles-more",
+  ibama_infractions: "Copied weekly from IBAMA's open data by culprits-tiles-more",
+  raisg_illegal_mining: "From RAISG's file, downloaded by hand (RAISG gives it to registered users) and made into this copy",
+  gw_defenders: "Copied weekly from Global Witness's data page by culprits-tiles-more",
   // Round 81.
   plastics_plants: "Built daily by culprits-tiles-more from the registers and open maps it names; each source is read again weekly",
   vinyl_chloride_plants: "Built daily by culprits-tiles-more from the registers and open maps it names; each source is read again weekly",
@@ -16663,7 +16705,7 @@ const PANEL_ORDER = [
   // one layer with a row per kind of conflict under it, and everything that
   // was under Suppression > Land and territory is here, the Land Matrix
   // excepted (under Meat and agriculture > Agriculture).
-  { h: 3, t: "Invasion of humans" }, "site_settler_colonialism", "other_invaded",
+  { h: 3, t: "Invasion of humans" }, "site_settler_colonialism", "other_invaded", "gw_defenders",
   { h: 4, bundle: "indigenous_conflicts", colour: "#6B5A4A" }, "site_indigenous_conflicts",
   { h: 4, bundle: "landmark", colour: "#6A5E66" },
   { h: 4, bundle: "resrights", colour: "#5E6A66" },
@@ -16671,7 +16713,7 @@ const PANEL_ORDER = [
   // place of the Guerillamap row, which could only link to another site.
   { h: 3, t: "Of countries by countries" }, "site_secret_societies",
   { h: 4, bundle: "military", colour: "#6A5E5A" }, "mil_news", "mil_news_archive", "mil_conflicts", "mil_attacks", "mil_aircraft", "mil_sites", "mil_units",
-  "mil_nuclear_storage", "mil_russia_storage", "mil_missile_ranges", "mil_usni_fleet", "mil_osm", "mil_mirta", "mil_test_sites", "mil_minefields", "mil_alliances",
+  "mil_nuclear_storage", "mil_russia_storage", "mil_usni_fleet", "mil_osm", "mil_mirta", "mil_test_sites", "mil_minefields", "mil_alliances",
   { h: 5, bundle: "milcompare", colour: "#6E5F52" }, "mil_spend_gdp", "mil_spend_gov", "mil_spend_usd", "mil_personnel", "mil_warheads", "mil_tests", "mil_nuclear_position",
   // Round 77: the whole Unearthings map, in its own order.
   { h: 2, t: "Invasion of the after-life" }, "remains_records", "remains_units", "remains_findings", "remains_cemeteries",
@@ -16821,7 +16863,7 @@ const PANEL_ORDER = [
   { h: 3, t: "Water scarcity" },
   // Item 14: the mines layers are one row with sublayers.
   { h: 3, t: "Mining" },
-  { h: 4, bundle: "mines", colour: "#6E5E52" }, "mines_global", "mine_features",
+  { h: 4, bundle: "mines", colour: "#6E5E52" }, "mines_global", "mine_features", "raisg_illegal_mining",
   { h: 3, t: "Meat and agriculture" }, "site_food_system", "land_matrix",
   { h: 4, t: "Agriculture" },
   { h: 5, t: "Plantations" },
@@ -16856,6 +16898,8 @@ const PANEL_ORDER = [
   // Concessions that name no material or activity a heading covers (23 September).
   { h: 3, t: "Other concessions" },
   // Asked for 25 September: the earthquakes under a heading of their own.
+  // Round 84b: governments' own records of environmental crimes, and illegal mining.
+  { h: 3, t: "Environmental crime" }, "ibama_embargos", "ibama_infractions", "raisg_illegal_mining",
   { h: 3, t: "Natural disasters" }, "skytruth_quakes",
   // Asked for 25 September (round 48): the fur farms under a heading of their
   // own here, not under Of groups.
@@ -16867,7 +16911,7 @@ const PANEL_ORDER = [
   { h: 3, t: "Of microorganisms" },
   { h: 3, t: "Of the “insentient”" },
   { h: 2, t: "Of individuals" },
-  { h: 3, t: "Of humans" },
+  { h: 3, t: "Of humans" }, "gw_defenders",
   { h: 3, t: "Of animals" }, "site_animal_sacrifice",
   { h: 3, t: "Of plants" },
   { h: 3, t: "Of microscopics" },
@@ -16957,6 +17001,8 @@ const PANEL_REMOVED = new Set([
   // kept copy; SkyTruth's write-ups are the oil slicks layer's two parts; PIRG's
   // page is replaced by the built plastics rows.
   "epa_tri_sites", "slick_archive", "skytruth_posts", "pirg_plastic",
+  // Round 84b: MISSILEMAP's panel (another site in a box) is out, at the owner's word.
+  "mil_missile_ranges",
   // Split into its registers (gmo_env and the rows after it) on 20 September.
   "gmo_releases",
   // Removed at the owner's request, 20 September.
@@ -17066,15 +17112,47 @@ function rowLayerIds(lead) {
 }
 // dir "up" puts the row above `target` (on the list and on the map), "down"
 // below it. With no target, the neighbouring row is used.
+// Round 84b (asked 27 September): a row can be dragged anywhere in the box,
+// out of its heading and into another, or onto a heading's line to go first
+// under it, so a reader can gather their own selection (the Selected Layers
+// heading at the top is there for it). Where each moved row came from is
+// marked, and the "Reset layers menu" button puts every one back.
+const ROW_HOMES = new Map();            // moved row -> the marker where it stood
+function rememberHome(lead) {
+  if (ROW_HOMES.has(lead) || !lead.parentElement || typeof document.createElement !== "function") return;
+  const m = document.createElement("span");
+  m.className = "row-home";
+  m.hidden = true;
+  lead.parentElement.insertBefore(m, lead);
+  ROW_HOMES.set(lead, m);
+}
+function resetRows(box) {
+  for (const [lead, m] of [...ROW_HOMES].reverse()) {
+    if (m.parentElement) { rowNodes(lead).forEach((n) => m.parentElement.insertBefore(n, m)); m.remove(); }
+  }
+  ROW_HOMES.clear();
+  if (box) { countHeadings(box); syncHeadingBoxes(box); }
+}
+function moveRowInto(lead, body) {
+  if (!body || body === lead.parentElement && body.firstElementChild === lead) return;
+  rememberHome(lead);
+  const mine = rowNodes(lead), first = body.firstChild;
+  mine.forEach((n) => body.insertBefore(n, first));
+  const box = document.getElementById("layers");
+  if (box) { countHeadings(box); syncHeadingBoxes(box); }
+}
 function moveRow(lead, dir, target) {
   const parent = lead.parentElement;
   const leads = [...parent.children].filter(rowLead);
   const at = leads.indexOf(lead);
   const other = target || leads[dir === "up" ? at - 1 : at + 1];
   if (!other || other === lead) return;
+  const into = other.parentElement || parent;
+  rememberHome(lead);
   const mine = rowNodes(lead);
-  if (dir === "up") mine.forEach((n) => parent.insertBefore(n, other));
-  else { const theirs = rowNodes(other); const after = theirs[theirs.length - 1].nextSibling; mine.forEach((n) => parent.insertBefore(n, after)); }
+  if (dir === "up") mine.forEach((n) => into.insertBefore(n, other));
+  else { const theirs = rowNodes(other); const after = theirs[theirs.length - 1].nextSibling; mine.forEach((n) => into.insertBefore(n, after)); }
+  if (into !== parent) { const box = document.getElementById("layers"); if (box) { countHeadings(box); syncHeadingBoxes(box); } }
   // On the map: above the other row's layers when moved up, below them when moved down.
   const own = rowLayerIds(lead), them = rowLayerIds(other);
   if (!own.length || !them.length || typeof map.moveLayer !== "function") return;
@@ -17198,8 +17276,17 @@ function rowDragging(box) {
     e.preventDefault();
     clearMarks();
     drag.target = null;
-    const over = unitOf(document.elementFromPoint(e.clientX, e.clientY));
-    if (!over || over === drag.unit || over.parentElement !== drag.unit.parentElement) return;
+    const at = document.elementFromPoint(e.clientX, e.clientY);
+    const over = unitOf(at);
+    // Onto a heading's line: first under that heading (round 84b).
+    const line = !over && at && at.closest ? at.closest(".toc-line") : null;
+    if (line && line.parentElement && !drag.unit.contains(line)) {
+      drag.where = "into";
+      drag.target = line.parentElement.querySelector(":scope > .toc-body");
+      line.classList.add("drop-below");
+      return;
+    }
+    if (!over || over === drag.unit || drag.unit.contains(over)) return;
     const r = over.getBoundingClientRect();
     drag.where = e.clientY < r.top + r.height / 2 ? "up" : "down";
     drag.target = over;
@@ -17214,7 +17301,8 @@ function rowDragging(box) {
     if (!d.on) return;
     swallowClick = true;
     setTimeout(() => { swallowClick = false; }, 0);
-    if (d.target) moveRow(d.unit, d.where, d.target);
+    if (d.target && d.where === "into") moveRowInto(d.unit, d.target);
+    else if (d.target) moveRow(d.unit, d.where, d.target);
   };
   window.addEventListener("pointerup", end);
   window.addEventListener("pointercancel", end);
@@ -17403,6 +17491,8 @@ function arrangePanel() {
   addRowTools(box);
   layerSearch(box);
   layerKindSwitch(box);
+  layerMenuHelp(box);
+  watchCuts(box);
   if (!document.getElementById("panel-h-style")) {
     const st = document.createElement("style");
     st.id = "panel-h-style";
@@ -17545,6 +17635,58 @@ function applyLayerSearch(box, query) {
   for (const note of box.querySelectorAll(".toc-note")) note.classList.toggle("search-hide", true);
   return n;
 }
+/* ---------- how to use the box, and putting it back (round 84b) ---------- */
+function layerMenuHelp(box) {
+  if (!box || typeof document.createElement !== "function" || document.getElementById("layer-help")) return;
+  const at = document.getElementById("kind-switch") || (document.getElementById("layer-search") || {}).parentElement;
+  const el = document.createElement("div");
+  el.id = "layer-help";
+  el.className = "layer-help";
+  el.innerHTML = `<button type="button" class="chip" data-reset-rows title="Put every layer back where it started in this list">Reset layers menu</button>` +
+    `<span class="lh-t">Drag a layer by its \u2807 grip above or below another to draw it above or below that layer on the map. ` +
+    `Drag it anywhere, even out of its heading or onto the Selected Layers heading, to gather your own selection.</span>`;
+  el.querySelector("[data-reset-rows]").addEventListener("click", () => resetRows(box));
+  if (at && at.after) at.after(el); else if (box.parentElement) box.parentElement.insertBefore(el, box);
+  addStyle(".layer-help{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 6px;font-size:10.5px;color:var(--dim)}" +
+    ".layer-help .chip{font:inherit;font-size:11px;padding:2px 8px;border-radius:10px;border:1px solid rgba(0,229,195,.45);background:none;color:var(--ink,#e8e2d6);cursor:pointer}" +
+    ".layer-help .lh-t{flex:1 1 200px}#layers .toc-line.drop-below{outline:1px dashed rgba(0,229,195,.8);outline-offset:2px}", "layer-help");
+}
+// Rows taken out by where they stand in the box (round 84b, asked 27
+// September: "delete all of the layers from the tree and plant cover loss as
+// it happens layer to the GLAD alerts 30 S to 30 N layer"): every row between
+// the two named, as the box shows them, goes to the rows taken out. The two
+// named rows stay. Run again as catalogue rows arrive.
+const CUT_BETWEEN = [{ from: '[data-group="forest_alerts"]', to: /^GLAD alerts\b/i }];
+function rowTitleText(el) {
+  const nm = el && el.querySelector && el.querySelector(".nm");
+  return nm ? String(([...nm.childNodes].find((n) => n.nodeType === 3 && n.data.trim()) || {}).data || nm.textContent || "").trim() : "";
+}
+function cutBetween(box) {
+  box = box || document.getElementById("layers");
+  const gone = box && box.querySelector ? box.querySelector("[data-removed]") : null;
+  if (!gone) return;
+  for (const c of CUT_BETWEEN) {
+    const tick = box.querySelector(c.from);
+    const start = tick && tick.closest ? (tick.closest(".group") || tick.closest("label")) : null;
+    const parent = start && start.parentElement;
+    if (!parent || parent.closest("[data-removed]")) continue;
+    const kids = [...parent.children], i = kids.indexOf(start);
+    const j = kids.findIndex((el, k) => k > i && el.tagName === "LABEL" && c.to.test(rowTitleText(el)));
+    if (j < 0) continue;
+    for (const el of kids.slice(i + 1, j)) {
+      const t = el.querySelector && el.querySelector("input[data-cat], input[data-layer]");
+      if (t && t.checked) { t.checked = false; t.dispatchEvent(new Event("change", { bubbles: true })); }
+      gone.appendChild(el);
+    }
+  }
+}
+let cutTimer = null;
+function watchCuts(box) {
+  if (!box || typeof MutationObserver === "undefined" || box.dataset.cutWatch) return;
+  box.dataset.cutWatch = "1";
+  new MutationObserver(() => { clearTimeout(cutTimer); cutTimer = setTimeout(() => cutBetween(box), 400); }).observe(box, { childList: true, subtree: true });
+}
+
 /* ---------- a heading's tick, turning on every layer under it (round 81) ---------- */
 // Asked 27 September: the Turn on every switches read the rows' points from a
 // few shared files (round 58) and tick rows a few at a time; a heading's own

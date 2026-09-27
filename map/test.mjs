@@ -4029,8 +4029,8 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("the zoom buttons are right of the basemap choices; north-up where they were",
         /<div class="bm-row"><div class="bm-choices">/.test(src) && /<\/div><div class="view-zoom" id="view-zoom"><\/div><\/div><\/div><\/div>`;/.test(src) &&
         /<\/div><div class="compass-holder in-view" id="compass-holder"/.test(src));
-  check("GLAD-S2 in Amazonia and its coverage are under the alerts",
-        ["umd_glad_sentinel2_alerts", "umd_glad_sentinel2_alerts_coverage"].every((id) => f("Deforestation alerts (GLAD-S2) \u2014 Amazonia", id) === P + " > Deforestation > Tree cover loss and alerts > Alerts"));
+  check("GLAD-S2 in Amazonia and its coverage are out (round 84b, at the owner's word)",
+        ["umd_glad_sentinel2_alerts", "umd_glad_sentinel2_alerts_coverage"].every((id) => f("Deforestation alerts (GLAD-S2) \u2014 Amazonia", id) === OUT));
   check("mosaic landscapes, planted oil palm and forest mills filed; internal layers, DIST-ALERT coverage and the Chaco field boundaries out",
         f("Trees in mosaic landscapes coverage", "wri_trees_in_mosaic_landscapes_coverage") === P + " > Deforestation > Forest cover" &&
         f("Planted forests: oil palm", "gfw_planted_forests_oil_palm") === lib.AG + " > Palm oil > Plantations" &&
@@ -4806,7 +4806,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   check("the three rows sit in the military layer",
-        /"mil_nuclear_storage", "mil_russia_storage", "mil_missile_ranges", "mil_usni_fleet", "mil_osm"/.test(src) &&
+        /"mil_nuclear_storage", "mil_russia_storage", ("mil_missile_ranges", )?"mil_usni_fleet", "mil_osm"/.test(src) &&
         /id: "mil_nuclear_storage"[^\n]*route: "geojsonlive"/.test(src) && /id: "mil_usni_fleet"[^\n]*route: "usnifleet"/.test(src));
   check("Russia's storage map is shown whole, not copied (its licence allows no derivatives)",
         /id: "mil_russia_storage"[^\n]*route: "companion"/.test(src) && /page: "https:\/\/russianforces\.org\/maps\/Russia-12thGUMO\.html"/.test(src));
@@ -4937,6 +4937,31 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("Trase's regions are edged in their own colours with a dot at their middle wider out", /id: `\$\{src\}-mid`, type: "circle"/.test(src) && /"line-color": \["coalesce", \["get", "_c"\]/.test(src));
   check("the Material Research atlas keeps only its plants", /dropLayers: \[1, 2, 3,/.test(src));
   check("the page asks for this round's script", /app\.js\?v=(8[3-9]|9\d)/.test(html));
+}
+{
+  console.log("\nround 84b: the forest alert rows build; rows cut between two; drag anywhere with a reset; environmental crime; Global Witness");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const o = new Function(body + "; return { PANEL_ORDER, PANEL_REMOVED };")();
+  const at = (t) => o.PANEL_ORDER.findIndex((x) => x && x.t === t);
+  check("the Worker's picture rows are built when first ticked, not sent to the archive builder",
+        /: cfg\.route === "tile" \? Promise\.resolve\(\)\.then\(\(\) => addTileLayer\(cfg\)\)/.test(src));
+  check("the two worldwide disturbance rows are no longer cut to the tropics",
+        !/id:"gfw_dist",[^\n]*\n\s*bounds: \[-180, -30, 180, 30\]/.test(src) && !/id:"gfw_dist_year",[^\n]*\n\s*bounds: \[-180, -30, 180, 30\]/.test(src));
+  check("the rows between the forest alerts row and GLAD's 30 S to 30 N row are taken out, as the box shows them",
+        /const CUT_BETWEEN = \[\{ from: '\[data-group="forest_alerts"\]', to: \/\^GLAD alerts\\b\/i \}\];/.test(src) && /watchCuts\(box\);/.test(src));
+  check("a row can be dragged into another heading or onto a heading's line, and the menu reset puts every row back",
+        /function moveRowInto\(lead, body\)/.test(src) && /function resetRows\(box\)/.test(src) && /Reset layers menu/.test(src) && /drag\.where = "into";/.test(src));
+  check("the box says how to use it with the map", /Drag a layer by its \\u2807 grip above or below another to draw it above or below that layer on the map/.test(src));
+  check("MISSILEMAP's panel is out", o.PANEL_REMOVED.has("mil_missile_ranges") && !o.PANEL_ORDER.includes("mil_missile_ranges"));
+  check("environmental crime has its heading: IBAMA's embargoes and notices and RAISG's illegal mining; RAISG under Mining too",
+        at("Environmental crime") > at("Of the planet") && ["ibama_embargos", "ibama_infractions", "raisg_illegal_mining"].every((i) => o.PANEL_ORDER.indexOf(i, at("Environmental crime")) > at("Environmental crime")) &&
+        o.PANEL_ORDER.indexOf("raisg_illegal_mining") < at("Environmental crime"));
+  check("Global Witness is under Invasion of humans and under Of individuals > Of humans only",
+        o.PANEL_ORDER.indexOf("gw_defenders") > at("Invasion of humans") && o.PANEL_ORDER.lastIndexOf("gw_defenders") > at("Of individuals") &&
+        o.PANEL_ORDER.filter((x) => x === "gw_defenders").length === 2);
+  check("the page asks for this round's script", /app\.js\?v=(8[4-9]|9\d)/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

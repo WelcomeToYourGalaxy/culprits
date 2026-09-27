@@ -5,6 +5,42 @@ touches.
 
 ---
 
+## Round 84b (27 September)
+
+Needs round 83b (runs after it by name).
+
+- Lazy children with route "tile" or "worker" (the forest alerts bundle) fell
+  through to addPmtilesLayer and said "archive missing"; ensureLayer now sends
+  them to addTileLayer / addLiveLayer.
+- CUT_BETWEEN: every row in the forest alerts heading from its first row down to
+  the first "GLAD alerts" row is moved into [data-removed] and unticked (a
+  MutationObserver repeats this as catalogue rows arrive).
+- UMD/GLAD Sentinel-2 Amazonia alerts out (CATALOGUE_BY_TITLE null).
+  Integrated deforestation alerts (GLAD-L + GLAD-S2 + RADD) and GLAD 30S-30N
+  (GLAD-L alone) are different and both kept; global integrated disturbance
+  alerts (DIST-ALERT + GLAD-L + GLAD-S2 + RADD) and all-ecosystem disturbance
+  alerts (DIST-ALERT alone) are different and both kept. gfw_dist and
+  gfw_dist_year lose the 30S-30N bounds (they are worldwide).
+- mil_missile_ranges out (PANEL_REMOVED).
+- Layer order: a row dragged above or below any other row, in any heading,
+  moves there (moveRow into the other row's parent) and so draws above or below
+  it on the map; a row dropped on a heading line goes into that heading. Homes
+  are remembered (ROW_HOMES); layerMenuHelp adds "Reset layers menu" (resetRows)
+  and a note on how dragging works.
+- New rows, heading Environmental crime (before Natural disasters):
+  ibama_embargos and ibama_infractions (pmtiles + boxes from tiles
+  scripts/env_enforcement.py, IBAMA open data), raisg_illegal_mining
+  (geojsonlive from tiles scripts/raisg.py; the owner uploads RAISG's zip to
+  raisg/, free registration; also in the mines bundle). gw_defenders (route
+  country, totals from global_witness/countries.json via tiles
+  scripts/global_witness.py) under Invasion of humans and Of individuals > Of
+  humans. countryTotalsFrom reads kind "json".
+- Other countries' environmental-crime registers (Canada's Environmental
+  Offenders Registry, England's Environment Agency prosecutions, US EPA ECHO
+  criminal cases, Peru OEFA) are probed first into probe/enforcement/ by
+  env_enforcement.py; mapped once their files are known.
+
+
 ## Round 83b (27 September)
 
 Needs round 82b first (runs after it by name).
