@@ -4782,5 +4782,18 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /remains_units: \[\{ label: "records from the Unearthings harvest", field: "n", scale: "log" \}\]/.test(src));
   check("the page asks for this round's script", /app\.js\?v=(7[7-9]|[89]\d)/.test(html));
 }
+{
+  console.log("\nround 78: the news of fighting kept past seven days; OpenStreetMap's and the Pentagon's own military places");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("the news is kept a month to a file and read as one row with a chip per month",
+        /id: "mil_news_archive"[^\n]*route: "gdeltarchive"/.test(src) && /async function readGdeltArchive\(cfg\)/.test(src) &&
+        /items\.push\(\{ geometry: f\.geometry, key: `\$\{m\}:\$\{i\}`, name: p\.name \|\| "A place named in the news", group: m,/.test(src) &&
+        /"mil_news", "mil_news_archive", "mil_conflicts"/.test(src));
+  check("OpenStreetMap's military places and MIRTA are rows of the military layer, marked NOT LIVE",
+        /id: "mil_osm"[^\n]*route: "geojsonlive"/.test(src) && /id: "mil_mirta"[^\n]*route: "geojsonlive"/.test(src) &&
+        /"mil_osm", "mil_mirta", "mil_test_sites"/.test(src) && /mil_osm: "Copied daily from OpenStreetMap/.test(src) && /mil_mirta: "Copied daily from catalog\.data\.gov/.test(src));
+  check("the page asks for this round's script", /app\.js\?v=(7[8-9]|[89]\d)/.test(html));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

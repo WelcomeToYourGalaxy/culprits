@@ -5,6 +5,20 @@ touches.
 
 ---
 
+## Round 78 (27 September)
+
+- mil_news_archive (route gdeltarchive, readGdeltArchive): the daily GDELT
+  copy kept a month to a file by culprits-tiles-more (military.py
+  news_archive: military/news/<YYYY-MM>.geojson + index.json), each place with
+  the days named and every article link; months as chips.
+- mil_osm: OpenStreetMap military=airfield, base, naval_base, barracks, range,
+  training_area, nuclear_explosion_site (and was:/disused:), from
+  military/osm_military.geojson.
+- mil_mirta: US DoD MIRTA, found on catalog.data.gov at each run
+  (military/mirta.geojson; the dataset's date and file are in the copy).
+- round78_tiles replaces scripts/military.py with these three parts added.
+
+
 ## Round 77 (27 September)
 
 - Invasion of the after-life completed from the Unearthings map

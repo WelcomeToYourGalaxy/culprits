@@ -3932,6 +3932,7 @@ async function addLivePlacesLayer(cfg) {
         : cfg.route === "ejatlas" ? await readEjatlas(cfg)
         : cfg.route === "geojsonlive" ? await readGeojsonFiles(cfg)
         : cfg.route === "gdeltgeo" ? await readGdeltGeo(cfg)
+        : cfg.route === "gdeltarchive" ? await readGdeltArchive(cfg)
         : cfg.route === "wpgmza" ? await readWpgmza(cfg)
         : cfg.route === "atlascities" ? await readAtlasCities(cfg)
         : cfg.route === "trasefac" ? await readTraseFacilities(cfg)
@@ -11081,6 +11082,30 @@ function gdeltLinks(html) {
   }
   return out.length ? `<ul style="margin:6px 0 0 16px;padding:0">${out.join("")}</ul>` : "";
 }
+// Round 78 (27 September): the news of fighting kept day after day, a month
+// to a file (culprits-tiles-more scripts/military.py), so the map is not
+// limited to GDELT's seven days. Each place carries the days it was named and
+// every article link seen for it; the months are chips of the row.
+async function readGdeltArchive(cfg) {
+  const idx = await getJson(`${cfg.archive}/index.json`, 30000);
+  const months = (idx.months || []).map((m) => m.month).sort();
+  const items = [];
+  for (const m of months) {
+    let gj;
+    try { gj = await getJson(`${cfg.archive}/${m}.geojson`, 60000); } catch (e) { continue; }
+    (gj.features || []).forEach((f, i) => {
+      const p = f.properties || {};
+      const days = Array.isArray(p.days) ? p.days : [];
+      const links = Array.isArray(p.links) ? p.links : [];
+      items.push({ geometry: f.geometry, key: `${m}:${i}`, name: p.name || "A place named in the news", group: m,
+        h: boxOpen + `<h4 style="margin:0 0 6px">${escapeHtml(p.name || "A place named in the news")}</h4>` +
+          `<div>Named in the news of fighting on ${days.length} day${days.length === 1 ? "" : "s"} in ${escapeHtml(m)}, from ${escapeHtml(p.first || "")} to ${escapeHtml(p.last || "")}; each day's copy covers the seven days before it.</div>` +
+          (links.length ? `<ul style="margin:6px 0 0 16px;padding:0">${links.map((x) => `<li><a href="${escapeHtml(x.u)}" target="_blank" rel="noopener">${escapeHtml(x.t || x.u)}</a>${x.seen ? ` <span style="opacity:.7">(first kept ${escapeHtml(x.seen)})</span>` : ""}</li>`).join("")}</ul>` : "") +
+          `<div style="margin-top:6px;opacity:.75;font-size:11px">GDELT Project, GEO 2.0 API, kept daily by this map. A place named is not always where the fighting was.</div></div>` });
+    });
+  }
+  return { title: cfg.name, items, note: months.length ? `${months.length} month${months.length === 1 ? "" : "s"} kept, since ${months[0]}` : "nothing kept yet" };
+}
 async function readGdeltGeo(cfg) {
   let gj = null, note = "";
   try {
@@ -14190,6 +14215,17 @@ const MILITARY = {
       note: "Every attack Wikidata files as a terrorist attack and places, with its date, deaths, injured and perpetrator where recorded. Wikidata is edited by anyone and is far from complete; the Global Terrorism Database forbids republishing its records, so it is not used. Attacks on civilians by armed groups are also in the conflict events row, under one-sided violence. Copied daily." },
     { id: "mil_aircraft", name: "Military aircraft in the air now (ADS-B, adsb.lol)", unit: "aircraft", colour: "#5E6D8A", route: "adsbmil", ready: true, lazy: true,
       note: "Aircraft whose transponder address is registered as military, as volunteer ADS-B receivers hear them, read live from adsb.lol's open API (ODbL) and read again every minute while ticked. Many military flights switch their transponders off or are not heard, so this is what is visible, not all there is." },
+    // Round 78: the news kept past seven days; OpenStreetMap's military places;
+    // the US Department of Defense's own register of its installations.
+    { id: "mil_news_archive", name: "News of fighting, every day since the map began keeping it, by month (GDELT)", unit: "places named", colour: "#7A5A58", route: "gdeltarchive", ready: true, lazy: true,
+      archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/news",
+      note: "Each day the seven days of news about fighting that GDELT places on the map are kept, a month to a file, with every article link seen for each place; a copy renewed daily by culprits-tiles-more. Months are chips of the row." },
+    { id: "mil_osm", name: "Military airfields, bases, naval bases, barracks, ranges and training areas, in use and no longer (OpenStreetMap)", unit: "places", colour: "#6E6358", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "OpenStreetMap", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/osm_military.geojson" }],
+      note: "Every place OpenStreetMap tags military=airfield, base, naval_base, barracks, range, training_area or nuclear_explosion_site (and was:/disused: ones), each at its middle, every tag kept; kinds are chips of the row. A copy renewed daily by culprits-tiles-more from Overpass. ODbL." },
+    { id: "mil_mirta", name: "US military installations, ranges and training areas (US Department of Defense, MIRTA)", unit: "installations", colour: "#655E58", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "MIRTA", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/mirta.geojson" }],
+      note: "The Department of Defense's own register of its installations, ranges and training areas in the US and its territories, found on catalog.data.gov and copied daily by culprits-tiles-more; each outline drawn at its middle, every field kept. The dataset's date is in the copy." },
     { id: "mil_sites", name: "Military bases, air bases, naval bases and installations, in use and closed (Wikidata)", unit: "installations", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Installations", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/sites.geojson" }],
       note: "Every military base, air base, naval base, airfield, barracks and other military installation Wikidata places, with the state that runs it, the country it is in, and when it opened and closed where recorded. Those run by another state than the one they stand in are marked. Copied daily." },
@@ -14437,7 +14473,7 @@ function ensureLayer(cfg) {
       : cfg.route === "worldsring" ? addWorldsRingLayer(cfg)
       : cfg.route === "ufo" ? addUfoLayer(cfg)
       : cfg.route === "adsbmil" ? addAdsbMilLayer(cfg)
-      : ["ejatlas", "geojsonlive", "wpgmza", "atlascities", "trasefac", "gdeltgeo"].includes(cfg.route) ? addLivePlacesLayer(cfg)
+      : ["ejatlas", "geojsonlive", "wpgmza", "atlascities", "trasefac", "gdeltgeo", "gdeltarchive"].includes(cfg.route) ? addLivePlacesLayer(cfg)
       : cfg.route === "wmsmenu" ? addWmsMenuLayer(cfg)
       : cfg.route === "gfwmenu" ? addGfwMenuLayer(cfg)
       : addPmtilesLayer(cfg);
@@ -15440,6 +15476,8 @@ function refreshNote(cfg) {
 const NOT_LIVE = {
   mil_attacks: "Copied daily from Wikidata by culprits-tiles-more",
   mil_sites: "Copied daily from Wikidata by culprits-tiles-more",
+  mil_osm: "Copied daily from OpenStreetMap by culprits-tiles-more",
+  mil_mirta: "Copied daily from catalog.data.gov by culprits-tiles-more",
   mil_units: "Copied daily from Wikidata by culprits-tiles-more",
   mil_test_sites: "Copied daily from Wikidata by culprits-tiles-more",
   mil_minefields: "Copied daily from OpenStreetMap by culprits-tiles-more",
@@ -15514,8 +15552,8 @@ const PANEL_ORDER = [
   // Round 74 (27 September): the map's own conflict and military layers in
   // place of the Guerillamap row, which could only link to another site.
   { h: 3, t: "Of countries by countries" }, "site_secret_societies",
-  { h: 4, bundle: "military", colour: "#6A5E5A" }, "mil_news", "mil_conflicts", "mil_attacks", "mil_aircraft", "mil_sites", "mil_units",
-  "mil_test_sites", "mil_minefields", "mil_alliances",
+  { h: 4, bundle: "military", colour: "#6A5E5A" }, "mil_news", "mil_news_archive", "mil_conflicts", "mil_attacks", "mil_aircraft", "mil_sites", "mil_units",
+  "mil_osm", "mil_mirta", "mil_test_sites", "mil_minefields", "mil_alliances",
   { h: 5, bundle: "milcompare", colour: "#6E5F52" }, "mil_spend_gdp", "mil_spend_gov", "mil_spend_usd", "mil_personnel", "mil_warheads", "mil_tests", "mil_nuclear_position",
   // Round 77: the whole Unearthings map, in its own order.
   { h: 2, t: "Invasion of the after-life" }, "remains_records", "remains_units", "remains_findings", "remains_cemeteries",
