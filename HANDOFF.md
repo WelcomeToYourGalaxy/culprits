@@ -5,6 +5,22 @@ touches.
 
 ---
 
+## Round 69 (26 September)
+
+- largest_banks (asked 26 September: the owner's own layer of the world's
+  largest banks): route geojsonlive reading culprits-tiles-more
+  banks/largest.geojson, built weekly by scripts/largest_banks.py (round 69
+  tiles patch) the way largest_companies.py builds the companies: Wikidata
+  total assets (P2403), latest year per item, in dollars at the year's ECB or
+  World Bank rate, the 250 largest that are a kind of bank (Q22687). Central
+  and development banks are kept, with Wikidata's kinds on each; items that
+  are not banks are listed in banks/largest.build.json. Filed first under
+  Suppression > ... > Banks and monetary power. NOT LIVE (weekly copy).
+- Checked in a browser with a test file: the row draws and its box shows
+  every field. The real file appears after the tiles repo's refresh runs
+  largest_banks (nightly, or by hand).
+
+
 ## Round 68 (26 September)
 
 - Wastewater watersheds (owner's go-ahead, 26 September): the shapes were
