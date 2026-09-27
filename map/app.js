@@ -461,9 +461,9 @@ const LAYERS = [
     note: "Scored on the share of calling fishing vessels flagged high-risk by a published behavioural model. A property of the calls, not of the port." },
   { id:"slavery_fishing",      name:"Ocean squares where forced-labour fishing is predicted (model, no vessel named)", unit:"model cells, 2.5\u00b0", colour:"#4E6A70", route:"pmtiles", ready:true, off: true,
     note: "Not vessels. The authors anonymised every hull, so each mark is a cell of ocean and identifies nobody." },
-  { id:"remains_records",      name:"Unearthings and burial decisions", unit:"records", colour:"#6A6257", route:"pmtiles", ready:true, off: true,
-    facet: { property: "x_posture", label: "direction",
-             values: ["harm","watch","redress","unlawful"] },
+  // Round 77: read from the Unearthings map's own file each time it is
+  // ticked, drawn and filtered as that map draws and filters it.
+  { id:"remains_records",      name:"Unearthings and burial decisions", unit:"records", colour:"#6A6257", route:"remains", ready:true, off: true, lazy: true,
     note: "This layer does not plot graves. Burial locations arrive blurred to about 5 km from the source and stay that way. Direction is separate from size: a large repatriation is a large event, not a bad one." },
   // From WelcomeToYourGalaxy/abattoir-atlas: its merged facility records, every
   // one, not the subset its own page draws. Share-alike (OSM rows and OSM-based
@@ -10736,6 +10736,7 @@ const SHAPE_COLOUR_BY = {
   // Slavery Index, as the anti-slavery map's harvest_scale.py words it).
   slavery_prevalence: [{ label: "people in modern slavery per 1,000 (estimate)", field: "per_1000", fromDetails: /([\d.]+) people per 1,000/, scale: "log" }],
   gmo_trials: [{ label: "release authorisations", field: "count", scale: "log" }],
+  remains_units: [{ label: "records from the Unearthings harvest", field: "n", scale: "log" }],
   // REGIMES in the Genetic engineering map's index.html.
   gmo_regime: [{ label: "regime", field: "regime", national: true,
     // The map draws a carve-out in the colour of the scheme it is cut out of,
@@ -10984,7 +10985,9 @@ async function addShapesLayer(cfg) {
     : render(p));
   // Round 73: the other countries' box is built from the compiled facts; the
   // settler colonialism boxes add the same facts for their countries.
-  const popup = cfg.box === "invaded"
+  const popup = cfg.box === "remainsunit"
+    ? (p) => remainsHelp().then((help) => { rGloDone = {}; return `<div class="rem-wb">${remainsUnitHtml(help, p)}</div>`; })
+    : cfg.box === "invaded"
     ? (p) => invadedFacts().then((all) => invadedBoxHtml(all[p.iso3], p.iso3, p.name, true))
     : cfg.id === "site_settler_colonialism"
       ? (p) => Promise.resolve(plain(p)).then((h) => invadedFacts().then((all) => {
@@ -11000,7 +11003,8 @@ async function addShapesLayer(cfg) {
   const withGmo = GMO_COUNTRY_LAYERS.has(cfg.id)
     ? (p) => Promise.resolve(popup(p)).then((h) => gmoCountryHtml(gmoIso(p)).then((more) => `<div class="gmo-wb">${h}${more}</div>`))
     : popup;
-  const popOpts = GMO_COUNTRY_LAYERS.has(cfg.id) ? { maxWidth: "380px", className: "gmo-box" } : undefined;
+  const popOpts = GMO_COUNTRY_LAYERS.has(cfg.id) ? { maxWidth: "380px", className: "gmo-box" }
+    : cfg.box === "remainsunit" ? { maxWidth: "380px", className: "rem-box" } : undefined;
   bindHtmlPopup(`${cfg.id}-fill`, withGmo, popOpts);
   bindHtmlPopup(`${cfg.id}-line`, withGmo, popOpts);
   bindHtmlPopup(`${cfg.id}-pt`, withGmo, popOpts);
@@ -12273,6 +12277,609 @@ function bindGmoPopup(layerId) {
   map.on("mouseleave", layerId, () => (map.getCanvas().style.cursor = ""));
 }
 // The map's own colours for its boxes (its popup and #recList).
+// ---- round 77: Invasion of the after-life, complete ------------------------
+// The Unearthings map (WelcomeToYourGalaxy/remains) read as it reads itself:
+// its records with its own filters and its own box, its crematoria, mortuaries
+// and museums, its published findings, its countries with their guides and
+// resources, its resource lenses and its news wire. Every file is read from the
+// map's own site each time a row is ticked; the countries come from a daily
+// copy (culprits-tiles-more scripts/remains_units.py). The words in the boxes
+// are the map's own; only colours that would read as yellow or orange are
+// changed to this map's muted ones.
+const REMAINS_BASE = "https://welcometoyourgalaxy.github.io/remains/";
+const R_POSTURES = [["harm", "Harm"], ["watch", "Watch"], ["redress", "Redress"], ["unlawful", "Unlawful"]];
+const R_PCOLOR = { harm: "#b5462f", watch: "#8A8078", redress: "#6f9e8c", unlawful: "#7d3350" };
+const R_GLOSS = {
+  "repatriation": "Returning ancestors, and the things buried with them, to the descendants or nation they were taken from.",
+  "disposition": "The formal decision about who receives ancestors and where they will finally rest.",
+  "reinterment": "Burying someone again, after they were dug up or moved.",
+  "exhumation": "Digging up someone who was buried.",
+  "inadvertent discovery": "Human remains found by accident, usually during building work, with no plan in place.",
+  "provenance": "The documented history of how an object or ancestor came to be where they are now, and through whose hands.",
+  "deaccession": "A museum formally removing something from its collection, so it can be returned, transferred or disposed of.",
+  "funerary objects": "Things buried with a person, or made for their burial. Treated in law as belonging with them, not as artefacts.",
+  "NAGPRA": "A 1990 US law requiring museums and agencies to inventory Native American ancestors they hold and return them to descendant nations.",
+  "THPO": "Tribal Historic Preservation Officer. The official who speaks for a tribe on heritage matters, with authority a federal agency must engage.",
+  "SHPO": "State Historic Preservation Officer. The state-level equivalent, for sites not on tribal land.",
+  "Section 106": "The step in US law where a federal project must identify historic properties it will affect and consult the people who care about them, before it proceeds.",
+  "AHIP": "Aboriginal Heritage Impact Permit. A New South Wales licence that lawfully permits harm to Aboriginal heritage, including burials.",
+  "MNI": "Minimum Number of Individuals. The smallest number of people that a set of bones must represent. Used because remains are often incomplete or mixed.",
+  "ossuary": "A container or room where the bones of many people are gathered together after burial.",
+  "wahi tapu": "Maori term for a place sacred in the traditional sense, including burial grounds. Its location is often deliberately unpublished.",
+  "unearthing": "Any event that brings buried people back to the surface, or decides what happens to them once they are there.",
+  "posture": "This map's word for what a record does to the dead: harm, watch, redress, or unlawful. Not a judgement of the organisation involved.",
+  "coarsened": "Deliberately blurred. The point shown is not the real location, because publishing the real one would expose a grave.",
+  "ADM1": "The first tier of government below a country: a state, province or region.",
+  "ADM2": "The tier below that: a county, district or municipality.",
+  "proximity flag": "A project that sits near a recorded burial ground. It means the question should be asked, not that anything has been disturbed.",
+  "lifecycle prefix": "A tag in OpenStreetMap marking that something used to be there and no longer is.",
+  "service area": "The jurisdiction a body actually covers, which is often not where its office is.",
+  "repatriation notice": "A published legal notice that an institution intends to return specific ancestors, opening a window for others to make a claim.",
+  "mass grave": "A grave holding several people put there together, usually after a killing, disaster or epidemic.",
+  "looting": "Digging up graves without permission, generally to sell what is found.",
+  "salvage condition": "A requirement attached to a permit saying what must happen if remains are found once work has begun.",
+};
+const R_KIND_LABEL = {
+  "repatriation": "Repatriation notice", "disposition": "Intended disposition",
+  "reinterment": "Transfer or reinterment", "holding": "Institution holding remains",
+  "harm-permit": "Permit to harm burial site", "excavation": "Licensed excavation",
+  "exhumation": "Exhumation / cemetery removal", "removed-ground": "Burial ground no longer there",
+  "mass-grave": "Mass-grave recovery", "forensic-case": "Individual forensic recovery",
+  "transfer": "Deaccession or transfer", "discovery": "Inadvertent discovery",
+  "looting": "Illicit disturbance", "review": "Review flagging burials" };
+const R_KIND_GLOSS = { "repatriation": "repatriation notice", "disposition": "disposition", "reinterment": "reinterment",
+  "holding": "provenance", "harm-permit": "AHIP", "excavation": "unearthing", "exhumation": "exhumation",
+  "removed-ground": "lifecycle prefix", "mass-grave": "mass grave", "forensic-case": "exhumation", "transfer": "deaccession",
+  "discovery": "inadvertent discovery", "looting": "looting", "review": "proximity flag" };
+const R_GEO_LABEL = { exact: "Named institution or address", area: "Centre of permit or project area",
+  admin: "Centre of an administrative unit", coarsened: "Blurred to about 5 km" };
+const R_WINDOWS = [[0, "All ages"], [30, "≤30d"], [90, "≤90d"], [180, "≤6mo"], [365, "≤1yr"]];
+const R_SOURCE_LABEL = {
+  "nagpra_notices": "US NAGPRA notices", "us_burial_reviews": "US federal burial reviews",
+  "nsw_ahip": "NSW heritage permits (AHIP)", "uk_burial_planning": "UK planning",
+  "ceqanet_burials": "California CEQA", "osm_removed_burial_grounds": "OSM removed grounds",
+  "projects_crossfeed": "Live Projects map (text)", "projects_on_burial_ground": "Live Projects map (proximity)",
+  "courtlistener": "US case law (CourtListener)", "tribal_comments": "Objections filed (Regulations.gov)",
+  "propublica_holdings": "Institutions holding remains (NAGPRA/ProPublica)", "wikidata_graves": "Mass graves & memorials (Wikidata)",
+  "nps_nagpra_grid": "US NAGPRA inventories", "ckan_remains": "Open-data portals (CKAN)",
+  "ods_remains": "Open-data portals (ODS)", "geonode_remains": "Open-data portals (GeoNode)" };
+const R_WTOPIC = [["opposition", "Opposition"], ["trade", "Trade in remains"], ["redress", "Return"], ["conflict", "Conflict & the disappeared"],
+  ["development", "Development"], ["desecration", "Desecration & looting"], ["institution", "Institutions"], ["other", "Other"]];
+const R_WTOPIC_DESC = {
+  opposition: "A nation objects, a preservation officer files, a council blockades. Opposition is a speech act by a named party, and it lives in comment dockets, interventions, court filings and press — never in the permit record. That is why it is a wire topic rather than a map layer: no register collects it.",
+  trade: "The live market in human remains — auction and online listings, customs and INTERPOL seizures, smuggling. Press-driven rather than register-driven, so coverage is patchy by nature.",
+  redress: "Ancestors going home: repatriations, reburials, identifications returned to families.",
+  conflict: "Mass graves, the disappeared, war crimes, and the forensic teams that open them.",
+  development: "Construction, extraction and infrastructure meeting a burial ground.",
+  desecration: "Vandalism, grave robbing and trafficking.",
+  institution: "Museums, universities and collections — who is holding whom.",
+  other: "On topic for this wire, but not falling into the categories above." };
+
+// The map's files are committed gzipped; GitHub Pages may already have
+// inflated them, so plain JSON is tried first (its own parseGz).
+const remainsCache = new Map();
+function remainsJson(path) {
+  if (!remainsCache.has(path)) {
+    const p = fetch(REMAINS_BASE + path, { cache: "no-store" }).then(async (r) => {
+      if (!r.ok) throw new Error(`${r.status} at ${path}`);
+      const bytes = new Uint8Array(await r.arrayBuffer());
+      try { return JSON.parse(new TextDecoder("utf-8").decode(bytes)); } catch (e) { /* gzipped */ }
+      return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).json();
+    });
+    p.catch(() => remainsCache.delete(path));
+    remainsCache.set(path, p);
+  }
+  return remainsCache.get(path);
+}
+
+// Its glossary: a specialist word is defined where it appears, once per box.
+let rGloDone = {};
+let rGloSorted = null;
+function rGlo(term, shown) {
+  const k = String(term).toLowerCase(), d = R_GLOSS[term] || R_GLOSS[k];
+  const label = escapeHtml(shown || term);
+  if (!d) return label;
+  if (rGloDone[k]) return `<span class="gl" title="${escapeHtml(d)}">${label}</span>`;
+  rGloDone[k] = 1;
+  let brief = d.replace(/\s+/g, " ").trim();
+  const cut = brief.indexOf(". ");
+  if (cut > 20) brief = brief.slice(0, cut);
+  brief = brief.replace(/\.$/, "");
+  brief = brief.charAt(0).toLowerCase() + brief.slice(1);
+  return `<span class="gl" title="${escapeHtml(d)}">${label}</span><span class="gl-inline"> (${escapeHtml(brief)})</span>`;
+}
+function rGlossTerms(html) {
+  if (!html) return html;
+  if (!rGloSorted) rGloSorted = Object.keys(R_GLOSS).sort((a, b) => b.length - a.length);
+  for (const term of rGloSorted) {
+    if (rGloDone[term.toLowerCase()]) continue;
+    const re = new RegExp(`(^|[\\s(—,;:])(${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})(?![^<]*>)(?=[\\s.,;:)—]|$)`, "i");
+    const m = re.exec(html);
+    if (!m) continue;
+    html = html.slice(0, m.index) + m[1] + rGlo(term, m[2]) + html.slice(m.index + m[0].length);
+  }
+  return html;
+}
+function rKindLabel(k) {
+  const lbl = R_KIND_LABEL[k] || k || "";
+  return R_KIND_GLOSS[k] ? rGlo(R_KIND_GLOSS[k], lbl) : escapeHtml(lbl);
+}
+// A record's box, as the map writes it (its popupHTML), and after it what can
+// be done in that country: the map's guides and resources for it.
+function remainsRecordHtml(r) {
+  const e = escapeHtml;
+  let h = `<div class="pk">${rGlossTerms(e(r.name || "Record"))}</div>`;
+  h += `<span class="tag t-${e(r.posture || "watch")}">${e(r.posture || "watch")}</span>`;
+  if (r.kind) h += `<span class="tag t-plain">${rKindLabel(r.kind)}</span>`;
+  if (r.trigger && r.trigger !== "unknown") h += `<span class="tag t-plain">${e(r.trigger)}</span>`;
+  if (r.count != null) h += `<div class="kv"><span>Individuals stated:</span> <b>${e(r.count)}</b></div>`;
+  if (r.held_by) h += `<div class="kv"><span>Held by:</span> ${e(r.held_by)}</div>`;
+  if (r.actor && r.actor !== r.held_by) h += `<div class="kv"><span>Acting party:</span> ${e(r.actor)}</div>`;
+  const where = [r.region, r.country].filter(Boolean).join(", ");
+  if (where) h += `<div class="kv"><span>Where:</span> ${e(where)}</div>`;
+  if (r.status) h += `<div class="kv"><span>Status:</span> ${e(r.status)}</div>`;
+  if (r.date) h += `<div class="kv"><span>Dated:</span> ${e(r.date)}</div>`;
+  if (r.deadline) h += `<div class="kv"><span>Deadline:</span> <b>${e(r.deadline)}</b></div>`;
+  h += `<div class="geo-note"><b>${e(R_GEO_LABEL[r.geo || "admin"])}.</b> ${rGlossTerms(e(r.desc || ""))}</div>`;
+  if (r.url) h += `<a class="plink" href="${e(r.url)}" target="_blank" rel="noopener">Open the primary record &rarr;</a>`;
+  if (r.source) h += `<div class="kv" style="margin-top:8px;font-size:10px;"><span>Feed:</span> ${e(r.source)}</div>`;
+  return h;
+}
+// The same facility box for crematoria, mortuaries and museums (its facilityHTML).
+function remainsFacilityHtml(f, label) {
+  const e = escapeHtml;
+  let h = `<div class="pk">${e(f[2] || "Unnamed burial ground")}</div><span class="tag t-plain">${e(label)}</span>`;
+  if (f[5]) h += `<div class="kv"><span>Address:</span> ${e(f[5])}</div>`;
+  if (f[7]) h += `<div class="kv"><span>Phone:</span> ${e(f[7])}</div>`;
+  h += `<div class="geo-note">An existing, publicly mapped burial facility &mdash; <b>not blurred</b>, because it is a signposted public place. Mapped by OpenStreetMap contributors (ODbL); verify before relying on it.</div>`;
+  if (f[3]) h += `<a class="plink" href="${e(f[3])}" target="_blank" rel="noopener">Website &rarr;</a>`;
+  return h;
+}
+function remainsFindingHtml(f) {
+  const e = escapeHtml;
+  let h = `<div class="pk">${e(f.place)}</div><span class="tag t-plain">${f.kind === "density" ? "Site density" : f.kind === "holdings" ? "Institutional holdings" : "Measured looting"}</span>`;
+  if (f.period) h += `<span class="tag t-plain">${e(f.period)}</span>`;
+  h += f.value ? `<div class="kv"><span>Finding:</span> <b>${e(f.value)}</b> ${e(f.unit)}</div>` : `<div class="kv"><span>Finding:</span> ${e(f.unit)}</div>`;
+  if (f.denominator) h += `<div class="kv"><span>Out of:</span> ${e(f.denominator)}</div>`;
+  if (f.compare) h += `<div class="kv"><span>Compared with:</span> ${e(f.compare)}</div>`;
+  h += `<div class="ent-sec">What it means</div><div class="ent-empty">${e(f.note || "")}</div><div class="ent-sec">Source</div>`;
+  h += `<div class="li">${f.url ? `<a href="${e(f.url)}" target="_blank" rel="noopener">${e(f.source)}</a>` : `<span class="nolink">${e(f.source)}</span>`}</div>`;
+  h += `<div class="ent-empty" style="margin-top:9px;">These figures are <b>not comparable to each other</b> &mdash; different studies, methods, date ranges and definitions of "site" and "looted".</div>`;
+  return h;
+}
+
+// Resources and guides, attached by the jurisdiction they serve (GLOBAL, an
+// ISO3, or ISO3/unit name), grouped by what the reader is trying to do.
+async function remainsHelp() {
+  const [lenses, status, guides] = await Promise.all([
+    remainsJson("lenses.json").catch(() => null), remainsJson("lenses_status.json").catch(() => null), remainsJson("guides.json").catch(() => null)]);
+  const index = {};
+  for (const l of (lenses && lenses.lenses) || []) for (const it of l.items || []) for (const k of it.serves || []) (index[k] = index[k] || []).push({ lens: l.label, it });
+  return { lenses, status, guides: (guides && guides.guides) || [], index };
+}
+function remainsResBlock(help, title, note, list) {
+  if (!list.length) return "";
+  const e = escapeHtml;
+  const order = (help.lenses && help.lenses.intents) || [];
+  const by = {};
+  list.forEach((r) => { const k = (r.it && r.it.intent) || "help"; (by[k] = by[k] || []).push(r); });
+  let h = `<div class="ent-sec">${e(title)}</div>` + (note ? `<div class="ent-empty" style="margin-bottom:6px;">${note}</div>` : "");
+  const keys = order.length ? order.map((x) => x.key).concat(Object.keys(by).filter((k) => !order.some((x) => x.key === k))) : Object.keys(by);
+  for (const k of keys) {
+    if (!by[k]) continue;
+    const meta = order.find((x) => x.key === k);
+    h += `<div class="r-int">${e(meta ? meta.label : k)}</div>` + (meta && meta.desc ? `<div class="ent-empty" style="margin:0 0 4px;">${e(meta.desc)}</div>` : "");
+    for (const r of by[k]) h += remainsItemHtml(help, r.it, r.lens);
+  }
+  return h;
+}
+function remainsItemHtml(help, it, lens) {
+  const e = escapeHtml;
+  const st = help.status && help.status.entries ? help.status.entries[it.name] : null;
+  const state = st ? st.state : (it.url ? "unchecked" : "find-only");
+  const dead = state === "dead", href = (st && st.final) || it.url;
+  const badge = dead ? `<span class="st st-dead">gone</span>` : state === "blocked" ? `<span class="st st-blocked">blocks bots</span>`
+    : state === "find-only" ? `<span class="st st-find">search</span>` : state === "unchecked" ? `<span class="st st-unchecked">unverified</span>` : "";
+  return `<div class="li${dead ? " dead" : ""}">` +
+    (href && !dead ? `<a href="${e(href)}" target="_blank" rel="noopener">${e(it.name)}</a>` : `<span class="nolink">${e(it.name)}</span>`) +
+    badge + (it.located ? `<span class="st st-find">located here</span>` : "") + (lens ? `<span class="st-lens">${e(lens)}</span>` : "") +
+    (it.level ? `<span class="lvl">${e(it.level)}</span>` : "") +
+    `<div class="note">${e(it.note || "")}</div>` + (!it.url && it.find ? `<div class="note"><b>Search:</b> ${e(it.find)}</div>` : "") + `</div>`;
+}
+function remainsGuideHtml(g) {
+  const e = escapeHtml;
+  let h = `<details class="disc"><summary>${e(g.title)}</summary><div class="body">`;
+  h += `<div class="kv"><span>Under:</span> ${e(g.hook)}</div><div class="kv"><span>When it applies:</span> ${e(g.when)}</div><ol class="run">`;
+  for (const st of g.steps || []) h += `<li><b>${e(st.do)}</b><br>${e(st.how)}${st.deadline ? `<br><span class="gd-dl">Deadline: ${e(st.deadline)}</span>` : ""}</li>`;
+  h += `</ol>${g.watch ? `<div class="callout">${e(g.watch)}</div>` : ""}${g.find ? `<div class="ent-empty"><b>Search:</b> ${e(g.find)}</div>` : ""}</div></details>`;
+  return h;
+}
+// What to do in a country: its units' guides and resources first, then the
+// whole country's, then those that apply everywhere (its unitGuideHTML and
+// unitResourceHTML, for a country and every unit inside it).
+function remainsCountryHelpHtml(help, iso3, name, withGlobal) {
+  let h = "";
+  const guides = help.guides.filter((g) => g.serves === iso3 || String(g.serves).startsWith(`${iso3}/`));
+  if (guides.length) {
+    h += `<div class="ent-sec">What to do here</div><div class="ent-empty" style="margin-bottom:6px;">Published procedure for this jurisdiction, in order. Not legal advice &mdash; offices and deadlines change.</div>`;
+    guides.forEach((g) => { h += remainsGuideHtml(g); });
+  }
+  const units = Object.keys(help.index).filter((k) => k.startsWith(`${iso3}/`)).sort();
+  for (const u of units) h += remainsResBlock(help, `${u.slice(4)} — serves this unit`, "Filed here because this is the jurisdiction they serve.", help.index[u]);
+  if (help.index[iso3]) h += remainsResBlock(help, `${name || iso3} — serves the whole country`, "Applies here as well as everywhere else in the country.", help.index[iso3]);
+  if (withGlobal && help.index.GLOBAL) h += remainsResBlock(help, "Applies everywhere", "Not tied to any one jurisdiction.", help.index.GLOBAL);
+  if (!h) h = `<div class="ent-sec">Resources for this country</div><div class="ent-empty">Nothing filed for this jurisdiction yet. Resources are attached by <b>where they serve</b>, not where their office is — so an empty box here means no curated body has this jurisdiction in its remit, not that the place is unserved.</div>`;
+  return h;
+}
+function remainsUnitHtml(help, p) {
+  const e = escapeHtml;
+  let h = `<div class="pk">${e(p.name || "Unnamed unit")}</div><span class="tag t-plain">Country</span>`;
+  h += `<div class="ent-sec">In this country, from the harvest</div>`;
+  const n = Number(p.n) || 0;
+  if (n) {
+    h += `<div class="kv"><span>Records:</span> <b>${n}</b></div>`;
+    for (const [k] of R_POSTURES) if (Number(p[k])) h += `<div class="kv"><span>${e(k)}:</span> ${Number(p[k])}</div>`;
+    h += `<div class="ent-sec">Records here</div>`;
+    let list = [];
+    try { list = JSON.parse(p.list || "[]"); } catch (err) { /* none */ }
+    for (const r of list) h += `<div class="li"><span class="nolink">${e(r.n || "")}</span><div class="note">${rKindLabel(r.k)}${r.d ? ` · ${e(r.d)}` : ""}</div></div>`;
+    if (Number(p.more)) h += `<div class="ent-empty">${Number(p.more)} more.</div>`;
+  } else {
+    h += `<div class="ent-empty">No harvested records fall inside this country. That is an absence of <b>records</b>, not of events &mdash; coverage follows whichever registers this jurisdiction publishes.</div>`;
+  }
+  return h + (p.iso3 ? remainsCountryHelpHtml(help, p.iso3, p.name, true) : "");
+}
+// The country a record sits in, from the same country shapes, for its box's
+// "what to do here".
+let remainsUnits = null;
+function remainsUnitsData() {
+  if (!remainsUnits) remainsUnits = getJson("https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/remains_units.geojson", 60000).catch(() => { remainsUnits = null; return null; });
+  return remainsUnits;
+}
+function rPointIn(lng, lat, g) {
+  const ring = (rg) => { let inside = false; for (let i = 0, j = rg.length - 1; i < rg.length; j = i++) {
+    const [xi, yi] = rg[i], [xj, yj] = rg[j];
+    if (((yi > lat) !== (yj > lat)) && (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi)) inside = !inside; } return inside; };
+  const poly = (p) => p.length && ring(p[0]) && !p.slice(1).some(ring);
+  if (!g) return false;
+  if (g.type === "Polygon") return poly(g.coordinates);
+  if (g.type === "MultiPolygon") return g.coordinates.some(poly);
+  return false;
+}
+async function remainsHereHtml(lng, lat) {
+  const [units, help] = await Promise.all([remainsUnitsData(), remainsHelp()]);
+  const f = units && (units.features || []).find((x) => rPointIn(lng, lat, x.geometry));
+  if (!f || !f.properties.iso3) return "";
+  return `<div class="r-here">${remainsCountryHelpHtml(help, f.properties.iso3, f.properties.name, false)}</div>`;
+}
+
+// The records, with the map's own filters: register, direction, kind, what set
+// it off, scale, how recent, undated kept or not, and words.
+const remainsState = { rows: [], on: {}, scale: 0, win: 0, undated: true, q: "" };
+function remainsVisible() {
+  const s = remainsState, cut = s.win ? Date.now() - s.win * 864e5 : 0;
+  return s.rows.filter((r) => {
+    for (const [f, get] of [["source", (x) => x.source], ["posture", (x) => x.posture], ["kind", (x) => x.kind], ["trigger", (x) => x.trigger || "unknown"]]) {
+      const off = s.on[f];
+      if (off && off.has(get(r))) return false;
+    }
+    if (s.scale && Math.max(1, Math.min(5, r.impact || 2)) < s.scale) return false;
+    if (cut) {
+      if (!r.date) return s.undated;
+      const t = Date.parse(r.date);
+      if (isNaN(t)) return s.undated;
+      if (t < cut) return false;
+    }
+    if (s.q) {
+      const hay = [r.name, r.held_by, r.actor, r.region, r.country, r.status, r.desc].filter(Boolean).join(" ").toLowerCase();
+      if (!hay.includes(s.q)) return false;
+    }
+    return true;
+  });
+}
+function remainsFeatures(rows) {
+  return rows.map((r) => ({ type: "Feature", geometry: { type: "Point", coordinates: [Number(r.lng), Number(r.lat)] },
+    properties: { i: r._i, posture: r.posture || "watch", geo: r.geo || "admin", impact: Math.max(1, Math.min(5, r.impact || 2)) } }))
+    .filter((f) => isFinite(f.geometry.coordinates[0]) && isFinite(f.geometry.coordinates[1]));
+}
+function remainsFiltersRow(cfg) {
+  const s = remainsState, e = escapeHtml;
+  const tally = (get) => { const m = {}; s.rows.forEach((r) => { const v = get(r); if (v != null && v !== "") m[v] = (m[v] || 0) + 1; }); return m; };
+  const group = (label, field, entries) => `<div class="kf-h">${e(label)}</div>` + entries.map(([k, lab, n]) =>
+    `<label class="kf"><input type="checkbox" checked data-rf="${field}" data-rv="${e(k)}">${e(lab)} <em>${n}</em></label>`).join("");
+  const bySrc = tally((r) => r.source), byP = tally((r) => r.posture), byK = tally((r) => r.kind), byT = tally((r) => r.trigger || "unknown");
+  const byS = tally((r) => Math.max(1, Math.min(5, r.impact || 2)));
+  const box = document.createElement("div");
+  box.className = "facet key-filters remains-filters";
+  box.dataset.for = cfg.id;
+  box.innerHTML =
+    `<input type="search" class="r-q" placeholder="Words in a record (name, holder, place, status)" style="width:100%;margin:4px 0">` +
+    group("Register", "source", Object.keys(bySrc).sort((a, b) => bySrc[b] - bySrc[a]).map((k) => [k, R_SOURCE_LABEL[k] || k, bySrc[k]])) +
+    group("Direction", "posture", R_POSTURES.filter(([k]) => byP[k]).map(([k, l]) => [k, l, byP[k]])) +
+    group("Kind", "kind", Object.keys(R_KIND_LABEL).filter((k) => byK[k]).sort((a, b) => byK[b] - byK[a]).map((k) => [k, R_KIND_LABEL[k], byK[k]])) +
+    group("What set it off", "trigger", Object.keys(byT).sort((a, b) => byT[b] - byT[a]).map((k) => [k, k, byT[k]])) +
+    `<div class="kf-h">Scale</div>` + [0, 1, 2, 3, 4, 5].map((v) => {
+      const atLeast = [1, 2, 3, 4, 5].filter((x) => x >= v).reduce((a, x) => a + (byS[x] || 0), 0);
+      return `<label class="kf"><input type="radio" name="${cfg.id}-scale" data-rscale="${v}"${v === s.scale ? " checked" : ""}>${v ? `≥${v}` : "Any"}${v ? ` <em>${atLeast}</em>` : ""}</label>`;
+    }).join("") +
+    `<div class="kf-h">How recent</div>` + R_WINDOWS.map(([v, l]) =>
+      `<label class="kf"><input type="radio" name="${cfg.id}-win" data-rwin="${v}"${v === s.win ? " checked" : ""}>${e(l)}</label>`).join("") +
+    `<label class="kf"><input type="checkbox" data-rundated checked>Keep records with no date</label>`;
+  const redraw = () => {
+    const src = map.getSource(`${cfg.id}-src`);
+    const vis = remainsVisible();
+    if (src) src.setData({ type: "FeatureCollection", features: remainsFeatures(vis) });
+    setLayerState(cfg.id, vis.length === s.rows.length ? `${vis.length.toLocaleString()} records` : `${vis.length.toLocaleString()} of ${s.rows.length.toLocaleString()} records`);
+  };
+  box.addEventListener("change", (ev) => {
+    ev.stopPropagation();
+    const t = ev.target;
+    if (t.dataset.rf) { const set = s.on[t.dataset.rf] || (s.on[t.dataset.rf] = new Set()); if (t.checked) set.delete(t.dataset.rv); else set.add(t.dataset.rv); }
+    else if (t.dataset.rscale != null) s.scale = Number(t.dataset.rscale);
+    else if (t.dataset.rwin != null) s.win = Number(t.dataset.rwin);
+    else if (t.dataset.rundated != null) s.undated = t.checked;
+    redraw();
+  });
+  let timer = null;
+  box.querySelector(".r-q").addEventListener("input", (ev) => {
+    clearTimeout(timer);
+    const v = ev.target.value.trim().toLowerCase();
+    timer = setTimeout(() => { s.q = v; redraw(); }, 200);
+  });
+  return box;
+}
+// How precise a mark is, as the map draws it: a solid dot for a named
+// institution or address, a ringed dot for the centre of a permit area, a
+// hollow ring for the centre of an administrative unit, a soft halo with no
+// centre where the place is blurred to keep a grave from being found.
+async function addRemainsLayer(cfg) {
+  let data;
+  try { data = await remainsJson("remains.json.gz"); }
+  catch (e) { setLayerState(cfg.id, `the map's records did not load (${e.message})`); return; }
+  const rows = (Array.isArray(data) ? data : data.records || []).map((r, i) => Object.assign({ _i: i }, r));
+  remainsState.rows = rows;
+  const src = `${cfg.id}-src`;
+  map.addSource(src, { type: "geojson", data: { type: "FeatureCollection", features: remainsFeatures(rows) } });
+  const colour = ["match", ["get", "posture"], ...Object.entries(R_PCOLOR).flat(), R_PCOLOR.watch];
+  const size = ["interpolate", ["linear"], ["zoom"], 1, ["+", 2, ["*", 0.6, ["get", "impact"]]], 8, ["+", 3.5, ["*", 1.4, ["get", "impact"]]]];
+  map.addLayer({ id: `${cfg.id}-cl`, type: "circle", source: src, filter: ["==", ["get", "geo"], "coarsened"],
+    paint: { "circle-color": colour, "circle-radius": ["*", 2.4, size], "circle-blur": 1, "circle-opacity": 0.55 } });
+  map.addLayer({ id: `${cfg.id}-pt`, type: "circle", source: src, filter: ["!=", ["get", "geo"], "coarsened"],
+    paint: { "circle-color": colour, "circle-radius": size,
+             "circle-opacity": ["match", ["get", "geo"], "admin", 0, 0.9],
+             "circle-stroke-color": ["match", ["get", "geo"], "admin", colour, "area", "#efe9dd", "#17150F"],
+             "circle-stroke-width": ["match", ["get", "geo"], "admin", 1.6, "area", 1.4, 0.5] } });
+  const open = (e) => {
+    const claim = e.originalEvent || e;
+    if (popupClaimedBy === claim) return;
+    popupClaimedBy = claim;
+    const seen = new Set();
+    const hits = e.features.map((f) => rows[f.properties.i]).filter((r) => r && !seen.has(r._i) && seen.add(r._i));
+    rGloDone = {};
+    const body = hits.slice(0, 12).map(remainsRecordHtml).join(`<hr class="r-hr">`) +
+      (hits.length > 12 ? `<div class="ent-empty">${hits.length - 12} more records here; zoom in to part them.</div>` : "");
+    const pop = new maplibregl.Popup({ closeButton: true, maxWidth: "360px", className: "rem-box" }).setLngLat(e.lngLat)
+      .setHTML(`<div class="rem-wb">${body}<div class="meta">loading what can be done here…</div></div>`).addTo(map);
+    remainsHereHtml(e.lngLat.lng, e.lngLat.lat).then((more) => { if (pop.isOpen()) pop.setHTML(`<div class="rem-wb">${body}${more}</div>`); })
+      .catch(() => { if (pop.isOpen()) pop.setHTML(`<div class="rem-wb">${body}</div>`); });
+  };
+  for (const l of [`${cfg.id}-pt`, `${cfg.id}-cl`]) {
+    map.on("click", l, open);
+    map.on("mouseenter", l, () => (map.getCanvas().style.cursor = "pointer"));
+    map.on("mouseleave", l, () => (map.getCanvas().style.cursor = ""));
+  }
+  const box = document.getElementById("layers");
+  const row = box && box.querySelector(`[data-layer="${cfg.id}"]`);
+  if (row && !box.querySelector(`.remains-filters[data-for="${cfg.id}"]`)) row.closest("label").after(remainsFiltersRow(cfg));
+  setLayerState(cfg.id, `${rows.length.toLocaleString()} records`);
+  applyVisibility(cfg.id);
+}
+// Crematoria, mortuaries and museums: the map's own single files.
+async function addRemainsFacLayer(cfg) {
+  let rows;
+  try { rows = await remainsJson(`${cfg.facFile}.json.gz`); }
+  catch (e) { setLayerState(cfg.id, `the map's file did not load (${e.message})`); return; }
+  rows = Array.isArray(rows) ? rows : [];
+  const src = `${cfg.id}-src`;
+  map.addSource(src, { type: "geojson", data: { type: "FeatureCollection", features: rows.map((f, i) =>
+    ({ type: "Feature", geometry: { type: "Point", coordinates: [Number(f[1]), Number(f[0])] }, properties: { i } }))
+    .filter((f) => isFinite(f.geometry.coordinates[0]) && isFinite(f.geometry.coordinates[1])) } });
+  map.addLayer({ id: `${cfg.id}-pt`, type: "circle", source: src,
+    paint: { "circle-color": cfg.colour, "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 1.6, 10, 5],
+             "circle-stroke-color": "#17150F", "circle-stroke-width": 0.4, "circle-opacity": 0.85 } });
+  bindHtmlPopup(`${cfg.id}-pt`, (p) => `<div class="rem-wb">${remainsFacilityHtml(rows[p.i] || [], cfg.facLabel)}</div>`, { maxWidth: "340px", className: "rem-box" });
+  setLayerState(cfg.id, `${rows.length.toLocaleString()} ${cfg.unit}`);
+  applyVisibility(cfg.id);
+}
+// The published findings: an open ring at the centre of the area a study
+// covered, never a site.
+async function addRemainsFindLayer(cfg) {
+  let d;
+  try { d = await remainsJson("findings.json"); }
+  catch (e) { setLayerState(cfg.id, `the map's findings did not load (${e.message})`); return; }
+  const list = (d && d.findings) || [];
+  const src = `${cfg.id}-src`;
+  map.addSource(src, { type: "geojson", data: { type: "FeatureCollection", features: list.map((f, i) =>
+    ({ type: "Feature", geometry: { type: "Point", coordinates: [Number(f.lng), Number(f.lat)] }, properties: { i, kind: f.kind || "looting", big: Number(f.value) >= 50 ? 1 : 0 } }))
+    .filter((f) => isFinite(f.geometry.coordinates[0]) && isFinite(f.geometry.coordinates[1])) } });
+  const ring = ["match", ["get", "kind"], "density", "rgba(120,170,190,.95)", "holdings", "rgba(196,160,214,.95)", "rgba(176,110,96,.95)"];
+  map.addLayer({ id: `${cfg.id}-pt`, type: "circle", source: src,
+    paint: { "circle-color": "rgba(12,10,8,.72)", "circle-radius": ["case", ["==", ["get", "big"], 1], 13, 10],
+             "circle-stroke-color": ring, "circle-stroke-width": 1.6 } });
+  bindHtmlPopup(`${cfg.id}-pt`, (p) => `<div class="rem-wb">${remainsFindingHtml(list[p.i] || {})}</div>`, { maxWidth: "360px", className: "rem-box" });
+  setLayerState(cfg.id, `${list.length} published findings`);
+  applyVisibility(cfg.id);
+}
+// A panel along the bottom: the resource lenses and guides, or the news wire.
+function remainsPanelShell(cfg) {
+  let c = companions.get(cfg.id);
+  if (c) return null;
+  const el = document.createElement("div");
+  el.className = "companion rem-wb rem-panel";
+  el.style.cssText = "position:fixed;left:0;right:0;bottom:0;height:46vh;z-index:40;display:flex;flex-direction:column;background:#1a1611;border-top:1px solid rgba(138,111,63,.5);color:#efe9dd";
+  el.innerHTML = `<div class="c-bar" style="display:flex;align-items:center;gap:11px;padding:6px 12px;font-size:12.5px"><span>${escapeHtml(cfg.name)}</span><span style="margin-left:auto"></span>` +
+    `<button type="button" style="font:inherit;background:none;color:#a89b84;border:1px solid rgba(138,111,63,.5);border-radius:2px;padding:1px 7px;cursor:pointer">close</button></div>` +
+    `<div class="rem-panel-body" style="flex:1;overflow:auto;padding:4px 14px 14px"><div class="ent-empty">loading…</div></div>`;
+  document.body.appendChild(el);
+  c = { el, frame: null, follow: null };
+  companions.set(cfg.id, c);
+  el.querySelector("button").addEventListener("click", () => {
+    const cb = document.querySelector(`[data-layer="${cfg.id}"]`);
+    if (cb) { cb.checked = false; cb.dispatchEvent(new Event("change", { bubbles: true })); }
+  });
+  return el.querySelector(".rem-panel-body");
+}
+const rIsoName = (() => { let dn = null; try { dn = new Intl.DisplayNames(["en"], { type: "region" }); } catch (e) { /* none */ }
+  return (c) => { try { return (dn && c && dn.of(String(c).toUpperCase())) || c; } catch (e) { return c; } }; })();
+async function addRemainsPanel(cfg) {
+  const body = remainsPanelShell(cfg);
+  if (body) {
+    try {
+      if (cfg.panel === "wire") await remainsWirePanel(body);
+      else await remainsLensPanel(body);
+      setLayerState(cfg.id, "open along the bottom of the screen");
+    } catch (e) {
+      body.innerHTML = `<div class="ent-empty">Did not load (${escapeHtml(e.message)}).</div>`;
+    }
+  }
+  applyVisibility(cfg.id);
+}
+async function remainsLensPanel(body) {
+  const [help, units] = await Promise.all([remainsHelp(), remainsUnitsData()]);
+  const names = {};
+  for (const f of (units && units.features) || []) if (f.properties.iso3) names[f.properties.iso3] = f.properties.name;
+  const said = (p) => { const [c, u] = String(p).split("/"); return `${names[c] || c}${u ? ` \u2014 ${u}` : ""}`; };
+  const e = escapeHtml;
+  const lenses = (help.lenses && help.lenses.lenses) || [];
+  const places = [...new Set(Object.keys(help.index).concat(help.guides.map((g) => g.serves)))].filter((k) => k !== "GLOBAL").sort();
+  let lens = lenses[0] && lenses[0].key, where = "";
+  const draw = () => {
+    const L = lenses.find((l) => l.key === lens) || lenses[0];
+    let h = `<div class="r-pills">${lenses.map((l) => `<span class="pill${l.key === lens ? " on" : ""}" data-lens="${e(l.key)}">${e(l.label)}</span>`).join("")}</div>`;
+    h += `<div class="kv" style="margin:6px 0"><span>Where it serves:</span> <select class="r-where"><option value="">Everywhere</option>${places.map((p) =>
+      `<option value="${e(p)}"${p === where ? " selected" : ""}>${e(said(p))}</option>`).join("")}</select></div>`;
+    if (L) {
+      h += `<div class="ent-empty">${e(L.desc || "")}</div>`;
+      const items = (L.items || []).filter((it) => !where || (it.serves || []).some((s) => s === where || s.startsWith(`${where}/`) || (where.includes("/") && s === where.split("/")[0])));
+      h += items.length ? items.map((it) => remainsItemHtml(help, it, "")).join("") : `<div class="ent-empty">Nothing in this lens serves there.</div>`;
+    }
+    const gs = help.guides.filter((g) => !where || g.serves === where || String(g.serves).startsWith(`${where}/`) || g.serves === where.split("/")[0]);
+    if (gs.length) h += `<div class="ent-sec">How-to guides${where ? " for there" : ""}</div>` + gs.map(remainsGuideHtml).join("");
+    if (help.status && help.status.tally) {
+      const t = help.status.tally;
+      h += `<div class="ent-empty" style="margin-top:8px">Links checked ${e(String(help.status.checked).slice(0, 10))}: <b>${t.ok || 0}</b> ok, ${t.redirect || 0} redirected, ${t.blocked || 0} block bots, <b>${t.dead || 0}</b> gone, ${t["find-only"] || 0} search-only. Dead links are kept and marked, not deleted.</div>`;
+    }
+    body.innerHTML = h;
+  };
+  body.addEventListener("click", (ev) => { const p = ev.target.closest("[data-lens]"); if (p) { lens = p.dataset.lens; draw(); } });
+  body.addEventListener("change", (ev) => { if (ev.target.classList.contains("r-where")) { where = ev.target.value; draw(); } });
+  draw();
+}
+async function remainsWirePanel(body) {
+  const e = escapeHtml;
+  const wire = await remainsJson("wire.json");
+  const W = Array.isArray(wire) ? wire : [];
+  const st = { region: "", topics: new Set(), age: 0, sort: "new" };
+  const counts = {};
+  W.forEach((w) => { if (w.iso) { counts[w.iso] = (counts[w.iso] || 0) + 1; if (w.region) counts[`${w.iso}|${w.region}`] = (counts[`${w.iso}|${w.region}`] || 0) + 1; } });
+  const byT = {};
+  W.forEach((w) => { const t = w.topic || "other"; byT[t] = (byT[t] || 0) + 1; });
+  const isos = Object.keys(counts).filter((k) => !k.includes("|")).sort((a, b) => counts[b] - counts[a] || rIsoName(a).localeCompare(rIsoName(b)));
+  const head = `<div class="r-pills">${R_WTOPIC.filter(([k]) => byT[k]).map(([k, l]) => `<span class="pill" data-topic="${k}">${e(l)} <em>${byT[k]}</em></span>`).join("")}</div>` +
+    `<div class="r-topic-desc ent-empty"></div>` +
+    `<div class="kv" style="display:flex;gap:10px;flex-wrap:wrap;margin:6px 0"><select class="r-region"><option value="">Everywhere (${W.length})</option>` +
+    isos.map((c) => `<option value="${e(c)}">${e(rIsoName(c))} (${counts[c]})</option>` + Object.keys(counts).filter((k) => k.startsWith(`${c}|`)).sort()
+      .map((k) => `<option value="${e(k)}">  — ${e(k.split("|")[1])} (${counts[k]})</option>`).join("")).join("") + `</select>` +
+    `<select class="r-age"><option value="0">Any date</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></select>` +
+    `<select class="r-sort"><option value="new">Newest first</option><option value="old">Oldest first</option><option value="sig">Most significant</option><option value="lang">By language</option><option value="place">By place</option><option value="topic">By topic</option></select></div><div class="r-wire"></div>`;
+  body.innerHTML = head;
+  const list = body.querySelector(".r-wire");
+  const draw = () => {
+    const cut = st.age ? new Date(Date.now() - st.age * 864e5).toISOString().slice(0, 10) : "";
+    let items = W.filter((w) => {
+      if (st.region) { if (st.region.includes("|")) { const [i, r] = st.region.split("|"); if (w.iso !== i || w.region !== r) return false; } else if (w.iso !== st.region) return false; }
+      if (st.topics.size && !st.topics.has(w.topic || "other")) return false;
+      if (cut && w.date && w.date < cut) return false;
+      return true;
+    });
+    const by = st.sort;
+    items = items.slice().sort((a, b) => by === "old" ? (a.date || "").localeCompare(b.date || "")
+      : by === "sig" ? (b.sig || 0) - (a.sig || 0) || (b.date || "").localeCompare(a.date || "")
+      : by === "lang" ? String(a.lang || "").localeCompare(String(b.lang || "")) || (b.date || "").localeCompare(a.date || "")
+      : by === "place" ? rIsoName(a.iso || "zzz").localeCompare(rIsoName(b.iso || "zzz")) || (a.region || "").localeCompare(b.region || "")
+      : by === "topic" ? (a.topic || "other").localeCompare(b.topic || "other") || (b.date || "").localeCompare(a.date || "")
+      : (b.date || "").localeCompare(a.date || ""));
+    list.innerHTML = items.length ? items.map((w) => {
+      const place = [w.region, w.iso ? rIsoName(w.iso) : "", w.lang && w.lang !== "en" ? w.lang : ""].filter(Boolean).join(", ");
+      return `<div class="wi sig${w.sig || 1}"><a href="${e(w.link)}" target="_blank" rel="noopener">${e(w.title)}</a>` +
+        `<div class="meta"><span class="tt">${e(w.topic || "other")}</span>${e(w.name || "")}${w.date ? ` · ${e(w.date)}` : ""}${place ? ` · ${e(place)}` : ""}</div></div>`;
+    }).join("") : `<div class="ent-empty">Nothing on the wire for this selection right now. That is a gap in <b>reporting</b>, not necessarily in events.</div>`;
+  };
+  body.addEventListener("click", (ev) => {
+    const p = ev.target.closest("[data-topic]");
+    if (!p) return;
+    const k = p.dataset.topic;
+    if (st.topics.has(k)) st.topics.delete(k); else st.topics.add(k);
+    p.classList.toggle("on");
+    const sel = [...st.topics];
+    body.querySelector(".r-topic-desc").textContent = sel.length === 1 && R_WTOPIC_DESC[sel[0]] ? R_WTOPIC_DESC[sel[0]] : "";
+    draw();
+  });
+  body.addEventListener("change", (ev) => {
+    const t = ev.target;
+    if (t.classList.contains("r-region")) st.region = t.value;
+    else if (t.classList.contains("r-age")) st.age = Number(t.value) || 0;
+    else if (t.classList.contains("r-sort")) st.sort = t.value;
+    draw();
+  });
+  draw();
+}
+const REMAINS_CSS = `
+.maplibregl-popup.rem-box .maplibregl-popup-content{background:#1a1611;border:1px solid rgba(138,111,63,.45);border-radius:8px;color:#efe9dd;font:12px/1.5 Marcellus,Georgia,serif;max-height:440px;overflow:auto}
+.maplibregl-popup.rem-box .maplibregl-popup-tip{border-top-color:#1a1611!important;border-bottom-color:#1a1611!important}
+.rem-wb .pk{font-size:15px;color:#f4efe4;line-height:1.35;margin-bottom:9px;padding-bottom:8px;border-bottom:1px solid rgba(138,111,63,.3)}
+.rem-wb .tag{display:inline-block;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.075em;padding:2px 6px;border-radius:3px;margin:0 4px 5px 0}
+.rem-wb .t-harm{background:rgba(181,70,47,.2);color:#e79a86}.rem-wb .t-watch{background:rgba(138,128,120,.22);color:#c9bfb5}
+.rem-wb .t-redress{background:rgba(111,158,140,.2);color:#a6cfc0}.rem-wb .t-unlawful{background:rgba(125,51,80,.24);color:#d093ab}
+.rem-wb .t-plain{background:rgba(255,255,255,.07);color:#a89b84}
+.rem-wb .kv{margin:5px 0}.rem-wb .kv span{color:#7d7360}
+.rem-wb .geo-note{margin-top:9px;padding:7px 9px;background:rgba(255,255,255,.04);border-left:2px solid #8a6f3f;border-radius:4px;font-size:10.5px;color:#a89b84;line-height:1.5}
+.rem-wb .plink{display:inline-block;margin-top:10px;font-size:11px;font-weight:700;color:#cbb898;text-decoration:none;border-bottom:1px dotted rgba(138,111,63,.5)}
+.rem-wb .gl{border-bottom:1px dotted rgba(138,111,63,.5);cursor:help}.rem-wb .gl-inline{color:#7d7360;font-style:italic}
+.rem-wb .ent-sec{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#7d7360;margin:12px 0 5px}
+.rem-wb .ent-empty{font-size:10.5px;color:#7d7360;line-height:1.55}
+.rem-wb .li{padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+.rem-wb .li a,.rem-wb .li .nolink{font-size:11.5px;color:#efe9dd;text-decoration:none;font-weight:600;line-height:1.35}
+.rem-wb .li .note{font-size:10px;color:#a89b84;line-height:1.5;margin-top:3px}
+.rem-wb .li.dead a,.rem-wb .li.dead .nolink{color:#7d7360;text-decoration:line-through}
+.rem-wb .st{display:inline-block;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;padding:1px 5px;border-radius:3px;margin-left:6px;vertical-align:1px}
+.rem-wb .st-dead{background:rgba(181,70,47,.22);color:#e79a86}.rem-wb .st-unchecked{background:rgba(255,255,255,.06);color:#7d7360}
+.rem-wb .st-blocked{background:rgba(138,128,120,.2);color:#c9bfb5}.rem-wb .st-find{background:rgba(111,158,140,.18);color:#a6cfc0}
+.rem-wb .st-lens{color:#7d7360;border:1px solid rgba(138,111,63,.3);border-radius:3px;padding:0 3px;margin-left:5px;font-size:9px}
+.rem-wb .lvl{font-size:9px;color:#7d7360;text-transform:uppercase;letter-spacing:.06em;margin-left:6px}
+.rem-wb .r-int{margin:9px 0 2px;font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:#cbb898}
+.rem-wb details.disc{margin:4px 0}.rem-wb details.disc summary{cursor:pointer;color:#efe9dd}
+.rem-wb details.disc .body{font-size:10.5px;color:#a89b84;line-height:1.6;margin-top:6px}
+.rem-wb .callout{margin:8px 0;padding:8px 10px;background:rgba(255,255,255,.04);border-left:2px solid #8a6f3f;border-radius:4px}
+.rem-wb .gd-dl{color:#b5462f;font-weight:600}.rem-wb .run{margin:4px 0 4px 16px}
+.rem-wb .r-hr{border:0;border-top:1px solid rgba(138,111,63,.35);margin:12px 0}
+.rem-wb .r-here{margin-top:10px;border-top:1px solid rgba(138,111,63,.35)}
+.rem-wb .pill{display:inline-block;cursor:pointer;font-size:10px;padding:3px 8px;border-radius:9px;border:1px solid rgba(138,111,63,.4);color:#a89b84;margin:0 4px 4px 0}
+.rem-wb .pill.on{background:rgba(138,111,63,.3);color:#efe9dd}.rem-wb .pill em{font-style:normal;opacity:.7;margin-left:4px}
+.rem-wb .wi{padding:7px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+.rem-wb .wi a{font-size:11.5px;color:#efe9dd;text-decoration:none;line-height:1.4;display:block}.rem-wb .wi.sig2 a{font-weight:700}
+.rem-wb .wi .meta{font-size:9.5px;color:#7d7360;margin-top:3px}
+.rem-wb .wi .tt{display:inline-block;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;padding:1px 5px;border-radius:3px;margin-right:5px;background:rgba(255,255,255,.07);color:#a89b84}
+.rem-wb select{font:inherit;font-size:11px;background:#221d16;color:#efe9dd;border:1px solid rgba(138,111,63,.5);border-radius:3px}
+#layers .remains-filters em{font-style:normal;color:var(--dim);font-size:11px;margin-left:auto}
+`;
+if (typeof document !== "undefined" && document.head && document.createElement) {
+  const st = document.createElement("style");
+  st.id = "remains-css";
+  st.textContent = REMAINS_CSS;
+  document.head.appendChild(st);
+}
+
 // ---- round 76: the Genetic engineering map's country write-ups, its "What
 // you can do" lists, open consultations, guides and international bodies ------
 // Copied daily by culprits-tiles-more (scripts/gmo_boxes.py), which opens the
@@ -12921,10 +13528,34 @@ const MORE_MAPS = {
       note: "Every row of facilities_police.json in WelcomeToYourGalaxy/activist-rights-map." },
     { id: "activist_prisons", name: "Prisons (activist rights map)", unit: "prisons", colour: "#665C68", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/activist_prisons.pmtiles",
       note: "Every row of facilities_prisons.json in WelcomeToYourGalaxy/activist-rights-map." },
-    { id: "remains_findings", name: "Published aggregate findings (Unearthings)", unit: "findings", colour: "#6A6257", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/remains_findings.pmtiles",
-      note: "Every row of findings.json in WelcomeToYourGalaxy/remains." },
-    { id: "remains_cemeteries", name: "Cemeteries (Unearthings)", unit: "cemeteries", colour: "#6A6257", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/remains_cemeteries.pmtiles",
+    // Round 77: the findings, the countries, the crematoria, mortuaries and
+    // museums, the fire, the resource lenses and the wire, as the Unearthings
+    // map has them.
+    { id: "remains_findings", name: "Published aggregate findings: measured looting, site density and institutional holdings (Unearthings)", unit: "findings", colour: "#6A6257", route: "remainsfind", ready: true, lazy: true,
+      note: "Published aggregate findings on how much has already been looted or lost, how densely sites occur, and how many ancestors institutions still hold, each an open ring at the centre of the area the study covered. Aggregates only; no site locations are held or shown. Read from the map's findings.json each time it is ticked." },
+    { id: "remains_units", name: "Countries: what the harvest holds in each, with its guides and resources (Unearthings)", unit: "countries", colour: "#6A6257", route: "shapes", ready: true, lazy: true, box: "remainsunit",
+      dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/remains_units.geojson",
+      note: "Each country shaded by how many of the map's records fall inside it; a click opens what is there, counted by direction, the first records by name, and the map's guides and resources for that country and the units inside it. The countries are world-atlas's (Natural Earth), as the map draws them; rebuilt daily by culprits-tiles-more." },
+    { id: "remains_cemeteries", name: "Cemeteries and burial grounds (Unearthings)", unit: "cemeteries", colour: "#6A6257", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/remains_cemeteries.pmtiles",
       note: "Every row of remains_local_cemetery_*.json.gz in WelcomeToYourGalaxy/remains." },
+    { id: "remains_crematoria", name: "Crematoria (Unearthings)", unit: "crematoria", colour: "#9A7B6E", route: "remainsfac", ready: true, lazy: true,
+      facFile: "remains_local_crematory", facLabel: "Crematorium",
+      note: "Relevant when a disposition names cremation rather than reburial. OpenStreetMap's crematoria, from the map's own file, read each time it is ticked." },
+    { id: "remains_mortuaries", name: "Mortuaries and funeral directors (Unearthings)", unit: "mortuaries", colour: "#8E7A9A", route: "remainsfac", ready: true, lazy: true,
+      facFile: "remains_local_mortuary", facLabel: "Mortuary or funeral director",
+      note: "Where the recently dead are held before burial. OpenStreetMap's mortuaries and funeral directors, from the map's own file, read each time it is ticked." },
+    { id: "remains_museums", name: "Museums that may hold ancestors \u2014 unconfirmed (Unearthings)", unit: "museums", colour: "#7E8A6A", route: "remainsfac", ready: true, lazy: true,
+      facFile: "remains_local_museum", facLabel: "Museum (may hold remains \u2014 unconfirmed)",
+      note: "Institutions that might hold ancestors. Most do not: an OpenStreetMap museum tag says nothing about whether a museum holds human remains. The set a researcher would have to ask, from the map's own file." },
+    { id: "remains_fire", name: "Active fire, last 24 hours (NASA VIIRS)", unit: "thermal anomalies, 375 m", colour: "#8C5548", route: "rasterlive", ready: true, lazy: true,
+      attribution: "Fire: NASA EOSDIS GIBS / VIIRS", maxzoom: 7,
+      choices: [{ label: "VIIRS NOAA-20, day", tiles: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_NOAA20_Thermal_Anomalies_375m_Day/default/default/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png" }],
+      rasterPaint: { "raster-saturation": -0.6, "raster-opacity": 0.85 },
+      note: "NASA VIIRS thermal anomalies, refreshed daily. Fire exposes remains with no permit and no applicant (the Unearthings map's words); under Fire too." },
+    { id: "remains_help", name: "Resources and how-to guides, by what you want to do and where (Unearthings)", unit: "opens a panel along the bottom", colour: "#6f9e8c", route: "remainspanel", panel: "lens", ready: true, lazy: true,
+      note: "The map's resource lenses: every body and instrument it names, with where each serves, whether its link still works, and its nine step-by-step guides for the jurisdictions with a verified legal hook. Read from the map each time it is ticked." },
+    { id: "remains_wire", name: "News of unearthings, repatriations and desecration (Unearthings wire)", unit: "opens a panel along the bottom", colour: "#6A6257", route: "remainspanel", panel: "wire", ready: true, lazy: true,
+      note: "The map's news wire, in every language it reads, with its topics, places and sorting. Read from the map each time it is ticked." },
     { id: "slavery_prevalence", name: "Modern slavery prevalence estimates (anti-slavery map)", unit: "countries", colour: "#735C5E", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/slavery_prevalence.geojson",
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
     { id: "slavery_routes", name: "Trafficking routes, country to country (anti-slavery map)", unit: "routes", colour: "#7A6060", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/slavery_routes.geojson",
@@ -13789,6 +14420,10 @@ function ensureLayer(cfg) {
       : cfg.route === "gsn" ? addGsnLayer(cfg)
       : cfg.route === "companion" ? Promise.resolve().then(() => addCompanion(cfg))
       : cfg.route === "gmopanel" ? addGmoPanel(cfg)
+      : cfg.route === "remains" ? addRemainsLayer(cfg)
+      : cfg.route === "remainsfac" ? addRemainsFacLayer(cfg)
+      : cfg.route === "remainsfind" ? addRemainsFindLayer(cfg)
+      : cfg.route === "remainspanel" ? addRemainsPanel(cfg)
       : cfg.route === "leave" ? Promise.resolve().then(() => { setLayerState(cfg.id, cfg.unit); applyVisibility(cfg.id); })
       : cfg.route === "rte" ? addRteLayer(cfg)
       : cfg.route === "ll2" && cfg.what === "upcoming" ? addLaunchSitesLayer(cfg)
@@ -14340,6 +14975,10 @@ map.on("load", () => {
       else if (cfg.route === "carbonmapper") {
         addCarbonMapperLayer(cfg).catch((e) => setLayerState(cfg.id, `failed (${e.message})`));
       }
+      // Round 77: the Unearthings records, read from the map's own file.
+      else if (cfg.route === "remains") {
+        addRemainsLayer(cfg).catch((e) => setLayerState(cfg.id, `failed (${e.message})`));
+      }
       else if (cfg.route === "country") {
         // Async: without a catch a failure here becomes an unhandled rejection
         // and the layer just silently never appears.
@@ -14634,6 +15273,13 @@ const LAYER_SITE = {
   remains_cemeteries: "https://github.com/WelcomeToYourGalaxy/remains",
   remains_findings: "https://github.com/WelcomeToYourGalaxy/remains",
   remains_records: "https://github.com/WelcomeToYourGalaxy/remains",
+  remains_units: "https://welcometoyourgalaxy.github.io/remains/",
+  remains_crematoria: "https://welcometoyourgalaxy.github.io/remains/",
+  remains_mortuaries: "https://welcometoyourgalaxy.github.io/remains/",
+  remains_museums: "https://welcometoyourgalaxy.github.io/remains/",
+  remains_fire: "https://firms.modaps.eosdis.nasa.gov/map/",
+  remains_help: "https://welcometoyourgalaxy.github.io/remains/",
+  remains_wire: "https://welcometoyourgalaxy.github.io/remains/",
   rte_trade: "https://api.resourcetrade.earth/api/rt/2.7",
   scribd_doc: "https://www.scribd.com/embeds/401203705/content?start_page=1&view_mode=scroll&access_key=key-9NzI5oK8PppZP3Bfluct",
   seas_of_plastic: "https://app.dumpark.com/seas-of-plastic-2/app/data/AllStations.geojson",
@@ -14713,6 +15359,8 @@ const LIVE_ROUTES = new Set([
   "arcgis", "arcgisdyn", "arcgisapp", "umap", "kml", "ll2", "ejatlas", "geojsonlive",
   "wpgmza", "atlascities", "trase", "trasefac", "wmsmenu", "gfwmenu", "giga", "gta",
   "rte", "owidgrapher", "spheres", "companion", "gsn", "leave", "adsbmil", "gdeltgeo",
+  // The Unearthings map's own files, read each time a row is ticked (round 77).
+  "remains", "remainsfac", "remainsfind", "remainspanel",
   // The biosignature worlds are read from the assessment page itself each time.
   "worldsring",
 ]);
@@ -14869,7 +15517,11 @@ const PANEL_ORDER = [
   { h: 4, bundle: "military", colour: "#6A5E5A" }, "mil_news", "mil_conflicts", "mil_attacks", "mil_aircraft", "mil_sites", "mil_units",
   "mil_test_sites", "mil_minefields", "mil_alliances",
   { h: 5, bundle: "milcompare", colour: "#6E5F52" }, "mil_spend_gdp", "mil_spend_gov", "mil_spend_usd", "mil_personnel", "mil_warheads", "mil_tests", "mil_nuclear_position",
-  { h: 2, t: "Invasion of the after-life" }, "remains_records", "remains_findings", "remains_cemeteries",
+  // Round 77: the whole Unearthings map, in its own order.
+  { h: 2, t: "Invasion of the after-life" }, "remains_records", "remains_units", "remains_findings", "remains_cemeteries",
+  "remains_crematoria", "remains_mortuaries", "remains_museums", "remains_fire",
+  { note: "Permafrost thaw and coastal erosion unearth remains too; no public service publishes either as a live worldwide layer, so the Unearthings map leaves them off rather than faking them, and so does this one." },
+  "remains_help", "remains_wire",
 
   { h: 1, t: "Destruction" },
   { h: 2, t: "Of the planet" },
@@ -14946,7 +15598,7 @@ const PANEL_ORDER = [
   // Round 75: the wells and the oil and gas concessions, where spills start.
   { h: 5, t: "Where oil and gas is drilled" }, "skytruth_fracfocus",
   { h: 5, t: "Marine slicks" }, "cerulean_slicks", "cerulean_sources", "slick_archive", "skytruth_voc", "skytruth_marine_incidents", "skytruth_posts",
-  { h: 3, t: "Fire" },
+  { h: 3, t: "Fire" }, "remains_fire",
   { h: 3, t: "Deforestation" }, "forest_management",
   // Split one level further where the lists ran long (round 23, item 27); the
   // catalogue rows find their sub-heading through CATALOGUE_SUBS. Spatial plans
@@ -15727,7 +16379,7 @@ function applyLayerSearch(box, query) {
 // they are (pages in a panel, the Eyes and ring views, trade flow lines) are
 // left to be ticked by hand.
 const KIND_POINT = new Set(["pmtiles", "sitemap", "geojsonlive", "kml", "umap", "wpgmza", "trasefac", "ctairgas", "ctair", "worker",
-  "ejatlas", "carbonmapper", "atlascities", "ufo", "gta", "cafo", "arcgisapp"]);
+  "ejatlas", "carbonmapper", "atlascities", "ufo", "gta", "cafo", "arcgisapp", "remains", "remainsfac", "remainsfind"]);
 const KIND_SHAPE = new Set(["pmshapes", "pmtareas", "arcgis", "arcgisdyn", "rasterlive", "rasterparts", "tile", "osmlanduse", "coral",
   "glw", "shapes", "cerulean", "slickarchive"]);
 const KIND_NATIONAL = new Set(["giga", "country", "owidgrapher"]);

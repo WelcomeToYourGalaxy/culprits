@@ -5,6 +5,30 @@ touches.
 
 ---
 
+## Round 77 (27 September)
+
+- Invasion of the after-life completed from the Unearthings map
+  (WelcomeToYourGalaxy/remains), read from its own site
+  (REMAINS_BASE, remainsJson handles its gzipped files):
+  - remains_records: route "remains" (was pmtiles): every record, marks by
+    precision (solid, ringed, hollow, halo for blurred), the map's own box
+    (remainsRecordHtml: glossary defined in place, geo notes) plus "what to
+    do here" for the country it sits in; filters row (register, direction,
+    kind, trigger, scale, how recent, undated, words).
+  - remains_findings: route "remainsfind" (findings.json, the map's box).
+  - remains_crematoria, remains_mortuaries, remains_museums: route
+    "remainsfac" (remains_local_<type>.json.gz, the map's facility box).
+  - remains_units: countries from culprits-tiles-more
+    shapes/remains_units.geojson (round77_tiles scripts/remains_units.py),
+    shaded by records inside; box = the map's unitHTML with its guides and
+    resources for the country and its units.
+  - remains_fire: NASA VIIRS thermal anomalies (GIBS), also under Fire.
+  - remains_help (lenses, link status, guides by place) and remains_wire
+    (news with topics, places, dates, sorting): route "remainspanel".
+  - Thaw and erosion: a note (no global feed, as the map says).
+- Yellow and orange in the map's own colours replaced with muted ones.
+
+
 ## Round 76 (27 September)
 
 - The Genetic engineering map's remaining parts, copied daily by

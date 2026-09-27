@@ -4749,5 +4749,38 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /"lapsed": \("expired" if r\.get\("lapsed"\) is True/.test(py) && /"subjects": _subjects\(r\)/.test(py) && /def _subjects\(r\):/.test(py));
   check("the page asks for this round's script", /app\.js\?v=(7[6-9]|[89]\d)/.test(html));
 }
+{
+  console.log("\nround 77: Invasion of the after-life, complete");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const o = new Function(body + "; return PANEL_ORDER;")();
+  const ids = ["remains_records", "remains_units", "remains_findings", "remains_cemeteries", "remains_crematoria", "remains_mortuaries", "remains_museums", "remains_fire", "remains_help", "remains_wire"];
+  const at = o.findIndex((x) => x && x.t === "Invasion of the after-life");
+  check("every part of the Unearthings map is a row under Invasion of the after-life, thaw and erosion said to have no feed",
+        ids.every((id, i) => o.indexOf(id) > at && (!i || o.indexOf(id) > o.indexOf(ids[i - 1]))) &&
+        o.some((x, i) => i > at && x && x.note && /Permafrost thaw and coastal erosion/.test(x.note)) && o.indexOf("remains_fire") > -1 &&
+        (src.match(/id: "remains_findings"/g) || []).length === 1);
+  check("the records, facilities, findings and panels are read from the map's own site",
+        /const REMAINS_BASE = "https:\/\/welcometoyourgalaxy\.github\.io\/remains\/";/.test(src) && /id:"remains_records"[^\n]*route:"remains"/.test(src) &&
+        /cfg\.route === "remainsfac" \? addRemainsFacLayer\(cfg\)/.test(src) && /cfg\.route === "remainspanel" \? addRemainsPanel\(cfg\)/.test(src) &&
+        /"remains", "remainsfac", "remainsfind", "remainspanel",/.test(src));
+  const esc = (x) => String(x == null ? "" : x).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const code = src.slice(src.indexOf("const R_POSTURES"), src.indexOf("// Resources and guides, attached by the jurisdiction"));
+  const R = new Function("escapeHtml", code.replace(/const remainsCache[\s\S]*?\n}\n/, "") + "; return { remainsRecordHtml, remainsFacilityHtml, setDone: () => { rGloDone = {}; } };")(esc);
+  R.setDone();
+  const h = R.remainsRecordHtml({ name: "Notice of repatriation", posture: "redress", kind: "repatriation", geo: "coarsened", desc: "A repatriation under NAGPRA.", url: "https://x.org/r" });
+  check("a record's box is the map's own: its direction, its kind with the plain definition, how precise its place is",
+        /t-redress/.test(h) && /Repatriation notice<\/span><span class="gl-inline"> \(a published legal notice/.test(h) && /Blurred to about 5 km/.test(h) &&
+        /Open the primary record/.test(h));
+  check("…and the facility box says what the map says", /not blurred<\/b>, because it is a signposted public place/.test(R.remainsFacilityHtml([1, 2, "X", "", "", "Addr", "", "01"], "Crematorium")));
+  check("the records keep the map's filters: register, direction, kind, trigger, scale, how recent, undated, words",
+        /group\("Register", "source"/.test(src) && /group\("Direction", "posture"/.test(src) && /group\("Kind", "kind"/.test(src) &&
+        /group\("What set it off", "trigger"/.test(src) && /data-rscale/.test(src) && /data-rwin/.test(src) && /data-rundated/.test(src) && /class="r-q"/.test(src));
+  check("no yellow or orange in the after-life colours", !/#c9a227|#e0913f|#e8d24a/i.test(src.slice(src.indexOf("const REMAINS_BASE"), src.indexOf("const REMAINS_CSS"))));
+  check("a country opens with what is in it and its guides and resources", /cfg\.box === "remainsunit"/.test(src) && /function remainsUnitHtml\(help, p\)/.test(src) &&
+        /remains_units: \[\{ label: "records from the Unearthings harvest", field: "n", scale: "log" \}\]/.test(src));
+  check("the page asks for this round's script", /app\.js\?v=(7[7-9]|[89]\d)/.test(html));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
