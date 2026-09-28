@@ -5,6 +5,28 @@ touches.
 
 ---
 
+## Round 93b (27 September)
+
+Needs round 92b (runs after it by name). Tiles patch round93b_tiles.py beside it.
+
+- Surface water's rows (jrc_water, the waterwatch bundle) under Water scarcity;
+  every catalogue "> Surface water" path is "> Water scarcity". The Borneo
+  surface water change (Nusantara) out.
+- "Anywhere water was ever seen": the JRC has no extent tiles (404 in both
+  buckets); drawn from the occurrence tiles in one colour.
+- Reservoirs (Global Water Watch): red below usual, blue above (GFW_COLOUR_BY
+  sign specs; waterSignExpr): anomalies2 by its anomaly; anomalies at the latest
+  month with numbers, by that month's anomaly if its column holds negatives,
+  else area against the _monthly area. WATER_* colours kept as written.
+- nexgddp_change_dry_spells_2000_2080 drawn at 0.42 opacity (GFW_RASTER_PAINT).
+- Aqueduct: aqueduct_proj (WRI projections file, menus measure/year/scenario/
+  level-or-change, coloured by WRI's labels in the order of their values) and
+  aqueduct_crop (GFW's data-lake copy, crop menu, five steps) as route
+  pmchoose from tiles aqueduct.py; GFW's test_wat_006 and
+  aqueduct_crop_baseline_2020 rows out. Scenario codes read as 24 optimistic
+  (SSP2 RCP4.5), 28 business as usual (SSP2 RCP8.5), 38 pessimistic (SSP3 RCP8.5).
+
+
 ## Round 92b (27 September)
 
 Needs round 91b (runs after it by name). No tiles patch.

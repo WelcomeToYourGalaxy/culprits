@@ -1053,14 +1053,18 @@ const REMAP = {
   gsw_change: { mode: "ramp", src: ["ff0000", "000000", "00ff00"], dst: ["B07087", "2A2622", "8E9E7C"] },
   gsw_seasonality: { mode: "ramp", src: ["99d9ea", "0000ff"], dst: ["A9B4B8", "2F4652"] },
   gsw_recurrence: { mode: "ramp", src: ["ff7f27", "99d9ea"], dst: ["8C5A68", "A9B4B8"] },
-  gsw_extent: { mode: "class", src: ["6666ff"], dst: ["5E7377"] },
+  // Round 93b: the JRC publishes no "extent" tiles (asked for, they answered
+  // 404, which is why the chip drew nothing). Anywhere water was ever seen is
+  // every pixel of the occurrence map, drawn in one colour.
+  gsw_extent: { mode: "class", src: ["0000ff"], dst: ["5E7377"] },
   gsw_transitions: { mode: "class",
     src: ["0000ff", "22b14c", "d1102d", "99d9ea", "b5e61d", "e68a00", "ff7f27", "ffc90e", "7f7f7f", "c3c3c3"],
     dst: ["2F4652", "6F805F", "8C4F5A", "8C9DA6", "A3AE8E", "B07087", "5E7377", "C9CFD2", "6A6258", "A39C92"] },
 };
 const GSW = (layer) => `remap://gsw_${layer}/storage.googleapis.com/water-world/tiles2024/${layer}/{z}/{x}/{y}.png`;
 const GSW_OCCURRENCE = GSW("occurrence"), GSW_CHANGE = GSW("change"), GSW_SEASONALITY = GSW("seasonality"),
-      GSW_RECURRENCE = GSW("recurrence"), GSW_TRANSITIONS = GSW("transitions"), GSW_EXTENT = GSW("extent");
+      GSW_RECURRENCE = GSW("recurrence"), GSW_TRANSITIONS = GSW("transitions"),
+      GSW_EXTENT = `remap://gsw_extent/storage.googleapis.com/water-world/tiles2024/occurrence/{z}/{x}/{y}.png`;
 const hex3 = (h) => [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
 function remapColour(spec, r, g, b) {
   const src = spec.src.map(hex3), dst = spec.dst.map(hex3);
@@ -4537,6 +4541,117 @@ function addPmVectorLayer(cfg) {
   buildLegend();
 }
 
+/* ---------- a vector archive coloured by a field chosen from menus (round 93b) ---------- */
+// Aqueduct's projected and farmland water stress: the archive is read in
+// place; menus choose the field; "labels" colours by the source's own ranked
+// category names, ordered light to dark by the mean of the values behind them
+// (names with no value, such as "No data" or "Arid and low water use", grey);
+// "numbers" colours in five steps, Aqueduct's 0 to 5 scale when every value
+// read falls inside it, otherwise at the values' own fifths, fixed once read
+// so the colours do not move as the map is panned.
+const CHOOSE_RAMP = ["#D6EEF6", "#8FD6E8", "#3FA9C2", "#1E6FA8", "#0E2F66"];
+const CHOOSE_NONE = "#77726A";
+function chooseRamp(n) {
+  if (n <= 1) return [CHOOSE_RAMP[2]];
+  return Array.from({ length: n }, (_, i) => CHOOSE_RAMP[Math.round(i * (CHOOSE_RAMP.length - 1) / (n - 1))]);
+}
+// Labels in order, from features' properties: pure, so it is tested.
+function chooseLabelOrder(props, lf, rf) {
+  const sums = new Map();
+  for (const p of props) {
+    const l = p[lf];
+    if (l == null || l === "") continue;
+    const s = sums.get(String(l)) || [0, 0];
+    const v = Number(p[rf]);
+    if (p[rf] !== null && p[rf] !== "" && Number.isFinite(v)) { s[0] += v; s[1]++; }
+    sums.set(String(l), s);
+  }
+  const valued = [...sums].filter(([, s]) => s[1]).sort((a, b) => a[1][0] / a[1][1] - b[1][0] / b[1][1]).map(([l]) => l);
+  const bare = [...sums].filter(([, s]) => !s[1]).map(([l]) => l).sort();
+  return { valued, bare };
+}
+function chooseBreaks(values) {
+  const v = values.filter(Number.isFinite).sort((a, b) => a - b);
+  if (!v.length) return null;
+  if (v[0] >= 0 && v[v.length - 1] <= 5) return { breaks: [1, 2, 3, 4], labels: ["0 to 1", "1 to 2", "2 to 3", "3 to 4", "4 to 5"], scale: "Aqueduct's 0 to 5 scale" };
+  const q = (f) => v[Math.min(v.length - 1, Math.floor(f * v.length))];
+  const breaks = [...new Set([q(0.2), q(0.4), q(0.6), q(0.8)])];
+  const fmt = (x) => Number(x.toPrecision(3)).toLocaleString();
+  const edges = [v[0], ...breaks, v[v.length - 1]];
+  return { breaks, labels: edges.slice(0, -1).map((a, i) => `${fmt(a)} to ${fmt(edges[i + 1])}`), scale: "fifths of the values read" };
+}
+function addPmChooseLayer(cfg) {
+  const src = `${cfg.id}-src`;
+  if (map.getSource(src)) return;
+  map.addSource(src, { type: "vector", url: `pmtiles://${cfg.archiveUrl}`, attribution: cfg.attribution || "" });
+  map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source: src, "source-layer": cfg.sourceLayer, paint: { "fill-color": CHOOSE_NONE, "fill-opacity": 0.72 } }, pointLayerAbove());
+  map.addLayer({ id: `${cfg.id}-line`, type: "line", source: src, "source-layer": cfg.sourceLayer, paint: { "line-color": "#0B2344", "line-width": 0.25, "line-opacity": 0.6 } }, pointLayerAbove());
+  cfg._layerIds = [`${cfg.id}-fill`, `${cfg.id}-line`];
+  bindHtmlPopup(`${cfg.id}-fill`, (p) => `<b>${escapeHtml(cfg.name)}</b><table class="meta">${fieldRows(p)}</table>`);
+  const pick = cfg.menus.map((m, i) => (cfg.defaults && cfg.defaults[i]) || m.options[0][0]);
+  let fixed = null, shown = "";
+  const paint = () => {
+    let feats = [];
+    try { feats = map.querySourceFeatures(src, { sourceLayer: cfg.sourceLayer }).map((f) => f.properties || {}); } catch (e) { return; }
+    if (!feats.length) return;
+    const lf = cfg.fieldOf(pick);
+    let expr, key, hint;
+    if (cfg.mode === "labels") {
+      const { valued, bare } = chooseLabelOrder(feats, lf, cfg.rawOf(pick));
+      const sig = lf + "|" + valued.join("|") + "|" + bare.join("|");
+      if (sig === shown) return;
+      shown = sig;
+      const cols = chooseRamp(valued.length);
+      const pairs = valued.map((l, i) => [l, cols[i]]).concat(bare.map((l) => [l, CHOOSE_NONE]));
+      expr = pairs.length ? ["match", ["to-string", ["get", lf]], ...pairs.flat(), CHOOSE_NONE] : CHOOSE_NONE;
+      key = pairs.map(([l, c]) => [c, l]);
+      hint = "WRI's own categories, light to dark in the order of the values behind them";
+    } else {
+      if (!fixed || fixed.field !== lf) {
+        const b = chooseBreaks(feats.map((p) => (p[lf] === null || p[lf] === "" ? NaN : Number(p[lf]))));
+        if (!b) return;
+        fixed = Object.assign({ field: lf }, b);
+      }
+      if (shown === lf) return;
+      shown = lf;
+      const cols = chooseRamp(fixed.labels.length);
+      const v = ["to-number", ["get", lf], -1e12];
+      expr = ["case", ["==", v, -1e12], CHOOSE_NONE, ["step", v, cols[0], ...fixed.breaks.flatMap((b, i) => [b, cols[i + 1]])]];
+      key = fixed.labels.map((l, i) => [cols[i], l]).concat([[CHOOSE_NONE, "no figure"]]);
+      hint = `The figure for the crop, as stored, in ${fixed.scale}`;
+    }
+    if (map.getLayer(`${cfg.id}-fill`)) map.setPaintProperty(`${cfg.id}-fill`, "fill-color", expr);
+    rowKey(cfg.id, key, hint);
+    buildLegend();
+  };
+  let timer = null;
+  const later = () => { clearTimeout(timer); timer = setTimeout(paint, 300); };
+  map.on("sourcedata", (e) => { if (e && e.sourceId === src) later(); });
+  map.on("error", (e) => { if (e && e.sourceId === src) setLayerState(cfg.id, "not built yet: its copy has not been made"); });
+  const box = document.getElementById("layers");
+  const row = box && box.querySelector && box.querySelector(`[data-layer="${cfg.id}"]`);
+  const anchor = row && row.closest ? row.closest("label") : null;
+  if (anchor && anchor.after && typeof document.createElement === "function") {
+    const el = document.createElement("div");
+    el.className = "facet";
+    el.dataset.chooseFor = cfg.id;
+    el.innerHTML = cfg.menus.map((m, i) => `<label style="display:block;padding-left:18px;font-size:11px">${escapeHtml(m.label)} ` +
+      `<select data-choose="${i}" style="font:inherit;font-size:11px;max-width:100%">` +
+      m.options.map(([v, t]) => `<option value="${escapeHtml(v)}"${v === pick[i] ? " selected" : ""}>${escapeHtml(t)}</option>`).join("") + `</select></label>`).join("");
+    el.addEventListener("change", (ev) => {
+      const sel = ev.target.closest && ev.target.closest("[data-choose]");
+      if (!sel) return;
+      pick[Number(sel.dataset.choose)] = sel.value;
+      shown = ""; fixed = null;
+      paint();
+    });
+    anchor.after(el);
+  }
+  setLayerState(cfg.id, `${cfg.unit} · from the map's own copy`);
+  applyVisibility(cfg.id);
+  later();
+}
+
 /* ---------- pictures read live, with a choice of the source's own layers ---------- */
 function addRasterChoiceLayer(cfg) {
   // A row whose build writes its own list of chips (choicesUrl) reads it first:
@@ -7128,7 +7243,7 @@ const CATALOGUE_PLACES = [
   // Kept where they were, at the owner's word (22 September, "I'll decide later").
   [/forest cover|forest and non-forest|land cover|tree height|forest as a share|tree cover extent|forest extent|tree cover density|forest age|industrial land/i, P + " > Forest and land cover"],
   [/mangrove|reef|benthic|coral/i, P + " > Oceans > Reefs and mangroves"],
-  [/water|aqueduct|\brivers?\b|watershed|flood|\bpond\b|canal/i, P + " > Surface water"],
+  [/water|aqueduct|\brivers?\b|watershed|flood|\bpond\b|canal/i, P + " > Water scarcity"],
   [/customary|\badat\b|indigenous|community land|tenure|land rights|quilombola|village forest|community forest|social forestry|rural settlement|forestry employment/i,
    "On-planet invasion > Invasion of the living > Invasion of humans"],
   [/\broads?\b|transmigration|settlement|capital|\bikn\b|infrastructure|\burban|\bbuilt\b/i, P + " > Construction"],
@@ -7151,6 +7266,12 @@ const CATALOGUE_PLACES = [
 // titles each rule caught.
 const CATALOGUE_TAKEN_OUT = "(taken out)";
 const CATALOGUE_BY_TITLE = [
+  // Round 93b (asked 27 September): the Borneo surface water change out;
+  // Global Forest Watch's copies of Aqueduct's projected water stress and its
+  // farmland water stress out, the map's own copies of the same data in their
+  // place (aqueduct_proj, aqueduct_crop: fast, and coloured by their figures).
+  [/IDNMYSBorneo_WaterChangeRGB|(?=.*surface water change)(?=.*borneo)/i, null],
+  [/\btest_wat_006_projected_water_stress\b|\baqueduct_crop_baseline_2020\b/, null],
   // Round 92b (asked 27 September): the natural forests map with the forest
   // cover it describes, under Deforestation > Forest cover.
   [/\bsbtn_natural_forests_map\b/, [P + " > Deforestation > Forest cover"]],
@@ -7321,7 +7442,7 @@ const CATALOGUE_BY_TITLE = [
   [/\bclark_labs_tropical_pond_aquaculture_(1999|2014|2018|change_1999_2018)\b/, [IN(P + " > Oceans > Fishing", "ponds")]],
   [/\bpangaea_global_mining\b|\bgfw_mining_concessions\b|\bIDN_Mining_2023\b|\bconcessionmining_spv\b/, [IN(P + " > Mining", "mines")]],
   [/\bgmw_global_mangrove_extent(_1996|_2016)?\b/, [IN(P + " > Oceans > Reefs and mangroves", "mangroves")]],
-  [/\bglobal_water_watch_anomalies2?\b/, [IN(P + " > Surface water", "waterwatch")]],
+  [/\bglobal_water_watch_anomalies2?\b/, [IN(P + " > Water scarcity", "waterwatch")]],
   // Round 42 (24 September): of the forest cover maps only the JRC's 2020 map
   // stays, the reference the EU's deforestation regulation measures from.
   [/\bjrc_global_forest_cover\b/, [P + " > Deforestation > Forest cover"]],
@@ -8598,7 +8719,40 @@ const GFW_COLOUR_BY = {
   landmark_indigenous_population_per_country: { fields: ["pctcat"], ordered: true, say: "the Indigenous share of the country's population" },
   // Round 87b (asked 27 September: all one colour, nothing to read).
   gfwpro_negligible_risk_analysis: { fields: ["negrisk"], say: "whether the district's natural forest lost since 2021 counts as negligible risk or not" },
+  // Round 93b (asked 27 September: every reservoir one colour): red where the
+  // reservoir holds less water than usual, blue where it holds more.
+  global_water_watch_anomalies2: { sign: { field: "anomaly" }, say: "whether the reservoir's water area is below or above its usual area for the month (the dataset's anomaly)" },
+  global_water_watch_anomalies: { sign: { months: true }, say: "whether the reservoir's water area in the latest month with readings is below or above its usual area" },
 };
+// The two colours asked for, drawn as written (never moved into the teal-to-
+// cobalt range, which would make them one colour again).
+const WATER_LESS = "#B5473F", WATER_MORE = "#2E6FC0", WATER_NONE = "#77726A";
+// The expression for a sign colouring, and its key, from the features read.
+// A months dataset (one column a month, "2025_03" and "2025_03_monthly") is
+// read at its latest month with any number in it. If that month's own column
+// holds values below zero it is the anomaly itself; if not, it is the water
+// area, and the "_monthly" column the usual area it is set against.
+function waterSignExpr(spec, feats) {
+  const num = (v) => v !== null && v !== "" && Number.isFinite(Number(v));
+  let v, say;
+  if (spec.sign.field) {
+    v = spec.sign.field;
+    say = "";
+  } else {
+    const months = [...new Set(feats.flatMap((p) => Object.keys(p).filter((k) => /^\d{4}_\d{2}$/.test(k) && num(p[k]))))].sort();
+    const m = months[months.length - 1];
+    if (!m) return null;
+    const own = feats.some((p) => num(p[m]) && Number(p[m]) < 0);
+    v = own ? m : null;
+    say = `${m.slice(0, 4)}-${m.slice(5)}`;
+    if (!own) {
+      const d = ["-", ["to-number", ["get", m], 0], ["to-number", ["get", `${m}_monthly`], 0]];
+      return { expr: ["case", ["==", ["to-number", ["get", m], -1e12], -1e12], WATER_NONE, ["<", d, 0], WATER_LESS, [">", d, 0], WATER_MORE, WATER_NONE], month: say, rule: "area against the usual area" };
+    }
+  }
+  const x = ["to-number", ["get", v], -1e12];
+  return { expr: ["case", ["==", x, -1e12], WATER_NONE, ["<", x, 0], WATER_LESS, [">", x, 0], WATER_MORE, WATER_NONE], month: say, rule: "the anomaly" };
+}
 const GFW_KINDS = ["#8C5A4E", "#6F5A7A", "#6E8058", "#4F6E6A", "#B0707C", "#A9A39A", "#5E6D8A", "#7A6A4E", "#556B78", "#8A7A96", "#6B7F6A", "#9A8070"];
 const GFW_STEPS = ["#E3D9CF", "#C9B3A5", "#AC8A7B", "#8A6356", "#5F3F36"];
 function gfwKindExpr(fields) {
@@ -8627,6 +8781,7 @@ function gfwKindColours(order, spec) {
 function gfwColourBy(d, src, names, ids) {
   const spec = GFW_COLOUR_BY[d.id];
   if (!spec || typeof map.querySourceFeatures !== "function") return null;
+  if (spec.sign) return waterSignColour(d, src, names, ids, spec);
   const kinds = new Set(), sums = new Map();
   let shown = "";
   const read = () => {
@@ -8672,7 +8827,43 @@ function gfwColourBy(d, src, names, ids) {
   later();
   return () => { map.off("sourcedata", onData); clearTimeout(timer); catalogueKeyHide(d.key); };
 }
+function waterSignColour(d, src, names, ids, spec) {
+  [WATER_LESS, WATER_MORE, WATER_NONE].forEach((c) => GLAD_OUT.add(c));
+  let shown = "";
+  const read = () => {
+    const feats = [];
+    for (const n of names) {
+      try { for (const f of map.querySourceFeatures(src, { sourceLayer: n })) feats.push(f.properties || {}); } catch (e) { /* not loaded yet */ }
+    }
+    if (!feats.length) return;
+    const got = waterSignExpr(spec, feats);
+    if (!got) return;
+    const sig = `${got.month}|${got.rule}`;
+    if (sig === shown) return;
+    shown = sig;
+    for (const id of ids) {
+      const prop = /-f-/.test(id) ? "fill-color" : /-p-/.test(id) ? "circle-color" : null;
+      if (prop && map.getLayer(id)) map.setPaintProperty(id, prop, got.expr);
+    }
+    const when = got.month ? ` (${got.month})` : "";
+    catalogueKeyHide(d.key);
+    catalogueKeyShow(d.key, d.title, { values: [[0, WATER_LESS, `less water than usual${when}`], [1, WATER_MORE, `more water than usual${when}`], [2, WATER_NONE, "no reading, or as usual"]],
+      source: `coloured by ${spec.say}` });
+  };
+  let timer = null;
+  const later = () => { clearTimeout(timer); timer = setTimeout(read, 250); };
+  const onData = (e) => { if (e && e.sourceId === src) later(); };
+  map.on("sourcedata", onData);
+  later();
+  return () => { map.off("sourcedata", onData); clearTimeout(timer); catalogueKeyHide(d.key); };
+}
 const GFW_COLOUR_OFF = new Map();          // dataset -> stops its colouring
+// Pictures that cover every square of land (round 93b, asked 27 September: the
+// dry spells projection hid the whole map): drawn see-through, every value
+// kept, so the map and its names read through them.
+const GFW_RASTER_PAINT = {
+  nexgddp_change_dry_spells_2000_2080: { "raster-opacity": 0.42 },
+};
 
 async function addGfwMenuLayer(cfg) {
   const all = [];
@@ -8860,9 +9051,9 @@ async function addGfwMenuLayer(cfg) {
         map.addSource(src, { type: "raster", tileSize: 256, tiles: [ras.asset_uri], minzoom: asset.minzoom, maxzoom: asset.maxzoom });
         // Keyed pictures keep their key's colours exactly and are not blurred
         // between codes; others are toned down as before.
-        map.addLayer({ id: `${src}-r`, type: "raster", source: src, paint: key
+        map.addLayer({ id: `${src}-r`, type: "raster", source: src, paint: Object.assign(key
           ? { "raster-opacity": 0.9, "raster-resampling": "nearest" }
-          : { "raster-opacity": 0.85 } });
+          : { "raster-opacity": 0.85 }, GFW_RASTER_PAINT[d.id] || {}) });
         ids.push(`${src}-r`);
         if (key) catalogueKeyShow(d.key, d.title, key);
         // A picture of places too small to see from far out (round 82b: the
@@ -15943,6 +16134,26 @@ const OTHER_MAPS = {
         { label: "Coastal nitrogen plumes", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_N_plumes.pmtiles" }
       ],
       note: "The model's own published pictures, from a GitHub copy (its server does not let other sites draw them). Each chip is one of the model's own layers." },
+    // Round 93b (asked 27 September): Aqueduct's projected water stress and its
+    // farmland water stress as the map's own vector tiles (culprits-tiles-more
+    // scripts/aqueduct.py), each basin coloured by its own figures.
+    { id: "aqueduct_proj", name: "Water stress projected for 2020, 2030 and 2040, basin by basin, ranked (WRI Aqueduct projections)", unit: "river basins", colour: "#1E6FA8", keepColour: true, route: "pmchoose", ready: true, lazy: true,
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/aqueduct_projections.pmtiles", sourceLayer: "basins",
+      attribution: "WRI Aqueduct Water Stress Projections, Luck, Landis and Gassert 2015 (CC BY 4.0)", mode: "labels",
+      menus: [
+        { label: "Measure", options: [["ws", "Water stress: water taken against water available"], ["sv", "Seasonal variability of water available"], ["ut", "Water taken (withdrawals)"], ["bt", "Water available (blue water supply)"]] },
+        { label: "Year", options: [["20", "2020"], ["30", "2030"], ["40", "2040"]] },
+        { label: "Scenario", options: [["28", "Business as usual (SSP2, RCP8.5)"], ["24", "Optimistic (SSP2, RCP4.5)"], ["38", "Pessimistic (SSP3, RCP8.5)"]] },
+        { label: "Show", options: [["t", "The level, as ranked"], ["c", "The change from 2010"]] },
+      ],
+      fieldOf: (v) => `${v[0]}${v[1]}${v[2]}${v[3]}l`, rawOf: (v) => `${v[0]}${v[1]}${v[2]}${v[3]}r`,
+      note: "WRI's Aqueduct Water Stress Projections (Luck, Landis and Gassert 2015; CC BY 4.0): for every river basin, water stress (the share of available water that is taken), the seasonal variability of supply, the water taken and the water available, projected for 2020, 2030 and 2040 under three scenarios of climate and society, each as WRI's own ranked category and as the change from 2010. Coloured by WRI's categories, light to dark in the order of the values behind them; every field is in the box. The map's own copy of WRI's file, made by culprits-tiles-more (scripts/aqueduct.py): Global Forest Watch's copy was drawn from tiles made on request, slow at every zoom, and in one colour." },
+    { id: "aqueduct_crop", name: "Water stress on farmland, crop by crop, 2020 (WRI Aqueduct, as Global Forest Watch publishes it)", unit: "areas", colour: "#1E6FA8", keepColour: true, route: "pmchoose", ready: true, lazy: true,
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/aqueduct_crop.pmtiles", sourceLayer: "areas",
+      attribution: "WRI Aqueduct crop baseline 2020, via Global Forest Watch", mode: "numbers", defaults: ["maize"],
+      menus: [{ label: "Crop", options: [["rest_of_crops", "All other crops"], ["arabic_coffee", "Arabica coffee"], ["banana", "Banana"], ["barley", "Barley"], ["bean", "Bean"], ["cassava", "Cassava"], ["chickpea", "Chickpea"], ["citrus", "Citrus"], ["cocoa", "Cocoa"], ["coconut", "Coconut"], ["cotton", "Cotton"], ["cowpea", "Cowpea"], ["groundnut", "Groundnut"], ["lentil", "Lentil"], ["maize", "Maize"], ["onion", "Onion"], ["other_cereals", "Other cereals"], ["other_fibre_crops", "Other fibre crops"], ["other_oil_crops", "Other oil crops"], ["other_pulses", "Other pulses"], ["other_roots", "Other roots"], ["other_tropical_fruit", "Other tropical fruit"], ["other_vegetables", "Other vegetables"], ["pearl_millet", "Pearl millet"], ["pigeon_pea", "Pigeon pea"], ["plantain", "Plantain"], ["potato", "Potato"], ["rapeseed", "Rapeseed"], ["rice", "Rice"], ["robust_coffee", "Robusta coffee"], ["rubber", "Rubber"], ["sesame_seed", "Sesame"], ["small_millet", "Small millet"], ["sorghum", "Sorghum"], ["soybean", "Soybean"], ["sugarcane", "Sugarcane"], ["sunflower", "Sunflower"], ["sweet_potato", "Sweet potato"], ["tea", "Tea"], ["temperate_fruit", "Temperate fruit"], ["tobacco", "Tobacco"], ["tomato", "Tomato"], ["wheat", "Wheat"]] }],
+      fieldOf: (v) => v[0],
+      note: "WRI Aqueduct's crop baseline for 2020 as Global Forest Watch publishes it (dataset aqueduct_crop_baseline_2020, v1.12): one figure for each of 43 crops in each area. Global Forest Watch gives the dataset no description or unit (its fields read \u201cTBD\u201d); the figures are shown as stored, in five steps, Aqueduct's own 0 to 5 scale where they fall inside it, and every field is in the box. The map's own copy, made by culprits-tiles-more (scripts/aqueduct.py): Global Forest Watch's picture tiles drew nothing from the world view." },
     // ---- round 23 (23 September) ----------------------------------------
     // Item 23: the EC JRC's Global Surface Water, back, from the JRC's own tiles
     // (version 2024, 1984 to 2024), in this map's colours (remap://).
@@ -16372,6 +16583,7 @@ function ensureLayer(cfg) {
       : cfg.route === "umap" || cfg.route === "kml" || cfg.route === "arcgisapp" ? addLivePlacesLayer(cfg)
       : cfg.route === "rasterlive" ? Promise.resolve().then(() => addRasterChoiceLayer(cfg))
       : cfg.route === "pmvector" ? Promise.resolve().then(() => addPmVectorLayer(cfg))
+      : cfg.route === "pmchoose" ? Promise.resolve().then(() => addPmChooseLayer(cfg))
       : cfg.route === "gsn" ? addGsnLayer(cfg)
       : cfg.route === "trase" ? addTraseLayer(cfg)
       : cfg.route === "pmshapes" ? Promise.resolve().then(() => addPmShapesLayer(cfg))
@@ -16460,6 +16672,8 @@ function refreshFacetRow(cfg) {
 // where it lands. A layer with no entry falls to the prefix rules below, and
 // anything still unlabelled shows whatever the chips say.
 const LAYER_KIND = {
+  aqueduct_proj: ["insentient", "downstream"],
+  aqueduct_crop: ["insentient", "downstream"],
   gsn: ["plant", "downstream"],
   gsn_countries: ["plant", "downstream"],
   // Round 90b.
@@ -17166,6 +17380,8 @@ map.on("load", () => setTimeout(mymapsTitles, 50));
 // point at the repo or the page they are read from; everyone else's at their
 // own site. A row missing from here shows no link rather than a guessed one.
 const LAYER_SITE = {
+  aqueduct_proj: "https://www.wri.org/data/aqueduct-water-stress-projections-data",
+  aqueduct_crop: "https://data-api.globalforestwatch.org/dataset/aqueduct_crop_baseline_2020",
   gsn: "https://api.gsn.naturedatalab.org/geo-analysis/layers",
   gsn_countries: "https://www.globalsafetynet.app/rankings/",
   // Round 90b.
@@ -17732,9 +17948,10 @@ const PANEL_ORDER = [
   // land use plot by plot to Buildings, Peatland into Deforestation.
   { h: 3, t: "Forest and land cover" },
   // Item 23: the EC JRC's own surface water map, back and drawn from its tiles.
-  { h: 3, t: "Surface water" }, "jrc_water",
+  // Round 93b (asked 27 September): Surface water's layers under Water
+  // scarcity; Aqueduct's projected and farmland water stress as the map's own.
+  { h: 3, t: "Water scarcity" }, "aqueduct_proj", "aqueduct_crop", "jrc_water",
   { h: 4, bundle: "waterwatch", colour: "#5E7377" },
-  { h: 3, t: "Water scarcity" },
   // Item 14: the mines layers are one row with sublayers.
   { h: 3, t: "Mining" },
   { h: 4, bundle: "mines", colour: "#6E5E52" }, "mines_global", "mine_features", "raisg_illegal_mining",
@@ -18633,7 +18850,7 @@ function headingPump() {
 // left to be ticked by hand.
 const KIND_POINT = new Set(["pmtiles", "sitemap", "geojsonlive", "kml", "umap", "wpgmza", "trasefac", "ctairgas", "ctair", "worker",
   "ejatlas", "carbonmapper", "atlascities", "ufo", "gta", "cafo", "arcgisapp", "remains", "remainsfac", "remainsfind"]);
-const KIND_SHAPE = new Set(["pmshapes", "pmtareas", "pmvector", "arcgis", "arcgisdyn", "rasterlive", "rasterparts", "tile", "osmlanduse", "coral",
+const KIND_SHAPE = new Set(["pmshapes", "pmtareas", "pmvector", "pmchoose", "arcgis", "arcgisdyn", "rasterlive", "rasterparts", "tile", "osmlanduse", "coral",
   "glw", "shapes", "cerulean", "slickarchive", "no2relief", "poprelief"]);
 const KIND_NATIONAL = new Set(["giga", "country", "owidgrapher"]);
 // Rows whose route says points but which draw areas (round 57: FracTracker's

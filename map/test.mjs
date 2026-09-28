@@ -2953,10 +2953,10 @@ console.log("\na row can sit under more than one subject");
   const at = (t) => order.findIndex((x) => x && x.t === t);
   check("the eight new headings are in, in the order's own style",
         // Spatial plans is one row with sublayers under Deforestation since round 23.
-        ["Fire", "Peatland", "Surface water", "Invasion of humans"].every((t) => at(t) > -1) && at("Base and reference") === -1 && at("Spatial plans") === -1 &&
+        ["Fire", "Peatland", "Water scarcity", "Invasion of humans"].every((t) => at(t) > -1) && at("Base and reference") === -1 && at("Spatial plans") === -1 &&
         at("Land held under permit") === -1 && at("Forest and land cover") > -1);
   check("the planet's new headings sit under Of the planet, before Of groups",
-        ["Fire", "Peatland", "Surface water", "Other concessions", "General", "Oil spills and slicks at sea"]
+        ["Fire", "Peatland", "Water scarcity", "Other concessions", "General", "Oil spills and slicks at sea"]
           .every((t) => at(t) > at("Of the planet") && at(t) < at("Of groups")));
   check("Base and reference is taken out (round 56); Buildings is back (round 71)", at("Base and reference") === -1 && at("Buildings") > -1);
 }
@@ -3642,7 +3642,7 @@ console.log("\nround of 23 September (23): the owner's thirty notes on the layer
         ["v1.9", "v1.12", "v1.10"].sort((a, b) => a.localeCompare(b, "en", { numeric: true })).pop() === "v1.12" &&
         f("Surface water change", "Global_WaterChange_1984to2021") === "(taken out)");
   check("20: the two reservoir anomaly layers are one row, their titles saying how they differ",
-        ["global_water_watch_anomalies", "global_water_watch_anomalies2"].every((id) => f("x", id) === `${P} > Surface water > ${B.waterwatch}`) &&
+        ["global_water_watch_anomalies", "global_water_watch_anomalies2"].every((id) => f("x", id) === `${P} > Water scarcity > ${B.waterwatch}`) &&   // round 93b
         /global_water_watch_anomalies: "Each reservoir month by month through 2025/.test(src) && /global_water_watch_anomalies2: "Each reservoir at one reading/.test(src));
   check("21: the Key Biodiversity Areas are out of Surface water, under Biodiversity loss",
         f("Key Biodiversity Areas — Global, terrestrial, freshwater and marine.", "birdlife_key_biodiversity_areas") === `${P} > Biodiversity loss > Places that matter most for species`);
@@ -3877,7 +3877,8 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         !at("Soy deforestation (ha) \u2014 Brazil (Trase) X").some((x) => x.startsWith(N2O)) &&
         !at("Soy traded under zero deforestation commitments (%) \u2014 Paraguay (Trase) X").some((x) => x.startsWith(N2O)));
   check("fertilizer is under Climate only", same("Fertilizer use x", [N2O + " > Emissions"]) && !/\{ h: 5, t: "Farm inputs" \}/.test(src));
-  check("Aqueduct's layers are under Water scarcity", same("Water risk for crops, baseline 2020 (WRI Aqueduct) aqueduct_crop_baseline_2020", [P + " > Water scarcity"]) &&
+  check("Aqueduct's layers are under Water scarcity (round 93b: the farmland one is the map's own copy)", same("Water risk for crops, baseline 2020 (WRI Aqueduct) aqueduct_crop_baseline_2020", [lib.CATALOGUE_TAKEN_OUT]) &&
+        /\{ h: 3, t: "Water scarcity" \}, "aqueduct_proj", "aqueduct_crop", "jrc_water",/.test(src) &&
         /\{ h: 3, t: "Water scarcity" \}/.test(src));
   check("plantation rows for Indonesia and its neighbours are one row with sublayers; worldwide ones stay beside it",
         same("Industrial tree plantations \u2014 Indonesia IDN_HTI_plantation", [lib.IN(lib.AG + " > Plantations", "idnplant")]) &&
@@ -5201,6 +5202,31 @@ console.log("\nround 92b: land cover in 35 kinds under Land Use and Ecoregions; 
         /\{ h: 4, t: "Mangroves" \}, "own_mangroves",[\s\S]{0,200}\{ h: 4, t: "Peatland" \},/.test(src) && !/\{ h: 3, t: "Peatland" \}/.test(src));
   check("the worldwide peatland map leads its heading", /const CATALOGUE_FIRST = new Set\(\[[^\]]*"gfw_peatlands"\]\)/.test(src));
   check("the page asks for this round's script", /app\.js\?v=(9[2-9])/.test(html));
+}
+
+console.log("\nround 93b: Surface water under Water scarcity; the ever-seen water drawn; reservoirs red and blue; Aqueduct's copies; dry spells see-through");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("anywhere water was ever seen is the occurrence map in one colour (the JRC has no extent tiles)",
+        /GSW_EXTENT = `remap:\/\/gsw_extent\/storage\.googleapis\.com\/water-world\/tiles2024\/occurrence\/\{z\}\/\{x\}\/\{y\}\.png`/.test(src));
+  const w = new Function("GLAD_OUT", src.slice(src.indexOf("const WATER_LESS"), src.indexOf("function waterSignColour(")) + "; return { waterSignExpr, WATER_LESS, WATER_MORE };")(new Set());
+  const a = w.waterSignExpr({ sign: { months: true } }, [{ "2025_01": 10, "2025_01_monthly": 12, "2025_03": 9, "2025_03_monthly": 10, "2025_04": "" }]);
+  const b = w.waterSignExpr({ sign: { months: true } }, [{ "2025_03": -4 }, { "2025_03": 2 }]);
+  const c = w.waterSignExpr({ sign: { field: "anomaly" } }, [{ anomaly: -1 }]);
+  check("a reservoir below its usual is red and above it blue: by area against usual, or by the anomaly where the column holds one",
+        a.month === "2025-03" && a.rule === "area against the usual area" && JSON.stringify(a.expr).includes('"2025_03_monthly"') &&
+        b.rule === "the anomaly" && c.rule === "the anomaly" && JSON.stringify(c.expr).includes(w.WATER_LESS) && JSON.stringify(c.expr).includes(w.WATER_MORE));
+  const ch = new Function(src.slice(src.indexOf("const CHOOSE_RAMP"), src.indexOf("function addPmChooseLayer(")) + "; return { chooseLabelOrder, chooseBreaks };")();
+  const o = ch.chooseLabelOrder([{ l: "High (40-80%)", r: 3 }, { l: "Low (<10%)", r: 0.5 }, { l: "No data", r: null }, { l: "High (40-80%)", r: 3.4 }], "l", "r");
+  check("basins are ranked light to dark by the values behind WRI's categories; categories with no value grey",
+        o.valued.join("|") === "Low (<10%)|High (40-80%)" && o.bare.join() === "No data");
+  check("crop figures step on Aqueduct's 0 to 5 scale when they fit it, and on their own fifths when not",
+        ch.chooseBreaks([0.2, 4.9, 3]).scale === "Aqueduct's 0 to 5 scale" && ch.chooseBreaks([1, 20, 300, 4000, 50000, 60000]).labels.length >= 2);
+  check("the Borneo surface water change and Global Forest Watch's two Aqueduct copies are out; the dry spells picture is see-through",
+        /\[\/IDNMYSBorneo_WaterChangeRGB/.test(src) && /nexgddp_change_dry_spells_2000_2080: \{ "raster-opacity": 0\.42 \}/.test(src) &&
+        !/\{ h: 3, t: "Surface water" \}/.test(src));
+  check("the page asks for this round's script", /app\.js\?v=(9[3-9])/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
