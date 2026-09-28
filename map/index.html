@@ -358,11 +358,13 @@
   #legend .lg-sub .lg-sw{width:9px;height:9px}
   /* Zoom in, zoom out, the compass and the whole-world button: two by two,
      in the view row between the view choices and Leave Earth. */
-  .view-zoom{flex:0 0 auto;align-self:center}
+  /* Round 96b: the zoom buttons larger, in the middle of the space right of
+     the basemap choices rather than against the edge. */
+  .view-zoom{flex:1 1 auto;align-self:center;display:flex;justify-content:center}
   /* Since 24 September the zoom buttons are right of the basemap choices, and
      the north-up button is where they were, between the views and Snap back. */
   .bm-row{display:flex;align-items:center;gap:10px}
-  .bm-choices{flex:1 1 auto;min-width:0}
+  .bm-choices{flex:0 1 auto;min-width:0}
   .view-row .compass-holder.in-view{margin-top:0;align-self:center;flex:0 0 auto}
   .view-row .view-choices{flex:0 0 auto}
   /* Snap back over Leave Earth, to the right of the zoom buttons. */
@@ -375,13 +377,24 @@
   .terrain-left{flex:0 0 auto;display:flex;flex-direction:column;gap:6px}
   .compass-holder{display:flex;flex-direction:column;align-items:center;gap:3px;margin-top:14px}
   .compass-cap{font-size:10px;line-height:1.2;color:var(--dim);text-align:center;max-width:84px}
+  /* Round 96b: 3D terrain under the views, Place names under North up; the
+     notes on moving in 3D the whole width of the box, under a heading. */
+  .view-row .compass-holder.in-view{align-self:flex-start}
+  .compass-holder .names-under{margin-top:4px;border-top:0;padding:2px 0}
+  .view-row .compass-holder.in-view{flex:0 0 76px}
+  .compass-holder .names-under{display:flex;align-items:center;gap:4px}
+  .compass-holder .names-under .nm{font-size:11.5px;line-height:1.15}
+  .view-row .view-go{flex:1 1 auto;min-width:78px}
+  .view-choices .terrain-under{border-top:1px solid var(--rule)}
+  .how-3d{margin-top:7px;display:flex;flex-direction:column;gap:3px}
+  .how-h{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
   .compass-holder .maplibregl-ctrl-group{margin:0;border-radius:3px;box-shadow:none;
     border:1px solid var(--rule);background:rgba(23,21,15,.6);display:inline-block}
   .compass-holder button{width:30px;height:30px;background-color:transparent}
   .compass-holder .maplibregl-ctrl-icon{filter:invert(1) brightness(.86)}
-  .view-zoom .maplibregl-ctrl-group{position:static;margin:0;display:grid;grid-template-columns:26px;
+  .view-zoom .maplibregl-ctrl-group{position:static;margin:0;display:grid;grid-template-columns:36px;
     border-radius:3px;box-shadow:none;border:1px solid var(--rule);background:rgba(23,21,15,.6);overflow:hidden}
-  .view-zoom .maplibregl-ctrl-group button{width:26px;height:26px;background-color:transparent;
+  .view-zoom .maplibregl-ctrl-group button{width:36px;height:36px;background-color:transparent;
     border:0;border-top:0!important}
   .view-zoom .maplibregl-ctrl-group button + button{border-top:1px solid var(--rule)!important}
   .view-zoom .maplibregl-ctrl-icon{filter:invert(1) brightness(.86)}
@@ -518,7 +531,7 @@
   };
 })();
 </script>
-<script src="./app.js?v=95"></script>
+<script src="./app.js?v=96"></script>
 <script src="./wire.js?v=67"></script>
 <!-- The drag bar on the layers box's right edge (made by columnEdge() in
      app.js) ran the full height of the column, so it stayed standing beside

@@ -5,6 +5,18 @@ touches.
 
 ---
 
+## Round 96b (28 September)
+
+Needs round 95b (runs after it by name). No tiles patch.
+
+- View box: 3D terrain under Globe / Flat map; Place names under North up,
+  level; the 3D notes rewritten plainly under a heading ("Moving the map in
+  3D"), the box's whole width. Zoom buttons 36 px, centred in the space right
+  of the basemap choices.
+- col_frontera_agricola under Deforestation > Forest zoning and management
+  plans (not Plantations, not Where clearing is likely).
+
+
 ## Round 95b (28 September)
 
 Needs round 94b (runs after it by name). Tiles patch round95b_tiles.py beside it.

@@ -1210,7 +1210,7 @@ console.log("\nthe boxes");
   check("the zoom buttons are back in the view row, one above the other",
         /function moveZoomButtons/.test(src) && /getElementById\("view-zoom"\)/.test(src) &&
         /<div class="view-zoom" id="view-zoom"><\/div>/.test(src) &&
-        /grid-template-columns:26px;/.test(index) && !/id="zoombox"/.test(index));
+        /grid-template-columns:36px;/.test(index) && !/id="zoombox"/.test(index));
   check("Eyes opens without the View 3D prompt or its panels",
         /featured=false/.test(src) && /logo=false/.test(src) && !/embed=true/.test(src));
   const pull = new Function(src.match(/function pullHeight[\s\S]*?\n}\n/)[0] + "; return pullHeight;")();
@@ -1688,8 +1688,8 @@ console.log("\ncerulean points, the fit, and how to tilt");
         /"bbox-only": "true"/.test(fs.readFileSync(path.join(HERE, "..", "pipeline", "cerulean", "harvest_points.py"), "utf8")));
   check("the fit carries the measured numbers and a turn",
         /const EYES_FIT = \{ zoom: 0\.8, lon: -108, lat: 66, bearing: 0,/.test(src) && /e\.key === "\["/.test(src));
-  check("how to tilt sits beside the terrain box", /class="terrain-row"/.test(src) && /<b>Mouse<\/b>/.test(src) &&
-        /<b>Trackpad<\/b>/.test(src) && /Same on Mac and Windows/.test(src));
+  check("how to move in 3D sits under the view choices, headed, the box's whole width (round 96b)", /class="how-3d"><div class="how-h">Moving the map in 3D<\/div>/.test(src) && /<b>Mouse<\/b>/.test(src) &&
+        /<b>Trackpad<\/b>/.test(src) && /The same on Mac and Windows/.test(src));
 }
 
 console.log("\nother organisations' maps: PalmWatch");
@@ -5279,6 +5279,21 @@ console.log("\nround 95b: rows back where asked; environmental law; skin farms; 
         /\{ h: 4, t: "Skin farms" \}, "skin_farms",/.test(src) && /\{ h: 6, t: "The companies behind it" \}, "plastic_polluters",/.test(src) &&
         ["ocean_acid", "ocean_heat", "ocean_shipping", "ocean_impacts"].every((i) => new RegExp(`id: "${i}"[\\s\\S]{0,600}choicesUrl: "https://welcometoyourgalaxy\\.github\\.io/culprits-tiles-more/tiles/${i}\\.choices\\.json"`).test(src)));
   check("the page asks for this round's script", /app\.js\?v=(9[5-9])/.test(html));
+}
+
+console.log("\nround 96b: the View box laid out afresh; the frontier under Forest zoning");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const v = src.slice(src.indexOf("function viewPanelHtml()"), src.indexOf("function buildBasemapPanel()"));
+  check("3D terrain under the views, Place names under North up, the 3D notes after them all",
+        v.indexOf('id="terrain-toggle"') < v.indexOf('id="compass-holder"') && v.indexOf('North up, level') < v.indexOf('id="names-toggle"') &&
+        v.indexOf('id="names-toggle"') < v.indexOf('id="to-globe"') && v.indexOf('class="how-3d"') > v.indexOf('id="leave-earth"'));
+  check("the zoom buttons larger and centred in their space", /\.view-zoom\{flex:1 1 auto;align-self:center;display:flex;justify-content:center\}/.test(html) && /grid-template-columns:36px;/.test(html));
+  const { f } = { f: (t, id = "") => new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return cataloguePlaces;")()(`${t} ${id}`, `${t} ${id}`).join(" | ") };
+  check("Colombia's agricultural frontier is under Deforestation > Forest zoning and management plans, not Plantations",
+        f("Frontera agrícola nacional", "col_frontera_agricola") === "Destruction > Of the planet > Deforestation > Forest zoning and management plans");
+  check("the page asks for this round's script", /app\.js\?v=(9[6-9])/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

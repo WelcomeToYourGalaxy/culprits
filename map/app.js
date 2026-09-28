@@ -7291,11 +7291,12 @@ const CATALOGUE_TAKEN_OUT = "(taken out)";
 const CATALOGUE_BY_TITLE = [
   // Round 95b (asked 27 September): Berkeley Earth's warmer-than-usual years
   // under Natural disasters > Extreme heat; Brazil's worn-out pasture out;
-  // Colombia's agricultural frontier out of Plantations, kept under Where
-  // clearing is likely.
+  // Colombia's agricultural frontier out of Plantations. Round 96b (asked 28
+  // September): under Deforestation > Forest zoning and management plans, with
+  // the other lines the law draws around forest.
   [/\bberkeley_earth_temp_anomaly_2000_2020\b|annual surface temperature anomal/i, [P + " > Natural disasters > Extreme heat"]],
   [/\blapig_degraded_pasture\b|degraded pasture/i, null],
-  [/\bcol_frontera_agricola\b|frontera agr[ií]cola/i, [P + " > Deforestation > Tree cover loss and alerts > Where clearing is likely"]],
+  [/\bcol_frontera_agricola\b|frontera agr[ií]cola/i, [P + " > Deforestation > Forest zoning and management plans"]],
   // Round 94b (asked 27 September): Liberia's three mining rows, Merauke's
   // planned roads and Nusantara's copy of the Allen Coral Atlas (broken, and
   // the same warm-water reefs as the coral reefs row) out.
@@ -11537,30 +11538,35 @@ function basemapPanelHtml(opts) {
     `</div><div class="view-zoom" id="view-zoom"></div></div></div></div>`;
 }
 
+// Round 96b (asked 28 September): 3D terrain under Flat map; Place names
+// under North up, level; the notes on moving the map in 3D under them all,
+// the box's whole width, headed so it is clear what they are for.
 function viewPanelHtml() {
   return `<div class="sect" data-sect="view">` + sectHead("View", "view") + `<div class="sect-body">` +
     `<div class="view-row"><div class="view-choices">` +
     Object.entries(VIEWS).map(([k, v]) =>
       `<label class="layer"><input type="radio" name="view" value="${k}"${k === VIEW ? " checked" : ""}>` +
       `<span class="nm">${v.nm}</span></label>`).join("") +
+    `<label class="layer terrain-under"><input type="checkbox" id="terrain-toggle"${TERRAIN_ON ? " checked" : ""}` +
+    ` title="Ground height under the imagery, on the globe or the flat map.">` +
+    `<span class="nm">3D terrain</span></label>` +
     `</div><div class="compass-holder in-view" id="compass-holder" title="Click to stand the map upright, facing north">` +
-    `<span class="compass-cap">North up, level</span></div>` +
+    `<span class="compass-cap">North up, level</span>` +
+    `<label class="layer names-under"><input type="checkbox" id="names-toggle"${NAMES_ON ? " checked" : ""}` +
+    ` title="Every place name on the map: the basemap's and the layers' own.">` +
+    `<span class="nm">Place names</span></label></div>` +
     `<div class="view-go">` +
     `<button type="button" id="to-globe" class="snap" title="Out to the whole world, in the view you are in">` +
     `Snap back to global scale</button>` +
     `<button type="button" id="leave-earth" class="leave" title="Hands the screen to NASA's Eyes ` +
     `on the Solar System. A box in the corner brings the map back.">Leave Earth &#8594;</button></div></div>` +
-    `<div class="terrain-row"><div class="terrain-left"><label class="layer"><input type="checkbox" id="terrain-toggle"${TERRAIN_ON ? " checked" : ""}` +
-    ` title="Ground height under the imagery, on the globe or the flat map.">` +
-    `<span class="nm">3D terrain</span></label>` +
-    `<label class="layer"><input type="checkbox" id="names-toggle"${NAMES_ON ? " checked" : ""}` +
-    ` title="Every place name on the map: the basemap's and the layers' own.">` +
-    `<span class="nm">Place names</span></label></div>` +
-    `<div class="how-boxes">` +
-    `<p class="how"><b>Mouse</b> Right-drag: tilt and turn. Ctrl + right-drag: roll.</p>` +
-    `<p class="how"><b>Trackpad</b> Ctrl + drag: tilt and turn. Ctrl + two-finger click, then drag: roll.</p>` +
-    `<p class="how">Same on Mac and Windows. Keys: Shift + arrows.</p>` +
-    `</div></div></div></div>`;
+    `<div class="how-3d"><div class="how-h">Moving the map in 3D</div>` +
+    `<p class="how"><b>Mouse</b> Hold the right button and drag: the map tilts toward the horizon and turns around. ` +
+    `Hold Ctrl as well to roll it, tipping the horizon to one side.</p>` +
+    `<p class="how"><b>Trackpad</b> Hold Ctrl and drag with one finger: tilt and turn. ` +
+    `To roll, hold Ctrl, press the pad with two fingers and keep them down while you drag.</p>` +
+    `<p class="how"><b>Keys</b> Shift + the arrow keys tilt and turn. The same on Mac and Windows.</p>` +
+    `</div></div></div>`;
 }
 
 function buildBasemapPanel() {
