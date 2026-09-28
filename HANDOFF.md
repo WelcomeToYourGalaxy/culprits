@@ -5,6 +5,37 @@ touches.
 
 ---
 
+## Round 99b (28 September)
+
+Needs round 98b (runs after it by name). Tiles patch round99b_tiles.py beside it.
+
+- Biodiversity loss in the owner's order: Land Use and Ecoregions; Places that
+  matter most for species (Where species are threatened, Protected areas,
+  Species richness, Wild and intact places, Where animals gather and migrate);
+  Disturbance; Birds; Fish; Soil biodiversity; Wildlife and timber crime;
+  Companies and financiers. Protected and conserved areas and Intact and
+  primary forests headings gone (their rows moved in). BIO_* constants and the
+  first block of CATALOGUE_BY_TITLE.
+- Global Safety Net: ITTs under Invasion of humans; HM90 black (27, same asset
+  and value as the white 40) and "Land" (42) out; climate stabilization areas
+  under Climate > Carbon dioxide > Carbon stored in nature; constrained
+  reforestation also under Deforestation > Forest cover; natural/barren,
+  semi-natural and herbaceous land under Land Use and Ecoregions; the two BII
+  halves one row (bundle bii); critical habitat land and sea one row (bundle
+  crithab, with own_critical_habitat); conservation priorities grown and light
+  (GSN_GROW 98).
+- FAO ecological zones coloured by zone (GFW_COLOUR_BY gez_term); FAO zones and
+  both SBTN Natural Lands rows under Land Use and Ecoregions only.
+- Own copies (tiles): ecoregions_2017 (RESOLVE, pmchoose classes by BIOME_NUM;
+  GSN's row 28 out) and ifl_2000 to ifl_2025 (pmvector own; GFW's year rows
+  out) inside bundle ifl with GFW's all-years picture.
+- WWF ecoregions retitled (2001 version, 867 regions).
+- soil_nematodes coloured by Total_Number; soil_spun retitled.
+- Kept, not deleted: Nusantara's protected areas (Equatorial Asia) and GFW's
+  licensed WDPA: both carry each area's name and details, which Global Safety
+  Net's pictures do not.
+
+
 ## Round 98b (28 September)
 
 Needs round 96b (runs after it by name). Tiles patch round98b_tiles.py beside it.

@@ -4534,12 +4534,14 @@ function addPmVectorLayer(cfg) {
   if (map.getSource(src)) return;
   map.addSource(src, { type: "vector", url: `pmtiles://${cfg.archiveUrl}`, attribution: cfg.attribution || "" });
   map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source: src, "source-layer": cfg.sourceLayer,
-    paint: { "fill-color": cfg.colour, "fill-opacity": 0.35 } }, pointLayerAbove());
+    paint: { "fill-color": cfg.colour, "fill-opacity": cfg.fillOpacity || 0.35 } }, pointLayerAbove());
   map.addLayer({ id: `${cfg.id}-line`, type: "line", source: src, "source-layer": cfg.sourceLayer,
     paint: { "line-color": cfg.edge || "#2F5A70", "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.4, 14, 1.2], "line-opacity": 0.9 } }, pointLayerAbove());
   cfg._layerIds = [`${cfg.id}-fill`, `${cfg.id}-line`];
-  map.on("error", (e) => { if (e && e.sourceId === src) setLayerState(cfg.id, `the archive did not answer (${(e.error && e.error.message) || "error"})`); });
-  setLayerState(cfg.id, `${cfg.unit} \u00b7 read from the publisher's archive; zoom in to see them`);
+  // Round 99b: a copy of the map's own that is not made yet says so.
+  map.on("error", (e) => { if (e && e.sourceId === src) setLayerState(cfg.id, cfg.own ? "not built yet: its copy has not been made" : `the archive did not answer (${(e.error && e.error.message) || "error"})`); });
+  if (cfg.own) bindHtmlPopup(`${cfg.id}-fill`, (p) => `<b>${escapeHtml(cfg.name)}</b><table class="meta">${fieldRows(p)}</table>`);
+  setLayerState(cfg.id, cfg.stateSay || `${cfg.unit} \u00b7 read from the publisher's archive; zoom in to see them`);
   applyVisibility(cfg.id);
   buildLegend();
 }
@@ -7321,6 +7323,11 @@ const BUNDLES = {
   wwoutlets: "Nitrogen from human wastewater entering the sea at each coastal outlet, by where the wastewater came from (Tuholske et al.)",
   wastecountries: "Countries' waste figures, one measure a layer (Waste Atlas)",
   oilslicks: "Oil slicks seen from space, with SkyTruth's own write-ups at sea and on land (Cerulean and SkyTruth)",
+  // Round 99b (asked 28 September): pairs and series of the same data as one
+  // row each, with its parts inside.
+  crithab: "Critical habitat, on land and at sea, as the International Finance Corporation defines it (UNEP-WCMC, Dunnett et al. 2025)",
+  bii: "How intact wildlife communities are, 0 to 100 (Biodiversity Intactness Index, Natural History Museum, London)",
+  ifl: "Large unbroken forests with no roads or clearing, 2000 to 2025 (Intact Forest Landscapes)",
 };
 const IN = (path, key) => `${path} > ${BUNDLES[key]}`;
 const ZDC = "(zero-deforestation commitment)";
@@ -7406,7 +7413,44 @@ const CATALOGUE_PLACES = [
 // it matches nothing and changes nothing; map/filing-report.mjs lists which
 // titles each rule caught.
 const CATALOGUE_TAKEN_OUT = "(taken out)";
+// Round 99b (asked 28 September): Biodiversity loss in the owner's order,
+// with Places that matter most for species split into what each layer shows.
+const BIO = P + " > Biodiversity loss", PMM = BIO + " > Places that matter most for species";
+const BIO_LAND = BIO + " > Land Use and Ecoregions", BIO_THREAT = PMM + " > Where species are threatened",
+  BIO_PROT = PMM + " > Protected areas", BIO_RICH = PMM + " > Species richness",
+  BIO_WILD = PMM + " > Wild and intact places", BIO_MOVE = PMM + " > Where animals gather and migrate";
 const CATALOGUE_BY_TITLE = [
+  // ---- 28 September (round 99b), at the owner's word --------------------
+  // Global Safety Net's layers, each where it belongs.
+  [/^ITT's Recognized \(Global Safety Net\)/, ["On-planet invasion > Invasion of the living > Invasion of humans"]],
+  // The black copy of the human modification index is the white one's data in
+  // another colour (the same asset, the same value 1); the land outline adds nothing.
+  [/^(Modified Land \(HM90\)|Land) \(Global Safety Net\)/, null],
+  // The 2017 ecoregions are drawn from the map's own copy (ecoregions_2017):
+  // the service's copy did not draw, or drew too slowly.
+  [/^Terrestrial Ecoregions \(Global Safety Net\)/, null],
+  [/^Climate Stabilization Areas \(Global Safety Net\)/, [P + " > Climate > Carbon dioxide > Carbon stored in nature"]],
+  [/^Constrained Reforestation \(Global Safety Net\)/, [P + " > Deforestation > Forest cover", BIO_LAND]],
+  [/^(HM90 \(White\)|Natural and Barren Land|Seminatural Land|Herbaceous\/Other) \(Global Safety Net\)/, [BIO_LAND]],
+  [/^Critical habitats - (terrestrial|marine) \(Global Safety Net\)/i, [IN(BIO_THREAT, "crithab")]],
+  [/^(Unprotected AIBES|All AIBES|AIB-Only|AES-Only|Rare\/Threatened Species|Conservation Priorities \(top 10%\)) \(Global Safety Net\)/, [BIO_THREAT]],
+  [/^(Strictly Protected|Protected|OECMs|Documented CAs|PA\/OECM Overlay) \(Global Safety Net\)/, [BIO_PROT]],
+  [/^High Biodiversity Areas \(Global Safety Net\)/, [BIO_RICH]],
+  [/^Wild & Intact Areas \(Global Safety Net\)/, [BIO_WILD]],
+  [/^Biodiversity Intactness Index \(\d+ - \d+\) \(Global Safety Net\)/, [IN(BIO_WILD, "bii")]],
+  [/^Mammal Assemblages \(Global Safety Net\)/, [BIO_MOVE]],
+  // Global Forest Watch's and Nusantara's.
+  [/\b(birdlife_alliance_for_zero_extinction_sites|birdlife_key_biodiversity_areas|birdlife_biodiversity_significance)\b/, [BIO_THREAT]],
+  [/\b(wdpa_licensed_protected_areas|cartocritica_mex_protected_areas_2016|protectedarea_spv)\b/, [BIO_PROT]],
+  [/\b(fao_ecozones|wwf_terrestrial_ecoregions|sbtn_natural_lands|sbtn_natural_lands_classification)\b/, [BIO_LAND]],
+  // The five years of the Intact Forest Landscapes are drawn from the map's own
+  // copies (ifl_2000 to ifl_2025), inside one row with Global Forest Watch's
+  // own picture of them all.
+  [/\bifl_intact_forest_landscapes_(2000|2013|2016|2020|2025)\b/, null],
+  [/\bifl_intact_forest_landscapes\b/, [IN(BIO_WILD, "ifl")]],
+  [/\b(birdlife_biodiversity_intactness|wcs_forest_landscape_integrity_index)\b/, [BIO_WILD]],
+  // Taken out on 24 September with the rest of Intact and primary forests; it stays out.
+  [/\bumd_regional_primary_forest_2001\b/, null],
   // Round 95b (asked 27 September): Berkeley Earth's warmer-than-usual years
   // under Natural disasters > Extreme heat; Brazil's worn-out pasture out;
   // Colombia's agricultural frontier out of Plantations. Round 96b (asked 28
@@ -7765,10 +7809,13 @@ const CATALOGUE_SUBS = {
   [P + " > Biodiversity loss"]: [
     [/dist-?alert|disturb/i, "Disturbance"],
     // Round 90b (asked 27 September): the terrestrial ecoregions with the land cover.
-    [/ecoregion/i, "Land Use and Ecoregions"],
-    [/protect|conserv|reserve|restoration|easement|leuser|wdpa/i, "Protected and conserved areas"],
-    [/intact|primary forest|integrity/i, "Intact and primary forests"],
-    [/.*/, "Places that matter most for species"],
+    [/ecoregion|ecozone|land cover|land use/i, "Land Use and Ecoregions"],
+    // Round 99b: Places that matter most for species in five parts.
+    [/protect|conserv|reserve|easement|leuser|wdpa/i, "Places that matter most for species > Protected areas"],
+    [/intact|primary forest|integrity|wild/i, "Places that matter most for species > Wild and intact places"],
+    [/richness|richest/i, "Places that matter most for species > Species richness"],
+    [/migrat/i, "Places that matter most for species > Where animals gather and migrate"],
+    [/.*/, "Places that matter most for species > Where species are threatened"],
   ],
   [AG]: [
     [/pasture|grassland/i, "Pasture and grassland"],
@@ -7835,6 +7882,12 @@ function catalogueRefine(paths, words) {
   const subbed = out.map((x) => catalogueSub(x, words));
   if (!keepIntact && subbed.includes(P + " > Biodiversity loss > Intact and primary forests")) {
     out = out.filter((x, i) => subbed[i] !== P + " > Biodiversity loss > Intact and primary forests");
+    if (!out.length) return [CATALOGUE_TAKEN_OUT];
+  }
+  // Round 99b: the heading is now Wild and intact places; the primary forest
+  // rows taken out on 24 September stay out of it.
+  if (!keepIntact && /primary forest/i.test(words) && subbed.includes(BIO_WILD)) {
+    out = out.filter((x, i) => subbed[i] !== BIO_WILD);
     if (!out.length) return [CATALOGUE_TAKEN_OUT];
   }
   // Plantation rows for Indonesia and its neighbours are one row with
@@ -8058,7 +8111,7 @@ const CATALOGUE_PLAIN = {
   wri_mexico_state_socio_economic_vulnerability: "How vulnerable households are, Mexico, by state (WRI)",
   wur_forest_roads: "Forest roads, Congo Basin (Wageningen University)",
   wur_radd_alerts: "Deforestation alerts seen through cloud by radar (RADD, Wageningen University)",
-  wwf_terrestrial_ecoregions: "The world's land divided by its natural plant and animal communities (ecoregions, WWF)",
+  wwf_terrestrial_ecoregions: "Ecoregions, 2001 version: the world's land in 867 natural regions, each with its own plants and animals (WWF Terrestrial Ecoregions of the World, Olson et al. 2001)",
   gfwpro_negligible_risk_analysis: "Districts where deforestation risk is negligible or not, by natural forest lost since 2021 (GFW Pro)",
   tropomi_avg_nitrogen_dioxide_last_month: "Nitrogen dioxide in the air, last month, from satellite (TROPOMI)",
   global_water_watch_anomalies: "Each reservoir month by month through 2025: its water area against its usual (Global Water Watch)",
@@ -8881,6 +8934,8 @@ const GFW_COLOUR_BY = {
   landmark_indigenous_population_per_country: { fields: ["pctcat"], ordered: true, say: "the Indigenous share of the country's population" },
   // Round 87b (asked 27 September: all one colour, nothing to read).
   gfwpro_negligible_risk_analysis: { fields: ["negrisk"], say: "whether the district's natural forest lost since 2021 counts as negligible risk or not" },
+  // Round 99b (asked 28 September: one blue over the whole world): each zone its colour.
+  fao_ecozones: { fields: ["gez_term"], say: "the ecological zone (FAO's Global Ecological Zones, 2010)" },
   // Round 93b (asked 27 September: every reservoir one colour): red where the
   // reservoir holds less water than usual, blue where it holds more.
   global_water_watch_anomalies2: { sign: { field: "anomaly" }, say: "whether the reservoir's water area is below or above its usual area for the month (the dataset's anomaly)" },
@@ -9975,7 +10030,11 @@ const GSN_PLAIN = {
 // Round 91b (asked 27 September: the mangroves were too small and faint to
 // see from the world view): the mangrove layer's pixels are drawn in a light
 // teal and grown wider out (grow://).
-const GSN_GROW = { 18: "3FC0C9" };
+// Round 99b (asked 28 September: "doesn't load"): the conservation priorities
+// are 500,000 km\u00b2 in small sites, drawn by the service in a near-black
+// purple; from the world view they were too small and dark to see. Grown
+// wider out, in a light blue.
+const GSN_GROW = { 18: "3FC0C9", 98: "8FD6E8" };
 async function addGsnLayer(cfg) {
   let list;
   try { list = gsnShown(await getJson(cfg.api, 40000)); }
@@ -15999,10 +16058,37 @@ const OTHER_MAPS = {
       attribution: "Global Mangrove Watch v4.0.19 (CC BY 4.0)", rasterPaint: { "raster-opacity": 0.88, "raster-saturation": 0 },
       choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/own_mangroves.choices.json",
       note: "Global Mangrove Watch version 4.0.19 (CC BY 4.0), the 10 m map of mangroves in 2020, made into this map's own copy by culprits-tiles-more (scripts/mangroves.py). Wider out, each pixel shows mangrove if any mangrove lies under it, so the thin coastal fringes stay visible from the world view; closer in the pixels are about 550 m." },
-    { id: "own_critical_habitat", name: "Critical habitat: places whose wildlife and ecosystems lending rules say must not be lost, likely and potential (UNEP-WCMC, Dunnett et al. 2025)", unit: "1 km", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+    { id: "own_critical_habitat", name: "Critical habitat, land and sea together, likely and potential, drawn so it shows from the world view (the map's own copy)", unit: "1 km", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
       attribution: "UNEP-WCMC Global Critical Habitat screening layer v2.1, Dunnett et al. 2025 (CC BY 4.0)", rasterPaint: { "raster-opacity": 0.88, "raster-saturation": 0 },
       choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/own_critical_habitat.choices.json",
       note: "The Global Critical Habitat screening layer version 2.1 (UNEP-WCMC; Dunnett et al. 2025, Scientific Data; CC BY 4.0), on land and at sea: places that meet the criteria of the International Finance Corporation's Performance Standard 6 - the habitats of critically endangered and endangered species, of species found nowhere else, of great migrations and gatherings, highly threatened or unique ecosystems - which banks following it may not finance projects to harm without strict conditions. Made into this map's own copy by culprits-tiles-more (scripts/critical_habitat.py); its classes and their names are read from the file itself." },
+    // Round 99b (asked 28 September): the 2017 ecoregions from the map's own
+    // copy, coloured by biome; Global Safety Net's copy of them did not draw.
+    { id: "ecoregions_2017", name: "Ecoregions, 2017 version: the world's land in 846 natural regions, each with its own plants and animals, coloured by biome (RESOLVE Ecoregions 2017, Dinerstein et al.)", unit: "ecoregions", colour: "#3C6FA0", keepColour: true, route: "pmchoose", ready: true, lazy: true,
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ecoregions_2017.pmtiles", sourceLayer: "ecoregions", mode: "classes", menus: [], field: "BIOME_NUM",
+      classes: [[1, "#0E4F5C", "Tropical and subtropical moist broadleaf forests"], [2, "#2E7F8A", "Tropical and subtropical dry broadleaf forests"], [3, "#1C6470", "Tropical and subtropical coniferous forests"], [4, "#3C6FA0", "Temperate broadleaf and mixed forests"], [5, "#26508A", "Temperate conifer forests"], [6, "#1B3766", "Boreal forests and taiga"], [7, "#6FB7C0", "Tropical and subtropical grasslands, savannas and shrublands"], [8, "#8FB4D6", "Temperate grasslands, savannas and shrublands"], [9, "#4FA3B5", "Flooded grasslands and savannas"], [10, "#9BC7CE", "Montane grasslands and shrublands"], [11, "#C9DDEA", "Tundra"], [12, "#5C86B8", "Mediterranean forests, woodlands and scrub"], [13, "#D6E6EC", "Deserts and xeric shrublands"], [14, "#0A3D4A", "Mangroves"]], classHint: "The biome each ecoregion belongs to; its own name and every field are in its box",
+      attribution: "RESOLVE Ecoregions 2017, Dinerstein et al. 2017, BioScience (CC BY 4.0)",
+      note: "Ecoregions 2017 (Dinerstein et al. 2017, BioScience; RESOLVE, CC BY 4.0): the world's land divided into 846 ecoregions, each an area whose plants, animals and ground are more like each other than like those around it, grouped into 14 biomes, with how much of each is protected (its Nature Needs Half category). The map's own copy, made by culprits-tiles-more (scripts/ecoregions.py) from RESOLVE's file; every field is in the box. Rock and ice, and lakes, are grey." },
+    { id: "ifl_2000", name: "Large unbroken forests with no roads or clearing, 2000 (Intact Forest Landscapes)", unit: "forest landscapes", colour: "#8FD6E8", keepColour: true, route: "pmvector", ready: true, lazy: true, own: true,
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ifl_2000.pmtiles", sourceLayer: "ifl", edge: "#0E2F66", fillOpacity: 0.45, stateSay: "forest landscapes \u00b7 from the map's own copy",
+      attribution: "Intact Forest Landscapes, Potapov et al. (CC BY 4.0), via Global Forest Watch",
+      note: "The Intact Forest Landscapes of 2000: unbroken stretches of forest and the land around it, at least 500 km\u00b2, with no roads, clearing or other sign of people seen from satellites (Potapov et al.; intactforests.org). The map's own copy, made by culprits-tiles-more (scripts/ifl.py) from Global Forest Watch's table of it, drawn in every square at once: Global Forest Watch's own tiles for the years are made on request and were slow to come or did not come." },
+    { id: "ifl_2013", name: "Large unbroken forests with no roads or clearing, 2013 (Intact Forest Landscapes)", unit: "forest landscapes", colour: "#5FB8D2", keepColour: true, route: "pmvector", ready: true, lazy: true, own: true,
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ifl_2013.pmtiles", sourceLayer: "ifl", edge: "#0E2F66", fillOpacity: 0.45, stateSay: "forest landscapes \u00b7 from the map's own copy",
+      attribution: "Intact Forest Landscapes, Potapov et al. (CC BY 4.0), via Global Forest Watch",
+      note: "The Intact Forest Landscapes of 2013: unbroken stretches of forest and the land around it, at least 500 km\u00b2, with no roads, clearing or other sign of people seen from satellites (Potapov et al.; intactforests.org). The map's own copy, made by culprits-tiles-more (scripts/ifl.py) from Global Forest Watch's table of it, drawn in every square at once: Global Forest Watch's own tiles for the years are made on request and were slow to come or did not come." },
+    { id: "ifl_2016", name: "Large unbroken forests with no roads or clearing, 2016 (Intact Forest Landscapes)", unit: "forest landscapes", colour: "#3F9CC0", keepColour: true, route: "pmvector", ready: true, lazy: true, own: true,
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ifl_2016.pmtiles", sourceLayer: "ifl", edge: "#0E2F66", fillOpacity: 0.45, stateSay: "forest landscapes \u00b7 from the map's own copy",
+      attribution: "Intact Forest Landscapes, Potapov et al. (CC BY 4.0), via Global Forest Watch",
+      note: "The Intact Forest Landscapes of 2016: unbroken stretches of forest and the land around it, at least 500 km\u00b2, with no roads, clearing or other sign of people seen from satellites (Potapov et al.; intactforests.org). The map's own copy, made by culprits-tiles-more (scripts/ifl.py) from Global Forest Watch's table of it, drawn in every square at once: Global Forest Watch's own tiles for the years are made on request and were slow to come or did not come." },
+    { id: "ifl_2020", name: "Large unbroken forests with no roads or clearing, 2020 (Intact Forest Landscapes)", unit: "forest landscapes", colour: "#2A78AE", keepColour: true, route: "pmvector", ready: true, lazy: true, own: true,
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ifl_2020.pmtiles", sourceLayer: "ifl", edge: "#0E2F66", fillOpacity: 0.45, stateSay: "forest landscapes \u00b7 from the map's own copy",
+      attribution: "Intact Forest Landscapes, Potapov et al. (CC BY 4.0), via Global Forest Watch",
+      note: "The Intact Forest Landscapes of 2020: unbroken stretches of forest and the land around it, at least 500 km\u00b2, with no roads, clearing or other sign of people seen from satellites (Potapov et al.; intactforests.org). The map's own copy, made by culprits-tiles-more (scripts/ifl.py) from Global Forest Watch's table of it, drawn in every square at once: Global Forest Watch's own tiles for the years are made on request and were slow to come or did not come." },
+    { id: "ifl_2025", name: "Large unbroken forests with no roads or clearing, 2025 (Intact Forest Landscapes)", unit: "forest landscapes", colour: "#1B4F8A", keepColour: true, route: "pmvector", ready: true, lazy: true, own: true,
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ifl_2025.pmtiles", sourceLayer: "ifl", edge: "#0E2F66", fillOpacity: 0.45, stateSay: "forest landscapes \u00b7 from the map's own copy",
+      attribution: "Intact Forest Landscapes, Potapov et al. (CC BY 4.0), via Global Forest Watch",
+      note: "The Intact Forest Landscapes of 2025: unbroken stretches of forest and the land around it, at least 500 km\u00b2, with no roads, clearing or other sign of people seen from satellites (Potapov et al.; intactforests.org). The map's own copy, made by culprits-tiles-more (scripts/ifl.py) from Global Forest Watch's table of it, drawn in every square at once: Global Forest Watch's own tiles for the years are made on request and were slow to come or did not come." },
     { id: "ftw_fields", name: "Farm fields, every one, their boundaries, 10 m, 2025 (Fields of The World)", unit: "fields", colour: "#6E9CB8", keepColour: true, route: "pmvector", ready: true, lazy: true,
       archiveUrl: "https://data.source.coop/ftw/global-field-boundaries/pmtiles/ftw-global-fields-2025.pmtiles", sourceLayer: "fields",
       attribution: "Fields of The World, Robinson et al. 2026 (CC BY 4.0)",
@@ -16384,14 +16470,16 @@ const OTHER_MAPS = {
       choices: ["2025", "2024"].map((y) => ({ label: y, tiles: "https://map.nusantara-atlas.org/geoserver/atlas-workspace-v3/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap" +
         `&LAYERS=Global_PlantationITP_${y}&STYLES=&SRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=true` })),
       note: "TheTreeMap's industrial timber plantations (acacia, eucalyptus and other plantation trees grown for pulp and timber), as the Nusantara Atlas publishes them for 2024 and 2025; a chip picks the year. Read live from the Atlas's own map server; the record does not list which countries it covers." },
-    { id: "soil_spun", name: "Fungi that feed plant roots underground: how many kinds, and how many found nowhere else, 1 km (SPUN Underground Atlas)", unit: "modelled from 2.8 billion fungal DNA sequences", colour: "#6B5A4A", route: "rasterlive", ready: true, lazy: true,
+    { id: "soil_spun", name: "Fungi that feed plant roots underground: the hotspots of how many kinds live there and of kinds found almost nowhere else, 1 km (SPUN Underground Atlas)", unit: "modelled from 2.8 billion fungal DNA sequences", colour: "#6B5A4A", route: "rasterlive", ready: true, lazy: true,
       attribution: "SPUN Underground Atlas: Van Nuland, Kiers et al. 2025, Nature (CC BY 4.0)", maxzoom: 12,
       choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/soil/spun_choices.json", choices: [],
-      note: "The most detailed worldwide map of life in the soil that is open to copy: SPUN's Underground Atlas, predicted richness and endemism of the fungi that live with plant roots (arbuscular and ectomycorrhizal), about 1 km across, from 2.8 billion DNA sequences sampled in 130 countries (Van Nuland et al. 2025, Nature). Every map in its data record is a choice here, named from its file; each is shaded in 12 steps between its own 2nd and 98th percentiles, with the key giving each step's values. A model's prediction, not a count. Maps across all soil life (bacteria, fungi, protists, invertebrates) exist, but their present-day grids are not published for copying, and the EU's Global Soil Biodiversity Atlas maps may not be passed on. Copied once by culprits-tiles-more from Zenodo record 10.5281/zenodo.14871588." },
+      note: "SPUN's Underground Atlas (Van Nuland, Kiers et al. 2025, Nature; CC BY 4.0), from 2.8 billion fungal DNA sequences sampled in 130 countries: the paper's hotspot maps of the fungi that live with plant roots (arbuscular and ectomycorrhizal), for how many kinds live in a place and for kinds found almost nowhere else, about 1 km across. Every map in the paper's data record is a choice here, the hotspots first, then how thoroughly each part of the world was sampled, and the protected-area and biome masks the paper used; each is shaded in 12 steps between its own 2nd and 98th percentiles. The full maps of predicted richness behind the hotspots are given out by SPUN only on request (spun.earth/data-request), so they are not here. Round 99b: the row said \"not built yet\" because its list of maps held a value JSON cannot carry; that is mended." },
     // Round 50 (25 September): soil nematodes, the samples behind the global
     // nematode maps (van den Hoogen et al.), CC0; copied by culprits-tiles-more
     // scripts/soil_nematodes.py with every column of every sample.
-    { id: "soil_nematodes", name: "Soil nematodes, tiny worms: every sample, worldwide (van den Hoogen et al.)", unit: "soil samples", colour: "#6B5A4A", route: "geojsonlive", ready: true, lazy: true,
+    { id: "soil_nematodes", name: "Soil nematodes, tiny worms: every sample, coloured by how many live in the soil there (van den Hoogen et al.)", unit: "soil samples", colour: "#6B5A4A", route: "geojsonlive", ready: true, lazy: true,
+      // Round 99b (asked 28 September: the points were not coloured by what they hold).
+      colourBy: { field: "Total_Number", steps: [250, 600, 1300, 3300, 10000], unit: "nematodes per 100 g of dry soil" },
       files: [{ label: "Samples", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/soil/nematodes_samples.geojson" }, { label: "Samples pooled by 1 km square, with their environment", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/soil/nematodes_aggregated.geojson" }],
       attribution: "van den Hoogen, Geisen, Wall et al. 2020, Scientific Data 7, 103 (CC0)",
       note: "The global database of soil nematode abundance and functional group composition: 6,825 soil samples from every continent, each with its count of nematodes per 100 g of dry soil by feeding group (bacteria, fungi, plant, omnivore, predator feeders). Both files of its data record are drawn whole, the samples and the samples pooled by 1 km square with the environmental figures the 2019 global maps were modelled from; every column is in the box. Copied from figshare (10.6084/m9.figshare.c.4718003) by culprits-tiles-more." },
@@ -17187,6 +17275,8 @@ const LAYER_KIND = {
   // Round 90b.
   own_mangroves: ["plant", "downstream"],
   own_critical_habitat: ["plant", "downstream"],
+  ecoregions_2017: ["plant", "downstream"],
+  ifl_2000: ["plant", "downstream"], ifl_2013: ["plant", "downstream"], ifl_2016: ["plant", "downstream"], ifl_2020: ["plant", "downstream"], ifl_2025: ["plant", "downstream"],
   ftw_fields: ["plant", "downstream"],
   potapov_cropland: ["plant", "downstream"],
   owid_co2: ["insentient", "upstream"],
@@ -17915,6 +18005,8 @@ const LAYER_SITE = {
   // Round 90b.
   own_mangroves: "https://zenodo.org/records/12756047",
   own_critical_habitat: "https://doi.org/10.34892/snwv-a025",
+  ecoregions_2017: "https://ecoregions.appspot.com/",
+  ifl_2000: "https://intactforests.org/", ifl_2013: "https://intactforests.org/", ifl_2016: "https://intactforests.org/", ifl_2020: "https://intactforests.org/", ifl_2025: "https://intactforests.org/",
   ftw_fields: "https://source.coop/ftw/global-data",
   potapov_cropland: "https://glad.umd.edu/dataset/croplands",
   mine_features: "https://zenodo.org/records/7894216",
@@ -18229,6 +18321,10 @@ const NOT_LIVE = {
   // Round 90b.
   own_mangroves: "Made from Global Mangrove Watch's 2020 files by culprits-tiles-more",
   own_critical_habitat: "Made from UNEP-WCMC's critical habitat file by culprits-tiles-more",
+  ecoregions_2017: "Made from RESOLVE's Ecoregions 2017 file by culprits-tiles-more",
+  ifl_2000: "Made from Global Forest Watch's table by culprits-tiles-more", ifl_2013: "Made from Global Forest Watch's table by culprits-tiles-more",
+  ifl_2016: "Made from Global Forest Watch's table by culprits-tiles-more", ifl_2020: "Made from Global Forest Watch's table by culprits-tiles-more",
+  ifl_2025: "Made from Global Forest Watch's table by culprits-tiles-more",
   potapov_cropland: "Made from the GLAD lab's 3 km cropland files by culprits-tiles-more",
   // Round 84b.
   ibama_embargos: "Copied weekly from IBAMA's open data by culprits-tiles-more",
@@ -18361,6 +18457,8 @@ const PANEL_ORDER = [
   "climate_trace_flu_removals", "carbon_plumes_co2", "gem_coal", "power_plants", "fractracker_refineries",
   { h: 5, t: "Culprits" }, "carbon_majors", "bocc",
   { h: 5, t: "Priority emitters" }, "carbon_bombs",
+  // Round 99b (asked 28 September): intact land holding much carbon.
+  { h: 5, t: "Carbon stored in nature" },
   // Methane in the page's order: livestock, fossil fuel production and
   // transmission, wastewater, rice, landfills.
   { h: 4, t: "Methane" },
@@ -18478,17 +18576,25 @@ const PANEL_ORDER = [
   // the worldwide peatland map first (CATALOGUE_FIRST).
   { h: 4, t: "Peatland" },
   { h: 3, t: "Biodiversity loss" },
-  // Round 91b: Global Safety Net's country rankings drawn as the map's own
-  // shading, in place of its page in a box; its layers file in by title.
-  { h: 4, t: "Places that matter most for species" }, "gsn_countries", "atlas_hotspots", "atlas_cities", "own_critical_habitat",
   // Round 90b/91b (asked 27 September): Global Safety Net's land cover layers
   // (Water Bodies to Inland Water) and the terrestrial ecoregions, filed by title.
-  // Round 92b: the land cover in 35 kinds here too.
-  { h: 4, t: "Land Use and Ecoregions" }, "glc_fcs30d",
-  { h: 4, t: "Birds" },
-  { h: 4, t: "Protected and conserved areas" },
-  { h: 4, t: "Intact and primary forests" },
+  // Round 92b: the land cover in 35 kinds here too. Round 99b (asked 28
+  // September): first, then Places that matter most for species in five
+  // parts, then Disturbance, Birds, Fish, Soil, Wildlife and timber crime and
+  // Companies and financiers. Protected and conserved areas and Intact and
+  // primary forests are now parts of Places that matter most for species.
+  { h: 4, t: "Land Use and Ecoregions" }, "ecoregions_2017", "glc_fcs30d",
+  { h: 4, t: "Places that matter most for species" },
+  { h: 5, t: "Where species are threatened" }, "atlas_hotspots", "atlas_cities",
+  { h: 6, bundle: "crithab", colour: "#5E6A78" }, "own_critical_habitat",
+  { h: 5, t: "Protected areas" }, "gsn_countries",
+  { h: 5, t: "Species richness" },
+  { h: 5, t: "Wild and intact places" },
+  { h: 6, bundle: "bii", colour: "#5E6478" },
+  { h: 6, bundle: "ifl", colour: "#4F6E7A" }, "ifl_2000", "ifl_2013", "ifl_2016", "ifl_2020", "ifl_2025",
+  { h: 5, t: "Where animals gather and migrate" },
   { h: 4, t: "Disturbance" },
+  { h: 4, t: "Birds" },
   { h: 4, t: "Fish" },
   // Asked for 25 September: most biodiversity layers leave out the soil.
   { h: 4, t: "Soil biodiversity" }, "soil_spun", "soil_nematodes", "soilgrids",
