@@ -3172,7 +3172,7 @@ console.log("\nround of 22 September (2): the box refiled, rows taken out");
         f("Forest greenhouse gas emissions") === P + " > Climate > Carbon dioxide > Emissions" &&
         f("Forest greenhouse gas net flux \u2014 Global gfw_forest_carbon_net_flux") === `${P} > Climate > Carbon dioxide > Emissions`);
   check("DIST-ALERT is under Construction, Biodiversity loss, Fire, Mining and Deforestation",
-        f("Global all ecosystem disturbance alerts (DIST-ALERT)") === `${P} > Construction | ${P} > Biodiversity loss > Disturbance | ${P} > Fire | ${P} > Mining | ${P} > Deforestation > Tree cover loss and alerts > Alerts`);
+        f("Global all ecosystem disturbance alerts (DIST-ALERT)") === "(taken out)");  // round 85b: out, the integrated rows hold it
   // Round 23 (item 2): the drilling heading is gone.
   check("oil and gas concessions go under Methane's infrastructure and where oil and gas is drilled, not Mining (round 75)",
         f("Oil and gas concessions") === `${P} > Climate > Methane > Infrastructure | ${P} > Pollution > Land pollution > Where oil and gas is drilled`);
@@ -3207,7 +3207,7 @@ console.log("\nround of 22 September (3): the report's findings, live marks, leg
   const P = "Destruction > Of the planet";
   const f = (t, id) => places(`${t} ${id}`, `${t} ${id}`).join(" | ");
   check("\"drivers\" is not a river and \"disturbance\" is not urban",
-        f("Drivers of disturbance alerts \u2014 the driver behind each alert (Wageningen University)", "wur_integration_alert_drivers_class") === P + " > Deforestation > Tree cover loss and alerts > What drove the loss");
+        f("Drivers of disturbance alerts \u2014 the driver behind each alert (Wageningen University)", "wur_integration_alert_drivers_class").startsWith(P + " > Deforestation > Tree cover loss and alerts > What drove the loss > Tree cover loss by dominant driver"));
   check("Global Forest Watch's analysis tables are taken out, and so is the drivers dataset with no tiles",
         f("Gadm  burned areas  adm1 whitelist", "gadm__burned_areas__adm1_whitelist") === "(taken out)" &&
         f("Geostore  burned areas  daily alerts", "geostore__burned_areas__daily_alerts") === "(taken out)" &&
@@ -3239,7 +3239,7 @@ console.log("\nround of 22 September (4): rows of the same name told apart");
   const titles = ids.map((id) => g.gfwTitle({ dataset: id, metadata: { title: "Tree Cover Loss by Dominant Driver" } }));
   check("the four driver rows have four different titles, each saying whose it is", new Set(titles).size === 4 && titles.every((t) => /\([^)]+\)$/.test(t)));
   const places = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return cataloguePlaces;")();
-  check("\u2026and all four still file under Deforestation", titles.every((t, i) => places(`${t} ${ids[i]}`, `${t} ${ids[i]}`).join() === "Destruction > Of the planet > Deforestation > Tree cover loss and alerts > What drove the loss"));
+  check("\u2026and all four still file under Deforestation", titles.every((t, i) => places(`${t} ${ids[i]}`, `${t} ${ids[i]}`).join().startsWith("Destruction > Of the planet > Deforestation > Tree cover loss and alerts > What drove the loss > Tree cover loss by dominant driver")));
   const wdpa = ["wdpa_protected_areas", "wdpa_licensed_protected_areas"].map((id) => g.gfwTitle({ dataset: id, metadata: { title: "Protected areas" } }));
   check("the two worldwide protected-area rows are told apart", wdpa[0] !== wdpa[1] && wdpa.every((t) => /World Database on Protected Areas/.test(t)));
   check("what is known about how they differ goes first in each row's i box",
@@ -4806,7 +4806,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   check("the three rows sit in the military layer",
-        /"mil_nuclear_storage", "mil_russia_storage", ("mil_missile_ranges", )?"mil_usni_fleet", "mil_osm"/.test(src) &&
+        /"mil_nuclear_storage", ("mil_russia_storage", )?("mil_missile_ranges", )?"mil_usni_fleet", "mil_osm"/.test(src) &&
         /id: "mil_nuclear_storage"[^\n]*route: "geojsonlive"/.test(src) && /id: "mil_usni_fleet"[^\n]*route: "usnifleet"/.test(src));
   check("Russia's storage map is shown whole, not copied (its licence allows no derivatives)",
         /id: "mil_russia_storage"[^\n]*route: "companion"/.test(src) && /page: "https:\/\/russianforces\.org\/maps\/Russia-12thGUMO\.html"/.test(src));
@@ -4950,7 +4950,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("the two worldwide disturbance rows are no longer cut to the tropics",
         !/id:"gfw_dist",[^\n]*\n\s*bounds: \[-180, -30, 180, 30\]/.test(src) && !/id:"gfw_dist_year",[^\n]*\n\s*bounds: \[-180, -30, 180, 30\]/.test(src));
   check("the rows between the forest alerts row and GLAD's 30 S to 30 N row are taken out, as the box shows them",
-        /const CUT_BETWEEN = \[\{ from: '\[data-group="forest_alerts"\]', to: \/\^GLAD alerts\\b\/i \}\];/.test(src) && /watchCuts\(box\);/.test(src));
+        /const CUT_BETWEEN = \[\{ from: '\[data-group="forest_alerts"\]'/.test(src) && /watchCuts\(box\);/.test(src));
   check("a row can be dragged into another heading or onto a heading's line, and the menu reset puts every row back",
         /function moveRowInto\(lead, body\)/.test(src) && /function resetRows\(box\)/.test(src) && /Reset layers menu/.test(src) && /drag\.where = "into";/.test(src));
   check("the box says how to use it with the map", /Drag a layer by its \\u2807 grip above or below another to draw it above or below that layer on the map/.test(src));
@@ -4962,6 +4962,57 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         o.PANEL_ORDER.indexOf("gw_defenders") > at("Invasion of humans") && o.PANEL_ORDER.lastIndexOf("gw_defenders") > at("Of individuals") &&
         o.PANEL_ORDER.filter((x) => x === "gw_defenders").length === 2);
   check("the page asks for this round's script", /app\.js\?v=(8[4-9]|9\d)/.test(html));
+}
+{
+  console.log("\nround 85b: military colours apart, Russia's panel out, lookout towers out, the drivers as one layer, agriculture-linked deforestation built, environmental crime by country");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const o = new Function(body + "; return { PANEL_ORDER, PANEL_REMOVED };")();
+  const at = (t) => o.PANEL_ORDER.findIndex((x) => x && x.t === t);
+  const places = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return cataloguePlaces;")();
+  const f = (t, id) => places(`${t} ${id}`, `${t} ${id}`).join(" | ");
+  const cols = [...src.matchAll(/\{ id: "(mil_[a-z_]+)", name: "[^"]*", unit: "[^"]*", colour: "(#[0-9A-F]{6})", keepColour: true/g)];
+  const pts = cols.filter(([, id]) => !/^mil_news_archive$/.test(id)).map(([, , c]) => c);
+  check("every military point row has its own colour, kept out of the green-to-blue rotation",
+        cols.length >= 12 && new Set(pts).size === pts.length);
+  check("no military colour is orange or yellow", cols.every(([, , c]) => {
+    const n = parseInt(c.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    if (mx === mn) return true;
+    let h = mx === r ? 60 * (((g - b) / (mx - mn)) % 6) : mx === g ? 60 * ((b - r) / (mx - mn) + 2) : 60 * ((r - g) / (mx - mn) + 4);
+    h = (h + 360) % 360;
+    return h < 20 || h > 75;
+  }));
+  check("Russia's storage panel is out and no box links MISSILEMAP",
+        o.PANEL_REMOVED.has("mil_russia_storage") && !o.PANEL_ORDER.includes("mil_russia_storage") && /!\/MISSILEMAP\/i\.test\(k\)/.test(src));
+  const leave = new Function("return " + src.slice(src.indexOf("leaveOut: (p) => {") + 10, src.indexOf("},", src.indexOf("leaveOut: (p) => {")) + 1))();
+  check("fire lookout towers, and places that are only observation towers or belfries, leave the military installations",
+        leave({ kind: "fire lookout tower" }) && leave({ kind: "fire lookout tower, watchtower" }) && leave({ kind: "observation tower" }) &&
+        !leave({ kind: "observation tower, military building" }) && !leave({ kind: "airbase" }) && /if \(cfg\.leaveOut && cfg\.leaveOut\(p\)\) return;/.test(src));
+  check("the all-ecosystem disturbance alerts and GLAD alerts are out; the integrated rows stay",
+        f("Global all ecosystem disturbance alerts (DIST-ALERT)", "umd_glad_dist_alerts") === "(taken out)" &&
+        f("GLAD alerts \u2014 30\u00b0S to 30\u00b0N", "umd_glad_landsat_alerts") === "(taken out)" &&
+        f("Integrated deforestation alerts", "gfw_integrated_alerts") !== "(taken out)" &&
+        f("Global integrated disturbance alerts", "gfw_integrated_dist_alerts") !== "(taken out)");
+  check("the drivers' coverage shape and Global Forest Watch's agriculture-linked deforestation are out",
+        f("Drivers of disturbance alerts \u2014 the area they cover, as one shape, with no drivers in it", "wur_alert_drivers_coverage") === "(taken out)" &&
+        f("Agriculture-Linked Deforestation \u2014 Global", "wri_agriculture_linked_deforestation") === "(taken out)");
+  check("Wageningen's drivers of each alert are a part of one drivers layer, with Curtis et al.'s first",
+        /Tree cover loss by dominant driver/.test(f("Drivers of disturbance alerts \u2014 the driver behind each alert (Wageningen University)", "wur_integration_alert_drivers_class")) &&
+        f("Tree cover loss by dominant driver", "tsc_tree_cover_loss_drivers") === f("x", "wur_integration_alert_drivers_class") &&
+        /const CATALOGUE_FIRST = new Set\(\["tsc_tree_cover_loss_drivers"\]\)/.test(src) &&
+        o.PANEL_ORDER.some((x) => x && x.bundle === "drivers"));
+  check("the map's own agriculture-linked deforestation sits under What drove the loss, coloured by the crop or animal",
+        o.PANEL_ORDER.indexOf("agri_linked") > at("What drove the loss") && /id: "agri_linked"[^\n]*route: "pmtareas"/.test(src) &&
+        /const cb = cfg\.classBy;/.test(src));
+  check("the cut runs through GLAD alerts, by the Alerts heading's A to Z order",
+        /through: "GLAD alerts"/.test(src) && /function cutUpTo\(title, through\)/.test(src));
+  check("environmental crime by country, three rows from the Global Organized Crime Index, first under Environmental crime",
+        ["goc_flora", "goc_fauna", "goc_resources"].every((i, k) => o.PANEL_ORDER.indexOf(i) === at("Environmental crime") + 1 + k) &&
+        /if \(!tf\.field\) return j;/.test(src));
+  check("the global burned areas are asked for only from zoom 5 in, where Global Forest Watch can answer",
+        /const GFW_MIN_ZOOM = \{ umd_modis_burned_areas: 5 \};/.test(src) && /asset\.minzoom = Math\.max\(asset\.minzoom \|\| 0, least\);/.test(src));
+  check("the page asks for this round's script", /app\.js\?v=(8[5-9]|9\d)/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

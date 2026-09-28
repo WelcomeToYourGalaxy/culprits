@@ -5,6 +5,36 @@ touches.
 
 ---
 
+## Round 85b (27 September)
+
+Needs round 84b (runs after it by name).
+
+- Military rows: each its own colour (keepColour), far apart and none orange
+  or yellow. mil_russia_storage out (PANEL_REMOVED). fieldRows never shows a
+  MISSILEMAP field; tiles nuclear_sites.py no longer writes it.
+- mil_sites: cfg.leaveOut drops fire lookout towers and places that are only
+  observation towers or belfries (Wikidata files them under fortifications);
+  tiles military.py leaves them out of the copy too.
+- Catalogue: umd_glad_dist_alerts and umd_glad_landsat_alerts out (the
+  integrated rows hold them); wur_alert_drivers_coverage out;
+  wri_agriculture_linked_deforestation out, replaced by agri_linked
+  (pmtareas with classBy: colour by the crop or animal linked to most loss,
+  strength by its share of the district; tiles agri_linked.py builds it from
+  GFW's download).
+- BUNDLES.drivers under What drove the loss: Curtis et al. first
+  (CATALOGUE_FIRST), WRI/Google, UMD, TSC and Wageningen's drivers of each
+  alert as its parts.
+- CUT_BETWEEN now cuts through GLAD alerts: the forest_alerts group and every
+  catalogue row under Alerts whose title comes up to "GLAD alerts" A to Z.
+- GFW_MIN_ZOOM: umd_modis_burned_areas asked for from zoom 5 in (its tiles are
+  made on request and fail wider out).
+- goc_flora, goc_fauna, goc_resources (country rows, totalsFrom kind json with
+  field) first under Environmental crime, from tiles goc_index.py (Global
+  Organized Crime Index workbook). env_enforcement.py probes more registers
+  (US ECHO cases, Chile SMA, Mexico PROFEPA, Colombia, Ireland, Scotland, NSW,
+  IUU vessel list), reading only the first 2 MB of each.
+
+
 ## Round 84b (27 September)
 
 Needs round 83b (runs after it by name).

@@ -5682,12 +5682,21 @@ async function addPmtAreasLayer(cfg) {
   const stepsCfg = pa || cfg;
   const breaks = (stepsCfg.logSteps || (key.breaks || []).filter((b) => Number.isFinite(b))).slice(0, AREA_RAMP.length - 1);
   const v = ["to-number", ["get", pa ? pa.field : "value"], 0];
-  const colour = breaks.length ? ["step", v, AREA_RAMP[0], ...breaks.flatMap((b, i) => [b, AREA_RAMP[i + 1]])] : AREA_RAMP[3];
-  map.addSource(`${cfg.id}-src`, { type: "vector", url: `pmtiles://${cfg.archiveUrl}`, attribution: "Tuholske et al. 2021, Global Wastewater Model, KNB" });
+  // A row coloured by kind (round 85b, agri_linked): each kind its own colour,
+  // how strong it is from a 0-1 share, and the kinds in the key.
+  const cb = cfg.classBy;
+  const colour = cb ? ["match", ["get", cb.field], ...Object.entries(cb.colours).flat(), AMOUNT_NONE]
+    : breaks.length ? ["step", v, AREA_RAMP[0], ...breaks.flatMap((b, i) => [b, AREA_RAMP[i + 1]])] : AREA_RAMP[3];
+  const opacity = cb && cb.strength ? ["interpolate", ["linear"], ["sqrt", ["to-number", ["get", cb.strength], 0]], 0, 0.18, 0.5, 0.9] : 0.7;
+  map.addSource(`${cfg.id}-src`, { type: "vector", url: `pmtiles://${cfg.archiveUrl}`, attribution: cb ? "" : "Tuholske et al. 2021, Global Wastewater Model, KNB" });
   map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source: `${cfg.id}-src`, "source-layer": cfg.sourceLayer, layout: { visibility: "none" },
-    paint: { "fill-color": colour, "fill-opacity": 0.7 } }, pointLayerAbove());
+    paint: { "fill-color": colour, "fill-opacity": opacity } }, pointLayerAbove());
   map.addLayer({ id: `${cfg.id}-line`, type: "line", source: `${cfg.id}-src`, "source-layer": cfg.sourceLayer, layout: { visibility: "none" },
-    paint: { "line-color": "#C7ABA2", "line-width": 0.4, "line-opacity": 0.5 } }, pointLayerAbove());
+    paint: { "line-color": cb ? colour : "#C7ABA2", "line-width": cb ? 0.3 : 0.4, "line-opacity": 0.5 } }, pointLayerAbove());
+  if (cb) {
+    rowKey(cfg.id, Object.entries(cb.colours).filter(([k]) => !key.kinds || key.kinds[k]).map(([k, c]) => [c, key.kinds && key.kinds[k] ? `${k} (${Number(key.kinds[k]).toLocaleString()} districts)` : k]), cb.hint);
+    if (typeof buildLegend === "function") buildLegend();
+  }
   cfg._layerIds = [`${cfg.id}-fill`, `${cfg.id}-line`];
   bindHtmlPopup(`${cfg.id}-fill`, (p) => pieceBox(cfg, p));
   if (breaks.length && stepsCfg.stepLabel) {
@@ -5752,10 +5761,12 @@ function abattoirPartsInit() { /* both parts are rows of their own now */ }
 /* ---------- live places, batch 2 ---------- */
 const boxOpen = `<div style="font:13px/1.4 system-ui,sans-serif;max-width:340px">`;
 function fieldRows(p, skip = []) {
+  // Round 85b: never the nuclear storage sites' link to MISSILEMAP, another
+  // site, at the owner's word.
   // A nested value (a list, a record inside the record) is written out as
   // text rather than left off: it used to be dropped without a word.
   const text = (v) => (typeof v === "object" ? JSON.stringify(v) : String(v));
-  return Object.keys(p).filter((k) => !skip.includes(k) && p[k] !== null && p[k] !== "" && !(Array.isArray(p[k]) && !p[k].length))
+  return Object.keys(p).filter((k) => !skip.includes(k) && !/MISSILEMAP/i.test(k) && p[k] !== null && p[k] !== "" && !(Array.isArray(p[k]) && !p[k].length))
     .map((k) => `<tr><th style="text-align:left;padding-right:8px;vertical-align:top">${escapeHtml(k.replace(/_/g, " "))}</th><td>${escapeHtml(text(p[k]))}</td></tr>`).join("");
 }
 // Round 29: a box written by the source's own template (uMap, ArcGIS, My
@@ -5907,6 +5918,9 @@ async function readGeojsonFiles(cfg) {
       // the file; the row says how many there are rather than passing over them.
       if (!ft.geometry) { nowhere++; return; }
       const p = ft.properties || {};
+      // A place the row's own words say is not what the row is (round 85b: fire
+      // lookout towers filed in Wikidata under fortifications) is left out.
+      if (cfg.leaveOut && cfg.leaveOut(p)) return;
       // Which field names the place, where a file's own first choice would be
       // the wrong one: the wire's "name" is the outlet, and a list of forty
       // rows all reading the same outlet says nothing about where they are.
@@ -6833,6 +6847,11 @@ const BUNDLES = {
   // quilombola territories (INCRA) are parts of this layer, at the owner's word.
   landmark: "Indigenous Peoples' and local communities' lands and territories, worldwide (LandMark, with Brazil's FUNAI)",
   military: "Wars, militaries and weapons, past and current",
+  // Round 85b (asked 27 September): Wageningen University's drivers of each
+  // recent alert (10 m, the Amazon, Congo and Indonesia's basins, 2022 on) as
+  // parts of one layer with Curtis et al.'s drivers of loss since 2001
+  // (worldwide, a square about 10 km across) and the rows of the same title.
+  drivers: "Tree cover loss by dominant driver, worldwide since 2001 (Curtis et al.), with each recent alert's driver in the tropics (Wageningen University)",
   milcompare: "Armies, spending and nuclear weapons, country by country",
   // Round 72: the two resource rights rows are one layer, at the owner's word.
   resrights: "Community rights to natural resources, worldwide and in Cameroon, Equatorial Guinea, Liberia and Namibia (LandMark and Global Forest Watch)",
@@ -7106,6 +7125,16 @@ const CATALOGUE_BY_TITLE = [
   [/(?=.*planted)(?=.*(oil ?palm|palm oil))/i, [AG + " > Palm oil > Plantations"]],
   [/forest mills?\b|\bgfw_forest_mills?\b/i, [P + " > Deforestation > Logging and timber concessions"]],
   [/\bumd_glad_dist_alerts_coverage\b|(?=.*dist.?alert)(?=.*coverage)/i, null],
+  // Round 85b (asked 27 September): the all-ecosystem disturbance alerts
+  // (DIST-ALERT alone) and the GLAD alerts, 30 S to 30 N (GLAD-L alone) out:
+  // the integrated rows hold both. The drivers' coverage shape out. Global
+  // Forest Watch's agriculture-linked deforestation (a tile made on request for
+  // every square, drawn white) is replaced by the map's own copy (agri_linked).
+  [/\bumd_glad_dist_alerts\b|\bumd_glad_landsat_alerts\b|^global all.?ecosystem disturbance alerts|^glad alerts\b/i, null],
+  [/\bwur_alert_drivers_coverage\b|(?=.*drivers of (deforestation|disturbance) alerts)(?=.*(coverage|the area they cover))/i, null],
+  [/\bwri_agriculture_linked_deforestation\b|^agriculture.linked deforestation/i, null],
+  // Round 85b: the drivers of tree cover loss are one layer with sublayers.
+  [/\b(tsc_tree_cover_loss_drivers|wri_google_tree_cover_loss_drivers|tsc_drivers|umd_drivers|wur_integration_alert_drivers_(class|date))\b/, [IN(P + " > Deforestation > Tree cover loss and alerts > What drove the loss", "drivers")]],
   [/(?=.*field boundar)(?=.*(chaco|chiquitano))/i, null],
   [/\bgadm_geotrellis_features\b|\bgfw_buffered_points\b|\bgfwpro_\w*forest_change\w*\b|(?=.*gfw ?pro)(?=.*forest change)/i, null],
   [/\bidn_forest_moratorium\b|\brtrw_tabanan_2023\b|\b(v3p3_)?spatialplan(forestland|moratorium|rtrwn|rtrwp_papua|rtrwp_papuawest)_spv\b/, [IN(P + " > Deforestation", "plans")]],
@@ -7316,6 +7345,9 @@ function nusantaraWhere(id) {
 }
 
 const LEFT_OUT = "(left out)";
+// Rows that lead the heading or layer they are filed in (round 85b: Curtis et
+// al.'s drivers first among the drivers' parts).
+const CATALOGUE_FIRST = new Set(["tsc_tree_cover_loss_drivers"]);
 function cataloguePlaces(words, title) {
   if (title != null) {
     // The title and, after it, the id (the id rules above end in $ or name it).
@@ -7419,7 +7451,9 @@ function catalogueRows(cfg, items) {
         `<span class="body"><span class="nm">${escapeHtml(item.title)}${liveMark(cfg)}` +
         `${siteLink(cfg.id)}${infoMark(item.about)}</span>` +
         `<span class="un" data-state="${escapeHtml(key)}">${escapeHtml(cfg.catUnit || "")}</span></span>`;
-      (sectionBody(box, path) || spare).appendChild(row);
+      const body = sectionBody(box, path) || spare;
+      // Round 85b: a row asked to lead its heading goes first in it.
+      if (CATALOGUE_FIRST.has(item.id) && body.firstChild && typeof body.insertBefore === "function") body.insertBefore(row, body.firstChild); else body.appendChild(row);
     });
   });
   if (leftOut) console.info(`[culprits] ${cfg.id}: ${leftOut} land-cover layers have no row, at the owner's request (22 September)`);
@@ -7959,6 +7993,9 @@ function gfwAssetIndex(rows) {
   }
   return out;
 }
+// Datasets asked for only from this zoom in (round 85b): Global Forest Watch
+// makes their tiles from a database on request, and wider out it does not answer.
+const GFW_MIN_ZOOM = { umd_modis_burned_areas: 5 };
 const GFW_DRAWABLE_KINDS = ["Static vector tile cache", "Dynamic vector tile cache", "Raster tile cache", "COG"];
 // Datasets with no tiles of their own whose alerts another row already draws.
 const GFW_DRAWN_BY = {
@@ -8198,6 +8235,15 @@ async function addGfwMenuLayer(cfg) {
         // PANGAEA mines): those, and any static tile that has not come in 8
         // seconds, are drawn at once under both names Global Forest Watch uses.
         let names = [];
+        // Round 85b: a dataset whose tiles are made on request from a database
+        // too large to answer for the whole world is asked for only from the
+        // zoom it can answer at (the global burned areas failed to fetch).
+        const least = GFW_MIN_ZOOM[d.id];
+        if (least) {
+          asset.minzoom = Math.max(asset.minzoom || 0, least);
+          asset.slow = true;
+          rowSay(d.key, `drawn from zoom ${least} in: Global Forest Watch makes these tiles from its database when asked, and cannot answer for wider views`);
+        }
         if (!asset.slow) {
           const ctl = typeof AbortController === "function" ? new AbortController() : null;
           const timer = ctl ? setTimeout(() => ctl.abort(), 8000) : null;
@@ -10659,7 +10705,17 @@ let wasteAtlasRead = null;
 async function countryTotalsFrom(cfg) {
   const tf = cfg.totalsFrom;
   // A copy written as the map's own country totals (round 84b).
-  if (tf.kind === "json") return getJson(tf.url, 30000);
+  // One figure of several in each country's record (round 85b): field names it.
+  if (tf.kind === "json") {
+    const j = await getJson(tf.url, 30000);
+    if (!tf.field) return j;
+    const out = {};
+    for (const [iso, r] of Object.entries(j || {})) {
+      const v = Number(r && r[tf.field]);
+      if (Number.isFinite(v)) out[iso] = Object.assign({}, r, { value: v, unit: cfg.unit });
+    }
+    return out;
+  }
   if (tf.kind !== "wasteatlas") throw new Error(`no reader for ${tf.kind}`);
   if (!wasteAtlasRead) wasteAtlasRead = Promise.all([getJson(WASTEATLAS_URL, 60000), getJson(BOUNDARIES_URL, 60000)]);
   let gj, shapes;
@@ -14999,6 +15055,36 @@ const OTHER_MAPS = {
       files: [{ label: "Illegal mining", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/raisg/illegal_mining.geojson" }],
       waiting: "waiting for RAISG's file: it is given only to registered users, so it is downloaded by hand from raisg.org and uploaded to culprits-tiles-more's raisg folder",
       note: "RAISG's map of illegal mining in the Amazon's nine countries: the mining sites, the areas mined and the rivers dredged, each with RAISG's own fields and sources. From RAISG's file, which it gives to registered users (culprits-tiles-more scripts/raisg.py)." },
+    // Round 85b (asked 27 September: "is that all you could find for a global
+    // layer?"): no register of environmental crimes covers the world; the
+    // nearest is the Global Organized Crime Index, which scores every UN member
+    // state on three environmental crimes from 1 (little or none) to 10 (the
+    // most pervasive). One row per crime (culprits-tiles-more goc_index.py).
+    { id: "goc_flora", name: "Crimes against wild plants and timber, by country, scored 1 to 10 (Global Organized Crime Index)", unit: "score, 1 to 10", colour: "#00E5C3", keepColour: true, route: "country", ready: true, lazy: true,
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/goc/countries.json", field: "flora" },
+      countryNote: "The Global Initiative Against Transnational Organized Crime's score for flora crimes: illegal logging and the illicit trade in protected plants",
+      note: "How pervasive and how harmful organized crime in wild plants is in each of the 193 UN member states: illegal logging, timber laundering and the trade in protected plants, scored 1 (little or none) to 10 (the most) by the Global Initiative's experts from its research. Every year the Index gives is in the box. Copied weekly from its downloadable data." },
+    { id: "goc_fauna", name: "Crimes against wild animals, by country, scored 1 to 10 (Global Organized Crime Index)", unit: "score, 1 to 10", colour: "#1E90FF", keepColour: true, route: "country", ready: true, lazy: true,
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/goc/countries.json", field: "fauna" },
+      countryNote: "The Global Initiative Against Transnational Organized Crime's score for fauna crimes: poaching, wildlife trafficking and illegal fishing",
+      note: "How pervasive and how harmful organized crime in wild animals is in each UN member state: poaching, the trafficking of live animals and their parts, and illegal, unreported and unregulated fishing, scored 1 to 10. Copied weekly from the Index's downloadable data." },
+    { id: "goc_resources", name: "Crimes in oil, gas, minerals and metals, by country, scored 1 to 10 (Global Organized Crime Index)", unit: "score, 1 to 10", colour: "#39FF14", keepColour: true, route: "country", ready: true, lazy: true,
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/goc/countries.json", field: "resources" },
+      countryNote: "The Global Initiative Against Transnational Organized Crime's score for non-renewable resource crimes: illegal mining and the theft and smuggling of oil, gas, gold and other minerals",
+      note: "How pervasive and how harmful organized crime in non-renewable resources is in each UN member state: illegal mining, fuel theft and smuggling, and the laundering of gold and other minerals, scored 1 to 10. Copied weekly from the Index's downloadable data." },
+    // Round 85b (asked 27 September): Global Forest Watch's agriculture-linked
+    // deforestation was a tile made on request for every square (slow), drawn
+    // white. The map's own copy (culprits-tiles-more agri_linked.py) colours
+    // each district by the crop or animal linked to most of its clearing, the
+    // share of the district cleared for it shown by how strong the colour is.
+    { id: "agri_linked", name: "Forest cleared for seven crops and animals, 2001 to 2015, district by district, by the one linked to most of it (WRI, Goldman et al. 2020)", unit: "districts", colour: "#39FF14", keepColour: true, route: "pmtareas", ready: true, lazy: true,
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/agri_linked.pmtiles", keyUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/agri_linked/key.json",
+      boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/agri_linked/pieces", boxesGz: true, sourceLayer: "agri_linked",
+      classBy: { field: "main", strength: "share", colours: {
+        "Cattle": "#FF1744", "Oil palm": "#39FF14", "Soy": "#8C6CFF", "Cocoa": "#D500F9", "Coffee": "#FF4FD8",
+        "Rubber": "#00E5FF", "Wood fiber": "#2979FF" },
+        hint: "Each district coloured by the crop or animal linked to most of its forest clearing; the stronger the colour, the more of the district was cleared for it" },
+      note: "Tree cover loss from 2001 to 2015 that the World Resources Institute links to cattle, oil palm, soy, cocoa, coffee, rubber and wood fibre, for every district (second-level administrative area) in the world, year by year (Goldman, Weisse, Harris and Schneider 2020, CC BY 4.0). Each district is coloured by the one linked to most of its clearing; its box gives every year for all seven. Rebuilt from Global Forest Watch's download by culprits-tiles-more." },
     { id: "gw_defenders", name: "Land and environmental defenders killed or disappeared since 2012, by country (Global Witness)", unit: "defenders killed or disappeared", colour: "#00B3FF", route: "country", ready: true, lazy: true,
       totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/global_witness/countries.json" },
       countryNote: "Global Witness's own count, as its data page publishes it (non-commercial reuse allowed)",
@@ -15283,33 +15369,37 @@ const MILITARY = {
   children: [
     // Round 80: GDELT's GEO API answers 404, so the row reads the daily copy
     // built from GDELT's own event files (culprits-tiles-more military.py).
-    { id: "mil_news", name: "News of fighting in the last seven days, placed where GDELT codes the action (GDELT events)", unit: "places", colour: "#7A5A58", route: "gdeltarchive", ready: true, lazy: true,
+    // Round 85b (asked 27 September: the points of these rows were too close in
+    // colour to tell apart): each row its own colour, kept out of the map's
+    // green-to-blue rotation (keepColour), far apart on the colour wheel and
+    // none of them orange or yellow.
+    { id: "mil_news", name: "News of fighting in the last seven days, placed where GDELT codes the action (GDELT events)", unit: "places", colour: "#D500F9", keepColour: true, route: "gdeltarchive", ready: true, lazy: true,
       copyUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/news.geojson",
       note: "The events GDELT codes as fighting - assault, fight, unconventional mass violence - from the news in every language it reads, over the last seven days, each at the place it gives for the action with the articles it was coded from. Copied daily by culprits-tiles-more from GDELT's 15-minute event files; GDELT's GEO API, which this row read before, no longer answers." },
-    { id: "mil_conflicts", name: "Armed conflict events since 1989, each with at least one death (UCDP)", unit: "events", colour: "#7E5A5A", route: "pmtiles", ready: true, lazy: true,
+    { id: "mil_conflicts", name: "Armed conflict events since 1989, each with at least one death (UCDP)", unit: "events", colour: "#FF1744", keepColour: true, route: "pmtiles", ready: true, lazy: true,
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/mil_conflicts.pmtiles", boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/ucdp", boxesGz: true,
       facet: { property: "x_kind", label: "kind", values: ["state-based conflict", "non-state conflict", "one-sided violence against civilians"] },
       note: "The Uppsala Conflict Data Program's Georeferenced Event Dataset (CC BY 4.0), every event in its latest global release with the monthly candidate events of this year added: fighting between states and armed groups, between armed groups, and armed groups or states killing civilians. Dots are sized by UCDP's best estimate of deaths. Every field UCDP gives is in the box. Copied daily." },
-    { id: "mil_attacks", name: "Terrorist attacks recorded in Wikidata, by decade", unit: "attacks", colour: "#7A5E66", route: "geojsonlive", ready: true, lazy: true,
+    { id: "mil_attacks", name: "Terrorist attacks recorded in Wikidata, by decade", unit: "attacks", colour: "#FF4FD8", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Attacks", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/attacks.geojson" }],
       note: "Every attack Wikidata files as a terrorist attack and places, with its date, deaths, injured and perpetrator where recorded. Wikidata is edited by anyone and is far from complete; the Global Terrorism Database forbids republishing its records, so it is not used. Attacks on civilians by armed groups are also in the conflict events row, under one-sided violence. Copied daily." },
-    { id: "mil_aircraft", name: "Military aircraft in the air now (ADS-B, adsb.lol)", unit: "aircraft", colour: "#5E6D8A", route: "adsbmil", ready: true, lazy: true,
+    { id: "mil_aircraft", name: "Military aircraft in the air now (ADS-B, adsb.lol)", unit: "aircraft", colour: "#FFFFFF", keepColour: true, route: "adsbmil", ready: true, lazy: true,
       note: "Aircraft whose transponder address is registered as military, as volunteer ADS-B receivers hear them, read live from adsb.lol's open API (ODbL) and read again every minute while ticked. Many military flights switch their transponders off or are not heard, so this is what is visible, not all there is." },
     // Round 78: the news kept past seven days; OpenStreetMap's military places;
     // the US Department of Defense's own register of its installations.
-    { id: "mil_news_archive", name: "News of fighting, every day since the map began keeping it, by month (GDELT)", unit: "places named", colour: "#7A5A58", route: "gdeltarchive", ready: true, lazy: true,
+    { id: "mil_news_archive", name: "News of fighting, every day since the map began keeping it, by month (GDELT)", unit: "places named", colour: "#D500F9", keepColour: true, route: "gdeltarchive", ready: true, lazy: true,
       archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/news",
       note: "Each day the seven days of news about fighting that GDELT places on the map are kept, a month to a file, with every article link seen for each place; a copy renewed daily by culprits-tiles-more. Months are chips of the row." },
     // Round 79: nuclear weapons storage as the Nuclear Notebook states it;
     // Russia's storage sites on their own map (its licence allows no copies);
     // the US Navy at sea as USNI News words it each week.
-    { id: "mil_nuclear_storage", name: "Nuclear weapons storage sites, as the Nuclear Notebook states them (FAS, Bulletin of the Atomic Scientists)", unit: "sites", colour: "#7E5A5A", route: "geojsonlive", ready: true, lazy: true,
+    { id: "mil_nuclear_storage", name: "Nuclear weapons storage sites, as the Nuclear Notebook states them (FAS, Bulletin of the Atomic Scientists)", unit: "sites", colour: "#39FF14", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Nuclear Notebook", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/nuclear_sites.geojson" }],
       note: "The US bombs in Europe (Aviano, Ghedi, Incirlik, Kleine Brogel, Volkel, Büchel), RAF Lakenheath (status uncertain), the depot near Asipovichy in Belarus, and the US storage locations the Notebook names, each with the Notebook's own words and estimate. Positions as the Notebook or FAS state them, otherwise Wikidata's, said in each box. Copied daily by culprits-tiles-more." },
     { id: "mil_russia_storage", name: "Russia's nuclear weapons storage sites: 12 national-level and about 35 base-level (Russian Strategic Nuclear Forces)", unit: "opens the map itself in a panel", colour: "#6A5E5A", route: "companion", ready: true, lazy: true,
       page: "https://russianforces.org/maps/Russia-12thGUMO.html",
       note: "Pavel Podvig's map of the 12th Main Directorate's storage facilities, shown whole in the panel along the bottom: its licence (CC BY-NC-ND 4.0) does not allow its points to be copied onto this map. Hover a dot for the facility's name." },
-    { id: "mil_usni_fleet", name: "US Navy ships at sea, week by week (USNI News Fleet and Marine Tracker)", unit: "areas named", colour: "#5E6470", route: "usnifleet", ready: true, lazy: true,
+    { id: "mil_usni_fleet", name: "US Navy ships at sea, week by week (USNI News Fleet and Marine Tracker)", unit: "areas named", colour: "#2979FF", keepColour: true, route: "usnifleet", ready: true, lazy: true,
       archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/usni",
       note: "Each weekly Fleet and Marine Tracker, a mark to each sea, ocean or port it names, with its paragraphs quoted whole and linked; every week kept, each a chip. USNI gives no coordinates, so each mark is the middle of the area named. Copied daily by culprits-tiles-more." },
     // Round 80: missile ranges drawn by MISSILEMAP (Alex Wellerstein), whose
@@ -15318,22 +15408,31 @@ const MILITARY = {
       page: "https://nuclearsecrecy.com/missilemap/",
       pageAt: (c, z) => `https://nuclearsecrecy.com/missilemap/?mc=${c.lat.toFixed(4)},${c.lng.toFixed(4)}&s=${c.lat.toFixed(4)},${c.lng.toFixed(4)}&z=${Math.max(2, Math.min(8, Math.round(z + 1)))}`,
       note: "Alex Wellerstein's MISSILEMAP, opened where this map is looking with its launch site there: pick a missile by country and it draws the range, accuracy and blast. Its figures come mostly from the CSIS Missile Threat project, the rest from Wikipedia and experts. Embedded whole, as its author asks. Each nuclear storage site's box links it with that site as the launch point." },
-    { id: "mil_osm", name: "Military airfields, bases, naval bases, barracks, ranges and training areas, in use and no longer (OpenStreetMap)", unit: "places", colour: "#6E6358", route: "geojsonlive", ready: true, lazy: true,
+    { id: "mil_osm", name: "Military airfields, bases, naval bases, barracks, ranges and training areas, in use and no longer (OpenStreetMap)", unit: "places", colour: "#00E5FF", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "OpenStreetMap", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/osm_military.geojson" }],
       note: "Every place OpenStreetMap tags military=airfield, base, naval_base, barracks, range, training_area or nuclear_explosion_site (and was:/disused: ones), each at its middle, every tag kept; kinds are chips of the row. A copy renewed daily by culprits-tiles-more from Overpass. ODbL." },
-    { id: "mil_mirta", name: "US military installations, ranges and training areas (US Department of Defense, MIRTA)", unit: "installations", colour: "#655E58", route: "geojsonlive", ready: true, lazy: true,
+    { id: "mil_mirta", name: "US military installations, ranges and training areas (US Department of Defense, MIRTA)", unit: "installations", colour: "#1DE9B6", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "MIRTA", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/mirta.geojson" }],
       note: "The Department of Defense's own register of its installations, ranges and training areas in the US and its territories, found on catalog.data.gov and copied daily by culprits-tiles-more; each outline drawn at its middle, every field kept. The dataset's date is in the copy." },
-    { id: "mil_sites", name: "Military bases, air bases, naval bases and installations, in use and closed (Wikidata)", unit: "installations", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
+    { id: "mil_sites", name: "Military bases, air bases, naval bases and installations, in use and closed (Wikidata)", unit: "installations", colour: "#8C6CFF", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
+      // Round 85b (asked 27 September): Wikidata files fire lookout towers,
+      // observation towers and belfries under fortifications, so they came in
+      // with the military installations; they are left out here and in the
+      // daily copy (military.py). A tower also filed as a military kind stays.
+      leaveOut: (p) => {
+        const kinds = String(p.kind || "").split(", ").filter(Boolean);
+        if (kinds.some((k) => /fire lookout/i.test(k))) return true;
+        return kinds.length > 0 && kinds.every((k) => /^(observation tower|belfry|lookout tower)$/i.test(k));
+      },
       files: [{ label: "Installations", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/sites.geojson" }],
       note: "Every military base, air base, naval base, airfield, barracks and other military installation Wikidata places, with the state that runs it, the country it is in, and when it opened and closed where recorded. Those run by another state than the one they stand in are marked. Copied daily." },
-    { id: "mil_units", name: "Military units at their headquarters, active and disbanded (Wikidata)", unit: "units", colour: "#5E6470", route: "geojsonlive", ready: true, lazy: true,
+    { id: "mil_units", name: "Military units at their headquarters, active and disbanded (Wikidata)", unit: "units", colour: "#82B1FF", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Units", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/units.geojson" }],
       note: "Every military unit in Wikidata with a headquarters it places: the headquarters, not where the unit is deployed. Copied daily." },
-    { id: "mil_test_sites", name: "Nuclear test sites (Wikidata)", unit: "sites", colour: "#7A6A5E", route: "geojsonlive", ready: true, lazy: true,
+    { id: "mil_test_sites", name: "Nuclear test sites (Wikidata)", unit: "sites", colour: "#B9F6CA", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Test sites", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/test_sites.geojson" }],
       note: "Nuclear weapons test sites in Wikidata, with who ran them and when they opened and closed where recorded. How many tests each state carried out, year by year, is in the country figures below. Copied daily." },
-    { id: "mil_minefields", name: "Minefields mapped in OpenStreetMap, marked and cleared", unit: "minefields", colour: "#7E6660", route: "geojsonlive", ready: true, lazy: true,
+    { id: "mil_minefields", name: "Minefields mapped in OpenStreetMap, marked and cleared", unit: "minefields", colour: "#FF8A80", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Minefields", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/minefields.geojson" }],
       note: "Areas OpenStreetMap's mappers tag as minefields, and those tagged as former minefields; each at the middle of the area mapped. Far from every minefield is mapped. Copied daily (© OpenStreetMap contributors, ODbL)." },
     { id: "mil_alliances", name: "Military alliances each state belongs to, now and in the past (Wikidata)", unit: "countries", colour: "#5E6A70", route: "shapes", ready: true, lazy: true,
@@ -15821,6 +15920,10 @@ const LAYER_KIND = {
   ibama_infractions: ["insentient", "downstream"],
   raisg_illegal_mining: ["insentient", "downstream"],
   gw_defenders: ["human", "downstream"],
+  goc_flora: ["plant", "downstream"],
+  goc_fauna: ["animal", "downstream"],
+  goc_resources: ["insentient", "downstream"],
+  agri_linked: ["plant", "downstream"],
   plastics_plants: ["insentient", "upstream"],
   vinyl_chloride_plants: ["insentient", "upstream"],
   mymaps_trees: ["plant", "downstream"],
@@ -16380,6 +16483,10 @@ const LAYER_SITE = {
   ibama_infractions: "https://dadosabertos.ibama.gov.br/dataset/fiscalizacao-auto-de-infracao",
   raisg_illegal_mining: "https://www.raisg.org/en/maps/",
   gw_defenders: "https://globalwitness.org/en/campaigns/land-and-environmental-defenders/in-numbers-lethal-attacks-against-defenders-since-2012/",
+  goc_flora: "https://ocindex.net/downloads",
+  goc_fauna: "https://ocindex.net/downloads",
+  goc_resources: "https://ocindex.net/downloads",
+  agri_linked: "https://data.globalforestwatch.org/documents/gfw::agriculture-linked-deforestation/about",
   skytruth_posts_sea: "https://monitor.skytruth.org/",
   skytruth_posts_land: "https://monitor.skytruth.org/",
   skytruth_marine_incidents: "https://monitor.skytruth.org/",
@@ -16623,6 +16730,10 @@ const NOT_LIVE = {
   ibama_infractions: "Copied weekly from IBAMA's open data by culprits-tiles-more",
   raisg_illegal_mining: "From RAISG's file, downloaded by hand (RAISG gives it to registered users) and made into this copy",
   gw_defenders: "Copied weekly from Global Witness's data page by culprits-tiles-more",
+  // Round 85b.
+  goc_flora: "Copied weekly from the Global Organized Crime Index's data by culprits-tiles-more",
+  goc_fauna: "Copied weekly from the Global Organized Crime Index's data by culprits-tiles-more",
+  goc_resources: "Copied weekly from the Global Organized Crime Index's data by culprits-tiles-more",
   // Round 81.
   plastics_plants: "Built daily by culprits-tiles-more from the registers and open maps it names; each source is read again weekly",
   vinyl_chloride_plants: "Built daily by culprits-tiles-more from the registers and open maps it names; each source is read again weekly",
@@ -16713,7 +16824,7 @@ const PANEL_ORDER = [
   // place of the Guerillamap row, which could only link to another site.
   { h: 3, t: "Of countries by countries" }, "site_secret_societies",
   { h: 4, bundle: "military", colour: "#6A5E5A" }, "mil_news", "mil_news_archive", "mil_conflicts", "mil_attacks", "mil_aircraft", "mil_sites", "mil_units",
-  "mil_nuclear_storage", "mil_russia_storage", "mil_usni_fleet", "mil_osm", "mil_mirta", "mil_test_sites", "mil_minefields", "mil_alliances",
+  "mil_nuclear_storage", "mil_usni_fleet", "mil_osm", "mil_mirta", "mil_test_sites", "mil_minefields", "mil_alliances",
   { h: 5, bundle: "milcompare", colour: "#6E5F52" }, "mil_spend_gdp", "mil_spend_gov", "mil_spend_usd", "mil_personnel", "mil_warheads", "mil_tests", "mil_nuclear_position",
   // Round 77: the whole Unearthings map, in its own order.
   { h: 2, t: "Invasion of the after-life" }, "remains_records", "remains_units", "remains_findings", "remains_cemeteries",
@@ -16826,7 +16937,9 @@ const PANEL_ORDER = [
   { h: 4, t: "Tree cover loss and alerts" },
   { h: 5, t: "Loss year by year" }, "glad_loss",
   { h: 5, t: "Alerts" }, "group:forest_alerts",
-  { h: 5, t: "What drove the loss" },
+  // Round 85b: the map's own agriculture-linked deforestation, then the drivers as one layer.
+  { h: 5, t: "What drove the loss" }, "agri_linked",
+  { h: 6, bundle: "drivers", colour: "#8C5A4E" },
   { h: 5, t: "Plantations spreading" },
   { h: 5, t: "Where clearing is likely" },
   { h: 5, t: "Clearing for cattle" },
@@ -16899,7 +17012,7 @@ const PANEL_ORDER = [
   { h: 3, t: "Other concessions" },
   // Asked for 25 September: the earthquakes under a heading of their own.
   // Round 84b: governments' own records of environmental crimes, and illegal mining.
-  { h: 3, t: "Environmental crime" }, "ibama_embargos", "ibama_infractions", "raisg_illegal_mining",
+  { h: 3, t: "Environmental crime" }, "goc_flora", "goc_fauna", "goc_resources", "ibama_embargos", "ibama_infractions", "raisg_illegal_mining",
   { h: 3, t: "Natural disasters" }, "skytruth_quakes",
   // Asked for 25 September (round 48): the fur farms under a heading of their
   // own here, not under Of groups.
@@ -17003,6 +17116,9 @@ const PANEL_REMOVED = new Set([
   "epa_tri_sites", "slick_archive", "skytruth_posts", "pirg_plastic",
   // Round 84b: MISSILEMAP's panel (another site in a box) is out, at the owner's word.
   "mil_missile_ranges",
+  // Round 85b: Russia's storage sites opened another site in a panel; the
+  // Nuclear Notebook row above it names them, at the owner's word.
+  "mil_russia_storage",
   // Split into its registers (gmo_env and the rows after it) on 20 September.
   "gmo_releases",
   // Removed at the owner's request, 20 September.
@@ -17656,26 +17772,36 @@ function layerMenuHelp(box) {
 // it happens layer to the GLAD alerts 30 S to 30 N layer"): every row between
 // the two named, as the box shows them, goes to the rows taken out. The two
 // named rows stay. Run again as catalogue rows arrive.
-const CUT_BETWEEN = [{ from: '[data-group="forest_alerts"]', to: /^GLAD alerts\b/i }];
+// Round 85b (asked 27 September): the GLAD alerts row is out too, so the cut
+// runs through it: the "as it happens" layer and every row filed under Alerts
+// whose title comes up to and including "GLAD alerts", in the box's A to Z
+// order, go to the rows taken out. Run again as catalogue rows arrive.
+const CUT_BETWEEN = [{ from: '[data-group="forest_alerts"]', section: P + " > Deforestation > Tree cover loss and alerts > Alerts", through: "GLAD alerts" }];
 function rowTitleText(el) {
   const nm = el && el.querySelector && el.querySelector(".nm");
   return nm ? String(([...nm.childNodes].find((n) => n.nodeType === 3 && n.data.trim()) || {}).data || nm.textContent || "").trim() : "";
+}
+function cutUpTo(title, through) {
+  const t = String(title || "").trim();
+  return !!t && (t.toLowerCase().startsWith(through.toLowerCase()) || t.localeCompare(through, "en", { sensitivity: "base" }) < 0);
 }
 function cutBetween(box) {
   box = box || document.getElementById("layers");
   const gone = box && box.querySelector ? box.querySelector("[data-removed]") : null;
   if (!gone) return;
   for (const c of CUT_BETWEEN) {
+    const out = [];
     const tick = box.querySelector(c.from);
     const start = tick && tick.closest ? (tick.closest(".group") || tick.closest("label")) : null;
-    const parent = start && start.parentElement;
-    if (!parent || parent.closest("[data-removed]")) continue;
-    const kids = [...parent.children], i = kids.indexOf(start);
-    const j = kids.findIndex((el, k) => k > i && el.tagName === "LABEL" && c.to.test(rowTitleText(el)));
-    if (j < 0) continue;
-    for (const el of kids.slice(i + 1, j)) {
-      const t = el.querySelector && el.querySelector("input[data-cat], input[data-layer]");
-      if (t && t.checked) { t.checked = false; t.dispatchEvent(new Event("change", { bubbles: true })); }
+    if (start && !start.closest("[data-removed]")) out.push(start);
+    const body = sectionBody(box, c.section);
+    if (body && !body.closest("[data-removed]")) {
+      for (const el of [...body.children]) if (el.tagName === "LABEL" && el.querySelector("input[data-cat]") && cutUpTo(rowTitleText(el), c.through)) out.push(el);
+    }
+    for (const el of out) {
+      for (const t of el.querySelectorAll ? el.querySelectorAll("input[data-cat], input[data-layer]") : []) {
+        if (t.checked) { t.checked = false; t.dispatchEvent(new Event("change", { bubbles: true })); }
+      }
       gone.appendChild(el);
     }
   }
