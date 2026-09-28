@@ -5,6 +5,37 @@ touches.
 
 ---
 
+## Round 91b (27 September)
+
+Needs round 90b (runs after it by name). Tiles patch round91b_tiles.py beside it.
+
+- Correction to 90b: the owner asked only for Global Safety Net's country
+  rankings (its page in a box) to go and be remade from real data, not for its
+  layers to go. The gsn row, addGsnLayer and its filing are back.
+- Its layers now carry plain titles with each abbreviation spelt out
+  (GSN_PLAIN, shown as the row's label; the service's name still files it):
+  OECMs, ITTs, documented CAs, AIBES, HM90, mammal assemblages, climate
+  stabilization areas and the rest.
+- Filing (first in CATALOGUE_BY_TITLE): the four tree layers under
+  Deforestation > Forest cover, the mangroves under Deforestation > Mangroves;
+  Inland Water, Water Bodies, Shrubs/Mosaic, Grassland, Herbaceous Wetland,
+  Ice/Snow (and Cropland, Sparse Vegetation, Bare Areas if offered) and the
+  Terrestrial Ecoregions under Biodiversity loss > Land Use and Ecoregions; the
+  rest under Places that matter most for species.
+- The mangroves are drawn light teal and grown wider out (grow:// protocol,
+  GSN_GROW), so they show from the world view.
+- Conservation Priorities (top 10%): the service gives only the Earth Engine
+  asset's address, which answers a signed-in Google account alone, so it
+  never drew; gsnShown leaves out any layer without a map address.
+- The rankings: gsn_countries, a country shading of each country's protection
+  level 0 to 10, read from the rankings' own spreadsheet by tiles
+  gsn_rankings.py (every column in the box; US states listed apart).
+- 90b's duplicates of Global Safety Net's layers taken out at the owner's
+  word: the WDPA and OECM rows, the 14 land cover kinds, own_modification,
+  own_wilderness, own_reforestation (and their tiles scripts). Kept:
+  own_mangroves, own_critical_habitat, Fields of The World, Potapov cropland.
+
+
 ## Round 90b (27 September)
 
 Needs round 89b (runs after it by name). Tiles patch round90b_tiles.py beside it.

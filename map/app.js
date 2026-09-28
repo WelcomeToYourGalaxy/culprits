@@ -1215,65 +1215,12 @@ const GLC_FCS30D_CLASSES = [
   [200, "#D2CBC2", "Bare areas"], [201, "#C4BCB2", "Consolidated bare areas"], [202, "#DCD4C8", "Unconsolidated bare areas"],
   [210, "#3E5561", "Water body"], [220, "#EDE8E0", "Permanent ice and snow"],
 ];
-// Round 90b (asked 27 September): Global Safety Net's land cover layers are
-// replaced by the map's own, one row per kind, read from GLC_FCS30D's 2022 map
-// (a finer map than the ESA CCI one Global Safety Net draws on). Each row keeps
-// only its own classes, in one colour; the forest kinds go under Deforestation,
-// the rest under Biodiversity loss > Land Use and Ecoregions.
-const LAND_KINDS = {
-  lc_broadleaf: { codes: [51, 52, 61, 62], colour: "#2E8C8A" },
-  lc_needleleaf: { codes: [71, 72, 81, 82], colour: "#1E5F8C" },
-  lc_mixedleaf: { codes: [91, 92], colour: "#3E88A8" },
-  lc_swamp: { codes: [181], colour: "#40A8A0" },
-  lc_water: { codes: [210], colour: "#1A4E8C" },
-  lc_ice: { codes: [220], colour: "#D6EEF6" },
-  lc_bare: { codes: [200, 201, 202], colour: "#B8D8E0" },
-  lc_sparse: { codes: [150, 152, 153], colour: "#9CC6D0" },
-  lc_lichen: { codes: [140], colour: "#7FB8C0" },
-  lc_grass: { codes: [130], colour: "#5FB8B0" },
-  lc_shrub: { codes: [120, 121, 122], colour: "#4E98A8" },
-  lc_wetland: { codes: [182, 183, 184, 186, 187], colour: "#3E7FA0" },
-  lc_cropland: { codes: [10, 11, 12, 20], colour: "#6E9CB8" },
-  lc_built: { codes: [190], colour: "#2A3E6E" },
-};
-function LAND_KIND_NAMES(id) {
-  return LAND_KINDS[id].codes.map((v) => (GLC_FCS30D_CLASSES.find((c) => c[0] === v) || [v, "", String(v)])[2].toLowerCase()).join(", ");
-}
-function LAND_KIND_KEY(id) {
-  const k = LAND_KINDS[id];
-  return [[k.colour, LAND_KIND_NAMES(id)]];
-}
-// Round 90b: the UNEP-WCMC's own WDPA and WD-OECM servers draw only the areas
-// a row asks for (definitionExpression), in this map's colours (a fill and a
-// darker edge), polygons and the points of areas known only by their size.
-function wcmcExport(service, where, fill, edge) {
-  const rgb = (h, a) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)).concat([a]);
-  const dyn = [
-    { id: 101, source: { type: "mapLayer", mapLayerId: 1 }, definitionExpression: where,
-      drawingInfo: { renderer: { type: "simple", symbol: { type: "esriSFS", style: "esriSFSSolid", color: rgb(fill, 150),
-        outline: { type: "esriSLS", style: "esriSLSSolid", color: rgb(edge, 255), width: 0.6 } } } } },
-    { id: 100, source: { type: "mapLayer", mapLayerId: 0 }, definitionExpression: where,
-      drawingInfo: { renderer: { type: "simple", symbol: { type: "esriSMS", style: "esriSMSCircle", color: rgb(fill, 220), size: 5,
-        outline: { color: rgb(edge, 255), width: 0.6 } } } } },
-  ];
-  return `${service}/export?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857&size=256,256&format=png32&transparent=true&dpi=96&f=image` +
-    `&dynamicLayers=${encodeURIComponent(JSON.stringify(dyn))}`;
-}
 const COG_SOURCES = {
   glc_fcs30d: {
     url: (year) => `https://s3.openlandmap.org/arco/lc_glc.fcs30d_c_30m_s_${year}0101_${year}1231_go_epsg.4326_v20231026.tif`,
     classes: new Map(GLC_FCS30D_CLASSES.map(([v, c]) => [v, hex3(c.slice(1))])),
     who: "OpenLandMap's copy of GLC_FCS30D",
   },
-  // Round 90b: one source per kind of land cover, its classes in one colour.
-  // Small kinds (swamps, open wetlands, built land, ice) are grown a pixel or
-  // two wider out, so they still show from the world view.
-  ...Object.fromEntries(Object.entries(LAND_KINDS).map(([id, k]) => [id, {
-    url: (year) => `https://s3.openlandmap.org/arco/lc_glc.fcs30d_c_30m_s_${year}0101_${year}1231_go_epsg.4326_v20231026.tif`,
-    classes: new Map(k.codes.map((v) => [v, hex3(k.colour.slice(1))])),
-    who: "OpenLandMap's copy of GLC_FCS30D",
-    grow: true,
-  }])),
 };
 const cogOpened = new Map();          // file address -> its levels, once read
 function cogOpen(url) {
@@ -1312,7 +1259,7 @@ function cogLevel(levels, baseWidth, baseRes, want) {
   });
   return pick;
 }
-async function cogSquare(url, classes, z, x, y, signal, grow) {
+async function cogSquare(url, classes, z, x, y, signal) {
   const c = await cogOpen(url);
   const t = tileDegrees(z, x, y);
   const S = 256;
@@ -1337,7 +1284,6 @@ async function cogSquare(url, classes, z, x, y, signal, grow) {
       }
     }
   }
-  if (grow) growPixels(out, S, z);
   const canvas = typeof OffscreenCanvas !== "undefined"
     ? new OffscreenCanvas(S, S) : Object.assign(document.createElement("canvas"), { width: S, height: S });
   const ctx = canvas.getContext("2d");
@@ -1351,7 +1297,7 @@ maplibregl.addProtocol("cog4326", async (params, abortController) => {
   const m = params.url.match(/^cog4326:\/\/([a-z0-9_]+)\/(\d{4})\/(\d+)\/(\d+)\/(\d+)/);
   const src = COG_SOURCES[m[1]];
   try {
-    return { data: await cogSquare(src.url(m[2]), src.classes, Number(m[3]), Number(m[4]), Number(m[5]), abortController && abortController.signal, src.grow) };
+    return { data: await cogSquare(src.url(m[2]), src.classes, Number(m[3]), Number(m[4]), Number(m[5]), abortController && abortController.signal) };
   } catch (e) {
     if (!(e && e.name === "AbortError") && typeof setLayerState === "function") {
       setLayerState(m[1], `${src.who} could not be read here (${e.message}); if this persists, its server does not let other sites read the file`);
@@ -1381,8 +1327,10 @@ function seenPixels(px, w, zoom) {
 // Every drawn pixel grown into the empty pixels round it, in its own colour:
 // two pixels wide to zoom 4, one to zoom 7, none closer in.
 function growPixels(px, w, zoom) {
+  growBy(px, w, zoom <= 4 ? 2 : zoom <= 7 ? 1 : 0);
+}
+function growBy(px, w, r) {
   const h = px.length / 4 / w;
-  const r = zoom <= 4 ? 2 : zoom <= 7 ? 1 : 0;
   if (!r) return;
   const src = px.slice();
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -1397,6 +1345,38 @@ function growPixels(px, w, zoom) {
     }
   }
 }
+// grow://<colour>/<https tile address without the scheme> (round 91b): a
+// layer of thin, scattered pixels (Global Safety Net's mangroves) made visible
+// from far out: every drawn pixel in one light colour, fully opaque, and grown
+// into the empty pixels round it, three pixels wide to zoom 3, two to zoom 5,
+// one to zoom 8. The zoom is read from the address's /z/x/y.
+function growRadiusAt(z) { return z <= 3 ? 3 : z <= 5 ? 2 : z <= 8 ? 1 : 0; }
+function growPaint(px, w, z, rgb) {
+  for (let i = 0; i < px.length; i += 4) {
+    if (!px[i + 3]) continue;
+    px[i] = rgb[0]; px[i + 1] = rgb[1]; px[i + 2] = rgb[2]; px[i + 3] = 255;
+  }
+  growBy(px, w, growRadiusAt(z));
+}
+maplibregl.addProtocol("grow", async (params, abortController) => {
+  const m = params.url.match(/^grow:\/\/([0-9A-Fa-f]{6})\/(.*)$/);
+  const url = "https://" + m[2];
+  const zm = url.match(/\/(\d+)\/(\d+)\/(\d+)(?:[?#].*)?$/);
+  const r = await fetch(url, { signal: abortController && abortController.signal });
+  if (!r.ok) throw new Error(`${r.status}`);
+  const bmp = await createImageBitmap(new Blob([await r.arrayBuffer()]));
+  const canvas = typeof OffscreenCanvas !== "undefined"
+    ? new OffscreenCanvas(bmp.width, bmp.height)
+    : Object.assign(document.createElement("canvas"), { width: bmp.width, height: bmp.height });
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(bmp, 0, 0);
+  const img = ctx.getImageData(0, 0, bmp.width, bmp.height);
+  growPaint(img.data, bmp.width, zm ? Number(zm[1]) : 99, hex3(m[1]));
+  ctx.putImageData(img, 0, 0);
+  const blob = canvas.convertToBlob ? await canvas.convertToBlob({ type: "image/png" })
+    : await new Promise((res) => canvas.toBlob(res, "image/png"));
+  return { data: await blob.arrayBuffer() };
+});
 function zoomOfBbox(url) {
   const m = /BBOX=(-?[\d.]+),(-?[\d.]+),(-?[\d.]+),(-?[\d.]+)/i.exec(url);
   if (!m) return 99;
@@ -3095,8 +3075,8 @@ function setBasemap(kind) {
 //   - every ticked layer under Destruction whose places are points gets a soft
 //     red halo beneath its own points, held steady: a threat zone at each real
 //     site, never a place the layer does not give;
-//   - the protected and conserved areas (round 90b: the map's own, in place of
-//     Global Safety Net's) sit a little brighter than the imagery around them;
+//   - Global Safety Net's areas (the places identified for protection) sit a
+//     little brighter than the imagery around them;
 //   - a click answers with a ring where it landed.
 // Nothing is invented: no scores, no places, no numbers. The only thing that
 // moves is the ring a click leaves, and that stops for anyone whose system asks
@@ -3112,7 +3092,7 @@ const DEFENCE = {
          "fog-ground-blend": 0.97, "horizon-fog-blend": 0.1, "sky-horizon-blend": 0.35,
          // Thin: a full atmosphere laid a pale haze over the relief.
          "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.2, 3, 0.08, 5, 0] },
-  guard: ["wdpa_strict", "wdpa_other", "wdpa_nocat", "wdoecm"],
+  guard: ["gsn"],
   maxPulsing: 16,
 };
 let DEFENCE_ON = false, defenceTimer = null, defenceSky = null;
@@ -7171,6 +7151,16 @@ const CATALOGUE_PLACES = [
 // titles each rule caught.
 const CATALOGUE_TAKEN_OUT = "(taken out)";
 const CATALOGUE_BY_TITLE = [
+  // Round 91b (asked 27 September): Global Safety Net's tree layers under
+  // Deforestation; its land cover layers, from Water Bodies to Inland Water,
+  // and its ecoregions under Biodiversity loss > Land Use and Ecoregions; the
+  // rest under Places that matter most for species. First, so no broader rule
+  // (mangrove, cropland, protected areas) takes them.
+  [/^Trees, mangrove \(Global Safety Net\)/, [P + " > Deforestation > Mangroves"]],
+  [/^Trees, [a-z]+ \(Global Safety Net\)/, [P + " > Deforestation > Forest cover"]],
+  [/^(Inland Water|Water Bodies|Shrubs\/Mosaic|Grassland|Herbaceous Wetland|Ice\/Snow|Cropland|Sparse Vegetation|Bare Areas|Terrestrial Ecoregions) \(Global Safety Net\)/,
+    [P + " > Biodiversity loss > Land Use and Ecoregions"]],
+  [/\(Global Safety Net\)/, [P + " > Biodiversity loss > Places that matter most for species"]],
   // ---- 27 September (round 82b), at the owner's word --------------------
   // Nusantara's fire alerts for Equatorial Asia, all nine: MODIS, VIIRS and
   // the two together, each in three copies. The worldwide VIIRS detections
@@ -9563,6 +9553,108 @@ function addCompanion(cfg) {
     frame.src = typeof cfg.pageAt === "function" ? cfg.pageAt(map.getCenter(), map.getZoom()) : cfg.page;
   }
   setLayerState(cfg.id, "open along the bottom of the screen");
+  applyVisibility(cfg.id);
+}
+
+/* ---------- Global Safety Net: its viewer's layers, ticked one by one ---------- */
+// Round 91b: a layer is drawn only where the service gives a map address
+// (Earth Engine's /maps/ or a tile template). For "Conservation Priorities
+// (top 10%)" it gives the Earth Engine asset's own address, which answers only
+// a signed-in Google account; asked for as tiles it answered nothing, which is
+// why the row drew nothing. It is left out, and the console says so.
+function gsnShown(list) {
+  const shown = (list || []).filter((l) => l.gee_tile_url && !(l.is_hidden === true || l.is_hidden === "True"));
+  const drawable = shown.filter((l) => /\{z\}|\/maps\//.test(String(l.gee_tile_url)));
+  const out = shown.filter((l) => !drawable.includes(l));
+  if (out.length && typeof console !== "undefined") console.info(`[culprits] Global Safety Net: no map address given for ${out.map((l) => l.name).join(", ")}; left out`);
+  return drawable;
+}
+// Round 91b (asked 27 September): each layer's title in plain words, its
+// abbreviations spelt out; the service's own name still files the row.
+const GSN_PLAIN = {
+  1: "Strictly protected areas: strict nature reserves and wilderness areas (IUCN categories Ia and Ib)",
+  2: "Protected areas, from national parks to land used sustainably (IUCN categories II to VI)",
+  3: "Places conserved outside protected areas, such as community forests and sacred sites (other effective area-based conservation measures, OECMs)",
+  4: "Indigenous and traditional territories formally recognised (ITTs)",
+  5: "Conservation areas documented outside the official databases: delisted and proposed protected areas, biosphere reserves, private easements (documented CAs)",
+  7: "Land most important for species and for the climate that is not protected (unprotected areas of importance for biodiversity and ecosystem services, AIBES)",
+  8: "Sites of rare and threatened species: Alliance for Zero Extinction sites, rare species' ranges and Key Biodiversity Areas",
+  9: "Places richest in species: biodiversity hotspots and places where species change most over short distances",
+  10: "Places where large mammals still gather and migrate each season, with their full set of species (mammal assemblages)",
+  11: "Wild and intact areas: the most intact places in each ecoregion, and wilderness",
+  12: "Intact land storing over 50 tonnes of carbon a hectare, whose loss would warm the climate (climate stabilization areas)",
+  13: "Inland water: lakes, rivers and reservoirs",
+  14: "Trees, broadleaf (evergreen and deciduous)",
+  15: "Trees, needle-leaved (evergreen and deciduous)",
+  16: "Trees, broadleaf and needle-leaved mixed",
+  17: "Trees standing in fresh or brackish water (flooded trees)",
+  18: "Mangroves (trees standing in salt water)",
+  19: "Shrubland, and trees and shrubs mixed with other cover",
+  20: "Grassland and sparse vegetation",
+  21: "Wetlands of shrubs and grasses (herbaceous wetland)",
+  24: "Permanent ice and snow",
+  25: "Water bodies, the sea taken out",
+  27: "How much people have changed the land, at 90 m (Human Modification index v3, HM90)",
+  28: "Terrestrial ecoregions: 844 regions of like plants and animals (Ecoregions 2017)",
+  36: "Cropland",
+  37: "Sparse vegetation",
+  38: "Bare ground",
+  40: "How much people have changed the land, at 90 m, drawn in white (HM90)",
+  41: "Where forest could grow back, in hectares a pixel, leaving out farmland, towns and natural grasslands (constrained reforestation)",
+  42: "Land, as the Human Modification index outlines it",
+  43: "Natural and barren land (Human Modification index)",
+  44: "All land most important for species and for the climate (areas of importance for biodiversity and ecosystem services, AIBES: the five layers from rare species to climate stabilization areas)",
+  45: "Land most important for species alone (AIBES without the climate stabilization areas)",
+  46: "Land most important for the climate and wildness alone (AIBES: wild and intact areas and climate stabilization areas)",
+  48: "Semi-natural land outside the areas most important for species and climate",
+  49: "Grasses and other plants inside the areas most important for species and climate",
+  93: "Protected areas and OECMs together, as an overlay",
+  94: "How intact wildlife communities are, least intact half: Biodiversity Intactness Index 0 to 50 (Natural History Museum, London)",
+  95: "How intact wildlife communities are, most intact half: Biodiversity Intactness Index 51 to 100 (Natural History Museum, London)",
+  96: "Critical habitat on land, as the International Finance Corporation defines it (Dunnett et al. 2025)",
+  97: "Critical habitat at sea, as the International Finance Corporation defines it (Dunnett et al. 2025)",
+  98: "Conservation priorities: the top 10% of sites for threatened species (Gosling et al. 2026)",
+};
+// Round 91b (asked 27 September: the mangroves were too small and faint to
+// see from the world view): the mangrove layer's pixels are drawn in a light
+// teal and grown wider out (grow://).
+const GSN_GROW = { 18: "3FC0C9" };
+async function addGsnLayer(cfg) {
+  let list;
+  try { list = gsnShown(await getJson(cfg.api, 40000)); }
+  catch (e) { setLayerState(cfg.id, `Global Safety Net did not answer (${e.message})`); return; }
+  // Each of its layers is a row of the box of its own, under Places that
+  // matter most for species (24 September); ticking one draws it.
+  const lid = (l) => `${cfg.id}-r-${l.id}`;
+  cfg._layerIds = list.map(lid);
+  const on = new Set();
+  const apply = (vis) => list.forEach((l) => {
+    if (map.getLayer(lid(l))) map.setLayoutProperty(lid(l), "visibility", vis === "visible" && on.has(l.id) ? "visible" : "none");
+  });
+  cfg.afterVisibility = apply;
+  const items = list.map((l) => ({
+    name: String(l.id), title: `${l.name} (Global Safety Net)`, label: GSN_PLAIN[l.id] ? `${GSN_PLAIN[l.id]} (Global Safety Net)` : undefined, about: l.description || "",
+    show: (want) => {
+      if (want) {
+        showRowFor(cfg.id);
+        on.add(l.id);
+        if (!map.getLayer(lid(l))) {
+          // The service gives either a map address to add /tiles/{z}/{x}/{y} to,
+          // or the tile template itself; adding it twice made every tile fail.
+          const u = String(l.gee_tile_url || l.tile_url || l.url || "");
+          let tpl = /\{z\}/.test(u) ? u : `${u.replace(/\/+$/, "")}/tiles/{z}/{x}/{y}`;
+          if (GSN_GROW[l.id]) tpl = `grow://${GSN_GROW[l.id]}/${tpl.replace(/^https:\/\//, "")}`;
+          map.addSource(lid(l), { type: "raster", tileSize: 256, tiles: [tpl], attribution: "Global Safety Net, One Earth / Nature Data Lab" });
+          map.addLayer({ id: lid(l), type: "raster", source: lid(l), paint: { "raster-opacity": 0.85 } });
+        }
+      } else on.delete(l.id);
+      apply(visibility.get(cfg.id) || "none");
+      setLayerState(cfg.id, on.size ? `${on.size} of ${list.length} layers drawn` : `${list.length} layers, each a row`);
+    },
+  }));
+  catalogueRows(cfg, items);
+  items.forEach((it) => CATALOGUE_ITEMS.set(it.key, it));
+  setLayerState(cfg.id, `${list.length} layers, each a row`);
   applyVisibility(cfg.id);
 }
 
@@ -15360,114 +15452,20 @@ const OTHER_MAPS = {
       pageBase: "https://atlas-for-the-end-of-the-world.com/hotspot_cities/", positions: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/atlas/cities.json",
       cities: [["antananarivo", "Antananarivo, Madagascar"], ["auckland", "Auckland, New Zealand"], ["baku", "Baku, Azerbaijan"], ["bogota", "Bogotá, Colombia"], ["brasilia", "Brasília, Brazil"], ["cape_town", "Cape Town, South Africa"], ["chengdu", "Chengdu, China"], ["colombo", "Colombo, Sri Lanka"], ["dar_es_salaam", "Dar es Salaam, Tanzania"], ["davao", "Davao, Philippines"], ["durban", "Durban, South Africa"], ["esfahan", "Esfahan, Iran"], ["guadalajara", "Guadalajara, Mexico"], ["guayaquil", "Guayaquil, Ecuador"], ["hongknog_shenzhen_quangzhou", "Hongkong-Shenzhen-Guangzhou, China"], ["honolulu", "Honolulu, United States"], ["houston", "Houston, United States"], ["jakarta", "Jakarta, Indonesia"], ["lagos", "Lagos, Nigeria"], ["los_angeles", "Los Angeles, United States"], ["makassar", "Makassar, Indonesia"], ["mecca", "Mecca, Saudi Arabia"], ["mexico_city", "Mexico City, Mexico"], ["nairobi", "Nairobi, Kenya"], ["osaka", "Osaka, Japan"], ["perth", "Perth, Australia"], ["port-au-prince", "Port-au-Prince, Haiti"], ["rawalpindi", "Rawalpindi, Pakistan"], ["santiago", "Santiago, Chile"], ["sao_paulo", "São Paulo, Brazil"], ["sydney", "Sydney, Australia"], ["tashkent", "Tashkent, Uzbekistan"], ["tel_aviv", "Tel Aviv, Israel"]],
       note: "The Atlas's 33 hotspot cities; each is placed from its name through a weekly OpenStreetMap lookup, and opening one zooms to it and shows the Atlas's own page for it in a panel on the map." },
-    // Round 90b (asked 27 September): the map's own layers in place of Global
-    // Safety Net's, each from the original data; see LAND_KINDS and wcmcExport.
-    { id: "wdpa_strict", name: "Strictly protected areas: strict nature reserves and wilderness areas (IUCN categories Ia and Ib, World Database on Protected Areas)", unit: "areas", colour: "#1E6FA8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
-      attribution: "UNEP-WCMC and IUCN, Protected Planet: the World Database on Protected Areas (WDPA)", rasterPaint: { "raster-opacity": 0.9, "raster-saturation": 0 },
-      choices: [{ label: "every one, polygons and points", tiles: wcmcExport("https://data-gis.unep-wcmc.org/server/rest/services/ProtectedSites/The_World_Database_of_Protected_Areas/MapServer", "iucn_cat IN ('Ia','Ib')", "#1E6FA8", "#0E3A5E") }],
-      key: [["#1E6FA8", "area"], ["#0E3A5E", "its edge"]],
-      note: "The World Database on Protected Areas as UNEP-WCMC serves it, updated monthly: only the areas given IUCN category Ia (strict nature reserve) or Ib (wilderness area), where people are kept out or leave no lasting mark. Drawn by UNEP-WCMC's own server in this map's colours; its points are areas known only by a reported size." },
-    { id: "wdpa_other", name: "Protected areas from national parks to land used sustainably (IUCN categories II to VI, World Database on Protected Areas)", unit: "areas", colour: "#3FA9C2", keepColour: true, route: "rasterlive", ready: true, lazy: true,
-      attribution: "UNEP-WCMC and IUCN, Protected Planet: the World Database on Protected Areas (WDPA)", rasterPaint: { "raster-opacity": 0.9, "raster-saturation": 0 },
-      choices: [{ label: "every one, polygons and points", tiles: wcmcExport("https://data-gis.unep-wcmc.org/server/rest/services/ProtectedSites/The_World_Database_of_Protected_Areas/MapServer", "iucn_cat IN ('II','III','IV','V','VI')", "#3FA9C2", "#1E5F70") }],
-      key: [["#3FA9C2", "area"], ["#1E5F70", "its edge"]],
-      note: "The World Database on Protected Areas as UNEP-WCMC serves it, updated monthly: the areas given IUCN category II (national park), III (natural monument), IV (habitat or species management area), V (protected landscape or seascape) or VI (protected area where natural resources are used sustainably)." },
-    { id: "wdpa_nocat", name: "Protected areas with no IUCN category: not reported, not applicable or not assigned (World Database on Protected Areas)", unit: "areas", colour: "#8FC8D6", keepColour: true, route: "rasterlive", ready: true, lazy: true,
-      attribution: "UNEP-WCMC and IUCN, Protected Planet: the World Database on Protected Areas (WDPA)", rasterPaint: { "raster-opacity": 0.9, "raster-saturation": 0 },
-      choices: [{ label: "every one, polygons and points", tiles: wcmcExport("https://data-gis.unep-wcmc.org/server/rest/services/ProtectedSites/The_World_Database_of_Protected_Areas/MapServer", "iucn_cat NOT IN ('Ia','Ib','II','III','IV','V','VI')", "#8FC8D6", "#4D7F8C") }],
-      key: [["#8FC8D6", "area"], ["#4D7F8C", "its edge"]],
-      note: "The World Database on Protected Areas as UNEP-WCMC serves it, updated monthly: every protected area whose government reported no IUCN category, or for which a category does not apply (many international designations, such as World Heritage sites and Ramsar wetlands)." },
-    { id: "wdoecm", name: "Places conserved outside protected areas, such as community forests, sacred sites and military buffer lands (other effective area-based conservation measures, OECMs)", unit: "areas", colour: "#40BFB0", keepColour: true, route: "rasterlive", ready: true, lazy: true,
-      attribution: "UNEP-WCMC and IUCN, Protected Planet: the World Database on other effective area-based conservation measures (WD-OECM)", rasterPaint: { "raster-opacity": 0.9, "raster-saturation": 0 },
-      choices: [{ label: "every one, polygons and points", tiles: wcmcExport("https://data-gis.unep-wcmc.org/server/rest/services/ProtectedSites/The_World_Database_on_other_effective_area_based_conservation_measures/MapServer", "1=1", "#40BFB0", "#1F6B63") }],
-      key: [["#40BFB0", "area"], ["#1F6B63", "its edge"]],
-      note: "The World Database on Other Effective Area-based Conservation Measures as UNEP-WCMC serves it. An OECM, in the Convention on Biological Diversity's term, is a place that is not a protected area but is governed in a way that keeps its nature in the long run, whatever its purpose: a community forest, a sacred grove, a watershed kept for drinking water, land around a military base." },
-    { id: "lc_broadleaf", name: "Broadleaf forest, evergreen and deciduous (GLC_FCS30D land cover, 30 m, 2022)", unit: "30 m land cover", colour: "#2E8C8A", keepColour: true, route: "rasterlive", ready: true, lazy: true,
-      attribution: "GLC_FCS30D, Zhang et al. 2023 (CC BY 4.0), via OpenLandMap", maxzoom: 13, rasterPaint: { "raster-opacity": 0.9, "raster-saturation": 0, "raster-resampling": "nearest" },
-      choices: [{ label: "2022", tiles: "cog4326://lc_broadleaf/2022/{z}/{x}/{y}" }],
-      key: LAND_KIND_KEY("lc_broadleaf"),
-      note: "One kind of land cover from GLC_FCS30D (Zhang et al. 2023, Earth System Science Data), the worldwide 30 m map with the finest list of classes, read square by square from OpenLandMap's copy of its 2022 map. Its classes in this row: " + LAND_KIND_NAMES("lc_broadleaf") + "." },
-    { id: "lc_needleleaf", name: "Needle-leaved (conifer) forest, evergreen and deciduous (GLC_FCS30D land cover, 30 m, 2022)", unit: "30 m land cover", colour: "#1E5F8C", keepColour: true, route: "rasterlive", ready: true, lazy: true,
-      attribution: "GLC_FCS30D, Zhang et al. 2023 (CC BY 4.0), via OpenLandMap", maxzoom: 13, rasterPaint: { "raster-opacity": 0.9, "raster-saturation": 0, "raster-resampling": "nearest" },
-      choices: [{ label: "2022", tiles: "cog4326://lc_needleleaf/2022/{z}/{x}/{y}" }],
-      key: LAND_KIND_KEY("lc_needleleaf"),
-      note: "One kind of land cover from GLC_FCS30D (Zhang et al. 2023, Earth System Science Data), the worldwide 30 m map with the finest list of classes, read square by square from OpenLandMap's copy of its 2022 map. Its classes in this row: " + LAND_KIND_NAMES("lc_needleleaf") + "." },
-    { id: "lc_mixedleaf", name: "Forest of broadleaf and needle-leaved trees mixed (GLC_FCS30D land cover, 30 m, 2022)", unit: "30 m land cover", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
-      attribution: "GLC_FCS30D, Zhang et al. 2023 (CC BY 4.0), via OpenLandMap", maxzoom: 13, rasterPaint: { "raster-opacity": 0.9, "raster-saturation": 0, "raster-resampling": "nearest" },
-      choices: [{ label: "2022", tiles: "cog4326://lc_mixedleaf/2022/{z}/{x}/{y}" }],
-      key: LAND_KIND_KEY("lc_mixedleaf"),
-      note: "One kind of land cover from GLC_FCS30D (Zhang et al. 2023, Earth System Science Data), the worldwide 30 m map with the finest list of classes, read square by square from OpenLandMap's copy of its 2022 map. Its classes in this row: " + LAND_KIND_NAMES("lc_mixedleaf") + "." },
-    { id: "lc_swamp", name: "Swamps: wetlands with trees and shrubs, fresh or brackish (GLC_FCS30D land cover, 30 m, 2022)", unit: "30 m land cover", colour: "#40A8A0", keepColour: true, route: "rasterlive", ready: true, lazy: true,
-      attribution: "GLC_FCS30D, Zhang et al. 2023 (CC BY 4.0), via OpenLandMap", maxzoom: 13, rasterPaint: { "raster-opacity": 0.9, "raster-saturation": 0, "raster-resampling": "nearest" },
-      choices: [{ label: "2022", tiles: "cog4326://lc_swamp/2022/{z}/{x}/{y}" }],
-      key: LAND_KIND_KEY("lc_swamp"),
-      note: "One kind of land cover from GLC_FCS30D (Zhang et al. 2023, Earth System Science Data), the worldwide 30 m map with the finest list of classes, read square by square from OpenLandMap's copy of its 2022 map. Its classes in this row: " + LAND_KIND_NAMES("lc_swamp") + "." },
-    { id: "lc_water", name: "Water bodies: lakes, rivers, reservoirs and inlets (GLC_FCS30D land cover, 30 m, 2022)", unit: "30 m land cover", colour: "#1A4E8C", keepColour: true, route: "rasterlive", ready: true, lazy: true,
-      attribution: "GLC_FCS30D, Zhang et al. 2023 (CC BY 4.0), via OpenLandMap", maxzoom: 13, rasterPaint: { "raster-opacity": 0.9, "raster-saturation": 0, "raster-resampling": "nearest" },
-      choices: [{ label: "2022", tiles: "cog4326://lc_water/2022/{z}/{x}/{y}" }],
-      key: LAND_KIND_KEY("lc_water"),
-      note: "One kind of land cover from GLC_FCS30D (Zhang et al. 2023, Earth System Science Data), the worldwide 30 m map with the finest list of classes, read square by square from OpenLandMap's copy of its 2022 map. Its classes in this row: " + LAND_KIND_NAMES("lc_water") + "." },
-    { id: "lc_ice", name: "Permanent ice and snow (GLC_FCS30D land cover, 30 m, 2022)", unit: "30 m land cover", colour: "#D6EEF6", keepColour: true, route: "rasterlive", ready: true, lazy: true,
-      attribution: "GLC_FCS30D, Zhang et al. 2023 (CC BY 4.0), via OpenLandMap", maxzoom: 13, rasterPaint: { "raster-opacity": 0.9, "raster-saturation": 0, "raster-resampling": "nearest" },
-      choices: [{ label: "2022", tiles: "cog4326://lc_ice/2022/{z}/{x}/{y}" }],
-      key: LAND_KIND_KEY("lc_ice"),
-      note: "One kind of land cover from GLC_FCS30D (Zhang et al. 2023, Earth System Science Data), the worldwide 30 m map with the finest list of classes, read square by square from OpenLandMap's copy of its 2022 map. Its classes in this row: " + LAND_KIND_NAMES("lc_ice") + "." },
-    { id: "lc_bare", name: "Bare ground: rock, sand and gravel (GLC_FCS30D land cover, 30 m, 2022)", unit: "30 m land cover", colour: "#B8D8E0", keepColour: true, route: "rasterlive", ready: true, lazy: true,
-      attribution: "GLC_FCS30D, Zhang et al. 2023 (CC BY 4.0), via OpenLandMap", maxzoom: 13, rasterPaint: { "raster-opacity": 0.9, "raster-saturation": 0, "raster-resampling": "nearest" },
-      choices: [{ label: "2022", tiles: "cog4326://lc_bare/2022/{z}/{x}/{y}" }],
-      key: LAND_KIND_KEY("lc_bare"),
-      note: "One kind of land cover from GLC_FCS30D (Zhang et al. 2023, Earth System Science Data), the worldwide 30 m map with the finest list of classes, read square by square from OpenLandMap's copy of its 2022 map. Its classes in this row: " + LAND_KIND_NAMES("lc_bare") + "." },
-    { id: "lc_sparse", name: "Sparse vegetation: scattered grass and shrubs (GLC_FCS30D land cover, 30 m, 2022)", unit: "30 m land cover", colour: "#9CC6D0", keepColour: true, route: "rasterlive", ready: true, lazy: true,
-      attribution: "GLC_FCS30D, Zhang et al. 2023 (CC BY 4.0), via OpenLandMap", maxzoom: 13, rasterPaint: { "raster-opacity": 0.9, "raster-saturation": 0, "raster-resampling": "nearest" },
-      choices: [{ label: "2022", tiles: "cog4326://lc_sparse/2022/{z}/{x}/{y}" }],
-      key: LAND_KIND_KEY("lc_sparse"),
-      note: "One kind of land cover from GLC_FCS30D (Zhang et al. 2023, Earth System Science Data), the worldwide 30 m map with the finest list of classes, read square by square from OpenLandMap's copy of its 2022 map. Its classes in this row: " + LAND_KIND_NAMES("lc_sparse") + "." },
-    { id: "lc_lichen", name: "Lichens and mosses (GLC_FCS30D land cover, 30 m, 2022)", unit: "30 m land cover", colour: "#7FB8C0", keepColour: true, route: "rasterlive", ready: true, lazy: true,
-      attribution: "GLC_FCS30D, Zhang et al. 2023 (CC BY 4.0), via OpenLandMap", maxzoom: 13, rasterPaint: { "raster-opacity": 0.9, "raster-saturation": 0, "raster-resampling": "nearest" },
-      choices: [{ label: "2022", tiles: "cog4326://lc_lichen/2022/{z}/{x}/{y}" }],
-      key: LAND_KIND_KEY("lc_lichen"),
-      note: "One kind of land cover from GLC_FCS30D (Zhang et al. 2023, Earth System Science Data), the worldwide 30 m map with the finest list of classes, read square by square from OpenLandMap's copy of its 2022 map. Its classes in this row: " + LAND_KIND_NAMES("lc_lichen") + "." },
-    { id: "lc_grass", name: "Grassland (GLC_FCS30D land cover, 30 m, 2022)", unit: "30 m land cover", colour: "#5FB8B0", keepColour: true, route: "rasterlive", ready: true, lazy: true,
-      attribution: "GLC_FCS30D, Zhang et al. 2023 (CC BY 4.0), via OpenLandMap", maxzoom: 13, rasterPaint: { "raster-opacity": 0.9, "raster-saturation": 0, "raster-resampling": "nearest" },
-      choices: [{ label: "2022", tiles: "cog4326://lc_grass/2022/{z}/{x}/{y}" }],
-      key: LAND_KIND_KEY("lc_grass"),
-      note: "One kind of land cover from GLC_FCS30D (Zhang et al. 2023, Earth System Science Data), the worldwide 30 m map with the finest list of classes, read square by square from OpenLandMap's copy of its 2022 map. Its classes in this row: " + LAND_KIND_NAMES("lc_grass") + "." },
-    { id: "lc_shrub", name: "Shrubland, evergreen and deciduous (GLC_FCS30D land cover, 30 m, 2022)", unit: "30 m land cover", colour: "#4E98A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
-      attribution: "GLC_FCS30D, Zhang et al. 2023 (CC BY 4.0), via OpenLandMap", maxzoom: 13, rasterPaint: { "raster-opacity": 0.9, "raster-saturation": 0, "raster-resampling": "nearest" },
-      choices: [{ label: "2022", tiles: "cog4326://lc_shrub/2022/{z}/{x}/{y}" }],
-      key: LAND_KIND_KEY("lc_shrub"),
-      note: "One kind of land cover from GLC_FCS30D (Zhang et al. 2023, Earth System Science Data), the worldwide 30 m map with the finest list of classes, read square by square from OpenLandMap's copy of its 2022 map. Its classes in this row: " + LAND_KIND_NAMES("lc_shrub") + "." },
-    { id: "lc_wetland", name: "Wetlands without trees: marshes, flooded flats, salt marshes, saline land and tidal flats (GLC_FCS30D land cover, 30 m, 2022)", unit: "30 m land cover", colour: "#3E7FA0", keepColour: true, route: "rasterlive", ready: true, lazy: true,
-      attribution: "GLC_FCS30D, Zhang et al. 2023 (CC BY 4.0), via OpenLandMap", maxzoom: 13, rasterPaint: { "raster-opacity": 0.9, "raster-saturation": 0, "raster-resampling": "nearest" },
-      choices: [{ label: "2022", tiles: "cog4326://lc_wetland/2022/{z}/{x}/{y}" }],
-      key: LAND_KIND_KEY("lc_wetland"),
-      note: "One kind of land cover from GLC_FCS30D (Zhang et al. 2023, Earth System Science Data), the worldwide 30 m map with the finest list of classes, read square by square from OpenLandMap's copy of its 2022 map. Its classes in this row: " + LAND_KIND_NAMES("lc_wetland") + "." },
-    { id: "lc_cropland", name: "Cropland, rainfed and irrigated (GLC_FCS30D land cover, 30 m, 2022)", unit: "30 m land cover", colour: "#6E9CB8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
-      attribution: "GLC_FCS30D, Zhang et al. 2023 (CC BY 4.0), via OpenLandMap", maxzoom: 13, rasterPaint: { "raster-opacity": 0.9, "raster-saturation": 0, "raster-resampling": "nearest" },
-      choices: [{ label: "2022", tiles: "cog4326://lc_cropland/2022/{z}/{x}/{y}" }],
-      key: LAND_KIND_KEY("lc_cropland"),
-      note: "One kind of land cover from GLC_FCS30D (Zhang et al. 2023, Earth System Science Data), the worldwide 30 m map with the finest list of classes, read square by square from OpenLandMap's copy of its 2022 map. Its classes in this row: " + LAND_KIND_NAMES("lc_cropland") + "." },
-    { id: "lc_built", name: "Built-over land: towns, cities, roads and industry (GLC_FCS30D land cover, 30 m, 2022)", unit: "30 m land cover", colour: "#2A3E6E", keepColour: true, route: "rasterlive", ready: true, lazy: true,
-      attribution: "GLC_FCS30D, Zhang et al. 2023 (CC BY 4.0), via OpenLandMap", maxzoom: 13, rasterPaint: { "raster-opacity": 0.9, "raster-saturation": 0, "raster-resampling": "nearest" },
-      choices: [{ label: "2022", tiles: "cog4326://lc_built/2022/{z}/{x}/{y}" }],
-      key: LAND_KIND_KEY("lc_built"),
-      note: "One kind of land cover from GLC_FCS30D (Zhang et al. 2023, Earth System Science Data), the worldwide 30 m map with the finest list of classes, read square by square from OpenLandMap's copy of its 2022 map. Its classes in this row: " + LAND_KIND_NAMES("lc_built") + "." },
+    { id: "gsn", name: "Land that needs protecting to halt species loss and climate change (Global Safety Net, One Earth)", unit: "layers", colour: "#406F2F", route: "gsn", ready: true, lazy: true,
+      api: "https://api.gsn.naturedatalab.org/geo-analysis/layers",
+      note: "Every layer the Global Safety Net viewer offers, drawn live from its own map service in its own colours." },
+    // Round 91b (asked 27 September): Global Safety Net's country rankings as
+    // the map's own national highlights, from the rankings' own spreadsheet,
+    // in place of the row that showed its page in a box.
+    { id: "gsn_countries", name: "How much of each country's most important land for nature is protected, scored 0 to 10 (Global Safety Net's country rankings)", unit: "score, 0 to 10", colour: "#1E6FA8", keepColour: true, route: "country", ready: true, lazy: true,
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gsn/countries.json", field: "score" },
+      countryNote: "Global Safety Net's country ranking: the share of the land it finds most important for species and climate that the World Database on Protected Areas records as protected, scored 0 (under 5%) to 10 (over 95%)",
+      note: "Global Safety Net's country rankings (GSN1; One Earth, from Dinerstein et al. 2020, Science Advances): for each country, how much of the land the Global Safety Net finds most important for species and for the climate is already protected, from the World Database on Protected Areas, scored 0 (under 5% protected) to 10 (over 95%). Read from the rankings' own spreadsheet by culprits-tiles-more (scripts/gsn_rankings.py) and drawn here; every column it gives is in the box. The spreadsheet ranks EU members and US states too; states have no country shape here, so they are left out of the shading." },
     { id: "own_mangroves", name: "Mangroves, drawn so they show from the world view (Global Mangrove Watch v4, 2020)", unit: "mangrove forest, 10 m", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
       attribution: "Global Mangrove Watch v4.0.19 (CC BY 4.0)", rasterPaint: { "raster-opacity": 0.88, "raster-saturation": 0 },
       choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/own_mangroves.choices.json",
       note: "Global Mangrove Watch version 4.0.19 (CC BY 4.0), the 10 m map of mangroves in 2020, made into this map's own copy by culprits-tiles-more (scripts/mangroves.py). Wider out, each pixel shows mangrove if any mangrove lies under it, so the thin coastal fringes stay visible from the world view; closer in the pixels are about 550 m." },
-    { id: "own_reforestation", name: "Where forest could grow back, in hectares per square km, avoiding farmland, towns and natural grasslands (Fesenmyer et al. 2025)", unit: "hectares per 1 km pixel", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
-      attribution: "Fesenmyer et al. 2025, constrained reforestation potential (CC BY 4.0)", rasterPaint: { "raster-opacity": 0.88, "raster-saturation": 0 },
-      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/own_reforestation.choices.json",
-      note: "The constrained reforestation potential of Fesenmyer et al. 2025 (Nature Communications; The Nature Conservancy's Reforestation Hub; CC BY 4.0): 195 million hectares where forest once stood and could return, leaving out cropland, towns, and natural grasslands and savannas where trees do not belong. Each 1 km pixel gives the hectares that could be reforested. Made into this map's own copy by culprits-tiles-more (scripts/reforestation.py)." },
-    { id: "own_modification", name: "How much people have changed the land, from untouched to wholly built or farmed, 2022 (Human Modification v3, Theobald et al. 2025)", unit: "0 to 1, 300 m", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
-      attribution: "Human Modification v3, Theobald et al. 2025 (CC BY 4.0)", rasterPaint: { "raster-opacity": 0.88, "raster-saturation": 0 },
-      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/own_modification.choices.json",
-      note: "The Human Modification index version 3 (Theobald et al. 2025, Scientific Data; Conservation Planning Technologies and The Nature Conservancy; CC BY 4.0) for 2022: for each place, how much of it is changed by human use - towns, farms, roads, mines, energy, logging and more - on a scale from 0 (unchanged) to 1 (wholly changed). The index's 300 m release, made into this map's own copy by culprits-tiles-more (scripts/human_modification.py); Global Safety Net's HM90 layer is the same index at 90 m." },
-    { id: "own_wilderness", name: "Wilderness and the human footprint, 2024: where people's pressure on the land is least (Mu et al. annual human footprint)", unit: "human footprint, 0 to 50, 1 km", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
-      attribution: "Mu et al. annual human footprint, figshare v8 (CC BY 4.0)", rasterPaint: { "raster-opacity": 0.88, "raster-saturation": 0 },
-      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/own_wilderness.choices.json",
-      note: "The annual human footprint of Mu et al. (2022, Scientific Data; figshare version 8, CC BY 4.0) for 2024: eight pressures - built land, cropland, pasture, population, night lights, roads, railways and navigable waterways - summed on Venter et al.'s scale of 0 to 50. Wilderness is where the footprint is under 1, the line Allan, Venter and Watson (2017) drew for land essentially free of human pressure; Venter et al. (2016) found a footprint of 4 to be about the pressure of pasture. Made into this map's own copy by culprits-tiles-more (scripts/wilderness.py)." },
     { id: "own_critical_habitat", name: "Critical habitat: places whose wildlife and ecosystems lending rules say must not be lost, likely and potential (UNEP-WCMC, Dunnett et al. 2025)", unit: "1 km", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
       attribution: "UNEP-WCMC Global Critical Habitat screening layer v2.1, Dunnett et al. 2025 (CC BY 4.0)", rasterPaint: { "raster-opacity": 0.88, "raster-saturation": 0 },
       choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/own_critical_habitat.choices.json",
@@ -16370,6 +16368,7 @@ function ensureLayer(cfg) {
       : cfg.route === "umap" || cfg.route === "kml" || cfg.route === "arcgisapp" ? addLivePlacesLayer(cfg)
       : cfg.route === "rasterlive" ? Promise.resolve().then(() => addRasterChoiceLayer(cfg))
       : cfg.route === "pmvector" ? Promise.resolve().then(() => addPmVectorLayer(cfg))
+      : cfg.route === "gsn" ? addGsnLayer(cfg)
       : cfg.route === "trase" ? addTraseLayer(cfg)
       : cfg.route === "pmshapes" ? Promise.resolve().then(() => addPmShapesLayer(cfg))
       : cfg.route === "slickarchive" ? addSlickArchive(cfg)
@@ -16457,30 +16456,11 @@ function refreshFacetRow(cfg) {
 // where it lands. A layer with no entry falls to the prefix rules below, and
 // anything still unlabelled shows whatever the chips say.
 const LAYER_KIND = {
+  gsn: ["plant", "downstream"],
+  gsn_countries: ["plant", "downstream"],
   // Round 90b.
-  lc_broadleaf: ["plant", "downstream"],
-  lc_needleleaf: ["plant", "downstream"],
-  lc_mixedleaf: ["plant", "downstream"],
-  lc_swamp: ["plant", "downstream"],
-  lc_water: ["plant", "downstream"],
-  lc_ice: ["plant", "downstream"],
-  lc_bare: ["plant", "downstream"],
-  lc_sparse: ["plant", "downstream"],
-  lc_lichen: ["plant", "downstream"],
-  lc_grass: ["plant", "downstream"],
-  lc_shrub: ["plant", "downstream"],
-  lc_wetland: ["plant", "downstream"],
-  lc_cropland: ["plant", "downstream"],
-  lc_built: ["plant", "downstream"],
   own_mangroves: ["plant", "downstream"],
-  own_reforestation: ["plant", "downstream"],
-  own_modification: ["plant", "downstream"],
-  own_wilderness: ["plant", "downstream"],
   own_critical_habitat: ["plant", "downstream"],
-  wdpa_strict: ["plant", "downstream"],
-  wdpa_other: ["plant", "downstream"],
-  wdpa_nocat: ["plant", "downstream"],
-  wdoecm: ["plant", "downstream"],
   ftw_fields: ["plant", "downstream"],
   potapov_cropland: ["plant", "downstream"],
   owid_co2: ["insentient", "upstream"],
@@ -17182,30 +17162,11 @@ map.on("load", () => setTimeout(mymapsTitles, 50));
 // point at the repo or the page they are read from; everyone else's at their
 // own site. A row missing from here shows no link rather than a guessed one.
 const LAYER_SITE = {
+  gsn: "https://api.gsn.naturedatalab.org/geo-analysis/layers",
+  gsn_countries: "https://www.globalsafetynet.app/rankings/",
   // Round 90b.
-  lc_broadleaf: "https://doi.org/10.5194/essd-15-265-2023",
-  lc_needleleaf: "https://doi.org/10.5194/essd-15-265-2023",
-  lc_mixedleaf: "https://doi.org/10.5194/essd-15-265-2023",
-  lc_swamp: "https://doi.org/10.5194/essd-15-265-2023",
-  lc_water: "https://doi.org/10.5194/essd-15-265-2023",
-  lc_ice: "https://doi.org/10.5194/essd-15-265-2023",
-  lc_bare: "https://doi.org/10.5194/essd-15-265-2023",
-  lc_sparse: "https://doi.org/10.5194/essd-15-265-2023",
-  lc_lichen: "https://doi.org/10.5194/essd-15-265-2023",
-  lc_grass: "https://doi.org/10.5194/essd-15-265-2023",
-  lc_shrub: "https://doi.org/10.5194/essd-15-265-2023",
-  lc_wetland: "https://doi.org/10.5194/essd-15-265-2023",
-  lc_cropland: "https://doi.org/10.5194/essd-15-265-2023",
-  lc_built: "https://doi.org/10.5194/essd-15-265-2023",
   own_mangroves: "https://zenodo.org/records/12756047",
-  own_reforestation: "https://doi.org/10.6084/m9.figshare.27335799",
-  own_modification: "https://zenodo.org/records/14502573",
-  own_wilderness: "https://doi.org/10.6084/m9.figshare.16571064",
   own_critical_habitat: "https://doi.org/10.34892/snwv-a025",
-  wdpa_strict: "https://www.protectedplanet.net/en/thematic-areas/wdpa",
-  wdpa_other: "https://www.protectedplanet.net/en/thematic-areas/wdpa",
-  wdpa_nocat: "https://www.protectedplanet.net/en/thematic-areas/wdpa",
-  wdoecm: "https://www.protectedplanet.net/en/thematic-areas/oecms",
   ftw_fields: "https://source.coop/ftw/global-data",
   potapov_cropland: "https://glad.umd.edu/dataset/croplands",
   mine_features: "https://zenodo.org/records/7894216",
@@ -17415,7 +17376,7 @@ const LIVE_ROUTES = new Set([
   "worker", "tile", "wmts", "rasterlive", "cerulean", "coral", "carbonmapper",
   "arcgis", "arcgisdyn", "arcgisapp", "umap", "kml", "ll2", "ejatlas", "geojsonlive",
   "wpgmza", "atlascities", "trase", "trasefac", "wmsmenu", "gfwmenu", "giga", "gta",
-  "rte", "owidgrapher", "spheres", "companion", "leave", "adsbmil", "gdeltgeo", "pmvector",
+  "rte", "owidgrapher", "spheres", "companion", "gsn", "leave", "adsbmil", "gdeltgeo", "pmvector",
   // The Unearthings map's own files, read each time a row is ticked (round 77).
   "remains", "remainsfac", "remainsfind", "remainspanel",
   // The biosignature worlds are read from the assessment page itself each time.
@@ -17497,11 +17458,9 @@ function refreshNote(cfg) {
 // kept here (the source cannot be read by another site, or its server is gone).
 // Every row now carries one mark or the other (22 September, round 3).
 const NOT_LIVE = {
+  gsn_countries: "Copied from Global Safety Net's rankings spreadsheet by culprits-tiles-more",
   // Round 90b.
   own_mangroves: "Made from Global Mangrove Watch's 2020 files by culprits-tiles-more",
-  own_reforestation: "Made from Fesenmyer et al.'s file by culprits-tiles-more",
-  own_modification: "Made from the Human Modification v3 2022 file by culprits-tiles-more",
-  own_wilderness: "Made from Mu et al.'s 2024 human footprint file by culprits-tiles-more",
   own_critical_habitat: "Made from UNEP-WCMC's critical habitat file by culprits-tiles-more",
   potapov_cropland: "Made from the GLAD lab's 3 km cropland files by culprits-tiles-more",
   // Round 84b.
@@ -17710,9 +17669,8 @@ const PANEL_ORDER = [
   // Round 82b (asked 27 September): "Forest cover" (was "Forest cover in 2020"),
   // with the trees in mosaic and complex landscapes; "Mangroves" (was "Forest
   // carbon and biomass", which held only the mangrove biomass).
-  // Round 90b (asked 27 September): the map's own forest kinds (in place of
-  // Global Safety Net's five tree layers) and where forest could grow back.
-  { h: 4, t: "Forest cover" }, "lc_broadleaf", "lc_needleleaf", "lc_mixedleaf", "lc_swamp", "own_reforestation",
+  // Round 91b: Global Safety Net's tree layers are filed here (CATALOGUE_BY_TITLE).
+  { h: 4, t: "Forest cover" },
   // Round 89b (asked 27 September): Forest zoning and management plans right
   // after Forest cover, Indonesia's plans inside it.
   { h: 4, t: "Forest zoning and management plans" },
@@ -17746,17 +17704,14 @@ const PANEL_ORDER = [
   // Round 90b: the map's own mangroves, drawn to show from the world view.
   { h: 4, t: "Mangroves" }, "own_mangroves",
   { h: 3, t: "Biodiversity loss" },
-  // Round 90b: Global Safety Net's rows gone; critical habitat, from its source.
-  { h: 4, t: "Places that matter most for species" }, "atlas_hotspots", "atlas_cities", "own_critical_habitat",
-  // Round 90b (asked 27 September): every land cover kind, how much people have
-  // changed the land, the wilderness left, and the terrestrial ecoregions, as
-  // one sub-heading.
-  { h: 4, t: "Land Use and Ecoregions" }, "lc_water", "lc_wetland", "lc_ice", "lc_bare", "lc_sparse", "lc_lichen", "lc_grass", "lc_shrub",
-  "lc_cropland", "lc_built", "own_modification", "own_wilderness",
+  // Round 91b: Global Safety Net's country rankings drawn as the map's own
+  // shading, in place of its page in a box; its layers file in by title.
+  { h: 4, t: "Places that matter most for species" }, "gsn_countries", "atlas_hotspots", "atlas_cities", "own_critical_habitat",
+  // Round 90b/91b (asked 27 September): Global Safety Net's land cover layers
+  // (Water Bodies to Inland Water) and the terrestrial ecoregions, filed by title.
+  { h: 4, t: "Land Use and Ecoregions" },
   { h: 4, t: "Birds" },
-  // Round 90b: the protected areas by how strictly they are protected, and
-  // the areas conserved outside them, from UNEP-WCMC's own servers.
-  { h: 4, t: "Protected and conserved areas" }, "wdpa_strict", "wdpa_other", "wdpa_nocat", "wdoecm",
+  { h: 4, t: "Protected and conserved areas" },
   { h: 4, t: "Intact and primary forests" },
   { h: 4, t: "Disturbance" },
   { h: 4, t: "Fish" },
@@ -17892,6 +17847,7 @@ const PANEL_REMOVED = new Set([
   // Round 75 (27 September): SkyTruth's Pennsylvania-only rows, at the owner's word.
   "skytruth_pa_permits", "skytruth_pa_spud", "skytruth_pa_violations", "skytruth_well_permits",
   "skytruth_tests",                // the Housekeeping heading and its row, taken out 24 September
+  "gsn",                           // its layers are rows of their own (24 September); the menu row is out of sight
   "trase_cocoa_ivory",             // taken out 24 September with the other cocoa rows
   "leverage_chart",
   "cultivated_meat_laws",          // taken out 22 September at the owner's request
@@ -18661,7 +18617,7 @@ function headingPump() {
 // that shades whole countries (national highlights); any of them together.
 // A row's kind is read from how it is drawn: its route, and its unit where the
 // unit says countries or areas. Catalogue rows (Global Forest Watch, Nusantara,
-// Trase, Climate TRACE's gases) are included, at the owner's
+// Trase, Climate TRACE's gases, Global Safety Net) are included, at the owner's
 // word, knowing that hundreds of rows at once are slow; they are ticked a few at
 // a time so the page keeps answering. Rows whose kind cannot be told from what
 // they are (pages in a panel, the Eyes and ring views, trade flow lines) are
@@ -18694,6 +18650,7 @@ function catalogueKind(cfg, item) {
   const words = `${(item && item.title) || ""} ${(item && item.name) || ""}`;
   if (cfg.route === "trase") return "national";
   if (cfg.route === "ctgases") return "point";
+  if (cfg.route === "gsn") return "shape";
   // "Near palm oil mills, 50 km" is the area round the mills, not the mills.
   if (AREA_WORDS.test(words)) return "shape";
   return POINT_WORDS.test(words) ? "point" : "shape";
@@ -18901,7 +18858,7 @@ function headingLiveMark(sec) {
 // reached the box unless "All on" happened to tick the hidden rows too. Their
 // lists are read once the box is arranged. Reading a list draws nothing and
 // ticks nothing: a catalogue draws only what is ticked under it.
-const CATALOGUE_ROUTES = new Set(["wmsmenu", "gfwmenu", "trase", "ctgases"]);
+const CATALOGUE_ROUTES = new Set(["wmsmenu", "gfwmenu", "trase", "ctgases", "gsn"]);
 function readCataloguesAtStart() {
   for (const g of GROUPS) for (const c of g.children) {
     if (c.ready && CATALOGUE_ROUTES.has(c.route) && PANEL_REMOVED.has(c.id)) ensureLayer(c);
