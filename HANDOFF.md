@@ -5,6 +5,31 @@ touches.
 
 ---
 
+## Round 95b (28 September)
+
+Needs round 94b (runs after it by name). Tiles patch round95b_tiles.py beside it.
+
+- Back: Intact Forest Landscapes, every year (keepIntact), under Intact and
+  primary forests; cultivated_meat_laws under Meat; site_ufo_pre1900 under UAP;
+  slavery_trackers under Slavery (new h5); site_subsistence_cultures and
+  site_self_sufficiency under Control of physical resources > Living off the
+  land; new h3 Environmental law (site_environment_law, _shapes,
+  enviro_law_by_country, ect_secrets, isds_tracker).
+- Berkeley Earth's temperature anomaly under Natural disasters > Extreme heat.
+- Out: LAPIG worn-out pasture. Paraguay's cattle herd size (CATTLE HEADS) under
+  Meat > Herds. Colombia's frontier only under Where clearing is likely.
+  Plantation and expansion titles lose "worldwide" (notWorldwide).
+- PLAIN_NAMES: everyday names for ~55 static rows, applied at start
+  (fixedName), Land Matrix explained.
+- abattoir_glw: route glwrelief, raised by density per animal (tiles
+  glw_relief.py, GLW4 2020 10 km), FAO's picture until built.
+- New rows: plastic_polluters (tiles plastic_polluters.py: BFFP 2023 top ten,
+  Wikidata HQs and subsidiaries, OSM plants and offices), skin_farms (tiles
+  fur_farms.py), ocean_acid, ocean_heat (CRW SST anomaly, bleaching alert, DHW),
+  ocean_shipping (World Bank), ocean_impacts (Halpern 2019) from tiles
+  oceans_more.py.
+
+
 ## Round 94b (27 September)
 
 Needs round 93b (runs after it by name). Tiles patch round94b_tiles.py beside it.

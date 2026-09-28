@@ -505,7 +505,10 @@ const LAYERS = [
     note: "Most of these are not slaughterhouses: farms, dairies, processors, transporters, hatcheries and zoos are registered animal-use sites too. Slaughter is marked yes or no only where a registry says; for most it says neither. Hollow points are placed at a town, not the site. Records with no position at all are not drawn." },
   { id:"abattoir_cafo",        name:"Confined animal feeding operations \u2014 a model's estimate, not registered sites (Climate TRACE)", unit:"modelled facilities", colour:"#7B6A4E", route:"cafo", ready:true, off: true, lazy:true,
     note: "A model's estimate from satellite imagery and census data, not a permit register: nothing here has necessarily been visited, licensed or confirmed by any authority. Hollow where Climate TRACE give an area rather than the facility's own position." },
-  { id:"abattoir_glw",         name:"Livestock density \u2014 a model's estimate, not a count of farms (FAO Gridded Livestock of the World 4, 2020)", unit:"animals per square km", colour:"#6E6A55", route:"glw", ready:true, off: true, lazy:true,
+  { id:"abattoir_glw",         name:"Livestock density \u2014 a model's estimate, not a count of farms (FAO Gridded Livestock of the World 4, 2020)", unit:"animals per square km", colour:"#6E6A55", route:"glwrelief", ready:true, off: true, lazy:true,
+    // Round 95b (asked 27 September): raised by density, not altitude.
+    species: [["ctl", "Cattle", 400], ["bfl", "Buffaloes", 400], ["shp", "Sheep", 600], ["gts", "Goats", 600], ["pgs", "Pigs", 1500], ["chk", "Chickens", 40000]],
+    archiveBase: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/glw_",
     note: "A modelled grid of where animals are kept, not a count of farms. FAO fit census totals to land cover and other predictors, so a dense square means the model puts animals there." },
   { id:"slavery_cases",        name:"Identified trafficking cases", unit:"identified cases", colour:"#7A6A72", route:"country", ready:true, off:true,
     note: "Detection, not prevalence. A country with a large count has organisations filing records; a country with none may have no one counting." },
@@ -7286,6 +7289,13 @@ const CATALOGUE_PLACES = [
 // titles each rule caught.
 const CATALOGUE_TAKEN_OUT = "(taken out)";
 const CATALOGUE_BY_TITLE = [
+  // Round 95b (asked 27 September): Berkeley Earth's warmer-than-usual years
+  // under Natural disasters > Extreme heat; Brazil's worn-out pasture out;
+  // Colombia's agricultural frontier out of Plantations, kept under Where
+  // clearing is likely.
+  [/\bberkeley_earth_temp_anomaly_2000_2020\b|annual surface temperature anomal/i, [P + " > Natural disasters > Extreme heat"]],
+  [/\blapig_degraded_pasture\b|degraded pasture/i, null],
+  [/\bcol_frontera_agricola\b|frontera agr[ií]cola/i, [P + " > Deforestation > Tree cover loss and alerts > Where clearing is likely"]],
   // Round 94b (asked 27 September): Liberia's three mining rows, Merauke's
   // planned roads and Nusantara's copy of the Allen Coral Atlas (broken, and
   // the same warm-water reefs as the coral reefs row) out.
@@ -7670,6 +7680,8 @@ const CATALOGUE_SUBS = {
     [/.*/, "Emissions"],
   ],
   [P + " > Meat and agriculture > Meat"]: [
+    // Round 95b: counts of animals (Paraguay's cattle herd size) under Herds.
+    [/\bherds?\b|herd size|head count|\bheads? of cattle\b|number of (cattle|animals)/i, "Herds"],
     [/\bpigs?\b|chicken/i, "Pigs and chickens"],
     [/.*/, "Cattle and pasture"],
   ],
@@ -7699,7 +7711,8 @@ function catalogueRefine(paths, words) {
     out = out.filter((x) => x !== BR);
     if (!out.length) return [CATALOGUE_TAKEN_OUT];
   }
-  const keepIntact = /intactness|integrity index|forest_landscape_integrity/i.test(words);
+  // Round 95b (asked 27 September): the Intact Forest Landscapes are back, every year.
+  const keepIntact = /intactness|integrity index|forest_landscape_integrity|intact forest landscape|ifl_intact/i.test(words);
   const subbed = out.map((x) => catalogueSub(x, words));
   if (!keepIntact && subbed.includes(P + " > Biodiversity loss > Intact and primary forests")) {
     out = out.filter((x, i) => subbed[i] !== P + " > Biodiversity loss > Intact and primary forests");
@@ -7733,8 +7746,10 @@ const NUSANTARA_WHERE = [
 // Round 83b (asked 27 September): the rubber plantation rows are not worldwide
 // (the map covers the countries it covers, which its record does not list), so
 // "worldwide" and "global" are taken out of their titles.
+// Round 95b: the plantation layers of every kind, and the plantation expansion
+// maps, are not worldwide either.
 function notWorldwide(t) {
-  if (!/rubber/i.test(t)) return t;
+  if (!/rubber|plantation|planted|expansion|smallholder/i.test(t)) return t;
   return String(t).replace(/\s*\u2014\s*(worldwide|global[^\u2014]*)$/i, "").replace(/,?\s*\bworldwide\b/ig, "").replace(/\bglobal\s+/ig, "").trim();
 }
 function nusantaraWhere(id) {
@@ -8935,7 +8950,7 @@ async function addGfwMenuLayer(cfg) {
   // Where a dataset is, as GFW themselves record it. Left off where they
   // record nothing rather than guessed at from the name.
   // Round 83b: the global land area tree cover loss says its years.
-  const titleFix = (t) => /rubber/i.test(t) ? notWorldwide(t) : /^tree cover loss\b/i.test(t) && /global land area/i.test(t) && !/fire/i.test(t) && !/\b20\d\d\b/.test(t)
+  const titleFix = (t) => /rubber|plantation|planted/i.test(t) ? notWorldwide(t) : /^tree cover loss\b/i.test(t) && /global land area/i.test(t) && !/fire/i.test(t) && !/\b20\d\d\b/.test(t)
     ? t.replace(/^tree cover loss/i, "Tree cover loss, 2000 to 2012") : t;
   let items = all.filter((d) => !leftOut.includes(d.dataset)).map((d) => {
     const meta = d.metadata || {};
@@ -11082,7 +11097,7 @@ async function reliefTile(r, kind, z, x, y) {
   return blob.arrayBuffer();
 }
 maplibregl.addProtocol("relief", async (params) => {
-  const m = params.url.match(/^relief:\/\/([^/]+)\/(col|dem)\/(\d+)\/(\d+)\/(\d+)/);
+  const m = params.url.match(/^relief:\/\/([^/]+)\/(col|dem)\/(\d+)\/(\d+)\/(\d+)/);   // a ?query after it only makes a new address
   const r = m && RELIEFS.get(m[1]);
   if (!r) throw new Error("no relief row");
   return { data: await reliefTile(r, m[2], Number(m[3]), Number(m[4]), Number(m[5])) };
@@ -11206,6 +11221,91 @@ async function addPopRelief(cfg) {
   addReliefLayers(cfg, r, POP_RAMP.slice(1).map(([v, c], i) => [hexOf(c), `${v.toLocaleString()}${i === POP_RAMP.length - 2 ? " or more, highest ground" : ""} people per square km`]),
     "Colour and height both follow how many people live there; the land's own altitude is not shown while this is on");
   setLayerState(cfg.id, "GHSL 2020, people per square km · tilt the map to see the relief");
+}
+
+/* ---------- livestock density as relief (round 95b) ---------- */
+// Asked 27 September: the livestock density "hypsometric, not by altitude but
+// density", as the population density is. culprits-tiles-more
+// scripts/glw_relief.py writes FAO's GLW4 2020 head (or birds) per square km,
+// one archive per animal, coded as height tiles, zooms 0 to 5. The animal is
+// chosen under the row; colour and height both follow the density, on a log
+// scale up to each animal's own top. Until the copy is built, FAO's own flat
+// picture is drawn as before.
+function heightValues(archive, top) {
+  const cache = new Map();
+  const decode = async (buf) => {
+    const bmp = await createImageBitmap(new Blob([buf]));
+    const cv = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(256, 256) : Object.assign(document.createElement("canvas"), { width: 256, height: 256 });
+    const ctx = cv.getContext("2d");
+    ctx.drawImage(bmp, 0, 0, 256, 256);
+    const px = ctx.getImageData(0, 0, 256, 256).data, out = new Float32Array(256 * 256);
+    for (let i = 0; i < out.length; i++) out[i] = Math.max(0, (px[i * 4] * 65536 + px[i * 4 + 1] * 256 + px[i * 4 + 2]) / 10 - 10000);
+    return out;
+  };
+  const values = (z, x, y) => {
+    const k = `${z}/${x}/${y}`;
+    if (cache.has(k)) return cache.get(k);
+    const p = (async () => {
+      if (z <= top) { const t = await archive.getZxy(z, x, y); return t && t.data ? decode(t.data) : null; }
+      const up = z - top, px = x >> up, py = y >> up;
+      const parent = await values(top, px, py);
+      if (!parent) return null;
+      const n = 1 << up, ox = (x - (px << up)) * (256 / n), oy = (y - (py << up)) * (256 / n), out = new Float32Array(256 * 256);
+      for (let j = 0; j < 256; j++) for (let i = 0; i < 256; i++) out[j * 256 + i] = parent[Math.floor(oy + j / n) * 256 + Math.floor(ox + i / n)];
+      return out;
+    })();
+    cache.set(k, p);
+    if (cache.size > 800) cache.delete(cache.keys().next().value);
+    return p;
+  };
+  return values;
+}
+function glwRamp(topV) {
+  const steps = [1, topV / 1000, topV / 100, topV / 10, topV / 3, topV].map((v) => Math.max(1, Math.round(v)));
+  const cols = [[11, 46, 107, 0], [23, 71, 184, 120], [26, 159, 214, 180], [20, 168, 160, 215], [150, 220, 235, 240], [235, 248, 255, 250]];
+  return steps.map((v, i) => [v, cols[i]]).filter((e, i, a) => i === 0 || e[0] > a[i - 1][0]);
+}
+async function addGlwRelief(cfg) {
+  const open = async (code) => {
+    const url = `${cfg.archiveBase}${code}.pmtiles`;
+    const head = await fetch(url, { method: "HEAD" }).catch(() => null);
+    return head && head.ok ? new pmtiles.PMTiles(url) : null;
+  };
+  let pick = cfg.species[0];
+  let archive = await open(pick[0]);
+  if (!archive) { setLayerState(cfg.id, "the relief copy is not built yet; FAO's flat picture is drawn meanwhile"); return addGlwLayer(cfg); }
+  cfg.keepColour = true;
+  let ramp = glwRamp(pick[2]);
+  const r = { values: heightValues(archive, 5), colour: (v) => rampColour(ramp, v), top: 150000, maxzoom: 10,
+    height: (v) => (v > 1 ? Math.log10(v) / Math.log10(pick[2]) : 0) };
+  const keyOf = () => ramp.slice(1).map(([v, c], i, a) => [hexOf(c), `${v.toLocaleString()}${i === a.length - 1 ? " or more, highest ground" : ""} ${pick[0] === "chk" ? "birds" : "head"} per square km`]);
+  addReliefLayers(cfg, r, keyOf(), "Colour and height both follow how many animals are kept there; the land's own altitude is not shown while this is on");
+  const box = document.getElementById("layers");
+  const row = box && box.querySelector && box.querySelector(`[data-layer="${cfg.id}"]`);
+  const anchor = row && row.closest ? row.closest("label") : null;
+  if (anchor && anchor.after && typeof document.createElement === "function") {
+    const el = document.createElement("div");
+    el.className = "facet";
+    el.innerHTML = cfg.species.map(([c, label], i) => `<button type="button" class="chip${i ? "" : " on"}" data-glw="${c}">${escapeHtml(label)}</button>`).join("");
+    el.addEventListener("click", async (ev) => {
+      const b = ev.target.closest && ev.target.closest("[data-glw]");
+      if (!b) return;
+      const next = cfg.species.find((sp) => sp[0] === b.dataset.glw);
+      const a = await open(next[0]);
+      if (!a) { setLayerState(cfg.id, `${next[1]}: not built yet`); return; }
+      pick = next; archive = a; ramp = glwRamp(pick[2]);
+      r.values = heightValues(archive, 5);
+      for (const c of el.querySelectorAll("[data-glw]")) c.classList.toggle("on", c === b);
+      for (const kind of ["col", "dem", "shade"]) {
+        const src = map.getSource(`${cfg.id}-${kind}`);
+        if (src && src.setTiles) src.setTiles([`relief://${cfg.id}/${kind === "col" ? "col" : "dem"}/{z}/{x}/{y}?${pick[0]}`]);
+      }
+      rowKey(cfg.id, keyOf(), `${pick[1]}: colour and height both follow how many are kept there`);
+      buildLegend();
+    });
+    anchor.after(el);
+  }
+  setLayerState(cfg.id, "FAO GLW4 2020 · tilt the map to see the relief");
 }
 
 /* ---------- 3D terrain ---------- */
@@ -16242,6 +16342,34 @@ const OTHER_MAPS = {
         { label: "Coastal nitrogen plumes", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_N_plumes.pmtiles" }
       ],
       note: "The model's own published pictures, from a GitHub copy (its server does not let other sites draw them). Each chip is one of the model's own layers." },
+    // Round 95b (asked 27 September).
+    { id: "plastic_polluters", name: "The World's Worst Plastic Polluters, where they are: headquarters, subsidiaries, plants and offices of the ten companies whose plastic was found most (Break Free From Plastic brand audit 2023)", unit: "places", colour: "#3FA9C2", route: "geojsonlive", ready: true, lazy: true, fixedName: true,
+      files: [{ label: "Places", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/plastic/polluters.geojson" }],
+      groupColours: { "The Coca-Cola Company": "#8C4F5A", "Nestlé": "#3FA9C2", "Unilever": "#1E6FA8", "PepsiCo": "#0E2F66", "Mondelēz International": "#40BFB0",
+                      "Mars, Inc.": "#B8D8E0", "Procter & Gamble": "#8FD6E8", "Danone": "#D6EEF6", "Altria": "#B06A5E", "British American Tobacco": "#8C6A72" },
+      groupHint: "Coloured by company, in the audit's order: Coca-Cola first",
+      note: "Break Free From Plastic's Brand Audit 2023 (250 audits by 8,804 volunteers in 41 countries; 537,719 pieces of plastic waste traced to their brands) names these ten parent companies as the World's Worst Plastic Polluters: The Coca-Cola Company, Nestlé, Unilever, PepsiCo, Mondelēz International, Mars, Procter & Gamble, Danone, Altria and British American Tobacco. The audit publishes no places, so this maps where each company is: its headquarters and its subsidiaries' headquarters from Wikidata, and its plants, bottling works, warehouses and offices mapped in OpenStreetMap. Gathered weekly by culprits-tiles-more (scripts/plastic_polluters.py)." },
+    { id: "skin_farms", name: "Crocodile, alligator and ostrich farms, raised for their skins, worldwide (Farm Transparency Project and OpenStreetMap)", unit: "farms", colour: "#8C4F5A", route: "geojsonlive", ready: true, lazy: true, fixedName: true,
+      files: [{ label: "Skin farms", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/fur/skin_farms.geojson" }],
+      groupColours: { "Crocodiles and alligators": "#8C4F5A", "Ostriches and emus": "#3FA9C2", "Not stated": "#77726A" },
+      groupHint: "Coloured by the animal farmed",
+      note: "Farms raising crocodiles, alligators, caimans, ostriches and emus, mostly for their skins: the Farm Transparency Project's skins category, and the places OpenStreetMap tags or names as such farms (zoos and show parks left out). Farms within 300 m in both are one farm. Gathered weekly by culprits-tiles-more (scripts/fur_farms.py). No government register of these farms was found to be published anywhere; Louisiana, Florida, South Africa, Zimbabwe, Australia and Thailand, where most are, appear only as far as these sources reach." },
+    { id: "ocean_acid", name: "How acidic the sea surface is, 1750, today and 2100 (pH; Jiang et al. 2023, NOAA)", unit: "pH", colour: "#1E6FA8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "Jiang et al. 2023, NOAA NCEI 0259391 (CC0)", rasterPaint: { "raster-opacity": 0.85, "raster-saturation": 0 },
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ocean_acid.choices.json",
+      note: "Surface ocean pH worldwide from Jiang et al. 2023 (NOAA NCEI accession 0259391, CC0), from before industry to the end of the century: the lower the pH, the more acidic, as the sea takes up the carbon dioxide people release. Shells and corals grow with more difficulty as it falls. The map's own copy, made by culprits-tiles-more (scripts/oceans_more.py)." },
+    { id: "ocean_heat", name: "Marine heatwaves and coral bleaching: sea temperature against usual, bleaching alerts and heat stress, newest day (NOAA Coral Reef Watch)", unit: "5 km", colour: "#A0525A", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "NOAA Coral Reef Watch", rasterPaint: { "raster-opacity": 0.85, "raster-saturation": 0 },
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ocean_heat.choices.json",
+      note: "NOAA Coral Reef Watch's daily satellite maps: how much warmer or colder the sea surface is than usual for the time of year, its coral bleaching alert level, and the heat stress built up over the last 12 weeks (degree heating weeks; 4 or more and corals bleach, 8 or more and many die). Remade weekly from the newest day by culprits-tiles-more (scripts/oceans_more.py)." },
+    { id: "ocean_shipping", name: "Ship traffic: how many ship positions were recorded in each place, 2015 to 2021, all ships or by kind (World Bank and IMF)", unit: "ship positions", colour: "#1E6FA8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "World Bank / IMF Global Shipping Traffic Density (CC BY 4.0)", rasterPaint: { "raster-opacity": 0.88, "raster-saturation": 0 },
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ocean_shipping.choices.json",
+      note: "The World Bank and IMF's Global Shipping Traffic Density (CC BY 4.0): every position ships broadcast by AIS from January 2015 to February 2021, counted in 500 m cells, for all ships and for commercial, fishing, oil and gas, passenger and leisure vessels; read here at about 2 km and coloured on a log scale. The map's own copy (scripts/oceans_more.py)." },
+    { id: "ocean_impacts", name: "Every human impact on the ocean added up: fishing, climate change, shipping and pollution from land, 2013 (Halpern et al. 2019)", unit: "cumulative impact score", colour: "#0E2F66", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "Halpern et al. 2019, KNB (CC0)", rasterPaint: { "raster-opacity": 0.88, "raster-saturation": 0 },
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ocean_impacts.choices.json",
+      note: "Halpern et al. 2019 (Scientific Reports; KNB doi:10.5063/F12B8WBS, CC0): fourteen human pressures on the ocean - kinds of fishing, warming, acidification, sea level rise, shipping, and pollution and nutrients from land - weighed by how much each harms each habitat and added up, for 2013, at 1 km. Coloured in tenths, lightest the least. The map's own copy (scripts/oceans_more.py)." },
     // Round 94b (asked 27 September): fur farms worldwide from every public
     // source found, and each country's fur farming status.
     { id: "fur_world", name: "Fur farms worldwide, from every public source found (Farm Transparency Project, Final Nail, OpenStreetMap and more)", unit: "farms", colour: "#8FD6E8", route: "geojsonlive", ready: true, lazy: true,
@@ -16560,6 +16688,66 @@ const MILITARY = {
   ],
 };
 const GROUPS = [CT_SECTORS, CT_AGRICULTURE, CT_FORESTRY, CT_HISTORY, SITE_MAPS, EXEC_MAP, MONEY_MAP, LEGAL_MAP, LEG_MAP, JUD_MAP, MORE_MAPS, GMO_MAP, OTHER_MAPS, FOREST_ALERTS, TRASE_DATA, MILITARY];
+// Round 95b (asked 27 September): every row named in everyday words. The
+// names set above are kept for their history; these are what the box shows,
+// and a row read from another map keeps this name rather than the map's own.
+const PLAIN_NAMES = {
+  climate_trace_sectors: "Places that release greenhouse gases, by industry (Climate TRACE)",
+  climate_trace: "Places that release greenhouse gases (Climate TRACE)",
+  ct_history: "Places that released greenhouse gases in past years (Climate TRACE)",
+  owid_co2: "Carbon dioxide each country releases (Our World in Data)",
+  gem_coal: "Coal power plants, unit by unit (Global Energy Monitor)",
+  carbon_bombs: "Carbon bombs: fossil fuel projects that would each release more than a billion tonnes of carbon dioxide",
+  power_plants: "Power plants, by fuel (WRI Global Power Plant Database)",
+  fertilizer_facilities: "Factories making farm fertiliser",
+  soy_organizations: "Soy industry groups and associations",
+  trase: "Where traded crops and meat come from, and the companies trading them (Trase)",
+  land_matrix: "Land deals: large areas of farmland and forest bought or leased by investors, often from abroad (Land Matrix)",
+  counterglow: "Factory farms (industrial animal farms)",
+  epa_tri: "US factories reporting toxic chemical releases",
+  gmo_releases: "Genetically engineered organisms released into the environment",
+  hydrowaste: "Sewage treatment plants (HydroWASTE)",
+  slavery_sites: "Brick kilns and small hand-dug mines (anti-slavery map)",
+  slavery_ports: "Ports visited by ships at high risk of forced labour (anti-slavery map)",
+  slavery_fishing: "Stretches of ocean where forced labour on fishing boats is predicted (a model; no boat named)",
+  slavery_cases: "Human trafficking cases identified, by country",
+  abattoir_facilities: "Slaughterhouses, farms, dairies, hatcheries and zoos on official registers (abattoir atlas)",
+  abattoir_cafo: "Factory farms (confined animal feeding operations): a model's estimate, not registered sites (Climate TRACE)",
+  abattoir_glw: "How many farm animals are kept in each place, raised by density: a model's estimate, not a count of farms (FAO, 2020)",
+  cerulean_slicks: "Oil slicks seen from space (Cerulean)",
+  cerulean_sources: "Ships and oil platforms that likely caused the slicks (Cerulean)",
+  allen_coral: "Warm-water coral reefs (Allen Coral Atlas and UNEP-WCMC)",
+  site_animal_sacrifice: "Where animals are sacrificed (Animal Sacrifice Map)",
+  site_animal_fighting: "Where animals are made to fight (Animal Fighting Locations)",
+  site_forest500_soy: "Banks and investors doing worst on soy-driven deforestation, 2024 (Forest 500)",
+  site_soybean_companies: "Companies trading and processing soybeans",
+  site_export_credit: "Export credit agencies: government lenders that back their countries' companies abroad",
+  site_subsistence_cultures: "Peoples who still live off the land (Global Subsistence Cultures)",
+  site_self_sufficiency: "Self-sufficiency map: famous programs and why some aren’t on it",
+  site_environment_law: "Environmental laws and treaties, place by place",
+  site_environment_law_shapes: "Areas covered by environmental laws and treaties",
+  enviro_law_by_country: "Environmental laws, country by country and region by region (enviro-atlas)",
+  slavery_trackers: "What each country does against slavery: its anti-slavery tracker scores (anti-slavery map)",
+  cultivated_meat_laws: "Where meat grown from cells (cultivated meat) is restricted or banned, by country (abattoir atlas)",
+  site_ufo_pre1900: "UFO sightings recorded before 1900",
+  ect_secrets: "Fossil fuel companies suing governments over climate action under the Energy Charter Treaty",
+  isds_tracker: "Companies suing governments in private tribunals (investor-state dispute settlement, ISDS)",
+  dff: "Investment funds, and how much deforestation is in the companies they own (Deforestation Free Funds)",
+  powerbi_report: "Environmental crimes tracked worldwide (Environmental Crime Tracker)",
+  ufo_sightings: "UFO sightings reported worldwide (UFOSINT)",
+  giga_countries: "Schools mapped, and how many are online, by country (Giga)",
+  biosignature: "Signs of life on other worlds: how strong the evidence is (Biosignature Evidence Assessment)",
+  space_industry: "Space industry companies and sites (openmaps.space)",
+  coastal_cleanup: "Beach and shore cleanups (Ocean Conservancy)",
+  glc_fcs30d: "Land cover: 35 kinds, from forest types to cropland and towns, 30 m, 2000 to 2022 (GLC_FCS30D)",
+  trase_data: "Deforestation and the trade behind it (Trase)",
+  rte_trade: "Trade in natural resources between countries (resourcetrade.earth)",
+  gta_acts: "Government measures that help or hurt trade, by country (Global Trade Alert)",
+  tableau_zsf: "Which countries sell more abroad than they buy, and the money flows behind it (Council on Foreign Relations)",
+};
+for (const row of LAYERS.concat(...GROUPS.map((g) => g.children || []))) {
+  if (row && PLAIN_NAMES[row.id]) { row.name = PLAIN_NAMES[row.id]; row.fixedName = true; }
+}
 
 // Every row's colour in the style of the GLAD-S2 alerts (24 September, round
 // 44, asked for by the owner): cyan through blue and indigo to violet, bright
@@ -16761,6 +16949,7 @@ function ensureLayer(cfg) {
     : cfg.route === "cafo" ? Promise.resolve().then(() => addCafoLayer(cfg))
       : cfg.route === "pmtareas" ? addPmtAreasLayer(cfg)
       : cfg.route === "glw" ? Promise.resolve().then(() => addGlwLayer(cfg))
+      : cfg.route === "glwrelief" ? addGlwRelief(cfg)
       : cfg.route === "osmlanduse" ? Promise.resolve().then(() => addOsmLanduseLayer(cfg))
       : cfg.route === "arcgisdyn" ? addArcgisDynLayer(cfg)
       : cfg.route === "giga" ? addGigaLayer(cfg)
@@ -16841,6 +17030,12 @@ function refreshFacetRow(cfg) {
 // where it lands. A layer with no entry falls to the prefix rules below, and
 // anything still unlabelled shows whatever the chips say.
 const LAYER_KIND = {
+  plastic_polluters: ["insentient", "downstream"],
+  skin_farms: ["animal", "downstream"],
+  ocean_acid: ["insentient", "downstream"],
+  ocean_heat: ["insentient", "downstream"],
+  ocean_shipping: ["insentient", "downstream"],
+  ocean_impacts: ["insentient", "downstream"],
   fur_world: ["animal", "downstream"],
   fur_bans: ["animal", "downstream"],
   haz_eonet: ["insentient", "downstream"],
@@ -17370,6 +17565,7 @@ map.on("load", () => {
       else if (cfg.route === "cafo") addCafoLayer(cfg);
       else if (cfg.route === "pmtareas") addPmtAreasLayer(cfg);
       else if (cfg.route === "glw") addGlwLayer(cfg);
+      else if (cfg.route === "glwrelief") addGlwRelief(cfg);
       else if (cfg.route === "carbonmapper") {
         addCarbonMapperLayer(cfg).catch((e) => setLayerState(cfg.id, `failed (${e.message})`));
       }
@@ -17562,6 +17758,12 @@ map.on("load", () => setTimeout(mymapsTitles, 50));
 // point at the repo or the page they are read from; everyone else's at their
 // own site. A row missing from here shows no link rather than a guessed one.
 const LAYER_SITE = {
+  plastic_polluters: "https://brandaudit.breakfreefromplastic.org/brand-audit-2023/",
+  skin_farms: "https://www.farmtransparency.org/facilities/skin-fur-farms",
+  ocean_acid: "https://www.ncei.noaa.gov/access/ocean-carbon-acidification-data-system/",
+  ocean_heat: "https://coralreefwatch.noaa.gov/",
+  ocean_shipping: "https://datacatalog.worldbank.org/search/dataset/0037580",
+  ocean_impacts: "https://doi.org/10.5063/F12B8WBS",
   fur_world: "https://www.farmtransparency.org/facilities/skin-fur-farms",
   fur_bans: "https://ourworldindata.org/grapher/fur-farming-ban",
   haz_eonet: "https://eonet.gsfc.nasa.gov/",
@@ -17873,6 +18075,12 @@ function refreshNote(cfg) {
 // kept here (the source cannot be read by another site, or its server is gone).
 // Every row now carries one mark or the other (22 September, round 3).
 const NOT_LIVE = {
+  plastic_polluters: "Made from its publisher's data by culprits-tiles-more",
+  skin_farms: "Made from its publisher's data by culprits-tiles-more",
+  ocean_acid: "Made from its publisher's data by culprits-tiles-more",
+  ocean_heat: "Made from its publisher's data by culprits-tiles-more",
+  ocean_shipping: "Made from its publisher's data by culprits-tiles-more",
+  ocean_impacts: "Made from its publisher's data by culprits-tiles-more",
   fur_world: "Copied weekly from its publisher by culprits-tiles-more",
   haz_eonet: "Copied weekly from its publisher by culprits-tiles-more",
   haz_gdacs: "Copied weekly from its publisher by culprits-tiles-more",
@@ -18058,6 +18266,8 @@ const PANEL_ORDER = [
   // PIRG's page is out (round 81); the two built rows replace it.
   { h: 6, t: "Production" }, "plastics_plants", "vinyl_chloride_plants", "mymaps_chlorine", "arcgis_ym8xk", "arcgis_materialresearch",
   { h: 6, t: "Waste and dumping" }, "gpw_map", "seas_of_plastic", "coastal_cleanup",
+  // Round 95b (asked 27 September): the World's Worst Plastic Polluters, where they are.
+  { h: 6, t: "The companies behind it" }, "plastic_polluters",
   { h: 4, t: "Air pollution" },
   { h: 5, t: "General and all pollutants" }, "ct_air",
   { h: 5, t: "Fine particles (PM2.5)" }, "ct_air_pm2_5",
@@ -18185,13 +18395,15 @@ const PANEL_ORDER = [
   { h: 5, t: "Pasture and grassland" },
   { h: 5, t: "Water for crops" },
   { h: 5, t: "Clearing for farming" },
-  { h: 4, t: "Meat" },
+  { h: 4, t: "Meat" }, "cultivated_meat_laws",
   { h: 5, t: "Facilities" }, "abattoir_facilities", "trase_meat_brazil", "abattoir_cafo",
   { h: 5, t: "Herds" }, "abattoir_glw",
   { h: 5, t: "Cattle and pasture" },
   { h: 5, t: "Pigs and chickens" },
   // Round 94b (asked 27 September): fur farms under Meat and agriculture.
   { h: 4, t: "Fur farms" }, "fur_world", "final_nail", "fur_bans",
+  // Round 95b (asked 27 September): crocodile, alligator and ostrich farms.
+  { h: 4, t: "Skin farms" }, "skin_farms",
   // Item 11: Fishing above Reefs and mangroves. Items 4, 5, 6: the pond maps
   // as one row, and the worldwide pond map beside them.
   { h: 3, t: "Oceans" },
@@ -18201,12 +18413,21 @@ const PANEL_ORDER = [
   // Round 94b (asked 27 September): more of what is done to the oceans.
   { h: 4, t: "Dead zones" }, "ocean_dead_zones",
   { h: 4, t: "Deep-sea mining" }, "ocean_seabed_mining",
+  // Round 95b (asked 27 September): acidification, heatwaves and bleaching,
+  // shipping, and every human impact together.
+  { h: 4, t: "Ocean acidification" }, "ocean_acid",
+  { h: 4, t: "Marine heatwaves and coral bleaching" }, "ocean_heat",
+  { h: 4, t: "Shipping" }, "ocean_shipping",
+  { h: 4, t: "Every human impact together" }, "ocean_impacts",
   { h: 3, t: "Construction" }, "local_projects",
   // Concessions that name no material or activity a heading covers (23 September).
   { h: 3, t: "Other concessions" },
   // Asked for 25 September: the earthquakes under a heading of their own.
   // Round 84b: governments' own records of environmental crimes, and illegal mining.
   { h: 3, t: "Environmental crime" }, "goc_flora", "goc_fauna", "goc_resources", "ibama_embargos", "ibama_infractions", "raisg_illegal_mining", "powerbi_report",
+  // Round 95b (asked 27 September): environmental law, and the cases companies
+  // bring against governments over it.
+  { h: 3, t: "Environmental law" }, "site_environment_law", "site_environment_law_shapes", "enviro_law_by_country", "ect_secrets", "isds_tracker",
   // Round 94b (asked 27 September): every kind of natural disaster, together
   // and one kind at a time; the fur farms moved under Meat and agriculture.
   { h: 3, t: "Natural disasters" },
@@ -18216,6 +18437,8 @@ const PANEL_ORDER = [
   { h: 4, t: "Tsunamis" }, "haz_tsunamis",
   { h: 4, t: "Tropical cyclones" }, "haz_cyclones",
   { h: 4, t: "Landslides" }, "haz_landslides",
+  // Round 95b: Berkeley Earth's warmer-than-usual years here (CATALOGUE_BY_TITLE).
+  { h: 4, t: "Extreme heat" },
   { h: 2, t: "Of groups" },
   { h: 3, t: "Of humans" },
   { h: 3, t: "Of animals" }, "powerbi_report",
@@ -18235,6 +18458,8 @@ const PANEL_ORDER = [
   { h: 5, t: "Banks and monetary power" }, "largest_banks", "development_banks", "site_central_banks", "site_banking_dynasties", "site_banking_dynasties_charts", "policy_rates", "imbalances", "cfr_tracker", "tableau_zsf", "site_export_credit", "troutwood",
   { h: 5, t: "Trade" }, "rte_trade", "site_trade_profits", "gta_acts",
   { h: 5, t: "Funding of international bodies" }, "site_earmarked_funding",
+  // Round 95b (asked 27 September): peoples who live off the land.
+  { h: 5, t: "Living off the land" }, "site_subsistence_cultures", "site_self_sufficiency",
   { h: 4, t: "Economic inequality within it" },
   { h: 5, t: "Wealth concentration" }, "site_wealth_atlas", "site_social_spheres", "largest_companies",
   { h: 5, t: "Public finance and tax" }, "owid_interest", "owid_corptax", "owid_aid",
@@ -18247,6 +18472,8 @@ const PANEL_ORDER = [
   { h: 5, t: "Sites on land" }, "slavery_sites",
   { h: 5, t: "At sea" }, "slavery_ports", "slavery_fishing",
   { h: 5, t: "Routes, cases and enforcement" }, "slavery_routes", "slavery_cases", "slavery_determinations", "slavery_enforcement",
+  // Round 95b: the anti-slavery trackers, country by country, back.
+  { h: 5, t: "What each country does about it" }, "slavery_trackers",
   { h: 3, t: "Suppression by “representation” within it" },
   { h: 4, t: "Politics as a front" },
   { h: 5, t: "Voter suppression" },
@@ -18277,7 +18504,7 @@ const PANEL_ORDER = [
   { h: 1, t: "Off-planet invasion" },
   { h: 2, t: "To Earth" },
   { h: 3, t: "Near-Earth object impacts" }, "esa_risk",
-  { h: 3, t: "Unidentified anomalous phenomena" }, "ufo_sightings",
+  { h: 3, t: "Unidentified anomalous phenomena" }, "ufo_sightings", "site_ufo_pre1900",
   { h: 2, t: "From Earth" },
   { h: 3, t: "The space industry" }, "space_industry",
   { h: 3, t: "Space launches" }, "ll2_pads", "ll2_upcoming",
@@ -18295,7 +18522,6 @@ const PANEL_REMOVED = new Set([
   "gsn",                           // its layers are rows of their own (24 September); the menu row is out of sight
   "trase_cocoa_ivory",             // taken out 24 September with the other cocoa rows
   "leverage_chart",
-  "cultivated_meat_laws",          // taken out 22 September at the owner's request
   "scribd_doc",                    // the Destruction page document, taken out 22 September (round 2)
   // USDA retired its IPAD site and map servers (the site says so: "no longer
   // available to the public", checked 22 September); the two explorers can
@@ -18307,7 +18533,7 @@ const PANEL_REMOVED = new Set([
   // Taken out 19 Sept: near duplicates, a background map mistaken for data, rows
   // merged into another, and pages asked to be removed.
   "site_cartel_cells", "site_export_credit_shading", "giga_schools", "nsf_locations",
-  "ect_secrets", "isds_tracker", "bffp_audit", "epa_tri", "unep_coral",
+  "bffp_audit", "epa_tri", "unep_coral",
   // Round 81 (27 September): the Toxics Release Inventory copy is a kind
   // (chip) of the EPA sites layer; the slick archive is the oil slicks row's
   // kept copy; SkyTruth's write-ups are the oil slicks layer's two parts; PIRG's
@@ -18340,8 +18566,11 @@ const PANEL_REMOVED = new Set([
   // which draw the same material on this map.
   "live_projects_app",
   "fin_bank", "fin_centralbank", "fin_taxoffice", "fin_govfinance", "fin_financial", "fin_exchange", "fin_insurance", "fin_accountant", "fin_remittance", "fin_stockexchange", "fin_auditoffice", "fin_devbank", "fin_mint", "legal_publicdefender", "legal_immigration", "legal_probation", "legal_juvenile", "leg_parliament", "leg_audit", "leg_electoral", "leg_ombudsman", "leg_council", "exec_firestation", "exec_townhall", "leg_townhall", "exec_govoffice", "exec_ministry", "exec_diplomatic", "exec_border", "jud_courts", "legal_courthouse", "slavery_facilities", "activist_courts", "exec_police", "legal_police", "activist_police", "exec_prison", "legal_prison", "jud_prisons", "activist_prisons",
-  "site_ufo_pre1900", "site_subsistence_cultures", "site_self_sufficiency", "slavery_trackers",
-  "site_environment_law", "enviro_law_by_country", "site_environment_law_shapes", "gov_official_map",
+  // Round 95b (asked 27 September): the pre-1900 UFO sightings, the
+  // subsistence and self-sufficiency maps, the anti-slavery trackers, the
+  // environmental law rows, the Energy Charter Treaty and ISDS rows and the
+  // cultivated meat laws are back.
+  "gov_official_map",
   "group:executive_map_layers", "group:money_map_layers", "group:legal_map_layers",
   "group:legislative_map_layers", "group:judicial_map_layers",
   "legal_by_state", "leg_by_state", "judicial_by_state", "leg_subnational", "leg_county",
