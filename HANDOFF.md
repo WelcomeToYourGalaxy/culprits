@@ -5,6 +5,25 @@ touches.
 
 ---
 
+## Round 87b (27 September)
+
+Needs round 86b (runs after it by name).
+
+- Kind switches: label and the three chips in one no-wrap row (.ks-row), chips
+  tighter, so National highlights sits right of Points and Shapes.
+- glad_loss titled "each year 2001 to 2024 (v1.12)"; cfg.newer probes the
+  v1.13 tiles (2001 to 2025) and switches to them and their title when they answer.
+- Catalogue out: Nusantara AlertDFCOMBINERGB / AlertGLADRGB / AlertRADDRGB
+  (Equatorial Asia), wur_radd_coverage and wur_africa_radd_coverage,
+  wur_integration_alert_drivers_class/_date (the drivers bundle is retitled),
+  Global_AllExpansionRGB_2000to2024 (inside 2000-2025) and
+  Global_AllExpansion_2000to2025 (same data as its picture, no colours). The
+  loss due to fire is kept out of Loss year by year and no longer titled 2000
+  to 2012.
+- gfwpro_negligible_risk_analysis coloured by negrisk (GFW_COLOUR_BY), titled
+  and explained; col_frontera_agricola titled and explained (UPRA).
+
+
 ## Round 86b (27 September)
 
 Needs round 85b (runs after it by name).

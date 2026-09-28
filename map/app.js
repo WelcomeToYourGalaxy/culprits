@@ -4495,6 +4495,17 @@ function addRasterChoiceLayer(cfg) {
       .catch(() => {})
       .then(() => addRasterChoiceLayer(cfg));
   }
+  // A newer release is used once its squares answer (round 87b, glad_loss).
+  if (cfg.newer && !cfg._newerTried) {
+    cfg._newerTried = true;
+    return fetch(cfg.newer.probe).then((r) => {
+      if (r.ok && /image/.test(r.headers.get("content-type") || "")) {
+        cfg.choices[0].tiles = cfg.newer.tiles;
+        cfg.name = cfg.newer.name;
+        relabelRow(cfg.id, cfg.newer.name);
+      }
+    }).catch(() => {}).then(() => addRasterChoiceLayer(cfg));
+  }
   const src = `${cfg.id}-img`;
   cfg._pick = cfg._pick || 0;
   if (!cfg.choices || !cfg.choices.length) { setLayerState(cfg.id, "not built yet: its copy has not been made"); return; }
@@ -6861,7 +6872,8 @@ const BUNDLES = {
   // recent alert (10 m, the Amazon, Congo and Indonesia's basins, 2022 on) as
   // parts of one layer with Curtis et al.'s drivers of loss since 2001
   // (worldwide, a square about 10 km across) and the rows of the same title.
-  drivers: "Tree cover loss by dominant driver, worldwide since 2001 (Curtis et al.), with each recent alert's driver in the tropics (Wageningen University)",
+  // Round 87b: Wageningen's part taken out at the owner's word.
+  drivers: "Tree cover loss by dominant driver, worldwide since 2001 (Curtis et al., with the other records of the same title)",
   milcompare: "Armies, spending and nuclear weapons, country by country",
   // Round 72: the two resource rights rows are one layer, at the owner's word.
   resrights: "Community rights to natural resources, worldwide and in Cameroon, Equatorial Guinea, Liberia and Namibia (LandMark and Global Forest Watch)",
@@ -7143,8 +7155,17 @@ const CATALOGUE_BY_TITLE = [
   [/\bumd_glad_dist_alerts\b|\bumd_glad_landsat_alerts\b|^global all.?ecosystem disturbance alerts|^glad alerts\b/i, null],
   [/\bwur_alert_drivers_coverage\b|(?=.*drivers of (deforestation|disturbance) alerts)(?=.*(coverage|the area they cover))/i, null],
   [/\bwri_agriculture_linked_deforestation\b|^agriculture.linked deforestation/i, null],
+  // Round 87b (asked 27 September): taken out: Nusantara's deforestation alert
+  // pictures for Equatorial Asia (the integrated alerts hold GLAD and RADD);
+  // the RADD coverage shapes; Wageningen University's drivers of each alert;
+  // the plantation expansion picture to 2024 (the one to 2025 holds all of it)
+  // and the uncoloured copy of the one to 2025 (the same data as its picture).
+  [/\bAlert(DFCOMBINE|GLAD|RADD)RGB\b|(?=.*(trees cut|deforestation alert|forest alert))(?=.*(equatorial asia|as nusantara reads))/i, null],
+  [/\bwur_(africa_)?radd_coverage\b|(?=.*radd)(?=.*coverage)/i, null],
+  [/\bwur_integration_alert_drivers_(class|date)\b|\bwur_alert_drivers\b|(?=.*drivers of disturbance alerts)(?=.*wageningen)/i, null],
+  [/\bGlobal_AllExpansionRGB_2000to2024\b|\bGlobal_AllExpansion_2000to2025\b|^plantation expansion, 2000 to 2024|^plantation expansion, 2000 to 2025(?! \(picture\))/i, null],
   // Round 85b: the drivers of tree cover loss are one layer with sublayers.
-  [/\b(tsc_tree_cover_loss_drivers|wri_google_tree_cover_loss_drivers|tsc_drivers|umd_drivers|wur_integration_alert_drivers_(class|date))\b/, [IN(P + " > Deforestation > Tree cover loss and alerts > What drove the loss", "drivers")]],
+  [/\b(tsc_tree_cover_loss_drivers|wri_google_tree_cover_loss_drivers|tsc_drivers|umd_drivers)\b/, [IN(P + " > Deforestation > Tree cover loss and alerts > What drove the loss", "drivers")]],
   [/(?=.*field boundar)(?=.*(chaco|chiquitano))/i, null],
   [/\bgadm_geotrellis_features\b|\bgfw_buffered_points\b|\bgfwpro_\w*forest_change\w*\b|(?=.*gfw ?pro)(?=.*forest change)/i, null],
   [/\bidn_forest_moratorium\b|\brtrw_tabanan_2023\b|\b(v3p3_)?spatialplan(forestland|moratorium|rtrwn|rtrwp_papua|rtrwp_papuawest)_spv\b/, [IN(P + " > Deforestation", "plans")]],
@@ -7405,7 +7426,8 @@ function cataloguePlaces(words, title) {
 // homes.
 function catalogueLastWord(paths, words) {
   const yby = / > Loss year by year$/;
-  if (!paths.some((x) => yby.test(x)) || /global land area/i.test(words)) return paths;
+  // Round 87b: the loss due to fire is not kept there (it is under Fire).
+  if (!paths.some((x) => yby.test(x)) || (/global land area/i.test(words) && !/fire/i.test(words))) return paths;
   const rest = paths.filter((x) => !yby.test(x));
   return rest.length ? rest : [CATALOGUE_TAKEN_OUT];
 }
@@ -7698,6 +7720,9 @@ const GFW_TITLES = {
   wri_tropical_tree_cover: "Tree cover in 2020, share of each half hectare, the tropics (WRI)",
   wri_tropical_tree_cover_extent: "Tree cover in 2020, 10 m, where it is 40% or more, the tropics (WRI)",
   test_wat_006_projected_water_stress: "Water stress projected for the coming decades, Global Forest Watch's test copy (WRI Aqueduct)",
+  // Round 87b.
+  gfwpro_negligible_risk_analysis: "Districts where deforestation risk is negligible or not, by natural forest lost since 2021 (GFW Pro, Accountability Framework method)",
+  col_frontera_agricola: "Colombia's national agricultural frontier: where farming is allowed, and the forests and protected lands beyond it (UPRA)",
 };
 // What is known about how rows of the same name differ, put first in the
 // row's "i" box, ahead of Global Forest Watch's own description.
@@ -7715,6 +7740,8 @@ const GFW_ABOUT = {
   global_water_watch_anomalies2: "One reading per reservoir: its water area, its monthly area and how far that is from usual. A separate dataset, released once (21 April 2025).",
   jpl_mangrove_aboveground_biomass_stock_2000: "Simard et al. 2019, NASA JPL. Global Forest Watch records the unit as megagrams of CO\u2082 equivalent per hectare; the key uses the numbers as stored.",
   test_wat_006_projected_water_stress: "Global Forest Watch gives this dataset no title or description; \u201cwat.006\u201d is Resource Watch's code for Aqueduct's projected water stress. It is published only as tiles made when asked for, so it fills in slowly.",
+  gfwpro_negligible_risk_analysis: "Each district (second-level administrative area) is classed negligible or non-negligible risk from how much of its natural forest has been lost since 2021, by the method the Accountability Framework Initiative set out with the Science Based Targets initiative and the Greenhouse Gas Protocol for companies reporting deforestation-free supply chains. Global Forest Watch Pro publishes it; each shape is coloured by that class, and its box gives the forest lost and its share.",
+  col_frontera_agricola: "Colombia's agricultural frontier, set by its Ministry of Agriculture through UPRA (first by Resolution 261 of 2018, updated since; about 43 million hectares in UPRA's 2023 update): the line between land where farming and ranching are allowed and the natural forests and protected and special areas beyond it, where they are not. Clearing past it is clearing where Colombian law says agriculture should not go.",
   wdpa_licensed_protected_areas: "The World Database on Protected Areas as licensed to Global Forest Watch. There is a second worldwide row, the public release; the records do not say how the two differ beyond that.",
 };
 // Where a dataset is, where the record's own wording does not fit a title.
@@ -8029,6 +8056,8 @@ const GFW_COLOUR_BY = {
   landmark_tenure_indicators_comm: { fields: ["current_avg_scr_cat"], orderBy: "current_avg_scr", say: "LandMark's average score over its ten indicators of legal security" },
   landmark_percent_of_land_indigenous_per_country: { fields: ["ic_t_cat"], ordered: true, say: "the share of the country's land held by Indigenous Peoples and communities" },
   landmark_indigenous_population_per_country: { fields: ["pctcat"], ordered: true, say: "the Indigenous share of the country's population" },
+  // Round 87b (asked 27 September: all one colour, nothing to read).
+  gfwpro_negligible_risk_analysis: { fields: ["negrisk"], say: "whether the district's natural forest lost since 2021 counts as negligible risk or not" },
 };
 const GFW_KINDS = ["#8C5A4E", "#6F5A7A", "#6E8058", "#4F6E6A", "#B0707C", "#A9A39A", "#5E6D8A", "#7A6A4E", "#556B78", "#8A7A96", "#6B7F6A", "#9A8070"];
 const GFW_STEPS = ["#E3D9CF", "#C9B3A5", "#AC8A7B", "#8A6356", "#5F3F36"];
@@ -8147,7 +8176,7 @@ async function addGfwMenuLayer(cfg) {
   // Where a dataset is, as GFW themselves record it. Left off where they
   // record nothing rather than guessed at from the name.
   // Round 83b: the global land area tree cover loss says its years.
-  const titleFix = (t) => /rubber/i.test(t) ? notWorldwide(t) : /^tree cover loss\b/i.test(t) && /global land area/i.test(t) && !/\b20\d\d\b/.test(t)
+  const titleFix = (t) => /rubber/i.test(t) ? notWorldwide(t) : /^tree cover loss\b/i.test(t) && /global land area/i.test(t) && !/fire/i.test(t) && !/\b20\d\d\b/.test(t)
     ? t.replace(/^tree cover loss/i, "Tree cover loss, 2000 to 2012") : t;
   let items = all.filter((d) => !leftOut.includes(d.dataset)).map((d) => {
     const meta = d.metadata || {};
@@ -15128,7 +15157,13 @@ const OTHER_MAPS = {
       layerTitles: { 0: "Toxic manufacturing plants, US, with their census tracts", 1: "Public schools within 3 miles of a plant, US",
         2: "Private schools within 3 miles of a plant, US", 14: "Toxic manufacturing plants, worldwide" },
       note: "The ArcGIS experience linked on the Destruction page (arcg.is/4q8m4), titled Material Research World Atlas: its layers of toxic manufacturing plants (US and worldwide), from a weekly copy with every field kept. Its school, social vulnerability and water body layers are left out. A chip per layer." },
-    { id: "glad_loss", name: "Tree cover loss (Global Forest Change, UMD GLAD)", unit: "loss since 2000, 30 m", colour: "#8A4F46", route: "rasterlive", ready: true, lazy: true,
+    // Round 87b (asked 27 September: which years?): version 1.12 covers loss
+    // from 2001 to 2024; the title says so. Version 1.13 (2001 to 2025) is used
+    // as soon as its squares answer, and the title follows.
+    { id: "glad_loss", name: "Tree cover loss, each year 2001 to 2024 (Global Forest Change v1.12, UMD GLAD)", unit: "loss since 2000, 30 m",
+      newer: { tiles: "https://storage.googleapis.com/earthenginepartners-hansen/tiles/gfc_v1.13/loss_alpha/{z}/{x}/{y}.png",
+               probe: "https://storage.googleapis.com/earthenginepartners-hansen/tiles/gfc_v1.13/loss_alpha/0/0/0.png",
+               name: "Tree cover loss, each year 2001 to 2025 (Global Forest Change v1.13, UMD GLAD)" }, colour: "#8A4F46", route: "rasterlive", ready: true, lazy: true,
       attribution: "Hansen/UMD/Google/USGS/NASA", maxzoom: 12,
       choices: [{ label: "Tree cover loss", tiles: "https://storage.googleapis.com/earthenginepartners-hansen/tiles/gfc_v1.12/loss_alpha/{z}/{x}/{y}.png" }],
       // Round 83b (asked 27 September: too faint over the atlas basemap): full
@@ -17942,8 +17977,10 @@ function layerKindSwitch(box) {
   const wrap = document.createElement("div");
   wrap.id = "kind-switch";
   wrap.className = "kind-switch";
-  wrap.innerHTML = `<span class="ks-l">Turn on every</span>` + [["point", "Points"], ["shape", "Shapes"], ["national", "National highlights"]]
-    .map(([k, t]) => `<button type="button" class="chip" data-kind-all="${k}" aria-pressed="false">${t}</button>`).join("") +
+  // Round 87b (asked 27 September): the three switches on one line, National
+  // highlights squeezed in to the right of the other two.
+  wrap.innerHTML = `<span class="ks-row"><span class="ks-l">Turn on every</span>` + [["point", "Points"], ["shape", "Shapes"], ["national", "National highlights"]]
+    .map(([k, t]) => `<button type="button" class="chip" data-kind-all="${k}" aria-pressed="false">${t}</button>`).join("") + `</span>` +
     `<span class="ks-busy" role="status" aria-live="polite" hidden><i class="ks-spin" aria-hidden="true"></i><span class="ks-t"></span></span>`;
   if (at && at.after) at.after(wrap); else if (box.parentElement) box.parentElement.insertBefore(wrap, box);
   const cfgs = new Map(LAYERS.concat(...GROUPS.map((g) => g.children || [])).filter(Boolean).map((c) => [c.id, c]));
@@ -18023,7 +18060,10 @@ function layerKindSwitch(box) {
     if (k === "point" && on) { say("Finding the shared files\u2026"); readPointBundles().then(go); } else go();
   });
   addStyle(".kind-switch{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin:0 0 6px;font-size:11px;color:var(--dim)}" +
-    ".kind-switch .chip{font:inherit;font-size:11px;padding:2px 7px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:none;color:var(--ink,#e8e2d6);cursor:pointer}" +
+    ".kind-switch .ks-row{display:flex;flex-wrap:nowrap;align-items:center;gap:3px;min-width:0;max-width:100%}" +
+    ".kind-switch .ks-row>*{flex:0 1 auto;white-space:nowrap;min-width:0}" +
+    ".kind-switch .ks-l{margin-right:1px}" +
+    ".kind-switch .chip{font:inherit;font-size:10.5px;padding:2px 5px;overflow:hidden;text-overflow:ellipsis;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:none;color:var(--ink,#e8e2d6);cursor:pointer}" +
     ".kind-switch .chip.on{background:rgba(120,160,220,.28);border-color:rgba(150,180,230,.6)}" +
     ".kind-switch .ks-busy{display:inline-flex;align-items:center;gap:5px;flex-basis:100%}" +
     ".kind-switch .ks-busy[hidden]{display:none}" +

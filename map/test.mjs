@@ -3207,7 +3207,7 @@ console.log("\nround of 22 September (3): the report's findings, live marks, leg
   const P = "Destruction > Of the planet";
   const f = (t, id) => places(`${t} ${id}`, `${t} ${id}`).join(" | ");
   check("\"drivers\" is not a river and \"disturbance\" is not urban",
-        f("Drivers of disturbance alerts \u2014 the driver behind each alert (Wageningen University)", "wur_integration_alert_drivers_class").startsWith(P + " > Deforestation > Tree cover loss and alerts > What drove the loss > Tree cover loss by dominant driver"));
+        f("Drivers of disturbance alerts \u2014 the driver behind each alert (Wageningen University)", "wur_integration_alert_drivers_class") === "(taken out)");  // round 87b: out at the owner's word
   check("Global Forest Watch's analysis tables are taken out, and so is the drivers dataset with no tiles",
         f("Gadm  burned areas  adm1 whitelist", "gadm__burned_areas__adm1_whitelist") === "(taken out)" &&
         f("Geostore  burned areas  daily alerts", "geostore__burned_areas__daily_alerts") === "(taken out)" &&
@@ -4997,9 +4997,9 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("the drivers' coverage shape and Global Forest Watch's agriculture-linked deforestation are out",
         f("Drivers of disturbance alerts \u2014 the area they cover, as one shape, with no drivers in it", "wur_alert_drivers_coverage") === "(taken out)" &&
         f("Agriculture-Linked Deforestation \u2014 Global", "wri_agriculture_linked_deforestation") === "(taken out)");
-  check("Wageningen's drivers of each alert are a part of one drivers layer, with Curtis et al.'s first",
-        /Tree cover loss by dominant driver/.test(f("Drivers of disturbance alerts \u2014 the driver behind each alert (Wageningen University)", "wur_integration_alert_drivers_class")) &&
-        f("Tree cover loss by dominant driver", "tsc_tree_cover_loss_drivers") === f("x", "wur_integration_alert_drivers_class") &&
+  check("the drivers of tree cover loss are one layer, Curtis et al.'s first (Wageningen's part out since round 87b)",
+        /Tree cover loss by dominant driver/.test(f("Tree cover loss by dominant driver", "tsc_tree_cover_loss_drivers")) &&
+        f("Drivers of disturbance alerts \u2014 the driver behind each alert (Wageningen University)", "wur_integration_alert_drivers_class") === "(taken out)" &&
         /const CATALOGUE_FIRST = new Set\(\["tsc_tree_cover_loss_drivers"\]\)/.test(src) &&
         o.PANEL_ORDER.some((x) => x && x.bundle === "drivers"));
   check("the map's own agriculture-linked deforestation sits under What drove the loss, coloured by the crop or animal",
@@ -5025,6 +5025,31 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("the global burned areas are asked for only from zoom 5 in, where Global Forest Watch can answer",
         /const GFW_MIN_ZOOM = \{ umd_modis_burned_areas: 5 \};/.test(src) && /asset\.minzoom = Math\.max\(asset\.minzoom \|\| 0, least\);/.test(src));
   check("the page asks for this round's script", /app\.js\?v=(8[5-9]|9\d)/.test(html));
+}
+{
+  console.log("\nround 87b: the three switches on one line; tree cover loss years; the fire loss, Equatorial Asia alerts, RADD coverage, Wageningen and duplicate expansion out; negligible risk coloured");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const places = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return cataloguePlaces;")();
+  const f = (t, id) => places(`${t} ${id}`, `${t} ${id}`).join(" | ");
+  check("Points, Shapes and National highlights sit on one line", /<span class="ks-row"><span class="ks-l">Turn on every<\/span>/.test(src) && /\.kind-switch \.ks-row\{display:flex;flex-wrap:nowrap/.test(src));
+  check("the Global Forest Change row says its years and moves to version 1.13 when it answers",
+        /id: "glad_loss", name: "Tree cover loss, each year 2001 to 2024 \(Global Forest Change v1\.12, UMD GLAD\)"/.test(src) && /gfc_v1\.13\/loss_alpha/.test(src) && /if \(cfg\.newer && !cfg\._newerTried\)/.test(src));
+  check("the loss due to fire is not under Loss year by year, and is not titled 2000 to 2012",
+        !/Loss year by year/.test(f("Tree cover loss due to fire \u2014 Global land area", "umd_tree_cover_loss_from_fires")) &&
+        /!\/fire\/i\.test\(t\) && !\/\\b20\\d\\d\\b\/\.test\(t\)/.test(src));
+  check("Nusantara's Equatorial Asia alert pictures, the RADD coverage, Wageningen's drivers and the duplicate expansion maps are out",
+        ["AlertDFCOMBINERGB", "AlertGLADRGB", "AlertRADDRGB"].every((id) => f("Trees cut, as Nusantara reads it \u2014 Equatorial Asia", id) === "(taken out)") &&
+        f("RADD Alerts Coverage", "wur_radd_coverage") === "(taken out)" && f("Deforestation alerts (RADD) Coverage", "wur_africa_radd_coverage") === "(taken out)" &&
+        f("Drivers of disturbance alerts \u2014 the date of each alert (Wageningen University)", "wur_integration_alert_drivers_date") === "(taken out)" &&
+        f("Plantation expansion, 2000 to 2024 (picture) \u2014 Equatorial Asia", "Global_AllExpansionRGB_2000to2024") === "(taken out)" &&
+        f("Plantation expansion, 2000 to 2025 \u2014 Equatorial Asia", "Global_AllExpansion_2000to2025") === "(taken out)" &&
+        f("Plantation expansion, 2000 to 2025 (picture) \u2014 Equatorial Asia", "Global_AllExpansionRGB_2000to2025") !== "(taken out)" &&
+        f("Plantation expansion 2025, Papua", "papua_expansion_2025") !== "(taken out)" &&
+        f("Integrated deforestation alerts", "gfw_integrated_alerts") !== "(taken out)");
+  check("the negligible risk districts are coloured by their class and explained", /gfwpro_negligible_risk_analysis: \{ fields: \["negrisk"\]/.test(src) && /gfwpro_negligible_risk_analysis: "Each district/.test(src));
+  check("the agricultural frontier is explained", /col_frontera_agricola: "Colombia's agricultural frontier, set by its Ministry of Agriculture through UPRA/.test(src));
+  check("the page asks for this round's script", /app\.js\?v=(8[7-9]|9\d)/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
