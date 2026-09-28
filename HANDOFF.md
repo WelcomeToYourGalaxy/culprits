@@ -5,6 +5,33 @@ touches.
 
 ---
 
+## Round 94b (27 September)
+
+Needs round 93b (runs after it by name). Tiles patch round94b_tiles.py beside it.
+
+- Out: Liberia's three mining rows, Merauke's planned roads, Nusantara's copy
+  of the Allen Coral Atlas (benthic_allencorral_global: broken, and the same
+  warm-water reefs as allen_coral).
+- Fur farms (h4) under Meat and agriculture: fur_world (tiles fur_farms.py:
+  Farm Transparency Project, Final Nail, OpenStreetMap, antyfutro Poland;
+  merged within 300 m), final_nail, fur_bans (route countrycat, OWID
+  fur-farming-ban).
+- Natural disasters: Every kind together (haz_gdacs, haz_eonet), Earthquakes
+  (skytruth_quakes, usgs_quakes M5+ 1900 on, haz_ncei_quakes), Volcanoes
+  (GVP Holocene, NCEI eruptions), Tsunamis (NCEI), Tropical cyclones (IBTrACS
+  since 1980, pmchoose lines by Saffir-Simpson), Landslides (NASA GLC); tiles
+  natural_hazards.py. Floods only inside GDACS/EONET (Dartmouth archive has no
+  download link found).
+- Timeline (addTimeline, timelineExpr, joined in applyFacet) on skytruth_quakes
+  (2011-2015, month by month) and usgs_quakes.
+- powerbi_report (Environmental Crime Tracker) also under Environmental crime.
+- The 1996/2016/2020 mangroves bundle under Deforestation > Mangroves.
+- Oceans: Dead zones (WRI eutrophication/hypoxia), Deep-sea mining (ISA
+  contract, reserved and protected areas); tiles oceans.py.
+- tiles concession_probe.py (by hand) counts Nusantara's "concessions of other
+  kinds" by kind fields, for the mining vs clearing share asked.
+
+
 ## Round 93b (27 September)
 
 Needs round 92b (runs after it by name). Tiles patch round93b_tiles.py beside it.

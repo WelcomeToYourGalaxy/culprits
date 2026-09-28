@@ -569,7 +569,7 @@ console.log("\nmap wiring");
   // A facet must narrow what `where` selects, never replace it: replacing would
   // turn climate_trace_cafo back into every Climate TRACE source on first click.
   check("a facet is ANDed with the layer's `where`, not substituted for it",
-        /const parts = \[cfg\.where, picked, keyed\]\.filter\(Boolean\);/.test(facet) && /\["all", \.\.\.parts\]/.test(facet));
+        /const parts = \[cfg\.where, picked, keyed, timed\]\.filter\(Boolean\);/.test(facet) && /\["all", \.\.\.parts\]/.test(facet));
 }
 
 // --- layer groups ----------------------------------------------------------
@@ -2625,7 +2625,7 @@ console.log("\nOff-planet sections, Of groups, names, launch links, drag bar, ma
         at("To Earth") < at("Near-Earth object impacts") && at("Unidentified anomalous phenomena") < at("From Earth") &&
         at("From Earth") < at("The space industry") && at("Space launches") < at("Extraterrestrial life"));
   // Round 48 (25 September): the fur farms moved to a heading of their own under Of the planet.
-  check("Fur Farms (Final Nail) is under Destruction, Of the planet, Fur farms", order.indexOf("final_nail") === at("Fur farms") + 1 && at("Fur farms") < at("Of groups") && /name: "Fur Farms \(Final Nail\)"/.test(src));
+  check("Fur Farms (Final Nail) is under Meat and agriculture > Fur farms (round 94b)", order.indexOf("final_nail") === at("Fur farms") + 2 && at("Fur farms") > at("Meat and agriculture") && at("Fur farms") < at("Oceans") && /name: "Fur Farms \(Final Nail\)"/.test(src));
   check("Pet Food Companies is straight under Of animals (round 62)", order.indexOf("mymaps_supp_a") > at("Of animals") && at("The pet industry") === -1 && /name: "Pet Food Companies", fixedName: true/.test(src));
   check("each upcoming launch links to its own pages", /spacelaunchnow\.me\/launch\//.test(src) && /r\.info_urls/.test(src) && /ll2Links\(r\)/.test(src));
   check("page panels have a drag bar", /class="c-grab"/.test(src) && /ns-resize/.test(src));
@@ -3561,8 +3561,8 @@ console.log("\nround of 23 September (20): rows refiled and taken out by name");
          "Congo Basin forest roads", "Brazil rural settlements (INCRA)"].every((t) => f(t) === "(taken out)") &&
         f("Towns and villages \u2014 Equatorial Asia base_populatedplace") === "(taken out)" &&
         f("Rubber plantations 2020, Kalimantan rubber_kalimantan_2020") === P + " > Deforestation > Timber and rubber plantations");
-  check("Liberia's mineral exploration and development licences are under Mining",
-        f("Mineral exploration licenses \u2014 Liberia") === P + " > Mining" && f("Liberia development licenses (exploration)") === P + " > Mining");
+  check("Liberia's mineral exploration and development licences are taken out (round 94b)",
+        f("Mineral exploration licenses \u2014 Liberia", "lbr_mineral_exploration_license") === "(taken out)" && f("Liberia development licenses (exploration)", "lbr_development_exploration_license") === "(taken out)");
   check("logging roads are under Deforestation, not Construction", f("Logging roads \u2014 Congo Basin") === P + " > Deforestation > Logging and timber concessions");
 }
 console.log("\nround of 23 September (21): INCRA's quilombola communities kept");
@@ -3580,7 +3580,7 @@ console.log("\nround of 23 September (22): Liberia's development agreements and 
   const places = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return cataloguePlaces;")();
   const f = (t) => places(t, t).join(" | ");
   check("Liberia's Mineral Development Agreements are under Mining, the resource rights in one layer with LandMark's (round 72)",
-        f("Liberia Mineral Development Agreement lbr_mineral_development_agreement") === "Destruction > Of the planet > Mining" &&
+        f("Liberia Mineral Development Agreement lbr_mineral_development_agreement") === "(taken out)" &&   // round 94b
         f("Resource rights \u2014 Currently available for Cameroon, Equatorial Guinea, Liberia and Namibia gfw_resource_rights") === "On-planet invasion > Invasion of the living > Invasion of humans > Community rights to natural resources, worldwide and in Cameroon, Equatorial Guinea, Liberia and Namibia (LandMark and Global Forest Watch)");
 }
 console.log("\nround of 23 September (23): the owner's thirty notes on the layers box");
@@ -3613,7 +3613,7 @@ console.log("\nround of 23 September (23): the owner's thirty notes on the layer
         /name:"Coral reefs, warm-water only \(Allen Coral Atlas and UNEP-WCMC\)"/.test(src) && /const CORAL_WORLD_TINT = "E3D2CC"/.test(src) &&
         /if \(grow\) growPixels\(img\.data, bmp\.width, zoomOfBbox\(url\)\)/.test(src));
   check("8, 10: the three Global Mangrove Watch years are one row; 1996 is kept, and drawn without waiting on the world tile",
-        ["", "_1996", "_2016"].every((y) => f("Mangroves", `gmw_global_mangrove_extent${y}`) === `${P} > Oceans > Reefs and mangroves > ${B.mangroves}`) &&
+        ["", "_1996", "_2016"].every((y) => f("Mangroves", `gmw_global_mangrove_extent${y}`) === `${P} > Deforestation > Mangroves > ${B.mangroves}`)   /* round 94b */ &&
         /if \(!asset\.slow\) \{/.test(src) && /setTimeout\(\(\) => ctl\.abort\(\), 8000\)/.test(src));
   const keys = new Function(src.slice(src.indexOf("const GFW_KEYS = {"), src.indexOf("const hexRgba")) + "; return GFW_KEYS;")();
   check("9, 28: the mangrove biomass and 2010 tree cover pictures are drawn in colour steps, zero left out, not grey",
@@ -4120,7 +4120,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /id: "eyes_craft"[^\n]*route: "leave"/.test(src) && /if \(vis === "visible" && !AWAY\) leaveEarth\(\);/.test(src) &&
         /if \(!c \|\| c\.route !== "leave"\) continue;/.test(src) && /cfg\.route === "leave" \? Promise\.resolve\(\)/.test(src));
   check("the earthquakes are under Destruction > Of the planet > Natural disasters, and nowhere under Base and reference",
-        /\{ h: 3, t: "Natural disasters" \}, "skytruth_quakes",/.test(src) && !/"Physical and human geography"/.test(src));
+        /\{ h: 4, t: "Earthquakes" \}, "skytruth_quakes", "usgs_quakes",/.test(src) && !/"Physical and human geography"/.test(src));
   check("a Soil biodiversity heading under Biodiversity loss holds the Underground Atlas and SoilGrids",
         /\{ h: 4, t: "Soil biodiversity" \}, "soil_spun", ("soil_nematodes", )?("soil_earthworms", )?"soilgrids",/.test(src) && /id: "soil_spun"[^\n]*route: "rasterlive"/.test(src) &&
         /soil\/spun_choices\.json/.test(src) && /if \(!cfg\.choices \|\| !cfg\.choices\.length\) \{ setLayerState/.test(src));
@@ -4161,7 +4161,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         out("Cities socioeconomic vulnerability (WRI)") && out("Net tree cover change umd_net_tree_cover_change") && out("Todelete (Global Forest Watch gives this dataset no title)") &&
         out("Test dataset 001") && out("Sfb bra sicar (Global Forest Watch gives this dataset no title) sfb_bra_sicar") && out("Permanent production forests — Peru"));
   check("rows not named are where they were", at("Mining concessions gfw_mining_concessions").some((x) => /Mining/.test(x)));
-  check("the fur farms have a heading of their own under Of the planet", /\{ h: 3, t: "Fur farms" \}, "final_nail",\n  \{ h: 2, t: "Of groups" \}/.test(src));
+  check("the fur farms have a heading of their own under Meat and agriculture (round 94b)", /\{ h: 4, t: "Fur farms" \}, "fur_world", "final_nail", "fur_bans",/.test(src));
   const G = new Function("maplibregl", src.slice(src.indexOf("const GLAD_LO = "), src.indexOf("function gladPixels(")) +
     "; return { gladCss, gladValue, GLAD_SPREAD };")({ addProtocol() {} });
   const hue = (hex) => { const n = parseInt(hex.slice(1), 16), r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
@@ -4767,7 +4767,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /"in date"/.test(e) && !/"expired"/.test(e) && /\["!",\["has","x_lapsed"\]\]/.test(e) && K.keyFilterExpr({ id: "none", keys: K.GMO_REL_KEYS }) === null);
   check("…the rows carry them, and the filter narrows the row's own definition",
         /id:"gmo_env"[^\n]*\n    keys: GMO_REL_KEYS,/.test(src) && /id:"gmo_industry"[^\n]*\n    keys: GMO_ORG_KEYS,/.test(src) &&
-        /const parts = \[cfg\.where, picked, keyed\]\.filter\(Boolean\);/.test(src));
+        /const parts = \[cfg\.where, picked, keyed, timed\]\.filter\(Boolean\);/.test(src));
   check("…and the records carry the fields, read as the map reads them",
         /"lapsed": \("expired" if r\.get\("lapsed"\) is True/.test(py) && /"subjects": _subjects\(r\)/.test(py) && /def _subjects\(r\):/.test(py));
   check("the page asks for this round's script", /app\.js\?v=(7[6-9]|[89]\d)/.test(html));
@@ -5199,7 +5199,7 @@ console.log("\nround 92b: land cover in 35 kinds under Land Use and Ecoregions; 
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   check("the moves are in the order of the box", /\{ h: 4, t: "Land Use and Ecoregions" \}, "glc_fcs30d",/.test(src) && /\{ h: 1, t: "Buildings" \}, "building_types", "osm_landuse",/.test(src) &&
-        /\{ h: 4, t: "Mangroves" \}, "own_mangroves",[\s\S]{0,200}\{ h: 4, t: "Peatland" \},/.test(src) && !/\{ h: 3, t: "Peatland" \}/.test(src));
+        /\{ h: 4, t: "Mangroves" \}, "own_mangroves",[\s\S]{0,400}\{ h: 4, t: "Peatland" \},/.test(src) && !/\{ h: 3, t: "Peatland" \}/.test(src));
   check("the worldwide peatland map leads its heading", /const CATALOGUE_FIRST = new Set\(\[[^\]]*"gfw_peatlands"\]\)/.test(src));
   check("the page asks for this round's script", /app\.js\?v=(9[2-9])/.test(html));
 }
@@ -5227,6 +5227,31 @@ console.log("\nround 93b: Surface water under Water scarcity; the ever-seen wate
         /\[\/IDNMYSBorneo_WaterChangeRGB/.test(src) && /nexgddp_change_dry_spells_2000_2080: \{ "raster-opacity": 0\.42 \}/.test(src) &&
         !/\{ h: 3, t: "Surface water" \}/.test(src));
   check("the page asks for this round's script", /app\.js\?v=(9[3-9])/.test(html));
+}
+
+console.log("\nround 94b: Liberia's mines and Merauke's roads out; fur farms worldwide under Meat and agriculture; natural disasters of every kind; the earthquakes' timeline; the crime tracker under Environmental crime; the mangroves under Deforestation; dead zones and deep-sea mining");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const t = new Function(src.slice(src.indexOf("function timelineMonths("), src.indexOf("function addTimeline(")) + "; return { timelineMonths, monthAfter, timelineExpr };")();
+  const cfg = { timeline: { field: "x_date", from: "2011-01", to: "2015-12" } };
+  const months = t.timelineMonths("2011-01", "2015-12");
+  cfg._timePick = [0, months.length - 1];
+  const all = t.timelineExpr(cfg);
+  cfg._timePick = [12, 23];
+  const e = t.timelineExpr(cfg);
+  check("the timeline runs month by month; the whole span filters nothing; a chosen span keeps its months only",
+        months.length === 60 && all === null && JSON.stringify(e).includes('"2012-01"') && JSON.stringify(e).includes('"2013-01"') && t.monthAfter("2012-12") === "2013-01");
+  check("both earthquake rows carry the timeline, and it narrows the row's own filter",
+        /id: "skytruth_quakes"[\s\S]{0,400}timeline: \{ field: "x_date", from: "2011-01", to: "2015-12" \}/.test(src) && /id: "usgs_quakes"[\s\S]{0,300}timeline: \{ field: "x_date", from: "1900-01", to: "now" \}/.test(src) &&
+        /addPmtilesLayer\(cfg\)\.then\(\(\) => \{ if \(cfg\.timeline\) addTimeline\(cfg\); \}\)/.test(src));
+  check("Natural disasters holds every kind together and each kind", ["haz_gdacs", "haz_eonet", "usgs_quakes", "haz_volcanoes", "haz_eruptions", "haz_tsunamis", "haz_cyclones", "haz_landslides"].every((i) => src.includes(`id: "${i}"`)) &&
+        /\{ h: 4, t: "Every kind together" \}, "haz_gdacs", "haz_eonet",/.test(src));
+  check("the crime tracker is under Environmental crime; Liberia's mines, Merauke's roads and the broken coral copy are out",
+        /"raisg_illegal_mining", "powerbi_report",\n/.test(src) && /\[\/\\blbr_\(development_exploration_license\|mineral_development_agreement\|mineral_exploration_license\)\\b\/, null\]/.test(src) &&
+        /merauke_road_plan/.test(src) && /\[\/\\bbenthic_allencorral_global\\b\/, null\]/.test(src));
+  check("fur farming law by country, and the new Oceans headings", /id: "fur_bans"[^\n]*route: "countrycat"/.test(src) && /\{ h: 4, t: "Dead zones" \}, "ocean_dead_zones",/.test(src) && /\{ h: 4, t: "Deep-sea mining" \}, "ocean_seabed_mining",/.test(src));
+  check("the page asks for this round's script", /app\.js\?v=(9[4-9])/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

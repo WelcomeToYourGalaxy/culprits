@@ -4584,10 +4584,30 @@ function addPmChooseLayer(cfg) {
   const src = `${cfg.id}-src`;
   if (map.getSource(src)) return;
   map.addSource(src, { type: "vector", url: `pmtiles://${cfg.archiveUrl}`, attribution: cfg.attribution || "" });
-  map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source: src, "source-layer": cfg.sourceLayer, paint: { "fill-color": CHOOSE_NONE, "fill-opacity": 0.72 } }, pointLayerAbove());
-  map.addLayer({ id: `${cfg.id}-line`, type: "line", source: src, "source-layer": cfg.sourceLayer, paint: { "line-color": "#0B2344", "line-width": 0.25, "line-opacity": 0.6 } }, pointLayerAbove());
-  cfg._layerIds = [`${cfg.id}-fill`, `${cfg.id}-line`];
-  bindHtmlPopup(`${cfg.id}-fill`, (p) => `<b>${escapeHtml(cfg.name)}</b><table class="meta">${fieldRows(p)}</table>`);
+  // A row of lines (round 94b: the cyclone tracks) is drawn as lines in the
+  // colours, not as filled areas.
+  const main = cfg.lines ? `${cfg.id}-line` : `${cfg.id}-fill`, prop = cfg.lines ? "line-color" : "fill-color";
+  if (cfg.lines) {
+    map.addLayer({ id: main, type: "line", source: src, "source-layer": cfg.sourceLayer,
+      paint: { "line-color": CHOOSE_NONE, "line-width": ["interpolate", ["linear"], ["zoom"], 1, 0.8, 6, 1.8], "line-opacity": 0.85 } }, pointLayerAbove());
+    cfg._layerIds = [main];
+  } else {
+    map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source: src, "source-layer": cfg.sourceLayer, paint: { "fill-color": CHOOSE_NONE, "fill-opacity": 0.72 } }, pointLayerAbove());
+    map.addLayer({ id: `${cfg.id}-line`, type: "line", source: src, "source-layer": cfg.sourceLayer, paint: { "line-color": "#0B2344", "line-width": 0.25, "line-opacity": 0.6 } }, pointLayerAbove());
+    cfg._layerIds = [`${cfg.id}-fill`, `${cfg.id}-line`];
+  }
+  bindHtmlPopup(main, (p) => `<b>${escapeHtml(cfg.name)}</b><table class="meta">${fieldRows(p)}</table>`);
+  if (cfg.mode === "classes") {
+    const expr = ["match", ["to-number", ["get", cfg.field], -99], ...cfg.classes.flatMap(([v, c]) => [v, c]), CHOOSE_NONE];
+    map.setPaintProperty(main, prop, expr);
+    const seen = new Set();
+    rowKey(cfg.id, cfg.classes.filter(([, , l]) => !seen.has(l) && seen.add(l)).map(([, c, l]) => [c, l]), cfg.classHint || "Saffir-Simpson category at each stretch of the track");
+    setLayerState(cfg.id, `${cfg.unit} \u00b7 from the map's own copy`);
+    map.on("error", (e) => { if (e && e.sourceId === src) setLayerState(cfg.id, "not built yet: its copy has not been made"); });
+    applyVisibility(cfg.id);
+    buildLegend();
+    return;
+  }
   const pick = cfg.menus.map((m, i) => (cfg.defaults && cfg.defaults[i]) || m.options[0][0]);
   let fixed = null, shown = "";
   const paint = () => {
@@ -4620,7 +4640,7 @@ function addPmChooseLayer(cfg) {
       key = fixed.labels.map((l, i) => [cols[i], l]).concat([[CHOOSE_NONE, "no figure"]]);
       hint = `The figure for the crop, as stored, in ${fixed.scale}`;
     }
-    if (map.getLayer(`${cfg.id}-fill`)) map.setPaintProperty(`${cfg.id}-fill`, "fill-color", expr);
+    if (map.getLayer(main)) map.setPaintProperty(main, prop, expr);
     rowKey(cfg.id, key, hint);
     buildLegend();
   };
@@ -7266,6 +7286,13 @@ const CATALOGUE_PLACES = [
 // titles each rule caught.
 const CATALOGUE_TAKEN_OUT = "(taken out)";
 const CATALOGUE_BY_TITLE = [
+  // Round 94b (asked 27 September): Liberia's three mining rows, Merauke's
+  // planned roads and Nusantara's copy of the Allen Coral Atlas (broken, and
+  // the same warm-water reefs as the coral reefs row) out.
+  [/\blbr_(development_exploration_license|mineral_development_agreement|mineral_exploration_license)\b/, null],
+  [/(?=.*liberia)(?=.*(exploration|development))(?=.*(licen[cs]e|agreement))/i, null],
+  [/\bmerauke_road_plan\b|(?=.*planned roads?)(?=.*merauke)/i, null],
+  [/\bbenthic_allencorral_global\b/, null],
   // Round 93b (asked 27 September): the Borneo surface water change out;
   // Global Forest Watch's copies of Aqueduct's projected water stress and its
   // farmland water stress out, the map's own copies of the same data in their
@@ -7441,7 +7468,8 @@ const CATALOGUE_BY_TITLE = [
   // Layers with sublayers.
   [/\bclark_labs_tropical_pond_aquaculture_(1999|2014|2018|change_1999_2018)\b/, [IN(P + " > Oceans > Fishing", "ponds")]],
   [/\bpangaea_global_mining\b|\bgfw_mining_concessions\b|\bIDN_Mining_2023\b|\bconcessionmining_spv\b/, [IN(P + " > Mining", "mines")]],
-  [/\bgmw_global_mangrove_extent(_1996|_2016)?\b/, [IN(P + " > Oceans > Reefs and mangroves", "mangroves")]],
+  // Round 94b: the mangroves of 1996, 2016 and 2020 under Deforestation > Mangroves.
+  [/\bgmw_global_mangrove_extent(_1996|_2016)?\b/, [IN(P + " > Deforestation > Mangroves", "mangroves")]],
   [/\bglobal_water_watch_anomalies2?\b/, [IN(P + " > Water scarcity", "waterwatch")]],
   // Round 42 (24 September): of the forest cover maps only the JRC's 2020 map
   // stays, the reference the EU's deforestation regulation measures from.
@@ -15075,7 +15103,8 @@ function applyFacet(cfg) {
   // of a shared archive). The facet narrows within that. Replacing rather than
   // combining would silently turn the CAFO layer back into every source.
   const keyed = typeof keyFilterExpr === "function" ? keyFilterExpr(cfg) : null;
-  const parts = [cfg.where, picked, keyed].filter(Boolean);
+  const timed = cfg.timeline ? timelineExpr(cfg) : null;
+  const parts = [cfg.where, picked, keyed, timed].filter(Boolean);
   const filter = parts.length > 1 ? ["all", ...parts] : (parts[0] || null);
   // Same four ids applyVisibility walks. -fill and -line are here because a
   // polygon layer can carry `where` or a facet just as a point layer can, and
@@ -15091,6 +15120,84 @@ function applyFacet(cfg) {
       ? cfg.unit
       : `${cfg.unit} · ${chosen.size} of ${cfg.facet.values.length} ${cfg.facet.label}s`;
   }
+}
+
+// A timeline under a row of dated points (round 94b, asked 27 September: the
+// earthquakes). Two sliders choose the first and last month shown; the dates
+// are the archive's own ("2012-05-11"), compared as text, month by month.
+function timelineMonths(from, to) {
+  const now = new Date();
+  const end = to === "now" ? `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}` : to;
+  const out = [];
+  let [y, m] = from.split("-").map(Number);
+  const [ey, em] = end.split("-").map(Number);
+  while (y < ey || (y === ey && m <= em)) { out.push(`${y}-${String(m).padStart(2, "0")}`); m++; if (m > 12) { m = 1; y++; } }
+  return out;
+}
+function monthAfter(ym) {
+  let [y, m] = ym.split("-").map(Number);
+  m++; if (m > 12) { m = 1; y++; }
+  return `${y}-${String(m).padStart(2, "0")}`;
+}
+function timelineExpr(cfg) {
+  const t = cfg.timeline, pick = cfg._timePick;
+  if (!pick) return null;
+  const months = timelineMonths(t.from, t.to);
+  if (pick[0] === 0 && pick[1] === months.length - 1) return null;
+  const f = ["to-string", ["coalesce", ["get", t.field], ""]];
+  return ["all", [">=", f, months[pick[0]]], ["<", f, monthAfter(months[pick[1]])]];
+}
+function addTimeline(cfg) {
+  const box = document.getElementById("layers");
+  const row = box && box.querySelector && box.querySelector(`[data-layer="${cfg.id}"]`);
+  const anchor = row && row.closest ? row.closest("label") : null;
+  if (!anchor || !anchor.after || typeof document.createElement !== "function" || box.querySelector(`[data-time-for="${cfg.id}"]`)) return;
+  const months = timelineMonths(cfg.timeline.from, cfg.timeline.to);
+  cfg._timePick = [0, months.length - 1];
+  const el = document.createElement("div");
+  el.className = "facet";
+  el.dataset.timeFor = cfg.id;
+  el.style.cssText = "padding-left:18px;font-size:11px";
+  el.innerHTML = `<div class="tl-say">${months[0]} to ${months[months.length - 1]}, every month</div>` +
+    `<label style="display:flex;gap:6px;align-items:center">From <input type="range" min="0" max="${months.length - 1}" value="0" data-tl="0" style="flex:1"></label>` +
+    `<label style="display:flex;gap:6px;align-items:center">To <input type="range" min="0" max="${months.length - 1}" value="${months.length - 1}" data-tl="1" style="flex:1"></label>`;
+  el.addEventListener("input", (ev) => {
+    const i = ev.target.dataset && ev.target.dataset.tl;
+    if (i == null) return;
+    cfg._timePick[Number(i)] = Number(ev.target.value);
+    if (cfg._timePick[0] > cfg._timePick[1]) {
+      cfg._timePick[1 - Number(i)] = cfg._timePick[Number(i)];
+      el.querySelector(`[data-tl="${1 - Number(i)}"]`).value = cfg._timePick[Number(i)];
+    }
+    const [a, b] = cfg._timePick;
+    el.querySelector(".tl-say").textContent = a === 0 && b === months.length - 1 ? `${months[0]} to ${months[b]}, every month` : `${months[a]} to ${months[b]}`;
+    applyFacet(cfg);
+  });
+  anchor.after(el);
+}
+
+// Countries shaded by a status in words (round 94b: fur farming law), each
+// status its own colour, every field of the record in the box.
+async function addCountryCatLayer(cfg) {
+  let data, shapes;
+  try { [data, shapes] = await Promise.all([getJson(cfg.url, 30000), getJson(BOUNDARIES_URL, 60000)]); }
+  catch (e) { setLayerState(cfg.id, `not built yet (${e.message})`); return; }
+  const col = new Map(cfg.categories);
+  const feats = shapes.features.filter((f) => data[f.properties.iso3]).map((f) => {
+    const r = data[f.properties.iso3];
+    return { type: "Feature", geometry: f.geometry, properties: Object.assign({ name: f.properties.name }, r, { _c: col.get(r[cfg.field]) || "#77726A" }) };
+  });
+  map.addSource(`${cfg.id}-src`, { type: "geojson", data: { type: "FeatureCollection", features: feats } });
+  map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source: `${cfg.id}-src`, paint: { "fill-color": ["get", "_c"], "fill-opacity": 0.72 } });
+  map.addLayer({ id: `${cfg.id}-line`, type: "line", source: `${cfg.id}-src`, paint: { "line-color": "#0B2344", "line-width": 0.3, "line-opacity": 0.6 } });
+  bindHtmlPopup(`${cfg.id}-fill`, (p) => `<b>${escapeHtml(p.name)}</b><table class="meta">${fieldRows(p, ["_c"])}</table>`);
+  const n = new Map();
+  for (const f of feats) n.set(f.properties[cfg.field], (n.get(f.properties[cfg.field]) || 0) + 1);
+  rowKey(cfg.id, cfg.categories.filter(([k]) => n.has(k)).map(([k, c]) => [c, `${k} (${n.get(k)})`])
+    .concat([...n.keys()].filter((k) => !col.has(k)).map((k) => ["#77726A", `${k} (${n.get(k)})`])));
+  setLayerState(cfg.id, `${feats.length} countries`);
+  applyVisibility(cfg.id);
+  buildLegend();
 }
 
 function facetRow(cfg) {
@@ -15894,6 +16001,7 @@ const OTHER_MAPS = {
       boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_10101",
       note: "Every alert SkyTruth's service will give, from a daily copy read square by square as tiles: the service hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. A click reads the alert's own text from the copy. Feed 10101: entries its developers made while trying the service out (\"This is dan's house\"). Not environmental data; here because the service publishes it and nothing it publishes is left out." },
     { id: "skytruth_quakes", name: "Earthquakes, worldwide (SkyTruth Monitor)", unit: "earthquakes", colour: "#65676A", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_quakes.pmtiles",
+      timeline: { field: "x_date", from: "2011-01", to: "2015-12" },
       boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_6",
       note: "Every alert SkyTruth's service will give, from a daily copy read square by square as tiles: the service hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. A click reads the alert's own text from the copy. The earthquakes SkyTruth's feed carries; the newest seen on 20 September 2026 was from July 2015." },
     { id: "slick_archive", name: "Oil slick archive, kept daily (Cerulean)", unit: "slicks by month", colour: "#5A5750", route: "slickarchive", ready: true, lazy: true,
@@ -16134,6 +16242,66 @@ const OTHER_MAPS = {
         { label: "Coastal nitrogen plumes", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_N_plumes.pmtiles" }
       ],
       note: "The model's own published pictures, from a GitHub copy (its server does not let other sites draw them). Each chip is one of the model's own layers." },
+    // Round 94b (asked 27 September): fur farms worldwide from every public
+    // source found, and each country's fur farming status.
+    { id: "fur_world", name: "Fur farms worldwide, from every public source found (Farm Transparency Project, Final Nail, OpenStreetMap and more)", unit: "farms", colour: "#8FD6E8", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Fur farms", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/fur/farms.geojson" }],
+      groupColours: { "Farm Transparency Project": "#8FD6E8", "Final Nail": "#3FA9C2", "OpenStreetMap": "#D6EEF6", "antyfutro (Poland)": "#1E6FA8" },
+      groupHint: "Coloured by the source that gave the farm first; the box lists every source that gives it",
+      note: "Every fur farm the public sources found give a position for, gathered weekly by culprits-tiles-more (scripts/fur_farms.py): the Farm Transparency Project's skins and fur farms (Denmark, the United States, Spain, Canada, Sweden, Italy, Brazil, Argentina and more; its crocodile, alligator and ostrich farms left out), Final Nail's United States map, OpenStreetMap's places tagged or named as mink, fox, chinchilla or fur farms, and the antyfutro map of Poland's farms where its downloads page offers a file. Farms within 300 m of each other in two sources are one farm. No public map exists for China, the largest producer, or for Finland, Greece, Lithuania or Russia; farms there appear only where one of these sources has them." },
+    { id: "fur_bans", name: "Where fur farming is banned, being phased out or still allowed, by country (Fur Free Alliance, via Our World in Data)", unit: "countries", colour: "#1E6FA8", keepColour: true, route: "countrycat", ready: true, lazy: true,
+      url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/fur/countries.json", field: "status",
+      categories: [["Banned", "#0E2F66"], ["Banned but not yet in effect", "#1E6FA8"], ["Partially banned", "#3FA9C2"], ["Phased out due to stricter regulations", "#8FD6E8"], ["No active farms reported", "#D6EEF6"], ["Not banned", "#8C6A72"]],
+      note: "The Fur Free Alliance's record of each country's fur farming law, as Our World in Data publishes it (fur-farming-ban; CC BY 4.0), the newest year for each country: banned, banned but not yet in effect, partially banned, phased out through stricter rules, no active farms reported, or not banned. Copied weekly by culprits-tiles-more." },
+    // Round 94b (asked 27 September): the rest of natural disasters, every
+    // kind together and each kind on its own (scripts/natural_hazards.py).
+    { id: "haz_eonet", name: "Natural events as NASA tracks them: wildfires, storms, volcanoes, floods, landslides, drought, dust, ice and more (NASA EONET)", unit: "events", colour: "#3FA9C2", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Events", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/hazards/eonet.geojson" }],
+      groupColours: { "Wildfires": "#8C4F5A", "Severe Storms": "#1E6FA8", "Volcanoes": "#B06A5E", "Floods": "#3FA9C2", "Landslides": "#7A6A5E", "Drought": "#A89A7A", "Dust and Haze": "#B8B0A0", "Sea and Lake Ice": "#D6EEF6", "Snow": "#E8EEF2", "Temperature Extremes": "#8C6A72", "Water Color": "#40BFB0", "Earthquakes": "#0E2F66", "Manmade": "#77726A" },
+      groupHint: "Coloured by kind of event, at its latest recorded position",
+      note: "NASA's Earth Observatory Natural Event Tracker (EONET v3): every natural event it has catalogued, open or closed, each at its latest recorded position, with its first and latest dates, its magnitude where given, and the sources that reported it. Copied weekly by culprits-tiles-more." },
+    { id: "haz_gdacs", name: "Disaster alerts: earthquakes, tropical cyclones, floods, volcanoes, droughts and wildfires, since 2000 (GDACS, UN and European Commission)", unit: "alerts", colour: "#1E6FA8", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Alerts", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/hazards/gdacs.geojson" }],
+      groupColours: { "Earthquake": "#0E2F66", "Tropical cyclone": "#1E6FA8", "Flood": "#3FA9C2", "Volcano": "#B06A5E", "Drought": "#A89A7A", "Wildfire": "#8C4F5A" },
+      groupHint: "Coloured by kind; the box gives GDACS's alert level (green, orange, red) and severity",
+      note: "The Global Disaster Alert and Coordination System (the United Nations and the European Commission's Joint Research Centre): every alert it has issued since 2000 for earthquakes, tropical cyclones, floods, volcanoes, droughts and wildfires, with its alert level, severity and the countries affected. Copied weekly, ten days at a time, by culprits-tiles-more." },
+    { id: "usgs_quakes", name: "Earthquakes of magnitude 5 and over, 1900 to now (USGS)", unit: "earthquakes", colour: "#3FA9C2", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/usgs_quakes.pmtiles",
+      timeline: { field: "x_date", from: "1900-01", to: "now" },
+      note: "The US Geological Survey's earthquake catalogue: every earthquake of magnitude 5 or more worldwide from 1900, with its date, magnitude, depth and place; the timeline under the row chooses the months shown. Copied weekly by culprits-tiles-more." },
+    { id: "haz_ncei_quakes", name: "Significant earthquakes in history, with deaths and damage (NOAA NCEI)", unit: "earthquakes", colour: "#0E2F66", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Significant earthquakes", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/hazards/ncei_earthquakes.geojson" }],
+      note: "NOAA's National Centers for Environmental Information, Global Significant Earthquake Database, 2150 BC to now: earthquakes that killed, did $1 million or more of damage, reached magnitude 7.5 or intensity X, or caused a tsunami; with deaths, injuries, houses destroyed and damage where recorded. Copied weekly." },
+    { id: "haz_volcanoes", name: "Volcanoes active in the last 12,000 years (Smithsonian Global Volcanism Program)", unit: "volcanoes", colour: "#B06A5E", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Volcanoes", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/hazards/volcanoes.geojson" }],
+      note: "The Smithsonian Institution's Volcanoes of the World: every volcano active in the Holocene (the last 11,700 years), with its type, last known eruption, rock type and tectonic setting. Copied weekly." },
+    { id: "haz_eruptions", name: "Significant volcanic eruptions in history, by explosivity (NOAA NCEI)", unit: "eruptions", colour: "#8C4F5A", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Eruptions", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/hazards/ncei_eruptions.geojson" }],
+      note: "NOAA NCEI's Significant Volcanic Eruptions Database, 4360 BC to now: eruptions that killed, did $1 million of damage, reached Volcanic Explosivity Index 6 or more, or caused a tsunami or an earthquake; each with its explosivity (VEI) and deaths. Copied weekly." },
+    { id: "haz_tsunamis", name: "Tsunamis in history, with their height and deaths (NOAA NCEI)", unit: "tsunamis", colour: "#1E6FA8", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Tsunamis", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/hazards/ncei_tsunamis.geojson" }],
+      note: "NOAA NCEI's Global Historical Tsunami Database, 2100 BC to now: each tsunami's source event, its greatest water height, deaths and damage where recorded. Copied weekly." },
+    { id: "haz_cyclones", name: "Tropical cyclone tracks since 1980: hurricanes, typhoons and cyclones (IBTrACS, NOAA NCEI)", unit: "storm tracks", colour: "#1E6FA8", route: "pmchoose", ready: true, lazy: true,
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ibtracs.pmtiles", sourceLayer: "ibtracs", lines: true, mode: "classes", menus: [],
+      field: "USA_SSHS", classes: [[-5, "#77726A", "not a tropical storm (post-tropical, disturbance or unknown)"], [-4, "#77726A", "not a tropical storm"], [-3, "#77726A", "not a tropical storm"],
+        [-2, "#77726A", "not a tropical storm"], [-1, "#B8D8E0", "tropical depression"], [0, "#8FD6E8", "tropical storm"], [1, "#3FA9C2", "category 1"], [2, "#2E8FBA", "category 2"],
+        [3, "#1E6FA8", "category 3"], [4, "#13447A", "category 4"], [5, "#0C2E5E", "category 5"]],
+      note: "The International Best Track Archive for Climate Stewardship (IBTrACS v04r01, NOAA NCEI, from every forecasting agency): the track of every tropical storm since 1980, each segment with the storm's name, season, wind speed and Saffir-Simpson category. Copied weekly." },
+    { id: "haz_landslides", name: "Landslides reported worldwide, with their trigger and deaths (NASA Global Landslide Catalog)", unit: "landslides", colour: "#7A6A5E", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Landslides", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/hazards/landslides.geojson" }],
+      groupColours: { "downpour": "#1E6FA8", "rain": "#3FA9C2", "continuous_rain": "#8FD6E8", "tropical_cyclone": "#0E2F66", "monsoon": "#40BFB0", "earthquake": "#8C4F5A", "snowfall_snowmelt": "#D6EEF6", "construction": "#B06A5E", "mining": "#8C6A72", "unknown": "#77726A" },
+      groupHint: "Coloured by what set it off",
+      note: "NASA's Global Landslide Catalog (with the Cooperative Open Online Landslide Repository): landslides reported in the news, in reports and by the public since 2007, each with its date, trigger, size, setting and the deaths and injuries recorded. Copied weekly." },
+    // Round 94b (asked 27 September): new Oceans subjects.
+    { id: "ocean_dead_zones", name: "Coastal dead zones and waters choked by nutrients (WRI eutrophication and hypoxia)", unit: "coastal systems", colour: "#8C4F5A", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Coastal systems", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/oceans/dead_zones.geojson" }],
+      groupColours: { "hypoxic": "#8C4F5A", "Hypoxic": "#8C4F5A", "eutrophic": "#3FA9C2", "Eutrophic": "#3FA9C2", "improved": "#D6EEF6", "Improved": "#D6EEF6" },
+      groupHint: "Coloured by WRI's classification: hypoxic (too little oxygen for life), eutrophic, or improved",
+      note: "WRI's map of 762 coastal areas worldwide suffering from eutrophication (too many nutrients, mostly from farm fertiliser and sewage) or hypoxia (dead zones with too little oxygen for fish and shellfish), from Diaz, Selman and Chique 2011, as Resource Watch publishes it. Copied weekly." },
+    { id: "ocean_seabed_mining", name: "Deep-sea mining: exploration contracts, reserved areas and protected areas on the seabed (International Seabed Authority)", unit: "areas", colour: "#1E6FA8", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Seabed areas", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/oceans/seabed_mining.geojson" }],
+      groupColours: { "Exploration contract: polymetallic nodules": "#0E2F66", "Exploration contract: polymetallic sulphides": "#1E6FA8", "Exploration contract: cobalt-rich crusts": "#3FA9C2", "Reserved for the Authority: nodules": "#8FD6E8", "Reserved for the Authority: crusts": "#B8D8E0", "Protected from mining (Areas of Particular Environmental Interest)": "#40BFB0" },
+      groupHint: "Coloured by kind of area",
+      note: "The International Seabed Authority's maps of the international seabed: the areas contracted to states and companies to explore for polymetallic nodules, sulphides and cobalt-rich crusts, the areas reserved for the Authority, and the Areas of Particular Environmental Interest closed to mining. Each box names the contractor. Copied weekly from the shapefiles the Authority publishes." },
     // Round 93b (asked 27 September): Aqueduct's projected water stress and its
     // farmland water stress as the map's own vector tiles (culprits-tiles-more
     // scripts/aqueduct.py), each basin coloured by its own figures.
@@ -16584,6 +16752,7 @@ function ensureLayer(cfg) {
       : cfg.route === "rasterlive" ? Promise.resolve().then(() => addRasterChoiceLayer(cfg))
       : cfg.route === "pmvector" ? Promise.resolve().then(() => addPmVectorLayer(cfg))
       : cfg.route === "pmchoose" ? Promise.resolve().then(() => addPmChooseLayer(cfg))
+      : cfg.route === "countrycat" ? addCountryCatLayer(cfg)
       : cfg.route === "gsn" ? addGsnLayer(cfg)
       : cfg.route === "trase" ? addTraseLayer(cfg)
       : cfg.route === "pmshapes" ? Promise.resolve().then(() => addPmShapesLayer(cfg))
@@ -16628,7 +16797,7 @@ function ensureLayer(cfg) {
       : cfg.route === "no2relief" ? Promise.resolve().then(() => addNo2Relief(cfg))
       : cfg.route === "poprelief" ? addPopRelief(cfg)
       : cfg.route === "country" ? addCountryLayer(cfg)
-      : addPmtilesLayer(cfg);
+      : addPmtilesLayer(cfg).then(() => { if (cfg.timeline) addTimeline(cfg); });
     return build;
   })
     .then(() => {
@@ -16672,6 +16841,19 @@ function refreshFacetRow(cfg) {
 // where it lands. A layer with no entry falls to the prefix rules below, and
 // anything still unlabelled shows whatever the chips say.
 const LAYER_KIND = {
+  fur_world: ["animal", "downstream"],
+  fur_bans: ["animal", "downstream"],
+  haz_eonet: ["insentient", "downstream"],
+  haz_gdacs: ["insentient", "downstream"],
+  usgs_quakes: ["insentient", "downstream"],
+  haz_ncei_quakes: ["insentient", "downstream"],
+  haz_volcanoes: ["insentient", "downstream"],
+  haz_eruptions: ["insentient", "downstream"],
+  haz_tsunamis: ["insentient", "downstream"],
+  haz_cyclones: ["insentient", "downstream"],
+  haz_landslides: ["insentient", "downstream"],
+  ocean_dead_zones: ["insentient", "downstream"],
+  ocean_seabed_mining: ["insentient", "downstream"],
   aqueduct_proj: ["insentient", "downstream"],
   aqueduct_crop: ["insentient", "downstream"],
   gsn: ["plant", "downstream"],
@@ -17380,6 +17562,19 @@ map.on("load", () => setTimeout(mymapsTitles, 50));
 // point at the repo or the page they are read from; everyone else's at their
 // own site. A row missing from here shows no link rather than a guessed one.
 const LAYER_SITE = {
+  fur_world: "https://www.farmtransparency.org/facilities/skin-fur-farms",
+  fur_bans: "https://ourworldindata.org/grapher/fur-farming-ban",
+  haz_eonet: "https://eonet.gsfc.nasa.gov/",
+  haz_gdacs: "https://www.gdacs.org/",
+  usgs_quakes: "https://earthquake.usgs.gov/earthquakes/search/",
+  haz_ncei_quakes: "https://www.ngdc.noaa.gov/hazard/earthqk.shtml",
+  haz_volcanoes: "https://volcano.si.edu/",
+  haz_eruptions: "https://www.ngdc.noaa.gov/hazard/volcano.shtml",
+  haz_tsunamis: "https://www.ngdc.noaa.gov/hazard/tsu_db.shtml",
+  haz_cyclones: "https://www.ncei.noaa.gov/products/international-best-track-archive",
+  haz_landslides: "https://gpm.nasa.gov/landslides/",
+  ocean_dead_zones: "https://www.wri.org/data/eutrophication-hypoxia-map-data-set",
+  ocean_seabed_mining: "https://www.isa.org.jm/exploration-contracts/maps/",
   aqueduct_proj: "https://www.wri.org/data/aqueduct-water-stress-projections-data",
   aqueduct_crop: "https://data-api.globalforestwatch.org/dataset/aqueduct_crop_baseline_2020",
   gsn: "https://api.gsn.naturedatalab.org/geo-analysis/layers",
@@ -17678,6 +17873,19 @@ function refreshNote(cfg) {
 // kept here (the source cannot be read by another site, or its server is gone).
 // Every row now carries one mark or the other (22 September, round 3).
 const NOT_LIVE = {
+  fur_world: "Copied weekly from its publisher by culprits-tiles-more",
+  haz_eonet: "Copied weekly from its publisher by culprits-tiles-more",
+  haz_gdacs: "Copied weekly from its publisher by culprits-tiles-more",
+  usgs_quakes: "Copied weekly from its publisher by culprits-tiles-more",
+  haz_ncei_quakes: "Copied weekly from its publisher by culprits-tiles-more",
+  haz_volcanoes: "Copied weekly from its publisher by culprits-tiles-more",
+  haz_eruptions: "Copied weekly from its publisher by culprits-tiles-more",
+  haz_tsunamis: "Copied weekly from its publisher by culprits-tiles-more",
+  haz_cyclones: "Copied weekly from its publisher by culprits-tiles-more",
+  haz_landslides: "Copied weekly from its publisher by culprits-tiles-more",
+  ocean_dead_zones: "Copied weekly from its publisher by culprits-tiles-more",
+  ocean_seabed_mining: "Copied weekly from its publisher by culprits-tiles-more",
+  fur_bans: "Copied weekly from Our World in Data by culprits-tiles-more",
   gsn_countries: "Copied from Global Safety Net's rankings spreadsheet by culprits-tiles-more",
   // Round 90b.
   own_mangroves: "Made from Global Mangrove Watch's 2020 files by culprits-tiles-more",
@@ -17923,6 +18131,8 @@ const PANEL_ORDER = [
   { h: 4, t: "Companies and financiers" }, "dff",
   // Round 90b: the map's own mangroves, drawn to show from the world view.
   { h: 4, t: "Mangroves" }, "own_mangroves",
+  // Round 94b: the 1996, 2016 and 2020 mangroves moved here from Oceans.
+  { h: 5, bundle: "mangroves", colour: "#62755F" },
   // Round 92b (asked 27 September): Peatland a sub-heading of Deforestation,
   // the worldwide peatland map first (CATALOGUE_FIRST).
   { h: 4, t: "Peatland" },
@@ -17980,23 +18190,32 @@ const PANEL_ORDER = [
   { h: 5, t: "Herds" }, "abattoir_glw",
   { h: 5, t: "Cattle and pasture" },
   { h: 5, t: "Pigs and chickens" },
+  // Round 94b (asked 27 September): fur farms under Meat and agriculture.
+  { h: 4, t: "Fur farms" }, "fur_world", "final_nail", "fur_bans",
   // Item 11: Fishing above Reefs and mangroves. Items 4, 5, 6: the pond maps
   // as one row, and the worldwide pond map beside them.
   { h: 3, t: "Oceans" },
   { h: 4, t: "Fishing" }, "fishing", "aquaculture_ponds",
   { h: 5, bundle: "ponds", colour: "#5E7377" },
   { h: 4, t: "Reefs and mangroves" }, "allen_coral",
-  { h: 5, bundle: "mangroves", colour: "#62755F" },
+  // Round 94b (asked 27 September): more of what is done to the oceans.
+  { h: 4, t: "Dead zones" }, "ocean_dead_zones",
+  { h: 4, t: "Deep-sea mining" }, "ocean_seabed_mining",
   { h: 3, t: "Construction" }, "local_projects",
   // Concessions that name no material or activity a heading covers (23 September).
   { h: 3, t: "Other concessions" },
   // Asked for 25 September: the earthquakes under a heading of their own.
   // Round 84b: governments' own records of environmental crimes, and illegal mining.
-  { h: 3, t: "Environmental crime" }, "goc_flora", "goc_fauna", "goc_resources", "ibama_embargos", "ibama_infractions", "raisg_illegal_mining",
-  { h: 3, t: "Natural disasters" }, "skytruth_quakes",
-  // Asked for 25 September (round 48): the fur farms under a heading of their
-  // own here, not under Of groups.
-  { h: 3, t: "Fur farms" }, "final_nail",
+  { h: 3, t: "Environmental crime" }, "goc_flora", "goc_fauna", "goc_resources", "ibama_embargos", "ibama_infractions", "raisg_illegal_mining", "powerbi_report",
+  // Round 94b (asked 27 September): every kind of natural disaster, together
+  // and one kind at a time; the fur farms moved under Meat and agriculture.
+  { h: 3, t: "Natural disasters" },
+  { h: 4, t: "Every kind together" }, "haz_gdacs", "haz_eonet",
+  { h: 4, t: "Earthquakes" }, "skytruth_quakes", "usgs_quakes", "haz_ncei_quakes",
+  { h: 4, t: "Volcanoes" }, "haz_volcanoes", "haz_eruptions",
+  { h: 4, t: "Tsunamis" }, "haz_tsunamis",
+  { h: 4, t: "Tropical cyclones" }, "haz_cyclones",
+  { h: 4, t: "Landslides" }, "haz_landslides",
   { h: 2, t: "Of groups" },
   { h: 3, t: "Of humans" },
   { h: 3, t: "Of animals" }, "powerbi_report",
@@ -18850,7 +19069,7 @@ function headingPump() {
 // left to be ticked by hand.
 const KIND_POINT = new Set(["pmtiles", "sitemap", "geojsonlive", "kml", "umap", "wpgmza", "trasefac", "ctairgas", "ctair", "worker",
   "ejatlas", "carbonmapper", "atlascities", "ufo", "gta", "cafo", "arcgisapp", "remains", "remainsfac", "remainsfind"]);
-const KIND_SHAPE = new Set(["pmshapes", "pmtareas", "pmvector", "pmchoose", "arcgis", "arcgisdyn", "rasterlive", "rasterparts", "tile", "osmlanduse", "coral",
+const KIND_SHAPE = new Set(["pmshapes", "pmtareas", "pmvector", "pmchoose", "countrycat", "arcgis", "arcgisdyn", "rasterlive", "rasterparts", "tile", "osmlanduse", "coral",
   "glw", "shapes", "cerulean", "slickarchive", "no2relief", "poprelief"]);
 const KIND_NATIONAL = new Set(["giga", "country", "owidgrapher"]);
 // Rows whose route says points but which draw areas (round 57: FracTracker's
