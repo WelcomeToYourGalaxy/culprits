@@ -1799,7 +1799,7 @@ console.log("\nTrase, and coral at world zoom");
   // Superseded on 20 September: one row with three menus (country, level,
   // measure) became one row per measure, drawn across every country at once.
   check("Trase's measures are rows of the box, not menus in one row", /id: "trase_measures"[^\n]*route: "trase"/.test(src) &&
-        !/data-tr="metric"/.test(src) && !/data-tr="country"/.test(src) && /data-tr="year"/.test(src) && /data-tr="level"/.test(src));
+        !/data-tr="metric"/.test(src) && /data-tr="year"/.test(src) && /data-tr="level"/.test(src));
   {
     const pick = (a, b) => src.slice(src.indexOf(a), src.indexOf(b));
     const T = new Function(pick("function traseMeasures(", "async function addTraseLayer(") + pick("function traseJoin(", "async function traseDraw(") +
@@ -3828,16 +3828,16 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   const P = "Destruction > Of the planet";
   const only = (t, want) => { const got = at(t); return got.length === 1 && got[0] === want; };
   check("Trase's cattle and pasture deforestation go under Deforestation only",
-        only("Cattle deforestation (ha) \u2014 Brazil (Trase) CATTLE_DEFORESTATION", P + " > Deforestation > Tree cover loss and alerts > Clearing for cattle") &&
-        only("Cattle deforestation per ton (ha/t) \u2014 Brazil, Paraguay (Trase) X", P + " > Deforestation > Tree cover loss and alerts > Clearing for cattle") &&
-        only("Pasture deforestation (ha) \u2014 Brazil (Trase) X", P + " > Deforestation > Tree cover loss and alerts > Clearing for cattle"));
+        only("Cattle deforestation (ha) \u2014 Brazil (Trase) CATTLE_DEFORESTATION", P + " > Deforestation > Tree cover loss and alerts > Cattle") &&
+        only("Cattle deforestation per ton (ha/t) \u2014 Brazil, Paraguay (Trase) X", P + " > Deforestation > Tree cover loss and alerts > Cattle") &&
+        only("Pasture deforestation (ha) \u2014 Brazil (Trase) X", P + " > Deforestation > Tree cover loss and alerts > Cattle"));
   check("the emissions from that clearing go under Climate only",
         ["Gross emissions from cattle deforestation (t CO\u2082-eq.) \u2014 Brazil (Trase) X", "Net emissions from pasture deforestation (t) \u2014 Brazil (Trase) X",
          "Gross emissions from cattle deforestation per ton (t) \u2014 Brazil, Paraguay (Trase) X"].every((t) => only(t, P + " > Climate > Carbon dioxide > Emissions")));
   check("Trase's pasture area and every Global Pasture Watch layer are taken out",
         [ "Pasture area (ha) \u2014 Brazil, Paraguay (Trase) PASTURE_AREA", "Grasslands 2023 gpw_grasslands_2023",
           "Cultivated and natural grasslands wri_globalpasturewatch_grasslands_2010", "Grasslands (Global Pasture Watch) x"].every((t) => at(t)[0] === lib.CATALOGUE_TAKEN_OUT));
-  check("soy deforestation is still filed as before", at("Soy deforestation (ha) \u2014 Brazil (Trase) X").includes(P + " > Deforestation > Tree cover loss and alerts > Clearing for soy and corn"));
+  check("soy deforestation is still filed as before", at("Soy deforestation (ha) \u2014 Brazil (Trase) X").includes(P + " > Deforestation > Tree cover loss and alerts > Soy and corn"));
   check("the modelled confined animal facilities and livestock density rows show when ticked (their layers are listed)",
         /cfg\._layerIds = \[`\$\{cfg\.id\}-cafo`\]/.test(src) && /cfg\._layerIds = \[`\$\{cfg\.id\}-glw`\]/.test(src));
 }
@@ -3855,7 +3855,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("coffee, cocoa, cotton and sugarcane rows are taken out; clearing for cocoa and its emissions stay",
         ["Coffee yield (t/ha) \u2014 Brazil, Colombia (Trase) X", "Production of cocoa (t) \u2014 Brazil, C\u00f4te d'Ivoire (Trase) X",
          "Cotton yield (t/ha) \u2014 Brazil (Trase) X", "Sugarcane concessions \u2014 Merauke merauke_sugarcane", "Yield of sugarcane mapspam_yield_sugc"].every((t) => at(t)[0] === OUT) &&
-        at("Cocoa deforestation (ha) \u2014 C\u00f4te d'Ivoire (Trase) X").includes(P + " > Deforestation > Tree cover loss and alerts > Clearing for cocoa") &&
+        at("Cocoa deforestation (ha) \u2014 C\u00f4te d'Ivoire (Trase) X").includes(P + " > Deforestation > Tree cover loss and alerts > Cocoa") &&
         at("Gross emissions from cocoa deforestation (t) \u2014 Ghana (Trase) X")[0] !== OUT);
   check("Badung's detailed spatial plans are taken out", at("Detailed spatial plan \u2014 Bali badung_rdtr")[0] === OUT);
   check("soy, corn and grain rows are under Climate only; soy clearing is not",
@@ -4927,8 +4927,8 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   const lib = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return { cataloguePlaces, CATALOGUE_TAKEN_OUT };")();
   const f = (t, id = "") => lib.cataloguePlaces(`${t} ${id}`, `${t} ${id}`).join(" | ");
   check("…and the catalogue's two years are out", f("Industrial timber plantations 2024", "Global_PlantationITP_2024") === lib.CATALOGUE_TAKEN_OUT);
-  check("tree cover loss from fires is under Fire only; the planted area on peatland under Peatland",
-        f("Tree cover loss due to fires") === "Destruction > Of the planet > Fire" && f("Planted area on peatland") === "Destruction > Of the planet > Peatland");
+  check("tree cover loss from fires is under Fire (and since round 88b under What drove the loss too); the planted area on peatland under Peatland",
+        f("Tree cover loss due to fires").endsWith(" | Destruction > Of the planet > Fire") && f("Planted area on peatland") === "Destruction > Of the planet > Peatland");
   check("under Loss year by year only GLAD and the global land area stay", f("Tree cover loss — Global land area", "umd_tree_cover_loss") !== lib.CATALOGUE_TAKEN_OUT &&
         f("Tree cover loss in Argentina", "arg_otbn_forest_loss") === lib.CATALOGUE_TAKEN_OUT);
   check("Tree cover loss and alerts sits right under Forest cover", at("Tree cover loss and alerts") === at("Forest cover") + 1);
@@ -5000,7 +5000,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("the drivers of tree cover loss are one layer, Curtis et al.'s first (Wageningen's part out since round 87b)",
         /Tree cover loss by dominant driver/.test(f("Tree cover loss by dominant driver", "tsc_tree_cover_loss_drivers")) &&
         f("Drivers of disturbance alerts \u2014 the driver behind each alert (Wageningen University)", "wur_integration_alert_drivers_class") === "(taken out)" &&
-        /const CATALOGUE_FIRST = new Set\(\["tsc_tree_cover_loss_drivers"\]\)/.test(src) &&
+        /const CATALOGUE_FIRST = new Set\(\["tsc_tree_cover_loss_drivers"/.test(src) &&
         o.PANEL_ORDER.some((x) => x && x.bundle === "drivers"));
   check("the map's own agriculture-linked deforestation sits under What drove the loss, coloured by the crop or animal",
         o.PANEL_ORDER.indexOf("agri_linked") > at("What drove the loss") && /id: "agri_linked"[^\n]*route: "pmtareas"/.test(src) &&
@@ -5050,6 +5050,60 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("the negligible risk districts are coloured by their class and explained", /gfwpro_negligible_risk_analysis: \{ fields: \["negrisk"\]/.test(src) && /gfwpro_negligible_risk_analysis: "Each district/.test(src));
   check("the agricultural frontier is explained", /col_frontera_agricola: "Colombia's agricultural frontier, set by its Ministry of Agriculture through UPRA/.test(src));
   check("the page asks for this round's script", /app\.js\?v=(8[7-9]|9\d)/.test(html));
+}
+{
+  console.log("\nround 88b: product headings by name, their emissions with them, Trase's cattle measures one row, the pulp measures told apart, the live worldwide alerts first");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const o = new Function(body + "; return { PANEL_ORDER };")();
+  const places = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return cataloguePlaces;")();
+  const f = (t, id) => places(`${t} ${id}`, `${t} ${id}`).join(" | ");
+  const P = "Destruction > Of the planet", T = P + " > Deforestation > Tree cover loss and alerts";
+  check("the product headings are the product's name alone", ["Cattle", "Soy and corn", "Palm oil", "Cocoa", "Wood pulp"].every((h) => o.PANEL_ORDER.some((x) => x && x.t === h && x.h === 5)) &&
+        !o.PANEL_ORDER.some((x) => x && /^Clearing for (cattle|soy|palm|cocoa|wood)/.test(x.t || "")));
+  check("a product's clearing emissions go under the product; all clearing's under Emissions, as one layer",
+        f("Gross emissions from soy deforestation (t CO\u2082-eq.) \u2014 Brazil (Trase) CO2_GROSS_EMISSIONS_SOY_DEFORESTATION_5_YEAR_TOTAL soy trase", "x").includes(T + " > Soy and corn") &&
+        f("Gross emissions from cocoa deforestation (t) \u2014 Ghana (Trase) cocoa", "x").includes(T + " > Cocoa") &&
+        f("Gross emissions from deforestation (t CO\u2082-eq.) \u2014 Brazil (Trase)", "CO2_GROSS_EMISSIONS_TERRITORIAL_DEFORESTATION").startsWith(T + " > Emissions from the clearing > Gross emissions from deforestation") &&
+        f("Emissions from deforestation (t CO\u2082-eq.) \u2014 Argentina, Paraguay (Trase)", "CO2_EMISSIONS_TERRITORIAL_DEFORESTATION") === f("x", "CO2_GROSS_EMISSIONS_TERRITORIAL_DEFORESTATION"));
+  check("West Africa's cocoa deforestation risk is under Cocoa; the loss due to fire is under Deforestation and Fire",
+        f("West Africa Cocoa Deforestation Risk Assessment", "gfw_west_africa_cocoa_deforestation_risk") === T + " > Cocoa" &&
+        f("Tree cover loss due to fire \u2014 Global land area", "umd_tree_cover_loss_from_fires") === T + " > What drove the loss | " + P + " > Fire");
+  check("the worldwide integrated alerts are named as a live deforestation map and lead Alerts and Disturbance",
+        /gfw_integrated_dist_alerts: "Deforestation and loss of plant cover as it happens, worldwide/.test(src) &&
+        f("x", "gfw_integrated_dist_alerts") === T + " > Alerts | " + P + " > Biodiversity loss > Disturbance" &&
+        /const CATALOGUE_FIRST = new Set\(\[[^\]]*"gfw_integrated_dist_alerts"/.test(src));
+  {
+    const pick = (a, b) => src.slice(src.indexOf(a), src.indexOf(b));
+    const T2 = new Function(pick("const TRASE_REMOVED = ", "function traseMeasures(") + pick("function traseMeasures(", "// Which level and year each country is drawn at") + pick("function trasePlan(", "// Climate TRACE by gas") +
+      "; return { traseMeasures, traseMerge, traseView, trasePlan };")();
+    const lv = (years, extra = {}) => ({ name: "Department", metrics: {} , ...extra });
+    const cat = {
+      brazil: { name: "BRAZIL", levels: { municipality: { name: "Municipality", metrics: {
+        CATTLE_DEFORESTATION_5_YEAR_TOTAL: { display_name: "Cattle deforestation", unit_abbreviation: "ha", years: [2022, 2023] },
+        CATTLE_DEFORESTATION_PER_TN_5_YEAR_TOTAL: { display_name: "Cattle deforestation per ton", unit_abbreviation: "ha / t", years: [2022, 2023] },
+        ANNUAL_WOODPULP_DEFORESTATION: { display_name: "Deforestation for planted pulpwood", unit_abbreviation: "ha", years: [2023] } } } } },
+      paraguay: { name: "PARAGUAY", levels: { department: { name: "Department", metrics: {
+        CATTLE_DEFORESTATION_PER_TN_5_YEAR_ANNUAL: { display_name: "Cattle deforestation per ton", unit_abbreviation: "ha / t", years: [2018, 2019] } } } } },
+    };
+    const list = T2.traseMerge(T2.traseMeasures(cat));
+    const m = list.find((e) => e.merged);
+    T2.traseView(m);
+    const opts = m._options.map((x) => x.label);
+    m.pick.measure = "Cattle deforestation per ton (ha / t)"; T2.traseView(m);
+    const both = Object.entries(m.countries).map(([k, c]) => `${k}:${c.metric}`).join();
+    m.pick.country = "paraguay"; T2.traseView(m);
+    const plan = T2.trasePlan(m, "", "").draw;
+    check("Trase's three cattle rows are one, with menus for the measure and the country, each country read with its own measure",
+          list.filter((e) => /^Cattle deforestation/.test(e.title)).length === 1 && opts.length === 2 &&
+          both === "brazil:CATTLE_DEFORESTATION_PER_TN_5_YEAR_TOTAL,paraguay:CATTLE_DEFORESTATION_PER_TN_5_YEAR_ANNUAL" &&
+          plan.length === 1 && plan[0].country === "paraguay" && plan[0].year === 2019 &&
+          /\(e\.countries\[part\.country\] \|\| \{\}\)\.metric \|\| e\.metric/.test(src) && /data-tr="country"/.test(src));
+    check("the pulpwood measures are titled by what each counts", list.some((e) => /^Natural forest cleared each year to plant pulpwood/.test(e.title)) &&
+          ["CONCESSION_DEFORESTATION", "CUMULATIVE_DEFORESTATION_SINCE_CONCESSION_START", "WOOD_PULP_DEFORESTATION_10_YEAR_TOTAL", "DEFORESTATION_ON_PEAT"].every((k) => new RegExp(`${k}: "`).test(src)));
+  }
+  check("the page asks for this round's script", /app\.js\?v=(8[8-9]|9\d)/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

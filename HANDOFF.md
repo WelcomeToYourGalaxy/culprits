@@ -5,6 +5,27 @@ touches.
 
 ---
 
+## Round 88b (27 September)
+
+Needs round 87b (runs after it by name).
+
+- Product headings under Tree cover loss and alerts renamed: Cattle, Soy and
+  corn, Palm oil, Cocoa, Wood pulp (were "Clearing for ..."). CATALOGUE_SUBS
+  sends a product's emissions to its product heading; only emissions of all
+  clearing stay under Emissions from the clearing, where Trase's two measures
+  of gross emissions from deforestation (CO2_GROSS_EMISSIONS_ and
+  CO2_EMISSIONS_TERRITORIAL_DEFORESTATION) are one layer (BUNDLES.deforemis).
+- TRASE_MERGE / traseMerge / traseView: Trase's three cattle deforestation
+  measures are one row with menus for measure, country, level and year; each
+  country's values are read with its own measure id.
+- TRASE_TITLES: the five pulpwood clearing measures titled by what Trase's
+  description says each counts.
+- gfw_west_africa_cocoa_deforestation_risk under Cocoa; the loss due to fire
+  under What drove the loss as well as Fire; gfw_integrated_dist_alerts
+  retitled "Deforestation and loss of plant cover as it happens, worldwide"
+  and first in Alerts and Disturbance (CATALOGUE_FIRST).
+
+
 ## Round 87b (27 September)
 
 Needs round 86b (runs after it by name).

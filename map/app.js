@@ -4625,6 +4625,62 @@ function traseFormat(x) {
 // the municipality level where Trase publishes the measure there, otherwise
 // the first level Trase lists for it - the same default the single row used.
 const TRASE_REMOVED = [/^GDP per capita\b/i];
+// Round 88b (asked 27 September: the pulpwood rows looked alike): each titled
+// by what Trase's own description says it counts.
+const TRASE_TITLES = {
+  ANNUAL_WOODPULP_DEFORESTATION: "Natural forest cleared each year to plant pulpwood",
+  CONCESSION_DEFORESTATION: "All natural forest cleared each year inside pulpwood concessions, whatever for",
+  CUMULATIVE_DEFORESTATION_SINCE_CONCESSION_START: "Natural forest cleared to plant pulpwood in each concession, added up since its licence",
+  WOOD_PULP_DEFORESTATION_10_YEAR_TOTAL: "Forest cleared for the pulpwood harvested each year (the clearing 6 to 16 years before)",
+  DEFORESTATION_ON_PEAT: "Peatland forest cleared each year to plant pulpwood",
+};
+// Round 88b (asked 27 September): measures that are one subject in different
+// countries or forms are one row, with menus for the measure, the country, the
+// level and the year.
+const TRASE_MERGE = [
+  { key: "cattle", name: "Cattle deforestation", metrics: ["CATTLE_DEFORESTATION_5_YEAR_TOTAL", "CATTLE_DEFORESTATION_PER_TN_5_YEAR_TOTAL", "CATTLE_DEFORESTATION_PER_TN_5_YEAR_ANNUAL"] },
+];
+function traseMerge(entries) {
+  let out = entries.slice();
+  for (const g of TRASE_MERGE) {
+    const parts = g.metrics.map((m) => out.find((e) => e.metric === m)).filter(Boolean);
+    if (parts.length < 2) continue;
+    const where = [...new Set(parts.flatMap((p) => Object.values(p.countries).map((c) => traseCountryName(c.name))))].sort().join(", ");
+    const merged = { metric: `MERGED_${g.key}`, name: g.name, merged: parts, meta: parts[0].meta, countries: parts[0].countries,
+      title: `${g.name}, by measure, country, level and year \u2014 ${where} (Trase)`, pick: null };
+    const at = out.indexOf(parts[0]);
+    out = out.filter((e) => !parts.includes(e));
+    out.splice(Math.min(at, out.length), 0, merged);
+  }
+  return out;
+}
+// The measures of a merged row, each with the countries that publish it and
+// the measure id each country uses.
+function traseMeasureOptions(e) {
+  const opts = new Map();
+  for (const p of e.merged) {
+    const label = `${p.name}${p.meta.unit_abbreviation ? ` (${p.meta.unit_abbreviation})` : ""}`;
+    const o = opts.get(label) || { label, meta: p.meta, countries: {} };
+    for (const [ck, cc] of Object.entries(p.countries)) o.countries[ck] = Object.assign({}, cc, { metric: p.metric });
+    opts.set(label, o);
+  }
+  return [...opts.values()];
+}
+// What a merged row draws for its current menus.
+function traseView(e) {
+  if (!e.merged) return e;
+  e.pick = e.pick || { level: "", year: "" };
+  const opts = traseMeasureOptions(e);
+  const o = opts.find((x) => x.label === e.pick.measure) || opts[0];
+  e.pick.measure = o.label;
+  e.meta = o.meta;
+  const cs = e.pick.country && o.countries[e.pick.country] ? { [e.pick.country]: o.countries[e.pick.country] } : o.countries;
+  if (!(e.pick.country && o.countries[e.pick.country])) e.pick.country = "";
+  e.countries = cs;
+  e._options = opts;
+  e._all = o.countries;
+  return e;
+}
 function traseMeasures(cat) {
   const byId = new Map();
   for (const ck of Object.keys(cat || {}).sort()) {
@@ -4645,7 +4701,7 @@ function traseMeasures(cat) {
   const list = [...byId.values()];
   for (const e of list) {
     // Trase words the same measure slightly differently from country to country; the commonest wording is used.
-    e.name = Object.keys(e.said).sort((a, b) => e.said[b] - e.said[a] || a.localeCompare(b))[0];
+    e.name = (typeof TRASE_TITLES !== "undefined" && TRASE_TITLES[e.metric]) || Object.keys(e.said).sort((a, b) => e.said[b] - e.said[a] || a.localeCompare(b))[0];
     for (const cc of Object.values(e.countries)) cc.own = cc.levels.municipality ? "municipality" : Object.keys(cc.levels)[0];
     e.meta = Object.values(e.countries)[0].levels[Object.values(e.countries)[0].own].meta;
   }
@@ -5301,7 +5357,7 @@ async function addTraseLayer(cfg) {
   cfg._regions = regions;
   // The owner asked for Trase's "GDP per capita" measure (Colombia only) to be
   // taken out of the box (23 September); every other measure stays.
-  const entries = traseMeasures(cat.countries || {}).filter((e) => !TRASE_REMOVED.some((r) => r.test(e.name || "")));
+  const entries = traseMerge(traseMeasures(cat.countries || {}).filter((e) => !TRASE_REMOVED.some((r) => r.test(e.name || ""))));
   const drawn = new Map();          // measure id -> the layer ids it drew
   const safe = (x) => String(x).replace(/[^a-z0-9_]/gi, "_");
   cfg._layerIds = [];
@@ -5372,6 +5428,7 @@ function traseMenus(cfg, e) {
   const tick = box && box.querySelector && box.querySelector(`[data-cat="${e.key}"]`);
   const anchor = tick && tick.closest ? tick.closest("label") : null;
   if (!anchor || !document.createElement) return;
+  traseView(e);
   let el = box.querySelector(`.facet[data-trase-for="${e.key}"]`);
   if (!el) {
     el = document.createElement("div");
@@ -5387,7 +5444,12 @@ function traseMenus(cfg, e) {
     }
   }
   const opt = (v, label, on) => `<option value="${escapeHtml(v)}"${on ? " selected" : ""}>${escapeHtml(label)}</option>`;
-  el.innerHTML =
+  const merged = e.merged
+    ? (e._options.length > 1 ? `<select data-tr="measure" aria-label="Measure">` + e._options.map((o) => opt(o.label, o.label, o.label === e.pick.measure)).join("") + `</select>` : "") +
+      `<select data-tr="country" aria-label="Country">${opt("", "Every country", !e.pick.country)}` +
+      Object.entries(e._all).sort((a, b) => a[1].name.localeCompare(b[1].name)).map(([ck, cc]) => opt(ck, traseCountryName(cc.name), ck === e.pick.country)).join("") + `</select>`
+    : "";
+  el.innerHTML = merged +
     `<select data-tr="level" aria-label="Region level">${opt("", "Each country at its own level", !e.pick.level)}` +
       Object.keys(levels).sort().map((k) => opt(k, levels[k], k === e.pick.level)).join("") + `</select>` +
     `<select data-tr="year" aria-label="Year">${opt("", "Latest year each country has", !e.pick.year)}` +
@@ -5396,7 +5458,8 @@ function traseMenus(cfg, e) {
   for (const s of el.querySelectorAll ? el.querySelectorAll("select") : []) {
     s.addEventListener("change", () => {
       e.pick[s.dataset.tr] = s.value;
-      if (s.dataset.tr === "level") e.pick.year = "";
+      if (s.dataset.tr !== "year") e.pick.year = "";
+      if (s.dataset.tr === "measure" || s.dataset.tr === "country") e.pick.level = "";
       traseMenus(cfg, e);
       traseDraw(cfg, e).catch((err) => traseSay(e, `could not draw (${err.message})`));
     });
@@ -5449,6 +5512,7 @@ function traseJoin(part, shapes, values) {
 async function traseDraw(cfg, e) {
   const src = map.getSource(`${cfg.id}-${String(e.metric).replace(/[^a-z0-9_]/gi, "_")}`);
   if (!src) return;
+  traseView(e);
   const plan = trasePlan(e, e.pick.level, e.pick.year);
   traseSay(e, "loading from Trase\u2026");
   const left = plan.left.slice();
@@ -5457,7 +5521,7 @@ async function traseDraw(cfg, e) {
     const file = traseRegionFile(cfg, part);
     if (!file) { left.push(`${part.name} (Trase publishes no shapes for its ${part.levelName.toLowerCase()} level)`); return []; }
     try {
-      const [shapes, values] = await Promise.all([traseCopyFirst(cfg, file), traseJson(`${cfg.values}/${part.country}/${part.level}/${e.metric}.json`)]);
+      const [shapes, values] = await Promise.all([traseCopyFirst(cfg, file), traseJson(`${cfg.values}/${part.country}/${part.level}/${(e.countries[part.country] || {}).metric || e.metric}.json`)]);
       // Trase's catalogue can list years its values do not hold (round 23,
       // item 15: Indonesia's peatland area is listed to 2024 and published for
       // 2015 to 2023; burned peatland is listed and published for no year). With
@@ -6873,6 +6937,9 @@ const BUNDLES = {
   // parts of one layer with Curtis et al.'s drivers of loss since 2001
   // (worldwide, a square about 10 km across) and the rows of the same title.
   // Round 87b: Wageningen's part taken out at the owner's word.
+  // Round 88b: Trase's gross emissions from all clearing, its two measures of
+  // the same thing (Brazil, Cote d'Ivoire, Ghana, Indonesia; Argentina, Paraguay).
+  deforemis: "Gross emissions from deforestation, tonnes of CO2 equivalent, by region (Trase)",
   drivers: "Tree cover loss by dominant driver, worldwide since 2001 (Curtis et al., with the other records of the same title)",
   milcompare: "Armies, spending and nuclear weapons, country by country",
   // Round 72: the two resource rights rows are one layer, at the owner's word.
@@ -6978,7 +7045,8 @@ const CATALOGUE_BY_TITLE = [
   [/\b(v3p\d_)?alertfire_(combine|modis|viirs)\b/i, null],
   // ---- 27 September (round 83b) -----------------------------------------
   // Tree cover loss from fires under Fire only, not Deforestation.
-  [/tree cover loss (due to|from|by) fires?/i, [P + " > Fire"]],
+  // Round 88b: back under Deforestation too (What drove the loss), at the owner's word.
+  [/tree cover loss (due to|from|by) fires?|\bumd_tree_cover_loss_from_fires\b/i, [P + " > Deforestation > Tree cover loss and alerts > What drove the loss", P + " > Fire"]],
   // The planted area on peatland under Peatland.
   [/planted area on peat/i, [P + " > Peatland"]],
   // The industrial timber plantations, 2024 and 2025, are one row now (nus_itp).
@@ -7045,7 +7113,7 @@ const CATALOGUE_BY_TITLE = [
   // Trase's cattle and pasture clearing under Deforestation only, not Meat;
   // the emissions from that clearing under Climate only; Trase's pasture area
   // and every Global Pasture Watch layer taken out.
-  [/^(cattle|pasture) deforestation\b/i, [P + " > Deforestation > Tree cover loss and alerts > Clearing for cattle"]],
+  [/^(cattle|pasture) deforestation\b/i, [P + " > Deforestation > Tree cover loss and alerts > Cattle"]],
   [/^(gross |net )?emissions from (cattle|pasture|beef) deforestation\b/i, [P + " > Climate > Carbon dioxide"]],
   [/^pasture area\b/i, null],
   [/global ?pasture ?watch|\bgpw_grasslands_\d{4}\b|\bwri_globalpasturewatch_grasslands(_\d{4})?\b/i, null],
@@ -7164,6 +7232,14 @@ const CATALOGUE_BY_TITLE = [
   [/\bwur_(africa_)?radd_coverage\b|(?=.*radd)(?=.*coverage)/i, null],
   [/\bwur_integration_alert_drivers_(class|date)\b|\bwur_alert_drivers\b|(?=.*drivers of disturbance alerts)(?=.*wageningen)/i, null],
   [/\bGlobal_AllExpansionRGB_2000to2024\b|\bGlobal_AllExpansion_2000to2025\b|^plantation expansion, 2000 to 2024|^plantation expansion, 2000 to 2025(?! \(picture\))/i, null],
+  // Round 88b (asked 27 September): West Africa's cocoa deforestation risk under
+  // Cocoa; the loss due to fire back under Deforestation (What drove the loss)
+  // as well as Fire; the live worldwide integrated alerts at the top of Alerts
+  // and of Disturbance; Trase's two measures of gross emissions from all
+  // clearing as one layer.
+  [/\bgfw_west_africa_cocoa_deforestation_risk\b|west africa cocoa deforestation risk/i, [P + " > Deforestation > Tree cover loss and alerts > Cocoa"]],
+  [/\bgfw_integrated_dist_alerts\b/, [P + " > Deforestation > Tree cover loss and alerts > Alerts", P + " > Biodiversity loss > Disturbance"]],
+  [/\bCO2_(GROSS_)?EMISSIONS_TERRITORIAL_DEFORESTATION\b/, [IN(P + " > Deforestation > Tree cover loss and alerts > Emissions from the clearing", "deforemis")]],
   // Round 85b: the drivers of tree cover loss are one layer with sublayers.
   [/\b(tsc_tree_cover_loss_drivers|wri_google_tree_cover_loss_drivers|tsc_drivers|umd_drivers)\b/, [IN(P + " > Deforestation > Tree cover loss and alerts > What drove the loss", "drivers")]],
   [/(?=.*field boundar)(?=.*(chaco|chiquitano))/i, null],
@@ -7256,16 +7332,24 @@ const CATALOGUE_SUBS = {
     [/.*/, "Logging and timber concessions"],
   ],
   [P + " > Deforestation > Tree cover loss and alerts"]: [
+    // Round 88b (asked 27 September): the emissions of clearing for one product
+    // go under that product; only those of all clearing stay under Emissions.
+    [/(?=.*emission)(?=.*(cattle|pasture|beef))/i, "Cattle"],
+    [/(?=.*emission)(?=.*(\bsoy|\bcorn\b))/i, "Soy and corn"],
+    [/(?=.*emission)(?=.*cocoa)/i, "Cocoa"],
+    [/(?=.*emission)(?=.*palm)/i, "Palm oil"],
+    [/(?=.*emission)(?=.*pulp)/i, "Wood pulp"],
     [/emission/i, "Emissions from the clearing"],
     [/driver|agriculture.linked/i, "What drove the loss"],
     [/alert|trees cut|dist-?alert|\bglad\b|\bradd\b/i, "Alerts"],
     [/expansion/i, "Plantations spreading"],
     [/probability|risk|frontera/i, "Where clearing is likely"],
-    [/cattle|pasture|beef/i, "Clearing for cattle"],
-    [/\bsoy|\bcorn\b/i, "Clearing for soy and corn"],
-    [/cocoa/i, "Clearing for cocoa"],
-    [/palm/i, "Clearing for palm oil"],
-    [/pulp|concession/i, "Clearing for wood pulp"],
+    // Round 88b: each product heading is the product's name alone.
+    [/cattle|pasture|beef/i, "Cattle"],
+    [/\bsoy|\bcorn\b/i, "Soy and corn"],
+    [/cocoa/i, "Cocoa"],
+    [/palm/i, "Palm oil"],
+    [/pulp|concession/i, "Wood pulp"],
     [/.*/, "Loss year by year"],
   ],
   [P + " > Biodiversity loss"]: [
@@ -7378,7 +7462,7 @@ function nusantaraWhere(id) {
 const LEFT_OUT = "(left out)";
 // Rows that lead the heading or layer they are filed in (round 85b: Curtis et
 // al.'s drivers first among the drivers' parts).
-const CATALOGUE_FIRST = new Set(["tsc_tree_cover_loss_drivers"]);
+const CATALOGUE_FIRST = new Set(["tsc_tree_cover_loss_drivers", "gfw_integrated_dist_alerts"]);
 function cataloguePlaces(words, title) {
   if (title != null) {
     // The title and, after it, the id (the id rules above end in $ or name it).
@@ -7720,6 +7804,9 @@ const GFW_TITLES = {
   wri_tropical_tree_cover: "Tree cover in 2020, share of each half hectare, the tropics (WRI)",
   wri_tropical_tree_cover_extent: "Tree cover in 2020, 10 m, where it is 40% or more, the tropics (WRI)",
   test_wat_006_projected_water_stress: "Water stress projected for the coming decades, Global Forest Watch's test copy (WRI Aqueduct)",
+  // Round 88b (asked 27 September): named for what it is, a live map of
+  // clearing and loss worldwide.
+  gfw_integrated_dist_alerts: "Deforestation and loss of plant cover as it happens, worldwide, 10 m (integrated alerts: DIST-ALERT, GLAD-L, GLAD-S2, RADD)",
   // Round 87b.
   gfwpro_negligible_risk_analysis: "Districts where deforestation risk is negligible or not, by natural forest lost since 2021 (GFW Pro, Accountability Framework method)",
   col_frontera_agricola: "Colombia's national agricultural frontier: where farming is allowed, and the forests and protected lands beyond it (UPRA)",
@@ -16991,12 +17078,14 @@ const PANEL_ORDER = [
   { h: 6, bundle: "drivers", colour: "#8C5A4E" },
   { h: 5, t: "Plantations spreading" },
   { h: 5, t: "Where clearing is likely" },
-  { h: 5, t: "Clearing for cattle" },
-  { h: 5, t: "Clearing for soy and corn" },
-  { h: 5, t: "Clearing for palm oil" },
-  { h: 5, t: "Clearing for cocoa" },
-  { h: 5, t: "Clearing for wood pulp" },
+  // Round 88b (asked 27 September): the product headings named for the product alone.
+  { h: 5, t: "Cattle" },
+  { h: 5, t: "Soy and corn" },
+  { h: 5, t: "Palm oil" },
+  { h: 5, t: "Cocoa" },
+  { h: 5, t: "Wood pulp" },
   { h: 5, t: "Emissions from the clearing" },
+  { h: 6, bundle: "deforemis", colour: "#5E6470" },
   { h: 4, t: "Mangroves" },
   { h: 4, t: "Logging and timber concessions" },
   { h: 4, t: "Timber and rubber plantations" }, "nus_itp",
