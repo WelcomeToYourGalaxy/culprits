@@ -5,6 +5,36 @@ touches.
 
 ---
 
+## Round 98b (28 September)
+
+Needs round 96b (runs after it by name). Tiles patch round98b_tiles.py beside it.
+
+- Atlas numbers: hovering a numbered city shows its own name and population
+  (atlasNumberTip), and the hotspot's note is held back there.
+- A click on the map that nothing else takes closes the open hotspot or city
+  (atlasOutsideClick) and flies back to the view from before it was opened
+  (atlasRemember / atlasClose). Clicks on boxes, numbers and panels are not
+  counted.
+- Five hotspot maps now placed, by their coasts laid on Natural Earth 1:10m
+  land (pipeline/atlas_plates.py place_by_coast, the fallback when towns and
+  the drawn outline fail): Madagascar, New Caledonia, Southwest Australia,
+  Western Ghats & Sri Lanka (scale 0.65 of its bar, which the towns fit
+  found too), East Melanesian Islands. Typical coast error 2 to 8 km. Checked
+  on six town-placed pages: middles within 6 to 90 km of the towns fit.
+- City maps: the pictures print no place names, so the method 2 placements
+  were from misread words; only a method 3 placement is laid down. Otherwise
+  the Atlas's picture opens in a panel (atlasCityShow), full size on click.
+  The box button reads "The Atlas's map of this city".
+- gsn_countries says "not built yet" instead of 404 until gsn_rankings runs.
+- Tiles: atlas_insets.py found no conflicts page in 9 PDFs (case of
+  "| Conflicts"); failed look-ups were cached as not found. Fixed, method 2,
+  Natural Earth populated places as fallback. atlas_pdfs.py asks for PDFs of
+  Indo-Burma, Polynesia-Micronesia, Irano-Anatolian, Tumbes-Choco-Magdalena
+  (atlas/pdfs_looked_for.json).
+- New Caledonia and East Melanesian Islands have a conflicts page but no
+  numbered cities in the Atlas.
+
+
 ## Round 96b (28 September)
 
 Needs round 95b (runs after it by name). No tiles patch.

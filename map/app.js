@@ -6404,8 +6404,12 @@ function atlasPlateOff() {
   if (atlasPlateOff.vec) { map.off("moveend", atlasPlateOff.vec); atlasPlateOff.vec = null; }
   atlasVector.slug = null;
   atlasOwner = null;
+  atlasOpenKey = null;
   const el = document.getElementById("atlas-panel");
   if (el) el.hidden = true;
+  const city = document.getElementById("atlas-city");
+  if (city) city.hidden = true;
+  atlasNumberTipOff();
 }
 // Close in, the page's detail: plates.json can give a plate in squares drawn
 // from the page at four times the resolution (pipeline/atlas_plates.py). The
@@ -6566,7 +6570,11 @@ async function atlasInsets(slug) {
       "background:rgba(23,21,15,.9);color:#F2EEE6;font:700 12px system-ui,sans-serif;cursor:pointer;line-height:22px;" +
       "box-shadow:0 0 0 7px rgba(0,0,0,0.001),0 1px 4px rgba(0,0,0,.6)";
     // The click is the number's alone: no list of the places under it.
-    el.addEventListener("click", (ev) => { popupClaimedBy = ev; });
+    el.addEventListener("click", (ev) => { popupClaimedBy = ev; atlasNumberTipOff(); });
+    // Round 98b (asked 28 September): hovering a number names its city, not
+    // the hotspot under it.
+    el.addEventListener("mouseenter", () => atlasNumberTip(c));
+    el.addEventListener("mouseleave", atlasNumberTipOff);
     const html = `<b>${escapeHtml(c.n + ". " + c.title)}</b>` +
       (c.image ? `<div style="text-align:center;margin:6px 0"><img src="${escapeHtml(c.image)}" alt="" style="width:240px;max-width:100%;border-radius:50%"></div>` : "") +
       ((c.population_2015 || c.population_2030) ? `<div class="meta">Population projections: 2015 ${escapeHtml(c.population_2015 || "\u2013")} \u00b7 2030 ${escapeHtml(c.population_2030 || "\u2013")}</div>` : "") +
@@ -6576,6 +6584,26 @@ async function atlasInsets(slug) {
     atlasInsets.markers.push(m);
   }
 }
+// The note shown while the pointer is on one of the Atlas's numbered cities:
+// its number, name and population projections as printed (round 98b). The
+// hotspot's own note is held back meanwhile (showSitemapTooltip).
+let atlasNumberTipPopup = null;
+function atlasNumberTip(c) {
+  atlasNumberTipOff();
+  hideSitemapTooltip();
+  if (!Number.isFinite(c.lon) || !Number.isFinite(c.lat)) return;
+  atlasNumberTipPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, className: "wtyg-tip", maxWidth: "280px", anchor: "bottom", offset: 16 })
+    .setLngLat([c.lon, c.lat])
+    .setHTML(`<b>${escapeHtml(c.n + ". " + c.title)}</b>` +
+      ((c.population_2015 || c.population_2030) ? `<div class="meta">Population: 2015 ${escapeHtml(c.population_2015 || "\u2013")} \u00b7 2030 ${escapeHtml(c.population_2030 || "\u2013")}</div>` : "") +
+      `<div class="meta">Click for the Atlas's inset map of the city</div>`)
+    .addTo(map);
+}
+function atlasNumberTipOff() {
+  if (atlasNumberTipPopup) atlasNumberTipPopup.remove();
+  atlasNumberTipPopup = null;
+}
+
 // The keys printed on the Atlas's own maps, under its row in the layer menu
 // (round 90b, asked 27 September). pipeline/atlas_legends.py reads them from
 // the PDFs: the key beside the hotspot's first map and the one beside its
@@ -6625,20 +6653,112 @@ async function atlasLegendShow(id, slug) {
   el.innerHTML = atlasLegendHtml(d, slug);
 }
 
+// The Atlas's city maps are pictures with no place names on them (round 98b:
+// looked at 28 September), so the words read off them by atlas_city_plates.py
+// were misreadings and the placements made from them (method 2) were wrong in
+// size and place. Only a placement from its method 3 is laid on the map; every
+// other city's map is shown as the Atlas printed it, in a panel on the map.
+const ATLAS_CITY_METHOD = 3;
+const ATLAS_CITY_IMG = "https://atlas-for-the-end-of-the-world.com/images/hotspot_cities/";
+// The page's address is misspelt; the picture's is not (round 90b).
+const ATLAS_CITY_IMG_NAME = { hongknog_shenzhen_quangzhou: "hongkong_shenzhen_guangzhou" };
+function atlasCityPanel() {
+  let el = document.getElementById("atlas-city");
+  if (el) return el;
+  el = document.createElement("div");
+  el.id = "atlas-city";
+  el.hidden = true;
+  el.style.cssText = "position:fixed;right:14px;bottom:14px;width:min(460px,46vw);max-height:78vh;z-index:46;display:flex;flex-direction:column;" +
+    "background:var(--peat,#17150F);border:1px solid var(--rule,#322E27);border-radius:3px;box-shadow:0 8px 30px rgba(0,0,0,.5);" +
+    "font-size:12px;color:var(--dim)";
+  el.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--rule,#322E27)">` +
+      `<b class="ac-title" style="flex:1;color:var(--ink,#E8E2D6)"></b>` +
+      `<button type="button" class="ac-close" aria-label="Close the city's map" style="background:none;border:0;color:inherit;font-size:16px;cursor:pointer">\u00d7</button></div>` +
+    `<div class="ac-pic" style="overflow:auto;flex:1;min-height:0;cursor:zoom-in"><img alt="" style="display:block;width:100%"></div>` +
+    `<div style="padding:6px 10px;display:flex;gap:10px;align-items:center">` +
+      `<span class="ac-note" style="flex:1"></span>` +
+      `<a class="ac-open" target="_blank" rel="noopener" style="color:var(--slate,#8A9DA6);white-space:nowrap">the Atlas's page \u2197</a></div>`;
+  document.body.appendChild(el);
+  el.querySelector(".ac-close").addEventListener("click", () => atlasClose(true));
+  // A click on the picture shows it at its full size, to be scrolled; another
+  // fits it to the panel again.
+  el.querySelector(".ac-pic").addEventListener("click", (ev) => {
+    const box = ev.currentTarget, img = box.querySelector("img");
+    const big = img.style.width !== "100%";
+    img.style.width = big ? "100%" : `${img.naturalWidth || 2160}px`;
+    box.style.cursor = big ? "zoom-in" : "zoom-out";
+  });
+  return el;
+}
+function atlasCityShow(what) {
+  const el = atlasCityPanel();
+  const slug = what.cityPlate;
+  el.querySelector(".ac-title").textContent = what.title || "";
+  el.querySelector(".ac-open").href = what.page || "#";
+  const img = el.querySelector(".ac-pic img");
+  img.style.width = "100%";
+  el.querySelector(".ac-pic").style.cursor = "zoom-in";
+  el.querySelector(".ac-note").textContent = "The Atlas's map of the city. Click it to see it at full size.";
+  img.onerror = () => { el.querySelector(".ac-note").textContent = "The Atlas's picture did not load; its page has it."; };
+  img.src = ATLAS_CITY_IMG + (ATLAS_CITY_IMG_NAME[slug] || slug) + ".png";
+  el.hidden = false;
+}
+
+// Round 98b (asked 28 September): a click on the map outside the hotspot or
+// city that is open closes it and goes back to the view from before it was
+// opened. A click anything else takes (a place, a number, another hotspot)
+// is left to it.
+let atlasReturnView = null, atlasOpenKey = null, atlasOutsideOn = false;
+// Taken when nothing of the Atlas is open; a city's click takes it before its
+// fly-in, so the opening that follows a few seconds later keeps it.
+function atlasRemember() {
+  if (atlasOwner || typeof map.getCenter !== "function") return;
+  if (atlasReturnView && Date.now() - atlasReturnView.at < 6000) return;
+  const c = map.getCenter();
+  atlasReturnView = { at: Date.now(), center: [c.lng, c.lat], zoom: map.getZoom(),
+    bearing: typeof map.getBearing === "function" ? map.getBearing() : 0, pitch: typeof map.getPitch === "function" ? map.getPitch() : 0 };
+}
+function atlasClose(back) {
+  atlasPlateOff();
+  const view = atlasReturnView;
+  atlasReturnView = null;
+  if (back && view && typeof map.flyTo === "function") {
+    map.flyTo({ center: view.center, zoom: view.zoom, bearing: view.bearing, pitch: view.pitch, duration: 1200 });
+  }
+}
+function atlasOutsideClick(e) {
+  if (!atlasOwner) return;
+  const claim = e.originalEvent || e;
+  // A click on a box, a number or a panel is not a click on the map.
+  const t = claim && claim.target;
+  if (t && t.closest && t.closest(".maplibregl-popup, .maplibregl-marker, #atlas-city, #atlas-panel")) return;
+  setTimeout(() => {
+    if (!atlasOwner || popupClaimedBy === claim || nearAtlasNumber(e)) return;
+    atlasClose(true);
+  }, 0);
+}
+
 // what: { plate, doc } for a hotspot, { page } for a city; bounds: the
 // hotspot's own outline, used when there is no placed plate.
 async function showAtlas(what, bounds, owner) {
+  atlasRemember();
   atlasPlateOff();
   atlasOwner = owner || null;
+  atlasOpenKey = what.plate || what.cityPlate || what.page || null;
+  if (!atlasOutsideOn && typeof map.on === "function") { map.on("click", atlasOutsideClick); atlasOutsideOn = true; }
   const el = atlasPanel();
   el.querySelector(".ap-open").href = what.doc || what.page || "#";
   const fade = el.querySelector(".ap-fade");
   fade.hidden = true;
-  el.hidden = false;
+  el.hidden = !!what.cityPlate;
   if (what.plate && owner) atlasLegendShow(owner, what.plate);
   if (!what.plate && !what.cityPlate) return;
-  const p = what.cityPlate ? (await atlasCityPlatesRead())[what.cityPlate] : (await atlasPlatesRead())[what.plate];
+  let p = what.cityPlate ? (await atlasCityPlatesRead())[what.cityPlate] : (await atlasPlatesRead())[what.plate];
+  if (atlasOpenKey !== (what.plate || what.cityPlate)) return;       // another was opened meanwhile
+  if (what.cityPlate && !(p && p.v === ATLAS_CITY_METHOD)) p = null;
+  if (what.cityPlate && !(p && p.kept)) { atlasCityShow(what); return; }
   if (p && p.kept && p.image && Array.isArray(p.corners) && p.corners.length === 4) {
+    el.hidden = false;
     map.addSource("atlas-plate", { type: "image", url: plateUrl(p.image), coordinates: p.corners });
     map.addLayer({ id: "atlas-plate", type: "raster", source: "atlas-plate", paint: { "raster-opacity": 0.85, "raster-fade-duration": 0 } });
     fade.hidden = false;
@@ -6652,14 +6772,12 @@ async function showAtlas(what, bounds, owner) {
     if (typeof map.fitBounds === "function") map.fitBounds(box, { padding: 30, duration: 1400 });
     return;
   }
-  // A city with no placed map keeps the zoom its own click already made.
-  if (what.cityPlate) return;
   if (bounds && typeof map.fitBounds === "function") map.fitBounds(bounds, { padding: 30, duration: 1400 });
 }
 function atlasFrom(btn, bounds, owner) {
   const d = btn.dataset;
   if (d.atlasPlate) showAtlas({ plate: d.atlasPlate, doc: d.atlasDoc }, bounds, owner);
-  else if (d.atlasPage) showAtlas({ page: d.atlasPage, cityPlate: d.atlasCity || null }, bounds, owner);
+  else if (d.atlasPage) showAtlas({ page: d.atlasPage, cityPlate: d.atlasCity || null, title: d.atlasTitle || "" }, bounds, owner);
 }
 
 // The Atlas's cities, placed from the weekly lookup of their names.
@@ -6674,7 +6792,7 @@ async function readAtlasCities(cfg) {
     items.push({ geometry: { type: "Point", coordinates: c }, key: slug, name, group: "",
       h: boxOpen + `<h4 style="margin:0 0 6px">${escapeHtml(name)}</h4>` +
         `<p><button type="button" class="atlas-show" data-atlas-auto="1" data-atlas-page="${escapeHtml(cfg.pageBase + slug + ".html")}" data-atlas-city="${escapeHtml(slug)}" ` +
-        `data-atlas-title="${escapeHtml(name)}">The Atlas's page for this city, on this map</button></p>` +
+        `data-atlas-title="${escapeHtml(name)}">The Atlas's map of this city</button></p>` +
         `<p style="font-size:11px">Placed from its name through OpenStreetMap; the Atlas gives no coordinates.</p></div>` });
   }
   return { title: cfg.name, items, note: missing ? `${missing} not yet placed` : "" };
@@ -11717,7 +11835,10 @@ async function addCountryLayer(cfg) {
       totals = await r.json();
     }
   } catch (e) {
-    setLayerState(cfg.id, `unavailable (${e.message})`);
+    // Round 98b: a copy culprits-tiles-more has not made yet says so, not "404".
+    setLayerState(cfg.id, cfg.totalsFrom && cfg.totalsFrom.kind === "json" && /\b404\b/.test(e.message)
+      ? `not built yet: its copy has not been made${cfg.buildScript ? ` (run ${cfg.buildScript} in culprits-tiles-more)` : ""}`
+      : `unavailable (${e.message})`);
     return;
   }
 
@@ -13513,7 +13634,7 @@ async function openAtlasHotspot(hit) {
   const box = boxes && boxes.boxes && boxes.boxes[hit.props.k];
   const m = box && box.h ? /data-atlas-plate="([^"]+)" data-atlas-doc="([^"]+)"/.exec(box.h) : null;
   const bounds = geometryBounds(hit.geometry);
-  if (m && atlasOwner === hit.cfg.id && atlasInsets.slug === m[1]) return;
+  if (m && atlasOwner === hit.cfg.id && atlasOpenKey === m[1]) return;
   if (m) { showAtlas({ plate: m[1], doc: m[2].replace(/&amp;/g, "&") }, bounds, hit.cfg.id); return; }
   if (bounds && typeof map.fitBounds === "function") map.fitBounds(bounds, { padding: 30, duration: 1400 });
 }
@@ -13598,6 +13719,8 @@ function openSitemapClick(e) {
     // A layer that marks whole places (a city) zooms in to it when clicked
     // from further out, then opens its box.
     const z = hits[0].cfg.zoomTo, at = placeOf(hits[0], e);
+    // The view to go back to when the Atlas's city is closed (round 98b).
+    if (hits[0].cfg.route === "atlascities") atlasRemember();
     if (z && map.getZoom() < z - 0.5 && typeof map.flyTo === "function") {
       map.flyTo({ center: at, zoom: z, duration: 1600 });
       map.once("moveend", () => openSitemapBox(hits[0], at));
@@ -13630,6 +13753,8 @@ function hideSitemapTooltip() {
   sitemapTip = null; sitemapTipKey = null;
 }
 async function showSitemapTooltip(e) {
+  // Over one of the Atlas's numbered cities, the number's own note shows.
+  if (nearAtlasNumber(e)) { hideSitemapTooltip(); return; }
   const hit = sitemapHits(e).find((h) => h.props.t);
   if (!hit) { hideSitemapTooltip(); return; }
   const key = hit.cfg.id + "|" + hit.props.k;
@@ -15854,12 +15979,12 @@ const OTHER_MAPS = {
       // the survey's own precision and took most of a minute to arrive.
       coarse: 0.01,
       pdfs: [["atlantic_forests", "Atlantic Forest"], ["california_floristic_province", "California Floristic Province"], ["cape_floristic_region", "Cape Floristic Region"], ["caribbean_islands", "Caribbean Islands"], ["caucasus", "Caucasus"], ["cerrado", "Cerrado"], ["chilean_valdivian_forests", "Chilean Winter Rainfall Valdivian Forests"], ["coastal_forests_of_eastern_africa", "Coastal Forests of Eastern Africa"], ["east_melanesian_islands", "East Melanesian Islands"], ["eastern_afromontane", "Eastern Afromontane"], ["forests_of_east_australia", "Forests of Eastern Australia"], ["guinean_forests_of_west_africa", "Guinean Forests of West Africa"], ["himalaya", "Himalaya"], ["horn_of_africa", "Horn of Africa"], ["japan", "Japan"], ["madagascar", "Madagascar & The Indian Ocean Islands"], ["madrean_woodlands", "Madrean Pine-Oak Woodlands"], ["maputaland_pondoland_albany", "Maputaland Pondoland Albany"], ["mediterranean_basin", "Mediterranean Basin"], ["mesoamerica", "Mesoamerica"], ["mountains_of_central_asia", "Mountains of Central Asia"], ["mountains_of_southwest_china", "Mountains of Southwest China"], ["new_caledonia", "New Caledonia"], ["new_zealand", "New Zealand"], ["philippines", "Philippines"], ["north_american_coastal_plain", "North American Coastal Plain"], ["southwest_australia", "Southwest Australia"], ["succulent_karoo", "Succulent Karoo"], ["sundaland", "Sundaland"], ["tropical_andes", "Tropical Andes"], ["wallacea", "Wallacea"], ["western_ghats_sri_lanka", "Western Ghats & Sri Lanka"]],
-      note: "The 36 biodiversity hotspots, outlined live from Conservation International's Biodiversity Hotspots 2016.1 (CC BY 3.0), the boundaries the Atlas maps; opening one zooms to it and lays the Atlas's own map of it over this one, where it has been placed by the towns named on it, with its pages in a panel. The outlines are asked for at about a kilometre's precision rather than the survey's own, which is what makes them arrive in seconds; every field comes across unchanged." },
+      note: "The 36 biodiversity hotspots, outlined live from Conservation International's Biodiversity Hotspots 2016.1 (CC BY 3.0), the boundaries the Atlas maps; opening one zooms to it and lays the Atlas's own map of it over this one, where it has been placed by the towns named on it or, where it names too few, by its coasts laid on Natural Earth's, with its pages in a panel. A click on the map outside the hotspot closes it and goes back to the view from before. The outlines are asked for at about a kilometre's precision rather than the survey's own, which is what makes them arrive in seconds; every field comes across unchanged." },
     { id: "atlas_cities", name: "Cities inside biodiversity hotspots (Atlas for the End of the World)", unit: "cities", colour: "#5E6070", route: "atlascities", zoomTo: 9, ready: true, lazy: true,
       standout: { fill: "#8FD6E8", rim: "#F2EEE6", say: "each of the Atlas's 33 cities, ringed so it can be found from the world view" },
       pageBase: "https://atlas-for-the-end-of-the-world.com/hotspot_cities/", positions: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/atlas/cities.json",
       cities: [["antananarivo", "Antananarivo, Madagascar"], ["auckland", "Auckland, New Zealand"], ["baku", "Baku, Azerbaijan"], ["bogota", "Bogotá, Colombia"], ["brasilia", "Brasília, Brazil"], ["cape_town", "Cape Town, South Africa"], ["chengdu", "Chengdu, China"], ["colombo", "Colombo, Sri Lanka"], ["dar_es_salaam", "Dar es Salaam, Tanzania"], ["davao", "Davao, Philippines"], ["durban", "Durban, South Africa"], ["esfahan", "Esfahan, Iran"], ["guadalajara", "Guadalajara, Mexico"], ["guayaquil", "Guayaquil, Ecuador"], ["hongknog_shenzhen_quangzhou", "Hongkong-Shenzhen-Guangzhou, China"], ["honolulu", "Honolulu, United States"], ["houston", "Houston, United States"], ["jakarta", "Jakarta, Indonesia"], ["lagos", "Lagos, Nigeria"], ["los_angeles", "Los Angeles, United States"], ["makassar", "Makassar, Indonesia"], ["mecca", "Mecca, Saudi Arabia"], ["mexico_city", "Mexico City, Mexico"], ["nairobi", "Nairobi, Kenya"], ["osaka", "Osaka, Japan"], ["perth", "Perth, Australia"], ["port-au-prince", "Port-au-Prince, Haiti"], ["rawalpindi", "Rawalpindi, Pakistan"], ["santiago", "Santiago, Chile"], ["sao_paulo", "São Paulo, Brazil"], ["sydney", "Sydney, Australia"], ["tashkent", "Tashkent, Uzbekistan"], ["tel_aviv", "Tel Aviv, Israel"]],
-      note: "The Atlas's 33 hotspot cities; each is placed from its name through a weekly OpenStreetMap lookup, and opening one zooms to it and shows the Atlas's own page for it in a panel on the map." },
+      note: "The Atlas's 33 hotspot cities; each is placed from its name through a weekly OpenStreetMap lookup, and opening one zooms to it and shows the Atlas's own map of it in a panel on the map. The city maps print no place names, so they cannot be laid on the ground from their own labels as the hotspot maps are; they are shown as the Atlas printed them. A click on the map away from the city goes back to the view from before." },
     { id: "gsn", name: "Land that needs protecting to halt species loss and climate change (Global Safety Net, One Earth)", unit: "layers", colour: "#406F2F", route: "gsn", ready: true, lazy: true,
       api: "https://api.gsn.naturedatalab.org/geo-analysis/layers",
       note: "Every layer the Global Safety Net viewer offers, drawn live from its own map service in its own colours." },
@@ -15867,7 +15992,7 @@ const OTHER_MAPS = {
     // the map's own national highlights, from the rankings' own spreadsheet,
     // in place of the row that showed its page in a box.
     { id: "gsn_countries", name: "How much of each country's most important land for nature is protected, scored 0 to 10 (Global Safety Net's country rankings)", unit: "score, 0 to 10", colour: "#1E6FA8", keepColour: true, route: "country", ready: true, lazy: true,
-      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gsn/countries.json", field: "score" },
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gsn/countries.json", field: "score" }, buildScript: "gsn_rankings",
       countryNote: "Global Safety Net's country ranking: the share of the land it finds most important for species and climate that the World Database on Protected Areas records as protected, scored 0 (under 5%) to 10 (over 95%)",
       note: "Global Safety Net's country rankings (GSN1; One Earth, from Dinerstein et al. 2020, Science Advances): for each country, how much of the land the Global Safety Net finds most important for species and for the climate is already protected, from the World Database on Protected Areas, scored 0 (under 5% protected) to 10 (over 95%). Read from the rankings' own spreadsheet by culprits-tiles-more (scripts/gsn_rankings.py) and drawn here; every column it gives is in the box. The spreadsheet ranks EU members and US states too; states have no country shape here, so they are left out of the shading." },
     { id: "own_mangroves", name: "Mangroves, drawn so they show from the world view (Global Mangrove Watch v4, 2020)", unit: "mangrove forest, 10 m", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,

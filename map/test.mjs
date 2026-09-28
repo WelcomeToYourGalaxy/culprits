@@ -3500,7 +3500,7 @@ console.log("\nround of 23 September (14): the Atlas's city maps laid on the map
   check("a hotspot city's box carries its slug, and opening it lays the city's placed map as the hotspots' are",
         /data-atlas-city="\$\{escapeHtml\(slug\)\}"/.test(src) && /cityPlate: d\.atlasCity \|\| null/.test(src) &&
         /what\.cityPlate \? \(await atlasCityPlatesRead\(\)\)\[what\.cityPlate\]/.test(src) && /culprits-tiles-more\/atlas\/city_plates\.json/.test(src));
-  check("…a city with no placed map keeps its own zoom", /if \(what\.cityPlate\) return;/.test(src));
+  check("…a city with no placed map keeps its own zoom and shows its picture (round 98b)", /if \(what\.cityPlate && !\(p && p\.kept\)\) \{ atlasCityShow\(what\); return; \}/.test(src));
 }
 console.log("\nround of 23 September (15): the rows say their points are no longer merged");
 {
@@ -5164,10 +5164,10 @@ console.log("\nround 90b: the Atlas's hotspots open no box; its numbers are easy
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   check("a hotspot opens no box: its click lays the Atlas's map, and a second click inside the one open does nothing",
-        /if \(hit\.cfg\.pdfs\) return openAtlasHotspot\(hit\);/.test(src) && /if \(m && atlasOwner === hit\.cfg\.id && atlasInsets\.slug === m\[1\]\) return;/.test(src));
+        /if \(hit\.cfg\.pdfs\) return openAtlasHotspot\(hit\);/.test(src) && /if \(m && atlasOwner === hit\.cfg\.id && atlasOpenKey === m\[1\]\) return;/.test(src));
   check("the hotspot's area and outer limit are one hotspot, not a list of two", /const k = h\.cfg\.id \+ "\|" \+ \(h\.props\.n \|\| ""\);/.test(src));
   check("a number's click is its own: no list of places, and a click near a number is never the hotspot's",
-        /el\.addEventListener\("click", \(ev\) => \{ popupClaimedBy = ev; \}\);/.test(src) && /if \(nearAtlasNumber\(e\)\) return;/.test(src) && /min-width:26px;height:26px/.test(src));
+        /el\.addEventListener\("click", \(ev\) => \{ popupClaimedBy = ev; atlasNumberTipOff\(\); \}\);/.test(src) && /if \(nearAtlasNumber\(e\)\) return;/.test(src) && /min-width:26px;height:26px/.test(src));
   const leg = JSON.parse(fs.readFileSync(path.join(HERE, "atlas", "legends.json"), "utf8"));
   const hot = Object.values(leg.hotspots);
   check("the keys printed on the PDFs were read, with their swatches", hot.length === 32 && hot.filter((h) => h.map).length >= 20 && hot.filter((h) => h.conflicts).length >= 20 &&
@@ -5294,6 +5294,46 @@ console.log("\nround 96b: the View box laid out afresh; the frontier under Fores
   check("Colombia's agricultural frontier is under Deforestation > Forest zoning and management plans, not Plantations",
         f("Frontera agrícola nacional", "col_frontera_agricola") === "Destruction > Of the planet > Deforestation > Forest zoning and management plans");
   check("the page asks for this round's script", /app\.js\?v=(9[6-9])/.test(html));
+}
+console.log("\nround 98b: the Atlas's numbers name their cities; a click outside goes back; five more hotspot maps placed by their coasts; the city maps in a panel");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const py = fs.readFileSync(path.join(HERE, "..", "pipeline", "atlas_plates.py"), "utf8");
+  const plates = JSON.parse(fs.readFileSync(path.join(HERE, "atlas", "plates.json"), "utf8"));
+  check("hovering a number shows that city's name, and the hotspot's note is held back",
+        /el\.addEventListener\("mouseenter", \(\) => atlasNumberTip\(c\)\);/.test(src) &&
+        /if \(nearAtlasNumber\(e\)\) \{ hideSitemapTooltip\(\); return; \}/.test(src) && /\$\{escapeHtml\(c\.n \+ "\. " \+ c\.title\)\}/.test(src));
+  check("a click on the map that nothing else takes closes the open hotspot or city and flies back to the view from before",
+        /map\.on\("click", atlasOutsideClick\)/.test(src) && /if \(!atlasOwner \|\| popupClaimedBy === claim \|\| nearAtlasNumber\(e\)\) return;/.test(src) &&
+        /if \(back && view && typeof map\.flyTo === "function"\) \{\s*map\.flyTo/.test(src) && /if \(hits\[0\]\.cfg\.route === "atlascities"\) atlasRemember\(\);/.test(src) &&
+        /t\.closest\("\.maplibregl-popup, \.maplibregl-marker, #atlas-city, #atlas-panel"\)/.test(src));
+  // The go-back, run: opened from one view, closed by a click nothing took.
+  {
+    const body = src.slice(src.indexOf("let atlasReturnView = null"), src.indexOf("// what: { plate, doc } for a hotspot"));
+    const flown = [];
+    const fakeMap = { getCenter: () => ({ lng: 10, lat: 20 }), getZoom: () => 3, getBearing: () => 0, getPitch: () => 0, flyTo: (o) => flown.push(o) };
+    const f = new Function("map", "atlasPlateOff", "popupClaimedBy", "nearAtlasNumber", "setTimeout",
+      "let atlasOwner = null;" + body + "; return { atlasRemember, atlasClose, own: (o) => { atlasOwner = o; } };");
+    const t = f(fakeMap, () => {}, null, () => false, (fn) => fn());
+    t.atlasRemember(); t.own("atlas_hotspots"); t.atlasClose(true);
+    const first = flown.length === 1 && flown[0].zoom === 3 && flown[0].center[0] === 10;
+    // Closed another way (its row unticked), the next opening takes the view anew.
+    t.own(null); t.atlasRemember(); fakeMap.getZoom = () => 7; t.own(null); t.atlasClose(true);
+    check("…run: the view from before it opened is the one flown back to", first && flown.length === 2 && flown[1].zoom === 3);
+  }
+  const coast = ["madagascar", "new_caledonia", "southwest_australia", "western_ghats_sri_lanka", "east_melanesian_islands"];
+  check("Madagascar, New Caledonia, Southwest Australia, the Western Ghats and the East Melanesian Islands are placed by their coasts, their error measured",
+        coast.every((k) => plates[k].kept && /coasts laid on Natural Earth/.test(plates[k].placed_by) && plates[k].error_km < plates[k].width_km * 0.01 &&
+          plates[k].coast_fit.land_and_sea_agree >= 0.85 && plates[k].detail.length === 16 && fs.existsSync(path.join(HERE, plates[k].image))));
+  check("…by a fit that is kept only when land and sea agree and the coasts are close", /def place_by_coast\(page, width_pt, height_pt, bar_km_per_pt, box, cache_dir\):/.test(py) &&
+        /COAST_MIN_AGREE = 0\.85/.test(py) && /coast = place_by_coast\(page, w, h, bar, box, CACHE\)/.test(py));
+  check("the city maps: only a placement read by the scale bar is laid down; the rest are the Atlas's picture in a panel",
+        /const ATLAS_CITY_METHOD = 3;/.test(src) && /if \(what\.cityPlate && !\(p && p\.v === ATLAS_CITY_METHOD\)\) p = null;/.test(src) &&
+        /img\.src = ATLAS_CITY_IMG \+ \(ATLAS_CITY_IMG_NAME\[slug\] \|\| slug\) \+ "\.png";/.test(src) && /The Atlas's map of this city<\/button>/.test(src));
+  check("the country rankings say they are not built yet, not 404, until their copy is made",
+        /id: "gsn_countries"[\s\S]{0,400}buildScript: "gsn_rankings"/.test(src) && /not built yet: its copy has not been made\$\{cfg\.buildScript/.test(src));
+  check("the page asks for this round's script", /app\.js\?v=(9[8-9])/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

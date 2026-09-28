@@ -24,6 +24,8 @@ the file. That is enough to put the page where it belongs:
      towns, the hotspot drawn on the page (the key's own colour) is laid on
      its outline at the bar's scale; country names, set in larger type, are
      never used;
+     where neither places the page, its land and sea are laid on Natural
+     Earth's land at the bar's scale, north up (place_by_coast, round 98b);
   4. refine it on every name that agrees, and measure how far each still is
      from its place: that distance is the plate's error, and it is written
      down with the plate and shown on the map;
@@ -34,7 +36,8 @@ the plate's size (MIN_AGREE, MAX_ERROR_SHARE), or when one name fewer agrees
 and the error is half that (MIN_AGREE_SMALL, MAX_ERROR_SHARE_SMALL; set
 MIN_AGREE_SMALL to MIN_AGREE to switch this off). The rest are listed with the
 reason, and the map shows their PDF without placing it. Nothing is guessed:
-the placement comes only from the Atlas's own labels and OpenStreetMap.
+the placement comes only from the Atlas's own labels and OpenStreetMap, or
+from the page's own coasts and Natural Earth's.
 
 A label sits beside its town's dot, not on it, and on one page some sit left
 of their dots and some right: each label is tried at its middle and at each
@@ -45,7 +48,7 @@ Writes map/atlas/plates/<slug>.webp and map/atlas/plates.json. Downloads and
 look-ups are kept in pipeline/.atlas-cache so a second run makes no requests.
 
 Run from the repo root, with the venv on:
-    pip install pymupdf pillow requests
+    pip install pymupdf pillow requests numpy scipy
     python3 pipeline/atlas_plates.py            every hotspot
     python3 pipeline/atlas_plates.py cerrado    one or more by name
     python3 pipeline/atlas_plates.py --show new_zealand philippines
@@ -514,6 +517,200 @@ def place_by_outline(page, width_pt, height_pt, bar_km_per_pt, outline_box):
             "worst": [], "affine": T}
 
 
+# ---------------------------------------------------------------- coastlines
+# Round 98b (asked 28 September): five hotspot pages name almost no towns
+# (Madagascar, New Caledonia, the East Melanesian Islands, Southwest Australia)
+# or name towns whose fit disagrees with the page's scale bar (the Western
+# Ghats and Sri Lanka), so they were never laid on the map. Every page draws
+# land and sea: the sea one flat dark grey, the land lighter. Where towns do
+# not place a page, its land is laid on Natural Earth's land (1:10m, public
+# domain) at the scale bar's scale, north up, at the shift where the most of
+# the page's sure land and sure sea fall on land and sea, found for every shift
+# at once (a correlation). The scale is tried from COAST_SCALES of the bar's.
+# How well it fits is measured, not assumed: the share of the page's sure
+# land and sea that fall right, and how far the page's coasts then are from
+# Natural Earth's (the typical error, in km, as for towns).
+NE_LAND = ["https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_land.geojson",
+           "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_minor_islands.geojson"]
+COAST_ZOOM = 0.75          # pixels per page point for the land and sea
+COAST_SCALES = [0.55 + 0.02 * i for i in range(41)]   # 0.55 to 1.35 of the bar's scale
+COAST_MIN_AGREE = 0.85     # share of the page's sure land and sea that must fall right (each counted alike)
+COAST_MIN_LEAD = 0.05      # and by this much more than at a shift half a page from it
+COAST_MAX_ERROR_SHARE = 0.01   # the page's coasts typically this share of its width from Natural Earth's
+_ne_polys = None
+
+
+def ne_land_polys(cache_dir):
+    """Natural Earth's land and minor islands as (box, rings) in lon/lat."""
+    global _ne_polys
+    if _ne_polys is not None:
+        return _ne_polys
+    import urllib.request
+    polys = []
+    for url in NE_LAND:
+        path = cache_dir / url.rsplit("/", 1)[-1]
+        if not path.exists():
+            req = urllib.request.Request(url, headers=UA)
+            with urllib.request.urlopen(req, timeout=300) as r:
+                path.write_bytes(r.read())
+        for f in json.loads(path.read_text(encoding="utf-8"))["features"]:
+            g = f.get("geometry") or {}
+            parts = g["coordinates"] if g.get("type") == "MultiPolygon" else [g["coordinates"]] if g.get("type") == "Polygon" else []
+            for rings in parts:
+                lons = [p[0] for p in rings[0]]
+                lats = [p[1] for p in rings[0]]
+                polys.append(((min(lons), min(lats), max(lons), max(lats)), rings))
+    _ne_polys = polys
+    return polys
+
+
+def page_land_sea(page):
+    """The page as +1 (land), -1 (sea) and 0 (unsure) at COAST_ZOOM pixels per
+    point. Sea is the flat, colourless dark grey; land is any colourless grey
+    lighter than it, and anything light. Tinted dark fills (protected areas,
+    at sea and on land alike) and the page's words are unsure."""
+    import numpy as np
+    try:
+        import pymupdf
+    except ImportError:
+        import fitz as pymupdf
+    pix = page.get_pixmap(matrix=pymupdf.Matrix(COAST_ZOOM, COAST_ZOOM), alpha=False)
+    a = np.frombuffer(pix.samples, np.uint8).reshape(pix.height, pix.width, pix.n)[:, :, :3].astype(np.int16)
+    hi, lo = a.max(axis=2), a.min(axis=2)
+    grey = (hi - lo) <= 6
+    out = np.zeros(hi.shape, np.int8)
+    out[grey & (hi <= 34)] = -1
+    out[(grey & (hi >= 44)) | (hi >= 150)] = 1
+    # Only the map picture itself: not the key, the title or the small
+    # world map beside it (a picture of its own).
+    pics = sorted((im["bbox"] for im in page.get_image_info() if im.get("bbox")),
+                  key=lambda b: -(b[2] - b[0]) * (b[3] - b[1]))
+    if pics:
+        keep = np.zeros(out.shape, bool)
+        x0, y0, x1, y1 = (int(round(v * COAST_ZOOM)) for v in pics[0])
+        keep[max(0, y0):max(0, y1), max(0, x0):max(0, x1)] = True
+        for b in pics[1:]:
+            x0, y0, x1, y1 = (int(round(v * COAST_ZOOM)) for v in b)
+            keep[max(0, y0 - 2):max(0, y1 + 2), max(0, x0 - 2):max(0, x1 + 2)] = False
+        out[~keep] = 0
+    # Thin light lines at sea (the outlines of marine areas, the scale bar)
+    # are not land: land narrower than a few pixels is unsure.
+    from scipy.ndimage import binary_opening
+    land = out > 0
+    out[land & ~binary_opening(land, structure=np.ones((5, 5), bool))] = 0
+    for w in page.get_text("words"):
+        x0, y0, x1, y1 = (int(round(v * COAST_ZOOM)) for v in w[:4])
+        out[max(0, y0 - 2):y1 + 2, max(0, x0 - 2):x1 + 2] = 0
+    return out
+
+
+def land_canvas(polys, X0, Y0, m_per_px, W, H, lon_shift=0.0):
+    """Natural Earth's land drawn on a W x H grid whose top left is mercator
+    (X0, Y0), m_per_px mercator metres a pixel: +1 land, -1 sea."""
+    import numpy as np
+    from PIL import Image, ImageDraw
+    img = Image.new("L", (W, H), 0)
+    d = ImageDraw.Draw(img)
+    west, north = unmerc(X0, Y0)
+    east, south = unmerc(X0 + W * m_per_px, Y0 - H * m_per_px)
+    for shift in (0.0, 360.0, -360.0):
+        for (bw, bs, be, bn), rings in polys:
+            if be + shift < west or bw + shift > east or bn < south or bs > north:
+                continue
+            for k, ring in enumerate(rings):
+                pts = []
+                for lon, lat in ring:
+                    X, Y = merc(lon + shift, lat)
+                    pts.append(((X - X0) / m_per_px, (Y0 - Y) / m_per_px))
+                if len(pts) >= 3:
+                    d.polygon(pts, fill=0 if k else 1)
+    return np.where(np.asarray(img) > 0, 1, -1).astype(np.int8)
+
+
+def place_by_coast(page, width_pt, height_pt, bar_km_per_pt, box, cache_dir):
+    """North up, the bar's scale (tried from COAST_SCALES of it), and the shift
+    that lays the page's land and sea on Natural Earth's."""
+    if not bar_km_per_pt or not box:
+        return None
+    import numpy as np
+    from scipy.signal import fftconvolve
+    from scipy.ndimage import binary_dilation, distance_transform_edt, label
+    ls = page_land_sea(page)
+    sure = int(np.count_nonzero(ls))
+    if sure < 2000 or np.count_nonzero(ls > 0) < 200 or np.count_nonzero(ls < 0) < 200:
+        return {"kept": False, "reason": "the page shows too little land and sea to lay on the coasts"}
+    polys = ne_land_polys(cache_dir)
+    w, s_, e, n = box
+    Xw, Ys = merc(w, s_)
+    Xe, Yn = merc(e, n)
+    H, W = ls.shape
+    # Land and sea count alike, however much of the page is sea.
+    nl, ns = int(np.count_nonzero(ls > 0)), int(np.count_nonzero(ls < 0))
+    kern = np.where(ls > 0, 1.0 / nl, np.where(ls < 0, -1.0 / ns, 0.0))[::-1, ::-1].astype(np.float32)
+    best = None
+    for f in COAST_SCALES:
+        m_px = bar_km_per_pt * 1000 * f / COAST_ZOOM
+        # The page may lie anywhere its own size allows around the outline box.
+        X0, Y0 = Xw - W * m_px, Yn + H * m_px
+        CW = int((Xe - Xw) / m_px) + 2 * W
+        CH = int((Yn - Ys) / m_px) + 2 * H
+        if CW * CH > 60e6:
+            continue
+        canvas = land_canvas(polys, X0, Y0, m_px, CW, CH).astype(np.float32)
+        score = fftconvolve(canvas, kern, mode="valid")
+        i, j = np.unravel_index(int(np.argmax(score)), score.shape)
+        top = float(score[i, j]) / 2
+        # How much better than a shift half a page away: a page of open sea
+        # fits nearly as well anywhere, and is not kept.
+        far = score.copy()
+        far[max(0, i - H // 2):i + H // 2, max(0, j - W // 2):j + W // 2] = -1e18
+        lead = (top - float(far.max()) / 2) / 2 if far.max() > -1e17 else 1.0
+        if not best or top > best[0]:
+            best = (top, f, m_px, X0 + j * m_px, Y0 - i * m_px, lead, canvas[i:i + H, j:j + W])
+    if not best:
+        return {"kept": False, "reason": "the outline box is too large to lay the page on at its scale"}
+    top, f, m_px, PX, PY, lead, under = best
+    agree = (top + 1) / 2
+    # The coasts: page land edges against Natural Earth's, in km on the ground.
+    # A coast is land beside sea: on the page, sure land beside open sea (a
+    # stretch of sure sea of some size, not a dark speck inland).
+    parts, count = label(ls < 0)
+    sizes = np.bincount(parts.ravel())
+    open_sea = (parts > 0) & (sizes[parts] >= max(500, sure // 200))
+    page_edge = (ls > 0) & binary_dilation(open_sea)
+    ne_edge = (under > 0) & binary_dilation(under < 0)
+    s = m_px * COAST_ZOOM                        # mercator metres per page point
+    T = ((s, 0.0, PX), (0.0, -s, PY))
+    lat_mid = unmerc(*apply(T, width_pt / 2, height_pt / 2))[1]
+    km_px = m_px * math.cos(math.radians(lat_mid)) / 1000
+    if ne_edge.any() and page_edge.any():
+        dist = distance_transform_edt(~ne_edge)[page_edge] * km_px
+        rms = float(np.sqrt(np.mean(np.minimum(dist, 200) ** 2)))
+        # The typical miss: half the page's coast lies this close to Natural
+        # Earth's, never less than half a pixel.
+        med = max(float(np.median(dist)), km_px / 2)
+        p75 = float(np.percentile(dist, 75))
+    else:
+        rms = med = p75 = float("nan")
+    span_km = ground_km(*apply(T, 0, 0), *apply(T, width_pt, 0))
+    corners = [unmerc(*apply(T, x, y)) for x, y in ((0, 0), (width_pt, 0), (width_pt, height_pt), (0, height_pt))]
+    reasons = []
+    if agree < COAST_MIN_AGREE:
+        reasons.append(f"only {agree:.0%} of the page's land and sea (each counted alike) fall on Natural Earth's")
+    if lead < COAST_MIN_LEAD:
+        reasons.append("another shift fits nearly as well")
+    if not (med <= span_km * COAST_MAX_ERROR_SHARE):
+        reasons.append(f"its coasts are typically {med:.0f} km from Natural Earth's")
+    kept = not reasons and on_earth(T, width_pt, height_pt)
+    return {"kept": kept, "reason": "; ".join(reasons),
+            "corners": [[round(lon, 5), round(lat, 5)] for lon, lat in corners],
+            "error_km": round(med, 1), "width_km": round(span_km), "names": [], "turn_degrees": 0.0,
+            "placed_by": "the page's coasts laid on Natural Earth's", "scale_vs_bar": round(f, 3),
+            "coast_fit": {"land_and_sea_agree": round(agree, 3), "lead": round(lead, 3), "coast_rms_km": round(rms, 1), "coast_p75_km": round(p75, 1),
+                          "sure_pixels": sure},
+            "worst": [], "affine": T}
+
+
 def atlas_words(s):
     """The same word test the map uses to pair a hotspot with its PDF (atlasWords in map/app.js)."""
     return {w for w in re.split(r"[^a-z]+", str(s).lower().replace("&", " and ")) if len(w) > 2 and w not in ("and", "the")}
@@ -728,6 +925,14 @@ def main(only, show=False):
         outline = place_by_outline(page, w, h, bar, raw_box) if bar and raw_box else None
         if not (got and got.get("kept")) and outline and (outline.get("kept") or not got):
             got = outline
+        if not (got and got.get("kept")) and bar and box:
+            try:
+                coast = place_by_coast(page, w, h, bar, box, CACHE)
+            except Exception as e:  # noqa: BLE001
+                coast = None
+                print(f"{slug}: the coasts could not be compared ({e.__class__.__name__}: {e})")
+            if coast and (coast.get("kept") or not got):
+                got = coast
         if not got:
             towns = sorted(n for n, _, c in rows if c)
             got = {"kept": False, "reason": f"only {len(towns)} town name{'' if len(towns) == 1 else 's'} on the page could be found"

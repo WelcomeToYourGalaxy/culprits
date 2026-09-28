@@ -3220,48 +3220,38 @@
   "title": "East Melanesian Islands",
   "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/east_melanesian_islands.pdf",
   "labels": 0,
-  "kept": false,
-  "same_size": false,
-  "reason": "the hotspot drawn on the page is 0.81 of its outline's width and 0.90 of its height (both must be within 3%): it runs off the picture or is painted over",
+  "kept": true,
+  "reason": "",
   "corners": [
    [
-    123.78457,
-    16.83155
+    125.66346,
+    16.71128
    ],
    [
-    175.28047,
-    16.83155
+    176.64441,
+    16.71128
    ],
    [
-    175.28047,
-    -21.97388
+    176.64441,
+    -21.72279
    ],
    [
-    123.78457,
-    -21.97388
+    125.66346,
+    -21.72279
    ]
   ],
-  "error_km": 225.6,
-  "width_km": 5464,
+  "error_km": 8.1,
+  "width_km": 5413,
   "names": [],
   "turn_degrees": 0.0,
-  "placed_by": "the scale bar and the hotspot drawn on the page",
-  "scale_vs_bar": 1.0,
-  "outline_fit": {
-   "key_colour": [
-    239,
-    230,
-    189
-   ],
-   "pixels": 2475,
-   "page_box": [
-    385.3,
-    337.9,
-    803.3,
-    677.9
-   ],
-   "width_ratio": 0.81,
-   "height_ratio": 0.896
+  "placed_by": "the page's coasts laid on Natural Earth's",
+  "scale_vs_bar": 0.99,
+  "coast_fit": {
+   "land_and_sea_agree": 0.992,
+   "lead": 0.283,
+   "coast_rms_km": 27.1,
+   "coast_p75_km": 8.1,
+   "sure_pixels": 209141
   },
   "scale_bar_km_per_pt": 6.1245,
   "looked_up_within": [
@@ -3276,6 +3266,345 @@
    "Papua New Guinea",
    "Solomon Islands",
    "Vanuatu"
+  ],
+  "image": "atlas/plates/east_melanesian_islands.webp",
+  "detail": [
+   {
+    "image": "atlas/plates/east_melanesian_islands/d00.webp",
+    "corners": [
+     [
+      125.66346,
+      16.71128
+     ],
+     [
+      138.4087,
+      16.71128
+     ],
+     [
+      138.4087,
+      7.13088
+     ],
+     [
+      125.66346,
+      7.13088
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/east_melanesian_islands/d01.webp",
+    "corners": [
+     [
+      138.4087,
+      16.71128
+     ],
+     [
+      151.15394,
+      16.71128
+     ],
+     [
+      151.15394,
+      7.13088
+     ],
+     [
+      138.4087,
+      7.13088
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/east_melanesian_islands/d02.webp",
+    "corners": [
+     [
+      151.15394,
+      16.71128
+     ],
+     [
+      163.89917,
+      16.71128
+     ],
+     [
+      163.89917,
+      7.13088
+     ],
+     [
+      151.15394,
+      7.13088
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/east_melanesian_islands/d03.webp",
+    "corners": [
+     [
+      163.89917,
+      16.71128
+     ],
+     [
+      176.64441,
+      16.71128
+     ],
+     [
+      176.64441,
+      7.13088
+     ],
+     [
+      163.89917,
+      7.13088
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/east_melanesian_islands/d10.webp",
+    "corners": [
+     [
+      125.66346,
+      7.13088
+     ],
+     [
+      138.4087,
+      7.13088
+     ],
+     [
+      138.4087,
+      -2.65372
+     ],
+     [
+      125.66346,
+      -2.65372
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/east_melanesian_islands/d11.webp",
+    "corners": [
+     [
+      138.4087,
+      7.13088
+     ],
+     [
+      151.15394,
+      7.13088
+     ],
+     [
+      151.15394,
+      -2.65372
+     ],
+     [
+      138.4087,
+      -2.65372
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/east_melanesian_islands/d12.webp",
+    "corners": [
+     [
+      151.15394,
+      7.13088
+     ],
+     [
+      163.89917,
+      7.13088
+     ],
+     [
+      163.89917,
+      -2.65372
+     ],
+     [
+      151.15394,
+      -2.65372
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/east_melanesian_islands/d13.webp",
+    "corners": [
+     [
+      163.89917,
+      7.13088
+     ],
+     [
+      176.64441,
+      7.13088
+     ],
+     [
+      176.64441,
+      -2.65372
+     ],
+     [
+      163.89917,
+      -2.65372
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/east_melanesian_islands/d20.webp",
+    "corners": [
+     [
+      125.66346,
+      -2.65372
+     ],
+     [
+      138.4087,
+      -2.65372
+     ],
+     [
+      138.4087,
+      -12.36166
+     ],
+     [
+      125.66346,
+      -12.36166
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/east_melanesian_islands/d21.webp",
+    "corners": [
+     [
+      138.4087,
+      -2.65372
+     ],
+     [
+      151.15394,
+      -2.65372
+     ],
+     [
+      151.15394,
+      -12.36166
+     ],
+     [
+      138.4087,
+      -12.36166
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/east_melanesian_islands/d22.webp",
+    "corners": [
+     [
+      151.15394,
+      -2.65372
+     ],
+     [
+      163.89917,
+      -2.65372
+     ],
+     [
+      163.89917,
+      -12.36166
+     ],
+     [
+      151.15394,
+      -12.36166
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/east_melanesian_islands/d23.webp",
+    "corners": [
+     [
+      163.89917,
+      -2.65372
+     ],
+     [
+      176.64441,
+      -2.65372
+     ],
+     [
+      176.64441,
+      -12.36166
+     ],
+     [
+      163.89917,
+      -12.36166
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/east_melanesian_islands/d30.webp",
+    "corners": [
+     [
+      125.66346,
+      -12.36166
+     ],
+     [
+      138.4087,
+      -12.36166
+     ],
+     [
+      138.4087,
+      -21.72279
+     ],
+     [
+      125.66346,
+      -21.72279
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/east_melanesian_islands/d31.webp",
+    "corners": [
+     [
+      138.4087,
+      -12.36166
+     ],
+     [
+      151.15394,
+      -12.36166
+     ],
+     [
+      151.15394,
+      -21.72279
+     ],
+     [
+      138.4087,
+      -21.72279
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/east_melanesian_islands/d32.webp",
+    "corners": [
+     [
+      151.15394,
+      -12.36166
+     ],
+     [
+      163.89917,
+      -12.36166
+     ],
+     [
+      163.89917,
+      -21.72279
+     ],
+     [
+      151.15394,
+      -21.72279
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/east_melanesian_islands/d33.webp",
+    "corners": [
+     [
+      163.89917,
+      -12.36166
+     ],
+     [
+      176.64441,
+      -12.36166
+     ],
+     [
+      176.64441,
+      -21.72279
+     ],
+     [
+      163.89917,
+      -21.72279
+     ]
+    ]
+   }
   ]
  },
  "eastern_afromontane": {
@@ -5698,48 +6027,38 @@
   "title": "Madagascar & The Indian Ocean Islands",
   "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/madagascar.pdf",
   "labels": 1,
-  "kept": false,
-  "same_size": false,
-  "reason": "the hotspot drawn on the page is 0.90 of its outline's width and 0.56 of its height (both must be within 3%): it runs off the picture or is painted over",
+  "kept": true,
+  "reason": "",
   "corners": [
    [
-    24.34056,
-    7.04714
+    26.68378,
+    3.26089
    ],
    [
-    75.69334,
-    7.04714
+    77.52303,
+    3.26089
    ],
    [
-    75.69334,
-    -30.83152
+    77.52303,
+    -33.71194
    ],
    [
-    24.34056,
-    -30.83152
+    26.68378,
+    -33.71194
    ]
   ],
-  "error_km": 461.7,
-  "width_km": 5664,
+  "error_km": 7.7,
+  "width_km": 5643,
   "names": [],
   "turn_degrees": 0.0,
-  "placed_by": "the scale bar and the hotspot drawn on the page",
-  "scale_vs_bar": 1.0,
-  "outline_fit": {
-   "key_colour": [
-    239,
-    230,
-    189
-   ],
-   "pixels": 12531,
-   "page_box": [
-    304.7,
-    274.0,
-    706.7,
-    546.7
-   ],
-   "width_ratio": 0.904,
-   "height_ratio": 0.557
+  "placed_by": "the page's coasts laid on Natural Earth's",
+  "scale_vs_bar": 0.99,
+  "coast_fit": {
+   "land_and_sea_agree": 0.996,
+   "lead": 0.203,
+   "coast_rms_km": 84.4,
+   "coast_p75_km": 7.7,
+   "sure_pixels": 214139
   },
   "scale_bar_km_per_pt": 6.1074,
   "looked_up_within": [
@@ -5758,6 +6077,345 @@
    "United Republic",
    "Zambia",
    "Zimbabwe"
+  ],
+  "image": "atlas/plates/madagascar.webp",
+  "detail": [
+   {
+    "image": "atlas/plates/madagascar/d00.webp",
+    "corners": [
+     [
+      26.68378,
+      3.26089
+     ],
+     [
+      39.3936,
+      3.26089
+     ],
+     [
+      39.3936,
+      -6.50014
+     ],
+     [
+      26.68378,
+      -6.50014
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d01.webp",
+    "corners": [
+     [
+      39.3936,
+      3.26089
+     ],
+     [
+      52.10341,
+      3.26089
+     ],
+     [
+      52.10341,
+      -6.50014
+     ],
+     [
+      39.3936,
+      -6.50014
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d02.webp",
+    "corners": [
+     [
+      52.10341,
+      3.26089
+     ],
+     [
+      64.81322,
+      3.26089
+     ],
+     [
+      64.81322,
+      -6.50014
+     ],
+     [
+      52.10341,
+      -6.50014
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d03.webp",
+    "corners": [
+     [
+      64.81322,
+      3.26089
+     ],
+     [
+      77.52303,
+      3.26089
+     ],
+     [
+      77.52303,
+      -6.50014
+     ],
+     [
+      64.81322,
+      -6.50014
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d10.webp",
+    "corners": [
+     [
+      26.68378,
+      -6.50014
+     ],
+     [
+      39.3936,
+      -6.50014
+     ],
+     [
+      39.3936,
+      -16.07574
+     ],
+     [
+      26.68378,
+      -16.07574
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d11.webp",
+    "corners": [
+     [
+      39.3936,
+      -6.50014
+     ],
+     [
+      52.10341,
+      -6.50014
+     ],
+     [
+      52.10341,
+      -16.07574
+     ],
+     [
+      39.3936,
+      -16.07574
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d12.webp",
+    "corners": [
+     [
+      52.10341,
+      -6.50014
+     ],
+     [
+      64.81322,
+      -6.50014
+     ],
+     [
+      64.81322,
+      -16.07574
+     ],
+     [
+      52.10341,
+      -16.07574
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d13.webp",
+    "corners": [
+     [
+      64.81322,
+      -6.50014
+     ],
+     [
+      77.52303,
+      -6.50014
+     ],
+     [
+      77.52303,
+      -16.07574
+     ],
+     [
+      64.81322,
+      -16.07574
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d20.webp",
+    "corners": [
+     [
+      26.68378,
+      -16.07574
+     ],
+     [
+      39.3936,
+      -16.07574
+     ],
+     [
+      39.3936,
+      -25.21228
+     ],
+     [
+      26.68378,
+      -25.21228
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d21.webp",
+    "corners": [
+     [
+      39.3936,
+      -16.07574
+     ],
+     [
+      52.10341,
+      -16.07574
+     ],
+     [
+      52.10341,
+      -25.21228
+     ],
+     [
+      39.3936,
+      -25.21228
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d22.webp",
+    "corners": [
+     [
+      52.10341,
+      -16.07574
+     ],
+     [
+      64.81322,
+      -16.07574
+     ],
+     [
+      64.81322,
+      -25.21228
+     ],
+     [
+      52.10341,
+      -25.21228
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d23.webp",
+    "corners": [
+     [
+      64.81322,
+      -16.07574
+     ],
+     [
+      77.52303,
+      -16.07574
+     ],
+     [
+      77.52303,
+      -25.21228
+     ],
+     [
+      64.81322,
+      -25.21228
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d30.webp",
+    "corners": [
+     [
+      26.68378,
+      -25.21228
+     ],
+     [
+      39.3936,
+      -25.21228
+     ],
+     [
+      39.3936,
+      -33.71194
+     ],
+     [
+      26.68378,
+      -33.71194
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d31.webp",
+    "corners": [
+     [
+      39.3936,
+      -25.21228
+     ],
+     [
+      52.10341,
+      -25.21228
+     ],
+     [
+      52.10341,
+      -33.71194
+     ],
+     [
+      39.3936,
+      -33.71194
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d32.webp",
+    "corners": [
+     [
+      52.10341,
+      -25.21228
+     ],
+     [
+      64.81322,
+      -25.21228
+     ],
+     [
+      64.81322,
+      -33.71194
+     ],
+     [
+      52.10341,
+      -33.71194
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/madagascar/d33.webp",
+    "corners": [
+     [
+      64.81322,
+      -25.21228
+     ],
+     [
+      77.52303,
+      -25.21228
+     ],
+     [
+      77.52303,
+      -33.71194
+     ],
+     [
+      64.81322,
+      -33.71194
+     ]
+    ]
+   }
   ]
  },
  "madrean_woodlands": {
@@ -8260,48 +8918,38 @@
   "title": "New Caledonia",
   "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/new_caledonia.pdf",
   "labels": 0,
-  "kept": false,
-  "same_size": false,
-  "reason": "the hotspot drawn on the page is 0.96 of its outline's width and 0.60 of its height (both must be within 3%): it runs off the picture or is painted over",
+  "kept": true,
+  "reason": "",
   "corners": [
    [
-    149.83477,
-    -14.34972
+    150.15935,
+    -14.50114
    ],
    [
-    178.48273,
-    -14.34972
+    177.94787,
+    -14.50114
    ],
    [
-    178.48273,
-    -34.28775
+    177.94787,
+    -33.86967
    ],
    [
-    149.83477,
-    -34.28775
+    150.15935,
+    -33.86967
    ]
   ],
-  "error_km": 88.3,
-  "width_km": 3084,
+  "error_km": 4.0,
+  "width_km": 2990,
   "names": [],
   "turn_degrees": 0.0,
-  "placed_by": "the scale bar and the hotspot drawn on the page",
-  "scale_vs_bar": 1.0,
-  "outline_fit": {
-   "key_colour": [
-    239,
-    230,
-    189
-   ],
-   "pixels": 1959,
-   "page_box": [
-    273.3,
-    177.3,
-    736.0,
-    290.7
-   ],
-   "width_ratio": 0.958,
-   "height_ratio": 0.599
+  "placed_by": "the page's coasts laid on Natural Earth's",
+  "scale_vs_bar": 0.97,
+  "coast_fit": {
+   "land_and_sea_agree": 0.986,
+   "lead": 0.091,
+   "coast_rms_km": 97.4,
+   "coast_p75_km": 145.9,
+   "sure_pixels": 113152
   },
   "scale_bar_km_per_pt": 3.4071,
   "looked_up_within": [
@@ -8314,6 +8962,345 @@
    "Australia",
    "New Caledonia (France)",
    "Vanuatu"
+  ],
+  "image": "atlas/plates/new_caledonia.webp",
+  "detail": [
+   {
+    "image": "atlas/plates/new_caledonia/d00.webp",
+    "corners": [
+     [
+      150.15935,
+      -14.50114
+     ],
+     [
+      157.10648,
+      -14.50114
+     ],
+     [
+      157.10648,
+      -19.60808
+     ],
+     [
+      150.15935,
+      -19.60808
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/new_caledonia/d01.webp",
+    "corners": [
+     [
+      157.10648,
+      -14.50114
+     ],
+     [
+      164.05361,
+      -14.50114
+     ],
+     [
+      164.05361,
+      -19.60808
+     ],
+     [
+      157.10648,
+      -19.60808
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/new_caledonia/d02.webp",
+    "corners": [
+     [
+      164.05361,
+      -14.50114
+     ],
+     [
+      171.00074,
+      -14.50114
+     ],
+     [
+      171.00074,
+      -19.60808
+     ],
+     [
+      164.05361,
+      -19.60808
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/new_caledonia/d03.webp",
+    "corners": [
+     [
+      171.00074,
+      -14.50114
+     ],
+     [
+      177.94787,
+      -14.50114
+     ],
+     [
+      177.94787,
+      -19.60808
+     ],
+     [
+      171.00074,
+      -19.60808
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/new_caledonia/d10.webp",
+    "corners": [
+     [
+      150.15935,
+      -19.60808
+     ],
+     [
+      157.10648,
+      -19.60808
+     ],
+     [
+      157.10648,
+      -24.55795
+     ],
+     [
+      150.15935,
+      -24.55795
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/new_caledonia/d11.webp",
+    "corners": [
+     [
+      157.10648,
+      -19.60808
+     ],
+     [
+      164.05361,
+      -19.60808
+     ],
+     [
+      164.05361,
+      -24.55795
+     ],
+     [
+      157.10648,
+      -24.55795
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/new_caledonia/d12.webp",
+    "corners": [
+     [
+      164.05361,
+      -19.60808
+     ],
+     [
+      171.00074,
+      -19.60808
+     ],
+     [
+      171.00074,
+      -24.55795
+     ],
+     [
+      164.05361,
+      -24.55795
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/new_caledonia/d13.webp",
+    "corners": [
+     [
+      171.00074,
+      -19.60808
+     ],
+     [
+      177.94787,
+      -19.60808
+     ],
+     [
+      177.94787,
+      -24.55795
+     ],
+     [
+      171.00074,
+      -24.55795
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/new_caledonia/d20.webp",
+    "corners": [
+     [
+      150.15935,
+      -24.55795
+     ],
+     [
+      157.10648,
+      -24.55795
+     ],
+     [
+      157.10648,
+      -29.31994
+     ],
+     [
+      150.15935,
+      -29.31994
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/new_caledonia/d21.webp",
+    "corners": [
+     [
+      157.10648,
+      -24.55795
+     ],
+     [
+      164.05361,
+      -24.55795
+     ],
+     [
+      164.05361,
+      -29.31994
+     ],
+     [
+      157.10648,
+      -29.31994
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/new_caledonia/d22.webp",
+    "corners": [
+     [
+      164.05361,
+      -24.55795
+     ],
+     [
+      171.00074,
+      -24.55795
+     ],
+     [
+      171.00074,
+      -29.31994
+     ],
+     [
+      164.05361,
+      -29.31994
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/new_caledonia/d23.webp",
+    "corners": [
+     [
+      171.00074,
+      -24.55795
+     ],
+     [
+      177.94787,
+      -24.55795
+     ],
+     [
+      177.94787,
+      -29.31994
+     ],
+     [
+      171.00074,
+      -29.31994
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/new_caledonia/d30.webp",
+    "corners": [
+     [
+      150.15935,
+      -29.31994
+     ],
+     [
+      157.10648,
+      -29.31994
+     ],
+     [
+      157.10648,
+      -33.86967
+     ],
+     [
+      150.15935,
+      -33.86967
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/new_caledonia/d31.webp",
+    "corners": [
+     [
+      157.10648,
+      -29.31994
+     ],
+     [
+      164.05361,
+      -29.31994
+     ],
+     [
+      164.05361,
+      -33.86967
+     ],
+     [
+      157.10648,
+      -33.86967
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/new_caledonia/d32.webp",
+    "corners": [
+     [
+      164.05361,
+      -29.31994
+     ],
+     [
+      171.00074,
+      -29.31994
+     ],
+     [
+      171.00074,
+      -33.86967
+     ],
+     [
+      164.05361,
+      -33.86967
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/new_caledonia/d33.webp",
+    "corners": [
+     [
+      171.00074,
+      -29.31994
+     ],
+     [
+      177.94787,
+      -29.31994
+     ],
+     [
+      177.94787,
+      -33.86967
+     ],
+     [
+      171.00074,
+      -33.86967
+     ]
+    ]
+   }
   ]
  },
  "new_zealand": {
@@ -9519,48 +10506,38 @@
   "title": "Southwest Australia",
   "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/southwest_australia.pdf",
   "labels": 1,
-  "kept": false,
-  "same_size": false,
-  "reason": "the hotspot drawn on the page is 0.92 of its outline's width and 0.89 of its height (both must be within 3%): it runs off the picture or is painted over",
+  "kept": true,
+  "reason": "",
   "corners": [
    [
-    97.72434,
-    -17.84434
+    98.45731,
+    -18.43896
    ],
    [
-    130.41577,
-    -17.84434
+    130.82183,
+    -18.43896
    ],
    [
-    130.41577,
-    -39.67424
+    130.82183,
+    -39.9617
    ],
    [
-    97.72434,
-    -39.67424
+    98.45731,
+    -39.9617
    ]
   ],
-  "error_km": 56.9,
-  "width_km": 3456,
+  "error_km": 4.5,
+  "width_km": 3409,
   "names": [],
   "turn_degrees": 0.0,
-  "placed_by": "the scale bar and the hotspot drawn on the page",
-  "scale_vs_bar": 1.0,
-  "outline_fit": {
-   "key_colour": [
-    239,
-    230,
-    189
-   ],
-   "pixels": 18540,
-   "page_box": [
-    450.6,
-    254.7,
-    813.3,
-    540.0
-   ],
-   "width_ratio": 0.921,
-   "height_ratio": 0.887
+  "placed_by": "the page's coasts laid on Natural Earth's",
+  "scale_vs_bar": 0.99,
+  "coast_fit": {
+   "land_and_sea_agree": 0.999,
+   "lead": 0.184,
+   "coast_rms_km": 3.2,
+   "coast_p75_km": 4.5,
+   "sure_pixels": 218312
   },
   "scale_bar_km_per_pt": 3.888,
   "looked_up_within": [
@@ -9571,6 +10548,345 @@
   ],
   "set_aside_as_countries": [
    "Australia"
+  ],
+  "image": "atlas/plates/southwest_australia.webp",
+  "detail": [
+   {
+    "image": "atlas/plates/southwest_australia/d00.webp",
+    "corners": [
+     [
+      98.45731,
+      -18.43896
+     ],
+     [
+      106.54844,
+      -18.43896
+     ],
+     [
+      106.54844,
+      -24.2331
+     ],
+     [
+      98.45731,
+      -24.2331
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/southwest_australia/d01.webp",
+    "corners": [
+     [
+      106.54844,
+      -18.43896
+     ],
+     [
+      114.63957,
+      -18.43896
+     ],
+     [
+      114.63957,
+      -24.2331
+     ],
+     [
+      106.54844,
+      -24.2331
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/southwest_australia/d02.webp",
+    "corners": [
+     [
+      114.63957,
+      -18.43896
+     ],
+     [
+      122.7307,
+      -18.43896
+     ],
+     [
+      122.7307,
+      -24.2331
+     ],
+     [
+      114.63957,
+      -24.2331
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/southwest_australia/d03.webp",
+    "corners": [
+     [
+      122.7307,
+      -18.43896
+     ],
+     [
+      130.82183,
+      -18.43896
+     ],
+     [
+      130.82183,
+      -24.2331
+     ],
+     [
+      122.7307,
+      -24.2331
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/southwest_australia/d10.webp",
+    "corners": [
+     [
+      98.45731,
+      -24.2331
+     ],
+     [
+      106.54844,
+      -24.2331
+     ],
+     [
+      106.54844,
+      -29.77519
+     ],
+     [
+      98.45731,
+      -29.77519
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/southwest_australia/d11.webp",
+    "corners": [
+     [
+      106.54844,
+      -24.2331
+     ],
+     [
+      114.63957,
+      -24.2331
+     ],
+     [
+      114.63957,
+      -29.77519
+     ],
+     [
+      106.54844,
+      -29.77519
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/southwest_australia/d12.webp",
+    "corners": [
+     [
+      114.63957,
+      -24.2331
+     ],
+     [
+      122.7307,
+      -24.2331
+     ],
+     [
+      122.7307,
+      -29.77519
+     ],
+     [
+      114.63957,
+      -29.77519
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/southwest_australia/d13.webp",
+    "corners": [
+     [
+      122.7307,
+      -24.2331
+     ],
+     [
+      130.82183,
+      -24.2331
+     ],
+     [
+      130.82183,
+      -29.77519
+     ],
+     [
+      122.7307,
+      -29.77519
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/southwest_australia/d20.webp",
+    "corners": [
+     [
+      98.45731,
+      -29.77519
+     ],
+     [
+      106.54844,
+      -29.77519
+     ],
+     [
+      106.54844,
+      -35.02686
+     ],
+     [
+      98.45731,
+      -35.02686
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/southwest_australia/d21.webp",
+    "corners": [
+     [
+      106.54844,
+      -29.77519
+     ],
+     [
+      114.63957,
+      -29.77519
+     ],
+     [
+      114.63957,
+      -35.02686
+     ],
+     [
+      106.54844,
+      -35.02686
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/southwest_australia/d22.webp",
+    "corners": [
+     [
+      114.63957,
+      -29.77519
+     ],
+     [
+      122.7307,
+      -29.77519
+     ],
+     [
+      122.7307,
+      -35.02686
+     ],
+     [
+      114.63957,
+      -35.02686
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/southwest_australia/d23.webp",
+    "corners": [
+     [
+      122.7307,
+      -29.77519
+     ],
+     [
+      130.82183,
+      -29.77519
+     ],
+     [
+      130.82183,
+      -35.02686
+     ],
+     [
+      122.7307,
+      -35.02686
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/southwest_australia/d30.webp",
+    "corners": [
+     [
+      98.45731,
+      -35.02686
+     ],
+     [
+      106.54844,
+      -35.02686
+     ],
+     [
+      106.54844,
+      -39.9617
+     ],
+     [
+      98.45731,
+      -39.9617
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/southwest_australia/d31.webp",
+    "corners": [
+     [
+      106.54844,
+      -35.02686
+     ],
+     [
+      114.63957,
+      -35.02686
+     ],
+     [
+      114.63957,
+      -39.9617
+     ],
+     [
+      106.54844,
+      -39.9617
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/southwest_australia/d32.webp",
+    "corners": [
+     [
+      114.63957,
+      -35.02686
+     ],
+     [
+      122.7307,
+      -35.02686
+     ],
+     [
+      122.7307,
+      -39.9617
+     ],
+     [
+      114.63957,
+      -39.9617
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/southwest_australia/d33.webp",
+    "corners": [
+     [
+      122.7307,
+      -35.02686
+     ],
+     [
+      130.82183,
+      -35.02686
+     ],
+     [
+      130.82183,
+      -39.9617
+     ],
+     [
+      122.7307,
+      -39.9617
+     ]
+    ]
+   }
   ]
  },
  "succulent_karoo": {
@@ -11194,42 +12510,46 @@
   "title": "Western Ghats & Sri Lanka",
   "pdf": "https://atlas-for-the-end-of-the-world.com/hotspots/western_ghats_sri_lanka.pdf",
   "labels": 8,
-  "kept": false,
-  "reason": "the fit's scale is 0.64 times the page's own scale bar",
+  "kept": true,
+  "reason": "",
   "corners": [
    [
-    57.85455,
-    25.05378
+    57.05481,
+    24.98396
    ],
    [
-    88.34609,
-    24.47386
+    88.21846,
+    24.98396
    ],
    [
-    87.85481,
-    1.79862
+    88.21846,
+    1.8432
    ],
    [
-    57.36327,
-    2.43685
+    57.05481,
+    1.8432
    ]
   ],
-  "error_km": 44.4,
-  "width_km": 3073,
-  "names": [
-   "Bengaluru",
-   "Chennai",
-   "Coimbatore",
-   "Colombo",
-   "Hyderabad",
-   "Mumbai",
-   "Pune",
-   "Shimoga"
-  ],
-  "turn_degrees": -1.2,
-  "placed_by": "8 names",
-  "scale_vs_bar": 0.636,
+  "error_km": 2.4,
+  "width_km": 3134,
+  "names": [],
+  "turn_degrees": 0.0,
+  "placed_by": "the page's coasts laid on Natural Earth's",
+  "scale_vs_bar": 0.65,
+  "coast_fit": {
+   "land_and_sea_agree": 0.997,
+   "lead": 0.168,
+   "coast_rms_km": 3.3,
+   "coast_p75_km": 4.8,
+   "sure_pixels": 285157
+  },
   "scale_bar_km_per_pt": 5.702,
+  "towns_fit": {
+   "placed_by": "8 names",
+   "error_km": 44.4,
+   "scale_vs_bar": 0.636,
+   "reason": "the fit's scale is 0.64 times the page's own scale bar"
+  },
   "looked_up_within": [
    70.417,
    1.927,
@@ -11240,6 +12560,345 @@
    "India",
    "Maldives",
    "Sri Lanka"
+  ],
+  "image": "atlas/plates/western_ghats_sri_lanka.webp",
+  "detail": [
+   {
+    "image": "atlas/plates/western_ghats_sri_lanka/d00.webp",
+    "corners": [
+     [
+      57.05481,
+      24.98396
+     ],
+     [
+      64.84572,
+      24.98396
+     ],
+     [
+      64.84572,
+      19.43854
+     ],
+     [
+      57.05481,
+      19.43854
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/western_ghats_sri_lanka/d01.webp",
+    "corners": [
+     [
+      64.84572,
+      24.98396
+     ],
+     [
+      72.63663,
+      24.98396
+     ],
+     [
+      72.63663,
+      19.43854
+     ],
+     [
+      64.84572,
+      19.43854
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/western_ghats_sri_lanka/d02.webp",
+    "corners": [
+     [
+      72.63663,
+      24.98396
+     ],
+     [
+      80.42755,
+      24.98396
+     ],
+     [
+      80.42755,
+      19.43854
+     ],
+     [
+      72.63663,
+      19.43854
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/western_ghats_sri_lanka/d03.webp",
+    "corners": [
+     [
+      80.42755,
+      24.98396
+     ],
+     [
+      88.21846,
+      24.98396
+     ],
+     [
+      88.21846,
+      19.43854
+     ],
+     [
+      80.42755,
+      19.43854
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/western_ghats_sri_lanka/d10.webp",
+    "corners": [
+     [
+      57.05481,
+      19.43854
+     ],
+     [
+      64.84572,
+      19.43854
+     ],
+     [
+      64.84572,
+      13.69718
+     ],
+     [
+      57.05481,
+      13.69718
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/western_ghats_sri_lanka/d11.webp",
+    "corners": [
+     [
+      64.84572,
+      19.43854
+     ],
+     [
+      72.63663,
+      19.43854
+     ],
+     [
+      72.63663,
+      13.69718
+     ],
+     [
+      64.84572,
+      13.69718
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/western_ghats_sri_lanka/d12.webp",
+    "corners": [
+     [
+      72.63663,
+      19.43854
+     ],
+     [
+      80.42755,
+      19.43854
+     ],
+     [
+      80.42755,
+      13.69718
+     ],
+     [
+      72.63663,
+      13.69718
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/western_ghats_sri_lanka/d13.webp",
+    "corners": [
+     [
+      80.42755,
+      19.43854
+     ],
+     [
+      88.21846,
+      19.43854
+     ],
+     [
+      88.21846,
+      13.69718
+     ],
+     [
+      80.42755,
+      13.69718
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/western_ghats_sri_lanka/d20.webp",
+    "corners": [
+     [
+      57.05481,
+      13.69718
+     ],
+     [
+      64.84572,
+      13.69718
+     ],
+     [
+      64.84572,
+      7.81221
+     ],
+     [
+      57.05481,
+      7.81221
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/western_ghats_sri_lanka/d21.webp",
+    "corners": [
+     [
+      64.84572,
+      13.69718
+     ],
+     [
+      72.63663,
+      13.69718
+     ],
+     [
+      72.63663,
+      7.81221
+     ],
+     [
+      64.84572,
+      7.81221
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/western_ghats_sri_lanka/d22.webp",
+    "corners": [
+     [
+      72.63663,
+      13.69718
+     ],
+     [
+      80.42755,
+      13.69718
+     ],
+     [
+      80.42755,
+      7.81221
+     ],
+     [
+      72.63663,
+      7.81221
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/western_ghats_sri_lanka/d23.webp",
+    "corners": [
+     [
+      80.42755,
+      13.69718
+     ],
+     [
+      88.21846,
+      13.69718
+     ],
+     [
+      88.21846,
+      7.81221
+     ],
+     [
+      80.42755,
+      7.81221
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/western_ghats_sri_lanka/d30.webp",
+    "corners": [
+     [
+      57.05481,
+      7.81221
+     ],
+     [
+      64.84572,
+      7.81221
+     ],
+     [
+      64.84572,
+      1.8432
+     ],
+     [
+      57.05481,
+      1.8432
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/western_ghats_sri_lanka/d31.webp",
+    "corners": [
+     [
+      64.84572,
+      7.81221
+     ],
+     [
+      72.63663,
+      7.81221
+     ],
+     [
+      72.63663,
+      1.8432
+     ],
+     [
+      64.84572,
+      1.8432
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/western_ghats_sri_lanka/d32.webp",
+    "corners": [
+     [
+      72.63663,
+      7.81221
+     ],
+     [
+      80.42755,
+      7.81221
+     ],
+     [
+      80.42755,
+      1.8432
+     ],
+     [
+      72.63663,
+      1.8432
+     ]
+    ]
+   },
+   {
+    "image": "atlas/plates/western_ghats_sri_lanka/d33.webp",
+    "corners": [
+     [
+      80.42755,
+      7.81221
+     ],
+     [
+      88.21846,
+      7.81221
+     ],
+     [
+      88.21846,
+      1.8432
+     ],
+     [
+      80.42755,
+      1.8432
+     ]
+    ]
+   }
   ]
  }
 }
