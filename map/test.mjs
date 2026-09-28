@@ -1863,7 +1863,7 @@ console.log("\nTrase, and coral at world zoom");
           /id: "ct_gases"[^\n]*route: "ctgases"/.test(src) && /cfg\.route === "ctgases" \? addCtGasesLayer\(cfg\)/.test(src));
   }
   check("the catalogues' lists are read once the box is arranged, since their own rows are hidden and never ticked",
-        /const CATALOGUE_ROUTES = new Set\(\["wmsmenu", "gfwmenu", "trase", "ctgases", "gsn"\]\)/.test(src) &&
+        /const CATALOGUE_ROUTES = new Set\(\["wmsmenu", "gfwmenu", "trase", "ctgases"\]\)/.test(src) &&
         /box\.appendChild\(gone\);\n  wireInfoMarks\(\);\n  readCataloguesAtStart\(\);/.test(src) && /PANEL_REMOVED\.has\(c\.id\)\) ensureLayer\(c\)/.test(src));
   check("its shapes are read live from Trase", /regions: "https:\/\/resources\.trase\.earth\/data\/trase-regions"/.test(src));
   check("its values come from the weekly GitHub copy", /catalogue: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/trase\/catalogue\.json"/.test(src));
@@ -2177,13 +2177,29 @@ console.log("\nSocial Spheres controls; Live Projects to Resist whole; wastewate
   check("the wastewater layers read the GitHub copy", (src.match(/tiles\/wastewater_N_[a-z_]+\.pmtiles/g) || []).length === 5 && !/mazu\.nceas\.ucsb\.edu/.test(src));
 }
 
-console.log("\nGlobal Safety Net");
+console.log("\nGlobal Safety Net replaced by the map's own layers (round 90b)");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  const shown = new Function(src.slice(src.indexOf("function gsnShown("), src.indexOf("async function addGsnLayer(")) + "; return gsnShown;")();
-  const list = [{ id: 1, gee_tile_url: "u" }, { id: 26, gee_tile_url: "u", is_hidden: "True" }, { id: 7, gee_tile_url: "u", is_multilayer: "True" }, { id: 9 }];
-  check("the viewer's own layers are offered, its hidden helpers are not", shown(list).map((l) => l.id).join() === "1,7");
-  check("each is drawn from the fresh address its list gives", /String\(l\.gee_tile_url/.test(src) && /\/tiles\/\{z\}\/\{x\}\/\{y\}`/.test(src));
+  check("no Global Safety Net row or reader is left", !/id: "gsn"/.test(src) && !/id: "gsn_rankings"/.test(src) && !/naturedatalab|globalsafetynet\.app/.test(src) && !/function addGsnLayer/.test(src));
+  const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const kinds = new Function(src.slice(src.indexOf("const LAND_KINDS = {"), src.indexOf("function wcmcExport(")).replace(/function LAND_KIND_NAMES[\s\S]*$/, "") + "; return LAND_KINDS;")();
+  check("every land cover kind is a row reading GLC_FCS30D's 2022 map through its own classes", Object.keys(kinds).length === 14 &&
+        Object.keys(kinds).every((k) => new RegExp(`id: "${k}"[^\\n]*route: "rasterlive"`).test(src) && src.includes(`cog4326://${k}/2022/`)));
+  check("no class is claimed by two kinds", new Set(Object.values(kinds).flatMap((k) => k.codes)).size === Object.values(kinds).reduce((a, k) => a + k.codes.length, 0));
+  const exp = new Function(src.slice(src.indexOf("function wcmcExport("), src.indexOf("const COG_SOURCES = {")) + "; return wcmcExport;")();
+  const u = exp("https://x/MapServer", "iucn_cat IN ('Ia','Ib')", "#1E6FA8", "#0E3A5E");
+  const dyn = JSON.parse(decodeURIComponent(u.split("dynamicLayers=")[1]));
+  check("a protected-area row asks UNEP-WCMC's server for its own categories, in a fill and a darker edge",
+        u.startsWith("https://x/MapServer/export?bbox={bbox-epsg-3857}") && dyn.length === 2 && dyn.every((d) => d.definitionExpression === "iucn_cat IN ('Ia','Ib')") &&
+        dyn[0].drawingInfo.renderer.symbol.color.join() === "30,111,168,150" && dyn[0].drawingInfo.renderer.symbol.outline.color.join() === "14,58,94,255");
+  check("the four protection rows are under Protected and conserved areas; the forest kinds under Forest cover; the rest under Land Use and Ecoregions",
+        /\{ h: 4, t: "Protected and conserved areas" \}, "wdpa_strict", "wdpa_other", "wdpa_nocat", "wdoecm",/.test(src) &&
+        /\{ h: 4, t: "Forest cover" \}, "lc_broadleaf", "lc_needleleaf", "lc_mixedleaf", "lc_swamp", "own_reforestation",/.test(src) &&
+        /\{ h: 4, t: "Land Use and Ecoregions" \}, "lc_water",/.test(src) && /\[\/ecoregion\/i, "Land Use and Ecoregions"\]/.test(src));
+  check("the builds made in culprits-tiles-more say 'not built yet' until their list of choices is there",
+        ["own_mangroves", "own_reforestation", "own_modification", "own_wilderness", "own_critical_habitat", "potapov_cropland"].every((i) =>
+          new RegExp(`id: "${esc(i)}"[\\s\\S]*?choices: \\[\\], choicesUrl: "https://welcometoyourgalaxy\\.github\\.io/culprits-tiles-more/tiles/${esc(i)}\\.choices\\.json"`).test(src)));
+  check("small kinds are grown wider out, so they show from the world view", /if \(grow\) growPixels\(out, S, z\);/.test(src));
 }
 
 console.log("\nClimate TRACE air pollution");
@@ -2221,7 +2237,7 @@ console.log("\nGlobal Trade Alert");
 console.log("\noutside pages whole, in the panel");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("every remaining outside page is a row", ["cfr_tracker", "giga_schools", "bocc", "theyrule", "skytruth_voc", "esa_risk", "gsn_rankings"].every((i) => new RegExp(`id: "${i}"`).test(src)));
+  check("every remaining outside page is a row", ["cfr_tracker", "giga_schools", "bocc", "theyrule", "skytruth_voc", "esa_risk"].every((i) => new RegExp(`id: "${i}"`).test(src)));
   check("no panel follows this map's view any more, and none claims to", (src.match(/follow: true/g) || []).length === 0);
   check("one panel at a time", /One panel at a time/.test(src));
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
@@ -2236,7 +2252,7 @@ console.log("\nwhat was still open");
   check("Giga by country, Trase's facilities rows, and two of your own are rows", ["giga_countries", "trase_meat_brazil", "trase_palm_indonesia", "biosignature", "leverage_chart"].every((i) => new RegExp(`id: "${i}"`).test(src)));
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
   const order = new Function(body + "; return PANEL_ORDER;")();
-  check("the waiting rows are placed", ["ejatlas", "gsn_rankings", "seas_of_plastic", "coastal_cleanup", "mines_global", "atlas_hotspots", "final_nail", "group:ct_history"].every((i) => order.includes(i)));
+  check("the waiting rows are placed", ["ejatlas", "seas_of_plastic", "coastal_cleanup", "mines_global", "atlas_hotspots", "final_nail", "group:ct_history"].every((i) => order.includes(i)));
 }
 
 console.log("\nvessels of concern drawn; the oil-slick archive");
@@ -2325,7 +2341,7 @@ console.log("\nNusantara Atlas and Global Forest Watch, by category");
   // Superseded with Nusantara's: the catalogue's datasets are rows of the box
   // now, filed by what each shows, and several can be drawn at once.
   check("Global Forest Watch's datasets are rows of the box", !/categoryMenu\(menu, /.test(src) &&
-        (src.match(/^  catalogueRows\(cfg, /gm) || []).length === 5);   // Nusantara, Global Forest Watch, Trase, Climate TRACE by gas, Global Safety Net
+        (src.match(/^  catalogueRows\(cfg, /gm) || []).length === 4);   // Nusantara, Global Forest Watch, Trase, Climate TRACE by gas (Global Safety Net's gone, round 90b)
   // Superseded: Nusantara's layers are rows of the box itself now, filed by
   // what they show, not a list inside one row.
   check("Nusantara's layers are rows of the box, filed by subject", /catalogueRows\(cfg, items\);/.test(src) && !/menu\.className = "facet ns-list"/.test(src));
@@ -2526,7 +2542,7 @@ console.log("\nthe layers box, as asked for");
         // Round 23: Fishing above Reefs and mangroves (item 11); the Global
         // Safety Net heads the first sub-heading of Biodiversity loss (item 27).
         between("allen_coral", "Reefs and mangroves", "Construction") && at("Fishing") < at("Reefs and mangroves") &&
-        o.PANEL_ORDER[at("Biodiversity loss") + 1].t === "Places that matter most for species" && o.PANEL_ORDER[at("Biodiversity loss") + 2] === "gsn_rankings");
+        o.PANEL_ORDER[at("Biodiversity loss") + 1].t === "Places that matter most for species" && o.PANEL_ORDER[at("Biodiversity loss") + 2] === "atlas_hotspots");
   check("Agriculture is Meat and agriculture, holding Agriculture and Meat",
         at("Meat and agriculture") > 0 && at("Agriculture") > at("Meat and agriculture") &&
         between("land_matrix", "Meat and agriculture", "Agriculture") && between("abattoir_facilities", "Facilities", "Herds"));
@@ -3119,8 +3135,7 @@ console.log("\nGlobal Safety Net fixes; My Maps titles");
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
   const order = new Function(body + "; return PANEL_ORDER;")();
   const at = (t) => order.findIndex((x) => x && x.t === t);
-  check("Global Safety Net rows are under Biodiversity loss (its layers each a row since 24 September)", order.indexOf("gsn_rankings") > at("Biodiversity loss") && order.indexOf("gsn_rankings") < at("Mining") && /"gsn",\s+\/\/ its layers are rows of their own/.test(src));
-  check("a GSN tile template is not doubled", /\/\\\{z\\\}\/\.test\(u\) \? u :/.test(src));
+  check("the map's own rows in place of Global Safety Net's are under Biodiversity loss (round 90b)", order.indexOf("wdpa_strict") > at("Biodiversity loss") && order.indexOf("own_wilderness") < at("Mining"));
   check("My Maps rows take their maps' titles before opening", /function mymapsTitles\(/.test(src) && /map\.on\("load", \(\) => setTimeout\(mymapsTitles, 50\)\)/.test(src));
 }
 
@@ -3910,8 +3925,8 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
          ["Hydrological reserves \u2014 Equatorial Asia", "hydroreserve"], ["Forest reserves \u2014 Equatorial Asia", "forestreserve"],
          ["Ecosystem restoration concessions \u2014 Equatorial Asia", "ere"], ["Conservation landscapes \u2014 Equatorial Asia", "conslandscape"]].every(([t, id]) => f(t, id) === OUT) &&
         f("Protected areas \u2014 Equatorial Asia", "protectedarea") !== OUT);
-  check("Global Safety Net's layers are rows under Places that matter most for species", f("Rare species (Global Safety Net)", "12") === P + " > Biodiversity loss > Places that matter most for species" &&
-        /title: `\$\{l\.name\} \(Global Safety Net\)`/.test(src));
+  check("Global Safety Net's layers are gone (round 90b): the map's own stand in their place", !/\(Global Safety Net\)`/.test(src) &&
+        f("Terrestrial ecoregions", "ecoregions") === P + " > Biodiversity loss > Land Use and Ecoregions");
   check("the endemic bird areas have a heading of their own", /\{ h: 4, t: "Birds" \}/.test(src) && f("Endemic Bird Areas", "birdlife_endemic_bird_areas") === P + " > Biodiversity loss > Birds");
 }
 {
@@ -4931,7 +4946,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         f("Tree cover loss due to fires").endsWith(" | Destruction > Of the planet > Fire") && f("Planted area on peatland") === "Destruction > Of the planet > Peatland");
   check("under Loss year by year only GLAD and the global land area stay", f("Tree cover loss — Global land area", "umd_tree_cover_loss") !== lib.CATALOGUE_TAKEN_OUT &&
         f("Tree cover loss in Argentina", "arg_otbn_forest_loss") === lib.CATALOGUE_TAKEN_OUT);
-  check("Tree cover loss and alerts sits right under Forest cover (round 89b: with Forest zoning between)", at("Forest zoning and management plans") === at("Forest cover") + 1 && at("Tree cover loss and alerts") === at("Forest cover") + 3);
+  check("Tree cover loss and alerts sits right under Forest cover (round 89b: with Forest zoning between)", at("Forest zoning and management plans") === at("Forest cover") + 6 && at("Tree cover loss and alerts") === at("Forest cover") + 8);   // round 90b: five own rows under Forest cover
   const nw = new Function(src.match(/function notWorldwide\(t\) \{[\s\S]*?\n\}\n/)[0] + "; return notWorldwide;")();
   check("the rubber plantations are not called worldwide", nw("Rubber plantations 2025 \u2014 worldwide") === "Rubber plantations 2025" && nw("Oil palm \u2014 worldwide") === "Oil palm \u2014 worldwide");
   check("Trase's regions are edged in their own colours with a dot at their middle wider out", /id: `\$\{src\}-mid`, type: "circle"/.test(src) && /"line-color": \["coalesce", \["get", "_c"\]/.test(src));
@@ -5140,6 +5155,30 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         f("x", "sbtn_natural_lands_classification") === P + " > Deforestation > Forest cover | " + P + " > Biodiversity loss > Protected and conserved areas");
   check("the switches' label sits above them so each reads whole", /<span class="ks-l">Turn on every<\/span><span class="ks-row">/.test(src) && /\.kind-switch \.ks-l\{flex-basis:100%\}/.test(src));
   check("the page asks for this round's script", /app\.js\?v=(89|9\d)/.test(html));
+}
+
+console.log("\nround 90b: the Atlas's hotspots open no box; its numbers are easy to hit; its PDF keys in the layer menu; its cities stand out; Fields of The World and Potapov's cropland");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("a hotspot opens no box: its click lays the Atlas's map, and a second click inside the one open does nothing",
+        /if \(hit\.cfg\.pdfs\) return openAtlasHotspot\(hit\);/.test(src) && /if \(m && atlasOwner === hit\.cfg\.id && atlasInsets\.slug === m\[1\]\) return;/.test(src));
+  check("the hotspot's area and outer limit are one hotspot, not a list of two", /const k = h\.cfg\.id \+ "\|" \+ \(h\.props\.n \|\| ""\);/.test(src));
+  check("a number's click is its own: no list of places, and a click near a number is never the hotspot's",
+        /el\.addEventListener\("click", \(ev\) => \{ popupClaimedBy = ev; \}\);/.test(src) && /if \(nearAtlasNumber\(e\)\) return;/.test(src) && /min-width:26px;height:26px/.test(src));
+  const leg = JSON.parse(fs.readFileSync(path.join(HERE, "atlas", "legends.json"), "utf8"));
+  const hot = Object.values(leg.hotspots);
+  check("the keys printed on the PDFs were read, with their swatches", hot.length === 32 && hot.filter((h) => h.map).length >= 20 && hot.filter((h) => h.conflicts).length >= 20 &&
+        leg.swatches.every((u) => u.startsWith("data:image/png;base64,")) && hot.every((h) => Object.values(h).every((items) => items.every(([t, i]) => t && leg.swatches[i]))));
+  const html2 = new Function("escapeHtml", src.slice(src.indexOf("function atlasLegendHtml("), src.indexOf("async function atlasLegendShow(")) + "; return atlasLegendHtml;")((x) => String(x));
+  const one = Object.keys(leg.hotspots).find((k) => leg.hotspots[k].map && leg.hotspots[k].conflicts);
+  check("the menu shows the open hotspot's own keys, and before one is open the keys with its name as The hotspot",
+        /Key of the Atlas's conflicts map/.test(html2(leg, one)) && /The hotspot</.test(html2(leg, null)) && /atlasLegendShow\(owner, what\.plate\)/.test(src));
+  check("the Atlas's cities stand out: larger, lighter, edged, over a soft ring", /id: "atlas_cities"[\s\S]{0,200}standout: \{ fill: "#8FD6E8"/.test(src) && /if \(cfg\.standout\) \{\n    const pt = `\$\{cfg\.id\}-pt`, ring = `\$\{cfg\.id\}-ring`;/.test(src));
+  check("Fields of The World is read from its own archive; Potapov's cropland from the map's copy, both under Agriculture > Cropland",
+        /id: "ftw_fields"[^\n]*route: "pmvector"/.test(src) && /ftw-global-fields-2025\.pmtiles", sourceLayer: "fields"/.test(src) &&
+        /\{ h: 5, t: "Cropland" \}, "ftw_fields", "potapov_cropland",/.test(src) && /: cfg\.route === "pmvector" \? Promise\.resolve\(\)\.then\(\(\) => addPmVectorLayer\(cfg\)\)/.test(src));
+  check("the page asks for this round's script", /app\.js\?v=(9\d)/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

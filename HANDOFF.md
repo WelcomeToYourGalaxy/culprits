@@ -5,6 +5,45 @@ touches.
 
 ---
 
+## Round 90b (27 September)
+
+Needs round 89b (runs after it by name). Tiles patch round90b_tiles.py beside it.
+
+- Atlas hotspots: clicking a hotspot opens no box; it lays the Atlas's map at
+  once (openAtlasHotspot), and a click inside the hotspot already open does
+  nothing. The survey's area and outer limit of one hotspot are one hit, not a
+  "2 places here" list. The numbered cities are 26 px with a wider click ring;
+  their click claims the event (popupClaimedBy) and any click within 18 px of a
+  number is the number's (nearAtlasNumber).
+- The keys printed on the hotspot PDFs are under the Atlas row in the layer
+  menu: map/atlas/legends.json from pipeline/atlas_legends.py (page 1's key and
+  the conflicts page's key, swatches cut from the page). Where a PDF's key is
+  drawn as shapes, not text, another hotspot's key stands in with its name put
+  as "The hotspot".
+- Atlas cities: standout (larger, lighter, edged, soft ring). No city PDFs
+  exist; the city maps are pictures. tiles atlas_city_plates.py (METHOD 3)
+  reads each picture's printed scale bar (the earlier fits were mostly the
+  wrong size) and places it north up at that scale where 3+ names agree.
+- Global Safety Net deleted (gsn, gsn_rankings, addGsnLayer). In its place,
+  from the original data: WDPA strict (Ia/Ib), other (II-VI), no category,
+  and OECMs, drawn by UNEP-WCMC's own servers (wcmcExport, dynamicLayers) in
+  this map's colours; 14 land cover kinds from GLC_FCS30D 2022 (LAND_KINDS,
+  cog4326, small kinds grown wider out): the 4 forest kinds under
+  Deforestation > Forest cover, the rest under Biodiversity loss > Land Use and
+  Ecoregions (with the terrestrial ecoregions); own builds in the tiles repo:
+  own_mangroves (GMW v4.0.19, any-mangrove-under-the-pixel so it shows from
+  the world view), own_reforestation (Fesenmyer 2025), own_modification (HM v3
+  2022, 300 m), own_wilderness (Mu et al. footprint, wilderness = under 1),
+  own_critical_habitat (UNEP-WCMC v2.1). These say "not built yet" until the
+  tiles refresh runs them.
+- Not rebuildable from public data: mammal assemblages, climate stabilization
+  areas, the rare-species composite, documented conservation areas, the AIBES
+  composites, Gosling 2026 conservation priorities (site shapes unpublished).
+  LandMark (the ITTs' source) is already on the map under Invasion of humans.
+- Agriculture > Cropland: Fields of The World 2025 (route pmvector, read from
+  source.coop) and Potapov et al. cropland 3 km (tiles cropland_expansion.py).
+
+
 ## Round 89b (27 September)
 
 Needs round 88b (runs after it by name).
