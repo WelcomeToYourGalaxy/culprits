@@ -5,6 +5,19 @@ touches.
 
 ---
 
+## Round 92b (27 September)
+
+Needs round 91b (runs after it by name). No tiles patch.
+
+- glc_fcs30d (land cover in 35 kinds) under Biodiversity loss > Land Use and
+  Ecoregions; osm_landuse (land use plot by plot) under Buildings, after
+  building_types; sbtn_natural_forests_map under Deforestation > Forest cover.
+- Peatland is a sub-heading of Deforestation (after Mangroves); every
+  "> Peatland" path is now "> Deforestation > Peatland"; gfw_peatlands leads
+  it (CATALOGUE_FIRST). The Forest and land cover heading keeps only what the
+  catalogue files there.
+
+
 ## Round 91b (27 September)
 
 Needs round 90b (runs after it by name). Tiles patch round91b_tiles.py beside it.

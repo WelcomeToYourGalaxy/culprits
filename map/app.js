@@ -7121,7 +7121,7 @@ const CATALOGUE_PLACES = [
   [/air quality|aerosol|pm2/i, P + " > Pollution > Air pollution > General and all pollutants"],
   [/protect|conserv|reserve|restoration|biodivers|intact forest|primary forest|wdpa|ramsar|species|habitat|ecozone|ecosystem|\bkba\b/i,
    P + " > Biodiversity loss"],
-  [/peat/i, P + " > Peatland"],
+  [/peat/i, P + " > Deforestation > Peatland"],
   // Forest and land cover: the heading and its rows were taken out of the box
   // at the owner's request (22 September). A layer only this rule claims is
   // left out, and counted on the catalogue's own row.
@@ -7151,6 +7151,9 @@ const CATALOGUE_PLACES = [
 // titles each rule caught.
 const CATALOGUE_TAKEN_OUT = "(taken out)";
 const CATALOGUE_BY_TITLE = [
+  // Round 92b (asked 27 September): the natural forests map with the forest
+  // cover it describes, under Deforestation > Forest cover.
+  [/\bsbtn_natural_forests_map\b/, [P + " > Deforestation > Forest cover"]],
   // Round 91b (asked 27 September): Global Safety Net's tree layers under
   // Deforestation; its land cover layers, from Water Bodies to Inland Water,
   // and its ecoregions under Biodiversity loss > Land Use and Ecoregions; the
@@ -7171,7 +7174,7 @@ const CATALOGUE_BY_TITLE = [
   // Round 88b: back under Deforestation too (What drove the loss), at the owner's word.
   [/tree cover loss (due to|from|by) fires?|\bumd_tree_cover_loss_from_fires\b/i, [P + " > Deforestation > Tree cover loss and alerts > What drove the loss", P + " > Fire"]],
   // The planted area on peatland under Peatland.
-  [/planted area on peat/i, [P + " > Peatland"]],
+  [/planted area on peat/i, [P + " > Deforestation > Peatland"]],
   // The industrial timber plantations, 2024 and 2025, are one row now (nus_itp).
   [/\b(v3p\d_)?Global_PlantationITP_20\d\d\b/, null],
   // ---- 27 September (round 84b) -----------------------------------------
@@ -7367,7 +7370,7 @@ const CATALOGUE_BY_TITLE = [
   // pulpwood goes under Peatland; SBTN's Natural Lands Map (natural land as of
   // 2020) under Forest cover and Protected and conserved areas.
   [/\bCONCESSION_AREA\b/, null],
-  [/\bDEFORESTATION_ON_PEAT\b/, [P + " > Peatland"]],
+  [/\bDEFORESTATION_ON_PEAT\b/, [P + " > Deforestation > Peatland"]],
   [/\bsbtn_natural_lands(_classification)?\b/, [P + " > Deforestation > Forest cover", P + " > Biodiversity loss > Protected and conserved areas"]],
   // Round 85b: the drivers of tree cover loss are one layer with sublayers.
   [/\b(tsc_tree_cover_loss_drivers|wri_google_tree_cover_loss_drivers|tsc_drivers|umd_drivers)\b/, [IN(P + " > Deforestation > Tree cover loss and alerts > What drove the loss", "drivers")]],
@@ -7383,7 +7386,7 @@ const CATALOGUE_BY_TITLE = [
   [/\bgfw_emerging_hot_spots\b|\bgfw_places_to_watch\b/, [P + " > Deforestation > Tree cover loss and alerts > Where clearing is likely"]],
   [/\bbirdlife_alliance_for_zero_extinction_sites\b/, [P + " > Biodiversity loss > Places that matter most for species"]],
   [/\bwcs_forest_landscape_integrity_index\b/, [P + " > Biodiversity loss > Intact and primary forests"]],
-  [/\bicf_hnd_forest_type_2013\b|\bjrc_managed_land_(can|usa)\b|\brspo_southeast_asia_land_cover_2010\b|\bsbtn_natural_forests_map\b|\bumd_tree_cover_gain\b|\bumd_tree_cover_height_20\d\d\b/,
+  [/\bicf_hnd_forest_type_2013\b|\bjrc_managed_land_(can|usa)\b|\brspo_southeast_asia_land_cover_2010\b|\bumd_tree_cover_gain\b|\bumd_tree_cover_height_20\d\d\b/,
    [P + " > Forest and land cover"]],
   [/\bwri_cmr_agro_industrial_zones\b/, [AG + " > Plantations"]],
   [/\bwri_global_power_plant_database\b/, [P + " > Climate > Carbon dioxide"]],
@@ -7532,7 +7535,7 @@ function catalogueSub(path, words) {
 // (Trase files its peatland area under "Land cover"; item 26).
 function catalogueRefine(paths, words) {
   let out = paths.filter((x) => !(x === P + " > Forest and land cover" && /\bpeat/i.test(words)));
-  if (!out.length && paths.length) out = [P + " > Peatland"];
+  if (!out.length && paths.length) out = [P + " > Deforestation > Peatland"];
   // Under Intact and primary forests only two rows stay (24 September): the
   // biodiversity intactness of forested biomes and the forest landscape
   // integrity index, both worldwide.
@@ -7906,7 +7909,8 @@ const TRASE_PLAIN = {
 const LEFT_OUT = "(left out)";
 // Rows that lead the heading or layer they are filed in (round 85b: Curtis et
 // al.'s drivers first among the drivers' parts).
-const CATALOGUE_FIRST = new Set(["tsc_tree_cover_loss_drivers", "gfw_integrated_dist_alerts"]);
+// Round 92b: the worldwide peatland map leads the Peatland heading.
+const CATALOGUE_FIRST = new Set(["tsc_tree_cover_loss_drivers", "gfw_integrated_dist_alerts", "gfw_peatlands"]);
 function cataloguePlaces(words, title) {
   if (title != null) {
     // The title and, after it, the id (the id rules above end in $ or name it).
@@ -17703,13 +17707,17 @@ const PANEL_ORDER = [
   { h: 4, t: "Companies and financiers" }, "dff",
   // Round 90b: the map's own mangroves, drawn to show from the world view.
   { h: 4, t: "Mangroves" }, "own_mangroves",
+  // Round 92b (asked 27 September): Peatland a sub-heading of Deforestation,
+  // the worldwide peatland map first (CATALOGUE_FIRST).
+  { h: 4, t: "Peatland" },
   { h: 3, t: "Biodiversity loss" },
   // Round 91b: Global Safety Net's country rankings drawn as the map's own
   // shading, in place of its page in a box; its layers file in by title.
   { h: 4, t: "Places that matter most for species" }, "gsn_countries", "atlas_hotspots", "atlas_cities", "own_critical_habitat",
   // Round 90b/91b (asked 27 September): Global Safety Net's land cover layers
   // (Water Bodies to Inland Water) and the terrestrial ecoregions, filed by title.
-  { h: 4, t: "Land Use and Ecoregions" },
+  // Round 92b: the land cover in 35 kinds here too.
+  { h: 4, t: "Land Use and Ecoregions" }, "glc_fcs30d",
   { h: 4, t: "Birds" },
   { h: 4, t: "Protected and conserved areas" },
   { h: 4, t: "Intact and primary forests" },
@@ -17719,9 +17727,10 @@ const PANEL_ORDER = [
   { h: 4, t: "Soil biodiversity" }, "soil_spun", "soil_nematodes", "soilgrids",
   { h: 4, t: "Wildlife and timber crime" }, "powerbi_report",
   { h: 4, t: "Companies and financiers" }, "pe_subsidising", "pe_bankrolling", "pe_banks",
-  // Item 30: the most detailed worldwide land cover and land use found.
-  { h: 3, t: "Forest and land cover" }, "glc_fcs30d", "osm_landuse",
-  { h: 3, t: "Peatland" },
+  // Item 30: the most detailed worldwide land cover and land use found. Round
+  // 92b (asked 27 September): the land cover to Land Use and Ecoregions, the
+  // land use plot by plot to Buildings, Peatland into Deforestation.
+  { h: 3, t: "Forest and land cover" },
   // Item 23: the EC JRC's own surface water map, back and drawn from its tiles.
   { h: 3, t: "Surface water" }, "jrc_water",
   { h: 4, bundle: "waterwatch", colour: "#5E7377" },
@@ -17841,7 +17850,7 @@ const PANEL_ORDER = [
   // Base and reference (empty since 25 September) taken out; Buildings was
   // taken out with it (26 September, round 56) and put back at the owner's
   // asking (27 September, round 71), held at the foot of the box as before.
-  { h: 1, t: "Buildings" }, "building_types",
+  { h: 1, t: "Buildings" }, "building_types", "osm_landuse",
 ];
 const PANEL_REMOVED = new Set([
   // Round 75 (27 September): SkyTruth's Pennsylvania-only rows, at the owner's word.

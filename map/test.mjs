@@ -3629,7 +3629,7 @@ console.log("\nround of 23 September (23): the owner's thirty notes on the layer
         ["pangaea_global_mining", "gfw_mining_concessions", "IDN_Mining_2023", "concessionmining_spv"].every((id) => f("x", id) === `${P} > Mining > ${B.mines}`));
   check("15: the Equatorial Asia peatland and the two undrawable peatland datasets are out; Trase draws the latest year it has values for",
         ["base_peatland", "cifor_peatlands", "gfwpro_peatlands"].every((id) => f("Peatland", id) === "(taken out)") &&
-        f("Global peatland extent", "gfw_peatlands") === `${P} > Peatland`);
+        f("Global peatland extent", "gfw_peatlands") === `${P} > Deforestation > Peatland`);   // round 92b: under Deforestation
   const yearOf = new Function(src.match(/function traseYearWithValues[\s\S]*?\n}\n/)[0] + "; return traseYearWithValues;")();
   check("…a Trase year listed with no values falls back to the latest year with values, and a measure with none anywhere leaves the list",
         yearOf({ "2022": { a: null }, "2023": { a: 5 } }, 2024, true) === 2023 && yearOf({}, 2024, true) === null &&
@@ -3681,7 +3681,7 @@ console.log("\nround of 23 September (23): the owner's thirty notes on the layer
         /id: "glc_fcs30d"[^\n]*route: "rasterlive"/.test(src) && /cog4326:\/\/glc_fcs30d\/\$\{y\}\/\{z\}\/\{x\}\/\{y\}/.test(src) &&
         new Function(src.match(/const GLC_FCS30D_CLASSES = \[[\s\S]*?\n\];\n/)[0] + "; return GLC_FCS30D_CLASSES;")().length === 35 &&
         /id: "osm_landuse"[^\n]*route: "osmlanduse"/.test(src) && /"source-layer": "landuse"/.test(src) &&
-        order.indexOf("glc_fcs30d") > at("Forest and land cover") && order.indexOf("osm_landuse") > at("Forest and land cover") && order.indexOf("osm_landuse") < at("Peatland"));
+        order.indexOf("glc_fcs30d") > at("Land Use and Ecoregions") && order.indexOf("osm_landuse") > at("Buildings"));   // round 92b: moved
   check("…a square reads the coarsest level still as fine as the square",
         cog.cogLevel([1296000, 648000, 324000, 162000, 81000, 40500, 20250, 10125, 5063], 1296000, 360 / 1296000, 360 / 2 / 256) === 8 &&
         cog.cogLevel([1296000, 648000, 324000], 1296000, 360 / 1296000, 360 / 1296000 / 4) === 0 &&
@@ -3902,7 +3902,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("the JRC's managed land is out (24 September, round 40)",
         ["jrc_managed_land_can", "jrc_managed_land_usa"].every((id) => f("JRC Managed Land", id) === OUT) && !/\{ h: 5, bundle: "managed"/.test(src));
   check("trees in mosaic landscapes (under Deforestation since round 43) and natural forests worldwide stay", f("Trees in mosaic landscapes", "wri_trees_in_mosaic_landscapes") === P + " > Deforestation > Forest cover" &&
-        f("Natural forests", "sbtn_natural_forests_map") === P + " > Forest and land cover");
+        f("Natural forests", "sbtn_natural_forests_map") === P + " > Deforestation > Forest cover");   // round 92b
 }
 {
   console.log("\nround 38: biodiversity loss pared down; Global Safety Net's layers each a row");
@@ -4602,7 +4602,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("the map's organisations and its escapes are rows under Genetic engineering",
         /"gmo_ogtr", "gmo_industry", "gmo_escapes", "gmo_cultivation"/.test(src) && /id:"gmo_industry", sourceOf:"gmo_releases"/.test(src) && /id:"gmo_escapes", sourceOf:"gmo_releases"/.test(src) &&
         !/name:"[^"]*:[^"]*\(Genetic engineering map\)"/.test(src));
-  check("Buildings is back, last in the box", o.PANEL_ORDER[o.PANEL_ORDER.length - 1] === "building_types" && !o.PANEL_REMOVED.has("building_types"));
+  check("Buildings is back, last in the box", o.PANEL_ORDER[o.PANEL_ORDER.length - 2] === "building_types" && !o.PANEL_REMOVED.has("building_types"));
   check("the Satellite basemap's sea layers keep their own navies, not the mapped blues",
         /\|sat-relief-seabed\|sat-relief-sea\|holo-\.\*\|sat-relief-colour\|outline-\.\*\)\$\/;/.test(src));
   check("Hologram view is a round choice among the basemaps and clears the one it came from unless it is shown underneath",
@@ -4944,7 +4944,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   const f = (t, id = "") => lib.cataloguePlaces(`${t} ${id}`, `${t} ${id}`).join(" | ");
   check("…and the catalogue's two years are out", f("Industrial timber plantations 2024", "Global_PlantationITP_2024") === lib.CATALOGUE_TAKEN_OUT);
   check("tree cover loss from fires is under Fire (and since round 88b under What drove the loss too); the planted area on peatland under Peatland",
-        f("Tree cover loss due to fires").endsWith(" | Destruction > Of the planet > Fire") && f("Planted area on peatland") === "Destruction > Of the planet > Peatland");
+        f("Tree cover loss due to fires").endsWith(" | Destruction > Of the planet > Fire") && f("Planted area on peatland") === "Destruction > Of the planet > Deforestation > Peatland");
   check("under Loss year by year only GLAD and the global land area stay", f("Tree cover loss — Global land area", "umd_tree_cover_loss") !== lib.CATALOGUE_TAKEN_OUT &&
         f("Tree cover loss in Argentina", "arg_otbn_forest_loss") === lib.CATALOGUE_TAKEN_OUT);
   check("Tree cover loss and alerts sits right under Forest cover (round 89b: with Forest zoning between)", at("Forest zoning and management plans") === at("Forest cover") + 1 && at("Tree cover loss and alerts") === at("Forest cover") + 3);
@@ -5144,7 +5144,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   const d = at("Deforestation"), next = o.PANEL_ORDER.findIndex((x, i) => i > d && x && x.h === 3);
   const h4 = o.PANEL_ORDER.slice(d, next).filter((x) => x && x.h === 4).map((x) => x.t);
   check("Deforestation reads Forest cover, Forest zoning, Tree cover loss and alerts, The Culprits, Companies and financiers, Mangroves",
-        JSON.stringify(h4) === JSON.stringify(["Forest cover", "Forest zoning and management plans", "Tree cover loss and alerts", "The Culprits", "Companies and financiers", "Mangroves"]));
+        JSON.stringify(h4) === JSON.stringify(["Forest cover", "Forest zoning and management plans", "Tree cover loss and alerts", "The Culprits", "Companies and financiers", "Mangroves", "Peatland"]));   // round 92b: Peatland last
   const c = at("The Culprits");
   check("The Culprits holds the logging, plantation, timber crime and wood pulp headings",
         ["Logging and timber concessions", "Timber and rubber plantations", "Illegal logging and timber trafficking", "Wood pulp, Indonesia"].every((h) => { const i = at(h); return i > c && i < at("Companies and financiers") && o.PANEL_ORDER[i].h === 5; }));
@@ -5152,7 +5152,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         f("x", "idn_forest_area").endsWith("Forest zoning and management plans > Indonesia's land-use plans, state forest estate and ban on new clearing permits"));
   check("Trase's concession area is out, its peatland clearing for pulpwood under Peatland, the Natural Lands Map under Forest cover",
         f("Concession area (ha) \u2014 Indonesia (Trase)", "CONCESSION_AREA") === "(taken out)" &&
-        f("Peatland deforestation for planted pulpwood (ha) \u2014 Indonesia (Trase)", "DEFORESTATION_ON_PEAT") === P + " > Peatland" &&
+        f("Peatland deforestation for planted pulpwood (ha) \u2014 Indonesia (Trase)", "DEFORESTATION_ON_PEAT") === P + " > Deforestation > Peatland" &&
         f("x", "sbtn_natural_lands_classification") === P + " > Deforestation > Forest cover | " + P + " > Biodiversity loss > Protected and conserved areas");
   check("the switches' label sits above them so each reads whole", /<span class="ks-l">Turn on every<\/span><span class="ks-row">/.test(src) && /\.kind-switch \.ks-l\{flex-basis:100%\}/.test(src));
   check("the page asks for this round's script", /app\.js\?v=(89|9\d)/.test(html));
@@ -5191,6 +5191,16 @@ console.log("\nround 91b: Global Safety Net's layers back, titled plainly and fi
         !["wdpa_strict", "wdoecm", "lc_broadleaf", "lc_water", "own_modification", "own_wilderness", "own_reforestation"].some((i) => src.includes(`id: "${i}"`)) &&
         ["own_mangroves", "own_critical_habitat", "ftw_fields", "potapov_cropland"].every((i) => src.includes(`id: "${i}"`)) && !/LAND_KINDS|wcmcExport/.test(src));
   check("the page asks for this round's script", /app\.js\?v=(9[1-9])/.test(html));
+}
+
+console.log("\nround 92b: land cover in 35 kinds under Land Use and Ecoregions; land use plot by plot under Buildings; natural forests under Forest cover; Peatland inside Deforestation, the worldwide map first");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("the moves are in the order of the box", /\{ h: 4, t: "Land Use and Ecoregions" \}, "glc_fcs30d",/.test(src) && /\{ h: 1, t: "Buildings" \}, "building_types", "osm_landuse",/.test(src) &&
+        /\{ h: 4, t: "Mangroves" \}, "own_mangroves",[\s\S]{0,200}\{ h: 4, t: "Peatland" \},/.test(src) && !/\{ h: 3, t: "Peatland" \}/.test(src));
+  check("the worldwide peatland map leads its heading", /const CATALOGUE_FIRST = new Set\(\[[^\]]*"gfw_peatlands"\]\)/.test(src));
+  check("the page asks for this round's script", /app\.js\?v=(9[2-9])/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
