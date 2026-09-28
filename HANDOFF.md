@@ -5,6 +5,23 @@ touches.
 
 ---
 
+## Round 86b (27 September)
+
+Needs round 85b (runs after it by name).
+
+- Palette, at the owner's word ("barfy alien kid green, especially around the
+  borders of highlights"): teal (172) to cobalt (227), no green, saturation
+  0.5 to 0.85 (GLAD_LO/GLAD_SPAN/GLAD_SAT_*; national span 40; gladColour and
+  gladSpread less vivid). Every edge is a darker shade of its fill: GFW areas
+  (rim = gladHsl(hue, 0.78, 0.26), thinner), country outlines (darkerShade).
+- Ramps without green: AMOUNT_RAMP, HOT_RAMP/HOT_KEY, NO2_RAMP, POP_RAMP, the
+  glow palette, hillshade highlight. Hard-coded rows (plastics, forest
+  management classes, IBAMA, RAISG, Trase pulp, GOC, agri_linked classes,
+  military) moved into teal to blue, military told apart by hue and depth.
+- test.mjs checks no bright green is left in app.js.
+- tiles epa_density.py: its pictures rebuilt in teal to blue (PALETTE key).
+
+
 ## Round 85b (27 September)
 
 Needs round 84b (runs after it by name).

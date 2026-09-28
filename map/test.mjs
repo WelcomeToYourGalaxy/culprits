@@ -2625,7 +2625,7 @@ console.log("\nOff-planet sections, Of groups, names, launch links, drag bar, ma
   // Made finer on 22 September: no round blobs. The cores are circles a pixel
   // or two across (full resolution); the haze stays faint; a fixed grain.
   check("\u2026the cores are small specks, the haze faint and never brighter than rose, the dots soft-edged and unseen wider out",
-        /"circle-radius": z\(0, \["\*", 0\.8, lift\]/.test(src) && /hazeOpacity: 0\.3,/.test(src) && /1, "rgba\(40,255,190,0\.64\)"\]/.test(src) &&
+        /"circle-radius": z\(0, \["\*", 0\.8, lift\]/.test(src) && /hazeOpacity: 0\.3,/.test(src) && /1, "rgba\(120,215,235,0\.64\)"\]/.test(src) &&
         /paint\(layer\.id, "circle-blur", 1\)/.test(src) && /z\(GLOW\.fadeOut, 0, GLOW\.gone, 0\.9\)/.test(src));
   check("\u2026no grain over the map: its strength is 0 and it is never made (23 September)",
         /grain: 0,\s/.test(src) && /if \(!GLOW\.grain && !GLOW\.grainSatellite\) return;/.test(src));
@@ -2637,7 +2637,7 @@ console.log("\nOff-planet sections, Of groups, names, launch links, drag bar, ma
           JSON.stringify(G.glowWeight({ source: "s1" })).includes('["get","value"]') && JSON.stringify(G.glowWeight({ source: "s1" })).includes("5000") &&
           JSON.stringify(G.glowWeight({ source: "none" })).includes('["get","_count"]'));
     const colours = JSON.stringify(G.GLOW);
-    check("\u2026its colours run neon blue, cyan and pale mint (round 82b), with no orange or yellow", /#0B4F9C/.test(colours) && /#00A8E8/.test(colours) && /#C8FFF0/.test(colours) && !/#E7A63B/i.test(colours));
+    check("\u2026its colours run navy, blue and pale ice (round 85b), with no green, orange or yellow", /#0B4F9C/.test(colours) && /#00A8E8/.test(colours) && /#D6EEF6/.test(colours) && !/#C8FFF0|#2EE88A/.test(colours) && !/#E7A63B/i.test(colours));
     check("\u2026the archive's own largest amount is read for the weight", /glowMaxOf\.set\((src|glowKey), Number\(attr\.max\)\)/.test(src));
   }
   check("the zoom-8 note is gone", !/every layer shows summed totals/.test(src));
@@ -4046,7 +4046,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
     const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (!d) return -1;
     let h = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4); return (h + 360) % 360; };
   const out = ["#6A6258", "#8A4F46", "#6E5A55", "#5E7377", "#7C6F84", "#B07F86", "#62755F"].map((c, i) => G.gladColour(c, "row" + i));
-  check("every row colour lands between neon green and electric blue (round 82b), never yellow, orange or purple", out.every((c) => hue(c) >= 110 && hue(c) <= 225));
+  check("every row colour lands between teal and cobalt (round 85b), never green, yellow, orange or purple", out.every((c) => hue(c) >= 168 && hue(c) <= 230));
   check("rows that were the same grey come out different", new Set(["a", "b", "c", "d"].map((id) => G.gladColour("#6A6258", id))).size > 1);
   check("the recolour reaches every row and group child", /for \(const c of LAYERS\.concat\(\.\.\.GROUPS\.map\(\(g\) => g\.children \|\| \[\]\)\)\) \{/.test(src));
   const cut = (from, to) => src.slice(src.indexOf(from), src.indexOf(to));
@@ -4155,7 +4155,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   const spread = G.gladValue(rating, "ratings");
   const cols = [2, 4, 6, 8, 10].map((i) => spread[i]);
   check("a rating scale is spread from cyan to violet, in order, and over lightness", spread[0] === "step" &&
-        hue(cols[0]) < hue(cols[2]) && hue(cols[2]) < hue(cols[4]) && hue(cols[4]) - hue(cols[0]) > 90 &&
+        hue(cols[0]) < hue(cols[2]) && hue(cols[2]) < hue(cols[4]) && hue(cols[4]) - hue(cols[0]) > 45 &&
         Math.abs(light(cols[0]) - light(cols[4])) > 0.3);
   check("a key built from the same palette shows the same steps", G.gladCss("#FEE08B", "ratings") === cols[2] && G.gladCss("rgb(215,48,39)", "ratings") === cols[4]);
   const cases = G.gladValue(["case", ["has", "v"], ["step", ["get", "v"], "#aa0000", 1, "#00aa00", 2, "#0000aa"], "#8C877E"], "c2");
@@ -4322,8 +4322,8 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   G.GLAD_NATIONAL.add("nat");
   const steps = G.gladValue(["interpolate", ["linear"], ["get", "t"], 0, "#DCD7CC", 0.25, "#B8B0A2", 0.5, "#948B7D", 0.75, "#6F675B", 1, "#4A443C"], "nat");
   const cols = [4, 6, 8, 10, 12].map((i) => steps[i]);
-  check("a country layer's five steps run neon green to teal (round 82b), still told apart",
-        cols.every((c) => hue(c) >= 114 && hue(c) <= 171) && new Set(cols).size === 5 && ["#FF00FF", "#8A4F46", "#6A6258"].every((c) => hue(G.gladCss(c, "nat")) <= 171));
+  check("a country layer's five steps run teal to blue (round 85b), still told apart",
+        cols.every((c) => hue(c) >= 168 && hue(c) <= 215) && new Set(cols).size === 5 && ["#FF00FF", "#8A4F46", "#6A6258"].every((c) => { const h = hue(G.gladCss(c, "nat")); return h >= 168 && h <= 215; }));
   check("country rows are named for it when the rows are read", /\["giga", "country", "owidgrapher", "trase"(, "gta", "rte")?\]\.includes\(c\.route\)/.test(src));
   check("the hologram keeps its own blues: its layers are not remapped, and its fringe and ground are not purple",
         /\|holo-\.\*(\|[a-z.*-]+)*\)\$\/;/.test(src) && /--holo-fringe: #6fb0bd;/.test(html) && /--holo-bg:     #081729;/.test(html) && !/#8e86c8/.test(html));
@@ -4883,7 +4883,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
   const o = new Function(body + "; return { PANEL_ORDER };")();
   const at = (t) => o.PANEL_ORDER.findIndex((x) => x && x.t === t);
-  check("the map-wide colours run neon green to electric blue, vivid", /const GLAD_LO = 115, GLAD_SPAN = 105;/.test(src) && /const GLAD_SAT_LO = 0\.7, GLAD_SAT_HI = 0\.97;/.test(src));
+  check("the map-wide colours run teal to cobalt, a step less vivid (round 85b; were neon green to electric blue)", /const GLAD_LO = 172, GLAD_SPAN = 55;/.test(src) && /const GLAD_SAT_LO = 0\.5, GLAD_SAT_HI = 0\.85;/.test(src));
   check("the nitrogen dioxide row is back under its heading, read from the tiles Global Forest Watch serves",
         o.PANEL_ORDER[o.PANEL_ORDER.indexOf("no2_tropomi") - 1].t === "Nitrogen dioxide" && /tropomi_avg_nitrogen_dioxide_last_month\/latest\/default/.test(src));
   const N = new Function(src.slice(src.indexOf("const NO2_KEY = "), src.indexOf("const no2Relief = ")) + "; return { NO2_KEY };")();
@@ -4907,9 +4907,9 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /Congo Basin/.test(g.gfwTitle({ dataset: "osm_logging_roads", metadata: {} })) && /Sentinel-2/.test(g.gfwAbout("wri_trees_in_mosaic_landscapes")) &&
         !/gives this dataset no title/.test(g.gfwTitle({ dataset: "abc_def", metadata: {} })));
   check("two datasets of one title make one row, the one with tiles", /datasets repeat another's title and have no row/.test(src) && /const keep = g\.find\(drawable\) \|\| g\[0\];/.test(src));
-  check("the forest management classes each take their own colour, far apart", /classColours: \["#39FF14", "#00B3FF", "#C6FF00"/.test(src) && /GLAD_CLASS_PALETTE\.set\(cfg\.id, pal\)/.test(src));
+  check("the forest management classes each take their own colour, far apart", /classColours: \["#0A7E8C", "#00B4D8", "#5FD3C4"/.test(src) && /GLAD_CLASS_PALETTE\.set\(cfg\.id, pal\)/.test(src));
   check("the mangrove biomass is ringed wider out by the mangroves' outline", /jpl_mangrove_aboveground_biomass_stock_2000: \{ dataset: "gmw_global_mangrove_extent", until: 8/.test(src));
-  check("Global Forest Watch's areas and servers' white areas are drawn in neon", /const hue = gladSalt\(d\.id\), neon = gladHsl\(hue, 0\.95, 0\.5\)/.test(src) && /take a light neon of the row's own hue/.test(src));
+  check("Global Forest Watch's areas are drawn teal to blue with a darker edge (round 85b), servers' white areas in the row's hue", /const hue = gladSalt\(d\.id\), neon = gladHsl\(hue, 0\.72, 0\.46\), rim = gladHsl\(hue, 0\.78, 0\.26\)/.test(src) && /take a light neon of the row's own hue/.test(src));
   check("the page asks for this round's script", /app\.js\?v=(8[2-9]|9\d)/.test(html));
 }
 {
@@ -5010,6 +5010,18 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("environmental crime by country, three rows from the Global Organized Crime Index, first under Environmental crime",
         ["goc_flora", "goc_fauna", "goc_resources"].every((i, k) => o.PANEL_ORDER.indexOf(i) === at("Environmental crime") + 1 + k) &&
         /if \(!tf\.field\) return j;/.test(src));
+  check("no bright green is left anywhere in the map's own colours (round 85b: \"barfy alien\" green)", (() => {
+    for (const m of src.matchAll(/#([0-9A-Fa-f]{6})\b|rgba?\((\d+),\s*(\d+),\s*(\d+)/g)) {
+      const [r, g, b] = m[1] ? [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16)) : [m[2], m[3], m[4]].map(Number);
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 510, d = mx - mn;
+      if (!d || l <= 0.15 || l >= 0.93) continue;
+      const s = d / (255 * (1 - Math.abs(2 * l - 1)));
+      let h = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4);
+      h = (h + 360) % 360;
+      if (h >= 70 && h <= 165 && s > 0.45) return false;
+    }
+    return true;
+  })());
   check("the global burned areas are asked for only from zoom 5 in, where Global Forest Watch can answer",
         /const GFW_MIN_ZOOM = \{ umd_modis_burned_areas: 5 \};/.test(src) && /asset\.minzoom = Math\.max\(asset\.minzoom \|\| 0, least\);/.test(src));
   check("the page asks for this round's script", /app\.js\?v=(8[5-9]|9\d)/.test(html));

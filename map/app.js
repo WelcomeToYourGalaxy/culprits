@@ -584,12 +584,15 @@ const LAYERS = [
 // to the purple end, so the span now runs from neon green (115) through cyan
 // to electric blue (220), with no violet, and colours are held vivid
 // (saturation 0.7 to 0.97, was 0.45 to 0.81).
-const GLAD_LO = 115, GLAD_SPAN = 105;
-const GLAD_SAT_LO = 0.7, GLAD_SAT_HI = 0.97;
+// Round 85b (asked 27 September: the neon greens read as "barfy alien" green,
+// worst on the edges): teal (172) to cobalt (227), no green, held a step less
+// vivid (saturation 0.5 to 0.85), and every edge is a darker shade of its fill.
+const GLAD_LO = 172, GLAD_SPAN = 55;
+const GLAD_SAT_LO = 0.5, GLAD_SAT_HI = 0.85;
 // Country layers (national highlights) keep to cyan and blue, without the
 // violet and purple end (asked for 26 September, round 57). Their rows are
 // named in GLAD_NATIONAL when the rows are read.
-const GLAD_NATIONAL = new Set(), GLAD_NATIONAL_SPAN = 55;
+const GLAD_NATIONAL = new Set(), GLAD_NATIONAL_SPAN = 40;
 const gladSpan = (salt) => GLAD_NATIONAL.has(String(salt || "")) ? GLAD_NATIONAL_SPAN : GLAD_SPAN;
 const GLAD_OUT = new Set();               // colours this mapping has made: never mapped twice
 const PROTOCOL_HANDLERS = {};             // every tile protocol, so a picture can go through two
@@ -702,7 +705,7 @@ function gladSpread(v, idx, salt, ordered) {
     // the owner found neighbouring steps too alike to read.
     const l = ordered ? (darkening ? 0.88 - t * 0.53 : 0.35 + t * 0.53)
       : gladSpan(salt) < GLAD_SPAN ? [0.7, 0.5, 0.34][r % 3] : (r % 2 ? 0.44 : 0.66);
-    const out = gladHsl(GLAD_LO + t * gladSpan(salt), 0.95, l);
+    const out = gladHsl(GLAD_LO + t * gladSpan(salt), 0.75, l);
     GLAD_OUT.add(out);
     GLAD_SPREAD.set(`${salt}|${hx}`, out);
     return [hx, out];
@@ -799,7 +802,7 @@ function gladPixels(px, greyHue, classes) {
       // Near-white areas in a server's picture (round 82b: the concessions drew
       // bland white) take a light neon of the row's own hue.
       const mx = Math.max(px[i], px[i + 1], px[i + 2]), mn = Math.min(px[i], px[i + 1], px[i + 2]);
-      if ((mx + mn) / 510 > 0.88) { const h = gladHsl(greyHue, 0.95, 0.72); c = [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16)); }
+      if ((mx + mn) / 510 > 0.88) { const h = gladHsl(greyHue, 0.6, 0.66); c = [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16)); }
       else c = gladRgb(px[i], px[i + 1], px[i + 2], greyHue);
       seen.set(key, c);
     }
@@ -2148,12 +2151,12 @@ function hudSize(radius) {
 // dark satellite imagery and the painted atlas.
 const GLOW = {
   // Round 82b: neon greens and blues (was indigo through blue to cyan).
-  plum: "#0B4F9C", rose: "#00A8E8", bone: "#C8FFF0", red: "#1E7BFF", white: "#E4FFF8",
-  cyan: "#00E5D4", amber: "#2EE88A",
+  plum: "#0B4F9C", rose: "#00A8E8", bone: "#D6EEF6", red: "#1E7BFF", white: "#EAF4FA",
+  cyan: "#14B8C4", amber: "#1E9AB0",
   haze: ["interpolate", ["linear"], ["heatmap-density"],
-    0, "rgba(10,80,160,0)", 0.3, "rgba(0,120,220,0.16)", 0.7, "rgba(0,200,230,0.44)", 1, "rgba(40,255,190,0.64)"],
+    0, "rgba(10,80,160,0)", 0.3, "rgba(0,120,220,0.16)", 0.7, "rgba(0,200,230,0.44)", 1, "rgba(120,215,235,0.64)"],
   hazeOpacity: 0.3,                            // very faint: the soft spread only
-  core: (w) => ["interpolate", ["linear"], ["sqrt", w], 0, "#0B4F9C", 0.45, "#00A8E8", 0.8, "#00F0C8", 1, "#C8FFF0"],
+  core: (w) => ["interpolate", ["linear"], ["sqrt", w], 0, "#0B4F9C", 0.45, "#00A8E8", 0.8, "#1FB5C8", 1, "#D6EEF6"],
   grainSatellite: 0,                           // the grain over the Satellite basemap, where there is no glow
   grain: 0,                                    // no grain: it textured the whole map, not the dots (taken out 23 September)
   fadeOut: 9, gone: 12,                        // haze and cores: full to 9, gone by 12; the dots the other way
@@ -2173,9 +2176,9 @@ const GLOW_FULL = new Set(["skytruth_voc", "mine_features", "aquaculture_ponds",
 // spectrum instead: indigo where outlets (weighed by their nitrogen) are
 // sparse, through blue and cyan, to pale ivory where they are densest.
 const HOTSPOT = new Set(["wastewater_n_tot", "wastewater_n_treated", "wastewater_n_septic", "wastewater_n_open"]);
-const HOT_RAMP = [[0.02, "rgba(10,50,140,0.5)"], [0.2, "rgba(20,110,255,0.72)"], [0.45, "rgba(0,200,255,0.84)"],
-  [0.7, "rgba(0,255,200,0.9)"], [0.9, "rgba(120,255,120,0.95)"], [1, "rgba(230,255,220,1)"]];
-const HOT_KEY = [["#0A328C", "sparse"], ["#146EFF", "thin"], ["#00C8FF", "moderate"], ["#00FFC8", "crowded"], ["#78FF78", "very crowded"], ["#E6FFDC", "densest"]];
+const HOT_RAMP = [[0.02, "rgba(10,50,140,0.5)"], [0.2, "rgba(20,110,255,0.72)"], [0.45, "rgba(0,180,230,0.84)"],
+  [0.7, "rgba(20,170,165,0.9)"], [0.9, "rgba(150,220,235,0.95)"], [1, "rgba(235,248,255,1)"]];
+const HOT_KEY = [["#0A328C", "sparse"], ["#146EFF", "thin"], ["#00B4E6", "moderate"], ["#14AAA5", "crowded"], ["#96DCEB", "very crowded"], ["#EBF8FF", "densest"]];
 const HUD_SKIP = new Set();              // rows coloured by their own figures (round 81)
 const hotspotOf = (layer) => HOTSPOT.has(String(layer.source || "").replace(/-(src|pm)$/, "")) ||
   (/^points-bundle-/.test(String(layer.source || "")) && HOTSPOT.has(String(layer["source-layer"] || "")));
@@ -4008,6 +4011,13 @@ function arcgisBox(cfg, hit) {
 // site's own maps (places plus boxes), and drawn by the same code, so it gets the
 // same rows, filter chips, hover and boxes. Colours are the source's own, moved a
 // little toward the atlas's muted range.
+// A colour taken 45% toward black (round 85b: edges darker than their fill).
+function darkerShade(c) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(c || "").trim());
+  if (!m) return c;
+  const n = parseInt(m[1], 16);
+  return "#" + [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => Math.round(v * 0.55).toString(16).padStart(2, "0")).join("").toUpperCase();
+}
 function softColour(c, fallback) {
   const m = /^#?([0-9a-f]{6})$/i.exec(String(c || "").trim());
   if (!m) return c ? String(c) : fallback;
@@ -5947,7 +5957,7 @@ async function readGeojsonFiles(cfg) {
 // the place does give, at the rate the places giving both show between them
 // (Waste Atlas dumpsites: waste per person working informally there); an
 // estimated place is drawn as a ring and its box says how it was worked out.
-const AMOUNT_RAMP = ["#0A3C96", "#1466FF", "#00AEEF", "#00E5C3", "#4CFF8A", "#D4FFE4"];
+const AMOUNT_RAMP = ["#0B2E6B", "#1747B8", "#2F6BFF", "#1A9FD6", "#14A8A0", "#CFEFF2"];  // round 85b: navy to teal to ice, no green
 const AMOUNT_NONE = "#8A8F93";
 // A row coloured by the kind of place (round 81, the plastics rows): each kind
 // its own colour and chip, and the key lists them with how many of each.
@@ -8255,7 +8265,8 @@ async function addGfwMenuLayer(cfg) {
         map.addSource(src, { type: "vector", tiles: [uri], minzoom: asset.minzoom, maxzoom: asset.maxzoom });
         // Each dataset its own neon green or blue (round 82b: the concessions drew
         // as bland white edges round dull fills), its edge a lighter step of it.
-        const hue = gladSalt(d.id), neon = gladHsl(hue, 0.95, 0.5), rim = gladHsl(hue, 0.95, 0.68);
+        // Round 85b: the edge a darker shade of the fill, not a bright rim.
+        const hue = gladSalt(d.id), neon = gladHsl(hue, 0.72, 0.46), rim = gladHsl(hue, 0.78, 0.26);
         GLAD_OUT.add(neon); GLAD_OUT.add(rim);
         for (const n of (names.length ? names : [d.id, "default"])) {
           const base = { source: src, "source-layer": n };
@@ -8264,8 +8275,8 @@ async function addGfwMenuLayer(cfg) {
           // smaller than a pixel at the world view (mines, concessions) still show
           // as specks; it was a near-black edge on a dark map (22 September, round 3).
           map.addLayer({ id: `${src}-o-${safe(n)}`, type: "line", ...base, filter: ["==", ["geometry-type"], "Polygon"],
-            paint: { "line-color": rim, "line-opacity": ["interpolate", ["linear"], ["zoom"], 0, 0.95, 10, 0.75],
-                     "line-width": ["interpolate", ["linear"], ["zoom"], 0, 1.6, 6, 1.2, 12, 0.9] } });
+            paint: { "line-color": rim, "line-opacity": ["interpolate", ["linear"], ["zoom"], 0, 0.9, 10, 0.75],
+                     "line-width": ["interpolate", ["linear"], ["zoom"], 0, 1.1, 6, 0.9, 12, 0.7] } });
           ids.push(`${src}-o-${safe(n)}`);
           map.addLayer({ id: `${src}-l-${safe(n)}`, type: "line", ...base, filter: ["==", ["geometry-type"], "LineString"], paint: { "line-color": rim, "line-width": 1.4 } });
           map.addLayer({ id: `${src}-p-${safe(n)}`, type: "circle", ...base, filter: ["==", ["geometry-type"], "Point"], paint: { "circle-color": neon, "circle-radius": 3, "circle-stroke-width": 0.5, "circle-stroke-color": "#17150F" } });
@@ -8295,7 +8306,7 @@ async function addGfwMenuLayer(cfg) {
           if (ha && ha.how === "vector") {
             const hs = `${src}-halo`;
             map.addSource(hs, { type: "vector", tiles: [ha.uri], minzoom: ha.minzoom, maxzoom: ha.maxzoom });
-            const glow = gladHsl(gladSalt(d.id), 0.95, 0.62);
+            const glow = gladHsl(gladSalt(d.id), 0.7, 0.55);
             GLAD_OUT.add(glow);
             for (const n of [halo.dataset, "default"]) {
               const hid = `${hs}-${safe(n)}`;
@@ -10121,7 +10132,8 @@ function addColumnLayer() {
 // service has no tiles, each tile is made from its four children, keeping the
 // highest amount in each pixel so small hot spots still show from far out.
 const NO2_KEY = [[[0, 0, 3], 5], [[85, 15, 109], 10], [[186, 54, 85], 30], [[249, 140, 9], 100], [[252, 254, 164], 300]];
-const NO2_RAMP = [[5, [0, 70, 200, 0]], [10, [0, 120, 255, 150]], [30, [0, 210, 255, 195]], [100, [0, 255, 180, 225]], [300, [170, 255, 90, 245]]];
+// Round 85b: navy to blue to teal to ice, no green at the top.
+const NO2_RAMP = [[5, [11, 46, 107, 0]], [10, [23, 71, 184, 150]], [30, [26, 159, 214, 195]], [100, [20, 168, 160, 225]], [300, [207, 239, 242, 245]]];
 const NO2_HEIGHT = 150000;              // metres at 300 or more, before the zoom's own scaling
 const no2Cache = new Map();
 function no2Amount(r, g, b) {
@@ -10261,7 +10273,7 @@ function addReliefLayers(cfg, r, key, hint) {
   map.addSource(`${cfg.id}-dem`, { type: "raster-dem", tiles: [`relief://${cfg.id}/dem/{z}/{x}/{y}`], tileSize: 256, maxzoom: r.maxzoom, encoding: "mapbox" });
   map.addSource(`${cfg.id}-shade`, { type: "raster-dem", tiles: [`relief://${cfg.id}/dem/{z}/{x}/{y}`], tileSize: 256, maxzoom: r.maxzoom, encoding: "mapbox" });
   map.addLayer({ id: `${cfg.id}-hill`, type: "hillshade", source: `${cfg.id}-shade`, layout: { visibility: vis },
-    paint: { "hillshade-shadow-color": "#001a3a", "hillshade-highlight-color": "#b6fff0", "hillshade-accent-color": "#00c8ff",
+    paint: { "hillshade-shadow-color": "#001a3a", "hillshade-highlight-color": "#cfe8f4", "hillshade-accent-color": "#00c8ff",
              "hillshade-exaggeration": 0.6 } }, pointLayerAbove());
   map.addLayer({ id: `${cfg.id}-fill`, type: "raster", source: `${cfg.id}-col`, layout: { visibility: vis },
     paint: { "raster-opacity": 0.85, "raster-resampling": "linear" } }, pointLayerAbove());
@@ -10288,8 +10300,9 @@ function addNo2Relief(cfg) {
 // 6; each is read here, drawn in this map's colours and raised by density
 // (on a log scale: 50,000 or more stands highest). Until that copy is built,
 // Climate TRACE's flat picture of the same data is drawn as before.
-const POP_RAMP = [[1, [0, 60, 180, 0]], [10, [0, 110, 255, 120]], [100, [0, 200, 255, 180]], [1000, [0, 255, 190, 215]],
-  [10000, [150, 255, 110, 240]], [50000, [230, 255, 220, 250]]];
+// Round 85b: navy to blue to teal to ice, no green.
+const POP_RAMP = [[1, [11, 46, 107, 0]], [10, [23, 71, 184, 120]], [100, [26, 159, 214, 180]], [1000, [20, 168, 160, 215]],
+  [10000, [150, 220, 235, 240]], [50000, [235, 248, 255, 250]]];
 function rampColour(ramp, v) {
   if (!(v > ramp[0][0])) return [0, 0, 0, 0];
   for (let i = 1; i < ramp.length; i++) {
@@ -10812,7 +10825,8 @@ async function addCountryLayer(cfg) {
     type: "line",
     source: "boundaries",
     paint: {
-      "line-color": cfg.colour,
+      // Round 85b: the edge a darker shade of the row's colour, not a bright rim.
+      "line-color": darkerShade(cfg.colour),
       "line-width": 0.6,
       "line-opacity": ["case", ["==", ["feature-state", key], null], 0, 0.55],
     },
@@ -14832,7 +14846,7 @@ const OTHER_MAPS = {
     // Round 83b (asked 27 September): raised as relief by density, from GHSL's
     // own numbers (culprits-tiles-more scripts/ghsl_pop.py); Climate TRACE's flat
     // picture of the same data is drawn until that copy is built.
-    { id: "ct_pop", name: "Population density, 2020, 1 km, raised by how many people live there (GHSL)", unit: "people per square km", colour: "#00E5C3", route: "poprelief", ready: true, lazy: true,
+    { id: "ct_pop", name: "Population density, 2020, 1 km, raised by how many people live there (GHSL)", unit: "people per square km", colour: "#00A5B8", route: "poprelief", ready: true, lazy: true,
       archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ghsl_pop.pmtiles",
       attribution: "GHS-POP R2023A, European Commission JRC (CC BY 4.0); Climate TRACE", maxzoom: 12,
       choices: [{ label: "Population", tiles: "https://tiles.climatetrace.org/ghsl-pop-1km/all/{z}/{x}/{y}.png" }],
@@ -14890,7 +14904,7 @@ const OTHER_MAPS = {
     { id: "forest_management", name: "Forest management types worldwide, 2020: untouched, logged or regrowing, planted, plantations, tree crops (VITO, IIASA and WRI)", unit: "kinds of forest", colour: "#8C5A68", route: "rasterparts", ready: true, lazy: true,
       archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/forest_management.pmtiles",
       // Round 82b: nine colours far apart in hue and depth, in the owner's neon greens and blues.
-      classColours: ["#39FF14", "#00B3FF", "#C6FF00", "#00FFC8", "#1F4BFF", "#7DF9FF", "#0FA95B", "#E6FFF5", "#0A6BA8"],
+      classColours: ["#0A7E8C", "#00B4D8", "#5FD3C4", "#2F6BFF", "#0B4F9C", "#9FE0F0", "#14A8A0", "#E6F4FA", "#3A4FD9"],
       attribution: "Global Forest Management Type Map 2020 (De Keersmaecker et al., VITO, IIASA, WRI), CC BY 4.0",
       note: "Every forest on Earth at 100 m in 2020, by how it is managed, in the record's own classes: unmanaged natural forests (primary among them); naturally regenerated forests with visible human activity (where logging shows); planted forest; plantation forest; rubber; oil palm; tree crops; agroforestry; other trees. A copy made once from the Zenodo record (10.5281/zenodo.20396072)." },
     { id: "dff", name: "Deforestation Free Funds", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
@@ -15031,27 +15045,27 @@ const OTHER_MAPS = {
     // every record kept and labelled with its source, none merged.
     { id: "plastics_plants", name: "Plants making plastic and its building blocks, worldwide (built from EPA, the EU register, Climate TRACE, OpenStreetMap and Wikidata)", unit: "plants", colour: "#5E6070", route: "geojsonlive", ready: true, lazy: true, fixedName: true,
       files: [{ label: "Plastics plants", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/plastics/plants.geojson" }],
-      groupColours: { "Plastic resin and polymer plants": "#00AEEF", "Ethylene and propylene crackers (the building blocks of plastic)": "#39FF14",
+      groupColours: { "Plastic resin and polymer plants": "#00AEEF", "Ethylene and propylene crackers (the building blocks of plastic)": "#14A8A0",
         "Plastic goods factories": "#7DF9FF" }, groupHint: "Coloured by what the plant makes",
       attribution: "US EPA TRI; European Environment Agency (E-PRTR); Climate TRACE (CC BY 4.0); © OpenStreetMap contributors (ODbL); Wikidata (CC0)",
       note: "No open worldwide register of plastics plants exists (the industry's own, such as Polyglobe, are sold by subscription), so this row is built from every public source that gives plant locations: the US Toxics Release Inventory (every facility whose main activity is plastics material and resin manufacturing, with the chemicals it reports and its releases), the EU's industrial emissions register (every installation making basic plastic materials), Climate TRACE's ethylene and propylene crackers worldwide (the building blocks of polyethylene, polypropylene and PVC, with capacity and emissions), and places OpenStreetMap and Wikidata record as making plastic, polymers or resin. Each record says which source it is from; the same plant can appear once from each source. Registers cover the countries that keep them, so the United States and Europe are the most complete." },
     { id: "vinyl_chloride_plants", name: "Plants making or releasing vinyl chloride, the gas PVC is made from (built from EPA, the EU register, OpenStreetMap and Wikidata)", unit: "plants", colour: "#5E6070", route: "geojsonlive", ready: true, lazy: true, fixedName: true,
       files: [{ label: "Vinyl chloride", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/plastics/vinyl_chloride.geojson" }],
-      groupColours: { "Reporting vinyl chloride releases, United States": "#1466FF", "Reporting vinyl chloride releases, Europe": "#00E5C3",
-        "Vinyl chloride and PVC plants in open maps": "#B6FF3B" }, groupHint: "Coloured by where the record comes from",
+      groupColours: { "Reporting vinyl chloride releases, United States": "#1466FF", "Reporting vinyl chloride releases, Europe": "#00A5B8",
+        "Vinyl chloride and PVC plants in open maps": "#9FE0F0" }, groupHint: "Coloured by where the record comes from",
       attribution: "US EPA TRI; European Environment Agency (E-PRTR); © OpenStreetMap contributors (ODbL); Wikidata (CC0)",
       note: "Every facility the US Toxics Release Inventory and the EU's industrial emissions register list as releasing vinyl chloride, with the amount they report for the latest year, and the places OpenStreetMap and Wikidata record as making vinyl chloride or PVC. Built by culprits-tiles-more (scripts/plastics.py); each record says which source it is from." },
     // Round 84b (asked 27 September): environmental crimes punished by
     // governments, from their own registers (culprits-tiles-more
     // scripts/env_enforcement.py); Brazil's IBAMA first, others as their
     // registers are read.
-    { id: "ibama_embargos", name: "Areas shut down for environmental crimes, Brazil, every embargo (IBAMA)", unit: "embargoes", colour: "#00E5C3", route: "pmtiles", ready: true, lazy: true,
+    { id: "ibama_embargos", name: "Areas shut down for environmental crimes, Brazil, every embargo (IBAMA)", unit: "embargoes", colour: "#00A5B8", route: "pmtiles", ready: true, lazy: true,
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ibama_embargos.pmtiles", boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/enforcement/ibama_embargos", boxesGz: true,
       note: "Every embargo Brazil's environment agency IBAMA has recorded: an area it has ordered shut down because of an environmental offence there, such as illegal clearing, burning, mining or fishing. Each at the coordinates IBAMA gives for it, with every field of the record. From IBAMA's open data, copied weekly (open licence)." },
     { id: "ibama_infractions", name: "Environmental crime notices issued, Brazil, every infraction notice (IBAMA)", unit: "notices", colour: "#1E90FF", route: "pmtiles", ready: true, lazy: true,
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ibama_infractions.pmtiles", boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/enforcement/ibama_infractions", boxesGz: true,
       note: "Every infraction notice (auto de infração) IBAMA has issued for an environmental offence and gives coordinates for: the offence, the law broken, the fine, the date. From IBAMA's open data, copied weekly (open licence)." },
-    { id: "raisg_illegal_mining", name: "Illegal mining across the Amazon, its sites, areas and rivers (RAISG)", unit: "places", colour: "#39FF88", route: "geojsonlive", ready: true, lazy: true, fixedName: true,
+    { id: "raisg_illegal_mining", name: "Illegal mining across the Amazon, its sites, areas and rivers (RAISG)", unit: "places", colour: "#5FD3C4", route: "geojsonlive", ready: true, lazy: true, fixedName: true,
       files: [{ label: "Illegal mining", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/raisg/illegal_mining.geojson" }],
       waiting: "waiting for RAISG's file: it is given only to registered users, so it is downloaded by hand from raisg.org and uploaded to culprits-tiles-more's raisg folder",
       note: "RAISG's map of illegal mining in the Amazon's nine countries: the mining sites, the areas mined and the rivers dredged, each with RAISG's own fields and sources. From RAISG's file, which it gives to registered users (culprits-tiles-more scripts/raisg.py)." },
@@ -15060,7 +15074,7 @@ const OTHER_MAPS = {
     // nearest is the Global Organized Crime Index, which scores every UN member
     // state on three environmental crimes from 1 (little or none) to 10 (the
     // most pervasive). One row per crime (culprits-tiles-more goc_index.py).
-    { id: "goc_flora", name: "Crimes against wild plants and timber, by country, scored 1 to 10 (Global Organized Crime Index)", unit: "score, 1 to 10", colour: "#00E5C3", keepColour: true, route: "country", ready: true, lazy: true,
+    { id: "goc_flora", name: "Crimes against wild plants and timber, by country, scored 1 to 10 (Global Organized Crime Index)", unit: "score, 1 to 10", colour: "#00A5B8", keepColour: true, route: "country", ready: true, lazy: true,
       totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/goc/countries.json", field: "flora" },
       countryNote: "The Global Initiative Against Transnational Organized Crime's score for flora crimes: illegal logging and the illicit trade in protected plants",
       note: "How pervasive and how harmful organized crime in wild plants is in each of the 193 UN member states: illegal logging, timber laundering and the trade in protected plants, scored 1 (little or none) to 10 (the most) by the Global Initiative's experts from its research. Every year the Index gives is in the box. Copied weekly from its downloadable data." },
@@ -15068,7 +15082,7 @@ const OTHER_MAPS = {
       totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/goc/countries.json", field: "fauna" },
       countryNote: "The Global Initiative Against Transnational Organized Crime's score for fauna crimes: poaching, wildlife trafficking and illegal fishing",
       note: "How pervasive and how harmful organized crime in wild animals is in each UN member state: poaching, the trafficking of live animals and their parts, and illegal, unreported and unregulated fishing, scored 1 to 10. Copied weekly from the Index's downloadable data." },
-    { id: "goc_resources", name: "Crimes in oil, gas, minerals and metals, by country, scored 1 to 10 (Global Organized Crime Index)", unit: "score, 1 to 10", colour: "#39FF14", keepColour: true, route: "country", ready: true, lazy: true,
+    { id: "goc_resources", name: "Crimes in oil, gas, minerals and metals, by country, scored 1 to 10 (Global Organized Crime Index)", unit: "score, 1 to 10", colour: "#14A8A0", keepColour: true, route: "country", ready: true, lazy: true,
       totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/goc/countries.json", field: "resources" },
       countryNote: "The Global Initiative Against Transnational Organized Crime's score for non-renewable resource crimes: illegal mining and the theft and smuggling of oil, gas, gold and other minerals",
       note: "How pervasive and how harmful organized crime in non-renewable resources is in each UN member state: illegal mining, fuel theft and smuggling, and the laundering of gold and other minerals, scored 1 to 10. Copied weekly from the Index's downloadable data." },
@@ -15077,12 +15091,12 @@ const OTHER_MAPS = {
     // white. The map's own copy (culprits-tiles-more agri_linked.py) colours
     // each district by the crop or animal linked to most of its clearing, the
     // share of the district cleared for it shown by how strong the colour is.
-    { id: "agri_linked", name: "Forest cleared for seven crops and animals, 2001 to 2015, district by district, by the one linked to most of it (WRI, Goldman et al. 2020)", unit: "districts", colour: "#39FF14", keepColour: true, route: "pmtareas", ready: true, lazy: true,
+    { id: "agri_linked", name: "Forest cleared for seven crops and animals, 2001 to 2015, district by district, by the one linked to most of it (WRI, Goldman et al. 2020)", unit: "districts", colour: "#14A8A0", keepColour: true, route: "pmtareas", ready: true, lazy: true,
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/agri_linked.pmtiles", keyUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/agri_linked/key.json",
       boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/agri_linked/pieces", boxesGz: true, sourceLayer: "agri_linked",
       classBy: { field: "main", strength: "share", colours: {
-        "Cattle": "#FF1744", "Oil palm": "#39FF14", "Soy": "#8C6CFF", "Cocoa": "#D500F9", "Coffee": "#FF4FD8",
-        "Rubber": "#00E5FF", "Wood fiber": "#2979FF" },
+        "Cattle": "#E8F4FF", "Oil palm": "#0A7E8C", "Soy": "#7FA6FF", "Cocoa": "#3A4FD9", "Coffee": "#00B4D8",
+        "Rubber": "#5FD3C4", "Wood fiber": "#0B4F9C" },
         hint: "Each district coloured by the crop or animal linked to most of its forest clearing; the stronger the colour, the more of the district was cleared for it" },
       note: "Tree cover loss from 2001 to 2015 that the World Resources Institute links to cattle, oil palm, soy, cocoa, coffee, rubber and wood fibre, for every district (second-level administrative area) in the world, year by year (Goldman, Weisse, Harris and Schneider 2020, CC BY 4.0). Each district is coloured by the one linked to most of its clearing; its box gives every year for all seven. Rebuilt from Global Forest Watch's download by culprits-tiles-more." },
     { id: "gw_defenders", name: "Land and environmental defenders killed or disappeared since 2012, by country (Global Witness)", unit: "defenders killed or disappeared", colour: "#00B3FF", route: "country", ready: true, lazy: true,
@@ -15344,12 +15358,12 @@ const TRASE_DATA = {
         note: "Trase's Indonesian wood pulp mills. Read live from Trase's own files each time the row is ticked (CC BY 4.0)." },
       // Round 83b (asked 27 September): the three periods are one row, each a
       // chip of its filter, in its own colour.
-      { id: "trase_pulp_concessions", name: "Wood pulp concessions, Indonesia, 2015 to 2024 (Trase)", unit: "concessions", colour: "#00C8A0", route: "trasefac", ready: true, lazy: true,
+      { id: "trase_pulp_concessions", name: "Wood pulp concessions, Indonesia, 2015 to 2024 (Trase)", unit: "concessions", colour: "#0A8FA0", route: "trasefac", ready: true, lazy: true,
         manifest: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/facilities.json",
         periods: [
           { label: "2015 to 2019", facilityType: "indonesia-wood-pulp-concessions-2015-2019", file: "indonesia_wood_pulp_concessions_2015_2019_v2026_02_20.geo.json", colour: "#1466FF" },
           { label: "2020 to 2022", facilityType: "indonesia-wood-pulp-concessions-2020-2022", file: "indonesia_wood_pulp_concessions_2020_2022_v2026_02_20.geo.json", colour: "#00C8FF" },
-          { label: "2023 to 2024", facilityType: "indonesia-wood-pulp-concessions-2023-2024", file: "indonesia_wood_pulp_concessions_2023_2024_v2026_02_20.geo.json", colour: "#39FF88" },
+          { label: "2023 to 2024", facilityType: "indonesia-wood-pulp-concessions-2023-2024", file: "indonesia_wood_pulp_concessions_2023_2024_v2026_02_20.geo.json", colour: "#5FD3C4" },
         ],
         attribution: "Trase (CC BY 4.0)",
         note: "The areas Trase records as wood pulp concessions in Indonesia, for each of its three periods (2015 to 2019, 2020 to 2022, 2023 to 2024); pick the periods in the row's filter. Read from Trase's own files, or the weekly copy where its server does not let other sites read them (CC BY 4.0)." },
@@ -15371,35 +15385,35 @@ const MILITARY = {
     // built from GDELT's own event files (culprits-tiles-more military.py).
     // Round 85b (asked 27 September: the points of these rows were too close in
     // colour to tell apart): each row its own colour, kept out of the map's
-    // green-to-blue rotation (keepColour), far apart on the colour wheel and
-    // none of them orange or yellow.
-    { id: "mil_news", name: "News of fighting in the last seven days, placed where GDELT codes the action (GDELT events)", unit: "places", colour: "#D500F9", keepColour: true, route: "gdeltarchive", ready: true, lazy: true,
+    // rotation (keepColour), within teal to blue as the owner chose (no green,
+    // orange or yellow), told apart by hue and by depth, from white to navy.
+    { id: "mil_news", name: "News of fighting in the last seven days, placed where GDELT codes the action (GDELT events)", unit: "places", colour: "#00B4D8", keepColour: true, route: "gdeltarchive", ready: true, lazy: true,
       copyUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/news.geojson",
       note: "The events GDELT codes as fighting - assault, fight, unconventional mass violence - from the news in every language it reads, over the last seven days, each at the place it gives for the action with the articles it was coded from. Copied daily by culprits-tiles-more from GDELT's 15-minute event files; GDELT's GEO API, which this row read before, no longer answers." },
-    { id: "mil_conflicts", name: "Armed conflict events since 1989, each with at least one death (UCDP)", unit: "events", colour: "#FF1744", keepColour: true, route: "pmtiles", ready: true, lazy: true,
+    { id: "mil_conflicts", name: "Armed conflict events since 1989, each with at least one death (UCDP)", unit: "events", colour: "#FFFFFF", keepColour: true, route: "pmtiles", ready: true, lazy: true,
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/mil_conflicts.pmtiles", boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/ucdp", boxesGz: true,
       facet: { property: "x_kind", label: "kind", values: ["state-based conflict", "non-state conflict", "one-sided violence against civilians"] },
       note: "The Uppsala Conflict Data Program's Georeferenced Event Dataset (CC BY 4.0), every event in its latest global release with the monthly candidate events of this year added: fighting between states and armed groups, between armed groups, and armed groups or states killing civilians. Dots are sized by UCDP's best estimate of deaths. Every field UCDP gives is in the box. Copied daily." },
-    { id: "mil_attacks", name: "Terrorist attacks recorded in Wikidata, by decade", unit: "attacks", colour: "#FF4FD8", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
+    { id: "mil_attacks", name: "Terrorist attacks recorded in Wikidata, by decade", unit: "attacks", colour: "#9FE8FF", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Attacks", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/attacks.geojson" }],
       note: "Every attack Wikidata files as a terrorist attack and places, with its date, deaths, injured and perpetrator where recorded. Wikidata is edited by anyone and is far from complete; the Global Terrorism Database forbids republishing its records, so it is not used. Attacks on civilians by armed groups are also in the conflict events row, under one-sided violence. Copied daily." },
-    { id: "mil_aircraft", name: "Military aircraft in the air now (ADS-B, adsb.lol)", unit: "aircraft", colour: "#FFFFFF", keepColour: true, route: "adsbmil", ready: true, lazy: true,
+    { id: "mil_aircraft", name: "Military aircraft in the air now (ADS-B, adsb.lol)", unit: "aircraft", colour: "#CFE0FF", keepColour: true, route: "adsbmil", ready: true, lazy: true,
       note: "Aircraft whose transponder address is registered as military, as volunteer ADS-B receivers hear them, read live from adsb.lol's open API (ODbL) and read again every minute while ticked. Many military flights switch their transponders off or are not heard, so this is what is visible, not all there is." },
     // Round 78: the news kept past seven days; OpenStreetMap's military places;
     // the US Department of Defense's own register of its installations.
-    { id: "mil_news_archive", name: "News of fighting, every day since the map began keeping it, by month (GDELT)", unit: "places named", colour: "#D500F9", keepColour: true, route: "gdeltarchive", ready: true, lazy: true,
+    { id: "mil_news_archive", name: "News of fighting, every day since the map began keeping it, by month (GDELT)", unit: "places named", colour: "#00B4D8", keepColour: true, route: "gdeltarchive", ready: true, lazy: true,
       archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/news",
       note: "Each day the seven days of news about fighting that GDELT places on the map are kept, a month to a file, with every article link seen for each place; a copy renewed daily by culprits-tiles-more. Months are chips of the row." },
     // Round 79: nuclear weapons storage as the Nuclear Notebook states it;
     // Russia's storage sites on their own map (its licence allows no copies);
     // the US Navy at sea as USNI News words it each week.
-    { id: "mil_nuclear_storage", name: "Nuclear weapons storage sites, as the Nuclear Notebook states them (FAS, Bulletin of the Atomic Scientists)", unit: "sites", colour: "#39FF14", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
+    { id: "mil_nuclear_storage", name: "Nuclear weapons storage sites, as the Nuclear Notebook states them (FAS, Bulletin of the Atomic Scientists)", unit: "sites", colour: "#0A7E8C", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Nuclear Notebook", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/nuclear_sites.geojson" }],
       note: "The US bombs in Europe (Aviano, Ghedi, Incirlik, Kleine Brogel, Volkel, Büchel), RAF Lakenheath (status uncertain), the depot near Asipovichy in Belarus, and the US storage locations the Notebook names, each with the Notebook's own words and estimate. Positions as the Notebook or FAS state them, otherwise Wikidata's, said in each box. Copied daily by culprits-tiles-more." },
     { id: "mil_russia_storage", name: "Russia's nuclear weapons storage sites: 12 national-level and about 35 base-level (Russian Strategic Nuclear Forces)", unit: "opens the map itself in a panel", colour: "#6A5E5A", route: "companion", ready: true, lazy: true,
       page: "https://russianforces.org/maps/Russia-12thGUMO.html",
       note: "Pavel Podvig's map of the 12th Main Directorate's storage facilities, shown whole in the panel along the bottom: its licence (CC BY-NC-ND 4.0) does not allow its points to be copied onto this map. Hover a dot for the facility's name." },
-    { id: "mil_usni_fleet", name: "US Navy ships at sea, week by week (USNI News Fleet and Marine Tracker)", unit: "areas named", colour: "#2979FF", keepColour: true, route: "usnifleet", ready: true, lazy: true,
+    { id: "mil_usni_fleet", name: "US Navy ships at sea, week by week (USNI News Fleet and Marine Tracker)", unit: "areas named", colour: "#2F6BFF", keepColour: true, route: "usnifleet", ready: true, lazy: true,
       archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/usni",
       note: "Each weekly Fleet and Marine Tracker, a mark to each sea, ocean or port it names, with its paragraphs quoted whole and linked; every week kept, each a chip. USNI gives no coordinates, so each mark is the middle of the area named. Copied daily by culprits-tiles-more." },
     // Round 80: missile ranges drawn by MISSILEMAP (Alex Wellerstein), whose
@@ -15408,13 +15422,13 @@ const MILITARY = {
       page: "https://nuclearsecrecy.com/missilemap/",
       pageAt: (c, z) => `https://nuclearsecrecy.com/missilemap/?mc=${c.lat.toFixed(4)},${c.lng.toFixed(4)}&s=${c.lat.toFixed(4)},${c.lng.toFixed(4)}&z=${Math.max(2, Math.min(8, Math.round(z + 1)))}`,
       note: "Alex Wellerstein's MISSILEMAP, opened where this map is looking with its launch site there: pick a missile by country and it draws the range, accuracy and blast. Its figures come mostly from the CSIS Missile Threat project, the rest from Wikipedia and experts. Embedded whole, as its author asks. Each nuclear storage site's box links it with that site as the launch point." },
-    { id: "mil_osm", name: "Military airfields, bases, naval bases, barracks, ranges and training areas, in use and no longer (OpenStreetMap)", unit: "places", colour: "#00E5FF", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
+    { id: "mil_osm", name: "Military airfields, bases, naval bases, barracks, ranges and training areas, in use and no longer (OpenStreetMap)", unit: "places", colour: "#1A9FD6", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "OpenStreetMap", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/osm_military.geojson" }],
       note: "Every place OpenStreetMap tags military=airfield, base, naval_base, barracks, range, training_area or nuclear_explosion_site (and was:/disused: ones), each at its middle, every tag kept; kinds are chips of the row. A copy renewed daily by culprits-tiles-more from Overpass. ODbL." },
-    { id: "mil_mirta", name: "US military installations, ranges and training areas (US Department of Defense, MIRTA)", unit: "installations", colour: "#1DE9B6", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
+    { id: "mil_mirta", name: "US military installations, ranges and training areas (US Department of Defense, MIRTA)", unit: "installations", colour: "#0B4F9C", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "MIRTA", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/mirta.geojson" }],
       note: "The Department of Defense's own register of its installations, ranges and training areas in the US and its territories, found on catalog.data.gov and copied daily by culprits-tiles-more; each outline drawn at its middle, every field kept. The dataset's date is in the copy." },
-    { id: "mil_sites", name: "Military bases, air bases, naval bases and installations, in use and closed (Wikidata)", unit: "installations", colour: "#8C6CFF", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
+    { id: "mil_sites", name: "Military bases, air bases, naval bases and installations, in use and closed (Wikidata)", unit: "installations", colour: "#3A4FD9", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
       // Round 85b (asked 27 September): Wikidata files fire lookout towers,
       // observation towers and belfries under fortifications, so they came in
       // with the military installations; they are left out here and in the
@@ -15426,13 +15440,13 @@ const MILITARY = {
       },
       files: [{ label: "Installations", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/sites.geojson" }],
       note: "Every military base, air base, naval base, airfield, barracks and other military installation Wikidata places, with the state that runs it, the country it is in, and when it opened and closed where recorded. Those run by another state than the one they stand in are marked. Copied daily." },
-    { id: "mil_units", name: "Military units at their headquarters, active and disbanded (Wikidata)", unit: "units", colour: "#82B1FF", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
+    { id: "mil_units", name: "Military units at their headquarters, active and disbanded (Wikidata)", unit: "units", colour: "#7FA6FF", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Units", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/units.geojson" }],
       note: "Every military unit in Wikidata with a headquarters it places: the headquarters, not where the unit is deployed. Copied daily." },
-    { id: "mil_test_sites", name: "Nuclear test sites (Wikidata)", unit: "sites", colour: "#B9F6CA", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
+    { id: "mil_test_sites", name: "Nuclear test sites (Wikidata)", unit: "sites", colour: "#5FD3C4", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Test sites", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/test_sites.geojson" }],
       note: "Nuclear weapons test sites in Wikidata, with who ran them and when they opened and closed where recorded. How many tests each state carried out, year by year, is in the country figures below. Copied daily." },
-    { id: "mil_minefields", name: "Minefields mapped in OpenStreetMap, marked and cleared", unit: "minefields", colour: "#FF8A80", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
+    { id: "mil_minefields", name: "Minefields mapped in OpenStreetMap, marked and cleared", unit: "minefields", colour: "#6C7CFF", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Minefields", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/minefields.geojson" }],
       note: "Areas OpenStreetMap's mappers tag as minefields, and those tagged as former minefields; each at the middle of the area mapped. Far from every minefield is mapped. Copied daily (© OpenStreetMap contributors, ODbL)." },
     { id: "mil_alliances", name: "Military alliances each state belongs to, now and in the past (Wikidata)", unit: "countries", colour: "#5E6A70", route: "shapes", ready: true, lazy: true,
@@ -15478,14 +15492,14 @@ function gladColour(c, id, span) {
   let hash = 0;
   for (const ch of String(id || c)) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
   const t = sat < 0.22 ? (Math.imul(hash, 2654435761) >>> 0) / 4294967296 : hue / 360;
-  // Round 82b: neon green (115) to electric blue (220), vivid.
-  return gladHex(115 + t * (span || 105), 0.85 + ((hash >> 10) % 12) / 100, 0.5 + ((hash >> 16) % 14) / 100);
+  // Round 85b: teal to cobalt, a step less vivid (was neon green to electric blue).
+  return gladHex(172 + t * Math.min(span || 55, 55), 0.62 + ((hash >> 10) % 12) / 100, 0.44 + ((hash >> 16) % 12) / 100);
 }
 for (const c of LAYERS.concat(...GROUPS.map((g) => g.children || []))) {
   // Round 62: Global Trade Alert's countries, and the lines between countries
   // (trade flows, trafficking routes), keep to cyan and blue too.
   if (c && c.id && (["giga", "country", "owidgrapher", "trase", "gta", "rte"].includes(c.route) || c.routes || /\bcountr/i.test(String(c.unit || "")))) GLAD_NATIONAL.add(c.id);
-  if (c && c.colour && !c.keepColour) c.colour = gladColour(c.colour, c.id, GLAD_NATIONAL.has(c.id) ? GLAD_NATIONAL_SPAN : 105);
+  if (c && c.colour && !c.keepColour) c.colour = gladColour(c.colour, c.id, GLAD_NATIONAL.has(c.id) ? GLAD_NATIONAL_SPAN : GLAD_SPAN);
   if (c && typeof c.colour === "string") GLAD_OUT.add(c.colour.toUpperCase());
 }
 /* ---------- where a dot is: every point's box says how exact its position is ---------- */
@@ -17764,8 +17778,8 @@ function layerMenuHelp(box) {
   el.querySelector("[data-reset-rows]").addEventListener("click", () => resetRows(box));
   if (at && at.after) at.after(el); else if (box.parentElement) box.parentElement.insertBefore(el, box);
   addStyle(".layer-help{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 6px;font-size:10.5px;color:var(--dim)}" +
-    ".layer-help .chip{font:inherit;font-size:11px;padding:2px 8px;border-radius:10px;border:1px solid rgba(0,229,195,.45);background:none;color:var(--ink,#e8e2d6);cursor:pointer}" +
-    ".layer-help .lh-t{flex:1 1 200px}#layers .toc-line.drop-below{outline:1px dashed rgba(0,229,195,.8);outline-offset:2px}", "layer-help");
+    ".layer-help .chip{font:inherit;font-size:11px;padding:2px 8px;border-radius:10px;border:1px solid rgba(30,160,200,.45);background:none;color:var(--ink,#e8e2d6);cursor:pointer}" +
+    ".layer-help .lh-t{flex:1 1 200px}#layers .toc-line.drop-below{outline:1px dashed rgba(30,160,200,.8);outline-offset:2px}", "layer-help");
 }
 // Rows taken out by where they stand in the box (round 84b, asked 27
 // September: "delete all of the layers from the tree and plant cover loss as
