@@ -5,6 +5,27 @@ touches.
 
 ---
 
+## Round 89b (27 September)
+
+Needs round 88b (runs after it by name).
+
+- Plain-English titles. Catalogue rows show plainTitle(item): item.label (Trase:
+  TRASE_PLAIN by metric; Nusantara: CATALOGUE_PLAIN by layer name plus its
+  region) or CATALOGUE_PLAIN by id (Global Forest Watch); the source's own
+  title still files the row and is kept on it as data-orig (the cut reads it).
+  Confusing static row names and four bundle titles rewritten.
+- Deforestation reads: Forest cover; Forest zoning and management plans (the
+  Indonesian plans bundle inside it); Tree cover loss and alerts; The Culprits
+  (Logging and timber concessions, Timber and rubber plantations, Illegal
+  logging and timber trafficking, Wood pulp, Indonesia); Companies and
+  financiers; Mangroves.
+- Trase CONCESSION_AREA out (every value equals concession_area_ha in the
+  wood pulp concessions files, checked 2015 to 2024); DEFORESTATION_ON_PEAT
+  under Peatland; sbtn_natural_lands(_classification) under Forest cover and
+  Protected and conserved areas, with its explanation.
+- Kind switches: label above, the three chips on one line at full size.
+
+
 ## Round 88b (27 September)
 
 Needs round 87b (runs after it by name).

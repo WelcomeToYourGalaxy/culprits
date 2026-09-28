@@ -284,7 +284,7 @@ const LAYERS = [
     facet: { property: "x_status", label: "status",
              values: ["operating","construction","permitted","pre-permit","announced",
                       "shelved","mothballed","retired","cancelled"] } },
-  { id:"global_energy_monitor",name:"GEM's other trackers",     unit:"capacity",   colour:"#7A5548", route:"pmtiles", ready:false },
+  { id:"global_energy_monitor",name:"Coal, oil, gas and power projects tracked by Global Energy Monitor (its other trackers)",     unit:"capacity",   colour:"#7A5548", route:"pmtiles", ready:false },
   { id:"carbon_bombs",         name:"Carbon bombs",            unit:"Gt CO₂ lifetime", colour:"#6E4A44", route:"pmtiles", ready:true },
   { id:"power_plants",         name:"Power plants (WRI Global Power Plant Database)",            unit:"MW capacity", colour:"#7E5A4E", route:"pmtiles", ready:true, off: true,
     radiusScale: 0.55,
@@ -4638,7 +4638,7 @@ const TRASE_TITLES = {
 // countries or forms are one row, with menus for the measure, the country, the
 // level and the year.
 const TRASE_MERGE = [
-  { key: "cattle", name: "Cattle deforestation", metrics: ["CATTLE_DEFORESTATION_5_YEAR_TOTAL", "CATTLE_DEFORESTATION_PER_TN_5_YEAR_TOTAL", "CATTLE_DEFORESTATION_PER_TN_5_YEAR_ANNUAL"] },
+  { key: "cattle", name: "Cattle deforestation", plain: "Forest cleared for cattle", metrics: ["CATTLE_DEFORESTATION_5_YEAR_TOTAL", "CATTLE_DEFORESTATION_PER_TN_5_YEAR_TOTAL", "CATTLE_DEFORESTATION_PER_TN_5_YEAR_ANNUAL"] },
 ];
 function traseMerge(entries) {
   let out = entries.slice();
@@ -4648,6 +4648,7 @@ function traseMerge(entries) {
     const where = [...new Set(parts.flatMap((p) => Object.values(p.countries).map((c) => traseCountryName(c.name))))].sort().join(", ");
     const merged = { metric: `MERGED_${g.key}`, name: g.name, merged: parts, meta: parts[0].meta, countries: parts[0].countries,
       title: `${g.name}, by measure, country, level and year \u2014 ${where} (Trase)`, pick: null };
+    merged.label = `${g.plain || g.name}, by measure, country, level and year \u2014 ${where} (Trase)`;
     const at = out.indexOf(parts[0]);
     out = out.filter((e) => !parts.includes(e));
     out.splice(Math.min(at, out.length), 0, merged);
@@ -4659,7 +4660,8 @@ function traseMerge(entries) {
 function traseMeasureOptions(e) {
   const opts = new Map();
   for (const p of e.merged) {
-    const label = `${p.name}${p.meta.unit_abbreviation ? ` (${p.meta.unit_abbreviation})` : ""}`;
+    const shown = (typeof TRASE_PLAIN !== "undefined" && TRASE_PLAIN[p.metric]) || p.name;
+    const label = `${shown}${p.meta.unit_abbreviation ? ` (${p.meta.unit_abbreviation})` : ""}`;
     const o = opts.get(label) || { label, meta: p.meta, countries: {} };
     for (const [ck, cc] of Object.entries(p.countries)) o.countries[ck] = Object.assign({}, cc, { metric: p.metric });
     opts.set(label, o);
@@ -4713,6 +4715,8 @@ function traseMeasures(cat) {
     const where = Object.values(e.countries).map((c) => traseCountryName(c.name)).sort().join(", ");
     const unit = e.meta.unit_abbreviation ? ` (${e.meta.unit_abbreviation})` : "";
     e.title = `${e.name}${count[e.name] > 1 ? ` [${e.metric}]` : ""}${unit} \u2014 ${where} (Trase)`;
+    const plain = typeof TRASE_PLAIN !== "undefined" && TRASE_PLAIN[e.metric];
+    e.label = plain ? `${plain}${unit} \u2014 ${where} (Trase)` : e.title;
   }
   return list.sort((a, b) => a.title.localeCompare(b.title));
 }
@@ -5406,7 +5410,7 @@ async function addTraseLayer(cfg) {
     said();
   };
   const rows = entries.map((e) => ({
-    name: e.metric, title: e.title,
+    name: e.metric, title: e.title, label: e.label,
     // Filed by what Trase itself calls it: its name, its group and its commodity.
     fileBy: `${e.name} ${e.meta.metric_group || ""} ${e.meta.commodity || ""} ${e.metric.replace(/_/g, " ")} trase`,
     about: `${e.meta.metric_group || ""} ${e.meta.tooltip && e.meta.tooltip !== "." ? e.meta.tooltip : ""}`.trim(),
@@ -6923,10 +6927,10 @@ const AG = P + " > Meat and agriculture > Agriculture";
 // bundle: true, and a catalogue layer is put inside one by giving its path.
 const BUNDLES = {
   mines: "Mines and mining land, every source together",
-  ponds: "Pond aquaculture in the tropics, 1999, 2014 and 2018 (Clark Labs)",
+  ponds: "Fish and shrimp farm ponds in the tropics, 1999, 2014 and 2018 (Clark Labs)",
   mangroves: "Mangroves in 1996, 2016 and 2020 (Global Mangrove Watch)",
-  waterwatch: "Reservoirs above or below their usual water area (Global Water Watch)",
-  plans: "Spatial plans, forest estate and the clearing moratorium, Indonesia",
+  waterwatch: "Reservoirs holding more or less water than usual (Global Water Watch)",
+  plans: "Indonesia's land-use plans, state forest estate and ban on new clearing permits",
   idnplant: "Plantations in Indonesia and its neighbours, region by region",
   // Round 72: Brazil's own registers of Indigenous territories (FUNAI) and
   // quilombola territories (INCRA) are parts of this layer, at the owner's word.
@@ -6944,7 +6948,7 @@ const BUNDLES = {
   milcompare: "Armies, spending and nuclear weapons, country by country",
   // Round 72: the two resource rights rows are one layer, at the owner's word.
   resrights: "Community rights to natural resources, worldwide and in Cameroon, Equatorial Guinea, Liberia and Namibia (LandMark and Global Forest Watch)",
-  landghg: "Greenhouse gases from cropland and livestock, CO2 equivalent (WRI land greenhouse gas monitoring system)",
+  landghg: "Greenhouse gases from farmland and livestock, CO2 equivalent (WRI land greenhouse gas monitoring system)",
   indigenous_conflicts: "Indigenous Environmental Conflicts",
   selected: "Selected Layers",
   // Round 81: the four outlet rows as one layer, as the coastal waters row has
@@ -7026,7 +7030,7 @@ const CATALOGUE_PLACES = [
   // Spatial plans and the moratorium are one row with sublayers under
   // Deforestation since round 23 (item 25); the Spatial plans and Moratoriums
   // headings are gone.
-  [/spatial plan|forest estate|\brtrw\b|\brtrwn\b|\brtrwp\b|\brdtr\b|zoning|moratorium|pippib/i, IN(P + " > Deforestation", "plans")],
+  [/spatial plan|forest estate|\brtrw\b|\brtrwn\b|\brtrwp\b|\brdtr\b|zoning|moratorium|pippib/i, IN(P + " > Deforestation > Forest zoning and management plans", "plans")],
   [/boundar|admin|hillshade|relief|imagery|sentinel|from the air|geotag|news article|towns and villages|\bgadm\b|\bgrid\b|geostore|buffered|coverage layer|\bregions?\b/i,
    "Base and reference > Boundaries and relief"],
 ];
@@ -7240,15 +7244,23 @@ const CATALOGUE_BY_TITLE = [
   [/\bgfw_west_africa_cocoa_deforestation_risk\b|west africa cocoa deforestation risk/i, [P + " > Deforestation > Tree cover loss and alerts > Cocoa"]],
   [/\bgfw_integrated_dist_alerts\b/, [P + " > Deforestation > Tree cover loss and alerts > Alerts", P + " > Biodiversity loss > Disturbance"]],
   [/\bCO2_(GROSS_)?EMISSIONS_TERRITORIAL_DEFORESTATION\b/, [IN(P + " > Deforestation > Tree cover loss and alerts > Emissions from the clearing", "deforemis")]],
+  // Round 89b (asked 27 September): Trase's concession area is out (every
+  // figure in it is the concession_area_ha of the wood pulp concessions row,
+  // checked concession by concession, 2015 to 2024); its peatland clearing for
+  // pulpwood goes under Peatland; SBTN's Natural Lands Map (natural land as of
+  // 2020) under Forest cover and Protected and conserved areas.
+  [/\bCONCESSION_AREA\b/, null],
+  [/\bDEFORESTATION_ON_PEAT\b/, [P + " > Peatland"]],
+  [/\bsbtn_natural_lands(_classification)?\b/, [P + " > Deforestation > Forest cover", P + " > Biodiversity loss > Protected and conserved areas"]],
   // Round 85b: the drivers of tree cover loss are one layer with sublayers.
   [/\b(tsc_tree_cover_loss_drivers|wri_google_tree_cover_loss_drivers|tsc_drivers|umd_drivers)\b/, [IN(P + " > Deforestation > Tree cover loss and alerts > What drove the loss", "drivers")]],
   [/(?=.*field boundar)(?=.*(chaco|chiquitano))/i, null],
   [/\bgadm_geotrellis_features\b|\bgfw_buffered_points\b|\bgfwpro_\w*forest_change\w*\b|(?=.*gfw ?pro)(?=.*forest change)/i, null],
-  [/\bidn_forest_moratorium\b|\brtrw_tabanan_2023\b|\b(v3p3_)?spatialplan(forestland|moratorium|rtrwn|rtrwp_papua|rtrwp_papuawest)_spv\b/, [IN(P + " > Deforestation", "plans")]],
+  [/\bidn_forest_moratorium\b|\brtrw_tabanan_2023\b|\b(v3p3_)?spatialplan(forestland|moratorium|rtrwn|rtrwp_papua|rtrwp_papuawest)_spv\b/, [IN(P + " > Deforestation > Forest zoning and management plans", "plans")]],
   // Round 24: the rows no rule had placed ("Not yet placed"), each filed by
   // what it shows. Indonesia's forest area (kawasan hutan) is the forest
   // estate, beside Nusantara's copy of it in the spatial plans row.
-  [/\bidn_forest_area\b/, [IN(P + " > Deforestation", "plans")]],
+  [/\bidn_forest_area\b/, [IN(P + " > Deforestation > Forest zoning and management plans", "plans")]],
   [/\barg_native_forest_land_plan\b|\bfao_management_objectives\b/, [P + " > Deforestation > Forest zoning and management plans"]],
   [/\barg_otbn_forest_loss\b|\binpe_\w*prodes\b/, [P + " > Deforestation > Tree cover loss and alerts > Loss year by year"]],
   [/\bgfw_emerging_hot_spots\b|\bgfw_places_to_watch\b/, [P + " > Deforestation > Tree cover loss and alerts > Where clearing is likely"]],
@@ -7459,6 +7471,319 @@ function nusantaraWhere(id) {
   return "Equatorial Asia";
 }
 
+// Round 89b (asked 27 September: "do the same for all other layers on the map
+// into plain English"): the title each catalogue row shows, by its id (Global
+// Forest Watch dataset, Nusantara layer). The source's own title still files
+// the row and is kept on it (data-orig); only what is read changes.
+const CATALOGUE_PLAIN = {
+  gfw_forest_flux_full_extent_gross_emissions_ch4_only_biomass_only: "Methane released where trees were lost, from trees, roots, dead wood and litter, 2001 on (tonnes per hectare, Global Forest Watch carbon model)",
+  gfw_forest_flux_full_extent_gross_emissions_ch4_only_biomass_soil: "Methane released where trees were lost, from trees and soil together, 2001 on (tonnes per hectare, Global Forest Watch carbon model)",
+  gfw_forest_flux_full_extent_gross_emissions_ch4_only_soil_only: "Methane released where trees were lost, from soil only, 2001 on (tonnes per hectare, Global Forest Watch carbon model)",
+  gfw_forest_flux_full_extent_gross_emissions_co2_only_biomass_only: "Carbon dioxide released where trees were lost, from trees, roots, dead wood and litter, 2001 on (tonnes per hectare, Global Forest Watch carbon model)",
+  gfw_forest_flux_full_extent_gross_emissions_co2_only_biomass_soil: "Carbon dioxide released where trees were lost, from trees and soil together, 2001 on (tonnes per hectare, Global Forest Watch carbon model)",
+  gfw_forest_flux_full_extent_gross_emissions_co2_only_soil_only: "Carbon dioxide released where trees were lost, from soil only, 2001 on (tonnes per hectare, Global Forest Watch carbon model)",
+  gfw_forest_flux_full_extent_gross_emissions_n2o_only_biomass_only: "Nitrous oxide released where trees were lost, from trees, roots, dead wood and litter, 2001 on (tonnes per hectare, Global Forest Watch carbon model)",
+  gfw_forest_flux_full_extent_gross_emissions_n2o_only_biomass_soil: "Nitrous oxide released where trees were lost, from trees and soil together, 2001 on (tonnes per hectare, Global Forest Watch carbon model)",
+  gfw_forest_flux_full_extent_gross_emissions_n2o_only_soil_only: "Nitrous oxide released where trees were lost, from soil only, 2001 on (tonnes per hectare, Global Forest Watch carbon model)",
+  gfw_forest_flux_full_extent_gross_emissions_non_co2_biomass_only: "Methane and nitrous oxide released where trees were lost, from trees, roots, dead wood and litter, 2001 on (tonnes per hectare, Global Forest Watch carbon model)",
+  gfw_forest_flux_full_extent_gross_emissions_non_co2_biomass_soil: "Methane and nitrous oxide released where trees were lost, from trees and soil together, 2001 on (tonnes per hectare, Global Forest Watch carbon model)",
+  gfw_forest_flux_full_extent_gross_emissions_non_co2_soil_only: "Methane and nitrous oxide released where trees were lost, from soil only, 2001 on (tonnes per hectare, Global Forest Watch carbon model)",
+  aqueduct_crop_baseline_2020: "Water stress on farmland, 2020: how much of the water crops need is already being used (WRI Aqueduct)",
+  arg_otbn_forest_loss: "Native forest lost each year, Argentina (its national monitoring system)",
+  arg_native_forest_land_plan: "Argentina's native forest law zones: red, protect; yellow, limited use; green, may be cleared (OTBN)",
+  berkeley_earth_temp_anomaly_2000_2020: "How much warmer each year was than usual, 2000 to 2020 (Berkeley Earth)",
+  birdlife_alliance_for_zero_extinction_sites: "Last places on Earth where a threatened species still lives (Alliance for Zero Extinction sites)",
+  birdlife_biodiversity_intactness: "How much of its original wildlife each place still has (biodiversity intactness)",
+  birdlife_biodiversity_significance: "How much each place matters for keeping species alive (biodiversity significance)",
+  birdlife_endemic_bird_areas: "Areas with birds found nowhere else (endemic bird areas, BirdLife)",
+  birdlife_key_biodiversity_areas: "Places most important for species survival (Key Biodiversity Areas, BirdLife)",
+  cartocritica_mex_protected_areas_2016: "Protected areas, Mexico, 2016 (CartoCr\u00edtica)",
+  ci_biodiversity_hotspots: "Species-rich regions that have lost most of their natural habitat (biodiversity hotspots, Conservation International)",
+  cifor_peatlands: "Peatlands in the tropics and subtropics (CIFOR)",
+  col_frontera_agricola: "Colombia's agricultural frontier: where farming is allowed, and the forests and protected lands beyond it (UPRA)",
+  conafor_mex_forest_zoning: "Forest zoning, Mexico (CONAFOR)",
+  dtu_wb_wind_speed_potential_2001_2010: "Wind speed: where wind could make the most power (DTU and World Bank)",
+  esa_land_cover_2015: "Land cover, 2015 (European Space Agency)",
+  fao_ecozones: "Climate and vegetation zones of the world (FAO ecological zones)",
+  fao_forest_change: "Forest area gained or lost, by country (FAO)",
+  fao_forest_extent: "Forest area, by country (FAO)",
+  fao_forestry_employment: "Jobs in forestry, by country (FAO)",
+  fao_management_objectives: "What each country's forests are managed for: production, protection or conservation (FAO)",
+  funai_bra_indigenous_territories: "Indigenous territories, Brazil (FUNAI, Brazil's Indigenous affairs agency)",
+  gfw_aboveground_carbon: "Carbon stored in trees above ground (Global Forest Watch carbon model)",
+  gfw_aboveground_carbon_stock_2000: "Carbon stored in trees above ground in 2000 (tonnes per hectare)",
+  gfw_belowground_carbon: "Carbon stored in tree roots (Global Forest Watch carbon model)",
+  gfw_belowground_carbon_stock_2000: "Carbon stored in tree roots in 2000 (tonnes per hectare)",
+  gfw_deadwood_carbon: "Carbon stored in dead wood (Global Forest Watch carbon model)",
+  gfw_deadwood_carbon_stock_2000: "Carbon stored in dead wood in 2000 (tonnes per hectare)",
+  gfw_litter_carbon: "Carbon stored in fallen leaves and litter (Global Forest Watch carbon model)",
+  gfw_litter_carbon_stock_2000: "Carbon stored in fallen leaves and litter in 2000 (tonnes per hectare)",
+  gfw_soil_carbon: "Carbon stored in forest soil (Global Forest Watch carbon model)",
+  gfw_soil_carbon_stock_2000: "Carbon stored in forest soil in 2000 (tonnes per hectare)",
+  gfw_soil_carbon_stocks: "Carbon stored in forest soil (Global Forest Watch)",
+  gfw_emerging_hot_spots: "Places where tree loss is newly speeding up (emerging hot spots, Global Forest Watch)",
+  gfw_forest_age: "How old each forest is (Global Nature Watch)",
+  gfw_forest_age_category: "Forest age group used in the carbon model (Global Forest Watch)",
+  gfw_forest_flux_forest_age_category: "Forest age group used in the carbon model (Global Forest Watch)",
+  gfw_forest_carbon_gross_emissions: "Greenhouse gases released where forest was lost, 2001 on (tonnes of CO2 equivalent per hectare)",
+  gfw_forest_carbon_gross_removals: "Carbon taken out of the air by growing forests (tonnes of CO2 per hectare)",
+  gfw_forest_carbon_net_flux: "Forests' carbon balance: released minus taken up, 2001 on (tonnes of CO2 equivalent per hectare)",
+  gfw_forest_flux_aboveground_carbon_stock_in_emissions_year: "Carbon in trees above ground in the year they were lost (tonnes per hectare)",
+  gfw_forest_flux_belowground_carbon_stock_in_emissions_year: "Carbon in tree roots in the year the trees were lost (tonnes per hectare)",
+  gfw_forest_flux_deadwood_carbon_stock_in_emissions_year: "Carbon in dead wood in the year the trees were lost (tonnes per hectare)",
+  gfw_forest_flux_litter_carbon_stock_in_emissions_year: "Carbon in fallen leaves and litter in the year the trees were lost (tonnes per hectare)",
+  gfw_forest_flux_soil_carbon_stock_in_emissions_year: "Carbon in forest soil in the year the trees were lost (tonnes per hectare)",
+  gfw_forest_flux_full_extent_gross_removals_aboveground: "Carbon taken up by trees above ground, all land with trees (tonnes of CO2 per hectare)",
+  gfw_forest_flux_full_extent_gross_removals_belowground: "Carbon taken up by tree roots, all land with trees (tonnes of CO2 per hectare)",
+  gfw_forest_flux_full_extent_net_flux: "Carbon balance of all land with trees: released minus taken up (tonnes of CO2 equivalent per hectare)",
+  gfw_forest_flux_full_extent_removal_factor_aboveground: "How fast trees above ground take up carbon each year (tonnes per hectare)",
+  gfw_forest_flux_full_extent_removal_factor_belowground: "How fast tree roots take up carbon each year (tonnes per hectare)",
+  gfw_forest_flux_gross_emissions_node_codes: "Why each forest-loss emission happened, as the carbon model sorts them (Global Forest Watch)",
+  gfw_forest_flux_model_extent: "Where Global Forest Watch's forest carbon model applies",
+  gfw_forest_flux_removal_factor_aboveground_carbon_stdev: "How uncertain the rate trees take up carbon is (Global Forest Watch)",
+  gfw_forest_flux_removal_forest_type: "Which kind of forest each carbon uptake rate comes from (Global Forest Watch)",
+  gfw_forest_flux_soil_carbon_stock_2000_stdev: "How uncertain the forest soil carbon of 2000 is (Global Forest Watch)",
+  gfw_full_extent_aboveground_carbon_potential_sequestration: "Carbon trees could take up above ground if forests grew back (Global Forest Watch)",
+  gfw_full_extent_belowground_carbon_potential_sequestration: "Carbon tree roots could take up if forests grew back (Global Forest Watch)",
+  gfw_full_extent_aboveground_gross_removals: "Carbon taken up by trees above ground, all land with trees (Global Nature Watch)",
+  gfw_full_extent_belowground_gross_removals: "Carbon taken up by tree roots, all land with trees (Global Nature Watch)",
+  gfw_full_extent_co2_gross_emissions: "Carbon dioxide released where trees were lost, all land with trees (Global Nature Watch)",
+  gfw_full_extent_non_co2_gross_emissions: "Methane and nitrous oxide released where trees were lost, all land with trees (Global Nature Watch)",
+  gfw_full_extent_net_flux: "Carbon balance of all land with trees: released minus taken up (Global Nature Watch)",
+  gfw_reforestable_extent_aboveground_carbon_potential_sequestration: "Carbon trees could take up above ground if forest grew back where it can (Global Forest Watch)",
+  gfw_reforestable_extent_belowground_carbon_potential_sequestration: "Carbon tree roots could take up if forest grew back where it can (Global Forest Watch)",
+  gfw_integrated_alerts: "Deforestation alerts in the tropics as they happen, three satellite systems together (GLAD-L, GLAD-S2 and RADD)",
+  gfw_land_rights: "Land rights (Global Nature Watch)",
+  gfw_logging: "Logging concessions: forest licensed to companies for logging (Global Nature Watch)",
+  gfw_managed_forests: "Logging concessions: forest licensed to companies for logging (managed forests, Global Forest Watch)",
+  gfw_mining_concessions: "Mining concessions: land licensed to companies for mining (Global Forest Watch)",
+  gfw_oil_gas: "Oil and gas concessions: land and sea licensed for drilling (Global Forest Watch)",
+  gfw_oil_palm: "Oil palm concessions: land licensed to companies for oil palm (Global Forest Watch)",
+  gfw_peatlands: "Peatlands worldwide (Global Forest Watch)",
+  gfw_places_to_watch: "Recent large clearing flagged as the most urgent to look at (Places to Watch, Global Forest Watch)",
+  gfw_plantations: "Tree plantations (Global Nature Watch)",
+  gfw_planted_forests: "Planted forests and tree crops: plantations, orchards, oil palm (Spatial Database of Planted Trees)",
+  gfw_primary_forests: "Primary forests: old forests never cleared (Global Nature Watch)",
+  gfw_resource_rights: "Community rights to natural resources such as forests and water (Global Forest Watch)",
+  gfw_tiger_landscapes: "Landscapes where wild tigers still live (Tiger Conservation Landscapes)",
+  wwf_tiger_conservation_landscapes: "Landscapes where wild tigers still live (Tiger Conservation Landscapes, WWF)",
+  gfw_universal_mill_list: "Palm oil mills (Universal Mill List)",
+  gfw_west_africa_cocoa_deforestation_risk: "Risk of forest being cleared for cocoa, West Africa",
+  gfw_west_africa_cocoa_plot_density: "How crowded with cocoa farms each area is, West Africa",
+  gfw_wood_fiber: "Wood fibre concessions: land licensed for pulpwood plantations (Global Forest Watch)",
+  gfw_wood_fiber_downloadable: "Wood fibre concessions: land licensed for pulpwood plantations (Global Nature Watch)",
+  gpcc_total_precipitation_2000_2019: "Yearly rain and snow, 2000 to 2019 (GPCC)",
+  haka_idn_leuser: "The Leuser Ecosystem, Sumatra: the last place orangutans, tigers, rhinos and elephants live together",
+  ibge_bra_biomes: "Brazil's biomes: the Amazon, the Cerrado, the Atlantic Forest and the rest (IBGE)",
+  icf_hnd_forest_type_2013: "Forest types, Honduras, 2013",
+  icmbio_bra_federal_protected_areas: "Federal protected areas, Brazil (ICMBio)",
+  idn_forest_area: "Indonesia's state forest estate (kawasan hutan)",
+  idn_forest_moratorium: "Indonesia's ban on new permits to clear primary forest and peatland (moratorium)",
+  idn_land_cover_2017: "Land cover, Indonesia, 2017",
+  idn_wood_fiber: "Wood fibre concessions, Indonesia: land licensed for pulpwood plantations",
+  ifl_intact_forest_landscapes: "Large unbroken forests with no roads or clearing (Intact Forest Landscapes)",
+  incra_bra_quilombola_communities: "Quilombola territories, Brazil: lands of communities descended from people who escaped slavery (INCRA)",
+  incra_bra_rural_settlements: "Land reform settlements, Brazil (INCRA)",
+  inpe_amazonia_prodes: "Forest cleared each year, Brazil's official count, Amazon (PRODES)",
+  inpe_amazon_prodes: "Forest cleared each year, Brazil's official count, Legal Amazon (PRODES)",
+  inpe_cerrado_prodes: "Native vegetation cleared each year, Brazil's official count, Cerrado (PRODES)",
+  inpe_prodes: "Forest cleared each year, Brazil's official count (PRODES)",
+  intl_rivers_dam_hotspots: "Major dams (International Rivers)",
+  jrc_managed_land_can: "Land in use by people, Canada (EC JRC)",
+  jrc_managed_land_usa: "Land in use by people, United States (EC JRC)",
+  jrc_surface_water_transitions_1984_2020: "Surface water gained and lost, 1984 to 2020 (EC JRC)",
+  khm_protected_areas: "Protected areas, Cambodia",
+  landmark_natural_resource_rights: "Community rights to natural resources such as forests and water (LandMark)",
+  landmark_tenure_indicators_comm: "How well each country's laws protect local communities' land (LandMark)",
+  landmark_tenure_indicators_ip: "How well each country's laws protect Indigenous Peoples' land (LandMark)",
+  lapig_degraded_pasture: "Worn-out pasture, Brazil (LAPIG)",
+  lbr_development_exploration_license: "Mining development and exploration licences, Liberia",
+  lbr_mineral_development_agreement: "Mining deals signed with the government, Liberia (mineral development agreements)",
+  lbr_mineral_exploration_license: "Licences to search for minerals, Liberia",
+  licadho_khm_economic_land_concessions: "Land handed to companies for plantations, Cambodia (economic land concessions, LICADHO)",
+  mapbiomas_bra_land_cover: "Land cover, Brazil (MapBiomas)",
+  mapspam_yield_coco: "Cocoa harvested per hectare (MapSPAM)",
+  mapspam_yield_coff: "Arabica coffee harvested per hectare (MapSPAM)",
+  mapspam_yield_oilp: "Oil palm harvested per hectare (MapSPAM)",
+  mapspam_yield_rubb: "Rubber harvested per hectare (MapSPAM)",
+  mapspam_yield_soyb: "Soybeans harvested per hectare (MapSPAM)",
+  mapspam_yield_sugc: "Sugarcane harvested per hectare (MapSPAM)",
+  nasa_modis_fire_alerts: "Active fires, MODIS satellites",
+  nasa_viirs_fire_alerts: "Active fires, VIIRS satellites",
+  nasa_umd_forest_carbon_sequestration_potential: "Carbon forests could take up if they grew back (NASA and University of Maryland)",
+  nexgddp_change_avg_temperature_2000_2080: "How much hotter each place is projected to get by 2080",
+  nexgddp_change_cum_precipitation_2000_2080: "How much each place's rain and snow is projected to change by 2080",
+  nexgddp_change_dry_spells_2000_2080: "How much longer dry spells are projected to get by 2080",
+  osinfor_per_forest_concessions: "Forest concessions, Peru: state forest licensed for logging",
+  per_forest_concessions: "Forest concessions, Peru: state forest licensed for logging",
+  osinfor_peru_permanent_production_forests: "Permanent production forests, Peru: state forest set aside for logging",
+  per_protected_areas: "Protected areas, Peru",
+  rspo_oil_palm: "Oil palm concessions of companies in the Roundtable on Sustainable Palm Oil (RSPO)",
+  sbtn_natural_forests_map: "Natural forests of the world, 2020",
+  sbtn_natural_lands: "Natural land as of 2020, which companies promise not to convert (SBTN Natural Lands Map)",
+  sbtn_natural_lands_classification: "Natural land as of 2020, by kind, which companies promise not to convert (SBTN Natural Lands Map)",
+  sfb_bra_sicar: "Rural properties on Brazil's environmental land register (CAR)",
+  tsc_tree_cover_loss_drivers: "What caused tree cover loss, 2001 on: one cause for each square about 10 km across (Curtis et al.)",
+  wri_google_tree_cover_loss_drivers: "What caused tree cover loss, 2001 on, for each square km (WRI and Google)",
+  tsc_drivers: "What caused tree cover loss, a second copy Global Forest Watch has not finished (The Sustainability Consortium)",
+  umd_drivers: "What caused tree cover loss, the University of Maryland's copy",
+  umd_adm0_net_tree_cover_change_from_height: "Tree cover gained minus lost, by country, measured from tree height (UMD)",
+  umd_adm1_net_tree_cover_change_from_height: "Tree cover gained minus lost, by state or province, measured from tree height (UMD)",
+  umd_adm2_net_tree_cover_change_from_height: "Tree cover gained minus lost, by district, measured from tree height (UMD)",
+  umd_land_cover_2000_2020: "Land cover, 2000 to 2020 (UMD)",
+  umd_modis_burned_areas: "Burned areas worldwide, month by month, 500 m (MODIS)",
+  umd_regional_primary_forest_2001: "Primary forests in the tropics, 2001: old forests never cleared (UMD)",
+  umd_soy_planted_area: "Soy fields (UMD)",
+  umd_tree_cover_density_2000: "Tree cover in 2000, share of each 30 m square (UMD)",
+  umd_tree_cover_gain_from_height: "Tree cover gained, measured from tree height (UMD)",
+  umd_tree_cover_height_2000: "Tree height, 2000 (UMD)",
+  umd_tree_cover_height_2019: "Tree height, 2019 (UMD)",
+  umd_tree_cover_height_2020: "Tree height, 2020 (UMD)",
+  umd_tree_cover_loss_from_fires: "Tree cover lost to fire, each year (UMD)",
+  usa_conservation_easements: "Private land protected by conservation easements, United States",
+  wcs_forest_landscape_integrity_index: "How intact each forest is, 0 to 10 (Forest Landscape Integrity Index)",
+  whrc_aboveground_biomass_stock_2000: "Weight of living trees above ground, 2000 (WHRC)",
+  whrc_aboveground_woody_biomass_stock_2000: "Weight of living trees above ground, 2000, a second copy (WHRC)",
+  wri_cmr_agro_industrial_zones: "Zones set aside for industrial farming, Cameroon (WRI)",
+  wri_global_power_plant_database: "Power plants worldwide, by fuel (WRI Global Power Plant Database)",
+  wri_mexico_ageb_socio_economic_vulnerability: "How vulnerable households are, Mexico, by city block group (WRI)",
+  wri_mexico_block_socio_economic_vulnerability: "How vulnerable households are, Mexico, by block (WRI)",
+  wri_mexico_locality_socio_economic_vulnerability: "How vulnerable households are, Mexico, by town (WRI)",
+  wri_mexico_municipality_socio_economic_vulnerability: "How vulnerable households are, Mexico, by municipality (WRI)",
+  wri_mexico_state_socio_economic_vulnerability: "How vulnerable households are, Mexico, by state (WRI)",
+  wur_forest_roads: "Forest roads, Congo Basin (Wageningen University)",
+  wur_radd_alerts: "Deforestation alerts seen through cloud by radar (RADD, Wageningen University)",
+  wwf_terrestrial_ecoregions: "The world's land divided by its natural plant and animal communities (ecoregions, WWF)",
+  gfwpro_negligible_risk_analysis: "Districts where deforestation risk is negligible or not, by natural forest lost since 2021 (GFW Pro)",
+  tropomi_avg_nitrogen_dioxide_last_month: "Nitrogen dioxide in the air, last month, from satellite (TROPOMI)",
+  global_water_watch_anomalies: "Each reservoir month by month through 2025: its water area against its usual (Global Water Watch)",
+  ifl_intact_forest_landscapes_2000: "Large unbroken forests with no roads or clearing, 2000 (Intact Forest Landscapes)",
+  ifl_intact_forest_landscapes_2013: "Large unbroken forests with no roads or clearing, 2013 (Intact Forest Landscapes)",
+  ifl_intact_forest_landscapes_2016: "Large unbroken forests with no roads or clearing, 2016 (Intact Forest Landscapes)",
+  ifl_intact_forest_landscapes_2020: "Large unbroken forests with no roads or clearing, 2020 (Intact Forest Landscapes)",
+  ifl_intact_forest_landscapes_2025: "Large unbroken forests with no roads or clearing, 2025 (Intact Forest Landscapes)",
+  ECJRCV2: "Forest cover (EC JRC, version 2)",
+  FCHS_2020_ECJRCV2: "Forest cover 2020, over shaded relief (EC JRC, version 2)",
+  "Global_FC-FNF-HS_Latest_TTM": "Forest and not forest, latest, over shaded relief (TheTreeMap)",
+  "Global_FC-FNF_2024_TTM": "Forest and not forest, 2024 (TheTreeMap)",
+  "Global_FC-FNF_2025_TTM": "Forest and not forest, 2025 (TheTreeMap)",
+  Global_LCHS_2024: "Land cover 2024, over shaded relief",
+  Global_PlantationIOP_2024: "Company oil palm plantations, 2024",
+  Global_PlantationIOP_2025: "Company oil palm plantations, 2025",
+  Global_PlantationITP_2024: "Company timber and pulpwood plantations, 2024",
+  Global_PlantationITP_2025: "Company timber and pulpwood plantations, 2025",
+  Global_PlantationSmallholder_2024: "Small family farm plantations, 2024",
+  Global_PlantationSmallholder_2025: "Small family farm plantations, 2025",
+  Global_AllExpansionRGB_2000to2025: "Plantations spreading into forest, year by year, 2000 to 2025",
+  IDNMYSBorneo_LCHSRiver: "Borneo land cover, over shaded relief, with rivers",
+  IDNMYSBorneo_LCIndustrial_1970: "Borneo land used by industry in 1970",
+  IDNMYSBorneo_SRTMHS30WGS_2000: "Borneo's hills and valleys, shaded, 30 m (SRTM 2000)",
+  IDNMYSBorneo_Transmigration_2021: "Transmigration areas, Borneo, 2021: land the government settled with families moved from other islands",
+  IDNMYSBorneo_Transmigration_2021_wms: "Transmigration areas, Borneo, 2021: land the government settled with families moved from other islands",
+  IDN_FC2020_KLHK: "Forest cover 2020, Indonesia's own map (Ministry of Environment and Forestry)",
+  LC1970HS: "Land cover 1970, over shaded relief",
+  "REGBRNIDNMYS_FC-FNF-HS_Latest_TTM": "Forest and not forest, latest, over shaded relief, Brunei, Indonesia and Malaysia (TheTreeMap)",
+  REGBRNMYSIDN_FCHS_2020_ECJRC: "Forest cover 2020, over shaded relief, Brunei, Malaysia and Indonesia (EC JRC)",
+  RGBProbabilityDF: "How likely each place is to be cleared (deforestation probability)",
+  base_roadRGB: "Roads, coloured by the year they appeared",
+  base_road_edited: "Roads (Nusantara's edited version)",
+  base_roadtrans: "Roads built for transmigration settlements",
+  base_sagoindicative: "Where sago palm is likely to grow",
+  burnedareanrt: "Burned area, near real time, where burns overlap",
+  concessionfca_spv: "Forest clearance permits: forest licensed to be cleared (FCA)",
+  concessionhgu_spv: "Plantation land leases: land leased to companies for plantations (HGU)",
+  concessioniop_finance_credit: "Oil palm concessions, by the banks that lend to them",
+  concessioniop_finance_invest: "Oil palm concessions, by the investors that own shares in them",
+  concessionitp_spv: "Timber plantation concessions: land licensed for timber and pulpwood plantations",
+  concessionother_finance_credit: "Other concessions, by the banks that lend to them",
+  concessionother_finance_invest: "Other concessions, by the investors that own shares in them",
+  concessionpbph_spv: "Forest use permits: forest licensed for logging or plantations (PBPH)",
+  concessionpsnmerauke_spv: "Land taken for the government's National Strategic Projects, Merauke",
+  hillshade: "Hills and valleys, shaded",
+  millop_finance_credit: "Palm oil mills, by the banks that lend to them",
+  millop_finance_invest: "Palm oil mills, by the investors that own shares in them",
+  millopbuffer10km_spv: "Land within 10 km of a palm oil mill, where it likely buys fruit",
+  millopbuffer1hr_spv: "Land within an hour's drive of a palm oil mill, where it likely buys fruit",
+  millopbuffer2hr_spv: "Land within two hours' drive of a palm oil mill, where it likely buys fruit",
+  millopbuffer_spv: "Land a palm oil mill likely buys fruit from",
+  millopbufferol50km_spv: "Land within 50 km of a palm oil mill",
+  papua_expansion_2025: "Plantations spreading into forest in 2025, Papua, each area outlined",
+  protectedareadissolve_sp: "Protected areas, joined into one shape",
+  protectedareareaconservationlandscape_spv: "Conservation landscapes: wider areas managed for wildlife",
+  protectedareareaecosystemrestoration_spv: "Forest licensed for restoration instead of logging (ecosystem restoration concessions)",
+  protectedareareahydrologicalreserve_spv: "Reserves protecting rivers and water supply",
+  rdtr_badung_2023: "Detailed land-use plan 2023, Badung, Bali (RDTR)",
+  roadsegmentbuffer_spv: "Land within reach of a road",
+  rtrw_badung_2024: "District land-use plan 2024, Badung, Bali (RTRW)",
+  rtrw_badung_2025: "District land-use plan 2025, Badung, Bali (RTRW)",
+  rtrw_tabanan_2023: "District land-use plan 2023, Tabanan, Bali (RTRW)",
+  spatialplanforestland_spv: "Indonesia's state forest estate, as the state marks it",
+  spatialplanmoratorium_spv: "Indonesia's ban on new permits to clear primary forest and peatland (PIPPIB moratorium map)",
+  spatialplanrtrwn_spv: "Indonesia's national land-use plan (RTRWN)",
+  spatialplanrtrwp_papua_spv: "Papua province's land-use plan (RTRWP)",
+  spatialplanrtrwp_papuawest_spv: "West Papua province's land-use plan (RTRWP)",
+};
+function plainTitle(item) {
+  return (item && (item.label || CATALOGUE_PLAIN[item.name] || CATALOGUE_PLAIN[item.id])) || (item && item.title) || "";
+}
+// The same for Trase's measures, by Trase's own id.
+const TRASE_PLAIN = {
+  TERRITORIAL_DEFORESTATION: "All forest cleared each year, area by area",
+  TERRITORIAL_DEGRADATION: "Forest damaged but not cleared each year (degradation)",
+  TERRITORIAL_UNDISTURBED_FOREST: "Forest left undisturbed",
+  REMAINING_FOREST: "Natural forest still standing",
+  BURNED_AREA: "Land burned each year",
+  BURNED_PEAT: "Peatland burned each year",
+  PEAT_AREA: "Peatland in each area",
+  CO2_GROSS_EMISSIONS_TERRITORIAL_DEFORESTATION: "Greenhouse gases released by all forest clearing",
+  CO2_EMISSIONS_TERRITORIAL_DEFORESTATION: "Greenhouse gases released by all forest clearing, Argentina and Paraguay's measure",
+  CATTLE_DEFORESTATION_5_YEAR_TOTAL: "Forest cleared for the cattle behind each year's beef",
+  CATTLE_DEFORESTATION_PER_TN_5_YEAR_TOTAL: "Forest cleared for cattle per tonne of beef",
+  CATTLE_DEFORESTATION_PER_TN_5_YEAR_ANNUAL: "Forest cleared for cattle per tonne of beef",
+  PASTURE_DEFORESTATION_5_YEAR_TOTAL: "Forest cleared for pasture, over the five years before",
+  CATTLE_TN: "Beef produced (tonnes of carcass)",
+  ZDC_EXPORTED_BRAZIL_BEEF_PERC: "Share of beef exported by companies that promise zero deforestation",
+  ZDC_TRADED_BRAZIL_BEEF_PERC: "Share of beef produced under a zero-deforestation promise",
+  ZDC_TRADED_PARAGUAY_BEEF_PERC: "Share of beef exported by companies that promise zero deforestation, Paraguay",
+  ZDC_TRADED_PARAGUAY_CORN_PERC: "Share of corn traded by companies that promise zero deforestation, Paraguay",
+  ZDC_TRADED_BRAZIL_SOY_PERC: "Share of soy exported by companies that promise zero deforestation",
+  ZDC_TRADED_PARAGUAY_SOY_PERC: "Share of soy exported by companies that promise zero deforestation, Paraguay",
+  ZDC_TRADED_ARGENTINA_SOY_PERC: "Share of soy exported by companies that promise zero deforestation, Argentina",
+  ZDC_TRADED_COTE_DIVOIRE_COCOA_PERC: "Share of cocoa traded by companies that promise zero deforestation",
+  CO2_GROSS_EMISSIONS_CATTLE_DEFORESTATION_5_YEAR_TOTAL_EXPOSURE: "Greenhouse gases released by clearing for cattle",
+  CO2_NET_EMISSIONS_CATTLE_DEFORESTATION_5_YEAR_TOTAL_EXPOSURE: "Greenhouse gases released by clearing for cattle, less what the pasture takes back up",
+  CO2_GROSS_EMISSIONS_CATTLE_DEFORESTATION_PER_TN_5_YEAR_TOTAL: "Greenhouse gases released by clearing for cattle, per tonne of beef",
+  CO2_EMISSIONS_CATTLE_DEFORESTATION_PER_TN_5_YEAR_TOTAL: "Greenhouse gases released by clearing for cattle, per tonne of beef, Paraguay's measure",
+  CO2_NET_EMISSIONS_CATTLE_DEFORESTATION_PER_TN_5_YEAR_TOTAL: "Greenhouse gases released by clearing for cattle, per tonne of beef, less what the pasture takes back up",
+  CO2_GROSS_EMISSIONS_PASTURE_DEFORESTATION_5_YEAR_TOTAL: "Greenhouse gases released by clearing for pasture",
+  CO2_NET_EMISSIONS_PASTURE_DEFORESTATION_5_YEAR_TOTAL: "Greenhouse gases released by clearing for pasture, less what the pasture takes back up",
+  COCOA_DEFORESTATION_15_YEARS_TOTAL: "Forest cleared for cocoa, over 15 years",
+  COCOA_DEFORESTATION_ANNUAL: "Forest cleared for each year's cocoa harvest",
+  COCOA_AREA: "Land growing cocoa",
+  COCOA_GROSS_EMISSIONS_15_YEARS_TOTAL: "Greenhouse gases released by clearing for cocoa, over 15 years",
+  COCOA_NET_EMISSIONS_15_YEARS_TOTAL: "Greenhouse gases released by clearing for cocoa, over 15 years, less what the cocoa trees take back up",
+  COCOA_GROSS_EMISSIONS_ANNUAL: "Greenhouse gases released by clearing for each year's cocoa harvest",
+  COCOA_NET_EMISSIONS_ANNUAL: "Greenhouse gases released by clearing for each year's cocoa harvest, less what the cocoa trees take back up",
+  SOY_DEFORESTATION_5_YEAR_TOTAL: "Soy grown on land cleared in the five years before",
+  SOY_DEFORESTATION_PER_TN_5_YEAR_TOTAL: "Land recently cleared for soy, per tonne of soy",
+  CO2_GROSS_EMISSIONS_SOY_DEFORESTATION_5_YEAR_TOTAL: "Greenhouse gases released by clearing for soy",
+  CO2_EMISSIONS_SOY_DEFORESTATION_5_YEAR_TOTAL: "Greenhouse gases released by clearing for soy, Argentina's measure",
+  CO2_GROSS_EMISSIONS_SOY_DEFORESTATION_PER_TN_5_YEAR_TOTAL: "Greenhouse gases released by clearing for soy, per tonne of soy",
+  RTRS_TN: "Soy certified by the Round Table on Responsible Soy (tonnes)",
+  PALM_OIL_DEFORESTATION_ANNUAL: "Forest cleared each year for company oil palm plantations",
+  PALM_OIL_DEFORESTATION_10_YEAR_TOTAL: "Forest cleared for each year's palm oil harvest, over the ten years before",
+  OIL_PALM_HA: "Company oil palm plantations",
+  PALM_PLANTATIONS_ON_PEAT: "Oil palm planted on peat",
+  EMISSION_BURNED_PEAT_CO2: "Greenhouse gases from peat burning inside plantations",
+  EMISSION_SUBSIDENCE_CO2: "Greenhouse gases from drained peat rotting under plantations (subsidence)",
+  GROSS_EMISSION_LUC_CO2: "Greenhouse gases released by turning land into plantations",
+  NET_EMISSION_LUC_CO2: "Greenhouse gases released by turning land into plantations, less what the new plantations take back up",
+  TOTAL_EMISSION_CO2: "All greenhouse gases from oil palm plantations: peat, fire and clearing, less what they take back up",
+  TOTAL_EMISSION_CONCESSION_CO2: "All greenhouse gases from pulpwood concessions: peat, fire and clearing, less what the plantations take back up",
+  WOOD_PULP_AREA: "Pulpwood (acacia and eucalyptus) planted in each concession",
+  PULPWOOD_PLANTATIONS_ON_PEAT: "Pulpwood planted on peat",
+  WOOD_PULP_PRODUCTION_VOLUME_M3: "Pulpwood harvested (cubic metres)",
+};
 const LEFT_OUT = "(left out)";
 // Rows that lead the heading or layer they are filed in (round 85b: Curtis et
 // al.'s drivers first among the drivers' parts).
@@ -7485,7 +7810,7 @@ function cataloguePlaces(words, title) {
   // So does Climate's, for soy, corn and grain (their yields say "yield").
   if (out.includes(P + " > Climate > Nitrous oxide")) drop(AG);
   if (out.some((x) => x === P + " > Climate > Methane" || x === P + " > Climate > Nitrous oxide")) drop(P + " > Climate > Carbon dioxide");
-  if (out.includes(AG + " > Detailed spatial plans, Badung")) drop(IN(P + " > Deforestation", "plans"));
+  if (out.includes(AG + " > Detailed spatial plans, Badung")) drop(IN(P + " > Deforestation > Forest zoning and management plans", "plans"));
   // A share traded under a zero-deforestation commitment is not clearing,
   // though its name says deforestation (round 23).
   // A share under a zero-deforestation commitment goes with its commodity
@@ -7561,10 +7886,13 @@ function catalogueRows(cfg, items) {
     paths.forEach((path, n) => {
       const row = document.createElement("label");
       row.className = "layer layer-cat" + (n ? " layer-copy" : "");
+      // Round 89b: the source's own title is kept on the row for the rules
+      // that read it; the plain-English title is what is shown.
+      if (row.dataset) row.dataset.orig = item.title;
       row.innerHTML =
         `<input type="checkbox" data-${n ? "cat-copy" : "cat"}="${escapeHtml(key)}" data-kind="${escapeHtml(catalogueKind(cfg, item))}">` +
         `<span class="swatch" style="background:${cfg.colour}"></span>` +
-        `<span class="body"><span class="nm">${escapeHtml(item.title)}${liveMark(cfg)}` +
+        `<span class="body"><span class="nm">${escapeHtml(plainTitle(item))}${liveMark(cfg)}` +
         `${siteLink(cfg.id)}${infoMark(item.about)}</span>` +
         `<span class="un" data-state="${escapeHtml(key)}">${escapeHtml(cfg.catUnit || "")}</span></span>`;
       const body = sectionBody(box, path) || spare;
@@ -7712,6 +8040,7 @@ async function addWmsMenuLayer(cfg) {
   const show = () => setLayerState(cfg.id, on.size ? `${on.size} of ${layers.length} layers drawn` : `${layers.length} layers, each a row below`);
   const items = layers.map((l, i) => ({
     name: l.name, title: l.title, about: l.about,
+    label: CATALOGUE_PLAIN[l.name] ? (new RegExp(nusantaraWhere(l.name), "i").test(CATALOGUE_PLAIN[l.name]) ? CATALOGUE_PLAIN[l.name] : `${CATALOGUE_PLAIN[l.name]} \u2014 ${nusantaraWhere(l.name)}`) : undefined,
     show: (want) => {
       // Ticking one of its layers turns the row itself on, as the menu did.
       if (want) {
@@ -7827,6 +8156,7 @@ const GFW_ABOUT = {
   global_water_watch_anomalies2: "One reading per reservoir: its water area, its monthly area and how far that is from usual. A separate dataset, released once (21 April 2025).",
   jpl_mangrove_aboveground_biomass_stock_2000: "Simard et al. 2019, NASA JPL. Global Forest Watch records the unit as megagrams of CO\u2082 equivalent per hectare; the key uses the numbers as stored.",
   test_wat_006_projected_water_stress: "Global Forest Watch gives this dataset no title or description; \u201cwat.006\u201d is Resource Watch's code for Aqueduct's projected water stress. It is published only as tiles made when asked for, so it fills in slowly.",
+  sbtn_natural_lands_classification: "The Science Based Targets Network's Natural Lands Map: the world's land as it was in 2020, natural (forest, grassland, wetland, peat, mangrove and more) or not (crops, pasture, plantations, towns). Companies that commit to no deforestation or conversion use it as the line: natural land here that is cleared after 2020 breaks that commitment. Colours are Global Forest Watch's own.",
   gfwpro_negligible_risk_analysis: "Each district (second-level administrative area) is classed negligible or non-negligible risk from how much of its natural forest has been lost since 2021, by the method the Accountability Framework Initiative set out with the Science Based Targets initiative and the Greenhouse Gas Protocol for companies reporting deforestation-free supply chains. Global Forest Watch Pro publishes it; each shape is coloured by that class, and its box gives the forest lost and its share.",
   col_frontera_agricola: "Colombia's agricultural frontier, set by its Ministry of Agriculture through UPRA (first by Resolution 261 of 2018, updated since; about 43 million hectares in UPRA's 2023 update): the line between land where farming and ranching are allowed and the natural forests and protected and special areas beyond it, where they are not. Clearing past it is clearing where Colombian law says agriculture should not go.",
   wdpa_licensed_protected_areas: "The World Database on Protected Areas as licensed to Global Forest Watch. There is a second worldwide row, the public release; the records do not say how the two differ beyond that.",
@@ -14452,13 +14782,13 @@ const SITE_MAPS = {
       note: "From the Destruction page's Carbon Mapper waste-sector map: the hotspots written into that map, not Carbon Mapper's live feed." },
     { id: "site_forest500_soy", name: "Worst soy financial institutions, 2024 (Forest 500)", unit: "financial institutions", colour: "#6B5B4E", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_forest500_soy.places.geojson",
       note: "From the Destruction page's Forest 500 map: institutions scoring 2 or less of 94 on soy policy, placed at their headquarters." },
-    { id: "site_china_grain", name: "中国粮仓 China Grain Storage", unit: "depots", colour: "#76705C", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_china_grain.places.geojson",
+    { id: "site_china_grain", name: "China's grain stores (\u4e2d\u56fd\u7cae\u4ed3)", unit: "depots", colour: "#76705C", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_china_grain.places.geojson",
       note: "From the Destruction page's China grain storage map. The page states 205 facilities; this layer carries the positions its map draws." },
     { id: "site_soybean_companies", name: "Soybean Companies", unit: "offices", colour: "#6F7560", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_soybean_companies.places.geojson",
       note: "From the Destruction page's soy companies map (maps repo)." },
     { id: "site_secret_societies", name: "International Military Secret Societies", unit: "organisations", colour: "#5E5A6E", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_secret_societies.places.geojson",
       note: "From the On-Planet Invasion page's secret societies map." },
-    { id: "site_ufo_pre1900", name: "Pre-1900", unit: "recorded sightings", colour: "#5F6B78", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_ufo_pre1900.places.geojson",
+    { id: "site_ufo_pre1900", name: "UFO sightings before 1900", unit: "recorded sightings", colour: "#5F6B78", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_ufo_pre1900.places.geojson",
       note: "From the Off-Planet Invasion page's historical sightings archive." },
     { id: "site_central_banks", name: "Central Banks", unit: "banks", colour: "#5C6570", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_central_banks.places.geojson",
       note: "From the Suppression page's central banks map." },
@@ -14511,11 +14841,11 @@ const SITE_MAPS = {
       note: "From the Suppression page's cartel cells map (maps repo), with its connecting lines." },
     { id: "site_indigenous_conflicts", typeRows: true, name: "Indigenous Environmental Conflicts", unit: "conflicts", colour: "#6B5A4A", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_indigenous_conflicts.places.geojson",
       note: "From local-map's Indigenous Environmental Conflicts map (EJAtlas cases, real coordinates)." },
-    { id: "enviro_law_by_country", name: "Environmental law by country and region (enviro-atlas)", unit: "countries", colour: "#5A6B72", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/enviro_law_by_country.geojson",
+    { id: "enviro_law_by_country", name: "Environmental laws, by country and region (enviro-atlas)", unit: "countries", colour: "#5A6B72", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/enviro_law_by_country.geojson",
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
-    { id: "site_earmarked_funding", name: "Earmarked funding to international organisations", unit: "countries", colour: "#6A5E66", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_earmarked_funding.geojson",
+    { id: "site_earmarked_funding", name: "Money given to international organisations for set purposes (earmarked funding)", unit: "countries", colour: "#6A5E66", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_earmarked_funding.geojson",
       note: "Each country shaded by what the source map says it gave in earmarked funding, or received; a menu in the key picks which. Countries it gives no figure for are left clear." },
-    { id: "site_trade_profits", name: "Who captures the profits in global trade (OECD TiVA)", unit: "countries", colour: "#6E6358", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_trade_profits.geojson",
+    { id: "site_trade_profits", name: "Who keeps the profits in global trade (OECD trade in value added)", unit: "countries", colour: "#6E6358", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_trade_profits.geojson",
       note: "Foreign value added: the share of a country's export value that comes from other countries' inputs, and so goes to them. The figures are read from the source map's own page (OECD TiVA 2023 edition, year 2020, 76 countries)." },
     // Round 73 (27 September): every country the settler colonialism layer
     // does not draw whole, and how each is invaded, from published sources
@@ -14567,7 +14897,7 @@ const EXEC_MAP = {
       note: "Every row of execmap_local_diplomatic.json in WelcomeToYourGalaxy/executive-map, as that map reads it: position, name and link." },
     { id: "exec_border", name: "Border posts", unit: "posts", colour: "#60665E", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/exec_border.pmtiles",
       note: "Every row of execmap_local_border.json in WelcomeToYourGalaxy/executive-map, as that map reads it: position, name and link." },
-    { id: "exec_prison", name: "Prisons (executive map file)", unit: "prisons", colour: "#6A5E62", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/exec_prison.pmtiles",
+    { id: "exec_prison", name: "Prisons (from the government map)", unit: "prisons", colour: "#6A5E62", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/exec_prison.pmtiles",
       note: "Every row of execmap_local_prison.json in WelcomeToYourGalaxy/executive-map, as that map reads it: position, name and link." },
   ],
 };
@@ -14598,7 +14928,7 @@ const MONEY_MAP = {
       note: "Every row of moneymap_local_centralbank.json in WelcomeToYourGalaxy/financial-map, as that map reads it: position, name and link." },
     { id: "fin_stockexchange", name: "Stock exchanges", unit: "exchanges", colour: "#7A6558", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/fin_stockexchange.pmtiles",
       note: "Every row of moneymap_local_stockexchange.json in WelcomeToYourGalaxy/financial-map, as that map reads it: position, name and link." },
-    { id: "fin_auditoffice", name: "Audit offices (money map file)", unit: "offices", colour: "#6C625A", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/fin_auditoffice.pmtiles",
+    { id: "fin_auditoffice", name: "Audit offices (from the money map)", unit: "offices", colour: "#6C625A", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/fin_auditoffice.pmtiles",
       note: "Every row of moneymap_local_auditoffice.json in WelcomeToYourGalaxy/financial-map, as that map reads it: position, name and link." },
     { id: "fin_devbank", name: "Development banks", unit: "offices", colour: "#735E5A", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/fin_devbank.pmtiles",
       note: "Every row of moneymap_local_devbank.json in WelcomeToYourGalaxy/financial-map, as that map reads it: position, name and link." },
@@ -14619,7 +14949,7 @@ const LEGAL_MAP = {
       note: "Every row of legalmap_local_courthouse.json in WelcomeToYourGalaxy/legal-map, as that map reads it: position, name and link." },
     { id: "legal_publicdefender", name: "Public defenders and prosecutors", unit: "offices", colour: "#6E6070", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/legal_publicdefender.pmtiles",
       note: "Every row of legalmap_local_publicdefender.json in WelcomeToYourGalaxy/legal-map, as that map reads it: position, name and link." },
-    { id: "legal_police", name: "Police stations (legal map file)", unit: "stations", colour: "#5E5A68", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/legal_police.pmtiles",
+    { id: "legal_police", name: "Police stations (from the legal system map)", unit: "stations", colour: "#5E5A68", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/legal_police.pmtiles",
       note: "Every row of legalmap_local_police.json in WelcomeToYourGalaxy/legal-map, as that map reads it: position, name and link." },
     { id: "legal_immigration", name: "Immigration enforcement", unit: "sites", colour: "#705A62", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/legal_immigration.pmtiles",
       note: "Every row of legalmap_local_immigration.json in WelcomeToYourGalaxy/legal-map, as that map reads it: position, name and link." },
@@ -14640,7 +14970,7 @@ const LEG_MAP = {
   children: [
     { id: "leg_parliament", name: "Parliaments and legislatures", unit: "buildings", colour: "#5E6B5E", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/leg_parliament.pmtiles",
       note: "Every row of legmap_local_parliament.json in WelcomeToYourGalaxy/legislative-map, as that map reads it: position, name and link." },
-    { id: "leg_townhall", name: "Town halls (legislative map file)", unit: "town halls", colour: "#626A5F", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/leg_townhall.pmtiles",
+    { id: "leg_townhall", name: "Town halls (from the lawmakers map)", unit: "town halls", colour: "#626A5F", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/leg_townhall.pmtiles",
       note: "Every row of legmap_local_townhall.json in WelcomeToYourGalaxy/legislative-map, as that map reads it: position, name and link." },
     { id: "leg_audit", name: "Audit offices", unit: "offices", colour: "#5A665C", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/leg_audit.pmtiles",
       note: "Every row of legmap_local_audit.json in WelcomeToYourGalaxy/legislative-map, as that map reads it: position, name and link." },
@@ -14673,7 +15003,7 @@ const JUD_MAP = {
   children: [
     { id: "jud_courts", name: "Courts", unit: "courts", colour: "#5A6570", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/jud_courts.pmtiles",
       note: "Every row of judicial_facilities.json in WelcomeToYourGalaxy/judicial-map, as that map reads it: position, name and link." },
-    { id: "jud_prisons", name: "Prisons and detention (judicial map file)", unit: "facilities", colour: "#655C66", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/jud_prisons.pmtiles",
+    { id: "jud_prisons", name: "Prisons and detention (from the courts map)", unit: "facilities", colour: "#655C66", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/tiles/jud_prisons.pmtiles",
       note: "Every row of judicial_facilities.json in WelcomeToYourGalaxy/judicial-map, as that map reads it: position, name and link." },
     { id: "judicial_by_state", name: "Judicial accountability resources by state and province", unit: "countries", colour: "#5E6470", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-gov/shapes/judicial_by_state.geojson",
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
@@ -14701,9 +15031,9 @@ const MORE_MAPS = {
     // Round 77: the findings, the countries, the crematoria, mortuaries and
     // museums, the fire, the resource lenses and the wire, as the Unearthings
     // map has them.
-    { id: "remains_findings", name: "Published aggregate findings: measured looting, site density and institutional holdings (Unearthings)", unit: "findings", colour: "#6A6257", route: "remainsfind", ready: true, lazy: true,
+    { id: "remains_findings", name: "What studies have measured: grave looting, how dense burial sites are, what institutions hold (Unearthings)", unit: "findings", colour: "#6A6257", route: "remainsfind", ready: true, lazy: true,
       note: "Published aggregate findings on how much has already been looted or lost, how densely sites occur, and how many ancestors institutions still hold, each an open ring at the centre of the area the study covered. Aggregates only; no site locations are held or shown. Read from the map's findings.json each time it is ticked." },
-    { id: "remains_units", name: "Countries: what the harvest holds in each, with its guides and resources (Unearthings)", unit: "countries", colour: "#6A6257", route: "shapes", ready: true, lazy: true, box: "remainsunit",
+    { id: "remains_units", name: "Each country, shaded by how many of the map's records are in it, with its guides and resources (Unearthings)", unit: "countries", colour: "#6A6257", route: "shapes", ready: true, lazy: true, box: "remainsunit",
       dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/remains_units.geojson",
       note: "Each country shaded by how many of the map's records fall inside it; a click opens what is there, counted by direction, the first records by name, and the map's guides and resources for that country and the units inside it. The countries are world-atlas's (Natural Earth), as the map draws them; rebuilt daily by culprits-tiles-more." },
     { id: "remains_cemeteries", name: "Cemeteries and burial grounds (Unearthings)", unit: "cemeteries", colour: "#6A6257", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/remains_cemeteries.pmtiles",
@@ -14717,7 +15047,7 @@ const MORE_MAPS = {
     { id: "remains_museums", name: "Museums that may hold ancestors \u2014 unconfirmed (Unearthings)", unit: "museums", colour: "#7E8A6A", route: "remainsfac", ready: true, lazy: true,
       facFile: "remains_local_museum", facLabel: "Museum (may hold remains \u2014 unconfirmed)",
       note: "Institutions that might hold ancestors. Most do not: an OpenStreetMap museum tag says nothing about whether a museum holds human remains. The set a researcher would have to ask, from the map's own file." },
-    { id: "remains_fire", name: "Active fire, last 24 hours (NASA VIIRS)", unit: "thermal anomalies, 375 m", colour: "#8C5548", route: "rasterlive", ready: true, lazy: true,
+    { id: "remains_fire", name: "Active fires, last 24 hours (NASA VIIRS)", unit: "thermal anomalies, 375 m", colour: "#8C5548", route: "rasterlive", ready: true, lazy: true,
       // Round 82b (asked 27 September: it never loaded): GIBS publishes the fire
       // detections as vector data, not as the picture tiles this asked for, so
       // every tile failed. Its WMS draws the same detections as pictures, all
@@ -14753,13 +15083,13 @@ const GMO_MAP = {
   group: true,
   ready: true,
   children: [
-    { id: "gmo_cultivation", name: "Genetic-engineering cultivation (Genetic engineering map)", unit: "countries and regions", colour: "#6F6A5A", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/gmo_cultivation.geojson",
+    { id: "gmo_cultivation", name: "Where genetically engineered crops are grown (Genetic engineering map)", unit: "countries and regions", colour: "#6F6A5A", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/gmo_cultivation.geojson",
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
-    { id: "gmo_gmofree", name: "GMO-free zones (Genetic engineering map)", unit: "zones", colour: "#5F6E5C", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/gmo_gmofree.geojson",
+    { id: "gmo_gmofree", name: "Zones declared free of genetically engineered crops (Genetic engineering map)", unit: "zones", colour: "#5F6E5C", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/gmo_gmofree.geojson",
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
-    { id: "gmo_incidents", name: "Contamination incidents (Genetic engineering map)", unit: "countries", colour: "#7A5A55", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/gmo_incidents.geojson",
+    { id: "gmo_incidents", name: "Crops contaminated by genetically engineered varieties (Genetic engineering map)", unit: "countries", colour: "#7A5A55", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/gmo_incidents.geojson",
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
-    { id: "gmo_regime", name: "Regulatory regimes (Genetic engineering map)", unit: "regime areas", colour: "#5E6470", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/gmo_regime.geojson",
+    { id: "gmo_regime", name: "How each country regulates genetic engineering (Genetic engineering map)", unit: "regime areas", colour: "#5E6470", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/gmo_regime.geojson",
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
     { id: "gmo_treaties", name: "Biosafety and seed treaties (Genetic engineering map)", unit: "countries", colour: "#665E6C", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/gmo_treaties.geojson",
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
@@ -14771,7 +15101,7 @@ const GMO_MAP = {
     { id: "gmo_act", name: "What you can do: open consultations and how-to guides (Genetic engineering map)", unit: "opens a panel along the bottom", colour: "#5E6E5C", route: "gmopanel", ready: true, lazy: true,
       dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gmo/panel.json",
       note: "The comment windows open now on genetic engineering, country by country, with the days left to close, and the map's four how-to guides (testing for escaped GMOs, stopping a release, making a GMO-free zone, changing the industry); copied daily from the map by culprits-tiles-more. A country's own list of what you can do opens with the country on the shaded layers." },
-    { id: "gmo_trials", name: "Field trials (Genetic engineering map)", unit: "countries and regions", colour: "#6E6456", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/gmo_trials.geojson",
+    { id: "gmo_trials", name: "Field trials of genetically engineered crops (Genetic engineering map)", unit: "countries and regions", colour: "#6E6456", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/gmo_trials.geojson",
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
   ],
 };
@@ -14782,12 +15112,12 @@ const OTHER_MAPS = {
   group: true,
   ready: true,
   children: [
-    { id: "palmwatch", name: "PalmWatch", unit: "palm oil mills", colour: "#87544A", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/palmwatch.places.geojson",
+    { id: "palmwatch", name: "Palm oil mills, the land each likely buys from, and the forest lost there (PalmWatch)", unit: "palm oil mills", colour: "#87544A", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/palmwatch.places.geojson",
       note: "PalmWatch (Inclusive Development International and the University of Chicago Data Science Institute), reread from PalmWatch every day. Each area is a mill's modelled sourcing area, not a property boundary; tree cover loss inside it is not measured as that mill's own clearing." },
-    { id: "usda_soybean", name: "Soybean Map Explorer (USDA Foreign Agricultural Service)", unit: "soybean growing areas", colour: "#6F7560", route: "arcgis", ready: true, lazy: true,
+    { id: "usda_soybean", name: "Where soybeans are grown, country by country and region by region (USDA Foreign Agricultural Service)", unit: "soybean growing areas", colour: "#6F7560", route: "arcgis", ready: true, lazy: true,
       crop: "Soybean", service: "https://gis.ipad.fas.usda.gov/arcgis/rest/services/CommodityExplorerSoybean/MapServer", attribution: "USDA Foreign Agricultural Service",
       note: "Drawn live by USDA's Commodity Explorer map server each time the map moves; a click asks USDA what is there." },
-    { id: "usda_corn", name: "Corn Map Explorer (USDA Foreign Agricultural Service)", unit: "corn growing areas", colour: "#76705C", route: "arcgis", ready: true, lazy: true,
+    { id: "usda_corn", name: "Where corn is grown, country by country and region by region (USDA Foreign Agricultural Service)", unit: "corn growing areas", colour: "#76705C", route: "arcgis", ready: true, lazy: true,
       crop: "Corn", service: "https://gis.ipad.fas.usda.gov/arcgis/rest/services/CommodityExplorerCorn/MapServer", attribution: "USDA Foreign Agricultural Service",
       note: "Drawn live by USDA's Commodity Explorer map server each time the map moves; a click asks USDA what is there." },
     { id: "unep_coral", name: "Warm-water coral reefs (UNEP-WCMC)", unit: "reef areas", colour: "#B06F6A", route: "arcgis", ready: true, lazy: true,
@@ -14807,7 +15137,7 @@ const OTHER_MAPS = {
     { id: "ejatlas", name: "Environmental justice conflicts (EJAtlas)", unit: "conflicts", colour: "#7A5A55", route: "ejatlas", ready: true, lazy: true,
       api: "https://ejatlas.org/api/v1/conflicts/",
       note: "Every conflict in the EJAtlas, read live from its own data address; each box links the conflict's page." },
-    { id: "seas_of_plastic", name: "Seas of Plastic", unit: "stations, trips and ocean areas", colour: "#5E7377", route: "geojsonlive", ready: true, lazy: true,
+    { id: "seas_of_plastic", name: "Plastic sampled in the oceans: the stations, the voyages and the sea areas (Seas of Plastic)", unit: "stations, trips and ocean areas", colour: "#5E7377", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Stations", url: "https://app.dumpark.com/seas-of-plastic-2/app/data/AllStations.geojson" },
               { label: "Trips", url: "https://app.dumpark.com/seas-of-plastic-2/app/data/AllTrips.geojson" },
               { label: "Oceans", url: "https://app.dumpark.com/seas-of-plastic-2/app/data/Oceans.geojson" }],
@@ -14815,11 +15145,11 @@ const OTHER_MAPS = {
     { id: "final_nail", name: "Fur Farms (Final Nail)", unit: "farms", colour: "#6B5A4A", route: "wpgmza", ready: true, lazy: true,
       api: "https://finalnail.com/wp-json/wpgmza/v1/features/",
       note: "Final Nail's map, read live from its own data address, as it publishes it (names and addresses included)." },
-    { id: "nusantara", name: "Nusantara Atlas (TheTreeMap)", unit: "map layers", colour: "#6F7560", route: "wmsmenu", ready: true, lazy: true,
+    { id: "nusantara", name: "Forests, plantations and concessions in Indonesia and Malaysia (Nusantara Atlas, TheTreeMap)", unit: "map layers", colour: "#6F7560", route: "wmsmenu", ready: true, lazy: true,
       wms: ["https://map.nusantara-atlas.org/geoserver/atlas-workspace-v3/wms", "https://map.nusantara-atlas.org/geoserver/atlas-workspace-v2/wms"],
       attribution: "Nusantara Atlas, TheTreeMap",
       note: "Every layer Nusantara Atlas's map server publishes, drawn live; its alerts and compliance lists need a login and are not included." },
-    { id: "ct_gases", name: "Emitting sites by gas (Climate TRACE)", unit: "rows", colour: "#8F4E40", route: "ctgases", ready: true, lazy: true,
+    { id: "ct_gases", name: "Greenhouse gas sources, gas by gas (Climate TRACE)", unit: "rows", colour: "#8F4E40", route: "ctgases", ready: true, lazy: true,
       note: "Climate TRACE's per-site emissions of carbon dioxide, methane and nitrous oxide, each gas its own rows." },
     { id: "gfw_catalogue", name: "Global Forest Watch / Global Nature Watch: every dataset", unit: "datasets", colour: "#62755F", route: "gfwmenu", ready: true, lazy: true,
       api: "https://data-api.globalforestwatch.org",
@@ -14832,32 +15162,32 @@ const OTHER_MAPS = {
       colourBy: { field: "Amount of waste disposed", steps: [1e5, 5e5, 2e6, 5e6, 2e7], unit: "t of waste disposed" },
       files: [{ label: "Sanitary landfills", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/wasteatlas/places.geojson", only: ["category", "Sanitary Landfills"] }],
       note: "Waste Atlas (D-Waste, with ISWA and the University of Leeds): the markers its own map draws with the category Sanitary Landfills, every figure in its box kept; copied weekly by culprits-tiles-more, since the site answers only over plain http." },
-    { id: "wasteatlas_wte", name: "Waste-to-energy plants (incinerators), coloured by yearly capacity (Waste Atlas)", unit: "plants", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
+    { id: "wasteatlas_wte", name: "Rubbish burners that make power, coloured by yearly capacity (waste-to-energy incinerators, Waste Atlas)", unit: "plants", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
       colourBy: { field: "Annual capacity", steps: [3e4, 1e5, 2e5, 4e5, 8e5], unit: "t a year" },
       files: [{ label: "Waste-to-energy plants (incinerators)", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/wasteatlas/places.geojson", only: ["category", "WtE"] }],
       note: "Waste Atlas (D-Waste, with ISWA and the University of Leeds): the markers its own map draws with the category WtE, every figure in its box kept; copied weekly by culprits-tiles-more, since the site answers only over plain http." },
-    { id: "wasteatlas_mbt", name: "Mechanical-biological treatment plants, coloured by yearly capacity (Waste Atlas)", unit: "plants", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
+    { id: "wasteatlas_mbt", name: "Plants that sort and compost mixed rubbish, coloured by yearly capacity (mechanical-biological treatment, Waste Atlas)", unit: "plants", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
       colourBy: { field: "Annual capacity", steps: [4e4, 8e4, 1.5e5, 2.5e5, 4e5], unit: "t a year" },
       files: [{ label: "Mechanical-biological treatment plants", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/wasteatlas/places.geojson", only: ["category", "MBT"] }],
       note: "Waste Atlas (D-Waste, with ISWA and the University of Leeds): the markers its own map draws with the category MBT, every figure in its box kept; copied weekly by culprits-tiles-more, since the site answers only over plain http." },
-    { id: "wasteatlas_bt", name: "Biological treatment plants, coloured by yearly capacity (Waste Atlas)", unit: "plants", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
+    { id: "wasteatlas_bt", name: "Composting and biogas plants, coloured by yearly capacity (biological treatment, Waste Atlas)", unit: "plants", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
       colourBy: { field: "Annual capacity", steps: [5e3, 2e4, 5e4, 1e5, 3e5], unit: "t a year" },
       files: [{ label: "Biological treatment plants", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/wasteatlas/places.geojson", only: ["category", "Biological Treatment"] }],
       note: "Waste Atlas (D-Waste, with ISWA and the University of Leeds): the markers its own map draws with the category Biological Treatment, every figure in its box kept; copied weekly by culprits-tiles-more, since the site answers only over plain http." },
-    { id: "wasteatlas_cities", name: "Cities' waste, coloured by the municipal solid waste each makes a year (Waste Atlas)", unit: "cities", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
+    { id: "wasteatlas_cities", name: "Cities, coloured by the household and city rubbish each makes a year (Waste Atlas)", unit: "cities", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
       colourBy: { field: "Municipal Solid Waste generation", steps: [5e3, 5e4, 2e5, 1e6, 5e6], unit: "t a year" },
       files: [{ label: "Cities' waste figures", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/wasteatlas/places.geojson", only: ["category", "city"] }],
       note: "Waste Atlas (D-Waste, with ISWA and the University of Leeds): the markers its own map draws with the category city, every figure in its box kept; copied weekly by culprits-tiles-more, since the site answers only over plain http." },
-    { id: "wasteatlas_nat_msw", name: "Municipal solid waste made a year, by country (Waste Atlas)", unit: "t a year", colour: "#6A6258", route: "country", ready: true, lazy: true,
+    { id: "wasteatlas_nat_msw", name: "Household and city rubbish made a year, by country (Waste Atlas)", unit: "t a year", colour: "#6A6258", route: "country", ready: true, lazy: true,
       totalsFrom: { kind: "wasteatlas", field: "Municipal Solid Waste generation" }, countryNote: "Waste Atlas's country profile, as the site last published it",
       note: "Waste Atlas (D-Waste, with ISWA and the University of Leeds): each country's figure for Municipal Solid Waste generation from its country profiles, shading the whole country; the box gives all of the country's figures. Copied weekly by culprits-tiles-more; the site's figures are about 2016." },
-    { id: "wasteatlas_nat_stress", name: "Environmental stress, municipal solid waste per square km of land, by country (Waste Atlas)", unit: "t per square km", colour: "#6A6258", route: "country", ready: true, lazy: true,
+    { id: "wasteatlas_nat_stress", name: "Household and city rubbish per square km of land, by country (Waste Atlas's environmental stress)", unit: "t per square km", colour: "#6A6258", route: "country", ready: true, lazy: true,
       totalsFrom: { kind: "wasteatlas", field: "Environmental Stress" }, countryNote: "Waste Atlas's country profile, as the site last published it",
       note: "Waste Atlas (D-Waste, with ISWA and the University of Leeds): each country's figure for Environmental Stress from its country profiles, shading the whole country; the box gives all of the country's figures. Copied weekly by culprits-tiles-more; the site's figures are about 2016." },
-    { id: "wasteatlas_nat_percap", name: "Municipal solid waste made per person a year, by country (Waste Atlas)", unit: "kg per person a year", colour: "#6A6258", route: "country", ready: true, lazy: true,
+    { id: "wasteatlas_nat_percap", name: "Household and city rubbish made per person a year, by country (Waste Atlas)", unit: "kg per person a year", colour: "#6A6258", route: "country", ready: true, lazy: true,
       totalsFrom: { kind: "wasteatlas", field: "Generation per capita" }, countryNote: "Waste Atlas's country profile, as the site last published it",
       note: "Waste Atlas (D-Waste, with ISWA and the University of Leeds): each country's figure for Generation per capita from its country profiles, shading the whole country; the box gives all of the country's figures. Copied weekly by culprits-tiles-more; the site's figures are about 2016." },
-    { id: "wasteatlas_nat_gni", name: "Income per person (GNI per capita, PPP, current international $), by country (Waste Atlas)", unit: "international $ a year", colour: "#6A6258", route: "country", ready: true, lazy: true,
+    { id: "wasteatlas_nat_gni", name: "Average income per person, by country (GNI per capita at local prices, Waste Atlas)", unit: "international $ a year", colour: "#6A6258", route: "country", ready: true, lazy: true,
       totalsFrom: { kind: "wasteatlas", field: "GNI per capita, PPP (current international $)" }, countryNote: "Waste Atlas's country profile, as the site last published it",
       note: "Waste Atlas (D-Waste, with ISWA and the University of Leeds): each country's figure for GNI per capita, PPP (current international $) from its country profiles, shading the whole country; the box gives all of the country's figures. Copied weekly by culprits-tiles-more; the site's figures are about 2016." },
     { id: "wasteatlas_nat_collect", linear: [0, 100], name: "Share of waste collected, by country (Waste Atlas)", unit: "% collected", colour: "#6A6258", route: "country", ready: true, lazy: true,
@@ -14869,20 +15199,20 @@ const OTHER_MAPS = {
     { id: "wasteatlas_nat_unsound", linear: [0, 100], name: "Share of waste disposed of unsoundly (open dumping and burning), by country (Waste Atlas)", unit: "% unsoundly disposed", colour: "#6A6258", route: "country", ready: true, lazy: true,
       totalsFrom: { kind: "wasteatlas", field: "Unsound disposal" }, countryNote: "Waste Atlas's country profile, as the site last published it",
       note: "Waste Atlas (D-Waste, with ISWA and the University of Leeds): each country's figure for Unsound disposal from its country profiles, shading the whole country; the box gives all of the country's figures. Copied weekly by culprits-tiles-more; the site's figures are about 2016." },
-    { id: "wasteatlas_nat_intensity", name: "Waste made per dollar spent (waste intensive consumption), by country (Waste Atlas)", unit: "kg per $", colour: "#6A6258", route: "country", ready: true, lazy: true,
+    { id: "wasteatlas_nat_intensity", name: "Rubbish made per dollar spent, by country (Waste Atlas's waste-intensive consumption)", unit: "kg per $", colour: "#6A6258", route: "country", ready: true, lazy: true,
       totalsFrom: { kind: "wasteatlas", field: "Waste intensive consumption" }, countryNote: "Waste Atlas's country profile, as the site last published it",
       note: "Waste Atlas (D-Waste, with ISWA and the University of Leeds): each country's figure for Waste intensive consumption from its country profiles, shading the whole country; the box gives all of the country's figures. Copied weekly by culprits-tiles-more; the site's figures are about 2016." },
     { id: "coastal_cleanup", name: "Coastal Cleanup (Ocean Conservancy)", unit: "cleanup sites", colour: "#5F6B70", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Cleanups", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/coastal/cleanups.geojson" }],
       note: "Ocean Conservancy's cleanup sites, copied daily by culprits-tiles-more (its server lets only its own site read it)." },
-    { id: "atlas_hotspots", name: "Hotspots (Atlas for the End of the World)", unit: "biodiversity hotspots", colour: "#6E5A55", route: "arcgisapp", ready: true, lazy: true,
+    { id: "atlas_hotspots", name: "Biodiversity hotspots, species-rich places most at risk (Atlas for the End of the World)", unit: "biodiversity hotspots", colour: "#6E5A55", route: "arcgisapp", ready: true, lazy: true,
       item: "ba55aa1bff5447e7b72559b8dc1a0e83", pdfBase: "https://atlas-for-the-end-of-the-world.com/hotspots/",
       // About a kilometre, in degrees: the outlines are tens of megabytes at
       // the survey's own precision and took most of a minute to arrive.
       coarse: 0.01,
       pdfs: [["atlantic_forests", "Atlantic Forest"], ["california_floristic_province", "California Floristic Province"], ["cape_floristic_region", "Cape Floristic Region"], ["caribbean_islands", "Caribbean Islands"], ["caucasus", "Caucasus"], ["cerrado", "Cerrado"], ["chilean_valdivian_forests", "Chilean Winter Rainfall Valdivian Forests"], ["coastal_forests_of_eastern_africa", "Coastal Forests of Eastern Africa"], ["east_melanesian_islands", "East Melanesian Islands"], ["eastern_afromontane", "Eastern Afromontane"], ["forests_of_east_australia", "Forests of Eastern Australia"], ["guinean_forests_of_west_africa", "Guinean Forests of West Africa"], ["himalaya", "Himalaya"], ["horn_of_africa", "Horn of Africa"], ["japan", "Japan"], ["madagascar", "Madagascar & The Indian Ocean Islands"], ["madrean_woodlands", "Madrean Pine-Oak Woodlands"], ["maputaland_pondoland_albany", "Maputaland Pondoland Albany"], ["mediterranean_basin", "Mediterranean Basin"], ["mesoamerica", "Mesoamerica"], ["mountains_of_central_asia", "Mountains of Central Asia"], ["mountains_of_southwest_china", "Mountains of Southwest China"], ["new_caledonia", "New Caledonia"], ["new_zealand", "New Zealand"], ["philippines", "Philippines"], ["north_american_coastal_plain", "North American Coastal Plain"], ["southwest_australia", "Southwest Australia"], ["succulent_karoo", "Succulent Karoo"], ["sundaland", "Sundaland"], ["tropical_andes", "Tropical Andes"], ["wallacea", "Wallacea"], ["western_ghats_sri_lanka", "Western Ghats & Sri Lanka"]],
       note: "The 36 biodiversity hotspots, outlined live from Conservation International's Biodiversity Hotspots 2016.1 (CC BY 3.0), the boundaries the Atlas maps; opening one zooms to it and lays the Atlas's own map of it over this one, where it has been placed by the towns named on it, with its pages in a panel. The outlines are asked for at about a kilometre's precision rather than the survey's own, which is what makes them arrive in seconds; every field comes across unchanged." },
-    { id: "atlas_cities", name: "Hotspot Cities (Atlas for the End of the World)", unit: "cities", colour: "#5E6070", route: "atlascities", zoomTo: 9, ready: true, lazy: true,
+    { id: "atlas_cities", name: "Cities inside biodiversity hotspots (Atlas for the End of the World)", unit: "cities", colour: "#5E6070", route: "atlascities", zoomTo: 9, ready: true, lazy: true,
       pageBase: "https://atlas-for-the-end-of-the-world.com/hotspot_cities/", positions: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/atlas/cities.json",
       cities: [["antananarivo", "Antananarivo, Madagascar"], ["auckland", "Auckland, New Zealand"], ["baku", "Baku, Azerbaijan"], ["bogota", "Bogotá, Colombia"], ["brasilia", "Brasília, Brazil"], ["cape_town", "Cape Town, South Africa"], ["chengdu", "Chengdu, China"], ["colombo", "Colombo, Sri Lanka"], ["dar_es_salaam", "Dar es Salaam, Tanzania"], ["davao", "Davao, Philippines"], ["durban", "Durban, South Africa"], ["esfahan", "Esfahan, Iran"], ["guadalajara", "Guadalajara, Mexico"], ["guayaquil", "Guayaquil, Ecuador"], ["hongknog_shenzhen_quangzhou", "Hongkong-Shenzhen-Guangzhou, China"], ["honolulu", "Honolulu, United States"], ["houston", "Houston, United States"], ["jakarta", "Jakarta, Indonesia"], ["lagos", "Lagos, Nigeria"], ["los_angeles", "Los Angeles, United States"], ["makassar", "Makassar, Indonesia"], ["mecca", "Mecca, Saudi Arabia"], ["mexico_city", "Mexico City, Mexico"], ["nairobi", "Nairobi, Kenya"], ["osaka", "Osaka, Japan"], ["perth", "Perth, Australia"], ["port-au-prince", "Port-au-Prince, Haiti"], ["rawalpindi", "Rawalpindi, Pakistan"], ["santiago", "Santiago, Chile"], ["sao_paulo", "São Paulo, Brazil"], ["sydney", "Sydney, Australia"], ["tashkent", "Tashkent, Uzbekistan"], ["tel_aviv", "Tel Aviv, Israel"]],
       note: "The Atlas's 33 hotspot cities; each is placed from its name through a weekly OpenStreetMap lookup, and opening one zooms to it and shows the Atlas's own page for it in a panel on the map." },
@@ -14894,7 +15224,7 @@ const OTHER_MAPS = {
     { id: "owid_interest", name: "Share of government spending going to interest payments (Our World in Data)", unit: "% of spending", colour: "#6E5F52", route: "owidgrapher", ready: true, lazy: true,
       slug: "share-of-government-expenditure-going-to-interest-payments",
       note: "Read live from Our World in Data each time it is ticked; the chart's own data, by country and year." },
-    { id: "owid_corptax", name: "Statutory corporate income tax rate (Our World in Data)", unit: "% rate", colour: "#6E5F52", route: "owidgrapher", ready: true, lazy: true,
+    { id: "owid_corptax", name: "Tax rate companies are charged on profits by law (Our World in Data)", unit: "% rate", colour: "#6E5F52", route: "owidgrapher", ready: true, lazy: true,
       slug: "statutory-corporate-income-tax-rate",
       note: "Read live from Our World in Data each time it is ticked; the chart's own data, by country and year." },
     { id: "owid_aid", name: "Foreign aid received as a share of national income (Our World in Data)", unit: "% of income", colour: "#6E5F52", route: "owidgrapher", ready: true, lazy: true,
@@ -14915,10 +15245,10 @@ const OTHER_MAPS = {
     { id: "mymaps_supp_b", name: "Zoos", fixedName: true, unit: "placemarks", colour: "#6A5E66", route: "kml", ready: true, lazy: true,
       kml: "https://www.google.com/maps/d/kml?mid=1seBCggQGg1tcRYpqpZ5ZKJaxHs4&forcekml=1",
       note: "Read live from the map's Google My Maps file; the row takes the map's own title once it loads." },
-    { id: "rte_trade", name: "Resource trade flows (resourcetrade.earth, Chatham House)", unit: "trade flows", colour: "#8A6356", route: "rte", ready: true, lazy: true,
+    { id: "rte_trade", name: "Trade in natural resources between countries (resourcetrade.earth, Chatham House)", unit: "trade flows", colour: "#8A6356", route: "rte", ready: true, lazy: true,
       api: "https://api.resourcetrade.earth/api/rt/2.7", copy: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/rte",
       note: "The largest natural-resource trade flows between countries, read live from resourcetrade.earth (a daily copy stands in if it cannot be read)." },
-    { id: "gsn", name: "Global Safety Net (One Earth)", unit: "layers", colour: "#406F2F", route: "gsn", ready: true, lazy: true,
+    { id: "gsn", name: "Land that needs protecting to halt species loss and climate change (Global Safety Net, One Earth)", unit: "layers", colour: "#406F2F", route: "gsn", ready: true, lazy: true,
       api: "https://api.gsn.naturedatalab.org/geo-analysis/layers",
       note: "Every layer the Global Safety Net viewer offers, drawn live from its own map service in its own colours." },
     { id: "ct_air", name: "Urban air-pollution sources and their plumes (Climate TRACE)", unit: "sources", colour: "#7A5A55", route: "ctair", ready: true, lazy: true,
@@ -14934,13 +15264,13 @@ const OTHER_MAPS = {
     { id: "ct_air_bc", name: "Black carbon from urban air-pollution sources (Climate TRACE)", unit: "tonnes a year", colour: "#7A5A55", route: "ctairgas", gas: "bc", ready: true, lazy: true,
       list: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/sources.geojson", gases: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/gases.json",
       note: "Every source Climate TRACE's city air-pollution pages cover, sized by its black carbon in a year, from a weekly copy of Climate TRACE's figures; a click reads its plume and every pollutant live." },
-    { id: "ct_air_oc", name: "Organic carbon from urban air-pollution sources (Climate TRACE)", unit: "tonnes a year", colour: "#7A5A55", route: "ctairgas", gas: "oc", ready: true, lazy: true,
+    { id: "ct_air_oc", name: "Organic carbon soot from urban air-pollution sources (Climate TRACE)", unit: "tonnes a year", colour: "#7A5A55", route: "ctairgas", gas: "oc", ready: true, lazy: true,
       list: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/sources.geojson", gases: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/gases.json",
       note: "Every source Climate TRACE's city air-pollution pages cover, sized by its organic carbon in a year, from a weekly copy of Climate TRACE's figures; a click reads its plume and every pollutant live." },
     { id: "ct_air_so2", name: "Sulphur dioxide from urban air-pollution sources (Climate TRACE)", unit: "tonnes a year", colour: "#7A5A55", route: "ctairgas", gas: "so2", ready: true, lazy: true,
       list: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/sources.geojson", gases: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/gases.json",
       note: "Every source Climate TRACE's city air-pollution pages cover, sized by its sulphur dioxide in a year, from a weekly copy of Climate TRACE's figures; a click reads its plume and every pollutant live." },
-    { id: "ct_air_vocs", name: "Volatile organic compounds from urban air-pollution sources (Climate TRACE)", unit: "tonnes a year", colour: "#7A5A55", route: "ctairgas", gas: "vocs", ready: true, lazy: true,
+    { id: "ct_air_vocs", name: "Chemical vapours (volatile organic compounds) from urban air-pollution sources (Climate TRACE)", unit: "tonnes a year", colour: "#7A5A55", route: "ctairgas", gas: "vocs", ready: true, lazy: true,
       list: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/sources.geojson", gases: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ct_air/gases.json",
       note: "Every source Climate TRACE's city air-pollution pages cover, sized by its volatile organic compounds in a year, from a weekly copy of Climate TRACE's figures; a click reads its plume and every pollutant live." },
     { id: "ct_air_co", name: "Carbon monoxide from urban air-pollution sources (Climate TRACE)", unit: "tonnes a year", colour: "#7A5A55", route: "ctairgas", gas: "co", ready: true, lazy: true,
@@ -14962,33 +15292,33 @@ const OTHER_MAPS = {
     // Round 83b (asked 27 September): raised as relief by density, from GHSL's
     // own numbers (culprits-tiles-more scripts/ghsl_pop.py); Climate TRACE's flat
     // picture of the same data is drawn until that copy is built.
-    { id: "ct_pop", name: "Population density, 2020, 1 km, raised by how many people live there (GHSL)", unit: "people per square km", colour: "#00A5B8", route: "poprelief", ready: true, lazy: true,
+    { id: "ct_pop", name: "Population density, 2020, 1 km, raised higher where more people live (GHSL)", unit: "people per square km", colour: "#00A5B8", route: "poprelief", ready: true, lazy: true,
       archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ghsl_pop.pmtiles",
       attribution: "GHS-POP R2023A, European Commission JRC (CC BY 4.0); Climate TRACE", maxzoom: 12,
       choices: [{ label: "Population", tiles: "https://tiles.climatetrace.org/ghsl-pop-1km/all/{z}/{x}/{y}.png" }],
       note: "The European Commission's Global Human Settlement Layer: where people lived in 2020, about 1 km, as people per square km. Drawn in this map's colours and raised: the ground under the map is swapped for a surface whose height is the density, not the altitude, with shading from its slopes, so the most crowded places stand highest. Unticked, the ground returns to what it was. Built once from GHSL's release (it is not updated); until it is built, the flat picture Climate TRACE's air-pollution pages draw of the same data is shown." },
-    { id: "gta_acts", name: "State acts by country (Global Trade Alert)", unit: "state acts", colour: "#8A6356", route: "gta", ready: true, lazy: true,
+    { id: "gta_acts", name: "Government measures that help or hurt trade, by country (Global Trade Alert)", unit: "state acts", colour: "#8A6356", route: "gta", ready: true, lazy: true,
       data: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gta/countries.json", shapes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gta/world.geojson",
       note: "Every state act in Global Trade Alert's database, summed by the country that took it, from a daily copy." },
-    { id: "policy_rates", name: "Central bank policy rates, month by month (BIS)", unit: "countries", colour: "#4F7FA8", route: "tracker", ready: true, lazy: true, keepColour: true,
+    { id: "policy_rates", name: "Central banks' interest rates, month by month (Bank for International Settlements)", unit: "countries", colour: "#4F7FA8", route: "tracker", ready: true, lazy: true, keepColour: true,
       kind: "rates", data: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trackers/policy_rates.json",
       note: "The interest rate each central bank sets, every month the Bank for International Settlements publishes, in place of CFR's Global Monetary Policy Tracker (CFR's terms do not allow its data to be shown elsewhere; the BIS allows its statistics to be reproduced with the BIS named). A menu shades by the rate or by how much it moved over twelve months; the slider picks the month and the button plays through them. Euro-area countries show the European Central Bank's rate from the month each took the euro. Copied daily." },
-    { id: "imbalances", name: "Current account balances: global imbalances, year by year (IMF)", unit: "countries", colour: "#3C98AB", route: "tracker", ready: true, lazy: true, keepColour: true,
+    { id: "imbalances", name: "How much more each country sells abroad than it buys, or the reverse, year by year (IMF current account balances)", unit: "countries", colour: "#3C98AB", route: "tracker", ready: true, lazy: true, keepColour: true,
       kind: "imbalances", data: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trackers/imbalances.json",
       note: "Each country's current account: what it earns from the rest of the world (exports, income from abroad) less what it pays out. A surplus country lends to the rest of the world; a deficit country borrows from it. From the International Monetary Fund's World Economic Outlook, in place of CFR's Global Imbalances Tracker (the IMF allows its data to be published with the IMF named). As a share of GDP or in US dollars; this year and later are the IMF's forecasts. Copied daily." },
-    { id: "cfr_tracker", name: "Global Monetary Policy Tracker (CFR)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+    { id: "cfr_tracker", name: "Central banks' interest rate moves (Council on Foreign Relations tracker)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://public.tableau.com/views/CFRGlobalMonetaryPolicyTrackerNEW/GlobalMonetaryPolicyTracker?:showVizHome=no&:embed=y",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "tableau_zsf", name: "Global Imbalances Tracker (CFR)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+    { id: "tableau_zsf", name: "Countries' trade and money imbalances (Council on Foreign Relations tracker)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://public.tableau.com/shared/ZSF724HPQ?:showVizHome=no&:embed=y",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
     { id: "troutwood", name: "Troutwood map", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://map.troutwood.com/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "ect_secrets", name: "Energy Charter Treaty's Dirty Secrets", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+    { id: "ect_secrets", name: "Energy Charter Treaty: fossil fuel companies suing governments over climate action", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://energy-charter-dirty-secrets.org/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "isds_tracker", name: "Global ISDS Tracker", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+    { id: "isds_tracker", name: "Companies suing governments in private tribunals (ISDS tracker)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://www.globalisdstracker.org/database/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
     { id: "giga_schools", name: "Giga: school connectivity map", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
@@ -15000,10 +15330,10 @@ const OTHER_MAPS = {
     { id: "bffp_audit", name: "Break Free From Plastic brand audit 2023", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://brandaudit.breakfreefromplastic.org/brand-audit-2023/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "gpw_map", name: "Global Plastic Watch", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+    { id: "gpw_map", name: "Plastic waste dumps seen from space (Global Plastic Watch)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://globalplasticwatch.org/map",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "epa_widget", name: "Every US site EPA holds a record for, across all its programs (EPA Envirofacts)", unit: "facilities", colour: "#6A6258", route: "arcgisdyn", ready: true, lazy: true,
+    { id: "epa_widget", name: "Every US site the Environmental Protection Agency holds a record for, across all its programs (EPA Envirofacts)", unit: "facilities", colour: "#6A6258", route: "arcgisdyn", ready: true, lazy: true,
       service: "https://geopub.epa.gov/arcgis/rest/services/EMEF/efpoints/MapServer", minzoom: 6.5,
       // EPA's service draws nothing wider than about state level, so wider out
       // the row draws a weekly copy of every point (scripts/epa_efpoints.py in
@@ -15017,13 +15347,13 @@ const OTHER_MAPS = {
       files: [{ label: "Banking on Climate Chaos 2026", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/bocc/banks.geojson" }], nameFrom: ["bank"],
       attribution: "Banking on Climate Chaos 2026 (RAN, BankTrack, IEN, Oil Change International, Reclaim Finance, Sierra Club, Urgewald and others); GLEIF; OpenStreetMap",
       note: "Each of the 65 banks in the report, at the headquarters its parent company gives in the Global Legal Entity Identifier register (GLEIF), found in OpenStreetMap. Each box gives both of the report's league tables as printed: fossil fuel financing and fossil fuel expansion financing, the 2025 rank, every year 2021 to 2025, the five-year total and the change from 2024, with the legal entity and its LEI. Figures are the report's, attributed to the parent bank. Read from the report itself by culprits-tiles-more (the site offers no data file)." },
-    { id: "forest_management", name: "Forest management types worldwide, 2020: untouched, logged or regrowing, planted, plantations, tree crops (VITO, IIASA and WRI)", unit: "kinds of forest", colour: "#8C5A68", route: "rasterparts", ready: true, lazy: true,
+    { id: "forest_management", name: "How the world's forests are managed, 2020: untouched, logged or regrowing, planted, plantations, tree crops (VITO, IIASA and WRI)", unit: "kinds of forest", colour: "#8C5A68", route: "rasterparts", ready: true, lazy: true,
       archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/forest_management.pmtiles",
       // Round 82b: nine colours far apart in hue and depth, in the owner's neon greens and blues.
       classColours: ["#0A7E8C", "#00B4D8", "#5FD3C4", "#2F6BFF", "#0B4F9C", "#9FE0F0", "#14A8A0", "#E6F4FA", "#3A4FD9"],
       attribution: "Global Forest Management Type Map 2020 (De Keersmaecker et al., VITO, IIASA, WRI), CC BY 4.0",
       note: "Every forest on Earth at 100 m in 2020, by how it is managed, in the record's own classes: unmanaged natural forests (primary among them); naturally regenerated forests with visible human activity (where logging shows); planted forest; plantation forest; rubber; oil palm; tree crops; agroforestry; other trees. A copy made once from the Zenodo record (10.5281/zenodo.20396072)." },
-    { id: "dff", name: "Deforestation Free Funds", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+    { id: "dff", name: "Investment funds and the deforestation in them (Deforestation Free Funds)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://deforestationfreefunds.org",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
     { id: "largest_companies", name: "The 500 largest companies by revenue (compiled from Wikidata)", unit: "companies, at their headquarters", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
@@ -15041,10 +15371,10 @@ const OTHER_MAPS = {
       files: [{ label: "Development banks by total assets", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/banks/development.geojson" }],
       attribution: "Wikidata (CC0); exchange rates from the European Central Bank and the World Bank",
       note: "Banks owned by one government (national, such as China Development Bank, KfW or BNDES) or by several (multilateral, such as the World Bank's IBRD, the Asian Development Bank or the European Investment Bank), set up to lend for development: dams, roads, power, mines, farming and the like. Every item Wikidata says is a development bank or multilateral development bank and gives a total assets figure for, at its latest year, in US dollars at that year's average rate, ranked by size. A development bank with no total assets figure in Wikidata is not on it. Each box shows every field gathered, with a link to the Wikidata page. Rebuilt weekly by culprits-tiles-more." },
-    { id: "theyrule", name: "They Rule", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+    { id: "theyrule", name: "Who sits on the boards of the biggest companies (They Rule)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://theyrule.net/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "pe_bankrolling", name: "Bankrolling Extinction (Portfolio Earth)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+    { id: "pe_bankrolling", name: "Banks' money behind the destruction of nature (Bankrolling Extinction, Portfolio Earth)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://portfolio.earth/campaigns/bankrolling-extinction/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
     // Round 61: the 50 banks of Bankrolling Extinction at their headquarters
@@ -15054,7 +15384,7 @@ const OTHER_MAPS = {
       files: [{ label: "Bankrolling Extinction", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/pe/banks.geojson" }], nameFrom: ["bank"],
       attribution: "Bankrolling Extinction (Portfolio Earth, 2020); GLEIF; OpenStreetMap",
       note: "Each of the report's 50 banks at the headquarters its parent company gives in the Global Legal Entity Identifier register (GLEIF), found in OpenStreetMap. Each box gives the report's Table 2 as printed (S&P Global rank, country, region, total assets 2019) and the bank's loans and underwriting linked to biodiversity risk in 2019, with the part linked to direct risk and both as a share of assets. Figure 1 prints no numbers for these: they are measured from the length of its bars, rounded to the nearest billion USD, and approximate (checked against the report's own average, 52 billion, and largest, more than 210 billion). Four banks' bars are drawn at one smallest length; their boxes say so rather than give an amount. Portfolio Earth publishes no data file and states no licence." },
-    { id: "pe_subsidising", name: "Subsidising Extinction (Portfolio Earth)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+    { id: "pe_subsidising", name: "Government subsidies that destroy nature (Subsidising Extinction, Portfolio Earth)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://portfolio.earth/campaigns/subsidising-extinction/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
     { id: "powerbi_report", name: "Environmental Crime Tracker", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
@@ -15063,12 +15393,12 @@ const OTHER_MAPS = {
     { id: "scribd_doc", name: "Destruction page document (Scribd)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://www.scribd.com/embeds/401203705/content?start_page=1&view_mode=scroll&access_key=key-9NzI5oK8PppZP3Bfluct",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "skytruth_monitor", name: "All incidents (SkyTruth Monitor)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+    { id: "skytruth_monitor", name: "Every pollution incident SkyTruth tracks (SkyTruth Monitor)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://monitor.skytruth.org/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
     // It said "last 30 days". It never was: SkyTruth's service does not apply the
     // days it is asked for, and the copy holds ships from 2019 and 2024.
-    { id: "skytruth_voc", name: "Vessels of concern (SkyTruth Monitor)", unit: "alerts", colour: "#5E7377", route: "pmtiles", ready: true, lazy: true,
+    { id: "skytruth_voc", name: "Disabled and sunken ships that could spill oil (SkyTruth's vessels of concern)", unit: "alerts", colour: "#5E7377", route: "pmtiles", ready: true, lazy: true,
       standout: { fill: "#6FC8E6", rim: "#E6F4F7", say: "a disabled or sunken ship SkyTruth lists as a spill threat, ringed so it can be found from far out" },
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_voc.pmtiles", boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/vessels_of_concern",
       note: "SkyTruth's own list of disabled and sunken ships that threaten a spill, every one it lists whatever its date, from a daily copy of its service." },
@@ -15100,7 +15430,7 @@ const OTHER_MAPS = {
     { id: "skytruth_pa_violations", name: "Violations issued to oil and gas operators, Pennsylvania (SkyTruth Monitor)", unit: "violations", colour: "#7A5B4E", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_pa_violations.pmtiles",
       boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_9",
       note: "Every alert SkyTruth's service will give, from a daily copy read square by square as tiles: the service hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. A click reads the alert's own text from the copy. Each violation as Pennsylvania's inspectors recorded it, with its code." },
-    { id: "skytruth_well_permits", name: "Well plugging and other well permit activity, by county (SkyTruth Monitor)", unit: "permit reports", colour: "#6B6056", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_well_permits.pmtiles",
+    { id: "skytruth_well_permits", name: "Wells plugged and other well permits, by county (SkyTruth Monitor)", unit: "permit reports", colour: "#6B6056", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_well_permits.pmtiles",
       boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_8",
       note: "Every alert SkyTruth's service will give, from a daily copy read square by square as tiles: the service hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. A click reads the alert's own text from the copy. Permit activity as operators reported it. The feed does not say which state it covers; the newest report seen on 20 September 2026 was from December 2011." },
     { id: "skytruth_fracfocus", name: "Gas and oil wells fracked, United States \u2014 operators' FracFocus disclosures (SkyTruth Monitor)", unit: "disclosures", colour: "#6F5F58", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_fracfocus.pmtiles",
@@ -15115,13 +15445,13 @@ const OTHER_MAPS = {
     { id: "slick_archive", name: "Oil slick archive, kept daily (Cerulean)", unit: "slicks by month", colour: "#5A5750", route: "slickarchive", ready: true, lazy: true,
       base: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/cerulean_archive",
       note: "Every Cerulean slick kept by month from a daily copy, so they stay on the map whatever happens to the live service." },
-    { id: "wrf", name: "When Rockets Fly", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+    { id: "wrf", name: "Upcoming rocket launches (When Rockets Fly)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://whenrocketsfly.com/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "nsf_launches", name: "Next Spaceflight", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+    { id: "nsf_launches", name: "Upcoming space launches (Next Spaceflight)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://nextspaceflight.com/launches/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "nsf_locations", name: "Next Spaceflight: launch sites", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+    { id: "nsf_locations", name: "Launch sites (Next Spaceflight)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://nextspaceflight.com/locations/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
     { id: "ufo_sightings", name: "Unidentified anomalous phenomena (UAP) sightings reported worldwide (UFOSINT)", unit: "sightings", colour: "#9A8AA6", route: "ufo", ready: true, lazy: true,
@@ -15149,7 +15479,7 @@ const OTHER_MAPS = {
     { id: "leverage_chart", name: "The Leverage Chart", unit: "opens it in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://welcometoyourgalaxy.github.io/maps/leverage-chart.html",
       note: "Your own chart from the Solution page, whole, in the panel along the bottom." },
-    { id: "wreckers_umap", name: "Wreckers of the Earth (Corporate Watch)", unit: "companies and sites", colour: "#6E5A55", route: "umap", ready: true, lazy: true,
+    { id: "wreckers_umap", name: "Companies wrecking the planet (Wreckers of the Earth, Corporate Watch)", unit: "companies and sites", colour: "#6E5A55", route: "umap", ready: true, lazy: true,
       umap: "https://umap.openstreetmap.fr/en", umapId: 409815,
       note: "Read live from Corporate Watch's uMap each time it is ticked, with its own layers, colours and popups." },
     { id: "mymaps_chlorine", name: "Plastics and chlorine (Google My Maps)", unit: "placemarks", colour: "#5F6B70", route: "kml", ready: true, lazy: true,
@@ -15226,7 +15556,7 @@ const OTHER_MAPS = {
       item: "8e72a974af4c4fe9ba6875cee03078ee",
       attribution: '<a href="https://www.fractracker.org" target="_blank" rel="noopener">FracTracker Alliance</a>',
       note: "FracTracker Alliance's own Global Oil Refinery Complexes map, read live from it: its layers, its fields and its popups, unchanged." },
-    { id: "arcgis_ym8xk", name: "Vinyl chloride (ArcGIS)", unit: "places", colour: "#5E6070", route: "arcgisapp", ready: true, lazy: true,
+    { id: "arcgis_ym8xk", name: "Vinyl chloride plants and releases (ArcGIS)", unit: "places", colour: "#5E6070", route: "arcgisapp", ready: true, lazy: true,
       item: "b1b5b5e0d08c4024a50caa88e6442281",
       note: "Read live from the ArcGIS map linked on the Destruction page (arcg.is/ym8XK); the row takes its own title once it loads." },
     { id: "arcgis_materialresearch", name: "Toxic manufacturing plants, US and worldwide (Material Research World Atlas, ArcGIS)", unit: "places", colour: "#665E6C", route: "arcgisapp", ready: true, lazy: true,
@@ -15264,18 +15594,18 @@ const OTHER_MAPS = {
       choices: ["2025", "2024"].map((y) => ({ label: y, tiles: "https://map.nusantara-atlas.org/geoserver/atlas-workspace-v3/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap" +
         `&LAYERS=Global_PlantationITP_${y}&STYLES=&SRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=true` })),
       note: "TheTreeMap's industrial timber plantations (acacia, eucalyptus and other plantation trees grown for pulp and timber), as the Nusantara Atlas publishes them for 2024 and 2025; a chip picks the year. Read live from the Atlas's own map server; the record does not list which countries it covers." },
-    { id: "soil_spun", name: "Mycorrhizal fungi underground: richness and endemism, worldwide, 1 km (SPUN Underground Atlas)", unit: "modelled from 2.8 billion fungal DNA sequences", colour: "#6B5A4A", route: "rasterlive", ready: true, lazy: true,
+    { id: "soil_spun", name: "Fungi that feed plant roots underground: how many kinds, and how many found nowhere else, 1 km (SPUN Underground Atlas)", unit: "modelled from 2.8 billion fungal DNA sequences", colour: "#6B5A4A", route: "rasterlive", ready: true, lazy: true,
       attribution: "SPUN Underground Atlas: Van Nuland, Kiers et al. 2025, Nature (CC BY 4.0)", maxzoom: 12,
       choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/soil/spun_choices.json", choices: [],
       note: "The most detailed worldwide map of life in the soil that is open to copy: SPUN's Underground Atlas, predicted richness and endemism of the fungi that live with plant roots (arbuscular and ectomycorrhizal), about 1 km across, from 2.8 billion DNA sequences sampled in 130 countries (Van Nuland et al. 2025, Nature). Every map in its data record is a choice here, named from its file; each is shaded in 12 steps between its own 2nd and 98th percentiles, with the key giving each step's values. A model's prediction, not a count. Maps across all soil life (bacteria, fungi, protists, invertebrates) exist, but their present-day grids are not published for copying, and the EU's Global Soil Biodiversity Atlas maps may not be passed on. Copied once by culprits-tiles-more from Zenodo record 10.5281/zenodo.14871588." },
     // Round 50 (25 September): soil nematodes, the samples behind the global
     // nematode maps (van den Hoogen et al.), CC0; copied by culprits-tiles-more
     // scripts/soil_nematodes.py with every column of every sample.
-    { id: "soil_nematodes", name: "Soil nematodes: every sample, worldwide (van den Hoogen et al.)", unit: "soil samples", colour: "#6B5A4A", route: "geojsonlive", ready: true, lazy: true,
+    { id: "soil_nematodes", name: "Soil nematodes, tiny worms: every sample, worldwide (van den Hoogen et al.)", unit: "soil samples", colour: "#6B5A4A", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Samples", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/soil/nematodes_samples.geojson" }, { label: "Samples pooled by 1 km square, with their environment", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/soil/nematodes_aggregated.geojson" }],
       attribution: "van den Hoogen, Geisen, Wall et al. 2020, Scientific Data 7, 103 (CC0)",
       note: "The global database of soil nematode abundance and functional group composition: 6,825 soil samples from every continent, each with its count of nematodes per 100 g of dry soil by feeding group (bacteria, fungi, plant, omnivore, predator feeders). Both files of its data record are drawn whole, the samples and the samples pooled by 1 km square with the environmental figures the 2019 global maps were modelled from; every column is in the box. Copied from figshare (10.6084/m9.figshare.c.4718003) by culprits-tiles-more." },
-    { id: "soilgrids", name: "Soil properties (SoilGrids, ISRIC)", unit: "soil properties, 250 m", colour: "#6B5A4A", route: "rasterlive", ready: true, lazy: true,
+    { id: "soilgrids", name: "What the soil is made of: clay, sand, carbon and more, 250 m (SoilGrids, ISRIC)", unit: "soil properties, 250 m", colour: "#6B5A4A", route: "rasterlive", ready: true, lazy: true,
       attribution: "ISRIC SoilGrids (CC BY 4.0)", maxzoom: 14,
       choices: [
         { label: "Soil organic carbon, 0\u20135 cm", tiles: "https://maps.isric.org/mapserv?map=/map/soc.map&SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=soc_0-5cm_mean&STYLES=&CRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=true" },
@@ -15290,7 +15620,7 @@ const OTHER_MAPS = {
         { label: "Silt, 0\u20135 cm", tiles: "https://maps.isric.org/mapserv?map=/map/silt.map&SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=silt_0-5cm_mean&STYLES=&CRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=true" }
       ],
       note: "ISRIC's SoilGrids map server, read live. Each chip is one soil property at 0\u20135 cm depth, as SoilGrids publishes it." },
-    { id: "food_soy", name: "Soy: greenhouse gases, water, nutrients and disturbance, 2017 (Halpern et al.)", unit: "per map cell", colour: "#6A4A5E", route: "rasterlive", ready: true, lazy: true,
+    { id: "food_soy", name: "Soy farming's harm: greenhouse gases, water, fertiliser run-off and land disturbed, 2017 (Halpern et al.)", unit: "per map cell", colour: "#6A4A5E", route: "rasterlive", ready: true, lazy: true,
       attribution: "Halpern et al. 2022; Frazier et al., Global food system pressure data (KNB doi:10.5063/F1V69H1B)", maxzoom: 6,
       choices: [
         { label: "Greenhouse gases", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/food_soyb_ghg.pmtiles" },
@@ -15299,7 +15629,7 @@ const OTHER_MAPS = {
         { label: "Habitat disturbance", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/food_soyb_disturbance.pmtiles" }
       ],
       note: "What growing soy put on the land in 2017, food and feed together, mapped by Halpern et al. 2022 (Nature Sustainability) from their data package. Each chip is one of its four pressures, per map cell, coloured dark to light on a log scale cut at the values' own steps (food/<name>.key.json in culprits-tiles-more). Built once from the package; it is not updated." },
-    { id: "food_maize", name: "Maize (corn): greenhouse gases, water, nutrients and disturbance, 2017 (Halpern et al.)", unit: "per map cell", colour: "#6A4A5E", route: "rasterlive", ready: true, lazy: true,
+    { id: "food_maize", name: "Maize (corn) farming's harm: greenhouse gases, water, fertiliser run-off and land disturbed, 2017 (Halpern et al.)", unit: "per map cell", colour: "#6A4A5E", route: "rasterlive", ready: true, lazy: true,
       attribution: "Halpern et al. 2022; Frazier et al., Global food system pressure data (KNB doi:10.5063/F1V69H1B)", maxzoom: 6,
       choices: [
         { label: "Greenhouse gases", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/food_maiz_ghg.pmtiles" },
@@ -15308,7 +15638,7 @@ const OTHER_MAPS = {
         { label: "Habitat disturbance", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/food_maiz_disturbance.pmtiles" }
       ],
       note: "What growing maize (corn) put on the land in 2017, food and feed together, mapped by Halpern et al. 2022 (Nature Sustainability) from their data package. Each chip is one of its four pressures, per map cell, coloured dark to light on a log scale cut at the values' own steps (food/<name>.key.json in culprits-tiles-more). Built once from the package; it is not updated." },
-    { id: "edgar_fgases", name: "Fluorinated gas emissions by 10 km cell, one chip per gas, latest year (EDGAR)", unit: "tonnes of the gas per map cell", colour: "#6A5A6E", route: "rasterlive", ready: true, lazy: true,
+    { id: "edgar_fgases", name: "Fluorinated gases (industrial coolants and insulating gases) released, per 10 km square, gas by gas (EDGAR)", unit: "tonnes of the gas per map cell", colour: "#6A5A6E", route: "rasterlive", ready: true, lazy: true,
       choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/edgar/fgases_choices.json",
       attribution: "EDGAR_2025_GHG, European Commission JRC, CC BY 4.0", maxzoom: 6,
       choices: [
@@ -15343,7 +15673,7 @@ const OTHER_MAPS = {
         { label: "Untreated", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_plume_open.pmtiles" }
       ],
       note: "The model's coastal plumes: how the nitrogen from each watershed's wastewater spreads into the sea after it leaves the coastal outlet, per map cell. The outlet rows mark only the spot where it enters; its four choices are the same four sources as theirs (all, sewage treatment, septic, untreated), drawn as spread rather than as points. Drawn from the model's own rasters (scripts/wastewater_plumes.py in culprits-tiles-more), read at about 4 km and coloured dark to light on a log scale cut at the values' own steps. Built once from the 2021 data package; the model is not updated." },
-    { id: "wastewater", name: "Global Wastewater Model (Tuholske et al.)", unit: "nitrogen from human wastewater", colour: "#5E7377", route: "rasterlive", ready: true, lazy: true,
+    { id: "wastewater", name: "Nitrogen from human sewage, the model's map (Tuholske et al.)", unit: "nitrogen from human wastewater", colour: "#5E7377", route: "rasterlive", ready: true, lazy: true,
       attribution: "Tuholske et al. 2021, Global Wastewater Model", maxzoom: 10,
       choices: [
         { label: "Nitrogen in all wastewater", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_N_effluent.pmtiles" },
@@ -15376,7 +15706,7 @@ const OTHER_MAPS = {
       note: "The EC Joint Research Centre's map of every pixel of surface water seen by Landsat from 1984 to 2024, read live from the JRC's own tiles. The JRC's colours are redrawn in this map's own; what each pixel means is unchanged." },
     // Item 30: the most detailed land cover map published worldwide, by class
     // and by pixel together, read live from OpenLandMap's copy.
-    { id: "glc_fcs30d", name: "Land cover in 35 classes, 30 m, worldwide, 2000 to 2022 (GLC_FCS30D)", unit: "35 kinds of cover, 30 m", colour: "#6F805F", route: "rasterlive", ready: true, lazy: true,
+    { id: "glc_fcs30d", name: "Land cover in 35 kinds, 30 m, worldwide, 2000 to 2022 (GLC_FCS30D)", unit: "35 kinds of cover, 30 m", colour: "#6F805F", route: "rasterlive", ready: true, lazy: true,
       attribution: "GLC_FCS30D, Zhang et al. 2023 (CC BY 4.0), via OpenLandMap", maxzoom: 13, rasterPaint: { "raster-opacity": 0.85, "raster-saturation": 0, "raster-resampling": "nearest" },
       choices: [2022, 2020, 2015, 2010, 2005, 2000].map((y) => ({ label: String(y), tiles: `cog4326://glc_fcs30d/${y}/{z}/{x}/{y}` })),
       key: GLC_FCS30D_CLASSES.map(([, c, label]) => [c, label]),
@@ -15386,7 +15716,7 @@ const OTHER_MAPS = {
       note: "Every land use class in OpenStreetMap as OpenFreeMap serves it, and its farmland by kind. No worldwide land use map separates plantations, mining, transmigration or fish ponds the way Indonesia's ministry map does; OpenStreetMap's is the most detailed there is, each plot its own shape, but volunteers map it, so coverage varies from place to place." },
     // Item 5: aquaculture ponds worldwide, 2020, from Sentinel-2 (Zenodo
     // record 5643036), built by culprits-tiles-more scripts/aquaculture_ponds.py.
-    { id: "aquaculture_ponds", name: "Aquaculture pond clusters on land, worldwide, 2020, traced from 10 m satellite images (LCAP)", unit: "pond clusters", colour: "#5E7377", route: "pmshapes", ready: true, lazy: true,
+    { id: "aquaculture_ponds", name: "Fish and shrimp farm ponds on land, worldwide, 2020, traced from 10 m satellite images (LCAP)", unit: "pond clusters", colour: "#5E7377", route: "pmshapes", ready: true, lazy: true,
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/aquaculture_ponds.pmtiles", polygonLayer: "ponds", pointLayer: "pond_points",
       featureWord: "Aquaculture pond cluster", featureWords: "pond clusters", buildScript: "scripts/aquaculture_ponds.py",
       stateText: "every cluster as a glowing point from the world view, outlines from zoom 7",
@@ -15447,7 +15777,7 @@ const TRASE_DATA = {
   group: true,
   ready: true,
   children: [
-      { id: "trase_measures", name: "Deforestation and supply-chain measures (Trase)", unit: "regions", catUnit: "regions", colour: "#8C5548", route: "trase", ready: true, lazy: true,
+      { id: "trase_measures", name: "How much forest each crop and animal clears, and the trade behind it (Trase)", unit: "regions", catUnit: "regions", colour: "#8C5548", route: "trase", ready: true, lazy: true,
         catalogue: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/catalogue.json", values: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/values",
         regions: "https://resources.trase.earth/data/trase-regions",
         regionsCopy: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trase/regions",
@@ -15509,17 +15839,17 @@ const MILITARY = {
     // colour to tell apart): each row its own colour, kept out of the map's
     // rotation (keepColour), within teal to blue as the owner chose (no green,
     // orange or yellow), told apart by hue and by depth, from white to navy.
-    { id: "mil_news", name: "News of fighting in the last seven days, placed where GDELT codes the action (GDELT events)", unit: "places", colour: "#00B4D8", keepColour: true, route: "gdeltarchive", ready: true, lazy: true,
+    { id: "mil_news", name: "News of fighting in the last seven days, where the reports say it happened (GDELT)", unit: "places", colour: "#00B4D8", keepColour: true, route: "gdeltarchive", ready: true, lazy: true,
       copyUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/news.geojson",
       note: "The events GDELT codes as fighting - assault, fight, unconventional mass violence - from the news in every language it reads, over the last seven days, each at the place it gives for the action with the articles it was coded from. Copied daily by culprits-tiles-more from GDELT's 15-minute event files; GDELT's GEO API, which this row read before, no longer answers." },
-    { id: "mil_conflicts", name: "Armed conflict events since 1989, each with at least one death (UCDP)", unit: "events", colour: "#FFFFFF", keepColour: true, route: "pmtiles", ready: true, lazy: true,
+    { id: "mil_conflicts", name: "Armed clashes since 1989 in which at least one person died (UCDP)", unit: "events", colour: "#FFFFFF", keepColour: true, route: "pmtiles", ready: true, lazy: true,
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/mil_conflicts.pmtiles", boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/ucdp", boxesGz: true,
       facet: { property: "x_kind", label: "kind", values: ["state-based conflict", "non-state conflict", "one-sided violence against civilians"] },
       note: "The Uppsala Conflict Data Program's Georeferenced Event Dataset (CC BY 4.0), every event in its latest global release with the monthly candidate events of this year added: fighting between states and armed groups, between armed groups, and armed groups or states killing civilians. Dots are sized by UCDP's best estimate of deaths. Every field UCDP gives is in the box. Copied daily." },
     { id: "mil_attacks", name: "Terrorist attacks recorded in Wikidata, by decade", unit: "attacks", colour: "#9FE8FF", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Attacks", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/attacks.geojson" }],
       note: "Every attack Wikidata files as a terrorist attack and places, with its date, deaths, injured and perpetrator where recorded. Wikidata is edited by anyone and is far from complete; the Global Terrorism Database forbids republishing its records, so it is not used. Attacks on civilians by armed groups are also in the conflict events row, under one-sided violence. Copied daily." },
-    { id: "mil_aircraft", name: "Military aircraft in the air now (ADS-B, adsb.lol)", unit: "aircraft", colour: "#CFE0FF", keepColour: true, route: "adsbmil", ready: true, lazy: true,
+    { id: "mil_aircraft", name: "Military aircraft in the air now, from their transponders (ADS-B, adsb.lol)", unit: "aircraft", colour: "#CFE0FF", keepColour: true, route: "adsbmil", ready: true, lazy: true,
       note: "Aircraft whose transponder address is registered as military, as volunteer ADS-B receivers hear them, read live from adsb.lol's open API (ODbL) and read again every minute while ticked. Many military flights switch their transponders off or are not heard, so this is what is visible, not all there is." },
     // Round 78: the news kept past seven days; OpenStreetMap's military places;
     // the US Department of Defense's own register of its installations.
@@ -15547,7 +15877,7 @@ const MILITARY = {
     { id: "mil_osm", name: "Military airfields, bases, naval bases, barracks, ranges and training areas, in use and no longer (OpenStreetMap)", unit: "places", colour: "#1A9FD6", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "OpenStreetMap", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/osm_military.geojson" }],
       note: "Every place OpenStreetMap tags military=airfield, base, naval_base, barracks, range, training_area or nuclear_explosion_site (and was:/disused: ones), each at its middle, every tag kept; kinds are chips of the row. A copy renewed daily by culprits-tiles-more from Overpass. ODbL." },
-    { id: "mil_mirta", name: "US military installations, ranges and training areas (US Department of Defense, MIRTA)", unit: "installations", colour: "#0B4F9C", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
+    { id: "mil_mirta", name: "US military bases, ranges and training areas (US Department of Defense register)", unit: "installations", colour: "#0B4F9C", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "MIRTA", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/mirta.geojson" }],
       note: "The Department of Defense's own register of its installations, ranges and training areas in the US and its territories, found on catalog.data.gov and copied daily by culprits-tiles-more; each outline drawn at its middle, every field kept. The dataset's date is in the copy." },
     { id: "mil_sites", name: "Military bases, air bases, naval bases and installations, in use and closed (Wikidata)", unit: "installations", colour: "#3A4FD9", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
@@ -17068,7 +17398,10 @@ const PANEL_ORDER = [
   // with the trees in mosaic and complex landscapes; "Mangroves" (was "Forest
   // carbon and biomass", which held only the mangrove biomass).
   { h: 4, t: "Forest cover" },
-  // Round 75: the mangroves' biomass, at the owner's word.
+  // Round 89b (asked 27 September): Forest zoning and management plans right
+  // after Forest cover, Indonesia's plans inside it.
+  { h: 4, t: "Forest zoning and management plans" },
+  { h: 5, bundle: "plans", colour: "#6E6A55" },
   // Round 83b: Tree cover loss and alerts right under Forest cover.
   { h: 4, t: "Tree cover loss and alerts" },
   { h: 5, t: "Loss year by year" }, "glad_loss",
@@ -17086,14 +17419,16 @@ const PANEL_ORDER = [
   { h: 5, t: "Wood pulp" },
   { h: 5, t: "Emissions from the clearing" },
   { h: 6, bundle: "deforemis", colour: "#5E6470" },
-  { h: 4, t: "Mangroves" },
-  { h: 4, t: "Logging and timber concessions" },
-  { h: 4, t: "Timber and rubber plantations" }, "nus_itp",
-  { h: 4, t: "Forest zoning and management plans" },
-  { h: 4, t: "Illegal logging and timber trafficking" }, "powerbi_report",
-  { h: 4, t: "Wood pulp, Indonesia" }, "trase_pulp_indonesia", "trase_pulp_concessions",
+  // Round 89b (asked 27 September): the logging, plantation, timber crime and
+  // wood pulp headings together as The Culprits, after Tree cover loss and
+  // alerts; Mangroves last.
+  { h: 4, t: "The Culprits" },
+  { h: 5, t: "Logging and timber concessions" },
+  { h: 5, t: "Timber and rubber plantations" }, "nus_itp",
+  { h: 5, t: "Illegal logging and timber trafficking" }, "powerbi_report",
+  { h: 5, t: "Wood pulp, Indonesia" }, "trase_pulp_indonesia", "trase_pulp_concessions",
   { h: 4, t: "Companies and financiers" }, "dff",
-  { h: 4, bundle: "plans", colour: "#6E6A55" },
+  { h: 4, t: "Mangroves" },
   { h: 3, t: "Biodiversity loss" },
   { h: 4, t: "Places that matter most for species" }, "gsn_rankings", "atlas_hotspots", "atlas_cities",
   { h: 4, t: "Birds" },
@@ -17916,6 +18251,7 @@ function layerMenuHelp(box) {
 // order, go to the rows taken out. Run again as catalogue rows arrive.
 const CUT_BETWEEN = [{ from: '[data-group="forest_alerts"]', section: P + " > Deforestation > Tree cover loss and alerts > Alerts", through: "GLAD alerts" }];
 function rowTitleText(el) {
+  if (el && el.dataset && el.dataset.orig) return el.dataset.orig;
   const nm = el && el.querySelector && el.querySelector(".nm");
   return nm ? String(([...nm.childNodes].find((n) => n.nodeType === 3 && n.data.trim()) || {}).data || nm.textContent || "").trim() : "";
 }
@@ -18068,7 +18404,10 @@ function layerKindSwitch(box) {
   wrap.className = "kind-switch";
   // Round 87b (asked 27 September): the three switches on one line, National
   // highlights squeezed in to the right of the other two.
-  wrap.innerHTML = `<span class="ks-row"><span class="ks-l">Turn on every</span>` + [["point", "Points"], ["shape", "Shapes"], ["national", "National highlights"]]
+  // Round 89b (asked 27 September: squeezed onto one line with the label they
+  // could not be read): the label above, the three switches on one line below
+  // it at full size.
+  wrap.innerHTML = `<span class="ks-l">Turn on every</span><span class="ks-row">` + [["point", "Points"], ["shape", "Shapes"], ["national", "National highlights"]]
     .map(([k, t]) => `<button type="button" class="chip" data-kind-all="${k}" aria-pressed="false">${t}</button>`).join("") + `</span>` +
     `<span class="ks-busy" role="status" aria-live="polite" hidden><i class="ks-spin" aria-hidden="true"></i><span class="ks-t"></span></span>`;
   if (at && at.after) at.after(wrap); else if (box.parentElement) box.parentElement.insertBefore(wrap, box);
@@ -18149,10 +18488,10 @@ function layerKindSwitch(box) {
     if (k === "point" && on) { say("Finding the shared files\u2026"); readPointBundles().then(go); } else go();
   });
   addStyle(".kind-switch{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin:0 0 6px;font-size:11px;color:var(--dim)}" +
-    ".kind-switch .ks-row{display:flex;flex-wrap:nowrap;align-items:center;gap:3px;min-width:0;max-width:100%}" +
-    ".kind-switch .ks-row>*{flex:0 1 auto;white-space:nowrap;min-width:0}" +
-    ".kind-switch .ks-l{margin-right:1px}" +
-    ".kind-switch .chip{font:inherit;font-size:10.5px;padding:2px 5px;overflow:hidden;text-overflow:ellipsis;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:none;color:var(--ink,#e8e2d6);cursor:pointer}" +
+    ".kind-switch .ks-l{flex-basis:100%}" +
+    ".kind-switch .ks-row{display:flex;flex-wrap:nowrap;align-items:center;gap:5px;flex-basis:100%;min-width:0}" +
+    ".kind-switch .ks-row>.chip{flex:1 1 auto;white-space:nowrap;text-align:center}" +
+    ".kind-switch .chip{font:inherit;font-size:11px;padding:3px 8px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:none;color:var(--ink,#e8e2d6);cursor:pointer}" +
     ".kind-switch .chip.on{background:rgba(120,160,220,.28);border-color:rgba(150,180,230,.6)}" +
     ".kind-switch .ks-busy{display:inline-flex;align-items:center;gap:5px;flex-basis:100%}" +
     ".kind-switch .ks-busy[hidden]{display:none}" +

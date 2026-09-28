@@ -2279,7 +2279,7 @@ console.log("\nchanges of 19 September");
   check("Cartel cells, the export-credit background map and the duplicate Giga and Next Spaceflight rows are out",
         ["site_cartel_cells", "site_export_credit_shading", "giga_schools", "nsf_locations"].every((i) => o.PANEL_REMOVED.has(i)));
   check("the Energy Charter, ISDS and Break Free From Plastic rows are out", ["ect_secrets", "isds_tracker", "bffp_audit"].every((i) => o.PANEL_REMOVED.has(i)));
-  check("the Tableau row is the CFR Global Imbalances Tracker", /id: "tableau_zsf", name: "Global Imbalances Tracker \(CFR\)"/.test(src));
+  check("the Tableau row is the CFR Global Imbalances Tracker", /id: "tableau_zsf", name: "Countries' trade and money imbalances \(Council on Foreign Relations tracker\)"/.test(src));
   check("Giga by country is under School", between("giga_countries", "School", "Law enforcement"));
   check("EJAtlas is under Of the planet > General; Culprits upstream is dissolved (22 September)", between("ejatlas", "General", "Climate") && at("Culprits upstream") === -1);
   check("Biodiversity loss holds the hotspots, hotspot cities, Subsidising Extinction and the Power BI report",
@@ -2476,7 +2476,7 @@ console.log("\nrows gathered, moved and renamed");
   const order = new Function(body + "; return PANEL_ORDER;")();
   const at = (t) => order.findIndex((x) => x && x.t === t);
   check("the two EPA rows say which is which", /name:"Factories reporting toxic chemical releases, US \(EPA Toxics Release Inventory\)"/.test(src) &&
-        /name: "Every US site EPA holds a record for, across all its programs \(EPA Envirofacts\)"/.test(src));
+        /name: "Every US site the Environmental Protection Agency holds a record for, across all its programs \(EPA Envirofacts\)"/.test(src));
   check("HydroWASTE sits under Wastewater, and is copied under Methane", at("Wastewater") > at("Pollution") && order.lastIndexOf("hydrowaste") === at("Wastewater") + 1 &&
         order.indexOf("hydrowaste") > at("Methane") && order.indexOf("hydrowaste") < at("Nitrous oxide"));
   check("PalmWatch sits under Agriculture", order.indexOf("palmwatch") > at("Agriculture") && order.indexOf("palmwatch") < at("Meat"));
@@ -2489,7 +2489,7 @@ console.log("\nrows gathered, moved and renamed");
   // The titles are compared as they are written in app.js, escapes and all,
   // so a name typed with a real accent instead of its escape is caught here.
   check("each Trase dataset is its own row, the source kept in its title",
-        [["trase_measures", String.raw`Deforestation and supply-chain measures (Trase)`],
+        [["trase_measures", String.raw`How much forest each crop and animal clears, and the trade behind it (Trase)`],
          ["trase_meat_brazil", String.raw`Slaughterhouses and animal-product plants, Brazil (Trase)`],
          ["trase_silos_brazil", String.raw`Soy silos and storage, Brazil (Trase)`],
          ["trase_cocoa_ivory", String.raw`Cocoa cooperatives, C\u00f4te d'Ivoire (Trase)`],
@@ -2834,7 +2834,7 @@ console.log("\neach row links the site it is read from");
         /const u = LAYER_SITE\[id\];\n  if \(!u\) return "";/.test(src) && /#layers \.nm \.src\{/.test(index));
   check("titles that named no source say so now",
         /name:"Coal plant units \(Global Energy Monitor, Global Coal Plant Tracker\)"/.test(src) &&
-        /name: "Genetic-engineering cultivation \(Genetic engineering map\)"/.test(src));
+        /name: "Where genetically engineered crops are grown \(Genetic engineering map\)"/.test(src));
 }
 
 console.log("\nbuildings stand up with the terrain");
@@ -2996,7 +2996,7 @@ console.log("\nNusantara's layers spread through the box");
         places("Production of soy trase").join() === "Destruction > Of the planet > Climate > Nitrous oxide > Emissions" &&
         places("Cocoa area trase", "Cocoa area trase").join() === "(taken out)");
   check("\u2026the moratorium (PIPPIB) is in the spatial plans row under Deforestation; Badung's plans are out (24 September)",
-        places("Moratorium areas (PIPPIB)").join() === "Destruction > Of the planet > Deforestation > Spatial plans, forest estate and the clearing moratorium, Indonesia" &&
+        places("Moratorium areas (PIPPIB)").join() === "Destruction > Of the planet > Deforestation > Forest zoning and management plans > Indonesia's land-use plans, state forest estate and ban on new clearing permits" &&
         places("Detailed spatial plan 2023, Badung (RDTR)", "Detailed spatial plan 2023, Badung (RDTR)").join() === "(taken out)");
   check("\u2026a land-cover layer is back under Forest and land cover until the owner decides; mangroves under Reefs and mangroves",
         places("Land cover 2020, Indonesia").join() === "Destruction > Of the planet > Forest and land cover" && places("Mangrove extent").join() === "Destruction > Of the planet > Oceans > Reefs and mangroves" &&
@@ -3227,7 +3227,7 @@ console.log("\nround of 22 September (3): the report's findings, live marks, leg
   check("every row carries LIVE or NOT LIVE, and a live route drawn from a copy says NOT LIVE",
         /">LIVE</.test(mark({ id: "x", route: "worker" })) && /NOT LIVE/.test(mark({ id: "x", route: "pmtiles" })) &&
         /NOT LIVE/.test(mark({ id: "coastal_cleanup", route: "geojsonlive" })) && /NOT LIVE/.test(mark({ id: "trase_measures", route: "trase" })));
-  check("catalogue rows take the mark of the catalogue they come from", /escapeHtml\(item\.title\)\}\$\{liveMark\(cfg\)\}/.test(src));
+  check("catalogue rows take the mark of the catalogue they come from", /escapeHtml\(plainTitle\(item\)\)\}\$\{liveMark\(cfg\)\}/.test(src));
   check("Global Forest Watch areas have a light edge at least a pixel wide", /id: `\$\{src\}-o-\$\{safe\(n\)\}`, type: "line"/.test(src) && /"line-color": "#D6CCBC"/.test(src));
   check("the vessels of concern glow at full strength", /const GLOW_FULL = new Set\(\["skytruth_voc"/.test(src) && /if \(glowFull\(layer\)\) return 1;/.test(src));
 }
@@ -3646,7 +3646,7 @@ console.log("\nround of 23 September (23): the owner's thirty notes on the layer
         f("Mexico land rights", "conafor_mex_forest_zoning") === "(taken out)" && at("Spatial plans") === -1 && at("Moratoriums") === -1 &&
         bat("plans") > at("Deforestation") && bat("plans") < at("Biodiversity loss") &&
         ["idn_forest_moratorium", "rtrw_tabanan_2023", "spatialplanforestland_spv", "v3p3_spatialplanmoratorium_spv", "spatialplanrtrwp_papuawest_spv"]
-          .every((id) => f("x", id) === `${P} > Deforestation > ${B.plans}`));
+          .every((id) => f("x", id) === `${P} > Deforestation > Forest zoning and management plans > ${B.plans}`));  // round 89b
   check("26: Trase's peatland area is not a land cover row", !f("Peatland area Land cover Territorial PEAT AREA trase").includes("Forest and land cover"));
   check("27: long lists are split a level further, and a row lands in a sub-heading, not between heading and sub-headings",
         f("Oil palm concessions — Equatorial Asia", "concessioniop_spv") === `${AG} > Palm oil > Concessions` &&
@@ -3695,7 +3695,7 @@ console.log("\nround of 24 September: a search box for the layers, and the unpla
   check("the rows no rule placed are filed by what they show",
         // Round 83b: under Loss year by year only GLAD and the global land area stay.
         f("inpe_amazon_prodes") === "(taken out)" &&
-        f("idn_forest_area") === `${P} > Deforestation > ${places.BUNDLES.plans}` &&
+        f("idn_forest_area") === `${P} > Deforestation > Forest zoning and management plans > ${places.BUNDLES.plans}` &&
         f("jrc_global_forest_cover") === `${P} > Deforestation > Forest cover` &&
         f("birdlife_endemic_bird_areas") === `${P} > Biodiversity loss > Birds` &&
         f("ibge_bra_biomes", "ibge_bra_biomes") === "(taken out)" &&
@@ -4228,7 +4228,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
     cut("const P = \"Destruction > Of the planet\";", "// The body of the heading a path names") + "; return { cataloguePlaces };")();
   const t = "Cropland emissions, CO2 equivalent (WRI land greenhouse gas monitoring system) wri_land_ghg_monitoring_system--cropland_emissions";
   check("the parts sit together as one row with sublayers under Climate",
-        lib.cataloguePlaces(t, t).join() === "Destruction > Of the planet > Climate > General > Greenhouse gases from cropland and livestock, CO2 equivalent (WRI land greenhouse gas monitoring system)" &&
+        lib.cataloguePlaces(t, t).join() === "Destruction > Of the planet > Climate > General > Greenhouse gases from farmland and livestock, CO2 equivalent (WRI land greenhouse gas monitoring system)" &&
         /\{ h: 4, t: "General" \},\n  "group:climate_trace_sectors"[^\n]*\n  \{ h: 5, bundle: "landghg"/.test(src));
   check("a part draws its own GeoTIFF, stretched by its own statistics",
         /const asset = d\.cog \? \{ how: "cog", uri: GFW_COG_TILES \+ encodeURIComponent\(d\.cog\)/.test(src) && /GFW_COG_MEASURED\.has\(ds\)/.test(src));
@@ -4920,7 +4920,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   const o = new Function(body + "; return { PANEL_ORDER };")();
   const at = (t) => o.PANEL_ORDER.findIndex((x) => x && x.t === t);
   check("population density is raised by density from GHSL's numbers, with Climate TRACE's picture until they are built",
-        /id: "ct_pop", name: "Population density, 2020, 1 km, raised by how many people live there \(GHSL\)"[^\n]*route: "poprelief"/.test(src) &&
+        /id: "ct_pop", name: "Population density, 2020, 1 km, raised higher where more people live \(GHSL\)"[^\n]*route: "poprelief"/.test(src) &&
         /tiles\/ghsl_pop\.pmtiles/.test(src) && /return addRasterChoiceLayer\(cfg\);/.test(src));
   check("the timber plantations of 2024 and 2025 are one row with a year chip, the catalogue's two taken out",
         /id: "nus_itp"[^\n]*route: "rasterlive"/.test(src) && /\["2025", "2024"\]\.map/.test(src) && o.PANEL_ORDER.includes("nus_itp"));
@@ -4931,7 +4931,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         f("Tree cover loss due to fires").endsWith(" | Destruction > Of the planet > Fire") && f("Planted area on peatland") === "Destruction > Of the planet > Peatland");
   check("under Loss year by year only GLAD and the global land area stay", f("Tree cover loss — Global land area", "umd_tree_cover_loss") !== lib.CATALOGUE_TAKEN_OUT &&
         f("Tree cover loss in Argentina", "arg_otbn_forest_loss") === lib.CATALOGUE_TAKEN_OUT);
-  check("Tree cover loss and alerts sits right under Forest cover", at("Tree cover loss and alerts") === at("Forest cover") + 1);
+  check("Tree cover loss and alerts sits right under Forest cover (round 89b: with Forest zoning between)", at("Forest zoning and management plans") === at("Forest cover") + 1 && at("Tree cover loss and alerts") === at("Forest cover") + 3);
   const nw = new Function(src.match(/function notWorldwide\(t\) \{[\s\S]*?\n\}\n/)[0] + "; return notWorldwide;")();
   check("the rubber plantations are not called worldwide", nw("Rubber plantations 2025 \u2014 worldwide") === "Rubber plantations 2025" && nw("Oil palm \u2014 worldwide") === "Oil palm \u2014 worldwide");
   check("Trase's regions are edged in their own colours with a dot at their middle wider out", /id: `\$\{src\}-mid`, type: "circle"/.test(src) && /"line-color": \["coalesce", \["get", "_c"\]/.test(src));
@@ -5032,7 +5032,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   const places = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return cataloguePlaces;")();
   const f = (t, id) => places(`${t} ${id}`, `${t} ${id}`).join(" | ");
-  check("Points, Shapes and National highlights sit on one line", /<span class="ks-row"><span class="ks-l">Turn on every<\/span>/.test(src) && /\.kind-switch \.ks-row\{display:flex;flex-wrap:nowrap/.test(src));
+  check("Points, Shapes and National highlights sit on one line", /<span class="ks-l">Turn on every<\/span><span class="ks-row">/.test(src) && /\.kind-switch \.ks-row\{display:flex;flex-wrap:nowrap/.test(src) && !/text-overflow:ellipsis/.test(src.slice(src.indexOf(".kind-switch .chip{"), src.indexOf(".kind-switch .chip{") + 200)));
   check("the Global Forest Change row says its years and moves to version 1.13 when it answers",
         /id: "glad_loss", name: "Tree cover loss, each year 2001 to 2024 \(Global Forest Change v1\.12, UMD GLAD\)"/.test(src) && /gfc_v1\.13\/loss_alpha/.test(src) && /if \(cfg\.newer && !cfg\._newerTried\)/.test(src));
   check("the loss due to fire is not under Loss year by year, and is not titled 2000 to 2012",
@@ -5104,6 +5104,42 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
           ["CONCESSION_DEFORESTATION", "CUMULATIVE_DEFORESTATION_SINCE_CONCESSION_START", "WOOD_PULP_DEFORESTATION_10_YEAR_TOTAL", "DEFORESTATION_ON_PEAT"].every((k) => new RegExp(`${k}: "`).test(src)));
   }
   check("the page asks for this round's script", /app\.js\?v=(8[8-9]|9\d)/.test(html));
+}
+{
+  console.log("\nround 89b: plain-English titles; The Culprits; zoning after forest cover; mangroves last; concession area out; peatland pulp clearing under Peatland; the Natural Lands Map");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const o = new Function(body + "; return { PANEL_ORDER };")();
+  const at = (t) => o.PANEL_ORDER.findIndex((x) => x && x.t === t);
+  const places = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return cataloguePlaces;")();
+  const f = (t, id) => places(`${t} ${id}`, `${t} ${id}`).join(" | ");
+  const P = "Destruction > Of the planet";
+  const plain = new Function(src.slice(src.indexOf("const CATALOGUE_PLAIN = {"), src.indexOf("const LEFT_OUT = ")) + "; return { plainTitle, CATALOGUE_PLAIN, TRASE_PLAIN };")();
+  check("catalogue rows show a plain-English title by their id, and keep the source's own for filing",
+        plain.plainTitle({ name: "inpe_prodes", title: "PRODES deforestation" }).startsWith("Forest cleared each year, Brazil's official count") &&
+        plain.plainTitle({ name: "concessionhgu_spv", title: "Plantation land-use rights (HGU)" }).startsWith("Plantation land leases") &&
+        plain.plainTitle({ name: "x_unknown", title: "Kept as it is" }) === "Kept as it is" &&
+        plain.plainTitle({ name: "M", title: "T", label: "Shown" }) === "Shown" &&
+        /row\.dataset\.orig = item\.title;/.test(src) && /if \(el && el\.dataset && el\.dataset\.orig\) return el\.dataset\.orig;/.test(src) &&
+        Object.keys(plain.CATALOGUE_PLAIN).length > 200 && Object.keys(plain.TRASE_PLAIN).length > 50);
+  check("Trase rows and the merged cattle row carry plain labels", /e\.label = plain \? `\$\{plain\}\$\{unit\}/.test(src) && /name: e\.metric, title: e\.title, label: e\.label,/.test(src) && /plain: "Forest cleared for cattle"/.test(src));
+  check("confusing row names are plain", /id: "skytruth_voc", name: "Disabled and sunken ships that could spill oil/.test(src) && /id: "wasteatlas_mbt", name: "Plants that sort and compost mixed rubbish/.test(src));
+  const d = at("Deforestation"), next = o.PANEL_ORDER.findIndex((x, i) => i > d && x && x.h === 3);
+  const h4 = o.PANEL_ORDER.slice(d, next).filter((x) => x && x.h === 4).map((x) => x.t);
+  check("Deforestation reads Forest cover, Forest zoning, Tree cover loss and alerts, The Culprits, Companies and financiers, Mangroves",
+        JSON.stringify(h4) === JSON.stringify(["Forest cover", "Forest zoning and management plans", "Tree cover loss and alerts", "The Culprits", "Companies and financiers", "Mangroves"]));
+  const c = at("The Culprits");
+  check("The Culprits holds the logging, plantation, timber crime and wood pulp headings",
+        ["Logging and timber concessions", "Timber and rubber plantations", "Illegal logging and timber trafficking", "Wood pulp, Indonesia"].every((h) => { const i = at(h); return i > c && i < at("Companies and financiers") && o.PANEL_ORDER[i].h === 5; }));
+  check("Indonesia's plans sit inside Forest zoning", o.PANEL_ORDER.findIndex((x) => x && x.bundle === "plans") === at("Forest zoning and management plans") + 1 &&
+        f("x", "idn_forest_area").endsWith("Forest zoning and management plans > Indonesia's land-use plans, state forest estate and ban on new clearing permits"));
+  check("Trase's concession area is out, its peatland clearing for pulpwood under Peatland, the Natural Lands Map under Forest cover",
+        f("Concession area (ha) \u2014 Indonesia (Trase)", "CONCESSION_AREA") === "(taken out)" &&
+        f("Peatland deforestation for planted pulpwood (ha) \u2014 Indonesia (Trase)", "DEFORESTATION_ON_PEAT") === P + " > Peatland" &&
+        f("x", "sbtn_natural_lands_classification") === P + " > Deforestation > Forest cover | " + P + " > Biodiversity loss > Protected and conserved areas");
+  check("the switches' label sits above them so each reads whole", /<span class="ks-l">Turn on every<\/span><span class="ks-row">/.test(src) && /\.kind-switch \.ks-l\{flex-basis:100%\}/.test(src));
+  check("the page asks for this round's script", /app\.js\?v=(89|9\d)/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
