@@ -1859,7 +1859,7 @@ console.log("\nTrase, and coral at world zoom");
                              co2: { name: "carbon dioxide", archives: [{ id: "climate_trace_co2_electricity_generation", subsector: "electricity_generation", label: "electricity generation" }] } });
     check("Climate TRACE by gas: a row per gas and subsector, drawing its own archive from the tiles repo, filed by the gas in its title",
           rows.length === 2 && rows[0].title === "Rice cultivation \u2014 methane, tonnes a year, every site and period (Climate TRACE)" &&
-          rows[0].cfg.archiveUrl === "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/climate_trace_ch4_rice_cultivation.pmtiles" &&
+          rows[0].cfg.archiveUrl === "https://welcometoyourgalaxy.github.io/culprits-tiles-gases/tiles/climate_trace_ch4_rice_cultivation.pmtiles" &&
           places(rows[0].fileBy).join() === "Destruction > Of the planet > Climate > Methane > Emissions" && places(rows[1].fileBy).join() === "Destruction > Of the planet > Climate > Carbon dioxide > Emissions" &&
           /id: "ct_gases"[^\n]*route: "ctgases"/.test(src) && /cfg\.route === "ctgases" \? addCtGasesLayer\(cfg\)/.test(src));
   }
@@ -5642,6 +5642,13 @@ console.log("\nround 109b (28 September): shapes raised, the alerts by grade, a 
         /if \(hit\.cfg\.route === "atlascities" && typeof document\.createElement === "function"\)/.test(src) &&
         /#atlas-panel\[hidden\],#atlas-city\[hidden\]\{display:none !important\}/.test(html) && /class="ac-grow"/.test(src) && /async function atlasCityKey\(el\)/.test(src));
   check("the page asks for this round's script", appVersion(html) >= 1000);
+}
+console.log("\nround 110b (29 September): Climate TRACE by gas from culprits-tiles-gases");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the by-gas archives are read from their own site; the asteroid list stays on culprits-tiles-more",
+        /const CT_GASES_BASE = "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-gases";/.test(src) &&
+        /const NEO_COPY = "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/neo\/esa_risk_list\.txt";/.test(src));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

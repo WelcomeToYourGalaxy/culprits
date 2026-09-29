@@ -5060,7 +5060,10 @@ function trasePlan(entry, level, year) {
 // by the gas in its title. A site with several gases is a row under each, with
 // that gas's own tonnes. The list is read at the start like the catalogues;
 // no row draws until ticked.
-const CT_GASES_BASE = "https://welcometoyourgalaxy.github.io/culprits-tiles-more";
+// Round 110b (29 September): the by-gas archives moved to a repository and
+// Pages site of their own; culprits-tiles-more had gone over the 10 GB GitHub
+// Pages will publish.
+const CT_GASES_BASE = "https://welcometoyourgalaxy.github.io/culprits-tiles-gases";
 function ctGasRows(index) {
   const rows = [];
   for (const gas of Object.keys(index || {})) {
@@ -5110,7 +5113,7 @@ async function addCtGasesLayer(cfg) {
 // Palermo rating; the size its diameter. Where a mark sits says those three
 // things and nothing else: it is not where the object is in the sky.
 const NEO_URL = "https://neo.ssa.esa.int/PSDB-portlet/download?file=esa_risk_list";
-const NEO_COPY = `${CT_GASES_BASE}/neo/esa_risk_list.txt`;
+const NEO_COPY = "https://welcometoyourgalaxy.github.io/culprits-tiles-more/neo/esa_risk_list.txt";
 const NEO_PS = [[-Infinity, "#2E3478", "Palermo below −8"], [-8, "#3F4FC4", "−8 to −6"], [-6, "#3F7FD6", "−6 to −4"],
   [-4, "#46B8D8", "−4 to −2"], [-2, "#BFEBF5", "−2 and above"]];
 function neoColour(ps) { let c = NEO_PS[0][1]; for (const [lo, col] of NEO_PS) if (ps >= lo) c = col; return c; }

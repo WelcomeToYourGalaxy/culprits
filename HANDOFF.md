@@ -5,6 +5,19 @@ touches.
 
 ---
 
+## Round 110b (29 September)
+
+Needs round 109b. Tiles patch round110b_tiles.py beside it, and a new
+repository, culprits-tiles-gases, whose one file is .github/workflows/build.yml.
+
+- culprits-tiles-more reached 11 GB and GitHub Pages stopped publishing it
+  (limit 10 GB). The Climate TRACE by-gas archives (co2/ch4/n2o, 5.6 GB) move
+  to culprits-tiles-gases: CT_GASES_BASE points there; NEO_COPY stays on
+  culprits-tiles-more. That repo's workflow runs culprits-tiles-more's
+  gases/run.sh: seed (copies the archives from tiles-more at 64ba5fd, once),
+  then ct_gases, ct_gases_ch4, ct_gases_n2o daily.
+- Script version app.js?v=1001.
+
 ## Round 109b (28 September)
 
 Needs round 108b. No tiles patch.
