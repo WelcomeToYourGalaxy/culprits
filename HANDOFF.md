@@ -5,6 +5,129 @@ touches.
 
 ---
 
+## Round 104b (28 September)
+
+Carries rounds 101b, 102b and 103b as well (their patches were not applied on
+main: 101b was never uploaded, so 102b and 103b stopped in patches/failed/).
+Needs round 100b. Tiles patch round104b_tiles.py beside it (it carries the
+101b and 103b tiles files too).
+
+- School moved under Suppression by "representation" within it: school_culprits
+  (19 sourced entries, tiles schools/culprits.geojson), giga_school_points (new
+  route mvtlive: Giga's own school tiles, /api/locations/schools/tiles/, address
+  from tiles giga/schools_tiles.json written by giga_schools.py), giga_countries.
+- Control of physical resources: Taxes (owid_corptax), Interest (owid_interest),
+  Aid (owid_aid) as headings; Economic inequality keeps Wealth concentration and
+  The stock market (stock_exchanges, tiles stock_exchanges.py from Wikipedia,
+  colourBy market cap). Living off the land out (PANEL_REMOVED).
+- Social spheres: line width, colour and opacity by shared people over the
+  layer's own range (exponential), heavy on top, with a key.
+- rte_trade: ends on a ring round each country facing the partner (rteEnd),
+  exports and imports offset; line-gradient light blue (leaving) to red
+  (arriving); largest 50 by default; a one-country menu.
+- site_trade_profits shaded from "% foreign" in its details (SHAPE_COLOUR_BY),
+  light for less, dark for more.
+- GTA "in force" said as "Still in effect today (not yet ended or removed)".
+- fieldRows labels through fieldLabel (FIELD_WORDS, FIELD_TOKENS); the
+  source's own field name kept as the row's tooltip.
+- Script version app.js?v=995.
+
+## Round 103b (28 September)
+
+Needs round 102b (runs after it by name). Tiles patch round103b_tiles.py beside it.
+
+- capture_map: keepColour + recolour (keys without "#") by the page's kind
+  colours into distinct reds, pinks, browns, bone, greys, blues and teals, with
+  a key. sitemap recolour takes a colour alone or [colour, size].
+- site_research_integrity: typeTitles (plain kind names), recolour, standout
+  {keep:true} (ring in each place's own colour). research_makers (geojsonlive,
+  tiles research_makers.py reads both tabs of the page) under Science.
+- fertility_policy (countrycat, tiles fertility_policy.py, UN World
+  Population Policies 2021 reproductive health module; column found by heading)
+  under Suppression > Sex.
+- holiday_culprits (geojsonlive, tiles holidays/culprits.geojson, 21 entries
+  compiled 28 September from the Wikipedia articles cited in each) under
+  Holidays.
+- "N places here" lists one line each (flex, nowrap, ellipsis), 440 px wide,
+  scrolling past 340 px.
+- Headings draggable: grip-h on every heading line (mouse can drag the line);
+  moveHeading inserts above/below another heading or row.
+- Slavery: Routes and Cases and enforcement apart; slavery_convicted_world,
+  slavery_detected_world (UNODC via tiles slavery_world.py) and
+  slavery_cbp_world (US CBP WROs and Findings, country label points);
+  slavery_enforcement retitled for what it is (Brazil's register).
+- pipeline/shapes/registry.json: slavery_trackers no longer retired (it 404ed);
+  the tiles patch also carries a fresh build of it.
+- Script version app.js?v=994.
+
+## Round 102b (28 September)
+
+Needs round 101b (runs after it by name). Tiles patch round102b_tiles.py beside it.
+
+- Destruction: Of groups keeps Of humans only (Of animals, Of plants, Of
+  microorganisms, Of the insentient gone); Of individuals keeps Of humans and
+  Of animals (Of plants, Of microscopics gone).
+- site_insentient: cfg.dropTypes (sitemapDropTypes) takes out "Bottled &
+  decorative water", "Collectibles & novelty", "Luxury & fast fashion" from its
+  type rows and its places.
+- Christmas trees: xmas_trees (geojsonlive, tiles christmas_trees.py: OSM tags
+  and names in many languages, worldwide, merged with the Real Christmas Tree
+  Locator My Maps file) in place of mymaps_trees (PANEL_REMOVED).
+- esa_risk: drawn round the flat world too (ring from its corners), pullBack on
+  turning on (globe or flat), FREE_FLAT shared by rows (freeFlatFor), and the
+  see-through bar reaches canvas rows (ROW_OPACITY_HOOKS; worlds too).
+- Launches retitled (The Space Devs); pads' "On a map" link gone.
+- Eyes: warmSpace on pointerenter/focus of Leave Earth and below handoff+2;
+  map hidden and stopped while away (pauseMapWhileAway).
+- biosignature cards: a picture from the Wikipedia article on each world
+  (REST summary; WORLD_ARTICLES for shared names; exoplanets said to be
+  artists' impressions).
+- CATALOGUE_FIRST also by item.name: Global_AllExpansionRGB_2000to2025 leads
+  Plantations of no single crop.
+- Script version app.js?v=993.
+
+## Round 101b (28 September)
+
+Needs round 100b (runs after it by name). Tiles patch round101b_tiles.py beside it.
+
+- Agriculture reorganised: Cropland holds ftw_fields, potapov_cropland, the new
+  crops_spam (every SPAM 2020 crop as a menu) and "Plantations of no single crop
+  (single crops are under By crop)" (PLANTS) with bundles plantall and
+  plantsmall (2024 + 2025 each) and idnplant. New h5 "By crop" (CROPS):
+  Palm oil (h7 subs; bundle palmco = company oil palm 2024 + 2025), Soy, Cocoa,
+  Coffee, Sugarcane, Maize (corn), Rice, Cotton, Coconut, Sago; each crop has
+  its own SPAM row crop_<code> (tiles mapspam.py). CSS panel-h7, panel-h8.
+- Taken out: wri_cmr_agro_industrial_zones, v3p3_concessioniop_spv (same
+  layer as concessioniop_spv, as the concessionother pair is record for record
+  in probe/concessions.json). powerbi_report out of Of animals.
+- Timber: concessionitp_spv, socialforestryht_spv, HTI / timber / pulpwood
+  plantation rows to Deforestation > Timber and rubber plantations
+  (concessionitp also Wood pulp, Indonesia); reforestable carbon rows to
+  Climate > Carbon dioxide > Carbon stored in nature; coconut and sago
+  plantations to By crop. Soy fields also under By crop > Soy.
+- Plain titles for every palm oil row (mill lists, buffers, refineries,
+  finance, concessions), gfw_pre_2000_plantations, Forest 500 soy.
+- site_forest500_soy: recolour (the page's four colours = its four score
+  bands; red worst to blue), sizes, key (sitemap cfg.recolour).
+- Layer colour themes: View box "Layer colours" (LAYER_THEME, localStorage
+  culprits-theme): As drawn, Suited to the basemap (atlas/outlines bright,
+  satellite reds), Brighter, Deeper, Reds and pinks. CSS-filter matrices on
+  every non-base colour (themeValue/themeExpr), raster brightness/saturation/
+  hue, keys by CSS filter (#theme-keys). Hooks in setPaintProperty, addLayer,
+  removeLayer.
+- Nusantara WMS: sources bounded by place (NUSANTARA_BOUNDS); seen:// clears
+  pixels under alpha 24 and grows round, fading spots (growRound) in place of
+  square blocks; the server key goes through gladpx so it matches the map.
+  Trase regions under 1 degree drawn as dots below zoom 5 (_small).
+- gfw_planted_forests drawn from its v20231128 raster tiles (GFW_FIXED): the
+  newest version has only dynamic tiles.
+- New: iuu_vessels (country, Combined IUU Vessel List by current flag; tiles
+  iuu_vessels.py) under Fishing and Environmental crime.
+- By hand in tiles: crime_probe.py (ILAT, TRAFFIC terms) and
+  nusantara_health.py (why palm layers fail or draw only close in). Read
+  probe/crime/*.json and probe/nusantara/health.json next round.
+- Script version app.js?v=992.
+
 ## Round 100b (28 September)
 
 Needs round 99b (runs after it by name). Tiles patch round100b_tiles.py beside it.

@@ -78,7 +78,6 @@
   },
   {
    "id": "slavery_trackers",
-   "retired": true,
    "group": "MORE_MAPS",
    "kind": "tree",
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/anti-slavery-map/main/trackerdata.json",

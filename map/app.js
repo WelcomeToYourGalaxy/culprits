@@ -1327,14 +1327,40 @@ maplibregl.addProtocol("cog4326", async (params, abortController) => {
 //     since they have no empty pixels to grow into.
 // The zoom is read from the width of the square asked for, the address being a
 // bounding box rather than z/x/y. Kept apart from the canvas so it is tested.
+// Round 101b (asked 28 September: regional layers showed as boxes from the
+// world view): a pixel the server drew all but clear (under 24 of 255, the
+// soft edge of a picture's own extent) is cleared rather than raised into
+// view, and wider out each drawn pixel grows into a round spot that fades at
+// its rim, not a square block.
 function seenPixels(px, w, zoom) {
   const h = px.length / 4 / w;
   for (let i = 0; i < px.length; i += 4) {
     if (!px[i + 3]) continue;
+    if (px[i + 3] < 24) { px[i + 3] = 0; continue; }
     if (px[i] < 70 && px[i + 1] < 70 && px[i + 2] < 70) { px[i] = 220; px[i + 1] = 214; px[i + 2] = 198; }
     if (px[i + 3] < 200) px[i + 3] = Math.min(255, px[i + 3] + 60);
   }
-  growPixels(px, w, zoom);
+  growRound(px, w, zoom <= 4 ? 2 : zoom <= 7 ? 1 : 0);
+}
+function growRound(px, w, r) {
+  const h = px.length / 4 / w;
+  if (!r) return;
+  const src = px.slice();
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const o = (y * w + x) * 4;
+    if (!src[o + 3]) continue;
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      const d2 = dx * dx + dy * dy;
+      if (!d2 || d2 > r * r + 0.5) continue;              // round, not square
+      const xx = x + dx, yy = y + dy;
+      if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+      const q = (yy * w + xx) * 4;
+      if (src[q + 3]) continue;                           // only into empty pixels
+      const a = Math.round(src[o + 3] * (d2 > 1.5 ? 0.45 : 0.75));
+      if (a <= px[q + 3]) continue;
+      px[q] = src[o]; px[q + 1] = src[o + 1]; px[q + 2] = src[o + 2]; px[q + 3] = a;
+    }
+  }
 }
 // Every drawn pixel grown into the empty pixels round it, in its own colour:
 // two pixels wide to zoom 4, one to zoom 7, none closer in.
@@ -2377,6 +2403,7 @@ hudWrap("setFilter", (raw) => function (id, f, o) {
 hudWrap("setPaintProperty", (raw) => function (id, prop, v, o) {
   if (prop === "raster-hue-rotate" && !GLAD_BASE_LAYERS.test(id)) return undefined;
   v = gladPaint(id, prop, v);
+  try { v = themeWrap(id, prop, v); } catch (e) { /* kept */ }
   const out = raw(id, prop, v, o);
   for (const h of hudMates(id)) {
     try {
@@ -2405,6 +2432,7 @@ hudWrap("moveLayer", (raw) => function (id, before) {
   return out;
 });
 hudWrap("removeLayer", (raw) => function (id) {
+  try { themeForget(id); hudMates(id).forEach(themeForget); } catch (e) { /* kept */ }
   hudMates(id).forEach((h) => raw(h));
   hudOf.delete(id);
   return raw(id);
@@ -2418,6 +2446,7 @@ if (typeof map.addLayer === "function") {
     try { if (hudEligible(layer)) addHud(layer, rawAddLayer); } catch (e) { /* round markers stay */ }
     const row = layer && layer.id && rowOfLayer(layer.id);
     if (row && opacityFactor.get(row) < 0.999) applyOpacity(layer.id, opacityFactor.get(row));
+    try { themeSoon(); } catch (e) { /* as drawn */ }
     return out;
   };
 }
@@ -3032,6 +3061,8 @@ function addSatelliteRelief() {
 }
 function setBasemap(kind) {
   BASEMAP = kind;
+  // Round 101b: a theme suited to the basemap follows it.
+  if (typeof LAYER_THEME !== "undefined" && LAYER_THEME === "auto") setTimeout(() => { try { themeApply(); } catch (e) { /* kept */ } }, 0);
   const show = (id, on) => {
     if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
   };
@@ -3306,6 +3337,15 @@ function warmSpace() {
   const f = spaceFrame();
   if (f && !f.src) { f.src = SPACE_URL; f.hidden = false; }
 }
+// Round 102b (asked 28 September: Eyes took long to come up): Eyes starts
+// loading as soon as the pointer is on the "Leave Earth" button, and the map
+// underneath stops drawing while Eyes has the screen, so the two do not share
+// the computer's graphics.
+function pauseMapWhileAway(on) {
+  const el = document.getElementById("map");
+  if (el && el.style) el.style.visibility = on ? "hidden" : "";
+  if (on && typeof map.stop === "function") map.stop();
+}
 
 function panelsAway(on) {
   for (const sel of [".left-col", ".right-col", "#legend", ".wire", "#zoombox"]) {
@@ -3340,6 +3380,7 @@ function leaveEarth() {
     const el = document.getElementById("map");
     if (el && el.classList) el.classList.add("away");
     panelsAway(true);
+    setTimeout(() => { if (AWAY) pauseMapWhileAway(true); }, 600);
   };
   // Moved to Earth's own face and size first, then faded across.
   if (typeof map.easeTo === "function") {
@@ -3365,6 +3406,7 @@ function backToMap() {
   showBack(false);
   const edge = document.getElementById("spaceEdge");
   if (edge) edge.hidden = true;
+  pauseMapWhileAway(false);
   const el = document.getElementById("map");
   if (el && el.classList) el.classList.remove("away");
   panelsAway(false);
@@ -3420,7 +3462,7 @@ function watchForLeaving() {
   const atEdge = () => map.getZoom() <= edge() + 0.02;
   const check = () => {
     if (!VIEWS[VIEW].leave || AWAY || leaving) return;
-    if (map.getZoom() < handoffZoom() + 1.2) warmSpace();
+    if (map.getZoom() < handoffZoom() + 2) warmSpace();
     if (!atEdge()) { warned = 0; say(false); }
   };
   map.on("zoom", check);
@@ -3796,6 +3838,20 @@ function setRowSwatch(id, fill) {
   if (sw) sw.style.background = fill;
 }
 
+// Round 102b: kinds a row is asked to leave out (cfg.dropTypes) go from its
+// type list and from the map; a place of a kept kind as well stays.
+function sitemapDropTypes(cfg, data) {
+  const drop = new Set(cfg.dropTypes || []);
+  if (!drop.size || !data) return data;
+  const rowF = (data.filters || []).find((f) => f && f.rows && Array.isArray(f.values));
+  const rowKeys = new Set(((rowF && rowF.values) || []).map((v) => v.k));
+  const filters = (data.filters || []).map((f) => f && Array.isArray(f.values) ? Object.assign({}, f, { values: f.values.filter((v) => !drop.has(v.k)) }) : f);
+  const features = (data.features || []).filter((ft) => {
+    const t = String((ft.properties && ft.properties.f) || "").split("|").filter((k) => rowKeys.has(k));
+    return !t.length || t.some((k) => !drop.has(k));
+  });
+  return Object.assign({}, data, { filters, features });
+}
 async function siteTypeRowsFor(cfg) {
   const box = document.getElementById("layers");
   const own = box && box.querySelector ? box.querySelector(`[data-layer="${cfg.id}"]`) : null;
@@ -3805,6 +3861,7 @@ async function siteTypeRowsFor(cfg) {
   try { data = await getJson(cfg.dataUrl, 40000); } catch (e) { return; }      // the one row stays, as before
   const fi = (data.filters || []).findIndex((f) => f && f.rows && Array.isArray(f.values) && f.values.length > 1);
   if (fi < 0) return;
+  if (cfg.dropTypes) data = sitemapDropTypes(cfg, data);
   const tr = { fi, picked: new Set(), busy: false };
   siteTypeRows.set(cfg.id, tr);
   const mapName = (lead.querySelector(".nm") && lead.querySelector(".nm").firstChild && lead.querySelector(".nm").firstChild.textContent) || cfg.name;
@@ -3813,7 +3870,7 @@ async function siteTypeRowsFor(cfg) {
     row.className = "layer layer-cat";
     row.innerHTML = `<input type="checkbox" data-smtype="${escapeHtml(cfg.id)}" data-k="${escapeHtml(v.k)}">` +
       `<span class="swatch" style="background:${escapeHtml(swatchFill(sitemapDrawnColours(cfg, data.features, v.k)) || cfg.colour)}"></span>` +
-      `<span class="body"><span class="nm">${escapeHtml(siteTypeTitle(v.label, mapName.trim(), cfg.id))}${liveMark(cfg)}${siteLink(cfg.id)}</span>` +
+      `<span class="body"><span class="nm">${escapeHtml(siteTypeTitle((cfg.typeTitles || {})[v.label] || v.label, mapName.trim(), cfg.id))}${liveMark(cfg)}${siteLink(cfg.id)}</span>` +
       `<span class="un">${Number(v.n).toLocaleString()} ${escapeHtml(cfg.unit || "places")}</span></span>`;
     return row;
   });
@@ -5230,6 +5287,35 @@ function worldsParse(html) {
   if (!m) return [];
   try { return new Function(`return ${m[1]};`)() || []; } catch (e) { return []; }
 }
+// Round 102b (asked 28 September): a picture of each world, from the
+// Wikipedia article on it (its lead image, most often NASA's or ESA's own
+// photograph). A name shared with something else is looked for as a moon or
+// a planet; the page's own picture field, if it gives one, comes first.
+const WORLD_ARTICLES = { Europa: "Europa (moon)", Titan: "Titan (moon)", Io: "Io (moon)", Ganymede: "Ganymede (moon)",
+  Callisto: "Callisto (moon)", Triton: "Triton (moon)", Ceres: "Ceres (dwarf planet)", Mimas: "Mimas (moon)", Dione: "Dione (moon)",
+  Miranda: "Miranda (moon)", Charon: "Charon (moon)", Pluto: "Pluto", Venus: "Venus", Mars: "Mars", Enceladus: "Enceladus" };
+const worldPictures = new Map();
+async function worldPicture(wd) {
+  const own = wd.image || wd.img || wd.picture;
+  if (own) return { src: own, page: own, title: wd.name, far: false };
+  const name = String(wd.name || "").trim();
+  if (!name) return null;
+  if (worldPictures.has(name)) return worldPictures.get(name);
+  const far = /\b(b|c|d|e|f|g|h)$|-\d|\d/.test(name) && !WORLD_ARTICLES[name];
+  const tries = [WORLD_ARTICLES[name] || name, `${name} (moon)`, `${name} (planet)`, `${name} (exoplanet)`];
+  let out = null;
+  for (const t of tries) {
+    try {
+      const j = await getJson(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(t.replace(/ /g, "_"))}`, 12000);
+      if (!j || j.type === "disambiguation" || !(j.thumbnail || j.originalimage)) continue;
+      const src = (j.thumbnail && j.thumbnail.source) || j.originalimage.source;
+      out = { src, page: (j.content_urls && j.content_urls.desktop && j.content_urls.desktop.page) || `https://en.wikipedia.org/wiki/${encodeURIComponent(t)}`, title: j.title || t, far };
+      break;
+    } catch (e) { /* next name */ }
+  }
+  worldPictures.set(name, out);
+  return out;
+}
 async function addWorldsRingLayer(cfg) {
   let worlds = [];
   try { const r = await fetch(cfg.page); if (r.ok) worlds = worldsParse(await r.text()); } catch (e) { /* not read */ }
@@ -5342,6 +5428,7 @@ async function addWorldsRingLayer(cfg) {
     const wd = p.wd;
     const show = Object.fromEntries(Object.entries(wd).filter(([k]) => !["id", "color", "x", "y", "gap"].includes(k)));
     card.innerHTML = `<button type="button" class="neo-x" style="float:right;background:none;border:0;cursor:pointer" aria-label="Close">✕</button>` +
+      `<div class="world-pic" style="min-height:0"></div>` +
       `<b>${escapeHtml(wd.name)}</b> <span class="meta">${escapeHtml(wd.sub || "")}</span>` +
       `<div class="meta">${escapeHtml(wd.badge || "")} · chance the evidence is biological: ${escapeHtml(wd.prob || "")}</div>` +
       `<p class="meta">${escapeHtml(wd.evidence || "")}</p><p class="meta">${escapeHtml(wd.status || "")}</p>` +
@@ -5352,14 +5439,17 @@ async function addWorldsRingLayer(cfg) {
     card.style.top = Math.max(8, Math.min(e.point.y - 20, box.clientHeight - 350)) + "px";
     card.style.display = "block";
     card.querySelector(".neo-x").onclick = () => { card.style.display = "none"; };
+    worldPicture(wd).then((pic) => {
+      const el = card.querySelector(".world-pic");
+      if (!pic || !el || card.style.display === "none") return;
+      el.innerHTML = `<img src="${escapeHtml(pic.src)}" alt="${escapeHtml(wd.name)}" style="width:100%;max-height:170px;object-fit:cover;border-radius:4px;margin:4px 0 6px">` +
+        `<div class="meta" style="font-size:10.5px">Picture: <a href="${escapeHtml(pic.page)}" target="_blank" rel="noopener">Wikipedia, ${escapeHtml(pic.title)}</a>` +
+        `${pic.far ? " \u2014 for a world round another star, usually an artist's impression, not a photograph" : ""}</div>`;
+    }).catch(() => { /* no picture found */ });
   });
-  const free = () => {
-    const want = on && drawnProjection() === "mercator";
-    if (FREE_FLAT === want) return;
-    FREE_FLAT = want;
-    // Held again: the map goes back to filling the screen.
-    if (!want && typeof map.jumpTo === "function") map.jumpTo({ center: map.getCenter(), zoom: map.getZoom() });
-  };
+  // Held again when nothing asks otherwise: the map goes back to filling the screen.
+  const free = () => freeFlatFor(cfg.id, on && drawnProjection() === "mercator");
+  ROW_OPACITY_HOOKS.set(cfg.id, (f) => { cv.style.opacity = String(f); });
   cfg.afterVisibility = (vis) => { const was = on; on = vis === "visible"; free(); if (!on) card.style.display = "none"; if (on && !was) pullBack(); draw(); };
   // Changing between the globe and the flat map with the worlds shown: pulled
   // back again for the view now drawn.
@@ -5425,6 +5515,19 @@ async function addRasterPartsLayer(cfg) {
   applyVisibility(cfg.id);
   buildLegend();
 }
+// Round 102b: a row drawn on its own canvas says here how its see-through bar
+// reaches it.
+var ROW_OPACITY_HOOKS = new Map();
+// Flat maps freed from filling the screen, by the rows that asked (the worlds,
+// the asteroids): freed while any of them is shown.
+var FREE_FLAT_BY = new Set();
+function freeFlatFor(id, want) {
+  if (want) FREE_FLAT_BY.add(id); else FREE_FLAT_BY.delete(id);
+  const now = FREE_FLAT_BY.size > 0;
+  if (FREE_FLAT === now) return;
+  FREE_FLAT = now;
+  if (!now && typeof map.jumpTo === "function") map.jumpTo({ center: map.getCenter(), zoom: map.getZoom() });
+}
 async function addNeoRingLayer(cfg) {
   let text = null, fromCopy = false;
   try { const r = await fetch(NEO_URL); if (r.ok) text = await r.text(); } catch (e) { /* ESA's server does not let the page read it */ }
@@ -5480,14 +5583,21 @@ async function addNeoRingLayer(cfg) {
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, w, h);
     placed = [];
-    const R = globeRadiusPx(map.getZoom(), map.getCenter().lat);
     // World view only: the globe whole on screen, upright, with room round it.
     // The ring fits the screen (24 September): it used to reach twice the
     // globe's size, so it came into view only just before the hand-over to
     // Eyes. Now it shows as soon as there is a band of 45 pixels round the globe.
+    // Round 102b (asked 28 September: nothing showed on the flat map): on the
+    // flat map the ring goes round the whole flat world, from its corners out.
+    const flat = drawnProjection() === "mercator";
+    let R, cx = w / 2, cy = h / 2;
+    if (flat) {
+      const tl = map.project([-180, 85.05]), br = map.project([180, -85.05]);
+      R = Math.hypot(br.x - tl.x, br.y - tl.y) / 2 / 1.1;
+      cx = (tl.x + br.x) / 2; cy = (tl.y + br.y) / 2;
+    } else R = globeRadiusPx(map.getZoom(), map.getCenter().lat);
     const outer = Math.min(R * 1.95, Math.min(w, h) / 2 - 22);
-    if (!on || drawnProjection() === "mercator" || map.getPitch() > 5 || outer - R * 1.1 < 45) return;
-    const cx = w / 2, cy = h / 2;
+    if (!on || map.getPitch() > 5 || !(R > 0) || outer - R * 1.1 < 45) return;
     placed = neoPlace(rows, R, cx, cy, Date.now(), span, outer);
     // Faint guides: a whole year every 25 years or more, round the outside.
     g.strokeStyle = "rgba(214,204,188,0.12)"; g.fillStyle = "rgba(214,204,188,0.45)";
@@ -5552,8 +5662,35 @@ async function addNeoRingLayer(cfg) {
     card.style.display = "block";
     card.querySelector(".neo-x").onclick = () => { card.style.display = "none"; };
   });
-  cfg.afterVisibility = (vis) => { on = vis === "visible"; if (!on) { card.style.display = "none"; lens = null; } draw(); };
+  // Round 102b (asked 28 September): turned on close in or tilted, the map
+  // pulls back until the ring shows, on the globe or the flat map; its
+  // see-through bar fades the ring.
+  const pullBack = () => {
+    if (typeof map.easeTo !== "function") return;
+    const room = Math.min(box.clientWidth, box.clientHeight) / 2 - 22;
+    if (drawnProjection() === "mercator") {
+      // The flat world's square small enough that its corners leave a band of
+      // 60 pixels inside the screen's shorter side.
+      const side = Math.max(120, (room - 60) * Math.SQRT2);
+      const z = Math.log2(side / 512);
+      if (map.getZoom() > z + 0.05 || map.getPitch() > 5 || Math.abs(map.getCenter().lat) > 5)
+        map.easeTo({ center: [0, 0], zoom: z, pitch: 0, bearing: 0, duration: 1200 });
+      return;
+    }
+    const lat = map.getCenter().lat;
+    let z = map.getZoom();
+    const fits = (zz) => { const r = globeRadiusPx(zz, lat); return Math.min(r * 1.95, room) - r * 1.1 >= 60; };
+    while (z > 0 && !fits(z)) z -= 0.1;
+    if (z < map.getZoom() - 0.05 || map.getPitch() > 5) map.easeTo({ zoom: Math.max(0, z), pitch: 0, bearing: 0, duration: 1200 });
+  };
+  const free = () => freeFlatFor(cfg.id, on && drawnProjection() === "mercator");
+  ROW_OPACITY_HOOKS.set(cfg.id, (f) => { cv.style.opacity = String(f); });
+  let lastProj = drawnProjection();
+  map.on("styledata", () => { const pj = drawnProjection(); if (pj !== lastProj) { lastProj = pj; free(); if (on) setTimeout(pullBack, 300); } });
+  cfg.afterVisibility = (vis) => { const was = on; on = vis === "visible"; free(); if (!on) { card.style.display = "none"; lens = null; } if (on && !was) pullBack(); draw(); };
   on = (visibility.get(cfg.id) || "visible") === "visible";
+  free();
+  if (on) pullBack();
   // The key under the row: what the colours mean.
   const row = document.querySelector(`[data-layer="${cfg.id}"]`);
   const label = row && row.closest ? row.closest("label") : null;
@@ -5562,7 +5699,7 @@ async function addNeoRingLayer(cfg) {
     el.className = "facet cat-key";
     el.dataset.keyFor = cfg.id;
     el.innerHTML = catalogueKeyHtml({ values: NEO_PS.map(([lo, c, t], i) => [i, c, t]) }) +
-      `<div style="padding-left:18px;font-size:10.5px;color:var(--dim)">Colour: Palermo rating. Round the globe clockwise from the top: the date of likeliest impact, now to ${new Date().getUTCFullYear() + span}. Nearer the globe: likelier. Size: diameter. Shown at world view. Where marks bunch, hovering shows them magnified; click to hold the magnifier and pick one.</div>`;
+      `<div style="padding-left:18px;font-size:10.5px;color:var(--dim)">Colour: Palermo rating. Round the globe clockwise from the top: the date of likeliest impact, now to ${new Date().getUTCFullYear() + span}. Nearer the globe: likelier. Size: diameter. Shown at world view, round the globe or round the flat map; the map pulls back to it when this is turned on. Where marks bunch, hovering shows them magnified; click to hold the magnifier and pick one.</div>`;
     label.after(el);
   }
   setLayerState(cfg.id, `${rows.length} objects${updated ? `, list of ${updated}` : ""}${fromCopy ? " · from today's copy" : ""} · drawn round the globe at world view`);
@@ -5604,7 +5741,8 @@ async function addTraseLayer(cfg) {
     if (!map.getSource(src)) {
       map.addSource(src, { type: "geojson", data: { type: "FeatureCollection", features: [] }, attribution: cfg.attribution });
       map.addLayer({ id: `${src}-fill`, type: "fill", source: src,
-        paint: { "fill-color": ["coalesce", ["get", "_c"], "rgba(0,0,0,0)"], "fill-opacity": 0.85 } });
+        paint: { "fill-color": ["coalesce", ["get", "_c"], "rgba(0,0,0,0)"],
+                 "fill-opacity": ["interpolate", ["linear"], ["zoom"], 4, ["case", ["==", ["get", "_small"], true], 0, 0.85], 5, 0.85] } });
       // Round 83b (asked 27 September: concession areas and the like were too
       // faint or too small to see from far out): each region with a figure is
       // edged in its own colour, a line that shows even where the region is
@@ -5612,7 +5750,8 @@ async function addTraseLayer(cfg) {
       map.addLayer({ id: `${src}-line`, type: "line", source: src,
         paint: { "line-color": ["coalesce", ["get", "_c"], "rgba(29,27,23,0.5)"],
                  "line-width": ["interpolate", ["linear"], ["zoom"], 0, 1.6, 6, 1, 10, 0.5],
-                 "line-opacity": ["case", ["has", "_c"], 0.95, 0.4] } });
+                 "line-opacity": ["interpolate", ["linear"], ["zoom"], 4, ["case", ["==", ["get", "_small"], true], 0, ["has", "_c"], 0.95, 0.4],
+                                  5, ["case", ["has", "_c"], 0.95, 0.4]] } });
       map.addSource(`${src}-mid`, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
       map.addLayer({ id: `${src}-mid`, type: "circle", source: `${src}-mid`, maxzoom: 6,
         paint: { "circle-color": ["get", "_c"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 2.5, 5, 4],
@@ -5770,7 +5909,17 @@ async function traseDraw(cfg, e) {
   const ramp = TRASE_RAMPS[e.meta.color_scheme] || TRASE_RAMPS.red;
   const breaks = traseBreaks(features.map((f) => f.properties._v));
   let shown = 0;
+  // Round 101b (asked 28 September: small regions showed as boxes from the
+  // world view): a region under a degree across is drawn as its dot wider
+  // out, its outline and fill from zoom 5 in.
+  const across = (g) => {
+    let w = 180, e = -180, so = 90, no = -90;
+    const walk = (c) => { if (typeof c[0] === "number") { w = Math.min(w, c[0]); e = Math.max(e, c[0]); so = Math.min(so, c[1]); no = Math.max(no, c[1]); } else c.forEach(walk); };
+    walk((g && g.coordinates) || []);
+    return Math.max(e - w, no - so);
+  };
   for (const f of features) {
+    f.properties._small = f.geometry ? across(f.geometry) < 1 : false;
     const v = f.properties._v;
     if (typeof v !== "number") { f.properties._c = null; continue; }
     shown++;
@@ -6068,6 +6217,41 @@ function abattoirPartsInit() { /* both parts are rows of their own now */ }
 
 /* ---------- live places, batch 2 ---------- */
 const boxOpen = `<div style="font:13px/1.4 system-ui,sans-serif;max-width:340px">`;
+// Round 104b (asked 28 September: many boxes' row names were abbreviated or
+// specialist): a field name that is a code (lowercase, joined by _ or .) is
+// said in words. Known names get their meaning; otherwise only unambiguous
+// short forms are spelt out. The source's own name stays on the row, shown
+// when the pointer rests on it, so nothing is lost.
+const FIELD_WORDS = {
+  iso3: "Country code (ISO 3-letter)", iso_a3: "Country code (ISO 3-letter)", iso2: "Country code (ISO 2-letter)", iso_a2: "Country code (ISO 2-letter)",
+  adm0_a3: "Country code", lat: "Latitude", latitude: "Latitude", lon: "Longitude", lng: "Longitude", longitude: "Longitude",
+  gdp_md: "GDP (economic output), millions of US$", gdp_year: "Year of the GDP figure", pop_est: "Population (estimate)", pop_year: "Year of the population figure",
+  objectid: "Record number", fid: "Record number", ogc_fid: "Record number", cid: "Record ID", uid: "Record ID",
+  areaha: "Area (hectares)", area_ha: "Area (hectares)", peatareaha: "Area on peat (hectares)", peatareaprop: "Share of the area on peat",
+  remforestha: "Forest still standing (hectares)", remforestprop: "Share of the area still forest", license_areaha: "Licensed area (hectares)",
+  groupcom: "Company group", parentcom: "Parent company", subgroup: "Company", umlid: "Universal Mill List ID",
+  mic: "Market identifier code (MIC)", dst: "Daylight saving time", env_co2: "Carbon dioxide emitted",
+  totalcommamt: "Total the World Bank committed (US$)", totalamt: "World Bank loan or grant (US$)", boardapprovaldate: "Date the World Bank's board approved it",
+  closingdate: "Closing date", envassesmentcategorycode: "Environmental risk category (A is the most harmful)",
+  esrc_ovrl_risk_rate: "Environmental and social risk rating", mjsector_namecode: "Main sectors", impagency: "Agency carrying it out",
+  lendinginstr: "Kind of loan", countryshortname: "Country", regionname: "Region", projectdocs: "Project documents",
+  eqmagnitude: "Earthquake magnitude", vei: "Volcanic Explosivity Index (0 to 8)", maxwaterheight: "Highest wave (metres)",
+  imo: "IMO number (ship's permanent ID)", ircs: "Radio call sign", mmsi: "MMSI (ship's radio ID)", rfmo: "Regional fisheries body",
+  coverage_type: "Mobile signal at the school", coverage_status: "Mobile coverage", connectivity_status: "Internet connection",
+};
+const FIELD_TOKENS = { pct: "%", yr: "year", yrs: "years", amt: "amount", avg: "average", qty: "quantity", cnt: "count", num: "number",
+  km2: "km\u00b2", co2: "CO\u2082", usd: "US$", desc: "description", addr: "address", govt: "government", intl: "international", natl: "national",
+  tn: "trillion", bn: "billion", ha: "hectares" };
+function fieldLabel(k) {
+  const raw = String(k).replace(/^x_/, "");
+  const low = raw.toLowerCase();
+  if (FIELD_WORDS[low]) return FIELD_WORDS[low];
+  // Written by a person already (spaces or capitals after the first letter).
+  if (/\s/.test(raw) || /[A-Z]/.test(raw.slice(1)) && !/_/.test(raw)) return raw;
+  const words = raw.split(/[_.]+/).filter(Boolean).map((w) => FIELD_TOKENS[w.toLowerCase()] || w);
+  const out = words.join(" ");
+  return out.charAt(0).toUpperCase() + out.slice(1);
+}
 function fieldRows(p, skip = []) {
   // Round 85b: never the nuclear storage sites' link to MISSILEMAP, another
   // site, at the owner's word.
@@ -6075,7 +6259,7 @@ function fieldRows(p, skip = []) {
   // text rather than left off: it used to be dropped without a word.
   const text = (v) => (typeof v === "object" ? JSON.stringify(v) : String(v));
   return Object.keys(p).filter((k) => !skip.includes(k) && !/MISSILEMAP/i.test(k) && p[k] !== null && p[k] !== "" && !(Array.isArray(p[k]) && !p[k].length))
-    .map((k) => `<tr><th style="text-align:left;padding-right:8px;vertical-align:top">${escapeHtml(k.replace(/_/g, " "))}</th><td>${escapeHtml(text(p[k]))}</td></tr>`).join("");
+    .map((k) => `<tr><th style="text-align:left;padding-right:8px;vertical-align:top" title="${escapeHtml(k)}">${escapeHtml(fieldLabel(k))}</th><td>${escapeHtml(text(p[k]))}</td></tr>`).join("");
 }
 // Round 29: a box written by the source's own template (uMap, ArcGIS, My
 // Maps, WP Go Maps, Launch Library) shows what its makers chose. Everything
@@ -7317,6 +7501,11 @@ const NUSANTARA_NAMES = {
 // the row is for.
 const P = "Destruction > Of the planet";
 const AG = P + " > Meat and agriculture > Agriculture";
+// Round 101b (asked 28 September): the crops each under By crop, and the
+// plantations that are of no one crop inside Cropland.
+const CROPS = AG + " > By crop";
+const PLANT_T = "Plantations of no single crop (single crops are under By crop)";
+const PLANTS = AG + " > Cropland > " + PLANT_T;
 // Layers with sublayers (round 23). Each is one row in the box whose tick turns
 // on everything inside it and whose arrow opens the list of its parts; a part
 // is ticked on its own like any row. They are named in PANEL_ORDER with
@@ -7358,6 +7547,10 @@ const BUNDLES = {
   crithab: "Critical habitat, on land and at sea, as the International Finance Corporation defines it (UNEP-WCMC, Dunnett et al. 2025)",
   bii: "How intact wildlife communities are, 0 to 100 (Biodiversity Intactness Index, Natural History Museum, London)",
   ifl: "Large unbroken forests with no roads or clearing, 2000 to 2025 (Intact Forest Landscapes)",
+  // Round 101b (asked 28 September): each 2024 and 2025 pair as one layer.
+  plantall: "Plantations of every kind, 2024 and 2025 (Nusantara Atlas, TheTreeMap)",
+  plantsmall: "Small family farm plantations, 2024 and 2025 (Nusantara Atlas, TheTreeMap)",
+  palmco: "Company oil palm plantations, 2024 and 2025 (Nusantara Atlas, TheTreeMap)",
 };
 const IN = (path, key) => `${path} > ${BUNDLES[key]}`;
 const ZDC = "(zero-deforestation commitment)";
@@ -7378,7 +7571,7 @@ const CATALOGUE_PLACES = [
   [/oil and gas|oil & gas|(?<!greenhouse )\bgas\b|petroleum|geothermal/i, P + " > Climate > Methane"],
   [/oil and gas|oil & gas|(?<!greenhouse )\bgas\b|petroleum/i, P + " > Pollution > Land pollution > Where oil and gas is drilled"],
   // Agriculture, by crop where the box has a heading for it (22 September).
-  [/palm|\bmills?\b|refiner/i, AG + " > Palm oil"],
+  [/palm|\bmills?\b|refiner/i, CROPS + " > Palm oil"],
   // Soy, corn and grain under Climate only, by the gas their fields mostly
   // emit, and fertilizer there too (24 September, at the owner's word).
   [/\bsoy|\bcorn\b|maize|grain|silo/i, P + " > Climate > Nitrous oxide"],
@@ -7450,6 +7643,26 @@ const BIO_LAND = BIO + " > Land Use and Ecoregions", BIO_THREAT = PMM + " > Wher
   BIO_PROT = PMM + " > Protected areas", BIO_RICH = PMM + " > Species richness",
   BIO_WILD = PMM + " > Wild and intact places", BIO_MOVE = PMM + " > Where animals gather and migrate";
 const CATALOGUE_BY_TITLE = [
+  // ---- 28 September (round 101b), at the owner's word --------------------
+  // Cameroon's agro-industrial zones taken out; Nusantara's "v3p3" oil palm
+  // concessions are the same layer as its oil palm concessions, published
+  // again under a newer name (as its "other" concessions pair is, record for
+  // record: probe/concessions.json), so the copy goes.
+  [/\bwri_cmr_agro_industrial_zones\b|\bv3p3_concessioniop_spv\b/, null],
+  // The 2024 and 2025 maps of each kind of plantation, one layer each.
+  [/\bGlobal_PlantationAll_20\d\d\b/, [IN(PLANTS, "plantall")]],
+  [/\bGlobal_PlantationSmallholder_20\d\d\b/, [IN(PLANTS, "plantsmall")]],
+  [/\bGlobal_PlantationIOP_20\d\d\b/, [IN(CROPS + " > Palm oil > Plantations", "palmco")]],
+  // Timber and pulpwood plantations are not farming: under Deforestation's culprits.
+  [/\bconcessionitp_spv\b/, [P + " > Deforestation > Timber and rubber plantations", P + " > Deforestation > Wood pulp, Indonesia"]],
+  [/^(?!.*Global_PlantationITP).*(\bsocialforestryht_spv\b|\bIDN_HTI|\bhti\b|timber plantation|pulpwood plantation|hutan tanaman)/i, [P + " > Deforestation > Timber and rubber plantations"]],
+  // Carbon forests could take up if they grew back is not a plantation.
+  [/\bgfw_reforestable_extent_(above|below)ground_carbon_potential_sequestration\b/, [P + " > Climate > Carbon dioxide > Carbon stored in nature"]],
+  // One crop's plantations under that crop.
+  [/\bREGBRNIDNMYS_Coconut/i, [CROPS + " > Coconut"]],
+  [/\bbase_sagoindicative\b/, [CROPS + " > Sago"]],
+  // Soy's fields also under Soy, beside its companies and financiers.
+  [/\bumd_soy_planted_area(_buffered_10km)?\b|\bmapspam_yield_soyb\b/, [P + " > Climate > Nitrous oxide > Emissions", CROPS + " > Soy"]],
   // ---- 28 September (round 99b), at the owner's word --------------------
   // Global Safety Net's layers, each where it belongs.
   [/^ITT's Recognized \(Global Safety Net\)/, ["On-planet invasion > Invasion of the living > Invasion of humans"]],
@@ -7547,7 +7760,7 @@ const CATALOGUE_BY_TITLE = [
   [/(?=.*natural lands?)(?=.*sbtn)/i, [P + " > Biodiversity loss"]],
   [/dry spells?/i, [P + " > Water scarcity"]],
   [/negligible risk/i, [P + " > Deforestation > Tree cover loss and alerts > Where clearing is likely"]],
-  [/millop_?buffer|palm oil mill sourcing|near palm oil mills/i, [AG + " > Palm oil > Mills and refineries"]],
+  [/millop_?buffer|palm oil mill sourcing|near palm oil mills/i, [CROPS + " > Palm oil > Mills and refineries"]],
   [/socio-?economic vulnerability/i, null],
   [/net tree cover change|\bumd_net_tree_cover/i, null],
   [/todelete/i, null],
@@ -7688,7 +7901,7 @@ const CATALOGUE_BY_TITLE = [
   [/\bumd_glad_sentinel2_alerts(_coverage)?\b|(?=.*glad.?s2)(?=.*amazon)/i, [P + " > Deforestation > Tree cover loss and alerts > Alerts"]],
   // Round 82b: under Forest cover, the heading of their own gone.
   [/trees_in_(mosaic|complex)_landscapes|trees in (mosaic|complex) landscapes/i, [P + " > Deforestation > Forest cover"]],
-  [/(?=.*planted)(?=.*(oil ?palm|palm oil))/i, [AG + " > Palm oil > Plantations"]],
+  [/(?=.*planted)(?=.*(oil ?palm|palm oil))/i, [CROPS + " > Palm oil > Plantations"]],
   [/forest mills?\b|\bgfw_forest_mills?\b/i, [P + " > Deforestation > Logging and timber concessions"]],
   [/\bumd_glad_dist_alerts_coverage\b|(?=.*dist.?alert)(?=.*coverage)/i, null],
   // Round 85b (asked 27 September): the all-ecosystem disturbance alerts
@@ -7740,7 +7953,6 @@ const CATALOGUE_BY_TITLE = [
   [/\bwcs_forest_landscape_integrity_index\b/, [P + " > Biodiversity loss > Intact and primary forests"]],
   [/\bicf_hnd_forest_type_2013\b|\bjrc_managed_land_(can|usa)\b|\brspo_southeast_asia_land_cover_2010\b|\bumd_tree_cover_gain\b|\bumd_tree_cover_height_20\d\d\b/,
    [P + " > Forest and land cover"]],
-  [/\bwri_cmr_agro_industrial_zones\b/, [AG + " > Plantations"]],
   [/\bwri_global_power_plant_database\b/, [P + " > Climate > Carbon dioxide"]],
   // Taken out 24 September (round 41): wind speed potential and Brazil's biomes.
   [/\bdtu_wb_wind_speed_potential_2001_2010\b|\bibge_bra_biomes\b/, null],
@@ -7851,9 +8063,12 @@ const CATALOGUE_SUBS = {
     [/pasture|grassland/i, "Pasture and grassland"],
     [/\bwater\b/i, "Water for crops"],
     [/deforest/i, "Clearing for farming"],
-    [/.*/, "Plantations"],
+    // Round 101b: a plantation of one crop under that crop.
+    [/coconut/i, "By crop > Coconut"],
+    [/\bsago\b/i, "By crop > Sago"],
+    [/.*/, "Cropland > " + PLANT_T],
   ],
-  [AG + " > Palm oil"]: [
+  [CROPS + " > Palm oil"]: [
     [/lends|invests|financ/i, "Who finances them"],
     [/\bmills?\b|refiner/i, "Mills and refineries"],
     [/deforest|emission/i, "Clearing and emissions"],
@@ -7925,7 +8140,7 @@ function catalogueRefine(paths, words) {
   // Emissions from forests are Climate's, not Deforestation's (24 September).
   out = out.map((x) => (catalogueSub(x, words) === P + " > Deforestation > Emissions from forests" ? P + " > Climate > Carbon dioxide" : x));
   const idn = /indonesia|papua|kalimantan|merauke|borneo|sumatra|sulawesi|\bjava\b|\bbali\b|equatorial asia|rawa singkil|\briau\b|\baceh\b|\bidn_?/i;
-  return [...new Set(out.map((x) => catalogueSub(x, words)).map((x) => (x === AG + " > Plantations" && idn.test(words) ? IN(AG + " > Plantations", "idnplant") : x)))];
+  return [...new Set(out.map((x) => catalogueSub(x, words)).map((x) => (x === PLANTS && idn.test(words) ? IN(PLANTS, "idnplant") : x)))];
 }
 // Where a catalogue layer is, said in its title. Nusantara names the place in
 // most of its ids and covers Equatorial Asia in the rest; a reader clicking
@@ -7954,6 +8169,16 @@ function notWorldwide(t) {
   if (!/rubber|plantation|planted|expansion|smallholder/i.test(t)) return t;
   return String(t).replace(/\s*\u2014\s*(worldwide|global[^\u2014]*)$/i, "").replace(/,?\s*\bworldwide\b/ig, "").replace(/\bglobal\s+/ig, "").trim();
 }
+// Round 101b: the area each place-name covers, so the map asks the server only
+// for pictures over it (fewer pictures from a slow server, none over the
+// rest of the world). Generous edges; worldwide layers are not bounded.
+const NUSANTARA_BOUNDS = {
+  "Brunei, Indonesia and Malaysia": [94, -12, 142, 8], "Borneo": [107.5, -4.8, 119.8, 7.6], "Indonesia and Malaysia": [94, -12, 142, 8],
+  "Bali": [114.2, -9, 115.9, -7.9], "Papua New Guinea": [140.5, -12.5, 156.5, -0.5], "Papua": [128.5, -10, 141.5, 1],
+  "Merauke": [137.5, -9.5, 141.5, -6], "Rawa Singkil": [97, 1.8, 98.5, 3.2], "Kalimantan": [107.5, -4.8, 119.5, 4.8],
+  "Indonesia": [94, -12, 142, 7], "Equatorial Asia": [90, -13, 157, 22],
+};
+function nusantaraBounds(id) { return NUSANTARA_BOUNDS[nusantaraWhere(id)] || null; }
 function nusantaraWhere(id) {
   for (const [rule, where] of NUSANTARA_WHERE) if (rule.test(id)) return where;
   return "Equatorial Asia";
@@ -8055,7 +8280,10 @@ const CATALOGUE_PLAIN = {
   gfw_resource_rights: "Community rights to natural resources such as forests and water (Global Forest Watch)",
   gfw_tiger_landscapes: "Landscapes where wild tigers still live (Tiger Conservation Landscapes)",
   wwf_tiger_conservation_landscapes: "Landscapes where wild tigers still live (Tiger Conservation Landscapes, WWF)",
-  gfw_universal_mill_list: "Palm oil mills (Universal Mill List)",
+  gfw_universal_mill_list: "Palm oil mills in every country, each a point (Universal Mill List, Global Forest Watch)",
+  gfw_pre_2000_plantations: "Plantations that already stood in 2000 (Global Forest Watch)",
+  gfw_universal_mill_list_buffered_50_km: "Land within 50 km of each palm oil mill, every country (Universal Mill List, Global Forest Watch)",
+  gfw_planted_forests_palm_oil_buffered_10km: "Land within 10 km of oil palm plantations, every country (Global Forest Watch's planted trees map)",
   gfw_west_africa_cocoa_deforestation_risk: "Risk of forest being cleared for cocoa, West Africa",
   gfw_west_africa_cocoa_plot_density: "How crowded with cocoa farms each area is, West Africa",
   gfw_wood_fiber: "Wood fibre concessions: land licensed for pulpwood plantations (Global Forest Watch)",
@@ -8132,7 +8360,6 @@ const CATALOGUE_PLAIN = {
   wcs_forest_landscape_integrity_index: "How intact each forest is, 0 to 10 (Forest Landscape Integrity Index)",
   whrc_aboveground_biomass_stock_2000: "Weight of living trees above ground, 2000 (WHRC)",
   whrc_aboveground_woody_biomass_stock_2000: "Weight of living trees above ground, 2000, a second copy (WHRC)",
-  wri_cmr_agro_industrial_zones: "Zones set aside for industrial farming, Cameroon (WRI)",
   wri_global_power_plant_database: "Power plants worldwide, by fuel (WRI Global Power Plant Database)",
   wri_mexico_ageb_socio_economic_vulnerability: "How vulnerable households are, Mexico, by city block group (WRI)",
   wri_mexico_block_socio_economic_vulnerability: "How vulnerable households are, Mexico, by block (WRI)",
@@ -8158,6 +8385,8 @@ const CATALOGUE_PLAIN = {
   Global_LCHS_2024: "Land cover 2024, over shaded relief",
   Global_PlantationIOP_2024: "Company oil palm plantations, 2024",
   Global_PlantationIOP_2025: "Company oil palm plantations, 2025",
+  Global_PlantationAll_2024: "Plantations of every kind, 2024",
+  Global_PlantationAll_2025: "Plantations of every kind, 2025",
   Global_PlantationITP_2024: "Company timber and pulpwood plantations, 2024",
   Global_PlantationITP_2025: "Company timber and pulpwood plantations, 2025",
   Global_PlantationSmallholder_2024: "Small family farm plantations, 2024",
@@ -8180,21 +8409,26 @@ const CATALOGUE_PLAIN = {
   burnedareanrt: "Burned area, near real time, where burns overlap",
   concessionfca_spv: "Forest clearance permits: forest licensed to be cleared (FCA)",
   concessionhgu_spv: "Plantation land leases: land leased to companies for plantations (HGU)",
-  concessioniop_finance_credit: "Oil palm concessions, by the banks that lend to them",
-  concessioniop_finance_invest: "Oil palm concessions, by the investors that own shares in them",
+  concessioniop_finance_credit: "Oil palm concessions, by the banks that lend to their companies (Nusantara Atlas)",
+  concessioniop_finance_invest: "Oil palm concessions, by the investors that own shares in their companies (Nusantara Atlas)",
+  concessioniop_spv: "Oil palm concessions: land licensed to companies for oil palm (Nusantara Atlas)",
+  millop_spv: "Palm oil mills, each a point (Nusantara Atlas)",
+  milloprefineries_sp: "Palm oil refineries, each a point (Nusantara Atlas)",
+  millopbufferpolyloreal_spv: "Land around the palm oil mills in L'Or\u00e9al's supply chain, each mill's area outlined (Nusantara Atlas)",
+  millopbufferol_spv: "Company plantation land within reach of palm oil mills, with each company's licence (Nusantara Atlas)",
   concessionitp_spv: "Timber plantation concessions: land licensed for timber and pulpwood plantations",
   concessionother_finance_credit: "Other concessions, by the banks that lend to them",
   concessionother_finance_invest: "Other concessions, by the investors that own shares in them",
   concessionpbph_spv: "Forest use permits: forest licensed for logging or plantations (PBPH)",
   concessionpsnmerauke_spv: "Land taken for the government's National Strategic Projects, Merauke",
   hillshade: "Hills and valleys, shaded",
-  millop_finance_credit: "Palm oil mills, by the banks that lend to them",
-  millop_finance_invest: "Palm oil mills, by the investors that own shares in them",
-  millopbuffer10km_spv: "Land within 10 km of a palm oil mill, where it likely buys fruit",
-  millopbuffer1hr_spv: "Land within an hour's drive of a palm oil mill, where it likely buys fruit",
-  millopbuffer2hr_spv: "Land within two hours' drive of a palm oil mill, where it likely buys fruit",
-  millopbuffer_spv: "Land a palm oil mill likely buys fruit from",
-  millopbufferol50km_spv: "Land within 50 km of a palm oil mill",
+  millop_finance_credit: "Palm oil mills, by the banks that lend to their companies (Nusantara Atlas)",
+  millop_finance_invest: "Palm oil mills, by the investors that own shares in their companies (Nusantara Atlas)",
+  millopbuffer10km_spv: "Land within 10 km of each palm oil mill in a straight line, where it likely buys fruit (Nusantara Atlas)",
+  millopbuffer1hr_spv: "Land within an hour's drive of each palm oil mill, where it likely buys fruit (Nusantara Atlas)",
+  millopbuffer2hr_spv: "Land within two hours' drive of each palm oil mill, where it likely buys fruit (Nusantara Atlas)",
+  millopbuffer_spv: "Land each palm oil mill likely buys fruit from, its distance not stated by the atlas (Nusantara Atlas)",
+  millopbufferol50km_spv: "Land within 50 km of each palm oil mill in a straight line (Nusantara Atlas)",
   papua_expansion_2025: "Plantations spreading into forest in 2025, Papua, each area outlined",
   protectedareadissolve_sp: "Protected areas, joined into one shape",
   protectedareareaconservationlandscape_spv: "Conservation landscapes: wider areas managed for wildlife",
@@ -8276,7 +8510,9 @@ const LEFT_OUT = "(left out)";
 // Rows that lead the heading or layer they are filed in (round 85b: Curtis et
 // al.'s drivers first among the drivers' parts).
 // Round 92b: the worldwide peatland map leads the Peatland heading.
-const CATALOGUE_FIRST = new Set(["tsc_tree_cover_loss_drivers", "gfw_integrated_dist_alerts", "gfw_peatlands"]);
+// Round 102b: the plantations spreading year by year first under Plantations
+// of no single crop, above the layers with parts.
+const CATALOGUE_FIRST = new Set(["tsc_tree_cover_loss_drivers", "gfw_integrated_dist_alerts", "gfw_peatlands", "Global_AllExpansionRGB_2000to2025"]);
 function cataloguePlaces(words, title) {
   if (title != null) {
     // The title and, after it, the id (the id rules above end in $ or name it).
@@ -8307,9 +8543,9 @@ function cataloguePlaces(words, title) {
   // and pulp with theirs; the Zero-deforestation heading is gone.
   if (out.includes(ZDC)) {
     out = [/\bbeef\b|cattle/i.test(words) ? P + " > Meat and agriculture > Meat > Cattle and pasture"
-      : /\bsoy/i.test(words) ? AG + " > Soy"
-      : /cocoa/i.test(words) ? AG + " > Cocoa"
-      : /palm/i.test(words) ? AG + " > Palm oil"
+      : /\bsoy/i.test(words) ? CROPS + " > Soy"
+      : /cocoa/i.test(words) ? CROPS + " > Cocoa"
+      : /palm/i.test(words) ? CROPS + " > Palm oil"
       : /pulp/i.test(words) ? P + " > Deforestation > Wood pulp, Indonesia"
       : P + " > Deforestation > Companies and financiers"];
   }
@@ -8386,7 +8622,7 @@ function catalogueRows(cfg, items) {
         `<span class="un" data-state="${escapeHtml(key)}">${escapeHtml(cfg.catUnit || "")}</span></span>`;
       const body = sectionBody(box, path) || spare;
       // Round 85b: a row asked to lead its heading goes first in it.
-      if (CATALOGUE_FIRST.has(item.id) && body.firstChild && typeof body.insertBefore === "function") body.insertBefore(row, body.firstChild); else body.appendChild(row);
+      if (CATALOGUE_FIRST.has(item.id || item.name) && body.firstChild && typeof body.insertBefore === "function") body.insertBefore(row, body.firstChild); else body.appendChild(row);
     });
   });
   if (leftOut) console.info(`[culprits] ${cfg.id}: ${leftOut} land-cover layers have no row, at the owner's request (22 September)`);
@@ -8507,9 +8743,19 @@ async function addWmsMenuLayer(cfg) {
     const img = document.createElement("img");
     img.alt = `Key to ${l.title}`;
     img.loading = "lazy";
-    img.src = `${l.base}?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetLegendGraphic&FORMAT=image/png&TRANSPARENT=true&LAYER=${encodeURIComponent(l.name)}` +
-      `&LEGEND_OPTIONS=${encodeURIComponent("fontColor:0xDCD6C6;fontAntiAliasing:true;fontSize:11;forceLabels:on")}`;
+    // Round 101b (asked 28 September: the key showed greens where the map
+    // drew blues): the key goes through the same colour mapping as the map's
+    // pictures of the layer; its words are near-white, which the mapping leaves.
+    const url = `${l.base}?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetLegendGraphic&FORMAT=image/png&TRANSPARENT=true&LAYER=${encodeURIComponent(l.name)}` +
+      `&LEGEND_OPTIONS=${encodeURIComponent("fontColor:0xF4F1EA;fontAntiAliasing:true;fontSize:11;forceLabels:on")}`;
     img.onerror = () => el.remove();                  // no key published: no empty box
+    img.src = url;
+    const mapped = !gladKept(`${cfg.id}-w0`) && PROTOCOL_HANDLERS.gladpx;
+    if (mapped) {
+      canRead(l).then((ok) => ok ? PROTOCOL_HANDLERS.gladpx({ url: `gladpx://${encodeURIComponent(cfg.id)}/${url.replace(/^https:\/\//, "seen://")}` }) : null)
+        .then((got) => { if (got && got.data && typeof URL !== "undefined" && URL.createObjectURL) img.src = URL.createObjectURL(new Blob([got.data], { type: "image/png" })); })
+        .catch(() => { /* the server's own colours */ });
+    }
     el.appendChild(img);
     row.after(el);
   };
@@ -8542,8 +8788,9 @@ async function addWmsMenuLayer(cfg) {
             adding.delete(i);
             if (map.getLayer(lid(i))) return;
             const plain = tilesFor(layers[i]);
-            map.addSource(lid(i), { type: "raster", tileSize: 512, attribution: cfg.attribution || "",
-              tiles: [ok ? plain.replace(/^https:\/\//, "seen://") : plain] });
+            const bounds = nusantaraBounds(layers[i].name);
+            map.addSource(lid(i), Object.assign({ type: "raster", tileSize: 512, attribution: cfg.attribution || "",
+              tiles: [ok ? plain.replace(/^https:\/\//, "seen://") : plain] }, bounds ? { bounds } : {}));
             map.addLayer({ id: lid(i), type: "raster", source: lid(i), paint: { "raster-opacity": 0.85 } });
             apply(visibility.get(cfg.id) || "none");
           });
@@ -8939,6 +9186,12 @@ function gfwAssetIndex(rows) {
 // Datasets asked for only from this zoom in (round 85b): Global Forest Watch
 // makes their tiles from a database on request, and wider out it does not answer.
 const GFW_MIN_ZOOM = { umd_modis_burned_areas: 5 };
+// Round 101b (asked 28 September: the planted trees map did not load): its
+// newest version has only tiles made from a database on request, which do not
+// answer wider out; its 2023 version's ready-made picture tiles are drawn.
+const GFW_FIXED = {
+  gfw_planted_forests: { how: "raster", uri: "https://tiles.globalforestwatch.org/gfw_planted_forests/v20231128/default/{z}/{x}/{y}.png", minzoom: 0, maxzoom: 12 },
+};
 const GFW_DRAWABLE_KINDS = ["Static vector tile cache", "Dynamic vector tile cache", "Raster tile cache", "COG"];
 // Datasets with no tiles of their own whose alerts another row already draws.
 const GFW_DRAWN_BY = {
@@ -9226,6 +9479,7 @@ async function addGfwMenuLayer(cfg) {
       }
       // A part of a split dataset draws its own GeoTIFF (gfwCogParts).
       const asset = d.cog ? { how: "cog", uri: GFW_COG_TILES + encodeURIComponent(d.cog), minzoom: 0, maxzoom: 12 }
+        : GFW_FIXED[ds] ? Object.assign({}, GFW_FIXED[ds])
         : (await gfwDynamicAsset(cfg.api, ds, assets)) || gfwPickAsset(assets);
       if (asset.how === "cog" && GFW_COG_MEASURED.has(ds)) asset.uri += await gfwCogScale(asset.uri);
       const vec = asset.how === "vector" ? { asset_uri: asset.uri } : null;
@@ -9499,8 +9753,17 @@ async function addSpheresLayer(cfg) {
                   who: (e.via || []).map((id) => P.get(id) || id).join("\n") } }));
   map.addSource(`${cfg.id}-lines`, { type: "geojson", data: { type: "FeatureCollection", features: lines } });
   map.addSource(`${cfg.id}-places`, { type: "geojson", data: { type: "FeatureCollection", features: pts } });
-  map.addLayer({ id: `${cfg.id}-line`, type: "line", source: `${cfg.id}-lines`,
-    paint: { "line-color": "#B6A488", "line-opacity": 0.45, "line-width": ["interpolate", ["linear"], ["get", "w"], 1, 0.6, 20, 3] } });
+  // Round 104b (asked 28 September: the widths were too alike): widths from
+  // hairline to thick over the layer's own range of shared people, the
+  // heavier lines brighter and drawn on top.
+  const maxW = Math.max(2, ...lines.map((l) => Number(l.properties.w) || 1));
+  map.addLayer({ id: `${cfg.id}-line`, type: "line", source: `${cfg.id}-lines`, layout: { "line-sort-key": ["get", "w"], "line-cap": "round" },
+    paint: { "line-color": ["interpolate", ["linear"], ["get", "w"], 1, "#6F6654", maxW, "#F4E6C8"],
+             "line-opacity": ["interpolate", ["linear"], ["get", "w"], 1, 0.3, maxW, 0.95],
+             "line-width": ["interpolate", ["linear"], ["zoom"],
+               1, ["interpolate", ["exponential", 1.5], ["get", "w"], 1, 0.4, maxW, 7],
+               6, ["interpolate", ["exponential", 1.5], ["get", "w"], 1, 0.8, maxW, 12]] } });
+  rowKey(cfg.id, [["#6F6654", "thin, dim line: one person sits in both"], ["#F4E6C8", `thick, bright line: up to ${maxW} people sit in both`]]);
   map.addLayer({ id: `${cfg.id}-pt`, type: "circle", source: `${cfg.id}-places`,
     paint: { "circle-color": ["get", "c"], "circle-radius": 6, "circle-stroke-color": "#07100C", "circle-stroke-width": 1.2,
              "circle-opacity": ["case", ["==", ["get", "linked"], 1], 1, 0.5] } });
@@ -9795,7 +10058,6 @@ async function readLaunchLibrary(cfg) {
             (r.orbital_launch_attempt_count != null ? `, ${Number(r.orbital_launch_attempt_count).toLocaleString()} orbital attempts` : "") + `</div>` : "") +
           (r.description ? `<p>${escapeHtml(r.description)}</p>` : "") +
           (r.wiki_url ? `<p><a href="${escapeHtml(r.wiki_url)}" target="_blank" rel="noopener">About this site</a></p>` : "") +
-          (r.map_url ? `<p><a href="${escapeHtml(r.map_url)}" target="_blank" rel="noopener">On a map</a></p>` : "") +
           everyField(r) + `<div style="font-size:11px">Launch Library 2, The Space Devs</div></div>` });
     } else {
       const pad = r.pad || {};
@@ -9827,6 +10089,18 @@ async function rteGet(cfg, live, copy) {
 }
 // A gentle curve from exporter to importer, so flows between the same pair in
 // each direction do not lie on top of each other.
+// Round 104b (asked 28 September: the flows were a jumble, every flow to a
+// country ending on the same dot): each end sits on a small ring round its
+// country, facing the other country, exports leaving a little to one side of
+// that direction and imports arriving a little to the other, so the lines of
+// one country fan out instead of meeting in one point.
+function rteEnd(c, other, outgoing) {
+  const k = Math.cos((c[1] * Math.PI) / 180) || 1;
+  const a = Math.atan2(other[1] - c[1], (other[0] - c[0]) * k) + (outgoing ? -0.28 : 0.28);
+  const d = Math.hypot((other[0] - c[0]) * k, other[1] - c[1]);
+  const r = Math.min(2.2, d * 0.18);
+  return [c[0] + (Math.cos(a) * r) / k, c[1] + Math.sin(a) * r];
+}
 function rteArc(a, b, steps = 24) {
   const [x1, y1] = a, [x2, y2] = b;
   const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, dx = x2 - x1, dy = y2 - y1;
@@ -9844,7 +10118,7 @@ async function addRteLayer(cfg) {
   catch (e) { setLayerState(cfg.id, `resourcetrade.earth did not answer (${e.message})`); return; }
   const C = new Map((models.countries || []).filter((c) => c.lat != null && c.lng != null).map((c) => [c.id, c]));
   const years = (models.years || []).map((y) => Number(y.id)).sort((a, b) => b - a);
-  map.addSource(`${cfg.id}-src`, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+  map.addSource(`${cfg.id}-src`, { type: "geojson", lineMetrics: true, data: { type: "FeatureCollection", features: [] } });
   // Round 62: the owner found the widths hard to tell apart. Each flow now
   // falls in one of five tiers by its trade value (fifths of the year's
   // flows); a tier has its own width and depth, the largest drawn on top,
@@ -9853,16 +10127,20 @@ async function addRteLayer(cfg) {
   const RTE_W = [0.5, 1, 1.7, 2.6, 4], RTE_C = SHAPE_STEPS;
   const tier = ["to-number", ["get", "tier"], 0];
   map.addLayer({ id: `${cfg.id}-line`, type: "line", source: `${cfg.id}-src`, layout: { "line-cap": "round", "line-sort-key": tier },
-    paint: { "line-color": ["match", tier, 0, RTE_C[0], 1, RTE_C[1], 2, RTE_C[2], 3, RTE_C[3], RTE_C[4]],
-             "line-opacity": ["match", tier, 0, 0.45, 1, 0.6, 2, 0.75, 0.9],
+    // Round 104b: each line runs from light blue where the goods leave to red
+    // where they arrive, so which way a flow goes can be read on the line.
+    paint: { "line-gradient": ["interpolate", ["linear"], ["line-progress"], 0, "#8FD6E8", 0.5, "#8C7FA8", 1, "#E0304A"],
+             "line-opacity": ["match", tier, 0, 0.35, 1, 0.5, 2, 0.7, 0.9],
              "line-width": ["interpolate", ["linear"], ["zoom"],
                1, ["match", tier, 0, RTE_W[0], 1, RTE_W[1], 2, RTE_W[2], 3, RTE_W[3], RTE_W[4]],
                6, ["*", 1.6, ["match", tier, 0, RTE_W[0], 1, RTE_W[1], 2, RTE_W[2], 3, RTE_W[3], RTE_W[4]]]] } });
-  let rteAll = [], rteKeep = 0;
+  // Round 104b: the largest 50 by default, and one country's flows alone on asking.
+  let rteAll = [], rteKeep = 50, rteOne = "";
   const rteShow = () => {
     const src = map.getSource(`${cfg.id}-src`);
     if (!src) return;
-    const feats = rteKeep ? rteAll.slice().sort((a, b) => b.properties.value - a.properties.value).slice(0, rteKeep) : rteAll;
+    const mine = rteOne ? rteAll.filter((f) => String(f.properties.ex) === rteOne || String(f.properties.im) === rteOne) : rteAll;
+    const feats = rteKeep ? mine.slice().sort((a, b) => b.properties.value - a.properties.value).slice(0, rteKeep) : mine;
     src.setData({ type: "FeatureCollection", features: feats });
   };
   const draw = async (year) => {
@@ -9874,7 +10152,8 @@ async function addRteLayer(cfg) {
     const max = Math.max(1, ...rows.map((r) => Number(r.value) || 0));
     const feats = rows.map((r) => {
       const a = C.get(r.exporter), b = C.get(r.importer);
-      return { type: "Feature", geometry: { type: "LineString", coordinates: rteArc([a.lng, a.lat], [b.lng, b.lat]) },
+      const A = [a.lng, a.lat], B = [b.lng, b.lat];
+      return { type: "Feature", geometry: { type: "LineString", coordinates: rteArc(rteEnd(A, B, true), rteEnd(B, A, false)) },
         properties: { from: a.name, to: b.name, value: r.value, weight: r.weight, co2: r.env_co2, year: r.year,
                       share: Math.sqrt((Number(r.value) || 0) / max), ex: r.exporter, im: r.importer,
                       // Every field of the flow's record, for its box (round 29).
@@ -9917,7 +10196,11 @@ async function addRteLayer(cfg) {
     el.className = "facet";
     el.innerHTML = `<select aria-label="Year">${years.map((y) => `<option value="${y}">${y}</option>`).join("")}</select> ` +
       `<select aria-label="How many flows" data-rte-keep><option value="0">every flow read</option><option value="25">the largest 25</option>` +
-      `<option value="50">the largest 50</option><option value="100">the largest 100</option></select>`;
+      `<option value="50" selected>the largest 50</option><option value="100">the largest 100</option></select> ` +
+      `<select aria-label="One country" data-rte-one><option value="">every country</option>` +
+      [...C.values()].sort((x, y) => String(x.name).localeCompare(String(y.name))).map((c) => `<option value="${escapeHtml(String(c.id))}">${escapeHtml(c.name)}</option>`).join("") +
+      `</select><div style="font-size:10.5px;color:var(--dim)">Each line runs from light blue, where the goods leave, to red, where they arrive; wider lines carry more. Each country's lines meet a small ring round it, facing the other country, so they fan out rather than meet in one dot.</div>`;
+    el.querySelector("[data-rte-one]").addEventListener("change", (e) => { rteOne = e.target.value; rteShow(); });
     el.querySelector("select").addEventListener("change", (e) => draw(Number(e.target.value)));
     el.querySelector("[data-rte-keep]").addEventListener("change", (e) => { rteKeep = Number(e.target.value); rteShow(); });
     anchor.after(el);
@@ -10275,7 +10558,7 @@ async function addGtaLayer(cfg) {
     if (!c) return `<b>${escapeHtml(p.name)}</b><div class="meta">No state acts named for this country.</div>`;
     const dot = (e) => e ? `<i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${GTA_EVAL[e] || "#777"};margin-right:4px"></i>` : "";
     return `<b>${escapeHtml(p.gta)}</b>` +
-      `<div class="meta">${c.total.toLocaleString()} state acts; ${c.in_force.toLocaleString()} with a measure in force:</div>` +
+      `<div class="meta">${c.total.toLocaleString()} state acts; ${c.in_force.toLocaleString()} still in effect today (not yet ended or removed):</div>` +
       `<div class="meta">${dot("Red")}${c.red.toLocaleString()} ${GTA_WORDS.Red}<br>${dot("Amber")}${c.amber.toLocaleString()} ${GTA_WORDS.Amber}<br>` +
       `${dot("Green")}${c.green.toLocaleString()} ${GTA_WORDS.Green}</div>` +
       `<div class="meta" style="max-height:120px;overflow:auto">By type: ${Object.entries(c.types || {}).map(([t, n]) => `${escapeHtml(t)} (${n})`).join(", ")}</div>` +
@@ -10293,7 +10576,7 @@ async function addGtaLayer(cfg) {
       `<option value="red" title="${escapeHtml(GTA_WORDS.Red)}">Harmful, almost certainly</option>` +
       `<option value="amber" title="${escapeHtml(GTA_WORDS.Amber)}">Harmful, likely</option>` +
       `<option value="green" title="${escapeHtml(GTA_WORDS.Green)}">Liberalising</option>` +
-      `<option value="in_force">With a measure in force</option></select>` +
+      `<option value="in_force">Still in effect today (not yet ended or removed)</option></select>` +
       `<div style="font-size:10.5px;color:var(--dim)">Harmful, almost certainly: ${escapeHtml(GTA_WORDS.Red.replace(/^harmful: /, ""))}. ` +
       `Harmful, likely: ${escapeHtml(GTA_WORDS.Amber.replace(/^harmful: /, ""))}. Liberalising: ${escapeHtml(GTA_WORDS.Green.replace(/^liberalising: /, ""))}.</div>`;
     el.querySelector("select").addEventListener("change", (e) => shade(e.target.value));
@@ -10482,6 +10765,31 @@ async function addArcgisDynLayer(cfg) {
 }
 
 /* ---------- Giga: school mapping by country ---------- */
+// Round 104b: points drawn straight from another site's vector tiles, their
+// address read from a file the tiles repo keeps current (cfg.tilesFrom) or
+// the row's own (cfg.tiles); each coloured by one field's classes.
+async function addMvtLiveLayer(cfg) {
+  let tiles = cfg.tiles, layer = cfg.sourceLayer || "default";
+  if (cfg.tilesFrom) { try { const j = await getJson(cfg.tilesFrom, 20000); if (j && j.tiles) { tiles = j.tiles; layer = j.layer || layer; } } catch (e) { /* the row's own address */ } }
+  if (!tiles) { setLayerState(cfg.id, "no tile address yet"); return; }
+  HUD_SKIP.add(cfg.id);
+  const src = `${cfg.id}-src`;
+  map.addSource(src, { type: "vector", tiles: [tiles], minzoom: 0, maxzoom: cfg.maxzoom || 14, attribution: cfg.attribution || "" });
+  const m = ["match", ["to-string", ["get", cfg.field]]];
+  for (const [v, c] of cfg.classes || []) m.push(v, c);
+  m.push("#8A8F98");
+  map.addLayer({ id: `${cfg.id}-pt`, type: "circle", source: src, "source-layer": layer,
+    paint: { "circle-color": (cfg.classes || []).length ? m : cfg.colour,
+             "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 1.3, 4, 1.8, 8, 3, 12, 5],
+             "circle-opacity": 0.85, "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 6, 0, 10, 0.5], "circle-stroke-color": "#0B1220" } });
+  cfg._layerIds = [`${cfg.id}-pt`];
+  bindHtmlPopup(`${cfg.id}-pt`, (p) => `<b>${escapeHtml(cfg.unit === "schools" ? "School" : cfg.name)}</b><table class="meta">${fieldRows(p)}</table>` +
+    `<div class="meta">${escapeHtml(cfg.attribution || "")}</div>`);
+  if (cfg.classes) rowKey(cfg.id, cfg.classes.map(([, c, w]) => [c, w]));
+  setLayerState(cfg.id, "drawn live from its source's tiles");
+  applyVisibility(cfg.id);
+  buildLegend();
+}
 async function addGigaLayer(cfg) {
   let data;
   try { data = await getJson(cfg.data, 60000); }
@@ -11765,6 +12073,11 @@ function viewPanelHtml() {
     `<label class="layer terrain-under"><input type="checkbox" id="lift-toggle"${LIFT_ON ? " checked" : ""}` +
     ` title="Country and region layers stand as tall as their figures, and point layers can rise where their points crowd.">` +
     `<span class="nm">Raise figures as heights</span></label>` +
+    // Round 101b: every layer's colours in one theme, for the basemap in use.
+    `<label class="layer terrain-under theme-pick" title="Turns every layer's colours at once, so they show up on the basemap in use. Keys change with them.">` +
+    `<span class="nm">Layer colours</span> <select id="theme-pick" aria-label="Layer colours">` +
+    Object.entries(LAYER_THEMES).map(([k, v]) => `<option value="${k}"${k === LAYER_THEME ? " selected" : ""}>${v.nm}</option>`).join("") +
+    `</select></label>` +
     `</div><div class="compass-holder in-view" id="compass-holder" title="Click to stand the map upright, facing north">` +
     `<span class="compass-cap">North up, level</span>` +
     `<label class="layer names-under"><input type="checkbox" id="names-toggle"${NAMES_ON ? " checked" : ""}` +
@@ -11784,6 +12097,7 @@ function viewPanelHtml() {
     `</div></div></div>`;
 }
 
+if (typeof map.once === "function") map.once("idle", () => { try { if (themeNow() !== "drawn") themeApply(); } catch (e) { /* as drawn */ } });
 function buildBasemapPanel() {
   const box = document.getElementById("basemaps");
   if (!box) return;
@@ -11803,12 +12117,16 @@ function buildBasemapPanel() {
     if (e.target && e.target.id === "to-globe") outToTheGlobe();
   });
   moveZoomButtons();
+  // Round 102b: Eyes warmed while the pointer is on its button.
+  const leave = box.querySelector ? box.querySelector("#leave-earth") : null;
+  if (leave && leave.addEventListener) for (const ev of ["pointerenter", "focus", "touchstart"]) leave.addEventListener(ev, () => { try { warmSpace(); } catch (e) { /* kept */ } }, { passive: true });
   box.addEventListener("change", (e) => {
     if (e.target && e.target.name === "basemap") setBasemap(e.target.value);
     if (e.target && e.target.name === "view") setView(e.target.value);
     if (e.target && e.target.id === "terrain-toggle") setTerrain(e.target.checked);
     if (e.target && e.target.id === "names-toggle") setNames(e.target.checked);
     if (e.target && e.target.id === "lift-toggle") setLift(e.target.checked);
+    if (e.target && e.target.id === "theme-pick") setTheme(e.target.value);
   });
 }
 
@@ -11925,6 +12243,173 @@ async function countryTotalsFrom(cfg) {
 var LIFT_ON = true;
 const LIFT_TOP = 800000;     // metres at the top of the scale, from the world view
 const LIFTED = new Set();
+// ---- Round 101b (asked 28 September): layer colour themes ----------------
+// "Some layer colours are hard to see on some basemaps and easy on others":
+// every layer's colours can be turned to a theme at once, from the View box.
+// A theme is the same small set of CSS filter steps (hue turn, saturation,
+// brightness) applied to every colour a layer draws: a fixed colour is
+// worked out here, a colour read from the data is worked out by the map
+// from the same numbers, and a picture layer (raster) is turned by the
+// map's own raster settings. The keys under the rows take the same CSS
+// filter, so a key and its layer still match. The basemaps, the hologram,
+// and the words of labels are left alone. "Suited to the basemap" picks the
+// theme by the basemap chosen.
+var LAYER_THEME = "drawn";
+try { LAYER_THEME = localStorage.getItem("culprits-theme") || "drawn"; } catch (e) { /* storage refused: as drawn */ }
+var LAYER_THEMES = {
+  drawn: { nm: "As drawn" },
+  auto: { nm: "Suited to the basemap" },
+  bright: { nm: "Brighter, for dark basemaps", f: [["saturate", 1.2], ["brightness", 1.45]],
+    raster: { "raster-brightness-min": 0.25, "raster-saturation": 0.2 } },
+  deep: { nm: "Deeper, for pale ground", f: [["saturate", 1.3], ["brightness", 0.6]],
+    raster: { "raster-brightness-max": 0.6, "raster-saturation": 0.25 } },
+  reds: { nm: "Reds and pinks, for satellite imagery", f: [["hue-rotate", 140], ["saturate", 1.3], ["brightness", 1.15]],
+    raster: { "raster-hue-rotate": 140, "raster-saturation": 0.25, "raster-brightness-min": 0.1 } },
+};
+var THEME_BY_BASEMAP = { atlas: "bright", satellite: "reds", outlines: "bright" };
+var THEME_ORIG = new Map();            // "layer|property" -> its value before the theme
+var THEME_OUT = new Set();             // what the theme wrote, so it is never themed twice
+var THEME_RASTER = ["raster-brightness-min", "raster-brightness-max", "raster-saturation", "raster-hue-rotate", "raster-contrast"];
+function themeNow() {
+  if (LAYER_THEME !== "auto") return LAYER_THEMES[LAYER_THEME] ? LAYER_THEME : "drawn";
+  return THEME_BY_BASEMAP[typeof BASEMAP === "string" ? BASEMAP : "atlas"] || "drawn";
+}
+// The CSS filter steps as one 3 x 3 matrix on r, g, b (Filter Effects 1).
+function themeMatrix(steps) {
+  const mul = (A, B) => A.map((row, i) => [0, 1, 2].map((j) => row[0] * B[0][j] + row[1] * B[1][j] + row[2] * B[2][j]));
+  let M = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+  for (const [kind, v] of steps || []) {
+    let S;
+    if (kind === "brightness") S = [[v, 0, 0], [0, v, 0], [0, 0, v]];
+    else if (kind === "saturate") S = [[0.213 + 0.787 * v, 0.715 - 0.715 * v, 0.072 - 0.072 * v],
+      [0.213 - 0.213 * v, 0.715 + 0.285 * v, 0.072 - 0.072 * v], [0.213 - 0.213 * v, 0.715 - 0.715 * v, 0.072 + 0.928 * v]];
+    else if (kind === "hue-rotate") {
+      const a = v * Math.PI / 180, c = Math.cos(a), n = Math.sin(a);
+      S = [[0.213 + c * 0.787 - n * 0.213, 0.715 - c * 0.715 - n * 0.715, 0.072 - c * 0.072 + n * 0.928],
+        [0.213 - c * 0.213 + n * 0.143, 0.715 + c * 0.285 + n * 0.140, 0.072 - c * 0.072 - n * 0.283],
+        [0.213 - c * 0.213 - n * 0.787, 0.715 - c * 0.715 + n * 0.715, 0.072 + c * 0.928 + n * 0.072]];
+    } else continue;
+    M = mul(S, M);
+  }
+  return M;
+}
+function themeCssFilter(steps) {
+  return (steps || []).map(([k, v]) => k === "hue-rotate" ? `hue-rotate(${v}deg)` : `${k}(${v})`).join(" ");
+}
+function themeRgb(r, g, b, M) {
+  const c = (x) => Math.max(0, Math.min(255, Math.round(x)));
+  return [0, 1, 2].map((i) => c(M[i][0] * r + M[i][1] * g + M[i][2] * b));
+}
+function themeCss(c, M) {
+  const p = parseCssColour(c);
+  if (!p || p[3] === 0) return c;
+  const [r, g, b] = themeRgb(p[0], p[1], p[2], M);
+  return p[3] < 1 ? `rgba(${r},${g},${b},${p[3]})` : "#" + [r, g, b].map((x) => x.toString(16).padStart(2, "0")).join("").toUpperCase();
+}
+function themeExpr(v, M) {
+  const T = ["var", "__t"], ch = (i) => ["at", i, T];
+  const row = (i) => ["max", 0, ["min", 255, ["+", ["*", M[i][0], ch(0)], ["*", M[i][1], ch(1)], ["*", M[i][2], ch(2)]]]];
+  return ["let", "__t", ["to-rgba", ["to-color", v]], ["rgba", row(0), row(1), row(2), ch(3)]];
+}
+// A colour, or an expression for one. A step or curve over the zoom must stay
+// on top, so its outputs are themed one by one; anything else read from the
+// data is wrapped whole.
+function themeValue(v, M) {
+  if (typeof v === "string") return themeCss(v, M);
+  if (!Array.isArray(v) || !v.length) return v;
+  const top = (x) => GLAD_TOP_INPUTS.has(JSON.stringify(x));
+  if (/^interpolate/.test(String(v[0])) && top(v[2])) {
+    const o = v.slice();
+    for (let i = 4; i < o.length; i += 2) o[i] = themeValue(o[i], M);
+    return o;
+  }
+  if (v[0] === "step" && top(v[1])) {
+    const o = v.slice();
+    o[2] = themeValue(o[2], M);
+    for (let i = 4; i < o.length; i += 2) o[i] = themeValue(o[i], M);
+    return o;
+  }
+  return themeExpr(v, M);
+}
+function themeTouches(id, type) {
+  return !!id && !GLAD_BASE_LAYERS.test(id) && !/^(sat-relief|outline-|holo-|bg$)/.test(id) &&
+    !["background", "custom", "hillshade", "color-relief"].includes(type);
+}
+// Colours set on a layer after the theme was chosen go through it too (the
+// hook in setPaintProperty); what the layer was given is kept, for going back.
+function themeWrap(id, prop, v) {
+  if (!THEME_ORIG || !map.getLayer || !map.getLayer(id)) return v;
+  const layer = map.getLayer(id);
+  const type = layer && layer.type;
+  if (!themeTouches(id, type)) return v;
+  const t = LAYER_THEMES[themeNow()] || {};
+  if (/-color$/.test(prop) && !/^text-(halo-)?color$/.test(prop)) {
+    if (THEME_OUT.has(JSON.stringify(v))) return v;
+    THEME_ORIG.set(`${id}|${prop}`, v);
+    if (!t.f) return v;
+    const out = themeValue(v, themeMatrix(t.f));
+    THEME_OUT.add(JSON.stringify(out));
+    return out;
+  }
+  if (type === "raster" && THEME_RASTER.includes(prop)) {
+    THEME_ORIG.set(`${id}|${prop}`, v);
+    return t.raster && prop in t.raster ? t.raster[prop] : v;
+  }
+  return v;
+}
+function themeForget(id) {
+  if (!THEME_ORIG) return;
+  for (const k of [...THEME_ORIG.keys()]) if (k.startsWith(`${id}|`)) THEME_ORIG.delete(k);
+}
+function themeApply() {
+  const st = map.getStyle && map.getStyle();
+  if (!st) return;
+  const t = LAYER_THEMES[themeNow()] || {};
+  const M = t.f ? themeMatrix(t.f) : null;
+  const set = (hudRaw && hudRaw.setPaintProperty) || map.setPaintProperty.bind(map);
+  for (const l of st.layers || []) {
+    if (!themeTouches(l.id, l.type)) continue;
+    if (l.type === "raster") {
+      for (const prop of THEME_RASTER) {
+        const k = `${l.id}|${prop}`;
+        if (!THEME_ORIG.has(k)) THEME_ORIG.set(k, map.getPaintProperty(l.id, prop));
+        const want = t.raster && prop in t.raster ? t.raster[prop] : THEME_ORIG.get(k);
+        try { set(l.id, prop, want); } catch (e) { /* kept */ }
+      }
+      continue;
+    }
+    for (const prop of Object.keys(l.paint || {})) {
+      if (!/-color$/.test(prop) || /^text-(halo-)?color$/.test(prop)) continue;
+      const k = `${l.id}|${prop}`;
+      if (!THEME_ORIG.has(k)) THEME_ORIG.set(k, l.paint[prop]);
+      const base = THEME_ORIG.get(k);
+      const want = M ? themeValue(base, M) : base;
+      if (M) THEME_OUT.add(JSON.stringify(want));
+      try { set(l.id, prop, want); } catch (e) { /* an expression the theme cannot take keeps its colour */ }
+    }
+  }
+  themeKeys(t);
+}
+// The keys under the rows and in the legend: the same steps, as a CSS filter.
+function themeKeys(t) {
+  if (typeof document === "undefined" || !document.createElement) return;
+  let el = document.getElementById("theme-keys");
+  if (!el) { el = document.createElement("style"); el.id = "theme-keys"; (document.head || document.body).appendChild(el); }
+  const f = t && t.f ? themeCssFilter(t.f) : "";
+  el.textContent = f ? `#layers .facet i,#layers .facet .swatch,#layers .facet img,#layers label.layer .swatch,#layers .toc-bundle .swatch,` +
+    `#layers .facet [style*="background"],#legend i,#legend .swatch,#legend img,#legend [style*="background"]{filter:${f}}` : "";
+}
+var themeTimer = null;
+function themeSoon() {
+  if (themeNow() === "drawn") return;
+  clearTimeout(themeTimer);
+  themeTimer = setTimeout(() => { try { themeApply(); } catch (e) { console.warn("[culprits] theme:", e.message || e); } }, 60);
+}
+function setTheme(name) {
+  LAYER_THEME = LAYER_THEMES[name] ? name : "drawn";
+  try { localStorage.setItem("culprits-theme", LAYER_THEME); } catch (e) { /* not kept */ }
+  themeApply();
+}
 function setLift(on) {
   LIFT_ON = !!on;
   for (const id of LIFTED) {
@@ -12935,6 +13420,10 @@ const SHAPE_COLOUR_BY = {
   // The figure per 1,000 is in each country's write-up (Walk Free's Global
   // Slavery Index, as the anti-slavery map's harvest_scale.py words it).
   slavery_prevalence: [{ label: "people in modern slavery per 1,000 (estimate)", field: "per_1000", fromDetails: /([\d.]+) people per 1,000/, scale: "log" }],
+  // Round 104b (asked 28 September: the page's own shading ran light for most
+  // and dark for least): shaded from the figure itself, darker for more.
+  site_trade_profits: [{ label: "share of the value of its exports that is made abroad and paid to other countries (foreign value added)", field: "foreign_pct",
+    fromDetails: /([\d.]+)% foreign/, steps: [5, 10, 15, 20, 30], unitSuffix: "%", national: true }],
   gmo_trials: [{ label: "release authorisations", field: "count", scale: "log" }],
   remains_units: [{ label: "records from the Unearthings harvest", field: "n", scale: "log" }],
   // REGIMES in the Genetic engineering map's index.html.
@@ -13495,6 +13984,18 @@ async function addSitemapLayer(cfg, given) {
   // credit agencies map's political base layer, every country one fill) keeps
   // its places alone.
   if (cfg.pointsOnly) data = Object.assign({}, data, { features: (data.features || []).filter((f) => f.geometry && /Point$/.test(f.geometry.type)) });
+  if (cfg.dropTypes) data = sitemapDropTypes(cfg, data);
+  // Round 101b: a row whose page coloured its places in bands it did not make
+  // plain gets its own colours for the same bands (and a size), by the page's colour.
+  if (cfg.recolour) data = Object.assign({}, data, { features: (data.features || []).map((f) => {
+    const src = String((f.properties || {}).c || "").toUpperCase();
+    // Keys may be written without the "#" (a page's own colours kept out of the map's palette checks).
+    const hit = cfg.recolour[src] || cfg.recolour[src.slice(1)];
+    if (!hit) return f;
+    // A colour alone, or [colour, size].
+    const [c, r] = Array.isArray(hit) ? hit : [hit, (f.properties || {}).r];
+    return Object.assign({}, f, { properties: Object.assign({}, f.properties, { c, r }) });
+  }) });
   const source = `${cfg.id}-places`;
   map.addSource(source, { type: "geojson", data });
   if (cfg.key) rowKey(cfg.id, cfg.key, cfg.keyHint);
@@ -13533,16 +14034,16 @@ async function addSitemapLayer(cfg, given) {
   // point larger and lighter, edged, over a soft ring of its own colour.
   if (cfg.standout) {
     const pt = `${cfg.id}-pt`, ring = `${cfg.id}-ring`;
-    map.setPaintProperty(pt, "circle-color", cfg.standout.fill);
+    if (!cfg.standout.keep) map.setPaintProperty(pt, "circle-color", cfg.standout.fill);
     map.setPaintProperty(pt, "circle-radius", ["interpolate", ["linear"], ["zoom"], 1, 5, 6, 7, 10, 9]);
     map.setPaintProperty(pt, "circle-stroke-color", cfg.standout.rim);
     map.setPaintProperty(pt, "circle-stroke-width", 2);
     map.setPaintProperty(pt, "circle-opacity", 0.95);
     map.addLayer({ id: ring, type: "circle", source, filter: ["match", ["geometry-type"], ["Point", "MultiPoint"], true, false],
-      paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 14, 6, 20, 12, 24], "circle-color": cfg.standout.fill,
+      paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 14, 6, 20, 12, 24], "circle-color": cfg.standout.keep ? colour : cfg.standout.fill,
                "circle-opacity": 0.22, "circle-blur": 1, "circle-stroke-width": 0 } }, pt);
     cfg._layerIds = (cfg._layerIds || []).concat([ring]);
-    rowKey(cfg.id, [[cfg.standout.fill, cfg.standout.say]]);
+    if (!cfg.standout.keep) rowKey(cfg.id, [[cfg.standout.fill, cfg.standout.say]]);
   }
   // The middle of each area, drawn wider out than an area can be seen at.
   const areas = (data.features || []).filter((f) => f.geometry && /Polygon$/.test(f.geometry.type));
@@ -13741,12 +14242,12 @@ const LEAFLET_BOX_CSS = `
 :where(.wtyg-leaflet) .leaflet-tooltip{position:relative;padding:6px;background-color:#fff;border:1px solid #fff;border-radius:3px;color:#222;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.4)}
 .maplibregl-popup.wtyg-box .maplibregl-popup-content,.maplibregl-popup.wtyg-tip .maplibregl-popup-content{background:none;border:0;padding:0;max-width:none;box-shadow:none;border-radius:0}
 .maplibregl-popup.wtyg-box .maplibregl-popup-tip,.maplibregl-popup.wtyg-tip .maplibregl-popup-tip{display:none}
-.wtyg-pick{font-size:12.5px}
-.wtyg-pick .hd{color:var(--dim);font-size:11px;letter-spacing:.06em;text-transform:uppercase;margin:0 0 5px}
-.wtyg-pick button{display:block;width:100%;text-align:left;font:inherit;background:none;color:var(--bone);border:0;border-top:1px solid var(--rule);padding:5px 0;cursor:pointer}
-.wtyg-pick button:first-of-type{border-top:0}
+.wtyg-pick{font-size:12px;line-height:1.25;max-height:340px;overflow:auto}
+.wtyg-pick .hd{color:var(--dim);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;margin:0 0 3px}
+.wtyg-pick button{display:flex;gap:6px;align-items:baseline;width:100%;text-align:left;font:inherit;background:none;color:var(--bone);border:0;padding:1px 0;cursor:pointer;white-space:nowrap}
 .wtyg-pick button:hover .pl{text-decoration:underline}
-.wtyg-pick .mp{display:block;color:var(--dim);font-size:11.5px}
+.wtyg-pick .pl{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.wtyg-pick .mp{flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;color:var(--dim);font-size:11px}
 `;
 
 let leafletBoxCssAdded = false;
@@ -13956,9 +14457,10 @@ function openSitemapClick(e) {
     return;
   }
   const rows = hits.map((h, i) =>
-    `<button type="button" data-hit="${i}"><span class="pl">${escapeHtml(h.props.n || "Unnamed place")}</span>` +
-    `<span class="mp">${escapeHtml(h.cfg.name)}</span></button>`).join("");
-  const list = new maplibregl.Popup({ closeButton: true, maxWidth: "280px" })
+    `<button type="button" data-hit="${i}" title="${escapeHtml(`${h.props.n || "Unnamed place"} \u2014 ${h.cfg.name}`)}"><span class="pl">${escapeHtml(h.props.n || "Unnamed place")}</span>` +
+    `<span class="mp">\u00b7 ${escapeHtml(h.cfg.name)}</span></button>`).join("");
+  // Round 103b (asked 28 September): one line per place, wide and short.
+  const list = new maplibregl.Popup({ closeButton: true, maxWidth: "440px" })
     .setLngLat(e.lngLat).setHTML(`<div class="wtyg-pick"><div class="hd">${hits.length} places here</div>${rows}</div>`).addTo(map);
   const el = list.getElement && list.getElement();
   if (el) {
@@ -15776,7 +16278,16 @@ const SITE_MAPS = {
     { id: "site_carbon_mapper_waste", name: "Methane plumes from waste sites \u2014 the set on our own page (Carbon Mapper)", unit: "plume sources", colour: "#6D6A5E", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_carbon_mapper_waste.places.geojson",
       note: "From the Destruction page's Carbon Mapper waste-sector map: the hotspots written into that map, not Carbon Mapper's live feed." },
     { id: "site_forest500_soy", name: "Worst soy financial institutions, 2024 (Forest 500)", unit: "financial institutions", colour: "#6B5B4E", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_forest500_soy.places.geojson",
-      note: "From the Destruction page's Forest 500 map: institutions scoring 2 or less of 94 on soy policy, placed at their headquarters." },
+      // Round 101b (asked 28 September: the colours did not say who is worse):
+      // the page's four colours are its four score bands (0; 0.56 to 0.75; 1
+      // to 1.25; 1.875, read from the boxes), redrawn from red for the worst
+      // to blue, the worst also larger.
+      keepColour: true,
+      recolour: { "#874545": ["#FF3B5C", 9], "#BD7F7F": ["#E77FA2", 7], "#A85762": ["#6FB7D9", 6], "#A85760": ["#2E7DBA", 6] },
+      key: [["#FF3B5C", "0 out of 94: no soy policy counted at all (the worst; 50 institutions)"], ["#E77FA2", "0.56 to 0.75 out of 94"],
+            ["#6FB7D9", "1 to 1.25 out of 94"], ["#2E7DBA", "1.875 out of 94 (the least bad of these, still almost nothing)"]],
+      keyHint: "Forest 500 soy score, out of 94: how far each bank or investor's policies deal with deforestation in the soy it finances",
+      note: "From the Destruction page's Forest 500 map (Global Canopy's Forest 500, 2024): the banks and investors scoring under 2 of 94 on their policies on soy-driven deforestation, placed at their headquarters. Coloured by score: red for 0, the worst, through pink to blue for the highest of them, 1.875." },
     { id: "site_china_grain", name: "China's grain stores (\u4e2d\u56fd\u7cae\u4ed3)", unit: "depots", colour: "#76705C", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_china_grain.places.geojson",
       note: "From the Destruction page's China grain storage map. The page states 205 facilities; this layer carries the positions its map draws." },
     { id: "site_soybean_companies", name: "Soybean Companies", unit: "offices", colour: "#6F7560", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_soybean_companies.places.geojson",
@@ -15805,7 +16316,17 @@ const SITE_MAPS = {
       note: "From the Suppression page's World Advertising 2026 map." },
     { id: "site_world_news", typeRows: true, name: "World News 2026 — Outlets & Owners", unit: "outlets and owners", colour: "#626A6F", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_world_news.places.geojson",
       note: "From the Suppression page's World News 2026 map." },
-    { id: "site_research_integrity", typeRows: true, name: "World Research Integrity 2026 — Who's Breaking Science", unit: "institutions and publishers", colour: "#5F6E6A", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_research_integrity.places.geojson",
+    // Round 103b (asked 28 September: the kinds' names were too esoteric, and
+    // four points could not be found): each kind said plainly, each its own
+    // colour, larger and ringed.
+    { id: "site_research_integrity", typeRows: true, keepColour: true,
+      typeTitles: { "High-volume megajournal (criticised)": "Journals publishing huge numbers of papers fast, criticised for weak checks (megajournals)",
+        "Major publisher hit by paper mills": "Big publishers that printed papers bought from fake-paper factories (paper mills), then retracted them",
+        "Predatory conference organiser": "Fake or pay-to-present science conferences",
+        "Predatory publisher (sanctioned/listed)": "Publishers that take fees but skip real checking (predatory), fined or blacklisted" },
+      recolour: { "#B87C75": "#E0304A", "#A37FBD": "#F28FB0", "#B46D75": "#F4F1EA", "#7699B9": "#3FA9C2" },
+      standout: { keep: true, rim: "#F4F1EA" },
+      name: "World Research Integrity 2026 — Who's Breaking Science", unit: "institutions and publishers", colour: "#5F6E6A", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_research_integrity.places.geojson",
       note: "From the Suppression page's research integrity map." },
     { id: "site_world_entertainment", typeRows: true, name: "World Entertainment 2026 — Companies & Owners", unit: "companies", colour: "#6D5E5A", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_world_entertainment.places.geojson",
       note: "From the Suppression page's World Entertainment 2026 map." },
@@ -15824,7 +16345,8 @@ const SITE_MAPS = {
       note: "From the Suppression page's plant enslavement map." },
     { id: "site_enslaved_microbes", typeRows: true, name: "The Unnecessary Enslavement of Microorganisms 2026", unit: "companies", colour: "#6A6E62", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_enslaved_microbes.places.geojson",
       note: "From the Suppression page's microorganism enslavement map." },
-    { id: "site_insentient", typeRows: true, name: "The Insentient 2026", unit: "companies", colour: "#66625E", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_insentient.places.geojson",
+    // Round 102b (asked 28 September): three of its kinds taken out of the box and off the map.
+    { id: "site_insentient", typeRows: true, dropTypes: ["Bottled & decorative water", "Collectibles & novelty", "Luxury & fast fashion"], name: "The Insentient 2026", unit: "companies", colour: "#66625E", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_insentient.places.geojson",
       note: "From the Suppression page's map of industries built on things called insentient." },
     { id: "site_subsistence_cultures", name: "Global Subsistence Cultures", unit: "peoples", colour: "#5F7166", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_subsistence_cultures.places.geojson",
       note: "From the Suppression page's subsistence cultures map." },
@@ -15864,7 +16386,12 @@ const SITE_MAPS = {
     // Round 48 (25 September): read from the page's own data (pipeline/sitemaps/
     // rich_maps.py), not only its marks: each group, case, company and corridor
     // with its whole write-up, and the countries shaded by the page's measures.
+    // Round 103b (asked 28 September: the colours were too alike): each kind in
+    // a colour of its own, well apart, drawn as given (keepColour), with a key.
     { id: "capture_map", name: "Drug underworld and capture map", unit: "places, lines and countries", colour: "#6A5A5E", route: "sitemap", ready: true, lazy: true, noAreaDots: true,
+      keepColour: true, recolour: { "F42A2A": "#E0304A", "F48F2A": "#7A1F3D", "F4F42A": "#F28FB0", "8FF42A": "#9C6B5A", "2AF42A": "#C9B8A6", "2AF48F": "#F4F1EA", "2AF4F4": "#8A8F98", "2A8FF4": "#1E6FA8", "2A2AF4": "#4F8BFF", "8F2AF4": "#8FD6E8", "F42AF4": "#14A8A0", "F42A8F": "#0E5E6F", "C04A6A": "#FF6F91", "A04AB8": "#B83B5E", "5A4AB8": "#6FB7D9", "4A7AB8": "#3FA9C2", "4AB0B8": "#E8E2D6", "F15622": "#4F8BFF", "F1E022": "#8FD6E8", "78F122": "#1E6FA8", "22F156": "#E0304A", "22F1E0": "#F28FB0", "2278F1": "#7A1F3D", "5622F1": "#C9B8A6", "E022F1": "#F4F1EA", "F12278": "#9C6B5A", "B8B04A": "#D6CFC2" },
+      key: [["#E0304A", "Cartels and their cells"], ["#7A1F3D", "Mafias and criminal societies"], ["#F28FB0", "Street and neighbourhood gangs"], ["#9C6B5A", "Prison-born organisations"], ["#C9B8A6", "Outlaw motorcycle clubs"], ["#F4F1EA", "Armed and insurgent groups"], ["#8A8F98", "Networks inside the state"], ["#1E6FA8", "Port, airport and border crews"], ["#4F8BFF", "Trafficking and smuggling networks"], ["#8FD6E8", "Nigerian confraternities"], ["#14A8A0", "Fraud and cyber networks"], ["#0E5E6F", "Money-laundering networks"], ["#FF6F91", "Office: heads of state and family"], ["#B83B5E", "Office: ministers and security chiefs"], ["#6FB7D9", "Office: judges and prosecutors"], ["#3FA9C2", "Office: legislators and local government"], ["#E8E2D6", "Office: police, customs and armed units"], ["#4F8BFF", "Company: banks and money transmission"], ["#8FD6E8", "Company: crypto and digital rails"], ["#1E6FA8", "Company: shipping, freight and ports"], ["#E0304A", "Company: chemicals and precursors"], ["#F28FB0", "Company: pharmaceutical supply"], ["#7A1F3D", "Company: casinos and junkets"], ["#C9B8A6", "Company: lawyers, brokers and formation agents"], ["#F4F1EA", "Company: encrypted communications"], ["#9C6B5A", "Company: gold, commodities and agribusiness"], ["#D6CFC2", "Trafficking corridors (lines)"]],
+      keyHint: "Groups by kind; public-office cases by office; companies by sector (the page's own kinds)",
       dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/capture_map.places.geojson",
       note: "Everything the map holds: its organised-crime groups by type, public-office cases, companies, trafficking corridors, and every country shaded by any of its six measures (GI-TOC Organized Crime Index 2025 and the map's own composites). Choose what to show and what to colour by under the row." },
   ],
@@ -16015,7 +16542,7 @@ const MORE_MAPS = {
       note: "Every row of facilities.json in WelcomeToYourGalaxy/anti-slavery-map." },
     { id: "slavery_determinations", name: "Forced labour determinations (anti-slavery map)", unit: "determinations", colour: "#7A5E5E", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/slavery_determinations.pmtiles",
       note: "Every row of projects.json in WelcomeToYourGalaxy/anti-slavery-map." },
-    { id: "slavery_enforcement", name: "Enforcement outcomes and detections (anti-slavery map)", unit: "records", colour: "#725A60", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/slavery_enforcement.pmtiles",
+    { id: "slavery_enforcement", name: "Employers Brazil's labour inspectors found keeping workers in slave-like conditions (Brazil's register, via the anti-slavery map)", unit: "records", colour: "#725A60", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/slavery_enforcement.pmtiles",
       note: "Every row of bulk.json in WelcomeToYourGalaxy/anti-slavery-map." },
     { id: "activist_courts", name: "Courts (activist rights map)", unit: "courts", colour: "#5E6070", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/activist_courts.pmtiles",
       note: "Every row of facilities_courts.json in WelcomeToYourGalaxy/activist-rights-map." },
@@ -16292,6 +16819,106 @@ const OTHER_MAPS = {
       attribution: "Potapov et al. 2022, Nature Food; UMD GLAD", rasterPaint: { "raster-opacity": 0.88, "raster-saturation": 0 },
       choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/potapov_cropland.choices.json",
       note: "Potapov et al. 2022 (Nature Food), the University of Maryland GLAD lab's cropland maps from Landsat: the share of each 3 km cell under crops in 2003, 2007, 2011, 2015 and 2019, and where the share rose (net gain) or fell (net loss) between 2003 and 2019. Cropland grew by 9% in that time, half of it replacing natural vegetation and tree cover. The lab's 3 km release, made into this map's own copy by culprits-tiles-more (scripts/cropland_expansion.py); its 30 m release is too large for a copy here. GLAD states no licence for it; it is published free for use with citation." },
+    // ---- round 101b (asked 28 September) ---------------------------------
+    // Where each crop is grown (SPAM 2020): every crop as one row's menu, and
+    // the crops that clear the most land each as a row of its own.
+    { id: "crops_spam", name: "Where each crop is grown, crop by crop, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 },
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land each crop is grown on around 2020, in squares of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model that weighs cropland maps, climate, soils and markets. Shown as the share of each square the crop stands on, in the same five steps for every crop. The map's own copy, made by culprits-tiles-more (scripts/mapspam.py); the download's read-me, licence words and all, is kept in spam/build.json there. Pick the crop in the menu under the row." },
+    { id: "crop_oilp", name: "Where oil palm is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 },
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crop_oilp.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land each crop is grown on around 2020, in squares of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model that weighs cropland maps, climate, soils and markets. Shown as the share of each square the crop stands on, in the same five steps for every crop. The map's own copy, made by culprits-tiles-more (scripts/mapspam.py); the download's read-me, licence words and all, is kept in spam/build.json there." },
+    { id: "crop_soyb", name: "Where soybeans is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 },
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crop_soyb.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land each crop is grown on around 2020, in squares of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model that weighs cropland maps, climate, soils and markets. Shown as the share of each square the crop stands on, in the same five steps for every crop. The map's own copy, made by culprits-tiles-more (scripts/mapspam.py); the download's read-me, licence words and all, is kept in spam/build.json there." },
+    { id: "crop_coco", name: "Where cocoa is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 },
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crop_coco.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land each crop is grown on around 2020, in squares of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model that weighs cropland maps, climate, soils and markets. Shown as the share of each square the crop stands on, in the same five steps for every crop. The map's own copy, made by culprits-tiles-more (scripts/mapspam.py); the download's read-me, licence words and all, is kept in spam/build.json there." },
+    { id: "crop_coffee", name: "Where coffee, arabica and robusta together is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 },
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crop_coffee.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land each crop is grown on around 2020, in squares of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model that weighs cropland maps, climate, soils and markets. Shown as the share of each square the crop stands on, in the same five steps for every crop. The map's own copy, made by culprits-tiles-more (scripts/mapspam.py); the download's read-me, licence words and all, is kept in spam/build.json there." },
+    { id: "crop_sugc", name: "Where sugarcane is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 },
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crop_sugc.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land each crop is grown on around 2020, in squares of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model that weighs cropland maps, climate, soils and markets. Shown as the share of each square the crop stands on, in the same five steps for every crop. The map's own copy, made by culprits-tiles-more (scripts/mapspam.py); the download's read-me, licence words and all, is kept in spam/build.json there." },
+    { id: "crop_maiz", name: "Where maize is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 },
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crop_maiz.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land each crop is grown on around 2020, in squares of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model that weighs cropland maps, climate, soils and markets. Shown as the share of each square the crop stands on, in the same five steps for every crop. The map's own copy, made by culprits-tiles-more (scripts/mapspam.py); the download's read-me, licence words and all, is kept in spam/build.json there." },
+    { id: "crop_rice", name: "Where rice is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 },
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crop_rice.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land each crop is grown on around 2020, in squares of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model that weighs cropland maps, climate, soils and markets. Shown as the share of each square the crop stands on, in the same five steps for every crop. The map's own copy, made by culprits-tiles-more (scripts/mapspam.py); the download's read-me, licence words and all, is kept in spam/build.json there." },
+    { id: "crop_cott", name: "Where cotton is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 },
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crop_cott.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land each crop is grown on around 2020, in squares of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model that weighs cropland maps, climate, soils and markets. Shown as the share of each square the crop stands on, in the same five steps for every crop. The map's own copy, made by culprits-tiles-more (scripts/mapspam.py); the download's read-me, licence words and all, is kept in spam/build.json there." },
+    { id: "crop_cnut", name: "Where coconut is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 },
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crop_cnut.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land each crop is grown on around 2020, in squares of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model that weighs cropland maps, climate, soils and markets. Shown as the share of each square the crop stands on, in the same five steps for every crop. The map's own copy, made by culprits-tiles-more (scripts/mapspam.py); the download's read-me, licence words and all, is kept in spam/build.json there." },
+    // Fishing vessels blacklisted for illegal, unreported and unregulated fishing.
+    { id: "iuu_vessels", name: "Fishing vessels blacklisted for illegal fishing, by the flag each flies now (Combined IUU Vessel List)", unit: "vessels", colour: "#1E6FA8", keepColour: true, route: "country", ready: true, lazy: true, buildScript: "iuu_vessels",
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/iuu/flags.json", field: "value" },
+      countryNote: "Combined IUU Vessel List (Trygg Mat Tracking and the International MCS Network): the vessels on the illegal, unreported and unregulated fishing lists of the regional fisheries bodies whose current flag is this country; their names are in the box",
+      note: "The Combined IUU Vessel List (iuu-vessels.org), kept by Trygg Mat Tracking with the International MCS Network: every fishing and support vessel on the IUU lists of the regional fisheries management organisations, with its flag, owner, operator and the history of its names, flags and listings. Shaded by how many listed vessels fly each country's flag now; vessels whose current flag the list gives as unknown are counted in the build record (iuu/build.json), not placed. Read weekly from each vessel's page by culprits-tiles-more (scripts/iuu_vessels.py)." },
+    // ---- round 103b (asked 28 September) ---------------------------------
+    // The second tab of the research integrity map: who makes fake science.
+    { id: "research_makers", name: "Who makes fake science: paper mills, named scientists with the most fabricated papers, predatory operators and enablers (World Research Integrity 2026)", unit: "makers", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true, buildScript: "research_makers",
+      files: [{ label: "Who makes it", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/research/makers.geojson" }], nameFrom: ["name"],
+      groupColours: { "Fake-paper factories that sell authorship (paper mills)": "#E0304A", "Named scientists with the most fabricated or retracted papers": "#F4F1EA",
+        "Predatory operators": "#F28FB0", "Enablers: citation rings, hijacked journals, AI-written papers, essay mills": "#3FA9C2" },
+      groupHint: "Coloured by kind, as the page sorts them",
+      note: "The \u201cWho makes it\u201d tab of the site's World Research Integrity 2026 map, read from the page itself each week by culprits-tiles-more (scripts/research_makers.py): the paper mills, predatory operators, record-setting fabricators (individual scientists, from the Retraction Watch leaderboard, university investigations and court rulings, as the page says) and enablers, each with its documented scale, detail and the page's own rank." },
+    // Governments' policies on the birth rate.
+    { id: "fertility_policy", name: "Governments trying to raise, lower or keep their birth rate (UN World Population Policies)", unit: "countries", colour: "#1E6FA8", keepColour: true, route: "countrycat", ready: true, lazy: true, buildScript: "fertility_policy",
+      url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/fertility/policy.json", field: "policy",
+      categories: [["Raise", "#E0304A"], ["Lower", "#1E6FA8"], ["Maintain", "#D6CFC2"], ["No intervention", "#77726A"], ["No official policy", "#77726A"]],
+      note: "Each government's own answer to the United Nations Population Division's inquiry on its policy on the fertility level: to raise it, lower it, keep it as it is, or no intervention (World Population Policies, 2021 revision, the reproductive health module's country data). Every other answer in the country's row is in the box. Copied weekly by culprits-tiles-more (scripts/fertility_policy.py); a wording the key does not list is shown in grey, under its own name." },
+    // Who turned holidays into sales, and who made holidays to displace others.
+    { id: "holiday_culprits", name: "Who turned holidays into sales events, and who made holidays to take the place of others", unit: "companies, bodies and governments", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Holiday culprits", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/holidays/culprits.geojson" }], nameFrom: ["name"],
+      groupColours: { "Turned a holiday into a sales event": "#E0304A", "Made or remade a holiday to take the place of another": "#3FA9C2" },
+      groupHint: "Red: a company or trade body that turned a holiday into selling. Blue: a government, body or church that made or remade a holiday to displace another (May Day, the October Revolution)",
+      note: "Compiled for this map on 28 September 2026 from the Wikipedia articles each box links to: the companies and trade bodies that turned holidays into sales events (Coca-Cola's Santa, Macy's parade, Montgomery Ward's Rudolph, Alibaba's and JD.com's Singles' Day, Amazon's Prime Day, the National Retail Federation's Cyber Monday, the men's wear retailers' Father's Day Council, White Day, Sweetest Day, Pepero Day, KFC's Christmas in Japan) and the governments, bodies and church that made or remade holidays to take the place of others (Loyalty Day and Law Day against May Day, the Feast of Saint Joseph the Worker set on May Day, the Nazi \u201cNational Labour Day\u201d followed by the seizure of the unions, Russia's Unity Day in place of the October Revolution). Each is placed at its head office or, where none is given, its city, as the box says. A short list, not every case." },
+    // Forced labour and trafficking enforcement, every country.
+    { id: "slavery_convicted_world", name: "People convicted of human trafficking, country by country, latest year (UNODC)", unit: "people convicted", colour: "#1E6FA8", keepColour: true, route: "country", ready: true, lazy: true, buildScript: "slavery_world",
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/slavery_world/unodc.json", field: "convicted" },
+      countryNote: "UNODC trafficking in persons data: people convicted of trafficking in the latest year the country reported; the victims its authorities detected and the people prosecuted are in the box",
+      note: "UNODC's trafficking in persons data (the figures behind its Global Report on Trafficking in Persons), as governments report them: for each country, the people convicted of trafficking in the latest year it reported, with the victims detected and people prosecuted, and every other figure the file gives, in the box. A low number can mean few cases or little enforcement. Copied weekly by culprits-tiles-more (scripts/slavery_world.py)." },
+    { id: "slavery_detected_world", name: "Victims of human trafficking detected by the authorities, country by country, latest year (UNODC)", unit: "victims detected", colour: "#1E6FA8", keepColour: true, route: "country", ready: true, lazy: true, buildScript: "slavery_world",
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/slavery_world/unodc.json", field: "detected" },
+      countryNote: "UNODC trafficking in persons data: victims detected by the country's authorities in the latest year it reported",
+      note: "UNODC's trafficking in persons data, as governments report them: the victims of trafficking each country's authorities detected in the latest year it reported, every other figure in the box. Detection depends on how hard a country looks. Copied weekly by culprits-tiles-more (scripts/slavery_world.py)." },
+    { id: "slavery_cbp_world", name: "Companies, regions and fleets whose goods US customs holds or bans for forced labour (US CBP Withhold Release Orders and Findings)", unit: "orders and findings", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true, buildScript: "slavery_world",
+      files: [{ label: "Withhold Release Orders and Findings", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/slavery_world/cbp_forced_labor.geojson" }], nameFrom: ["name"],
+      groupColours: { "Withhold Release Orders": "#E0304A", "Findings": "#F28FB0" },
+      groupHint: "Withhold Release Orders hold goods at the border; Findings ban them outright",
+      note: "Every Withhold Release Order and Finding US Customs and Border Protection lists: the company, region or fishing fleet, the goods, the date, the status and CBP's notes, as its page writes them. CBP gives no address, so each is placed at the middle of its country. Read weekly by culprits-tiles-more (scripts/slavery_world.py)." },
+    // ---- round 104b (asked 28 September) ---------------------------------
+    { id: "school_culprits", name: "Who made schooling a machine for obedience, sorting and selling: states, foundations, test makers and companies", unit: "states, foundations and companies", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "School culprits", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/schools/culprits.geojson" }], nameFrom: ["name"],
+      groupColours: { "Built schooling for obedience and uniformity": "#E0304A", "Used schooling to erase peoples' cultures": "#7A1F3D",
+        "Tests and standards that rank and sort children": "#3FA9C2", "Selling to children through schools": "#F28FB0", "Private money steering what schools teach": "#F4F1EA" },
+      groupHint: "Coloured by what each did",
+      note: "Compiled for this map on 28 September 2026 from the sources linked in each box (Wikipedia's articles, Education Week, the Electronic Frontier Foundation, KUT and the Washington Post as reprinted): Prussia's compulsory schooling and Horace Mann who carried it to the United States; the Rockefeller General Education Board and the Carnegie Foundation; the Carlisle Indian school and Canada's residential schools; the SAT's College Board and ETS, Pearson, the Common Core's makers and the Gates Foundation; the Walton Family Foundation; Channel One, Coca-Cola's and PepsiCo's school drink contracts, Google's school Chromebooks, Junior Achievement; Bridge International Academies; the OECD's PISA. Each at its head office or city, as the box says. A short list, not every case." },
+    { id: "giga_school_points", name: "Every school Giga has mapped, worldwide, and whether it is online (Giga, UNICEF and ITU)", unit: "schools", colour: "#3FA9C2", keepColour: true, route: "mvtlive", ready: true, lazy: true, buildScript: "giga_schools",
+      tilesFrom: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/giga/schools_tiles.json",
+      tiles: "https://uni-ooi-giga-backend-hjekcuagasashucv.a03.azurefd.net/api/locations/schools/tiles/?z={z}&x={x}&y={y}.mvt",
+      sourceLayer: "default", field: "connectivity_status",
+      classes: [["connected", "#3FA9C2", "connected to the internet"], ["not_connected", "#E0304A", "not connected"], ["unknown", "#8A8F98", "not known"]],
+      attribution: "Giga (UNICEF and ITU)",
+      note: "Every school on Giga's map, drawn live from Giga's own tiles (the same ones its map uses), each coloured by what Giga records of its internet connection. Wider out Giga sends a sample of the schools in each square, as its own map shows them; closer in, every one." },
+    { id: "stock_exchanges", name: "The world's major stock exchanges, by the value of the companies listed on them (Wikipedia)", unit: "exchanges", colour: "#1E6FA8", route: "geojsonlive", ready: true, lazy: true, buildScript: "stock_exchanges",
+      files: [{ label: "Major stock exchanges", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/markets/exchanges.geojson" }], nameFrom: ["name"],
+      colourBy: { field: "market_cap_usd_tn", steps: [1, 2, 4, 8, 20], unit: "trillion US$ of listed companies" },
+      attribution: "Wikipedia, List of major stock exchanges (CC BY-SA 4.0)",
+      note: "Every exchange in Wikipedia's list of major stock exchanges, with the market value of the companies listed on it (US$ trillion), its code, city, time zone and hours, as the list gives them; placed where the exchange's own article (or its city's) is. Copied weekly by culprits-tiles-more (scripts/stock_exchanges.py)." },
     { id: "building_types", name: "Buildings", unit: "places", colour: "#6A6258", route: "buildings", ready: true, lazy: true,
       // Their own repo and Pages site: a site is capped at 1 GB and these are
       // about 700 MB. See culprits-buildings.
@@ -16306,10 +16933,10 @@ const OTHER_MAPS = {
     { id: "owid_aid", name: "Foreign aid received as a share of national income (Our World in Data)", unit: "% of income", colour: "#6E5F52", route: "owidgrapher", ready: true, lazy: true,
       slug: "foreign-aid-received-as-a-share-of-national-income-net",
       note: "Read live from Our World in Data each time it is ticked; the chart's own data, by country and year." },
-    { id: "ll2_pads", name: "Launch sites (Launch Library 2)", unit: "launch pads", colour: "#5E6070", route: "ll2", ready: true, lazy: true,
+    { id: "ll2_pads", name: "Rocket launch sites, worldwide (The Space Devs)", unit: "launch pads", colour: "#5E6070", route: "ll2", ready: true, lazy: true,
       what: "pads", copy: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ll2/pads.json",
       note: "Every launch pad in Launch Library 2, The Space Devs' open database, read live." },
-    { id: "ll2_upcoming", name: "Upcoming launches per site (Launch Library 2)", unit: "launches", colour: "#6E5A6E", route: "ll2", ready: true, lazy: true,
+    { id: "ll2_upcoming", name: "Rocket launches coming up, at each launch site (The Space Devs)", unit: "launches", colour: "#6E5A6E", route: "ll2", ready: true, lazy: true,
       what: "upcoming", copy: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/ll2/upcoming.json",
       note: "Every scheduled launch in Launch Library 2, placed at its pad, read live." },
     { id: "space_industry", name: "The space industry (openmaps.space)", unit: "places", colour: "#5E6070", route: "geojsonlive", ready: true, lazy: true,
@@ -16630,6 +17257,13 @@ const OTHER_MAPS = {
       totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/global_witness/countries.json" },
       countryNote: "Global Witness's own count, as its data page publishes it (non-commercial reuse allowed)",
       note: "Every killing and long-term disappearance of a land or environmental defender Global Witness has documented since 2012, many of them Indigenous people defending their land, totalled by country from its data page, every figure it gives kept in the box. Copied weekly (culprits-tiles-more scripts/global_witness.py)." },
+    // Round 102b (asked 28 September: the Christmas trees covered the United States only).
+    { id: "xmas_trees", name: "Christmas tree farms and sellers, worldwide (OpenStreetMap and the Real Christmas Tree Locator)", unit: "places", colour: "#3FA9C2", route: "geojsonlive", ready: true, lazy: true, buildScript: "christmas_trees",
+      files: [{ label: "Christmas tree farms and sellers", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/xmas/trees.geojson" }], nameFrom: ["name"],
+      groupColours: { "Christmas tree farm": "#3FA9C2", "Place selling Christmas trees": "#8FD6E8", "Other place named for Christmas trees": "#77726A" },
+      groupHint: "Coloured by what each place is, from its tags or its name",
+      attribution: "OpenStreetMap contributors (ODbL); Real Christmas Tree Locator (Google My Maps)",
+      note: "Every place OpenStreetMap tags as growing or selling Christmas trees, in every country, and every place whose name says Christmas tree farm or Christmas tree in English, German, Dutch, French, the Nordic languages, Polish, Spanish, Italian, Russian, Ukrainian, Czech, Hungarian, Portuguese, Croatian, Romanian, Estonian, Lithuanian or Latvian; with every farm on the Real Christmas Tree Locator map of the United States that this row drew before. A place in both within 300 m is one place. Every tag and field is in the box. Gathered weekly by culprits-tiles-more (scripts/christmas_trees.py). Coverage follows where people have mapped them: OpenStreetMap is fullest in Europe and North America." },
     { id: "mymaps_trees", name: "Christmas Trees (Google My Maps)", unit: "placemarks", colour: "#5F6E5C", route: "kml", ready: true, lazy: true,
       kml: "https://www.google.com/maps/d/kml?mid=1c-vPoGf79mfQezTgcFoKb-xN4A4&forcekml=1",
       note: "Read live from the map's Google My Maps file; the row takes the map's own title once it loads." },
@@ -17149,7 +17783,7 @@ const PLAIN_NAMES = {
   allen_coral: "Warm-water coral reefs (Allen Coral Atlas and UNEP-WCMC)",
   site_animal_sacrifice: "Where animals are sacrificed (Animal Sacrifice Map)",
   site_animal_fighting: "Where animals are made to fight (Animal Fighting Locations)",
-  site_forest500_soy: "Banks and investors doing worst on soy-driven deforestation, 2024 (Forest 500)",
+  site_forest500_soy: "Banks and investors with the weakest policies on soy-driven deforestation, 2024: each scored under 2 out of 94 (Forest 500)",
   site_soybean_companies: "Companies trading and processing soybeans",
   site_export_credit: "Export credit agencies: government lenders that back their countries' companies abroad",
   site_subsistence_cultures: "Peoples who still live off the land (Global Subsistence Cultures)",
@@ -17383,6 +18017,7 @@ function ensureLayer(cfg) {
       : cfg.route === "osmlanduse" ? Promise.resolve().then(() => addOsmLanduseLayer(cfg))
       : cfg.route === "arcgisdyn" ? addArcgisDynLayer(cfg)
       : cfg.route === "giga" ? addGigaLayer(cfg)
+      : cfg.route === "mvtlive" ? addMvtLiveLayer(cfg)
       : cfg.route === "tracker" ? addTrackerLayer(cfg)
       : cfg.route === "gta" ? addGtaLayer(cfg)
       : cfg.route === "ctair" || cfg.route === "ctairgas" ? addCtAirLayer(cfg)
@@ -17489,6 +18124,7 @@ const LAYER_KIND = {
   ecoregions_2017: ["plant", "downstream"],
   wb_harm_projects: ["insentient", "downstream"], imf_fossil_subsidies: ["insentient", "downstream"],
   fish_rivers: ["animal", "downstream"], fish_basins: ["animal", "downstream"],
+  crops_spam: ["plant", "upstream"], crop_oilp: ["plant", "upstream"], crop_soyb: ["plant", "upstream"], crop_coco: ["plant", "upstream"], crop_coffee: ["plant", "upstream"], crop_sugc: ["plant", "upstream"], crop_maiz: ["plant", "upstream"], crop_rice: ["plant", "upstream"], crop_cott: ["plant", "upstream"], crop_cnut: ["plant", "upstream"], iuu_vessels: ["animal", "upstream"],
   ifl_2000: ["plant", "downstream"], ifl_2013: ["plant", "downstream"], ifl_2016: ["plant", "downstream"], ifl_2020: ["plant", "downstream"], ifl_2025: ["plant", "downstream"],
   ftw_fields: ["plant", "downstream"],
   potapov_cropland: ["plant", "downstream"],
@@ -17556,7 +18192,8 @@ const LAYER_KIND = {
   site_world_advertising: ["human", "upstream"],
   site_world_news: ["human", "upstream"],
   site_world_entertainment: ["human", "upstream"],
-  site_research_integrity: ["human", "upstream"],
+  site_research_integrity: ["human", "upstream"], school_culprits: ["human", "upstream"], giga_school_points: ["human", "downstream"], stock_exchanges: ["human", "upstream"], research_makers: ["human", "upstream"], fertility_policy: ["human", "upstream"],
+  holiday_culprits: ["human", "upstream"], slavery_convicted_world: ["human", "downstream"], slavery_detected_world: ["human", "downstream"], slavery_cbp_world: ["human", "upstream"],
   site_eyes_network: ["human", "upstream"],
   site_earmarked_funding: ["human", "upstream"],
   site_trade_profits: ["human", "upstream"],
@@ -17683,7 +18320,7 @@ const LAYER_KIND = {
   agri_linked: ["plant", "downstream"],
   plastics_plants: ["insentient", "upstream"],
   vinyl_chloride_plants: ["insentient", "upstream"],
-  mymaps_trees: ["plant", "downstream"],
+  mymaps_trees: ["plant", "downstream"], xmas_trees: ["plant", "downstream"],
   fractracker_refineries: ["insentient", "upstream"],
   arcgis_ym8xk: ["insentient", "upstream"],
   arcgis_materialresearch: ["insentient", "upstream"],
@@ -18222,6 +18859,17 @@ const LAYER_SITE = {
   wb_harm_projects: "https://projects.worldbank.org/en/projects-operations/projects-list",
   imf_fossil_subsidies: "https://www.imf.org/en/Topics/climate-change/energy-subsidies",
   fish_rivers: "https://doi.org/10.6084/m9.figshare.7688801",
+  crops_spam: "https://www.mapspam.info/data/",
+  crop_oilp: "https://www.mapspam.info/data/",
+  crop_soyb: "https://www.mapspam.info/data/",
+  crop_coco: "https://www.mapspam.info/data/",
+  crop_coffee: "https://www.mapspam.info/data/",
+  crop_sugc: "https://www.mapspam.info/data/",
+  crop_maiz: "https://www.mapspam.info/data/",
+  crop_rice: "https://www.mapspam.info/data/",
+  crop_cott: "https://www.mapspam.info/data/",
+  crop_cnut: "https://www.mapspam.info/data/",
+  iuu_vessels: "https://iuu-vessels.org/",
   fish_basins: "https://doi.org/10.6084/m9.figshare.c.3739145",
   ifl_2000: "https://intactforests.org/", ifl_2013: "https://intactforests.org/", ifl_2016: "https://intactforests.org/", ifl_2020: "https://intactforests.org/", ifl_2025: "https://intactforests.org/",
   ftw_fields: "https://source.coop/ftw/global-data",
@@ -18338,6 +18986,7 @@ const LAYER_SITE = {
   mymaps_supp_a: "https://www.google.com/maps/d/kml?mid=1vrnqSW4cWWdnjz6cJ-qFMmd0zbJzYd6V&forcekml=1",
   mymaps_supp_b: "https://www.google.com/maps/d/kml?mid=1seBCggQGg1tcRYpqpZ5ZKJaxHs4&forcekml=1",
   mymaps_trees: "https://www.google.com/maps/d/kml?mid=1c-vPoGf79mfQezTgcFoKb-xN4A4&forcekml=1",
+  xmas_trees: "https://www.openstreetmap.org/",
   nusantara: "https://map.nusantara-atlas.org/geoserver/atlas-workspace-v3/wms",
   owid_co2: "https://github.com/owid/co2-data",
   palmwatch: "https://palmwatch.inclusivedevelopment.net/",
@@ -18378,6 +19027,15 @@ const LAYER_SITE = {
   site_indigenous_conflicts: "https://github.com/WelcomeToYourGalaxy/maps",
   site_insentient: "https://www.welcometoyourgalaxy.com/suppression.html",
   site_research_integrity: "https://www.welcometoyourgalaxy.com/suppression.html",
+  school_culprits: "https://en.wikipedia.org/wiki/Prussian_education_system",
+  giga_school_points: "https://maps.giga.global/map",
+  stock_exchanges: "https://en.wikipedia.org/wiki/List_of_major_stock_exchanges",
+  research_makers: "https://www.welcometoyourgalaxy.com/suppression.html",
+  fertility_policy: "https://www.un.org/development/desa/pd/data/world-population-policies",
+  holiday_culprits: "https://en.wikipedia.org/wiki/Loyalty_Day",
+  slavery_convicted_world: "https://www.unodc.org/unodc/en/data-and-analysis/glotip.html",
+  slavery_detected_world: "https://www.unodc.org/unodc/en/data-and-analysis/glotip.html",
+  slavery_cbp_world: "https://www.cbp.gov/trade/forced-labor/withhold-release-orders-and-findings",
   site_rodeo: "https://www.welcometoyourgalaxy.com/suppression.html",
   site_secret_societies: "https://www.welcometoyourgalaxy.com/on-planet-invasion.html",
   site_settler_colonialism: "https://github.com/WelcomeToYourGalaxy/maps",
@@ -18542,6 +19200,25 @@ const NOT_LIVE = {
   wb_harm_projects: "Copied weekly from the World Bank's projects API by culprits-tiles-more",
   imf_fossil_subsidies: "Copied weekly from the World Bank's Data360 by culprits-tiles-more",
   fish_rivers: "Made from the free-flowing rivers data set by culprits-tiles-more",
+  school_culprits: "Compiled for this map from the sources in each box",
+  stock_exchanges: "Copied weekly from Wikipedia by culprits-tiles-more",
+  research_makers: "Read weekly from the site's own map by culprits-tiles-more",
+  fertility_policy: "Copied weekly from the UN Population Division by culprits-tiles-more",
+  holiday_culprits: "Compiled for this map from the sources in each box",
+  slavery_convicted_world: "Copied weekly from UNODC by culprits-tiles-more",
+  slavery_detected_world: "Copied weekly from UNODC by culprits-tiles-more",
+  slavery_cbp_world: "Read weekly from US CBP's page by culprits-tiles-more",
+  crops_spam: "Made from SPAM 2020 by culprits-tiles-more",
+  crop_oilp: "Made from SPAM 2020 by culprits-tiles-more",
+  crop_soyb: "Made from SPAM 2020 by culprits-tiles-more",
+  crop_coco: "Made from SPAM 2020 by culprits-tiles-more",
+  crop_coffee: "Made from SPAM 2020 by culprits-tiles-more",
+  crop_sugc: "Made from SPAM 2020 by culprits-tiles-more",
+  crop_maiz: "Made from SPAM 2020 by culprits-tiles-more",
+  crop_rice: "Made from SPAM 2020 by culprits-tiles-more",
+  crop_cott: "Made from SPAM 2020 by culprits-tiles-more",
+  crop_cnut: "Made from SPAM 2020 by culprits-tiles-more",
+  iuu_vessels: "Copied weekly from the Combined IUU Vessel List by culprits-tiles-more",
   fish_basins: "Made from the freshwater fish database by culprits-tiles-more",
   ifl_2000: "Made from Global Forest Watch's table by culprits-tiles-more", ifl_2013: "Made from Global Forest Watch's table by culprits-tiles-more",
   ifl_2016: "Made from Global Forest Watch's table by culprits-tiles-more", ifl_2020: "Made from Global Forest Watch's table by culprits-tiles-more",
@@ -18842,20 +19519,34 @@ const PANEL_ORDER = [
   { h: 3, t: "Meat and agriculture" }, "land_matrix",
   { h: 4, t: "Agriculture" },
   // Round 90b (asked 27 September): where the fields are, and where cropland spread.
-  { h: 5, t: "Cropland" }, "ftw_fields", "potapov_cropland",
-  { h: 5, t: "Plantations" },
-  { h: 6, bundle: "idnplant", colour: "#6E6A55" },
-  { h: 5, t: "Palm oil" },
-  { h: 6, t: "Concessions" },
-  { h: 6, t: "Plantations" },
-  { h: 6, t: "Mills and refineries" }, "palmwatch", "trase_palm_indonesia",
-  { h: 6, t: "Who finances them" },
-  { h: 6, t: "Clearing and emissions" },
+  // Round 101b (asked 28 September): every crop, and the plantations that are
+  // of no one crop, inside Cropland; each crop that clears the most land
+  // under By crop, palm oil, soy and cocoa among them.
+  { h: 5, t: "Cropland" }, "ftw_fields", "potapov_cropland", "crops_spam",
+  { h: 6, t: "Plantations of no single crop (single crops are under By crop)" },
+  { h: 7, bundle: "plantall", colour: "#5E6A78" },
+  { h: 7, bundle: "plantsmall", colour: "#5E6A78" },
+  { h: 7, bundle: "idnplant", colour: "#6E6A55" },
+  { h: 5, t: "By crop" },
+  { h: 6, t: "Palm oil" }, "crop_oilp",
+  { h: 7, t: "Concessions" },
+  { h: 7, t: "Plantations" },
+  { h: 8, bundle: "palmco", colour: "#5E6A78" },
+  { h: 7, t: "Mills and refineries" }, "palmwatch", "trase_palm_indonesia",
+  { h: 7, t: "Who finances them" },
+  { h: 7, t: "Clearing and emissions" },
   // Soy and cocoa as trade (24 September): the companies and financiers of
   // soy and the shares of soy and cocoa under zero-deforestation commitments.
-  // Soy's fields are under Climate > Nitrous oxide.
-  { h: 5, t: "Soy" }, "site_forest500_soy", "site_soybean_companies", "soy_organizations",
-  { h: 5, t: "Cocoa" },
+  // Soy's fields are under Climate > Nitrous oxide, and here too.
+  { h: 6, t: "Soy" }, "crop_soyb", "site_forest500_soy", "site_soybean_companies", "soy_organizations",
+  { h: 6, t: "Cocoa" }, "crop_coco",
+  { h: 6, t: "Coffee" }, "crop_coffee",
+  { h: 6, t: "Sugarcane" }, "crop_sugc",
+  { h: 6, t: "Maize (corn)" }, "crop_maiz",
+  { h: 6, t: "Rice" }, "crop_rice",
+  { h: 6, t: "Cotton" }, "crop_cott",
+  { h: 6, t: "Coconut" }, "crop_cnut",
+  { h: 6, t: "Sago" },
   { h: 5, t: "Pasture and grassland" },
   { h: 5, t: "Water for crops" },
   { h: 5, t: "Clearing for farming" },
@@ -18876,7 +19567,7 @@ const PANEL_ORDER = [
   // Item 11: Fishing above Reefs and mangroves. Items 4, 5, 6: the pond maps
   // as one row, and the worldwide pond map beside them.
   { h: 3, t: "Oceans" },
-  { h: 4, t: "Fishing" }, "fishing", "aquaculture_ponds",
+  { h: 4, t: "Fishing" }, "fishing", "aquaculture_ponds", "iuu_vessels",
   { h: 5, bundle: "ponds", colour: "#5E7377" },
   { h: 4, t: "Reefs and mangroves" }, "allen_coral",
   // Round 94b (asked 27 September): more of what is done to the oceans.
@@ -18893,7 +19584,7 @@ const PANEL_ORDER = [
   { h: 3, t: "Other concessions" },
   // Asked for 25 September: the earthquakes under a heading of their own.
   // Round 84b: governments' own records of environmental crimes, and illegal mining.
-  { h: 3, t: "Environmental crime" }, "goc_flora", "goc_fauna", "goc_resources", "ibama_embargos", "ibama_infractions", "raisg_illegal_mining", "powerbi_report",
+  { h: 3, t: "Environmental crime" }, "goc_flora", "goc_fauna", "goc_resources", "iuu_vessels", "ibama_embargos", "ibama_infractions", "raisg_illegal_mining", "powerbi_report",
   // Round 95b (asked 27 September): environmental law, and the cases companies
   // bring against governments over it.
   { h: 3, t: "Environmental law" }, "site_environment_law", "site_environment_law_shapes", "enviro_law_by_country", "ect_secrets", "isds_tracker",
@@ -18908,17 +19599,13 @@ const PANEL_ORDER = [
   { h: 4, t: "Landslides" }, "haz_landslides",
   // Round 95b: Berkeley Earth's warmer-than-usual years here (CATALOGUE_BY_TITLE).
   { h: 4, t: "Extreme heat" },
+  // Round 102b (asked 28 September): under Destruction, Of groups keeps Of
+  // humans alone, and Of individuals Of humans and Of animals.
   { h: 2, t: "Of groups" },
   { h: 3, t: "Of humans" },
-  { h: 3, t: "Of animals" }, "powerbi_report",
-  { h: 3, t: "Of plants" },
-  { h: 3, t: "Of microorganisms" },
-  { h: 3, t: "Of the “insentient”" },
   { h: 2, t: "Of individuals" },
   { h: 3, t: "Of humans" }, "gw_defenders",
   { h: 3, t: "Of animals" }, "site_animal_sacrifice",
-  { h: 3, t: "Of plants" },
-  { h: 3, t: "Of microscopics" },
 
   { h: 1, t: "Suppression" },
   { h: 2, t: "Of humans" },
@@ -18927,12 +19614,14 @@ const PANEL_ORDER = [
   { h: 5, t: "Banks and monetary power" }, "largest_banks", "development_banks", "site_central_banks", "site_banking_dynasties", "site_banking_dynasties_charts", "policy_rates", "imbalances", "cfr_tracker", "tableau_zsf", "site_export_credit", "troutwood",
   { h: 5, t: "Trade" }, "rte_trade", "site_trade_profits", "gta_acts",
   { h: 5, t: "Funding of international bodies" }, "site_earmarked_funding",
-  // Round 95b (asked 27 September): peoples who live off the land.
-  { h: 5, t: "Living off the land" }, "site_subsistence_cultures", "site_self_sufficiency",
+  // Round 104b (asked 28 September): taxes, interest and aid each a heading
+  // of their own, out of Economic inequality; Living off the land taken out.
+  { h: 5, t: "Taxes" }, "owid_corptax",
+  { h: 5, t: "Interest" }, "owid_interest",
+  { h: 5, t: "Aid" }, "owid_aid",
   { h: 4, t: "Economic inequality within it" },
   { h: 5, t: "Wealth concentration" }, "site_wealth_atlas", "site_social_spheres", "largest_companies",
-  { h: 5, t: "Public finance and tax" }, "owid_interest", "owid_corptax", "owid_aid",
-  { h: 5, t: "School" }, "giga_countries",
+  { h: 5, t: "The stock market" }, "stock_exchanges",
   { h: 4, t: "Law enforcement" },
   { h: 4, t: "Courts and corrections" },
   { h: 4, t: "Discrimination" },
@@ -18940,10 +19629,17 @@ const PANEL_ORDER = [
   { h: 5, t: "Prevalence" }, "slavery_prevalence",
   { h: 5, t: "Sites on land" }, "slavery_sites",
   { h: 5, t: "At sea" }, "slavery_ports", "slavery_fishing",
-  { h: 5, t: "Routes, cases and enforcement" }, "slavery_routes", "slavery_cases", "slavery_determinations", "slavery_enforcement",
+  // Round 103b (asked 28 September): cases and enforcement apart from the
+  // routes, with enforcement in every country beside Brazil's register.
+  { h: 5, t: "Routes" }, "slavery_routes",
+  { h: 5, t: "Cases and enforcement" }, "slavery_cases", "slavery_determinations", "slavery_enforcement",
+  "slavery_convicted_world", "slavery_detected_world", "slavery_cbp_world",
   // Round 95b: the anti-slavery trackers, country by country, back.
   { h: 5, t: "What each country does about it" }, "slavery_trackers",
   { h: 3, t: "Suppression by “representation” within it" },
+  // Round 104b (asked 28 September): School here, out of Economic inequality:
+  // every school Giga maps, and who made schooling a machine for the grid.
+  { h: 4, t: "School" }, "school_culprits", "giga_school_points", "giga_countries",
   { h: 4, t: "Politics as a front" },
   { h: 5, t: "Voter suppression" },
   { h: 5, t: "Representation as presentation" },
@@ -18954,17 +19650,18 @@ const PANEL_ORDER = [
   { h: 4, t: "The advertising industries" }, "site_world_advertising",
   { h: 4, t: "The news industry" }, "site_world_news",
   { h: 4, t: "The entertainment industries" }, "site_world_entertainment",
-  { h: 4, t: "Science" }, "site_research_integrity",
+  { h: 4, t: "Science" }, "site_research_integrity", "research_makers",
   { h: 3, t: "Suppression by social molds" },
   { h: 4, t: "Metaphysical (Religion, spirituality, etc.)" }, "site_eyes_network",
   { h: 4, t: "Sports" },
-  { h: 4, t: "Holidays" },
-  { h: 4, t: "Sex" },
+  { h: 4, t: "Holidays" }, "holiday_culprits",
+  { h: 4, t: "Sex" }, "fertility_policy",
   { h: 4, t: "Drugs" }, "capture_map",
   // Every layer straight under Of animals, no sub-headings (round 62).
   { h: 2, t: "Of animals" }, "gmo_animal_research", "gmo_animal_trade",
   "site_animal_fighting", "site_circus", "site_animal_racing", "site_rodeo", "site_animal_tourism", "mymaps_supp_b", "mymaps_supp_a",
-  { h: 2, t: "Of plants" }, "site_enslaved_plants", "mymaps_trees",
+  // Round 102b: Christmas tree farms worldwide in place of the United States map alone.
+  { h: 2, t: "Of plants" }, "site_enslaved_plants", "xmas_trees",
   { h: 2, t: "Of microscopics" }, "site_enslaved_microbes",
   { h: 2, t: "Of the “insentient”" }, "site_insentient",
 
@@ -18985,6 +19682,10 @@ const PANEL_ORDER = [
   { h: 1, t: "Buildings" }, "building_types", "osm_landuse",
 ];
 const PANEL_REMOVED = new Set([
+  // Round 104b: Living off the land taken out, at the owner's word.
+  "site_subsistence_cultures", "site_self_sufficiency",
+  // Round 102b: its farms are inside xmas_trees now, with the world's.
+  "mymaps_trees",
   // Round 100b (asked 28 September): the page that only linked out, replaced
   // by the map's own rows (publicharm).
   "pe_subsidising",
@@ -19183,6 +19884,20 @@ function moveRow(lead, dir, target) {
   }
   if (typeof wireOnTop === "function") wireOnTop();
 }
+// Round 103b: a heading, and everything under it, moved above or below
+// another heading or row. The menu changes; the order layers are drawn in
+// does not.
+function moveHeading(sec, where, target) {
+  const parent = target.parentElement;
+  if (!parent || sec.contains(target)) return;
+  if (where === "up") parent.insertBefore(sec, target);
+  else {
+    const nodes = target.classList.contains("toc-sec") ? [target] : rowNodes(target);
+    parent.insertBefore(sec, nodes[nodes.length - 1].nextSibling);
+  }
+  const box = document.getElementById("layers");
+  if (box) { countHeadings(box); syncHeadingBoxes(box); }
+}
 function addRowTools(box) {
   for (const input of box.querySelectorAll("label > [data-layer]")) {
     const lead = input.closest("label");
@@ -19200,6 +19915,8 @@ function addRowTools(box) {
       tools.querySelector(".rt-v").textContent = `${slider.value}%`;
       opacityFactor.set(id, f);
       layersOfRow(id).forEach((l) => applyOpacity(l, f));
+      // Round 102b: rows drawn on their own canvas (the asteroids, the worlds) fade too.
+      if (ROW_OPACITY_HOOKS.has(id)) ROW_OPACITY_HOOKS.get(id)(f);
     });
     // Unticking a row takes everything under it away too - its filters, its
     // kind lists, its month pickers, this slider - rather than leaving a stack
@@ -19274,6 +19991,11 @@ function rowDragging(box) {
   const clearMarks = () => box.querySelectorAll(".drop-above, .drop-below").forEach((n) => n.classList.remove("drop-above", "drop-below"));
   box.addEventListener("pointerdown", (e) => {
     if (e.button && e.button !== 0) return;
+    // A heading's grip (or its line, with a mouse) drags the whole heading.
+    const hgrip = e.target.closest && e.target.closest(".grip-h");
+    const hline = !hgrip && e.pointerType !== "touch" && e.target.closest && !e.target.closest("input") ? e.target.closest(".toc-line") : null;
+    const sec = (hgrip || hline) && (hgrip || hline).closest(".toc-sec");
+    if (sec && !sec.closest("[data-removed]")) { drag = { sec, unit: sec, y: e.clientY, on: false, target: null, where: null }; return; }
     const onGrip = e.target.closest && e.target.closest(".grip");
     if (!onGrip && e.target.closest && e.target.closest("input, select, button, a, .chip, .facet")) return;
     // Touch scrolls the list, so on touch only the grip drags.
@@ -19293,6 +20015,19 @@ function rowDragging(box) {
     clearMarks();
     drag.target = null;
     const at = document.elementFromPoint(e.clientX, e.clientY);
+    if (drag.sec) {
+      // Above or below another heading, or a row, anywhere in the box.
+      const row = unitOf(at);
+      const osec = at && at.closest ? at.closest(".toc-sec") : null;
+      const tgt = row && !drag.sec.contains(row) ? row : osec && osec !== drag.sec && !drag.sec.contains(osec) && !osec.contains(drag.sec) ? osec : null;
+      if (!tgt) return;
+      const ref = tgt.classList.contains("toc-sec") ? (tgt.querySelector(":scope > .toc-line") || tgt) : tgt;
+      const r = ref.getBoundingClientRect();
+      drag.where = e.clientY < r.top + r.height / 2 ? "up" : "down";
+      drag.target = tgt;
+      ref.classList.add(drag.where === "up" ? "drop-above" : "drop-below");
+      return;
+    }
     const over = unitOf(at);
     // Onto a heading's line: first under that heading (round 84b).
     const line = !over && at && at.closest ? at.closest(".toc-line") : null;
@@ -19317,6 +20052,7 @@ function rowDragging(box) {
     if (!d.on) return;
     swallowClick = true;
     setTimeout(() => { swallowClick = false; }, 0);
+    if (d.sec) { if (d.target) moveHeading(d.sec, d.where, d.target); return; }
     if (d.target && d.where === "into") moveRowInto(d.unit, d.target);
     else if (d.target) moveRow(d.unit, d.where, d.target);
   };
@@ -19422,6 +20158,13 @@ function arrangePanel() {
     });
     if (bundle) { line.appendChild(all); line.appendChild(head); }
     else { line.appendChild(head); line.appendChild(all); }
+    // Round 103b (asked 28 September): headings move by dragging too.
+    const hg = document.createElement("span");
+    hg.className = "grip grip-h";
+    hg.title = "Drag to move this heading, and everything under it, above or below another";
+    hg.setAttribute("aria-hidden", "true");
+    hg.textContent = "\u2807";
+    line.appendChild(hg);
     sec.appendChild(line);
     sec.appendChild(body);
     stack[stack.length - 1].body.appendChild(sec);
@@ -19523,6 +20266,8 @@ function arrangePanel() {
       ".panel-h4{font-size:10.5px;opacity:.7;padding-left:16px;font-style:italic}" +
       ".panel-h5{font-size:10.5px;opacity:.62;padding-left:22px}" +
       ".panel-h6{font-size:10.5px;opacity:.58;padding-left:28px;font-style:italic}" +
+      ".panel-h7{font-size:10.5px;opacity:.56;padding-left:34px}" +
+      ".panel-h8{font-size:10px;opacity:.54;padding-left:40px;font-style:italic}" +
       ".toc-bundle>.toc-line{gap:6px;margin:3px 0}" +
       ".toc-bundle .bundle-h{align-items:center;font-size:12px;line-height:1.25;color:var(--ink,#e8e2d6);padding:0;margin:0}" +
       ".toc-bundle .bundle-h .swatch{width:10px;height:10px;border-radius:2px;margin:0;flex:none}" +
@@ -19542,6 +20287,8 @@ function arrangePanel() {
       "#layers label.layer:has(+ .facet) .grip{margin-left:0}" +
       "#layers .facet.fold-hide{display:none}" +
       "#layers .grip{margin-left:auto;padding:0 2px 0 6px;color:var(--dim);opacity:.55;cursor:grab;touch-action:none;font-size:13px;line-height:1}" +
+      "#layers .toc-line .grip-h{margin-left:0;opacity:.4}#layers .toc-line:hover .grip-h{opacity:.8}" +
+      "#layers .toc-sec.dragging{opacity:.45}" +
       "#layers .dragging{opacity:.45}" +
       "#layers .ns-list{display:block;padding:2px 0 6px 22px;max-height:340px;overflow:auto}" +
       "#layers .ns-cat{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:6px 0 2px}" +
