@@ -1932,7 +1932,8 @@ console.log("\nthe layers box, in the chosen order");
           !/id: "skytruth_voc"[^\n]*last 30 days/.test(src) && !/vessels-of-concern alerts for the whole world over the last 30 days/.test(src));
   }
   check("nothing is both placed and removed", ids.every((id) => !order.PANEL_REMOVED.has(id)));
-  const heads = order.PANEL_ORDER.filter((x) => typeof x === "object" && x.h === 1).map((x) => x.t);
+  // Round 105b: the threat index sits between Selected Layers and the four sections.
+  const heads = order.PANEL_ORDER.filter((x) => typeof x === "object" && x.h === 1 && x.t !== "Where the threat is greatest").map((x) => x.t);
   check("Selected Layers is one layer at the very top (round 60), then the four sections in order",
         order.PANEL_ORDER[0].bundle === "selected" && heads.slice(1, 5).join("|") === "On-planet invasion|Destruction|Suppression|Off-planet invasion");
   check("unplaced layers get their own heading, not the bin", /heading\(1, "Not yet placed"\)/.test(src));
@@ -4307,7 +4308,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /data-kind="\$\{escapeHtml\(catalogueKind\(cfg, item\)\)\}"/.test(src));
   check("three switches, any of them together, ticking a few rows at a time",
         /\["point", "Points"\], \["shape", "Shapes"\], \["national", "National highlights"\]/.test(src) && /queue\.splice\(0, 8\)/.test(src) && /  layerKindSwitch\(box\);/.test(src));
-  check("Selected Layers is one layer above everything (round 60)", /const PANEL_ORDER = \[\n[^\n]*\n[^\n]*\n  \{ h: 1, bundle: "selected", colour: "#5E6470" \},\n  \{ h: 1, t: "On-planet invasion" \},/.test(src));
+  check("Selected Layers is one layer above everything (round 60)", /const PANEL_ORDER = \[\n[^\n]*\n[^\n]*\n  \{ h: 1, bundle: "selected", colour: "#5E6470" \},\n(?:  \/\/[^\n]*\n)*(?:  \{ h: 1, t: "Where the threat is greatest" \}[^\n]*\n)?  \{ h: 1, t: "On-planet invasion" \},/.test(src));
 }
 {
   console.log("\nround 57: kinds by what is drawn, a loading line, columns that keep up with the zoom, no purple on country layers or the hologram");
@@ -4508,9 +4509,10 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("export credit agencies: the places alone, keyed by the source's own marker colours",
         /pointsOnly: true,/.test(src) && /if \(cfg\.pointsOnly\) data = /.test(src) && /"OECD Arrangement participant"/.test(src) && /if \(cfg\.key\) rowKey\(cfg\.id, cfg\.key, cfg\.keyHint\);/.test(src));
   check("the social spheres' links name the people in both", /who: \(e\.via \|\| \[\]\)\.map\(\(id\) => P\.get\(id\) \|\| id\)\.join/.test(src) && /String\(p\.who\)\.split/.test(src));
-  check("the banking dynasties' timeline and charts open in a panel, from the copy in culprits-tiles-more",
-        /id: "site_banking_dynasties_charts",[^\n]*route: "companion"/.test(src) && /culprits-tiles-more\/pages\/banking_dynasties\.html/.test(src) &&
-        order.indexOf("site_banking_dynasties_charts") === order.indexOf("site_banking_dynasties") + 1);
+  // Round 105b: the timeline opens from a button under the dynasties' own row.
+  check("the banking dynasties' timeline and charts open from their row, from the copy in culprits-tiles-more",
+        /timeline: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/pages\/banking_dynasties\.html"/.test(src) && /if \(cfg\.timeline\) sitemapTimelineButton\(cfg\);/.test(src) &&
+        !order.includes("site_banking_dynasties_charts"));
   check("Giga's and Global Trade Alert's shading have keys", (src.match(/key\.dataset\.keyFor = cfg\.id;/g) || []).length >= 3);
   check("the page asks for this round's script", /app\.js\?v=(6[2-9]|[7-9]\d)/.test(html));
 }
@@ -4543,7 +4545,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         T.trackerValue({ kind: "imbalances" }, d, "DEU", ca, "2024") === 6.2 && ca.names[T.trackerClass(ca, 6.2)] === "surplus of 5 to 10%" && ca.names[T.trackerClass(ca, -1)] === "deficit under 2%");
   check("the two tracker rows read the daily copies, keep their own colours, and sit beside CFR's",
         /id: "policy_rates",[^\n]*route: "tracker"[^\n]*keepColour: true/.test(src) && /culprits-tiles-more\/trackers\/policy_rates\.json/.test(src) &&
-        /id: "imbalances",[^\n]*route: "tracker"/.test(src) && /"policy_rates", "imbalances", "cfr_tracker", "tableau_zsf"/.test(src) &&
+        /id: "imbalances",[^\n]*route: "tracker"/.test(src) && /"policy_rates", "imbalances",/.test(src) &&
         /: cfg\.route === "tracker" \? addTrackerLayer\(cfg\)/.test(src) && /if \(salt && gladKept\(salt\)\) continue;/.test(src));
   check("no violet or purple in the trackers' colours", [...new Set([...T.TRACKER_MEASURES.rates, ...T.TRACKER_MEASURES.imbalances].flatMap((m) => m.colours))].every((h) => {
     const n = parseInt(h.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), dd = mx - mn;
@@ -5528,6 +5530,33 @@ console.log("\nround 104b (28 September): schools, taxes, stock market, spheres,
   check("who keeps the profits in trade is shaded from its own figure, darker for more",
         /site_trade_profits: \[\{ label: "share of the value of its exports that is made abroad[^\n]*\n\s*fromDetails: \/\(\[\\d\.\]\+\)% foreign\/, steps: \[5, 10, 15, 20, 30\]/.test(src));
   check("Global Trade Alert's in-force option is said plainly", /Still in effect today \(not yet ended or removed\)/.test(src));
+}
+console.log("\nround 105b (28 September): threat index, V-Dem, Troutwood's companies, Wreckers worldwide, one dynasties row, bank boxes, rates copy");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const order = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("const PANEL_REMOVED")) + "; return PANEL_ORDER;")();
+  check("where the threat is greatest, four rows from the daily index, right under Selected Layers",
+        order[1] && order[1].t === "Where the threat is greatest" && ["threat_overall", "threat_destruction", "threat_suppression", "threat_crime"].every((id, i) => order[2 + i] === id) &&
+        (src.match(/culprits-tiles-more\/threat\/index\.json", field: "(overall|destruction|suppression|crime)" \}, linear: \[0, 1\]/g) || []).length === 4);
+  check("V-Dem's scores under Politics as a front, read live from Our World in Data",
+        /\{ h: 5, t: "How democratic each country is \(V-Dem\)" \}, "vdem_liberal",/.test(src) && /id: "vdem_liberal"[^\n]*route: "owidgrapher"/.test(src) && /slug: "liberal-democracy-index",/.test(src));
+  check("Troutwood's companies and Wreckers of the Earth worldwide are the map's own rows; the rows that only showed other sites' pages are out",
+        /"stock_exchanges", "troutwood_companies",/.test(src) && /"ejatlas", "wreckers_world", "wreckers_umap",/.test(src) &&
+        /"cfr_tracker", "tableau_zsf", "troutwood", "site_banking_dynasties_charts",/.test(src.slice(src.indexOf("const PANEL_REMOVED"))) &&
+        !order.includes("cfr_tracker") && !order.includes("troutwood"));
+  const box = new Function("escapeHtml", "boxOpen", "everyField", "amountWords",
+    src.slice(src.indexOf("const cardLine = "), src.indexOf("// Round 81 (asked 27 September): a row coloured by one of its own figures,")) + "; return CARDS;")(
+    (x) => String(x), "<div>", () => "", (v) => `${v / 1e9} billion`);
+  const b = box.bank({ name: "KfW", total_assets_usd: 5e11, total_assets_in_dollars: "$538.8 billion", total_assets_year: "2017", rank: 1, owner: "Germany; Q1275809", hq: "Bonn", country: "Germany",
+    employees: "6700", founded: "1948-11-18", wikidata: "https://www.wikidata.org/wiki/Q658270" }, "KfW", { rankOf: "of the development banks" });
+  check("a bank's box leads with its assets and rank, says its facts in words, and hides bare Wikidata codes",
+        b.includes("$538.8 billion") && b.includes("no. 1 of the development banks") && b.includes("Owned by") && !b.includes("Q1275809") && b.includes("6,700") && b.includes(">1948<"));
+  const c = box.company({ name: "REX", symbol: "REX", market_cap: 1.4e9, sector: "Materials", industry: "Chemicals", group: "Chemicals and cement", city: "Dayton", country: "USA", price: 43.21, change_pct: 0.0086 }, "REX");
+  check("a company's box leads with its market value", c.includes("1.4 billion") && c.includes("Materials: Chemicals") && c.includes("up 0.86%"));
+  check("a copy written with NaN is still read (the rates row's unexpected token)", /t\.replace\(\/-\?\\bInfinity\\b\/g, "null"\)\.replace\(\/\\bNaN\\b\/g, "null"\)/.test(src));
+  check("the dynasties' lines, coloured by era, under their points", /links: \{ url: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/banking\/dynasty_links\.geojson", field: "era",/.test(src) &&
+        /if \(cfg\.links\) sitemapLinks\(cfg\)/.test(src));
+  check("every development bank, with or without a figure", /all of them, not only the few with a total assets figure/.test(src) && /card: "bank", rankOf: "of the development banks/.test(src));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

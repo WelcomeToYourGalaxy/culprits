@@ -4214,7 +4214,15 @@ async function getJsonOnce(url, ms) {
   catch (e) { throw new Error(ctrl && ctrl.signal.aborted ? `no answer in ${Math.round(ms / 1000)} s from ${url.split("?")[0]}` : e.message); }
   finally { if (timer) clearTimeout(timer); }
   if (!r.ok) throw new Error(`${r.status} at ${url}`);
-  return r.json();
+  // Round 105b: a copy written with NaN or Infinity (Python allows them, JSON
+  // does not: the rates row said "unexpected token") is read with them blank.
+  if (typeof r.text !== "function") return r.json();
+  const t = await r.text();
+  try { return JSON.parse(t); }
+  catch (e) {
+    if (!/\bNaN\b|Infinity/.test(t)) throw e;
+    return JSON.parse(t.replace(/-?\bInfinity\b/g, "null").replace(/\bNaN\b/g, "null"));
+  }
 }
 
 // uMap: the map's settings name its layers; each layer is its own GeoJSON.
@@ -6422,6 +6430,7 @@ async function readGeojsonFiles(cfg) {
         _p: cfg.colourBy ? p : null,
         // A copy that carries its source's own box (_html) shows that; otherwise every field.
         h: p._html ? boxOpen + p._html + `</div>`
+          : cfg.card && CARDS[cfg.card] ? CARDS[cfg.card](p, String(name), cfg)
           : boxOpen + `<h4 style="margin:0 0 6px">${escapeHtml(name)}</h4><table>${fieldRows(p)}</table></div>` });
     });
   }
@@ -6429,6 +6438,52 @@ async function readGeojsonFiles(cfg) {
   return { title: cfg.name, items, key: coloured && coloured.key, keyHint: coloured && coloured.hint,
     note: [nowhere ? `${nowhere.toLocaleString()} more in the file have no position and cannot be drawn` : "", coloured ? coloured.note : ""].filter(Boolean).join(" \u00b7 ") };
 }
+
+// Round 105b (asked 28 September: the banks' boxes were a list of raw
+// fields): a box laid out for reading - the headline figure large, what the
+// place is, then the facts in words, links, and every field still folded
+// underneath.
+const cardLine = (label, v) => (v === null || v === undefined || v === "" ? "" :
+  `<tr><th style="text-align:left;padding-right:8px;vertical-align:top;font-weight:500;color:var(--dim,#8A8F93)">${escapeHtml(label)}</th><td>${escapeHtml(String(v))}</td></tr>`);
+const cardNoQ = (v, most = 4) => {
+  const all = String(v || "").split("; ").filter((x) => x && !/^Q\d+$/.test(x));
+  return all.length > most ? `${all.slice(0, most).join("; ")} and ${all.length - most} more` : all.join("; ");
+};
+const cardLink = (href, text) => (href ? `<a href="${escapeHtml(href)}" target="_blank" rel="noopener">${escapeHtml(text)} ↗</a>` : "");
+const CARDS = {
+  bank(p, name, cfg) {
+    const big = p.total_assets_usd ? `<div style="font-size:20px;font-weight:600;line-height:1.2">${escapeHtml(p.total_assets_in_dollars)}</div>` +
+      `<div class="meta">total assets${p.total_assets_year ? `, ${escapeHtml(p.total_assets_year)}` : ""}${p.rank ? ` · no. ${p.rank} ${escapeHtml(cfg.rankOf || "")}` : ""}</div>`
+      : `<div class="meta">No total assets figure in Wikidata</div>`;
+    const stated = p.total_assets && p.total_assets_currency && p.total_assets_currency !== "USD"
+      ? `${Number(p.total_assets).toLocaleString("en")} ${p.total_assets_currency}, at ${Number(p.usd_rate).toLocaleString("en", { maximumFractionDigits: 4 })} to the US dollar (${p.usd_rate_source})` : "";
+    const founded = p.founded ? String(p.founded).split("; ").map((d) => d.slice(0, 4)).join("; ") : "";
+    const staff = p.employees ? String(p.employees).split("; ").map((n) => Number(n).toLocaleString("en")).join("; ") : "";
+    return boxOpen + `<h4 style="margin:0 0 4px">${escapeHtml(name)}</h4>` + big +
+      `<table style="margin-top:6px">` +
+      cardLine("What it is", p.about || cardNoQ(p.kind)) + cardLine("Headquarters", [cardNoQ(p.hq), p.country].filter(Boolean).join(", ")) +
+      cardLine("Owned by", cardNoQ(p.owner)) + cardLine("Part of", cardNoQ(p.parent)) + cardLine("Chief executive", cardNoQ(p.ceo)) +
+      cardLine("Founded", founded) + cardLine("Employees", staff) + cardLine("Shares traded on", cardNoQ(p.exchange)) +
+      cardLine("Figure as stated", stated) + cardLine("Placed at", p.placed_at) + `</table>` +
+      `<div class="meta" style="margin-top:6px">${[cardLink(p.website && String(p.website).split("; ")[0], "Website"), cardLink(p.wikidata, "Wikidata")].filter(Boolean).join(" · ")}</div>` +
+      everyField(p) + `</div>`;
+  },
+  company(p, name) {
+    const pct = (v) => (v == null || v === "" ? "" : `${Number(v) >= 0 ? "up" : "down"} ${Math.abs(Number(v) * 100).toFixed(2)}%`);
+    const money = (v) => (v == null || v === "" ? "" : `$${amountWords(Number(v))}`);
+    const where = [p.city, p.state, p.country].filter(Boolean).join(", ");
+    return boxOpen + `<h4 style="margin:0 0 4px">${escapeHtml(name)}${p.symbol ? ` <span class="meta">(${escapeHtml(p.symbol)})</span>` : ""}</h4>` +
+      (p.market_cap ? `<div style="font-size:20px;font-weight:600;line-height:1.2">${escapeHtml(money(p.market_cap))}</div><div class="meta">market value (all its shares at today's price)</div>` : "") +
+      `<table style="margin-top:6px">` +
+      cardLine("Industry", [p.sector, p.industry].filter(Boolean).join(": ")) +
+      (p.group && p.group !== p.sector ? cardLine("Wrecking industry group", p.group) : "") +
+      cardLine("Head office", where) +
+      cardLine("Share price", p.price != null ? `$${Number(p.price).toLocaleString("en", { maximumFractionDigits: 2 })}${p.change_pct != null ? ` (${pct(p.change_pct)} on the day)` : ""}` : "") +
+      cardLine("Year's range", p.price_52w_low != null && p.price_52w_high != null ? `$${p.price_52w_low} to $${p.price_52w_high}` : "") +
+      cardLine("In the indices", Array.isArray(p.member_indices) ? p.member_indices.join(", ") : p.member_indices) + `</table>` +
+      everyField(p, ["display_on_map"]) + `</div>`;
+  },
+};
 
 // Round 81 (asked 27 September): a row coloured by one of its own figures,
 // in six steps of the map's colours, darkest the least; a place with no figure
@@ -6505,7 +6560,7 @@ function colourByAmount(cfg, items) {
     }
     const said = it._v == null ? "" : it._est
       ? `<p class="meta"><b>Coloured by an estimate:</b> about ${fmt(it._v)} ${escapeHtml(cb.unit)}. The site gives no ${escapeHtml(cb.field.toLowerCase())} here, so it is worked out from its ${escapeHtml(it._e.toLocaleString())} ${escapeHtml(cb.estimate.unit)}, at the ${fmt(rate)} ${escapeHtml(cb.unit)} per person that the ${items.filter((x) => x._p && amountOf(x._p[cb.field]) && x._e != null).length} places giving both figures show between them. A rough guide only.</p>`
-      : `<p class="meta"><b>Coloured by:</b> ${escapeHtml(cb.field)}, ${fmt(it._v)} ${escapeHtml(cb.unit)}${it._range ? " (the middle of the range the site gives)" : ""}.</p>`;
+      : `<p class="meta"><b>Coloured by:</b> ${escapeHtml(cb.label || (typeof fieldLabel === "function" ? fieldLabel(cb.field) : cb.field))}, ${fmt(it._v)} ${escapeHtml(cb.unit)}${it._range ? " (the middle of the range the site gives)" : ""}.</p>`;
     if (said) it.h = it.h.replace(/<\/div>$/, `${said}</div>`);
     delete it._p;
   }
@@ -13998,6 +14053,8 @@ async function addSitemapLayer(cfg, given) {
   }) });
   const source = `${cfg.id}-places`;
   map.addSource(source, { type: "geojson", data });
+  if (cfg.links) sitemapLinks(cfg).catch((e) => console.warn(`[culprits] ${cfg.id} lines: ${e.message}`));
+  if (cfg.timeline) sitemapTimelineButton(cfg);
   if (cfg.key) rowKey(cfg.id, cfg.key, cfg.keyHint);
   const colour = ["coalesce", ["get", "c"], cfg.colour];
   map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source,
@@ -14107,6 +14164,57 @@ async function addSitemapLayer(cfg, given) {
   setLayerState(cfg.id, `${n.toLocaleString()} ${cfg.unit}`);
   applyVisibility(cfg.id);
   buildLegend();
+}
+
+// Round 105b: lines between a row's places (the banking dynasties' networks),
+// under its points, each with its own box, and the page's timeline in a
+// window from a button under the row.
+async function sitemapLinks(cfg) {
+  const gj = await getJson(cfg.links.url, 30000);
+  const id = `${cfg.id}-links`, L = cfg.links;
+  const colour = ["match", ["get", L.field]];
+  for (const [k, c] of Object.entries(L.colours)) colour.push(k, c);
+  colour.push(cfg.colour);
+  const w = (gj.features || []).map((f) => Number((f.properties || {})[Object.keys(f.properties || {}).find((k) => /^peak wealth/.test(k))]) || 0);
+  const top = Math.max(1, ...w);
+  (gj.features || []).forEach((f, i) => { f.properties = Object.assign({}, f.properties, { _w: 0.8 + 2.6 * Math.sqrt(w[i] / top) }); });
+  if (map.getSource(id)) return;
+  map.addSource(id, { type: "geojson", data: gj });
+  map.addLayer({ id, type: "line", source: id, layout: { "line-cap": "round" },
+    paint: { "line-color": colour, "line-opacity": 0.7, "line-width": ["get", "_w"] } }, map.getLayer(`${cfg.id}-pt`) ? `${cfg.id}-pt` : undefined);
+  cfg._layerIds = (cfg._layerIds || []).concat([id]);
+  bindHtmlPopup(id, (p) => {
+    const rest = Object.fromEntries(Object.entries(p).filter(([k]) => !["family", "from", "to", "_w"].includes(k)));
+    return `<b>${escapeHtml(p.family)}: ${escapeHtml(p.from)} → ${escapeHtml(p.to)}</b><table class="meta">${fieldRows(rest)}</table>`;
+  }, { maxWidth: "340px" });
+  rowKey(cfg.id, Object.entries(L.colours).map(([k, c]) => [c, k]), L.hint);
+  applyVisibility(cfg.id);
+}
+function sitemapTimelineButton(cfg) {
+  const row = document.querySelector(`[data-layer="${cfg.id}"]`);
+  const anchor = row && row.closest ? row.closest("label") : null;
+  if (!anchor || !anchor.after || document.querySelector(`[data-timeline-for="${cfg.id}"]`)) return;
+  const el = document.createElement("div");
+  el.className = "facet";
+  el.dataset.timelineFor = cfg.id;
+  el.innerHTML = `<button type="button" style="font:inherit;font-size:11.5px;background:none;color:var(--bone);border:1px solid var(--rule);border-radius:2px;padding:2px 8px;cursor:pointer">Timeline and comparisons</button>`;
+  el.querySelector("button").addEventListener("click", () => openTimelineWindow(cfg));
+  anchor.after(el);
+}
+function openTimelineWindow(cfg) {
+  let w = document.getElementById(`${cfg.id}-timeline`);
+  if (!w) {
+    w = document.createElement("div");
+    w.id = `${cfg.id}-timeline`;
+    w.style.cssText = "position:fixed;left:4vw;right:4vw;top:6vh;bottom:6vh;z-index:60;display:flex;flex-direction:column;background:var(--peat,#17150F);border:1px solid var(--rule,#322E27);box-shadow:0 8px 40px rgba(0,0,0,.6)";
+    w.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:6px 12px;font-size:12.5px;color:var(--dim)"><span style="color:var(--bone)">${escapeHtml(cfg.name)}: timeline and comparisons</span>` +
+      `<a href="${escapeHtml(cfg.timeline)}" target="_blank" rel="noopener" style="color:var(--slate,#8A9DA6)">open ↗</a><span style="margin-left:auto"></span>` +
+      `<button type="button" style="font:inherit;background:none;color:var(--dim);border:1px solid var(--rule);border-radius:2px;padding:1px 7px;cursor:pointer">close</button></div>` +
+      `<iframe title="${escapeHtml(cfg.name)} timeline" src="${escapeHtml(cfg.timeline)}" style="flex:1;width:100%;border:0"></iframe>`;
+    w.querySelector("button").addEventListener("click", () => { w.hidden = true; });
+    document.body.appendChild(w);
+  }
+  w.hidden = false;
 }
 
 /* ---------- point rows raised where their points crowd (round 100b) ---------- */
@@ -16299,7 +16407,13 @@ const SITE_MAPS = {
     { id: "site_central_banks", name: "Central Banks", unit: "banks", colour: "#5C6570", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_central_banks.places.geojson",
       note: "From the Suppression page's central banks map." },
     { id: "site_banking_dynasties", name: "Global Banking Dynasties", unit: "dynasty seats", colour: "#6A5D6B", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_banking_dynasties.places.geojson",
-      note: "From the Suppression page's banking dynasties map: every place it plots, and (round 65) the 11 cities its list gives a family without a coordinate, drawn hollow at the city as OpenStreetMap places it." },
+      // Round 105b (asked 28 September): the timeline row folded into this one:
+      // each family's lines from where it began to its other cities, and its
+      // timeline and charts from a button under the row.
+      links: { url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/banking/dynasty_links.geojson", field: "era",
+        colours: { "Medieval": "#E0304A", "Renaissance": "#F28FB0", "Early Modern": "#B04FC8", "Industrial": "#3FA9C2" }, hint: "Lines coloured by era" },
+      timeline: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/pages/banking_dynasties.html",
+      note: "From the Suppression page's banking dynasties map: every place it plots, and (round 65) the 11 cities its list gives a family without a coordinate, drawn hollow at the city as OpenStreetMap places it. Lines run from where each family began to every other city the page's list gives it, coloured by era; a line's box gives the family's dates, peak wealth, banks, properties and workforce as the page gives them, the families active at the same time and those in the same city. The page's timeline and charts open from the button under this row." },
     { id: "site_banking_dynasties_charts", name: "Global Banking Dynasties: timeline and comparisons", unit: "opens the page itself in a panel", colour: "#6A5D6B", route: "companion", ready: true, lazy: true,
       page: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/pages/banking_dynasties.html",
       note: "The rest of the Suppression page's banking dynasties section, whole and run by its own code, in the panel along the bottom: its timeline of 25 families from 1250 to 2025, and its charts of peak wealth, banks, properties, workforce, longevity and overlap. Its map is the row above." },
@@ -16904,9 +17018,13 @@ const OTHER_MAPS = {
     { id: "school_culprits", name: "Who made schooling a machine for obedience, sorting and selling: states, foundations, test makers and companies", unit: "states, foundations and companies", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "School culprits", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/schools/culprits.geojson" }], nameFrom: ["name"],
       groupColours: { "Built schooling for obedience and uniformity": "#E0304A", "Used schooling to erase peoples' cultures": "#7A1F3D",
-        "Tests and standards that rank and sort children": "#3FA9C2", "Selling to children through schools": "#F28FB0", "Private money steering what schools teach": "#F4F1EA" },
+        "Tests and standards that rank and sort children": "#3FA9C2", "Selling to children through schools": "#F28FB0", "Private money steering what schools teach": "#F4F1EA",
+        // Round 105b: the Suppression page's own list.
+        "Textbook and test publishers and the investment firms that own them": "#1E6FA8", "Tech and AI companies moving into classrooms": "#B04FC8",
+        "Global bodies opening schooling to business": "#8FB8FF", "Elite universities that train the ruling class": "#6E5AE0",
+        "Degrees sold, not earned: predatory colleges and diploma mills": "#C23A8A" },
       groupHint: "Coloured by what each did",
-      note: "Compiled for this map on 28 September 2026 from the sources linked in each box (Wikipedia's articles, Education Week, the Electronic Frontier Foundation, KUT and the Washington Post as reprinted): Prussia's compulsory schooling and Horace Mann who carried it to the United States; the Rockefeller General Education Board and the Carnegie Foundation; the Carlisle Indian school and Canada's residential schools; the SAT's College Board and ETS, Pearson, the Common Core's makers and the Gates Foundation; the Walton Family Foundation; Channel One, Coca-Cola's and PepsiCo's school drink contracts, Google's school Chromebooks, Junior Achievement; Bridge International Academies; the OECD's PISA. Each at its head office or city, as the box says. A short list, not every case." },
+      note: "Compiled for this map on 28 September 2026 from the sources linked in each box (Wikipedia's articles, Education Week, the Electronic Frontier Foundation, KUT and the Washington Post as reprinted): Prussia's compulsory schooling and Horace Mann who carried it to the United States; the Rockefeller General Education Board and the Carnegie Foundation; the Carlisle Indian school and Canada's residential schools; the SAT's College Board and ETS, Pearson, the Common Core's makers and the Gates Foundation; the Walton Family Foundation; Channel One, Coca-Cola's and PepsiCo's school drink contracts, Google's school Chromebooks, Junior Achievement; Bridge International Academies; the OECD's PISA. Added 28 September (round 105b), from the Suppression page's own list, each checked against its sources: Cambridge's international exams and the International Baccalaureate; McGraw Hill, Houghton Mifflin Harcourt and Cengage, and the investment firms behind them (Apollo, KKR, Blackstone, Veritas Capital); Microsoft, OpenAI, Apple and Amazon in classrooms; UNESCO's Global Education Coalition and the Global Partnership for Education; Harvard, Yale, Oxford, Cambridge, Sciences Po and ÉNA; Corinthian Colleges, the University of Phoenix, Trump University and the Axact diploma mill. Each at its head office or city, as the box says. A short list, not every case." },
     { id: "giga_school_points", name: "Every school Giga has mapped, worldwide, and whether it is online (Giga, UNICEF and ITU)", unit: "schools", colour: "#3FA9C2", keepColour: true, route: "mvtlive", ready: true, lazy: true, buildScript: "giga_schools",
       tilesFrom: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/giga/schools_tiles.json",
       tiles: "https://uni-ooi-giga-backend-hjekcuagasashucv.a03.azurefd.net/api/locations/schools/tiles/?z={z}&x={x}&y={y}.mvt",
@@ -16919,6 +17037,62 @@ const OTHER_MAPS = {
       colourBy: { field: "market_cap_usd_tn", steps: [1, 2, 4, 8, 20], unit: "trillion US$ of listed companies" },
       attribution: "Wikipedia, List of major stock exchanges (CC BY-SA 4.0)",
       note: "Every exchange in Wikipedia's list of major stock exchanges, with the market value of the companies listed on it (US$ trillion), its code, city, time zone and hours, as the list gives them; placed where the exchange's own article (or its city's) is. Copied weekly by culprits-tiles-more (scripts/stock_exchanges.py)." },
+    // ---- round 105b (asked 28 September) ---------------------------------
+    { id: "troutwood_companies", name: "Every listed company Troutwood maps, at its head office, by market value", unit: "companies", colour: "#1E6FA8", route: "geojsonlive", ready: true, lazy: true, buildScript: "troutwood_layers",
+      files: [{ label: "Listed companies", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/troutwood/companies.geojson" }], nameFrom: ["name"], card: "company",
+      colourBy: { field: "market_cap", label: "market value", steps: [1e9, 1e10, 5e10, 1e11, 5e11], unit: "US$ of market value" },
+      attribution: "Troutwood (map.troutwood.com)",
+      note: "The companies on Troutwood's global map (its 2022 map of listed companies' head offices, still kept current): some 12,000 companies on the world's stock exchanges, each at its head office, with its sector, industry, market value, share price and the indices it is in. Copied daily from the data Troutwood's own map reads, by culprits-tiles-more (scripts/troutwood.py and troutwood_layers.py)." },
+    { id: "wreckers_world", name: "Wreckers of the Earth, worldwide: listed companies in the industries that wreck the planet, at their head offices", unit: "companies", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true, buildScript: "troutwood_layers",
+      files: [{ label: "Wreckers of the Earth, worldwide", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/troutwood/wreckers.geojson" }], nameFrom: ["name"], card: "company",
+      groupColours: { "Fossil fuels": "#E0304A", "Mining and metals": "#7A1F3D", "Agribusiness, logging and paper": "#B04FC8", "Chemicals and cement": "#3FA9C2",
+        "Weapons": "#F4F1EA", "Aviation and shipping": "#1E6FA8", "Tobacco": "#F28FB0", "Big finance behind them": "#6E5AE0" },
+      groupHint: "Coloured by industry",
+      attribution: "Troutwood (map.troutwood.com); grouping by this map",
+      note: "The kinds of company Corporate Watch's Wreckers of the Earth maps in London, for every city in the world: each listed company on Troutwood's map whose industry is oil and gas, coal, mining and metals, farming commodities, logging and paper, chemicals and cement, weapons, airlines and shipping, or tobacco, and the big banks and asset managers that fund them. Sorted by the industry Troutwood's data gives each company: a grouping by industry, not a finding about any one company. Rebuilt daily by culprits-tiles-more (scripts/troutwood_layers.py)." },
+    { id: "threat_overall", name: "Where the threat is greatest overall: destruction, suppression and organised crime together (the map's own index, rebuilt daily)", unit: "score, 0 to 1", colour: "#1E6FA8", keepColour: true, route: "country", ready: true, lazy: true, buildScript: "threat_index",
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/threat/index.json", field: "overall" }, linear: [0, 1],
+      countryNote: "The map's own threat score, 0 (least of the countries scored) to 1 (most)",
+      note: "The average of the three categories below. Worked out daily by culprits-tiles-more (scripts/threat_index.py) from figures the map already shows, not written by an AI: each figure is turned into a rank among the countries that have it, from 0 (least threat) to 1 (most); a category is the average of its ranks, for a country with at least two; the box lists every figure used, its value and its rank. " },
+    { id: "threat_destruction", name: "Where the destruction of the planet is greatest (the map's own index, rebuilt daily)", unit: "score, 0 to 1", colour: "#1E6FA8", keepColour: true, route: "country", ready: true, lazy: true, buildScript: "threat_index",
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/threat/index.json", field: "destruction" }, linear: [0, 1],
+      countryNote: "The map's own threat score, 0 (least of the countries scored) to 1 (most)",
+      note: "Figures: flora, fauna and non-renewable resource crimes (Global Organized Crime Index 2025), fossil fuel subsidies as a share of GDP (IMF), carbon dioxide per person (Global Carbon Project via Our World in Data). Worked out daily by culprits-tiles-more (scripts/threat_index.py) from figures the map already shows, not written by an AI: each figure is turned into a rank among the countries that have it, from 0 (least threat) to 1 (most); a category is the average of its ranks, for a country with at least two; the box lists every figure used, its value and its rank. " },
+    { id: "threat_suppression", name: "Where the suppression of people is greatest (the map's own index, rebuilt daily)", unit: "score, 0 to 1", colour: "#1E6FA8", keepColour: true, route: "country", ready: true, lazy: true, buildScript: "threat_index",
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/threat/index.json", field: "suppression" }, linear: [0, 1],
+      countryNote: "The map's own threat score, 0 (least of the countries scored) to 1 (most)",
+      note: "Figures: V-Dem's liberal democracy index, turned round; human trafficking (Global Organized Crime Index 2025); land and environmental defenders killed (Global Witness); people in modern slavery per 1,000 (Walk Free). Worked out daily by culprits-tiles-more (scripts/threat_index.py) from figures the map already shows, not written by an AI: each figure is turned into a rank among the countries that have it, from 0 (least threat) to 1 (most); a category is the average of its ranks, for a country with at least two; the box lists every figure used, its value and its rank. " },
+    { id: "threat_crime", name: "Where organised crime and captured states are the greatest threat (the map's own index, rebuilt daily)", unit: "score, 0 to 1", colour: "#1E6FA8", keepColour: true, route: "country", ready: true, lazy: true, buildScript: "threat_index",
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/threat/index.json", field: "crime" }, linear: [0, 1],
+      countryNote: "The map's own threat score, 0 (least of the countries scored) to 1 (most)",
+      note: "Figures: criminality, and resilience to organised crime turned round (Global Organized Crime Index 2025). Worked out daily by culprits-tiles-more (scripts/threat_index.py) from figures the map already shows, not written by an AI: each figure is turned into a rank among the countries that have it, from 0 (least threat) to 1 (most); a category is the average of its ranks, for a country with at least two; the box lists every figure used, its value and its rank. " },
+    { id: "vdem_liberal", name: "Liberal democracy index: elections plus limits on power and rights (V-Dem)", unit: "0 to 1", colour: "#1E6FA8", route: "owidgrapher", ready: true, lazy: true,
+      slug: "liberal-democracy-index",
+      note: "V-Dem's liberal democracy index, 0 to 1: free and fair elections, plus courts and a legislature that limit the government, and rights protected. Read live from Our World in Data each time it is ticked (V-Dem's figures, as Our World in Data publishes them), by country and year." },
+    { id: "vdem_electoral", name: "Electoral democracy index: free and fair elections (V-Dem)", unit: "0 to 1", colour: "#1E6FA8", route: "owidgrapher", ready: true, lazy: true,
+      slug: "electoral-democracy-index",
+      note: "V-Dem's electoral democracy index, 0 to 1: how far rulers answer to voters in free and fair elections, with free speech and free association. Read live from Our World in Data each time it is ticked (V-Dem's figures, as Our World in Data publishes them), by country and year." },
+    { id: "vdem_participatory", name: "Participatory democracy index: people taking part beyond voting (V-Dem)", unit: "0 to 1", colour: "#1E6FA8", route: "owidgrapher", ready: true, lazy: true,
+      slug: "participatory-democracy-index",
+      note: "V-Dem's participatory democracy index, 0 to 1: elections plus people's part in civil society, local government and direct votes. Read live from Our World in Data each time it is ticked (V-Dem's figures, as Our World in Data publishes them), by country and year." },
+    { id: "vdem_deliberative", name: "Deliberative democracy index: decisions reasoned for the common good (V-Dem)", unit: "0 to 1", colour: "#1E6FA8", route: "owidgrapher", ready: true, lazy: true,
+      slug: "deliberative-democracy-index-vdem",
+      note: "V-Dem's deliberative democracy index, 0 to 1: elections plus decisions reached by reasoned public debate for the common good, not by pressure or bribes. Read live from Our World in Data each time it is ticked (V-Dem's figures, as Our World in Data publishes them), by country and year." },
+    { id: "vdem_egalitarian", name: "Egalitarian democracy index: equal power and resources for all groups (V-Dem)", unit: "0 to 1", colour: "#1E6FA8", route: "owidgrapher", ready: true, lazy: true,
+      slug: "egalitarian-democracy-index-vdem",
+      note: "V-Dem's egalitarian democracy index, 0 to 1: elections plus rights, resources and power shared equally among social groups. Read live from Our World in Data each time it is ticked (V-Dem's figures, as Our World in Data publishes them), by country and year." },
+    { id: "vdem_expression", name: "Freedom of expression and other sources of information (V-Dem)", unit: "0 to 1", colour: "#1E6FA8", route: "owidgrapher", ready: true, lazy: true,
+      slug: "freedom-of-expression-index",
+      note: "V-Dem's freedom of expression index, 0 to 1: how free the press, academics and people are to speak, and to get information that is not the government's. Read live from Our World in Data each time it is ticked (V-Dem's figures, as Our World in Data publishes them), by country and year." },
+    { id: "vdem_rights", name: "Human rights index: freedom from state violence and other liberties (V-Dem)", unit: "0 to 1", colour: "#1E6FA8", route: "owidgrapher", ready: true, lazy: true,
+      slug: "human-rights-index-vdem",
+      note: "V-Dem's civil liberties index, 0 to 1, which Our World in Data calls the human rights index: freedom from torture and killing by the state, and private and political liberties. Read live from Our World in Data each time it is ticked (V-Dem's figures, as Our World in Data publishes them), by country and year." },
+    { id: "vdem_civil", name: "Political civil liberties: free speech, association and the like (V-Dem)", unit: "0 to 1", colour: "#1E6FA8", route: "owidgrapher", ready: true, lazy: true,
+      slug: "political-civil-liberties-index",
+      note: "V-Dem's political civil liberties index, 0 to 1: freedom of speech, of the press, of association and of movement for political purposes. Read live from Our World in Data each time it is ticked (V-Dem's figures, as Our World in Data publishes them), by country and year." },
+    { id: "vdem_regime", name: "Political regime: closed or electoral autocracy, electoral or liberal democracy (V-Dem, Regimes of the World)", unit: "regime type", colour: "#1E6FA8", route: "owidgrapher", ready: true, lazy: true,
+      slug: "political-regime",
+      note: "Each country's regime type by the Regimes of the World classification, from V-Dem's data: closed autocracy (0), electoral autocracy (1), electoral democracy (2) or liberal democracy (3). Read live from Our World in Data each time it is ticked (V-Dem's figures, as Our World in Data publishes them), by country and year." },
     { id: "building_types", name: "Buildings", unit: "places", colour: "#6A6258", route: "buildings", ready: true, lazy: true,
       // Their own repo and Pages site: a site is capped at 1 GB and these are
       // about 700 MB. See culprits-buildings.
@@ -17068,17 +17242,17 @@ const OTHER_MAPS = {
     // largest banks, compiled the way the companies row is.
     { id: "largest_banks", name: "The 250 largest corporate banks by total assets (compiled from Wikidata)", unit: "banks, at their headquarters", colour: "#6A5D6B", route: "geojsonlive", ready: true, lazy: true,
       // Round 100b (asked 28 September): coloured by its own figure.
-      colourBy: { field: "total_assets_usd", steps: [1e9, 1e10, 1e11, 5e11, 1e12], unit: "USD of total assets" },
-      files: [{ label: "The 250 largest corporate banks by total assets", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/banks/largest.geojson" }],
+      colourBy: { field: "total_assets_usd", label: "total assets", steps: [1e9, 1e10, 1e11, 5e11, 1e12], unit: "USD of total assets" },
+      files: [{ label: "The 250 largest corporate banks by total assets", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/banks/largest.geojson" }], card: "bank", rankOf: "of the corporate banks by total assets",
       attribution: "Wikidata (CC0); exchange rates from the European Central Bank and the World Bank",
       note: "Compiled here from open data rather than copied from a published ranking. Every item Wikidata gives a total assets figure for, at its latest year, turned into US dollars at that year's average rate (the European Central Bank's, or for currencies it does not publish, the World Bank's official rate), and the 250 largest that Wikidata says are a kind of bank, leaving out central banks (their own layer, Central Banks) and development banks (their own row, below). State-owned commercial banks are corporate banks and are kept. Years can differ from bank to bank; each box gives the year of its figure, with rank, total assets as stated and in dollars, the rate used, kind, headquarters, country, employees, founding date, website, stock exchange, parent, owner and chief executive, and a link to the Wikidata page. Wikidata is edited by anyone, so a figure can be out of date or wrong. A bank whose headquarters has no position in Wikidata is listed in the build file, not placed. Rebuilt weekly by culprits-tiles-more." },
     // Asked 26 September (round 70): development banks apart from the others.
-    { id: "development_banks", name: "Development banks by total assets, national and multilateral (compiled from Wikidata)", unit: "banks, at their headquarters", colour: "#5E6470", route: "geojsonlive", ready: true, lazy: true,
+    { id: "development_banks", name: "Development banks, national and multilateral, by total assets where known (compiled from Wikidata)", unit: "banks, at their headquarters", colour: "#5E6470", route: "geojsonlive", ready: true, lazy: true,
       // Round 100b (asked 28 September): coloured by its own figure.
-      colourBy: { field: "total_assets_usd", steps: [1e9, 1e10, 1e11, 5e11, 1e12], unit: "USD of total assets" },
-      files: [{ label: "Development banks by total assets", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/banks/development.geojson" }],
+      colourBy: { field: "total_assets_usd", label: "total assets", steps: [1e9, 1e10, 1e11, 5e11, 1e12], unit: "USD of total assets" },
+      files: [{ label: "Development banks by total assets", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/banks/development.geojson" }], card: "bank", rankOf: "of the development banks with a total assets figure",
       attribution: "Wikidata (CC0); exchange rates from the European Central Bank and the World Bank",
-      note: "Banks owned by one government (national, such as China Development Bank, KfW or BNDES) or by several (multilateral, such as the World Bank's IBRD, the Asian Development Bank or the European Investment Bank), set up to lend for development: dams, roads, power, mines, farming and the like. Every item Wikidata says is a development bank or multilateral development bank and gives a total assets figure for, at its latest year, in US dollars at that year's average rate, ranked by size. A development bank with no total assets figure in Wikidata is not on it. Each box shows every field gathered, with a link to the Wikidata page. Rebuilt weekly by culprits-tiles-more." },
+      note: "Banks owned by one government (national, such as China Development Bank, KfW or BNDES) or by several (multilateral, such as the World Bank's IBRD, the Asian Development Bank or the European Investment Bank), set up to lend for development: dams, roads, power, mines, farming and the like. Every item Wikidata says is a development bank or multilateral development bank (round 105b: all of them, not only the few with a total assets figure): those with a figure ranked by it, at its latest year, in US dollars at that year's average rate; those without drawn grey. Each at its headquarters, or where Wikidata gives no position for that, at the bank's own coordinates or its country's capital, as its box says. Rebuilt weekly by culprits-tiles-more." },
     { id: "theyrule", name: "Who sits on the boards of the biggest companies (They Rule)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://theyrule.net/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
@@ -18192,7 +18366,7 @@ const LAYER_KIND = {
   site_world_advertising: ["human", "upstream"],
   site_world_news: ["human", "upstream"],
   site_world_entertainment: ["human", "upstream"],
-  site_research_integrity: ["human", "upstream"], school_culprits: ["human", "upstream"], giga_school_points: ["human", "downstream"], stock_exchanges: ["human", "upstream"], research_makers: ["human", "upstream"], fertility_policy: ["human", "upstream"],
+  site_research_integrity: ["human", "upstream"], troutwood_companies: ["human", "upstream"], wreckers_world: ["insentient", "upstream"], threat_overall: ["human", "upstream"], threat_destruction: ["human", "upstream"], threat_suppression: ["human", "upstream"], threat_crime: ["human", "upstream"], vdem_liberal: ["human", "upstream"], vdem_electoral: ["human", "upstream"], vdem_participatory: ["human", "upstream"], vdem_deliberative: ["human", "upstream"], vdem_egalitarian: ["human", "upstream"], vdem_expression: ["human", "upstream"], vdem_rights: ["human", "upstream"], vdem_civil: ["human", "upstream"], vdem_regime: ["human", "upstream"], school_culprits: ["human", "upstream"], giga_school_points: ["human", "downstream"], stock_exchanges: ["human", "upstream"], research_makers: ["human", "upstream"], fertility_policy: ["human", "upstream"],
   holiday_culprits: ["human", "upstream"], slavery_convicted_world: ["human", "downstream"], slavery_detected_world: ["human", "downstream"], slavery_cbp_world: ["human", "upstream"],
   site_eyes_network: ["human", "upstream"],
   site_earmarked_funding: ["human", "upstream"],
@@ -19030,6 +19204,21 @@ const LAYER_SITE = {
   school_culprits: "https://en.wikipedia.org/wiki/Prussian_education_system",
   giga_school_points: "https://maps.giga.global/map",
   stock_exchanges: "https://en.wikipedia.org/wiki/List_of_major_stock_exchanges",
+  troutwood_companies: "https://map.troutwood.com/",
+  wreckers_world: "https://map.troutwood.com/",
+  threat_overall: "https://github.com/WelcomeToYourGalaxy/culprits-tiles-more/blob/main/scripts/threat_index.py",
+  threat_destruction: "https://github.com/WelcomeToYourGalaxy/culprits-tiles-more/blob/main/scripts/threat_index.py",
+  threat_suppression: "https://github.com/WelcomeToYourGalaxy/culprits-tiles-more/blob/main/scripts/threat_index.py",
+  threat_crime: "https://github.com/WelcomeToYourGalaxy/culprits-tiles-more/blob/main/scripts/threat_index.py",
+  vdem_liberal: "https://ourworldindata.org/grapher/liberal-democracy-index",
+  vdem_electoral: "https://ourworldindata.org/grapher/electoral-democracy-index",
+  vdem_participatory: "https://ourworldindata.org/grapher/participatory-democracy-index",
+  vdem_deliberative: "https://ourworldindata.org/grapher/deliberative-democracy-index-vdem",
+  vdem_egalitarian: "https://ourworldindata.org/grapher/egalitarian-democracy-index-vdem",
+  vdem_expression: "https://ourworldindata.org/grapher/freedom-of-expression-index",
+  vdem_rights: "https://ourworldindata.org/grapher/human-rights-index-vdem",
+  vdem_civil: "https://ourworldindata.org/grapher/political-civil-liberties-index",
+  vdem_regime: "https://ourworldindata.org/grapher/political-regime",
   research_makers: "https://www.welcometoyourgalaxy.com/suppression.html",
   fertility_policy: "https://www.un.org/development/desa/pd/data/world-population-policies",
   holiday_culprits: "https://en.wikipedia.org/wiki/Loyalty_Day",
@@ -19202,6 +19391,12 @@ const NOT_LIVE = {
   fish_rivers: "Made from the free-flowing rivers data set by culprits-tiles-more",
   school_culprits: "Compiled for this map from the sources in each box",
   stock_exchanges: "Copied weekly from Wikipedia by culprits-tiles-more",
+  troutwood_companies: "Copied daily from Troutwood's map data by culprits-tiles-more",
+  wreckers_world: "Made daily from Troutwood's map data by culprits-tiles-more",
+  threat_overall: "Worked out daily by culprits-tiles-more from the map's own figures",
+  threat_destruction: "Worked out daily by culprits-tiles-more from the map's own figures",
+  threat_suppression: "Worked out daily by culprits-tiles-more from the map's own figures",
+  threat_crime: "Worked out daily by culprits-tiles-more from the map's own figures",
   research_makers: "Read weekly from the site's own map by culprits-tiles-more",
   fertility_policy: "Copied weekly from the UN Population Division by culprits-tiles-more",
   holiday_culprits: "Compiled for this map from the sources in each box",
@@ -19303,6 +19498,9 @@ const PANEL_ORDER = [
   // One layer at the very top, above every section (round 60): its rows are
   // the ones the owner names.
   { h: 1, bundle: "selected", colour: "#5E6470" },
+  // Round 105b (asked 28 September): where the threats are greatest, from the
+  // map's own country figures, rebuilt daily.
+  { h: 1, t: "Where the threat is greatest" }, "threat_overall", "threat_destruction", "threat_suppression", "threat_crime",
   { h: 1, t: "On-planet invasion" },
   { h: 2, t: "Pre-birth frontlines" },
   { h: 3, t: "Genetic engineering" }, "gmo_env", "gmo_decisions", "gmo_ogtr", "gmo_industry", "gmo_escapes", "gmo_cultivation", "gmo_gmofree", "gmo_incidents", "gmo_regime", "gmo_treaties", "gmo_trials", "gmo_bodies", "gmo_act",
@@ -19333,7 +19531,7 @@ const PANEL_ORDER = [
 
   { h: 1, t: "Destruction" },
   { h: 2, t: "Of the planet" },
-  { h: 3, t: "General" }, "ejatlas", "wreckers_umap", "theyrule",
+  { h: 3, t: "General" }, "ejatlas", "wreckers_world", "wreckers_umap", "theyrule",
   // Round 75 (27 September, at the owner's word): Climate in the Destruction
   // page's order - General, then carbon dioxide, methane, nitrous oxide,
   // F-gases and black carbon - each gas split into what is emitted, who is
@@ -19611,7 +19809,7 @@ const PANEL_ORDER = [
   { h: 2, t: "Of humans" },
   { h: 3, t: "Physical suppression" },
   { h: 4, t: "Control of physical resources" },
-  { h: 5, t: "Banks and monetary power" }, "largest_banks", "development_banks", "site_central_banks", "site_banking_dynasties", "site_banking_dynasties_charts", "policy_rates", "imbalances", "cfr_tracker", "tableau_zsf", "site_export_credit", "troutwood",
+  { h: 5, t: "Banks and monetary power" }, "largest_banks", "development_banks", "site_central_banks", "site_banking_dynasties", "policy_rates", "imbalances", "site_export_credit",
   { h: 5, t: "Trade" }, "rte_trade", "site_trade_profits", "gta_acts",
   { h: 5, t: "Funding of international bodies" }, "site_earmarked_funding",
   // Round 104b (asked 28 September): taxes, interest and aid each a heading
@@ -19621,7 +19819,7 @@ const PANEL_ORDER = [
   { h: 5, t: "Aid" }, "owid_aid",
   { h: 4, t: "Economic inequality within it" },
   { h: 5, t: "Wealth concentration" }, "site_wealth_atlas", "site_social_spheres", "largest_companies",
-  { h: 5, t: "The stock market" }, "stock_exchanges",
+  { h: 5, t: "The stock market" }, "stock_exchanges", "troutwood_companies",
   { h: 4, t: "Law enforcement" },
   { h: 4, t: "Courts and corrections" },
   { h: 4, t: "Discrimination" },
@@ -19641,6 +19839,9 @@ const PANEL_ORDER = [
   // every school Giga maps, and who made schooling a machine for the grid.
   { h: 4, t: "School" }, "school_culprits", "giga_school_points", "giga_countries",
   { h: 4, t: "Politics as a front" },
+  // Round 105b (asked 28 September): V-Dem's democracy scores.
+  { h: 5, t: "How democratic each country is (V-Dem)" }, "vdem_liberal", "vdem_electoral", "vdem_participatory", "vdem_deliberative",
+  "vdem_egalitarian", "vdem_expression", "vdem_rights", "vdem_civil", "vdem_regime",
   { h: 5, t: "Voter suppression" },
   { h: 5, t: "Representation as presentation" },
   { h: 5, t: "For money-written-law" },
@@ -19682,6 +19883,11 @@ const PANEL_ORDER = [
   { h: 1, t: "Buildings" }, "building_types", "osm_landuse",
 ];
 const PANEL_REMOVED = new Set([
+  // Round 105b (asked 28 September): the rows that only showed another site's
+  // page. CFR's two trackers are the map's own rows policy_rates and
+  // imbalances; Troutwood's map is troutwood_companies and wreckers_world;
+  // the banking dynasties' timeline opens from site_banking_dynasties.
+  "cfr_tracker", "tableau_zsf", "troutwood", "site_banking_dynasties_charts",
   // Round 104b: Living off the land taken out, at the owner's word.
   "site_subsistence_cultures", "site_self_sufficiency",
   // Round 102b: its farms are inside xmas_trees now, with the world's.

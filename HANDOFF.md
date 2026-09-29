@@ -5,6 +5,39 @@ touches.
 
 ---
 
+## Round 105b (28 September)
+
+Needs round 104b. Tiles patch round105b_tiles.py beside it.
+
+- Where the threat is greatest (new h1 under Selected Layers): threat_overall,
+  threat_destruction, threat_suppression, threat_crime (country rows, linear
+  0 to 1) from tiles threat/index.json, written daily by threat_index.py:
+  percentile ranks of the map's own country figures (GOC 2025, IMF subsidies,
+  OWID CO2 and V-Dem, Global Witness, Walk Free), averaged per category and
+  overall. Not an AI's opinion; the box lists each figure and rank.
+- V-Dem: nine owidgrapher rows (vdem_*) under Politics as a front.
+- troutwood_companies (colourBy market_cap) under The stock market and
+  wreckers_world (groupColours by industry group) under Destruction > General,
+  both from tiles troutwood_layers.py (reads troutwood/core.json). card:
+  "company".
+- PANEL_REMOVED: cfr_tracker, tableau_zsf (policy_rates and imbalances are the
+  map's own), troutwood, site_banking_dynasties_charts.
+- site_banking_dynasties: links (tiles banking/dynasty_links.geojson, 115
+  lines from each family's origin to its cities, coloured by era, width by
+  peak wealth; box with dates, wealth, contemporaries, shared cities) and a
+  "Timeline and comparisons" button opening pages/banking_dynasties.html in a
+  window (sitemapLinks, sitemapTimelineButton, openTimelineWindow).
+- CARDS (bank, company) for geojsonlive rows with cfg.card: headline figure,
+  rank, facts in words, links, every field folded. largest_banks and
+  development_banks use card "bank"; development_banks now every development
+  bank in Wikidata (tiles largest_banks.py).
+- colourBy label; "Coloured by" line uses fieldLabel.
+- getJsonOnce reads NaN/Infinity as null (policy_rates said "unexpected
+  token"; tiles trackers.py no longer writes NaN).
+- school_culprits: five new groups and colours for the 25 entries added from
+  the Suppression page's list.
+- Script version app.js?v=996.
+
 ## Round 104b (28 September)
 
 Carries rounds 101b, 102b and 103b as well (their patches were not applied on
