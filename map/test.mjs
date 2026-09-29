@@ -5673,5 +5673,12 @@ console.log("\nround 111c (29 September): capture by country, seats, more source
   check("the capture note names the new sources", /Foreign Agents Registration Act/.test(src) && /barred for fraud or corruption/.test(src) && /Lithuanian, Latvian, Estonian/.test(src));
   check("the page asks for this round's script", appVersion(html) >= 1003);
 }
+console.log("\nround 112c (29 September): StB registers matched by birth date");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("the capture note names the Slovak StB matching", /Slovakia's StB registration books/.test(src) && /register's birth date matches/.test(src));
+  check("the page asks for this round's script", appVersion(html) >= 1004);
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

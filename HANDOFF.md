@@ -5,6 +5,30 @@ touches.
 
 ---
 
+## Round 112c (29 September)
+
+Needs round 111c. Tiles patch round112c_tiles.py beside it (it carries 111c's
+capture.py too).
+
+- First capture run (29 Sep): 2,796 cases (936 Wikidata, 1,799 lists, 61
+  compiled). Fixed in tiles from its log: Wikidata kinds found by name that are
+  not spying (militsiya, open-source intelligence, a skin mole, a sauce,
+  fictional ninjas, unnamed items) dropped and listed; query c (company people
+  convicted) split, it timed out; es.wikipedia parapolitics headings are
+  Firmantes (Ralito pact signers, ties) and Principales detenciones (alleged);
+  Mitrokhin "Accused but unconfirmed" -> alleged; SEC 403 -> "name email"
+  User-Agent with gzip; DOJ year pages taken from the index's links (1987 and
+  2014 on had other addresses); IPN failed every page on its certificate chain
+  -> certifi, then unchecked for its public pages, crawl restarted.
+- New tiles scripts/capture_stb.py: Slovak UPN StB registration books searched
+  for every Czech, Slovak and Czechoslovak office holder in Wikidata (born before
+  1975), kept only where the record's birth date equals Wikidata's; agent,
+  informer, resident, secret collaborator, confidant -> archive; candidates ->
+  alleged; watched people (NO, PO) and file kinds not drawn. Merged as part stb.
+- Probes now save the Czech ABS records search, protocols and help pages and a
+  sample UPN result page, for the Czech register next.
+- Script version app.js?v=1004.
+
 ## Round 111c (29 September)
 
 Needs round 110c. Tiles patch round111c_tiles.py beside it.
