@@ -5,6 +5,22 @@ touches.
 
 ---
 
+## Round 107b (28 September)
+
+Needs round 106b. Tiles patches round107b_tiles.py and round107c_tiles.py beside it.
+
+- ai_threat_overall/destruction/suppression/crime: country rows under Where the
+  threat is greatest, from tiles threat/ai.json (scripts/ai_threat.py, Google
+  Gemini free tier, needs repo secret GEMINI_API_KEY passed as env in
+  refresh.yml's Run step; picks 20 per category with reasons; numbers checked).
+- Pastoral Land Commission tables: attacks_cpt_areas, attacks_cpt_land,
+  attacks_cpt_water, attacks_cpt_overexploitation (Of individuals > Of humans),
+  attacks_cpt_slave_cases (Slavery > Cases and enforcement).
+- inpe_fire_2023 (pmtiles, fine) under Destruction > Fire, built by tiles
+  scripts/inpe_fire.py from attacks/inpe_fire_foci_2023.geojson.gz.
+- Land of Resistance keeps dates of birth and photo links (owner's word).
+- Script version app.js?v=998.
+
 ## Round 106b (28 September)
 
 Needs round 105b. Tiles patch round106b_tiles.py beside it (attacks/*.geojson).

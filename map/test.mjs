@@ -4308,7 +4308,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /data-kind="\$\{escapeHtml\(catalogueKind\(cfg, item\)\)\}"/.test(src));
   check("three switches, any of them together, ticking a few rows at a time",
         /\["point", "Points"\], \["shape", "Shapes"\], \["national", "National highlights"\]/.test(src) && /queue\.splice\(0, 8\)/.test(src) && /  layerKindSwitch\(box\);/.test(src));
-  check("Selected Layers is one layer above everything (round 60)", /const PANEL_ORDER = \[\n[^\n]*\n[^\n]*\n  \{ h: 1, bundle: "selected", colour: "#5E6470" \},\n(?:  \/\/[^\n]*\n)*(?:  \{ h: 1, t: "Where the threat is greatest" \}[^\n]*\n)?  \{ h: 1, t: "On-planet invasion" \},/.test(src));
+  check("Selected Layers is one layer above everything (round 60)", /const PANEL_ORDER = \[\n[^\n]*\n[^\n]*\n  \{ h: 1, bundle: "selected", colour: "#5E6470" \},\n(?:  \/\/[^\n]*\n)*(?:  \{ h: 1, t: "Where the threat is greatest" \}[^\n]*\n(?:  "ai_threat[^\n]*\n)?)?  \{ h: 1, t: "On-planet invasion" \},/.test(src));
 }
 {
   console.log("\nround 57: kinds by what is drawn, a loading line, columns that keep up with the zoom, no purple on country layers or the hologram");
@@ -5586,7 +5586,17 @@ console.log("\nround 106b (28 September): the View and 3D terrain boxes, Turn on
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("the owner's Attacks On Activists collection: killings, threats and cases, one by one, under Of individuals > Of humans",
         /\{ h: 3, t: "Of humans" \}, "gw_defenders", "attacks_gw_killings", "attacks_land_resistance", "attacks_frontline", "attacks_cimi",/.test(src) &&
-        /id: "attacks_gw_killings"[^\n]*route: "geojsonlive"/.test(src) && /if \(cfg\.autoGroups && !cfg\.groupColours\)/.test(src) && /Dates of birth and photo links of these defenders/.test(src));
+        /id: "attacks_gw_killings"[^\n]*route: "geojsonlive"/.test(src) && /if \(cfg\.autoGroups && !cfg\.groupColours\)/.test(src) && /dates of birth and photo links included, at the owner\x27s word/.test(src));
+}
+console.log("\nround 107b (28 September): the AI's pick, the Pastoral Land Commission's tables, fires in South America");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the AI's pick of the countries most at threat, four rows under the threat index, read from the daily file",
+        /"threat_crime",\n  "ai_threat_overall", "ai_threat_destruction", "ai_threat_suppression", "ai_threat_crime",/.test(src) &&
+        (src.match(/culprits-tiles-more\/threat\/ai\.json", field: "ai_(overall|destruction|suppression|crime)" \}/g) || []).length === 4);
+  check("the Pastoral Land Commission's case tables and INPE's 2023 fires are rows",
+        /"attacks_cpt_areas", "attacks_cpt_land", "attacks_cpt_water", "attacks_cpt_overexploitation",/.test(src) && /"attacks_slave_labour_states", "attacks_cpt_slave_cases",/.test(src) &&
+        /\{ h: 3, t: "Fire" \}, "remains_fire", "inpe_fire_2023",/.test(src) && /id: "inpe_fire_2023"[^\n]*route: "pmtiles"/.test(src));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
