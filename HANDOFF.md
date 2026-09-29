@@ -5,6 +5,32 @@ touches.
 
 ---
 
+## Round 106b (28 September)
+
+Needs round 105b. Tiles patch round106b_tiles.py beside it (attacks/*.geojson).
+
+- View box: Globe, Flat map, Layer colours (narrow, under Flat map), compass
+  with Place names, Snap back and Leave Earth (the wide colour menu had pushed
+  them out of the box). New box "3D terrain": the tick, the notes on moving in
+  3D, then Raise figures as heights with a line saying what it does.
+- Turn on every: under the layers (box.after); says "Turning off" when
+  turning off; catalogue rows for boundaries or figures by country, province or
+  district are national; a Shapes row that turns out to draw countries
+  (drawsCountries: country codes or names) is untucked and filed national.
+- lighterPointSources: a GeoJSON source of points only gets maxzoom 12, so
+  zooming in no longer re-cuts hundreds of sources. mapBusyMark: "Loading..."
+  at the top of the map while it reads; a notice on WebGL context loss.
+- revealSubRows: ticking a row with sublayers (group kids, facets, type rows)
+  opens them and scrolls the menu to show them (trusted events only).
+- Attacks On Activists (owner's collection): attacks_gw_killings,
+  attacks_land_resistance, attacks_frontline, attacks_cimi, attacks_caci,
+  attacks_cpt_violence, attacks_cpt_threatened, attacks_cpt_massacres,
+  attacks_public_agencies (Of individuals > Of humans),
+  attacks_slave_labour_states (Slavery > Cases and enforcement),
+  police_stations_latam (Law enforcement). autoGroups colours kinds by count.
+  Land of Resistance dates of birth and photo links left off.
+- Script version app.js?v=997.
+
 ## Round 105b (28 September)
 
 Needs round 104b. Tiles patch round105b_tiles.py beside it.

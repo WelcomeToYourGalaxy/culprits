@@ -4327,7 +4327,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         kind.drawnKind("a", [{ id: "ab-pt", type: "circle" }]) === "" &&
         /KIND_SEEN\.get\(id\) \|\| layerKind\(cfgs\.get\(id\)\)/.test(src));
   check("bulk ticking shows how far it has got, holds the legend until the end, and says when it is drawn",
-        /Turning on \$\{Math\.min\(done, total\)\.toLocaleString\(\)\} of/.test(src) && /class="ks-spin"/.test(src) &&
+        /Turning \$\{verb\} \$\{Math\.min\(done, total\)\.toLocaleString\(\)\} of/.test(src) && /class="ks-spin"/.test(src) &&
         /if \(legendHold\) \{ legendHeld = true; return; \}/.test(src) && /map\.once\("idle", stop\)/.test(src));
   const H = new Function(src.slice(src.indexOf("const COLUMN_HEIGHT"), src.indexOf("function ctColumnCfgs(")) + "; return COLUMN_HEIGHT;")();
   const at = (z) => { let lo = 3; while (lo + 2 < H.length - 2 && H[lo + 2] <= z) lo += 2; const [za, zb] = [H[lo], H[lo + 2]];
@@ -4361,7 +4361,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         kind.layerKind({ id: "x", route: "pmtiles", unit: "oil and gas basins" }) === "point" &&
         kind.catalogueKind({ route: "wmsmenu" }, { title: "Palm oil mills near the coast" }) === "point" &&
         kind.catalogueKind({ route: "wmsmenu" }, { title: "Near palm oil mills, 50 km" }) === "shape" &&
-        /const wrong = as === "point" \? k === "shape" : k === "point";/.test(src));
+        /const wrong = national \|\| \(as === "point" \? k === "shape" : k === "point"\);/.test(src));
   check("a field name in a box is never squeezed to a letter a line", /\.maplibregl-popup th,\.leaflet-popup-content th,table\.meta th\{min-width:6em\}/.test(html));
   const S = new Function("loadShapeDetails", src.slice(src.indexOf("const SHAPE_STEPS"), src.indexOf("function shapeKey(")) +
     "; return { SHAPE_COLOUR_BY, shapeValues, shapeColouring };")(async () => ({ 0: { list: "x, 13.0 people per 1,000. y" }, 1: { list: "2.5 people per 1,000" } }));
@@ -5293,8 +5293,11 @@ console.log("\nround 96b: the View box laid out afresh; the frontier under Fores
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   const v = src.slice(src.indexOf("function viewPanelHtml()"), src.indexOf("function buildBasemapPanel()"));
-  check("3D terrain under the views, Place names under North up, the 3D notes after them all",
-        v.indexOf('id="terrain-toggle"') < v.indexOf('id="compass-holder"') && v.indexOf('North up, level') < v.indexOf('id="names-toggle"') &&
+  // Round 106b: 3D terrain is a box of its own after the View box, the notes and Raise figures under it.
+  check("3D terrain in its own box after the views, Place names under North up, the 3D notes and Raise figures after it",
+        v.indexOf('id="terrain-toggle"') > v.indexOf('id="leave-earth"') && v.indexOf('sectHead("3D terrain", "terrain")') < v.indexOf('id="terrain-toggle"') &&
+        v.indexOf('class="how-3d"') > v.indexOf('id="terrain-toggle"') && v.indexOf('id="lift-toggle"') > v.indexOf('class="how-3d"') &&
+        v.indexOf('id="theme-pick"') < v.indexOf('id="compass-holder"') && v.indexOf('North up, level') < v.indexOf('id="names-toggle"') &&
         v.indexOf('id="names-toggle"') < v.indexOf('id="to-globe"') && v.indexOf('class="how-3d"') > v.indexOf('id="leave-earth"'));
   check("the zoom buttons larger and centred in their space", /\.view-zoom\{flex:1 1 auto;align-self:center;display:flex;justify-content:center\}/.test(html) && /grid-template-columns:36px;/.test(html));
   const { f } = { f: (t, id = "") => new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return cataloguePlaces;")()(`${t} ${id}`, `${t} ${id}`).join(" | ") };
@@ -5476,7 +5479,7 @@ console.log("\nround 102b (28 September): the insentient's kinds, Of groups, Chr
         out.filters[0].values.length === 1 && out.features.length === 2 &&
         /dropTypes: \["Bottled & decorative water", "Collectibles & novelty", "Luxury & fast fashion"\], name: "The Insentient 2026"/.test(src));
   check("Destruction's Of groups holds Of humans alone; Of individuals Of humans and Of animals",
-        /\{ h: 2, t: "Of groups" \},\n  \{ h: 3, t: "Of humans" \},\n  \{ h: 2, t: "Of individuals" \},\n  \{ h: 3, t: "Of humans" \}, "gw_defenders",\n  \{ h: 3, t: "Of animals" \}, "site_animal_sacrifice",\n\n/.test(src));
+        /\{ h: 2, t: "Of groups" \},\n  \{ h: 3, t: "Of humans" \},\n  \{ h: 2, t: "Of individuals" \},\n  \{ h: 3, t: "Of humans" \}, "gw_defenders",[^\n]*\n  \{ h: 3, t: "Of animals" \}, "site_animal_sacrifice",\n\n/.test(src));
   check("Christmas tree farms and sellers worldwide, the United States map inside it", /id: "xmas_trees"[^\n]*route: "geojsonlive"/.test(src) &&
         /"site_enslaved_plants", "xmas_trees",/.test(src) && /"mymaps_trees",/.test(src.slice(src.indexOf("const PANEL_REMOVED"))));
   check("the asteroids show round the flat map too, the map pulls back to them, and their see-through bar works",
@@ -5557,6 +5560,33 @@ console.log("\nround 105b (28 September): threat index, V-Dem, Troutwood's compa
   check("the dynasties' lines, coloured by era, under their points", /links: \{ url: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/banking\/dynasty_links\.geojson", field: "era",/.test(src) &&
         /if \(cfg\.links\) sitemapLinks\(cfg\)/.test(src));
   check("every development bank, with or without a figure", /all of them, not only the few with a total assets figure/.test(src) && /card: "bank", rankOf: "of the development banks/.test(src));
+}
+console.log("\nround 106b (28 September): the View and 3D terrain boxes, Turn on every at the bottom, lighter points, a loading mark, sublayers shown");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const kind = new Function(src.slice(src.indexOf("const KIND_POINT"), src.indexOf("// Round 106b: whether a drawn row's areas are whole countries")) + "; return { catalogueKind };")();
+  check("boundaries and figures by country or province are national highlights, not shapes",
+        kind.catalogueKind({ route: "wmsmenu" }, { name: "adminprovince_spv", title: "adminprovince_spv" }) === "national" &&
+        kind.catalogueKind({ route: "gfw" }, { name: "gadm_administrative_boundaries", title: "GADM Administrative Boundaries" }) === "national" &&
+        kind.catalogueKind({ route: "wmsmenu" }, { title: "Palm oil mills near the coast" }) === "point");
+  check("Turn on every sits under the layers and says off when turning off", /if \(box\.after\) box\.after\(wrap\);/.test(src) && /verb = on \? "on" : "off";/.test(src));
+  const L = new Function(src.slice(src.indexOf("function pointsOnly("), src.indexOf("function mapBusyMark(")) + "; return { pointsOnly, lighterPointSources };")();
+  const got = [];
+  const m = { addSource: (id, s) => got.push(s) };
+  L.lighterPointSources(m);
+  m.addSource("a", { type: "geojson", data: { features: [{ geometry: { type: "Point", coordinates: [0, 0] } }] } });
+  m.addSource("b", { type: "geojson", data: { features: [{ geometry: { type: "Polygon", coordinates: [] } }] } });
+  check("a source of points alone is cut into tiles to zoom 12 only; areas are left as they were", got[0].maxzoom === 12 && got[1].maxzoom === undefined);
+  check("a loading mark while the map is still reading, and a notice if the browser pauses it", /el\.id = "map-busy";/.test(src) && /webglcontextlost/.test(src) && /#map-busy\{position:fixed/.test(html));
+  check("ticking a layer with sublayers brings them into view, for the reader's own ticks only", /function revealSubRows\(t\)/.test(src) && /if \(!e\.isTrusted \|\| !t \|\| !t\.checked/.test(src));
+  check("Layer colours under Flat map, narrow", /\.view-choices \.theme-pick select\{max-width:108px/.test(html));
+}
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the owner's Attacks On Activists collection: killings, threats and cases, one by one, under Of individuals > Of humans",
+        /\{ h: 3, t: "Of humans" \}, "gw_defenders", "attacks_gw_killings", "attacks_land_resistance", "attacks_frontline", "attacks_cimi",/.test(src) &&
+        /id: "attacks_gw_killings"[^\n]*route: "geojsonlive"/.test(src) && /if \(cfg\.autoGroups && !cfg\.groupColours\)/.test(src) && /Dates of birth and photo links of these defenders/.test(src));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

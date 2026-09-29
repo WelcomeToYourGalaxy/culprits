@@ -391,6 +391,19 @@
   .view-row .view-go{flex:1 1 auto;min-width:78px}
   .view-choices .terrain-under{border-top:1px solid var(--rule)}
   .how-3d{margin-top:7px;display:flex;flex-direction:column;gap:3px}
+  /* Round 106b: Layer colours under Flat map, its menu under its name, narrow;
+     the 3D terrain box's own rows; the loading mark on the map. */
+  .view-choices .theme-pick{flex-direction:column;gap:3px}
+  .view-choices .theme-pick select{max-width:108px;width:100%;font:inherit;font-size:11.5px}
+  .view-row .view-choices{flex:0 0 104px;min-width:0;max-width:104px}
+  .view-row .view-choices .nm{white-space:nowrap}
+  .lift-row{margin-top:6px;border-top:1px solid var(--rule)}
+  .lift-row .lift-note{display:block;font-size:10.5px;line-height:1.35;color:var(--dim);margin-top:2px}
+  #map-busy{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:45;display:flex;align-items:center;gap:7px;
+    padding:5px 11px;border-radius:14px;background:rgba(23,21,15,.82);border:1px solid var(--rule);color:var(--bone);font-size:12px;max-width:70vw}
+  #map-busy[hidden]{display:none}
+  #map-busy i{width:11px;height:11px;border-radius:50%;border:2px solid rgba(150,180,230,.25);border-top-color:rgba(150,180,230,.9);animation:busy-spin .8s linear infinite;flex:0 0 auto}
+  @keyframes busy-spin{to{transform:rotate(360deg)}}
   .how-h{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
   .compass-holder .maplibregl-ctrl-group{margin:0;border-radius:3px;box-shadow:none;
     border:1px solid var(--rule);background:rgba(23,21,15,.6);display:inline-block}
@@ -535,7 +548,7 @@
   };
 })();
 </script>
-<script src="./app.js?v=996"></script>
+<script src="./app.js?v=997"></script>
 <script src="./wire.js?v=67"></script>
 <!-- The drag bar on the layers box's right edge (made by columnEdge() in
      app.js) ran the full height of the column, so it stayed standing beside

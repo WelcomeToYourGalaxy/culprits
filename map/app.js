@@ -6404,6 +6404,7 @@ function recordsAsFeatures(rows) {
     return { type: "Feature", geometry: { type: "Point", coordinates: [lng, lat] }, properties: p };
   }).filter(Boolean);
 }
+const AUTO_GROUP_COLOURS = ["#E0304A", "#3FA9C2", "#F28FB0", "#1E6FA8", "#B04FC8", "#F4F1EA", "#7A1F3D", "#6E5AE0", "#8FB8FF", "#C23A8A", "#5E7C99", "#A87CA0"];
 async function readGeojsonFiles(cfg) {
   const items = [];
   let nowhere = 0;
@@ -6433,6 +6434,14 @@ async function readGeojsonFiles(cfg) {
           : cfg.card && CARDS[cfg.card] ? CARDS[cfg.card](p, String(name), cfg)
           : boxOpen + `<h4 style="margin:0 0 6px">${escapeHtml(name)}</h4><table>${fieldRows(p)}</table></div>` });
     });
+  }
+  // Round 106b: a row whose kinds are not known ahead is coloured by them,
+  // the commonest first, in the map's colours; the rest share grey.
+  if (cfg.autoGroups && !cfg.groupColours) {
+    const n = new Map();
+    for (const it of items) n.set(it.group, (n.get(it.group) || 0) + 1);
+    const order = [...n.entries()].sort((a, b) => b[1] - a[1]).map(([g]) => g);
+    if (order.length > 1) cfg.groupColours = Object.fromEntries(order.slice(0, AUTO_GROUP_COLOURS.length).map((g, i) => [g, AUTO_GROUP_COLOURS[i]]));
   }
   const coloured = cfg.colourBy ? colourByAmount(cfg, items) : cfg.groupColours ? colourByGroup(cfg, items) : null;
   return { title: cfg.name, items, key: coloured && coloured.key, keyHint: coloured && coloured.hint,
@@ -12122,15 +12131,11 @@ function viewPanelHtml() {
     Object.entries(VIEWS).map(([k, v]) =>
       `<label class="layer"><input type="radio" name="view" value="${k}"${k === VIEW ? " checked" : ""}>` +
       `<span class="nm">${v.nm}</span></label>`).join("") +
-    `<label class="layer terrain-under"><input type="checkbox" id="terrain-toggle"${TERRAIN_ON ? " checked" : ""}` +
-    ` title="Ground height under the imagery, on the globe or the flat map.">` +
-    `<span class="nm">3D terrain</span></label>` +
-    `<label class="layer terrain-under"><input type="checkbox" id="lift-toggle"${LIFT_ON ? " checked" : ""}` +
-    ` title="Country and region layers stand as tall as their figures, and point layers can rise where their points crowd.">` +
-    `<span class="nm">Raise figures as heights</span></label>` +
     // Round 101b: every layer's colours in one theme, for the basemap in use.
+    // Round 106b (asked 28 September): under Flat map, narrow, so the compass
+    // and the buttons beside it are not pushed out of the box.
     `<label class="layer terrain-under theme-pick" title="Turns every layer's colours at once, so they show up on the basemap in use. Keys change with them.">` +
-    `<span class="nm">Layer colours</span> <select id="theme-pick" aria-label="Layer colours">` +
+    `<span class="nm">Layer colours</span><select id="theme-pick" aria-label="Layer colours">` +
     Object.entries(LAYER_THEMES).map(([k, v]) => `<option value="${k}"${k === LAYER_THEME ? " selected" : ""}>${v.nm}</option>`).join("") +
     `</select></label>` +
     `</div><div class="compass-holder in-view" id="compass-holder" title="Click to stand the map upright, facing north">` +
@@ -12142,14 +12147,25 @@ function viewPanelHtml() {
     `<button type="button" id="to-globe" class="snap" title="Out to the whole world, in the view you are in">` +
     `Snap back to global scale</button>` +
     `<button type="button" id="leave-earth" class="leave" title="Hands the screen to NASA's Eyes ` +
-    `on the Solar System. A box in the corner brings the map back.">Leave Earth &#8594;</button></div></div>` +
+    `on the Solar System. A box in the corner brings the map back.">Leave Earth &#8594;</button></div></div></div></div>` +
+    // Round 106b (asked 28 September): 3D terrain a box of its own, with the
+    // notes on moving the map in 3D, and Raise figures as heights under them.
+    `<div class="sect" data-sect="terrain">` + sectHead("3D terrain", "terrain") + `<div class="sect-body">` +
+    `<label class="layer"><input type="checkbox" id="terrain-toggle"${TERRAIN_ON ? " checked" : ""}` +
+    ` title="Ground height under the imagery, on the globe or the flat map.">` +
+    `<span class="nm">3D terrain</span></label>` +
     `<div class="how-3d"><div class="how-h">Moving the map in 3D</div>` +
     `<p class="how"><b>Mouse</b> Hold the right button and drag: the map tilts toward the horizon and turns around. ` +
     `Hold Ctrl as well to roll it, tipping the horizon to one side.</p>` +
     `<p class="how"><b>Trackpad</b> Hold Ctrl and drag with one finger: tilt and turn. ` +
     `To roll, hold Ctrl, press the pad with two fingers and keep them down while you drag.</p>` +
     `<p class="how"><b>Keys</b> Shift + the arrow keys tilt and turn. The same on Mac and Windows.</p>` +
-    `</div></div></div>`;
+    `</div>` +
+    `<label class="layer lift-row"><input type="checkbox" id="lift-toggle"${LIFT_ON ? " checked" : ""}>` +
+    `<span class="body"><span class="nm">Raise figures as heights</span>` +
+    `<span class="lift-note">Layers that shade countries stand up like towers, taller where the figure is bigger, so countries can be compared when the map is tilted. ` +
+    `Layers of points can also rise where their points crowd together (the row's own switch). Untick to keep everything flat.</span></span></label>` +
+    `</div></div>`;
 }
 
 if (typeof map.once === "function") map.once("idle", () => { try { if (themeNow() !== "drawn") themeApply(); } catch (e) { /* as drawn */ } });
@@ -17093,6 +17109,40 @@ const OTHER_MAPS = {
     { id: "vdem_regime", name: "Political regime: closed or electoral autocracy, electoral or liberal democracy (V-Dem, Regimes of the World)", unit: "regime type", colour: "#1E6FA8", route: "owidgrapher", ready: true, lazy: true,
       slug: "political-regime",
       note: "Each country's regime type by the Regimes of the World classification, from V-Dem's data: closed autocracy (0), electoral autocracy (1), electoral democracy (2) or liberal democracy (3). Read live from Our World in Data each time it is ticked (V-Dem's figures, as Our World in Data publishes them), by country and year." },
+    // ---- round 106b (asked 28 September): the owner's Attacks On Activists collection ----
+    { id: "attacks_gw_killings", name: "Land and environmental defenders killed, 2012 to 2022, one by one (Global Witness)", unit: "people killed", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Land and environmental defenders killed, 2012 to 2022, one by one", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/gw_killings.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by the industry each killing was linked to",
+      note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: Global Witness's own records as of 10 September 2023 (All records as of 09-10-23.csv): 1,910 people, with date, name, gender, age, who they were, the industry behind it and who killed them, as Global Witness gives them. Global Witness gives a region, not a place: each is at the middle of its province where one is named (1,313), else of its country (580), else of its town (17), spread a little where several share one point; the box says which." },
+    { id: "attacks_land_resistance", name: "Attacks on land and environmental defenders in Latin America: killings, threats, harassment (Land of Resistance)", unit: "cases", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Attacks on land and environmental defenders in Latin America: killings, threats, harassment", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/land_of_resistance.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by the kind of attack",
+      note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the Land of Resistance (Tierra de Resistentes) database, 2,461 cases, every field it gives, placed where the database places them (2,366), else at the province, town or country it names. Dates of birth and photo links of these defenders, many still under threat, are left off the map." },
+    { id: "attacks_frontline", name: "Human rights defenders at risk: cases, profiles and statements (Front Line Defenders)", unit: "cases and profiles", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Human rights defenders at risk: cases, profiles and statements", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/frontline_cases.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by the kind of page",
+      note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the Front Line Defenders pages saved in the collection: 258 cases, defender profiles and statements, each at the middle of the country Front Line Defenders tags it with, spread a little where several share one country, with a link to the page." },
+    { id: "attacks_cimi", name: "Violence against Indigenous peoples in Brazil, case by case, 2003 to 2021 (CIMI reports)", unit: "cases", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Violence against Indigenous peoples in Brazil, case by case, 2003 to 2021", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/cimi_indigenous_violence.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by the kind of violence",
+      note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the case lists printed in the Indigenous Missionary Council's yearly reports, Violence against Indigenous Peoples in Brazil: 9,202 cases, at their town (6,259) or else the middle of their state. Read from the reports' pages; each box says whether its state's count matched the total the report prints (2,518 of 2,626 did), and a few descriptions may carry stray text from the page." },
+    { id: "attacks_caci", name: "Indigenous people killed in Brazil, 1986 to 1993 (Caci)", unit: "people killed", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Indigenous people killed in Brazil, 1986 to 1993", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/caci_indigenous.geojson" }], nameFrom: ["name"], autoGroups: true,
+      note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the Cartography of Attacks Against Indigenous People (Caci) table in the collection, 40 cases, at the coordinates Caci gives. Caci is licensed CC BY-SA 4.0; its cases come from CIMI and the Pastoral Land Commission." },
+    { id: "attacks_cpt_violence", name: "Death threats, attempted murders and murders in land conflicts in Brazil, 2013 to 2022 (Pastoral Land Commission)", unit: "people", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Death threats, attempted murders and murders in land conflicts in Brazil, 2013 to 2022", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/cpt_violence_tables.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by what was done to them",
+      note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the Pastoral Land Commission's (CPT) yearly tables of people threatened with death, attacked and murdered in rural conflicts: 2,357 people, at their town. The counts match every total the tables print (the 2019 tables print none)." },
+    { id: "attacks_cpt_threatened", name: "People threatened with death, attacked or murdered in land conflicts in Brazil, 2000 to 2011 (Pastoral Land Commission)", unit: "people", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "People threatened with death, attacked or murdered in land conflicts in Brazil, 2000 to 2011", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/cpt_threatened_2000_2011.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by what was done to them",
+      note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the Pastoral Land Commission's spreadsheet of people threatened more than once, 2000 to 2011: 3,223 rows, at their town where one is given, else the middle of Brazil (216). Its three sheets overlap, so one person can appear more than once." },
+    { id: "attacks_cpt_massacres", name: "Massacres in land conflicts in Brazil (Pastoral Land Commission)", unit: "massacres", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Massacres in land conflicts in Brazil", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/cpt_massacres.geojson" }], nameFrom: ["name"], autoGroups: true,
+      note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the Pastoral Land Commission's pages on massacres in the countryside (three or more people killed in one event): 56 massacres, at their town or state, with the page's own text in Portuguese and its link." },
+    { id: "attacks_public_agencies", name: "Land conflicts in Brazil by town, 2020 (Public Agencies Map of Conflicts)", unit: "towns", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Land conflicts in Brazil by town, 2020", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/public_agencies_conflicts.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by the number of conflicts recorded in 2020",
+      note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the Public Agencies Map of Conflicts database: 772 towns, each with its counts by theme and year as the database gives them (totals, not single cases), at the town's own point." },
+    { id: "attacks_slave_labour_states", name: "Workers freed from slave labour in Brazil, by state and year (Pastoral Land Commission)", unit: "states", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Workers freed from slave labour", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/cpt_slave_labour_by_state.geojson" }], nameFrom: ["name"], autoGroups: true,
+      note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the Pastoral Land Commission's summary of workers freed from slave labour by state and year, and the names on the government's dirty list (2003 to 2018), at each state's middle. Some totals in the sheet do not add up to its yearly figures; they are kept as given." },
+    { id: "police_stations_latam", name: "Police stations in Mexico, Central America and northern South America (OpenStreetMap)", unit: "police stations", colour: "#1E6FA8", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Police stations", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/police_stations_osm.geojson" }], nameFrom: ["name"], attribution: "\u00a9 OpenStreetMap contributors (ODbL)",
+      note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: an OpenStreetMap export of every place tagged as a police station, from Mexico to about 23 degrees south: 13,946." },
     { id: "building_types", name: "Buildings", unit: "places", colour: "#6A6258", route: "buildings", ready: true, lazy: true,
       // Their own repo and Pages site: a site is capped at 1 GB and these are
       // about 700 MB. See culprits-buildings.
@@ -18487,7 +18537,7 @@ const LAYER_KIND = {
   ibama_embargos: ["insentient", "downstream"],
   ibama_infractions: ["insentient", "downstream"],
   raisg_illegal_mining: ["insentient", "downstream"],
-  gw_defenders: ["human", "downstream"],
+  gw_defenders: ["human", "downstream"], attacks_gw_killings: ["human", "downstream"], attacks_land_resistance: ["human", "downstream"], attacks_frontline: ["human", "downstream"], attacks_cimi: ["human", "downstream"], attacks_caci: ["human", "downstream"], attacks_cpt_violence: ["human", "downstream"], attacks_cpt_threatened: ["human", "downstream"], attacks_cpt_massacres: ["human", "downstream"], attacks_public_agencies: ["human", "downstream"], attacks_slave_labour_states: ["human", "downstream"], police_stations_latam: ["human", "upstream"],
   goc_flora: ["plant", "downstream"],
   goc_fauna: ["animal", "downstream"],
   goc_resources: ["insentient", "downstream"],
@@ -19424,6 +19474,17 @@ const NOT_LIVE = {
   ibama_infractions: "Copied weekly from IBAMA's open data by culprits-tiles-more",
   raisg_illegal_mining: "From RAISG's file, downloaded by hand (RAISG gives it to registered users) and made into this copy",
   gw_defenders: "Copied weekly from Global Witness's data page by culprits-tiles-more",
+  attacks_gw_killings: "From the owner's Attacks On Activists collection, read once (28 September 2026)",
+  attacks_land_resistance: "From the owner's Attacks On Activists collection, read once (28 September 2026)",
+  attacks_frontline: "From the owner's Attacks On Activists collection, read once (28 September 2026)",
+  attacks_cimi: "From the owner's Attacks On Activists collection, read once (28 September 2026)",
+  attacks_caci: "From the owner's Attacks On Activists collection, read once (28 September 2026)",
+  attacks_cpt_violence: "From the owner's Attacks On Activists collection, read once (28 September 2026)",
+  attacks_cpt_threatened: "From the owner's Attacks On Activists collection, read once (28 September 2026)",
+  attacks_cpt_massacres: "From the owner's Attacks On Activists collection, read once (28 September 2026)",
+  attacks_public_agencies: "From the owner's Attacks On Activists collection, read once (28 September 2026)",
+  attacks_slave_labour_states: "From the owner's Attacks On Activists collection, read once (28 September 2026)",
+  police_stations_latam: "From the owner's Attacks On Activists collection, read once (28 September 2026)",
   // Round 85b.
   goc_flora: "Copied weekly from the Global Organized Crime Index's data by culprits-tiles-more",
   goc_fauna: "Copied weekly from the Global Organized Crime Index's data by culprits-tiles-more",
@@ -19802,7 +19863,7 @@ const PANEL_ORDER = [
   { h: 2, t: "Of groups" },
   { h: 3, t: "Of humans" },
   { h: 2, t: "Of individuals" },
-  { h: 3, t: "Of humans" }, "gw_defenders",
+  { h: 3, t: "Of humans" }, "gw_defenders", "attacks_gw_killings", "attacks_land_resistance", "attacks_frontline", "attacks_cimi", "attacks_caci", "attacks_cpt_violence", "attacks_cpt_threatened", "attacks_cpt_massacres", "attacks_public_agencies",
   { h: 3, t: "Of animals" }, "site_animal_sacrifice",
 
   { h: 1, t: "Suppression" },
@@ -19820,7 +19881,7 @@ const PANEL_ORDER = [
   { h: 4, t: "Economic inequality within it" },
   { h: 5, t: "Wealth concentration" }, "site_wealth_atlas", "site_social_spheres", "largest_companies",
   { h: 5, t: "The stock market" }, "stock_exchanges", "troutwood_companies",
-  { h: 4, t: "Law enforcement" },
+  { h: 4, t: "Law enforcement" }, "police_stations_latam",
   { h: 4, t: "Courts and corrections" },
   { h: 4, t: "Discrimination" },
   { h: 4, t: "Slavery" },
@@ -19831,7 +19892,7 @@ const PANEL_ORDER = [
   // routes, with enforcement in every country beside Brazil's register.
   { h: 5, t: "Routes" }, "slavery_routes",
   { h: 5, t: "Cases and enforcement" }, "slavery_cases", "slavery_determinations", "slavery_enforcement",
-  "slavery_convicted_world", "slavery_detected_world", "slavery_cbp_world",
+  "slavery_convicted_world", "slavery_detected_world", "slavery_cbp_world", "attacks_slave_labour_states",
   // Round 95b: the anti-slavery trackers, country by country, back.
   { h: 5, t: "What each country does about it" }, "slavery_trackers",
   { h: 3, t: "Suppression by “representation” within it" },
@@ -20667,6 +20728,88 @@ function watchCuts(box) {
   new MutationObserver(() => { clearTimeout(cutTimer); cutTimer = setTimeout(() => cutBetween(box), 400); }).observe(box, { childList: true, subtree: true });
 }
 
+/* ---------- round 106b: many point layers at once, and a loading mark ---------- */
+// Asked 28 September: with every point layer on, zooming in to a region made
+// the map stop drawing. Each point source was cut into tiles again at every
+// zoom to 18; a source of points alone is now cut to zoom 12 and enlarged
+// beyond it, which draws the same points (to about a metre) with far less
+// work. If the browser still takes the map's graphics memory away, a notice
+// says so and the map is drawn again when it is given back.
+function pointsOnly(data) {
+  const f = data && typeof data === "object" && Array.isArray(data.features) ? data.features : null;
+  if (!f || !f.length) return false;
+  const step = Math.max(1, Math.floor(f.length / 500));
+  for (let i = 0; i < f.length; i += step) { const g = f[i] && f[i].geometry; if (!g || !/Point$/.test(g.type)) return false; }
+  return true;
+}
+function lighterPointSources(m) {
+  if (!m || typeof m.addSource !== "function" || m._lighterPoints) return;
+  m._lighterPoints = true;
+  const orig = m.addSource.bind(m);
+  m.addSource = (id, src) => orig(id, src && src.type === "geojson" && src.maxzoom === undefined && pointsOnly(src.data) ? Object.assign({}, src, { maxzoom: 12 }) : src);
+}
+function mapBusyMark(m) {
+  if (!m || typeof m.on !== "function" || typeof document === "undefined" || !document.createElement || !document.body) return;
+  const el = document.createElement("div");
+  el.id = "map-busy";
+  el.setAttribute("role", "status");
+  el.hidden = true;
+  el.innerHTML = `<i aria-hidden="true"></i><span>Loading…</span>`;
+  document.body.appendChild(el);
+  let t = null;
+  const check = () => { clearTimeout(t); t = setTimeout(() => { el.hidden = typeof m.loaded === "function" ? m.loaded() : true; if (!el.hidden) check(); }, 400); };
+  for (const ev of ["dataloading", "sourcedataloading", "zoomend", "moveend"]) m.on(ev, check);
+  m.on("idle", () => { clearTimeout(t); el.hidden = true; });
+  const canvas = typeof m.getCanvas === "function" ? m.getCanvas() : null;
+  if (canvas && canvas.addEventListener) {
+    canvas.addEventListener("webglcontextlost", () => { el.hidden = false; el.querySelector("span").textContent = "Too much to draw at once: the browser paused the map. Turn some layers off; it redraws by itself."; });
+    canvas.addEventListener("webglcontextrestored", () => { el.querySelector("span").textContent = "Loading…"; if (typeof m.triggerRepaint === "function") m.triggerRepaint(); check(); });
+  }
+}
+lighterPointSources(typeof map !== "undefined" ? map : null);
+if (typeof document !== "undefined" && document.readyState !== "loading") mapBusyMark(typeof map !== "undefined" ? map : null);
+else if (typeof document !== "undefined" && document.addEventListener) document.addEventListener("DOMContentLoaded", () => mapBusyMark(map));
+
+// Round 106b (asked 28 September): ticking a layer that has sublayers (a
+// group's rows, a map's kinds, its filters or buttons) opens them and moves
+// the menu down so they can be seen. Only for the reader's own ticks, not the
+// Turn on every switches.
+function revealSubRows(t) {
+  const box = document.getElementById("layers");
+  if (!box || !t || !t.closest) return;
+  let row = null, subs = [];
+  if (t.dataset.group) {
+    row = t.closest(".group");
+    const kids = row && row.querySelector(".kids");
+    if (kids && kids.hidden && typeof toggleGroup === "function") toggleGroup(box, t.dataset.group);
+    if (kids) subs = [kids];
+  } else {
+    row = t.closest("label") || t.closest(".layer");
+    for (let n = row && row.nextElementSibling; n; n = n.nextElementSibling) {
+      const sub = n.classList && (n.classList.contains("facet") || n.classList.contains("kids") || n.classList.contains("cat-key")) ||
+        (n.querySelector && n.querySelector(`[data-smtype="${t.dataset.layer}"]`)) || (n.dataset && n.dataset.subOf === t.dataset.layer);
+      if (!sub) break;
+      if (!n.hidden) subs.push(n);
+    }
+  }
+  if (!row || !subs.length) return;
+  let pane = row.parentElement;
+  while (pane && pane !== document.body && !(pane.scrollHeight > pane.clientHeight + 4 && /(auto|scroll)/.test(getComputedStyle(pane).overflowY))) pane = pane.parentElement;
+  if (!pane || pane === document.body) return;
+  const top = row.getBoundingClientRect().top, bottom = subs[subs.length - 1].getBoundingClientRect().bottom, view = pane.getBoundingClientRect();
+  if (bottom <= view.bottom) return;
+  // Down far enough to show the last of them, never so far the row goes off the top.
+  const by = Math.min(bottom - view.bottom + 8, top - view.top - 8);
+  if (by > 0) pane.scrollBy({ top: by, behavior: "smooth" });
+}
+if (typeof document !== "undefined" && document.addEventListener) document.addEventListener("change", (e) => {
+  const t = e.target;
+  if (!e.isTrusted || !t || !t.checked || !t.dataset || !(t.dataset.layer || t.dataset.group)) return;
+  if (!t.closest || !t.closest("#layers")) return;
+  setTimeout(() => revealSubRows(t), 250);
+  setTimeout(() => revealSubRows(t), 2500);
+});
+
 /* ---------- a heading's tick, turning on every layer under it (round 81) ---------- */
 // Asked 27 September: the Turn on every switches read the rows' points from a
 // few shared files (round 58) and tick rows a few at a time; a heading's own
@@ -20750,6 +20893,9 @@ function catalogueKind(cfg, item) {
   if (cfg.route === "trase") return "national";
   if (cfg.route === "ctgases") return "point";
   if (cfg.route === "gsn") return "shape";
+  // Round 106b: boundaries and figures by country, province or district are
+  // national highlights, not shapes.
+  if (/\b(gadm|adm[012]|admin\w*|administrative|national boundaries|countr\w*|provinces?|provinsi|districts?|subdistricts?|kabupaten|regenc\w*)\b/i.test(words.replace(/_/g, " "))) return "national";
   // "Near palm oil mills, 50 km" is the area round the mills, not the mills.
   if (AREA_WORDS.test(words)) return "shape";
   return POINT_WORDS.test(words) ? "point" : "shape";
@@ -20775,6 +20921,34 @@ function drawnKind(id, layers) {
   }
   return marks && areas ? "both" : marks ? "point" : areas ? "shape" : "";
 }
+// Round 106b: whether a drawn row's areas are whole countries - their records
+// carry a country code, or most of their names are country names.
+let COUNTRY_NAMES = null;
+if (typeof BOUNDARIES_URL !== "undefined" && typeof getJson === "function") {
+  const readNames = () => getJson(BOUNDARIES_URL, 60000).then((b) => {
+    COUNTRY_NAMES = new Set((b.features || []).map((f) => String((f.properties || {}).name || "").toLowerCase()).filter(Boolean));
+  }).catch(() => { /* not known */ });
+  if (typeof map !== "undefined" && typeof map.once === "function") map.once("idle", readNames);
+}
+function drawsCountries(id, layers) {
+  if (typeof map.querySourceFeatures !== "function") return false;
+  const srcs = new Set(layers.filter((l) => l && l.type === "fill" && (l.id === id || l.id.startsWith(id + "-") || l.id.startsWith(id + "_")) && l.source).map((l) => l.source));
+  let n = 0, hits = 0;
+  for (const src of srcs) {
+    let fs = [];
+    try { fs = map.querySourceFeatures(src, l0(layers, src)); } catch (e) { continue; }
+    for (const f of fs) {
+      if (!f.geometry || !/Polygon$/.test(f.geometry.type)) continue;
+      const p = f.properties || {};
+      n++;
+      if (Object.keys(p).some((k) => /^(iso_?a?3|iso3|adm0_a3|country_code|iso)$/i.test(k)) ||
+          (COUNTRY_NAMES && ["n", "name", "NAME", "country", "Country", "admin", "ADMIN"].some((k) => p[k] && COUNTRY_NAMES.has(String(p[k]).toLowerCase())))) hits++;
+      if (n >= 200) break;
+    }
+  }
+  return n >= 5 && hits / n >= 0.6;
+}
+const l0 = (layers, src) => { const l = layers.find((x) => x.source === src && x["source-layer"]); return l ? { sourceLayer: l["source-layer"] } : undefined; };
 function layerKindSwitch(box) {
   if (!box || typeof document.createElement !== "function" || document.getElementById("kind-switch")) return;
   const search = document.getElementById("layer-search");
@@ -20790,7 +20964,8 @@ function layerKindSwitch(box) {
   wrap.innerHTML = `<span class="ks-l">Turn on every</span><span class="ks-row">` + [["point", "Points"], ["shape", "Shapes"], ["national", "National highlights"]]
     .map(([k, t]) => `<button type="button" class="chip" data-kind-all="${k}" aria-pressed="false">${t}</button>`).join("") + `</span>` +
     `<span class="ks-busy" role="status" aria-live="polite" hidden><i class="ks-spin" aria-hidden="true"></i><span class="ks-t"></span></span>`;
-  if (at && at.after) at.after(wrap); else if (box.parentElement) box.parentElement.insertBefore(wrap, box);
+  // Round 106b (asked 28 September): at the bottom of the layers menu.
+  if (box.after) box.after(wrap); else if (at && at.after) at.after(wrap);
   const cfgs = new Map(LAYERS.concat(...GROUPS.map((g) => g.children || [])).filter(Boolean).map((c) => [c.id, c]));
   const kindOf = (el) => {
     const id = el.dataset.layer;
@@ -20811,9 +20986,12 @@ function layerKindSwitch(box) {
       const k = drawnKind(id, layers);
       if (!k) continue;
       tickedAs.delete(id);
-      const wrong = as === "point" ? k === "shape" : k === "point";
+      // Round 106b (asked 28 September: Shapes turned on rows that shade
+      // whole countries): a row that draws countries is filed with them.
+      const national = as === "shape" && k !== "point" && drawsCountries(id, layers);
+      const wrong = national || (as === "point" ? k === "shape" : k === "point");
       if (!wrong) continue;
-      KIND_SEEN.set(id, k);
+      KIND_SEEN.set(id, national ? "national" : k);
       const el = box.querySelector(`input[data-layer="${id}"]`);
       if (el && el.checked) { el.checked = false; el.dispatchEvent(new Event("change", { bubbles: true })); moved++; }
     }
@@ -20836,13 +21014,16 @@ function layerKindSwitch(box) {
     if (!queue.length) { running = false; finish(); return; }
     running = true;
     legendHold = true;
+    let verb = "on";
     for (const [el, on] of queue.splice(0, 8)) {
       done++;
+      verb = on ? "on" : "off";
       if (el.checked === on) continue;
       el.checked = on;
       el.dispatchEvent(new Event("change", { bubbles: true }));
     }
-    say(`Turning on ${Math.min(done, total).toLocaleString()} of ${total.toLocaleString()} layers…`);
+    // Round 106b: turning off said "Turning on".
+    say(`Turning ${verb} ${Math.min(done, total).toLocaleString()} of ${total.toLocaleString()} layers…`);
     setTimeout(pump, 150);
   };
   wrap.addEventListener("click", (e) => {
