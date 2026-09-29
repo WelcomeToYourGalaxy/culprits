@@ -5,6 +5,26 @@ touches.
 
 ---
 
+## Round 111c (29 September)
+
+Needs round 110c. Tiles patch round111c_tiles.py beside it.
+
+- capture_countries and capture_share (route country, beside capture_cases in
+  both places), read from tiles capture/by_country.json: cases per country by
+  the Natural Earth 50m shape each point falls in, split by tier and branch;
+  the legislature's seats today (Wikidata P194 -> P1342, or its chambers'
+  sum); lawmakers found per 100 seats today. A case standing for many people
+  ("people in this case": Colombia 86, Japan LDP 179) counts as that many when
+  larger than the people found one by one.
+- capture.py also reads: secret-police collaborator categories on the lt, lv,
+  et, hu, sq, ru, uk, hr, sl, sr Wikipedias; development banks' debarment lists
+  via OpenSanctions (index.json, datasets whose title/publisher name a bank and
+  a debarment; tier inquiry, CC BY-NC 4.0); FARA foreign principals (DOJ bulk
+  zip, tier ties, at the principal's country's capital).
+- Still to do: Czech ABS and Slovak UPN StB registers (waiting on
+  probe/capture/ from the first capture run).
+- Script version app.js?v=1003.
+
 ## Round 110c (29 September)
 
 Needs round 110b. Tiles patch round110c_tiles.py beside it. Takes the place of

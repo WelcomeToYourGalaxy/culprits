@@ -5663,5 +5663,15 @@ console.log("\nround 110c (29 September): planted, bought or captured, worldwide
   check("its note names what it reads", /Venona papers/.test(src) && /Foreign Corrupt Practices Act actions/.test(src) && /Justice Department's yearly FCPA lists/.test(src) && /IPN catalogue of people in public office/.test(src));
   check("the page asks for this round's script", appVersion(html) >= 1002);
 }
+console.log("\nround 111c (29 September): capture by country, seats, more sources");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("the capture country rows read by_country.json", /id: "capture_countries"[^\n]*route: "country"/.test(src) && /id: "capture_share"[^\n]*route: "country"/.test(src) &&
+        /capture\/by_country\.json", field: "lawmakers found per 100 seats today"/.test(src));
+  check("they sit beside the capture row in both places", /"gw_defenders", "capture_cases", "capture_countries", "capture_share",/.test(src) && /"Politics as a front" \}, "capture_cases", "capture_countries", "capture_share",/.test(src));
+  check("the capture note names the new sources", /Foreign Agents Registration Act/.test(src) && /barred for fraud or corruption/.test(src) && /Lithuanian, Latvian, Estonian/.test(src));
+  check("the page asks for this round's script", appVersion(html) >= 1003);
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
