@@ -30,6 +30,10 @@
   /* Stars on: the map goes see-through and the page's own star field (drawn
      by app.js on #stars) shows behind it, over the same navy screen. */
   body.holo-on.holo-stars-on #map{background:transparent}
+  /* Blue shading off (round 100b): no navy over the screen or the stars. */
+  body.holo-on.holo-noshade #map{background:#0b0b0c}
+  body.holo-on.holo-noshade.holo-stars-on #map{background:transparent}
+  body.holo-on.holo-noshade.holo-stars-on #stars{background:#050506}
   body.holo-on.holo-stars-on #stars{
     background:radial-gradient(ellipse at 50% 45%,
       color-mix(in srgb, var(--holo-bg), #ffffff 6%) 0%, var(--holo-bg) 55%,
@@ -531,7 +535,7 @@
   };
 })();
 </script>
-<script src="./app.js?v=99"></script>
+<script src="./app.js?v=991"></script>
 <script src="./wire.js?v=67"></script>
 <!-- The drag bar on the layers box's right edge (made by columnEdge() in
      app.js) ran the full height of the column, so it stayed standing beside
@@ -613,7 +617,7 @@
   // Every option starts on except the basemap underneath. The key is new
   // (was "culprits-holo") so choices kept under the old defaults, with place
   // names off, do not carry over.
-  const opt = { grat: true, floor: true, stars: true, detail: true, names: true, fx: true, under: false, tint: 55, fold: false };
+  const opt = { grat: true, floor: true, stars: true, detail: true, names: true, fx: true, under: false, tint: 55, fold: false, shade: true };
   const OPT_KEY = "culprits-holo-2";
   try { Object.assign(opt, JSON.parse(localStorage.getItem(OPT_KEY) || "{}")); } catch (e) { /* defaults */ }
   const keepOpt = () => { try { localStorage.setItem(OPT_KEY, JSON.stringify(opt)); } catch (e) { /* not kept */ } };
@@ -825,7 +829,9 @@
   function showHolo() {
     const vis = (id, v) => { if (map.getLayer(id) && map.getLayoutProperty(id, "visibility") !== v) map.setLayoutProperty(id, "visibility", v); };
     const flat = isFlat();
-    const earthOn = on && (!opt.under || opt.tint > 0);
+    // Round 100b (asked 28 September): the blue shading can be switched off;
+    // the planet's face and the screen are then left dark and colourless.
+    const earthOn = on && opt.shade && (!opt.under || opt.tint > 0);
     vis("holo-earth", earthOn && !flat ? "visible" : "none");
     vis("holo-earth-flat", earthOn && flat ? "visible" : "none");
     vis("holo-grat", on && opt.grat ? "visible" : "none");
@@ -838,6 +844,7 @@
     document.body.classList.toggle("holo-floor-on", on && opt.floor);
     document.body.classList.toggle("holo-stars-on", on && opt.stars);
     document.body.classList.toggle("holo-fx-on", on && opt.fx);
+    document.body.classList.toggle("holo-noshade", on && !opt.shade);
   }
   async function setRes(res, why) {
     try {
@@ -1095,6 +1102,7 @@
       tick("holo-names", "names", "Place names", "Country, city and sea names, in pale text for the dark screen") +
       tick("holo-detail", "detail", "Close-in detail", "OpenStreetMap coasts, borders, rivers, roads and buildings, and relief shading, drawn as wireframe as you zoom in") +
       tick("holo-fx", "fx", "80s effects", "Colour fringe on the outlines, darker tube edges") +
+      tick("holo-shade", "shade", "Blue shading", "The navy fill over the planet and the screen; off, both are left dark and colourless") +
       `</div>` +
       `<label class="holo-tint"${on && opt.under && !opt.fold ? "" : " hidden"}>wash <input type="range" id="holo-tint" min="0" max="90" step="5" value="${opt.tint}"><span id="holo-tint-n">${opt.tint}%</span></label>`;
     body.appendChild(d);

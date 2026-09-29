@@ -2296,8 +2296,8 @@ console.log("\nchanges of 19 September");
   check("the Tableau row is the CFR Global Imbalances Tracker", /id: "tableau_zsf", name: "Countries' trade and money imbalances \(Council on Foreign Relations tracker\)"/.test(src));
   check("Giga by country is under School", between("giga_countries", "School", "Law enforcement"));
   check("EJAtlas is under Of the planet > General; Culprits upstream is dissolved (22 September)", between("ejatlas", "General", "Climate") && at("Culprits upstream") === -1);
-  check("Biodiversity loss holds the hotspots, hotspot cities, Subsidising Extinction and the Power BI report",
-        ["atlas_hotspots", "atlas_cities", "pe_subsidising", "powerbi_report"].every((i) => between(i, "Biodiversity loss", "Mining")));
+  check("Biodiversity loss holds the hotspots and hotspot cities (round 100b: the Subsidising Extinction and Power BI pages out of it)",
+        ["atlas_hotspots", "atlas_cities", "wb_harm_projects", "goc_fauna"].every((i) => between(i, "Biodiversity loss", "Mining")));
   check("Mining holds the mines", between("mines_global", "Mining", "Agriculture"));
   check("the refinery map is under Climate > Fossil fuel plants and refineries", between("fractracker_refineries", "Fossil fuel plants and refineries", "Companies and financiers"));
   check("the toxic release sites are one row, carrying the live layer", o.PANEL_REMOVED.has("epa_tri") && /name:"Factories reporting toxic chemical releases, US \(EPA Toxics Release Inventory\)", [^\n]*\n[^\n]*\n[^\n]*\n\s*linked: \["epa_tri"\]/.test(src));
@@ -4432,7 +4432,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /const slow = setTimeout\(free, QUEUE_SLOT_MS\);/.test(src) && /\.then\(\(\) => \{ clearTimeout\(slow\); free\(\); \}\);/.test(src));
   check("Bankrolling Extinction's 50 banks are a row at their headquarters, their measured amounts said to be measured",
         /id: "pe_banks"[^\n]*route: "geojsonlive"/.test(src) && /culprits-tiles-more\/pe\/banks\.geojson/.test(src) && /measured from the length of its bars/.test(src) &&
-        /"Companies and financiers" \}, "pe_subsidising", "pe_bankrolling", "pe_banks",/.test(src));
+        /"Companies and financiers" \}, "pe_bankrolling", "pe_banks",/.test(src));   // round 100b: Subsidising Extinction's page replaced
   check("an opened hotspot shows its conflicts page over page 1 and a mark per city opening its inset",
         /if \(what\.plate\) atlasInsets\(what\.plate\);/.test(src) && /map\.addLayer\(\{ id: "atlas-plate-conflicts", type: "raster"/.test(src) &&
         /new maplibregl\.Marker\(\{ element: el \}\)/.test(src) && /for \(const m of atlasInsets\.markers \|\| \[\]\) m\.remove\(\);/.test(src));
@@ -5026,7 +5026,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("the cut runs through GLAD alerts, by the Alerts heading's A to Z order",
         /through: "GLAD alerts"/.test(src) && /function cutUpTo\(title, through\)/.test(src));
   check("environmental crime by country, three rows from the Global Organized Crime Index, first under Environmental crime",
-        ["goc_flora", "goc_fauna", "goc_resources"].every((i, k) => o.PANEL_ORDER.indexOf(i) === at("Environmental crime") + 1 + k) &&
+        ["goc_flora", "goc_fauna", "goc_resources"].every((i, k) => o.PANEL_ORDER.lastIndexOf(i) === at("Environmental crime") + 1 + k) &&
         /if \(!tf\.field\) return j;/.test(src));
   check("no bright green is left anywhere in the map's own colours (round 85b: \"barfy alien\" green)", (() => {
     for (const m of src.matchAll(/#([0-9A-Fa-f]{6})\b|rgba?\((\d+),\s*(\d+),\s*(\d+)/g)) {
@@ -5264,7 +5264,7 @@ console.log("\nround 95b: rows back where asked; environmental law; skin farms; 
         ["cultivated_meat_laws", "site_ufo_pre1900", "site_subsistence_cultures", "site_self_sufficiency", "slavery_trackers", "site_environment_law", "enviro_law_by_country", "site_environment_law_shapes", "ect_secrets", "isds_tracker"]
           .every((i) => !removed.includes(`"${i}"`)) &&
         /\{ h: 3, t: "Environmental law" \}, "site_environment_law", "site_environment_law_shapes", "enviro_law_by_country", "ect_secrets", "isds_tracker",/.test(src) &&
-        /"ufo_sightings", "site_ufo_pre1900",/.test(src) && /\{ h: 4, t: "Meat" \}, "cultivated_meat_laws",/.test(src) &&
+        /"ufo_sightings", "site_ufo_pre1900",/.test(src) && /\{ h: 5, t: "Meat grown from cells" \}, "cultivated_meat_laws",/.test(src) &&   // round 100b: last under Meat
         /\{ h: 5, t: "Living off the land" \}, "site_subsistence_cultures", "site_self_sufficiency",/.test(src) && /"slavery_trackers",/.test(src.slice(src.indexOf("const PANEL_ORDER"))));
   check("every row named in everyday words is renamed at start, and keeps its name", /const PLAIN_NAMES = \{/.test(src) && /row\.name = PLAIN_NAMES\[row\.id\]; row\.fixedName = true;/.test(src) &&
         /land_matrix: "Land deals: large areas of farmland and forest bought or leased by investors, often from abroad \(Land Matrix\)"/.test(src));
@@ -5378,6 +5378,47 @@ console.log("\nround 99b: Biodiversity loss refiled; one row each for critical h
         /fao_ecozones: \{ fields: \["gez_term"\]/.test(src) && /wwf_terrestrial_ecoregions: "Ecoregions, 2001 version: the world's land in 867 natural regions/.test(src));
   check("the nematode samples coloured by how many nematodes each holds", /colourBy: \{ field: "Total_Number", steps: \[250, 600, 1300, 3300, 10000\]/.test(src));
   check("the page asks for this round's script", /app\.js\?v=(99|1\d\d)/.test(html));
+}
+console.log("\nround 100b: skin and fur farms their own heading; the food industry's owners under Meat; zoos off the facilities; amounts as colours; heights raised; points raised where they crowd; public money behind the harm; fish; the fields wider out; the hologram's blue off");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const o = new Function(src.slice(src.indexOf("const BUNDLES = {"), src.indexOf("const ZDC = ")) + src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("];", src.indexOf("const PANEL_ORDER = [")) + 2) + "; return { PANEL_ORDER, BUNDLES };")();
+  const at = (t, from = 0) => o.PANEL_ORDER.findIndex((x, i) => i >= from && x && x.t === t);
+  const meat = at("Meat", at("Meat and agriculture"));
+  check("fur and skin farms under their own heading, out of Meat and agriculture",
+        at("Animal skin and fur farms") > meat && at("Animal skin and fur farms") < at("Oceans") && o.PANEL_ORDER[at("Animal skin and fur farms")].h === 3 &&
+        o.PANEL_ORDER.indexOf("fur_world") > at("Animal skin and fur farms") && o.PANEL_ORDER.indexOf("skin_farms") > at("Animal skin and fur farms"));
+  check("who owns the food industry under Meat > The culprits; meat grown from cells last, retitled",
+        o.PANEL_ORDER.indexOf("site_food_system") > at("The culprits", meat) && at("The culprits", meat) > meat &&
+        o.PANEL_ORDER.indexOf("cultivated_meat_laws") === at("Meat grown from cells", meat) + 1 && at("Meat grown from cells", meat) + 2 === at("Animal skin and fur farms") &&
+        /cultivated_meat_laws: "Where meat grown from cells, as an alternative to slaughter, is restricted or banned/.test(src));
+  check("zoos are off the registered facilities (a zoo a register marks as slaughtering stays)",
+        /name:"Registered animal-use facilities \\u2014 sites on official registers: slaughterhouses, farms, dairies and hatcheries \(abattoir atlas\)",\n[^\n]*\n[^\n]*\n[^\n]*\n\s*where: \["!", \["all", \[">=", \["index-of", "zoo"/.test(src));
+  check("the linked-out pages are out of Biodiversity loss; the crime index's wildlife scores are in, and the public-money rows in Subsidising Extinction's place",
+        /\{ h: 4, t: "Wildlife and timber crime" \}, "goc_flora", "goc_fauna",/.test(src) && /"pe_subsidising",\n/.test(src.slice(src.indexOf("const PANEL_REMOVED"))) &&
+        /\{ h: 5, bundle: "publicharm", colour: "#5E6470" \}, "wb_harm_projects", "imf_fossil_subsidies",/.test(src) &&
+        /id: "wb_harm_projects"[^\n]*route: "geojsonlive"/.test(src) && /id: "imf_fossil_subsidies"[^\n]*route: "country"/.test(src));
+  check("point rows with an amount are coloured by it",
+        ["bocc", "largest_companies", "largest_banks", "pe_banks", "haz_ncei_quakes", "haz_eruptions", "haz_tsunamis"].every((i) => new RegExp(`id: "${i}"[^\\n]*\\n\\s*// Round 100b[^\\n]*\\n\\s*colourBy: \\{ field: "`).test(src)));
+  const aw = new Function(src.match(/function amountWords\(v\) \{[\s\S]*?\n\}\n/)[0] + "; return amountWords;")();
+  check("…amounts said in billions, and small figures keep a decimal", aw(4.2e10) === "42 billion" && aw(6.5) === "6.5" && aw(2500) === "2,500");
+  check("relief stands three times as tall from the world view, as before from zoom 5 in",
+        /const RELIEF_BOOST = 3;/.test(src) && /const boost = 1 \+ \(RELIEF_BOOST - 1\) \* Math\.max\(0, Math\.min\(1, \(5 - z\) \/ 3\)\);/.test(src));
+  check("country shading raised by its figure, switched in the View box",
+        /id: `\$\{cfg\.id\}-lift`,\n\s*type: "fill-extrusion",/.test(src) && /id="lift-toggle"/.test(src) && /if \(e\.target && e\.target\.id === "lift-toggle"\) setLift\(e\.target\.checked\);/.test(src));
+  const g = new Function("POINT_RELIEF_RES", src.slice(src.indexOf("function pointReliefGrid("), src.indexOf("function pointReliefValues(")) + "; return pointReliefGrid;")(0.25);
+  const grid = g([[10.1, 20.1], [10.1, 20.1], [10.2, 20.2], [-50, -30]]);
+  check("points raised where they crowd: counted on the ground, smoothed, the densest the tallest",
+        grid.max > 0 && grid.g[Math.floor((90 - 20.1) / 0.25) * grid.W + Math.floor((10.1 + 180) / 0.25)] === grid.max &&
+        /addPointReliefChip\(cfg, data\.features\);/.test(src));
+  check("fish: free-flowing rivers and fish species by basin, under Fish",
+        /\{ h: 4, t: "Fish" \}, "fish_rivers", "fish_basins",/.test(src) && /id: "fish_rivers"[^\n]*route: "rasterlive"/.test(src) && /id: "fish_basins"[^\n]*route: "pmchoose"/.test(src));
+  check("the fields counted wider out, under the shapes", /overview: \{ choicesUrl: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/tiles\/ftw_overview\.choices\.json", maxzoom: 9 \}/.test(src) &&
+        /if \(cfg\.overview\) pmVectorOverview\(cfg\);/.test(src));
+  check("the hologram's blue shading can be switched off", /tick\("holo-shade", "shade", "Blue shading"/.test(html) && /const earthOn = on && opt\.shade && /.test(html) &&
+        /body\.holo-on\.holo-noshade #map\{background:#0b0b0c\}/.test(html));
+  check("the page asks for this round's script", /app\.js\?v=(99[1-9]|1\d\d\d)/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

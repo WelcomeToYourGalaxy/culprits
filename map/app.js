@@ -491,7 +491,12 @@ const LAYERS = [
   // From WelcomeToYourGalaxy/abattoir-atlas: its merged facility records, every
   // one, not the subset its own page draws. Share-alike (OSM rows and OSM-based
   // geocoding), so its archive is isolated, as local_projects is.
-  { id:"abattoir_facilities",  name:"Registered animal-use facilities \u2014 sites on official registers: slaughterhouses, farms, dairies, hatcheries and zoos (abattoir atlas)", unit:"facilities", colour:"#80605A", route:"pmtiles", ready:true, off: true,
+  { id:"abattoir_facilities",  name:"Registered animal-use facilities \u2014 sites on official registers: slaughterhouses, farms, dairies and hatcheries (abattoir atlas)",
+    // Round 100b (asked 28 September: zoos do not slaughter): the sites the
+    // registers list only as zoos are left off the points; a zoo a register
+    // also marks as slaughtering stays. The counts wider out still hold them.
+    where: ["!", ["all", [">=", ["index-of", "zoo", ["downcase", ["to-string", ["coalesce", ["get", "x_activities"], ""]]]], 0],
+                 ["!=", ["get", "x_slaughter"], "yes"]]], unit:"facilities", colour:"#80605A", route:"pmtiles", ready:true, off: true,
     isolate:true,
     facet: { property: "x_slaughter", label: "slaughter",
              values: ["yes","no","not stated"],
@@ -4526,6 +4531,24 @@ async function addArcgisCopyLayer(cfg) {
 }
 
 /* ---------- another publisher's vector archive, read in place (round 90b) ---------- */
+// Round 100b: the overview wider out, a picture of counts made by culprits-
+// tiles-more, its key from its own build; it fades out where the shapes begin.
+async function pmVectorOverview(cfg) {
+  let d = null;
+  try { d = await getJson(cfg.overview.choicesUrl, 20000); } catch (e) { return; }
+  const c = d && Array.isArray(d.choices) && d.choices[0];
+  if (!c || !c.archive) return;
+  const sid = `${cfg.id}-ov`;
+  if (map.getSource(sid)) return;
+  map.addSource(sid, { type: "raster", url: `pmtiles://${c.archive}`, tileSize: 256 });
+  map.addLayer({ id: sid, type: "raster", source: sid, maxzoom: cfg.overview.maxzoom + 1,
+    layout: { visibility: visibility.get(cfg.id) || "visible" },
+    paint: { "raster-opacity": ["interpolate", ["linear"], ["zoom"], cfg.overview.maxzoom - 1, 0.9, cfg.overview.maxzoom + 1, 0] } },
+  map.getLayer(`${cfg.id}-fill`) ? `${cfg.id}-fill` : undefined);
+  cfg._layerIds = (cfg._layerIds || []).concat([sid]);
+  if (Array.isArray(c.key)) { c.key.forEach(([col]) => GLAD_OUT.add(col)); rowKey(cfg.id, c.key, c.hint || "Wider out: how many fields each square holds"); }
+  setLayerState(cfg.id, `${cfg.unit} \u00b7 counted wider out, every field drawn close in`);
+}
 // Fields of The World's field boundaries: a PMTiles archive on Source
 // Cooperative, read square by square as the map is looked at. Each shape is
 // filled in the row's colour with a darker edge; nothing is copied here.
@@ -4535,6 +4558,8 @@ function addPmVectorLayer(cfg) {
   map.addSource(src, { type: "vector", url: `pmtiles://${cfg.archiveUrl}`, attribution: cfg.attribution || "" });
   map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source: src, "source-layer": cfg.sourceLayer,
     paint: { "fill-color": cfg.colour, "fill-opacity": cfg.fillOpacity || 0.35 } }, pointLayerAbove());
+  // Round 100b: a row with an overview draws it wider out, under the shapes.
+  if (cfg.overview) pmVectorOverview(cfg);
   map.addLayer({ id: `${cfg.id}-line`, type: "line", source: src, "source-layer": cfg.sourceLayer,
     paint: { "line-color": cfg.edge || "#2F5A70", "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.4, 14, 1.2], "line-opacity": 0.9 } }, pointLayerAbove());
   cfg._layerIds = [`${cfg.id}-fill`, `${cfg.id}-line`];
@@ -6255,8 +6280,12 @@ function amountOf(s) {
   return { v: range ? (nums[0] + nums[1]) / 2 : nums[0], range };
 }
 function amountWords(v) {
-  return v >= 1e6 ? `${(v / 1e6).toLocaleString("en", { maximumFractionDigits: 1 })} million`
-    : Number(v).toLocaleString("en", { maximumFractionDigits: 0 });
+  // Round 100b: billions and trillions said as such; small figures (a
+  // magnitude, a height in metres) keep one decimal.
+  return v >= 1e12 ? `${(v / 1e12).toLocaleString("en", { maximumFractionDigits: 1 })} trillion`
+    : v >= 1e9 ? `${(v / 1e9).toLocaleString("en", { maximumFractionDigits: 1 })} billion`
+    : v >= 1e6 ? `${(v / 1e6).toLocaleString("en", { maximumFractionDigits: 1 })} million`
+    : Number(v).toLocaleString("en", { maximumFractionDigits: v < 100 ? 1 : 0 });
 }
 function colourByAmount(cfg, items) {
   const cb = cfg.colourBy;
@@ -7323,6 +7352,7 @@ const BUNDLES = {
   wwoutlets: "Nitrogen from human wastewater entering the sea at each coastal outlet, by where the wastewater came from (Tuholske et al.)",
   wastecountries: "Countries' waste figures, one measure a layer (Waste Atlas)",
   oilslicks: "Oil slicks seen from space, with SkyTruth's own write-ups at sea and on land (Cerulean and SkyTruth)",
+  publicharm: "Public money behind the destruction of nature: development bank projects rated the most harmful, and fossil fuel subsidies",
   // Round 99b (asked 28 September): pairs and series of the same data as one
   // row each, with its parts inside.
   crithab: "Critical habitat, on land and at sea, as the International Finance Corporation defines it (UNEP-WCMC, Dunnett et al. 2025)",
@@ -11282,9 +11312,14 @@ maplibregl.addProtocol("relief", async (params) => {
 });
 // How tall the relief stands at this zoom: tall enough to read from space,
 // low enough close in not to wall off the view.
+// Round 100b (asked 28 September: the heights read as low-lying from the
+// world view): three times as tall wide out, where whole regions are compared,
+// easing to the old height from zoom 5 in, so close in the ground still shows.
+const RELIEF_BOOST = 3;
 function reliefLift() {
   const z = map.getZoom();
-  return Math.max(0.03, Math.min(1, Math.pow(2, 3 - z)));
+  const boost = 1 + (RELIEF_BOOST - 1) * Math.max(0, Math.min(1, (5 - z) / 3));
+  return Math.max(0.03, Math.min(RELIEF_BOOST, Math.pow(2, 3 - z) * boost));
 }
 const no2Relief = { get on() { return reliefStack.length > 0; } };
 function reliefGround(id, on) {
@@ -11315,7 +11350,7 @@ function addReliefLayers(cfg, r, key, hint) {
   map.addSource(`${cfg.id}-shade`, { type: "raster-dem", tiles: [`relief://${cfg.id}/dem/{z}/{x}/{y}`], tileSize: 256, maxzoom: r.maxzoom, encoding: "mapbox" });
   map.addLayer({ id: `${cfg.id}-hill`, type: "hillshade", source: `${cfg.id}-shade`, layout: { visibility: vis },
     paint: { "hillshade-shadow-color": "#001a3a", "hillshade-highlight-color": "#cfe8f4", "hillshade-accent-color": "#00c8ff",
-             "hillshade-exaggeration": 0.6 } }, pointLayerAbove());
+             "hillshade-exaggeration": 0.85 } }, pointLayerAbove());
   map.addLayer({ id: `${cfg.id}-fill`, type: "raster", source: `${cfg.id}-col`, layout: { visibility: vis },
     paint: { "raster-opacity": 0.85, "raster-resampling": "linear" } }, pointLayerAbove());
   cfg._layerIds = [`${cfg.id}-hill`, `${cfg.id}-fill`];
@@ -11727,6 +11762,9 @@ function viewPanelHtml() {
     `<label class="layer terrain-under"><input type="checkbox" id="terrain-toggle"${TERRAIN_ON ? " checked" : ""}` +
     ` title="Ground height under the imagery, on the globe or the flat map.">` +
     `<span class="nm">3D terrain</span></label>` +
+    `<label class="layer terrain-under"><input type="checkbox" id="lift-toggle"${LIFT_ON ? " checked" : ""}` +
+    ` title="Country and region layers stand as tall as their figures, and point layers can rise where their points crowd.">` +
+    `<span class="nm">Raise figures as heights</span></label>` +
     `</div><div class="compass-holder in-view" id="compass-holder" title="Click to stand the map upright, facing north">` +
     `<span class="compass-cap">North up, level</span>` +
     `<label class="layer names-under"><input type="checkbox" id="names-toggle"${NAMES_ON ? " checked" : ""}` +
@@ -11770,6 +11808,7 @@ function buildBasemapPanel() {
     if (e.target && e.target.name === "view") setView(e.target.value);
     if (e.target && e.target.id === "terrain-toggle") setTerrain(e.target.checked);
     if (e.target && e.target.id === "names-toggle") setNames(e.target.checked);
+    if (e.target && e.target.id === "lift-toggle") setLift(e.target.checked);
   });
 }
 
@@ -11882,6 +11921,18 @@ async function countryTotalsFrom(cfg) {
   if (unplaced.length) setTimeout(() => setLayerState(cfg.id, `${Object.keys(out).length} countries \u00b7 no country shape on this map for ${unplaced.join(", ")}`), 0);
   return out;
 }
+// Round 100b: country and region rows raised by their figures (see below).
+var LIFT_ON = true;
+const LIFT_TOP = 800000;     // metres at the top of the scale, from the world view
+const LIFTED = new Set();
+function setLift(on) {
+  LIFT_ON = !!on;
+  for (const id of LIFTED) {
+    const l = `${id}-lift`;
+    if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", LIFT_ON && (visibility.get(id) || "visible") === "visible" ? "visible" : "none");
+  }
+  for (const [id, pr] of POINT_RELIEFS) if (pr.on) pointReliefSet(id, LIFT_ON && (visibility.get(id) || "visible") === "visible");
+}
 async function addCountryLayer(cfg) {
   ensureBoundaries();
 
@@ -11954,6 +12005,24 @@ async function addCountryLayer(cfg) {
     }
   }
 
+  // Round 100b (asked 28 September): the shading raised too, each country as
+  // tall as its place on the same scale as its colour, so countries can be
+  // compared from an angle like mountains. Tall from the world view, lower
+  // close in; "Raise figures as heights" in the View box turns it off.
+  map.addLayer({
+    id: `${cfg.id}-lift`,
+    type: "fill-extrusion",
+    source: "boundaries",
+    layout: { visibility: LIFT_ON ? (visibility.get(cfg.id) || "visible") : "none" },
+    paint: {
+      "fill-extrusion-color": ["interpolate", ["linear"], at, 0, STEPS[0], 0.25, STEPS[1], 0.5, STEPS[2], 0.75, STEPS[3], 1, STEPS[4]],
+      "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 0, ["*", LIFT_TOP, at], 4, ["*", LIFT_TOP / 4, at], 8, ["*", LIFT_TOP / 64, at]],
+      "fill-extrusion-opacity": 0.82,
+      "fill-extrusion-vertical-gradient": true,
+    },
+  }, pointLayerAbove());
+  cfg._layerIds = (cfg._layerIds || []).concat([`${cfg.id}-lift`]);
+  LIFTED.add(cfg.id);
   map.addLayer({
     id: `${cfg.id}-line`,
     type: "line",
@@ -13532,10 +13601,108 @@ async function addSitemapLayer(cfg, given) {
     cfg.facet = { property: "ov", label: "layer", values: data.overlays };
   }
   setRowSwatch(cfg.id, swatchFill(sitemapDrawnColours(cfg, data.features)));
+  addPointReliefChip(cfg, data.features);
   const n = data.features.length;
   setLayerState(cfg.id, `${n.toLocaleString()} ${cfg.unit}`);
   applyVisibility(cfg.id);
   buildLegend();
+}
+
+/* ---------- point rows raised where their points crowd (round 100b) ---------- */
+// Asked 28 September: high concentrations of points as high ground. The points
+// are counted on a grid of a quarter degree, smoothed over about 75 km, and
+// the count stands as relief in the row's own ramp, as the livestock and
+// population rows do: the tallest place is the row's densest. It is the same
+// height at every zoom, since the grid is on the ground, not on the screen.
+const POINT_RELIEF_RES = 0.25, POINT_RELIEF_MIN = 30;
+var POINT_RELIEFS = new Map();         // row -> { pts, grid, max, on }
+const POINT_RELIEF_RAMP = [[0.02, [11, 46, 107, 0]], [0.1, [23, 71, 184, 150]], [0.3, [26, 159, 214, 190]], [0.6, [20, 168, 160, 215]], [1, [207, 239, 242, 240]]];
+function pointReliefGrid(pts) {
+  const W = Math.round(360 / POINT_RELIEF_RES), H = Math.round(180 / POINT_RELIEF_RES);
+  let g = new Float32Array(W * H);
+  for (const [lng, lat] of pts) {
+    const x = Math.floor((lng + 180) / POINT_RELIEF_RES), y = Math.floor((90 - lat) / POINT_RELIEF_RES);
+    if (x >= 0 && x < W && y >= 0 && y < H) g[y * W + x] += 1;
+  }
+  // Two box passes of radius 1 in each direction: about 75 km of smoothing.
+  for (let pass = 0; pass < 2; pass++) {
+    const h = new Float32Array(W * H);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      let t = 0; for (let d = -1; d <= 1; d++) t += g[y * W + ((x + d + W) % W)];
+      h[y * W + x] = t / 3;
+    }
+    const v = new Float32Array(W * H);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      let t = 0, n = 0; for (let d = -1; d <= 1; d++) { const yy = y + d; if (yy >= 0 && yy < H) { t += h[yy * W + x]; n++; } }
+      v[y * W + x] = t / n;
+    }
+    g = v;
+  }
+  let max = 0; for (const v of g) if (v > max) max = v;
+  return { g, W, H, max };
+}
+function pointReliefValues(pr) {
+  return async (z, x, y) => {
+    const out = new Float32Array(256 * 256), n = Math.pow(2, z);
+    for (let j = 0; j < 256; j++) {
+      const lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + (j + 0.5) / 256) / n))) * 180 / Math.PI;
+      const gy = Math.floor((90 - lat) / POINT_RELIEF_RES);
+      if (gy < 0 || gy >= pr.grid.H) continue;
+      for (let i = 0; i < 256; i++) {
+        const lng = (x + (i + 0.5) / 256) / n * 360 - 180;
+        const gx = Math.floor((lng + 180) / POINT_RELIEF_RES);
+        out[j * 256 + i] = pr.grid.max > 0 ? Math.log1p(pr.grid.g[gy * pr.grid.W + gx]) / Math.log1p(pr.grid.max) : 0;
+      }
+    }
+    return out;
+  };
+}
+function pointReliefSet(id, on) {
+  const pr = POINT_RELIEFS.get(id);
+  if (!pr) return;
+  const rid = `${id}__crowd`;
+  if (on) {
+    if (!pr.grid) pr.grid = pointReliefGrid(pr.pts);
+    if (!RELIEFS.has(rid)) RELIEFS.set(rid, { values: pointReliefValues(pr), colour: (v) => rampColour(POINT_RELIEF_RAMP, v), height: (v) => v, top: 150000, maxzoom: 8 });
+    if (!map.getSource(`${rid}-dem`)) {
+      map.addSource(`${rid}-col`, { type: "raster", tiles: [`relief://${rid}/col/{z}/{x}/{y}`], tileSize: 256, maxzoom: 8 });
+      map.addSource(`${rid}-dem`, { type: "raster-dem", tiles: [`relief://${rid}/dem/{z}/{x}/{y}`], tileSize: 256, maxzoom: 8, encoding: "mapbox" });
+      map.addSource(`${rid}-shade`, { type: "raster-dem", tiles: [`relief://${rid}/dem/{z}/{x}/{y}`], tileSize: 256, maxzoom: 8, encoding: "mapbox" });
+      map.addLayer({ id: `${rid}-hill`, type: "hillshade", source: `${rid}-shade`,
+        paint: { "hillshade-shadow-color": "#001a3a", "hillshade-highlight-color": "#cfe8f4", "hillshade-accent-color": "#00c8ff", "hillshade-exaggeration": 0.85 } }, pointLayerAbove());
+      map.addLayer({ id: `${rid}-col`, type: "raster", source: `${rid}-col`, paint: { "raster-opacity": 0.8, "raster-resampling": "linear" } }, pointLayerAbove());
+    }
+    for (const l of [`${rid}-hill`, `${rid}-col`]) if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", "visible");
+    reliefGround(rid, true);
+  } else {
+    for (const l of [`${rid}-hill`, `${rid}-col`]) if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", "none");
+    reliefGround(rid, false);
+  }
+}
+// The chip under a point row: its points, and a switch to raise them.
+function addPointReliefChip(cfg, features) {
+  const pts = (features || []).filter((f) => f.geometry && f.geometry.type === "Point").map((f) => f.geometry.coordinates);
+  if (pts.length < POINT_RELIEF_MIN || POINT_RELIEFS.has(cfg.id)) return;
+  POINT_RELIEFS.set(cfg.id, { pts, grid: null, on: false });
+  const box = document.getElementById("layers");
+  const row = box && box.querySelector && box.querySelector(`[data-layer="${cfg.id}"]`);
+  const anchor = row && row.closest ? row.closest("label") : null;
+  if (!anchor || !anchor.after || typeof document.createElement !== "function") return;
+  const el = document.createElement("div");
+  el.className = "facet";
+  el.dataset.crowdFor = cfg.id;
+  el.innerHTML = `<button type="button" class="chip" data-crowd="1" title="The points counted on a grid and raised as high ground where they crowd; the densest place is the tallest">` +
+    `Raise where the points crowd</button>`;
+  el.addEventListener("click", (ev) => {
+    const b = ev.target.closest && ev.target.closest("[data-crowd]");
+    if (!b) return;
+    ev.stopPropagation();
+    const pr = POINT_RELIEFS.get(cfg.id);
+    pr.on = !pr.on;
+    b.classList.toggle("on", pr.on);
+    pointReliefSet(cfg.id, pr.on && LIFT_ON && (visibility.get(cfg.id) || "visible") === "visible");
+  });
+  anchor.after(el);
 }
 
 function loadSitemapBoxes(cfg) {
@@ -15367,7 +15534,8 @@ function applyVisibility(id) {
     }
   }
   const extra = (cfg || childById(id) || {})._layerIds;
-  if (extra) for (const l of extra) if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", vis);
+  if (extra) for (const l of extra) if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", /-lift$/.test(l) && !LIFT_ON ? "none" : vis);
+  if (typeof POINT_RELIEFS !== "undefined" && POINT_RELIEFS.has(id) && POINT_RELIEFS.get(id).on) pointReliefSet(id, vis === "visible" && LIFT_ON);
   // A row that carries another source inside it switches that one with it.
   // (Rows inside a group, such as Buildings, are found by childById.)
   const rc = cfg || (typeof childById === "function" ? childById(id) : null);
@@ -16089,8 +16257,35 @@ const OTHER_MAPS = {
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ifl_2025.pmtiles", sourceLayer: "ifl", edge: "#0E2F66", fillOpacity: 0.45, stateSay: "forest landscapes \u00b7 from the map's own copy",
       attribution: "Intact Forest Landscapes, Potapov et al. (CC BY 4.0), via Global Forest Watch",
       note: "The Intact Forest Landscapes of 2025: unbroken stretches of forest and the land around it, at least 500 km\u00b2, with no roads, clearing or other sign of people seen from satellites (Potapov et al.; intactforests.org). The map's own copy, made by culprits-tiles-more (scripts/ifl.py) from Global Forest Watch's table of it, drawn in every square at once: Global Forest Watch's own tiles for the years are made on request and were slow to come or did not come." },
+    // ---- round 100b (asked 28 September) ---------------------------------
+    // Public money behind the destruction of nature, the map's own rows in
+    // place of the Subsidising Extinction page.
+    { id: "wb_harm_projects", name: "World Bank projects the Bank itself rated most harmful to the environment (Category A, or High risk under its newer rules), at the places they are built", unit: "projects", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Category A projects", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/subsidies/wb_category_a.geojson" }], nameFrom: ["project_name"],
+      colourBy: { field: "totalcommamt", steps: [2.5e7, 1e8, 2.5e8, 5e8, 1e9], unit: "USD committed by the World Bank" },
+      attribution: "World Bank Projects & Operations API (CC BY 4.0)",
+      note: "Every World Bank project the Bank itself put in environmental Category A, its rating for projects \u201clikely to have significant adverse environmental impacts that are sensitive, diverse, or unprecedented\u201d: dams, mines, roads, pipelines, power plants and farms paid for with public money. Projects approved under its newer Environmental and Social Framework (from 2018) are rated by risk instead; those it rated High risk are here too. Each is drawn at every place the Bank's own record gives for it; a project the Bank gives no place for is drawn as a ring at the middle of its country. Every field of the record is in the box. Copied weekly from the World Bank's projects API by culprits-tiles-more (scripts/public_harm.py)." },
+    { id: "imf_fossil_subsidies", name: "Fossil fuel subsidies, country by country, as a share of the economy, latest year (IMF)", unit: "% of GDP", colour: "#1E6FA8", keepColour: true, route: "country", ready: true, lazy: true, buildScript: "public_harm",
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/subsidies/imf_fossil_subsidies.json", field: "value" }, linear: [0, 20],
+      countryNote: "IMF Fossil Fuel Subsidies Data: fossil fuels sold for less than their cost of supply (explicit) and less than their full cost to people and nature (implicit), together, as a share of GDP; every measure the IMF gives for the country is in the box",
+      note: "The International Monetary Fund's fossil fuel subsidies data (Black, Parry and Vernon, IMF Working Paper 2023/169, and its updates), as the World Bank's Data360 serves it: for each country, the money its fossil fuels are underpriced by, explicit and implicit, as a share of GDP, in the latest year given. Every other measure the data gives (each fuel, explicit and implicit apart, US dollars) is in the box. Copied weekly by culprits-tiles-more (scripts/public_harm.py)." },
+    // Freshwater fish and the rivers they live in.
+    { id: "fish_rivers", name: "Rivers still free-flowing, and those dams and reservoirs have broken, worldwide (Grill et al. 2019)", unit: "rivers, about 2 km", colour: "#1E6FA8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "Grill et al. 2019, Nature; WWF and McGill University (CC BY 4.0)", rasterPaint: { "raster-opacity": 0.95 },
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/fish_rivers.choices.json",
+      note: "Mapping the world's free-flowing rivers (Grill et al. 2019, Nature; CC BY 4.0): every river reach of HydroRIVERS, 8.5 million of them, with its connectivity status index, which says how far dams, reservoirs, roads and water use have cut the river up and changed its flow. A river is free-flowing where the index is 95% or more along its whole length. Drawn from the map's own copy, made by culprits-tiles-more (scripts/fish_rivers.py); every reach is drawn, each square taking the most broken reach in it." },
+    { id: "fish_basins", name: "Freshwater fish species in each river basin: native, introduced and found in that basin alone (Tedesco et al. 2017)", unit: "river basins", colour: "#1E6FA8", keepColour: true, route: "pmchoose", ready: true, lazy: true,
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/fish_basins.pmtiles", sourceLayer: "basins", mode: "numbers", defaults: ["native_species"],
+      attribution: "Tedesco et al. 2017, Scientific Data 4, 170141 (CC0)",
+      menus: [{ label: "Count", options: [["native_species", "Native species"], ["introduced_species", "Introduced species"], ["endemic_species", "Species found in this basin alone"]] }],
+      fieldOf: (v) => v[0],
+      note: "A global database on freshwater fish species occurrence in drainage basins (Tedesco et al. 2017, Scientific Data; CC0): 3,119 river basins covering 80% of the land, and every freshwater fish species recorded in each, native or introduced, from 1,436 sources. Counted here basin by basin: native species, introduced species, and native species recorded in no other basin. Every field of the basin is in the box. Made by culprits-tiles-more (scripts/fish_basins.py)." },
     { id: "ftw_fields", name: "Farm fields, every one, their boundaries, 10 m, 2025 (Fields of The World)", unit: "fields", colour: "#6E9CB8", keepColour: true, route: "pmvector", ready: true, lazy: true,
       archiveUrl: "https://data.source.coop/ftw/global-field-boundaries/pmtiles/ftw-global-fields-2025.pmtiles", sourceLayer: "fields",
+      // Round 100b (asked 28 September: the fields showed only close in): wider
+      // out, how many fields each square holds, counted from the project's own
+      // download files (scripts/ftw_overview.py); the shapes take over close in.
+      overview: { choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ftw_overview.choices.json", maxzoom: 9 },
       attribution: "Fields of The World, Robinson et al. 2026 (CC BY 4.0)",
       note: "Fields of The World's worldwide field boundaries for 2025 (Robinson et al. 2026; CC BY 4.0): about 1.6 billion fields drawn by a model from Sentinel-2 pictures at 10 m, read directly from the project's own archive on Source Cooperative. The closest worldwide picture of where farming is; the fields show when zoomed in." },
     { id: "potapov_cropland", name: "Cropland share and its spread, 2003 to 2019, 3 km (Potapov et al. 2022, UMD GLAD)", unit: "share of each 3 km cell under crops", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
@@ -16222,6 +16417,8 @@ const OTHER_MAPS = {
       attribution: "US EPA Envirofacts",
       note: "The facility points behind EPA's Envirofacts multisystem widget, drawn live from EPA's EnviroMapper service from about state level in. Wider out, a copy of every point renewed every four weeks: from zoom 6 each point, and wider out than that a picture of every point, counted into the pixel it falls in, so the world view loads at once. The Toxics Release Inventory's full list of reporting factories is one of its kinds." },
     { id: "bocc", name: "Banking on Climate Chaos 2026: the 65 largest banks' fossil fuel financing, at their headquarters", unit: "banks", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
+      // Round 100b (asked 28 September): coloured by its own figure.
+      colourBy: { field: "fossil_fuel_financing_2025_usd", steps: [1e9, 5e9, 1e10, 2e10, 4e10], unit: "USD of fossil fuel financing in 2025" },
       files: [{ label: "Banking on Climate Chaos 2026", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/bocc/banks.geojson" }], nameFrom: ["bank"],
       attribution: "Banking on Climate Chaos 2026 (RAN, BankTrack, IEN, Oil Change International, Reclaim Finance, Sierra Club, Urgewald and others); GLEIF; OpenStreetMap",
       note: "Each of the 65 banks in the report, at the headquarters its parent company gives in the Global Legal Entity Identifier register (GLEIF), found in OpenStreetMap. Each box gives both of the report's league tables as printed: fossil fuel financing and fossil fuel expansion financing, the 2025 rank, every year 2021 to 2025, the five-year total and the change from 2024, with the legal entity and its LEI. Figures are the report's, attributed to the parent bank. Read from the report itself by culprits-tiles-more (the site offers no data file)." },
@@ -16235,17 +16432,23 @@ const OTHER_MAPS = {
       page: "https://deforestationfreefunds.org",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
     { id: "largest_companies", name: "The 500 largest companies by revenue (compiled from Wikidata)", unit: "companies, at their headquarters", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
+      // Round 100b (asked 28 September): coloured by its own figure.
+      colourBy: { field: "revenue_usd", steps: [25e9, 40e9, 60e9, 1e11, 2e11], unit: "USD of revenue a year" },
       files: [{ label: "The 500 largest companies by revenue", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/companies/largest.geojson" }],
       attribution: "Wikidata (CC0); exchange rates from the European Central Bank and the World Bank",
       note: "Compiled here in place of Fortune's Global 500, whose terms forbid copying it. Every company Wikidata gives a total revenue for, at its latest year, turned into US dollars at that year's average rate (the European Central Bank's, or for currencies it does not publish, the World Bank's official rate), and the 500 largest that Wikidata says are businesses. Each box shows everything gathered: rank, revenue as stated and in dollars, the rate used, headquarters, country, industry, employees, founding date, website, stock exchange, parent and chief executive, with a link to the Wikidata page. Wikidata is edited by anyone, so a figure can be out of date or wrong; the link shows where it came from. A company whose headquarters has no position in Wikidata is listed in the build file, not placed. Rebuilt weekly by culprits-tiles-more." },
     // Asked for 26 September (round 69): the owner's own list of the world's
     // largest banks, compiled the way the companies row is.
     { id: "largest_banks", name: "The 250 largest corporate banks by total assets (compiled from Wikidata)", unit: "banks, at their headquarters", colour: "#6A5D6B", route: "geojsonlive", ready: true, lazy: true,
+      // Round 100b (asked 28 September): coloured by its own figure.
+      colourBy: { field: "total_assets_usd", steps: [1e9, 1e10, 1e11, 5e11, 1e12], unit: "USD of total assets" },
       files: [{ label: "The 250 largest corporate banks by total assets", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/banks/largest.geojson" }],
       attribution: "Wikidata (CC0); exchange rates from the European Central Bank and the World Bank",
       note: "Compiled here from open data rather than copied from a published ranking. Every item Wikidata gives a total assets figure for, at its latest year, turned into US dollars at that year's average rate (the European Central Bank's, or for currencies it does not publish, the World Bank's official rate), and the 250 largest that Wikidata says are a kind of bank, leaving out central banks (their own layer, Central Banks) and development banks (their own row, below). State-owned commercial banks are corporate banks and are kept. Years can differ from bank to bank; each box gives the year of its figure, with rank, total assets as stated and in dollars, the rate used, kind, headquarters, country, employees, founding date, website, stock exchange, parent, owner and chief executive, and a link to the Wikidata page. Wikidata is edited by anyone, so a figure can be out of date or wrong. A bank whose headquarters has no position in Wikidata is listed in the build file, not placed. Rebuilt weekly by culprits-tiles-more." },
     // Asked 26 September (round 70): development banks apart from the others.
     { id: "development_banks", name: "Development banks by total assets, national and multilateral (compiled from Wikidata)", unit: "banks, at their headquarters", colour: "#5E6470", route: "geojsonlive", ready: true, lazy: true,
+      // Round 100b (asked 28 September): coloured by its own figure.
+      colourBy: { field: "total_assets_usd", steps: [1e9, 1e10, 1e11, 5e11, 1e12], unit: "USD of total assets" },
       files: [{ label: "Development banks by total assets", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/banks/development.geojson" }],
       attribution: "Wikidata (CC0); exchange rates from the European Central Bank and the World Bank",
       note: "Banks owned by one government (national, such as China Development Bank, KfW or BNDES) or by several (multilateral, such as the World Bank's IBRD, the Asian Development Bank or the European Investment Bank), set up to lend for development: dams, roads, power, mines, farming and the like. Every item Wikidata says is a development bank or multilateral development bank and gives a total assets figure for, at its latest year, in US dollars at that year's average rate, ranked by size. A development bank with no total assets figure in Wikidata is not on it. Each box shows every field gathered, with a link to the Wikidata page. Rebuilt weekly by culprits-tiles-more." },
@@ -16259,6 +16462,8 @@ const OTHER_MAPS = {
     // (culprits-tiles-more scripts/pe_banks.py). Their amounts are measured
     // from Figure 1's bars, which print no numbers, at the owner's word.
     { id: "pe_banks", name: "Bankrolling Extinction: the 50 largest banks' finance linked to biodiversity loss, 2019, at their headquarters (Portfolio Earth)", unit: "banks", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
+      // Round 100b (asked 28 September): coloured by its own figure.
+      colourBy: { field: "finance_linked_to_biodiversity_risk_2019_billion_usd_approx", steps: [5, 20, 50, 100, 150], unit: "billion USD linked to biodiversity risk in 2019 (measured from the report's bars)" },
       files: [{ label: "Bankrolling Extinction", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/pe/banks.geojson" }], nameFrom: ["bank"],
       attribution: "Bankrolling Extinction (Portfolio Earth, 2020); GLEIF; OpenStreetMap",
       note: "Each of the report's 50 banks at the headquarters its parent company gives in the Global Legal Entity Identifier register (GLEIF), found in OpenStreetMap. Each box gives the report's Table 2 as printed (S&P Global rank, country, region, total assets 2019) and the bank's loans and underwriting linked to biodiversity risk in 2019, with the part linked to direct risk and both as a share of assets. Figure 1 prints no numbers for these: they are measured from the length of its bars, rounded to the nearest billion USD, and approximate (checked against the report's own average, 52 billion, and largest, more than 210 billion). Four banks' bars are drawn at one smallest length; their boxes say so rather than give an amount. Portfolio Earth publishes no data file and states no licence." },
@@ -16568,7 +16773,7 @@ const OTHER_MAPS = {
                       "Mars, Inc.": "#B8D8E0", "Procter & Gamble": "#8FD6E8", "Danone": "#D6EEF6", "Altria": "#B06A5E", "British American Tobacco": "#8C6A72" },
       groupHint: "Coloured by company, in the audit's order: Coca-Cola first",
       note: "Break Free From Plastic's Brand Audit 2023 (250 audits by 8,804 volunteers in 41 countries; 537,719 pieces of plastic waste traced to their brands) names these ten parent companies as the World's Worst Plastic Polluters: The Coca-Cola Company, Nestlé, Unilever, PepsiCo, Mondelēz International, Mars, Procter & Gamble, Danone, Altria and British American Tobacco. The audit publishes no places, so this maps where each company is: its headquarters and its subsidiaries' headquarters from Wikidata, and its plants, bottling works, warehouses and offices mapped in OpenStreetMap. Gathered weekly by culprits-tiles-more (scripts/plastic_polluters.py)." },
-    { id: "skin_farms", name: "Crocodile, alligator and ostrich farms, raised for their skins, worldwide (Farm Transparency Project and OpenStreetMap)", unit: "farms", colour: "#8C4F5A", route: "geojsonlive", ready: true, lazy: true, fixedName: true,
+    { id: "skin_farms", name: "Farms raising animals for their skins, worldwide: crocodiles, alligators, ostriches and every other kind the sources list (Farm Transparency Project and OpenStreetMap)", unit: "farms", colour: "#8C4F5A", route: "geojsonlive", ready: true, lazy: true, fixedName: true,
       files: [{ label: "Skin farms", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/fur/skin_farms.geojson" }],
       groupColours: { "Crocodiles and alligators": "#8C4F5A", "Ostriches and emus": "#3FA9C2", "Not stated": "#77726A" },
       groupHint: "Coloured by the animal farmed",
@@ -16616,15 +16821,21 @@ const OTHER_MAPS = {
       timeline: { field: "x_date", from: "1900-01", to: "now" },
       note: "The US Geological Survey's earthquake catalogue: every earthquake of magnitude 5 or more worldwide from 1900, with its date, magnitude, depth and place; the timeline under the row chooses the months shown. Copied weekly by culprits-tiles-more." },
     { id: "haz_ncei_quakes", name: "Significant earthquakes in history, with deaths and damage (NOAA NCEI)", unit: "earthquakes", colour: "#0E2F66", route: "geojsonlive", ready: true, lazy: true,
+      // Round 100b (asked 28 September): coloured by its own figure.
+      colourBy: { field: "eqMagnitude", steps: [5, 6, 6.5, 7, 8], unit: "magnitude" },
       files: [{ label: "Significant earthquakes", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/hazards/ncei_earthquakes.geojson" }],
       note: "NOAA's National Centers for Environmental Information, Global Significant Earthquake Database, 2150 BC to now: earthquakes that killed, did $1 million or more of damage, reached magnitude 7.5 or intensity X, or caused a tsunami; with deaths, injuries, houses destroyed and damage where recorded. Copied weekly." },
     { id: "haz_volcanoes", name: "Volcanoes active in the last 12,000 years (Smithsonian Global Volcanism Program)", unit: "volcanoes", colour: "#B06A5E", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Volcanoes", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/hazards/volcanoes.geojson" }],
       note: "The Smithsonian Institution's Volcanoes of the World: every volcano active in the Holocene (the last 11,700 years), with its type, last known eruption, rock type and tectonic setting. Copied weekly." },
     { id: "haz_eruptions", name: "Significant volcanic eruptions in history, by explosivity (NOAA NCEI)", unit: "eruptions", colour: "#8C4F5A", route: "geojsonlive", ready: true, lazy: true,
+      // Round 100b (asked 28 September): coloured by its own figure.
+      colourBy: { field: "vei", steps: [1, 2, 3, 4, 5], unit: "on the explosivity index (VEI)" },
       files: [{ label: "Eruptions", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/hazards/ncei_eruptions.geojson" }],
       note: "NOAA NCEI's Significant Volcanic Eruptions Database, 4360 BC to now: eruptions that killed, did $1 million of damage, reached Volcanic Explosivity Index 6 or more, or caused a tsunami or an earthquake; each with its explosivity (VEI) and deaths. Copied weekly." },
     { id: "haz_tsunamis", name: "Tsunamis in history, with their height and deaths (NOAA NCEI)", unit: "tsunamis", colour: "#1E6FA8", route: "geojsonlive", ready: true, lazy: true,
+      // Round 100b (asked 28 September): coloured by its own figure.
+      colourBy: { field: "maxWaterHeight", steps: [0.5, 2, 5, 10, 30], unit: "metres of greatest water height" },
       files: [{ label: "Tsunamis", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/hazards/ncei_tsunamis.geojson" }],
       note: "NOAA NCEI's Global Historical Tsunami Database, 2100 BC to now: each tsunami's source event, its greatest water height, deaths and damage where recorded. Copied weekly." },
     { id: "haz_cyclones", name: "Tropical cyclone tracks since 1980: hurricanes, typhoons and cyclones (IBTrACS, NOAA NCEI)", unit: "storm tracks", colour: "#1E6FA8", route: "pmchoose", ready: true, lazy: true,
@@ -16930,7 +17141,7 @@ const PLAIN_NAMES = {
   slavery_ports: "Ports visited by ships at high risk of forced labour (anti-slavery map)",
   slavery_fishing: "Stretches of ocean where forced labour on fishing boats is predicted (a model; no boat named)",
   slavery_cases: "Human trafficking cases identified, by country",
-  abattoir_facilities: "Slaughterhouses, farms, dairies, hatcheries and zoos on official registers (abattoir atlas)",
+  abattoir_facilities: "Slaughterhouses, farms, dairies and hatcheries on official registers (abattoir atlas)",
   abattoir_cafo: "Factory farms (confined animal feeding operations): a model's estimate, not registered sites (Climate TRACE)",
   abattoir_glw: "How many farm animals are kept in each place, raised by density: a model's estimate, not a count of farms (FAO, 2020)",
   cerulean_slicks: "Oil slicks seen from space (Cerulean)",
@@ -16947,7 +17158,7 @@ const PLAIN_NAMES = {
   site_environment_law_shapes: "Areas covered by environmental laws and treaties",
   enviro_law_by_country: "Environmental laws, country by country and region by region (enviro-atlas)",
   slavery_trackers: "What each country does against slavery: its anti-slavery tracker scores (anti-slavery map)",
-  cultivated_meat_laws: "Where meat grown from cells (cultivated meat) is restricted or banned, by country (abattoir atlas)",
+  cultivated_meat_laws: "Where meat grown from cells, as an alternative to slaughter, is restricted or banned, by country (abattoir atlas)",
   site_ufo_pre1900: "UFO sightings recorded before 1900",
   ect_secrets: "Fossil fuel companies suing governments over climate action under the Energy Charter Treaty",
   isds_tracker: "Companies suing governments in private tribunals (investor-state dispute settlement, ISDS)",
@@ -17276,6 +17487,8 @@ const LAYER_KIND = {
   own_mangroves: ["plant", "downstream"],
   own_critical_habitat: ["plant", "downstream"],
   ecoregions_2017: ["plant", "downstream"],
+  wb_harm_projects: ["insentient", "downstream"], imf_fossil_subsidies: ["insentient", "downstream"],
+  fish_rivers: ["animal", "downstream"], fish_basins: ["animal", "downstream"],
   ifl_2000: ["plant", "downstream"], ifl_2013: ["plant", "downstream"], ifl_2016: ["plant", "downstream"], ifl_2020: ["plant", "downstream"], ifl_2025: ["plant", "downstream"],
   ftw_fields: ["plant", "downstream"],
   potapov_cropland: ["plant", "downstream"],
@@ -18006,6 +18219,10 @@ const LAYER_SITE = {
   own_mangroves: "https://zenodo.org/records/12756047",
   own_critical_habitat: "https://doi.org/10.34892/snwv-a025",
   ecoregions_2017: "https://ecoregions.appspot.com/",
+  wb_harm_projects: "https://projects.worldbank.org/en/projects-operations/projects-list",
+  imf_fossil_subsidies: "https://www.imf.org/en/Topics/climate-change/energy-subsidies",
+  fish_rivers: "https://doi.org/10.6084/m9.figshare.7688801",
+  fish_basins: "https://doi.org/10.6084/m9.figshare.c.3739145",
   ifl_2000: "https://intactforests.org/", ifl_2013: "https://intactforests.org/", ifl_2016: "https://intactforests.org/", ifl_2020: "https://intactforests.org/", ifl_2025: "https://intactforests.org/",
   ftw_fields: "https://source.coop/ftw/global-data",
   potapov_cropland: "https://glad.umd.edu/dataset/croplands",
@@ -18322,6 +18539,10 @@ const NOT_LIVE = {
   own_mangroves: "Made from Global Mangrove Watch's 2020 files by culprits-tiles-more",
   own_critical_habitat: "Made from UNEP-WCMC's critical habitat file by culprits-tiles-more",
   ecoregions_2017: "Made from RESOLVE's Ecoregions 2017 file by culprits-tiles-more",
+  wb_harm_projects: "Copied weekly from the World Bank's projects API by culprits-tiles-more",
+  imf_fossil_subsidies: "Copied weekly from the World Bank's Data360 by culprits-tiles-more",
+  fish_rivers: "Made from the free-flowing rivers data set by culprits-tiles-more",
+  fish_basins: "Made from the freshwater fish database by culprits-tiles-more",
   ifl_2000: "Made from Global Forest Watch's table by culprits-tiles-more", ifl_2013: "Made from Global Forest Watch's table by culprits-tiles-more",
   ifl_2016: "Made from Global Forest Watch's table by culprits-tiles-more", ifl_2020: "Made from Global Forest Watch's table by culprits-tiles-more",
   ifl_2025: "Made from Global Forest Watch's table by culprits-tiles-more",
@@ -18595,11 +18816,17 @@ const PANEL_ORDER = [
   { h: 5, t: "Where animals gather and migrate" },
   { h: 4, t: "Disturbance" },
   { h: 4, t: "Birds" },
-  { h: 4, t: "Fish" },
+  { h: 4, t: "Fish" }, "fish_rivers", "fish_basins",
   // Asked for 25 September: most biodiversity layers leave out the soil.
   { h: 4, t: "Soil biodiversity" }, "soil_spun", "soil_nematodes", "soilgrids",
-  { h: 4, t: "Wildlife and timber crime" }, "powerbi_report",
-  { h: 4, t: "Companies and financiers" }, "pe_subsidising", "pe_bankrolling", "pe_banks",
+  // Round 100b (asked 28 September): no page that only links out; the
+  // Global Organized Crime Index's scores for crimes against wild plants,
+  // timber and wild animals, country by country.
+  { h: 4, t: "Wildlife and timber crime" }, "goc_flora", "goc_fauna",
+  { h: 4, t: "Companies and financiers" }, "pe_bankrolling", "pe_banks",
+  // Round 100b (asked 28 September): public money behind the harm, the map's
+  // own rows in place of the Subsidising Extinction page.
+  { h: 5, bundle: "publicharm", colour: "#5E6470" }, "wb_harm_projects", "imf_fossil_subsidies",
   // Item 30: the most detailed worldwide land cover and land use found. Round
   // 92b (asked 27 September): the land cover to Land Use and Ecoregions, the
   // land use plot by plot to Buildings, Peatland into Deforestation.
@@ -18612,7 +18839,7 @@ const PANEL_ORDER = [
   // Item 14: the mines layers are one row with sublayers.
   { h: 3, t: "Mining" },
   { h: 4, bundle: "mines", colour: "#6E5E52" }, "mines_global", "mine_features", "raisg_illegal_mining",
-  { h: 3, t: "Meat and agriculture" }, "site_food_system", "land_matrix",
+  { h: 3, t: "Meat and agriculture" }, "land_matrix",
   { h: 4, t: "Agriculture" },
   // Round 90b (asked 27 September): where the fields are, and where cropland spread.
   { h: 5, t: "Cropland" }, "ftw_fields", "potapov_cropland",
@@ -18632,14 +18859,19 @@ const PANEL_ORDER = [
   { h: 5, t: "Pasture and grassland" },
   { h: 5, t: "Water for crops" },
   { h: 5, t: "Clearing for farming" },
-  { h: 4, t: "Meat" }, "cultivated_meat_laws",
+  { h: 4, t: "Meat" },
   { h: 5, t: "Facilities" }, "abattoir_facilities", "trase_meat_brazil", "abattoir_cafo",
   { h: 5, t: "Herds" }, "abattoir_glw",
   { h: 5, t: "Cattle and pasture" },
   { h: 5, t: "Pigs and chickens" },
-  // Round 94b (asked 27 September): fur farms under Meat and agriculture.
+  // Round 100b (asked 28 September): who owns the food industry, under Meat;
+  // meat grown from cells last of all.
+  { h: 5, t: "The culprits" }, "site_food_system",
+  { h: 5, t: "Meat grown from cells" }, "cultivated_meat_laws",
+  // Round 94b/95b: fur and skin farms. Round 100b (asked 28 September): a
+  // heading of their own, out of Meat and agriculture.
+  { h: 3, t: "Animal skin and fur farms" },
   { h: 4, t: "Fur farms" }, "fur_world", "final_nail", "fur_bans",
-  // Round 95b (asked 27 September): crocodile, alligator and ostrich farms.
   { h: 4, t: "Skin farms" }, "skin_farms",
   // Item 11: Fishing above Reefs and mangroves. Items 4, 5, 6: the pond maps
   // as one row, and the worldwide pond map beside them.
@@ -18753,6 +18985,9 @@ const PANEL_ORDER = [
   { h: 1, t: "Buildings" }, "building_types", "osm_landuse",
 ];
 const PANEL_REMOVED = new Set([
+  // Round 100b (asked 28 September): the page that only linked out, replaced
+  // by the map's own rows (publicharm).
+  "pe_subsidising",
   // Round 75 (27 September): SkyTruth's Pennsylvania-only rows, at the owner's word.
   "skytruth_pa_permits", "skytruth_pa_spud", "skytruth_pa_violations", "skytruth_well_permits",
   "skytruth_tests",                // the Housekeeping heading and its row, taken out 24 September

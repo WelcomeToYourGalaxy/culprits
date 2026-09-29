@@ -5,6 +5,38 @@ touches.
 
 ---
 
+## Round 100b (28 September)
+
+Needs round 99b (runs after it by name). Tiles patch round100b_tiles.py beside it.
+
+- Menu: Animal skin and fur farms is its own h3 (after Meat and agriculture);
+  Meat ends with The culprits (site_food_system) and Meat grown from cells
+  (cultivated_meat_laws, retitled "... as an alternative to slaughter ...").
+- Biodiversity > Wildlife and timber crime: goc_flora, goc_fauna in place of
+  the Power BI page. pe_subsidising (page) replaced by bundle publicharm:
+  wb_harm_projects (World Bank Category A / High risk projects at their own
+  locations, colourBy commitment) and imf_fossil_subsidies (IMF via Data360,
+  country, % of GDP) from tiles public_harm.py.
+- abattoir_facilities: zoos not marked as slaughtering filtered (where on
+  x_activities); title without zoos.
+- colourBy on bocc, largest_companies, largest_banks, development_banks,
+  pe_banks, haz_ncei_quakes, haz_eruptions, haz_tsunamis; amountWords says
+  billion/trillion and keeps a decimal under 100.
+- Heights: RELIEF_BOOST 3 (world view, easing to the old lift by zoom 5);
+  country rows get a fill-extrusion ${id}-lift by the same scale as their
+  colour (LIFT_TOP 800 km at z0), "Raise figures as heights" in the View box
+  (LIFT_ON, setLift); point rows (sitemap and geojsonlive, 30+ points) get a
+  chip "Raise where the points crowd" (POINT_RELIEFS, 0.25 degree grid,
+  smoothed, through the relief:// protocol).
+- Fish: fish_rivers (Grill et al. 2019 free-flowing rivers, rasterlive from
+  tiles fish_rivers.py) and fish_basins (Tedesco et al. 2017, pmchoose numbers
+  native / introduced / endemic, tiles fish_basins.py).
+- ftw_fields: overview raster wider out (tiles ftw_overview.py: fields per
+  100 km2 per one-degree square from the download tiles' parquet footers).
+- Hologram: "Blue shading" option (opt.shade, body.holo-noshade).
+- Script version app.js?v=991 (older tests match a two-digit prefix).
+
+
 ## Round 99b (28 September)
 
 Needs round 98b (runs after it by name). Tiles patch round99b_tiles.py beside it.
