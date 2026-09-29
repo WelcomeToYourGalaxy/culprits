@@ -5,6 +5,39 @@ touches.
 
 ---
 
+## Round 110c (29 September)
+
+Needs round 110b. Tiles patch round110c_tiles.py beside it. Takes the place of
+this chat's rounds 109c and 109d (never uploaded; do not upload them now).
+
+- capture_cases: "Planted, bought or captured", worldwide, every branch and
+  companies, every tier of proof marked (owner: all tiers, ties and allegations
+  included, each marked). Under Invasion of humans and Politics as a front.
+  Coloured by tier (court, inquiry, archive, admitted, served a spy service,
+  ties, settled with a regulator, alleged); the box gives the branch and who
+  they worked for.
+- Built by tiles scripts/capture.py (weekly): Wikidata office holders who
+  served a spy service or secret police, office holders and company staff
+  convicted of spying, treason, bribery and the like; Wikipedia's Venona list
+  and Mitrokhin article; secret-police collaborator categories on the cs, sk,
+  pl, de, ro and bg Wikipedias (placed via Wikidata citizenship); es.wikipedia
+  parapolitics lists; every SEC FCPA case, one point per country named; every
+  DOJ FCPA case since 1977 (chronological lists), at the court district's city;
+  about 60 compiled cases with sources (Colombia by name, LDP and the
+  Unification Church, Qatargate, NSICOP, US copy-paste bills, Stasi informers,
+  Garcia Luna, Noriega, kids-for-cash judges, Odebrecht in 12 countries, Babis).
+- Poland: tiles scripts/capture_ipn.py reads IPN's catalogue of people in
+  public office (katalog.bip.ipn.gov.pl/informacje/<n>) a slice a day,
+  resumable (capture/ipn_state.json); keeps TW/KO/agent registrations
+  (archive), lustration rulings of untrue declarations (court) and candidates
+  (alleged). capture.py merges capture/ipn.geojson.
+- Probes (Czech ABS registers, Slovak UPN regpro, one IPN entry) saved to tiles
+  probe/capture/ for a later round: match register entries to office holders by
+  name and birth date.
+- None of the tiles readers could be run from the sandbox: read
+  capture/build.json and capture/ipn_build.json after the first runs.
+- Script version app.js?v=1002.
+
 ## Round 110b (29 September)
 
 Needs round 109b. Tiles patch round110b_tiles.py beside it, and a new

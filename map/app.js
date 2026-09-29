@@ -17466,6 +17466,15 @@ const OTHER_MAPS = {
       colourBy: { field: "market_cap_usd_tn", steps: [1, 2, 4, 8, 20], unit: "trillion US$ of listed companies" },
       attribution: "Wikipedia, List of major stock exchanges (CC BY-SA 4.0)",
       note: "Every exchange in Wikipedia's list of major stock exchanges, with the market value of the companies listed on it (US$ trillion), its code, city, time zone and hours, as the list gives them; placed where the exchange's own article (or its city's) is. Copied weekly by culprits-tiles-more (scripts/stock_exchanges.py)." },
+    // ---- round 110c (asked 28 and 29 September) --------------------------------
+    { id: "capture_cases", name: "Planted, bought or captured: lawmakers, judges, rulers, officials and companies found working for, paid by or tied to someone else, worldwide", unit: "people and cases", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true, buildScript: "capture",
+      files: [{ label: "Planted, bought or captured", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/capture/cases.geojson" }], nameFrom: ["name"],
+      groupColours: { "Convicted, or found by a court": "#7A1F3D", "Found by an official inquiry": "#E0304A",
+        "Named in opened secret-police or spy-service files": "#B04FC8", "Admitted by the person, or by the side that paid or ran them": "#F28FB0",
+        "Held office and worked for a spy service or secret police (Wikidata)": "#1E6FA8", "Documented ties, funding, or laws written for them": "#3FA9C2",
+        "Settled bribery charges with a regulator (often without admitting or denying)": "#8FB8FF", "Charged or alleged, not proven": "#F4F1EA" },
+      groupHint: "Coloured by what proves it; the box gives the branch (lawmaking, courts, ruling and running, company) and who they worked for",
+      note: "Two parts. From Wikidata (CC0), read weekly: everyone Wikidata records as holding an office who also worked for, belonged to or was affiliated with a spy service or secret police, or whose occupation was spy, intelligence officer, informant or the like; everyone holding an office who was convicted of spying, treason, bribery, foreign agency or leaking state secrets; and company staff and heads convicted of such crimes. That covers every country and every century Wikidata covers, but only people Wikidata has records for. Holding office while working openly for a spy service is its own colour, apart from secret agents. Treason and spying convictions include some handed down by governments against their opponents; the box gives the conviction as Wikidata records it. Compiled for this map on 28 September 2026 from the sources in each box: Colombia's parapolitics convictions, Japan's ruling party and the Unification Church (179 of 379 lawmakers, the party's own survey), Qatargate in the European Parliament, Canada's NSICOP report and the inquiry that disputed it, US state bills copied from model legislation, Stasi informers in German parliaments, Genaro García Luna, Manuel Noriega, the Pennsylvania kids-for-cash judges, and Odebrecht's bribes in twelve countries, Colombian members of Congress convicted for parapolitics by name, and Andrej Babiš's StB records. Read weekly: Wikipedia's List of Americans in the Venona papers and its Mitrokhin Archive article (both archives' readings are disputed for some people named, as each box says); every Wikipedia's category of people registered by the secret police (Czech and Slovak StB, Polish SB, Stasi, Securitate, Bulgarian State Security), each person placed at their country's capital through Wikidata; Spanish Wikipedia's parapolitics lists; every case on the US Securities and Exchange Commission's page of Foreign Corrupt Practices Act actions, one point for each country the SEC says bribes went to (a separate colour: most were settled without admitting or denying); every case on the Justice Department's yearly FCPA lists since 1977, at the city of the court where it was filed (the lists name no country); and Poland's IPN catalogue of people in public office, read a slice a day, keeping every entry whose records show registration as a collaborator or contact, a lustration court ruling, or registration as a candidate (marked as not proven). Every tier is marked, from court convictions to charges and allegations that are not proven. A map of cases found, not a count of every official: it cannot show what share of all officials are captured. Built by culprits-tiles-more (scripts/capture.py)." },
     // ---- round 105b (asked 28 September) ---------------------------------
     { id: "troutwood_companies", name: "Every listed company Troutwood maps, at its head office, by market value", unit: "companies", colour: "#1E6FA8", route: "geojsonlive", ready: true, lazy: true, buildScript: "troutwood_layers",
       files: [{ label: "Listed companies", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/troutwood/companies.geojson" }], nameFrom: ["name"], card: "company",
@@ -18865,6 +18874,7 @@ const LAYER_KIND = {
   mine_features: ["insentient", "downstream"],
   slick_archive: ["animal", "downstream"],
   giga_countries: ["human", "upstream"],
+  capture_cases: ["human", "upstream"],
   policy_rates: ["human", "upstream"],
   imbalances: ["human", "upstream"],
   trase_meat_brazil: ["animal", "upstream"],
@@ -19686,6 +19696,7 @@ const LAYER_SITE = {
   school_culprits: "https://en.wikipedia.org/wiki/Prussian_education_system",
   giga_school_points: "https://maps.giga.global/map",
   stock_exchanges: "https://en.wikipedia.org/wiki/List_of_major_stock_exchanges",
+  capture_cases: "https://en.wikipedia.org/wiki/State_capture",
   troutwood_companies: "https://map.troutwood.com/",
   wreckers_world: "https://map.troutwood.com/",
   threat_overall: "https://github.com/WelcomeToYourGalaxy/culprits-tiles-more/blob/main/scripts/threat_index.py",
@@ -19873,6 +19884,7 @@ const NOT_LIVE = {
   fish_rivers: "Made from the free-flowing rivers data set by culprits-tiles-more",
   school_culprits: "Compiled for this map from the sources in each box",
   stock_exchanges: "Copied weekly from Wikipedia by culprits-tiles-more",
+  capture_cases: "Built weekly by culprits-tiles-more from Wikidata and cases compiled for this map",
   troutwood_companies: "Copied daily from Troutwood's map data by culprits-tiles-more",
   wreckers_world: "Made daily from Troutwood's map data by culprits-tiles-more",
   threat_overall: "Worked out daily by culprits-tiles-more from the map's own figures",
@@ -20011,7 +20023,7 @@ const PANEL_ORDER = [
   // one layer with a row per kind of conflict under it, and everything that
   // was under Suppression > Land and territory is here, the Land Matrix
   // excepted (under Meat and agriculture > Agriculture).
-  { h: 3, t: "Invasion of humans" }, "site_settler_colonialism", "other_invaded", "gw_defenders",
+  { h: 3, t: "Invasion of humans" }, "site_settler_colonialism", "other_invaded", "gw_defenders", "capture_cases",
   { h: 4, bundle: "indigenous_conflicts", colour: "#6B5A4A" }, "site_indigenous_conflicts",
   { h: 4, bundle: "landmark", colour: "#6A5E66" },
   { h: 4, bundle: "resrights", colour: "#5E6A66" },
@@ -20336,7 +20348,7 @@ const PANEL_ORDER = [
   // Round 104b (asked 28 September): School here, out of Economic inequality:
   // every school Giga maps, and who made schooling a machine for the grid.
   { h: 4, t: "School" }, "school_culprits", "giga_school_points", "giga_countries",
-  { h: 4, t: "Politics as a front" },
+  { h: 4, t: "Politics as a front" }, "capture_cases",
   // Round 105b (asked 28 September): V-Dem's democracy scores.
   { h: 5, t: "Voter suppression" },
   { h: 5, t: "Representation as presentation" },

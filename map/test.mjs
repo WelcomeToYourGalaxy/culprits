@@ -5650,5 +5650,18 @@ console.log("\nround 110b (29 September): Climate TRACE by gas from culprits-til
         /const CT_GASES_BASE = "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-gases";/.test(src) &&
         /const NEO_COPY = "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/neo\/esa_risk_list\.txt";/.test(src));
 }
+console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("the capture row reads its cases from the tiles repo, coloured by what proves them", /id: "capture_cases"[^\n]*route: "geojsonlive"[^\n]*buildScript: "capture"/.test(src) &&
+        /culprits-tiles-more\/capture\/cases\.geojson/.test(src) && /"Charged or alleged, not proven": "#F4F1EA"/.test(src) &&
+        /"Settled bribery charges with a regulator \(often without admitting or denying\)": "#8FB8FF"/.test(src));
+  check("it sits under Invasion of humans and under Politics as a front", /"gw_defenders", "capture_cases",/.test(src) && /\{ h: 4, t: "Politics as a front" \}, "capture_cases",/.test(src));
+  check("it has a kind, a site and a not-live note", /  capture_cases: \["human", "upstream"\],/.test(src) && /  capture_cases: "https:\/\/en\.wikipedia\.org\/wiki\/State_capture",/.test(src) &&
+        /  capture_cases: "Built weekly by culprits-tiles-more/.test(src));
+  check("its note names what it reads", /Venona papers/.test(src) && /Foreign Corrupt Practices Act actions/.test(src) && /Justice Department's yearly FCPA lists/.test(src) && /IPN catalogue of people in public office/.test(src));
+  check("the page asks for this round's script", appVersion(html) >= 1002);
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
