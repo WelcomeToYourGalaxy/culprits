@@ -873,6 +873,8 @@ function gladSourceSpec(id, spec) {
   // Pictures this map draws in its own colours (round 82b: the EPA density
   // pictures, the nitrogen dioxide relief) are not mapped again.
   if (!spec || spec.type !== "raster" || GLAD_SKIP_SOURCES.has(id) || /^atlas-plate/.test(id) || /-dens-src\d+$/.test(id) || gladKept(id)) return spec;
+  // The relief's own stepped tints (round 108b) are in this map's colours already.
+  if (Array.isArray(spec.tiles) && spec.tiles.every((t) => /^relief:\/\//.test(t))) return spec;
   const salt = gladRowOf(id) || id;
   const out = Object.assign({}, spec);
   if (Array.isArray(spec.tiles)) out.tiles = spec.tiles.map((t) => /^gladpx:/.test(t) ? t : `gladpx://${encodeURIComponent(salt)}/${t}`);
@@ -4860,6 +4862,7 @@ function rasterChoiceClicked(btn) {
   const key = box && box.querySelector(`[data-rc-legend="${cfg.id}"]`);
   if (key) key.innerHTML = rasterKeyHtml(cfg);
   setLayerState(cfg.id, `${cfg.choices[cfg._pick].label} \u00b7 live`);
+  if (typeof rasterRiseRefresh === "function") rasterRiseRefresh(cfg.id);
 }
 
 /* ---------- Trase: a measure per region, chosen as on Trase's own map ---------- */
@@ -11655,17 +11658,44 @@ function no2Values(z, x, y) {
 // setting returns.
 const RELIEFS = new Map();              // row -> { values(z, x, y), colour(v), height(v), top }
 const reliefStack = [];                 // rows holding the ground, last on top
+// Round 108b (asked 28 September: the relief "looks too much like foam", wanted
+// "more official looking", and no white): the colour comes in eight even
+// steps of the row's own height scale, as a printed atlas tints its heights,
+// muted teal at the bottom to deep cobalt at the top with no white, and a thin
+// darker line is drawn where one step meets the next, like contour lines. The
+// shading is a plain grey-blue shadow with no bright highlight or glow.
+const RELIEF_BANDS = [[129, 187, 179, 150], [109, 181, 180, 163], [89, 163, 174, 176], [75, 140, 163, 189],
+  [64, 115, 147, 201], [54, 91, 131, 214], [45, 69, 114, 227], [36, 49, 97, 240]];
+const RELIEF_SHADE = { "hillshade-method": "igor", "hillshade-shadow-color": "rgba(12, 24, 40, 0.6)",
+  "hillshade-highlight-color": "rgba(0, 0, 0, 0)", "hillshade-accent-color": "rgba(12, 24, 40, 0.2)", "hillshade-exaggeration": 0.5 };
+function reliefBand(h) {
+  return Math.max(0, Math.min(RELIEF_BANDS.length - 1, Math.floor(Math.max(0, Math.min(1, h)) * RELIEF_BANDS.length)));
+}
+const bandHex = (h) => hexOf(RELIEF_BANDS[reliefBand(h)]);
 async function reliefTile(r, kind, z, x, y) {
   const vals = await r.values(z, x, y);
   const cv = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(256, 256) : Object.assign(document.createElement("canvas"), { width: 256, height: 256 });
   const ctx = cv.getContext("2d");
   const img = ctx.createImageData(256, 256);
   const d = img.data;
+  let band = null;
+  if (kind === "col") {
+    band = new Int8Array(256 * 256).fill(-1);
+    for (let i = 0; i < 256 * 256; i++) {
+      const v = vals ? vals[i] : 0;
+      if (r.colour(v)[3] > 0) band[i] = reliefBand(r.height(v));
+    }
+  }
   for (let i = 0; i < 256 * 256; i++) {
     const v = vals ? vals[i] : 0;
     if (kind === "col") {
-      const c = r.colour(v);
-      d[i * 4] = c[0]; d[i * 4 + 1] = c[1]; d[i * 4 + 2] = c[2]; d[i * 4 + 3] = c[3];
+      const b = band[i];
+      if (b < 0) continue;
+      const c = RELIEF_BANDS[b];
+      const rt = (i & 255) < 255 ? band[i + 1] : b, dn = i < 255 * 256 ? band[i + 256] : b;
+      const edge = rt !== b || dn !== b;
+      const k = edge ? 0.62 : 1;
+      d[i * 4] = Math.round(c[0] * k); d[i * 4 + 1] = Math.round(c[1] * k); d[i * 4 + 2] = Math.round(c[2] * k); d[i * 4 + 3] = edge ? 245 : c[3];
     } else {
       // Mapbox's height code: -10000 + (R * 65536 + G * 256 + B) / 10 metres.
       const code = Math.round((Math.max(0, Math.min(1, r.height(v))) * r.top + 10000) * 10);
@@ -11694,7 +11724,7 @@ function reliefLift() {
   return Math.max(0.03, Math.min(RELIEF_BOOST, Math.pow(2, 3 - z) * boost));
 }
 const no2Relief = { get on() { return reliefStack.length > 0; } };
-function reliefGround(id, on) {
+function reliefGround(id, on, noTilt) {
   if (typeof map.setTerrain !== "function") return;
   const i = reliefStack.indexOf(id);
   if (i > -1) reliefStack.splice(i, 1);
@@ -11702,7 +11732,7 @@ function reliefGround(id, on) {
   const top = reliefStack[reliefStack.length - 1];
   if (top) {
     map.setTerrain({ source: `${top}-dem`, exaggeration: reliefLift() });
-    if (on && typeof map.easeTo === "function" && map.getPitch && map.getPitch() < 30) map.easeTo({ pitch: 50, duration: 800 });
+    if (on && !noTilt && typeof map.easeTo === "function" && map.getPitch && map.getPitch() < 30) map.easeTo({ pitch: 50, duration: 800 });
   } else if (TERRAIN_ON) {
     liftNow = null;
     setTerrain(true);
@@ -11720,14 +11750,15 @@ function addReliefLayers(cfg, r, key, hint) {
   map.addSource(`${cfg.id}-col`, { type: "raster", tiles: [`relief://${cfg.id}/col/{z}/{x}/{y}`], tileSize: 256, maxzoom: r.maxzoom, attribution: cfg.attribution });
   map.addSource(`${cfg.id}-dem`, { type: "raster-dem", tiles: [`relief://${cfg.id}/dem/{z}/{x}/{y}`], tileSize: 256, maxzoom: r.maxzoom, encoding: "mapbox" });
   map.addSource(`${cfg.id}-shade`, { type: "raster-dem", tiles: [`relief://${cfg.id}/dem/{z}/{x}/{y}`], tileSize: 256, maxzoom: r.maxzoom, encoding: "mapbox" });
-  map.addLayer({ id: `${cfg.id}-hill`, type: "hillshade", source: `${cfg.id}-shade`, layout: { visibility: vis },
-    paint: { "hillshade-shadow-color": "#001a3a", "hillshade-highlight-color": "#cfe8f4", "hillshade-accent-color": "#00c8ff",
-             "hillshade-exaggeration": 0.85 } }, pointLayerAbove());
+  // Round 108b: the shading over the tints, as a printed atlas has it.
   map.addLayer({ id: `${cfg.id}-fill`, type: "raster", source: `${cfg.id}-col`, layout: { visibility: vis },
-    paint: { "raster-opacity": 0.85, "raster-resampling": "linear" } }, pointLayerAbove());
+    paint: { "raster-opacity": 0.85, "raster-resampling": "nearest" } }, pointLayerAbove());
+  map.addLayer({ id: `${cfg.id}-hill`, type: "hillshade", source: `${cfg.id}-shade`, layout: { visibility: vis },
+    paint: Object.assign({}, RELIEF_SHADE) }, pointLayerAbove());
   cfg._layerIds = [`${cfg.id}-hill`, `${cfg.id}-fill`];
   cfg.afterVisibility = (v) => reliefGround(cfg.id, v === "visible");
   key.forEach(([c]) => GLAD_OUT.add(c));
+  for (const c of RELIEF_BANDS) GLAD_OUT.add(hexOf(c));
   rowKey(cfg.id, key, hint);
   applyVisibility(cfg.id);
   buildLegend();
@@ -11736,7 +11767,7 @@ function addNo2Relief(cfg) {
   no2Relief.cfg = cfg;
   const r = { values: no2Values, colour: no2Colour, top: NO2_HEIGHT, maxzoom: 12,
     height: (v) => (v > 5 ? Math.log(v / 5) / Math.log(60) : 0) };
-  addReliefLayers(cfg, r, NO2_RAMP.slice(1).map(([v, c], i) => [hexOf(c), i === NO2_RAMP.length - 2 ? `${v} or more, highest ground` : `about ${v}`]),
+  addReliefLayers(cfg, r, NO2_RAMP.slice(1).map(([v], i) => [bandHex(r.height(v)), i === NO2_RAMP.length - 2 ? `${v} or more, highest ground` : `about ${v}`]),
     "Colour and height both follow the amount; the land's own altitude is not shown while this is on");
   setLayerState(cfg.id, "read live from Global Forest Watch's tiles · tilt the map to see the relief");
 }
@@ -11803,7 +11834,7 @@ async function addPopRelief(cfg) {
   cfg.keepColour = true;
   const r = { values, colour: (v) => rampColour(POP_RAMP, v), top: 150000, maxzoom: 10,
     height: (v) => (v > 1 ? Math.log10(v) / Math.log10(50000) : 0) };
-  addReliefLayers(cfg, r, POP_RAMP.slice(1).map(([v, c], i) => [hexOf(c), `${v.toLocaleString()}${i === POP_RAMP.length - 2 ? " or more, highest ground" : ""} people per square km`]),
+  addReliefLayers(cfg, r, POP_RAMP.slice(1).map(([v], i) => [bandHex(r.height(v)), `${v.toLocaleString()}${i === POP_RAMP.length - 2 ? " or more, highest ground" : ""} people per square km`]),
     "Colour and height both follow how many people live there; the land's own altitude is not shown while this is on");
   setLayerState(cfg.id, "GHSL 2020, people per square km · tilt the map to see the relief");
 }
@@ -11863,7 +11894,7 @@ async function addGlwRelief(cfg) {
   let ramp = glwRamp(pick[2]);
   const r = { values: heightValues(archive, 5), colour: (v) => rampColour(ramp, v), top: 150000, maxzoom: 10,
     height: (v) => (v > 1 ? Math.log10(v) / Math.log10(pick[2]) : 0) };
-  const keyOf = () => ramp.slice(1).map(([v, c], i, a) => [hexOf(c), `${v.toLocaleString()}${i === a.length - 1 ? " or more, highest ground" : ""} ${pick[0] === "chk" ? "birds" : "head"} per square km`]);
+  const keyOf = () => ramp.slice(1).map(([v], i, a) => [bandHex(r.height(v)), `${v.toLocaleString()}${i === a.length - 1 ? " or more, highest ground" : ""} ${pick[0] === "chk" ? "birds" : "head"} per square km`]);
   addReliefLayers(cfg, r, keyOf(), "Colour and height both follow how many animals are kept there; the land's own altitude is not shown while this is on");
   const box = document.getElementById("layers");
   const row = box && box.querySelector && box.querySelector(`[data-layer="${cfg.id}"]`);
@@ -12164,6 +12195,7 @@ function viewPanelHtml() {
     `<label class="layer lift-row"><input type="checkbox" id="lift-toggle"${LIFT_ON ? " checked" : ""}>` +
     `<span class="body"><span class="nm">Raise figures as heights</span>` +
     `<span class="lift-note">Layers that shade countries stand up like towers, taller where the figure is bigger, so countries can be compared when the map is tilted. ` +
+    `Picture layers rise where they cover most of the ground, keeping their own colours. ` +
     `Layers of points can also rise where their points crowd together (the row's own switch). Untick to keep everything flat.</span></span></label>` +
     `</div></div>`;
 }
@@ -12488,6 +12520,12 @@ function setLift(on) {
     if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", LIFT_ON && (visibility.get(id) || "visible") === "visible" ? "visible" : "none");
   }
   for (const [id, pr] of POINT_RELIEFS) if (pr.on) pointReliefSet(id, LIFT_ON && (visibility.get(id) || "visible") === "visible");
+  // Round 108b: every picture row that is showing rises, or lies flat again.
+  for (const [id, vis] of visibility) {
+    if (vis !== "visible" && !RASTER_RISE.has(id)) continue;
+    if (LIFT_ON && vis === "visible" && !RELIEFS.has(id) && rowRasterSource(id)) rasterRiseSet(id, true);
+    else if (RASTER_RISE.has(id)) rasterRiseSet(id, false);
+  }
 }
 async function addCountryLayer(cfg) {
   ensureBoundaries();
@@ -14293,9 +14331,9 @@ function pointReliefSet(id, on) {
       map.addSource(`${rid}-col`, { type: "raster", tiles: [`relief://${rid}/col/{z}/{x}/{y}`], tileSize: 256, maxzoom: 8 });
       map.addSource(`${rid}-dem`, { type: "raster-dem", tiles: [`relief://${rid}/dem/{z}/{x}/{y}`], tileSize: 256, maxzoom: 8, encoding: "mapbox" });
       map.addSource(`${rid}-shade`, { type: "raster-dem", tiles: [`relief://${rid}/dem/{z}/{x}/{y}`], tileSize: 256, maxzoom: 8, encoding: "mapbox" });
+      map.addLayer({ id: `${rid}-col`, type: "raster", source: `${rid}-col`, paint: { "raster-opacity": 0.8, "raster-resampling": "nearest" } }, pointLayerAbove());
       map.addLayer({ id: `${rid}-hill`, type: "hillshade", source: `${rid}-shade`,
-        paint: { "hillshade-shadow-color": "#001a3a", "hillshade-highlight-color": "#cfe8f4", "hillshade-accent-color": "#00c8ff", "hillshade-exaggeration": 0.85 } }, pointLayerAbove());
-      map.addLayer({ id: `${rid}-col`, type: "raster", source: `${rid}-col`, paint: { "raster-opacity": 0.8, "raster-resampling": "linear" } }, pointLayerAbove());
+        paint: Object.assign({}, RELIEF_SHADE) }, pointLayerAbove());
     }
     for (const l of [`${rid}-hill`, `${rid}-col`]) if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", "visible");
     reliefGround(rid, true);
@@ -14328,6 +14366,147 @@ function addPointReliefChip(cfg, features) {
     pointReliefSet(cfg.id, pr.on && LIFT_ON && (visibility.get(cfg.id) || "visible") === "visible");
   });
   anchor.after(el);
+}
+
+/* ---------- picture rows raised where they cover the ground (round 108b) ---------- */
+// Asked 28 September: with "Raise figures as heights" on, not every layer rose;
+// Tree cover lost to fire, a picture, stayed flat. A picture row carries no
+// figures, only coloured squares, so it is raised by how much of the ground it
+// covers: each square of the row's own picture is read, the share of it the
+// row paints is averaged over blocks of about a sixteenth of the square and
+// smoothed, and that share stands as high ground, shaded as the other reliefs
+// are. The row's own colours are kept; only the ground rises under them. As
+// with every relief, the row ticked last holds the ground.
+const RASTER_RISE = new Map();         // row -> { rid, src }
+const RISE_GRID = 16;
+function rowRasterSource(id) {
+  const style = map.getStyle && map.getStyle();
+  for (const l of (style && style.layers) || []) {
+    if (l.type !== "raster" || !l.source || !(l.id === `${id}-raster` || l.id.startsWith(`${id}-`))) continue;
+    if (/^relief:|__crowd|__rise/.test(l.source) || RELIEFS.has(id)) continue;
+    const s = map.getSource(l.source);
+    if (s && Array.isArray(s.tiles) && s.tiles.length) return l.source;
+  }
+  return null;
+}
+function riseTileUrl(tpl, z, x, y, scheme) {
+  const n = 1 << z, yy = scheme === "tms" ? n - 1 - y : y, w = 40075016.68557849 / n, o = 20037508.342789244;
+  const bbox = [x * w - o, o - (y + 1) * w, (x + 1) * w - o, o - y * w].join(",");
+  let q = "";
+  for (let i = z; i > 0; i--) { const m = 1 << (i - 1); q += ((x & m) ? 1 : 0) + ((y & m) ? 2 : 0); }
+  return tpl.replace("{z}", z).replace("{x}", x).replace("{y}", yy).replace("{bbox-epsg-3857}", bbox).replace("{quadkey}", q);
+}
+async function riseBytes(url) {
+  const scheme = (url.match(/^([a-z0-9]+):\/\//i) || [])[1];
+  if (scheme && scheme !== "https" && scheme !== "http") {
+    const h = PROTOCOL_HANDLERS[scheme];
+    if (!h) return null;
+    const got = await h({ url, type: "arrayBuffer" }, new AbortController());
+    return got && gladBuffer(got.data);
+  }
+  const r = await fetch(url);
+  return r.ok ? r.arrayBuffer() : null;
+}
+function riseValues(id, rr) {
+  const cache = new Map();
+  return (z, x, y) => {
+    const s = map.getSource(rr.src);
+    // The picture as it comes from its source: the colour mapping does not change what it covers.
+    const tpl = s && Array.isArray(s.tiles) ? String(s.tiles[0]).replace(/^gladpx:\/\/[^/]*\//, "") : null;
+    if (!tpl) return Promise.resolve(null);
+    const k = `${tpl}|${z}/${x}/${y}`;
+    if (cache.has(k)) return cache.get(k);
+    const p = (async () => {
+      // The picture's own square that holds this one (512-pixel pictures are a zoom up).
+      const big = (s.tileSize || 256) >= 512 ? 1 : 0;
+      const zs = Math.max(s.minzoom || 0, Math.min(z - big, s.maxzoom == null ? 22 : s.maxzoom));
+      const up = Math.max(0, z - big - zs), px = x >> up, py = y >> up;
+      let buf = null;
+      try { buf = await riseBytes(riseTileUrl(tpl, zs, px, py, s.scheme)); } catch (e) { buf = null; }
+      if (!buf) return null;
+      let bmp;
+      try { bmp = await createImageBitmap(new Blob([buf])); } catch (e) { return null; }
+      const W = bmp.width, H = bmp.height, f = 1 << up;
+      const sx = ((x - (px << up)) / f) * W, sy = ((y - (py << up)) / f) * H, sw = W / f, sh = H / f;
+      const cv = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(W, H) : Object.assign(document.createElement("canvas"), { width: W, height: H });
+      const ctx = cv.getContext("2d");
+      ctx.drawImage(bmp, 0, 0);
+      const a = ctx.getImageData(0, 0, W, H).data;
+      // The share painted, block by block.
+      const G = RISE_GRID, g = new Float32Array(G * G);
+      for (let gy = 0; gy < G; gy++) for (let gx = 0; gx < G; gx++) {
+        const x0 = Math.floor(sx + gx * sw / G), x1 = Math.max(x0 + 1, Math.floor(sx + (gx + 1) * sw / G));
+        const y0 = Math.floor(sy + gy * sh / G), y1 = Math.max(y0 + 1, Math.floor(sy + (gy + 1) * sh / G));
+        let t = 0, n = 0;
+        for (let yy = y0; yy < y1 && yy < H; yy++) for (let xx = x0; xx < x1 && xx < W; xx++) { t += a[(yy * W + xx) * 4 + 3]; n++; }
+        g[gy * G + gx] = n ? t / n / 255 : 0;
+      }
+      // Smoothed once, then spread over the square's pixels.
+      const sm = new Float32Array(G * G);
+      for (let gy = 0; gy < G; gy++) for (let gx = 0; gx < G; gx++) {
+        let t = 0, n = 0;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          const yy = gy + dy, xx = gx + dx;
+          if (yy >= 0 && yy < G && xx >= 0 && xx < G) { t += g[yy * G + xx]; n++; }
+        }
+        sm[gy * G + gx] = t / n;
+      }
+      const out = new Float32Array(256 * 256);
+      for (let j = 0; j < 256; j++) {
+        const fy = Math.max(0, Math.min(G - 1, (j + 0.5) / 256 * G - 0.5)), y0 = Math.floor(fy), y1 = Math.min(G - 1, y0 + 1), ty = fy - y0;
+        for (let i = 0; i < 256; i++) {
+          const fx = Math.max(0, Math.min(G - 1, (i + 0.5) / 256 * G - 0.5)), x0 = Math.floor(fx), x1 = Math.min(G - 1, x0 + 1), tx = fx - x0;
+          out[j * 256 + i] = (sm[y0 * G + x0] * (1 - tx) + sm[y0 * G + x1] * tx) * (1 - ty) + (sm[y1 * G + x0] * (1 - tx) + sm[y1 * G + x1] * tx) * ty;
+        }
+      }
+      return out;
+    })();
+    cache.set(k, p);
+    if (cache.size > 600) cache.delete(cache.keys().next().value);
+    return p;
+  };
+}
+function rasterRiseSet(id, on, tries) {
+  let rr = RASTER_RISE.get(id);
+  if (!on) {
+    if (rr && map.getLayer(`${rr.rid}-hill`)) map.setLayoutProperty(`${rr.rid}-hill`, "visibility", "none");
+    if (rr) reliefGround(rr.rid, false);
+    return;
+  }
+  const src = rowRasterSource(id);
+  if (!src) {
+    // The row's picture is added a moment after it is ticked.
+    const box = document.querySelector && document.querySelector(`[data-layer="${id}"]`);
+    if (box && box.checked && (tries || 0) < 6) setTimeout(() => { if (LIFT_ON && (visibility.get(id) || "visible") === "visible") rasterRiseSet(id, true, (tries || 0) + 1); }, 1500);
+    return;
+  }
+  if (!rr) {
+    rr = { rid: `${id}__rise`, src };
+    RASTER_RISE.set(id, rr);
+    RELIEFS.set(rr.rid, { values: riseValues(id, rr), colour: () => [0, 0, 0, 0], height: (v) => Math.sqrt(Math.max(0, v)), top: 120000, maxzoom: 9 });
+  }
+  rr.src = src;
+  if (!map.getSource(`${rr.rid}-dem`)) {
+    map.addSource(`${rr.rid}-dem`, { type: "raster-dem", tiles: [`relief://${rr.rid}/dem/{z}/{x}/{y}`], tileSize: 256, maxzoom: 9, encoding: "mapbox" });
+    map.addSource(`${rr.rid}-shade`, { type: "raster-dem", tiles: [`relief://${rr.rid}/dem/{z}/{x}/{y}`], tileSize: 256, maxzoom: 9, encoding: "mapbox" });
+    // The shading lies over the row's picture, as an atlas shades its tints.
+    const order = map.getStyle().layers, at = order.findIndex((l) => l.type === "raster" && l.source === src);
+    const next = at > -1 && order[at + 1] ? order[at + 1].id : pointLayerAbove();
+    map.addLayer({ id: `${rr.rid}-hill`, type: "hillshade", source: `${rr.rid}-shade`, paint: Object.assign({}, RELIEF_SHADE) }, next);
+  }
+  map.setLayoutProperty(`${rr.rid}-hill`, "visibility", "visible");
+  reliefGround(rr.rid, true, true);
+}
+// A new choice under the row (another year, another source) is read afresh.
+function rasterRiseRefresh(id) {
+  const rr = RASTER_RISE.get(id);
+  if (!rr) return;
+  rr.src = rowRasterSource(id) || rr.src;
+  const q = Date.now().toString(36);
+  for (const kind of ["dem", "shade"]) {
+    const s = map.getSource(`${rr.rid}-${kind}`);
+    if (s && s.setTiles) s.setTiles([`relief://${rr.rid}/dem/{z}/{x}/{y}?${q}`]);
+  }
 }
 
 function loadSitemapBoxes(cfg) {
@@ -16162,6 +16341,8 @@ function applyVisibility(id) {
   const extra = (cfg || childById(id) || {})._layerIds;
   if (extra) for (const l of extra) if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", /-lift$/.test(l) && !LIFT_ON ? "none" : vis);
   if (typeof POINT_RELIEFS !== "undefined" && POINT_RELIEFS.has(id) && POINT_RELIEFS.get(id).on) pointReliefSet(id, vis === "visible" && LIFT_ON);
+  // Round 108b: a picture row rises where it covers the ground.
+  if (typeof RASTER_RISE !== "undefined" && (vis === "visible" ? LIFT_ON && !RELIEFS.has(id) : RASTER_RISE.has(id))) rasterRiseSet(id, vis === "visible");
   // A row that carries another source inside it switches that one with it.
   // (Rows inside a group, such as Buildings, are found by childById.)
   const rc = cfg || (typeof childById === "function" ? childById(id) : null);
@@ -16705,11 +16886,15 @@ const MORE_MAPS = {
       // every tile failed. Its WMS draws the same detections as pictures, all
       // three VIIRS satellites together, today's and yesterday's (UTC), which
       // together cover the last 24 hours.
+      // Round 108b (asked 28 September: it still did not load): GIBS draws its
+      // vector layers, the fires among them, only from its EPSG:4326 WMS; the
+      // EPSG:3857 one answers with nothing. Its documented way round is the
+      // 4326 address asked in web Mercator (version 1.1.1, SRS=EPSG:3857).
       attribution: "Fire: NASA EOSDIS GIBS / VIIRS (Suomi NPP, NOAA-20, NOAA-21)", maxzoom: 12,
       choices: [["today (UTC), as far as it has come in", 0], ["yesterday (UTC)", 1]].map(([label, back]) => ({ label,
-        tiles: "https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0" +
+        tiles: "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1" +
           "&LAYERS=VIIRS_SNPP_Thermal_Anomalies_375m_All,VIIRS_NOAA20_Thermal_Anomalies_375m_All,VIIRS_NOAA21_Thermal_Anomalies_375m_All" +
-          "&STYLES=&CRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=true" +
+          "&STYLES=&SRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=true" +
           `&TIME=${new Date(Date.now() - back * 864e5).toISOString().slice(0, 10)}` })),
       rasterPaint: { "raster-opacity": 0.95 },
       note: "Every fire and hot spot NASA's three VIIRS satellites detected today and yesterday (UTC), 375 m, drawn by NASA's own map service each time it is ticked; a chip picks the day. Fire exposes remains with no permit and no applicant (the Unearthings map's words); under Fire too." },
@@ -17110,22 +17295,6 @@ const OTHER_MAPS = {
       slug: "political-regime",
       note: "Each country's regime type by the Regimes of the World classification, from V-Dem's data: closed autocracy (0), electoral autocracy (1), electoral democracy (2) or liberal democracy (3). Read live from Our World in Data each time it is ticked (V-Dem's figures, as Our World in Data publishes them), by country and year." },
     // ---- round 107b (asked 28 September) ----
-    { id: "ai_threat_overall", name: "The AI's pick: the 20 countries most at threat overall, and why (Gemini, daily)", unit: "score, 1 for its first pick", colour: "#B04FC8", keepColour: true, route: "country", ready: true, lazy: true, buildScript: "ai_threat",
-      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/threat/ai.json", field: "ai_overall" }, linear: [0, 1],
-      countryNote: "The AI's rank for this country, 1 for its first pick of 20, as a score from 1 down to 0.05",
-      note: "Written each day by an AI (Google's Gemini, free tier) from the figures behind the map's own threat index, and nothing else: it is given every country's figures and asked for the 20 most at threat in this category, with its reasons. Its answer is checked: a country must be in the figures, and a reason giving a number that is not one of that country's figures is marked in the box. Its words are kept as written. An AI can still misread figures; the index rows above are the worked-out version. Made by culprits-tiles-more (scripts/ai_threat.py)." },
-    { id: "ai_threat_destruction", name: "The AI's pick: the 20 countries most at threat from destruction of the planet, and why (Gemini, daily)", unit: "score, 1 for its first pick", colour: "#B04FC8", keepColour: true, route: "country", ready: true, lazy: true, buildScript: "ai_threat",
-      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/threat/ai.json", field: "ai_destruction" }, linear: [0, 1],
-      countryNote: "The AI's rank for this country, 1 for its first pick of 20, as a score from 1 down to 0.05",
-      note: "Written each day by an AI (Google's Gemini, free tier) from the figures behind the map's own threat index, and nothing else: it is given every country's figures and asked for the 20 most at threat in this category, with its reasons. Its answer is checked: a country must be in the figures, and a reason giving a number that is not one of that country's figures is marked in the box. Its words are kept as written. An AI can still misread figures; the index rows above are the worked-out version. Made by culprits-tiles-more (scripts/ai_threat.py)." },
-    { id: "ai_threat_suppression", name: "The AI's pick: the 20 countries most at threat from suppression of people, and why (Gemini, daily)", unit: "score, 1 for its first pick", colour: "#B04FC8", keepColour: true, route: "country", ready: true, lazy: true, buildScript: "ai_threat",
-      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/threat/ai.json", field: "ai_suppression" }, linear: [0, 1],
-      countryNote: "The AI's rank for this country, 1 for its first pick of 20, as a score from 1 down to 0.05",
-      note: "Written each day by an AI (Google's Gemini, free tier) from the figures behind the map's own threat index, and nothing else: it is given every country's figures and asked for the 20 most at threat in this category, with its reasons. Its answer is checked: a country must be in the figures, and a reason giving a number that is not one of that country's figures is marked in the box. Its words are kept as written. An AI can still misread figures; the index rows above are the worked-out version. Made by culprits-tiles-more (scripts/ai_threat.py)." },
-    { id: "ai_threat_crime", name: "The AI's pick: the 20 countries most at threat from organised crime, and why (Gemini, daily)", unit: "score, 1 for its first pick", colour: "#B04FC8", keepColour: true, route: "country", ready: true, lazy: true, buildScript: "ai_threat",
-      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/threat/ai.json", field: "ai_crime" }, linear: [0, 1],
-      countryNote: "The AI's rank for this country, 1 for its first pick of 20, as a score from 1 down to 0.05",
-      note: "Written each day by an AI (Google's Gemini, free tier) from the figures behind the map's own threat index, and nothing else: it is given every country's figures and asked for the 20 most at threat in this category, with its reasons. Its answer is checked: a country must be in the figures, and a reason giving a number that is not one of that country's figures is marked in the box. Its words are kept as written. An AI can still misread figures; the index rows above are the worked-out version. Made by culprits-tiles-more (scripts/ai_threat.py)." },
     { id: "attacks_cpt_areas", name: "Areas in land conflict in Brazil, year by year (Pastoral Land Commission)", unit: "areas", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Areas in land conflict in Brazil, year by year", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/cpt_areas_of_conflict.geojson" }], nameFrom: ["name"], autoGroups: true,
       note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the Pastoral Land Commission's yearly tables of areas in conflict: 8,149 rows, at their town (7,947) or state. Rows read for 6,911 of them add up to the count each state's subtotal prints; each box says whether its state matched." },
@@ -18572,7 +18741,7 @@ const LAYER_KIND = {
   ibama_embargos: ["insentient", "downstream"],
   ibama_infractions: ["insentient", "downstream"],
   raisg_illegal_mining: ["insentient", "downstream"],
-  gw_defenders: ["human", "downstream"], ai_threat_overall: ["human", "downstream"], ai_threat_destruction: ["human", "downstream"], ai_threat_suppression: ["human", "downstream"], ai_threat_crime: ["human", "downstream"], attacks_cpt_areas: ["human", "downstream"], attacks_cpt_land: ["human", "downstream"], attacks_cpt_water: ["human", "downstream"], attacks_cpt_overexploitation: ["human", "downstream"], attacks_cpt_slave_cases: ["human", "downstream"], inpe_fire_2023: ["insentient", "downstream"], attacks_gw_killings: ["human", "downstream"], attacks_land_resistance: ["human", "downstream"], attacks_frontline: ["human", "downstream"], attacks_cimi: ["human", "downstream"], attacks_caci: ["human", "downstream"], attacks_cpt_violence: ["human", "downstream"], attacks_cpt_threatened: ["human", "downstream"], attacks_cpt_massacres: ["human", "downstream"], attacks_public_agencies: ["human", "downstream"], attacks_slave_labour_states: ["human", "downstream"], police_stations_latam: ["human", "upstream"],
+  gw_defenders: ["human", "downstream"], attacks_cpt_areas: ["human", "downstream"], attacks_cpt_land: ["human", "downstream"], attacks_cpt_water: ["human", "downstream"], attacks_cpt_overexploitation: ["human", "downstream"], attacks_cpt_slave_cases: ["human", "downstream"], inpe_fire_2023: ["insentient", "downstream"], attacks_gw_killings: ["human", "downstream"], attacks_land_resistance: ["human", "downstream"], attacks_frontline: ["human", "downstream"], attacks_cimi: ["human", "downstream"], attacks_caci: ["human", "downstream"], attacks_cpt_violence: ["human", "downstream"], attacks_cpt_threatened: ["human", "downstream"], attacks_cpt_massacres: ["human", "downstream"], attacks_public_agencies: ["human", "downstream"], attacks_slave_labour_states: ["human", "downstream"], police_stations_latam: ["human", "upstream"],
   goc_flora: ["plant", "downstream"],
   goc_fauna: ["animal", "downstream"],
   goc_resources: ["insentient", "downstream"],
@@ -19515,10 +19684,6 @@ const NOT_LIVE = {
   attacks_cpt_overexploitation: "From the owner's Attacks On Activists collection, read once (28 September 2026)",
   attacks_cpt_slave_cases: "From the owner's Attacks On Activists collection, read once (28 September 2026)",
   inpe_fire_2023: "From the owner's Attacks On Activists collection, cut into tiles by culprits-tiles-more",
-  ai_threat_overall: "Written daily by an AI (Gemini) from the map's own figures, by culprits-tiles-more",
-  ai_threat_destruction: "Written daily by an AI (Gemini) from the map's own figures, by culprits-tiles-more",
-  ai_threat_suppression: "Written daily by an AI (Gemini) from the map's own figures, by culprits-tiles-more",
-  ai_threat_crime: "Written daily by an AI (Gemini) from the map's own figures, by culprits-tiles-more",
   attacks_gw_killings: "From the owner's Attacks On Activists collection, read once (28 September 2026)",
   attacks_land_resistance: "From the owner's Attacks On Activists collection, read once (28 September 2026)",
   attacks_frontline: "From the owner's Attacks On Activists collection, read once (28 September 2026)",
@@ -19606,8 +19771,6 @@ const PANEL_ORDER = [
   { h: 1, bundle: "selected", colour: "#5E6470" },
   // Round 105b (asked 28 September): where the threats are greatest, from the
   // map's own country figures, rebuilt daily.
-  { h: 1, t: "Where the threat is greatest" }, "threat_overall", "threat_destruction", "threat_suppression", "threat_crime",
-  "ai_threat_overall", "ai_threat_destruction", "ai_threat_suppression", "ai_threat_crime",
   { h: 1, t: "On-planet invasion" },
   { h: 2, t: "Pre-birth frontlines" },
   { h: 3, t: "Genetic engineering" }, "gmo_env", "gmo_decisions", "gmo_ogtr", "gmo_industry", "gmo_escapes", "gmo_cultivation", "gmo_gmofree", "gmo_incidents", "gmo_regime", "gmo_treaties", "gmo_trials", "gmo_bodies", "gmo_act",
@@ -19947,8 +20110,6 @@ const PANEL_ORDER = [
   { h: 4, t: "School" }, "school_culprits", "giga_school_points", "giga_countries",
   { h: 4, t: "Politics as a front" },
   // Round 105b (asked 28 September): V-Dem's democracy scores.
-  { h: 5, t: "How democratic each country is (V-Dem)" }, "vdem_liberal", "vdem_electoral", "vdem_participatory", "vdem_deliberative",
-  "vdem_egalitarian", "vdem_expression", "vdem_rights", "vdem_civil", "vdem_regime",
   { h: 5, t: "Voter suppression" },
   { h: 5, t: "Representation as presentation" },
   { h: 5, t: "For money-written-law" },
@@ -19990,6 +20151,8 @@ const PANEL_ORDER = [
   { h: 1, t: "Buildings" }, "building_types", "osm_landuse",
 ];
 const PANEL_REMOVED = new Set([
+  // Round 107b (asked 28 September): the threat index and V-Dem rows are not wanted.
+  "threat_overall", "threat_destruction", "threat_suppression", "threat_crime", "vdem_liberal", "vdem_electoral", "vdem_participatory", "vdem_deliberative", "vdem_egalitarian", "vdem_expression", "vdem_rights", "vdem_civil", "vdem_regime",
   // Round 105b (asked 28 September): the rows that only showed another site's
   // page. CFR's two trackers are the map's own rows policy_rates and
   // imbalances; Troutwood's map is troutwood_companies and wreckers_world;
@@ -20718,11 +20881,17 @@ function layerMenuHelp(box) {
   const el = document.createElement("div");
   el.id = "layer-help";
   el.className = "layer-help";
-  el.innerHTML = `<button type="button" class="chip" data-reset-rows title="Put every layer back where it started in this list">Reset layers menu</button>` +
-    `<span class="lh-t">Drag a layer by its \u2807 grip above or below another to draw it above or below that layer on the map. ` +
-    `Drag it anywhere, even out of its heading or onto the Selected Layers heading, to gather your own selection.</span>`;
+  el.innerHTML = `<button type="button" class="chip" data-reset-rows title="Put every layer back where it started in this list">Reset layers menu</button>`;
   el.querySelector("[data-reset-rows]").addEventListener("click", () => resetRows(box));
   if (at && at.after) at.after(el); else if (box.parentElement) box.parentElement.insertBefore(el, box);
+  // Round 108b (asked 28 September): how to drag rows sits just above the
+  // Selected Layers heading, the top of the box, rather than under it all.
+  const hint = document.createElement("div");
+  hint.id = "layer-drag-hint";
+  hint.className = "layer-help";
+  hint.innerHTML = `<span class="lh-t">Drag a layer by its \u2807 grip above or below another to draw it above or below that layer on the map. ` +
+    `Drag it anywhere, even out of its heading or onto the Selected Layers heading, to gather your own selection.</span>`;
+  if (box.parentElement && box.parentElement.insertBefore) box.parentElement.insertBefore(hint, box);
   addStyle(".layer-help{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 6px;font-size:10.5px;color:var(--dim)}" +
     ".layer-help .chip{font:inherit;font-size:11px;padding:2px 8px;border-radius:10px;border:1px solid rgba(30,160,200,.45);background:none;color:var(--ink,#e8e2d6);cursor:pointer}" +
     ".layer-help .lh-t{flex:1 1 200px}#layers .toc-line.drop-below{outline:1px dashed rgba(30,160,200,.8);outline-offset:2px}", "layer-help");

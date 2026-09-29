@@ -5,6 +5,23 @@ touches.
 
 ---
 
+## Round 108b (28 September)
+
+Needs round 107b. No tiles patch.
+
+- Carries the revised 107b, which could not apply over the first 107b: the
+  threat index (threat_*), V-Dem (vdem_*) and AI (ai_threat_*) rows are out;
+  the owner dropped those requests. The 107b note below describes the first 107b.
+- The note on dragging rows (#layer-drag-hint) sits above the Selected Layers
+  heading; Reset layers menu stays under the layers.
+- Reliefs: RELIEF_BANDS, eight stepped tints teal to cobalt, no white, darker
+  line where steps meet; RELIEF_SHADE (igor, no highlight) over the tints.
+- Picture rows rise under Raise figures as heights (RASTER_RISE, rasterRiseSet):
+  height is the share of ground the row's own picture paints, 16x16 blocks.
+- remains_fire reads GIBS's epsg4326 WMS with SRS=EPSG:3857 (the 3857 WMS does
+  not draw vector layers).
+- Script version app.js?v=999.
+
 ## Round 107b (28 September)
 
 Needs round 106b. Tiles patches round107b_tiles.py and round107c_tiles.py beside it.

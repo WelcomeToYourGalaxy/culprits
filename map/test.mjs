@@ -4917,7 +4917,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("the relief holds the ground while shown and gives it back after", /map\.setTerrain\(\{ source: `\$\{top\}-dem`, exaggeration: reliefLift\(\) \}\)/.test(src) &&
         /cfg\.afterVisibility = \(v\) => reliefGround\(cfg\.id, v === "visible"\);/.test(src) && /if \(no2Relief\.on\) return;/.test(src));
   check("the active fire row asks NASA's map service for pictures of all three VIIRS satellites", /VIIRS_SNPP_Thermal_Anomalies_375m_All,VIIRS_NOAA20_Thermal_Anomalies_375m_All,VIIRS_NOAA21_Thermal_Anomalies_375m_All/.test(src) &&
-        /wms\/epsg3857\/best\/wms\.cgi/.test(src));
+        /wms\/epsg(3857|4326)\/best\/wms\.cgi/.test(src));
   const lib = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return { cataloguePlaces, CATALOGUE_TAKEN_OUT };")();
   const f = (t, id = "") => lib.cataloguePlaces(`${t} ${id}`, `${t} ${id}`).join(" | ");
   check("the nine Equatorial Asia fire alert rows are out",
@@ -5538,10 +5538,10 @@ console.log("\nround 105b (28 September): threat index, V-Dem, Troutwood's compa
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const order = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("const PANEL_REMOVED")) + "; return PANEL_ORDER;")();
-  check("where the threat is greatest, four rows from the daily index, right under Selected Layers",
+  check("where the threat is greatest: taken out in round 107b", /"threat_overall", "threat_destruction", "threat_suppression", "threat_crime", "vdem_liberal"/.test(src) || 
         order[1] && order[1].t === "Where the threat is greatest" && ["threat_overall", "threat_destruction", "threat_suppression", "threat_crime"].every((id, i) => order[2 + i] === id) &&
         (src.match(/culprits-tiles-more\/threat\/index\.json", field: "(overall|destruction|suppression|crime)" \}, linear: \[0, 1\]/g) || []).length === 4);
-  check("V-Dem's scores under Politics as a front, read live from Our World in Data",
+  check("V-Dem's scores: taken out in round 107b", /"vdem_civil", "vdem_regime",/.test(src.slice(src.indexOf("const PANEL_REMOVED"))) || 
         /\{ h: 5, t: "How democratic each country is \(V-Dem\)" \}, "vdem_liberal",/.test(src) && /id: "vdem_liberal"[^\n]*route: "owidgrapher"/.test(src) && /slug: "liberal-democracy-index",/.test(src));
   check("Troutwood's companies and Wreckers of the Earth worldwide are the map's own rows; the rows that only showed other sites' pages are out",
         /"stock_exchanges", "troutwood_companies",/.test(src) && /"ejatlas", "wreckers_world", "wreckers_umap",/.test(src) &&
@@ -5588,15 +5588,34 @@ console.log("\nround 106b (28 September): the View and 3D terrain boxes, Turn on
         /\{ h: 3, t: "Of humans" \}, "gw_defenders", "attacks_gw_killings", "attacks_land_resistance", "attacks_frontline", "attacks_cimi",/.test(src) &&
         /id: "attacks_gw_killings"[^\n]*route: "geojsonlive"/.test(src) && /if \(cfg\.autoGroups && !cfg\.groupColours\)/.test(src) && /dates of birth and photo links included, at the owner\x27s word/.test(src));
 }
-console.log("\nround 107b (28 September): the AI's pick, the Pastoral Land Commission's tables, fires in South America");
+console.log("\nround 107b (28 September): threat index and V-Dem out, the Pastoral Land Commission's tables, fires in South America");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("the AI's pick of the countries most at threat, four rows under the threat index, read from the daily file",
-        /"threat_crime",\n  "ai_threat_overall", "ai_threat_destruction", "ai_threat_suppression", "ai_threat_crime",/.test(src) &&
-        (src.match(/culprits-tiles-more\/threat\/ai\.json", field: "ai_(overall|destruction|suppression|crime)" \}/g) || []).length === 4);
+  check("the threat index and V-Dem rows are out of the menu, and no AI rows", /\/\/ Round 107b \(asked 28 September\): the threat index and V-Dem rows are not wanted\.\n  "threat_overall",[^\n]*"vdem_regime",/.test(src) &&
+        !/\{ h: 1, t: "Where the threat is greatest" \}/.test(src) && !/ai_threat/.test(src));
   check("the Pastoral Land Commission's case tables and INPE's 2023 fires are rows",
         /"attacks_cpt_areas", "attacks_cpt_land", "attacks_cpt_water", "attacks_cpt_overexploitation",/.test(src) && /"attacks_slave_labour_states", "attacks_cpt_slave_cases",/.test(src) &&
         /\{ h: 3, t: "Fire" \}, "remains_fire", "inpe_fire_2023",/.test(src) && /id: "inpe_fire_2023"[^\n]*route: "pmtiles"/.test(src));
+}
+console.log("\nround 108b (28 September): the drag note above Selected Layers, an atlas-like relief, picture rows raised, the fires read again");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("the note on dragging rows sits just above the Selected Layers heading", /hint\.id = "layer-drag-hint";/.test(src) && /box\.parentElement\.insertBefore\(hint, box\)/.test(src));
+  const R = new Function("hexOf", src.slice(src.indexOf("const RELIEF_BANDS = "), src.indexOf("async function reliefTile(")) + "; return { RELIEF_BANDS, reliefBand, RELIEF_SHADE };")((c) => c);
+  const light = (c) => (Math.max(c[0], c[1], c[2]) + Math.min(c[0], c[1], c[2])) / 510;
+  check("the relief comes in eight steps, teal to cobalt, none of them white or green",
+        R.RELIEF_BANDS.length === 8 && R.RELIEF_BANDS.every((c) => light(c) < 0.7 && c[2] >= c[1] - 10) && R.reliefBand(0) === 0 && R.reliefBand(1) === 7 && R.reliefBand(0.5) === 4);
+  check("the relief's shading has no bright highlight or glow", R.RELIEF_SHADE["hillshade-highlight-color"] === "rgba(0, 0, 0, 0)" && !/#cfe8f4|#00c8ff/.test(src));
+  check("each step is edged with a darker line, like contours", /const edge = rt !== b \|\| dn !== b;/.test(src));
+  const U = new Function(src.slice(src.indexOf("function riseTileUrl("), src.indexOf("async function riseBytes(")) + "; return riseTileUrl;")();
+  check("a picture row's squares are asked for by zoom, by box and by quadkey", U("a/{z}/{x}/{y}", 3, 2, 1) === "a/3/2/1" && U("a/{z}/{x}/{y}", 1, 0, 0, "tms") === "a/1/0/1" &&
+        U("q{quadkey}", 2, 1, 1) === "q03" && U("{bbox-epsg-3857}", 0, 0, 0) === "-20037508.342789244,-20037508.342789244,20037508.342789244,20037508.342789244");
+  check("with Raise figures as heights on, picture rows rise, and lie flat when it is off",
+        /rasterRiseSet\(id, vis === "visible"\)/.test(src) && /if \(LIFT_ON && vis === "visible" && !RELIEFS\.has\(id\) && rowRasterSource\(id\)\) rasterRiseSet\(id, true\);/.test(src) &&
+        /Picture layers rise where they cover most of the ground/.test(src));
+  check("the active fires come from NASA's 4326 map service asked in web Mercator", /wms\/epsg4326\/best\/wms\.cgi\?SERVICE=WMS&REQUEST=GetMap&VERSION=1\.1\.1/.test(src) && /&SRS=EPSG:3857&BBOX=\{bbox-epsg-3857\}/.test(src));
+  check("the page asks for this round's script", /app\.js\?v=999/.test(html));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
