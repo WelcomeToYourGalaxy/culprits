@@ -177,6 +177,9 @@
   .left-col .panel.shut{flex:0 0 auto;height:auto !important}
   /* A page panel sets display:flex, which would otherwise override hidden. */
   .companion[hidden]{display:none !important}
+  /* Round 109b: the Atlas's panels set display:flex on themselves, which kept them
+     showing after they were closed. */
+  #atlas-panel[hidden],#atlas-city[hidden]{display:none !important}
   .space-back{position:fixed;right:14px;top:14px;z-index:60;font:inherit;font-size:14px;
     color:var(--bone);background:rgba(11,16,23,.86);border:1px solid var(--rule);border-radius:4px;
     padding:11px 16px;cursor:pointer}
@@ -548,7 +551,7 @@
   };
 })();
 </script>
-<script src="./app.js?v=999"></script>
+<script src="./app.js?v=1000"></script>
 <script src="./wire.js?v=67"></script>
 <!-- The drag bar on the layers box's right edge (made by columnEdge() in
      app.js) ran the full height of the column, so it stayed standing beside

@@ -5,6 +5,28 @@ touches.
 
 ---
 
+## Round 109b (28 September)
+
+Needs round 108b. No tiles patch.
+
+- Of the insentient: heading without quotation marks.
+- The Raise where the points crowd chip is gone. With Raise figures as heights on,
+  riseRow() raises every row: pictures by coverage (rasterRiseSet), points, areas
+  and lines by count/coverage on a 0.25 degree grid (pointReliefSet, shapeCover),
+  read bilinearly; no tint layer, only height and shading. Tile-read rows are
+  recounted on moveend while they hold the ground.
+- Alert rows (gfw, gfw_dist, gfw_dist_year): recolorAlerts gives GFW's three
+  confidence pinks (gfw-tile-cache alerts.py) three steps, ALERT_TONES; keepColour;
+  key under the row.
+- Layer colours: a colour wheel (THEME_CUSTOM, customTheme, themeWheelWire) with
+  a brightness slider and As drawn / Suit basemap buttons; theme 'custom'.
+- Atlas cities: a click opens only #atlas-city (no popup). #atlas-panel[hidden]
+  and #atlas-city[hidden] now display:none (their inline display:flex had kept
+  them showing). ac-grow button top left; atlasCityKey shows the conflicts-map
+  key from atlas/legends.json, labelled as such.
+- test.mjs: appVersion(html) >= N replaces the per-round version regexes.
+- Script version app.js?v=1000.
+
 ## Round 108b (28 September)
 
 Needs round 107b. No tiles patch.

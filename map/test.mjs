@@ -18,6 +18,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
+const appVersion = (h) => Number((String(h).match(/app\.js\?v=(\d+)/) || [])[1] || 0);
 let pass = 0, fail = 0;
 function check(name, cond, detail = "") {
   if (cond) { pass++; console.log(`  ok    ${name}`); }
@@ -4090,7 +4091,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         !/fortune500|interactives\.fortune\.com/.test(src) && /"site_social_spheres", "largest_companies",/.test(src));
   check("the row reads the weekly copy and shows every field", /id: "largest_companies", name: "The 500 largest companies by revenue \(compiled from Wikidata\)"[^\n]*route: "geojsonlive"/.test(src) &&
         /culprits-tiles-more\/companies\/largest\.geojson/.test(src) && /largest_companies: "Compiled weekly from Wikidata/.test(src));
-  check("the page asks for a fresh script", /app\.js\?v=(4[5-9]|[5-9]\d)/.test(html) && /wire\.js\?v=(4[5-9]|[5-9]\d)/.test(html));
+  check("the page asks for a fresh script", appVersion(html) >= 45 && /wire\.js\?v=(4[5-9]|[5-9]\d)/.test(html));
 }
 {
   console.log("\nround 46: every layer drawn in the GLAD-S2 colours, not only its swatch");
@@ -4116,7 +4117,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /tiles = spec\.tiles\.map\(\(t\) => \/\^gladpx:\/\.test\(t\) \? t : `gladpx:\/\/\$\{encodeURIComponent\(salt\)\}\/\$\{t\}`\)/.test(src) &&
         /const GLAD_SKIP_SOURCES = new Set\(\["base", "s2", "hillshade", "labels"\]\)/.test(src) && /GLAD_PM_RASTER\.get\(m\[1\]\)/.test(src));
   check("every layer added and every colour set passes through it", /try \{ layer = gladLayer\(layer\); \}/.test(src) && /v = gladPaint\(id, prop, v\);/.test(src) && /spec = gladSourceSpec\(id, spec\);/.test(src));
-  check("the page asks for a fresh script", /app\.js\?v=(4[6-9]|[5-9]\d)/.test(html));
+  check("the page asks for a fresh script", appVersion(html) >= 46);
 }
 {
   console.log("\nround 47: Eyes leaves Earth; natural disasters; soil biodiversity; keys under Showing; columns stand up");
@@ -4142,7 +4143,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /map\.easeTo\(\{ pitch: COLUMN_TILT, duration: 900 \}\)/.test(src));
   check("Banking on Climate Chaos is mapped: its banks at their headquarters, every figure in the box", /id: "bocc"[^\n]*route: "geojsonlive"/.test(src) &&
         /culprits-tiles-more\/bocc\/banks\.geojson" \}\], nameFrom: \["bank"\]/.test(src) && /  bocc: "The report's league tables/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=(4[7-9]|[5-9]\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 47);
 }
 {
   console.log("\nround 48: rows refiled and taken out; colour scales that can be told apart; the drug and Eyes maps copied whole");
@@ -4197,7 +4198,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         reg.some((m) => m.id === "capture_map" && m.rich === "capture") && reg.some((m) => m.id === "site_eyes_network" && m.rich === "eyes") &&
         /id: "capture_map"[^\n]*route: "sitemap"[^\n]*noAreaDots: true/.test(src) &&
         fs.existsSync(path.join(HERE, "..", "pipeline", "sitemaps", "rich_maps.py")));
-  check("the page asks for this round's script", /app\.js\?v=(4[8-9]|[5-9]\d)/.test(html) && /wire\.js\?v=(4[8-9]|[5-9]\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 48 && /wire\.js\?v=(4[8-9]|[5-9]\d)/.test(html));
 }
 {
   console.log("\nround 49: Land and territory pared down; LandMark one row with two parts; Global Forest Watch's working files out");
@@ -4231,7 +4232,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("Global Forest Watch's working files are taken out, \"To delete\" included",
         out("SDPT Whitelist (iso) gfw_planted_forests_whitelist") && out("Pixel Area gfw_pixel_area") &&
         out("Umd area 2013 umd_area_2013") && out("To delete (Global Forest Watch gives this dataset no title) to_delete"));
-  check("the page asks for this round's script", /app\.js\?v=(49|[5-9]\d)/.test(html) && /wire\.js\?v=(49|[5-9]\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 49 && /wire\.js\?v=(49|[5-9]\d)/.test(html));
 }
 {
   console.log("\nround 50: WRI's land greenhouse gases split by file; soil nematodes; our own copies of three slow Global Forest Watch datasets");
@@ -4258,7 +4259,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("soil nematodes are under Soil biodiversity, both files of the record drawn",
         /"soil_spun", "soil_nematodes", ("soil_earthworms", )?"soilgrids"/.test(src) && /soil\/nematodes_samples\.geojson/.test(src) && /soil\/nematodes_aggregated\.geojson/.test(src));
   check("the copies of Endemic Bird Areas and Peru's concessions are gone again (GFW refuses the downloads, round 56)", !/copy_(endemic_bird_areas|per_forest|osinfor)/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=(5\d|[6-9]\d)/.test(html) && /wire\.js\?v=(5\d|[6-9]\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 50 && /wire\.js\?v=(5\d|[6-9]\d)/.test(html));
 }
 {
   console.log("\nround 52: the duplicate hotspots row out");
@@ -4350,7 +4351,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("country rows are named for it when the rows are read", /\["giga", "country", "owidgrapher", "trase"(, "gta", "rte")?\]\.includes\(c\.route\)/.test(src));
   check("the hologram keeps its own blues: its layers are not remapped, and its fringe and ground are not purple",
         /\|holo-\.\*(\|[a-z.*-]+)*\)\$\/;/.test(src) && /--holo-fringe: #6fb0bd;/.test(html) && /--holo-bg:     #081729;/.test(html) && !/#8e86c8/.test(html));
-  check("the page asks for this round's script", /app\.js\?v=(5[7-9]|[6-9]\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 57);
 }
 {
   console.log("\nround 58: kinds by what is drawn both ways, field names across, country layers shaded by their figures, kilns in place, worlds on the flat map, shared point files");
@@ -4390,7 +4391,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /const src = bundle \? `points-bundle-\$\{bundle\.n\}` : `\$\{owner\}-src`;/.test(src) &&
         /if \(owner && POINT_BUNDLE_OF\.has\(owner\) && !el\.checked\) POINT_BUNDLE_USE\.add\(owner\);/.test(src) &&
         /fetch\(ownUrl\.replace\(\/\\\.pmtiles\$\/, "\.build\.json"\)\)/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=(5[8-9]|[6-9]\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 58);
 }
 {
   console.log("\nround 59: a magnifier on the asteroid ring, UAP squares, leaving Earth on purpose, visible findings, the satellite land tint, Indigenous conflicts as one layer, Land and territory moved");
@@ -4415,7 +4416,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /indigenous_conflicts: "Indigenous Environmental Conflicts",/.test(src) && /\[data-cat\], \[data-smtype\]/.test(src));
   check("the Land Matrix is under Meat and agriculture; the old Land and territory paths now lead to Invasion of humans",
         order.indexOf("land_matrix") > at("Meat and agriculture") && order.indexOf("land_matrix") < at("Agriculture") && !/Suppression > Of humans > Land and territory/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=(59|[6-9]\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 59);
 }
 {
   console.log("\nround 60: Selected Layers on top, the living and the after-life, one arrow only where there is more to show, no empty rhythm notes");
@@ -4427,7 +4428,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("folding leaves the transparency bar in place", /filter\(\(n\) => !n\.classList\.contains\("row-tools"\)\)\.forEach\(\(n\) => n\.classList\.toggle\("fold-hide", folded\)\)/.test(src));
   check("no dotted grip where a mouse can drag the row itself", /@media \(pointer:fine\)\{#layers \.grip\{display:none\}\}/.test(src));
   check("a row whose copy has no stated rhythm carries no note", !/no set rhythm"/.test(src) && /return t \? `<span class="refresh">/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=(6\d|[7-9]\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 60);
 }
 {
   console.log("\nround 61: the build queue never stalls, Bankrolling Extinction's banks, the Atlas conflicts pages, names");
@@ -4452,7 +4453,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("a read with no answer is tried once more with twice the time; uMap's settings come from the daily copy first",
         /if \(!\/\^no answer in\/\.test\(e\.message\)\) throw e;\n    return getJsonOnce\(url, ms \* 2\);/.test(src) &&
         /culprits-tiles-more\/umap\/\$\{cfg\.umapId\}\/map\.json/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=(6[1-9]|[7-9]\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 61);
 }
 {
   console.log("\nround 62: every layer straight under Of animals, keys for shaded layers, figures for earmarked funding and trade profits, stronger steps, Global Trade Alert in words, trade flows by tier, routes untangled, agencies without their background, people on the spheres' links, the dynasties' charts");
@@ -4514,7 +4515,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /timeline: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/pages\/banking_dynasties\.html"/.test(src) && /if \(cfg\.timeline\) sitemapTimelineButton\(cfg\);/.test(src) &&
         !order.includes("site_banking_dynasties_charts"));
   check("Giga's and Global Trade Alert's shading have keys", (src.match(/key\.dataset\.keyFor = cfg\.id;/g) || []).length >= 3);
-  check("the page asks for this round's script", /app\.js\?v=(6[2-9]|[7-9]\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 62);
 }
 {
   console.log("\nround 63: every row live or not live, the worlds round the flat map, policy rates and current accounts in place of CFR's trackers");
@@ -4551,7 +4552,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
     const n = parseInt(h.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), dd = mx - mn;
     if (dd < 12) return true; let hue = mx === r ? 60 * (((g - b) / dd) % 6) : mx === g ? 60 * ((b - r) / dd + 2) : 60 * ((r - g) / dd + 4); hue = (hue + 360) % 360;
     return hue >= 160 && hue <= 236 || (hue < 60 && dd < 30); }));
-  check("the page asks for this round's script", /app\.js\?v=(6[3-9]|[7-9]\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 63);
 }
 {
   console.log("\nround 64: every colour key reaches the Showing box");
@@ -4559,7 +4560,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   check("the Showing box reads a site map's Colour by key, the building kinds and the social spheres' kinds",
         /\.facet\[data-colour-for="\$\{esc\}"\], \.facet\[data-kinds="\$\{esc\}"\]/.test(src) && /el\.dataset\.keyFor = cfg\.id;   \/\/ its kinds' colours are its key/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=(6[4-9]|[7-9]\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 64);
 }
 {
   console.log("\nround 65: the dynasties' missing cities named in the row, keys read with their counts apart");
@@ -4567,7 +4568,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   check("the dynasties row says its 11 cities are placed hollow at the city", /the 11 cities its list gives a family without a coordinate, drawn hollow at the city/.test(src));
   check("a key's words keep a space between a kind and its count", /parts\.map\(\(n\) => n\.textContent \|\| ""\)\.join\(" "\)/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=(6[5-9]|[7-9]\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 65);
 }
 {
   console.log("\nround 71: the Genetic engineering map's own boxes and records; hologram as a basemap; the sea's own navies; Buildings back");
@@ -4616,7 +4617,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("Hologram view is a round choice among the basemaps and clears the one it came from unless it is shown underneath",
         /<input type="radio" id="holo-toggle"/.test(html) && !/<input type="checkbox" id="holo-toggle"/.test(html) &&
         /showBaseTick\(opt\.under\);/.test(html) && /if \(on && !opt\.under\) \{\n\s*disable\(\);/.test(html));
-  check("the page asks for this round's script", /app\.js\?v=(7[1-9]|[89]\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 71);
 }
 {
   console.log("\nround 72: marks only beside layers; the conflicts layer's own tick; site boxes spaced as on their pages; land layers coloured by their own kinds; real boundaries");
@@ -4678,7 +4679,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /cfg\.id === "site_settler_colonialism"/.test(src) && /\$\{all\[i\]\.name\}, the whole country/.test(src) && /Also, from other sources/.test(src));
   const bs = fs.readFileSync(path.join(HERE, "..", "pipeline", "shapes", "build_shapes.py"), "utf8");
   check("the settler shapes carry the countries they lie in", /props\["iso3"\] = ",".join\(isos\)/.test(bs));
-  check("the page asks for this round's script", /app\.js\?v=(7[3-9]|[89]\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 73);
 }
 {
   console.log("\nround 74: the map's own wars, militaries and weapons in place of Guerillamap");
@@ -4705,7 +4706,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("the conflict events read UCDP's copy square by square, every field from gzipped pieces, and can be narrowed by kind",
         /id: "mil_conflicts"[^\n]*route: "pmtiles"[^\n]*\n\s*archiveUrl: "[^"]*\/tiles\/mil_conflicts\.pmtiles", boxes: "[^"]*\/military\/ucdp", boxesGz: true,/.test(src));
   check("a shaded layer may carry its own menu", /let by = SHAPE_COLOUR_BY\[cfg\.id\] \|\| \(Array\.isArray\(data\.menu\)/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=(7[4-9]|[89]\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 74);
 }
 {
   console.log("\nround 75: Climate by gas, each split into emissions, culprits, infrastructure and priority emitters");
@@ -4750,7 +4751,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /gfw_forest_carbon_gross_removals: \{ minzoom: 2, maxzoom: 12 \}/.test(src));
   check("the quilombola communities are out; the mangroves' biomass is under Deforestation",
         /\[\/\\bincra_bra_quilombola_communities\\b\|quilombola\/i, null\]/.test(src) && /mangrove biomass\/i, \[P \+ " > Deforestation > Mangroves"\]/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=(7[5-9]|[89]\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 75);
 }
 {
   console.log("\nround 76: the Genetic engineering map's country write-ups, what you can do, consultations, bodies and key filters");
@@ -4777,7 +4778,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /const parts = \[cfg\.where, picked, keyed, timed\]\.filter\(Boolean\);/.test(src));
   check("…and the records carry the fields, read as the map reads them",
         /"lapsed": \("expired" if r\.get\("lapsed"\) is True/.test(py) && /"subjects": _subjects\(r\)/.test(py) && /def _subjects\(r\):/.test(py));
-  check("the page asks for this round's script", /app\.js\?v=(7[6-9]|[89]\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 76);
 }
 {
   console.log("\nround 77: Invasion of the after-life, complete");
@@ -4810,7 +4811,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("no yellow or orange in the after-life colours", !/#c9a227|#e0913f|#e8d24a/i.test(src.slice(src.indexOf("const REMAINS_BASE"), src.indexOf("const REMAINS_CSS"))));
   check("a country opens with what is in it and its guides and resources", /cfg\.box === "remainsunit"/.test(src) && /function remainsUnitHtml\(help, p\)/.test(src) &&
         /remains_units: \[\{ label: "records from the Unearthings harvest", field: "n", scale: "log" \}\]/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=(7[7-9]|[89]\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 77);
 }
 {
   console.log("\nround 78: the news of fighting kept past seven days; OpenStreetMap's and the Pentagon's own military places");
@@ -4823,7 +4824,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("OpenStreetMap's military places and MIRTA are rows of the military layer, marked NOT LIVE",
         /id: "mil_osm"[^\n]*route: "geojsonlive"/.test(src) && /id: "mil_mirta"[^\n]*route: "geojsonlive"/.test(src) &&
         /"mil_osm", "mil_mirta", "mil_test_sites"/.test(src) && /mil_osm: "Copied daily from OpenStreetMap/.test(src) && /mil_mirta: "Copied daily from catalog\.data\.gov/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=(7[8-9]|[89]\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 78);
 }
 {
   console.log("\nround 79: nuclear weapons storage, Russia's storage map, the US Navy at sea");
@@ -4836,7 +4837,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /id: "mil_russia_storage"[^\n]*route: "companion"/.test(src) && /page: "https:\/\/russianforces\.org\/maps\/Russia-12thGUMO\.html"/.test(src));
   check("each USNI week is a chip, every heading's words quoted, and the box says the mark is the middle of the area",
         /group: `week of \$\{w\}`/.test(src) && /USNI gives no coordinates, and warships often switch their transponders off/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=(79|[89]\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 79);
 }
 {
   console.log("\nround 80: news from GDELT's event files; MISSILEMAP");
@@ -4847,7 +4848,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("MISSILEMAP opens where the map is looking, its launch site there",
         /id: "mil_missile_ranges"[^\n]*route: "companion"/.test(src) && /pageAt: \(c, z\) => `https:\/\/nuclearsecrecy\.com\/missilemap\/\?mc=/.test(src) &&
         /frame\.src = typeof cfg\.pageAt === "function" \? cfg\.pageAt\(map\.getCenter\(\), map\.getZoom\(\)\) : cfg\.page;/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=(8\d|9\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 80);
 }
 {
   console.log("\nround 81: pollution by where it goes, columns for air pollutants, colour-coded waste, the EPA pictures, the slicks' timeline");
@@ -4898,7 +4899,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         mb.monthsBetween("2023-11", "2024-02").join() === "2023-11,2023-12,2024-01,2024-02" && mb.monthEnd("2024-02") === "2024-02-29");
   check("the wastewater outlets glow as a hotspot spectrum with its key", /const HOTSPOT = new Set\(\["wastewater_n_tot"/.test(src) && /if \(HOTSPOT\.has\(owner\)\) rowKey\(cfg\.id, HOT_KEY/.test(src));
   check("the Material Research atlas keeps only its pollution layers", /dropLayers: \[(1, 2, )?3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13\]/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=(8[1-9]|9\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 81);
 }
 {
   console.log("\nround 82b: neon greens and blues; nitrogen dioxide as relief; the fire rows; forest cover and mangroves");
@@ -4934,7 +4935,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("the forest management classes each take their own colour, far apart", /classColours: \["#0A7E8C", "#00B4D8", "#5FD3C4"/.test(src) && /GLAD_CLASS_PALETTE\.set\(cfg\.id, pal\)/.test(src));
   check("the mangrove biomass is ringed wider out by the mangroves' outline", /jpl_mangrove_aboveground_biomass_stock_2000: \{ dataset: "gmw_global_mangrove_extent", until: 8/.test(src));
   check("Global Forest Watch's areas are drawn teal to blue with a darker edge (round 85b), servers' white areas in the row's hue", /const hue = gladSalt\(d\.id\), neon = gladHsl\(hue, 0\.72, 0\.46\), rim = gladHsl\(hue, 0\.78, 0\.26\)/.test(src) && /take a light neon of the row's own hue/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=(8[2-9]|9\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 82);
 }
 {
   console.log("\nround 83b: population as relief; one timber plantation row; one pulp concession row; Trase easier to see; tree cover loss pared");
@@ -4960,7 +4961,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("the rubber plantations are not called worldwide", nw("Rubber plantations 2025 \u2014 worldwide") === "Rubber plantations 2025" && nw("Oil palm \u2014 worldwide") === "Oil palm \u2014 worldwide");
   check("Trase's regions are edged in their own colours with a dot at their middle wider out", /id: `\$\{src\}-mid`, type: "circle"/.test(src) && /"line-color": \["coalesce", \["get", "_c"\]/.test(src));
   check("the Material Research atlas keeps only its plants", /dropLayers: \[1, 2, 3,/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=(8[3-9]|9\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 83);
 }
 {
   console.log("\nround 84b: the forest alert rows build; rows cut between two; drag anywhere with a reset; environmental crime; Global Witness");
@@ -4985,7 +4986,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("Global Witness is under Invasion of humans and under Of individuals > Of humans only",
         o.PANEL_ORDER.indexOf("gw_defenders") > at("Invasion of humans") && o.PANEL_ORDER.lastIndexOf("gw_defenders") > at("Of individuals") &&
         o.PANEL_ORDER.filter((x) => x === "gw_defenders").length === 2);
-  check("the page asks for this round's script", /app\.js\?v=(8[4-9]|9\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 84);
 }
 {
   console.log("\nround 85b: military colours apart, Russia's panel out, lookout towers out, the drivers as one layer, agriculture-linked deforestation built, environmental crime by country");
@@ -5048,7 +5049,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   })());
   check("the global burned areas are asked for only from zoom 5 in, where Global Forest Watch can answer",
         /const GFW_MIN_ZOOM = \{ umd_modis_burned_areas: 5 \};/.test(src) && /asset\.minzoom = Math\.max\(asset\.minzoom \|\| 0, least\);/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=(8[5-9]|9\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 85);
 }
 {
   console.log("\nround 87b: the three switches on one line; tree cover loss years; the fire loss, Equatorial Asia alerts, RADD coverage, Wageningen and duplicate expansion out; negligible risk coloured");
@@ -5073,7 +5074,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         f("Integrated deforestation alerts", "gfw_integrated_alerts") !== "(taken out)");
   check("the negligible risk districts are coloured by their class and explained", /gfwpro_negligible_risk_analysis: \{ fields: \["negrisk"\]/.test(src) && /gfwpro_negligible_risk_analysis: "Each district/.test(src));
   check("the agricultural frontier is explained", /col_frontera_agricola: "Colombia's agricultural frontier, set by its Ministry of Agriculture through UPRA/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=(8[7-9]|9\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 87);
 }
 {
   console.log("\nround 88b: product headings by name, their emissions with them, Trase's cattle measures one row, the pulp measures told apart, the live worldwide alerts first");
@@ -5127,7 +5128,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
     check("the pulpwood measures are titled by what each counts", list.some((e) => /^Natural forest cleared each year to plant pulpwood/.test(e.title)) &&
           ["CONCESSION_DEFORESTATION", "CUMULATIVE_DEFORESTATION_SINCE_CONCESSION_START", "WOOD_PULP_DEFORESTATION_10_YEAR_TOTAL", "DEFORESTATION_ON_PEAT"].every((k) => new RegExp(`${k}: "`).test(src)));
   }
-  check("the page asks for this round's script", /app\.js\?v=(8[8-9]|9\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 88);
 }
 {
   console.log("\nround 89b: plain-English titles; The Culprits; zoning after forest cover; mangroves last; concession area out; peatland pulp clearing under Peatland; the Natural Lands Map");
@@ -5163,7 +5164,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         f("Peatland deforestation for planted pulpwood (ha) \u2014 Indonesia (Trase)", "DEFORESTATION_ON_PEAT") === P + " > Deforestation > Peatland" &&
         f("x", "sbtn_natural_lands_classification") === P + " > Biodiversity loss > Land Use and Ecoregions");   // round 99b: there instead
   check("the switches' label sits above them so each reads whole", /<span class="ks-l">Turn on every<\/span><span class="ks-row">/.test(src) && /\.kind-switch \.ks-l\{flex-basis:100%\}/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=(89|9\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 89);
 }
 
 console.log("\nround 90b: the Atlas's hotspots open no box; its numbers are easy to hit; its PDF keys in the layer menu; its cities stand out; Fields of The World and Potapov's cropland");
@@ -5187,7 +5188,7 @@ console.log("\nround 90b: the Atlas's hotspots open no box; its numbers are easy
   check("Fields of The World is read from its own archive; Potapov's cropland from the map's copy, both under Agriculture > Cropland",
         /id: "ftw_fields"[^\n]*route: "pmvector"/.test(src) && /ftw-global-fields-2025\.pmtiles", sourceLayer: "fields"/.test(src) &&
         /\{ h: 5, t: "Cropland" \}, "ftw_fields", "potapov_cropland",/.test(src) && /: cfg\.route === "pmvector" \? Promise\.resolve\(\)\.then\(\(\) => addPmVectorLayer\(cfg\)\)/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=(9\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 90);
 }
 
 console.log("\nround 91b: Global Safety Net's layers back, titled plainly and filed by kind; its rankings the map's own shading; the duplicate own layers out");
@@ -5198,7 +5199,7 @@ console.log("\nround 91b: Global Safety Net's layers back, titled plainly and fi
   check("round 90b's duplicates of Global Safety Net's layers are gone; the mangroves and critical habitat built from their sources stay",
         !["wdpa_strict", "wdoecm", "lc_broadleaf", "lc_water", "own_modification", "own_wilderness", "own_reforestation"].some((i) => src.includes(`id: "${i}"`)) &&
         ["own_mangroves", "own_critical_habitat", "ftw_fields", "potapov_cropland"].every((i) => src.includes(`id: "${i}"`)) && !/LAND_KINDS|wcmcExport/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=(9[1-9])/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 91);
 }
 
 console.log("\nround 92b: land cover in 35 kinds under Land Use and Ecoregions; land use plot by plot under Buildings; natural forests under Forest cover; Peatland inside Deforestation, the worldwide map first");
@@ -5208,7 +5209,7 @@ console.log("\nround 92b: land cover in 35 kinds under Land Use and Ecoregions; 
   check("the moves are in the order of the box", /\{ h: 4, t: "Land Use and Ecoregions" \}, "ecoregions_2017", "glc_fcs30d",/.test(src) && /\{ h: 1, t: "Buildings" \}, "building_types", "osm_landuse",/.test(src) &&
         /\{ h: 4, t: "Mangroves" \}, "own_mangroves",[\s\S]{0,400}\{ h: 4, t: "Peatland" \},/.test(src) && !/\{ h: 3, t: "Peatland" \}/.test(src));
   check("the worldwide peatland map leads its heading", /const CATALOGUE_FIRST = new Set\(\[[^\]]*"gfw_peatlands"/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=(9[2-9])/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 92);
 }
 
 console.log("\nround 93b: Surface water under Water scarcity; the ever-seen water drawn; reservoirs red and blue; Aqueduct's copies; dry spells see-through");
@@ -5233,7 +5234,7 @@ console.log("\nround 93b: Surface water under Water scarcity; the ever-seen wate
   check("the Borneo surface water change and Global Forest Watch's two Aqueduct copies are out; the dry spells picture is see-through",
         /\[\/IDNMYSBorneo_WaterChangeRGB/.test(src) && /nexgddp_change_dry_spells_2000_2080: \{ "raster-opacity": 0\.42 \}/.test(src) &&
         !/\{ h: 3, t: "Surface water" \}/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=(9[3-9])/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 93);
 }
 
 console.log("\nround 94b: Liberia's mines and Merauke's roads out; fur farms worldwide under Meat and agriculture; natural disasters of every kind; the earthquakes' timeline; the crime tracker under Environmental crime; the mangroves under Deforestation; dead zones and deep-sea mining");
@@ -5258,7 +5259,7 @@ console.log("\nround 94b: Liberia's mines and Merauke's roads out; fur farms wor
         /"raisg_illegal_mining", "powerbi_report",\n/.test(src) && /\[\/\\blbr_\(development_exploration_license\|mineral_development_agreement\|mineral_exploration_license\)\\b\/, null\]/.test(src) &&
         /merauke_road_plan/.test(src) && /\[\/\\bbenthic_allencorral_global\\b\/, null\]/.test(src));
   check("fur farming law by country, and the new Oceans headings", /id: "fur_bans"[^\n]*route: "countrycat"/.test(src) && /\{ h: 4, t: "Dead zones" \}, "ocean_dead_zones",/.test(src) && /\{ h: 4, t: "Deep-sea mining" \}, "ocean_seabed_mining",/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=(9[4-9])/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 94);
 }
 
 console.log("\nround 95b: rows back where asked; environmental law; skin farms; the plastic polluters; livestock raised by density; everyday names; four ocean layers");
@@ -5285,7 +5286,7 @@ console.log("\nround 95b: rows back where asked; environmental law; skin farms; 
   check("skin farms, the plastic polluters and the four ocean layers are rows, under their headings",
         /\{ h: 4, t: "Skin farms" \}, "skin_farms",/.test(src) && /\{ h: 6, t: "The companies behind it" \}, "plastic_polluters",/.test(src) &&
         ["ocean_acid", "ocean_heat", "ocean_shipping", "ocean_impacts"].every((i) => new RegExp(`id: "${i}"[\\s\\S]{0,600}choicesUrl: "https://welcometoyourgalaxy\\.github\\.io/culprits-tiles-more/tiles/${i}\\.choices\\.json"`).test(src)));
-  check("the page asks for this round's script", /app\.js\?v=(9[5-9])/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 95);
 }
 
 console.log("\nround 96b: the View box laid out afresh; the frontier under Forest zoning");
@@ -5303,7 +5304,7 @@ console.log("\nround 96b: the View box laid out afresh; the frontier under Fores
   const { f } = { f: (t, id = "") => new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return cataloguePlaces;")()(`${t} ${id}`, `${t} ${id}`).join(" | ") };
   check("Colombia's agricultural frontier is under Deforestation > Forest zoning and management plans, not Plantations",
         f("Frontera agrícola nacional", "col_frontera_agricola") === "Destruction > Of the planet > Deforestation > Forest zoning and management plans");
-  check("the page asks for this round's script", /app\.js\?v=(9[6-9])/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 96);
 }
 console.log("\nround 98b: the Atlas's numbers name their cities; a click outside goes back; five more hotspot maps placed by their coasts; the city maps in a panel");
 {
@@ -5343,7 +5344,7 @@ console.log("\nround 98b: the Atlas's numbers name their cities; a click outside
         /img\.src = ATLAS_CITY_IMG \+ \(ATLAS_CITY_IMG_NAME\[slug\] \|\| slug\) \+ "\.png";/.test(src) && /The Atlas's map of this city<\/button>/.test(src));
   check("the country rankings say they are not built yet, not 404, until their copy is made",
         /id: "gsn_countries"[\s\S]{0,400}buildScript: "gsn_rankings"/.test(src) && /not built yet: its copy has not been made\$\{cfg\.buildScript/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=(9[8-9])/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 98);
 }
 console.log("\nround 99b: Biodiversity loss refiled; one row each for critical habitat, intactness and the intact forests; own copies of the 2017 ecoregions and the intact forests; the ecozones and nematodes coloured");
 {
@@ -5386,7 +5387,7 @@ console.log("\nround 99b: Biodiversity loss refiled; one row each for critical h
   check("the FAO ecological zones coloured by zone; the ecoregions' title says what they are",
         /fao_ecozones: \{ fields: \["gez_term"\]/.test(src) && /wwf_terrestrial_ecoregions: "Ecoregions, 2001 version: the world's land in 867 natural regions/.test(src));
   check("the nematode samples coloured by how many nematodes each holds", /colourBy: \{ field: "Total_Number", steps: \[250, 600, 1300, 3300, 10000\]/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=(99|1\d\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 99);
 }
 console.log("\nround 100b: skin and fur farms their own heading; the food industry's owners under Meat; zoos off the facilities; amounts as colours; heights raised; points raised where they crowd; public money behind the harm; fish; the fields wider out; the hologram's blue off");
 {
@@ -5420,14 +5421,14 @@ console.log("\nround 100b: skin and fur farms their own heading; the food indust
   const grid = g([[10.1, 20.1], [10.1, 20.1], [10.2, 20.2], [-50, -30]]);
   check("points raised where they crowd: counted on the ground, smoothed, the densest the tallest",
         grid.max > 0 && grid.g[Math.floor((90 - 20.1) / 0.25) * grid.W + Math.floor((10.1 + 180) / 0.25)] === grid.max &&
-        /addPointReliefChip\(cfg, data\.features\);/.test(src));
+        /function riseRow\(id, on, tries\)/.test(src));
   check("fish: free-flowing rivers and fish species by basin, under Fish",
         /\{ h: 4, t: "Fish" \}, "fish_rivers", "fish_basins",/.test(src) && /id: "fish_rivers"[^\n]*route: "rasterlive"/.test(src) && /id: "fish_basins"[^\n]*route: "pmchoose"/.test(src));
   check("the fields counted wider out, under the shapes", /overview: \{ choicesUrl: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/tiles\/ftw_overview\.choices\.json", maxzoom: 9 \}/.test(src) &&
         /if \(cfg\.overview\) pmVectorOverview\(cfg\);/.test(src));
   check("the hologram's blue shading can be switched off", /tick\("holo-shade", "shade", "Blue shading"/.test(html) && /const earthOn = on && opt\.shade && /.test(html) &&
         /body\.holo-on\.holo-noshade #map\{background:#0b0b0c\}/.test(html));
-  check("the page asks for this round's script", /app\.js\?v=(99[1-9]|1\d\d\d)/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 991);
 }
 console.log("\nround 101b (28 September): By crop, plantations, palm oil, themes, regional layers");
 {
@@ -5612,10 +5613,35 @@ console.log("\nround 108b (28 September): the drag note above Selected Layers, a
   check("a picture row's squares are asked for by zoom, by box and by quadkey", U("a/{z}/{x}/{y}", 3, 2, 1) === "a/3/2/1" && U("a/{z}/{x}/{y}", 1, 0, 0, "tms") === "a/1/0/1" &&
         U("q{quadkey}", 2, 1, 1) === "q03" && U("{bbox-epsg-3857}", 0, 0, 0) === "-20037508.342789244,-20037508.342789244,20037508.342789244,20037508.342789244");
   check("with Raise figures as heights on, picture rows rise, and lie flat when it is off",
-        /rasterRiseSet\(id, vis === "visible"\)/.test(src) && /if \(LIFT_ON && vis === "visible" && !RELIEFS\.has\(id\) && rowRasterSource\(id\)\) rasterRiseSet\(id, true\);/.test(src) &&
-        /Picture layers rise where they cover most of the ground/.test(src));
+        /riseRow\(id, vis === "visible"\)/.test(src) && /if \(rowRasterSource\(id\)\) rasterRiseSet\(id, true\);/.test(src) &&
+        /Every other layer rises where it covers the ground most/.test(src));
   check("the active fires come from NASA's 4326 map service asked in web Mercator", /wms\/epsg4326\/best\/wms\.cgi\?SERVICE=WMS&REQUEST=GetMap&VERSION=1\.1\.1/.test(src) && /&SRS=EPSG:3857&BBOX=\{bbox-epsg-3857\}/.test(src));
-  check("the page asks for this round's script", /app\.js\?v=999/.test(html));
+  check("the page asks for this round's script", appVersion(html) >= 999);
+}
+console.log("\nround 109b (28 September): shapes raised, the alerts by grade, a colour wheel, the Atlas's cities in the corner panel only");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("the insentient heading carries no quotation marks", /\{ h: 2, t: "Of the insentient" \}/.test(src) && !/\u201cinsentient\u201d/.test(src));
+  check("the crowding switch is gone; points, areas and lines rise by themselves with Raise figures as heights",
+        !/Raise where the points crowd<\/button>/.test(src) && !/data-crowd=/.test(src) && /function shapeCover\(features\)/.test(src) &&
+        /else if \(rowVectorLayers\(id\)\.length\) pointReliefSet\(id, true\);/.test(src));
+  const fn = new Function(src.slice(src.indexOf("function recolorAlerts("), src.indexOf("// latclip://")) + "; return { recolorAlerts, ALERT_TONES };")();
+  const px = new Uint8ClampedArray(4 * 16);
+  [[237, 164, 194], [220, 102, 153], [201, 42, 109], [90, 90, 90]].forEach((c, i) => { px.set([...c, 255], i * 16); });
+  fn.recolorAlerts(px, [1, 2, 3]);
+  check("each grade of alert takes its own step, teal to cobalt; another colour takes the row's",
+        [0, 1, 2].every((i) => px[i * 16] === fn.ALERT_TONES[i][0] && px[i * 16 + 2] === fn.ALERT_TONES[i][2]) && px[48] === 1 && px[50] === 3);
+  check("the three alert rows keep those colours, with a key", /recolor: "#8A4F46", keepColour: true,/.test(src) && /if \(cfg\.recolor\) rowKey\(cfg\.id, ALERT_TONES\.map/.test(src));
+  const C = new Function(src.slice(src.indexOf("function customTheme("), src.indexOf("LAYER_THEMES.custom = customTheme(")) + "; return customTheme;")();
+  const same = C({ h: 200, r: 0.6, b: 1 }), turned = C({ h: 20, r: 1, b: 1.4 });
+  check("the colour wheel: the dot at the map's own teal leaves colours as they are; elsewhere it turns them",
+        same.f[0][1] === 0 && same.f[1][1] === 1 && same.f[2][1] === 1 && turned.f[0][1] === -180 && turned.f[1][1] === 1.6 && Math.abs(turned.raster["raster-brightness-min"] - 0.2) < 1e-9 &&
+        /id="theme-wheel"/.test(src) && /data-theme-set="drawn"/.test(src) && /themeWheelWire\(box\);/.test(src));
+  check("an Atlas city opens in the corner panel only; closed panels are hidden; a larger view; its key",
+        /if \(hit\.cfg\.route === "atlascities" && typeof document\.createElement === "function"\)/.test(src) &&
+        /#atlas-panel\[hidden\],#atlas-city\[hidden\]\{display:none !important\}/.test(html) && /class="ac-grow"/.test(src) && /async function atlasCityKey\(el\)/.test(src));
+  check("the page asks for this round's script", appVersion(html) >= 1000);
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

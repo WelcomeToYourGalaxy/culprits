@@ -982,7 +982,16 @@ function clipTileRows(z, y, height, south, north) {
   return out;   // [firstRow, endRow) ranges to clear
 }
 
-// Give every alert pixel one colour, keeping its transparency.
+// Give every alert pixel a colour by how sure the satellites are, keeping
+// its transparency.
+//
+// Round 109b (asked 28 September: the alerts were a "bland unicolor"): Global
+// Forest Watch's own picture already tells three grades of alert apart, by
+// three pinks (wri/gfw-tile-cache, app/routes/titiler/algorithms/alerts.py:
+// low 237,164,194; high 220,102,153; highest 201,42,109). Each pink is now
+// given its own step of this map's teal-to-cobalt scale, pale teal for low to
+// deep cobalt for highest, instead of all three the one colour; a pixel of
+// any other colour takes the row's own colour as before.
 //
 // A tile that is mostly a single flat colour is carrying a wash rather than
 // alerts — alerts are scattered, a wash is uniform — so that colour is cleared
@@ -999,30 +1008,48 @@ function recolorAlerts(px, rgb, z, w) {
   }
   let wash = null;
   for (const [k, n] of counts) if (n > (px.length / 4) * 0.6) wash = k;
+  const grade = new Int8Array(px.length / 4).fill(-2);   // -2 nothing, -1 the row's colour, 0-2 a grade
   for (let i = 0; i < px.length; i += 4) {
     if (!px[i + 3]) continue;
     const k = (px[i] << 24 | px[i + 1] << 16 | px[i + 2] << 8 | px[i + 3]) >>> 0;
     if (k === wash) { px[i + 3] = 0; continue; }
-    px[i] = rgb[0]; px[i + 1] = rgb[1]; px[i + 2] = rgb[2]; px[i + 3] = 255;
+    const gi = alertGrade(px[i], px[i + 1], px[i + 2]);
+    grade[i / 4] = gi;
+    const c = gi >= 0 ? ALERT_TONES[gi] : rgb;
+    px[i] = c[0]; px[i + 1] = c[1]; px[i + 2] = c[2]; px[i + 3] = 255;
   }
   // Wider out an alert is a single pixel or less, so each is grown into a
   // small solid patch and lightened, or the layer vanishes at world scale.
+  // The surer grade is drawn over the less sure where patches meet.
   const r = z == null ? 0 : z <= 3 ? 3 : z <= 5 ? 2 : z <= 8 ? 1 : 0;
   if (r && w) {
-    const h = px.length / 4 / w, src = new Uint8Array(w * h);
-    for (let p = 0; p < w * h; p++) src[p] = px[p * 4 + 3] ? 1 : 0;
-    const lit = rgb.map((c) => Math.round(c + (232 - c) * 0.35));
+    const h = px.length / 4 / w;
+    const got = new Int8Array(w * h).fill(-3);
+    const lit = (c) => c.map((v) => Math.round(v + (232 - v) * 0.2));
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      if (!src[y * w + x]) continue;
+      const gi = grade[y * w + x];
+      if (gi === -2) continue;
+      const c = lit(gi >= 0 ? ALERT_TONES[gi] : rgb);
       for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
         const xx = x + dx, yy = y + dy;
         if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
-        const q = (yy * w + xx) * 4;
-        px[q] = lit[0]; px[q + 1] = lit[1]; px[q + 2] = lit[2]; px[q + 3] = 255;
+        const p = yy * w + xx;
+        if (got[p] >= gi) continue;
+        got[p] = gi;
+        const q = p * 4;
+        px[q] = c[0]; px[q + 1] = c[1]; px[q + 2] = c[2]; px[q + 3] = 255;
       }
     }
   }
   return { opaque, washCleared: wash !== null };
+}
+var ALERT_CONF = [[237, 164, 194], [220, 102, 153], [201, 42, 109]];
+var ALERT_TONES = [[122, 178, 172], [58, 128, 166], [44, 58, 132]];
+var ALERT_WORDS = ["low confidence", "high confidence", "highest confidence"];
+function alertGrade(r, g, b) {
+  let best = -1, bd = 3 * 45 * 45;
+  ALERT_CONF.forEach((c, i) => { const d = (r - c[0]) ** 2 + (g - c[1]) ** 2 + (b - c[2]) ** 2; if (d < bd) { bd = d; best = i; } });
+  return best;
 }
 
 // latclip://<south>,<north>[,<RRGGBB>]/<https URL without the scheme>
@@ -6953,15 +6980,28 @@ function atlasCityPanel() {
   el.style.cssText = "position:fixed;right:14px;bottom:14px;width:min(460px,46vw);max-height:78vh;z-index:46;display:flex;flex-direction:column;" +
     "background:var(--peat,#17150F);border:1px solid var(--rule,#322E27);border-radius:3px;box-shadow:0 8px 30px rgba(0,0,0,.5);" +
     "font-size:12px;color:var(--dim)";
+  // Round 109b (asked 28 September): a button in the top left corner makes the
+  // panel large, and again small; the key sits under the picture.
   el.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--rule,#322E27)">` +
+      `<button type="button" class="ac-grow" aria-label="Make the city's map larger" title="Larger" style="background:none;border:1px solid var(--rule,#322E27);border-radius:2px;color:inherit;font-size:13px;line-height:1;padding:2px 5px;cursor:pointer">\u2922</button>` +
       `<b class="ac-title" style="flex:1;color:var(--ink,#E8E2D6)"></b>` +
       `<button type="button" class="ac-close" aria-label="Close the city's map" style="background:none;border:0;color:inherit;font-size:16px;cursor:pointer">\u00d7</button></div>` +
     `<div class="ac-pic" style="overflow:auto;flex:1;min-height:0;cursor:zoom-in"><img alt="" style="display:block;width:100%"></div>` +
+    `<div class="ac-key" style="flex:0 0 auto;padding:4px 0 2px;border-top:1px solid var(--rule,#322E27)"></div>` +
     `<div style="padding:6px 10px;display:flex;gap:10px;align-items:center">` +
       `<span class="ac-note" style="flex:1"></span>` +
       `<a class="ac-open" target="_blank" rel="noopener" style="color:var(--slate,#8A9DA6);white-space:nowrap">the Atlas's page \u2197</a></div>`;
   document.body.appendChild(el);
   el.querySelector(".ac-close").addEventListener("click", () => atlasClose(true));
+  el.querySelector(".ac-grow").addEventListener("click", (ev) => {
+    const big = el.dataset.big !== "1";
+    el.dataset.big = big ? "1" : "0";
+    el.style.width = big ? "min(1100px,94vw)" : "min(460px,46vw)";
+    el.style.maxHeight = big ? "92vh" : "78vh";
+    ev.currentTarget.innerHTML = big ? "\u2921" : "\u2922";
+    ev.currentTarget.title = big ? "Smaller" : "Larger";
+    ev.currentTarget.setAttribute("aria-label", big ? "Make the city's map smaller" : "Make the city's map larger");
+  });
   // A click on the picture shows it at its full size, to be scrolled; another
   // fits it to the panel again.
   el.querySelector(".ac-pic").addEventListener("click", (ev) => {
@@ -6984,6 +7024,25 @@ function atlasCityShow(what) {
   img.onerror = () => { el.querySelector(".ac-note").textContent = "The Atlas's picture did not load; its page has it."; };
   img.src = ATLAS_CITY_IMG + (ATLAS_CITY_IMG_NAME[slug] || slug) + ".png";
   el.hidden = false;
+  atlasCityKey(el);
+}
+// The key for a city's map (round 109b). The Atlas prints none on its city
+// maps or their pages; its page of cities says each shows "the map of the
+// city and its conflict zones indicated in gradations of red", in the same
+// design as its hotspot conflicts maps. So the key printed beside those maps
+// (atlas/legends.json, read from the Atlas's PDFs) is shown, and says so.
+async function atlasCityKey(el) {
+  const box = el.querySelector(".ac-key");
+  if (!box) return;
+  const d = await atlasLegendsRead();
+  const hot = (d && d.hotspots) || {};
+  const k = Object.keys(hot).find((h) => hot[h].conflicts && hot[h].conflicts.length);
+  if (!k) { box.innerHTML = ""; return; }
+  box.innerHTML = `<div style="padding:0 10px 3px;font-size:10.5px">Key: the Atlas prints none on its city maps; this is the key of its hotspot conflicts maps, ` +
+    `drawn the same way (its page of cities: conflict zones "in gradations of red").</div>` +
+    `<div style="display:flex;flex-wrap:wrap;gap:3px 12px;padding:0 10px">` +
+    hot[k].conflicts.map(([t, i]) => `<span style="display:inline-flex;align-items:center;font-size:11px"><img alt="" src="${escapeHtml(d.swatches[i] || "")}" ` +
+      `style="width:18px;height:12px;object-fit:fill;margin-right:5px;border-radius:1px">${escapeHtml(t)}</span>`).join("") + `</div>`;
 }
 
 // Round 98b (asked 28 September): a click on the map outside the hotspot or
@@ -12165,10 +12224,18 @@ function viewPanelHtml() {
     // Round 101b: every layer's colours in one theme, for the basemap in use.
     // Round 106b (asked 28 September): under Flat map, narrow, so the compass
     // and the buttons beside it are not pushed out of the box.
-    `<label class="layer terrain-under theme-pick" title="Turns every layer's colours at once, so they show up on the basemap in use. Keys change with them.">` +
-    `<span class="nm">Layer colours</span><select id="theme-pick" aria-label="Layer colours">` +
-    Object.entries(LAYER_THEMES).map(([k, v]) => `<option value="${k}"${k === LAYER_THEME ? " selected" : ""}>${v.nm}</option>`).join("") +
-    `</select></label>` +
+    // Round 109b (asked 28 September: the menu's few themes did not suit every
+    // basemap): a colour wheel instead. Drag the dot round the wheel to turn
+    // every layer's colours toward that hue, in toward the middle for greyer,
+    // out to the rim for stronger; the slider under it makes them darker or
+    // lighter. Two buttons put them back as drawn, or suit them to the basemap.
+    `<div class="layer terrain-under theme-pick" id="theme-pick" title="Turns every layer's colours at once, so they show up on the basemap in use. Keys change with them.">` +
+    `<span class="nm">Layer colours</span>` +
+    `<div class="tw" id="theme-wheel" role="slider" tabindex="0" aria-label="Layer colours: drag round the wheel to turn every layer's colours; arrow keys work too">` +
+    `<i class="tw-dot" id="theme-dot"></i></div>` +
+    `<input type="range" id="theme-bright" class="tw-bright" min="0.5" max="1.6" step="0.05" value="${THEME_CUSTOM.b}" aria-label="Layer colours darker or lighter" title="Darker or lighter">` +
+    `<div class="tw-btns"><button type="button" class="chip" data-theme-set="drawn" title="Every layer in its own colours">As drawn</button>` +
+    `<button type="button" class="chip" data-theme-set="auto" title="A setting chosen for the basemap in use">Suit basemap</button></div></div>` +
     `</div><div class="compass-holder in-view" id="compass-holder" title="Click to stand the map upright, facing north">` +
     `<span class="compass-cap">North up, level</span>` +
     `<label class="layer names-under"><input type="checkbox" id="names-toggle"${NAMES_ON ? " checked" : ""}` +
@@ -12195,8 +12262,8 @@ function viewPanelHtml() {
     `<label class="layer lift-row"><input type="checkbox" id="lift-toggle"${LIFT_ON ? " checked" : ""}>` +
     `<span class="body"><span class="nm">Raise figures as heights</span>` +
     `<span class="lift-note">Layers that shade countries stand up like towers, taller where the figure is bigger, so countries can be compared when the map is tilted. ` +
-    `Picture layers rise where they cover most of the ground, keeping their own colours. ` +
-    `Layers of points can also rise where their points crowd together (the row's own switch). Untick to keep everything flat.</span></span></label>` +
+    `Every other layer rises where it covers the ground most or its points crowd most, keeping its own colours. ` +
+    `Untick to keep everything flat.</span></span></label>` +
     `</div></div>`;
 }
 
@@ -12220,6 +12287,7 @@ function buildBasemapPanel() {
     if (e.target && e.target.id === "to-globe") outToTheGlobe();
   });
   moveZoomButtons();
+  themeWheelWire(box);
   // Round 102b: Eyes warmed while the pointer is on its button.
   const leave = box.querySelector ? box.querySelector("#leave-earth") : null;
   if (leave && leave.addEventListener) for (const ev of ["pointerenter", "focus", "touchstart"]) leave.addEventListener(ev, () => { try { warmSpace(); } catch (e) { /* kept */ } }, { passive: true });
@@ -12370,6 +12438,83 @@ var LAYER_THEMES = {
     raster: { "raster-hue-rotate": 140, "raster-saturation": 0.25, "raster-brightness-min": 0.1 } },
 };
 var THEME_BY_BASEMAP = { atlas: "bright", satellite: "reds", outlines: "bright" };
+// Round 109b: the colour wheel's own setting. h is the hue the map's teal-to-
+// cobalt middle (hue 200) is turned to, r how far out from the wheel's middle
+// (0 grey, 1 strongest), b the brightness.
+var THEME_CUSTOM = { h: 200, r: 0.6, b: 1 };
+try { Object.assign(THEME_CUSTOM, JSON.parse(localStorage.getItem("culprits-theme-wheel") || "{}")); } catch (e) { /* as drawn */ }
+function customTheme(c) {
+  const rot = Math.round(((c.h - 200) % 360 + 540) % 360 - 180);
+  const sat = Math.round((0.1 + 1.5 * Math.max(0, Math.min(1, c.r))) * 100) / 100, b = Math.max(0.5, Math.min(1.6, Number(c.b) || 1));
+  return { nm: "Your colours", f: [["hue-rotate", rot], ["saturate", sat], ["brightness", b]],
+    raster: { "raster-hue-rotate": rot, "raster-saturation": Math.max(-1, Math.min(1, sat - 1)),
+      "raster-brightness-min": b > 1 ? Math.min(0.5, (b - 1) * 0.5) : 0, "raster-brightness-max": b < 1 ? b : 1 } };
+}
+LAYER_THEMES.custom = customTheme(THEME_CUSTOM);
+function themeWheelWire(box) {
+  const wheel = box && box.querySelector && box.querySelector("#theme-wheel");
+  if (!wheel || !wheel.addEventListener) return;
+  const dot = wheel.querySelector("#theme-dot"), bright = box.querySelector("#theme-bright");
+  const place = () => {
+    const a = THEME_CUSTOM.h * Math.PI / 180, r = Math.max(0, Math.min(1, THEME_CUSTOM.r)) * 46;
+    dot.style.left = `calc(50% + ${(Math.sin(a) * r).toFixed(1)}%)`;
+    dot.style.top = `calc(50% - ${(Math.cos(a) * r).toFixed(1)}%)`;
+    dot.style.background = `hsl(${Math.round(THEME_CUSTOM.h)},${Math.round(15 + 40 * THEME_CUSTOM.r)}%,${Math.round(38 + 18 * (THEME_CUSTOM.b - 0.5))}%)`;
+    wheel.classList.toggle("on", LAYER_THEME === "custom");
+  };
+  let timer = null;
+  const apply = (now) => {
+    clearTimeout(timer);
+    const go = () => {
+      LAYER_THEMES.custom = customTheme(THEME_CUSTOM);
+      try { localStorage.setItem("culprits-theme-wheel", JSON.stringify(THEME_CUSTOM)); } catch (e) { /* not kept */ }
+      setTheme("custom");
+      place();
+    };
+    if (now) go(); else timer = setTimeout(go, 140);
+  };
+  const pick = (ev) => {
+    const b = wheel.getBoundingClientRect(), R = b.width / 2;
+    const dx = ev.clientX - (b.left + R), dy = ev.clientY - (b.top + R);
+    THEME_CUSTOM.h = (Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360;
+    THEME_CUSTOM.r = Math.min(1, Math.hypot(dx, dy) / R);
+    LAYER_THEME = "custom";
+    place();
+    apply(false);
+  };
+  let dragging = false;
+  wheel.addEventListener("pointerdown", (ev) => { dragging = true; try { wheel.setPointerCapture(ev.pointerId); } catch (e) { /* kept */ } pick(ev); ev.preventDefault(); });
+  wheel.addEventListener("pointermove", (ev) => { if (dragging) pick(ev); });
+  const stop = () => { if (dragging) { dragging = false; apply(true); } };
+  wheel.addEventListener("pointerup", stop);
+  wheel.addEventListener("pointercancel", stop);
+  wheel.addEventListener("keydown", (ev) => {
+    const k = ev.key;
+    if (!/^Arrow/.test(k)) return;
+    if (k === "ArrowLeft") THEME_CUSTOM.h = (THEME_CUSTOM.h + 350) % 360;
+    if (k === "ArrowRight") THEME_CUSTOM.h = (THEME_CUSTOM.h + 10) % 360;
+    if (k === "ArrowUp") THEME_CUSTOM.r = Math.min(1, THEME_CUSTOM.r + 0.05);
+    if (k === "ArrowDown") THEME_CUSTOM.r = Math.max(0, THEME_CUSTOM.r - 0.05);
+    ev.preventDefault();
+    apply(false);
+  });
+  if (bright) bright.addEventListener("input", () => { THEME_CUSTOM.b = Number(bright.value) || 1; apply(false); });
+  box.addEventListener("click", (ev) => {
+    const b = ev.target && ev.target.closest ? ev.target.closest("[data-theme-set]") : null;
+    if (!b) return;
+    setTheme(b.dataset.themeSet);
+    place();
+  });
+  addStyle(".theme-pick .tw{position:relative;width:88px;height:88px;border-radius:50%;margin:3px 0 2px;cursor:crosshair;touch-action:none;" +
+    "background:radial-gradient(circle closest-side,#8C8C88 0%,rgba(140,140,136,.55) 45%,rgba(140,140,136,0) 100%)," +
+    "conic-gradient(" + [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360].map((h) => `hsl(${h},42%,50%)`).join(",") + ");" +
+    "box-shadow:inset 0 0 0 1px rgba(0,0,0,.35);opacity:.7}.theme-pick .tw.on{opacity:1}" +
+    ".theme-pick .tw-dot{position:absolute;width:12px;height:12px;margin:-7px 0 0 -7px;border-radius:50%;border:2px solid #E8E2D6;box-shadow:0 0 0 1px rgba(0,0,0,.6);pointer-events:none}" +
+    ".view-row .view-go{align-self:flex-start}.view-row .view-go .leave,.view-row .view-go .snap{flex:0 0 auto!important}" +
+    ".theme-pick .tw-bright{width:88px;margin:2px 0}.theme-pick .tw-btns{display:flex;flex-wrap:wrap;gap:3px}" +
+    ".theme-pick .tw-btns .chip{font:inherit;font-size:10.5px;padding:1px 6px;border-radius:9px;border:1px solid rgba(30,160,200,.45);background:none;color:var(--ink,#e8e2d6);cursor:pointer}", "theme-wheel");
+  place();
+}
 var THEME_ORIG = new Map();            // "layer|property" -> its value before the theme
 var THEME_OUT = new Set();             // what the theme wrote, so it is never themed twice
 var THEME_RASTER = ["raster-brightness-min", "raster-brightness-max", "raster-saturation", "raster-hue-rotate", "raster-contrast"];
@@ -12519,12 +12664,10 @@ function setLift(on) {
     const l = `${id}-lift`;
     if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", LIFT_ON && (visibility.get(id) || "visible") === "visible" ? "visible" : "none");
   }
-  for (const [id, pr] of POINT_RELIEFS) if (pr.on) pointReliefSet(id, LIFT_ON && (visibility.get(id) || "visible") === "visible");
-  // Round 108b: every picture row that is showing rises, or lies flat again.
+  // Rounds 108b and 109b: every picture, point and shape row that is showing rises, or lies flat again.
   for (const [id, vis] of visibility) {
-    if (vis !== "visible" && !RASTER_RISE.has(id)) continue;
-    if (LIFT_ON && vis === "visible" && !RELIEFS.has(id) && rowRasterSource(id)) rasterRiseSet(id, true);
-    else if (RASTER_RISE.has(id)) rasterRiseSet(id, false);
+    if (LIFT_ON && vis === "visible") riseRow(id, true);
+    else if (RASTER_RISE.has(id) || POINT_RELIEFS.has(id)) riseRow(id, false);
   }
 }
 async function addCountryLayer(cfg) {
@@ -14213,7 +14356,6 @@ async function addSitemapLayer(cfg, given) {
     cfg.facet = { property: "ov", label: "layer", values: data.overlays };
   }
   setRowSwatch(cfg.id, swatchFill(sitemapDrawnColours(cfg, data.features)));
-  addPointReliefChip(cfg, data.features);
   const n = data.features.length;
   setLayerState(cfg.id, `${n.toLocaleString()} ${cfg.unit}`);
   applyVisibility(cfg.id);
@@ -14271,18 +14413,23 @@ function openTimelineWindow(cfg) {
   w.hidden = false;
 }
 
-/* ---------- point rows raised where their points crowd (round 100b) ---------- */
-// Asked 28 September: high concentrations of points as high ground. The points
-// are counted on a grid of a quarter degree, smoothed over about 75 km, and
-// the count stands as relief in the row's own ramp, as the livestock and
-// population rows do: the tallest place is the row's densest. It is the same
-// height at every zoom, since the grid is on the ground, not on the screen.
+/* ---------- point and shape rows raised where they crowd (rounds 100b, 109b) ---------- */
+// Round 100b put a "Raise where the points crowd" switch under each row of
+// points; the owner (28 September) could not tell what it did: it drew a grid
+// of blue squares. Round 109b takes the switch away. With "Raise figures as
+// heights" on, a row of points, areas or lines now rises by itself, as the
+// picture rows do: its points are counted on a grid of a quarter degree, its
+// areas and lines drawn on the same grid (each shape adds an eighth, so up to
+// eight overlapping shapes still differ), the whole smoothed over about 75 km
+// and read between the grid's corners so no squares show. The count stands as
+// high ground under the row, shaded, with the row's own colours kept on top;
+// the most crowded or most covered place is the tallest. A row read from
+// tiles counts what the map has loaded, and is counted again after a move.
 const POINT_RELIEF_RES = 0.25, POINT_RELIEF_MIN = 30;
-var POINT_RELIEFS = new Map();         // row -> { pts, grid, max, on }
-const POINT_RELIEF_RAMP = [[0.02, [11, 46, 107, 0]], [0.1, [23, 71, 184, 150]], [0.3, [26, 159, 214, 190]], [0.6, [20, 168, 160, 215]], [1, [207, 239, 242, 240]]];
-function pointReliefGrid(pts) {
+var POINT_RELIEFS = new Map();         // row -> { rid, grid, vector }
+function pointReliefGrid(pts, cover) {
   const W = Math.round(360 / POINT_RELIEF_RES), H = Math.round(180 / POINT_RELIEF_RES);
-  let g = new Float32Array(W * H);
+  let g = cover && cover.length === W * H ? Float32Array.from(cover) : new Float32Array(W * H);
   for (const [lng, lat] of pts) {
     const x = Math.floor((lng + 180) / POINT_RELIEF_RES), y = Math.floor((90 - lat) / POINT_RELIEF_RES);
     if (x >= 0 && x < W && y >= 0 && y < H) g[y * W + x] += 1;
@@ -14304,68 +14451,142 @@ function pointReliefGrid(pts) {
   let max = 0; for (const v of g) if (v > max) max = v;
   return { g, W, H, max };
 }
+// Areas and lines, drawn on the grid.
+function shapeCover(features) {
+  const W = Math.round(360 / POINT_RELIEF_RES), H = Math.round(180 / POINT_RELIEF_RES);
+  const cv = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(W, H)
+    : (typeof document !== "undefined" && document.createElement ? Object.assign(document.createElement("canvas"), { width: W, height: H }) : null);
+  const ctx = cv && cv.getContext ? cv.getContext("2d") : null;
+  if (!ctx) return null;
+  ctx.globalCompositeOperation = "lighter";
+  ctx.fillStyle = ctx.strokeStyle = "rgba(255,255,255,0.125)";
+  ctx.lineWidth = 1;
+  const path = (ring) => ring.forEach(([lng, lat], i) => { const X = (lng + 180) / 360 * W, Y = (90 - lat) / 180 * H; if (i) ctx.lineTo(X, Y); else ctx.moveTo(X, Y); });
+  let any = false;
+  for (const f of features || []) {
+    const g = f && f.geometry;
+    if (!g || !g.coordinates) continue;
+    const polys = g.type === "Polygon" ? [g.coordinates] : g.type === "MultiPolygon" ? g.coordinates : null;
+    const lines = g.type === "LineString" ? [g.coordinates] : g.type === "MultiLineString" ? g.coordinates : null;
+    if (polys) { ctx.beginPath(); for (const poly of polys) for (const ring of poly) path(ring); ctx.fill("evenodd"); any = true; }
+    if (lines) { ctx.beginPath(); for (const line of lines) path(line); ctx.stroke(); any = true; }
+  }
+  if (!any) return null;
+  const d = ctx.getImageData(0, 0, W, H).data, out = new Float32Array(W * H);
+  for (let i = 0; i < out.length; i++) out[i] = d[i * 4 + 3] / 255 * 8;
+  return out;
+}
+function reliefPoints(features) {
+  const pts = [];
+  for (const f of features || []) {
+    const g = f && f.geometry;
+    if (!g) continue;
+    if (g.type === "Point") pts.push(g.coordinates);
+    else if (g.type === "MultiPoint") pts.push(...g.coordinates);
+  }
+  return pts;
+}
 function pointReliefValues(pr) {
   return async (z, x, y) => {
-    const out = new Float32Array(256 * 256), n = Math.pow(2, z);
+    const G = pr.grid;
+    if (!G || !(G.max > 0)) return null;
+    const out = new Float32Array(256 * 256), n = Math.pow(2, z), top = Math.log1p(G.max);
     for (let j = 0; j < 256; j++) {
       const lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + (j + 0.5) / 256) / n))) * 180 / Math.PI;
-      const gy = Math.floor((90 - lat) / POINT_RELIEF_RES);
-      if (gy < 0 || gy >= pr.grid.H) continue;
+      const fy = Math.max(0, Math.min(G.H - 1, (90 - lat) / POINT_RELIEF_RES - 0.5)), y0 = Math.floor(fy), y1 = Math.min(G.H - 1, y0 + 1), ty = fy - y0;
       for (let i = 0; i < 256; i++) {
         const lng = (x + (i + 0.5) / 256) / n * 360 - 180;
-        const gx = Math.floor((lng + 180) / POINT_RELIEF_RES);
-        out[j * 256 + i] = pr.grid.max > 0 ? Math.log1p(pr.grid.g[gy * pr.grid.W + gx]) / Math.log1p(pr.grid.max) : 0;
+        const fx = (lng + 180) / POINT_RELIEF_RES - 0.5, xf = Math.floor(fx), tx = fx - xf;
+        const x0 = (xf + G.W) % G.W, x1 = (xf + 1 + G.W) % G.W;
+        const v = (G.g[y0 * G.W + x0] * (1 - tx) + G.g[y0 * G.W + x1] * tx) * (1 - ty) + (G.g[y1 * G.W + x0] * (1 - tx) + G.g[y1 * G.W + x1] * tx) * ty;
+        out[j * 256 + i] = Math.log1p(v) / top;
       }
     }
     return out;
   };
 }
-function pointReliefSet(id, on) {
-  const pr = POINT_RELIEFS.get(id);
-  if (!pr) return;
-  const rid = `${id}__crowd`;
-  if (on) {
-    if (!pr.grid) pr.grid = pointReliefGrid(pr.pts);
-    if (!RELIEFS.has(rid)) RELIEFS.set(rid, { values: pointReliefValues(pr), colour: (v) => rampColour(POINT_RELIEF_RAMP, v), height: (v) => v, top: 150000, maxzoom: 8 });
-    if (!map.getSource(`${rid}-dem`)) {
-      map.addSource(`${rid}-col`, { type: "raster", tiles: [`relief://${rid}/col/{z}/{x}/{y}`], tileSize: 256, maxzoom: 8 });
-      map.addSource(`${rid}-dem`, { type: "raster-dem", tiles: [`relief://${rid}/dem/{z}/{x}/{y}`], tileSize: 256, maxzoom: 8, encoding: "mapbox" });
-      map.addSource(`${rid}-shade`, { type: "raster-dem", tiles: [`relief://${rid}/dem/{z}/{x}/{y}`], tileSize: 256, maxzoom: 8, encoding: "mapbox" });
-      map.addLayer({ id: `${rid}-col`, type: "raster", source: `${rid}-col`, paint: { "raster-opacity": 0.8, "raster-resampling": "nearest" } }, pointLayerAbove());
-      map.addLayer({ id: `${rid}-hill`, type: "hillshade", source: `${rid}-shade`,
-        paint: Object.assign({}, RELIEF_SHADE) }, pointLayerAbove());
-    }
-    for (const l of [`${rid}-hill`, `${rid}-col`]) if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", "visible");
-    reliefGround(rid, true);
-  } else {
-    for (const l of [`${rid}-hill`, `${rid}-col`]) if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", "none");
-    reliefGround(rid, false);
-  }
+// The row's own layers of points, areas and lines (not the shared country shapes).
+function rowVectorLayers(id) {
+  const style = map.getStyle && map.getStyle();
+  return ((style && style.layers) || []).filter((l) => l.id.startsWith(`${id}-`) && ["fill", "line", "circle", "symbol", "heatmap"].includes(l.type) &&
+    l.source && l.source !== "boundaries" && !/__crowd|__rise/.test(l.source));
 }
-// The chip under a point row: its points, and a switch to raise them.
-function addPointReliefChip(cfg, features) {
-  const pts = (features || []).filter((f) => f.geometry && f.geometry.type === "Point").map((f) => f.geometry.coordinates);
-  if (pts.length < POINT_RELIEF_MIN || POINT_RELIEFS.has(cfg.id)) return;
-  POINT_RELIEFS.set(cfg.id, { pts, grid: null, on: false });
-  const box = document.getElementById("layers");
-  const row = box && box.querySelector && box.querySelector(`[data-layer="${cfg.id}"]`);
-  const anchor = row && row.closest ? row.closest("label") : null;
-  if (!anchor || !anchor.after || typeof document.createElement !== "function") return;
-  const el = document.createElement("div");
-  el.className = "facet";
-  el.dataset.crowdFor = cfg.id;
-  el.innerHTML = `<button type="button" class="chip" data-crowd="1" title="The points counted on a grid and raised as high ground where they crowd; the densest place is the tallest">` +
-    `Raise where the points crowd</button>`;
-  el.addEventListener("click", (ev) => {
-    const b = ev.target.closest && ev.target.closest("[data-crowd]");
-    if (!b) return;
-    ev.stopPropagation();
-    const pr = POINT_RELIEFS.get(cfg.id);
-    pr.on = !pr.on;
-    b.classList.toggle("on", pr.on);
-    pointReliefSet(cfg.id, pr.on && LIFT_ON && (visibility.get(cfg.id) || "visible") === "visible");
-  });
-  anchor.after(el);
+async function rowFeatures(id) {
+  const out = [], seen = new Set();
+  let vector = false;
+  for (const l of rowVectorLayers(id)) {
+    const key = `${l.source}|${l["source-layer"] || ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const s = map.getSource(l.source);
+    if (!s) continue;
+    if (s.type === "geojson") {
+      let d = null;
+      try {
+        if (s._data && typeof s._data.url === "string") d = await (await fetch(s._data.url)).json();
+        else if (typeof s.getData === "function") d = await s.getData();
+      } catch (e) { d = null; }
+      if (d) out.push(...(d.type === "FeatureCollection" ? d.features || [] : d.type === "Feature" ? [d] : []));
+    } else if (s.type === "vector" && typeof map.querySourceFeatures === "function") {
+      vector = true;
+      out.push(...map.querySourceFeatures(l.source, l["source-layer"] ? { sourceLayer: l["source-layer"] } : {}));
+    }
+  }
+  return { features: out, vector };
+}
+async function crowdBuild(id, pr) {
+  const { features, vector } = await rowFeatures(id);
+  const pts = reliefPoints(features), cover = shapeCover(features);
+  pr.vector = vector;
+  pr.grid = cover || pts.length >= POINT_RELIEF_MIN ? pointReliefGrid(pts, cover) : null;
+}
+async function pointReliefSet(id, on) {
+  const rid = `${id}__crowd`;
+  let pr = POINT_RELIEFS.get(id);
+  if (!on) {
+    if (pr && map.getLayer(`${rid}-hill`)) map.setLayoutProperty(`${rid}-hill`, "visibility", "none");
+    if (pr) reliefGround(rid, false);
+    return;
+  }
+  if (!pr) { pr = { rid, grid: null, vector: false }; POINT_RELIEFS.set(id, pr); }
+  if (!pr.grid) await crowdBuild(id, pr);
+  if (!pr.grid || !(pr.grid.max > 0) || !LIFT_ON || (visibility.get(id) || "visible") !== "visible") return;
+  if (!RELIEFS.has(rid)) RELIEFS.set(rid, { values: pointReliefValues(pr), colour: () => [0, 0, 0, 0], height: (v) => v, top: 150000, maxzoom: 8 });
+  if (!map.getSource(`${rid}-dem`)) {
+    map.addSource(`${rid}-dem`, { type: "raster-dem", tiles: [`relief://${rid}/dem/{z}/{x}/{y}`], tileSize: 256, maxzoom: 8, encoding: "mapbox" });
+    map.addSource(`${rid}-shade`, { type: "raster-dem", tiles: [`relief://${rid}/dem/{z}/{x}/{y}`], tileSize: 256, maxzoom: 8, encoding: "mapbox" });
+    // Under the row's own marks, so its points and edges stay sharp.
+    const first = rowVectorLayers(id)[0];
+    map.addLayer({ id: `${rid}-hill`, type: "hillshade", source: `${rid}-shade`, paint: Object.assign({}, RELIEF_SHADE) }, first ? first.id : pointLayerAbove());
+  }
+  map.setLayoutProperty(`${rid}-hill`, "visibility", "visible");
+  reliefGround(rid, true, true);
+}
+// A row read from tiles is counted again once the map stops, if it holds the ground.
+let crowdTimer = null;
+if (typeof map.on === "function") map.on("moveend", () => {
+  clearTimeout(crowdTimer);
+  crowdTimer = setTimeout(async () => {
+    const top = reliefStack[reliefStack.length - 1];
+    for (const [id, pr] of POINT_RELIEFS) {
+      if (!pr.vector || top !== pr.rid) continue;
+      await crowdBuild(id, pr);
+      const q = Date.now().toString(36);
+      for (const kind of ["dem", "shade"]) { const s = map.getSource(`${pr.rid}-${kind}`); if (s && s.setTiles) s.setTiles([`relief://${pr.rid}/dem/{z}/{x}/{y}?${q}`]); }
+    }
+  }, 1500);
+});
+// Which kind of rising a row gets, when it is shown or the switch changes.
+function riseRow(id, on, tries) {
+  if (RELIEFS.has(id) || LIFTED.has(id)) return;     // its own relief, or country towers
+  if (!on) { rasterRiseSet(id, false); pointReliefSet(id, false); return; }
+  if (rowRasterSource(id)) rasterRiseSet(id, true);
+  else if (rowVectorLayers(id).length) pointReliefSet(id, true);
+  else {
+    // The row's marks are added a moment after it is ticked.
+    const box = document.querySelector && document.querySelector(`[data-layer="${id}"]`);
+    if (box && box.checked && (tries || 0) < 6) setTimeout(() => { if (LIFT_ON && (visibility.get(id) || "visible") === "visible") riseRow(id, true, (tries || 0) + 1); }, 1500);
+  }
 }
 
 /* ---------- picture rows raised where they cover the ground (round 108b) ---------- */
@@ -14377,7 +14598,7 @@ function addPointReliefChip(cfg, features) {
 // smoothed, and that share stands as high ground, shaded as the other reliefs
 // are. The row's own colours are kept; only the ground rises under them. As
 // with every relief, the row ticked last holds the ground.
-const RASTER_RISE = new Map();         // row -> { rid, src }
+var RASTER_RISE = new Map();         // row -> { rid, src }
 const RISE_GRID = 16;
 function rowRasterSource(id) {
   const style = map.getStyle && map.getStyle();
@@ -14466,7 +14687,7 @@ function riseValues(id, rr) {
     return p;
   };
 }
-function rasterRiseSet(id, on, tries) {
+function rasterRiseSet(id, on) {
   let rr = RASTER_RISE.get(id);
   if (!on) {
     if (rr && map.getLayer(`${rr.rid}-hill`)) map.setLayoutProperty(`${rr.rid}-hill`, "visibility", "none");
@@ -14474,12 +14695,7 @@ function rasterRiseSet(id, on, tries) {
     return;
   }
   const src = rowRasterSource(id);
-  if (!src) {
-    // The row's picture is added a moment after it is ticked.
-    const box = document.querySelector && document.querySelector(`[data-layer="${id}"]`);
-    if (box && box.checked && (tries || 0) < 6) setTimeout(() => { if (LIFT_ON && (visibility.get(id) || "visible") === "visible") rasterRiseSet(id, true, (tries || 0) + 1); }, 1500);
-    return;
-  }
+  if (!src) return;
   if (!rr) {
     rr = { rid: `${id}__rise`, src };
     RASTER_RISE.set(id, rr);
@@ -14692,6 +14908,14 @@ async function openSitemapBox(hit, at) {
   const box = boxes.boxes && boxes.boxes[hit.props.k];
   if (!box || !box.h) return;
   hideSitemapTooltip();
+  // Round 109b (asked 28 September): an Atlas city opens its map in the
+  // corner panel only, with no box on the map.
+  if (hit.cfg.route === "atlascities" && typeof document.createElement === "function") {
+    const t = document.createElement("template");
+    t.innerHTML = sitemapBoxHtml(hit.cfg, boxes, box, false);
+    const b = t.content && t.content.querySelector("[data-atlas-city]");
+    if (b) { atlasFrom(b, geometryBounds(hit.geometry), hit.cfg.id); return; }
+  }
   const popup = new maplibregl.Popup({ closeButton: false, className: "wtyg-box", maxWidth: "none", anchor: "bottom", offset: 4 })
     .setLngLat(at).setHTML(sitemapBoxHtml(hit.cfg, boxes, box, false)).addTo(map);
   const el = popup.getElement && popup.getElement();
@@ -14861,6 +15085,8 @@ function addTileLayer(cfg) {
   });
 
   setLayerState(cfg.id, cfg.unit);
+  // Round 109b: the alerts' three grades, under the row.
+  if (cfg.recolor) rowKey(cfg.id, ALERT_TONES.map((c, i) => [hexOf(c), ALERT_WORDS[i]]), "Colour shows how sure the satellites are, as Global Forest Watch grades each alert");
   applyVisibility(cfg.id);
   buildLegend();
 }
@@ -16340,9 +16566,8 @@ function applyVisibility(id) {
   }
   const extra = (cfg || childById(id) || {})._layerIds;
   if (extra) for (const l of extra) if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", /-lift$/.test(l) && !LIFT_ON ? "none" : vis);
-  if (typeof POINT_RELIEFS !== "undefined" && POINT_RELIEFS.has(id) && POINT_RELIEFS.get(id).on) pointReliefSet(id, vis === "visible" && LIFT_ON);
-  // Round 108b: a picture row rises where it covers the ground.
-  if (typeof RASTER_RISE !== "undefined" && (vis === "visible" ? LIFT_ON && !RELIEFS.has(id) : RASTER_RISE.has(id))) rasterRiseSet(id, vis === "visible");
+  // Rounds 108b and 109b: a picture, point or shape row rises where it covers or crowds the ground.
+  if (typeof riseRow === "function" && (vis === "visible" ? LIFT_ON : RASTER_RISE.has(id) || POINT_RELIEFS.has(id))) riseRow(id, vis === "visible");
   // A row that carries another source inside it switches that one with it.
   // (Rows inside a group, such as Buildings, are found by childById.)
   const rc = cfg || (typeof childById === "function" ? childById(id) : null);
@@ -18013,19 +18238,19 @@ const FOREST_ALERTS = {
       // GFW paint these tiles themselves, and no rotation of their palette read
       // as anything but glaring. Each alert pixel is given this layer's colour
       // instead, in the latclip protocol. See recolorAlerts.
-      recolor: "#8A4F46",
+      recolor: "#8A4F46", keepColour: true,
       note: "Pan-tropical only. GLAD and RADD do not cover boreal or temperate forest — use the global layers for those.",
       attribution: '<a href="https://www.globalforestwatch.org" target="_blank" rel="noopener">Global Forest Watch</a>' },
     { id:"gfw_dist",             name:"Any loss of plant cover, worldwide \u2014 cutting, fire, drought or harvest alike, last 30 days (DIST-ALERT)", unit:"alerts", colour:"#7A5B4E", route:"tile", ready:true, off: true, lazy:true,
       // Worldwide (round 84b): the tropics-only bounds hid everything outside 30 degrees.
       tilePath: "gfw_tile", tileMaxZoom: 22, tileQuery: "kind=dist&days=30", off: true,
-      recolor: "#7A5B4E",
+      recolor: "#7A5B4E", keepColour: true,
       note: "Global coverage, including boreal and temperate forest. Detects vegetation disturbance generally, so it catches fire and harvest as well as clearing.",
       attribution: '<a href="https://www.globalforestwatch.org" target="_blank" rel="noopener">Global Forest Watch</a>' },
     { id:"gfw_dist_year",        name:"Any loss of plant cover, worldwide \u2014 the same, gathered over a year (DIST-ALERT)", unit:"alerts", colour:"#6E5E57", route:"tile", ready:true, off: true, lazy:true,
       // Worldwide (round 84b): the tropics-only bounds hid everything outside 30 degrees.
       tilePath: "gfw_tile", tileMaxZoom: 22, tileQuery: "kind=dist&days=365", off: true,
-      recolor: "#6E5E57",
+      recolor: "#6E5E57", keepColour: true,
       note: "The same global product over a twelve-month window, for seeing a season's cumulative loss rather than this month's.",
       attribution: '<a href="https://www.globalforestwatch.org" target="_blank" rel="noopener">Global Forest Watch</a>' },
   ],
@@ -20132,7 +20357,7 @@ const PANEL_ORDER = [
   // Round 102b: Christmas tree farms worldwide in place of the United States map alone.
   { h: 2, t: "Of plants" }, "site_enslaved_plants", "xmas_trees",
   { h: 2, t: "Of microscopics" }, "site_enslaved_microbes",
-  { h: 2, t: "Of the “insentient”" }, "site_insentient",
+  { h: 2, t: "Of the insentient" }, "site_insentient",
 
   // Asked for 26 September (round 56): a category of the owner's own choosing,
   // above Off-planet invasion; empty until they name its layers.
