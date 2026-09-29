@@ -5,6 +5,37 @@ touches.
 
 ---
 
+## Round 111b (29 September)
+
+Needs round 110b. Tiles patch round111b_tiles.py beside it. Made alongside the
+other chat's 110c to 112c; touches none of their rows. Leaves app.js?v= as it
+is, so the other chat's next bump is not in the way.
+
+- ForestAtRisk (Cirad, EC JRC), probability of deforestation 2020: Cirad
+  answered on 29 September that it is "in principle happy to support
+  non-commercial educational use of the prob_2020 map". Row forestatrisk
+  (route rasterparts) leads Deforestation > Tree cover loss and alerts > Where
+  clearing is likely; ten equal steps of probability, teal to cobalt. Built by
+  tiles scripts/forestatrisk.py from the three 30 m COGs on
+  forestatrisk.cirad.fr/tropics/tif/ (prob_2020_{AME,AFR,ASI}_aea.tif, values
+  1 + p x 65534), warped to zoom 9 (about 300 m; FAR_MAXZOOM=10 for 150 m).
+  addRasterPartsLayer now takes cfg.stateSay.
+- Refresh of 29 September, nine failures, fixed in tiles: aqueduct (crop table
+  paged through GFW's query), atlas_insets (count vs list), fertility_policy
+  (2019 fertility file; multi-row headings), fish_rivers ("Layer:" lines),
+  ftw_overview (list-type=2; it looped on page one), ifl (authors'
+  GeoPackages first; GFW "latest" is 404), inpe_fire (two builds joined, 84
+  MB), public_harm (IMF unpack), slavery_world (UNODC's new portal; CBP 403
+  no longer fails the run). Notes for inpe_fire_2023 and fertility_policy say
+  what changed.
+- Read after that refresh: fur/farms.geojson has 778 farms (Final Nail 270,
+  Farm Transparency 335, OSM 265 less overlaps), Final Nail's own map fields
+  kept as "Final Nail: ..."; spam/build.json has no licence text (readme {});
+  probe/nusantara/health.json: 18 Nusantara layers draw nothing at zooms 2 to
+  8 (finance, refineries, Papua, Merauke, Rawa Singkil, sago, 10 km buffer);
+  probe/crime: ILAT is a Tableau view, TRAFFIC's portal a script page, no
+  files; probe/enforcement not yet mapped.
+
 ## Round 112c (29 September)
 
 Needs round 111c. Tiles patch round112c_tiles.py beside it (it carries 111c's

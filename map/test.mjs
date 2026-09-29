@@ -5650,6 +5650,18 @@ console.log("\nround 110b (29 September): Climate TRACE by gas from culprits-til
         /const CT_GASES_BASE = "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-gases";/.test(src) &&
         /const NEO_COPY = "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/neo\/esa_risk_list\.txt";/.test(src));
 }
+console.log("\nround 111b (29 September): ForestAtRisk, and notes after the failed refresh");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("ForestAtRisk is a row of its own, drawn from the tiles repo's copy in parts",
+        /id: "forestatrisk"[^\n]*route: "rasterparts"[^\n]*buildScript: "forestatrisk"/.test(src) &&
+        /culprits-tiles-more\/tiles\/forestatrisk\.pmtiles/.test(src) && /shown with Cirad's permission for non-commercial educational use/.test(src));
+  check("it leads Where clearing is likely", /\{ h: 5, t: "Where clearing is likely" \}, "forestatrisk",/.test(src));
+  check("it has a kind, a site and a not-live note", /forestatrisk: \["plant", "downstream"\]/.test(src) &&
+        /  forestatrisk: "https:\/\/forestatrisk\.cirad\.fr\/rasters\.html",/.test(src) && /  forestatrisk: "Copied once from ForestAtRisk's own files/.test(src));
+  check("a picture row can say its own state", /setLayerState\(cfg\.id, cfg\.stateSay \|\| /.test(src));
+  check("the fire and fertility notes say what changed", /below zoom 6\) each fire's dot carries/.test(src) && /the 2019 country data on fertility, family planning/.test(src));
+}
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");

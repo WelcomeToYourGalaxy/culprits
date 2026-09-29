@@ -5552,7 +5552,7 @@ async function addRasterPartsLayer(cfg) {
     el.innerHTML = catalogueKeyHtml({ values: classes.map((c) => [c.value, c.colour, c.name]) });
     label.after(el);
   }
-  setLayerState(cfg.id, `${(st.classes || []).length} kinds of forest, 100 m, 2020`);
+  setLayerState(cfg.id, cfg.stateSay || `${(st.classes || []).length} kinds of forest, 100 m, 2020`);
   applyVisibility(cfg.id);
   buildLegend();
 }
@@ -17422,7 +17422,7 @@ const OTHER_MAPS = {
     { id: "fertility_policy", name: "Governments trying to raise, lower or keep their birth rate (UN World Population Policies)", unit: "countries", colour: "#1E6FA8", keepColour: true, route: "countrycat", ready: true, lazy: true, buildScript: "fertility_policy",
       url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/fertility/policy.json", field: "policy",
       categories: [["Raise", "#E0304A"], ["Lower", "#1E6FA8"], ["Maintain", "#D6CFC2"], ["No intervention", "#77726A"], ["No official policy", "#77726A"]],
-      note: "Each government's own answer to the United Nations Population Division's inquiry on its policy on the fertility level: to raise it, lower it, keep it as it is, or no intervention (World Population Policies, 2021 revision, the reproductive health module's country data). Every other answer in the country's row is in the box. Copied weekly by culprits-tiles-more (scripts/fertility_policy.py); a wording the key does not list is shown in grey, under its own name." },
+      note: "Each government's own answer to the United Nations Population Division's inquiry on its policy on the fertility level: to raise it, lower it, keep it as it is, or no intervention (World Population Policies: the 2019 country data on fertility, family planning and reproductive health, the latest country file that asks about the fertility level; round 111b: the 2021 file read before asks only about laws on reproductive health care). The file and column read are in fertility/build.json. Every other answer in the country's row is in the box. Copied weekly by culprits-tiles-more (scripts/fertility_policy.py); a wording the key does not list is shown in grey, under its own name." },
     // Who turned holidays into sales, and who made holidays to displace others.
     { id: "holiday_culprits", name: "Who turned holidays into sales events, and who made holidays to take the place of others", unit: "companies, bodies and governments", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Holiday culprits", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/holidays/culprits.geojson" }], nameFrom: ["name"],
@@ -17557,7 +17557,7 @@ const OTHER_MAPS = {
       note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the Pastoral Land Commission's tables of slave labour cases: 510, at their town or state. 2017 and 2019 add up to their printed totals; 2014, 2015 and 2018 are 1 to 4 short, and those are marked." },
     { id: "inpe_fire_2023", name: "Fires detected by satellite across South America, 2023 (INPE)", unit: "fires", colour: "#E0304A", route: "pmtiles", ready: true, lazy: true, fine: true, buildScript: "inpe_fire",
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/inpe_fire_2023.pmtiles",
-      note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the shapefile filed as All Cases in South America in GIS Format, which is INPE's (Brazil's space research institute) fire detections from 1 January to 11 December 2023: 332,432, each with its time, satellite, country, state, town, biome, days without rain, fire risk and fire power, every field kept." },
+      note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the shapefile filed as All Cases in South America in GIS Format, which is INPE's (Brazil's space research institute) fire detections from 1 January to 11 December 2023: 332,432, each with its time, satellite, country, state, town, biome, days without rain, fire risk and fire power, every field kept. Zoomed far out (below zoom 6) each fire's dot carries its time, country, biome and name; zoom in to read its whole record (round 111b: the full record at every zoom made the file too big for GitHub)." },
     // ---- round 106b (asked 28 September): the owner's Attacks On Activists collection ----
     { id: "attacks_gw_killings", name: "Land and environmental defenders killed, 2012 to 2022, one by one (Global Witness)", unit: "people killed", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Land and environmental defenders killed, 2012 to 2022, one by one", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/gw_killings.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by the industry each killing was linked to",
@@ -17728,6 +17728,14 @@ const OTHER_MAPS = {
       classColours: ["#0A7E8C", "#00B4D8", "#5FD3C4", "#2F6BFF", "#0B4F9C", "#9FE0F0", "#14A8A0", "#E6F4FA", "#3A4FD9"],
       attribution: "Global Forest Management Type Map 2020 (De Keersmaecker et al., VITO, IIASA, WRI), CC BY 4.0",
       note: "Every forest on Earth at 100 m in 2020, by how it is managed, in the record's own classes: unmanaged natural forests (primary among them); naturally regenerated forests with visible human activity (where logging shows); planted forest; plantation forest; rubber; oil palm; tree crops; agroforestry; other trees. A copy made once from the Zenodo record (10.5281/zenodo.20396072)." },
+    // Round 111b (29 September): Cirad said yes to non-commercial educational use.
+    { id: "forestatrisk", name: "Where tropical forest is most likely to be cleared, 2020 (ForestAtRisk)", unit: "steps of risk", colour: "#1A5C92", keepColour: true, route: "rasterparts", ready: true, lazy: true, buildScript: "forestatrisk",
+      archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/forestatrisk.pmtiles",
+      stateSay: "chance of being cleared, in ten steps · from the map's own copy",
+      // The build's own ten steps, listed so the map-wide recolouring leaves them as they are.
+      classColours: ["#E4F3F8", "#C6E7F0", "#9CD6E6", "#6FC2DA", "#46AACB", "#2E8FBA", "#2275A8", "#1A5C92", "#13447A", "#0C2E5E"],
+      attribution: "ForestAtRisk (Vieilledent et al. 2023; Cirad, EC JRC), shown with permission for non-commercial educational use",
+      note: "The modelled probability that each patch of tropical forest is cleared, as of 2020, across America, Africa and Asia, from ForestAtRisk's 30 m maps (Vieilledent, Vancutsem, Bourgoin, Ploton, Verley and Achard, Spatial scenario of tropical deforestation and carbon emissions for the 21st century, bioRxiv, doi 10.1101/2022.03.22.485306; Cirad and the European Commission's Joint Research Centre). Every forest pixel is drawn, coloured in ten equal steps of probability, light (0 to 10%) to dark (90 to 100%). Copyright 2021 Cirad, EC JRC, all rights reserved; shown with Cirad's permission for non-commercial educational use (29 September 2026). A copy made once by culprits-tiles-more from the files on forestatrisk.cirad.fr, at about 300 m a pixel; the originals are 30 m." },
     { id: "dff", name: "Investment funds and the deforestation in them (Deforestation Free Funds)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://deforestationfreefunds.org",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
@@ -18903,7 +18911,7 @@ const LAYER_KIND = {
   epa_widget: ["insentient", "downstream"],
   bocc: ["human", "upstream"],
   dff: ["plant", "upstream"],
-  forest_management: ["plant", "downstream"],
+  forest_management: ["plant", "downstream"], forestatrisk: ["plant", "downstream"],
   largest_companies: ["human", "upstream"],
   largest_banks: ["human", "upstream"],
   development_banks: ["human", "upstream"],
@@ -19724,6 +19732,7 @@ const LAYER_SITE = {
   vdem_regime: "https://ourworldindata.org/grapher/political-regime",
   research_makers: "https://www.welcometoyourgalaxy.com/suppression.html",
   fertility_policy: "https://www.un.org/development/desa/pd/data/world-population-policies",
+  forestatrisk: "https://forestatrisk.cirad.fr/rasters.html",
   holiday_culprits: "https://en.wikipedia.org/wiki/Loyalty_Day",
   slavery_convicted_world: "https://www.unodc.org/unodc/en/data-and-analysis/glotip.html",
   slavery_detected_world: "https://www.unodc.org/unodc/en/data-and-analysis/glotip.html",
@@ -19904,6 +19913,7 @@ const NOT_LIVE = {
   threat_crime: "Worked out daily by culprits-tiles-more from the map's own figures",
   research_makers: "Read weekly from the site's own map by culprits-tiles-more",
   fertility_policy: "Copied weekly from the UN Population Division by culprits-tiles-more",
+  forestatrisk: "Copied once from ForestAtRisk's own files by culprits-tiles-more",
   holiday_culprits: "Compiled for this map from the sources in each box",
   slavery_convicted_world: "Copied weekly from UNODC by culprits-tiles-more",
   slavery_detected_world: "Copied weekly from UNODC by culprits-tiles-more",
@@ -20167,7 +20177,7 @@ const PANEL_ORDER = [
   { h: 5, t: "What drove the loss" }, "agri_linked",
   { h: 6, bundle: "drivers", colour: "#8C5A4E" },
   { h: 5, t: "Plantations spreading" },
-  { h: 5, t: "Where clearing is likely" },
+  { h: 5, t: "Where clearing is likely" }, "forestatrisk",
   // Round 88b (asked 27 September): the product headings named for the product alone.
   { h: 5, t: "Cattle" },
   { h: 5, t: "Soy and corn" },
