@@ -10992,6 +10992,7 @@ async function addMvtLiveLayer(cfg) {
     try { st = await getJson(cfg.copy.replace(/\.pmtiles$/, ".build.json"), 20000); } catch (e) { /* no copy yet: live */ }
     if (st && st.layer) return addMvtCopy(cfg, st);
   }
+  if (cfg.copy && !cfg.tiles && !cfg.tilesFrom) { setLayerState(cfg.id, "not built yet: its build runs in culprits-tiles-more"); return; }
   let tiles = cfg.tiles, layer = cfg.sourceLayer || "default";
   if (cfg.tilesFrom) { try { const j = await getJson(cfg.tilesFrom, 20000); if (j && j.tiles) { tiles = j.tiles; layer = j.layer || layer; } } catch (e) { /* the row's own address */ } }
   if (!tiles) { setLayerState(cfg.id, "no tile address yet"); return; }
@@ -11025,20 +11026,20 @@ function addMvtCopy(cfg, st) {
   pmShapeParts(cfg.copy, st).forEach((part, i) => {
     const sid = `${cfg.id}-c${i}`, lid = i ? `${cfg.id}-pt${i}` : `${cfg.id}-pt`;
     map.addSource(sid, { type: "vector", url: `pmtiles://${part.url}`, attribution: cfg.attribution || "" });
-    const n = ["coalesce", ["get", "schools"], 1];
+    const n = ["coalesce", ["get", "schools"], ["get", "_count"], 1];
     map.addLayer({ id: lid, type: "circle", source: sid, "source-layer": st.layer,
       minzoom: part.minzoom || 0, maxzoom: Math.min(24, part.maxzoom || 24), layout: { visibility: visibility.get(cfg.id) || "visible" },
       paint: { "circle-color": (cfg.classes || []).length ? m : cfg.colour,
                "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, ["+", 1, ["*", 0.9, ["log10", n]]], 5, ["+", 1.6, ["*", 1.2, ["log10", n]]], 8, 3, 12, 5],
                "circle-opacity": 0.9, "circle-stroke-width": 0.5, "circle-stroke-color": "rgba(8,14,24,0.6)" } });
     lids.push(lid);
-    bindHtmlPopup(lid, (p) => p.schools
-      ? `<b>${Number(p.schools).toLocaleString()} schools round here</b><table class="meta">${fieldRows(p, ["schools"])}</table><div class="meta">Summed at this zoom; each school from zoom ${st.detail_from || 6}.</div>`
-      : `<b>School</b><table class="meta">${fieldRows(p)}</table><div class="meta">${escapeHtml(cfg.attribution || "")}</div>`);
+    bindHtmlPopup(lid, (p) => (p.schools || p._count)
+      ? `<b>${Number(p.schools || p._count).toLocaleString()} ${escapeHtml(cfg.unit)} round here</b><table class="meta">${fieldRows(p, ["schools", "_count"])}</table><div class="meta">Summed at this zoom; each one from zoom ${st.detail_from || 6}.</div>`
+      : `<b>${escapeHtml(p.name || (cfg.unit === "schools" ? "School" : cfg.name))}</b><table class="meta">${fieldRows(p)}</table><div class="meta">${escapeHtml(cfg.attribution || "")}</div>`);
   });
   cfg._layerIds = lids;
   if (cfg.classes) rowKey(cfg.id, cfg.classes.map(([, c, w]) => [c, w]));
-  setLayerState(cfg.id, `${Number(st.schools || 0).toLocaleString()} schools \u00b7 from the map's own copy of Giga's tiles (${escapeHtml(st.date || "")})`);
+  setLayerState(cfg.id, `${Number(st.schools || st.places || 0).toLocaleString()} ${cfg.unit} \u00b7 from the map's own copy (${escapeHtml(st.date || "")})`);
   applyVisibility(cfg.id);
   buildLegend();
 }
@@ -17847,11 +17848,37 @@ const OTHER_MAPS = {
       categories: [["Raise", "#E0304A"], ["Lower", "#1E6FA8"], ["Maintain", "#D6CFC2"], ["No intervention", "#77726A"], ["No official policy", "#77726A"]],
       note: "Each government's own answer to the United Nations Population Division's inquiry on its policy on the fertility level: to raise it, lower it, keep it as it is, or no intervention (World Population Policies: the 2019 country data on fertility, family planning and reproductive health, the latest country file that asks about the fertility level; round 111b: the 2021 file read before asks only about laws on reproductive health care). The file and column read are in fertility/build.json. Every other answer in the country's row is in the box. Copied weekly by culprits-tiles-more (scripts/fertility_policy.py); a wording the key does not list is shown in grey, under its own name." },
     // Who turned holidays into sales, and who made holidays to displace others.
-    { id: "holiday_culprits", name: "Who turned holidays into sales events, and who made holidays to take the place of others", unit: "companies, bodies and governments", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
+    // Round 114b (asked 29 September): only those who corporatized a holiday; the
+    // governments and bodies that made holidays to take the place of others are
+    // out, and so are companies there only for selling a lot around one (JD.com,
+    // Hallmark's and American Greetings' card counts).
+    { id: "holiday_culprits", name: "Who corporatized holidays: made a holiday a company's own custom, or invented one to sell (compiled from Wikipedia)", unit: "companies and trade bodies", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Holiday culprits", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/holidays/culprits.geojson" }], nameFrom: ["name"],
-      groupColours: { "Turned a holiday into a sales event": "#E0304A", "Made or remade a holiday to take the place of another": "#3FA9C2" },
-      groupHint: "Red: a company or trade body that turned a holiday into selling. Blue: a government, body or church that made or remade a holiday to displace another (May Day, the October Revolution)",
-      note: "Compiled for this map on 28 September 2026 from the Wikipedia articles each box links to: the companies and trade bodies that turned holidays into sales events (Coca-Cola's Santa, Macy's parade, Montgomery Ward's Rudolph, Alibaba's and JD.com's Singles' Day, Amazon's Prime Day, the National Retail Federation's Cyber Monday, the men's wear retailers' Father's Day Council, White Day, Sweetest Day, Pepero Day, KFC's Christmas in Japan) and the governments, bodies and church that made or remade holidays to take the place of others (Loyalty Day and Law Day against May Day, the Feast of Saint Joseph the Worker set on May Day, the Nazi \u201cNational Labour Day\u201d followed by the seizure of the unions, Russia's Unity Day in place of the October Revolution). Each is placed at its head office or, where none is given, its city, as the box says. A short list, not every case." },
+      note: "Compiled for this map on 28 September 2026 from the Wikipedia articles each box links to, and cut down on 29 September to those who corporatized a holiday: Coca-Cola's Santa, Macy's parade, Montgomery Ward's Rudolph, Alibaba's Singles' Day, Amazon's Prime Day, the National Retail Federation's Cyber Monday, the men's wear retailers' Father's Day Council, the confectioners behind White Day and Sweetest Day, Lotte's Pepero Day and KFC's Christmas in Japan. Each is placed at its head office or, where none is given, its city, as the box says. A short list, not every case." },
+    // ---- round 114b (asked 29 September): sports, and the animal rows made global ----
+    { id: "sports_facilities", name: "Sports facilities worldwide: stadiums, pitches, courts, tracks, pools, rinks, gyms (Overture Maps and OpenStreetMap)", unit: "sports places", colour: "#3FA9C2", keepColour: true, route: "mvtlive", ready: true, lazy: true, buildScript: "sports_facilities",
+      copy: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/sports_facilities.pmtiles", field: "group",
+      classes: [["stadiums and arenas", "#E0304A", "stadiums and arenas"], ["pitches and fields", "#3FA9C2", "pitches and fields"], ["courts", "#1E6FA8", "courts"],
+        ["tracks and racecourses", "#8FB8FF", "tracks and racecourses"], ["golf", "#5FB8D2", "golf"], ["pools and water", "#0E2F66", "pools and water sports"],
+        ["rinks and snow", "#D6EEF6", "rinks and snow"], ["gyms and sports centres", "#F28FB0", "gyms and sports centres"], ["other sports places", "#8A8F98", "other sports places"]],
+      attribution: "Overture Maps Foundation (CDLA Permissive 2.0); OpenStreetMap contributors (ODbL)",
+      note: "Every place Overture Maps' latest release files under a sport category (stadiums and arenas, sports clubs and centres, gyms, golf, pools, rinks, courts, race tracks and the rest), and every sport ground in its land use from OpenStreetMap (pitches, tracks, stadiums, sports centres, golf courses, ice rinks), each at its middle. Wide out, one mark per square with how many it holds, coloured by the kind most of them are; from zoom 8, each place. Which categories count as sport is decided by their own names, and every one taken and left out is listed in culprits-tiles-more sports/build.json. Built monthly by culprits-tiles-more (scripts/sports_facilities.py)." },
+    { id: "sports_betting", name: "Sports betting and the gambling industry around it, worldwide (Wikidata)", unit: "companies and bodies", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true, buildScript: "sports_betting", waiting: "not built yet: culprits-tiles-more builds it on its next run",
+      files: [{ label: "Sports betting", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/betting/entities.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by how it is here: a bookmaker or betting company, or in the gambling industry",
+      note: "Every item Wikidata records as a bookmaker or betting company (or a narrower kind), and every organisation whose industry it gives as sports betting, bookmaking, betting, online gambling or gambling (or a narrower kind): the kinds are found by their names and listed, with their Wikidata numbers, in culprits-tiles-more betting/build.json. Placed at the item's own coordinates, its headquarters, its location or the middle of its country, as each box says. Only what Wikidata holds: it misses many small and local bookmakers. Built weekly by culprits-tiles-more (scripts/sports_betting.py)." },
+    { id: "sports_fixing", name: "Games rigged: match fixing, point shaving and spot-fixing in professional and college sport, worldwide (Wikidata)", unit: "cases, teams and people", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true, buildScript: "sports_fixing", waiting: "not built yet: culprits-tiles-more builds it on its next run",
+      files: [{ label: "Match fixing", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/fixing/cases.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by how it is here: a case or scandal, convicted, or involved",
+      yearFrom: ["year"],
+      note: "From Wikidata: every match-fixing, point-shaving or spot-fixing case or scandal it records (and anything whose main subject is one), every person or body it records as convicted of one, and every team, club, league or person it records as taking part in one of those scandals. Taking part is what Wikidata records, not always a finding against them; each box says which way it came and names the case. Placed at the item's own coordinates, headquarters, location, or its country (citizenship for a person), as the box says. The year is the case's own date where Wikidata gives one. Only what Wikidata holds. Built weekly by culprits-tiles-more (scripts/sports_fixing.py)." },
+    { id: "pet_food_world", name: "The pet food industry worldwide: companies, makers and brands (Wikidata)", unit: "companies and brands", colour: "#6A5E66", route: "geojsonlive", ready: true, lazy: true, buildScript: "pet_food_world", waiting: "not built yet: culprits-tiles-more builds it on its next run",
+      files: [{ label: "Pet food", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/petfood/companies.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by whether it is a company or a brand",
+      note: "Every organisation Wikidata records with pet food (or dog food, cat food, any narrower kind) as its industry or among its products, and every item that is a pet food brand or company, with its owner where Wikidata names one. Placed at its own coordinates, headquarters, location or country, as the box says. Beside the 43 US companies of the Pet Food Companies map. Built weekly by culprits-tiles-more (scripts/pet_food_world.py)." },
+    { id: "animal_breeding_osm", name: "Animal breeding places worldwide: farms, kennels, catteries, studs, hatcheries (OpenStreetMap)", unit: "places", colour: "#6A5E66", route: "geojsonlive", ready: true, lazy: true, buildScript: "animal_places_osm", waiting: "not built yet: culprits-tiles-more builds it on its next run",
+      files: [{ label: "Animal breeding", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/breeding/osm.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by the animal bred, as OpenStreetMap tags it",
+      note: "Every place OpenStreetMap tags animal_breeding (the value is the animal: dogs, cats, horses, cattle, poultry and the rest), worldwide, every tag in its box. The USDA list beside it (breeders, dealers, exhibitors and carriers) is the United States alone; no worldwide register exists, and OpenStreetMap is only as full as its mappers have made it. Built weekly by culprits-tiles-more (scripts/animal_places_osm.py)." },
+    { id: "zoos_aquariums_osm", name: "Zoos and aquariums worldwide, with safari parks, wildlife parks, petting zoos and aviaries (OpenStreetMap)", unit: "zoos and aquariums", colour: "#6A5E66", route: "geojsonlive", ready: true, lazy: true, buildScript: "animal_places_osm", waiting: "not built yet: culprits-tiles-more builds it on its next run",
+      files: [{ label: "Zoos and aquariums", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/zoos/osm.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by kind: aquarium, zoo, safari park, wildlife park, petting zoo ...",
+      note: "Every place OpenStreetMap tags tourism=zoo or tourism=aquarium, worldwide, coloured by its kind (its zoo tag, or aquarium), every tag in its box. Beside the Zoos row (a Google My Maps map), which may not hold aquariums: culprits-tiles-more probe/zoos_kml.json counts how many of its places are named as aquariums. Built weekly by culprits-tiles-more (scripts/animal_places_osm.py)." },
     // Forced labour and trafficking enforcement, every country.
     { id: "slavery_convicted_world", name: "People convicted of human trafficking, country by country, latest year (UNODC)", unit: "people convicted", colour: "#1E6FA8", keepColour: true, route: "country", ready: true, lazy: true, buildScript: "slavery_world",
       totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/slavery_world/unodc.json", field: "convicted" },
@@ -19301,7 +19328,8 @@ const LAYER_KIND = {
   site_world_news: ["human", "upstream"],
   site_world_entertainment: ["human", "upstream"],
   site_research_integrity: ["human", "upstream"], troutwood_companies: ["human", "upstream"], wreckers_world: ["insentient", "upstream"], threat_overall: ["human", "upstream"], threat_destruction: ["human", "upstream"], threat_suppression: ["human", "upstream"], threat_crime: ["human", "upstream"], vdem_liberal: ["human", "upstream"], vdem_electoral: ["human", "upstream"], vdem_participatory: ["human", "upstream"], vdem_deliberative: ["human", "upstream"], vdem_egalitarian: ["human", "upstream"], vdem_expression: ["human", "upstream"], vdem_rights: ["human", "upstream"], vdem_civil: ["human", "upstream"], vdem_regime: ["human", "upstream"], school_culprits: ["human", "upstream"], giga_school_points: ["human", "downstream"], stock_exchanges: ["human", "upstream"], research_makers: ["human", "upstream"], fertility_policy: ["human", "upstream"],
-  holiday_culprits: ["human", "upstream"], slavery_convicted_world: ["human", "downstream"], slavery_detected_world: ["human", "downstream"], slavery_cbp_world: ["human", "upstream"],
+  holiday_culprits: ["human", "upstream"], sports_facilities: ["human", "upstream"], sports_betting: ["human", "upstream"], sports_fixing: ["human", "upstream"],
+  pet_food_world: ["animal", "upstream"], animal_breeding_osm: ["animal", "upstream"], zoos_aquariums_osm: ["animal", "upstream"], slavery_convicted_world: ["human", "downstream"], slavery_detected_world: ["human", "downstream"], slavery_cbp_world: ["human", "upstream"],
   site_eyes_network: ["human", "upstream"],
   site_earmarked_funding: ["human", "upstream"],
   site_trade_profits: ["human", "upstream"],
@@ -20160,7 +20188,10 @@ const LAYER_SITE = {
   research_makers: "https://www.welcometoyourgalaxy.com/suppression.html",
   fertility_policy: "https://www.un.org/development/desa/pd/data/world-population-policies",
   forestatrisk: "https://forestatrisk.cirad.fr/rasters.html",
-  holiday_culprits: "https://en.wikipedia.org/wiki/Loyalty_Day",
+  holiday_culprits: "https://en.wikipedia.org/wiki/Santa_Claus",
+  sports_facilities: "https://docs.overturemaps.org/", sports_betting: "https://www.wikidata.org/", sports_fixing: "https://en.wikipedia.org/wiki/Match_fixing",
+  pet_food_world: "https://www.wikidata.org/", animal_breeding_osm: "https://wiki.openstreetmap.org/wiki/Key:animal_breeding",
+  zoos_aquariums_osm: "https://wiki.openstreetmap.org/wiki/Tag:tourism%3Dzoo",
   slavery_convicted_world: "https://www.unodc.org/unodc/en/data-and-analysis/glotip.html",
   slavery_detected_world: "https://www.unodc.org/unodc/en/data-and-analysis/glotip.html",
   slavery_cbp_world: "https://www.cbp.gov/trade/forced-labor/withhold-release-orders-and-findings",
@@ -20343,6 +20374,9 @@ const NOT_LIVE = {
   fertility_policy: "Copied weekly from the UN Population Division by culprits-tiles-more",
   forestatrisk: "Copied once from ForestAtRisk's own files by culprits-tiles-more",
   holiday_culprits: "Compiled for this map from the sources in each box",
+  sports_facilities: "Built monthly by culprits-tiles-more from Overture Maps", sports_betting: "Built weekly by culprits-tiles-more from Wikidata",
+  sports_fixing: "Built weekly by culprits-tiles-more from Wikidata", pet_food_world: "Built weekly by culprits-tiles-more from Wikidata",
+  animal_breeding_osm: "Built weekly by culprits-tiles-more from OpenStreetMap", zoos_aquariums_osm: "Built weekly by culprits-tiles-more from OpenStreetMap",
   slavery_convicted_world: "Copied weekly from UNODC by culprits-tiles-more",
   slavery_detected_world: "Copied weekly from UNODC by culprits-tiles-more",
   slavery_cbp_world: "Read weekly from US CBP's page by culprits-tiles-more",
@@ -20813,13 +20847,14 @@ const PANEL_ORDER = [
   { h: 4, t: "Science" }, "site_research_integrity", "research_makers",
   { h: 3, t: "Suppression by social molds" },
   { h: 4, t: "Metaphysical (Religion, spirituality, etc.)" }, "site_eyes_network",
-  { h: 4, t: "Sports" },
+  // Round 114b (asked 29 September): sports facilities, betting and rigged games.
+  { h: 4, t: "Sports" }, "sports_facilities", "sports_betting", "sports_fixing",
   { h: 4, t: "Holidays" }, "holiday_culprits",
   { h: 4, t: "Sex" }, "fertility_policy",
   { h: 4, t: "Drugs" }, "capture_map",
   // Every layer straight under Of animals, no sub-headings (round 62).
-  { h: 2, t: "Of animals" }, "gmo_animal_research", "gmo_animal_trade",
-  "site_animal_fighting", "site_circus", "site_animal_racing", "site_rodeo", "site_animal_tourism", "mymaps_supp_b", "mymaps_supp_a",
+  { h: 2, t: "Of animals" }, "gmo_animal_research", "gmo_animal_trade", "animal_breeding_osm",
+  "site_animal_fighting", "site_circus", "site_animal_racing", "site_rodeo", "site_animal_tourism", "mymaps_supp_b", "zoos_aquariums_osm", "mymaps_supp_a", "pet_food_world",
   // Round 102b: Christmas tree farms worldwide in place of the United States map alone.
   { h: 2, t: "Of plants" }, "site_enslaved_plants", "xmas_trees",
   { h: 2, t: "Of microscopics" }, "site_enslaved_microbes",

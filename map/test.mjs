@@ -5717,6 +5717,21 @@ console.log("\nround 113b (29 September): crowded points as banded, raised groun
         (() => { const hs = [...src.slice(src.indexOf("var THEME_PRESETS = {"), src.indexOf("Object.assign(LAYER_THEMES, THEME_PRESETS);")).matchAll(/h: (\d+), r: ([\d.]+)/g)].map((m) => [Number(m[1]), Number(m[2])]);
           return hs.length === 24 && hs.every(([h, r]) => r < 0.1 || !(h > 20 && h < 160)); })());
 }
+console.log("\nround 114b (29 September): holidays cut to corporatizers; sports facilities, betting and rigged games; the animal rows made worldwide");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the holidays row is only who corporatized holidays", /name: "Who corporatized holidays: made a holiday a company's own custom, or invented one to sell \(compiled from Wikipedia\)"/.test(src) &&
+        !/Made or remade a holiday to take the place of another/.test(src));
+  check("Sports holds facilities, betting and rigged games", /\{ h: 4, t: "Sports" \}, "sports_facilities", "sports_betting", "sports_fixing",/.test(src) &&
+        /copy: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/tiles\/sports_facilities\.pmtiles", field: "group",/.test(src) &&
+        /id: "sports_fixing"[\s\S]{0,600}yearFrom: \["year"\],/.test(src));
+  check("the pet food industry, breeding places and zoos and aquariums worldwide sit with the animal rows",
+        /"gmo_animal_trade", "animal_breeding_osm",/.test(src) && /"mymaps_supp_b", "zoos_aquariums_osm", "mymaps_supp_a", "pet_food_world",/.test(src));
+  check("each new row has a kind, a site and a not-live note",
+        ["sports_facilities", "sports_betting", "sports_fixing", "pet_food_world", "animal_breeding_osm", "zoos_aquariums_osm"].every((id) =>
+          new RegExp(`\\b${id}: \\["(human|animal)", "upstream"\\]`).test(src) && new RegExp(`\\b${id}: "https:`).test(src) && new RegExp(`\\b${id}: "Built (weekly|monthly) by culprits-tiles-more`).test(src)));
+  check("a copy not yet built says so", /if \(cfg\.copy && !cfg\.tiles && !cfg\.tilesFrom\) \{ setLayerState\(cfg\.id, "not built yet/.test(src));
+}
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");

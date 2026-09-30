@@ -5,6 +5,38 @@ touches.
 
 ---
 
+## Round 114b (29 September)
+
+Needs round 113b. Tiles patch round114b_tiles.py beside it. No app.js?v= bump.
+
+- holiday_culprits: corporatizers only (owner: the made-to-replace holidays
+  out; "sales events" entries looked like companies that sold a lot around
+  holidays). Kept 12 whose own write-ups say they made the holiday a company
+  custom or invented one (Coca-Cola, Macy's, Montgomery Ward, Alibaba,
+  Amazon, NRF, Father's Day Council, Ishimuramanseido, Cleveland
+  confectioners, NCA, Lotte, KFC Japan); out: the six governments/bodies,
+  JD.com, Hallmark and American Greetings (card counts only). Tiles
+  holidays/culprits.geojson rewritten. Research for more corporatizers was not
+  possible (web lookups unanswered); add from sources next time.
+- New rows (Suppression > Sports): sports_facilities (tiles
+  sports_facilities.py: Overture latest release via DuckDB on the open bucket,
+  places with sport categories + base land_use sport classes by name, logged
+  in sports/build.json; squares z0-7, each place z8 in strips via
+  lib/pointtiles.py; drawn by addMvtCopy, colour by group), sports_betting and
+  sports_fixing (Wikidata via lib/wdtools.py: kinds resolved by exact English
+  name with subclasses, numbers logged; placed by own coords, HQ, location,
+  country; fixing has a year bar).
+- Animal rows made worldwide: animal_breeding_osm (OSM animal_breeding=*),
+  zoos_aquariums_osm (tourism=zoo|aquarium, grouped by zoo=* or aquarium) and
+  a probe of the Zoos Google map for aquarium names (probe/zoos_kml.json),
+  from tiles animal_places_osm.py; pet_food_world (Wikidata industry/product
+  pet food, pet food brand/company kinds, owners named).
+- addMvtCopy generalised (_count for squares; unit in boxes); a copy-only row
+  says "not built yet" until its build.json exists; waiting texts on the
+  Wikidata/OSM rows.
+- The medical-industry layer waits for the owner's Suppression-page HTML
+  (not attached yet).
+
 ## Round 113b (29 September)
 
 Needs round 112b. No tiles patch. No app.js?v= bump.
