@@ -136,6 +136,29 @@ is, so the other chat's next bump is not in the way.
   probe/crime: ILAT is a Tableau view, TRAFFIC's portal a script page, no
   files; probe/enforcement not yet mapped.
 
+## Round 113c (29 September)
+
+Needs round 112c. Tiles patch round113c_tiles.py beside it (carries 111c and
+112c's tiles files too).
+
+- capture_cases box (CARDS.capture, cfg.card "capture"): a plain paragraph
+  first (tiles writes it as "summary", one wording per part), then what proves
+  it and the branch, where the point is and why, the source and links; every
+  field in the fold.
+- Truer places (owner: too many cases stacked on one point). tiles capture.py:
+  refine_places moves anyone with a Wikidata record to the constituency they
+  were elected for (P768 on P39), the subnational place their office covered,
+  or where they worked; people with no office to where they worked, lived or
+  were born; the capital stays only where nothing finer is recorded.
+  place_addresses geocodes FARA principals (city, only if in the represented
+  country) and development-bank debarred firms (address) with Nominatim,
+  1,500 new lookups a run, cached in capture/geocache.json. Colombian members
+  of Congress compiled by name are matched to Wikidata where exactly one
+  Colombian citizen has that name.
+- List items that are not people (Mitrokhin's operations sections linked
+  HIV) are left out; Mitrokhin reads only its spies and accused sections.
+- Script version app.js bumped.
+
 ## Round 112c (29 September)
 
 Needs round 111c. Tiles patch round112c_tiles.py beside it (it carries 111c's

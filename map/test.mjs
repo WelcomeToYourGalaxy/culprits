@@ -5762,5 +5762,13 @@ console.log("\nround 112c (29 September): StB registers matched by birth date");
   check("the capture note names the Slovak StB matching", /Slovakia's StB registration books/.test(src) && /register's birth date matches/.test(src));
   check("the page asks for this round's script", appVersion(html) >= 1004);
 }
+console.log("\nround 113c (29 September): capture boxes in plain words, truer places");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("the capture row uses its own box", /buildScript: "capture", card: "capture",/.test(src) && /  capture\(p, name\) \{/.test(src) && /everyField\(p, \["summary", "name", "part"\]\)/.test(src));
+  check("the capture note says how points are placed", /placed at the constituency they were elected for/.test(src));
+  check("the page asks for this round's script", appVersion(html) >= 1005);
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
