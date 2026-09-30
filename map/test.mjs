@@ -2127,7 +2127,9 @@ console.log("\nrow tools; easier-to-see points; monitors back in the wires box o
   check("…and so does each stop of a zoom scale", z[4] === 3.2 && z[6] > 7);
   const L = { id: "x-pt", type: "circle", paint: { "circle-color": "#555", "circle-radius": 2 } };
   legibleCircle(L);
-  check("points get a light rim", /242,238,230/.test(L.paint["circle-stroke-color"]) && L.paint["circle-stroke-width"] === 1);
+  // Round 112b: a thin darker edge, no blur, the size scaled by zoom (was a light rim).
+  check("points get a thin darker edge, no blur, and a size by zoom", /8,14,24/.test(L.paint["circle-stroke-color"]) && L.paint["circle-stroke-width"] === 0.7 &&
+        L.paint["circle-blur"] === 0 && L.paint["circle-radius"][0] === "interpolate" && L.paint["circle-radius"][4] < L.paint["circle-radius"][L.paint["circle-radius"].length - 1]);
   const ring = { id: "r", type: "circle", paint: { "circle-color": "rgba(0,0,0,0)", "circle-radius": 5 } };
   legibleCircle(ring);
   check("hollow rings keep their own drawing", ring.paint["circle-radius"] === 5);
@@ -2252,7 +2254,7 @@ console.log("\nwhat was still open");
   check("Giga by country, Trase's facilities rows, and two of your own are rows", ["giga_countries", "trase_meat_brazil", "trase_palm_indonesia", "biosignature", "leverage_chart"].every((i) => new RegExp(`id: "${i}"`).test(src)));
   const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
   const order = new Function(body + "; return PANEL_ORDER;")();
-  check("the waiting rows are placed", ["ejatlas", "seas_of_plastic", "coastal_cleanup", "mines_global", "atlas_hotspots", "final_nail", "group:ct_history"].every((i) => order.includes(i)));
+  check("the waiting rows are placed", ["ejatlas", "seas_of_plastic", "coastal_cleanup", "mines_global", "atlas_hotspots", "group:ct_history"].every((i) => order.includes(i)));
 }
 
 console.log("\nvessels of concern drawn; the oil-slick archive");
@@ -2628,22 +2630,17 @@ console.log("\nOff-planet sections, Of groups, names, launch links, drag bar, ma
         at("To Earth") < at("Near-Earth object impacts") && at("Unidentified anomalous phenomena") < at("From Earth") &&
         at("From Earth") < at("The space industry") && at("Space launches") < at("Extraterrestrial life"));
   // Round 48 (25 September): the fur farms moved to a heading of their own under Of the planet.
-  check("Fur Farms (Final Nail) is under Meat and agriculture > Fur farms (round 94b)", order.indexOf("final_nail") === at("Fur farms") + 2 && at("Fur farms") > at("Meat and agriculture") && at("Fur farms") < at("Oceans") && /name: "Fur Farms \(Final Nail\)"/.test(src));
+  check("Final Nail's own row is out; its farms are in the fur farms file (round 112b)", !order.includes("final_nail") && /"final_nail",/.test(src.slice(src.indexOf("const PANEL_REMOVED"))));
   check("Pet Food Companies is straight under Of animals (round 62)", order.indexOf("mymaps_supp_a") > at("Of animals") && at("The pet industry") === -1 && /name: "Pet Food Companies", fixedName: true/.test(src));
   check("each upcoming launch links to its own pages", /spacelaunchnow\.me\/launch\//.test(src) && /r\.info_urls/.test(src) && /ll2Links\(r\)/.test(src));
   check("page panels have a drag bar", /class="c-grab"/.test(src) && /ns-resize/.test(src));
   // Superseded on 22 September: the symbols gave way to a glow. Every point
   // layer gets a heat field weighted by amount wider out, and a halo under its
   // round dots closer in; the round layer is still the one that is clicked.
-  check("every point layer gets a faint wide haze and tight cores in place of the geometric markers; the round one stays for clicks",
-        /function addHud\(/.test(src) && /type: "heatmap", layout: \{ visibility: vis \}/.test(src) &&
-        /const haze = `\$\{layer\.id\}-haze`, core = `\$\{layer\.id\}-core`, soft = `\$\{layer\.id\}-soft`/.test(src) &&
-        /hudOf\.set\(layer\.id, \[haze, core, soft\]\)/.test(src));
-  // Made finer on 22 September: no round blobs. The cores are circles a pixel
-  // or two across (full resolution); the haze stays faint; a fixed grain.
-  check("\u2026the cores are small specks, the haze faint and never brighter than rose, the dots soft-edged and unseen wider out",
-        /"circle-radius": z\(0, \["\*", 0\.8, lift\]/.test(src) && /hazeOpacity: 0\.3,/.test(src) && /1, "rgba\(120,215,235,0\.64\)"\]/.test(src) &&
-        /paint\(layer\.id, "circle-blur", 1\)/.test(src) && /z\(GLOW\.fadeOut, 0, GLOW\.gone, 0\.9\)/.test(src));
+  // Round 112b: the glow is gone; points are solid dots at every zoom.
+  check("points are solid dots: no haze, cores or soft surround, only the hotspot rows keep a field",
+        /function addHud\(/.test(src) && /if \(!hotspotOf\(layer\)\) \{/.test(src) && /hudOf\.set\(layer\.id, \[haze\]\)/.test(src) &&
+        !/rawAddLayer\(coreSpec, layer\.id\)/.test(src) && /paint\(layer\.id, "circle-blur", 0\)/.test(src));
   check("\u2026no grain over the map: its strength is 0 and it is never made (23 September)",
         /grain: 0,\s/.test(src) && /if \(!GLOW\.grain && !GLOW\.grainSatellite\) return;/.test(src));
   check("\u2026planetary defence does not pulse the glow's own layers", /if \(\/-\(halo\|haze\|core\|soft\)\$\/\.test\(lid\)\) continue;/.test(src));
@@ -2847,8 +2844,8 @@ console.log("\neach row links the site it is read from");
         /github\.com\/WelcomeToYourGalaxy\/anti-slavery-map/.test(sites.slavery_ports || ""));
   check("Trase's rows point at Trase", /trase\.earth/.test(sites.trase_palm_indonesia || ""));
   check("the link is drawn beside the title, on a row and on a group's child",
-        /<span class="nm">\$\{cfg\.name\}\$\{liveMark\(cfg\)\}\$\{siteLink\(cfg\.id\)\}\$\{infoMark\(cfg\.note\)\}<\/span>/.test(src) &&
-        /<span class="nm">\$\{child\.name\}\$\{liveMark\(child\)\}\$\{siteLink\(child\.id\)\}\$\{infoMark\(child\.note\)\}<\/span>/.test(src));
+        /<span class="nm">\$\{cfg\.name\}\$\{liveMark\(cfg\)\}\$\{siteLink\(cfg\.id\)\}\$\{infoMark\(cfg\.about \|\| cfg\.note\)\}<\/span>/.test(src) &&
+        /<span class="nm">\$\{child\.name\}\$\{liveMark\(child\)\}\$\{siteLink\(child\.id\)\}\$\{infoMark\(child\.about \|\| child\.note\)\}<\/span>/.test(src));
   check("a row with no site shows no link rather than a guessed one",
         /const u = LAYER_SITE\[id\];\n  if \(!u\) return "";/.test(src) && /#layers \.nm \.src\{/.test(index));
   check("titles that named no source say so now",
@@ -4168,7 +4165,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         out("Cities socioeconomic vulnerability (WRI)") && out("Net tree cover change umd_net_tree_cover_change") && out("Todelete (Global Forest Watch gives this dataset no title)") &&
         out("Test dataset 001") && out("Sfb bra sicar (Global Forest Watch gives this dataset no title) sfb_bra_sicar") && out("Permanent production forests — Peru"));
   check("rows not named are where they were", at("Mining concessions gfw_mining_concessions").some((x) => /Mining/.test(x)));
-  check("the fur farms have a heading of their own under Meat and agriculture (round 94b)", /\{ h: 4, t: "Fur farms" \}, "fur_world", "final_nail", "fur_bans",/.test(src));
+  check("the fur farms have a heading of their own under Meat and agriculture (round 94b; Final Nail's row out in 112b)", /\{ h: 4, t: "Fur farms" \}, "fur_world", "fur_bans",/.test(src));
   const G = new Function("maplibregl", src.slice(src.indexOf("const GLAD_LO = "), src.indexOf("function gladPixels(")) +
     "; return { gladCss, gladValue, GLAD_SPREAD };")({ addProtocol() {} });
   const hue = (hex) => { const n = parseInt(hex.slice(1), 16), r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
@@ -4445,7 +4442,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   const t = new Function(src.match(/function siteTypeTitle[^\n]*\n/)[0] + "; return siteTypeTitle;")();
   check("the enslavement and insentient maps' kinds read as the kind alone; other maps keep their name after it",
         t("Yeast", "The Unnecessary Enslavement of Microorganisms 2026", "site_enslaved_microbes") === "Yeast" &&
-        t("Yeast", "X", "site_world_news") === "Yeast — X");
+        t("Yeast", "X", "site_world_news") === "Yeast" && t("Yeast", "X", "site_rodeo") === "Yeast — X");
   check("rows renamed: Animal Fighting Locations, Animal Tourism, Global Rodeo & Charreada; Zoos and Aquariums under Spectacle and sport, keeping its name",
         /name: "Animal Fighting Locations",/.test(src) && /name: "Animal Tourism",/.test(src) && /name: "Global Rodeo & Charreada",/.test(src) &&
         /id: "mymaps_supp_b", name: "Zoos", fixedName: true/.test(src) && /"site_animal_tourism", "mymaps_supp_b",/.test(src) &&
@@ -5399,8 +5396,9 @@ console.log("\nround 100b: skin and fur farms their own heading; the food indust
   check("fur and skin farms under their own heading, out of Meat and agriculture",
         at("Animal skin and fur farms") > meat && at("Animal skin and fur farms") < at("Oceans") && o.PANEL_ORDER[at("Animal skin and fur farms")].h === 3 &&
         o.PANEL_ORDER.indexOf("fur_world") > at("Animal skin and fur farms") && o.PANEL_ORDER.indexOf("skin_farms") > at("Animal skin and fur farms"));
-  check("who owns the food industry under Meat > The culprits; meat grown from cells last, retitled",
-        o.PANEL_ORDER.indexOf("site_food_system") > at("The culprits", meat) && at("The culprits", meat) > meat &&
+  // Round 112b: straight under Meat and agriculture above the land deals; The culprits heading gone.
+  check("who owns the food industry under Meat and agriculture, above the land deals; meat grown from cells last, retitled",
+        o.PANEL_ORDER.indexOf("site_food_system") === at("Meat and agriculture") + 1 && o.PANEL_ORDER.indexOf("land_matrix") === at("Meat and agriculture") + 2 && at("The culprits", meat) === -1 &&
         o.PANEL_ORDER.indexOf("cultivated_meat_laws") === at("Meat grown from cells", meat) + 1 && at("Meat grown from cells", meat) + 2 === at("Animal skin and fur farms") &&
         /cultivated_meat_laws: "Where meat grown from cells, as an alternative to slaughter, is restricted or banned/.test(src));
   check("zoos are off the registered facilities (a zoo a register marks as slaughtering stays)",
@@ -5661,6 +5659,39 @@ console.log("\nround 111b (29 September): ForestAtRisk, and notes after the fail
         /  forestatrisk: "https:\/\/forestatrisk\.cirad\.fr\/rasters\.html",/.test(src) && /  forestatrisk: "Copied once from ForestAtRisk's own files/.test(src));
   check("a picture row can say its own state", /setLayerState\(cfg\.id, cfg\.stateSay \|\| /.test(src));
   check("the fire and fertility notes say what changed", /below zoom 6\) each fire's dot carries/.test(src) && /the 2019 country data on fertility, family planning/.test(src));
+}
+console.log("\nround 112b (29 September): solid dots, keys, stacked places, year bars, the Eyes framing, both tabs, the food move");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("points are solid at every zoom: no glow layers, a thin darker edge, few-point layers kept large", /if \(!hotspotOf\(layer\)\) \{/.test(src) && /POINT_RIM = "rgba\(8,14,24,0\.6\)"/.test(src) &&
+        /function smallLayerDots\(layer\)/.test(src) && /try \{ smallLayerDots\(layer\); \}/.test(src));
+  {
+    const S = new Function(src.slice(src.indexOf("function spreadStacked(data)"), src.indexOf("// A map that colours its places by kind")) + "; return spreadStacked;")();
+    const pt = (x, y) => ({ type: "Feature", geometry: { type: "Point", coordinates: [x, y] }, properties: {} });
+    const out = S({ features: [pt(-74, 40.7), pt(-74, 40.7), pt(-74, 40.7), pt(2, 48)] });
+    const keys = new Set(out.features.map((f) => f.geometry.coordinates.join()));
+    check("places at the very same spot are set round it; the first stays, others untouched", keys.size === 4 && out.features[0].geometry.coordinates.join() === "-74,40.7" &&
+          out.features[3].geometry.coordinates.join() === "2,48" && Math.abs(out.features[1].geometry.coordinates[1] - 40.7) < 0.05);
+  }
+  check("a map with colours and no key gets one from the filter that matches its colours", /function sitemapAutoKey\(cfg, data\)/.test(src) && /try \{ sitemapAutoKey\(cfg, data\); \}/.test(src));
+  check("Showing uses the row's drawn swatch", /background:\$\{legendSwatch\(c\)\}/.test(src));
+  check("UFO years before 1000 say AD", /y < 1000 \? `AD \$\{y\}`/.test(src));
+  {
+    const Y = new Function(src.slice(src.indexOf("function yearOf(p, fields)"), src.indexOf("var sitemapTime")) + "; return yearOf;")();
+    check("the capture row gets a year bar from its records' own year fields", /capture_cases: \["year", "years", "date", "filed or announced"/.test(src) &&
+          Y({ "FARA: Registrant Date": "03/04/2020" }, ["year", "FARA: Registrant Date"]) === 2020 && Y({ years: "2002–2014" }, ["years"]) === 2002 && Y({}, ["year"]) === null &&
+          /sitemapTime\.set\(cfg\.id, \{ lo: a, hi: b, undated: u \}\)/.test(src));
+  }
+  check("the Eyes network says it is a hypothesis under its title and behind its i, and opens its unplaced entries",
+        /subtitle: "a hypothesis, not an established fact/.test(src) && /about: "This interactive is a hypothesis, not an established fact\./.test(src) &&
+        /site_eyes_network\.unplaced\.json/.test(src) && /async function sitemapEntriesButton\(cfg\)/.test(src) && /white-space:pre-line/.test(index));
+  check("the three industry maps: plain titles, kinds alone, and who owns them as rows", /name: "The advertising industries"/.test(src) && /name: "The news industry"/.test(src) &&
+        /name: "The entertainment industries"/.test(src) && /"Owners: Family \/ founder-controlled": "Who owns them: families and founders"/.test(src) && !/World Advertising 2026 — Companies & Owners/.test(src));
+  check("who owns the food industry is also under The food and drink industries", /\{ h: 4, t: "The food and drink industries" \}, "site_food_system",/.test(src));
+  check("the schools row reads the map's own copy when built", /copy: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/tiles\/giga_points\.pmtiles"/.test(src) && /function addMvtCopy\(cfg, st\)/.test(src));
+  check("the hologram's floor grid only under a floating planet, and no relief shading under 3D terrain",
+        /const floating = map\.getZoom\(\) < 3/.test(index) && /id === "holo-relief" && terrainOn/.test(index) && /map\.on\("pitchend", holoFollow\)/.test(index));
 }
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {

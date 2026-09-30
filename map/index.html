@@ -135,7 +135,7 @@
     border:1px solid var(--dim);color:var(--dim);font:italic 600 9px/12px Georgia,serif;text-align:center;opacity:.75;cursor:help;vertical-align:1px}
   #layers .nm .info:hover,#layers .nm .info:focus{opacity:1;color:var(--bone);border-color:var(--bone);outline:none}
   #row-tip{position:fixed;z-index:60;background:var(--peat,#17150F);color:var(--bone,#DCD6C6);border:1px solid var(--rule,#322E27);
-    border-radius:4px;padding:8px 10px;font-size:12px;line-height:1.45;box-shadow:0 6px 18px rgba(0,0,0,.45);pointer-events:none;max-height:50vh;overflow:hidden}
+    border-radius:4px;padding:8px 10px;font-size:12px;line-height:1.45;box-shadow:0 6px 18px rgba(0,0,0,.45);pointer-events:none;max-height:75vh;overflow:hidden;white-space:pre-line}
   #row-tip[hidden]{display:none}
   #layers .facet.wms-legend{padding:4px 8px 6px 30px;max-height:180px;overflow:auto}
   #layers .facet.wms-legend img{max-width:100%;display:block}
@@ -851,13 +851,21 @@
     vis("holo-earth", earthOn && !flat ? "visible" : "none");
     vis("holo-earth-flat", earthOn && flat ? "visible" : "none");
     vis("holo-grat", on && opt.grat ? "visible" : "none");
-    for (const id of DETAIL_IDS) vis(id, on && opt.detail ? "visible" : "none");
+    // Round 112b (asked 29 September: with 3D terrain on, zoomed in, the
+    // hologram showed "an annoying vertical lines glitch underneath it"): the
+    // relief shading is left to the terrain itself while it is on (its tile
+    // edges drew as lines over the raised ground).
+    const terrainOn = !!(map.getTerrain && map.getTerrain());
+    for (const id of DETAIL_IDS) vis(id, on && opt.detail && !(id === "holo-relief" && terrainOn) ? "visible" : "none");
     vis("holo-glow", on ? "visible" : "none");
     vis("holo-line", on ? "visible" : "none");
     vis("holo-fringe", on && opt.fx ? "visible" : "none");
     vis("holo-labels", on && opt.names && namesOn() ? "visible" : "none");
     document.body.classList.toggle("holo-on", on);
-    document.body.classList.toggle("holo-floor-on", on && opt.floor);
+    // The floor grid is drawn under a floating planet only: close in, or
+    // tilted, its perspective lines lay over the ground as vertical stripes.
+    const floating = map.getZoom() < 3 && (!map.getPitch || map.getPitch() < 20);
+    document.body.classList.toggle("holo-floor-on", on && opt.floor && floating);
     document.body.classList.toggle("holo-stars-on", on && opt.stars);
     document.body.classList.toggle("holo-fx-on", on && opt.fx);
     document.body.classList.toggle("holo-noshade", on && !opt.shade);
@@ -1008,6 +1016,12 @@
   }
   map.on("render", () => { if (on) drawRim(); });
   map.on("resize", () => { if (on) drawRim(); });
+  // Round 112b: the floor grid and the relief follow the zoom, tilt and terrain.
+  let holoTick = null;
+  const holoFollow = () => { if (!on) return; clearTimeout(holoTick); holoTick = setTimeout(showHolo, 60); };
+  map.on("zoomend", holoFollow);
+  map.on("pitchend", holoFollow);
+  map.on("terrain", holoFollow);
 
   /* ---------- overlays ---------- */
   let overlays = null;

@@ -2044,7 +2044,12 @@ const map = new maplibregl.Map({
 // Points get a light rim, so they stand out on the atlas and on satellite
 // imagery, and a minimum size, so the smallest are visible at world scale.
 // Hollow rings and the news marks keep their own drawing.
-const POINT_MIN = 3.2, POINT_GROW = 1.2, POINT_RIM = "rgba(242,238,230,0.85)";
+// Round 112b: the rim is now a thin darker edge (a see-through near-black
+// over the dot's own colour reads as a darker shade of it), not a pale ring.
+const POINT_MIN = 3.2, POINT_GROW = 1.2, POINT_RIM = "rgba(8,14,24,0.6)";
+// A radius with no zoom in it is scaled by zoom, so a layer of thousands of
+// points is fine dust at the world view and full size close in.
+const POINT_ZOOM = [[0, 0.45], [3, 0.6], [6, 0.8], [10, 1]];
 function hasZoom(v) { return JSON.stringify(v).includes('"zoom"'); }
 function mapOutputs(v, fn) {
   if (typeof v === "number") return fn(v);
@@ -2062,10 +2067,39 @@ function legibleCircle(layer) {
   if (!layer || layer.type !== "circle" || /^(wire-|ct-)/.test(layer.id)) return;
   const p = layer.paint = Object.assign({}, layer.paint || {});
   if (/rgba\(0,\s*0,\s*0,\s*0\)/.test(JSON.stringify(p["circle-color"] || ""))) return;
-  p["circle-radius"] = mapOutputs(p["circle-radius"] === undefined ? 5 : p["circle-radius"], boostOne);
-  p["circle-stroke-color"] = POINT_RIM;
+  const r = mapOutputs(p["circle-radius"] === undefined ? 5 : p["circle-radius"], boostOne);
+  p["circle-radius"] = hasZoom(r) ? r : ["interpolate", ["linear"], ["zoom"],
+    ...POINT_ZOOM.flatMap(([zz, k]) => [zz, typeof r === "number" ? Math.max(1.2, +(r * k).toFixed(2)) : ["max", 1.2, ["*", k, r]]])];
+  // A ring drawn in its own colour (a hollow place) keeps its colour; a dark
+  // edge or none becomes the thin darker edge.
+  const sc = p["circle-stroke-color"];
+  if (sc === undefined || (typeof sc === "string" && /^#(0|1)[0-9A-F]{5}$|^rgba?\(\s*\d{1,2},\s*\d{1,2},\s*\d{1,2}/i.test(sc))) p["circle-stroke-color"] = POINT_RIM;
   const w = p["circle-stroke-width"];
-  if (w === undefined || (typeof w === "number" && w < 1)) p["circle-stroke-width"] = 1;
+  if (w === undefined || (typeof w === "number" && w < 0.7)) p["circle-stroke-width"] = 0.7;
+  if (p["circle-blur"] === undefined) p["circle-blur"] = 0;
+}
+// A layer of few points keeps them large enough to find from the world view
+// (round 112b: the owner liked this where it was done by hand, e.g. the
+// Atlas's cities, and asked that the new dots not make them hard to see again).
+var SMALL_LAYER = 500;
+var smallFloor = (zz) => (zz <= 2 ? 4 : zz <= 6 ? 4.8 : 5.5);
+function smallLayerDots(layer) {
+  if (!layer || layer.type !== "circle" || !hudEligible(layer) || !map.getSource) return;
+  const src = map.getSource(layer.source);
+  if (!src || src.type !== "geojson") return;
+  const d = typeof src.serialize === "function" ? (src.serialize() || {}).data : src._data;
+  const feats = d && Array.isArray(d.features) ? d.features : null;
+  if (!feats) return;
+  const n = feats.filter((f) => f && f.geometry && /Point$/.test(f.geometry.type)).length;
+  if (!n || n > SMALL_LAYER) return;
+  const r = map.getPaintProperty(layer.id, "circle-radius");
+  if (!Array.isArray(r) || r[0] !== "interpolate" || JSON.stringify(r[2]) !== '["zoom"]') return;
+  const out = r.slice(0, 3);
+  for (let i = 3; i < r.length; i += 2) {
+    const zz = r[i], v = r[i + 1];
+    out.push(zz, typeof v === "number" ? Math.max(v, smallFloor(zz)) : ["max", smallFloor(zz), v]);
+  }
+  map.setPaintProperty(layer.id, "circle-radius", out);
 }
 const OPACITY_PROPS = { fill: ["fill-opacity"], line: ["line-opacity"], circle: ["circle-opacity", "circle-stroke-opacity"],
   raster: ["raster-opacity"], "fill-extrusion": ["fill-extrusion-opacity"], symbol: ["icon-opacity", "text-opacity"], heatmap: ["heatmap-opacity"] };
@@ -2294,8 +2328,20 @@ function glowWeight(layer) {
   // Amount over the layer's largest amount; a merged point carries its members' sum already.
   return ["min", 1, ["/", ["max", 0, ["coalesce", ["to-number", ["get", "value"]], 0]], max]];
 }
+// Round 112b (asked 29 September: "I don't like how the points on the map are
+// glowy orbs ... a solid sleek professional looking dot, like you might find on
+// a sophisticated scientific map"): no haze, cores or soft surround any more.
+// Every point is the round layer itself, a flat dot in its own colour with a
+// thin darker edge, seen at every zoom (legibleCircle sizes it by zoom, and
+// smallLayerDots keeps a layer of few points large enough to find from the
+// world view). Only the hotspot rows keep their density field.
 function addHud(layer, rawAddLayer) {
   const p = layer.paint || {};
+  if (!hotspotOf(layer)) {
+    const paint = hudRaw.setPaintProperty || map.setPaintProperty.bind(map);
+    try { paint(layer.id, "circle-blur", 0); } catch (e) { /* as drawn */ }
+    return;
+  }
   const haze = `${layer.id}-haze`, core = `${layer.id}-core`, soft = `${layer.id}-soft`;
   const base = { source: layer.source };
   if (layer["source-layer"]) base["source-layer"] = layer["source-layer"];
@@ -2340,18 +2386,12 @@ function addHud(layer, rawAddLayer) {
   softSpec.minzoom = Math.max(layer.minzoom != null ? layer.minzoom : 0, GLOW.fadeOut);
   if (layer.maxzoom != null) softSpec.maxzoom = layer.maxzoom;
   try {
+    // A hotspot row keeps its field (its spread is the point of it); its dots
+    // are solid like every other layer's.
     rawAddLayer(hazeSpec, layer.id);
-    rawAddLayer(coreSpec, layer.id);
-    rawAddLayer(softSpec, layer.id);
-    // The dots themselves: soft-edged all the way in (the visible part sits
-    // well inside the clickable circle), and unseen wider out, where the cores
-    // stand for them; they are still there to be clicked.
     const paint = hudRaw.setPaintProperty || map.setPaintProperty.bind(map);
-    paint(layer.id, "circle-blur", 1);
-    paint(layer.id, "circle-stroke-width", 0);
-    if (p["circle-opacity"] === undefined) paint(layer.id, "circle-opacity", z(GLOW.fadeOut, 0, GLOW.gone, 0.9));
-    hudOf.set(layer.id, [haze, core, soft]);
-    glowGrain();
+    paint(layer.id, "circle-blur", 0);
+    hudOf.set(layer.id, [haze]);
   } catch (e) { /* this layer keeps its round markers alone */ }
 }
 // The map's own ramps are drawn as written; their keys are not moved either (round 82b).
@@ -2473,6 +2513,7 @@ if (typeof map.addLayer === "function") {
     try { legibleCircle(layer); } catch (e) { /* drawn as given */ }
     const out = rawAddLayer(layer, before);
     try { if (hudEligible(layer)) addHud(layer, rawAddLayer); } catch (e) { /* round markers stay */ }
+    try { smallLayerDots(layer); } catch (e) { /* its own sizes */ }
     const row = layer && layer.id && rowOfLayer(layer.id);
     if (row && opacityFactor.get(row) < 0.999) applyOpacity(layer.id, opacityFactor.get(row));
     try { themeSoon(); } catch (e) { /* as drawn */ }
@@ -3829,7 +3870,10 @@ const siteTypeRows = new Map();      // map id -> { fi, picked: Set, busy }
 // A kind's row reads as the kind alone under maps whose heading already says
 // which map it is (round 61: the owner found "— The Unnecessary Enslavement of
 // Microorganisms 2026" after every row); elsewhere the map's name follows.
-function siteTypeTitle(label, mapName, id) { return ["site_enslaved_microbes", "site_enslaved_plants", "site_insentient"].includes(id) ? String(label) : `${label} \u2014 ${mapName}`; }
+// Round 112b (asked 29 September): the advertising, news and entertainment
+// rows lose "World ... 2026" and "Companies & Owners" / "Outlets & Owners":
+// the kind alone, under headings that already say which industry.
+function siteTypeTitle(label, mapName, id) { return ["site_enslaved_microbes", "site_enslaved_plants", "site_insentient", "site_world_advertising", "site_world_news", "site_world_entertainment"].includes(id) ? String(label) : `${label} \u2014 ${mapName}`; }
 
 function siteTypeSync(cfg) {
   const tr = siteTypeRows.get(cfg.id);
@@ -3976,6 +4020,12 @@ function applySitemapFilters(id) {
     if (!set.size) return;
     conditions.push(["any", ...[...set].map((k) => ["in", `|${k}|`, ["coalesce", ["get", "f"], ""]])]);
   });
+  const tm = typeof sitemapTime !== "undefined" && sitemapTime.get(id);
+  if (tm) {
+    const y = ["to-number", ["coalesce", ["get", "y"], -9999]];
+    const within = ["all", [">=", y, tm.lo], ["<=", y, tm.hi]];
+    conditions.push(tm.undated ? ["any", within, ["==", y, -9999]] : within);
+  }
   for (const [layerId, base] of Object.entries(state.base)) {
     if (!map.getLayer(layerId)) continue;
     map.setFilter(layerId, conditions.length ? ["all", base, ...conditions] : base);
@@ -4183,7 +4233,7 @@ function livePlacesToSitemap(cfg, items) {
     if (g) groups.set(g, (groups.get(g) || 0) + 1);
     const c = it.hollow || it.colour === AMOUNT_NONE || ((cfg.colourBy || cfg.groupColours || cfg.periods) && it.colour) ? it.colour : softColour(it.colour, cfg.colour);
     features.push({ type: "Feature", geometry: it.geometry,
-      properties: { k: it.key, p: 1, t: it.name ? 1 : 0, n: it.name || "", c,
+      properties: { k: it.key, p: 1, t: it.name ? 1 : 0, n: it.name || "", c, ...(yearFromOf(cfg) ? { y: it.y != null ? it.y : -9999 } : {}),
                     f: g ? `|g:${g}|` : "", ...(it.hollow ? { o: 0.15, s: it.colour, w: 1.8 } : {}) } });
     if (!boxes[it.key]) boxes[it.key] = { h: it.h, t: it.name ? `<b>${escapeHtml(it.name)}</b>` : "", o: { maxWidth: 340, maxHeight: 420 } };
   }
@@ -4222,6 +4272,41 @@ async function addLivePlacesLayer(cfg) {
   if (got.key) { rowKey(cfg.id, got.key, got.keyHint); buildLegend(); }
   if (cfg.pdfs) atlasLegendShow(cfg.id, null);
   if (got.note) setLayerState(cfg.id, `${data.features.length.toLocaleString()} ${cfg.unit} \u00b7 ${got.note}`);
+  if (yearFromOf(cfg)) sitemapYearBar(cfg, data);
+}
+// Round 112b (asked 29 September: "there should be a timeline filter bar on the
+// planted, bought, captured ... layer"): the year each record gives, read from
+// the first of the row's year fields that holds one; records with none are
+// kept behind their own tick.
+var YEAR_FROM = {
+  capture_cases: ["year", "years", "date", "filed or announced", "FARA: Foreign Principal Registration Date", "FARA: Registrant Date", "offices held"],
+};
+var yearFromOf = (cfg) => cfg.yearFrom || YEAR_FROM[cfg.id] || null;
+function yearOf(p, fields) {
+  for (const k of fields) {
+    const v = p[k];
+    if (v == null || v === "") continue;
+    const m = /\b(1[0-9]{3}|20[0-9]{2})\b/.exec(String(v));
+    if (m) return Number(m[1]);
+  }
+  return null;
+}
+var sitemapTime = new Map();          // row -> { lo, hi, undated }
+function sitemapYearBar(cfg, data) {
+  const ys = (data.features || []).map((f) => (f.properties || {}).y).filter((y) => y != null && y !== -9999);
+  if (!ys.length) return;
+  const lo = Math.min(...ys), hi = Math.max(...ys), none = (data.features || []).length - ys.length;
+  if (!sitemapFilters.has(cfg.id)) {
+    sitemapFilters.set(cfg.id, { filters: [], picked: [], base: {
+      [`${cfg.id}-fill`]: ["match", ["geometry-type"], ["Polygon", "MultiPolygon"], true, false],
+      [`${cfg.id}-line`]: ["match", ["geometry-type"], ["LineString", "MultiLineString"], true, false],
+      [`${cfg.id}-pt`]: ["match", ["geometry-type"], ["Point", "MultiPoint"], true, false],
+      [`${cfg.id}-edge`]: ["match", ["geometry-type"], ["Polygon", "MultiPolygon"], true, false] } });
+  }
+  timeBar(cfg, { min: lo, max: hi, undated: `records with no year (${none.toLocaleString()})` }, (a, b, u) => {
+    sitemapTime.set(cfg.id, { lo: a, hi: b, undated: u });
+    applySitemapFilters(cfg.id);
+  });
 }
 
 // A read that gets no answer in its time is tried once more with twice the
@@ -5253,7 +5338,10 @@ async function addUfoLayer(cfg) {
     map.on("mouseenter", lid, () => (map.getCanvas().style.cursor = "pointer"));
     map.on("mouseleave", lid, () => (map.getCanvas().style.cursor = ""));
   });
-  timeBar(cfg, { min: years[0], max: years[1], fmt: (y) => (y < 0 ? `${-y} BC` : String(y)),
+  // Round 112b (asked 29 September): the earliest dated sighting UFOSINT
+  // lists is from the year 19, which read as a count; years before 1000 now
+  // say AD (and BC below zero).
+  timeBar(cfg, { min: years[0], max: years[1], fmt: (y) => (y < 0 ? `${-y} BC` : y < 1000 ? `AD ${y}` : String(y)),
     undated: `sightings with no date (${Number(st.undated_with_position || 0).toLocaleString()})` }, (lo, hi, withUndated) => {
     win = ["any", ["all", [">=", ["get", "y"], lo], ["<=", ["get", "y"], hi]]];
     if (withUndated) win.push(["==", ["get", "y"], -9999]);
@@ -6461,6 +6549,7 @@ async function readGeojsonFiles(cfg) {
       const first = (cfg.nameFrom || []).map((k) => p[k]).find((v) => v !== undefined && v !== null && v !== "");
       const name = first || p.name || p.Name || p.title || p.Source || (p.TripId != null ? `Trip ${p.TripId}` : "") || p.Ocean || f.label;
       items.push({ geometry: ft.geometry, key: `${f.label}:${i}`, name: String(name), group: p.group != null ? String(p.group) : f.label,
+        y: yearFromOf(cfg) ? yearOf(p, yearFromOf(cfg)) : undefined,
         _p: cfg.colourBy ? p : null,
         // A copy that carries its source's own box (_html) shows that; otherwise every field.
         h: p._html ? boxOpen + p._html + `</div>`
@@ -10898,6 +10987,11 @@ async function addArcgisDynLayer(cfg) {
 // address read from a file the tiles repo keeps current (cfg.tilesFrom) or
 // the row's own (cfg.tiles); each coloured by one field's classes.
 async function addMvtLiveLayer(cfg) {
+  if (cfg.copy) {
+    let st = null;
+    try { st = await getJson(cfg.copy.replace(/\.pmtiles$/, ".build.json"), 20000); } catch (e) { /* no copy yet: live */ }
+    if (st && st.layer) return addMvtCopy(cfg, st);
+  }
   let tiles = cfg.tiles, layer = cfg.sourceLayer || "default";
   if (cfg.tilesFrom) { try { const j = await getJson(cfg.tilesFrom, 20000); if (j && j.tiles) { tiles = j.tiles; layer = j.layer || layer; } } catch (e) { /* the row's own address */ } }
   if (!tiles) { setLayerState(cfg.id, "no tile address yet"); return; }
@@ -10916,6 +11010,35 @@ async function addMvtLiveLayer(cfg) {
     `<div class="meta">${escapeHtml(cfg.attribution || "")}</div>`);
   if (cfg.classes) rowKey(cfg.id, cfg.classes.map(([, c, w]) => [c, w]));
   setLayerState(cfg.id, "drawn live from its source's tiles");
+  applyVisibility(cfg.id);
+  buildLegend();
+}
+// The copy (tiles scripts/giga_points.py): every school at its own place from
+// zoom 6, and wider out one mark per square with how many schools it holds,
+// coloured by the status most of them have.
+function addMvtCopy(cfg, st) {
+  HUD_SKIP.add(cfg.id);
+  const m = ["match", ["to-string", ["get", cfg.field]]];
+  for (const [v, c] of cfg.classes || []) m.push(v, c);
+  m.push("#8A8F98");
+  const lids = [];
+  pmShapeParts(cfg.copy, st).forEach((part, i) => {
+    const sid = `${cfg.id}-c${i}`, lid = i ? `${cfg.id}-pt${i}` : `${cfg.id}-pt`;
+    map.addSource(sid, { type: "vector", url: `pmtiles://${part.url}`, attribution: cfg.attribution || "" });
+    const n = ["coalesce", ["get", "schools"], 1];
+    map.addLayer({ id: lid, type: "circle", source: sid, "source-layer": st.layer,
+      minzoom: part.minzoom || 0, maxzoom: Math.min(24, part.maxzoom || 24), layout: { visibility: visibility.get(cfg.id) || "visible" },
+      paint: { "circle-color": (cfg.classes || []).length ? m : cfg.colour,
+               "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, ["+", 1, ["*", 0.9, ["log10", n]]], 5, ["+", 1.6, ["*", 1.2, ["log10", n]]], 8, 3, 12, 5],
+               "circle-opacity": 0.9, "circle-stroke-width": 0.5, "circle-stroke-color": "rgba(8,14,24,0.6)" } });
+    lids.push(lid);
+    bindHtmlPopup(lid, (p) => p.schools
+      ? `<b>${Number(p.schools).toLocaleString()} schools round here</b><table class="meta">${fieldRows(p, ["schools"])}</table><div class="meta">Summed at this zoom; each school from zoom ${st.detail_from || 6}.</div>`
+      : `<b>School</b><table class="meta">${fieldRows(p)}</table><div class="meta">${escapeHtml(cfg.attribution || "")}</div>`);
+  });
+  cfg._layerIds = lids;
+  if (cfg.classes) rowKey(cfg.id, cfg.classes.map(([, c, w]) => [c, w]));
+  setLayerState(cfg.id, `${Number(st.schools || 0).toLocaleString()} schools \u00b7 from the map's own copy of Giga's tiles (${escapeHtml(st.date || "")})`);
   applyVisibility(cfg.id);
   buildLegend();
 }
@@ -14224,6 +14347,75 @@ function sitemapBoxesUrl(cfg) {
   return cfg.dataUrl.replace(/\.places\.geojson$/, ".boxes.json");
 }
 
+// Round 112b (asked 29 September: "some of the layers' points overlap ... right
+// over each other eclipses the others", e.g. publishers in New York): places
+// given the very same position are set round it in a small spiral, the first
+// where the source put it, so each can be seen and clicked close in. Nothing
+// else moves; areas and lines are left as they are.
+function spreadStacked(data) {
+  const feats = (data && data.features) || [];
+  const at = new Map();
+  for (const f of feats) {
+    if (!f || !f.geometry || f.geometry.type !== "Point") continue;
+    const [x, y] = f.geometry.coordinates;
+    const k = `${Math.round(x * 1e5)},${Math.round(y * 1e5)}`;
+    if (!at.has(k)) at.set(k, []);
+    at.get(k).push(f);
+  }
+  let moved = 0;
+  const out = new Map();
+  for (const group of at.values()) {
+    if (group.length < 2) continue;
+    const [x, y] = group[0].geometry.coordinates;
+    const kx = 1 / Math.max(0.2, Math.cos((y * Math.PI) / 180));
+    group.forEach((f, i) => {
+      if (!i) return;
+      const a = i * 2.39996, d = 0.018 * Math.sqrt(i);
+      out.set(f, Object.assign({}, f, { geometry: { type: "Point", coordinates: [x + d * Math.cos(a) * kx, y + d * Math.sin(a)] } }));
+      moved++;
+    });
+  }
+  if (!moved) return data;
+  return Object.assign({}, data, { features: feats.map((f) => out.get(f) || f) });
+}
+// A map that colours its places by kind but gives the reader no key gets one
+// from its own data: each colour and the kind most of its places carry
+// (round 112b: the animal rows under Of animals had colours and no key).
+function sitemapAutoKey(cfg, data) {
+  if (cfg.key || siteTypeRows.has(cfg.id) || document.querySelector(`.facet[data-key-for="${cfg.id}"]`)) return;
+  // The key is for the dots (a map's lines, like the Eyes network's links, are coloured by their own kinds).
+  const feats = (data.features || []).filter((f) => f.properties && typeof f.properties.c === "string" && f.properties.c && f.geometry && /Point$/.test(f.geometry.type));
+  let best = null;
+  // The filter whose kinds line up best with the colours (the Eyes network
+  // colours by kind, not by its Show or Period filters).
+  for (const fl of data.filters || []) {
+    const labels = new Map((fl.values || []).map((v) => [v.k, String(v.label).replace(/\s+\d+$/, "")]));
+    if (labels.size < 2) continue;
+    const by = new Map();
+    for (const f of feats) {
+      const c = f.properties.c.toUpperCase();
+      if (!by.has(c)) by.set(c, { n: 0, tags: new Map() });
+      const e = by.get(c);
+      e.n++;
+      for (const t of String(f.properties.f || "").split("|")) if (t && labels.has(t)) e.tags.set(t, (e.tags.get(t) || 0) + 1);
+    }
+    if (by.size < 2) return;
+    let hit = 0;
+    const pairs = [];
+    const used = new Set();
+    for (const [c, e] of [...by].sort((x, y) => y[1].n - x[1].n)) {
+      const top = [...e.tags].sort((x, y) => y[1] - x[1])[0];
+      if (!top) continue;
+      hit += top[1];
+      used.add(top[0]);
+      pairs.push([gladCss(c, cfg.id), `${labels.get(top[0])} (${e.n.toLocaleString()})`]);
+    }
+    // A colour per kind: as many kinds named as colours, most places explained.
+    const score = hit / Math.max(1, feats.length) + (used.size === pairs.length ? 0.5 : 0);
+    if (pairs.length >= 2 && (!best || score > best.score)) best = { score, pairs };
+  }
+  if (best) rowKey(cfg.id, best.pairs);
+}
 async function addSitemapLayer(cfg, given) {
   let data = given;
   if (!data) try {
@@ -14251,6 +14443,7 @@ async function addSitemapLayer(cfg, given) {
     const [c, r] = Array.isArray(hit) ? hit : [hit, (f.properties || {}).r];
     return Object.assign({}, f, { properties: Object.assign({}, f.properties, { c, r }) });
   }) });
+  data = spreadStacked(data);
   const source = `${cfg.id}-places`;
   map.addSource(source, { type: "geojson", data });
   if (cfg.links) sitemapLinks(cfg).catch((e) => console.warn(`[culprits] ${cfg.id} lines: ${e.message}`));
@@ -14359,10 +14552,45 @@ async function addSitemapLayer(cfg, given) {
     cfg.facet = { property: "ov", label: "layer", values: data.overlays };
   }
   setRowSwatch(cfg.id, swatchFill(sitemapDrawnColours(cfg, data.features)));
+  try { sitemapAutoKey(cfg, data); } catch (e) { /* no key */ }
   const n = data.features.length;
-  setLayerState(cfg.id, `${n.toLocaleString()} ${cfg.unit}`);
+  setLayerState(cfg.id, `${n.toLocaleString()} ${cfg.unit}` + (cfg.subtitle ? ` \u00b7 ${cfg.subtitle}` : ""));
+  if (cfg.entriesUrl) sitemapEntriesButton(cfg).catch((e) => console.warn(`[culprits] ${cfg.id} entries: ${e.message}`));
   applyVisibility(cfg.id);
   buildLegend();
+}
+
+// Entries a map writes up but gives no place (round 112b: fifteen of the Eyes
+// network's, Bacon, Hume and Bernays among them), each with its whole
+// write-up, in a window from a button under the row.
+async function sitemapEntriesButton(cfg) {
+  const got = await getJson(cfg.entriesUrl, 30000);
+  const list = (got && got.entries) || [];
+  const row = document.querySelector(`[data-layer="${cfg.id}"]`);
+  const anchor = row && row.closest ? row.closest("label") : null;
+  if (!list.length || !anchor || document.querySelector(`.facet[data-entries-for="${cfg.id}"]`)) return;
+  const el = document.createElement("div");
+  el.className = "facet";
+  el.dataset.entriesFor = cfg.id;
+  el.innerHTML = `<button type="button" class="chip">${list.length} entries with no place on the map: read them</button>`;
+  anchor.after(el);
+  el.querySelector("button").addEventListener("click", (e) => {
+    e.preventDefault(); e.stopPropagation();
+    let w = document.getElementById("entries-window");
+    if (w) w.remove();
+    w = document.createElement("div");
+    w.id = "entries-window";
+    w.style.cssText = "position:fixed;z-index:70;left:50%;top:8vh;transform:translateX(-50%);width:min(560px,92vw);max-height:80vh;display:flex;flex-direction:column;" +
+      "background:var(--peat,#17150F);color:var(--bone,#DCD6C6);border:1px solid var(--rule,#322E27);border-radius:6px;box-shadow:0 10px 30px rgba(0,0,0,.5)";
+    w.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--rule,#322E27)">` +
+      `<b style="flex:1">${escapeHtml(got.title || cfg.name)}</b><button type="button" class="chip" data-x>close</button></div>` +
+      `<div style="overflow:auto;padding:8px 12px;font-size:12.5px;line-height:1.45">` +
+      (got.note ? `<div class="meta" style="margin-bottom:6px">${escapeHtml(got.note)}</div>` : "") +
+      list.map((it) => `<details style="margin:0 0 6px"><summary style="cursor:pointer"><b>${escapeHtml(it.title)}</b>` +
+        (it.kind ? ` <span class="meta">${escapeHtml(it.kind)}</span>` : "") + `</summary><div class="entry-body">${it.html}</div></details>`).join("") + `</div>`;
+    document.body.appendChild(w);
+    w.querySelector("[data-x]").addEventListener("click", () => w.remove());
+  });
 }
 
 // Round 105b: lines between a row's places (the banking dynasties' networks),
@@ -15148,6 +15376,14 @@ function watchKeysForLegend() {
 // the end, not once per row (round 57): rebuilt hundreds of times it was a
 // large part of the wait.
 let legendHold = false, legendHeld = false;
+// Round 112b: the colour beside a layer in Showing is the one its row in the
+// layers box shows (the colours it is drawn in), not the row's stored colour.
+function legendSwatch(c) {
+  const i = document.querySelector && document.querySelector(`[data-layer="${c.id}"]`);
+  const sw = i && i.closest && i.closest("label") && i.closest("label").querySelector(".swatch");
+  const bg = sw && sw.style && sw.style.background;
+  return escapeHtml(bg || c.colour);
+}
 function buildLegend() {
   if (legendHold) { legendHeld = true; return; }
   watchKeysForLegend();
@@ -15177,7 +15413,7 @@ function buildLegend() {
   const rows = shown.map((c) =>
     `<div class="lg-row"><input type="checkbox" class="lg-on" data-lg="${escapeHtml(c.id)}" checked ` +
     `aria-label="Hide ${escapeHtml(c.name)}" title="Hide this layer">` +
-    `<span class="lg-sw" style="background:${c.colour}"></span>` +
+    `<span class="lg-sw" style="background:${legendSwatch(c)}"></span>` +
     `<span class="lg-nm">${c.name}</span>` +
     `<span class="lg-un">${c.unit || ""}</span></div>` + legendKeyRows(c.id)).join("");
 
@@ -16742,7 +16978,7 @@ function groupRows(group) {
     row.innerHTML =
       `<input type="checkbox" data-layer="${child.id}">` +
       `<span class="swatch" style="background:${child.colour}"></span>` +
-      `<span class="body"><span class="nm">${child.name}${liveMark(child)}${siteLink(child.id)}${infoMark(child.note)}</span>` +
+      `<span class="body"><span class="nm">${child.name}${liveMark(child)}${siteLink(child.id)}${infoMark(child.about || child.note)}</span>` +
       `<span class="un" data-state="${child.id}">not loaded</span></span>`;
     kids.appendChild(row);
   });
@@ -16851,10 +17087,10 @@ const SITE_MAPS = {
       note: "From the Suppression page's wealth atlas." },
     { id: "site_food_system", name: "Who Owns the Food Industry", unit: "companies", colour: "#6E6A55", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_food_system.places.geojson",
       note: "From the Suppression page's food system ownership map." },
-    { id: "site_world_advertising", typeRows: true, name: "World Advertising 2026 — Companies & Owners", unit: "companies", colour: "#6C5F66", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_world_advertising.places.geojson",
-      note: "From the Suppression page's World Advertising 2026 map." },
-    { id: "site_world_news", typeRows: true, name: "World News 2026 — Outlets & Owners", unit: "outlets and owners", colour: "#626A6F", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_world_news.places.geojson",
-      note: "From the Suppression page's World News 2026 map." },
+    { id: "site_world_advertising", typeRows: true, typeTitles: { "Owners: Family / founder-controlled": "Who owns them: families and founders", "Owners: Government / state": "Who owns them: governments", "Owners: Government / sovereign fund": "Who owns them: governments and their funds", "Owners: Institutional / fund": "Who owns them: investment funds", "Owners: Institutional / trust / fund": "Who owns them: funds and trusts", "Owners: Public company / platform": "Who owns them: public companies", "Owners: Public company": "Who owns them: public companies" }, name: "The advertising industries", unit: "companies and owners", colour: "#6C5F66", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_world_advertising.places.geojson",
+      note: "From the Suppression page's world advertising map: both of its tabs, the companies and who owns them (the owners were added in round 112b)." },
+    { id: "site_world_news", typeRows: true, typeTitles: { "Owners: Family / founder-controlled": "Who owns them: families and founders", "Owners: Government / state": "Who owns them: governments", "Owners: Government / sovereign fund": "Who owns them: governments and their funds", "Owners: Institutional / fund": "Who owns them: investment funds", "Owners: Institutional / trust / fund": "Who owns them: funds and trusts", "Owners: Public company / platform": "Who owns them: public companies", "Owners: Public company": "Who owns them: public companies" }, name: "The news industry", unit: "outlets and owners", colour: "#626A6F", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_world_news.places.geojson",
+      note: "From the Suppression page's world news map: both of its tabs, the outlets and who owns them (the owners were added in round 112b)." },
     // Round 103b (asked 28 September: the kinds' names were too esoteric, and
     // four points could not be found): each kind said plainly, each its own
     // colour, larger and ringed.
@@ -16867,9 +17103,18 @@ const SITE_MAPS = {
       standout: { keep: true, rim: "#F4F1EA" },
       name: "World Research Integrity 2026 — Who's Breaking Science", unit: "institutions and publishers", colour: "#5F6E6A", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_research_integrity.places.geojson",
       note: "From the Suppression page's research integrity map." },
-    { id: "site_world_entertainment", typeRows: true, name: "World Entertainment 2026 — Companies & Owners", unit: "companies", colour: "#6D5E5A", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_world_entertainment.places.geojson",
-      note: "From the Suppression page's World Entertainment 2026 map." },
-    { id: "site_eyes_network", name: "The Network That Tried to Harness the Eyes to Harvest the World", unit: "places and links", colour: "#5B6360", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_eyes_network.places.geojson",
+    { id: "site_world_entertainment", typeRows: true, typeTitles: { "Owners: Family / founder-controlled": "Who owns them: families and founders", "Owners: Government / state": "Who owns them: governments", "Owners: Government / sovereign fund": "Who owns them: governments and their funds", "Owners: Institutional / fund": "Who owns them: investment funds", "Owners: Institutional / trust / fund": "Who owns them: funds and trusts", "Owners: Public company / platform": "Who owns them: public companies", "Owners: Public company": "Who owns them: public companies" }, name: "The entertainment industries", unit: "companies and owners", colour: "#6D5E5A", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_world_entertainment.places.geojson",
+      note: "From the Suppression page's world entertainment map: both of its tabs, the companies and who owns them (the owners were added in round 112b)." },
+    // Round 112b (asked 29 September): the interactive's own framing under the
+    // title and behind the "i", and the entries it gives no place, readable too.
+    { id: "site_eyes_network", subtitle: "a hypothesis, not an established fact (the interactive's own note)",
+      about: "This interactive is a hypothesis, not an established fact. While some nodes purposefully manipulated with their frameworks, others genuinely believed theirs. The two are distinct, although to what extent the former is responsible vs the latter ultimately remains unknown. After all, why would one harvest the world like so when not suppressed under their own metaphysical engineering?\n\n" +
+        "A philosophy that treats the universe as inert matter is a philosophy that makes it a free resource: ownable, measurable, extractable. The pattern repeats across every civilization with remarkable consistency. Here is how a network of funders, thinkers, institutions, and media harnessed the eyes and mind (as something that's happened before) to harvest the world.\n\n" +
+        "Documented lines show funding or direct intellectual influence. Proximity shows convergence. Convergences across opposing projects (Soviet and Western materialism; Sartre and consumer individualism) share metaphysical ground without sharing intent. Where connections are asserted without full documentation, they are marked in node entries.\n\n" +
+        "Node types: funder / controller, thinker, institution, government, media, pre-condition. Connection types: verified, inferred, convergence.\n\n" +
+        "\u201cThe conscious and intelligent manipulation of the organized habits and opinions of the masses is an important element in\u2026 society. Those who manipulate this unseen mechanism\u2026 constitute an invisible government which is the true ruling power\u2026\u201d \u2014 Edward Bernays, Propaganda, 1928",
+      entriesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_eyes_network.unplaced.json",
+      name: "The Network That Tried to Harness the Eyes to Harvest the World", unit: "places and links", colour: "#5B6360", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_eyes_network.places.geojson",
       // Round 48 (25 September): read from the page's own data (pipeline/sitemaps/rich_maps.py).
       note: "From the Suppression page's network map, read from the page's own data: each entry's whole write-up (what they did, why, sources, every connection) in its box; the links between entries drawn as lines, documented, inferred and convergence as the page names them; and the page's seven periods to choose from under the row. 15 entries the page gives no place are not on the map; they are named in its boxes as connections." },
     { id: "site_animal_tourism", name: "Animal Tourism", unit: "locations", colour: "#7C6356", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_animal_tourism.places.geojson",
@@ -17456,6 +17701,10 @@ const OTHER_MAPS = {
       note: "Compiled for this map on 28 September 2026 from the sources linked in each box (Wikipedia's articles, Education Week, the Electronic Frontier Foundation, KUT and the Washington Post as reprinted): Prussia's compulsory schooling and Horace Mann who carried it to the United States; the Rockefeller General Education Board and the Carnegie Foundation; the Carlisle Indian school and Canada's residential schools; the SAT's College Board and ETS, Pearson, the Common Core's makers and the Gates Foundation; the Walton Family Foundation; Channel One, Coca-Cola's and PepsiCo's school drink contracts, Google's school Chromebooks, Junior Achievement; Bridge International Academies; the OECD's PISA. Added 28 September (round 105b), from the Suppression page's own list, each checked against its sources: Cambridge's international exams and the International Baccalaureate; McGraw Hill, Houghton Mifflin Harcourt and Cengage, and the investment firms behind them (Apollo, KKR, Blackstone, Veritas Capital); Microsoft, OpenAI, Apple and Amazon in classrooms; UNESCO's Global Education Coalition and the Global Partnership for Education; Harvard, Yale, Oxford, Cambridge, Sciences Po and ÉNA; Corinthian Colleges, the University of Phoenix, Trump University and the Axact diploma mill. Each at its head office or city, as the box says. A short list, not every case." },
     { id: "giga_school_points", name: "Every school Giga has mapped, worldwide, and whether it is online (Giga, UNICEF and ITU)", unit: "schools", colour: "#3FA9C2", keepColour: true, route: "mvtlive", ready: true, lazy: true, buildScript: "giga_schools",
       tilesFrom: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/giga/schools_tiles.json",
+      // Round 112b (asked 29 September: the row loaded too slowly): the map's
+      // own copy of every school Giga's tiles hold, when built; Giga's live
+      // tiles (1.5 MB a square wide out) only until then.
+      copy: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/giga_points.pmtiles",
       tiles: "https://uni-ooi-giga-backend-hjekcuagasashucv.a03.azurefd.net/api/locations/schools/tiles/?z={z}&x={x}&y={y}.mvt",
       sourceLayer: "default", field: "connectivity_status",
       classes: [["connected", "#3FA9C2", "connected to the internet"], ["not_connected", "#E0304A", "not connected"], ["unknown", "#8A8F98", "not known"]],
@@ -19132,7 +19381,7 @@ function buildPanel() {
       // cannot take the map down with it.
       `<input type="checkbox"${cfg.off ? "" : " checked"} data-layer="${cfg.id}">` +
       `<span class="swatch" style="background:${cfg.colour}"></span>` +
-      `<span class="body"><span class="nm">${cfg.name}${liveMark(cfg)}${siteLink(cfg.id)}${infoMark(cfg.note)}</span>` +
+      `<span class="body"><span class="nm">${cfg.name}${liveMark(cfg)}${siteLink(cfg.id)}${infoMark(cfg.about || cfg.note)}</span>` +
       `<span class="un" data-state="${cfg.id}">${cfg.unit}</span></span>`;
     box.appendChild(row);
     if (cfg.facet) box.appendChild(facetRow(cfg));
@@ -19804,7 +20053,8 @@ const LIVE_ROUTES = new Set([
 // It used to be the whole row's hover text, which popped up over the list every
 // time the pointer crossed it; an ordinary row's note was shown nowhere at all.
 function infoMark(text) {
-  const t = String(text || "").replace(/\s+/g, " ").trim();
+  // Paragraphs are kept (round 112b: the Eyes network's framing is several).
+  const t = String(text || "").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
   if (!t) return "";
   // A note that only says which page's map a layer came from tells the reader
   // nothing the row does not (round 62): no bubble for it.
@@ -20245,7 +20495,10 @@ const PANEL_ORDER = [
   // Item 14: the mines layers are one row with sublayers.
   { h: 3, t: "Mining" },
   { h: 4, bundle: "mines", colour: "#6E5E52" }, "mines_global", "mine_features", "raisg_illegal_mining",
-  { h: 3, t: "Meat and agriculture" }, "land_matrix",
+  // Round 112b (asked 29 September): who owns the food industry straight
+  // under Meat and agriculture, above the land deals; its old heading under
+  // Meat ("The culprits") is gone.
+  { h: 3, t: "Meat and agriculture" }, "site_food_system", "land_matrix",
   { h: 4, t: "Agriculture" },
   // Round 90b (asked 27 September): where the fields are, and where cropland spread.
   // Round 101b (asked 28 September): every crop, and the plantations that are
@@ -20284,14 +20537,13 @@ const PANEL_ORDER = [
   { h: 5, t: "Herds" }, "abattoir_glw",
   { h: 5, t: "Cattle and pasture" },
   { h: 5, t: "Pigs and chickens" },
-  // Round 100b (asked 28 September): who owns the food industry, under Meat;
-  // meat grown from cells last of all.
-  { h: 5, t: "The culprits" }, "site_food_system",
+  // Round 100b: meat grown from cells last of all.
   { h: 5, t: "Meat grown from cells" }, "cultivated_meat_laws",
   // Round 94b/95b: fur and skin farms. Round 100b (asked 28 September): a
   // heading of their own, out of Meat and agriculture.
   { h: 3, t: "Animal skin and fur farms" },
-  { h: 4, t: "Fur farms" }, "fur_world", "final_nail", "fur_bans",
+  // Round 112b: Final Nail's own row out; its 270 farms are in fur_world.
+  { h: 4, t: "Fur farms" }, "fur_world", "fur_bans",
   { h: 4, t: "Skin farms" }, "skin_farms",
   // Item 11: Fishing above Reefs and mangroves. Items 4, 5, 6: the pond maps
   // as one row, and the worldwide pond map beside them.
@@ -20374,7 +20626,7 @@ const PANEL_ORDER = [
   { h: 5, t: "Voter suppression" },
   { h: 5, t: "Representation as presentation" },
   { h: 5, t: "For money-written-law" },
-  { h: 4, t: "The food and drink industries" },
+  { h: 4, t: "The food and drink industries" }, "site_food_system",
   { h: 4, t: "The medical industry" },
   { h: 3, t: "Suppression by information" },
   { h: 4, t: "The advertising industries" }, "site_world_advertising",
@@ -20412,6 +20664,8 @@ const PANEL_ORDER = [
   { h: 1, t: "Buildings" }, "building_types", "osm_landuse",
 ];
 const PANEL_REMOVED = new Set([
+  // Round 112b: Final Nail's farms are in the fur farms file (fur/farms.geojson).
+  "final_nail",
   // Round 107b (asked 28 September): the threat index and V-Dem rows are not wanted.
   "threat_overall", "threat_destruction", "threat_suppression", "threat_crime", "vdem_liberal", "vdem_electoral", "vdem_participatory", "vdem_deliberative", "vdem_egalitarian", "vdem_expression", "vdem_rights", "vdem_civil", "vdem_regime",
   // Round 105b (asked 28 September): the rows that only showed another site's

@@ -5,6 +5,48 @@ touches.
 
 ---
 
+## Round 112b (29 September)
+
+Needs round 111b. Tiles patch round112b_tiles.py beside it. No app.js?v= bump
+(the other chat's next bump covers it).
+
+- Points: the glow is gone (owner: "a solid sleek professional looking dot").
+  addHud adds nothing except for HOTSPOT rows (their heatmap stays); dots have
+  circle-blur 0 and are seen at every zoom. legibleCircle: radius without zoom
+  scaled by POINT_ZOOM (0.45 at z0 to 1 at z10), edge POINT_RIM
+  rgba(8,14,24,0.6) width 0.7 (a ring in its own colour keeps it).
+  smallLayerDots: a geojson layer of 500 points or fewer keeps a size floor
+  (4 px at z0-2, 4.8 to z6, 5.5 beyond). This was also the "layers vanish when
+  several are ticked" report: their dots were invisible below zoom 9.
+- spreadStacked (addSitemapLayer): places at the identical position are set
+  round it on a small spiral (0.018 deg x sqrt(i)); areas and lines untouched.
+- sitemapAutoKey: a sitemap with 2+ colours and no key gets a key from the
+  filter whose kinds line up with its dots' colours (animal rows, Eyes).
+  Showing uses the row's drawn swatch (legendSwatch).
+- UFO bar: years under 1000 read "AD 19" (UFOSINT's earliest dated year is 19).
+- capture_cases: year bar (YEAR_FROM: year, years, date, filed or announced,
+  FARA dates, offices held; first 4-digit year), sitemapTime in
+  applySitemapFilters; records with no year behind their own tick.
+- site_eyes_network: subtitle (a hypothesis, not an established fact), about
+  (the interactive's framing, legend and Bernays quote) behind the i
+  (infoMark now keeps paragraphs; #row-tip pre-line), and a button opening the
+  15 entries with no place (sitemaps/site_eyes_network.unplaced.json;
+  rich_maps.py now writes it).
+- Advertising, news, entertainment: owners tabs added (tiles sitemaps files
+  rebuilt from each page's DATA_CO and DATA_OWN with its own popups: 81+48,
+  64+45, 61+35); titles plain ("The advertising industries" etc.), kinds
+  alone, owners rows "Who owns them: ...". Note: pipeline build_boxes.py only
+  reads the tab a page opens on; rebuilding these three from it would drop
+  the owners again (gen script in this round's notes).
+- site_food_system: straight under Meat and agriculture above land_matrix, and
+  under Suppression > The food and drink industries; "The culprits" h5 gone.
+- final_nail row out (PANEL_REMOVED); its farms are in fur_world.
+- giga_school_points: copy (tiles scripts/giga_points.py, weekly): Giga's
+  tiles read at zoom 7, squares 2/0.5/0.1/0.02 deg for z0-7, each school from
+  z8, strips where over 90 MB; addMvtCopy draws it; live tiles until built.
+- Hologram: floor grid only while zoom < 3 and pitch < 20; holo-relief off
+  while 3D terrain is on (the "vertical lines" report).
+
 ## Round 111b (29 September)
 
 Needs round 110b. Tiles patch round111b_tiles.py beside it. Made alongside the

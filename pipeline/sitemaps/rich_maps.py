@@ -191,11 +191,27 @@ def eyes(m):
 
     features, boxes = [], {}
     n_type, n_era, n_show = {}, {}, {}
-    unplaced = []
+    unplaced, unplaced_entries = [], []
     for n in nodes:
         pts = geo.get(n["id"]) or []
         if not pts:
             unplaced.append(label(n))
+            # Round 112b: written up whole beside the map (<id>.unplaced.json),
+            # read from a button under the row.
+            conns = []
+            for other, kind in connected.get(n["id"], []):
+                item = f"{esc(label(by_id[other]))} <span class='meta'>({kind})</span>"
+                if item not in conns:
+                    conns.append(item)
+            body = (f"<div class='meta'>{esc(n.get('era', ''))}</div><p><i>{n.get('short', '')}</i></p>"
+                    f"<h5>What they did</h5><p>{n.get('what', '')}</p><h5>Why — the gain and control</h5><p>{n.get('why', '')}</p>")
+            if n.get("controls"):
+                body += "<h5>Directly funded or controlled</h5><p>" + ", ".join(esc(label(by_id[c])) for c in n["controls"] if c in by_id) + "</p>"
+            if n.get("sources"):
+                body += "<h5>Primary sources</h5><ul>" + "".join(f"<li>{s}</li>" for s in n["sources"]) + "</ul>"
+            if conns:
+                body += "<h5>All connections</h5><p>" + ", ".join(conns) + "</p>"
+            unplaced_entries.append({"id": n["id"], "title": label(n), "kind": EYES_TYPE_ONE.get(n["type"], n["type"]), "html": body})
             continue
         ei = era_of(n)
         conns = []
@@ -257,6 +273,11 @@ def eyes(m):
         {"label": "Period", "values": [{"k": f"era:{i}", "label": era_label(i), "n": n_era[i]} for i in range(len(eras)) if n_era.get(i)]},
         {"label": "Kind", "values": [{"k": f"type:{t}", "label": lab, "n": n_type[t]} for t, lab in EYES_TYPES if n_type.get(t)]},
     ]
+    OUT.mkdir(parents=True, exist_ok=True)
+    (OUT / f"{mid}.unplaced.json").write_text(json.dumps({
+        "title": f"{page_title(page, m['name'])}: entries with no place on its map",
+        "note": "The interactive writes these entries up in full but gives them no place on its map, so they are not drawn; each is here whole, as the interactive gives it.",
+        "entries": unplaced_entries}, separators=(",", ":"), ensure_ascii=False))
     notes = []
     if unplaced:
         notes.append(f"{len(unplaced)} entries have no place on the page's map and are not drawn: {', '.join(unplaced)}")
