@@ -5,6 +5,35 @@ touches.
 
 ---
 
+## Round 116b (29 September)
+
+Needs round 115b. Tiles patch round116b_tiles.py beside it. No app.js?v= bump.
+
+- Points: the glow orbs are back (owner: "return back to the glow orb look"),
+  undoing 112b's solid dots: addHud adds haze, core and soft layers to every
+  point layer again, dots soft-edged and unseen wider out; legibleCircle's
+  light rim (POINT_RIM rgba(242,238,230,0.85), width 1). POINT_ZOOM sizing
+  kept. smallLayerDots (geojson rows of 500 points or fewer) also sets
+  circle-opacity 0.9 on a glowing layer, so few-point rows stay findable wide
+  out (the reason 112b gave for the solid dots).
+- capture_map (Drug underworld): countries shaded teal to cobalt in five steps
+  in place of the page's greys (cfg.colouringColours, cfg.colouringEdge
+  #08203F; sitemapColourings keeps edge; applySitemapColouring uses it).
+- bld_police (Law enforcement), bld_courts and bld_prisons (Courts and
+  corrections): the Buildings row's own files for one kind each
+  (cfg.onlyKinds in addBuildingTypesLayer: one colour, no list of kinds,
+  counts in the state line). Buildings keeps every kind.
+- gang_infiltration (Law enforcement): 24 documented cases in 15 countries
+  (tiles lawenforcement/gang_infiltration.geojson, compiled by hand from the
+  sources each box quotes; groupColours by "A crime group working through
+  police or officials" / "Officers running a gang or crime ring of their own";
+  status field says how far each was proven).
+- Holidays: holidays/culprits.geojson on tiles main has the 12 corporatizers
+  (no VFW) since 114b; the live copy still showed the 103b file, so the
+  tiles Pages deploy had not caught up.
+- Tiles fertility_policy.py: a failed build (found false) retries daily, not
+  only Mondays. The fixed script had not run since 111b.
+
 ## Round 115b (29 September)
 
 Needs round 114b. Tiles patch round115b_tiles.py beside it (it also carries

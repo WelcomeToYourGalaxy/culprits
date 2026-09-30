@@ -2127,9 +2127,9 @@ console.log("\nrow tools; easier-to-see points; monitors back in the wires box o
   check("…and so does each stop of a zoom scale", z[4] === 3.2 && z[6] > 7);
   const L = { id: "x-pt", type: "circle", paint: { "circle-color": "#555", "circle-radius": 2 } };
   legibleCircle(L);
-  // Round 112b: a thin darker edge, no blur, the size scaled by zoom (was a light rim).
-  check("points get a thin darker edge, no blur, and a size by zoom", /8,14,24/.test(L.paint["circle-stroke-color"]) && L.paint["circle-stroke-width"] === 0.7 &&
-        L.paint["circle-blur"] === 0 && L.paint["circle-radius"][0] === "interpolate" && L.paint["circle-radius"][4] < L.paint["circle-radius"][L.paint["circle-radius"].length - 1]);
+  // Round 116b: the light rim again (112b's darker edge went with the glow's return); the size still scaled by zoom.
+  check("points get a light rim and a size by zoom", /242,238,230/.test(L.paint["circle-stroke-color"]) && L.paint["circle-stroke-width"] === 1 &&
+        L.paint["circle-radius"][0] === "interpolate" && L.paint["circle-radius"][4] < L.paint["circle-radius"][L.paint["circle-radius"].length - 1]);
   const ring = { id: "r", type: "circle", paint: { "circle-color": "rgba(0,0,0,0)", "circle-radius": 5 } };
   legibleCircle(ring);
   check("hollow rings keep their own drawing", ring.paint["circle-radius"] === 5);
@@ -2637,10 +2637,11 @@ console.log("\nOff-planet sections, Of groups, names, launch links, drag bar, ma
   // Superseded on 22 September: the symbols gave way to a glow. Every point
   // layer gets a heat field weighted by amount wider out, and a halo under its
   // round dots closer in; the round layer is still the one that is clicked.
-  // Round 112b: the glow is gone; points are solid dots at every zoom.
-  check("points are solid dots: no haze, cores or soft surround, only the hotspot rows keep a field",
-        /function addHud\(/.test(src) && /if \(!hotspotOf\(layer\)\) \{/.test(src) && /hudOf\.set\(layer\.id, \[haze\]\)/.test(src) &&
-        !/rawAddLayer\(coreSpec, layer\.id\)/.test(src) && /paint\(layer\.id, "circle-blur", 0\)/.test(src));
+  // Round 116b: the glow orbs are back (112b's solid dots undone at the owner's asking).
+  check("every point layer gets a faint wide haze and tight cores; the round one stays for clicks, soft-edged and unseen wider out",
+        /function addHud\(/.test(src) && /rawAddLayer\(coreSpec, layer\.id\)/.test(src) && /rawAddLayer\(softSpec, layer\.id\)/.test(src) &&
+        /hudOf\.set\(layer\.id, \[haze, core, soft\]\)/.test(src) && /paint\(layer\.id, "circle-blur", 1\)/.test(src) &&
+        /z\(GLOW\.fadeOut, 0, GLOW\.gone, 0\.9\)/.test(src) && !/if \(!hotspotOf\(layer\)\) \{/.test(src));
   check("\u2026no grain over the map: its strength is 0 and it is never made (23 September)",
         /grain: 0,\s/.test(src) && /if \(!GLOW\.grain && !GLOW\.grainSatellite\) return;/.test(src));
   check("\u2026planetary defence does not pulse the glow's own layers", /if \(\/-\(halo\|haze\|core\|soft\)\$\/\.test\(lid\)\) continue;/.test(src));
@@ -5665,8 +5666,8 @@ console.log("\nround 112b (29 September): solid dots, keys, stacked places, year
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
-  check("points are solid at every zoom: no glow layers, a thin darker edge, few-point layers kept large", /if \(!hotspotOf\(layer\)\) \{/.test(src) && /POINT_RIM = "rgba\(8,14,24,0\.6\)"/.test(src) &&
-        /function smallLayerDots\(layer\)/.test(src) && /try \{ smallLayerDots\(layer\); \}/.test(src));
+  // Round 116b: the glow is back; few-point layers are still kept large (and seen at every zoom).
+  check("few-point layers kept large and seen at every zoom", /function smallLayerDots\(layer\)/.test(src) && /try \{ smallLayerDots\(layer\); \}/.test(src));
   {
     const S = new Function(src.slice(src.indexOf("function spreadStacked(data)"), src.indexOf("// A map that colours its places by kind")) + "; return spreadStacked;")();
     const pt = (x, y) => ({ type: "Feature", geometry: { type: "Point", coordinates: [x, y] }, properties: {} });
@@ -5776,6 +5777,25 @@ console.log("\nround 113c (29 September): capture boxes in plain words, truer pl
   check("the capture row uses its own box", /buildScript: "capture", card: "capture",/.test(src) && /  capture\(p, name\) \{/.test(src) && /everyField\(p, \["summary", "name", "part"\]\)/.test(src));
   check("the capture note says how points are placed", /placed at the constituency they were elected for/.test(src));
   check("the page asks for this round's script", appVersion(html) >= 1005);
+}
+console.log("\nround 116b (29 September): glow orbs back, blue underworld countries, police, courts and prisons filed twice, gangs inside law enforcement");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const o = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("// A heading's tick reads its layers")) + "; return { PANEL_ORDER, PANEL_REMOVED };")();
+  const at = (t) => o.PANEL_ORDER.findIndex((x) => x && x.t === t);
+  check("the drug underworld map's countries are teal to cobalt, not grey, with darker edges",
+        /colouringColours: \["#C6E7F0", "#6FC2DA", "#2E8FBA", "#1A5C92", "#0C2E5E"\], colouringEdge: "#08203F"/.test(src) &&
+        /const own = Array\.isArray\(cfg\.colouringColours\)/.test(src) && /"fill-outline-color", state\.edge \|\| "#1D1B17"/.test(src));
+  check("police stations under Law enforcement, courts and prisons under Courts and corrections, and all still under Buildings",
+        o.PANEL_ORDER.indexOf("bld_police") === at("Law enforcement") + 1 && o.PANEL_ORDER.indexOf("bld_courts") === at("Courts and corrections") + 1 &&
+        o.PANEL_ORDER.indexOf("bld_prisons") === at("Courts and corrections") + 2 && o.PANEL_ORDER.includes("building_types") &&
+        /onlyKinds: \["Police stations"\]/.test(src) && /onlyKinds: \["Courts"\]/.test(src) && /onlyKinds: \["Prisons"\]/.test(src) &&
+        /if \(!cfg\.onlyKinds && anchor && anchor\.after/.test(src));
+  check("gangs inside law enforcement is a row under Law enforcement, coloured by which way round",
+        o.PANEL_ORDER.indexOf("gang_infiltration") > at("Law enforcement") && o.PANEL_ORDER.indexOf("gang_infiltration") < at("Courts and corrections") &&
+        /id: "gang_infiltration"[^\n]*route: "geojsonlive"/.test(src) && /lawenforcement\/gang_infiltration\.geojson/.test(src) &&
+        /"Officers running a gang or crime ring of their own": "#4F8BFF"/.test(src));
+  check("a few-point layer's glow dots are seen at every zoom", /if \(hudOf\.has\(layer\.id\) && !\(layer\.paint && layer\.paint\["circle-opacity"\] !== undefined\)\) map\.setPaintProperty\(layer\.id, "circle-opacity", 0\.9\);/.test(src));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

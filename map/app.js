@@ -2044,9 +2044,8 @@ const map = new maplibregl.Map({
 // Points get a light rim, so they stand out on the atlas and on satellite
 // imagery, and a minimum size, so the smallest are visible at world scale.
 // Hollow rings and the news marks keep their own drawing.
-// Round 112b: the rim is now a thin darker edge (a see-through near-black
-// over the dot's own colour reads as a darker shade of it), not a pale ring.
-const POINT_MIN = 3.2, POINT_GROW = 1.2, POINT_RIM = "rgba(8,14,24,0.6)";
+// Round 116b: the light rim again (112b's thin darker edge went with the glow's return).
+const POINT_MIN = 3.2, POINT_GROW = 1.2, POINT_RIM = "rgba(242,238,230,0.85)";
 // A radius with no zoom in it is scaled by zoom, so a layer of thousands of
 // points is fine dust at the world view and full size close in.
 const POINT_ZOOM = [[0, 0.45], [3, 0.6], [6, 0.8], [10, 1]];
@@ -2070,13 +2069,9 @@ function legibleCircle(layer) {
   const r = mapOutputs(p["circle-radius"] === undefined ? 5 : p["circle-radius"], boostOne);
   p["circle-radius"] = hasZoom(r) ? r : ["interpolate", ["linear"], ["zoom"],
     ...POINT_ZOOM.flatMap(([zz, k]) => [zz, typeof r === "number" ? Math.max(1.2, +(r * k).toFixed(2)) : ["max", 1.2, ["*", k, r]]])];
-  // A ring drawn in its own colour (a hollow place) keeps its colour; a dark
-  // edge or none becomes the thin darker edge.
-  const sc = p["circle-stroke-color"];
-  if (sc === undefined || (typeof sc === "string" && /^#(0|1)[0-9A-F]{5}$|^rgba?\(\s*\d{1,2},\s*\d{1,2},\s*\d{1,2}/i.test(sc))) p["circle-stroke-color"] = POINT_RIM;
+  p["circle-stroke-color"] = POINT_RIM;
   const w = p["circle-stroke-width"];
-  if (w === undefined || (typeof w === "number" && w < 0.7)) p["circle-stroke-width"] = 0.7;
-  if (p["circle-blur"] === undefined) p["circle-blur"] = 0;
+  if (w === undefined || (typeof w === "number" && w < 1)) p["circle-stroke-width"] = 1;
 }
 // A layer of few points keeps them large enough to find from the world view
 // (round 112b: the owner liked this where it was done by hand, e.g. the
@@ -2100,6 +2095,10 @@ function smallLayerDots(layer) {
     out.push(zz, typeof v === "number" ? Math.max(v, smallFloor(zz)) : ["max", smallFloor(zz), v]);
   }
   map.setPaintProperty(layer.id, "circle-radius", out);
+  // Round 116b: with the glow back, a few-point layer's own dots stay seen
+  // (as soft orbs) at every zoom, not only from zoom 9, where the glow alone
+  // left them too faint to find.
+  if (hudOf.has(layer.id) && !(layer.paint && layer.paint["circle-opacity"] !== undefined)) map.setPaintProperty(layer.id, "circle-opacity", 0.9);
 }
 const OPACITY_PROPS = { fill: ["fill-opacity"], line: ["line-opacity"], circle: ["circle-opacity", "circle-stroke-opacity"],
   raster: ["raster-opacity"], "fill-extrusion": ["fill-extrusion-opacity"], symbol: ["icon-opacity", "text-opacity"], heatmap: ["heatmap-opacity"] };
@@ -2328,20 +2327,13 @@ function glowWeight(layer) {
   // Amount over the layer's largest amount; a merged point carries its members' sum already.
   return ["min", 1, ["/", ["max", 0, ["coalesce", ["to-number", ["get", "value"]], 0]], max]];
 }
-// Round 112b (asked 29 September: "I don't like how the points on the map are
-// glowy orbs ... a solid sleek professional looking dot, like you might find on
-// a sophisticated scientific map"): no haze, cores or soft surround any more.
-// Every point is the round layer itself, a flat dot in its own colour with a
-// thin darker edge, seen at every zoom (legibleCircle sizes it by zoom, and
-// smallLayerDots keeps a layer of few points large enough to find from the
-// world view). Only the hotspot rows keep their density field.
+// Round 116b (asked 29 September: "return back to the glow orb look"): the
+// haze, cores and soft surround of 22 September are back on every point layer,
+// as before round 112b's solid dots. A layer of few points keeps its own dots
+// seen, as soft orbs, at every zoom (smallLayerDots), so it is still easy to
+// find from the world view (the reason 112b gave for the solid dots).
 function addHud(layer, rawAddLayer) {
   const p = layer.paint || {};
-  if (!hotspotOf(layer)) {
-    const paint = hudRaw.setPaintProperty || map.setPaintProperty.bind(map);
-    try { paint(layer.id, "circle-blur", 0); } catch (e) { /* as drawn */ }
-    return;
-  }
   const haze = `${layer.id}-haze`, core = `${layer.id}-core`, soft = `${layer.id}-soft`;
   const base = { source: layer.source };
   if (layer["source-layer"]) base["source-layer"] = layer["source-layer"];
@@ -2386,12 +2378,18 @@ function addHud(layer, rawAddLayer) {
   softSpec.minzoom = Math.max(layer.minzoom != null ? layer.minzoom : 0, GLOW.fadeOut);
   if (layer.maxzoom != null) softSpec.maxzoom = layer.maxzoom;
   try {
-    // A hotspot row keeps its field (its spread is the point of it); its dots
-    // are solid like every other layer's.
     rawAddLayer(hazeSpec, layer.id);
+    rawAddLayer(coreSpec, layer.id);
+    rawAddLayer(softSpec, layer.id);
+    // The dots themselves: soft-edged all the way in (the visible part sits
+    // well inside the clickable circle), and unseen wider out, where the cores
+    // stand for them; they are still there to be clicked.
     const paint = hudRaw.setPaintProperty || map.setPaintProperty.bind(map);
-    paint(layer.id, "circle-blur", 0);
-    hudOf.set(layer.id, [haze]);
+    paint(layer.id, "circle-blur", 1);
+    paint(layer.id, "circle-stroke-width", 0);
+    if (p["circle-opacity"] === undefined) paint(layer.id, "circle-opacity", z(GLOW.fadeOut, 0, GLOW.gone, 0.9));
+    hudOf.set(layer.id, [haze, core, soft]);
+    glowGrain();
   } catch (e) { /* this layer keeps its round markers alone */ }
 }
 // The map's own ramps are drawn as written; their keys are not moved either (round 82b).
@@ -4123,7 +4121,7 @@ function applySitemapColouring(id) {
   const year = state.year[c.k] != null ? state.year[c.k] : c.year;
   map.setPaintProperty(`${id}-fill`, "fill-color", colouringExpression(c, year));
   map.setPaintProperty(`${id}-fill`, "fill-opacity", 0.6);
-  map.setPaintProperty(`${id}-fill`, "fill-outline-color", "#1D1B17");
+  map.setPaintProperty(`${id}-fill`, "fill-outline-color", state.edge || "#1D1B17");
 }
 
 function sitemapColourClicked(btn) {
@@ -10034,8 +10032,13 @@ async function addBuildingTypesLayer(cfg) {
   let summary;
   try { summary = await getJson(cfg.summaryUrl); }
   catch (e) { setLayerState(cfg.id, `not built yet (${e.message})`); return; }
-  const types = Object.keys(summary.types || {});
-  const colours = buildingColours(types);
+  // Round 116b: a row may show some kinds only (the police stations under Law
+  // enforcement, the courts and prisons under Courts and corrections), from
+  // the same files, in its own colour, with no list of kinds under it.
+  const allTypes = Object.keys(summary.types || {});
+  const types = Array.isArray(cfg.onlyKinds) ? allTypes.filter((t) => cfg.onlyKinds.includes(t)) : allTypes;
+  if (!types.length) { setLayerState(cfg.id, `not built yet (no ${(cfg.onlyKinds || []).join(", ")} in the buildings file)`); return; }
+  const colours = cfg.onlyKinds ? Object.fromEntries(types.map((t) => [t, cfg.colour])) : buildingColours(types);
   const files = summary.files || {};
   const base = cfg.summaryUrl.replace(/[^/]+$/, "");
   // Each kind is its own archive (see scripts/building_types.py in
@@ -10084,7 +10087,7 @@ async function addBuildingTypesLayer(cfg) {
   // its colour and its count, close together.
   const row = document.querySelector(`[data-layer="${cfg.id}"]`);
   const anchor = row && row.closest ? row.closest("label") : null;
-  if (anchor && anchor.after && document.createElement && !document.querySelector(`[data-kinds="${cfg.id}"]`)) {
+  if (!cfg.onlyKinds && anchor && anchor.after && document.createElement && !document.querySelector(`[data-kinds="${cfg.id}"]`)) {
     const el = document.createElement("div");
     el.className = "facet bt-kinds";
     el.dataset.kinds = cfg.id;
@@ -10110,7 +10113,8 @@ async function addBuildingTypesLayer(cfg) {
     });
     anchor.after(el);
   }
-  setLayerState(cfg.id, `${Number(summary.places).toLocaleString()} places in ${types.length} kinds (from ${Number(summary.rows).toLocaleString()} file rows)`);
+  setLayerState(cfg.id, cfg.onlyKinds ? `${types.map((t) => `${Number(summary.types[t]).toLocaleString()} ${t.toLowerCase()}`).join(", ")} (the Buildings row's own files)`
+    : `${Number(summary.places).toLocaleString()} places in ${types.length} kinds (from ${Number(summary.rows).toLocaleString()} file rows)`);
   applyVisibility(cfg.id);
   buildLegend();
 }
@@ -14654,7 +14658,11 @@ async function addSitemapLayer(cfg, given) {
     siteTypeSync(cfg);      // types ticked before the layer was built
   }
   if (Array.isArray(data.colourings) && data.colourings.length) {
-    sitemapColourings.set(cfg.id, { list: data.colourings, pick: 0, year: {} });
+    // Round 116b: a row may give its own steps in place of the page's (the
+    // drug underworld map's greys, which the owner did not like).
+    const own = Array.isArray(cfg.colouringColours) ? cfg.colouringColours : null;
+    const list = own ? data.colourings.map((c) => (Array.isArray(c.colours) && c.colours.length === own.length ? Object.assign({}, c, { colours: own.slice() }) : c)) : data.colourings;
+    sitemapColourings.set(cfg.id, { list, pick: 0, year: {}, edge: cfg.colouringEdge });
     sitemapColourRow(cfg);
     applySitemapColouring(cfg.id);
   }
@@ -17371,6 +17379,8 @@ const SITE_MAPS = {
     // a colour of its own, well apart, drawn as given (keepColour), with a key.
     { id: "capture_map", name: "Drug underworld and capture map", unit: "places, lines and countries", colour: "#6A5A5E", route: "sitemap", ready: true, lazy: true, noAreaDots: true,
       keepColour: true, recolour: { "F42A2A": "#E0304A", "F48F2A": "#7A1F3D", "F4F42A": "#F28FB0", "8FF42A": "#9C6B5A", "2AF42A": "#C9B8A6", "2AF48F": "#F4F1EA", "2AF4F4": "#8A8F98", "2A8FF4": "#1E6FA8", "2A2AF4": "#4F8BFF", "8F2AF4": "#8FD6E8", "F42AF4": "#14A8A0", "F42A8F": "#0E5E6F", "C04A6A": "#FF6F91", "A04AB8": "#B83B5E", "5A4AB8": "#6FB7D9", "4A7AB8": "#3FA9C2", "4AB0B8": "#E8E2D6", "F15622": "#4F8BFF", "F1E022": "#8FD6E8", "78F122": "#1E6FA8", "22F156": "#E0304A", "22F1E0": "#F28FB0", "2278F1": "#7A1F3D", "5622F1": "#C9B8A6", "E022F1": "#F4F1EA", "F12278": "#9C6B5A", "B8B04A": "#D6CFC2" },
+      // Round 116b (asked 29 September): the countries in five steps of teal to cobalt, not the page's greys; edges darker.
+      colouringColours: ["#C6E7F0", "#6FC2DA", "#2E8FBA", "#1A5C92", "#0C2E5E"], colouringEdge: "#08203F",
       key: [["#E0304A", "Cartels and their cells"], ["#7A1F3D", "Mafias and criminal societies"], ["#F28FB0", "Street and neighbourhood gangs"], ["#9C6B5A", "Prison-born organisations"], ["#C9B8A6", "Outlaw motorcycle clubs"], ["#F4F1EA", "Armed and insurgent groups"], ["#8A8F98", "Networks inside the state"], ["#1E6FA8", "Port, airport and border crews"], ["#4F8BFF", "Trafficking and smuggling networks"], ["#8FD6E8", "Nigerian confraternities"], ["#14A8A0", "Fraud and cyber networks"], ["#0E5E6F", "Money-laundering networks"], ["#FF6F91", "Office: heads of state and family"], ["#B83B5E", "Office: ministers and security chiefs"], ["#6FB7D9", "Office: judges and prosecutors"], ["#3FA9C2", "Office: legislators and local government"], ["#E8E2D6", "Office: police, customs and armed units"], ["#4F8BFF", "Company: banks and money transmission"], ["#8FD6E8", "Company: crypto and digital rails"], ["#1E6FA8", "Company: shipping, freight and ports"], ["#E0304A", "Company: chemicals and precursors"], ["#F28FB0", "Company: pharmaceutical supply"], ["#7A1F3D", "Company: casinos and junkets"], ["#C9B8A6", "Company: lawyers, brokers and formation agents"], ["#F4F1EA", "Company: encrypted communications"], ["#9C6B5A", "Company: gold, commodities and agribusiness"], ["#D6CFC2", "Trafficking corridors (lines)"]],
       keyHint: "Groups by kind; public-office cases by office; companies by sector (the page's own kinds)",
       dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/capture_map.places.geojson",
@@ -17873,6 +17883,12 @@ const OTHER_MAPS = {
     { id: "holiday_culprits", name: "Who corporatized holidays: made a holiday a company's own custom, or invented one to sell (compiled from Wikipedia)", unit: "companies and trade bodies", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Holiday culprits", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/holidays/culprits.geojson" }], nameFrom: ["name"],
       note: "Compiled for this map on 28 September 2026 from the Wikipedia articles each box links to, and cut down on 29 September to those who corporatized a holiday: Coca-Cola's Santa, Macy's parade, Montgomery Ward's Rudolph, Alibaba's Singles' Day, Amazon's Prime Day, the National Retail Federation's Cyber Monday, the men's wear retailers' Father's Day Council, the confectioners behind White Day and Sweetest Day, Lotte's Pepero Day and KFC's Christmas in Japan. Each is placed at its head office or, where none is given, its city, as the box says. A short list, not every case." },
+    // ---- round 116b (asked 29 September): gangs inside law enforcement, worldwide ----
+    { id: "gang_infiltration", name: "Gangs inside law enforcement worldwide: police, sheriffs, federal agents and prison officers working for crime groups, or running their own (compiled from court records, inquiries and reporting)", unit: "cases", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Gangs inside law enforcement", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/lawenforcement/gang_infiltration.geojson" }], nameFrom: ["name"],
+      groupColours: { "A crime group working through police or officials": "#E0304A", "Officers running a gang or crime ring of their own": "#4F8BFF" },
+      groupHint: "Coloured by which way round it went; each box quotes its source and says how far it was proven",
+      note: "Compiled for this map on 29 September 2026: 24 documented cases in 15 countries, each box quoting the source it links (Wikipedia's articles, the US Justice Department, PBS, AP, OCCRP, InSight Crime, KRIK, Radio Free Europe, Dagens Nyheter via The Local, and Brazilian and Ecuadorian news) and saying how far it was proven, from reported to convicted. Each is placed at the city of the force or the case, as the box says. Among them: the Los Angeles sheriff's deputy gangs, the Rampart scandal, New York's Mafia cops, the FBI's protection of Whitey Bulger, the Iguala police who handed 43 students to a cartel, Mexico's security secretary convicted of Sinaloa Cartel bribes, Honduras's police chief, Rio's police-made milícias, the Glenanne gang, and police leaks to gangs in Sweden and the Netherlands. A short list, not every case." },
     // ---- round 115b (asked 29 September): the medical industry, from the Suppression page's own section ----
     { id: "medical_culprits", name: "Who profits from sickness: illegal drug marketing and kickbacks, the opioid epidemic, blood sold with HIV (compiled from Wikipedia)", unit: "companies and owners", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true, buildScript: "medical_culprits", waiting: "not built yet: culprits-tiles-more builds it on its next run",
       files: [{ label: "Medical culprits", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/medical/culprits.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by what each is named for",
@@ -18073,6 +18089,17 @@ const OTHER_MAPS = {
       // about 700 MB. See culprits-buildings.
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-buildings/tiles/building_types.pmtiles", summaryUrl: "https://welcometoyourgalaxy.github.io/culprits-buildings/tiles/building_types.json",
       note: "Every building in the executive, financial, legal, legislative, judicial, anti-slavery and activist-rights maps' files, one record per place: where two files describe the same place, the fuller record leads and every field the other adds is kept." },
+    // Round 116b (asked 29 September): the Buildings row's police stations, courts
+    // and prisons filed under Law enforcement and Courts and corrections too.
+    { id: "bld_police", name: "Police stations worldwide (the site's government, legal and rights maps)", unit: "police stations", colour: "#2E8FBA", route: "buildings", ready: true, lazy: true, onlyKinds: ["Police stations"],
+      summaryUrl: "https://welcometoyourgalaxy.github.io/culprits-buildings/tiles/building_types.json",
+      note: "The police stations of the Buildings row: every police station in the files of the site's maps the Buildings row reads, one record per place (where two files describe the same place, the fuller record leads and every field the other adds is kept)." },
+    { id: "bld_courts", name: "Courts worldwide (the site's government, legal and rights maps)", unit: "courts", colour: "#6FC2DA", route: "buildings", ready: true, lazy: true, onlyKinds: ["Courts"],
+      summaryUrl: "https://welcometoyourgalaxy.github.io/culprits-buildings/tiles/building_types.json",
+      note: "The courts of the Buildings row: every court in the files of the site's maps the Buildings row reads, one record per place (where two files describe the same place, the fuller record leads and every field the other adds is kept)." },
+    { id: "bld_prisons", name: "Prisons worldwide (the site's government, legal and rights maps)", unit: "prisons", colour: "#1A5C92", route: "buildings", ready: true, lazy: true, onlyKinds: ["Prisons"],
+      summaryUrl: "https://welcometoyourgalaxy.github.io/culprits-buildings/tiles/building_types.json",
+      note: "The prisons of the Buildings row: every prison in the files of the site's maps the Buildings row reads, one record per place (where two files describe the same place, the fuller record leads and every field the other adds is kept)." },
     { id: "owid_interest", name: "Share of government spending going to interest payments (Our World in Data)", unit: "% of spending", colour: "#6E5F52", route: "owidgrapher", ready: true, lazy: true,
       slug: "share-of-government-expenditure-going-to-interest-payments",
       note: "Read live from Our World in Data each time it is ticked; the chart's own data, by country and year." },
@@ -19350,6 +19377,7 @@ const LAYER_KIND = {
   site_world_news: ["human", "upstream"],
   site_world_entertainment: ["human", "upstream"],
   site_research_integrity: ["human", "upstream"], troutwood_companies: ["human", "upstream"], wreckers_world: ["insentient", "upstream"], threat_overall: ["human", "upstream"], threat_destruction: ["human", "upstream"], threat_suppression: ["human", "upstream"], threat_crime: ["human", "upstream"], vdem_liberal: ["human", "upstream"], vdem_electoral: ["human", "upstream"], vdem_participatory: ["human", "upstream"], vdem_deliberative: ["human", "upstream"], vdem_egalitarian: ["human", "upstream"], vdem_expression: ["human", "upstream"], vdem_rights: ["human", "upstream"], vdem_civil: ["human", "upstream"], vdem_regime: ["human", "upstream"], school_culprits: ["human", "upstream"], giga_school_points: ["human", "downstream"], stock_exchanges: ["human", "upstream"], research_makers: ["human", "upstream"], fertility_policy: ["human", "upstream"],
+  bld_police: ["human", "downstream"], bld_courts: ["human", "downstream"], bld_prisons: ["human", "downstream"], gang_infiltration: ["human", "upstream"],
   holiday_culprits: ["human", "upstream"], medical_culprits: ["human", "upstream"], sports_facilities: ["human", "upstream"], sports_betting: ["human", "upstream"], sports_fixing: ["human", "upstream"],
   pet_food_world: ["animal", "upstream"], animal_breeding_osm: ["animal", "upstream"], zoos_aquariums_osm: ["animal", "upstream"], slavery_convicted_world: ["human", "downstream"], slavery_detected_world: ["human", "downstream"], slavery_cbp_world: ["human", "upstream"],
   site_eyes_network: ["human", "upstream"],
@@ -20039,6 +20067,7 @@ const LAYER_SITE = {
   atlas_hotspots: "https://atlas-for-the-end-of-the-world.com/hotspots/",
   biosignature: "https://github.com/WelcomeToYourGalaxy/maps",
   building_types: "https://github.com/WelcomeToYourGalaxy",
+  bld_police: "https://github.com/WelcomeToYourGalaxy", bld_courts: "https://github.com/WelcomeToYourGalaxy", bld_prisons: "https://github.com/WelcomeToYourGalaxy",
   capture_map: "https://github.com/WelcomeToYourGalaxy/maps",
   dff: "https://deforestationfreefunds.org",
   esa_risk: "https://neo.ssa.esa.int/risk-list-plots",
@@ -20397,6 +20426,7 @@ const NOT_LIVE = {
   fertility_policy: "Copied weekly from the UN Population Division by culprits-tiles-more",
   forestatrisk: "Copied once from ForestAtRisk's own files by culprits-tiles-more",
   holiday_culprits: "Compiled for this map from the sources in each box",
+  gang_infiltration: "Compiled for this map from the sources in each box",
   medical_culprits: "Built weekly by culprits-tiles-more from Wikipedia and Wikidata",
   sports_facilities: "Built monthly by culprits-tiles-more from Overture Maps", sports_betting: "Built weekly by culprits-tiles-more from Wikidata",
   sports_fixing: "Built weekly by culprits-tiles-more from Wikidata", pet_food_world: "Built weekly by culprits-tiles-more from Wikidata",
@@ -20839,8 +20869,8 @@ const PANEL_ORDER = [
   { h: 4, t: "Economic inequality within it" },
   { h: 5, t: "Wealth concentration" }, "site_wealth_atlas", "site_social_spheres", "largest_companies",
   { h: 5, t: "The stock market" }, "stock_exchanges", "troutwood_companies",
-  { h: 4, t: "Law enforcement" }, "police_stations_latam",
-  { h: 4, t: "Courts and corrections" },
+  { h: 4, t: "Law enforcement" }, "bld_police", "police_stations_latam", "gang_infiltration",
+  { h: 4, t: "Courts and corrections" }, "bld_courts", "bld_prisons",
   { h: 4, t: "Discrimination" },
   { h: 4, t: "Slavery" },
   { h: 5, t: "Prevalence" }, "slavery_prevalence",
