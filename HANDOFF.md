@@ -5,6 +5,32 @@ touches.
 
 ---
 
+## Round 113b (29 September)
+
+Needs round 112b. No tiles patch. No app.js?v= bump.
+
+- Crowded point rows (owner chose "tinted bands and raised"): a point row of
+  DENSITY_MIN (300) points or more gets a density surface whenever shown:
+  ${id}__crowd-tint, raster from relief://<rid>/col in RELIEF_BANDS with
+  contour lines, raster-opacity by zoom DENSITY_FADE (0.8 wide out, gone by
+  zoom 10), under the row's marks; the hillshade and raised ground follow
+  "Raise figures as heights" as before (bands stay flat with it off).
+  densityKey: a band strip under the row. reliefPoints weighs merged marks by
+  _count, point_count, n, schools or count (numbers only) and counts a mark
+  read twice once; vector rows recount on moveend while banded, and wait for
+  their squares (map idle, up to 4 tries). pointReliefGrid smooths three
+  passes of radius 2 (about 200 km, was two of radius 1).
+- Site-map dots slimmer wide out: radius 0.42r at z1, 0.58r z4, 0.82r z7, r z10.
+- Themes kind by kind (owner chose "preset themes + wheel"): THEME_KINDS
+  points / shapes / highlights; themeKindOf (circle, symbol, heatmap = points;
+  source boundaries or -lift = highlights; else shapes); themeStepsFor;
+  themeWrap and themeApply use the kind's matrix. THEME_PRESETS (Deep ocean,
+  Glacier, Cobalt, Slate and bone, Basalt, Dusk, Signal, Ink), each a wheel
+  point per kind (kindTheme), in a ring round the wheel (.tw-ring, split
+  swatches); chips All / Points / Shapes / Highlights pick what the wheel
+  turns (THEME_TARGET, THEME_WHEEL, localStorage culprits-theme-kinds).
+  themeKeys gives shape and national rows their own CSS filter (:has()).
+
 ## Round 112b (29 September)
 
 Needs round 111b. Tiles patch round112b_tiles.py beside it. No app.js?v= bump

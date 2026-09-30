@@ -12357,8 +12357,20 @@ function viewPanelHtml() {
     // lighter. Two buttons put them back as drawn, or suit them to the basemap.
     `<div class="layer terrain-under theme-pick" id="theme-pick" title="Turns every layer's colours at once, so they show up on the basemap in use. Keys change with them.">` +
     `<span class="nm">Layer colours</span>` +
-    `<div class="tw" id="theme-wheel" role="slider" tabindex="0" aria-label="Layer colours: drag round the wheel to turn every layer's colours; arrow keys work too">` +
-    `<i class="tw-dot" id="theme-dot"></i></div>` +
+    // Round 113b: ready-made themes in a ring round the wheel, each dot split
+    // three ways (points, shapes, highlights); the wheel turns all three or
+    // the one kind chosen under it.
+    `<div class="tw-ring">` + Object.entries(THEME_PRESETS).map(([key, t], i, all) => {
+      const a = (i / all.length) * 2 * Math.PI, x = 59 + Math.sin(a) * 50, y = 59 - Math.cos(a) * 50;
+      const c = t.k;
+      return `<button type="button" class="tw-pre" data-theme-preset="${key}" title="${escapeHtml(t.nm)}: points, shapes and country highlights in matched colours" aria-label="${escapeHtml(t.nm)}"` +
+        ` style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px;background:conic-gradient(${wheelCss(c.points)} 0 120deg,${wheelCss(c.shapes)} 120deg 240deg,${wheelCss(c.highlights)} 240deg 360deg)"></button>`;
+    }).join("") +
+    `<div class="tw" id="theme-wheel" role="slider" tabindex="0" aria-label="Layer colours: drag round the wheel to turn the colours of the kind chosen below; arrow keys work too">` +
+    `<i class="tw-dot" id="theme-dot"></i></div></div>` +
+    `<div class="tw-kind" role="group" aria-label="What the wheel turns">` +
+    [["all", "All"], ["points", "Points"], ["shapes", "Shapes"], ["highlights", "Highlights"]].map(([k, w]) =>
+      `<button type="button" class="chip${k === "all" ? " on" : ""}" data-theme-target="${k}" title="${k === "all" ? "The wheel turns every kind of layer" : `The wheel turns ${w.toLowerCase()} only`}">${w}</button>`).join("") + `</div>` +
     `<input type="range" id="theme-bright" class="tw-bright" min="0.5" max="1.6" step="0.05" value="${THEME_CUSTOM.b}" aria-label="Layer colours darker or lighter" title="Darker or lighter">` +
     `<div class="tw-btns"><button type="button" class="chip" data-theme-set="drawn" title="Every layer in its own colours">As drawn</button>` +
     `<button type="button" class="chip" data-theme-set="auto" title="A setting chosen for the basemap in use">Suit basemap</button></div></div>` +
@@ -12569,14 +12581,56 @@ var THEME_BY_BASEMAP = { atlas: "bright", satellite: "reds", outlines: "bright" 
 // (0 grey, 1 strongest), b the brightness.
 var THEME_CUSTOM = { h: 200, r: 0.6, b: 1 };
 try { Object.assign(THEME_CUSTOM, JSON.parse(localStorage.getItem("culprits-theme-wheel") || "{}")); } catch (e) { /* as drawn */ }
-function customTheme(c) {
+// Round 113b (asked 29 September: "there should also be a layer colour circle
+// for shape data and highlights ... more of a theme circle/palette rather than
+// just a plain circle palette"): the colours are turned kind by kind. Points
+// (dots and their fields), shapes (areas, lines, pictures) and national
+// highlights (countries shaded or raised) each take their own turn, so a
+// theme is a matched set: bright dots over quieter shapes over the deepest
+// highlights. Ready-made themes sit in a ring round the wheel; the wheel
+// then turns all three, or the one kind picked under it. A turn is the same
+// hue-saturation-brightness step as before (wheelSteps), so every colour a
+// layer draws, from its style or its data, and every key, follows.
+var THEME_KINDS = ["points", "shapes", "highlights"];
+function wheelSteps(c) {
   const rot = Math.round(((c.h - 200) % 360 + 540) % 360 - 180);
   const sat = Math.round((0.1 + 1.5 * Math.max(0, Math.min(1, c.r))) * 100) / 100, b = Math.max(0.5, Math.min(1.6, Number(c.b) || 1));
-  return { nm: "Your colours", f: [["hue-rotate", rot], ["saturate", sat], ["brightness", b]],
-    raster: { "raster-hue-rotate": rot, "raster-saturation": Math.max(-1, Math.min(1, sat - 1)),
-      "raster-brightness-min": b > 1 ? Math.min(0.5, (b - 1) * 0.5) : 0, "raster-brightness-max": b < 1 ? b : 1 } };
+  return [["hue-rotate", rot], ["saturate", sat], ["brightness", b]];
 }
-LAYER_THEMES.custom = customTheme(THEME_CUSTOM);
+function wheelRaster(c) {
+  const [[, rot], [, sat], [, b]] = wheelSteps(c);
+  return { "raster-hue-rotate": rot, "raster-saturation": Math.max(-1, Math.min(1, sat - 1)),
+    "raster-brightness-min": b > 1 ? Math.min(0.5, (b - 1) * 0.5) : 0, "raster-brightness-max": b < 1 ? b : 1 };
+}
+const wheelCss = (c) => `hsl(${Math.round(c.h)},${Math.round(15 + 40 * c.r)}%,${Math.round(38 + 18 * (c.b - 0.5))}%)`;
+function kindTheme(nm, k) {
+  return { nm, k, kinds: { points: wheelSteps(k.points), shapes: wheelSteps(k.shapes), highlights: wheelSteps(k.highlights) }, raster: wheelRaster(k.shapes) };
+}
+// Ready-made themes (no green, orange or yellow; nothing neon): each a point
+// on the wheel for points, shapes and highlights.
+var THEME_PRESETS = {
+  ocean: kindTheme("Deep ocean", { points: { h: 190, r: 0.7, b: 1.25 }, shapes: { h: 220, r: 0.6, b: 0.9 }, highlights: { h: 205, r: 0.45, b: 0.8 } }),
+  glacier: kindTheme("Glacier", { points: { h: 195, r: 0.35, b: 1.5 }, shapes: { h: 205, r: 0.3, b: 1.2 }, highlights: { h: 215, r: 0.25, b: 1.05 } }),
+  cobalt: kindTheme("Cobalt", { points: { h: 225, r: 0.8, b: 1.15 }, shapes: { h: 235, r: 0.6, b: 0.85 }, highlights: { h: 215, r: 0.5, b: 0.8 } }),
+  slate: kindTheme("Slate and bone", { points: { h: 40, r: 0.06, b: 1.55 }, shapes: { h: 210, r: 0.15, b: 0.95 }, highlights: { h: 215, r: 0.12, b: 0.75 } }),
+  basalt: kindTheme("Basalt", { points: { h: 200, r: 0.04, b: 1.4 }, shapes: { h: 200, r: 0.04, b: 0.95 }, highlights: { h: 200, r: 0.04, b: 0.7 } }),
+  dusk: kindTheme("Dusk", { points: { h: 330, r: 0.55, b: 1.2 }, shapes: { h: 265, r: 0.45, b: 0.9 }, highlights: { h: 290, r: 0.35, b: 0.8 } }),
+  signal: kindTheme("Signal, for satellite imagery", { points: { h: 345, r: 0.8, b: 1.3 }, shapes: { h: 200, r: 0.8, b: 1.3 }, highlights: { h: 230, r: 0.6, b: 1.0 } }),
+  ink: kindTheme("Ink, for the painted atlas", { points: { h: 215, r: 0.8, b: 0.7 }, shapes: { h: 190, r: 0.6, b: 0.75 }, highlights: { h: 232, r: 0.5, b: 0.7 } }),
+};
+Object.assign(LAYER_THEMES, THEME_PRESETS);
+// The wheel's own theme: one point per kind; which kind the wheel turns.
+var THEME_WHEEL = { points: Object.assign({}, THEME_CUSTOM), shapes: Object.assign({}, THEME_CUSTOM), highlights: Object.assign({}, THEME_CUSTOM) };
+var THEME_TARGET = "all";
+try { const w = JSON.parse(localStorage.getItem("culprits-theme-kinds") || "null"); if (w && w.points && w.shapes && w.highlights) THEME_WHEEL = w; } catch (e) { /* one point for all */ }
+function customTheme() { return kindTheme("Your colours", THEME_WHEEL); }
+LAYER_THEMES.custom = customTheme();
+function themeKindOf(id, type, source) {
+  if (type === "circle" || type === "symbol" || type === "heatmap") return "points";
+  if (source === "boundaries" || /-lift$/.test(String(id))) return "highlights";
+  return "shapes";
+}
+function themeStepsFor(t, kind) { return t && t.kinds ? t.kinds[kind] || null : (t && t.f) || null; }
 function themeWheelWire(box) {
   const wheel = box && box.querySelector && box.querySelector("#theme-wheel");
   if (!wheel || !wheel.addEventListener) return;
@@ -12585,15 +12639,19 @@ function themeWheelWire(box) {
     const a = THEME_CUSTOM.h * Math.PI / 180, r = Math.max(0, Math.min(1, THEME_CUSTOM.r)) * 46;
     dot.style.left = `calc(50% + ${(Math.sin(a) * r).toFixed(1)}%)`;
     dot.style.top = `calc(50% - ${(Math.cos(a) * r).toFixed(1)}%)`;
-    dot.style.background = `hsl(${Math.round(THEME_CUSTOM.h)},${Math.round(15 + 40 * THEME_CUSTOM.r)}%,${Math.round(38 + 18 * (THEME_CUSTOM.b - 0.5))}%)`;
+    dot.style.background = wheelCss(THEME_CUSTOM);
     wheel.classList.toggle("on", LAYER_THEME === "custom");
+    for (const el of box.querySelectorAll("[data-theme-preset]")) el.classList.toggle("on", LAYER_THEME === el.dataset.themePreset);
+    for (const el of box.querySelectorAll("[data-theme-target]")) el.classList.toggle("on", THEME_TARGET === el.dataset.themeTarget);
+    if (bright) bright.value = THEME_CUSTOM.b;
   };
   let timer = null;
   const apply = (now) => {
     clearTimeout(timer);
     const go = () => {
-      LAYER_THEMES.custom = customTheme(THEME_CUSTOM);
-      try { localStorage.setItem("culprits-theme-wheel", JSON.stringify(THEME_CUSTOM)); } catch (e) { /* not kept */ }
+      for (const k of THEME_KINDS) if (THEME_TARGET === "all" || THEME_TARGET === k) THEME_WHEEL[k] = Object.assign({}, THEME_CUSTOM);
+      LAYER_THEMES.custom = customTheme();
+      try { localStorage.setItem("culprits-theme-wheel", JSON.stringify(THEME_CUSTOM)); localStorage.setItem("culprits-theme-kinds", JSON.stringify(THEME_WHEEL)); } catch (e) { /* not kept */ }
       setTheme("custom");
       place();
     };
@@ -12626,11 +12684,33 @@ function themeWheelWire(box) {
   });
   if (bright) bright.addEventListener("input", () => { THEME_CUSTOM.b = Number(bright.value) || 1; apply(false); });
   box.addEventListener("click", (ev) => {
+    const pre = ev.target && ev.target.closest ? ev.target.closest("[data-theme-preset]") : null;
+    if (pre) {
+      // A ready-made theme; the wheel carries on from it.
+      const t = THEME_PRESETS[pre.dataset.themePreset];
+      if (t) { THEME_WHEEL = JSON.parse(JSON.stringify(t.k)); THEME_CUSTOM = Object.assign({}, THEME_WHEEL[THEME_TARGET === "all" ? "points" : THEME_TARGET]); LAYER_THEMES.custom = customTheme(); }
+      setTheme(pre.dataset.themePreset);
+      place();
+      return;
+    }
+    const tg = ev.target && ev.target.closest ? ev.target.closest("[data-theme-target]") : null;
+    if (tg) {
+      THEME_TARGET = tg.dataset.themeTarget;
+      THEME_CUSTOM = Object.assign({}, THEME_WHEEL[THEME_TARGET === "all" ? "points" : THEME_TARGET]);
+      place();
+      return;
+    }
     const b = ev.target && ev.target.closest ? ev.target.closest("[data-theme-set]") : null;
     if (!b) return;
     setTheme(b.dataset.themeSet);
     place();
   });
+  addStyle(".theme-pick .tw-ring{position:relative;width:118px;height:118px;margin:2px 0}" +
+    ".theme-pick .tw-ring .tw{position:absolute;left:21px;top:21px;width:76px;height:76px;margin:0}" +
+    ".theme-pick .tw-pre{position:absolute;width:17px;height:17px;margin:-9px 0 0 -9px;border-radius:50%;border:1px solid rgba(0,0,0,.55);cursor:pointer;padding:0;opacity:.85}" +
+    ".theme-pick .tw-pre:hover,.theme-pick .tw-pre.on{opacity:1;box-shadow:0 0 0 2px #E8E2D6}" +
+    ".theme-pick .tw-kind{display:flex;gap:2px;margin:1px 0 2px}.theme-pick .tw-kind .chip{font:inherit;font-size:10px;padding:0 5px;border-radius:8px;border:1px solid rgba(30,160,200,.35);background:none;color:var(--dim,#a9a295);cursor:pointer}" +
+    ".theme-pick .tw-kind .chip.on{color:var(--ink,#e8e2d6);border-color:rgba(214,238,246,.7)}", "theme-ring");
   addStyle(".theme-pick .tw{position:relative;width:88px;height:88px;border-radius:50%;margin:3px 0 2px;cursor:crosshair;touch-action:none;" +
     "background:radial-gradient(circle closest-side,#8C8C88 0%,rgba(140,140,136,.55) 45%,rgba(140,140,136,0) 100%)," +
     "conic-gradient(" + [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360].map((h) => `hsl(${h},42%,50%)`).join(",") + ");" +
@@ -12720,8 +12800,9 @@ function themeWrap(id, prop, v) {
   if (/-color$/.test(prop) && !/^text-(halo-)?color$/.test(prop)) {
     if (THEME_OUT.has(JSON.stringify(v))) return v;
     THEME_ORIG.set(`${id}|${prop}`, v);
-    if (!t.f) return v;
-    const out = themeValue(v, themeMatrix(t.f));
+    const steps = themeStepsFor(t, themeKindOf(id, type, layer.source));
+    if (!steps) return v;
+    const out = themeValue(v, themeMatrix(steps));
     THEME_OUT.add(JSON.stringify(out));
     return out;
   }
@@ -12739,10 +12820,12 @@ function themeApply() {
   const st = map.getStyle && map.getStyle();
   if (!st) return;
   const t = LAYER_THEMES[themeNow()] || {};
-  const M = t.f ? themeMatrix(t.f) : null;
+  const Ms = {};
+  for (const k of THEME_KINDS) { const steps = themeStepsFor(t, k); Ms[k] = steps ? themeMatrix(steps) : null; }
   const set = (hudRaw && hudRaw.setPaintProperty) || map.setPaintProperty.bind(map);
   for (const l of st.layers || []) {
     if (!themeTouches(l.id, l.type)) continue;
+    const M = Ms[themeKindOf(l.id, l.type, l.source)];
     if (l.type === "raster") {
       for (const prop of THEME_RASTER) {
         const k = `${l.id}|${prop}`;
@@ -12769,9 +12852,23 @@ function themeKeys(t) {
   if (typeof document === "undefined" || !document.createElement) return;
   let el = document.getElementById("theme-keys");
   if (!el) { el = document.createElement("style"); el.id = "theme-keys"; (document.head || document.body).appendChild(el); }
-  const f = t && t.f ? themeCssFilter(t.f) : "";
-  el.textContent = f ? `#layers .facet i,#layers .facet .swatch,#layers .facet img,#layers label.layer .swatch,#layers .toc-bundle .swatch,` +
+  const f = themeCssFilter(themeStepsFor(t, "points") || []);
+  let css = f ? `#layers .facet i,#layers .facet .swatch,#layers .facet img,#layers label.layer .swatch,#layers .toc-bundle .swatch,` +
     `#layers .facet [style*="background"],#legend i,#legend .swatch,#legend img,#legend [style*="background"]{filter:${f}}` : "";
+  // Round 113b: a theme made kind by kind gives shape and highlight rows their own step.
+  if (t && t.kinds && typeof layerKind === "function") {
+    const rows = { shapes: [], highlights: [] };
+    const all = (typeof LAYERS !== "undefined" ? LAYERS : []).concat(...(typeof GROUPS !== "undefined" ? GROUPS.map((g) => g.children) : []));
+    for (const c of all) { const k = layerKind(c); if (k === "shape") rows.shapes.push(c.id); else if (k === "national") rows.highlights.push(c.id); }
+    for (const kind of ["shapes", "highlights"]) {
+      const fk = themeCssFilter(themeStepsFor(t, kind) || []);
+      if (!fk || !rows[kind].length) continue;
+      const sel = rows[kind].flatMap((id) => [`#layers .facet[data-key-for="${id}"] i`, `#layers .facet[data-key-for="${id}"] [style*="background"]`,
+        `#layers label.layer:has(> input[data-layer="${id}"]) .swatch`, `#legend .lg-on[data-lg="${id}"] ~ .lg-sw`]);
+      css += `${sel.join(",")}{filter:${fk}}`;
+    }
+  }
+  el.textContent = css;
 }
 var themeTimer = null;
 function themeSoon() {
@@ -12793,6 +12890,7 @@ function setLift(on) {
   // Rounds 108b and 109b: every picture, point and shape row that is showing rises, or lies flat again.
   for (const [id, vis] of visibility) {
     if (LIFT_ON && vis === "visible") riseRow(id, true);
+    else if (vis === "visible" && POINT_RELIEFS.has(id)) { rasterRiseSet(id, false); pointReliefSet(id, true); }    // bands stay, flat
     else if (RASTER_RISE.has(id) || POINT_RELIEFS.has(id)) riseRow(id, false);
   }
 }
@@ -14472,9 +14570,12 @@ async function addSitemapLayer(cfg, given) {
       "circle-color": colour,
       // The map's own marker size, a little smaller at world zoom so a
       // crowded map does not merge into one blot.
+      // Round 113b: finer wide out, the page's own size by zoom 10.
       "circle-radius": ["interpolate", ["linear"], ["zoom"],
-        1, ["*", 0.6, ["coalesce", ["get", "r"], 6]],
-        6, ["coalesce", ["get", "r"], 6]],
+        1, ["*", 0.42, ["coalesce", ["get", "r"], 6]],
+        4, ["*", 0.58, ["coalesce", ["get", "r"], 6]],
+        7, ["*", 0.82, ["coalesce", ["get", "r"], 6]],
+        10, ["coalesce", ["get", "r"], 6]],
       "circle-stroke-color": ["coalesce", ["get", "s"], "#17150F"],
       "circle-stroke-width": ["min", ["coalesce", ["get", "w"], 0.8], 3],
       "circle-opacity": ["coalesce", ["get", "o"], 0.85],
@@ -14657,24 +14758,38 @@ function openTimelineWindow(cfg) {
 // the most crowded or most covered place is the tallest. A row read from
 // tiles counts what the map has loaded, and is counted again after a move.
 const POINT_RELIEF_RES = 0.25, POINT_RELIEF_MIN = 30;
+// Round 113b (asked 29 September: "why aren't many of the layers still
+// hypsometric? the UFO sightings one for example has many points"; the owner
+// chose tinted bands and raised ground): a point row of DENSITY_MIN points or
+// more is drawn over a density surface whenever it is shown, in the map's
+// eight atlas steps (RELIEF_BANDS, contour lines where steps meet), shaded,
+// and raised as ground while "Raise figures as heights" is on. The bands fade
+// out as the map comes in close (DENSITY_FADE), where the dots themselves take
+// over. A merged mark (a square's count, a cluster) counts as its members.
+const DENSITY_MIN = 300;
+const DENSITY_FADE = [[0, 0.8], [6, 0.72], [8, 0.4], [10, 0]];
+const DENSITY_WEIGHT = ["_count", "point_count", "n", "schools", "count"];
 var POINT_RELIEFS = new Map();         // row -> { rid, grid, vector }
 function pointReliefGrid(pts, cover) {
   const W = Math.round(360 / POINT_RELIEF_RES), H = Math.round(180 / POINT_RELIEF_RES);
   let g = cover && cover.length === W * H ? Float32Array.from(cover) : new Float32Array(W * H);
-  for (const [lng, lat] of pts) {
+  for (const [lng, lat, w] of pts) {
     const x = Math.floor((lng + 180) / POINT_RELIEF_RES), y = Math.floor((90 - lat) / POINT_RELIEF_RES);
-    if (x >= 0 && x < W && y >= 0 && y < H) g[y * W + x] += 1;
+    if (x >= 0 && x < W && y >= 0 && y < H) g[y * W + x] += w > 0 ? w : 1;
   }
-  // Two box passes of radius 1 in each direction: about 75 km of smoothing.
-  for (let pass = 0; pass < 2; pass++) {
+  // Round 113b: three box passes of radius 2 in each direction, about 200 km
+  // of smoothing (was two of radius 1): the bands read as landforms of
+  // density from the world view rather than a scatter of small spots.
+  const R = 2;
+  for (let pass = 0; pass < 3; pass++) {
     const h = new Float32Array(W * H);
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      let t = 0; for (let d = -1; d <= 1; d++) t += g[y * W + ((x + d + W) % W)];
-      h[y * W + x] = t / 3;
+      let t = 0; for (let d = -R; d <= R; d++) t += g[y * W + ((x + d + W) % W)];
+      h[y * W + x] = t / (2 * R + 1);
     }
     const v = new Float32Array(W * H);
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      let t = 0, n = 0; for (let d = -1; d <= 1; d++) { const yy = y + d; if (yy >= 0 && yy < H) { t += h[yy * W + x]; n++; } }
+      let t = 0, n = 0; for (let d = -R; d <= R; d++) { const yy = y + d; if (yy >= 0 && yy < H) { t += h[yy * W + x]; n++; } }
       v[y * W + x] = t / n;
     }
     g = v;
@@ -14708,12 +14823,22 @@ function shapeCover(features) {
   return out;
 }
 function reliefPoints(features) {
-  const pts = [];
+  const pts = [], seen = new Set();
   for (const f of features || []) {
     const g = f && f.geometry;
     if (!g) continue;
-    if (g.type === "Point") pts.push(g.coordinates);
-    else if (g.type === "MultiPoint") pts.push(...g.coordinates);
+    const p = f.properties || {};
+    let w = 1;
+    for (const k of DENSITY_WEIGHT) { const v = Number(p[k]); if (Number.isFinite(v) && v > 0) { w = v; break; } }
+    const add = (c) => {
+      // A tile read twice (a mark on a square's edge is in both) counts once.
+      const k = `${c[0].toFixed(5)},${c[1].toFixed(5)},${p.k || p.id || ""},${w}`;
+      if (seen.has(k)) return;
+      seen.add(k);
+      pts.push([c[0], c[1], w]);
+    };
+    if (g.type === "Point") add(g.coordinates);
+    else if (g.type === "MultiPoint") g.coordinates.forEach(add);
   }
   return pts;
 }
@@ -14769,20 +14894,68 @@ async function crowdBuild(id, pr) {
   const { features, vector } = await rowFeatures(id);
   const pts = reliefPoints(features), cover = shapeCover(features);
   pr.vector = vector;
+  pr.points = pts.reduce((t, q) => t + q[2], 0);
+  // A picture of density needs points to picture: a row of many is banded.
+  pr.dense = !cover && (pr.points >= DENSITY_MIN || (vector && pts.length >= POINT_RELIEF_MIN && pr.points >= DENSITY_MIN / 3));
   pr.grid = cover || pts.length >= POINT_RELIEF_MIN ? pointReliefGrid(pts, cover) : null;
 }
-async function pointReliefSet(id, on) {
+// The bands: the grid's height (log of the count over the largest) in eight
+// steps, nothing where there is (almost) nothing.
+function densityBandsShow(id, pr, on) {
+  const tint = `${pr.rid}-tint`;
+  if (!on || !pr.dense || !pr.grid || !(pr.grid.max > 0)) { if (map.getLayer(tint)) map.setLayoutProperty(tint, "visibility", "none"); return; }
+  if (!map.getSource(`${pr.rid}-col`)) {
+    map.addSource(`${pr.rid}-col`, { type: "raster", tiles: [`relief://${pr.rid}/col/{z}/{x}/{y}`], tileSize: 256, maxzoom: 8 });
+  }
+  if (!map.getLayer(tint)) {
+    const first = rowVectorLayers(id)[0];
+    map.addLayer({ id: tint, type: "raster", source: `${pr.rid}-col`,
+      paint: { "raster-opacity": ["interpolate", ["linear"], ["zoom"], ...DENSITY_FADE.flat()], "raster-resampling": "nearest" } },
+      map.getLayer(`${pr.rid}-hill`) ? `${pr.rid}-hill` : first ? first.id : pointLayerAbove());
+    for (const c of RELIEF_BANDS) GLAD_OUT.add(hexOf(c));
+    densityKey(id);
+  }
+  map.setLayoutProperty(tint, "visibility", "visible");
+}
+function densityKey(id) {
+  if (!document.querySelector || document.querySelector(`.facet[data-density-for="${id}"]`)) return;
+  const row = document.querySelector(`[data-layer="${id}"]`);
+  const anchor = row && row.closest ? row.closest("label") : null;
+  if (!anchor || !anchor.parentNode) return;
+  const el = document.createElement("div");
+  el.className = "facet density-key";
+  el.dataset.densityFor = id;
+  el.style.cssText = "padding-left:18px;font-size:10.5px;color:var(--dim)";
+  el.innerHTML = `<div style="display:flex;height:7px;border-radius:2px;overflow:hidden;margin:2px 0">` +
+    RELIEF_BANDS.map((c) => `<i style="flex:1;background:${hexOf(c)}"></i>`).join("") + `</div>` +
+    `<div style="display:flex;justify-content:space-between"><span>fewer</span><span>where they crowd, per 28 km square, wide out</span><span>more</span></div>`;
+  let at = anchor;
+  while (at.nextElementSibling && at.nextElementSibling.classList && at.nextElementSibling.classList.contains("facet")) at = at.nextElementSibling;
+  at.after(el);
+}
+async function pointReliefSet(id, on, tries) {
   const rid = `${id}__crowd`;
   let pr = POINT_RELIEFS.get(id);
   if (!on) {
     if (pr && map.getLayer(`${rid}-hill`)) map.setLayoutProperty(`${rid}-hill`, "visibility", "none");
-    if (pr) reliefGround(rid, false);
+    if (pr) { reliefGround(rid, false); densityBandsShow(id, pr, false); }
     return;
   }
   if (!pr) { pr = { rid, grid: null, vector: false }; POINT_RELIEFS.set(id, pr); }
   if (!pr.grid) await crowdBuild(id, pr);
-  if (!pr.grid || !(pr.grid.max > 0) || !LIFT_ON || (visibility.get(id) || "visible") !== "visible") return;
-  if (!RELIEFS.has(rid)) RELIEFS.set(rid, { values: pointReliefValues(pr), colour: () => [0, 0, 0, 0], height: (v) => v, top: 150000, maxzoom: 8 });
+  // A row read from tiles has nothing to count until its squares arrive.
+  if (!pr.grid && pr.vector && (tries || 0) < 4) {
+    if (typeof map.once === "function") map.once("idle", () => { if ((visibility.get(id) || "visible") === "visible") pointReliefSet(id, true, (tries || 0) + 1); });
+    return;
+  }
+  if (!pr.grid || !(pr.grid.max > 0) || (visibility.get(id) || "visible") !== "visible") return;
+  if (!RELIEFS.has(rid)) RELIEFS.set(rid, { values: pointReliefValues(pr), colour: (v) => (v > 0.04 ? [0, 0, 0, 255] : [0, 0, 0, 0]), height: (v) => v, top: 150000, maxzoom: 8 });
+  densityBandsShow(id, pr, true);
+  if (!LIFT_ON) {
+    if (map.getLayer(`${rid}-hill`)) map.setLayoutProperty(`${rid}-hill`, "visibility", "none");
+    reliefGround(rid, false);
+    return;
+  }
   if (!map.getSource(`${rid}-dem`)) {
     map.addSource(`${rid}-dem`, { type: "raster-dem", tiles: [`relief://${rid}/dem/{z}/{x}/{y}`], tileSize: 256, maxzoom: 8, encoding: "mapbox" });
     map.addSource(`${rid}-shade`, { type: "raster-dem", tiles: [`relief://${rid}/dem/{z}/{x}/{y}`], tileSize: 256, maxzoom: 8, encoding: "mapbox" });
@@ -14800,10 +14973,13 @@ if (typeof map.on === "function") map.on("moveend", () => {
   crowdTimer = setTimeout(async () => {
     const top = reliefStack[reliefStack.length - 1];
     for (const [id, pr] of POINT_RELIEFS) {
-      if (!pr.vector || top !== pr.rid) continue;
+      const banded = map.getLayer(`${pr.rid}-tint`) && map.getLayoutProperty(`${pr.rid}-tint`, "visibility") !== "none";
+      if (!pr.vector || (top !== pr.rid && !banded)) continue;
       await crowdBuild(id, pr);
       const q = Date.now().toString(36);
       for (const kind of ["dem", "shade"]) { const s = map.getSource(`${pr.rid}-${kind}`); if (s && s.setTiles) s.setTiles([`relief://${pr.rid}/dem/{z}/{x}/{y}?${q}`]); }
+      const c = map.getSource(`${pr.rid}-col`);
+      if (c && c.setTiles) c.setTiles([`relief://${pr.rid}/col/{z}/{x}/{y}?${q}`]);
     }
   }, 1500);
 });
@@ -16807,6 +16983,8 @@ function applyVisibility(id) {
   if (extra) for (const l of extra) if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", /-lift$/.test(l) && !LIFT_ON ? "none" : vis);
   // Rounds 108b and 109b: a picture, point or shape row rises where it covers or crowds the ground.
   if (typeof riseRow === "function" && (vis === "visible" ? LIFT_ON : RASTER_RISE.has(id) || POINT_RELIEFS.has(id))) riseRow(id, vis === "visible");
+  // Round 113b: a crowded point row's bands show with the switch off too (flat).
+  else if (vis === "visible" && !LIFT_ON && typeof pointReliefSet === "function" && !RELIEFS.has(id) && rowVectorLayers(id).length) pointReliefSet(id, true);
   // A row that carries another source inside it switches that one with it.
   // (Rows inside a group, such as Buildings, are found by childById.)
   const rc = cfg || (typeof childById === "function" ? childById(id) : null);

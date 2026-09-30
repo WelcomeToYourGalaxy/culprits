@@ -5631,7 +5631,8 @@ console.log("\nround 109b (28 September): shapes raised, the alerts by grade, a 
   check("each grade of alert takes its own step, teal to cobalt; another colour takes the row's",
         [0, 1, 2].every((i) => px[i * 16] === fn.ALERT_TONES[i][0] && px[i * 16 + 2] === fn.ALERT_TONES[i][2]) && px[48] === 1 && px[50] === 3);
   check("the three alert rows keep those colours, with a key", /recolor: "#8A4F46", keepColour: true,/.test(src) && /if \(cfg\.recolor\) rowKey\(cfg\.id, ALERT_TONES\.map/.test(src));
-  const C = new Function(src.slice(src.indexOf("function customTheme("), src.indexOf("LAYER_THEMES.custom = customTheme(")) + "; return customTheme;")();
+  // Round 113b: the wheel's step is wheelSteps / wheelRaster (made kind by kind).
+  const C = new Function(src.slice(src.indexOf("function wheelSteps("), src.indexOf("const wheelCss")) + "; return (c) => ({ f: wheelSteps(c), raster: wheelRaster(c) });")();
   const same = C({ h: 200, r: 0.6, b: 1 }), turned = C({ h: 20, r: 1, b: 1.4 });
   check("the colour wheel: the dot at the map's own teal leaves colours as they are; elsewhere it turns them",
         same.f[0][1] === 0 && same.f[1][1] === 1 && same.f[2][1] === 1 && turned.f[0][1] === -180 && turned.f[1][1] === 1.6 && Math.abs(turned.raster["raster-brightness-min"] - 0.2) < 1e-9 &&
@@ -5692,6 +5693,29 @@ console.log("\nround 112b (29 September): solid dots, keys, stacked places, year
   check("the schools row reads the map's own copy when built", /copy: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/tiles\/giga_points\.pmtiles"/.test(src) && /function addMvtCopy\(cfg, st\)/.test(src));
   check("the hologram's floor grid only under a floating planet, and no relief shading under 3D terrain",
         /const floating = map\.getZoom\(\) < 3/.test(index) && /id === "holo-relief" && terrainOn/.test(index) && /map\.on\("pitchend", holoFollow\)/.test(index));
+}
+console.log("\nround 113b (29 September): crowded points as banded, raised ground; a ring of themes made kind by kind");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("a point row of 300 or more is banded whenever shown, fading close in, and raised under the switch",
+        /const DENSITY_MIN = 300;/.test(src) && /function densityBandsShow\(id, pr, on\)/.test(src) && /"raster-opacity": \["interpolate", \["linear"\], \["zoom"\], \.\.\.DENSITY_FADE\.flat\(\)\]/.test(src) &&
+        /densityBandsShow\(id, pr, true\);\n  if \(!LIFT_ON\) \{/.test(src) && /else if \(vis === "visible" && !LIFT_ON && typeof pointReliefSet === "function"/.test(src));
+  {
+    const R = new Function("const DENSITY_WEIGHT = [\"_count\", \"point_count\", \"n\", \"schools\", \"count\"];" +
+      src.slice(src.indexOf("function reliefPoints(features)"), src.indexOf("function pointReliefValues(pr)")) + "; return reliefPoints;")();
+    check("the weights read are the ones the map uses", /const DENSITY_WEIGHT = \["_count", "point_count", "n", "schools", "count"\];/.test(src));
+    const pts = R([{ geometry: { type: "Point", coordinates: [1, 2] }, properties: { n: 40 } }, { geometry: { type: "Point", coordinates: [1, 2] }, properties: { n: 40 } },
+      { geometry: { type: "Point", coordinates: [3, 4] }, properties: { n: "Some name" } }]);
+    check("a merged mark counts as its members; a mark read twice counts once; a name is not a count", pts.length === 2 && pts[0][2] === 40 && pts[1][2] === 1);
+  }
+  check("its key: the eight steps, fewer to more", /function densityKey\(id\)/.test(src) && /where they crowd, per 28 km square, wide out/.test(src));
+  check("themes are made kind by kind: points, shapes, highlights", /var THEME_KINDS = \["points", "shapes", "highlights"\];/.test(src) &&
+        /function themeKindOf\(id, type, source\)/.test(src) && /const steps = themeStepsFor\(t, themeKindOf\(id, type, layer\.source\)\);/.test(src) &&
+        /const M = Ms\[themeKindOf\(l\.id, l\.type, l\.source\)\];/.test(src));
+  check("eight ready-made themes in a ring round the wheel, none green, orange or yellow for points", /var THEME_PRESETS = \{/.test(src) && /class="tw-ring"/.test(src) &&
+        /data-theme-preset="\$\{key\}"/.test(src) && /data-theme-target="\$\{k\}"/.test(src) &&
+        (() => { const hs = [...src.slice(src.indexOf("var THEME_PRESETS = {"), src.indexOf("Object.assign(LAYER_THEMES, THEME_PRESETS);")).matchAll(/h: (\d+), r: ([\d.]+)/g)].map((m) => [Number(m[1]), Number(m[2])]);
+          return hs.length === 24 && hs.every(([h, r]) => r < 0.1 || !(h > 20 && h < 160)); })());
 }
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
