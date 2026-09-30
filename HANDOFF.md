@@ -5,6 +5,66 @@ touches.
 
 ---
 
+## Round 117b (30 September)
+
+Needs round 116b. Tiles patch round117b_tiles.py beside it. No app.js?v= bump.
+
+- Raise figures as heights, made quick (owner: "too slow or broken"): in the
+  browser each relief square took one to four seconds, nearly all of it the
+  canvas compressing a PNG on the page's thread, three times per square
+  (colours, heights, shading), and every move of a tiles row threw all the
+  squares away. Now rawPng writes an uncompressed PNG by hand (about 4 ms),
+  reliefValuesOnce works a square's figures out once for all three, and
+  crowdBuild keeps every point a tiles row has shown (pr.seen) and is remade
+  only when a fifth more have come (pr.changed). POINT_RELIEF_MIN 30 to 1
+  (rows of a few points rise too); riseRow waits up to 30 s for a slow row.
+  Shapes rows shaded by a figure (slavery prevalence, treaties counted,
+  trade shares) stand as fill-extrusions by that figure (shapeLift), like the
+  country rows; rows shaded by kind still rise by coverage.
+- Colour menu under every row of points (POINT_COLOUR, pcSetup): pmtiles rows
+  from their tilestats (numbers: six steps spread between min and max, log
+  when max/min >= 50; a few whole numbers or years: one step each; kinds of
+  2 to 12 values), geojsonlive rows from their records (quantile steps),
+  named rows from cfg.colourChoices (colourAuto:false leaves out the rest,
+  colourPick the start). Teal to cobalt PC_RAMP for figures, AUTO_GROUP_COLOURS
+  for kinds, PC_NONE grey. Glow kept: cores and soft surround take the
+  colours, cores at least 2 px wide out when coloured. Rows already coloured
+  (group or amount) open as drawn; "one colour" gives any row its old look.
+  Key in the menu and in Showing (legendKeyPairs reads data-for="pc:<id>").
+- Slavery rows: slavery_sites (kind and what was seen, workers, kiln size,
+  kiln kind, impact, mineral, armed group; note says kilns are found
+  positions from satellite pictures, not estimates, and the dataset covers
+  only the ground its pictures cover); slavery_ports (country high-risk
+  share, harbour size, port of entry; impact and exposure are 4 and 1 for
+  every port, said in the note and the box); slavery_fishing (share of
+  effort = the source's status, at-risk kWh, rank = its impact); fieldBox
+  boxes with the record's paragraph (fb.prose, bold kept) and plain labels.
+  Ports, fishing, enforcement and determinations read tiles
+  slavery_points_*.pmtiles (archiveBefore the old copies).
+- slavery_enforcement: workers found, impact, inspection year, year added.
+  attacks_slave_labour_states: by workers freed (the sheet's TOT 1995-2020),
+  not region. attacks_cpt_slave_cases: kind of work (as drawn), workers in
+  the complaint, workers freed, year, minors; year bar (yearFrom).
+- slavery_determinations: the eight whole-country determinations
+  (DETERMINATION_COUNTRYWIDE) left off the points and read in the country's
+  box on slavery_prevalence (box "slaveryprev", slaveryFindings: every
+  projects.json row for the country, DOL listed goods in one line).
+- slavery_routes: ticks for routes out of and into the country chosen;
+  clicking a country picks it; partner countries shaded by people
+  (boundaries feature-state rt_<id>, layer <id>-cty); the route under the
+  pointer alone (<id>-hover, others to 0.18); direction marks along each
+  route (<id>-dir).
+- slavery_cases: says it counts people in the country where they were
+  exploited (countryNote, note, display name).
+- Discrimination: wjp_discrimination (WJP Rule of Law Index sub-factor 4.1,
+  latest score, darker = lower) and wjp_discrimination_change (since the 2015
+  edition), route country with cfg.reverse (new: darker for lower). Tiles
+  wjp_discrimination.py reads WJP's historical data file. The article's own
+  picture was not read (the page could not be opened here); WJP's data terms
+  not checked.
+- addCountryLayer says "N countries" when drawn. Unearthings remains_records-cl
+  radius had zoom inside "*" (MapLibre refused the layer): fixed.
+
 ## Round 116b (29 September)
 
 Needs round 115b. Tiles patch round116b_tiles.py beside it. No app.js?v= bump.

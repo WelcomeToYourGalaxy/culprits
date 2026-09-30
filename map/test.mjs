@@ -5740,6 +5740,54 @@ console.log("\nround 115b (29 September): the medical industry's culprits");
         /\{ h: 4, t: "The medical industry" \}, "medical_culprits",/.test(src) && /culprits-tiles-more\/medical\/culprits\.geojson/.test(src) &&
         /medical_culprits: \["human", "upstream"\]/.test(src) && /  medical_culprits: "https:/.test(src) && /  medical_culprits: "Built weekly by culprits-tiles-more/.test(src));
 }
+console.log("\nround 117b (30 September): heights made quick, points coloured by their own figures, trafficking routes both ways, discrimination (WJP)");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const zlib = await import("node:zlib");
+  // The relief's squares are written as plain PNGs by hand, not compressed by the canvas.
+  const png = new Function(src.slice(src.indexOf("const PNG_CRC"), src.indexOf("// The figures of one square")) + "; return rawPng;")();
+  const px = new Uint8ClampedArray(4 * 4 * 4).map((_, i) => (i * 37) & 255);
+  const b = Buffer.from(png(px, 4, 4));
+  const idat = b.indexOf("IDAT"), len = b.readUInt32BE(idat - 4);
+  const raw = zlib.inflateSync(b.subarray(idat + 4, idat + 4 + len));
+  check("a relief square is a whole PNG whose pixels read back as written",
+        b.subarray(1, 4).toString() === "PNG" && b.includes("IEND") && raw.length === 4 * 17 && raw[0] === 0 && raw[1] === px[0] && raw[18] === px[16]);
+  check("a square's figures are worked out once for its colours, heights and shading, and no canvas encodes it",
+        /const vals = await reliefValuesOnce\(r, z, x, y\);/.test(src) && !/cv\.convertToBlob \? await cv\.convertToBlob/.test(src));
+  check("a row read from tiles keeps the points seen so far and is remade only when a fifth more have come",
+        /pts\.length < pr\.builtFrom \* 1\.2/.test(src) && /if \(!pr\.changed\) continue;/.test(src));
+  check("a row of a few points rises too", /POINT_RELIEF_MIN = 1;/.test(src));
+  check("areas shaded by a figure stand as tall as it", /function shapeLift\(cfg, source, colouring\)/.test(src) && /lift: \["case", has, at, 0\]/.test(src));
+  // The colour menu's steps.
+  const pc = new Function("PC_RAMP", "GLAD_OUT", "AUTO_GROUP_COLOURS", "amountWords",
+    src.slice(src.indexOf("function pcRound("), src.indexOf("function pcColourOf(")) + "; return { pcBreaks, pcFinish };")(
+    ["#A6D3CC", "#78BCB9", "#529FAF", "#3E80A3", "#2F6195", "#233F80"], new Set(), ["#E0304A", "#3FA9C2", "#F28FB0"], (v) => String(v));
+  check("steps fall where the values do, years stay years", JSON.stringify(pc.pcBreaks([2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025])) === "[2019,2020,2022,2023,2024]" &&
+        JSON.stringify(pc.pcBreaks([1, 2, 5, 9, 15, 250, 1200, 40, 3, 3, 3, 7])) === "[3,7,15,250]");
+  const rating = pc.pcFinish({ field: "x_impact", labels: { 3: "three" } }, [3, 4, 5, 3]);
+  check("a rating of a few whole numbers is one step each, in its own words", rating.kind === "cls" && rating.cls.length === 3 && rating.cls[0][1] === "three");
+  check("a kind with one value is no choice at all", pc.pcFinish({ field: "k", classes: "auto" }, ["a", "a"]) === null);
+  check("every row of points read from an archive or a GeoJSON copy gets the menu",
+        /pointColourPmtiles\(cfg, archive, owner\)\.catch/.test(src) && /const pcList = got\.items\.some\(\(it\) => it\._pc\) \? pointColourItems\(cfg, got\.items\) : \[\];/.test(src));
+  check("the slavery rows the owner named are coloured by their own figures",
+        /field: "x_workers", unit: "workers", noneWords/.test(src) && /field: "x_kiln_area_m2"/.test(src) && /field: "x_high_risk_share_pct"/.test(src) &&
+        /field: "x_share_of_effort_high_risk_pct"/.test(src) && /field: "workers_in_complaint"/.test(src) && /\["TOT 1995-2020"\]/.test(src) && /yearFrom: \["year"\], colourAuto: false/.test(src));
+  check("the ports and ocean squares read the copy with their figures as fields, the old one until it is built",
+        /tiles\/slavery_points_ports\.pmtiles",\n    archiveBefore: `\$\{TILE_BASE\}\/slavery_ports\.pmtiles`/.test(src) && /tiles\/slavery_points_fishing\.pmtiles/.test(src));
+  check("the whole-country determinations are read in the prevalence box, not drawn at a country's middle",
+        /where: \["!", \["in", \["get", "name"\], \["literal", Object\.keys\(DETERMINATION_COUNTRYWIDE\)\]\]\]/.test(src) && /box: "slaveryprev"/.test(src) &&
+        /cfg\.box === "slaveryprev"\n    \? \(p\) => Promise\.resolve\(plain\(p\)\)\.then\(\(h\) => slaveryFindings/.test(src));
+  check("trafficking routes: out of and into the country chosen, each its own tick; partners shaded; the route under the pointer alone",
+        /data-routes-out checked/.test(src) && /data-routes-in checked/.test(src) && /`\$\{cfg\.id\}-cty`/.test(src) && /`\$\{cfg\.id\}-hover`/.test(src) &&
+        /"symbol-placement": "line"/.test(src));
+  check("identified cases say they are counted where people were exploited", /Counted in the country where the person was exploited/.test(src));
+  const o = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("// A heading's tick reads its layers")) + "; return { PANEL_ORDER };")();
+  const d = o.PANEL_ORDER.findIndex((x) => x && x.t === "Discrimination");
+  check("discrimination (WJP) is the first thing under Discrimination, darker where it is worse",
+        o.PANEL_ORDER[d + 1] === "wjp_discrimination" && o.PANEL_ORDER[d + 2] === "wjp_discrimination_change" && /linear: \[0\.2, 0\.9\], reverse: true/.test(src) &&
+        /const at = cfg\.reverse \? \["-", 1, at0\] : at0;/.test(src));
+  check("the Unearthings' blurred halos are drawn (zoom at the top of their size)", /"circle-radius": \["interpolate", \["linear"\], \["zoom"\], 1, \["\*", 2\.4,/.test(src));
+}
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");

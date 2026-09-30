@@ -479,11 +479,65 @@ const LAYERS = [
     // points) is used until that has run.
     archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/slavery_sites.pmtiles",
     archiveBefore: `${TILE_BASE}/slavery_sites.pmtiles`,
-    note: "Sector infrastructure, not confirmed exploitation. These are sites in sectors where forced and child labour concentrate; where IPIS actually observed it, the site says so. Each brick kiln is placed at the centre of its box in the SentinelKilnDB satellite picture it was found in (within about 60 m); before 26 September they sat at the pictures' own grid points, some of them over water." },
+    // Round 117b (asked 30 September): coloured by what was seen at each site,
+    // the people working there, or a kiln's size or kind (menu under the row).
+    colourAuto: false,
+    colourChoices: [
+      { label: "what kind of site, and what was seen there", field: "x_type", classes: [
+        ["Artisanal mining site \u2014 forced labour observed", "mining site: forced labour recorded by IPIS"],
+        ["Artisanal mining site \u2014 child labour observed", "mining site: children under 15 seen working"],
+        ["Artisanal mining site", "mining site: visited, neither recorded"],
+        ["Brick kiln", "brick kiln (seen by satellite; never visited)"]] },
+      { label: "people working there (mining sites, as IPIS counted them)", field: "x_workers", unit: "workers", noneWords: "no count (the kilns, and some sites)" },
+      { label: "size of the kiln (the area of its outline seen from above)", field: "x_kiln_area_m2", unit: "m\u00b2", noneWords: "no size (the mining sites)" },
+      { label: "kind of kiln", field: "x_kiln_kind", classes: [["FCBK", "fixed-chimney Bull's trench kiln (oval)"], ["Zigzag", "zigzag kiln"], ["CFCBK", "circular fixed-chimney Bull's trench kiln"]], noneWords: "not a kiln" },
+      { label: "the anti-slavery map's impact rating", field: "x_impact", labels: { 3: "3: a site in the sector (every kiln)", 4: "4: children seen working", 5: "5: forced labour recorded" } },
+      { label: "mineral dug (mining sites)", field: "x_mineral", classes: "auto", noneWords: "not given (the kilns)" },
+      { label: "armed group interfering (mining sites)", field: "x_armed_interference", classes: "auto", noneWords: "not given (the kilns)" },
+    ],
+    fieldBox: { title: ["name"], fallback: "Site", prose: "x_desc", credit: "SentinelKilnDB (IIT Gandhinagar, CC BY-NC 4.0); IPIS open data; via the anti-slavery map",
+      labels: [["x_type", "What it is"], ["x_status", "What was recorded there"], ["x_workers", "People working there (IPIS count)"], ["x_mineral", "Mineral"],
+        ["x_armed_interference", "Armed group interfering"], ["x_kiln_kind_in_words", "Kind of kiln"], ["x_kiln_area_m2", "Kiln outline, square metres"],
+        ["x_kiln_length_m", "Kiln length, metres"], ["x_kiln_width_m", "Kiln width, metres"], ["x_position", "How it is placed"], ["x_impact", "Impact rating (anti-slavery map)"]],
+      skip: ["x_source", "x_precise", "x_picture", "x_box_centre_px", "x_split", "x_also_in_pictures", "x_kiln_size_from", "x_dataset", "source", "unit", "licence", "id"] },
+    note: "Sector infrastructure, not confirmed exploitation. These are sites in sectors where forced and child labour concentrate; where IPIS actually observed it, the site says so. Each brick kiln is placed at the centre of its box in the SentinelKilnDB satellite picture it was found in (within about 60 m): a found position, not an estimate. SentinelKilnDB is a set of satellite pictures chosen to train kiln-finding programs, not a survey of every kiln: it covers only the ground its pictures cover, in South Asia. So where the kilns crowd on the map (and the density bands wide out) shows where the dataset looked and found them, not every place kilns stand; a blank area may simply not be in its pictures. The IPIS mining sites were each visited on the ground in eastern DR Congo." },
   { id:"slavery_ports",        name:"Ports with high-risk vessel calls", unit:"ports", colour:"#5F7480", route:"pmtiles", ready:true, off: true,
-    note: "Scored on the share of calling fishing vessels flagged high-risk by a published behavioural model. A property of the calls, not of the port." },
+    // Round 117b: the copy with the figures in its text as fields (culprits-tiles-more
+    // scripts/slavery_points.py); the old one until that has run.
+    archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/slavery_points_ports.pmtiles",
+    archiveBefore: `${TILE_BASE}/slavery_ports.pmtiles`,
+    colourAuto: false,
+    colourChoices: [
+      { label: "share of fishing-vessel calls in its country made by vessels the model scored high-risk (a country figure)", field: "x_high_risk_share_pct", unit: "%", breaks: [5, 10, 25, 50, 75],
+        hint: "The anti-slavery map's impact and exposure are the same for every port (4 and 1), so they cannot tell ports apart; this is the figure behind them." },
+      { label: "harbour size (World Port Index)", field: "x_harbour_size", classes: [["large", "large"], ["medium", "medium"], ["small", "small"], ["very small", "very small"], ["unclassified", "unclassified"]], ordered: true },
+      { label: "port of entry (customs and immigration there)", field: "x_port_of_entry", classes: "auto" },
+    ],
+    fieldBox: { title: ["name"], fallback: "Port", prose: "x_desc", credit: "World Port Index; McDonald et al., PNAS 2021; via the anti-slavery map",
+      labels: [["x_high_risk_share_pct", "Share of fishing-vessel calls in this country by vessels the model scored high-risk, %"], ["x_harbour_size", "Harbour size"],
+        ["x_port_of_entry", "Port of entry"], ["x_state", "Country (code)"], ["x_type", "Why it is on the map"],
+        ["x_impact", "Impact rating (anti-slavery map; 4 for every port)"], ["x_impact_rank", "Impact rating (anti-slavery map; 4 for every port)"],
+        ["x_exposure", "Exposure: how many signals flag it (1 for every port)"], ["x_exposure_rank", "Exposure: how many signals flag it (1 for every port)"]],
+      skip: ["x_high_risk_share_is", "x_source", "x_precise", "x_status", "x_from_file", "id", "url"] },
+    note: "Scored on the share of calling fishing vessels flagged high-risk by a published behavioural model. A property of the calls, not of the port: the share is worked out for each country, so every port in a country carries the same one. The anti-slavery map rates every port impact 4 and exposure 1 (one signal flags it: this model), so those two cannot tell ports apart." },
   { id:"slavery_fishing",      name:"Ocean squares where forced-labour fishing is predicted (model, no vessel named)", unit:"model cells, 2.5\u00b0", colour:"#4E6A70", route:"pmtiles", ready:true, off: true,
-    note: "Not vessels. The authors anonymised every hull, so each mark is a cell of ocean and identifies nobody." },
+    archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/slavery_points_fishing.pmtiles",
+    archiveBefore: `${TILE_BASE}/slavery_fishing.pmtiles`,
+    colourAuto: false,
+    colourChoices: [
+      { label: "share of the square's fishing effort by vessels scored high-risk (the source's status)", field: "x_share_of_effort_high_risk_pct", unit: "%", breaks: [20, 40, 60, 80, 95] },
+      { label: "at-risk fishing effort in the square (kilowatt-hours of fishing by high-risk vessels)", field: "x_at_risk_effort_kw_hours", unit: "kW-hours" },
+      { label: "how high it ranks among ocean squares (the source's impact)", field: "x_rank", classes: [["top 10% of ocean squares by at-risk fishing effort", "top 10% of squares (impact 4)"],
+        ["top 1% of ocean squares by at-risk fishing effort", "top 1% of squares (impact 5)"]], ordered: true },
+    ],
+    fieldBox: { title: [], fallback: "Ocean square, 2.5 degrees", prose: "x_desc", credit: "emlab-ucsb slavery-in-fisheries (McDonald et al., PNAS 2021); via the anti-slavery map",
+      labels: [["x_share_of_effort_high_risk_pct", "Of all the fishing here, the share by vessels the model scored high-risk, %"],
+        ["x_status", "The same share, as the source words it (its status)"], ["x_share_of_effort", "The same share, as the source words it (its status)"],
+        ["x_at_risk_effort_kw_hours", "Fishing by those vessels here, kilowatt-hours"], ["x_rank", "Rank among ocean squares"],
+        ["x_impact", "Impact rating (5: top 1% of squares by at-risk fishing; 4: top 10%)"], ["x_gear", "Gear"], ["x_grid_cell", "Square"]],
+      skip: ["x_share_of_effort_is", "x_source", "x_precise", "x_local", "x_precision", "x_type", "x_state", "x_from_file", "id", "url", "name"],
+      note: "Not a vessel: a square of ocean. The model scores vessels by how they behave, and nobody here is named." },
+    note: "Not vessels. The authors anonymised every hull, so each mark is a cell of ocean and identifies nobody. The source's status is the share of the fishing in the square done by vessels the model scored high-risk; its impact is 5 for the top 1% of squares by that fishing and 4 for the top 10%." },
   // Round 77: read from the Unearthings map's own file each time it is
   // ticked, drawn and filtered as that map draws and filters it.
   { id:"remains_records",      name:"Unearthings and burial decisions", unit:"records", colour:"#6A6257", route:"remains", ready:true, off: true, lazy: true,
@@ -516,7 +570,9 @@ const LAYERS = [
     archiveBase: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/glw_",
     note: "A modelled grid of where animals are kept, not a count of farms. FAO fit census totals to land cover and other predictors, so a dense square means the model puts animals there." },
   { id:"slavery_cases",        name:"Identified trafficking cases", unit:"identified cases", colour:"#7A6A72", route:"country", ready:true, off:true,
-    note: "Detection, not prevalence. A country with a large count has organisations filing records; a country with none may have no one counting." },
+    // Round 117b (asked 30 September: "not clear whether it's showing cases to or from a country").
+    countryNote: "Counted in the country where the person was exploited, where the case was found: not the country they came from. The Trafficking routes row joins the two.",
+    note: "Each country's count is of people identified as trafficked who were exploited in that country (the Counter-Trafficking Data Collaborative's country of exploitation), wherever they came from; where they came from is in the Trafficking routes row. Detection, not prevalence. A country with a large count has organisations filing records; a country with none may have no one counting." },
 
   // ---- polygon layers: Cerulean and Allen Coral ---------------------------
   //
@@ -2885,6 +2941,8 @@ async function addPmtilesLayer(cfg) {
     bindPopup(`${cfg.id}-agg`, owner);
     bindPopup(`${cfg.id}-pt`, owner);
   }
+  // Round 117b: a menu under the row colours its points by a field of their own.
+  pointColourPmtiles(cfg, archive, owner).catch((e) => console.warn(`[culprits] ${cfg.id} colours: ${e.message}`));
   // A layer that nothing else gives a line to said "loading…" for good after
   // it had drawn (the Unearthings findings, 24 September).
   const stateEl = typeof document !== "undefined" && document.querySelector ? document.querySelector(`[data-state="${cfg.id}"]`) : null;
@@ -2930,7 +2988,10 @@ function fieldBoxHtml(cfg, p) {
   if (n > 1 || p.clustered === true || p.clustered === "true") return `<b>${n.toLocaleString()} ${escapeHtml(cfg.unit || "places")} here</b>` +
     `<div class="meta">Merged in the older copy at this zoom; zoom in, or wait for the new copy, to open each one.</div>`;
   const title = (fb.title || []).map((k) => p[k]).find((v) => v != null && v !== "") || fb.fallback || cfg.name;
-  const used = new Set([...(fb.title || []), ...FIELD_BOX_SKIP]);
+  const used = new Set([...(fb.title || []), ...FIELD_BOX_SKIP, ...(fb.skip || [])]);
+  // Round 117b: the record's own paragraph, with its bold kept (fb.prose).
+  const prose = fb.prose && p[fb.prose] ? `<div class="meta" style="margin:4px 0 6px">${escapeHtml(String(p[fb.prose])).replace(/&lt;(\/?)(b|i|em|strong)&gt;/g, "<$1$2>")}</div>` : "";
+  if (fb.prose) used.add(fb.prose);
   const fmt = (v) => (typeof v === "number" ? v.toLocaleString(undefined, { maximumFractionDigits: 3 }) : String(v));
   const rows = [];
   for (const [k, label] of fb.labels || []) {
@@ -2942,7 +3003,8 @@ function fieldBoxHtml(cfg, p) {
     if (used.has(k) || p[k] == null || p[k] === "") continue;
     rows.push(`<tr><th style="text-align:left;padding-right:8px;vertical-align:top">${escapeHtml(k.replace(/_/g, " "))}</th><td>${escapeHtml(fmt(p[k]))}</td></tr>`);
   }
-  return `<b>${escapeHtml(String(title))}</b><div style="max-height:260px;overflow:auto"><table class="meta">${rows.join("")}</table></div>` +
+  return `<b>${escapeHtml(String(title))}</b><div style="max-height:320px;overflow:auto"><table class="meta">${rows.join("")}</table>${prose}` +
+    (fb.note ? `<div class="meta" style="color:#8F4E40">${escapeHtml(fb.note)}</div>` : "") + `</div>` +
     `<div class="meta">${escapeHtml(fb.credit || "")}${fb.doc ? ` \u00b7 <a href="${escapeHtml(fb.doc)}" target="_blank" rel="noopener">what the codes mean</a>` : ""}</div>`;
 }
 
@@ -4232,7 +4294,8 @@ function livePlacesToSitemap(cfg, items) {
     const c = it.hollow || it.colour === AMOUNT_NONE || ((cfg.colourBy || cfg.groupColours || cfg.periods) && it.colour) ? it.colour : softColour(it.colour, cfg.colour);
     features.push({ type: "Feature", geometry: it.geometry,
       properties: { k: it.key, p: 1, t: it.name ? 1 : 0, n: it.name || "", c, ...(yearFromOf(cfg) ? { y: it.y != null ? it.y : -9999 } : {}),
-                    f: g ? `|g:${g}|` : "", ...(it.hollow ? { o: 0.15, s: it.colour, w: 1.8 } : {}) } });
+                    f: g ? `|g:${g}|` : "", ...(it.hollow ? { o: 0.15, s: it.colour, w: 1.8 } : {}),
+                    ...(it.pc ? Object.fromEntries(it.pc.map((pc, j) => [`pc${j}`, pc])) : {}) } });
     if (!boxes[it.key]) boxes[it.key] = { h: it.h, t: it.name ? `<b>${escapeHtml(it.name)}</b>` : "", o: { maxWidth: 340, maxHeight: 420 } };
   }
   const filters = groups.size > 1
@@ -4264,10 +4327,13 @@ async function addLivePlacesLayer(cfg) {
   }
   // A row the owner has named keeps its name (round 61: Zoos and Aquariums).
   if (!cfg.fixedName) relabelRow(cfg.id, got.title);
+  // Round 117b: the choices of colour under the row, from its own records.
+  const pcList = got.items.some((it) => it._pc) ? pointColourItems(cfg, got.items) : [];
   const { data, boxes } = livePlacesToSitemap(cfg, got.items);
   sitemapBoxes.set(cfg.id, Promise.resolve(boxes));
   await addSitemapLayer(cfg, data);
   if (got.key) { rowKey(cfg.id, got.key, got.keyHint); buildLegend(); }
+  if (pcList.length) pcSetup(cfg, pcList, "geojson", got.key ? got.keyHint || "their kind" : "");
   if (cfg.pdfs) atlasLegendShow(cfg.id, null);
   if (got.note) setLayerState(cfg.id, `${data.features.length.toLocaleString()} ${cfg.unit} \u00b7 ${got.note}`);
   if (yearFromOf(cfg)) sitemapYearBar(cfg, data);
@@ -6549,6 +6615,7 @@ async function readGeojsonFiles(cfg) {
       items.push({ geometry: ft.geometry, key: `${f.label}:${i}`, name: String(name), group: p.group != null ? String(p.group) : f.label,
         y: yearFromOf(cfg) ? yearOf(p, yearFromOf(cfg)) : undefined,
         _p: cfg.colourBy ? p : null,
+        _pc: p,
         // A copy that carries its source's own box (_html) shows that; otherwise every field.
         h: p._html ? boxOpen + p._html + `</div>`
           : cfg.card && CARDS[cfg.card] ? CARDS[cfg.card](p, String(name), cfg)
@@ -6715,6 +6782,313 @@ function colourByAmount(cfg, items) {
   if (estimated) key.push([AMOUNT_RAMP[3], "ring: estimated from the people working informally there"]);
   if (none) key.push([AMOUNT_NONE, "no figure given"]);
   return { key, hint: `Coloured by ${cb.field.toLowerCase()}`, note: estimated ? `${estimated} estimated from ${cb.estimate.field.toLowerCase()}` : "" };
+}
+
+
+/* ---------- points coloured by a figure or a kind of their own (round 117b) ---------- */
+// Asked 30 September ("assume I'm requesting a full upgrade all around"): the
+// points of a row can be coloured by one of their own fields, chosen in a menu
+// under the row, with a key. A row the owner named has its menu written here
+// (colourChoices in its settings, the first chosen at the start); every other
+// row of points read from an archive or a GeoJSON copy gets a menu made from
+// its own fields: a figure in six steps (split where the row's own values
+// fall, so each step holds about as many points), a figure with only a few
+// values one step each, or a kind with up to twelve values one colour each.
+// "One colour" gives the row back its own look. The glow stays: the cores and
+// soft surround take the chosen colours too. Figures run pale teal (fewest)
+// to deep cobalt (most); kinds take the map's twelve kind colours; a point
+// with no value for the field chosen is grey.
+const PC_RAMP = ["#A6D3CC", "#78BCB9", "#529FAF", "#3E80A3", "#2F6195", "#233F80"];
+const PC_NONE = "#8A8F93";
+try { PC_RAMP.forEach((c) => GLAD_OUT.add(c)); GLAD_OUT.add(PC_NONE); } catch (e) { /* read on its own (the tests) */ }
+const PC_SKIP = /^(id|fid|gid|objectid|name|title|url|link|href|licence|license|source|unit|lat|lon|lng|latitude|longitude|x|y|_count|point_count|clustered|sqrt_point_count|point_count_abbreviated|k|p|t|n|c|f|o|s|w|r|_k|_map_colour|group)$/i;
+const PC_SKIP_WORDS = /(^|_|\s)(desc|description|from_file|picture|pictures|box_centre_px|position|dataset|split|url|urls|link|links|wikidata|wikipedia|website|image|photo|note|notes|sources|summary|text|html|precise|local|precision|id|ids|qid|licence|attribution|placed|geom|coordinates|check|pdf|page|also_in_pictures|size_from|is)($|_|\s)/i;
+var POINT_COLOUR = new Map();         // row -> { cfg, choices, pick, orig, kind, keyHidden }
+const pcWords = (f) => (typeof fieldLabel === "function" ? fieldLabel(f) : String(f).replace(/^x_/, "").replace(/_/g, " "));
+// Rounded to two figures of the spread the values cover (years stay years).
+function pcRound(v, span) {
+  if (!isFinite(v) || v === 0) return v;
+  let m = Math.pow(10, Math.floor(Math.log10(Math.abs(v))) - 1);
+  if (span > 0) m = Math.min(m, Math.pow(10, Math.floor(Math.log10(span)) - 1));
+  if (Math.abs(v) >= 1 && span >= 1) m = Math.max(m, 1);
+  const r = Math.round(v / m) * m;
+  return Number(r.toPrecision(12)) === r && Math.abs(r) >= 1 ? r : Number(r.toPrecision(Math.max(2, Math.ceil(Math.log10(Math.abs(r) / m)) + 1)));
+}
+// A colour a share t of the way along the ramp.
+function pcRampAt(t) {
+  const x = Math.max(0, Math.min(1, t)) * (PC_RAMP.length - 1), a = Math.floor(Math.min(x, PC_RAMP.length - 1.001)), f = x - a;
+  const rgb = (h) => [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16));
+  const p = rgb(PC_RAMP[a]), q = rgb(PC_RAMP[a + 1]);
+  const c = "#" + [0, 1, 2].map((j) => Math.round(p[j] + (q[j] - p[j]) * f).toString(16).padStart(2, "0")).join("").toUpperCase();
+  GLAD_OUT.add(c);
+  return c;
+}
+// Five breaks where the values fall, rounded to two figures, each used once.
+function pcBreaks(vals) {
+  const v = vals.filter((x) => isFinite(x)).sort((a, b) => a - b);
+  if (v.length < 2) return [];
+  const out = [];
+  for (let i = 1; i <= 5; i++) {
+    const b = pcRound(v[Math.min(v.length - 1, Math.floor(v.length * i / 6))], v[v.length - 1] - v[0]);
+    if (b > v[0] && (!out.length || b > out[out.length - 1])) out.push(b);
+  }
+  return out;
+}
+const pcNum = (v) => {
+  if (typeof v === "number") return isFinite(v) ? v : null;
+  if (typeof v !== "string" || !/^\s*-?[\d,]*\.?\d+\s*$/.test(v)) return null;
+  const n = Number(v.replace(/,/g, ""));
+  return isFinite(n) ? n : null;
+};
+// A choice made whole: its steps or its kinds, their colours and words.
+function pcFinish(ch, values) {
+  if (ch.classes) {
+    let cls = ch.classes;
+    if (cls === "auto") {
+      const n = new Map();
+      for (const v of values) if (v != null && v !== "") n.set(String(v), (n.get(String(v)) || 0) + 1);
+      cls = [...n.entries()].sort((a, b) => b[1] - a[1]).map(([v]) => [v, v]);
+      if (ch.sort === "value") cls.sort((a, b) => (pcNum(a[0]) != null && pcNum(b[0]) != null ? pcNum(a[0]) - pcNum(b[0]) : String(a[0]).localeCompare(String(b[0]))));
+    }
+    const ordered = ch.ordered;
+    ch.cls = cls.slice(0, 12).map(([v, label], i) => [String(v), label == null ? String(v) : label,
+      ordered ? pcRampAt(i / Math.max(1, Math.min(cls.length, 12) - 1)) : AUTO_GROUP_COLOURS[i % AUTO_GROUP_COLOURS.length]]);
+    ch.kind = "cls";
+    return ch.cls.length >= 2 ? ch : null;
+  }
+  const nums = values.map(pcNum).filter((x) => x != null);
+  const distinct = [...new Set(nums)].sort((a, b) => a - b);
+  // A few whole numbers (a rating, a handful of years): each its own step.
+  if (!ch.breaks && distinct.length > 0 && distinct.length <= (distinct.every((x) => x >= 1800 && x <= 2100) ? 12 : 6) && distinct.every((x) => Number.isInteger(x))) {
+    ch.classes = distinct.map((x) => [String(x), ch.labels && ch.labels[x] != null ? ch.labels[x] : `${x.toLocaleString()}${ch.unit ? " " + ch.unit : ""}`]);
+    ch.ordered = true;
+    ch.num = true;
+    return pcFinish(ch, values);
+  }
+  // An archive's statistics give only its smallest and largest value (and a
+  // sample of the others): steps are spread evenly between the two, on a log
+  // scale where the largest is fifty times the smallest or more.
+  if (!ch.breaks && ch._min != null && isFinite(ch._min) && isFinite(ch._max) && ch._max > ch._min) {
+    const lo = ch._min, hi = ch._max, log = lo > 0 && hi / lo >= 50, out = [];
+    for (let i = 1; i <= 5; i++) {
+      const v = log ? Math.pow(10, Math.log10(lo) + (Math.log10(hi) - Math.log10(lo)) * i / 6) : lo + (hi - lo) * i / 6;
+      const b = pcRound(v, log ? v : hi - lo);
+      if (b > lo && (!out.length || b > out[out.length - 1])) out.push(b);
+    }
+    ch.breaks = out;
+  }
+  ch.breaks = ch.breaks || pcBreaks(nums);
+  if (!ch.breaks.length) return null;
+  const u = ch.unit ? ` ${ch.unit}` : "", w = (x) => (Number.isInteger(x) && x >= 1800 && x <= 2100 ? String(x)
+    : Math.abs(x) >= 1e6 && typeof amountWords === "function" ? amountWords(x) : Number(x).toLocaleString("en", { maximumSignificantDigits: 4 }));
+  const b = ch.breaks, n = b.length;
+  ch.colours = [PC_RAMP[0], ...b.map((_, i) => PC_RAMP[Math.round((i + 1) * (PC_RAMP.length - 1) / n)])];
+  ch.words = ch.colours.map((_, i) => i === 0 ? `under ${w(b[0])}${u}` : i === n ? `${w(b[n - 1])}${u} or more` : `${w(b[i - 1])} to ${w(b[i])}${u}`);
+  ch.kind = "num";
+  return ch;
+}
+function pcColourOf(ch, p) {
+  const v = ch.get ? ch.get(p) : p[ch.field];
+  if (v == null || v === "") return PC_NONE;
+  if (ch.kind === "cls") {
+    const key = ch.num ? String(pcNum(v)) : String(v);
+    const hit = ch.cls.find(([x]) => x === key);
+    return hit ? hit[2] : PC_NONE;
+  }
+  const x = pcNum(v);
+  if (x == null) return PC_NONE;
+  let i = 0; while (i < ch.breaks.length && x >= ch.breaks[i]) i++;
+  return ch.colours[i];
+}
+function pcExpr(ch) {
+  const get = ["get", ch.field];
+  if (ch.kind === "cls") {
+    const m = ["match", ch.num ? ["to-string", ["to-number", get, -1e9]] : ["to-string", get]];
+    for (const [v, , c] of ch.cls) m.push(v, c);
+    m.push(PC_NONE);
+    return ["case", ["has", ch.field], m, PC_NONE];
+  }
+  const st = ["step", ["to-number", get, 0], ch.colours[0]];
+  ch.breaks.forEach((b, i) => st.push(b, ch.colours[i + 1]));
+  return ["case", ["has", ch.field], st, PC_NONE];
+}
+function pcKeyPairs(ch) {
+  const pairs = ch.kind === "cls" ? ch.cls.map(([, label, c]) => [c, label]) : ch.colours.map((c, i) => [c, ch.words[i]]);
+  return pairs.concat([[PC_NONE, ch.noneWords || "not given"]]);
+}
+// Choices from an archive's own statistics (tippecanoe's tilestats).
+function pcFromStats(attrs, count, unit) {
+  const out = [];
+  for (const a of attrs || []) {
+    const f = a.attribute;
+    if (!f || PC_SKIP.test(f) || PC_SKIP_WORDS.test(String(f).replace(/^x_/, ""))) continue;
+    const vals = a.values || [];
+    if (a.type === "number") {
+      if (!(Number(a.max) > Number(a.min))) continue;
+      out.push({ label: f === "value" ? `amount${unit ? ` (${unit})` : ""}` : pcWords(f), field: f, _vals: vals, _min: Number(a.min), _max: Number(a.max) });
+    } else if (a.type === "string" && vals.length >= 2 && vals.length <= 12 && (a.count || vals.length) <= 12 &&
+               vals.every((v) => String(v).length <= 60 && !/^https?:/.test(String(v)))) {
+      out.push({ label: pcWords(f), field: f, classes: "auto", _vals: vals });
+    }
+  }
+  return pcOrder(out);
+}
+// Choices from a GeoJSON copy's own records.
+function pcFromItems(items) {
+  const fields = new Map();
+  for (const it of items) {
+    const p = it._pc || {};
+    for (const [k, v] of Object.entries(p)) {
+      if (v == null || v === "" || typeof v === "object" || typeof v === "boolean") continue;
+      if (PC_SKIP.test(k) || PC_SKIP_WORDS.test(k.replace(/^x_/, ""))) continue;
+      const e = fields.get(k) || { n: 0, num: 0, vals: new Set() };
+      e.n++;
+      if (pcNum(v) != null) e.num++;
+      if (e.vals.size <= 13) e.vals.add(String(v));
+      fields.set(k, e);
+    }
+  }
+  const out = [];
+  for (const [k, e] of fields) {
+    if (e.n < Math.max(2, items.length * 0.2)) continue;
+    if (e.num >= e.n * 0.8 && e.vals.size >= 2) out.push({ label: pcWords(k), field: k });
+    else if (e.num < e.n * 0.8 && e.vals.size >= 2 && e.vals.size <= 12 && [...e.vals].every((v) => v.length <= 60)) out.push({ label: pcWords(k), field: k, classes: "auto" });
+  }
+  return pcOrder(out);
+}
+const PC_FIRST = /people|workers|victims|killed|deaths|dead|freed|enslaved|count|number|total|amount|value|capacity|size|area|tonnes|volume|score|rating|impact|share|pct|percent|year|status|type|kind|category|class|severity/i;
+function pcOrder(list) {
+  return list.map((c, i) => [c, i]).sort((a, b) => (PC_FIRST.test(b[0].field) - PC_FIRST.test(a[0].field)) || (a[1] - b[1])).map(([c]) => c).slice(0, 10);
+}
+function pcRowEl(id) {
+  const box = document.getElementById("layers");
+  return box && box.querySelector ? box.querySelector(`.facet[data-for="pc:${id}"]`) : null;
+}
+function pcRender(id) {
+  const st = POINT_COLOUR.get(id);
+  const box = document.getElementById("layers");
+  const tick = box && box.querySelector ? box.querySelector(`[data-layer="${id}"]`) : null;
+  const label = tick && tick.closest ? tick.closest("label") : null;
+  if (!st || !label || !label.after || typeof document.createElement !== "function") return;
+  let el = pcRowEl(id);
+  if (!el) {
+    el = document.createElement("div");
+    el.className = "facet pc-row";
+    el.dataset.for = `pc:${id}`;
+    el.style.paddingLeft = "18px";
+    label.after(el);
+    el.addEventListener("change", (e) => {
+      e.stopPropagation();
+      const sel = el.querySelector("select");
+      pcPick(id, Number(sel.value));
+    });
+    el.addEventListener("click", (e) => e.stopPropagation());
+  }
+  const ch = st.pick >= 0 ? st.choices[st.pick] : null;
+  el.innerHTML = `<div style="font-size:10.5px;color:var(--dim)">Colour the points by ` +
+    `<select data-pc="${escapeHtml(id)}" aria-label="Colour the points by" style="font:inherit;font-size:11px;max-width:100%">` +
+    st.choices.map((c, i) => `<option value="${i}"${i === st.pick ? " selected" : ""}>${escapeHtml(c.label)}</option>`).join("") +
+    `<option value="-1"${st.pick < 0 ? " selected" : ""}>${st.own ? `as the row draws them (${escapeHtml(String(st.own).replace(/^Coloured by /i, "").toLowerCase())})` : "one colour (the row's own look)"}</option></select></div>` +
+    (ch && ch.hint ? `<div style="font-size:10.5px;color:var(--dim)">${escapeHtml(ch.hint)}</div>` : "") +
+    (ch ? pcKeyPairs(ch).map(([c, t]) => `<div class="lg-row lg-sub"><span class="lg-sw lg-key" data-glad="1" style="background:${c}"></span><span class="lg-nm">${escapeHtml(t)}</span></div>`).join("") : "");
+}
+function pcLayers(id) {
+  const style = map.getStyle && map.getStyle();
+  const own = ((style && style.layers) || []).filter((l) => l.type === "circle" && (l.id === `${id}-pt` || l.id === `${id}-agg` || /-(agg|pt)-part\d+$/.test(l.id) && l.id.startsWith(`${id}-`)));
+  const out = [];
+  for (const l of own) { out.push(l.id); for (const h of hudMates(l.id)) if (/-(core|soft)$/.test(h)) out.push(h); }
+  return out;
+}
+function pcPick(id, i) {
+  const st = POINT_COLOUR.get(id);
+  if (!st) return;
+  st.pick = i >= 0 && i < st.choices.length ? i : -1;
+  pcApply(id);
+  pcRender(id);
+  buildLegend();
+}
+function pcApply(id) {
+  const st = POINT_COLOUR.get(id);
+  if (!st) return;
+  const ch = st.pick >= 0 ? st.choices[st.pick] : null;
+  const raw = hudRaw.setPaintProperty || map.setPaintProperty.bind(map);
+  st.cfg.keepColour = ch ? true : st.keptBefore;
+  for (const l of pcLayers(id)) {
+    if (!map.getLayer(l)) continue;
+    if (!st.orig.has(l)) st.orig.set(l, { fill: map.getPaintProperty(l, "circle-color"), edge: map.getPaintProperty(l, "circle-stroke-color"),
+      radius: /-core$/.test(l) ? map.getPaintProperty(l, "circle-radius") : undefined });
+    const o = st.orig.get(l);
+    if (!ch) {
+      raw(l, "circle-color", o.fill);
+      if (o.edge !== undefined) raw(l, "circle-stroke-color", o.edge);
+      if (o.radius !== undefined) raw(l, "circle-radius", o.radius);
+      continue;
+    }
+    // A glowing core a pixel across shows no colour: coloured, each is at
+    // least two pixels wide out, growing a little closer in.
+    if (o.radius !== undefined) raw(l, "circle-radius", ["interpolate", ["linear"], ["zoom"], 0, 2.2, 4, 2.8, 8, 3.4, 11, 4]);
+    const v = st.kind === "geojson" ? ["coalesce", ["get", `pc${st.pick}`], PC_NONE] : pcExpr(ch);
+    try {
+      map.setPaintProperty(l, "circle-color", v);
+      // A hollow mark (a model square, an area's middle) is only its edge, so
+      // its edge takes the colour; a merged mark wider out is edged in it too.
+      if (Array.isArray(o.edge) && o.edge[0] === "case" && JSON.stringify(o.edge[1]).includes("x_precision"))
+        map.setPaintProperty(l, "circle-stroke-color", ["case", o.edge[1], v, o.edge[3]]);
+      else if (/-agg(-part\d+)?$/.test(l) && typeof o.edge === "string") map.setPaintProperty(l, "circle-stroke-color", v);
+    } catch (e) { console.warn(`[culprits] ${id} colour: ${e.message}`); }
+  }
+  // The row's own key, when it has one, stands for "one colour" only.
+  const box = document.getElementById("layers");
+  const own = box && box.querySelector ? box.querySelector(`.facet[data-key-for="${id}"]`) : null;
+  if (own && own.style) own.style.display = ch ? "none" : "";
+}
+function pcSetup(cfg, choices, kind, own) {
+  const list = choices.filter(Boolean);
+  if (!list.length) return;
+  // A row that colours its points already (by kind, or by a figure) opens as
+  // it always has, unless its settings name a choice.
+  const start = cfg.colourPick != null ? cfg.colourPick : own ? -1 : 0;
+  const st = { cfg, choices: list, pick: Math.min(Math.max(-1, start), list.length - 1),
+    orig: new Map(), kind, own: own || "", keptBefore: !!cfg.keepColour };
+  POINT_COLOUR.set(cfg.id, st);
+  pcRender(cfg.id);
+  pcApply(cfg.id);
+  buildLegend();
+  // Parts of a split archive arrive later; they take the same colours.
+  if (typeof map.once === "function") map.once("idle", () => pcApply(cfg.id));
+}
+// A row read from an archive: its named choices, then its own fields.
+async function pointColourPmtiles(cfg, archive, owner) {
+  if (cfg.noColourBy || cfg.standout || HOTSPOT.has(owner) || POINT_COLOUR.has(cfg.id)) return;
+  let attrs = [], count = 0;
+  try {
+    const meta = archive ? await archive.getMetadata() : null;
+    const stats = (meta && (meta.tilestats || (typeof meta.json === "string" ? JSON.parse(meta.json).tilestats : (meta.json || {}).tilestats))) || {};
+    const lay = (stats.layers || []).find((l) => l.layer === owner) || (stats.layers || [])[0];
+    attrs = (lay && lay.attributes) || [];
+    count = (lay && lay.count) || 0;
+  } catch (e) { /* no statistics: only the named choices */ }
+  const have = new Map(attrs.map((a) => [a.attribute, a]));
+  const named = (cfg.colourChoices || []).filter((c) => !have.size || have.has(c.field)).map((c) => Object.assign({}, c, { _vals: (have.get(c.field) || {}).values || [] }));
+  const auto = cfg.colourAuto === false ? [] : pcFromStats(attrs, count, cfg.unit).filter((c) => !named.some((n) => n.field === c.field));
+  const done = named.concat(auto).map((c) => pcFinish(c, c._vals || [])).filter(Boolean);
+  pcSetup(cfg, done, "pmtiles");
+}
+// A row read from a GeoJSON copy: each choice's colour is worked out per place.
+function pointColourItems(cfg, items) {
+  if (cfg.noColourBy || cfg.standout) return [];
+  const named = cfg.colourChoices || [];
+  const auto = cfg.colourAuto === false ? [] : pcFromItems(items).filter((c) => !named.some((n) => n.field === c.field) && c.field !== "group");
+  const asDrawn = cfg.groupColours || cfg.colourBy ? [] : [];
+  const list = named.concat(auto).map((c) => {
+    const ch = Object.assign({}, c);
+    return pcFinish(ch, items.map((it) => (ch.get ? ch.get(it._pc || {}) : (it._pc || {})[ch.field])));
+  }).filter(Boolean);
+  for (const it of items) {
+    it.pc = list.map((ch) => pcColourOf(ch, it._pc || {}));
+    delete it._pc;
+  }
+  return list.concat(asDrawn);
 }
 
 // WP Go Maps (Final Nail): its markers as published.
@@ -11880,12 +12254,71 @@ function reliefBand(h) {
   return Math.max(0, Math.min(RELIEF_BANDS.length - 1, Math.floor(Math.max(0, Math.min(1, h)) * RELIEF_BANDS.length)));
 }
 const bandHex = (h) => hexOf(RELIEF_BANDS[reliefBand(h)]);
+// Round 117b (asked 30 September: "Raise figures as heights ... too slow or
+// broken"): measured in the browser, each square of ground took one to four
+// seconds, nearly all of it spent turning the square into a compressed PNG on
+// the page's own thread, three times over (its colours, its heights and its
+// shading each asked for the same square), and every move of a row read from
+// tiles threw all the squares away and made them again. Now the square is
+// written as an uncompressed PNG by hand (a few milliseconds), its figures are
+// worked out once for all three, and a row read from tiles is only made again
+// when the map has loaded markedly more of its points (see crowdBuild).
+const PNG_CRC = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
+  return t;
+})();
+function pngCrc(b, a, e) { let c = 0xFFFFFFFF; for (let i = a; i < e; i++) c = PNG_CRC[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function rawPng(rgba, w, h) {
+  const row = w * 4 + 1, raw = row * h, blocks = Math.ceil(raw / 65535);
+  const zlen = 2 + raw + blocks * 5 + 4;
+  const out = new Uint8Array(8 + 25 + (12 + zlen) + 12);
+  const dv = new DataView(out.buffer);
+  out.set([137, 80, 78, 71, 13, 10, 26, 10], 0);
+  let o = 8;
+  const chunk = (type, len, fill) => {
+    dv.setUint32(o, len); o += 4;
+    const start = o;
+    for (let i = 0; i < 4; i++) out[start + i] = type.charCodeAt(i);
+    fill(start + 4); o = start + 4 + len;
+    dv.setUint32(o, pngCrc(out, start, o)); o += 4;
+  };
+  chunk("IHDR", 13, (at) => { dv.setUint32(at, w); dv.setUint32(at + 4, h); out.set([8, 6, 0, 0, 0], at + 8); });
+  chunk("IDAT", zlen, (at) => {
+    let q = at;
+    out[q++] = 0x78; out[q++] = 0x01;
+    let a1 = 1, a2 = 0, left = raw, i = 0;
+    while (left > 0) {
+      const n = Math.min(65535, left);
+      left -= n;
+      out[q++] = left === 0 ? 1 : 0; out[q++] = n & 255; out[q++] = n >> 8; out[q++] = ~n & 255; out[q++] = (~n >> 8) & 255;
+      for (let k = 0; k < n; k++, i++) {
+        const y = (i / row) | 0, x = i - y * row;
+        const v = x === 0 ? 0 : rgba[y * w * 4 + x - 1];
+        out[q++] = v;
+        a1 = (a1 + v) % 65521; a2 = (a2 + a1) % 65521;
+      }
+    }
+    dv.setUint32(q, ((a2 << 16) | a1) >>> 0);
+  });
+  chunk("IEND", 0, () => {});
+  return out.buffer;
+}
+// The figures of one square, worked out once for its colours, heights and shading.
+function reliefValuesOnce(r, z, x, y) {
+  const c = r._cache || (r._cache = new Map());
+  const k = `${z}/${x}/${y}`;
+  if (!c.has(k)) {
+    const p = Promise.resolve(r.values(z, x, y));
+    c.set(k, p);
+    p.catch(() => c.delete(k));
+    if (c.size > 400) c.delete(c.keys().next().value);
+  }
+  return c.get(k);
+}
 async function reliefTile(r, kind, z, x, y) {
-  const vals = await r.values(z, x, y);
-  const cv = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(256, 256) : Object.assign(document.createElement("canvas"), { width: 256, height: 256 });
-  const ctx = cv.getContext("2d");
-  const img = ctx.createImageData(256, 256);
-  const d = img.data;
+  const vals = await reliefValuesOnce(r, z, x, y);
+  const d = new Uint8ClampedArray(256 * 256 * 4);
   let band = null;
   if (kind === "col") {
     band = new Int8Array(256 * 256).fill(-1);
@@ -11910,9 +12343,7 @@ async function reliefTile(r, kind, z, x, y) {
       d[i * 4] = (code >> 16) & 255; d[i * 4 + 1] = (code >> 8) & 255; d[i * 4 + 2] = code & 255; d[i * 4 + 3] = 255;
     }
   }
-  ctx.putImageData(img, 0, 0);
-  const blob = cv.convertToBlob ? await cv.convertToBlob({ type: "image/png" }) : await new Promise((res) => cv.toBlob(res, "image/png"));
-  return blob.arrayBuffer();
+  return rawPng(d, 256, 256);
 }
 maplibregl.addProtocol("relief", async (params) => {
   const m = params.url.match(/^relief:\/\/([^/]+)\/(col|dem)\/(\d+)\/(\d+)\/(\d+)/);   // a ?query after it only makes a new address
@@ -12957,8 +13388,11 @@ async function addCountryLayer(cfg) {
   const key = `v_${cfg.id}`;
 
   // A country's place on the log scale, 0 (smallest) to 1 (largest).
-  const at = lin ? ["max", 0, ["min", 1, ["/", ["-", ["coalesce", ["feature-state", key], 0], lo], span]]]
+  const at0 = lin ? ["max", 0, ["min", 1, ["/", ["-", ["coalesce", ["feature-state", key], 0], lo], span]]]
     : ["max", 0, ["min", 1, ["/", ["-", ["log10", ["max", ["coalesce", ["feature-state", key], 1e-6], 1e-6]], lo], span]]];
+  // Round 117b: a row where a lower figure is the worse one (a score of equal
+  // treatment) is shaded darker the lower it is (cfg.reverse).
+  const at = cfg.reverse ? ["-", 1, at0] : at0;
   // Colour and depth together (25 September, round 48). Depth alone, one
   // colour faded in and out, left countries rated far apart looking alike. The
   // five steps are written light to dark and spread from cyan to blue as they
@@ -12979,12 +13413,12 @@ async function addCountryLayer(cfg) {
     const label = row && row.closest ? row.closest("label") : null;
     if (label && label.after && !document.querySelector(`.facet[data-key-for="${cfg.id}"]`)) {
       const fmt = (x) => Number(x.toPrecision(2)).toLocaleString();
-      const val = (t) => (lin ? lo + t * span : Math.pow(10, lo + t * span));
+      const val = (t0) => { const t = cfg.reverse ? 1 - t0 : t0; return lin ? lo + t * span : Math.pow(10, lo + t * span); };
       const el = document.createElement("div");
       el.className = "facet cat-key";
       el.dataset.keyFor = cfg.id;
       el.innerHTML = catalogueKeyHtml({ values: STEPS.map((c, i) => [i, c,
-        i === 0 ? `${fmt(val(0))} ${cfg.unit || ""} or less` : i === 4 ? `${fmt(val(1))} ${cfg.unit || ""}` : `about ${fmt(val(i / 4))} ${cfg.unit || ""}`]) });
+        i === 0 ? `${fmt(val(0))} ${cfg.unit || ""} or ${cfg.reverse ? "more" : "less"}` : i === 4 ? `${fmt(val(1))} ${cfg.unit || ""}${cfg.reverse ? " or less" : ""}` : `about ${fmt(val(i / 4))} ${cfg.unit || ""}`]) });
       label.after(el);
     }
   }
@@ -13051,6 +13485,9 @@ async function addCountryLayer(cfg) {
   });
   map.on("mouseenter", `${cfg.id}-fill`, () => (map.getCanvas().style.cursor = "pointer"));
   map.on("mouseleave", `${cfg.id}-fill`, () => (map.getCanvas().style.cursor = ""));
+  // Round 117b: the row said "loading…" for good once its countries were drawn.
+  const stateEl = typeof document !== "undefined" && document.querySelector ? document.querySelector(`[data-state="${cfg.id}"]`) : null;
+  if (stateEl && /^loading/.test(stateEl.textContent || "")) setLayerState(cfg.id, `${Object.keys(totals).length.toLocaleString()} countries`);
   applyVisibility(cfg.id);
   buildLegend();
 }
@@ -14023,7 +14460,7 @@ function shapeColouring(spec, data) {
     const ramp = ["interpolate", ["linear"], at, 0, SHAPE_STEPS[0], 0.25, SHAPE_STEPS[1], 0.5, SHAPE_STEPS[2], 0.75, SHAPE_STEPS[3], 1, SHAPE_STEPS[4]];
     const has = log ? ["all", ["==", ["typeof", get], "number"], [">", get, 0]] : ["==", ["typeof", get], "number"];
     const fmt = (t) => { const v = log ? Math.pow(10, lo + t * span) : lo + t * span; return Number(v.toPrecision(2)).toLocaleString(); };
-    return { expr: ["case", has, ramp, "rgba(0,0,0,0)"],
+    return { expr: ["case", has, ramp, "rgba(0,0,0,0)"], lift: ["case", has, at, 0],
       key: SHAPE_STEPS.map((c, i) => [c, i === 0 ? `${fmt(0)} or less` : i === 4 ? `${fmt(1)}` : `about ${fmt(i / 4)}`]) };
   }
   if (spec.single) return { expr: spec.colour || SHAPE_STEPS[3], key: [[spec.colour || SHAPE_STEPS[3], spec.single]] };
@@ -14034,7 +14471,9 @@ function shapeColouring(spec, data) {
     t.forEach((v, i) => expr.push(v, shapeStepColour((i + 1) / n)));
     const key = [[shapeStepColour(0), `under ${t[0]}${u}`]];
     t.forEach((v, i) => key.push([shapeStepColour((i + 1) / n), i === n - 1 ? `${v}${u} or more` : `${v}${u} to ${t[i + 1]}${u}`]));
-    return { expr: ["case", ["==", ["typeof", get], "number"], expr, "rgba(0,0,0,0)"], key };
+    const lift = ["step", ["to-number", get, 0], 0.5 / (n + 1)];
+    t.forEach((v, i) => lift.push(v, (i + 1.5) / (n + 1)));
+    return { expr: ["case", ["==", ["typeof", get], "number"], expr, "rgba(0,0,0,0)"], lift: ["case", ["==", ["typeof", get], "number"], lift, 0], key };
   }
   // A count: each number its own step, none light, all dark.
   if (spec.countOf) {
@@ -14140,6 +14579,12 @@ async function addShapesLayer(cfg) {
   const lines = ["match", ["geometry-type"], ["LineString", "MultiLineString"], true, false];
   map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source, filter: areas,
     paint: { "fill-color": colour, "fill-opacity": colouring ? 0.72 : 0.42 } });
+  // Round 117b (asked 30 September: "Raise figures as heights" did not raise
+  // these): areas shaded by a figure of their own (the slavery estimates, the
+  // treaties counted, the trade shares) stand as tall as their place on the
+  // same scale as their colour, as the country rows do; areas shaded by a
+  // kind, with no figure, rise by how much ground they cover instead.
+  if (colouring && colouring.lift && areasOf.length) shapeLift(cfg, source, colouring);
   const routeN = R ? ["max", 1, ["to-number", ["get", R.field], 1]] : null;
   map.addLayer({ id: `${cfg.id}-line`, type: "line", source,
     filter: ["match", ["geometry-type"], ["Point", "MultiPoint"], false, true],
@@ -14177,6 +14622,8 @@ async function addShapesLayer(cfg) {
     ? (p) => remainsHelp().then((help) => { rGloDone = {}; return `<div class="rem-wb">${remainsUnitHtml(help, p)}</div>`; })
     : cfg.box === "invaded"
     ? (p) => invadedFacts().then((all) => invadedBoxHtml(all[p.iso3], p.iso3, p.name, true))
+    : cfg.box === "slaveryprev"
+    ? (p) => Promise.resolve(plain(p)).then((h) => slaveryFindings(p.iso3 || p.iso).then((more) => h + more).catch(() => h))
     : cfg.id === "site_settler_colonialism"
       ? (p) => Promise.resolve(plain(p)).then((h) => invadedFacts().then((all) => {
           const isos = String(p.iso3 || "").split(",").filter(Boolean);
@@ -14208,6 +14655,10 @@ async function addShapesLayer(cfg) {
         if (!c) return;
         map.setPaintProperty(`${cfg.id}-fill`, "fill-color", c.expr);
         map.setPaintProperty(`${cfg.id}-line`, "line-color", c.expr);
+        if (map.getLayer(`${cfg.id}-lift`)) {
+          map.setPaintProperty(`${cfg.id}-lift`, "fill-extrusion-color", c.expr);
+          map.setPaintProperty(`${cfg.id}-lift`, "fill-extrusion-height", shapeLiftHeight(c.lift || 0));
+        }
         const keep = sel.closest ? sel.closest(".facet") : null;
         if (keep) keep.querySelectorAll(".lg-row").forEach((r) => r.remove());
         if (keep) keep.insertAdjacentHTML("beforeend", catalogueKeyHtml({ values: c.key.map(([col, t], j) => [j, col, t]) }));
@@ -14220,6 +14671,18 @@ async function addShapesLayer(cfg) {
   buildLegend();
 }
 
+const shapeLiftHeight = (at) => ["interpolate", ["linear"], ["zoom"], 0, ["*", LIFT_TOP, at], 4, ["*", LIFT_TOP / 4, at], 8, ["*", LIFT_TOP / 64, at]];
+function shapeLift(cfg, source, colouring) {
+  const id = `${cfg.id}-lift`;
+  if (map.getLayer(id)) return;
+  map.addLayer({ id, type: "fill-extrusion", source, filter: ["match", ["geometry-type"], ["Polygon", "MultiPolygon"], true, false],
+    layout: { visibility: LIFT_ON ? (visibility.get(cfg.id) || "visible") : "none" },
+    paint: { "fill-extrusion-color": colouring.expr, "fill-extrusion-height": shapeLiftHeight(colouring.lift),
+      "fill-extrusion-opacity": 0.82, "fill-extrusion-vertical-gradient": true } }, `${cfg.id}-line`);
+  cfg._layerIds = (cfg._layerIds || []).concat([id]);
+  LIFTED.add(cfg.id);
+}
+
 // Menus under a routes row: the least number of people a route must carry to
 // be drawn, and one country's routes alone.
 function shapeRoutes(cfg, data) {
@@ -14229,25 +14692,121 @@ function shapeRoutes(cfg, data) {
   const label = row && row.closest ? row.closest("label") : null;
   if (!label || !label.after || typeof document.createElement !== "function") return;
   const codes = [...new Set(data.features.flatMap((f) => [(f.properties || {})[R.from], (f.properties || {})[R.to]]).filter(Boolean))].sort();
+  // Round 117b (asked 30 September): a country's routes both ways, each way
+  // its own tick: out of it (where people's cases began) and into it (where
+  // they were found). Picked from the menu or by clicking the country; the
+  // countries at the other end are shaded by how many people.
+  const names = new Map();
   const el = document.createElement("div");
   el.className = "facet";
+  el.dataset.routesFor = cfg.id;
   el.style.paddingLeft = "18px";
   el.innerHTML = `<select data-routes-least aria-label="Least people on a route" style="font:inherit;font-size:11px">` +
     R.least.map((n) => `<option value="${n}">${n === 1 ? "every route" : `routes with ${n.toLocaleString()} or more people`}</option>`).join("") + `</select> ` +
     `<select data-routes-country aria-label="One country's routes" style="font:inherit;font-size:11px;max-width:100%"><option value="">every country</option>` +
-    codes.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("") + `</select>`;
+    codes.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("") + `</select>` +
+    `<div style="font-size:10.5px;color:var(--dim);margin-top:2px">For the country chosen (or clicked on the map): ` +
+    `<label style="white-space:nowrap"><input type="checkbox" data-routes-out checked> routes out of it (people from it, found elsewhere)</label> ` +
+    `<label style="white-space:nowrap"><input type="checkbox" data-routes-in checked> routes into it (people found in it, from elsewhere)</label></div>` +
+    `<div data-routes-key></div>`;
   label.after(el);
   const base = ["match", ["geometry-type"], ["Point", "MultiPoint"], false, true];
   const basePt = ["match", ["geometry-type"], ["Point", "MultiPoint"], true, false];
+  const key = `rt_${cfg.id}`;
+  let shaded = [];
+  // The countries at the other end, shaded by how many people, on the map's
+  // shared country shapes (under the lines).
+  if (typeof ensureBoundaries === "function") {
+    ensureBoundaries();
+    if (!map.getLayer(`${cfg.id}-cty`)) {
+      const n = ["to-number", ["coalesce", ["feature-state", key], 0]];
+      const ramp = ["step", n, PC_RAMP[0], 10, PC_RAMP[1], 100, PC_RAMP[2], 1000, PC_RAMP[3], 10000, PC_RAMP[4]];
+      map.addLayer({ id: `${cfg.id}-cty`, type: "fill", source: "boundaries",
+        paint: { "fill-color": ["case", ["==", ["feature-state", `${key}_me`], true], "#1D2B45", ramp],
+                 "fill-opacity": ["case", ["==", ["feature-state", `${key}_me`], true], 0.35, [">", n, 0], 0.62, 0] } }, `${cfg.id}-line`);
+      cfg._layerIds = (cfg._layerIds || []).concat([`${cfg.id}-cty`]);
+    }
+  }
+  // Which way each route runs: small marks along it pointing from where the
+  // case began to where it was found.
+  if (!map.getLayer(`${cfg.id}-dir`)) {
+    map.addLayer({ id: `${cfg.id}-dir`, type: "symbol", source: `${cfg.id}-shapes`, filter: base,
+      layout: { "symbol-placement": "line", "symbol-spacing": 90, "text-field": "›", "text-size": 13, "text-keep-upright": false,
+                "text-allow-overlap": true, "text-ignore-placement": true },
+      paint: { "text-color": "#CFE3EA", "text-opacity": 0.75, "text-halo-color": "#17150F", "text-halo-width": 0.6 } });
+    // The route under the pointer, alone and brighter; the rest fade back.
+    map.addLayer({ id: `${cfg.id}-hover`, type: "line", source: `${cfg.id}-shapes`, filter: ["==", ["get", "_k"], "\u0000"],
+      layout: { "line-cap": "round" },
+      paint: { "line-color": "#D6EEF6", "line-opacity": 0.95,
+               "line-width": ["interpolate", ["linear"], ["log10", ["max", 1, ["to-number", ["get", R.field], 1]]], 0, 2, 2, 3, 4, 7] } });
+    cfg._layerIds = (cfg._layerIds || []).concat([`${cfg.id}-dir`, `${cfg.id}-hover`]);
+  }
+  const lineOpacity = map.getPaintProperty(`${cfg.id}-line`, "line-opacity");
+  let hoverK = null;
+  map.on("mousemove", `${cfg.id}-line`, (e) => {
+    const k = e.features && e.features[0] && e.features[0].properties._k;
+    if (k == null || k === hoverK) return;
+    hoverK = k;
+    map.setFilter(`${cfg.id}-hover`, ["==", ["get", "_k"], k]);
+    map.setPaintProperty(`${cfg.id}-line`, "line-opacity", 0.18);
+  });
+  map.on("mouseleave", `${cfg.id}-line`, () => {
+    hoverK = null;
+    map.setFilter(`${cfg.id}-hover`, ["==", ["get", "_k"], "\u0000"]);
+    map.setPaintProperty(`${cfg.id}-line`, "line-opacity", lineOpacity == null ? 0.7 : lineOpacity);
+  });
   const apply = () => {
     const least = Number(el.querySelector("[data-routes-least]").value) || 1;
     const c = el.querySelector("[data-routes-country]").value;
+    const out = el.querySelector("[data-routes-out]").checked, inn = el.querySelector("[data-routes-in]").checked;
     const keep = ["all", [">=", ["to-number", ["get", R.field], 0], least]];
-    if (c) keep.push(["any", ["==", ["get", R.from], c], ["==", ["get", R.to], c]]);
-    if (map.getLayer(`${cfg.id}-line`)) map.setFilter(`${cfg.id}-line`, ["all", base, keep]);
-    if (map.getLayer(`${cfg.id}-pt`)) map.setFilter(`${cfg.id}-pt`, ["all", basePt, keep]);
+    if (c) {
+      const ways = [];
+      if (out) ways.push(["==", ["get", R.from], c]);
+      if (inn) ways.push(["==", ["get", R.to], c]);
+      keep.push(ways.length ? ["any", ...ways] : false);
+    }
+    for (const [lid, b] of [[`${cfg.id}-line`, base], [`${cfg.id}-dir`, base], [`${cfg.id}-pt`, basePt]])
+      if (map.getLayer(lid)) map.setFilter(lid, ["all", b, keep]);
+    // The countries at the other end of the routes kept, by people.
+    for (const iso of shaded) map.setFeatureState({ source: "boundaries", id: iso }, { [key]: null, [`${key}_me`]: null });
+    shaded = [];
+    const tally = new Map();
+    if (c) {
+      for (const f of data.features) {
+        const p = f.properties || {};
+        const n = Number(p[R.field]) || 0;
+        if (n < least || p[R.from] === p[R.to]) continue;
+        if (out && p[R.from] === c) tally.set(p[R.to], (tally.get(p[R.to]) || 0) + n);
+        if (inn && p[R.to] === c) tally.set(p[R.from], (tally.get(p[R.from]) || 0) + n);
+      }
+      if (map.getSource("boundaries")) {
+        for (const [iso, n] of tally) { map.setFeatureState({ source: "boundaries", id: iso }, { [key]: n }); shaded.push(iso); }
+        map.setFeatureState({ source: "boundaries", id: c }, { [`${key}_me`]: true });
+        shaded.push(c);
+      }
+    }
+    const k = el.querySelector("[data-routes-key]");
+    if (k) k.innerHTML = c && tally.size ? `<div style="font-size:10.5px;color:var(--dim)">Countries at the other end of ${escapeHtml(c)}'s routes${out && inn ? " (both ways added)" : out ? " (where its people were found)" : " (where the people found in it came from)"}, by people recorded:</div>` +
+      [["under 10", PC_RAMP[0]], ["10 to 100", PC_RAMP[1]], ["100 to 1,000", PC_RAMP[2]], ["1,000 to 10,000", PC_RAMP[3]], ["10,000 or more", PC_RAMP[4]]]
+        .map(([t, col]) => `<div class="lg-row lg-sub"><span class="lg-sw lg-key" data-glad="1" style="background:${col}"></span><span class="lg-nm">${t} people</span></div>`).join("")
+      : "";
+    buildLegend();
   };
   el.addEventListener("change", (e) => { e.stopPropagation(); apply(); });
+  el.addEventListener("click", (e) => e.stopPropagation());
+  // A click on a country (not on a route or another row's mark) picks it.
+  map.on("click", (e) => {
+    if ((visibility.get(cfg.id) || "visible") !== "visible" || !map.getLayer(`${cfg.id}-cty`)) return;
+    const hits = map.queryRenderedFeatures(e.point);
+    if (hits.some((h) => h.layer && h.layer.id !== `${cfg.id}-cty` && h.layer.source !== "boundaries" && /-(pt|agg|line|fill|edge|cl|dir|hover)(-part\d+)?$/.test(h.layer.id))) return;
+    const hit = hits.find((h) => h.layer && h.layer.id === `${cfg.id}-cty`);
+    const iso = hit && (hit.id || (hit.properties || {}).iso3);
+    const sel = el.querySelector("[data-routes-country]");
+    if (!iso || !codes.includes(iso) || !sel) return;
+    sel.value = sel.value === iso ? "" : iso;
+    apply();
+  });
   // Every route is a lot at once: the map opens on those with 100 or more.
   const start = el.querySelector("[data-routes-least]");
   if (R.least.includes(100)) start.value = "100";
@@ -14784,7 +15343,9 @@ function openTimelineWindow(cfg) {
 // high ground under the row, shaded, with the row's own colours kept on top;
 // the most crowded or most covered place is the tallest. A row read from
 // tiles counts what the map has loaded, and is counted again after a move.
-const POINT_RELIEF_RES = 0.25, POINT_RELIEF_MIN = 30;
+// Round 117b: a row of a few points rises too (was 30 or more): each place
+// stands as its own low hill, the tallest where they gather.
+const POINT_RELIEF_RES = 0.25, POINT_RELIEF_MIN = 1;
 // Round 113b (asked 29 September: "why aren't many of the layers still
 // hypsometric? the UFO sightings one for example has many points"; the owner
 // chose tinted bands and raised ground): a point row of DENSITY_MIN points or
@@ -14919,7 +15480,22 @@ async function rowFeatures(id) {
 }
 async function crowdBuild(id, pr) {
   const { features, vector } = await rowFeatures(id);
-  const pts = reliefPoints(features), cover = shapeCover(features);
+  let pts = reliefPoints(features);
+  const cover = shapeCover(features);
+  // Round 117b: a row read from tiles keeps every point the map has shown it so
+  // far (each counted once), so the ground grows as the reader looks around
+  // instead of being thrown away and made again from the view alone at every
+  // move. It is made again only when a fifth more points have arrived.
+  if (vector) {
+    const all = pr.seen || (pr.seen = new Map());
+    for (const q of pts) all.set(`${q[0].toFixed(4)},${q[1].toFixed(4)}`, q);
+    pts = [...all.values()];
+    if (pr.grid && pr.builtFrom && pts.length < pr.builtFrom * 1.2) { pr.changed = false; return; }
+    pr.builtFrom = pts.length;
+  }
+  pr.changed = true;
+  const r = RELIEFS.get(pr.rid);
+  if (r) r._cache = null;
   pr.vector = vector;
   pr.points = pts.reduce((t, q) => t + q[2], 0);
   // A picture of density needs points to picture: a row of many is banded.
@@ -15003,6 +15579,7 @@ if (typeof map.on === "function") map.on("moveend", () => {
       const banded = map.getLayer(`${pr.rid}-tint`) && map.getLayoutProperty(`${pr.rid}-tint`, "visibility") !== "none";
       if (!pr.vector || (top !== pr.rid && !banded)) continue;
       await crowdBuild(id, pr);
+      if (!pr.changed) continue;
       const q = Date.now().toString(36);
       for (const kind of ["dem", "shade"]) { const s = map.getSource(`${pr.rid}-${kind}`); if (s && s.setTiles) s.setTiles([`relief://${pr.rid}/dem/{z}/{x}/{y}?${q}`]); }
       const c = map.getSource(`${pr.rid}-col`);
@@ -15019,7 +15596,7 @@ function riseRow(id, on, tries) {
   else {
     // The row's marks are added a moment after it is ticked.
     const box = document.querySelector && document.querySelector(`[data-layer="${id}"]`);
-    if (box && box.checked && (tries || 0) < 6) setTimeout(() => { if (LIFT_ON && (visibility.get(id) || "visible") === "visible") riseRow(id, true, (tries || 0) + 1); }, 1500);
+    if (box && box.checked && (tries || 0) < 20) setTimeout(() => { if (LIFT_ON && (visibility.get(id) || "visible") === "visible") riseRow(id, true, (tries || 0) + 1); }, 1500);
   }
 }
 
@@ -15540,9 +16117,10 @@ function legendKeyPairs(id) {
   // Round 64: also a site map's "Colour by" key (capture map, PalmWatch), the
   // building types' kinds and Trase's key, which the Showing box had missed.
   const hosts = box.querySelectorAll(`.facet[data-key-for="${esc}"], .facet[data-raster-for="${esc}"], .facet[data-for="${esc}"]:not(.row-tools), ` +
-    `.facet[data-colour-for="${esc}"], .facet[data-kinds="${esc}"], .facet[data-trase-for="${esc}"]`);
+    `.facet[data-colour-for="${esc}"], .facet[data-kinds="${esc}"], .facet[data-trase-for="${esc}"], .facet[data-for="pc:${esc}"], .facet[data-routes-for="${esc}"]`);
   const out = [], seen = new Set();
   for (const h of hosts) {
+    if (h.style && h.style.display === "none") continue;     // a key set aside by the colour menu (round 117b)
     for (const el of h.querySelectorAll('i[style*="background"], .lg-key[style*="background"], span.sw[style*="background"]')) {
       const colour = el.style && (el.style.backgroundColor || el.style.background);
       if (!colour || /^(none|transparent)$/i.test(colour)) continue;
@@ -16525,7 +17103,10 @@ async function addRemainsLayer(cfg) {
   const colour = ["match", ["get", "posture"], ...Object.entries(R_PCOLOR).flat(), R_PCOLOR.watch];
   const size = ["interpolate", ["linear"], ["zoom"], 1, ["+", 2, ["*", 0.6, ["get", "impact"]]], 8, ["+", 3.5, ["*", 1.4, ["get", "impact"]]]];
   map.addLayer({ id: `${cfg.id}-cl`, type: "circle", source: src, filter: ["==", ["get", "geo"], "coarsened"],
-    paint: { "circle-color": colour, "circle-radius": ["*", 2.4, size], "circle-blur": 1, "circle-opacity": 0.55 } });
+    // Round 117b: zoom at the top of the size (MapLibre refused 2.4 times the
+    // zoomed size, and the blurred halos were never drawn).
+    paint: { "circle-color": colour, "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, ["*", 2.4, ["+", 2, ["*", 0.6, ["get", "impact"]]]], 8, ["*", 2.4, ["+", 3.5, ["*", 1.4, ["get", "impact"]]]]],
+             "circle-blur": 1, "circle-opacity": 0.55 } });
   map.addLayer({ id: `${cfg.id}-pt`, type: "circle", source: src, filter: ["!=", ["get", "geo"], "coarsened"],
     paint: { "circle-color": colour, "circle-radius": size,
              "circle-opacity": ["match", ["get", "geo"], "admin", 0, 0.9],
@@ -17523,6 +18104,46 @@ const JUD_MAP = {
   ],
 };
 
+// Round 117b: the anti-slavery map's determinations about a whole country
+// (its projects.json, by name), read in that country's prevalence box; and the
+// country each located determination is in, for the same box.
+const DETERMINATION_COUNTRYWIDE = {
+  "Turkmenistan \u2014 state-organised cotton harvest": "TKM", "Turkmenistan \u2014 cotton, country-wide order": "TKM",
+  "Uzbekistan \u2014 cotton harvest (systemic forced labour ended)": "UZB", "Democratic Republic of the Congo \u2014 artisanal cobalt and copper": "COD",
+  "Brazil \u2014 employers on the 'lista suja'": "BRA", "Malaysia \u2014 palm oil and rubber gloves": "MYS",
+  "North Korea \u2014 overseas contract labour": "PRK", "Mauritania \u2014 hereditary slavery": "MRT",
+};
+const DETERMINATION_STATE_ISO = { "China": "CHN", "DR Congo": "COD", "Eastern DR Congo": "COD", "Malaysia": "MYS", "South Korea": "KOR",
+  "Zrenjanin, Serbia": "SRB", "Taiwan": "TWN", "Zimbabwe": "ZWE", "Turkmenistan": "TKM", "Uzbekistan": "UZB", "Brazil": "BRA",
+  "Mauritania": "MRT", "DPRK workers abroad": "PRK" };
+const SLAVERY_PROJECTS_URL = "https://raw.githubusercontent.com/WelcomeToYourGalaxy/anti-slavery-map/main/projects.json";
+let slaveryProjectsRead = null;
+const slaveryProse = (v) => escapeHtml(String(v || "")).replace(/&lt;(\/?)(b|i|em|strong)&gt;/g, "<$1$2>");
+// What governments and other bodies have found or listed about a country.
+async function slaveryFindings(iso) {
+  if (!iso) return "";
+  if (!slaveryProjectsRead) {
+    slaveryProjectsRead = getJson(SLAVERY_PROJECTS_URL, 30000);
+    slaveryProjectsRead.catch(() => { slaveryProjectsRead = null; });
+  }
+  const rows = ((await slaveryProjectsRead) || {}).projects || [];
+  const mine = rows.filter((r) => (r.iso || DETERMINATION_COUNTRYWIDE[r.name] || DETERMINATION_STATE_ISO[r.state]) === iso);
+  if (!mine.length) return `<div class="meta" style="margin-top:8px">The anti-slavery map records no determination or listing for this country.</div>`;
+  const goods = mine.filter((r) => /^Listed good/.test(r.type || ""));
+  const rest = mine.filter((r) => !goods.includes(r)).sort((a, b) => (DETERMINATION_COUNTRYWIDE[b.name] ? 1 : 0) - (DETERMINATION_COUNTRYWIDE[a.name] ? 1 : 0));
+  const link = (u) => (u ? ` <a href="${escapeHtml(u)}" target="_blank" rel="noopener">source \u2197</a>` : "");
+  const item = (r) => `<div style="margin:6px 0"><b>${escapeHtml(r.name || r.type || "")}</b>` +
+    `<div class="meta">${escapeHtml([r.type, r.status, r.company, r.date].filter(Boolean).join(" \u00b7 "))}${link(r.url)}</div>` +
+    (r.desc ? `<div class="meta" style="max-height:140px;overflow:auto">${slaveryProse(r.desc)}</div>` : "") + `</div>`;
+  const listed = goods.length ? `<div style="margin:6px 0"><b>Goods the US Department of Labor lists as made with forced or child labour here</b>` +
+    `<div>${goods.map((g) => escapeHtml(String(g.type || g.name).replace(/^Listed good \u2014 /, ""))).join(", ")}</div>` +
+    `<div class="meta" style="max-height:120px;overflow:auto">${slaveryProse(goods[0].desc)}${link(goods[0].url)}</div></div>` : "";
+  return `<div style="margin-top:10px;border-top:1px solid rgba(128,128,128,.35);padding-top:6px">` +
+    `<div style="font-weight:600">What governments and other bodies have found or listed here</div>` +
+    `<div class="meta">The anti-slavery map's determinations, orders and listings for this country (${mine.length.toLocaleString()}).</div>` +
+    rest.map(item).join("") + listed + `</div>`;
+}
+
 const MORE_MAPS = {
   id: "more_map_layers",
   name: "Further rows from the same records",
@@ -17531,10 +18152,40 @@ const MORE_MAPS = {
   children: [
     { id: "slavery_facilities", name: "Courthouses, consulates and labour offices (anti-slavery map)", unit: "facilities", colour: "#6A5E66", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/slavery_facilities.pmtiles",
       note: "Every row of facilities.json in WelcomeToYourGalaxy/anti-slavery-map." },
-    { id: "slavery_determinations", name: "Forced labour determinations (anti-slavery map)", unit: "determinations", colour: "#7A5E5E", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/slavery_determinations.pmtiles",
-      note: "Every row of projects.json in WelcomeToYourGalaxy/anti-slavery-map." },
-    { id: "slavery_enforcement", name: "Employers Brazil's labour inspectors found keeping workers in slave-like conditions (Brazil's register, via the anti-slavery map)", unit: "records", colour: "#725A60", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/slavery_enforcement.pmtiles",
-      note: "Every row of bulk.json in WelcomeToYourGalaxy/anti-slavery-map." },
+    // Round 117b (asked 30 September: "confusing; it has a couple of country
+    // centroids with descriptions ... better fits in the prevalence layer"):
+    // the determinations about a whole country are read in that country's box
+    // on the prevalence row (slaveryFindings), with the goods the US Labor
+    // Department lists for it; this row keeps those about a place, a company or
+    // the high seas.
+    { id: "slavery_determinations", name: "Forced labour determinations about a place, a company or the high seas (anti-slavery map)", unit: "determinations", colour: "#7A5E5E", route: "pmtiles", ready: true, lazy: true,
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/slavery_points_determinations.pmtiles",
+      archiveBefore: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/slavery_determinations.pmtiles",
+      where: ["!", ["in", ["get", "name"], ["literal", Object.keys(DETERMINATION_COUNTRYWIDE)]]],
+      colourAuto: false,
+      colourChoices: [
+        { label: "where it stands now", field: "x_status", classes: "auto" },
+        { label: "the anti-slavery map's impact rating", field: "x_impact" },
+      ],
+      fieldBox: { title: ["name"], fallback: "Determination", prose: "x_desc", credit: "US CBP, US DOL, ILO and others; via the anti-slavery map",
+        labels: [["x_type", "What it is about"], ["x_status", "Where it stands"], ["x_state", "Where"], ["x_company", "Company"], ["x_date", "Date"], ["x_impact", "Impact rating (anti-slavery map)"]],
+        skip: ["x_source", "x_precise", "x_from_file", "id", "x__group"] },
+      note: "The anti-slavery map's determinations about one place, one company or the high seas: import bans on named producers, field and sector orders, the Xinjiang programmes, distant-water fleets. Those about a whole country (Brazil, Malaysia, Mauritania, Turkmenistan, Uzbekistan, DR Congo, North Korea) are in that country's box on the Modern slavery prevalence row, with the goods the US Department of Labor lists for it." },
+    { id: "slavery_enforcement", name: "Employers Brazil's labour inspectors found keeping workers in slave-like conditions (Brazil's register, via the anti-slavery map)", unit: "records", colour: "#725A60", route: "pmtiles", ready: true, lazy: true,
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/slavery_points_enforcement.pmtiles",
+      archiveBefore: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/slavery_enforcement.pmtiles",
+      colourAuto: false,
+      colourChoices: [
+        { label: "workers found", field: "x_workers", unit: "workers", breaks: [2, 5, 10, 20, 50] },
+        { label: "the anti-slavery map's impact rating (by workers found)", field: "x_impact", labels: { 2: "2: one worker", 3: "3: 2 to 9 workers", 4: "4: 10 to 29 workers", 5: "5: 30 or more" } },
+        { label: "year of the inspection", field: "x_inspection_year" },
+        { label: "year added to the register", field: "x_year_added" },
+      ],
+      fieldBox: { title: ["name"], fallback: "Employer", prose: "x_desc", credit: "Brazil, Cadastro de Empregadores; via the anti-slavery map",
+        labels: [["x_workers", "Workers found in slave-like conditions"], ["x_inspection_year", "Inspection year"], ["x_added_to_register", "Added to the register"],
+          ["x_establishment", "Establishment"], ["x_activity_code", "Economic activity code (CNAE)"], ["x_state", "Placed at the town of"], ["x_impact", "Impact rating (5: 30 or more workers; 4: 10 to 29; 3: 2 to 9; 2: one)"]],
+        skip: ["x_source", "x_precise", "x_local", "x_status", "x_type", "x_from_file", "x_year_added", "x_precision", "id"] },
+      note: "Every row of bulk.json in WelcomeToYourGalaxy/anti-slavery-map: Brazil's register of employers (the Cadastro de Empregadores), each at its town, coloured by the workers its inspectors found (menu under the row)." },
     { id: "activist_courts", name: "Courts (activist rights map)", unit: "courts", colour: "#5E6070", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/activist_courts.pmtiles",
       note: "Every row of facilities_courts.json in WelcomeToYourGalaxy/activist-rights-map." },
     { id: "activist_police", name: "Police stations (activist rights map)", unit: "stations", colour: "#5A5E68", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/activist_police.pmtiles",
@@ -17583,7 +18234,8 @@ const MORE_MAPS = {
     { id: "remains_wire", name: "News of unearthings, repatriations and desecration (Unearthings wire)", unit: "opens a panel along the bottom", colour: "#6A6257", route: "remainspanel", panel: "wire", ready: true, lazy: true,
       note: "The map's news wire, in every language it reads, with its topics, places and sorting. Read from the map each time it is ticked." },
     { id: "slavery_prevalence", name: "Modern slavery prevalence estimates (anti-slavery map)", unit: "countries", colour: "#735C5E", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/slavery_prevalence.geojson",
-      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+      box: "slaveryprev",
+      note: "Areas, lines and per-country lists from the map, drawn as the map draws them. A country's box also holds what governments and other bodies have found or listed there: the anti-slavery map's determinations about the whole country (moved here from the determinations row, 30 September), import orders and the goods the US Department of Labor lists for it." },
     { id: "slavery_routes", name: "Trafficking routes, country to country (anti-slavery map)", unit: "routes", colour: "#7A6060", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/slavery_routes.geojson",
       routes: { field: "n", from: "from", to: "to", least: [1, 10, 100, 1000] },
       note: "Each line joins the country where a case began to the country where it was found (Counter-Trafficking Data Collaborative), drawn as a curve between their middles: not a path anyone travelled. Wider and darker, more people recorded. Menus under the row keep only the larger routes, or those of one country." },
@@ -17917,6 +18569,19 @@ const OTHER_MAPS = {
     { id: "zoos_aquariums_osm", name: "Zoos and aquariums worldwide, with safari parks, wildlife parks, petting zoos and aviaries (OpenStreetMap)", unit: "zoos and aquariums", colour: "#6A5E66", route: "geojsonlive", ready: true, lazy: true, buildScript: "animal_places_osm", waiting: "not built yet: culprits-tiles-more builds it on its next run",
       files: [{ label: "Zoos and aquariums", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/zoos/osm.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by kind: aquarium, zoo, safari park, wildlife park, petting zoo ...",
       note: "Every place OpenStreetMap tags tourism=zoo or tourism=aquarium, worldwide, coloured by its kind (its zoo tag, or aquarium), every tag in its box. Beside the Zoos row (a Google My Maps map), which may not hold aquariums: culprits-tiles-more probe/zoos_kml.json counts how many of its places are named as aquariums. Built weekly by culprits-tiles-more (scripts/animal_places_osm.py)." },
+    // Round 117b (asked 30 September): the World Justice Project's map of
+    // discrimination redrawn from its own scores (culprits-tiles-more
+    // scripts/wjp_discrimination.py reads WJP's historical data file).
+    { id: "wjp_discrimination", name: "Discrimination, country by country: how far people are treated unequally, latest year (World Justice Project Rule of Law Index, equal treatment and absence of discrimination)", unit: "(score out of 1)", colour: "#1E6FA8", route: "country", ready: true, lazy: true, buildScript: "wjp_discrimination",
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/discrimination/wjp.json", field: "score" },
+      linear: [0.2, 0.9], reverse: true,
+      countryNote: "WJP Rule of Law Index, sub-factor 4.1 (equal treatment and absence of discrimination), from WJP's surveys of the public and of experts: 1 means no discrimination found, 0 the most. Darker on the map: lower score, more discrimination. Every edition's score is in the box.",
+      note: "The World Justice Project's score for equal treatment and absence of discrimination (its Rule of Law Index, sub-factor 4.1): whether people are free of discrimination by the state and in public services, work and justice, on grounds such as income, gender, ethnicity, religion, national origin, sexual orientation or gender identity. From WJP's own published data, every edition; darker means a lower score, more discrimination. WJP's article Discrimination is Getting Worse Globally shows these scores as a picture; this row draws them from the data. Built by culprits-tiles-more (scripts/wjp_discrimination.py); WJP's terms of use for the data were not checked." },
+    { id: "wjp_discrimination_change", name: "Discrimination getting worse or better: change in each country's equal treatment score since 2015 (World Justice Project)", unit: "(change in the score out of 1)", colour: "#1E6FA8", route: "country", ready: true, lazy: true, buildScript: "wjp_discrimination",
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/discrimination/wjp.json", field: "change_since_2015" },
+      linear: [-0.12, 0.12], reverse: true,
+      countryNote: "The latest score less the 2015 edition's (WJP sub-factor 4.1). Below zero: the score fell, discrimination got worse. Darker on the map: a larger fall. Countries WJP did not score in 2015 are left clear.",
+      note: "How each country's equal treatment and absence of discrimination score (World Justice Project, sub-factor 4.1) has moved since the 2015 edition: darker, the score fell and discrimination got worse; paler, it rose. Countries first scored after 2015 are left clear. Same copy as the row above." },
     // Forced labour and trafficking enforcement, every country.
     { id: "slavery_convicted_world", name: "People convicted of human trafficking, country by country, latest year (UNODC)", unit: "people convicted", colour: "#1E6FA8", keepColour: true, route: "country", ready: true, lazy: true, buildScript: "slavery_world",
       totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/slavery_world/unodc.json", field: "convicted" },
@@ -17988,19 +18653,19 @@ const OTHER_MAPS = {
       groupHint: "Coloured by industry",
       attribution: "Troutwood (map.troutwood.com); grouping by this map",
       note: "The kinds of company Corporate Watch's Wreckers of the Earth maps in London, for every city in the world: each listed company on Troutwood's map whose industry is oil and gas, coal, mining and metals, farming commodities, logging and paper, chemicals and cement, weapons, airlines and shipping, or tobacco, and the big banks and asset managers that fund them. Sorted by the industry Troutwood's data gives each company: a grouping by industry, not a finding about any one company. Rebuilt daily by culprits-tiles-more (scripts/troutwood_layers.py)." },
-    { id: "threat_overall", name: "Where the threat is greatest overall: destruction, suppression and organised crime together (the map's own index, rebuilt daily)", unit: "score, 0 to 1", colour: "#1E6FA8", keepColour: true, route: "country", ready: true, lazy: true, buildScript: "threat_index",
+    { id: "threat_overall", name: "Where the threat is greatest overall: destruction, suppression and organised crime together (the map's own index, rebuilt daily)", unit: "(score out of 1)", colour: "#1E6FA8", route: "country", ready: true, lazy: true, buildScript: "threat_index",
       totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/threat/index.json", field: "overall" }, linear: [0, 1],
       countryNote: "The map's own threat score, 0 (least of the countries scored) to 1 (most)",
       note: "The average of the three categories below. Worked out daily by culprits-tiles-more (scripts/threat_index.py) from figures the map already shows, not written by an AI: each figure is turned into a rank among the countries that have it, from 0 (least threat) to 1 (most); a category is the average of its ranks, for a country with at least two; the box lists every figure used, its value and its rank. " },
-    { id: "threat_destruction", name: "Where the destruction of the planet is greatest (the map's own index, rebuilt daily)", unit: "score, 0 to 1", colour: "#1E6FA8", keepColour: true, route: "country", ready: true, lazy: true, buildScript: "threat_index",
+    { id: "threat_destruction", name: "Where the destruction of the planet is greatest (the map's own index, rebuilt daily)", unit: "(score out of 1)", colour: "#1E6FA8", route: "country", ready: true, lazy: true, buildScript: "threat_index",
       totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/threat/index.json", field: "destruction" }, linear: [0, 1],
       countryNote: "The map's own threat score, 0 (least of the countries scored) to 1 (most)",
       note: "Figures: flora, fauna and non-renewable resource crimes (Global Organized Crime Index 2025), fossil fuel subsidies as a share of GDP (IMF), carbon dioxide per person (Global Carbon Project via Our World in Data). Worked out daily by culprits-tiles-more (scripts/threat_index.py) from figures the map already shows, not written by an AI: each figure is turned into a rank among the countries that have it, from 0 (least threat) to 1 (most); a category is the average of its ranks, for a country with at least two; the box lists every figure used, its value and its rank. " },
-    { id: "threat_suppression", name: "Where the suppression of people is greatest (the map's own index, rebuilt daily)", unit: "score, 0 to 1", colour: "#1E6FA8", keepColour: true, route: "country", ready: true, lazy: true, buildScript: "threat_index",
+    { id: "threat_suppression", name: "Where the suppression of people is greatest (the map's own index, rebuilt daily)", unit: "(score out of 1)", colour: "#1E6FA8", route: "country", ready: true, lazy: true, buildScript: "threat_index",
       totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/threat/index.json", field: "suppression" }, linear: [0, 1],
       countryNote: "The map's own threat score, 0 (least of the countries scored) to 1 (most)",
       note: "Figures: V-Dem's liberal democracy index, turned round; human trafficking (Global Organized Crime Index 2025); land and environmental defenders killed (Global Witness); people in modern slavery per 1,000 (Walk Free). Worked out daily by culprits-tiles-more (scripts/threat_index.py) from figures the map already shows, not written by an AI: each figure is turned into a rank among the countries that have it, from 0 (least threat) to 1 (most); a category is the average of its ranks, for a country with at least two; the box lists every figure used, its value and its rank. " },
-    { id: "threat_crime", name: "Where organised crime and captured states are the greatest threat (the map's own index, rebuilt daily)", unit: "score, 0 to 1", colour: "#1E6FA8", keepColour: true, route: "country", ready: true, lazy: true, buildScript: "threat_index",
+    { id: "threat_crime", name: "Where organised crime and captured states are the greatest threat (the map's own index, rebuilt daily)", unit: "(score out of 1)", colour: "#1E6FA8", route: "country", ready: true, lazy: true, buildScript: "threat_index",
       totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/threat/index.json", field: "crime" }, linear: [0, 1],
       countryNote: "The map's own threat score, 0 (least of the countries scored) to 1 (most)",
       note: "Figures: criminality, and resilience to organised crime turned round (Global Organized Crime Index 2025). Worked out daily by culprits-tiles-more (scripts/threat_index.py) from figures the map already shows, not written by an AI: each figure is turned into a rank among the countries that have it, from 0 (least threat) to 1 (most); a category is the average of its ranks, for a country with at least two; the box lists every figure used, its value and its rank. " },
@@ -18046,6 +18711,15 @@ const OTHER_MAPS = {
       note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the Pastoral Land Commission's tables of cases of overexploitation of workers: 507, at their town or state; every file adds up to its printed total." },
     { id: "attacks_cpt_slave_cases", name: "Slave labour cases in Brazil, 2014 to 2019 (Pastoral Land Commission)", unit: "cases", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Slave labour cases in Brazil, 2014 to 2019", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/cpt_slave_labour_cases.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by kind of work",
+      // Round 117b (asked 30 September): coloured by kind of work, by the
+      // number of workers, or by year (menu under the row), and a year bar.
+      yearFrom: ["year"], colourAuto: false,
+      colourChoices: [
+        { label: "workers named in the complaint (the people reported held)", field: "workers_in_complaint", unit: "workers", breaks: [2, 5, 10, 20, 50], noneWords: "the table gives no number" },
+        { label: "workers freed", field: "workers_freed", unit: "workers", breaks: [2, 5, 10, 20, 50], noneWords: "the table gives no number" },
+        { label: "year", field: "year", classes: "auto", ordered: true, sort: "value" },
+        { label: "children among them (minors)", field: "minors", unit: "children", noneWords: "none given" },
+      ],
       note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the Pastoral Land Commission's tables of slave labour cases: 510, at their town or state. 2017 and 2019 add up to their printed totals; 2014, 2015 and 2018 are 1 to 4 short, and those are marked." },
     { id: "inpe_fire_2023", name: "Fires detected by satellite across South America, 2023 (INPE)", unit: "fires", colour: "#E0304A", route: "pmtiles", ready: true, lazy: true, fine: true, buildScript: "inpe_fire",
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/inpe_fire_2023.pmtiles",
@@ -18080,6 +18754,16 @@ const OTHER_MAPS = {
       note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the Public Agencies Map of Conflicts database: 772 towns, each with its counts by theme and year as the database gives them (totals, not single cases), at the town's own point." },
     { id: "attacks_slave_labour_states", name: "Workers freed from slave labour in Brazil, by state and year (Pastoral Land Commission)", unit: "states", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Workers freed from slave labour", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/cpt_slave_labour_by_state.geojson" }], nameFrom: ["name"], autoGroups: true,
+      // Round 117b (asked 30 September): coloured by the workers freed, not by region.
+      colourPick: 0, colourAuto: false,
+      colourChoices: [
+        { label: "workers freed, 1995 to 2020 (the sheet's own total)", field: "_freed_total", unit: "workers", breaks: [100, 500, 1000, 2500, 5000],
+          get: (p) => { const t = p["totals and averages (same block)"]; return t && typeof t === "object" ? t["TOT 1995-2020"] : null; } },
+        { label: "workers freed, 2003 to 2020 (the sheet's own total)", field: "_freed_2003", unit: "workers", breaks: [100, 500, 1000, 2500, 5000],
+          get: (p) => { const t = p["totals and averages (same block)"]; return t && typeof t === "object" ? t["TOT 2003-2020"] : null; } },
+        { label: "names on the dirty list, November 2003 to October 2018", field: "distinct names on the accumulated \"lista suja\" Nov 2003 - Oct 2018 (N)", unit: "names", breaks: [5, 10, 25, 50, 100] },
+        { label: "region", field: "group", classes: "auto" },
+      ],
       note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the Pastoral Land Commission's summary of workers freed from slave labour by state and year, and the names on the government's dirty list (2003 to 2018), at each state's middle. Some totals in the sheet do not add up to its yearly figures; they are kept as given." },
     { id: "police_stations_latam", name: "Police stations in Mexico, Central America and northern South America (OpenStreetMap)", unit: "police stations", colour: "#1E6FA8", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Police stations", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/police_stations_osm.geojson" }], nameFrom: ["name"], attribution: "\u00a9 OpenStreetMap contributors (ODbL)",
@@ -18958,7 +19642,7 @@ const PLAIN_NAMES = {
   slavery_sites: "Brick kilns and small hand-dug mines (anti-slavery map)",
   slavery_ports: "Ports visited by ships at high risk of forced labour (anti-slavery map)",
   slavery_fishing: "Stretches of ocean where forced labour on fishing boats is predicted (a model; no boat named)",
-  slavery_cases: "Human trafficking cases identified, by country",
+  slavery_cases: "Human trafficking cases identified, by the country where people were exploited",
   abattoir_facilities: "Slaughterhouses, farms, dairies and hatcheries on official registers (abattoir atlas)",
   abattoir_cafo: "Factory farms (confined animal feeding operations): a model's estimate, not registered sites (Climate TRACE)",
   abattoir_glw: "How many farm animals are kept in each place, raised by density: a model's estimate, not a count of farms (FAO, 2020)",
@@ -19379,7 +20063,7 @@ const LAYER_KIND = {
   site_research_integrity: ["human", "upstream"], troutwood_companies: ["human", "upstream"], wreckers_world: ["insentient", "upstream"], threat_overall: ["human", "upstream"], threat_destruction: ["human", "upstream"], threat_suppression: ["human", "upstream"], threat_crime: ["human", "upstream"], vdem_liberal: ["human", "upstream"], vdem_electoral: ["human", "upstream"], vdem_participatory: ["human", "upstream"], vdem_deliberative: ["human", "upstream"], vdem_egalitarian: ["human", "upstream"], vdem_expression: ["human", "upstream"], vdem_rights: ["human", "upstream"], vdem_civil: ["human", "upstream"], vdem_regime: ["human", "upstream"], school_culprits: ["human", "upstream"], giga_school_points: ["human", "downstream"], stock_exchanges: ["human", "upstream"], research_makers: ["human", "upstream"], fertility_policy: ["human", "upstream"],
   bld_police: ["human", "downstream"], bld_courts: ["human", "downstream"], bld_prisons: ["human", "downstream"], gang_infiltration: ["human", "upstream"],
   holiday_culprits: ["human", "upstream"], medical_culprits: ["human", "upstream"], sports_facilities: ["human", "upstream"], sports_betting: ["human", "upstream"], sports_fixing: ["human", "upstream"],
-  pet_food_world: ["animal", "upstream"], animal_breeding_osm: ["animal", "upstream"], zoos_aquariums_osm: ["animal", "upstream"], slavery_convicted_world: ["human", "downstream"], slavery_detected_world: ["human", "downstream"], slavery_cbp_world: ["human", "upstream"],
+  pet_food_world: ["animal", "upstream"], animal_breeding_osm: ["animal", "upstream"], zoos_aquariums_osm: ["animal", "upstream"], wjp_discrimination: ["human", "downstream"], wjp_discrimination_change: ["human", "downstream"], slavery_convicted_world: ["human", "downstream"], slavery_detected_world: ["human", "downstream"], slavery_cbp_world: ["human", "upstream"],
   site_eyes_network: ["human", "upstream"],
   site_earmarked_funding: ["human", "upstream"],
   site_trade_profits: ["human", "upstream"],
@@ -20245,6 +20929,7 @@ const LAYER_SITE = {
   pet_food_world: "https://www.wikidata.org/", animal_breeding_osm: "https://wiki.openstreetmap.org/wiki/Key:animal_breeding",
   zoos_aquariums_osm: "https://wiki.openstreetmap.org/wiki/Tag:tourism%3Dzoo",
   slavery_convicted_world: "https://www.unodc.org/unodc/en/data-and-analysis/glotip.html",
+  wjp_discrimination: "https://worldjusticeproject.org/rule-of-law-index/", wjp_discrimination_change: "https://worldjusticeproject.org/news/discrimination-getting-worse-globally",
   slavery_detected_world: "https://www.unodc.org/unodc/en/data-and-analysis/glotip.html",
   slavery_cbp_world: "https://www.cbp.gov/trade/forced-labor/withhold-release-orders-and-findings",
   site_rodeo: "https://www.welcometoyourgalaxy.com/suppression.html",
@@ -20432,6 +21117,7 @@ const NOT_LIVE = {
   sports_fixing: "Built weekly by culprits-tiles-more from Wikidata", pet_food_world: "Built weekly by culprits-tiles-more from Wikidata",
   animal_breeding_osm: "Built weekly by culprits-tiles-more from OpenStreetMap", zoos_aquariums_osm: "Built weekly by culprits-tiles-more from OpenStreetMap",
   slavery_convicted_world: "Copied weekly from UNODC by culprits-tiles-more",
+  wjp_discrimination: "Copied daily from the World Justice Project's data file by culprits-tiles-more", wjp_discrimination_change: "Copied daily from the World Justice Project's data file by culprits-tiles-more",
   slavery_detected_world: "Copied weekly from UNODC by culprits-tiles-more",
   slavery_cbp_world: "Read weekly from US CBP's page by culprits-tiles-more",
   crops_spam: "Made from SPAM 2020 by culprits-tiles-more",
@@ -20871,7 +21557,7 @@ const PANEL_ORDER = [
   { h: 5, t: "The stock market" }, "stock_exchanges", "troutwood_companies",
   { h: 4, t: "Law enforcement" }, "bld_police", "police_stations_latam", "gang_infiltration",
   { h: 4, t: "Courts and corrections" }, "bld_courts", "bld_prisons",
-  { h: 4, t: "Discrimination" },
+  { h: 4, t: "Discrimination" }, "wjp_discrimination", "wjp_discrimination_change",
   { h: 4, t: "Slavery" },
   { h: 5, t: "Prevalence" }, "slavery_prevalence",
   { h: 5, t: "Sites on land" }, "slavery_sites",
