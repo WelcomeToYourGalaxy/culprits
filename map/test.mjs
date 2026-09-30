@@ -5732,6 +5732,13 @@ console.log("\nround 114b (29 September): holidays cut to corporatizers; sports 
           new RegExp(`\\b${id}: \\["(human|animal)", "upstream"\\]`).test(src) && new RegExp(`\\b${id}: "https:`).test(src) && new RegExp(`\\b${id}: "Built (weekly|monthly) by culprits-tiles-more`).test(src)));
   check("a copy not yet built says so", /if \(cfg\.copy && !cfg\.tiles && !cfg\.tilesFrom\) \{ setLayerState\(cfg\.id, "not built yet/.test(src));
 }
+console.log("\nround 115b (29 September): the medical industry's culprits");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the medical row sits under The medical industry, read from the tiles repo, with a kind, site and not-live note",
+        /\{ h: 4, t: "The medical industry" \}, "medical_culprits",/.test(src) && /culprits-tiles-more\/medical\/culprits\.geojson/.test(src) &&
+        /medical_culprits: \["human", "upstream"\]/.test(src) && /  medical_culprits: "https:/.test(src) && /  medical_culprits: "Built weekly by culprits-tiles-more/.test(src));
+}
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");

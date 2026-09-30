@@ -5,6 +5,27 @@ touches.
 
 ---
 
+## Round 115b (29 September)
+
+Needs round 114b. Tiles patch round115b_tiles.py beside it (it also carries
+lib/wdtools.py, so it works whether or not 114b_tiles went first).
+
+- medical_culprits (Suppression > The medical industry), from the owner's
+  suppression.html medical section (first half: paid prescribing,
+  overprescribing addictive drugs, marketing, Bayer and others' HIV-tainted
+  clotting products). Tiles medical_culprits.py: every row of Wikipedia's List
+  of largest pharmaceutical settlements (company linked article -> Wikidata
+  HQ), plus a compiled list (opioid makers, distributors, pharmacies,
+  Sacklers, McKinsey; Cutter/Bayer, Baxter, Alpha Therapeutic, Armour) kept
+  only if the cited Wikipedia article names them (whole word) at build time;
+  the box quotes those sentences; dropped names in medical/build.json.
+- Schools: the page's list (school section) was already mapped in round
+  105b; NWEA is inside the HMH entry. Not mapped: the "Global Education
+  Forum" (unclear which body) and university fossil-fuel investments
+  (mappingfossilties.org, not read yet).
+- Tiles capture_stb.py (the other chat's): the office-holder query timed out
+  (504); now asked per country, then per 25-year birth span, with retries.
+
 ## Round 114b (29 September)
 
 Needs round 113b. Tiles patch round114b_tiles.py beside it. No app.js?v= bump.
