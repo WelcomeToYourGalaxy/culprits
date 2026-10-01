@@ -5,6 +5,23 @@ touches.
 
 ---
 
+## Round 121b (1 October)
+
+Needs round 120b. Tiles patch round121b_tiles.py beside it. No app.js?v= bump.
+
+- Soy coloured by money (asked "colour soy by $ and influence", "yes to both"):
+  soy_traders_money (the 24 trader offices, coloured by each trader's revenue
+  from Wikidata, then by trader) and forest500_soy_money (the 70 banks and
+  investors, coloured by the financing in Forest 500's own data download once
+  the owner puts it in culprits-tiles-more forest500/download/, else by soy
+  score). Both read files built by scripts/soy_money.py. They replace
+  site_soybean_companies and site_forest500_soy in Nitrous oxide > Crops and
+  Agriculture > Soy; the old rows are in PANEL_REMOVED.
+- Not done yet: ESDAC Global Soil Biodiversity maps (permission granted with a
+  citation; the files come only through ESDAC's form and may not be passed to
+  third parties, so they will be drawn as pictures once the owner attaches them).
+- test.mjs: round 121b block.
+
 ## Round 120b (1 October)
 
 Needs round 119b. Tiles patch round120b_tiles.py beside it. No app.js?v= bump.

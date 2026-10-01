@@ -4017,7 +4017,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         f("Soy exported under a ZDC (%) \u2014 Brazil (Trase)", "X") === lib.AG + " > By crop > Soy" &&
         f("Percentage of (total) cocoa that is exported under a zero deforestation commitment (%) \u2014 C\u00f4te d'Ivoire (Trase)", "X") === lib.AG + " > By crop > Cocoa" &&
         !/\{ h: 4, t: "Zero-deforestation commitments" \}/.test(src));
-  check("soy's companies and financiers are under Agriculture > Soy", /\{ h: 6, t: "Soy" \}, "crop_soyb", "site_forest500_soy", "site_soybean_companies", "soy_organizations"/.test(src) &&
+  check("soy's companies and financiers are under Agriculture > Soy", /\{ h: 6, t: "Soy" \}, "crop_soyb", "forest500_soy_money", "soy_traders_money", "soy_organizations"/.test(src) &&
         /\{ h: 4, t: "Companies and financiers" \}, "dff",/.test(src));
   check("forest emissions rows land under Climate, and the heading under Deforestation is gone",
         f("Gross carbon emissions from forests", "gfw_forest_carbon_gross_emissions") === P + " > Climate > Carbon dioxide > Emissions" && !/\{ h: 4, t: "Emissions from forests" \}/.test(src));
@@ -5903,9 +5903,23 @@ console.log("\nround 120b (1 October): news box titles, no automatic tilt, NASA 
         ["methane_imeo_plumes", "methane_ct_owners", "skytruth_fracfocus"].every((id) => o.indexOf(id, ch4) > at("Culprits", ch4) && o.indexOf(id, ch4) < n2o);
   check("nitrous oxide: Emissions then Culprits by source, fertiliser plants under fertiliser, the soy bodies above the banks, no silos",
         at("Emissions", n2o) < at("Culprits", n2o) && at("Culprits", n2o) < fg && (at("Infrastructure", n2o) === -1 || at("Infrastructure", n2o) > fg) &&
-        o.indexOf("fertilizer_facilities", n2o) > at("Synthetic fertiliser", n2o) && o.indexOf("soy_organizations", n2o) < o.indexOf("site_forest500_soy", n2o) &&
+        o.indexOf("fertilizer_facilities", n2o) > at("Synthetic fertiliser", n2o) && o.indexOf("soy_organizations", n2o) < o.indexOf("forest500_soy_money", n2o) &&
         ["Manure and grazing livestock", "Fish farming"].every((t) => at(t, n2o) > -1 && at(t, n2o) < fg) && !o.includes("trase_silos_brazil") && !o.includes("site_china_grain"));
   check("the crop given the most nitrogen, country by country, its kinds listed from its own data", /id: "n2o_crop_fertiliser"[\s\S]{0,600}categories: "auto"/.test(src) && /if \(cfg\.categories === "auto" \|\| !Array\.isArray\(cfg\.categories\)\)/.test(src));
+}
+console.log("\nround 121b (1 October): the soy culprits coloured by money");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const o = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("];", src.indexOf("const PANEL_ORDER = [")) + 2) + "; return PANEL_ORDER;")();
+  const row = (id) => { const i = src.indexOf(`{ id: "${id}"`); return i < 0 ? "" : src.slice(i, src.indexOf("\n    { id:", i + 10)); };
+  const t = row("soy_traders_money"), f5 = row("forest500_soy_money");
+  check("the soy traders are coloured by their revenue first, from Wikidata, and by trader", /route: "geojsonlive"/.test(t) && /soy\/traders\.geojson/.test(t) &&
+        t.indexOf('field: "revenue, US$ billion"') > -1 && t.indexOf('field: "revenue, US$ billion"') < t.indexOf('field: "trader"') && /Wikidata/.test(t));
+  check("the Forest 500 banks are coloured by Forest 500's financing first, then their soy score, with Forest 500's citation", /forest500\/soy_money\.geojson/.test(f5) &&
+        f5.indexOf("financing (Forest 500's figure, its unit)") < f5.indexOf("soy score (out of 94)") && /Forest 500 assessment data, Global Canopy/.test(f5) && /CC BY-NC 4\.0/.test(f5));
+  check("the money rows replace the page copies in both lists, the copies set aside", !o.includes("site_soybean_companies") && !o.includes("site_forest500_soy") &&
+        o.filter((x) => x === "soy_traders_money").length === 2 && o.filter((x) => x === "forest500_soy_money").length === 2 &&
+        /"site_soybean_companies", "site_forest500_soy",/.test(src.slice(src.indexOf("const PANEL_REMOVED"))));
 }
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
