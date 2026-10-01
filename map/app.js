@@ -18676,11 +18676,10 @@ const SITE_MAPS = {
       keyHint: "Forest 500 soy score, out of 94: how far each bank or investor's policies deal with deforestation in the soy it finances",
       note: "From the Destruction page's Forest 500 map (Global Canopy's Forest 500, 2024): the banks and investors scoring under 2 of 94 on their policies on soy-driven deforestation, placed at their headquarters. Coloured by score: red for 0, the worst, through pink to blue for the highest of them, 1.875." },
     // Round 121b (asked 1 October 2026: "colour soy by $ and influence", then
-    // "yes to both"): the two soy culprit rows coloured by money, built by
-    // culprits-tiles-more (scripts/soy_money.py). The traders by revenue from
-    // Wikidata; the banks and investors by the financing in Forest 500's own
-    // data download, once the owner has put it in forest500/download/ (until
-    // then, by their soy score).
+    // "yes to both"): the soy traders coloured by revenue from Wikidata, built
+    // by culprits-tiles-more (scripts/soy_money.py). Round 122b: Forest 500's
+    // own downloads hold no money figures (only scores and policy answers),
+    // so its banks and investors keep the page's row, coloured by soy score.
     { id: "soy_traders_money", name: "Soy traders' offices, coloured by each trader's revenue (Wikidata; offices from the Destruction page)", unit: "offices", colour: "#6F7560", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Soy traders' offices", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/soy/traders.geojson" }],
       colourAuto: false,
@@ -18690,15 +18689,39 @@ const SITE_MAPS = {
       ],
       attribution: 'Revenue: <a href="https://www.wikidata.org" target="_blank" rel="noopener">Wikidata</a> (CC0)',
       note: "The 24 offices on the Destruction page's soybean companies map (ADM, Bunge, Cargill, Louis Dreyfus, COFCO and Amaggi), each coloured by its trader's yearly revenue: the latest year Wikidata gives, in US dollars where Wikidata gives dollars, otherwise at the European Central Bank's average rate for that year. Each trader's Wikidata item is found by Wikidata's own search for its name and linked in every box, so it can be checked. A trader with no revenue in Wikidata is grey." },
-    { id: "forest500_soy_money", name: "Banks and investors with the weakest soy policies, 2024, with the money they put into forest-risk companies (Forest 500)", unit: "financial institutions", colour: "#6B5B4E", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Banks and investors", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/forest500/soy_money.geojson" }],
+    // Round 122b (asked 2 October 2026: "i downloaded all of forest 500's
+    // data; add all"): every company and financial institution Forest 500 has
+    // assessed, 2014 to 2025, and its 2022 country selection, built by
+    // culprits-tiles-more (scripts/forest500_map.py) from Forest 500's API
+    // and the owner's downloads.
+    { id: "forest500_companies", name: "Companies with the most influence over tropical deforestation, scored on their policies, 2014 to 2025 (Forest 500)", unit: "companies", colour: "#6B5B4E", route: "geojsonlive", ready: true, lazy: true, buildScript: "forest500_map",
+      files: [{ label: "Companies", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/forest500/companies.geojson" }],
       colourAuto: false,
       colourChoices: [
-        { label: "financing, as Forest 500's own data gives it", field: "financing (Forest 500's figure, its unit)" },
-        { label: "Forest 500 soy score, out of 94", field: "soy score (out of 94)", unit: "out of 94", breaks: [0.5, 0.9, 1.5] },
+        { label: "total score when last assessed", field: "total score, last assessed (out of 100)", unit: "out of 100", breaks: [10, 20, 35, 50, 65] },
+        { label: "year last assessed", field: "last assessed" },
       ],
+      filterBy: [{ label: "Commodity", field: "commodities", list: true }, { label: "Role", field: "roles", list: true }],
       attribution: 'Forest 500 assessment data, Global Canopy, <a href="https://forest500.org" target="_blank" rel="noopener">Forest500.org</a> (CC BY-NC 4.0)',
-      note: "The banks and investors on the Destruction page's Forest 500 map: those scoring under 2 of 94 on their policies on soy-driven deforestation in 2024, placed at their headquarters. Coloured by the financing Forest 500's own data download gives each one (every money column of that file is in the box, as given, with its unit); Forest 500 gives that file only through a form, so it shows once the owner has put the file in culprits-tiles-more's forest500/download/ folder. Until then, and for any institution not in the file, coloured by soy score." },
+      note: "Every company Forest 500 (Global Canopy) has assessed from 2014 to 2025: those with the most influence over the palm oil, soy, cattle, timber, pulp and paper (and from 2024 cocoa, coffee and rubber) behind tropical deforestation, scored out of 100 on their policies. One point per company as Forest 500 names it (a company renamed between years shows once under each name), coloured by its score the last year it was assessed; its box gives every year's score, the latest year's points by group, and the describing columns of Forest 500's downloaded file (website, ownership, operating countries, the commodities it is a powerbroker for). Forest 500 gives the headquarters country, not the address: each is placed at that country's capital, spread around it so each can be clicked; where in the spread means nothing. Scores, sectors and profiles from Forest 500's own API; the downloads give the rest." },
+    { id: "forest500_institutions", name: "Banks and investors financing the companies behind tropical deforestation, scored on their policies, 2014 to 2025 (Forest 500)", unit: "financial institutions", colour: "#6B5B4E", route: "geojsonlive", ready: true, lazy: true, buildScript: "forest500_map",
+      files: [{ label: "Financial institutions", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/forest500/institutions.geojson" }],
+      colourAuto: false,
+      colourChoices: [
+        { label: "total score when last assessed", field: "total score, last assessed (out of 100)", unit: "out of 100", breaks: [10, 20, 35, 50, 65] },
+        { label: "year last assessed", field: "last assessed" },
+      ],
+      filterBy: [{ label: "Commodity", field: "commodities", list: true }],
+      attribution: 'Forest 500 assessment data, Global Canopy, <a href="https://forest500.org" target="_blank" rel="noopener">Forest500.org</a> (CC BY-NC 4.0)',
+      note: "Every bank, investor and insurer Forest 500 (Global Canopy) has assessed from 2014 to 2025, scored out of 100 on the deforestation policies they apply to the companies they finance. One point per institution as Forest 500 names it (a renamed one shows once under each name), coloured by its score the last year it was assessed; its box gives every year's score and the describing columns of Forest 500's downloaded file. Forest 500's files give scores and policy answers only, no amounts of money. Placed at the capital of the headquarters country, spread so each can be clicked; where in the spread means nothing." },
+    { id: "forest500_producer_countries", name: "Forest 500's producer countries, 2022: deforested area 2010 to 2018 (Forest 500, from Hansen et al.)", unit: "(the sheet's figure)", colour: "#6A5A4E", route: "country", ready: true, lazy: true, buildScript: "forest500_map",
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/forest500/producer_countries.json", field: "x_Deforested Area 2010-2018 (NB Gain not accounted for) (canopy cover >30%) (1000ha) - Hansen et al. (2019)" },
+      attribution: 'Forest 500 assessment data, Global Canopy, <a href="https://forest500.org" target="_blank" rel="noopener">Forest500.org</a> (CC BY-NC 4.0)',
+      note: "The 39 tropical countries Forest 500 selected in 2022 for their forests and the commodities clearing them: each shaded by the deforested area from 2010 to 2018 that Forest 500's sheet gives (from Hansen et al. 2019); the box gives every column of the sheet: forest type, the commodities driving deforestation, forest cover in 2010, intact forest lost 2000 to 2013 and natural forest area. The sheet's headings say thousand hectares; Brazil's figure, 33,227,585, reads as hectares, so the figures are shown as the sheet gives them." },
+    { id: "forest500_trading_countries", name: "Forest 500's trading countries, 2022: the largest importers of forest-risk commodities, 2019 to 2021 (Forest 500, from UN Comtrade)", unit: "total rank", colour: "#6A5A4E", route: "country", ready: true, lazy: true, buildScript: "forest500_map",
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/forest500/trading_countries.json", field: "x_Total rank" }, reverse: true, linear: [0, 130],
+      attribution: 'Forest 500 assessment data, Global Canopy, <a href="https://forest500.org" target="_blank" rel="noopener">Forest500.org</a> (CC BY-NC 4.0)',
+      note: "The 15 importing countries Forest 500 selected in 2022: each shaded by its total rank (its ranks as an importer of beef, leather, palm oil, pulp and paper, soy and timber added together, as Forest 500's sheet gives it; the lower, the darker); the box gives each commodity's imports in US dollars for 2019 to 2021 (UN Comtrade) and its rank." },
     { id: "site_china_grain", name: "China's grain stores (\u4e2d\u56fd\u7cae\u4ed3)", unit: "depots", colour: "#76705C", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_china_grain.places.geojson",
       note: "From the Destruction page's China grain storage map. The page states 205 facilities; this layer carries the positions its map draws." },
     { id: "site_soybean_companies", name: "Soybean Companies", unit: "offices", colour: "#6F7560", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_soybean_companies.places.geojson",
@@ -21126,7 +21149,10 @@ const LAYER_KIND = {
   carbon_plumes: ["insentient", "downstream"],
   carbon_plumes_co2: ["insentient", "downstream"],
   site_forest500_soy: ["plant", "upstream"],
-  forest500_soy_money: ["plant", "upstream"],
+  forest500_companies: ["plant", "upstream"],
+  forest500_institutions: ["plant", "upstream"],
+  forest500_producer_countries: ["plant", "upstream"],
+  forest500_trading_countries: ["plant", "upstream"],
   soy_traders_money: ["plant", "upstream"],
   site_china_grain: ["plant", "upstream"],
   site_soybean_companies: ["plant", "upstream"],
@@ -21999,7 +22025,10 @@ const LAYER_SITE = {
   site_eyes_network: "https://www.welcometoyourgalaxy.com/suppression.html",
   site_food_system: "https://www.welcometoyourgalaxy.com/suppression.html",
   site_forest500_soy: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/destruction_embed_9_leaflet-map.html",
-  forest500_soy_money: "https://forest500.org/forest-500-data-methods/",
+  forest500_companies: "https://forest500.org/forest-500-data-methods/",
+  forest500_institutions: "https://forest500.org/forest-500-data-methods/",
+  forest500_producer_countries: "https://forest500.org/forest-500-data-methods/",
+  forest500_trading_countries: "https://forest500.org/forest-500-data-methods/",
   soy_traders_money: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/soybean_companies.html",
   site_indigenous_conflicts: "https://github.com/WelcomeToYourGalaxy/maps",
   site_insentient: "https://www.welcometoyourgalaxy.com/suppression.html",
@@ -22439,7 +22468,7 @@ const PANEL_ORDER = [
   "climate_trace_ag_crop_residues", "climate_trace_ag_cropland_fires", "food_maize", "food_soy",
   { h: 5, t: "Culprits" },
   { h: 6, t: "Synthetic fertiliser" }, "fertilizer_facilities",
-  { h: 6, t: "Crops" }, "n2o_crop_fertiliser", "soy_traders_money", "soy_organizations", "forest500_soy_money",
+  { h: 6, t: "Crops" }, "n2o_crop_fertiliser", "soy_traders_money", "soy_organizations", "site_forest500_soy",
   { h: 6, t: "Manure and grazing livestock" },
   { h: 6, t: "Fossil fuels and industry (nitric and adipic acid)" },
   { h: 6, t: "Burning of forests, grassland and crop waste" },
@@ -22536,7 +22565,7 @@ const PANEL_ORDER = [
   { h: 5, t: "Timber and rubber plantations" }, "nus_itp",
   { h: 5, t: "Illegal logging and timber trafficking" }, "powerbi_report",
   { h: 5, t: "Wood pulp, Indonesia" }, "trase_pulp_indonesia", "trase_pulp_concessions",
-  { h: 4, t: "Companies and financiers" }, "dff",
+  { h: 4, t: "Companies and financiers" }, "dff", "forest500_companies", "forest500_institutions", "forest500_producer_countries", "forest500_trading_countries",
   // Round 90b: the map's own mangroves, drawn to show from the world view.
   { h: 4, t: "Mangroves" }, "own_mangroves",
   // Round 94b: the 1996, 2016 and 2020 mangroves moved here from Oceans.
@@ -22612,7 +22641,7 @@ const PANEL_ORDER = [
   // Soy and cocoa as trade (24 September): the companies and financiers of
   // soy and the shares of soy and cocoa under zero-deforestation commitments.
   // Soy's fields are under Climate > Nitrous oxide, and here too.
-  { h: 6, t: "Soy" }, "crop_soyb", "forest500_soy_money", "soy_traders_money", "soy_organizations",
+  { h: 6, t: "Soy" }, "crop_soyb", "site_forest500_soy", "soy_traders_money", "soy_organizations",
   { h: 6, t: "Cocoa" }, "crop_coco",
   { h: 6, t: "Coffee" }, "crop_coffee",
   { h: 6, t: "Sugarcane" }, "crop_sugc",
@@ -22764,8 +22793,8 @@ const PANEL_ORDER = [
   { h: 1, t: "Buildings" }, "building_types", "osm_landuse",
 ];
 const PANEL_REMOVED = new Set([
-  // Round 121b: the soy traders and the Forest 500 banks are drawn coloured by money (soy_traders_money, forest500_soy_money).
-  "site_soybean_companies", "site_forest500_soy",
+  // Round 121b: the soy traders are drawn coloured by revenue (soy_traders_money).
+  "site_soybean_companies",
   // Round 120b: the grain stores and soy silos were only under Nitrous oxide's Infrastructure, taken out.
   "trase_silos_brazil", "site_china_grain",
   // Round 119b: They Rule's page in a panel; its boards are drawn from their source (boards_interlocks).

@@ -5,6 +5,24 @@ touches.
 
 ---
 
+## Round 122b (2 October)
+
+Needs round 121b. Tiles patch round122b_tiles.py beside it. No app.js?v= bump.
+
+- Every company and financial institution Forest 500 has assessed, 2014 to
+  2025, from the owner's downloads and Forest 500's API: forest500_companies
+  (882) and forest500_institutions (515), one point each at the capital of the
+  headquarters country (spread), coloured by the last total score, filtered by
+  commodity and role, every year's score in the box. Plus the 2022 country
+  selection: forest500_producer_countries (deforested area as the sheet gives
+  it; its heading says thousand hectares but the figures read as hectares) and
+  forest500_trading_countries (total rank, reverse). All four under
+  Deforestation > Companies and financiers, after dff. Built by
+  culprits-tiles-more scripts/forest500_map.py.
+- Forest 500's files hold no amounts of money, so forest500_soy_money (121b) is
+  gone and site_forest500_soy is back in both soy lists.
+- test.mjs: round 122b block; 121b block updated.
+
 ## Round 121b (1 October)
 
 Needs round 120b. Tiles patch round121b_tiles.py beside it. No app.js?v= bump.
