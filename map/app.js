@@ -3153,10 +3153,88 @@ async function platePiece(z, x, y) {
   }
   return rawPng(ctx.getImageData(0, 0, 256, 256).data, 256, 256);
 }
+// Round 120b (asked 1 October: some of the Atlas's regional maps did not
+// show): a picture laid on the map as one image is not drawn on the globe
+// while a row raises the ground (the painted plate's own trouble, round 118b),
+// so the Atlas's maps are cut into map squares the same way. A picture whose
+// corners are not a plain north-up rectangle stays an image.
+const PICS = new Map();          // key -> { url, w, e, top, bot, img }
+let picCount = 0;
+function addPictureSource(id, url, corners) {
+  const lons = corners.map((c) => c[0]), lats = corners.map((c) => c[1]);
+  const upright = corners.length === 4 && corners[0][1] === corners[1][1] && corners[2][1] === corners[3][1] &&
+    corners[0][0] === corners[3][0] && corners[1][0] === corners[2][0] && corners[1][0] > corners[0][0] && corners[0][1] > corners[3][1];
+  if (!upright || typeof createImageBitmap !== "function") { map.addSource(id, { type: "image", url, coordinates: corners }); return; }
+  const key = `${encodeURIComponent(id)}~${++picCount}`;
+  PICS.set(key, { url, w: corners[0][0], e: corners[1][0], top: plateMerc(corners[0][1]), bot: plateMerc(corners[3][1]), img: null });
+  map.addSource(id, { type: "raster", tiles: [`pic://${key}/{z}/{x}/{y}`], tileSize: 256, maxzoom: 14,
+                      bounds: [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)] });
+}
+async function picPiece(key, z, x, y) {
+  const P = PICS.get(key);
+  if (!P) throw new Error("picture gone");
+  if (!P.img) {
+    P.img = fetch(P.url).then((r) => { if (!r.ok) throw new Error(`${r.status}`); return r.blob(); }).then((b) => createImageBitmap(b));
+    P.img.catch(() => { P.img = null; });
+  }
+  const img = await P.img;
+  const n = Math.pow(2, z);
+  const x0 = x / n, x1 = (x + 1) / n, y0 = y / n, y1 = (y + 1) / n;
+  const L = (P.w + 180) / 360, R = (P.e + 180) / 360;
+  const a = Math.max(x0, L), b = Math.min(x1, R), c = Math.max(y0, P.top), d = Math.min(y1, P.bot);
+  const cv = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(256, 256) : Object.assign(document.createElement("canvas"), { width: 256, height: 256 });
+  const ctx = cv.getContext("2d");
+  if (b > a && d > c) {
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(img, (a - L) / (R - L) * img.width, (c - P.top) / (P.bot - P.top) * img.height,
+      (b - a) / (R - L) * img.width, (d - c) / (P.bot - P.top) * img.height,
+      (a - x0) * n * 256, (c - y0) * n * 256, (b - a) * n * 256, (d - c) * n * 256);
+  }
+  return rawPng(ctx.getImageData(0, 0, 256, 256).data, 256, 256);
+}
+maplibregl.addProtocol("pic", async (params) => {
+  const m = params.url.match(/^pic:\/\/([^/]+)\/(\d+)\/(\d+)\/(\d+)/);
+  if (!m) throw new Error("not a picture square");
+  return { data: await picPiece(m[1], Number(m[2]), Number(m[3]), Number(m[4])) };
+});
 maplibregl.addProtocol("plate", async (params) => {
   const m = params.url.match(/^plate:\/\/(\d+)\/(\d+)\/(\d+)/);
   if (!m) throw new Error("not a plate square");
   return { data: await platePiece(Number(m[1]), Number(m[2]), Number(m[3])) };
+});
+
+// Round 120b (asked 1 October: the NASA active fires still did not load):
+// GIBS draws its fire detections only in its own latitude-longitude grid
+// (EPSG:4326); asking it for web Mercator squares returns nothing. So each
+// square is asked of GIBS in latitude and longitude and stretched, row by
+// row, into the map's own projection here. gibs://z/x/y?LAYERS=...&TIME=...
+const GIBS_WMS = "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi";
+async function gibsSquare(z, x, y, query) {
+  const n = Math.pow(2, z);
+  const lon = (i) => i / n * 360 - 180;
+  const lat = (j) => Math.atan(Math.sinh(Math.PI * (1 - 2 * j / n))) * 180 / Math.PI;
+  const W = lon(x), E = lon(x + 1), N = lat(y), S = lat(y + 1);
+  const H = 512;                                   // rows asked: finer than the square, so the stretch keeps small marks
+  const url = `${GIBS_WMS}?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&STYLES=&SRS=EPSG:4326&BBOX=${W},${S},${E},${N}` +
+    `&WIDTH=256&HEIGHT=${H}&FORMAT=image/png&TRANSPARENT=true&${query}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`GIBS ${r.status}`);
+  const blob = await r.blob();
+  if (!/^image\//.test(blob.type || "image/png")) throw new Error("GIBS answered without a picture");
+  const img = await createImageBitmap(blob);
+  const cv = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(256, 256) : Object.assign(document.createElement("canvas"), { width: 256, height: 256 });
+  const ctx = cv.getContext("2d");
+  for (let j = 0; j < 256; j++) {
+    const la = lat(y + (j + 0.5) / 256);
+    const sy = Math.max(0, Math.min(img.height - 1, Math.floor((N - la) / (N - S) * img.height)));
+    ctx.drawImage(img, 0, sy, img.width, 1, 0, j, 256, 1);
+  }
+  return rawPng(ctx.getImageData(0, 0, 256, 256).data, 256, 256);
+}
+maplibregl.addProtocol("gibs", async (params) => {
+  const m = params.url.match(/^gibs:\/\/(\d+)\/(\d+)\/(\d+)\?(.*)$/);
+  if (!m) throw new Error("not a GIBS square");
+  return { data: await gibsSquare(Number(m[1]), Number(m[2]), Number(m[3]), m[4]) };
 });
 
 // Drawn under the washes and plate, which are both off while it shows. Added
@@ -3822,7 +3900,7 @@ function wireSource() {
       const list = wireAt.get(f.properties.k) || [];
       const pop = new maplibregl.Popup({ closeButton: true, maxWidth: "320px", className: "wire-pop" })
         .setLngLat(f.geometry.coordinates)
-        .setHTML(`<b>${escapeHtml(f.properties.place || "News wire")}</b>` +
+        .setHTML(`<b>${escapeHtml(wireMarkTitle(list, f.properties.place))}</b>` +
                  `<div class="meta">${list.length} ${list.length === 1 ? "story" : "stories"}</div>` +
                  (list.length > 1 ? `<div class="wire-pop-filters">${wirePopFilters(list)}</div>` : "") +
                  `<div class="wire-pop-list">${wirePopRows(list, "new")}</div>`)
@@ -3846,6 +3924,18 @@ function wireSource() {
   return map.getSource("wire-news");
 }
 
+// Round 120b (asked 1 October: the box's title was the first story's own
+// subject): the box is titled by where the mark is, the country by its code
+// where the stories carry one, else the place most of them name.
+function wireMarkTitle(list, fallback) {
+  const count = (vals) => { const n = new Map(); for (const v of vals) if (v) n.set(v, (n.get(v) || 0) + 1); return [...n].sort((a, b) => b[1] - a[1])[0]; };
+  const iso = count(list.map((s) => String(s.iso || "").toUpperCase()).filter((c) => /^[A-Z]{2}$/.test(c)));
+  if (iso) {
+    try { const name = new Intl.DisplayNames(["en"], { type: "region" }).of(iso[0]); if (name && name !== iso[0]) return name; } catch (e) { /* the place below */ }
+  }
+  const place = count(list.map((s) => s.place));
+  return (place && place[0]) || fallback || "News at this place";
+}
 // The box's filters: a menu for each subject and source, a search for the
 // headline, and the order.
 // The box above a mark's list: one menu per thing a story carries, plus the
@@ -7385,7 +7475,7 @@ function atlasDetail(p, fitZoom) {
       if (map.getSource(id)) return;
       const lons = d.corners.map((c) => c[0]), lats = d.corners.map((c) => c[1]);
       if (Math.max(...lons) < b.getWest() || Math.min(...lons) > b.getEast() || Math.max(...lats) < b.getSouth() || Math.min(...lats) > b.getNorth()) return;
-      map.addSource(id, { type: "image", url: plateUrl(d.image), coordinates: d.corners });
+      addPictureSource(id, plateUrl(d.image), d.corners);
       map.addLayer({ id, type: "raster", source: id, minzoom: fitZoom + 1, paint: { "raster-opacity": opacity(), "raster-fade-duration": 0 } },
         map.getLayer("atlas-plate-conflicts") ? "atlas-plate-conflicts" : undefined);
     });
@@ -7510,7 +7600,7 @@ async function atlasInsets(slug) {
   if (!r || atlasInsets.slug !== slug) return;
   const opacity = () => { const i = document.querySelector("#atlas-panel .ap-fade input"); return i ? 1 - Number(i.value) / 100 : 0.85; };
   if (r.kept && Array.isArray(r.corners) && r.corners.length === 4 && r.image && !map.getSource("atlas-plate-conflicts")) {
-    map.addSource("atlas-plate-conflicts", { type: "image", url: r.image, coordinates: r.corners });
+    addPictureSource("atlas-plate-conflicts", r.image, r.corners);
     map.addLayer({ id: "atlas-plate-conflicts", type: "raster", source: "atlas-plate-conflicts", paint: { "raster-opacity": opacity(), "raster-fade-duration": 0 } });
   }
   atlasInsets.markers = [];
@@ -7552,9 +7642,12 @@ function atlasNumberTip(c) {
   if (!Number.isFinite(c.lon) || !Number.isFinite(c.lat)) return;
   atlasNumberTipPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, className: "wtyg-tip", maxWidth: "280px", anchor: "bottom", offset: 16 })
     .setLngLat([c.lon, c.lat])
-    .setHTML(`<b>${escapeHtml(c.n + ". " + c.title)}</b>` +
-      ((c.population_2015 || c.population_2030) ? `<div class="meta">Population: 2015 ${escapeHtml(c.population_2015 || "\u2013")} \u00b7 2030 ${escapeHtml(c.population_2030 || "\u2013")}</div>` : "") +
-      `<div class="meta">Click for the Atlas's inset map of the city</div>`)
+    // Round 120b (asked 1 October: the text showed see-through, unreadable):
+    // the tip's own solid box, as the tip style draws none.
+    .setHTML(`<div style="background:rgba(16,20,26,0.96);color:#F2EEE6;border:1px solid rgba(242,238,230,0.25);border-radius:5px;padding:6px 9px;box-shadow:0 2px 10px rgba(0,0,0,0.5)">` +
+      `<b>${escapeHtml(c.n + ". " + c.title)}</b>` +
+      ((c.population_2015 || c.population_2030) ? `<div class="meta" style="color:#CFCAC0">Population: 2015 ${escapeHtml(c.population_2015 || "\u2013")} \u00b7 2030 ${escapeHtml(c.population_2030 || "\u2013")}</div>` : "") +
+      `<div class="meta" style="color:#CFCAC0">Click for the Atlas's inset map of the city</div></div>`)
     .addTo(map);
 }
 function atlasNumberTipOff() {
@@ -7722,6 +7815,13 @@ function atlasOutsideClick(e) {
   // A click on a box, a number or a panel is not a click on the map.
   const t = claim && claim.target;
   if (t && t.closest && t.closest(".maplibregl-popup, .maplibregl-marker, #atlas-city, #atlas-panel")) return;
+  // Round 120b (asked 1 October): a click on another region of the same
+  // layer opens that one in its place (showAtlas closes this one first); only
+  // a click on the map outside every region closes it.
+  try {
+    const own = ((map.getStyle() || {}).layers || []).filter((l) => l.id.startsWith(`${atlasOwner}-`)).map((l) => l.id);
+    if (own.length && e.point && map.queryRenderedFeatures(e.point, { layers: own }).length) return;
+  } catch (err) { /* closed as before */ }
   setTimeout(() => {
     if (!atlasOwner || popupClaimedBy === claim || nearAtlasNumber(e)) return;
     atlasClose(true);
@@ -7749,7 +7849,7 @@ async function showAtlas(what, bounds, owner) {
   if (what.cityPlate && !(p && p.kept)) { atlasCityShow(what); return; }
   if (p && p.kept && p.image && Array.isArray(p.corners) && p.corners.length === 4) {
     el.hidden = false;
-    map.addSource("atlas-plate", { type: "image", url: plateUrl(p.image), coordinates: p.corners });
+    addPictureSource("atlas-plate", plateUrl(p.image), p.corners);
     map.addLayer({ id: "atlas-plate", type: "raster", source: "atlas-plate", paint: { "raster-opacity": 0.85, "raster-fade-duration": 0 } });
     fade.hidden = false;
     fade.querySelector("input").value = 15;
@@ -8793,7 +8893,7 @@ const CATALOGUE_BY_TITLE = [
   [/intact forest landscape/i, [P + " > Biodiversity loss"]],
   [/biodiversity hotspots/i, [P + " > Biodiversity loss"]],
   [/\bdams?\b/i, [P + " > Biodiversity loss > Fish"]],
-  [/oil (and|&) gas (concession|block|licen|lease)/i, [P + " > Climate > Methane > Infrastructure", P + " > Pollution > Land pollution > Where oil and gas is drilled"]],
+  [/oil (and|&) gas (concession|block|licen|lease)/i, [P + " > Climate > Methane > Culprits", P + " > Pollution > Land pollution > Where oil and gas is drilled"]],
   [/protected areas?/i, [P + " > Biodiversity loss"]],
   [/nitrogen dioxide|\bno2\b/i, [P + " > Pollution > Air pollution > Nitrogen dioxide"]],
 ];
@@ -8865,11 +8965,13 @@ const CATALOGUE_SUBS = {
     [/.*/, "Emissions"],
   ],
   [P + " > Climate > Methane"]: [
-    [/oil and gas|oil & gas|(?<!greenhouse )\bgas\b|petroleum|geothermal|concession|\bwells?\b/i, "Infrastructure"],
+    // Round 120b: wells and concessions under Culprits (the Infrastructure heading is gone).
+    [/oil and gas|oil & gas|(?<!greenhouse )\bgas\b|petroleum|geothermal|concession|\bwells?\b/i, "Culprits"],
     [/.*/, "Emissions"],
   ],
   [P + " > Climate > Nitrous oxide"]: [
-    [/silo|storage|warehouse/i, "Infrastructure"],
+    // Round 120b: storage is no longer a heading under Nitrous oxide.
+    [/silo|storage|warehouse/i, null],
     [/.*/, "Emissions"],
   ],
   [P + " > Meat and agriculture > Meat"]: [
@@ -12378,10 +12480,8 @@ function buildColumns() {
   const n = drawColumns(columnRows);
   // Seen straight down a column is a square. When columns first appear the
   // map tilts, once, so they stand up; turning it back flat is left alone.
-  if (n && !columnsTilted && typeof map.getPitch === "function" && map.getPitch() < 25 && typeof map.easeTo === "function") {
-    columnsTilted = true;
-    map.easeTo({ pitch: COLUMN_TILT, duration: 900 });
-  }
+  // Round 120b: the map is no longer tilted on its own (it moved the view
+  // and readers did not know how to put it back); the reader tilts it.
   if (!n) columnsTilted = false;
   if (rows.length > COLUMN_MAX) console.info(`[culprits] Climate TRACE: the ${COLUMN_MAX.toLocaleString()} largest of ` +
     `${rows.length.toLocaleString()} sources in view are raised as columns; the rest stay as dots.`);
@@ -12710,7 +12810,9 @@ function reliefGround(id, on, noTilt) {
   } catch (e) { /* the view stays as it is */ }
   if (top) {
     map.setTerrain({ source: `${top}-dem`, exaggeration: reliefLift() });
-    if (on && !noTilt && typeof map.easeTo === "function" && map.getPitch && map.getPitch() < 30) map.easeTo({ pitch: 50, duration: 800 });
+    // Round 120b (asked 1 October: turning on the population density "scooted
+    // the map downward", and many readers would not know how to put it back):
+    // the map is no longer tilted for them; the reader tilts it if they wish.
   } else if (TERRAIN_ON) {
     liftNow = null;
     setTerrain(true);
@@ -12900,6 +13002,29 @@ async function addGlwRelief(cfg) {
     anchor.after(el);
   }
   setLayerState(cfg.id, "FAO GLW4 2020 · tilt the map to see the relief");
+}
+
+// Round 120b (asked 1 October: "why is there no hypsometric effect for the
+// f-gases layer?"): a row whose figures are coded as height tiles (cfg.archive,
+// its stats in cfg.stats) is drawn as stepped ground, raised by its figure on a
+// log scale from its 5th to its 99th percentile, as the population is.
+async function addValRelief(cfg) {
+  let archive = null, st = {};
+  try {
+    const head = await fetch(cfg.archive, { method: "HEAD" });
+    if (head.ok) archive = new pmtiles.PMTiles(cfg.archive);
+    st = await getJson(cfg.stats, 20000).catch(() => ({}));
+  } catch (e) { /* not built yet */ }
+  if (!archive) { setLayerState(cfg.id, cfg.waiting || "not built yet"); return; }
+  cfg.keepColour = true;
+  const low = Math.max(1e-9, Number(st.p5) || 1), top = Math.max(low * 10, Number(st.p99) || low * 1000);
+  const r = { values: heightValues(archive, 5), colour: (v) => (v > low ? [0, 0, 0, 255] : [0, 0, 0, 0]), top: 150000, maxzoom: 10,
+    height: (v) => (v > low ? Math.min(1, Math.log(v / low) / Math.log(top / low)) : 0) };
+  const steps = RELIEF_BANDS.map((_, i) => low * Math.pow(top / low, i / RELIEF_BANDS.length));
+  addReliefLayers(cfg, r, steps.map((v, i) => [bandHex((i + 0.5) / RELIEF_BANDS.length),
+    `${amountWords(v)}${i === steps.length - 1 ? " or more, highest ground" : ""} ${cfg.unitWords || cfg.unit}`]),
+    cfg.reliefHint || "Colour and height both follow the amount; the land's own altitude is not shown while this is on");
+  setLayerState(cfg.id, `${cfg.unit} \u00b7 tilt the map to see the relief`);
 }
 
 /* ---------- 3D terrain ---------- */
@@ -13195,15 +13320,6 @@ function viewPanelHtml() {
     `<span class="lift-note">Layers that shade countries stand up like towers, taller where the figure is bigger, so countries can be compared when the map is tilted. ` +
     `Every other layer rises where it covers the ground most or its points crowd most, keeping its own colours. ` +
     `Untick to keep everything flat.</span></span></label>` +
-    `</div></div>` +
-    // Round 118b (asked 30 September): every ticked layer as one surface,
-    // either by how densely their places gather or by the size of their figures.
-    `<div class="sect" data-sect="combo">` + sectHead("Combine ticked layers", "combo") + `<div class="sect-body">` +
-    `<label class="layer"><span class="nm">One surface from every ticked layer of points or areas</span></label>` +
-    `<select id="combo-mode" style="font:inherit;font-size:11.5px;max-width:100%">` +
-    COMBO_MODES.map(([k, t]) => `<option value="${k}">${t}</option>`).join("") + `</select>` +
-    `<div id="combo-say" class="how" style="font-size:10.5px;color:var(--dim)"></div>` +
-    `<div id="combo-rows" style="font-size:10.5px"></div>` +
     `</div></div>`;
 }
 
@@ -13238,8 +13354,6 @@ function buildBasemapPanel() {
     if (e.target && e.target.id === "names-toggle") setNames(e.target.checked);
     if (e.target && e.target.id === "lift-toggle") setLift(e.target.checked);
     if (e.target && e.target.id === "theme-pick") setTheme(e.target.value);
-    if (e.target && e.target.id === "combo-mode") comboMode(e.target.value);
-    if (e.target && e.target.dataset && e.target.dataset.comboWeight) { COMBO.weights.set(e.target.dataset.comboWeight, Number(e.target.value)); comboSoon(50); }
   });
 }
 
@@ -16087,7 +16201,8 @@ if (typeof map.on === "function") map.on("moveend", () => {
 // Under both, each row's weight (0 to 3, under the menu) says how much it
 // counts against the others. Rows that shade whole countries are not folded
 // in: their figures belong to a whole country, not to a place in it.
-const COMBO_MODES = [["off", "Off"], ["density", "By how densely their places gather"], ["intensity", "By the size of each place's own figure"]];
+const COMBO_MODES = [["off", "Off: each layer shown on its own"], ["density", "Where their places are most crowded"],
+  ["intensity", "Where their biggest numbers are (each place weighted by its own figure, such as tonnes or deaths)"]];
 const COMBO = { mode: "off", weights: new Map(), pr: { rid: "combo__all", grid: null }, timer: null, rows: [] };
 const COMBO_MAX_ROWS = 40;
 function comboFigure(id) {
@@ -16203,6 +16318,9 @@ async function comboDraw() {
   map.setLayoutProperty(`${rid}-tint`, "visibility", "visible");
   // The rows' own bands step aside while the surface of all of them shows.
   for (const [id, own] of POINT_RELIEFS) if (map.getLayer(`${own.rid}-tint`)) map.setLayoutProperty(`${own.rid}-tint`, "visibility", "none");
+  // Round 120b (asked 1 October: "when it's on, the individual layers should
+  // not show, only the combined one"): the rows' own marks step aside too.
+  comboHideRows(true);
   if (LIFT_ON) {
     if (!map.getSource(`${rid}-dem`)) {
       map.addSource(`${rid}-dem`, { type: "raster-dem", tiles: [`relief://${rid}/dem/{z}/{x}/{y}?${q}`], tileSize: 256, maxzoom: 8, encoding: "mapbox" });
@@ -16219,9 +16337,26 @@ async function comboDraw() {
     ? "Where the places of the ticked layers gather, each layer scaled to its own busiest place first. Light: few; dark: many."
     : "Where the ticked layers' biggest figures gather: each place counts by its own figure within its layer (the figure the layer is coloured by, else its count; the largest counts 1, the smallest 0.1, a place with no figure 0.5). Light: little; dark: much.";
 }
+function comboHideRows(hide) {
+  COMBO.hidden = COMBO.hidden || new Set();
+  if (hide) {
+    for (const id of COMBO.rows) for (const l of rowVectorLayers(id)) {
+      if (map.getLayoutProperty(l.id, "visibility") === "none") continue;
+      map.setLayoutProperty(l.id, "visibility", "none");
+      COMBO.hidden.add(l.id);
+    }
+    return;
+  }
+  for (const lid of COMBO.hidden) {
+    const row = gladRowOf(lid) || lid.split("-")[0];
+    if (map.getLayer(lid) && (visibility.get(row) || "visible") === "visible") map.setLayoutProperty(lid, "visibility", "visible");
+  }
+  COMBO.hidden.clear();
+}
 function comboMode(mode) {
   COMBO.mode = mode;
   if (mode === "off") {
+    comboHideRows(false);
     clearTimeout(COMBO.timer);
     const rid = COMBO.pr.rid;
     for (const l of [`${rid}-tint`, `${rid}-hill`]) if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", "none");
@@ -16241,7 +16376,9 @@ function comboList() {
   if (COMBO.mode === "off") { el.innerHTML = ""; return; }
   const ids = COMBO.rows.length ? COMBO.rows : comboRowsNow();
   const nameOf = (id) => { const c = LAYERS.find((x) => x.id === id) || (typeof childById === "function" ? childById(id) : null); return String((c && c.name) || id); };
-  el.innerHTML = ids.length ? `<div style="margin:4px 0 2px">How much each layer counts:</div>` + ids.map((id) =>
+  el.innerHTML = ids.length ? `<div style="margin:4px 0 2px">How much each layer counts in the surface. Every layer counts once unless you change it: ` +
+    `"twice" or "three times" makes a layer weigh more than the others (where it gathers, the surface rises more), "half" weighs it less, ` +
+    `and "not at all" leaves it out of the surface without unticking it.</div>` + ids.map((id) =>
     `<div style="display:flex;gap:6px;align-items:center;margin:2px 0"><select data-combo-weight="${escapeHtml(id)}" style="font:inherit;font-size:10.5px">` +
     [[0, "not at all"], [0.5, "half"], [1, "once"], [2, "twice"], [3, "three times"]].map(([v, t]) =>
       `<option value="${v}"${(COMBO.weights.has(id) ? COMBO.weights.get(id) : 1) === v ? " selected" : ""}>${t}</option>`).join("") +
@@ -18381,6 +18518,13 @@ async function addCountryCatLayer(cfg) {
   let data, shapes;
   try { [data, shapes] = await Promise.all([getJson(cfg.url, 30000), getJson(BOUNDARIES_URL, 60000)]); }
   catch (e) { setLayerState(cfg.id, `not built yet (${e.message})`); return; }
+  // Round 120b: a row whose kinds are not known ahead lists them from its
+  // own data, the commonest first, in the map's colours.
+  if (cfg.categories === "auto" || !Array.isArray(cfg.categories)) {
+    const n = new Map();
+    for (const r of Object.values(data)) if (r && r[cfg.field] != null) n.set(r[cfg.field], (n.get(r[cfg.field]) || 0) + 1);
+    cfg.categories = [...n].sort((a, b) => b[1] - a[1]).map(([k], i) => [k, AUTO_GROUP_COLOURS[i % AUTO_GROUP_COLOURS.length]]);
+  }
   const col = new Map(cfg.categories);
   const feats = shapes.features.filter((f) => data[f.properties.iso3]).map((f) => {
     const r = data[f.properties.iso3];
@@ -18935,9 +19079,8 @@ const MORE_MAPS = {
       // 4326 address asked in web Mercator (version 1.1.1, SRS=EPSG:3857).
       attribution: "Fire: NASA EOSDIS GIBS / VIIRS (Suomi NPP, NOAA-20, NOAA-21)", maxzoom: 12,
       choices: [["today (UTC), as far as it has come in", 0], ["yesterday (UTC)", 1]].map(([label, back]) => ({ label,
-        tiles: "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1" +
-          "&LAYERS=VIIRS_SNPP_Thermal_Anomalies_375m_All,VIIRS_NOAA20_Thermal_Anomalies_375m_All,VIIRS_NOAA21_Thermal_Anomalies_375m_All" +
-          "&STYLES=&SRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=true" +
+        // Round 120b: asked in GIBS's own grid and stretched here (gibs://).
+        tiles: "gibs://{z}/{x}/{y}?LAYERS=VIIRS_SNPP_Thermal_Anomalies_375m_All,VIIRS_NOAA20_Thermal_Anomalies_375m_All,VIIRS_NOAA21_Thermal_Anomalies_375m_All" +
           `&TIME=${new Date(Date.now() - back * 864e5).toISOString().slice(0, 10)}` })),
       rasterPaint: { "raster-opacity": 0.95 },
       note: "Every fire and hot spot NASA's three VIIRS satellites detected today and yesterday (UTC), 375 m, drawn by NASA's own map service each time it is ticked; a chip picks the day. Fire exposes remains with no permit and no applicant (the Unearthings map's words); under Fire too." },
@@ -19502,7 +19645,7 @@ const OTHER_MAPS = {
       filterBy: [{ label: "Who killed them", field: "perpetrator_type" }, { label: "Who they were", field: "person_characteristics", list: true },
         { label: "Country", field: "country" }],
       note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: Global Witness's own records as of 10 September 2023 (All records as of 09-10-23.csv): 1,910 people, with date, name, gender, age, who they were, the industry behind it and who killed them, as Global Witness gives them. Global Witness gives a region, not a place: each is at the middle of its province where one is named (1,313), else of its country (580), else of its town (17), spread a little where several share one point; the box says which." },
-    { id: "attacks_land_resistance", name: "Attacks on land and environmental defenders in Latin America: killings, threats, harassment (Land of Resistance)", unit: "cases", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
+    { id: "attacks_land_resistance", name: "Killings and other attacks on land and environmental defenders across Latin America, 12 countries (Land of Resistance)", unit: "cases", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Attacks on land and environmental defenders in Latin America: killings, threats, harassment", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/plain/land_of_resistance.geojson", fallback: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/land_of_resistance.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by the kind of attack",
       groupLabel: "Kind of attack", yearFrom: ["event_year", "date_of_event"], colourAuto: false,
       colourChoices: [{ label: "kind of attack", field: "type_of_violence", classes: "auto" }, { label: "what they were defending it from", field: "defending_from", classes: "auto" },
@@ -20035,6 +20178,34 @@ const OTHER_MAPS = {
         { label: "Habitat disturbance", archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/food_maiz_disturbance.pmtiles" }
       ],
       note: "What growing maize (corn) put on the land in 2017, food and feed together, mapped by Halpern et al. 2022 (Nature Sustainability) from their data package. Each chip is one of its four pressures, per map cell, coloured dark to light on a log scale cut at the values' own steps (food/<name>.key.json in culprits-tiles-more). Built once from the package; it is not updated." },
+    { id: "methane_imeo_plumes", name: "Methane super-emitters seen from space and reported to governments, by sector (UN Environment Programme, IMEO)", unit: "plumes", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true, buildScript: "methane_culprits",
+      // Round 120b (asked 1 October: the biggest culprits behind methane).
+      files: [{ label: "Methane plumes", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/methane/imeo_plumes.geojson" }], nameFrom: ["name", "id"],
+      waiting: "not built yet: culprits-tiles-more builds it on its next run (methane_culprits)", autoGroups: true, groupLabel: "Sector", groupHint: "Coloured by sector",
+      attribution: "UNEP International Methane Emissions Observatory, Methane Alert and Response System (CC BY-NC-SA 4.0)",
+      note: "Every large methane plume the UN Environment Programme's International Methane Emissions Observatory has seen by satellite and reported to the government where it is (its Methane Alert and Response System), with its sector (oil and gas, coal, waste), country, date and rate, as the Observatory publishes them (CC BY-NC-SA 4.0). It names no operator: the sites, not the companies. Built weekly by culprits-tiles-more (scripts/methane_culprits.py)." },
+    { id: "methane_imeo_top50", name: "The 50 largest methane-emitting sites seen this month (UN Environment Programme, IMEO)", unit: "sites", colour: "#9E2A3E", route: "geojsonlive", ready: true, lazy: true, buildScript: "methane_culprits",
+      files: [{ label: "Top 50 methane sites", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/methane/imeo_top50.geojson" }], nameFrom: ["name", "source_name", "id"],
+      waiting: "not built yet: culprits-tiles-more builds it on its next run (methane_culprits)", autoGroups: true, groupLabel: "Sector",
+      attribution: "UNEP International Methane Emissions Observatory (CC BY-NC-SA 4.0)",
+      note: "The International Methane Emissions Observatory's monthly list of the 50 largest emitting sources it sees from space, every field as published (CC BY-NC-SA 4.0). Built weekly by culprits-tiles-more (scripts/methane_culprits.py)." },
+    { id: "methane_ct_owners", name: "Methane-emitting sites by the company that owns them, the 20 largest owners in colour (Climate TRACE)", unit: "sites", colour: "#7A1F3D", route: "geojsonlive", ready: true, lazy: true, buildScript: "methane_culprits",
+      files: [{ label: "Owned methane sites", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/methane/ct_owned_sites.geojson" }], nameFrom: ["name"],
+      waiting: "not built yet: culprits-tiles-more builds it on its next run (methane_culprits)", autoGroups: true, groupLabel: "Owner", groupHint: "Coloured by owner, the 20 owning the most methane",
+      filterBy: [{ label: "Sector", field: "sector" }, { label: "Country", field: "country" }],
+      attribution: "Climate TRACE (CC BY 4.0)",
+      note: "Every site Climate TRACE estimates methane for and names an owner of (oil and gas fields, coal mines, landfills, cattle operations and more), with its methane in tonnes a year and its owners; the 20 owners whose sites put out the most methane (shares weighted where Climate TRACE gives them) each have a colour, the rest share one. Their ranking is in methane/ct_owners.json in culprits-tiles-more. Sites with no owner named are left off this row (they are under Emissions). Built weekly by culprits-tiles-more (scripts/methane_culprits.py)." },
+    { id: "n2o_crop_fertiliser", name: "Which crop gets the most nitrogen fertiliser, country by country (IFA, Ludemann et al. 2022)", unit: "countries", colour: "#1E6FA8", keepColour: true, route: "countrycat", ready: true, lazy: true, buildScript: "fertiliser_by_crop",
+      // Round 120b (asked 1 October: the crops most responsible for nitrous oxide).
+      url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/fertiliser/by_crop.json", field: "top crop", categories: "auto",
+      note: "Synthetic nitrogen spread on fields is the largest human source of nitrous oxide (Tian et al. 2020, Nature). Each country is coloured by the crop its farmers give the most nitrogen fertiliser, from the latest survey it is in (the International Fertilizer Association's fertiliser-use-by-crop surveys, published by Ludemann, Gruere, Heffer and Dobermann, Scientific Data 2022); the box gives every crop's nitrogen, phosphate and potash, and the totals for the whole world are in fertiliser/world.json in culprits-tiles-more. This is nitrogen, not nitrous oxide: about one per cent of it escapes as nitrous oxide on the IPCC's default, more or less with soil and climate. Built monthly by culprits-tiles-more (scripts/fertiliser_by_crop.py)." },
+    { id: "edgar_fgases_all", name: "All fluorinated gases together, in tonnes of CO2 equivalent, raised by amount (EDGAR)", unit: "tonnes of CO2 equivalent per 10 km square", colour: "#6A5A6E", route: "valrelief", ready: true, lazy: true, buildScript: "edgar_fgases",
+      // Round 120b (asked 1 October): every F-gas together, the default.
+      archive: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/edgar_fgases_all_relief.pmtiles",
+      stats: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/edgar_fgases_all_relief.build.json",
+      unitWords: "t CO2e", waiting: "not built yet: run edgar_fgases in culprits-tiles-more",
+      attribution: "EDGAR_2025_GHG, European Commission JRC, CC BY 4.0",
+      note: "Every fluorinated gas EDGAR maps (HFCs, PFCs, SF6, NF3, HCFCs, gas by gas), each turned into the carbon dioxide that would warm the planet as much over 100 years (its global warming potential in the IPCC's Fifth Assessment Report, the values EDGAR's own totals use) and added together, per 0.1-degree cell (about 10 km), latest year in EDGAR's release. Coloured in the map's stepped bands and raised as ground by amount. Each gas on its own is in the row below. Built by hand by culprits-tiles-more (scripts/edgar_fgases.py)." },
     { id: "edgar_fgases", name: "Fluorinated gases (industrial coolants and insulating gases) released, per 10 km square, gas by gas (EDGAR)", unit: "tonnes of the gas per map cell", colour: "#6A5A6E", route: "rasterlive", ready: true, lazy: true,
       choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/edgar/fgases_choices.json",
       attribution: "EDGAR_2025_GHG, European Commission JRC, CC BY 4.0", maxzoom: 6,
@@ -20801,6 +20972,7 @@ function ensureLayer(cfg) {
       : cfg.route === "worker" ? Promise.resolve().then(() => addLiveLayer(cfg))
       : cfg.route === "no2relief" ? Promise.resolve().then(() => addNo2Relief(cfg))
       : cfg.route === "poprelief" ? addPopRelief(cfg)
+      : cfg.route === "valrelief" ? addValRelief(cfg)
       : cfg.route === "country" ? addCountryLayer(cfg)
       : addPmtilesLayer(cfg).then(() => { if (cfg.timeline) addTimeline(cfg); });
     return build;
@@ -21049,6 +21221,9 @@ const LAYER_KIND = {
   food_soy: ["plant", "downstream"], food_maize: ["plant", "downstream"],
   wastewater_plumes: ["insentient", "downstream"],
   wastewater_watersheds: ["insentient", "downstream"],
+  edgar_fgases_all: ["insentient", "downstream"],
+  methane_imeo_plumes: ["insentient", "upstream"], methane_imeo_top50: ["insentient", "upstream"], methane_ct_owners: ["insentient", "upstream"],
+  n2o_crop_fertiliser: ["plant", "upstream"],
   edgar_fgases: ["insentient", "downstream"],
   wasteatlas_dumpsites: ["insentient", "downstream"],
   wasteatlas_landfills: ["insentient", "downstream"],
@@ -22221,19 +22396,30 @@ const PANEL_ORDER = [
   "climate_trace_ag_manure_management_cattle_operation", "climate_trace_fossil_fuel_operations", "carbon_plumes",
   "hydrowaste", "climate_trace_ag_rice_cultivation", "climate_trace_waste", "wasteatlas_dumpsites", "wasteatlas_landfills",
   "climate_trace_flu_wetland_fires", "climate_trace_flu_water_reservoirs",
-  { h: 5, t: "Culprits" }, "carbon_majors", "bocc",
-  { h: 5, t: "Infrastructure" }, "skytruth_fracfocus",
-  { h: 5, t: "Priority emitters" }, "carbon_bombs",
-  // Nitrous oxide in the page's order: grazing animals and manure, synthetic
-  // fertiliser, then crops (corn and soy) with their areas.
+  // Round 120b (asked 1 October): the Carbon Majors' head offices and the
+  // carbon bombs out of Methane; the fracked wells and the oil and gas
+  // concessions under Culprits, the Infrastructure heading gone; the sites and
+  // owners behind the most methane added.
+  { h: 5, t: "Culprits" }, "methane_imeo_plumes", "methane_imeo_top50", "methane_ct_owners", "skytruth_fracfocus", "bocc",
+  // Nitrous oxide (round 120b, asked 1 October): Emissions, then Culprits by
+  // the sources behind most of it (Tian et al. 2020, Nature), the soy rows
+  // under Crops, the fertiliser plants under Synthetic fertiliser; the grain
+  // stores, soy silos, Infrastructure and Priority emitters out.
   { h: 4, t: "Nitrous oxide" },
   { h: 5, t: "Emissions" }, "climate_trace_ag_manure_left_on_pasture_cattle", "climate_trace_ag_manure_applied_to_soils",
   "climate_trace_ag_manure_management_cattle_operation", "climate_trace_ag_synthetic_fertilizer_application",
   "climate_trace_ag_crop_residues", "climate_trace_ag_cropland_fires", "food_maize", "food_soy",
-  { h: 5, t: "Culprits" }, "site_soybean_companies", "site_forest500_soy", "soy_organizations",
-  { h: 5, t: "Infrastructure" }, "trase_silos_brazil", "site_china_grain",
-  { h: 5, t: "Priority emitters" }, "fertilizer_facilities",
-  { h: 4, t: "F-gases" }, "edgar_fgases", "powerbi_report",
+  { h: 5, t: "Culprits" },
+  { h: 6, t: "Synthetic fertiliser" }, "fertilizer_facilities",
+  { h: 6, t: "Crops" }, "n2o_crop_fertiliser", "site_soybean_companies", "soy_organizations", "site_forest500_soy",
+  { h: 6, t: "Manure and grazing livestock" },
+  { h: 6, t: "Fossil fuels and industry (nitric and adipic acid)" },
+  { h: 6, t: "Burning of forests, grassland and crop waste" },
+  { h: 6, t: "Waste and wastewater" },
+  { h: 6, t: "Fish farming" },
+  // Round 120b (asked 1 October): every F-gas together first; the
+  // Environmental Crime Tracker only under Environmental crime.
+  { h: 4, t: "F-gases" }, "edgar_fgases_all", "edgar_fgases",
   // Refineries are not under Black carbon (round 75): they put out well under
   // one per cent of it; Climate TRACE's black carbon row stays.
   { h: 4, t: "Black carbon" }, "ct_air_bc",
@@ -22550,6 +22736,8 @@ const PANEL_ORDER = [
   { h: 1, t: "Buildings" }, "building_types", "osm_landuse",
 ];
 const PANEL_REMOVED = new Set([
+  // Round 120b: the grain stores and soy silos were only under Nitrous oxide's Infrastructure, taken out.
+  "trase_silos_brazil", "site_china_grain",
   // Round 119b: They Rule's page in a panel; its boards are drawn from their source (boards_interlocks).
   "theyrule",
   // Round 118b: the three capture rows are views of capture_all.
@@ -23137,6 +23325,7 @@ function arrangePanel() {
   readSiteTypeRowsAtStart();
   pinBuildings(box);
   addRowTools(box);
+  comboBox(box);
   layerSearch(box);
   layerKindSwitch(box);
   layerMenuHelp(box);
@@ -23686,6 +23875,25 @@ function layerKindSwitch(box) {
     ".kind-switch .ks-busy[hidden]{display:none}" +
     ".kind-switch .ks-spin{width:10px;height:10px;border-radius:50%;border:2px solid rgba(150,180,230,.25);border-top-color:rgba(150,180,230,.9);animation:ks-spin .8s linear infinite}" +
     "@keyframes ks-spin{to{transform:rotate(360deg)}}", "kind-switch");
+}
+// Round 120b (asked 1 October): the combined surface at the top of the
+// layers menu, above the search (it was in the View box).
+function comboBox(box) {
+  if (!box || !box.parentElement || typeof document.createElement !== "function" || document.getElementById("combo-box")) return;
+  const wrap = document.createElement("div");
+  wrap.id = "combo-box";
+  wrap.className = "combo-box";
+  wrap.innerHTML = `<div style="font-size:11.5px">Combine the ticked layers into one surface</div>` +
+    `<select id="combo-mode" aria-label="Combine the ticked layers" style="font:inherit;font-size:11.5px;max-width:100%;margin:3px 0">` +
+    COMBO_MODES.map(([k, t]) => `<option value="${k}">${t}</option>`).join("") + `</select>` +
+    `<div id="combo-say" style="font-size:10.5px;color:var(--dim)"></div>` +
+    `<div id="combo-rows" style="font-size:10.5px"></div>`;
+  box.parentElement.insertBefore(wrap, box);
+  wrap.addEventListener("change", (e) => {
+    if (e.target && e.target.id === "combo-mode") comboMode(e.target.value);
+    if (e.target && e.target.dataset && e.target.dataset.comboWeight) { COMBO.weights.set(e.target.dataset.comboWeight, Number(e.target.value)); comboSoon(50); }
+  });
+  addStyle(".combo-box{margin:2px 0 8px;padding:6px 8px;border:1px solid rgba(255,255,255,.14);border-radius:5px;background:rgba(0,0,0,.18)}", "combo-box");
 }
 function layerSearch(box) {
   if (!box || !box.parentElement || typeof document.createElement !== "function" || document.getElementById("layer-search")) return;

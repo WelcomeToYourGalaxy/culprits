@@ -5,6 +5,47 @@ touches.
 
 ---
 
+## Round 120b (1 October)
+
+Needs round 119b. Tiles patch round120b_tiles.py beside it. No app.js?v= bump.
+
+- News marks: the box is titled by the country of its stories
+  (wireMarkTitle, Intl.DisplayNames from iso), else the place most name.
+- No automatic tilt: reliefGround no longer eases to pitch 50 when a row
+  holds the ground (the population density "scooted the map"), nor the
+  Climate TRACE columns to COLUMN_TILT.
+- NASA active fires: gibs:// protocol asks GIBS's EPSG:4326 WMS in latitude
+  and longitude (SRS=EPSG:4326) and stretches each square into web Mercator
+  row by row (gibsSquare); the 3857-in-4326 request drew nothing.
+- Atlas regional maps: pic:// protocol cuts north-up pictures into map
+  squares (addPictureSource, picPiece) for the plate, its detail squares and
+  the conflicts page, so the raised globe draws them (image sources vanish
+  with terrain, as the base plate did in 118b). A click on another region of
+  the open layer opens that one (atlasOutsideClick skips clicks on the
+  owner's own layers). The numbered cities' tips have a solid box.
+- Combine ticked layers: moved to the top of the layers menu (comboBox,
+  #combo-box); while on, the combined rows' own marks are hidden
+  (comboHideRows) and come back when it is off; modes and weights explained.
+- F-gases: edgar_fgases_all (route valrelief, addValRelief: height tiles
+  coded as Mapbox terrain, stepped bands and raised, p5 to p99 log) first;
+  tiles edgar_fgases.py adds every gas x IPCC AR5 GWP-100 into one CO2e grid
+  (tiles/edgar_fgases_all.pmtiles and _relief.pmtiles); powerbi_report out of
+  F-gases (it stays under Environmental crime and illegal logging).
+- Methane: carbon_majors and carbon_bombs out; Infrastructure heading gone;
+  Culprits: methane_imeo_plumes, methane_imeo_top50, methane_ct_owners (tiles
+  methane_culprits.py: UNEP IMEO MARS plumes and top-50 sites, CC BY-NC-SA;
+  Climate TRACE assets with owners, CH4), skytruth_fracfocus, bocc; catalogue
+  oil and gas concessions and wells to Culprits.
+- Nitrous oxide: Emissions, then Culprits with h6 headings by source (Tian et
+  al. 2020): Synthetic fertiliser (fertilizer_facilities), Crops
+  (n2o_crop_fertiliser, soybean companies, soy industry bodies, Forest 500
+  soy), Manure and grazing livestock, Fossil fuels and industry, Burning,
+  Waste and wastewater, Fish farming (empty for now). trase_silos_brazil and
+  site_china_grain out (PANEL_REMOVED). n2o_crop_fertiliser: countrycat with
+  categories "auto" (new), tiles fertiliser_by_crop.py (IFA / Ludemann et al.
+  2022 on Dryad, through Dryad's API).
+- Land of Resistance row titled as the Latin America killings layer.
+
 ## Round 119b (30 September)
 
 Needs round 118b. Tiles patch round119b_tiles.py beside it. No app.js?v= bump.

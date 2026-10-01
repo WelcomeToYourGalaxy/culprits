@@ -2521,7 +2521,7 @@ console.log("\nrows gathered, moved and renamed");
         ["trase_pulp_indonesia"].every((i) => order.indexOf(i) > at("Deforestation")) && !order.includes("trase_measures") &&
         ["trase_palm_indonesia"]
           .every((i) => order.lastIndexOf(i) > at("Agriculture") && order.lastIndexOf(i) < at("Meat")) &&
-        order.indexOf("trase_silos_brazil") > at("Nitrous oxide") && order.indexOf("trase_silos_brazil") < at("F-gases") && !order.includes("trase_cocoa_ivory") &&
+        !order.includes("trase_cocoa_ivory") &&
         order.indexOf("trase_meat_brazil") > at("Meat") && order.indexOf("trase_meat_brazil") < at("Oceans") &&
         !order.includes("group:trase_data"));
   check("a group owns its children, so no row is rendered twice and none falls into Not yet placed",
@@ -2982,7 +2982,7 @@ console.log("\nNusantara's layers spread through the box");
         places("Mining concessions").join() === "Destruction > Of the planet > Mining" &&
         places("Plantation land-use rights (HGU)").join() === "Destruction > Of the planet > Meat and agriculture > Agriculture > Cropland > Plantations of no single crop (single crops are under By crop)" &&
         places("Cumulative deforestation for planted pulpwood inside concession trase").includes("Destruction > Of the planet > Deforestation > Wood pulp, Indonesia") &&
-        places("Oil and gas concessions").join() === "Destruction > Of the planet > Climate > Methane > Infrastructure,Destruction > Of the planet > Pollution > Land pollution > Where oil and gas is drilled" &&
+        places("Oil and gas concessions").join() === "Destruction > Of the planet > Climate > Methane > Culprits,Destruction > Of the planet > Pollution > Land pollution > Where oil and gas is drilled" &&
         !/"Destruction > Of the planet > Land held under permit"/.test(src));
   check("\u2026one that names no material or activity goes under Other concessions; rubber under Deforestation",
         places("Rubber plantations 2020, Kalimantan").join() === "Destruction > Of the planet > Deforestation > Timber and rubber plantations" &&
@@ -3004,7 +3004,7 @@ console.log("\nNusantara's layers spread through the box");
         orderH.filter((x) => x === "carbon_plumes").length === 1 && orderH.indexOf("carbon_plumes") > atH("Methane") &&
         orderH.indexOf("carbon_plumes_co2") > atH("Carbon dioxide") && orderH.indexOf("carbon_plumes_co2") < atH("Methane") &&
         orderH.filter((x) => x === "fractracker_refineries").length === 1 &&
-        orderH.indexOf("site_china_grain") > atH("Nitrous oxide") && orderH.indexOf("site_china_grain") < atH("F-gases") &&
+        orderH.indexOf("fertilizer_facilities") > atH("Nitrous oxide") && orderH.indexOf("fertilizer_facilities") < atH("F-gases") &&
         orderH.indexOf("fractracker_refineries") > atH("Carbon dioxide") && orderH.indexOf("fractracker_refineries") < atH("Methane"));
   check("\u2026and every Nusantara alert row is under Deforestation",
         places("Trees cut, Indonesia and Malaysia \u2014 every alert system at once, as Nusantara reads them").join() === "Destruction > Of the planet > Deforestation > Tree cover loss and alerts > Alerts" &&
@@ -3190,8 +3190,8 @@ console.log("\nround of 22 September (2): the box refiled, rows taken out");
   check("DIST-ALERT is under Construction, Biodiversity loss, Fire, Mining and Deforestation",
         f("Global all ecosystem disturbance alerts (DIST-ALERT)") === "(taken out)");  // round 85b: out, the integrated rows hold it
   // Round 23 (item 2): the drilling heading is gone.
-  check("oil and gas concessions go under Methane's infrastructure and where oil and gas is drilled, not Mining (round 75)",
-        f("Oil and gas concessions") === `${P} > Climate > Methane > Infrastructure | ${P} > Pollution > Land pollution > Where oil and gas is drilled`);
+  check("oil and gas concessions go under Methane's culprits (round 120b) and where oil and gas is drilled, not Mining (round 75)",
+        f("Oil and gas concessions") === `${P} > Climate > Methane > Culprits | ${P} > Pollution > Land pollution > Where oil and gas is drilled`);
   check("the named rows are taken out",
         ["Burned areas in WDPA protected areas", "Burned area, two years at a time \u2014 Equatorial Asia",
          "Burned area \u2014 Indonesia"].every((t) => f(t) === "(taken out)"));
@@ -3270,7 +3270,7 @@ console.log("\nthe Atlas's own maps, on this map (22 September)");
   check("a hotspot's box no longer sends the reader to another site; it shows the Atlas's map here",
         /data-atlas-auto="1" data-atlas-plate=/.test(src) && !/Open the Atlas's PDF:/.test(src) && !/Open the Atlas's page for this city<\/a>/.test(src));
   check("opening an Atlas place zooms to it and lays its placed plate over the map, as an image at the plate's four corners",
-        /map\.addSource\("atlas-plate", \{ type: "image", url: plateUrl\(p\.image\), coordinates: p\.corners \}\)/.test(src) &&
+        /addPictureSource\("atlas-plate", plateUrl\(p\.image\), p\.corners\)/.test(src) &&
         /if \(auto\) atlasFrom\(auto, geometryBounds\(hit\.geometry\), hit\.cfg\.id\);/.test(src));
   check("a plate is laid only when it was placed well enough", /p && p\.kept && p\.image/.test(src));
   const gb = new Function(src.slice(src.indexOf("function geometryBounds("), src.indexOf("function atlasPanel(")) + "; return geometryBounds;")();
@@ -3487,14 +3487,14 @@ console.log("\nround of 23 September (11): the modelled farms' squares made ligh
 console.log("\nround of 23 September (12): F-gases from EDGAR");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("EDGAR's gridded F-gas emissions are a row under Climate > F-gases", /\{ h: 4, t: "F-gases" \}, "edgar_fgases",/.test(src) && /edgar_fgases_hfcs\.pmtiles/.test(src));
+  check("EDGAR's gridded F-gas emissions are a row under Climate > F-gases", /\{ h: 4, t: "F-gases" \}, "edgar_fgases_all", "edgar_fgases",/.test(src) && /edgar_fgases_hfcs\.pmtiles/.test(src));
   check("…one chip per gas group EDGAR publishes, never added together", ["hfcs", "pfcs", "sf6", "nf3", "hcfcs"].every((g) => src.includes(`edgar_fgases_${g}.pmtiles`)) && /are not added together/.test(src));
 }
 console.log("\nround of 23 September (13): the crime tracker under every subject it records");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("EIA's Environmental Crime Tracker is copied under illegal logging and F-gases; round 101b: no longer under Of animals",
-        /"Illegal logging and timber trafficking" \}, "powerbi_report"/.test(src) && /"F-gases" \}, "edgar_fgases", "powerbi_report"/.test(src) &&
+  check("EIA's Environmental Crime Tracker is copied under illegal logging and environmental crime, not F-gases (round 120b); round 101b: no longer under Of animals",
+        /"Illegal logging and timber trafficking" \}, "powerbi_report"/.test(src) && !/"F-gases" \}[^\n]*"powerbi_report"/.test(src) && /"Environmental crime" \}[^\n]*"powerbi_report"/.test(src) &&
         !/"Of animals" \}, "powerbi_report"/.test(src));
 }
 console.log("\nround of 23 September (14): the Atlas's city maps laid on the map where placed");
@@ -3602,7 +3602,7 @@ console.log("\nround of 23 September (23): the owner's thirty notes on the layer
   check("2: no Oil and gas drilling heading; the fracking row under Methane's infrastructure; Pennsylvania gone (round 75)",
         at("Oil and gas drilling") === -1 && at("Pennsylvania") === -1 && order.indexOf("skytruth_fracfocus") > at("Methane") &&
         ["skytruth_pa_permits", "skytruth_pa_spud", "skytruth_pa_violations", "skytruth_well_permits"].every((i) => order.indexOf(i) === -1) &&
-        f("Oil and gas concessions — Argentina", "gfw_oil_gas") === `${P} > Climate > Methane > Infrastructure | ${P} > Pollution > Land pollution > Where oil and gas is drilled`);
+        f("Oil and gas concessions — Argentina", "gfw_oil_gas") === `${P} > Climate > Methane > Culprits | ${P} > Pollution > Land pollution > Where oil and gas is drilled`);
   check("3: Trase's shrimp production is out", f("Production of shrimp (t) — Ecuador, Indonesia (Trase)", "SHRIMP_TN") === "(taken out)");
   check("4, 6, 19: the Clark Labs maps of 1999, 2014, 2018 and the 1999 to 2018 change are one row under Fishing only; the other changes are out",
         ["1999", "2014", "2018", "change_1999_2018"].every((y) => f("Aquaculture ponds", `clark_labs_tropical_pond_aquaculture_${y}`) === `${P} > Oceans > Fishing > ${B.ponds}`) &&
@@ -4136,9 +4136,9 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   const fakeBox = { querySelectorAll: (q) => /facet/.test(q) ? [{ querySelectorAll: () => [mk("rgb(1, 2, 3)", " Planted forest "), mk("rgb(1, 2, 3)", "Planted forest"), mk("rgb(4, 5, 6)", "Oil palm")] }] : [] };
   const pairs = lk({ getElementById: () => fakeBox })("forest_management");
   check("\u2026read from the row's key in the layers box, each colour and meaning once", pairs.length === 2 && pairs[0][1] === "Planted forest" && pairs[1][0] === "rgb(4, 5, 6)");
-  check("columns stand at least three footprints tall, and the map tilts once when they first appear",
+  check("columns stand at least three footprints tall, and the map is not tilted for the reader (round 120b)",
         /Math\.max\(mPerPx \* 1\.5, half \* 2 \* COLUMN_STALK\) \+ Math\.sqrt\(v\)/.test(src) && /const COLUMN_STALK = 3;/.test(src) &&
-        /map\.easeTo\(\{ pitch: COLUMN_TILT, duration: 900 \}\)/.test(src));
+        !/map\.easeTo\(\{ pitch: COLUMN_TILT, duration: 900 \}\)/.test(src));
   check("Banking on Climate Chaos is mapped: its banks at their headquarters, every figure in the box", /id: "bocc"[^\n]*route: "geojsonlive"/.test(src) &&
         /culprits-tiles-more\/bocc\/banks\.geojson" \}\], nameFrom: \["bank"\]/.test(src) && /  bocc: "The report's league tables/.test(src));
   check("the page asks for this round's script", appVersion(html) >= 47);
@@ -4728,11 +4728,10 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("methane in the page's order: livestock, fossil fuels, wastewater, rice, landfills; the wells as infrastructure",
         ["climate_trace_ag_enteric_fermentation_cattle_operation", "climate_trace_fossil_fuel_operations", "hydrowaste", "climate_trace_ag_rice_cultivation", "wasteatlas_landfills"]
           .every((id, i, a) => within(id, ch4, n2o) && (!i || o.indexOf(id, ch4) > o.indexOf(a[i - 1], ch4))) &&
-        within("skytruth_fracfocus", h("Infrastructure", ch4), n2o));
+        within("skytruth_fracfocus", h("Culprits", ch4), n2o) && h("Infrastructure", ch4) === -1);
   check("nitrous oxide: manure and fertiliser with the crop areas; soy's companies; silos and grain stores as infrastructure; the largest fertiliser plants",
         ["climate_trace_ag_manure_applied_to_soils", "climate_trace_ag_synthetic_fertilizer_application", "food_soy", "food_maize"].every((id) => within(id, h("Emissions", n2o), h("Culprits", n2o))) &&
-        within("trase_silos_brazil", h("Infrastructure", n2o), fg) && within("site_china_grain", h("Infrastructure", n2o), fg) &&
-        within("fertilizer_facilities", h("Priority emitters", n2o), fg));
+        within("fertilizer_facilities", h("Synthetic fertiliser", n2o), fg) && !o.includes("trase_silos_brazil") && !o.includes("site_china_grain"));
   check("black carbon without the refineries; F-gases before it",
         fg < bc && within("ct_air_bc", bc, h("Overpopulation")) && !within("fractracker_refineries", bc, h("Overpopulation")));
   check("the Pennsylvania rows and the several-gases heading are gone; the waste-to-energy plants are under Solid waste only",
@@ -5618,7 +5617,7 @@ console.log("\nround 108b (28 September): the drag note above Selected Layers, a
   check("with Raise figures as heights on, picture rows rise, and lie flat when it is off",
         /riseRow\(id, vis === "visible"\)/.test(src) && /if \(rowRasterSource\(id\)\) rasterRiseSet\(id, true\);/.test(src) &&
         /Every other layer rises where it covers the ground most/.test(src));
-  check("the active fires come from NASA's 4326 map service asked in web Mercator", /wms\/epsg4326\/best\/wms\.cgi\?SERVICE=WMS&REQUEST=GetMap&VERSION=1\.1\.1/.test(src) && /&SRS=EPSG:3857&BBOX=\{bbox-epsg-3857\}/.test(src));
+  check("the active fires come from NASA's 4326 map service, asked in its own grid and stretched here (round 120b)", /const GIBS_WMS = "https:\/\/gibs\.earthdata\.nasa\.gov\/wms\/epsg4326\/best\/wms\.cgi";/.test(src) && /tiles: "gibs:\/\/\{z\}\/\{x\}\/\{y\}\?LAYERS=VIIRS_SNPP_Thermal_Anomalies_375m_All/.test(src));
   check("the page asks for this round's script", appVersion(html) >= 999);
 }
 console.log("\nround 109b (28 September): shapes raised, the alerts by grade, a colour wheel, the Atlas's cities in the corner panel only");
@@ -5879,6 +5878,34 @@ console.log("\nround 119b (30 September): attacks in plain English and as like l
         /tiles\/homicide_cases\.pmtiles", field: "group"/.test(src));
   check("WJP's 2022 map, from its scores", /id: "wjp_discrimination_2022"[\s\S]{0,1200}field: "score_2022"/.test(src));
   check("every resource trade flow, and every carbon plume page", /trades_all_\$\{year\}\.json/.test(src) && /let rteAll = \[\], rteKeep = 0, rteOne = "";/.test(src) && /const CARBON_PLUME_PAGES = 200;/.test(src));
+}
+console.log("\nround 120b (1 October): news box titles, no automatic tilt, NASA fires, the Atlas's maps as squares, the combined surface on top, F-gases together, methane and nitrous oxide culprits");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const wt = new Function(src.slice(src.indexOf("function wireMarkTitle"), src.indexOf("// The box's filters: a menu for each subject")) + "; return wireMarkTitle;")();
+  check("a news box is titled by the country of its stories, not the first story's subject",
+        wt([{ iso: "br", place: "Deforestation" }, { iso: "BR", place: "Amazon" }], "x") === "Brazil" && wt([{ place: "Lagos" }, { place: "Lagos" }, { place: "Ikeja" }], "x") === "Lagos" && wt([], "") === "News at this place");
+  check("the map is not tilted on its own when a raised row or the columns come on", !/map\.easeTo\(\{ pitch: 50, duration: 800 \}\)/.test(src) && !/map\.easeTo\(\{ pitch: COLUMN_TILT/.test(src));
+  check("NASA's fires are asked in latitude and longitude and stretched into the map's squares", /maplibregl\.addProtocol\("gibs"/.test(src) && /SRS=EPSG:4326&BBOX=\$\{W\},\$\{S\},\$\{E\},\$\{N\}/.test(src));
+  check("the Atlas's maps are cut into map squares, so the raised globe still draws them", /maplibregl\.addProtocol\("pic"/.test(src) && /addPictureSource\("atlas-plate", plateUrl\(p\.image\), p\.corners\)/.test(src) && /addPictureSource\(id, plateUrl\(d\.image\), d\.corners\)/.test(src));
+  check("a click on another region opens it in place of the one open", /map\.queryRenderedFeatures\(e\.point, \{ layers: own \}\)\.length\) return;/.test(src));
+  check("the numbered cities' tips have a solid box", /background:rgba\(16,20,26,0\.96\)/.test(src));
+  check("the combined surface sits at the top of the layers menu, hides the layers it combines, and says what the weights do",
+        /comboBox\(box\);\n  layerSearch\(box\);/.test(src) && /function comboHideRows\(hide\)/.test(src) && /Every layer counts once unless you change it/.test(src) && !/data-sect="combo"/.test(src));
+  const o = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("];", src.indexOf("const PANEL_ORDER = [")) + 2) + "; return PANEL_ORDER;")();
+  const at = (t, from = 0) => o.findIndex((x, i) => i >= from && x && x.t === t);
+  const ch4 = at("Methane"), n2o = at("Nitrous oxide"), fg = at("F-gases");
+  check("F-gases: every gas together first, then gas by gas; the crime tracker not there", o[fg + 1] === "edgar_fgases_all" && o[fg + 2] === "edgar_fgases" && /route: "valrelief"/.test(src));
+  check("methane: no carbon bombs, no Carbon Majors, no Infrastructure; the wells and the culprits under Culprits",
+        at("Infrastructure", ch4) === -1 || at("Infrastructure", ch4) > n2o) &&
+        (at("Priority emitters", ch4) === -1 || at("Priority emitters", ch4) > n2o) &&
+        o.slice(ch4, n2o).indexOf("carbon_majors") === -1 && o.slice(ch4, n2o).indexOf("carbon_bombs") === -1 &&
+        ["methane_imeo_plumes", "methane_ct_owners", "skytruth_fracfocus"].every((id) => o.indexOf(id, ch4) > at("Culprits", ch4) && o.indexOf(id, ch4) < n2o);
+  check("nitrous oxide: Emissions then Culprits by source, fertiliser plants under fertiliser, the soy bodies above the banks, no silos",
+        at("Emissions", n2o) < at("Culprits", n2o) && at("Culprits", n2o) < fg && (at("Infrastructure", n2o) === -1 || at("Infrastructure", n2o) > fg) &&
+        o.indexOf("fertilizer_facilities", n2o) > at("Synthetic fertiliser", n2o) && o.indexOf("soy_organizations", n2o) < o.indexOf("site_forest500_soy", n2o) &&
+        ["Manure and grazing livestock", "Fish farming"].every((t) => at(t, n2o) > -1 && at(t, n2o) < fg) && !o.includes("trase_silos_brazil") && !o.includes("site_china_grain"));
+  check("the crop given the most nitrogen, country by country, its kinds listed from its own data", /id: "n2o_crop_fertiliser"[\s\S]{0,600}categories: "auto"/.test(src) && /if \(cfg\.categories === "auto" \|\| !Array\.isArray\(cfg\.categories\)\)/.test(src));
 }
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
