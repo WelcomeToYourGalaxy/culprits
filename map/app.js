@@ -383,7 +383,7 @@ const LAYERS = [
   { id:"local_projects",       name:"Development projects",    unit:"acres, where the register states them", colour:"#6E7B84", route:"pmtiles", ready:true, off: true,
     isolate:true,
     note: "401,100 filings from 68 registers — mines, pipelines, LNG, offshore wind, and the environmental reviews that precede them. What is about to be built, at the point where it is still a filing." },
-  { id:"gmo_releases",         name:"Genetic-engineering releases", unit:"authorisations", colour:"#7C6F84", route:"pmtiles", ready:true, off: true,
+  { id:"gmo_releases",         name:"Genetic-engineering releases", unit:"authorisations", colour:"#7C6F84", route:"pmtiles", ready:true, off: true, centroids: true,
     facet: { property: "x_register", label: "register",
              values: ["US APHIS BRS","industry register",
                       "CBD Biosafety Clearing-House","clinical trial sponsor",
@@ -391,17 +391,17 @@ const LAYERS = [
     note: "96% of these records carry no site coordinate. APHIS publishes the state a release was authorised in and never the field, so most draw hollow at a state centroid." },
   // The releases archive holds several different registers; each is its own
   // row here, drawn from the same archive with its own filter.
-  { id:"gmo_env", sourceOf:"gmo_releases", name:"Engineered crops and trees released outdoors (US APHIS)", unit:"authorisations", colour:"#7C6F84", route:"pmtiles", ready:true, off: true,
+  { id:"gmo_env", sourceOf:"gmo_releases", centroids: true, name:"Engineered crops and trees released outdoors (US APHIS)", unit:"authorisations", colour:"#7C6F84", route:"pmtiles", ready:true, off: true,
     keys: GMO_REL_KEYS,
     where: ["in", ["coalesce", ["get", "x_src"], ["get", "id"]], ["literal", ["aphis:epermits", "aphis:efile"]]],
     note: "US Department of Agriculture authorisations to release genetically engineered plants and trees into the environment. APHIS publishes the state, not the field, so most draw hollow at a state's centre." },
-  { id:"gmo_decisions", sourceOf:"gmo_releases", name:"National biosafety decisions (CBD Biosafety Clearing-House)", unit:"decisions", colour:"#6F6A84", route:"pmtiles", ready:true, off: true,
+  { id:"gmo_decisions", sourceOf:"gmo_releases", centroids: true, name:"National biosafety decisions (CBD Biosafety Clearing-House)", unit:"decisions", colour:"#6F6A84", route:"pmtiles", ready:true, off: true,
     keys: [GMO_KEY_DECADE],
     where: ["==", ["coalesce", ["get", "x_src"], ["get", "id"]], "bch:decision"] },
-  { id:"gmo_ogtr", sourceOf:"gmo_releases", name:"Gene technology licences (Australia OGTR)", unit:"licences", colour:"#84707A", route:"pmtiles", ready:true, off: true,
+  { id:"gmo_ogtr", sourceOf:"gmo_releases", centroids: true, name:"Gene technology licences (Australia OGTR)", unit:"licences", colour:"#84707A", route:"pmtiles", ready:true, off: true,
     keys: GMO_REL_KEYS,
     where: ["==", ["slice", ["coalesce", ["get", "x_src"], ["get", "id"]], 0, 4], "ogtr"] },
-  { id:"gmo_therapy", sourceOf:"gmo_releases", name:"Gene and cell therapy trial sponsors", unit:"sponsors", colour:"#6E7484", route:"pmtiles", ready:true, off: true,
+  { id:"gmo_therapy", sourceOf:"gmo_releases", centroids: true, name:"Gene and cell therapy trial sponsors", unit:"sponsors", colour:"#6E7484", route:"pmtiles", ready:true, off: true,
     where: ["==", ["coalesce", ["get", "x_src"], ["get", "id"]], "clinical:sponsor"] },
   { id:"gmo_fertility", sourceOf:"gmo_releases", name:"Fertility clinics (Assisted Reproduction)", unit:"clinics", colour:"#846F74", route:"pmtiles", ready:true, off: true,
     where: ["==", ["coalesce", ["get", "x_src"], ["get", "id"]], "industry:repro"] },
@@ -414,22 +414,17 @@ const LAYERS = [
   // Round 71: the records written into the Genetic engineering map's own page
   // (PJ_SEED), which the harvest now adds to projects.json as the map does.
   // The organisations, by the map's own twelve lenses (its source codes).
-  { id:"gmo_industry", sourceOf:"gmo_releases", name:"Genetic-engineering companies, labs, funders, regulators and trade bodies (Genetic engineering map)", unit:"organisations", colour:"#72697E", route:"pmtiles", ready:true, off: true,
-    keys: GMO_ORG_KEYS,
-    where: ["all", ["==", ["slice", ["coalesce", ["get", "x_src"], ["get", "id"]], 0, 9], "industry:"], ["!", ["in", ["coalesce", ["get", "x_src"], ["get", "id"]], ["literal", ["industry:animals", "industry:repro"]]]]],
-    facet: { property: "x_src", label: "lens",
-             values: ["industry:seed", "industry:editing", "industry:synthesis", "industry:cro", "industry:livestock", "industry:wild",
-                      "industry:deextinct", "industry:clinical", "industry:money", "industry:rules"],
-             labels: { "industry:seed": "Seed & Traits", "industry:editing": "Gene Editing & Synthetic Biology",
-                       "industry:synthesis": "DNA Synthesis & Sequencing", "industry:cro": "Contract Research & Manufacturing",
-                       "industry:livestock": "Livestock, Aquaculture & Pets", "industry:wild": "Insects, Microbes & Open Release",
-                       "industry:deextinct": "De-extinction & Conservation Biotech", "industry:clinical": "Human Clinical & Therapeutic",
-                       "industry:money": "Money & Backers", "industry:rules": "Rules, Records & Advocacy" } },
-    note: "The organisations the Genetic engineering map names, each at its head office: the laboratories, plants and fields they run are somewhere else, and almost none of them are published. Filed by the map's own lenses." },
-  { id:"gmo_escapes", sourceOf:"gmo_releases", name:"Escapes and contamination by engineered organisms (Genetic engineering map)", unit:"incidents", colour:"#7E6660", route:"pmtiles", ready:true, off: true,
-    keys: [GMO_KEY_DECADE],
-    where: ["==", ["slice", ["coalesce", ["get", "x_src"], ["get", "id"]], 0, 7], "escape:"],
-    note: "The escapes, unapproved varieties in trade and transgenes in wild relatives the Genetic engineering map records, each placed at the area the record names." },
+  // Round 118b (asked 30 September: "nothing shows"): the organisations and
+  // the escapes are not in the releases archive (the GMO map keeps them in its
+  // page, PJ_SEED); culprits-tiles-more scripts/gmo_seed.py copies them daily.
+  { id:"gmo_industry", name:"Genetic-engineering companies, labs, funders, regulators and trade bodies (Genetic engineering map)", unit:"organisations", colour:"#72697E", route:"geojsonlive", ready:true, off: true, lazy: true, buildScript: "gmo_seed", centroids: true,
+    files: [{ label: "Organisations", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gmo/organisations.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by the map's own lens",
+    waiting: "not built yet: culprits-tiles-more builds it on its next run",
+    note: "The organisations the Genetic engineering map names, each at its head office: the laboratories, plants and fields they run are somewhere else, and almost none of them are published. Filed by the map's own lenses (seed and traits, gene editing, DNA synthesis, contract research, livestock, open release, de-extinction, clinical, money, rules). Copied daily from the map's page by culprits-tiles-more (scripts/gmo_seed.py)." },
+  { id:"gmo_escapes", name:"Escapes and contamination by engineered organisms (Genetic engineering map)", unit:"incidents", colour:"#7E6660", route:"geojsonlive", ready:true, off: true, lazy: true, buildScript: "gmo_seed", centroids: true,
+    files: [{ label: "Escapes", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gmo/escapes.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by crops or animals",
+    waiting: "not built yet: culprits-tiles-more builds it on its next run",
+    note: "The escapes, unapproved varieties in trade and transgenes in wild relatives the Genetic engineering map records, each placed at the area the record names. Copied daily from the map's page by culprits-tiles-more (scripts/gmo_seed.py)." },
   { id:"wastewater_n_tot", name:"Nitrogen entering the sea at each coastal outlet, from all human wastewater (Tuholske et al.)", unit:"grams of nitrogen a year", colour:"#5E7377", route:"pmtiles", ready:true, off: true,
     archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/wastewater_n_tot.pmtiles",
     boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/wastewater/pieces",
@@ -500,7 +495,7 @@ const LAYERS = [
         ["x_armed_interference", "Armed group interfering"], ["x_kiln_kind_in_words", "Kind of kiln"], ["x_kiln_area_m2", "Kiln outline, square metres"],
         ["x_kiln_length_m", "Kiln length, metres"], ["x_kiln_width_m", "Kiln width, metres"], ["x_position", "How it is placed"], ["x_impact", "Impact rating (anti-slavery map)"]],
       skip: ["x_source", "x_precise", "x_picture", "x_box_centre_px", "x_split", "x_also_in_pictures", "x_kiln_size_from", "x_dataset", "source", "unit", "licence", "id"] },
-    note: "Sector infrastructure, not confirmed exploitation. These are sites in sectors where forced and child labour concentrate; where IPIS actually observed it, the site says so. Each brick kiln is placed at the centre of its box in the SentinelKilnDB satellite picture it was found in (within about 60 m): a found position, not an estimate. SentinelKilnDB is a set of satellite pictures chosen to train kiln-finding programs, not a survey of every kiln: it covers only the ground its pictures cover, in South Asia. So where the kilns crowd on the map (and the density bands wide out) shows where the dataset looked and found them, not every place kilns stand; a blank area may simply not be in its pictures. The IPIS mining sites were each visited on the ground in eastern DR Congo." },
+    note: "Sector infrastructure, not confirmed exploitation. These are sites in sectors where forced and child labour concentrate; where IPIS actually observed it, the site says so. Each brick kiln is placed at the centre of its box in the SentinelKilnDB satellite picture it was found in (within about 60 m): a found position, not an estimate. SentinelKilnDB looked at the whole of its study area, about 2.8 million square km of India, Pakistan, Bangladesh and Afghanistan (the brick belt of the Indo-Gangetic plain and beyond), and its makers checked every kiln it holds by eye; its count matches the Uttar Pradesh pollution board's own 2023 survey closely (r = 0.94). So within that area the kilns are all those that could be seen from space, and where they crowd on the map is where they crowd on the ground. Outside it (Nepal, Myanmar and elsewhere) none are drawn because the dataset did not look there, not because there are none. A kiln seen in two overlapping pictures is drawn once. The IPIS mining sites were each visited on the ground in eastern DR Congo." },
   { id:"slavery_ports",        name:"Ports with high-risk vessel calls", unit:"ports", colour:"#5F7480", route:"pmtiles", ready:true, off: true,
     // Round 117b: the copy with the figures in its text as fields (culprits-tiles-more
     // scripts/slavery_points.py); the old one until that has run.
@@ -805,6 +800,13 @@ function gladValue(v, salt) {
     if (idx.every((i) => literal(v[i]))) {
       const spread = gladSpread(v, idx, salt, true);
       if (spread) return spread;
+      // Round 118b: a scale of two colours (too few to spread) is mapped stop
+      // by stop. Wrapped whole, as before, MapLibre read its stops as words
+      // that cannot be blended ("Type string is not interpolatable") and threw
+      // the layer away: the Social Spheres' lines vanished that way.
+      const out = v.slice();
+      for (const i of idx) out[i] = gladCss(v[i], salt);
+      return out;
     } else {
       const out = v.slice();
       for (const i of idx) out[i] = gladValue(out[i], salt);
@@ -913,7 +915,7 @@ maplibregl.addProtocol("gladpx", async (params, abortController) => {
 // Pictures inside this site's own PMTiles archives (the forest management map,
 // the other raster copies): the archive's tiles are mapped as they come out.
 const GLAD_PM_RASTER = new Map();         // archive address -> row
-const GLAD_SKIP_SOURCES = new Set(["base", "s2", "hillshade", "labels"]);
+const GLAD_SKIP_SOURCES = new Set(["base", "s2", "hillshade", "labels", "plate-base"]);
 function gladRowOf(id) {
   if (!gladRowOf.ids) gladRowOf.ids = LAYERS.concat(...GROUPS.map((g) => g.children || [])).filter((c) => c && c.id).map((c) => c.id);
   let best = null;
@@ -948,7 +950,7 @@ function gladSourceSpec(id, spec) {
 // (round 66, asked 26 September): mapped, its land came out purple and its
 // roads violet, which the GLAD mapping was never meant to reach (it says the
 // basemaps are not touched).
-const GLAD_BASE_LAYERS = /^(bg|base|base-s2|base-close|hillshade|labels|atlas-plate.*|sat-relief-seabed|sat-relief-sea|holo-.*|sat-relief-colour|outline-.*)$/;
+const GLAD_BASE_LAYERS = /^(bg|base|plate-base|base-s2|base-close|hillshade|labels|atlas-plate.*|sat-relief-seabed|sat-relief-sea|holo-.*|sat-relief-colour|outline-.*)$/;
 function gladLayer(layer) {
   if (!layer || !layer.id || GLAD_BASE_LAYERS.test(layer.id) || layer.type === "custom" || layer.type === "background" || layer.type === "hillshade") return layer;
   if (gladKept(layer.id)) return layer;
@@ -2155,6 +2157,31 @@ function smallLayerDots(layer) {
   // (as soft orbs) at every zoom, not only from zoom 9, where the glow alone
   // left them too faint to find.
   if (hudOf.has(layer.id) && !(layer.paint && layer.paint["circle-opacity"] !== undefined)) map.setPaintProperty(layer.id, "circle-opacity", 0.9);
+  if (n <= FEW_POINTS) fewBeacon(layer.id);
+}
+// Round 118b (asked 30 September: "layers with almost no points are hard to
+// see; development banks has 2 but I can't even see one of them"): a row of
+// a couple of dozen points or fewer has a wide pale halo round each, under
+// its dot, at every zoom, so each can be found from the world view.
+var FEW_POINTS = 25;
+function fewBeacon(layerId) {
+  const l = map.getLayer && map.getLayer(layerId);
+  const rid = `${layerId}-ring`;
+  if (!l || map.getLayer(rid)) return;
+  const spec = { id: rid, type: "circle", source: l.source,
+    layout: { visibility: (l.layout && l.layout.visibility) || map.getLayoutProperty(layerId, "visibility") || "visible" },
+    paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 13, 4, 16, 8, 20, 12, 24], "circle-color": "#D6EEF6",
+             "circle-opacity": 0.28, "circle-blur": 0.9, "circle-stroke-width": 1, "circle-stroke-color": "rgba(214,238,246,0.55)" } };
+  if (l.sourceLayer) spec["source-layer"] = l.sourceLayer;
+  const f = map.getFilter(layerId);
+  if (f) spec.filter = f;
+  try {
+    map.addLayer(spec, layerId);
+    map.setPaintProperty(layerId, "circle-opacity", 0.95);
+    const row = rowOfLayer(layerId) || layerId.replace(/-(pt|agg)(-part\d+)?$/, "");
+    const cfg = LAYERS.find((c) => c.id === row) || (typeof childById === "function" ? childById(row) : null);
+    if (cfg) cfg._layerIds = (cfg._layerIds || []).concat([rid]);
+  } catch (e) { /* the dots alone */ }
 }
 const OPACITY_PROPS = { fill: ["fill-opacity"], line: ["line-opacity"], circle: ["circle-opacity", "circle-stroke-opacity"],
   raster: ["raster-opacity"], "fill-extrusion": ["fill-extrusion-opacity"], symbol: ["icon-opacity", "text-opacity"], heatmap: ["heatmap-opacity"] };
@@ -3077,18 +3104,58 @@ function ensureBoundaries() {
 // (from the style), then the washes, then the painted plate, then labels and
 // every data layer.
 function addBasemapLayers() {
-  if (map.getLayer("atlas-plate")) return;
+  if (map.getLayer("plate-base")) return;
   map.addLayer(atlasWashes);
-  map.addSource("atlas-plate", { type: "image", url: PLATE.url,
-                                 coordinates: PLATE.coordinates });
+  // Round 118b (asked 30 September: "the globe turned dark black, only
+  // points showed", and "points darkened at global zooms"): an image laid on
+  // the map as one picture is not drawn on the globe once a row raises the
+  // ground (MapLibre's terrain), so with "Raise figures as heights" on the
+  // painted atlas vanished. It is cut into ordinary map squares instead
+  // (platePiece), which the raised globe draws like any other.
+  // Named apart from the Atlas's regional plates (round 118b): opening one
+  // of those took every layer named atlas-plate off the map, the painted
+  // world with it, and it did not come back.
+  map.addSource("plate-base", { type: "raster", tiles: ["plate://{z}/{x}/{y}"], tileSize: 256, maxzoom: 3,
+                                 bounds: [-180, PLATE.coordinates[2][1], 180, PLATE.coordinates[0][1]] });
   map.addLayer({
-    id: "atlas-plate", type: "raster", source: "atlas-plate",
+    id: "plate-base", type: "raster", source: "plate-base",
     // zoom at the top level of the expression: MapLibre rejects it nested.
     paint: { "raster-opacity": ["interpolate", ["linear"], ["zoom"],
                                 PLATE.fadeIn, 1, PLATE.fadeOut, 0],
              "raster-fade-duration": 0 },
   });
 }
+
+// One square of the painted plate. The plate is laid between its corners in
+// the map's own (Mercator) units, so a square's part of it is a plain
+// rectangle of the picture.
+let plateBitmap = null;
+const plateMerc = (lat) => (1 - Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360)) / Math.PI) / 2;
+async function platePiece(z, x, y) {
+  if (!plateBitmap) {
+    plateBitmap = fetch(PLATE.url).then((r) => { if (!r.ok) throw new Error(`${r.status}`); return r.blob(); }).then((b) => createImageBitmap(b));
+    plateBitmap.catch(() => { plateBitmap = null; });
+  }
+  const img = await plateBitmap;
+  const n = Math.pow(2, z), top = plateMerc(PLATE.coordinates[0][1]), bot = plateMerc(PLATE.coordinates[2][1]);
+  const cv = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(256, 256) : Object.assign(document.createElement("canvas"), { width: 256, height: 256 });
+  const ctx = cv.getContext("2d");
+  const y0 = y / n, y1 = (y + 1) / n;
+  // The part of the square the plate covers, and that part of the picture.
+  const a = Math.max(y0, top), b = Math.min(y1, bot);
+  if (b > a) {
+    const sy = (a - top) / (bot - top) * img.height, sh = (b - a) / (bot - top) * img.height;
+    const dy = (a - y0) * n * 256, dh = (b - a) * n * 256;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(img, x / n * img.width, sy, img.width / n, sh, 0, dy, 256, dh);
+  }
+  return rawPng(ctx.getImageData(0, 0, 256, 256).data, 256, 256);
+}
+maplibregl.addProtocol("plate", async (params) => {
+  const m = params.url.match(/^plate:\/\/(\d+)\/(\d+)\/(\d+)/);
+  if (!m) throw new Error("not a plate square");
+  return { data: await platePiece(Number(m[1]), Number(m[2]), Number(m[3])) };
+});
 
 // Drawn under the washes and plate, which are both off while it shows. Added
 // the first time outlines are chosen, not on load: the boundary file is 1.7 MB
@@ -3203,7 +3270,7 @@ function setBasemap(kind) {
   show("base-close", kind === "satellite" && SAT_CLOSE.s2);
   // Esri's relief tiles on the atlas only; the Satellite basemap has its own.
   show("hillshade", kind === "atlas" && !TERRAIN_ON);
-  show("atlas-plate", kind === "atlas");
+  show("plate-base", kind === "atlas");
   if (kind === "satellite") addSatelliteRelief();
   show("sat-relief-colour", kind === "satellite");
   show("sat-relief-shade", kind === "satellite");
@@ -3622,7 +3689,13 @@ function watchForLeaving() {
 // up), the one round projection that carries terrain; the flat map stays flat.
 function drawnProjection(kind) {
   const p = VIEWS[kind || VIEW].projection;
-  return TERRAIN_ON && p !== "mercator" ? "globe" : p;
+  // Round 118b: a row raised as ground (Raise figures as heights) carries
+  // terrain too. Without this the globe was drawn in the round view that
+  // cannot carry it, and went dark under the raised rows' points (the owner:
+  // "turned the atlas/globe dark black; only points showed"; the richest
+  // dynasties "darkened at global zooms except when zooming").
+  const raised = typeof reliefStack !== "undefined" && reliefStack.length > 0;
+  return (TERRAIN_ON || raised) && p !== "mercator" ? "globe" : p;
 }
 
 function setView(kind) {
@@ -4134,6 +4207,18 @@ function colouringExpression(c, year) {
   return ["case", ["has", prop], expr, COLOURING_NONE];
 }
 
+function colouringHeight(c, year) {
+  const prop = String(c.prop || c.k).replace("{year}", year != null ? year : (c.year != null ? c.year : ""));
+  const n = (c.colours || []).length || 1;
+  if (Array.isArray(c.scores)) {
+    const pairs = [];
+    c.scores.forEach((sc, i) => pairs.push(sc, (i + 1) / n));
+    return ["match", ["to-number", ["get", prop], -1], ...pairs, 0];
+  }
+  const expr = ["step", ["to-number", ["get", prop], 0], 1 / n];
+  (c.breaks || []).forEach((b, i) => expr.push(b, (i + 2) / n));
+  return ["case", ["has", prop], expr, 0];
+}
 function colouringLegend(c) {
   return c.colours.map((col, i) =>
     `<span class="sm-key"><i style="background:${col}"></i>${escapeHtml((c.labels || [])[i] || "")}</span>`).join("");
@@ -4184,6 +4269,8 @@ function applySitemapColouring(id) {
   map.setPaintProperty(`${id}-fill`, "fill-color", colouringExpression(c, year));
   map.setPaintProperty(`${id}-fill`, "fill-opacity", 0.6);
   map.setPaintProperty(`${id}-fill`, "fill-outline-color", state.edge || "#1D1B17");
+  // Round 118b: each area as tall as its step of the measure chosen.
+  try { rowLift(id, `${id}-fill`, colouringHeight(c, year)); } catch (e) { /* stays flat */ }
 }
 
 function sitemapColourClicked(btn) {
@@ -6431,6 +6518,18 @@ const FIELD_WORDS = {
   eqmagnitude: "Earthquake magnitude", vei: "Volcanic Explosivity Index (0 to 8)", maxwaterheight: "Highest wave (metres)",
   imo: "IMO number (ship's permanent ID)", ircs: "Radio call sign", mmsi: "MMSI (ship's radio ID)", rfmo: "Regional fisheries body",
   coverage_type: "Mobile signal at the school", coverage_status: "Mobile coverage", connectivity_status: "Internet connection",
+  // Round 118b: LandMark's and FUNAI's own column names, in words.
+  identity: "Held by (Indigenous Peoples or a local community)", form_rec: "Recognised by the government?", doc_status: "Documented how",
+  stat_date: "Date of that status", stat_note: "Note on its status", ethncty_1: "People", populatn: "Population", pop_source: "Source of the population figure",
+  area_ofcl: "Area, hectares (official)", area_gis: "Area, hectares (as drawn)", gfw_area__ha: "Area, hectares (as Global Forest Watch measures the outline)",
+  scale: "Scale", method: "How the outline was made", data_ctrb: "Data given by", data_src: "Source",
+  data_src_s: "Source (short)", data_src_l: "Source (link)", data_date: "Date of the data", add_note: "Note", more_info: "More information",
+  layer: "Layer", download: "Download", iso_code: "Country code", landmark_id: "LandMark record number", nat_resrc: "Resource the right is to",
+  terrai_cod: "FUNAI territory number", terrai_nom: "Territory", etnia_nome: "People", municipio_: "Municipalities", uf_sigla: "State",
+  superficie: "Area, hectares (FUNAI)", fase_ti: "Stage of legal recognition", modalidade: "Kind of territory", reestudo_t: "Under review again?",
+  cr: "FUNAI regional office", faixa_fron: "In the border strip?", undadm_cod: "Administrative unit number", undadm_nom: "Administrative unit",
+  undadm_sig: "Administrative unit (short)", dominio_un: "Union land?", data_atual: "Updated",
+  legal_term: "Legal form of the right", current_avg_scr: "Average legal security score", current_avg_scr_cat: "Average legal security score, in steps",
 };
 const FIELD_TOKENS = { pct: "%", yr: "year", yrs: "years", amt: "amount", avg: "average", qty: "quantity", cnt: "count", num: "number",
   km2: "km\u00b2", co2: "CO\u2082", usd: "US$", desc: "description", addr: "address", govt: "government", intl: "international", natl: "national",
@@ -6765,7 +6864,10 @@ function colourByAmount(cfg, items) {
   const label = (i) => i === 0 ? `under ${fmt(steps[0])} ${cb.unit}` : i === steps.length ? `${fmt(steps[i - 1])} ${cb.unit} or more` : `${fmt(steps[i - 1])} to ${fmt(steps[i])} ${cb.unit}`;
   let none = 0;
   for (const it of items) {
-    if (it._v == null) { it.colour = AMOUNT_NONE; it.group = "No figure given"; none++; }
+    // Round 118b (asked 30 September: "no figure given" and the top step
+    // looked alike): a place with no figure is an empty ring, so it reads as
+    // missing whatever the colours.
+    if (it._v == null) { it.colour = AMOUNT_NONE; it.group = "No figure given"; it.hollow = true; none++; }
     else {
       let i = 0; while (i < steps.length && it._v >= steps[i]) i++;
       it.colour = AMOUNT_RAMP[i];
@@ -6780,7 +6882,7 @@ function colourByAmount(cfg, items) {
   }
   const key = AMOUNT_RAMP.map((c, i) => [c, label(i)]);
   if (estimated) key.push([AMOUNT_RAMP[3], "ring: estimated from the people working informally there"]);
-  if (none) key.push([AMOUNT_NONE, "no figure given"]);
+  if (none) key.push([AMOUNT_NONE, "grey empty ring: no figure given"]);
   return { key, hint: `Coloured by ${cb.field.toLowerCase()}`, note: estimated ? `${estimated} estimated from ${cb.estimate.field.toLowerCase()}` : "" };
 }
 
@@ -6988,7 +7090,7 @@ function pcRender(id) {
   el.innerHTML = `<div style="font-size:10.5px;color:var(--dim)">Colour the points by ` +
     `<select data-pc="${escapeHtml(id)}" aria-label="Colour the points by" style="font:inherit;font-size:11px;max-width:100%">` +
     st.choices.map((c, i) => `<option value="${i}"${i === st.pick ? " selected" : ""}>${escapeHtml(c.label)}</option>`).join("") +
-    `<option value="-1"${st.pick < 0 ? " selected" : ""}>${st.own ? `as the row draws them (${escapeHtml(String(st.own).replace(/^Coloured by /i, "").toLowerCase())})` : "one colour (the row's own look)"}</option></select></div>` +
+    (st.cfg.noOneColour ? "" : `<option value="-1"${st.pick < 0 ? " selected" : ""}>${st.own ? `as the row draws them (${escapeHtml(String(st.own).replace(/^Coloured by /i, "").toLowerCase())})` : "one colour (the row's own look)"}</option>`) + `</select></div>` +
     (ch && ch.hint ? `<div style="font-size:10.5px;color:var(--dim)">${escapeHtml(ch.hint)}</div>` : "") +
     (ch ? pcKeyPairs(ch).map(([c, t]) => `<div class="lg-row lg-sub"><span class="lg-sw lg-key" data-glad="1" style="background:${c}"></span><span class="lg-nm">${escapeHtml(t)}</span></div>`).join("") : "");
 }
@@ -7047,7 +7149,7 @@ function pcSetup(cfg, choices, kind, own) {
   if (!list.length) return;
   // A row that colours its points already (by kind, or by a figure) opens as
   // it always has, unless its settings name a choice.
-  const start = cfg.colourPick != null ? cfg.colourPick : own ? -1 : 0;
+  const start = cfg.colourPick != null ? cfg.colourPick : own && !cfg.noOneColour ? -1 : 0;
   const st = { cfg, choices: list, pick: Math.min(Math.max(-1, start), list.length - 1),
     orig: new Map(), kind, own: own || "", keptBefore: !!cfg.keepColour };
   POINT_COLOUR.set(cfg.id, st);
@@ -7068,6 +7170,8 @@ async function pointColourPmtiles(cfg, archive, owner) {
     attrs = (lay && lay.attributes) || [];
     count = (lay && lay.count) || 0;
   } catch (e) { /* no statistics: only the named choices */ }
+  // A row of a few points is given halos to be found by (round 118b).
+  if (count > 0 && count <= FEW_POINTS && !cfg.standout) fewBeacon(map.getLayer(`${cfg.id}-agg`) ? `${cfg.id}-agg` : `${cfg.id}-pt`);
   const have = new Map(attrs.map((a) => [a.attribute, a]));
   const named = (cfg.colourChoices || []).filter((c) => !have.size || have.has(c.field)).map((c) => Object.assign({}, c, { _vals: (have.get(c.field) || {}).values || [] }));
   const auto = cfg.colourAuto === false ? [] : pcFromStats(attrs, count, cfg.unit).filter((c) => !named.some((n) => n.field === c.field));
@@ -8128,7 +8232,6 @@ const BUNDLES = {
   // Round 72: Brazil's own registers of Indigenous territories (FUNAI) and
   // quilombola territories (INCRA) are parts of this layer, at the owner's word.
   landmark: "Indigenous Peoples' and local communities' lands and territories, worldwide (LandMark, with Brazil's FUNAI)",
-  military: "Wars, militaries and weapons, past and current",
   // Round 85b (asked 27 September): Wageningen University's drivers of each
   // recent alert (10 m, the Amazon, Congo and Indonesia's basins, 2022 on) as
   // parts of one layer with Curtis et al.'s drivers of loss since 2001
@@ -8138,7 +8241,6 @@ const BUNDLES = {
   // the same thing (Brazil, Cote d'Ivoire, Ghana, Indonesia; Argentina, Paraguay).
   deforemis: "Gross emissions from deforestation, tonnes of CO2 equivalent, by region (Trase)",
   drivers: "Tree cover loss by dominant driver, worldwide since 2001 (Curtis et al., with the other records of the same title)",
-  milcompare: "Armies, spending and nuclear weapons, country by country",
   // Round 72: the two resource rights rows are one layer, at the owner's word.
   resrights: "Community rights to natural resources, worldwide and in Cameroon, Equatorial Guinea, Liberia and Namibia (LandMark and Global Forest Watch)",
   landghg: "Greenhouse gases from farmland and livestock, CO2 equivalent (WRI land greenhouse gas monitoring system)",
@@ -8273,7 +8375,7 @@ const CATALOGUE_BY_TITLE = [
   [/\bumd_soy_planted_area(_buffered_10km)?\b|\bmapspam_yield_soyb\b/, [P + " > Climate > Nitrous oxide > Emissions", CROPS + " > Soy"]],
   // ---- 28 September (round 99b), at the owner's word --------------------
   // Global Safety Net's layers, each where it belongs.
-  [/^ITT's Recognized \(Global Safety Net\)/, ["On-planet invasion > Invasion of the living > Invasion of humans"]],
+  [/^ITT's Recognized \(Global Safety Net\)/, ["On-planet invasion > Invasion of the living > Invasion of humans > Where Indigenous peoples and local communities live"]],
   // The black copy of the human modification index is the white one's data in
   // another colour (the same asset, the same value 1); the land outline adds nothing.
   [/^(Modified Land \(HM90\)|Land) \(Global Safety Net\)/, null],
@@ -8403,6 +8505,9 @@ const CATALOGUE_BY_TITLE = [
   // Round 75 (27 September): INCRA's quilombola communities taken out, at the owner's word.
   [/\bincra_bra_quilombola_communities\b|quilombola/i, null],
   [/\blandmark_natural_resource_rights\b|\bgfw_resource_rights\b/, [IN("On-planet invasion > Invasion of the living > Invasion of humans", "resrights")]],
+  // Round 118b (asked 30 September): Invasion of humans in subheadings.
+  [/\blandmark_tenure_indicators_(comm|ip)\b/, ["On-planet invasion > Invasion of the living > Invasion of humans > Quality of laws protecting their land"]],
+  [/\blandmark_(indigenous_population|percent_of_land_indigenous)_per_country\b/, ["On-planet invasion > Invasion of the living > Invasion of humans > Where Indigenous peoples and local communities live"]],
   [/\bfao_forestry_employment\b/, null],
   [/socialforestry(hk|hadat|wiladat|hd)_spv/, null],
   [/\blandmark_icls\b|\blandmark_indigenous_and_community_lands(_points)?\b|\blandmark_indicative_lands(_points)?\b|\blandmark_ip_lc_and_indicative_poly_preprocessed\b|\bgfw_indigenous_community_and_indicative_lands\b/, null],
@@ -8920,6 +9025,9 @@ const CATALOGUE_PLAIN = {
   landmark_natural_resource_rights: "Community rights to natural resources such as forests and water (LandMark)",
   landmark_tenure_indicators_comm: "How well each country's laws protect local communities' land (LandMark)",
   landmark_tenure_indicators_ip: "How well each country's laws protect Indigenous Peoples' land (LandMark)",
+  // Round 118b (asked 30 September: the titles were not well put).
+  landmark_indigenous_population_per_country: "Indigenous Peoples' share of each country's population (LandMark)",
+  landmark_percent_of_land_indigenous_per_country: "Share of each country's land held by Indigenous Peoples and local communities (LandMark)",
   lapig_degraded_pasture: "Worn-out pasture, Brazil (LAPIG)",
   lbr_development_exploration_license: "Mining development and exploration licences, Liberia",
   lbr_mineral_development_agreement: "Mining deals signed with the government, Liberia (mineral development agreements)",
@@ -9819,8 +9927,12 @@ const GFW_COLOUR_BY = {
   landmark_ip_lc_and_indicative_points: { fields: ["identity", "form_rec"], say: "who holds it, and whether the government acknowledges it" },
   landmark_natural_resource_rights: { fields: ["nat_resrc"], say: "the resource the right is to" },
   gfw_resource_rights: { fields: ["legal_term"], say: "the legal form of the right" },
-  landmark_tenure_indicators_ip: { fields: ["current_avg_scr_cat"], orderBy: "current_avg_scr", say: "LandMark's average score over its ten indicators of legal security" },
-  landmark_tenure_indicators_comm: { fields: ["current_avg_scr_cat"], orderBy: "current_avg_scr", say: "LandMark's average score over its ten indicators of legal security" },
+  // Round 118b (asked 30 September: "does lighter mean better or worse?"):
+  // the key says it. LandMark scores each country's laws on ten indicators of
+  // legal security; a higher score is more secure land. Light to dark is
+  // lowest to highest score.
+  landmark_tenure_indicators_ip: { fields: ["current_avg_scr_cat"], orderBy: "current_avg_scr", say: "LandMark's average score over its ten indicators of legal security. Lighter: the laws protect the land less; darker: they protect it more" },
+  landmark_tenure_indicators_comm: { fields: ["current_avg_scr_cat"], orderBy: "current_avg_scr", say: "LandMark's average score over its ten indicators of legal security. Lighter: the laws protect the land less; darker: they protect it more" },
   landmark_percent_of_land_indigenous_per_country: { fields: ["ic_t_cat"], ordered: true, say: "the share of the country's land held by Indigenous Peoples and communities" },
   landmark_indigenous_population_per_country: { fields: ["pctcat"], ordered: true, say: "the Indigenous share of the country's population" },
   // Round 87b (asked 27 September: all one colour, nothing to read).
@@ -9885,6 +9997,24 @@ function gfwKindColours(order, spec) {
   const col = new Map(said.map((k, i) => [k, !(spec.orderBy || spec.ordered) ? GFW_KINDS[i % GFW_KINDS.length]
     : GFW_STEPS[n === 1 ? 2 : Math.round(i * (GFW_STEPS.length - 1) / (n - 1))]]));
   return order.map((k) => col.get(k) || "#77726A");
+}
+// Round 118b (asked 30 September: "make the name of a selected area the name
+// of the people there, like Vale do Javari"; "get rid of those technical
+// abbreviations in the boxes"; "what is the GFW id?"): a record's box opens
+// with the place's own name, then the people who hold it, then the dataset;
+// the fields in words; Global Forest Watch's own bookkeeping (its record
+// number, its stored-shape id, when it loaded the record) left out.
+const GFW_NAME_FIELDS = ["name", "terrai_nom", "Name", "NAME", "nome", "nom", "nombre", "site_name", "area_name", "comm_name"];
+const GFW_PEOPLE_FIELDS = ["ethncty_1", "etnia_nome", "ethnicity", "people", "peoples"];
+const GFW_HIDDEN = new Set(["gfw_fid", "gfw_geostore_id", "gfw_bbox", "gfw_geojson", "created_on", "updated_on", "shape_length", "shape_area", "epsg", "gid", "cartodb_id"]);
+function gfwRecordBox(d, p) {
+  const name = GFW_NAME_FIELDS.map((k) => p[k]).find((v) => v != null && String(v).trim() !== "");
+  const people = GFW_PEOPLE_FIELDS.map((k) => p[k]).find((v) => v != null && String(v).trim() !== "");
+  const rest = Object.fromEntries(Object.entries(p).filter(([k]) => !GFW_HIDDEN.has(k)));
+  return `<b>${escapeHtml(String(name || d.title))}</b>` +
+    (people ? `<div class="meta">People: ${escapeHtml(String(people))}</div>` : "") +
+    (name ? `<div class="meta">${escapeHtml(d.title)}</div>` : "") +
+    `<table class="meta">${fieldRows(rest)}</table>`;
 }
 function gfwColourBy(d, src, names, ids) {
   const spec = GFW_COLOUR_BY[d.id];
@@ -10151,7 +10281,7 @@ async function addGfwMenuLayer(cfg) {
           map.addLayer({ id: `${src}-p-${safe(n)}`, type: "circle", ...base, filter: ["==", ["geometry-type"], "Point"], paint: { "circle-color": neon, "circle-radius": 3, "circle-stroke-width": 0.5, "circle-stroke-color": "#17150F" } });
           for (const id of [`${src}-f-${safe(n)}`, `${src}-l-${safe(n)}`, `${src}-p-${safe(n)}`]) {
             ids.push(id);
-            bindHtmlPopup(id, (p) => `<b>${escapeHtml(d.title)}</b><table class="meta">${fieldRows(p)}</table>`);
+            bindHtmlPopup(id, (p) => gfwRecordBox(d, p));
           }
         }
         const stop = gfwColourBy(d, src, names.length ? names : [d.id, "default"], ids);
@@ -10726,6 +10856,44 @@ function rteArc(a, b, steps = 24) {
   }
   return out;
 }
+// Round 118b: a row that stands for several (cfg.parts, [id, words]); the
+// menu under it picks which part is drawn. The parts' rows are out of the
+// menu, in the hidden holder, and are ticked and unticked from here.
+const SWITCH_PICK = new Map();
+function switchPartBox(id) {
+  return (typeof document !== "undefined" && document.querySelector) ? document.querySelector(`[data-layer="${id}"]`) : null;
+}
+function switchTick(id, on) {
+  const el = switchPartBox(id);
+  if (el && el.checked !== on) {
+    el.checked = on;
+    if (typeof el.dispatchEvent === "function" && typeof Event === "function") el.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+}
+function switchShow(cfg, on) {
+  const pick = SWITCH_PICK.get(cfg.id) || cfg.parts[0][0];
+  for (const [pid] of cfg.parts) switchTick(pid, on && pid === pick);
+}
+function addSwitchLayer(cfg) {
+  setLayerState(cfg.id, `${cfg.parts.length} views: pick one in the menu under the row`);
+  const row = switchPartBox(cfg.id);
+  const anchor = row && row.closest ? row.closest("label") : null;
+  if (!anchor || !anchor.after || document.querySelector(`[data-switch-for="${cfg.id}"]`)) return;
+  const el = document.createElement("div");
+  el.className = "facet";
+  el.dataset.switchFor = cfg.id;
+  el.style.cssText = "padding-left:18px;font-size:10.5px;color:var(--dim)";
+  el.innerHTML = `Show <select data-sw style="font:inherit;font-size:11px;max-width:100%">` +
+    cfg.parts.map(([pid, words]) => `<option value="${pid}">${escapeHtml(words)}</option>`).join("") + `</select>`;
+  anchor.after(el);
+  const sel = el.querySelector("[data-sw]");
+  sel.value = SWITCH_PICK.get(cfg.id) || cfg.parts[0][0];
+  sel.addEventListener("change", () => {
+    SWITCH_PICK.set(cfg.id, sel.value);
+    switchShow(cfg, !!(row && row.checked));
+  });
+}
+
 async function addRteLayer(cfg) {
   let models;
   try { models = await rteGet(cfg, "/models", "models.json"); }
@@ -10824,8 +10992,69 @@ async function addRteLayer(cfg) {
     el.after(key);
   }
   await draw(years[0]);
+  rteHover(cfg, () => rteAll, C);
   applyVisibility(cfg.id);
   buildLegend();
+}
+// Round 118b (asked 30 September: "too busy; when hovering over a country,
+// lines to and from it and the countries at their other ends should highlight
+// alone, the rest dim"): the pointer over a country brings its flows and its
+// partners forward, and fades every other flow back.
+function rteHover(cfg, flows, C) {
+  if (typeof ensureBoundaries !== "function" || typeof map.queryRenderedFeatures !== "function") return;
+  ensureBoundaries();
+  // resourcetrade.earth numbers its countries (UN codes); the map's country
+  // shapes go by three-letter codes: matched by name.
+  const isoOf = new Map(), idOf = new Map();
+  const norm = (x) => String(x || "").toLowerCase().replace(/[^a-z]/g, "");
+  getJson(BOUNDARIES_URL, 60000).then((b) => {
+    const byName = new Map((b.features || []).map((f) => [norm(f.properties.name), f.properties.iso3]));
+    for (const [id, c] of C) {
+      const iso = byName.get(norm(c.name)) || byName.get(norm(c.alt_name)) || byName.get(norm(c.map_name));
+      if (iso) { isoOf.set(String(id), iso); idOf.set(iso, String(id)); }
+    }
+  }).catch(() => { /* no names: no highlight */ });
+  const key = `rte_${cfg.id}`, lid = `${cfg.id}-cty`;
+  if (!map.getLayer(lid)) {
+    map.addLayer({ id: lid, type: "fill", source: "boundaries",
+      paint: { "fill-color": ["case", ["==", ["feature-state", key], 2], "#1D2B45", "#8FD6E8"],
+               "fill-opacity": ["case", ["==", ["feature-state", key], 2], 0.35, ["==", ["feature-state", key], 1], 0.3, 0] } }, `${cfg.id}-line`);
+    cfg._layerIds = (cfg._layerIds || []).concat([lid]);
+  }
+  const baseOpacity = map.getPaintProperty(`${cfg.id}-line`, "line-opacity");
+  let now = null, marked = [], frame = null;
+  const set = (iso) => {
+    if (iso === now) return;
+    now = iso;
+    for (const m of marked) map.setFeatureState({ source: "boundaries", id: m }, { [key]: 0 });
+    marked = [];
+    if (!iso) { map.setPaintProperty(`${cfg.id}-line`, "line-opacity", baseOpacity); return; }
+    const id = idOf.get(iso);
+    const mine = ["any", ["==", ["to-string", ["get", "ex"]], id], ["==", ["to-string", ["get", "im"]], id]];
+    map.setPaintProperty(`${cfg.id}-line`, "line-opacity", ["case", mine, 0.95, 0.05]);
+    const partners = new Set();
+    for (const f of flows() || []) {
+      const p = f.properties || {};
+      if (String(p.ex) === id && isoOf.has(String(p.im))) partners.add(isoOf.get(String(p.im)));
+      if (String(p.im) === id && isoOf.has(String(p.ex))) partners.add(isoOf.get(String(p.ex)));
+    }
+    for (const q of partners) { map.setFeatureState({ source: "boundaries", id: q }, { [key]: 1 }); marked.push(q); }
+    map.setFeatureState({ source: "boundaries", id: iso }, { [key]: 2 });
+    marked.push(iso);
+  };
+  map.on("mousemove", (e) => {
+    if (frame) return;
+    frame = requestAnimationFrame(() => {
+      frame = null;
+      if ((visibility.get(cfg.id) || "visible") !== "visible" || !map.getLayer(lid)) { set(null); return; }
+      const hit = map.queryRenderedFeatures(e.point, { layers: [lid] })[0];
+      const iso = hit ? String(hit.id || (hit.properties || {}).iso3 || "") : "";
+      // Only a country that trades in the flows shown takes the highlight.
+      const id = idOf.get(iso);
+      set(id && (flows() || []).some((f) => String(f.properties.ex) === id || String(f.properties.im) === id) ? iso : null);
+    });
+  });
+  if (map.getCanvas) map.getCanvas().addEventListener("mouseleave", () => set(null));
 }
 
 /* ---------- a whole map of the site's own, in a panel that follows this one ---------- */
@@ -11523,11 +11752,22 @@ const TRACKER_MEASURES = {
       colours: [TRACKER_DIV[7], TRACKER_DIV[6], TRACKER_DIV[5], TRACKER_DIV[3], TRACKER_DIV[2], TRACKER_DIV[1], TRACKER_DIV[0]],
       names: ["cut by 2 points or more", "cut by 0.5 to 2 points", "cut by less than 0.5", "unchanged", "raised by less than 0.5", "raised by 0.5 to 2 points", "raised by 2 points or more"] },
   ],
+  // Round 118b (asked 30 September: "confusing ... a layer normally shows one
+  // or the other"): surplus and deficit are chosen in the menu, one at a time,
+  // each shaded light to dark by its own size; the other side is left clear.
   imbalances: [
-    { key: "BCA_NGDPD", label: "current account balance, % of GDP", breaks: [-10, -5, -2, 0, 2, 5, 10], colours: TRACKER_DIV,
-      names: ["deficit of 10% or more", "deficit of 5 to 10%", "deficit of 2 to 5%", "deficit under 2%", "surplus under 2%", "surplus of 2 to 5%", "surplus of 5 to 10%", "surplus of 10% or more"] },
-    { key: "BCA", label: "current account balance, billions of US dollars", breaks: [-300, -100, -20, 0, 20, 100, 300], colours: TRACKER_DIV,
-      names: ["deficit of 300 or more", "deficit of 100 to 300", "deficit of 20 to 100", "deficit under 20", "surplus under 20", "surplus of 20 to 100", "surplus of 100 to 300", "surplus of 300 or more"] },
+    { key: "BCA_NGDPD", sign: 1, plain: "current account balance, % of GDP", label: "surplus: sells abroad more than it buys, % of its GDP",
+      breaks: [2, 5, 10], colours: ["#A6D3CC", "#529FAF", "#2F6195", "#233F80"],
+      names: ["surplus under 2% of GDP", "surplus of 2 to 5%", "surplus of 5 to 10%", "surplus of 10% or more"] },
+    { key: "BCA_NGDPD", sign: -1, plain: "current account balance, % of GDP", label: "deficit: buys abroad more than it sells, % of its GDP",
+      breaks: [2, 5, 10], colours: ["#A6D3CC", "#529FAF", "#2F6195", "#233F80"],
+      names: ["deficit under 2% of GDP", "deficit of 2 to 5%", "deficit of 5 to 10%", "deficit of 10% or more"] },
+    { key: "BCA", sign: 1, plain: "current account balance, billions of US dollars", label: "surplus: sells abroad more than it buys, billions of US dollars",
+      breaks: [20, 100, 300], colours: ["#A6D3CC", "#529FAF", "#2F6195", "#233F80"],
+      names: ["surplus under 20 billion", "surplus of 20 to 100 billion", "surplus of 100 to 300 billion", "surplus of 300 billion or more"] },
+    { key: "BCA", sign: -1, plain: "current account balance, billions of US dollars", label: "deficit: buys abroad more than it sells, billions of US dollars",
+      breaks: [20, 100, 300], colours: ["#A6D3CC", "#529FAF", "#2F6195", "#233F80"],
+      names: ["deficit under 20 billion", "deficit of 20 to 100 billion", "deficit of 100 to 300 billion", "deficit of 300 billion or more"] },
   ],
 };
 function trackerClass(m, v) { let i = 0; while (i < m.breaks.length && v >= m.breaks[i]) i++; return i; }
@@ -11543,7 +11783,10 @@ function trackerValue(cfg, d, iso, m, p) {
     return typeof now === "number" && typeof then === "number" ? Math.round((now - then) * 1000) / 1000 : null;
   }
   const v = (c[m.key] || {})[p];
-  return typeof v === "number" ? v : null;
+  if (typeof v !== "number") return null;
+  // One side at a time (round 118b): the size of a surplus, or of a deficit.
+  if (m.sign) return Math.sign(v) === m.sign ? Math.abs(v) : null;
+  return v;
 }
 async function addTrackerLayer(cfg) {
   let d, shapes;
@@ -11573,6 +11816,14 @@ async function addTrackerLayer(cfg) {
     }
     expr.push("rgba(0,0,0,0)");
     if (map.getLayer(`${cfg.id}-fill`)) map.setPaintProperty(`${cfg.id}-fill`, "fill-color", n ? expr : "rgba(0,0,0,0)");
+    // Round 118b: each country as tall as its own step, not the continent as ground.
+    const lift = ["match", ["get", "iso3"]];
+    for (const iso of Object.keys(d.countries)) {
+      const v = trackerValue(cfg, d, iso, m, p);
+      if (v !== null) lift.push(iso, (trackerClass(m, v) + 1) / m.colours.length);
+    }
+    lift.push(0);
+    if (map.getLayer(`${cfg.id}-fill`)) rowLift(cfg.id, `${cfg.id}-fill`, lift.length > 3 ? lift : 0);
     const box = document.querySelector(`.facet[data-tracker-for="${cfg.id}"]`);
     if (box) {
       box.querySelector("[data-tr-at]").textContent = fmtP(p);
@@ -11599,11 +11850,13 @@ async function addTrackerLayer(cfg) {
         `<div class="meta">Every change (${steps.length.toLocaleString()}), newest first:</div>` +
         `<div class="meta" style="max-height:200px;overflow:auto">${steps.map((mo) => `${escapeHtml(mo)}: ${n(c.rates[mo])}%`).join("<br>")}</div>`;
     } else {
-      body = measures.map((m) => `<div class="meta">${escapeHtml(m.label)}, ${escapeHtml(fmtP(p))}: ${n((c[m.key] || {})[p], 1)}</div>`).join("") +
-        `<div class="meta" style="max-height:200px;overflow:auto"><table class="meta"><tr><th>year</th>${measures.map((m) => `<th>${escapeHtml(m.key === "BCA" ? "US$ bn" : "% of GDP")}</th>`).join("")}</tr>` +
-        periods.slice().reverse().filter((y) => measures.some((m) => typeof (c[m.key] || {})[y] === "number"))
-          .map((y) => `<tr><td>${escapeHtml(y)}${y >= thisYear ? "*" : ""}</td>${measures.map((m) => `<td>${n((c[m.key] || {})[y], 1)}</td>`).join("")}</tr>`).join("") +
-        `</table></div><div class="meta">* the IMF's forecast</div>`;
+      const one = [...new Map(measures.map((m) => [m.key, m])).values()];
+      const said = (v) => (typeof v !== "number" ? "no figure" : v >= 0 ? `surplus of ${n(v, 1)}` : `deficit of ${n(-v, 1)}`);
+      body = one.map((m) => `<div class="meta">${escapeHtml(m.plain || m.label)}, ${escapeHtml(fmtP(p))}: ${said((c[m.key] || {})[p])}</div>`).join("") +
+        `<div class="meta" style="max-height:200px;overflow:auto"><table class="meta"><tr><th>year</th>${one.map((m) => `<th>${escapeHtml(m.key === "BCA" ? "US$ bn" : "% of GDP")}</th>`).join("")}</tr>` +
+        periods.slice().reverse().filter((y) => one.some((m) => typeof (c[m.key] || {})[y] === "number"))
+          .map((y) => `<tr><td>${escapeHtml(y)}${y >= thisYear ? "*" : ""}</td>${one.map((m) => `<td>${n((c[m.key] || {})[y], 1)}</td>`).join("")}</tr>`).join("") +
+        `</table></div><div class="meta">Below zero: a deficit. * the IMF's forecast</div>`;
     }
     return `<b>${escapeHtml(props.name)}</b>` + (cfg.kind === "rates" && nm !== props.name ? `<div class="meta">${escapeHtml(nm)}</div>` : "") + body +
       `<div class="meta">${escapeHtml(d.credit || "")}</div>`;
@@ -12369,6 +12622,12 @@ function reliefGround(id, on, noTilt) {
   if (i > -1) reliefStack.splice(i, 1);
   if (on) reliefStack.push(id);
   const top = reliefStack[reliefStack.length - 1];
+  // The round view that carries terrain while any row holds the ground (round 118b).
+  try {
+    const want = drawnProjection();
+    const now = map.getProjection && map.getProjection();
+    if (now && now.type !== want && typeof map.setProjection === "function") map.setProjection({ type: want });
+  } catch (e) { /* the view stays as it is */ }
   if (top) {
     map.setTerrain({ source: `${top}-dem`, exaggeration: reliefLift() });
     if (on && !noTilt && typeof map.easeTo === "function" && map.getPitch && map.getPitch() < 30) map.easeTo({ pitch: 50, duration: 800 });
@@ -12856,6 +13115,15 @@ function viewPanelHtml() {
     `<span class="lift-note">Layers that shade countries stand up like towers, taller where the figure is bigger, so countries can be compared when the map is tilted. ` +
     `Every other layer rises where it covers the ground most or its points crowd most, keeping its own colours. ` +
     `Untick to keep everything flat.</span></span></label>` +
+    `</div></div>` +
+    // Round 118b (asked 30 September): every ticked layer as one surface,
+    // either by how densely their places gather or by the size of their figures.
+    `<div class="sect" data-sect="combo">` + sectHead("Combine ticked layers", "combo") + `<div class="sect-body">` +
+    `<label class="layer"><span class="nm">One surface from every ticked layer of points or areas</span></label>` +
+    `<select id="combo-mode" style="font:inherit;font-size:11.5px;max-width:100%">` +
+    COMBO_MODES.map(([k, t]) => `<option value="${k}">${t}</option>`).join("") + `</select>` +
+    `<div id="combo-say" class="how" style="font-size:10.5px;color:var(--dim)"></div>` +
+    `<div id="combo-rows" style="font-size:10.5px"></div>` +
     `</div></div>`;
 }
 
@@ -12890,6 +13158,8 @@ function buildBasemapPanel() {
     if (e.target && e.target.id === "names-toggle") setNames(e.target.checked);
     if (e.target && e.target.id === "lift-toggle") setLift(e.target.checked);
     if (e.target && e.target.id === "theme-pick") setTheme(e.target.value);
+    if (e.target && e.target.id === "combo-mode") comboMode(e.target.value);
+    if (e.target && e.target.dataset && e.target.dataset.comboWeight) { COMBO.weights.set(e.target.dataset.comboWeight, Number(e.target.value)); comboSoon(50); }
   });
 }
 
@@ -13347,6 +13617,7 @@ function setLift(on) {
     else if (vis === "visible" && POINT_RELIEFS.has(id)) { rasterRiseSet(id, false); pointReliefSet(id, true); }    // bands stay, flat
     else if (RASTER_RISE.has(id) || POINT_RELIEFS.has(id)) riseRow(id, false);
   }
+  if (typeof COMBO !== "undefined" && COMBO.mode !== "off") comboSoon(50);
 }
 async function addCountryLayer(cfg) {
   ensureBoundaries();
@@ -14401,7 +14672,10 @@ const SHAPE_COLOUR_BY = {
     fromPage: { url: "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/suppression_embed_20_leaflet-map.html",
       re: /"([A-Z]{3})":\{n:"[^"]*",f:([\d.]+),d:[\d.]+\}/g, keys: ["ISO_A3", "ADM0_A3", "iso_a3"] },
     steps: [10, 15, 20, 25, 30, 35, 40, 50], unitSuffix: "%",
-    hint: "Light: the country keeps most of the value of its exports. Dark: other countries capture most of it." }],
+    // Round 118b (asked 30 September: the shading was backwards): dark where
+    // the country keeps the value of its exports, light where it does not.
+    reverse: true,
+    hint: "Dark: the country keeps most of the value of its exports. Light: other countries' inputs make up much of it, and that share goes to them." }],
 };
 // Fills in figures a layer keeps elsewhere: in its write-ups, or as a count
 // of yes-or-no fields.
@@ -14467,12 +14741,13 @@ function shapeColouring(spec, data) {
   // Steps at the source's own thresholds, light to dark.
   if (spec.steps) {
     const t = spec.steps, u = spec.unitSuffix || "", n = t.length;
-    const expr = ["step", ["to-number", get, 0], shapeStepColour(0)];
-    t.forEach((v, i) => expr.push(v, shapeStepColour((i + 1) / n)));
-    const key = [[shapeStepColour(0), `under ${t[0]}${u}`]];
-    t.forEach((v, i) => key.push([shapeStepColour((i + 1) / n), i === n - 1 ? `${v}${u} or more` : `${v}${u} to ${t[i + 1]}${u}`]));
-    const lift = ["step", ["to-number", get, 0], 0.5 / (n + 1)];
-    t.forEach((v, i) => lift.push(v, (i + 1.5) / (n + 1)));
+    const sc = (x) => shapeStepColour(spec.reverse ? 1 - x : x), hi = (x) => (spec.reverse ? 1 - x : x);
+    const expr = ["step", ["to-number", get, 0], sc(0)];
+    t.forEach((v, i) => expr.push(v, sc((i + 1) / n)));
+    const key = [[sc(0), `under ${t[0]}${u}`]];
+    t.forEach((v, i) => key.push([sc((i + 1) / n), i === n - 1 ? `${v}${u} or more` : `${v}${u} to ${t[i + 1]}${u}`]));
+    const lift = ["step", ["to-number", get, 0], hi(0.5 / (n + 1)) || 0.04];
+    t.forEach((v, i) => lift.push(v, Math.max(0.04, hi((i + 1.5) / (n + 1)))));
     return { expr: ["case", ["==", ["typeof", get], "number"], expr, "rgba(0,0,0,0)"], lift: ["case", ["==", ["typeof", get], "number"], lift, 0], key };
   }
   // A count: each number its own step, none light, all dark.
@@ -14497,7 +14772,12 @@ function shapeColouring(spec, data) {
   const m = ["match", ["to-string", get]];
   classes.forEach(([v], i) => m.push(String(v), colours[i]));
   m.push("rgba(0,0,0,0)");
-  return { expr: m, key: classes.map(([, label], i) => [colours[i], label]) };
+  // Round 118b: kinds stand in the order the source lists them, each its own
+  // height, so a country rated stands apart from one rated otherwise.
+  const lift = ["match", ["to-string", get]];
+  classes.forEach(([v], i) => lift.push(String(v), (classes.length - i) / classes.length));
+  lift.push(0);
+  return { expr: m, lift, key: classes.map(([, label], i) => [colours[i], label]) };
 }
 // A key under a row, written once from the row's own colours and words.
 function rowKey(id, pairs, hint) {
@@ -14622,6 +14902,8 @@ async function addShapesLayer(cfg) {
     ? (p) => remainsHelp().then((help) => { rGloDone = {}; return `<div class="rem-wb">${remainsUnitHtml(help, p)}</div>`; })
     : cfg.box === "invaded"
     ? (p) => invadedFacts().then((all) => invadedBoxHtml(all[p.iso3], p.iso3, p.name, true))
+    : cfg.box === "gmotrials"
+    ? (p) => Promise.resolve(plain(p)).then((h) => gmoTrialList(String(p.name || "").split(" \u2014 ")[0]).then((more) => h + more).catch(() => h))
     : cfg.box === "slaveryprev"
     ? (p) => Promise.resolve(plain(p)).then((h) => slaveryFindings(p.iso3 || p.iso).then((more) => h + more).catch(() => h))
     : cfg.id === "site_settler_colonialism"
@@ -14672,13 +14954,39 @@ async function addShapesLayer(cfg) {
 }
 
 const shapeLiftHeight = (at) => ["interpolate", ["linear"], ["zoom"], 0, ["*", LIFT_TOP, at], 4, ["*", LIFT_TOP / 4, at], 8, ["*", LIFT_TOP / 64, at]];
+// Round 118b (asked 30 September: "countries aren't what are raised; rather
+// continents. I'm looking for height according to country score"): a row
+// whose areas are countries stands each country as tall as its own rating
+// (rowLift), never as ground smoothed over the continent.
+function rowLift(id, fillId, at) {
+  const l = map.getLayer && map.getLayer(fillId);
+  if (!l) return;
+  const lid = `${id}-lift`, colour = map.getPaintProperty(fillId, "fill-color");
+  if (map.getLayer(lid)) {
+    (hudRaw.setPaintProperty || map.setPaintProperty.bind(map))(lid, "fill-extrusion-color", colour);
+    map.setPaintProperty(lid, "fill-extrusion-height", shapeLiftHeight(at));
+    return;
+  }
+  const spec = { id: lid, type: "fill-extrusion", source: l.source, layout: { visibility: LIFT_ON ? (visibility.get(id) || "visible") : "none" },
+    paint: { "fill-extrusion-color": colour, "fill-extrusion-height": shapeLiftHeight(at), "fill-extrusion-opacity": 0.82, "fill-extrusion-vertical-gradient": true } };
+  if (l.sourceLayer) spec["source-layer"] = l.sourceLayer;
+  const f = map.getFilter(fillId);
+  if (f) spec.filter = f;
+  map.addLayer(spec);
+  // The fill's colours are already the map's: set again as they are, not mapped twice.
+  try { (hudRaw.setPaintProperty || map.setPaintProperty.bind(map))(lid, "fill-extrusion-color", colour); } catch (e) { /* as added */ }
+  const cfg = LAYERS.find((c) => c.id === id) || (typeof childById === "function" ? childById(id) : null);
+  if (cfg) cfg._layerIds = (cfg._layerIds || []).concat([lid]);
+  LIFTED.add(id);
+  if (typeof reliefGround === "function" && (POINT_RELIEFS.has(id) || RASTER_RISE.has(id))) { pointReliefSet(id, false); rasterRiseSet(id, false); }
+}
 function shapeLift(cfg, source, colouring) {
   const id = `${cfg.id}-lift`;
   if (map.getLayer(id)) return;
   map.addLayer({ id, type: "fill-extrusion", source, filter: ["match", ["geometry-type"], ["Polygon", "MultiPolygon"], true, false],
     layout: { visibility: LIFT_ON ? (visibility.get(cfg.id) || "visible") : "none" },
     paint: { "fill-extrusion-color": colouring.expr, "fill-extrusion-height": shapeLiftHeight(colouring.lift),
-      "fill-extrusion-opacity": 0.82, "fill-extrusion-vertical-gradient": true } }, `${cfg.id}-line`);
+      "fill-extrusion-opacity": 0.82, "fill-extrusion-vertical-gradient": true } });   // round 118b: the line layer is added after it, so not "before" it (the row failed to draw)
   cfg._layerIds = (cfg._layerIds || []).concat([id]);
   LIFTED.add(cfg.id);
 }
@@ -14899,7 +15207,9 @@ async function readGdeltGeo(cfg) {
 }
 
 // adsb.lol first (ODbL), airplanes.live second; both answer without a key.
-const ADSB_SOURCES = ["https://api.adsb.lol/v2/mil", "https://api.airplanes.live/v2/mil"];
+// Round 118b: then adsb.fi's open data, then this map's Worker, which reads
+// them from its own server (the page's direct reads were refused).
+const ADSB_SOURCES = ["https://api.adsb.lol/v2/mil", "https://api.airplanes.live/v2/mil", "https://opendata.adsb.fi/api/v2/mil", `${WORKER}/adsbmil`];
 async function readAdsbMil() {
   let last;
   for (const u of ADSB_SOURCES) {
@@ -14935,9 +15245,9 @@ async function addAdsbMilLayer(cfg) {
       const feats = adsbFeatures(j.ac);
       map.getSource(src).setData({ type: "FeatureCollection", features: feats });
       cfg._drawnOnce = true;
-      setLayerState(cfg.id, `${feats.length.toLocaleString()} aircraft heard now · from ${from.replace(/^https:\/\//, "").split("/")[0]}`);
+      setLayerState(cfg.id, `${feats.length.toLocaleString()} aircraft heard now · from ${(j._from || from).replace(/^https:\/\//, "").split("/")[0]}`);
     } catch (e) {
-      setLayerState(cfg.id, `no ADS-B source answered this page (${e.message}); tried adsb.lol and airplanes.live`);
+      setLayerState(cfg.id, `no ADS-B source answered this page (${e.message}); tried adsb.lol, airplanes.live, adsb.fi and the map's Worker (which answers once it is deployed again)`);
     }
   };
   await draw();
@@ -15292,6 +15602,20 @@ async function sitemapLinks(cfg) {
   const w = (gj.features || []).map((f) => Number((f.properties || {})[Object.keys(f.properties || {}).find((k) => /^peak wealth/.test(k))]) || 0);
   const top = Math.max(1, ...w);
   (gj.features || []).forEach((f, i) => { f.properties = Object.assign({}, f.properties, { _w: 0.8 + 2.6 * Math.sqrt(w[i] / top) }); });
+  // Round 118b (asked 30 September: "too many lines overlap or are too close"):
+  // each line a curve, and lines between the same two cities (several families
+  // went from Florence to London) each bowed further out than the last, so
+  // they part instead of lying on top of one another.
+  const pairs = new Map();
+  for (const f of gj.features || []) {
+    const g = f.geometry;
+    if (!g || g.type !== "LineString" || g.coordinates.length < 2) continue;
+    const a = g.coordinates[0], b = g.coordinates[g.coordinates.length - 1];
+    const key = [a.join(","), b.join(",")].sort().join("|");
+    const n = pairs.get(key) || 0;
+    pairs.set(key, n + 1);
+    g.coordinates = bowedArc(a, b, 0.12 + 0.11 * n * (n % 2 ? -1 : 1));
+  }
   if (map.getSource(id)) return;
   map.addSource(id, { type: "geojson", data: gj });
   map.addLayer({ id, type: "line", source: id, layout: { "line-cap": "round" },
@@ -15302,7 +15626,74 @@ async function sitemapLinks(cfg) {
     return `<b>${escapeHtml(p.family)}: ${escapeHtml(p.from)} → ${escapeHtml(p.to)}</b><table class="meta">${fieldRows(rest)}</table>`;
   }, { maxWidth: "340px" });
   rowKey(cfg.id, Object.entries(L.colours).map(([k, c]) => [c, k]), L.hint);
+  linksMeasureFilter(cfg, gj);
   applyVisibility(cfg.id);
+}
+// A curve from a to b bowed by k of its length to one side (negative: the other).
+function bowedArc(a, b, k, steps = 24) {
+  const [x1, y1] = a, [x2, y2] = b;
+  const cx = (x1 + x2) / 2 - (y2 - y1) * k, cy = (y1 + y2) / 2 + (x2 - x1) * k;
+  const out = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps, u = 1 - t;
+    out.push([u * u * x1 + 2 * u * t * cx + t * t * x2, u * u * y1 + 2 * u * t * cy + t * t * y2]);
+  }
+  return out;
+}
+// Round 118b (asked 30 September: "the filter should not just be of time
+// period but also the other measurements: worth, people working for them,
+// number of countries, or whatever else was in the original map"): the
+// families shown by any figure the page gives them, from a menu under the row.
+function linksMeasureFilter(cfg, gj) {
+  const row = document.querySelector(`[data-layer="${cfg.id}"]`);
+  const anchor = row && row.closest ? row.closest("label") : null;
+  if (!anchor || !anchor.after || document.querySelector(`[data-measure-for="${cfg.id}"]`)) return;
+  const feats = gj.features || [];
+  const keys = [...new Set(feats.flatMap((f) => Object.keys(f.properties || {})))]
+    .filter((k) => !/^_/.test(k) && feats.every((f) => { const v = (f.properties || {})[k]; return v == null || v === "" || isFinite(Number(v)); }) &&
+      new Set(feats.map((f) => Number((f.properties || {})[k]))).size > 2);
+  const words = (k) => k.replace(/ \(as the page gives it\)/, "");
+  const el = document.createElement("div");
+  el.className = "facet";
+  el.dataset.measureFor = cfg.id;
+  el.style.cssText = "padding-left:18px;font-size:10.5px;color:var(--dim)";
+  el.innerHTML = `Show the families by <select data-m style="font:inherit;font-size:11px;max-width:100%">` +
+    keys.map((k, i) => `<option value="${i}">${escapeHtml(words(k))}</option>`).join("") + `</select> ` +
+    `<select data-at style="font:inherit;font-size:11px"></select><div data-say></div>`;
+  anchor.after(el);
+  const mSel = el.querySelector("[data-m]"), atSel = el.querySelector("[data-at]");
+  const fam = new Map();
+  for (const f of feats) fam.set(f.properties.family, f.properties);
+  const fill = () => {
+    const k = keys[Number(mSel.value) || 0];
+    const vals = [...fam.values()].map((p) => Number(p[k])).filter((v) => isFinite(v)).sort((a, b) => a - b);
+    const q = (t) => vals[Math.min(vals.length - 1, Math.floor(vals.length * t))];
+    const cuts = [...new Set([q(0.25), q(0.5), q(0.75), q(0.9)])];
+    // Years read as years (1667, not 1,667), and as from and before.
+    const yr = /found|decline|year|since|until|began|ended/i.test(k);
+    const say = (c) => escapeHtml(yr ? String(c) : Number(c).toLocaleString());
+    atSel.innerHTML = `<option value="">every family</option>` + cuts.map((c) => `<option value="${c}">${yr ? "in or after " + say(c) : say(c) + " or more"}</option>`).join("") +
+      cuts.map((c) => `<option value="-${c}">${yr ? "before " + say(c) : "under " + say(c)}</option>`).join("");
+  };
+  const apply = () => {
+    const k = keys[Number(mSel.value) || 0], v = atSel.value;
+    const ptBase = ["match", ["geometry-type"], ["Point", "MultiPoint"], true, false];
+    if (!v) {
+      if (map.getLayer(`${cfg.id}-links`)) map.setFilter(`${cfg.id}-links`, null);
+      if (map.getLayer(`${cfg.id}-pt`)) map.setFilter(`${cfg.id}-pt`, ptBase);
+      el.querySelector("[data-say]").textContent = "";
+      return;
+    }
+    const under = v.startsWith("-"), n = Number(under ? v.slice(1) : v);
+    const keep = [...fam.entries()].filter(([, p]) => isFinite(Number(p[k])) && (under ? Number(p[k]) < n : Number(p[k]) >= n)).map(([f]) => f);
+    if (map.getLayer(`${cfg.id}-links`)) map.setFilter(`${cfg.id}-links`, ["in", ["get", "family"], ["literal", keep]]);
+    if (map.getLayer(`${cfg.id}-pt`)) map.setFilter(`${cfg.id}-pt`, ["all", ptBase, ["in", ["get", "n"], ["literal", keep]]]);
+    el.querySelector("[data-say]").textContent = `${keep.length} of ${fam.size} families: ${keep.join(", ")}`;
+  };
+  mSel.addEventListener("change", (e) => { e.stopPropagation(); fill(); apply(); });
+  atSel.addEventListener("change", (e) => { e.stopPropagation(); apply(); });
+  el.addEventListener("click", (e) => e.stopPropagation());
+  fill();
 }
 function sitemapTimelineButton(cfg) {
   const row = document.querySelector(`[data-layer="${cfg.id}"]`);
@@ -15311,7 +15702,8 @@ function sitemapTimelineButton(cfg) {
   const el = document.createElement("div");
   el.className = "facet";
   el.dataset.timelineFor = cfg.id;
-  el.innerHTML = `<button type="button" style="font:inherit;font-size:11.5px;background:none;color:var(--bone);border:1px solid var(--rule);border-radius:2px;padding:2px 8px;cursor:pointer">Timeline and comparisons</button>`;
+  // Round 118b (asked 30 September): named Complete Visual.
+  el.innerHTML = `<button type="button" style="font:inherit;font-size:11.5px;background:none;color:var(--bone);border:1px solid var(--rule);border-radius:2px;padding:2px 8px;cursor:pointer">Complete Visual</button>`;
   el.querySelector("button").addEventListener("click", () => openTimelineWindow(cfg));
   anchor.after(el);
 }
@@ -15321,14 +15713,21 @@ function openTimelineWindow(cfg) {
     w = document.createElement("div");
     w.id = `${cfg.id}-timeline`;
     w.style.cssText = "position:fixed;left:4vw;right:4vw;top:6vh;bottom:6vh;z-index:60;display:flex;flex-direction:column;background:var(--peat,#17150F);border:1px solid var(--rule,#322E27);box-shadow:0 8px 40px rgba(0,0,0,.6)";
-    w.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:6px 12px;font-size:12.5px;color:var(--dim)"><span style="color:var(--bone)">${escapeHtml(cfg.name)}: timeline and comparisons</span>` +
+    w.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:6px 12px;font-size:12.5px;color:var(--dim)"><span style="color:var(--bone)">${escapeHtml(cfg.name)}: Complete Visual</span>` +
       `<a href="${escapeHtml(cfg.timeline)}" target="_blank" rel="noopener" style="color:var(--slate,#8A9DA6)">open ↗</a><span style="margin-left:auto"></span>` +
       `<button type="button" style="font:inherit;background:none;color:var(--dim);border:1px solid var(--rule);border-radius:2px;padding:1px 7px;cursor:pointer">close</button></div>` +
       `<iframe title="${escapeHtml(cfg.name)} timeline" src="${escapeHtml(cfg.timeline)}" style="flex:1;width:100%;border:0"></iframe>`;
-    w.querySelector("button").addEventListener("click", () => { w.hidden = true; });
+    // Round 118b (asked 30 September: "its close button doesn't close it,
+    // neither does clicking outside it"): the window's own display style kept
+    // the hidden attribute from hiding it. Closed by its button, by a click
+    // anywhere outside it, and by Escape.
+    const close = () => { w.style.display = "none"; };
+    w.querySelector("button").addEventListener("click", close);
+    document.addEventListener("mousedown", (e) => { if (w.style.display !== "none" && !w.contains(e.target) && !(e.target.closest && e.target.closest(`[data-timeline-for="${cfg.id}"]`))) close(); }, true);
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
     document.body.appendChild(w);
   }
-  w.hidden = false;
+  w.style.display = "flex";
 }
 
 /* ---------- point and shape rows raised where they crowd (rounds 100b, 109b) ---------- */
@@ -15355,7 +15754,9 @@ const POINT_RELIEF_RES = 0.25, POINT_RELIEF_MIN = 1;
 // out as the map comes in close (DENSITY_FADE), where the dots themselves take
 // over. A merged mark (a square's count, a cluster) counts as its members.
 const DENSITY_MIN = 300;
-const DENSITY_FADE = [[0, 0.8], [6, 0.72], [8, 0.4], [10, 0]];
+// Round 118b: gone by zoom 7.5 (was 10), where it hid the map under the
+// points and the points read as one blur (the Unearthings, 30 September).
+const DENSITY_FADE = [[0, 0.8], [4, 0.62], [6, 0.32], [7.5, 0]];
 const DENSITY_WEIGHT = ["_count", "point_count", "n", "schools", "count"];
 var POINT_RELIEFS = new Map();         // row -> { rid, grid, vector }
 function pointReliefGrid(pts, cover) {
@@ -15506,6 +15907,9 @@ async function crowdBuild(id, pr) {
 // steps, nothing where there is (almost) nothing.
 function densityBandsShow(id, pr, on) {
   const tint = `${pr.rid}-tint`;
+  const own = LAYERS.find((c) => c.id === id) || (typeof childById === "function" ? childById(id) : null);
+  if (own && (own.noBands || own.centroids)) on = false;
+  if (typeof COMBO !== "undefined" && COMBO.mode !== "off") on = false;
   if (!on || !pr.dense || !pr.grid || !(pr.grid.max > 0)) { if (map.getLayer(tint)) map.setLayoutProperty(tint, "visibility", "none"); return; }
   if (!map.getSource(`${pr.rid}-col`)) {
     map.addSource(`${pr.rid}-col`, { type: "raster", tiles: [`relief://${pr.rid}/col/{z}/{x}/{y}`], tileSize: 256, maxzoom: 8 });
@@ -15587,10 +15991,201 @@ if (typeof map.on === "function") map.on("moveend", () => {
     }
   }, 1500);
 });
+/* ---------- every ticked layer as one surface (round 118b) ---------- */
+// Asked 30 September: "make one that is determined by spatial densities and
+// another that takes into account qualities/intensities of the specific data;
+// some are more influential than others." Two ways to fold every ticked row
+// of points or areas into one surface, in the same eight bands as a row's own
+// density (and raised as ground while Raise figures as heights is on):
+//   density   - where the places of the ticked rows gather; each row is first
+//               scaled to its own highest point, so a row of a million points
+//               does not drown a row of a hundred;
+//   intensity - the same, but each place counts by the size of its own figure
+//               within its row (the figure the row is coloured by, else its
+//               count): the row's largest counts 1, its smallest 0.1, a place
+//               with no figure 0.5.
+// Under both, each row's weight (0 to 3, under the menu) says how much it
+// counts against the others. Rows that shade whole countries are not folded
+// in: their figures belong to a whole country, not to a place in it.
+const COMBO_MODES = [["off", "Off"], ["density", "By how densely their places gather"], ["intensity", "By the size of each place's own figure"]];
+const COMBO = { mode: "off", weights: new Map(), pr: { rid: "combo__all", grid: null }, timer: null, rows: [] };
+const COMBO_MAX_ROWS = 40;
+function comboFigure(id) {
+  const st = typeof POINT_COLOUR !== "undefined" ? POINT_COLOUR.get(id) : null;
+  const ch = st && st.choices && st.choices[st.pick];
+  if (ch && ch.kind === "num" && ch.field) return ch.field;
+  const own = LAYERS.find((c) => c.id === id) || (typeof childById === "function" ? childById(id) : null);
+  return own && own.colourBy && own.colourBy.field ? own.colourBy.field : null;
+}
+function comboRowsNow() {
+  const out = [];
+  for (const [id, vis] of visibility) {
+    if (vis !== "visible" || id === COMBO.pr.rid) continue;
+    if (!rowVectorLayers(id).length) continue;
+    out.push(id);
+    if (out.length >= COMBO_MAX_ROWS) break;
+  }
+  return out;
+}
+function comboPoints(features, field, mode) {
+  const pts = reliefPoints(features);
+  if (mode !== "intensity") return pts;
+  // The figure of each place, ranked within the row.
+  const figs = [];
+  const seen = new Set();
+  for (const f of features || []) {
+    const g = f && f.geometry;
+    if (!g || (g.type !== "Point" && g.type !== "MultiPoint")) continue;
+    const p = f.properties || {};
+    const raw = field != null ? p[field] : null;
+    let v = raw == null || raw === "" ? NaN : Number(raw);
+    if (!Number.isFinite(v)) for (const k of DENSITY_WEIGHT) { const n = Number(p[k]); if (Number.isFinite(n) && n > 0) { v = n; break; } }
+    const cs = g.type === "Point" ? [g.coordinates] : g.coordinates;
+    for (const c of cs) {
+      const k = `${c[0].toFixed(5)},${c[1].toFixed(5)},${p.k || p.id || ""}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      figs.push([c[0], c[1], v]);
+    }
+  }
+  const sorted = figs.map((q) => q[2]).filter(Number.isFinite).sort((a, b) => a - b);
+  if (sorted.length < 2 || sorted[0] === sorted[sorted.length - 1]) return figs.map((q) => [q[0], q[1], 1]);
+  const rank = (v) => {
+    let lo = 0, hi = sorted.length - 1;
+    while (lo < hi) { const m = (lo + hi) >> 1; if (sorted[m] < v) lo = m + 1; else hi = m; }
+    return lo / (sorted.length - 1);
+  };
+  return figs.map((q) => [q[0], q[1], Number.isFinite(q[2]) ? 0.1 + 0.9 * rank(q[2]) : 0.5]);
+}
+async function comboBuild() {
+  const mode = COMBO.mode;
+  const ids = comboRowsNow();
+  COMBO.rows = ids;
+  comboList();
+  if (mode === "off" || !ids.length) return null;
+  const W = Math.round(360 / POINT_RELIEF_RES), H = Math.round(180 / POINT_RELIEF_RES);
+  const sum = new Float32Array(W * H);
+  let any = false;
+  for (const id of ids) {
+    const wt = COMBO.weights.has(id) ? COMBO.weights.get(id) : 1;
+    if (!(wt > 0)) continue;
+    const { features } = await rowFeatures(id);
+    if (COMBO.mode !== mode) return null;           // changed meanwhile
+    const pts = comboPoints(features, comboFigure(id), mode);
+    const cover = shapeCover(features);
+    if (!pts.length && !cover) continue;
+    const g = pointReliefGrid(pts, cover);
+    if (!(g.max > 0)) continue;
+    const k = wt / g.max;
+    for (let i = 0; i < sum.length; i++) sum[i] += g.g[i] * k;
+    any = true;
+  }
+  if (!any) return null;
+  let max = 0; for (const v of sum) if (v > max) max = v;
+  // Scaled up so the log steps of the bands spread as a row's own do.
+  const K = 1000 / (max || 1);
+  for (let i = 0; i < sum.length; i++) sum[i] *= K;
+  return { g: sum, W, H, max: 1000 };
+}
+function comboSoon(ms) {
+  clearTimeout(COMBO.timer);
+  if (COMBO.mode === "off") { comboList(); return; }
+  COMBO.timer = setTimeout(() => { comboDraw(); }, ms == null ? 1800 : ms);
+}
+async function comboDraw() {
+  const pr = COMBO.pr, rid = pr.rid;
+  const say = typeof document !== "undefined" && document.getElementById ? document.getElementById("combo-say") : null;
+  const grid = await comboBuild();
+  if (!grid) {
+    if (map.getLayer(`${rid}-tint`)) map.setLayoutProperty(`${rid}-tint`, "visibility", "none");
+    if (map.getLayer(`${rid}-hill`)) map.setLayoutProperty(`${rid}-hill`, "visibility", "none");
+    reliefGround(rid, false);
+    if (say) say.textContent = COMBO.mode === "off" ? "" : "Tick one or more layers of points or areas to see them as one surface.";
+    return;
+  }
+  pr.grid = grid;
+  if (!RELIEFS.has(rid)) RELIEFS.set(rid, { values: pointReliefValues(pr), colour: (v) => (v > 0.04 ? [0, 0, 0, 255] : [0, 0, 0, 0]), height: (v) => v, top: 150000, maxzoom: 8 });
+  const r = RELIEFS.get(rid);
+  r._cache = null;
+  const q = Date.now().toString(36);
+  if (!map.getSource(`${rid}-col`)) map.addSource(`${rid}-col`, { type: "raster", tiles: [`relief://${rid}/col/{z}/{x}/{y}?${q}`], tileSize: 256, maxzoom: 8 });
+  else if (map.getSource(`${rid}-col`).setTiles) map.getSource(`${rid}-col`).setTiles([`relief://${rid}/col/{z}/{x}/{y}?${q}`]);
+  if (!map.getLayer(`${rid}-tint`)) {
+    map.addLayer({ id: `${rid}-tint`, type: "raster", source: `${rid}-col`,
+      paint: { "raster-opacity": ["interpolate", ["linear"], ["zoom"], ...DENSITY_FADE.flat()], "raster-resampling": "nearest" } });
+    for (const c of RELIEF_BANDS) GLAD_OUT.add(hexOf(c));
+  }
+  // Under the lowest of the ticked rows' own marks, above every picture.
+  const order = ((map.getStyle() || {}).layers || []).map((l) => l.id);
+  const marks = COMBO.rows.flatMap((id) => rowVectorLayers(id).map((l) => l.id)).filter((x) => order.includes(x));
+  const lowest = marks.sort((a, b) => order.indexOf(a) - order.indexOf(b))[0];
+  if (lowest && typeof map.moveLayer === "function") { map.moveLayer(`${rid}-tint`, lowest); if (map.getLayer(`${rid}-hill`)) map.moveLayer(`${rid}-hill`, `${rid}-tint`); }
+  map.setLayoutProperty(`${rid}-tint`, "visibility", "visible");
+  // The rows' own bands step aside while the surface of all of them shows.
+  for (const [id, own] of POINT_RELIEFS) if (map.getLayer(`${own.rid}-tint`)) map.setLayoutProperty(`${own.rid}-tint`, "visibility", "none");
+  if (LIFT_ON) {
+    if (!map.getSource(`${rid}-dem`)) {
+      map.addSource(`${rid}-dem`, { type: "raster-dem", tiles: [`relief://${rid}/dem/{z}/{x}/{y}?${q}`], tileSize: 256, maxzoom: 8, encoding: "mapbox" });
+      map.addSource(`${rid}-shade`, { type: "raster-dem", tiles: [`relief://${rid}/dem/{z}/{x}/{y}?${q}`], tileSize: 256, maxzoom: 8, encoding: "mapbox" });
+      map.addLayer({ id: `${rid}-hill`, type: "hillshade", source: `${rid}-shade`, paint: Object.assign({}, RELIEF_SHADE) }, `${rid}-tint`);
+    } else for (const kind of ["dem", "shade"]) { const sr = map.getSource(`${rid}-${kind}`); if (sr && sr.setTiles) sr.setTiles([`relief://${rid}/dem/{z}/{x}/{y}?${q}`]); }
+    map.setLayoutProperty(`${rid}-hill`, "visibility", "visible");
+    reliefGround(rid, true, true);
+  } else {
+    if (map.getLayer(`${rid}-hill`)) map.setLayoutProperty(`${rid}-hill`, "visibility", "none");
+    reliefGround(rid, false);
+  }
+  if (say) say.textContent = COMBO.mode === "density"
+    ? "Where the places of the ticked layers gather, each layer scaled to its own busiest place first. Light: few; dark: many."
+    : "Where the ticked layers' biggest figures gather: each place counts by its own figure within its layer (the figure the layer is coloured by, else its count; the largest counts 1, the smallest 0.1, a place with no figure 0.5). Light: little; dark: much.";
+}
+function comboMode(mode) {
+  COMBO.mode = mode;
+  if (mode === "off") {
+    clearTimeout(COMBO.timer);
+    const rid = COMBO.pr.rid;
+    for (const l of [`${rid}-tint`, `${rid}-hill`]) if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", "none");
+    reliefGround(rid, false);
+    // The rows' own bands come back.
+    for (const [id, pr] of POINT_RELIEFS) if ((visibility.get(id) || "none") === "visible") densityBandsShow(id, pr, true);
+    const say = document.getElementById && document.getElementById("combo-say");
+    if (say) say.textContent = "";
+    comboList();
+    return;
+  }
+  comboDraw();
+}
+function comboList() {
+  const el = typeof document !== "undefined" && document.getElementById ? document.getElementById("combo-rows") : null;
+  if (!el) return;
+  if (COMBO.mode === "off") { el.innerHTML = ""; return; }
+  const ids = COMBO.rows.length ? COMBO.rows : comboRowsNow();
+  const nameOf = (id) => { const c = LAYERS.find((x) => x.id === id) || (typeof childById === "function" ? childById(id) : null); return String((c && c.name) || id); };
+  el.innerHTML = ids.length ? `<div style="margin:4px 0 2px">How much each layer counts:</div>` + ids.map((id) =>
+    `<div style="display:flex;gap:6px;align-items:center;margin:2px 0"><select data-combo-weight="${escapeHtml(id)}" style="font:inherit;font-size:10.5px">` +
+    [[0, "not at all"], [0.5, "half"], [1, "once"], [2, "twice"], [3, "three times"]].map(([v, t]) =>
+      `<option value="${v}"${(COMBO.weights.has(id) ? COMBO.weights.get(id) : 1) === v ? " selected" : ""}>${t}</option>`).join("") +
+    `</select><span title="${escapeHtml(nameOf(id))}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(nameOf(id))}</span></div>`).join("") : "";
+}
+if (typeof map.on === "function") map.on("moveend", () => { if (COMBO.mode !== "off" && COMBO.rows.some((id) => POINT_RELIEFS.has(id) && POINT_RELIEFS.get(id).vector)) comboSoon(2500); });
 // Which kind of rising a row gets, when it is shown or the switch changes.
 function riseRow(id, on, tries) {
   if (RELIEFS.has(id) || LIFTED.has(id)) return;     // its own relief, or country towers
+  // Round 118b (asked 30 September: "why is it higher in San Francisco and Los
+  // Angeles when the layer only shows state centroids?"): a row whose points
+  // are the middles of states or countries, or head offices, is not raised by
+  // how its points crowd: the crowding would only show where the middles are.
+  const own = LAYERS.find((c) => c.id === id) || (typeof childById === "function" ? childById(id) : null);
+  if (own && own.centroids) return;
   if (!on) { rasterRiseSet(id, false); pointReliefSet(id, false); return; }
+  // Round 118b: a row of whole countries with no rating of its own stands each
+  // country it names at one low height, not the continent as smoothed ground.
+  // A national row is known by its kind too: its shapes may not have arrived.
+  const national = own && typeof layerKind === "function" && layerKind(own) === "national";
+  if (map.getLayer(`${id}-fill`) && (national || (typeof map.getStyle === "function" && typeof drawsCountries === "function" && drawsCountries(id, ((map.getStyle() || {}).layers || []))))) {
+    rowLift(id, `${id}-fill`, 0.18);
+    return;
+  }
   if (rowRasterSource(id)) rasterRiseSet(id, true);
   else if (rowVectorLayers(id).length) pointReliefSet(id, true);
   else {
@@ -17099,7 +17694,13 @@ async function addRemainsLayer(cfg) {
   const rows = (Array.isArray(data) ? data : data.records || []).map((r, i) => Object.assign({ _i: i }, r));
   remainsState.rows = rows;
   const src = `${cfg.id}-src`;
-  map.addSource(src, { type: "geojson", data: { type: "FeatureCollection", features: remainsFeatures(rows) } });
+  // Round 118b (asked 30 September: "the points don't show in detail; they
+  // stay bunched in gridded groupings"): the Unearthings map blurs each
+  // burial place to a point on a grid about 5 km apart, so graves cannot be
+  // found, and many records share each point. They are set out in a small
+  // spiral round it (within about 2 km, inside the blur), so each can be seen
+  // and opened; no record is placed any more exactly than the source allows.
+  map.addSource(src, { type: "geojson", data: spreadStacked({ type: "FeatureCollection", features: remainsFeatures(rows) }) });
   const colour = ["match", ["get", "posture"], ...Object.entries(R_PCOLOR).flat(), R_PCOLOR.watch];
   const size = ["interpolate", ["linear"], ["zoom"], 1, ["+", 2, ["*", 0.6, ["get", "impact"]]], 8, ["+", 3.5, ["*", 1.4, ["get", "impact"]]]];
   map.addLayer({ id: `${cfg.id}-cl`, type: "circle", source: src, filter: ["==", ["get", "geo"], "coarsened"],
@@ -17167,8 +17768,11 @@ async function addRemainsFindLayer(cfg) {
     .filter((f) => isFinite(f.geometry.coordinates[0]) && isFinite(f.geometry.coordinates[1])) } });
   const ring = ["match", ["get", "kind"], "density", "rgba(120,170,190,.95)", "holdings", "rgba(196,160,214,.95)", "rgba(176,110,96,.95)"];
   map.addLayer({ id: `${cfg.id}-pt`, type: "circle", source: src,
-    paint: { "circle-color": "rgba(12,10,8,.72)", "circle-radius": ["case", ["==", ["get", "big"], 1], 13, 10],
-             "circle-stroke-color": ring, "circle-stroke-width": 1.6 } });
+    // Round 118b (asked 30 September: "too dim to see easily"): each ring
+    // filled with its own colour, rimmed pale, over a soft halo.
+    paint: { "circle-color": ring, "circle-opacity": 0.55, "circle-radius": ["case", ["==", ["get", "big"], 1], 13, 10],
+             "circle-stroke-color": "#F2EEE6", "circle-stroke-width": 2 } });
+  fewBeacon(`${cfg.id}-pt`);
   bindHtmlPopup(`${cfg.id}-pt`, (p) => `<div class="rem-wb">${remainsFindingHtml(list[p.i] || {})}</div>`, { maxWidth: "360px", className: "rem-box" });
   setLayerState(cfg.id, `${list.length} published findings`);
   applyVisibility(cfg.id);
@@ -17700,12 +18304,16 @@ async function addCountryCatLayer(cfg) {
   const col = new Map(cfg.categories);
   const feats = shapes.features.filter((f) => data[f.properties.iso3]).map((f) => {
     const r = data[f.properties.iso3];
-    return { type: "Feature", geometry: f.geometry, properties: Object.assign({ name: f.properties.name }, r, { _c: col.get(r[cfg.field]) || "#77726A" }) };
+    // Round 118b: each status its own height, in the order the row lists them.
+    const at = cfg.categories.findIndex(([k]) => k === r[cfg.field]);
+    return { type: "Feature", geometry: f.geometry, properties: Object.assign({ name: f.properties.name }, r,
+      { _c: col.get(r[cfg.field]) || "#77726A", _h: at < 0 ? 0.05 : (cfg.categories.length - at) / cfg.categories.length }) };
   });
   map.addSource(`${cfg.id}-src`, { type: "geojson", data: { type: "FeatureCollection", features: feats } });
   map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source: `${cfg.id}-src`, paint: { "fill-color": ["get", "_c"], "fill-opacity": 0.72 } });
   map.addLayer({ id: `${cfg.id}-line`, type: "line", source: `${cfg.id}-src`, paint: { "line-color": "#0B2344", "line-width": 0.3, "line-opacity": 0.6 } });
-  bindHtmlPopup(`${cfg.id}-fill`, (p) => `<b>${escapeHtml(p.name)}</b><table class="meta">${fieldRows(p, ["_c"])}</table>`);
+  bindHtmlPopup(`${cfg.id}-fill`, (p) => `<b>${escapeHtml(p.name)}</b><table class="meta">${fieldRows(p, ["_c", "_h"])}</table>`);
+  rowLift(cfg.id, `${cfg.id}-fill`, ["to-number", ["get", "_h"], 0]);
   const n = new Map();
   for (const f of feats) n.set(f.properties[cfg.field], (n.get(f.properties[cfg.field]) || 0) + 1);
   rowKey(cfg.id, cfg.categories.filter(([k]) => n.has(k)).map(([k, c]) => [c, `${k} (${n.get(k)})`])
@@ -17939,9 +18547,15 @@ const SITE_MAPS = {
     // (culprits-tiles-more scripts/invaded_countries.py, daily). Its box is
     // built from invaded/countries.json; the settler layer's boxes read the
     // same facts.
-    { id: "other_invaded", name: "How every other country is invaded, by its Indigenous peoples' situation, colonial rule, economic invasion and past conquest (LandMark, ILO, UN, IWGIA, Land Matrix, World Bank, Correlates of War)", unit: "countries", colour: "#6A5E5A", route: "shapes", ready: true, lazy: true,
-      dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/other_invaded.geojson", box: "invaded",
-      note: "Every country the settler colonialism layer does not draw whole. Shade it by one measure at a time from the menu; a click shows all four kinds of invasion for the country, each fact with its source. Compiled daily; a source that does not answer keeps its last copy." },
+    // Round 118b (asked 30 September: "I don't like having two layers ... find
+    // the best way to get all relevant info into one layer while not deleting
+    // any important data from either"): one row. The settler colonialism
+    // territories are drawn with it (alsoShows), on their own boundaries with
+    // the page's words and the same facts; every other country is shaded by
+    // the measure chosen in the menu, with all four kinds of invasion in its box.
+    { id: "other_invaded", name: "How each country is invaded: settler colonialism and native displacement, Indigenous peoples' situation, colonial rule, economic invasion and past conquest (the site's map; LandMark, ILO, UN, IWGIA, Land Matrix, World Bank, Correlates of War)", unit: "countries and territories", colour: "#6A5E5A", route: "shapes", ready: true, lazy: true,
+      dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/other_invaded.geojson", box: "invaded", alsoShows: ["site_settler_colonialism"],
+      note: "Two maps in one row. The territories under settler colonialism and native displacement are drawn on their real boundaries (whole countries on their national outlines, regions on their provinces, states or districts), each with the site's own words and the facts below for its country. Every other country is shaded by one measure at a time from the menu (Indigenous peoples' share of the land and of the people, ILO Convention 169, colonial rule still in place, land deals, external debt, territory taken by conquest), and a click shows all four kinds of invasion for it, each fact with its source. Compiled daily; a source that does not answer keeps its last copy." },
     { id: "site_settler_colonialism", name: "Settler colonialism and native displacement", unit: "territories", colour: "#6B5A52", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_settler_colonialism.geojson",
       note: "Each territory on its real boundaries (round 72): whole countries on their national outlines, regions on their provinces, states or districts, as its box says under \u201cdrawn as\u201d. The map\u2019s own words for each, and since round 73 the same facts the other-countries layer gives for its country." },
     { id: "site_social_spheres", name: "The Social Spheres", unit: "bodies and the people between them", colour: "#5E6068", route: "spheres", ready: true, lazy: true,
@@ -18119,6 +18733,24 @@ const DETERMINATION_STATE_ISO = { "China": "CHN", "DR Congo": "COD", "Eastern DR
 const SLAVERY_PROJECTS_URL = "https://raw.githubusercontent.com/WelcomeToYourGalaxy/anti-slavery-map/main/projects.json";
 let slaveryProjectsRead = null;
 const slaveryProse = (v) => escapeHtml(String(v || "")).replace(/&lt;(\/?)(b|i|em|strong)&gt;/g, "<$1$2>");
+// Round 118b (asked 30 September: "should list the release authorisations,
+// not just a count"): a state's box lists them, as the GMO map's own state
+// markers do, newest first (culprits-tiles-more gmo/trials, built daily by
+// scripts/gmo_seed.py from the map's projects.json).
+const GMO_TRIALS = "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gmo/trials";
+let gmoTrialIndex = null;
+async function gmoTrialList(state) {
+  if (!gmoTrialIndex) { gmoTrialIndex = getJson(`${GMO_TRIALS}/index.json`, 30000); gmoTrialIndex.catch(() => { gmoTrialIndex = null; }); }
+  const idx = await gmoTrialIndex;
+  const hit = idx && idx[state];
+  if (!hit) return `<div class="meta">No list of authorisations for ${escapeHtml(state)} yet (culprits-tiles-more builds it).</div>`;
+  const d = await getJson(`${GMO_TRIALS}/${hit.code}.json`, 30000);
+  const recs = (d && d.records) || [];
+  return `<div style="margin-top:8px"><b>The release authorisations the map holds for ${escapeHtml(state)} (${recs.length.toLocaleString()}), newest first</b>` +
+    `<div class="meta" style="max-height:260px;overflow:auto">` + recs.map((r) => `<div style="margin:3px 0">${escapeHtml(r.name || "")}` +
+      `<span style="opacity:.75"> \u00b7 ${escapeHtml([r.date, r.status, r.size].filter(Boolean).join(" \u00b7 "))}</span></div>`).join("") +
+    `</div><div class="meta">APHIS publishes the state and the number of release locations, never the fields themselves.</div></div>`;
+}
 // What governments and other bodies have found or listed about a country.
 async function slaveryFindings(iso) {
   if (!iso) return "";
@@ -18265,12 +18897,15 @@ const GMO_MAP = {
     // Round 76: the map's international bodies (25, with their 84 trackers and
     // registers) and its consultations and guides, copied daily.
     { id: "gmo_bodies", name: "International bodies that record or rule on genetic engineering, and their registers (Genetic engineering map)", unit: "bodies", colour: "#5E6470", route: "sitemap", ready: true, lazy: true,
+      // Round 118b (asked 30 September: too dark whatever the colour chosen):
+      // drawn pale and large, with a soft ring, over the page's own dark marks.
+      standout: { fill: "#A9D9E8", rim: "#F2EEE6", say: "each body at its seat, with a soft ring so it can be found" },
       dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gmo/bodies.places.geojson",
       note: "The international bodies the Genetic engineering map names (its internationalBodies list), each at its seat, with every register, tracker and database it lists for them in the box; copied daily from the map by culprits-tiles-more." },
     { id: "gmo_act", name: "What you can do: open consultations and how-to guides (Genetic engineering map)", unit: "opens a panel along the bottom", colour: "#5E6E5C", route: "gmopanel", ready: true, lazy: true,
       dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/gmo/panel.json",
       note: "The comment windows open now on genetic engineering, country by country, with the days left to close, and the map's four how-to guides (testing for escaped GMOs, stopping a release, making a GMO-free zone, changing the industry); copied daily from the map by culprits-tiles-more. A country's own list of what you can do opens with the country on the shaded layers." },
-    { id: "gmo_trials", name: "Field trials of genetically engineered crops (Genetic engineering map)", unit: "countries and regions", colour: "#6E6456", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/gmo_trials.geojson",
+    { id: "gmo_trials", name: "Field trials of genetically engineered crops (Genetic engineering map)", unit: "countries and regions", colour: "#6E6456", route: "shapes", ready: true, lazy: true, box: "gmotrials", dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/gmo_trials.geojson",
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
   ],
 };
@@ -18624,6 +19259,12 @@ const OTHER_MAPS = {
       attribution: "Wikipedia, List of major stock exchanges (CC BY-SA 4.0)",
       note: "Every exchange in Wikipedia's list of major stock exchanges, with the market value of the companies listed on it (US$ trillion), its code, city, time zone and hours, as the list gives them; placed where the exchange's own article (or its city's) is. Copied weekly by culprits-tiles-more (scripts/stock_exchanges.py)." },
     // ---- round 110c (asked 28 and 29 September) --------------------------------
+    // Round 118b (asked 30 September): the three capture rows one row, the
+    // three parts picked in a menu under it (route "switch"); the parts keep
+    // their own configs, out of the menu (PANEL_REMOVED).
+    { id: "capture_all", name: "Planted, bought or captured: lawmakers, judges, rulers, officials and companies found working for, paid by or tied to someone else (pick a view in the menu under the row)", unit: "people, cases and countries", colour: "#7A1F3D", route: "switch", ready: true, lazy: true,
+      parts: [["capture_cases", "Each case, at its place"], ["capture_countries", "Cases found in each country, all years"], ["capture_share", "Lawmakers found, per 100 seats in today's legislature"]],
+      note: "One row for the three views of the same cases (scripts/capture.py): each case at its place, the cases counted country by country, and the lawmakers found for every 100 seats in each legislature today. Pick one in the menu under the row." },
     { id: "capture_cases", name: "Planted, bought or captured: lawmakers, judges, rulers, officials and companies found working for, paid by or tied to someone else, worldwide", unit: "people and cases", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true, buildScript: "capture", card: "capture",
       files: [{ label: "Planted, bought or captured", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/capture/cases.geojson" }], nameFrom: ["name"],
       groupColours: { "Convicted, or found by a court": "#7A1F3D", "Found by an official inquiry": "#E0304A",
@@ -18863,7 +19504,7 @@ const OTHER_MAPS = {
     { id: "policy_rates", name: "Central banks' interest rates, month by month (Bank for International Settlements)", unit: "countries", colour: "#4F7FA8", route: "tracker", ready: true, lazy: true, keepColour: true,
       kind: "rates", data: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trackers/policy_rates.json",
       note: "The interest rate each central bank sets, every month the Bank for International Settlements publishes, in place of CFR's Global Monetary Policy Tracker (CFR's terms do not allow its data to be shown elsewhere; the BIS allows its statistics to be reproduced with the BIS named). A menu shades by the rate or by how much it moved over twelve months; the slider picks the month and the button plays through them. Euro-area countries show the European Central Bank's rate from the month each took the euro. Copied daily." },
-    { id: "imbalances", name: "How much more each country sells abroad than it buys, or the reverse, year by year (IMF current account balances)", unit: "countries", colour: "#3C98AB", route: "tracker", ready: true, lazy: true, keepColour: true,
+    { id: "imbalances", name: "Countries selling abroad more than they buy (surplus), or buying more than they sell (deficit): pick one in the menu, year by year (IMF current account balances)", unit: "countries", colour: "#3C98AB", route: "tracker", ready: true, lazy: true, keepColour: true,
       kind: "imbalances", data: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/trackers/imbalances.json",
       note: "Each country's current account: what it earns from the rest of the world (exports, income from abroad) less what it pays out. A surplus country lends to the rest of the world; a deficit country borrows from it. From the International Monetary Fund's World Economic Outlook, in place of CFR's Global Imbalances Tracker (the IMF allows its data to be published with the IMF named). As a share of GDP or in US dollars; this year and later are the IMF's forecasts. Copied daily." },
     { id: "cfr_tracker", name: "Central banks' interest rate moves (Council on Foreign Relations tracker)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
@@ -19544,6 +20185,13 @@ const MILITARY = {
     { id: "mil_conflicts", name: "Armed clashes since 1989 in which at least one person died (UCDP)", unit: "events", colour: "#FFFFFF", keepColour: true, route: "pmtiles", ready: true, lazy: true,
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/mil_conflicts.pmtiles", boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/ucdp", boxesGz: true,
       facet: { property: "x_kind", label: "kind", values: ["state-based conflict", "non-state conflict", "one-sided violence against civilians"] },
+      // Round 118b (asked 30 September: "too slow; colour by type of violence
+      // or number dead"): coloured by either, from the menu; with 431,000
+      // events it draws no crowd bands of its own (they are what slowed it).
+      colourAuto: false, noBands: true,
+      colourChoices: [{ label: "type of violence", field: "x_kind", classes: [["state-based conflict", "fighting between a state and an armed group, or two states"],
+          ["non-state conflict", "fighting between armed groups"], ["one-sided violence against civilians", "an armed group or a state killing civilians"]] },
+        { label: "people killed (UCDP's best estimate)", field: "x_deaths", unit: "dead", breaks: [1, 5, 25, 100, 1000] }],
       note: "The Uppsala Conflict Data Program's Georeferenced Event Dataset (CC BY 4.0), every event in its latest global release with the monthly candidate events of this year added: fighting between states and armed groups, between armed groups, and armed groups or states killing civilians. Dots are sized by UCDP's best estimate of deaths. Every field UCDP gives is in the box. Copied daily." },
     { id: "mil_attacks", name: "Terrorist attacks recorded in Wikidata, by decade", unit: "attacks", colour: "#9FE8FF", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Attacks", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/attacks.geojson" }],
@@ -19591,6 +20239,66 @@ const MILITARY = {
       },
       files: [{ label: "Installations", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/sites.geojson" }],
       note: "Every military base, air base, naval base, airfield, barracks and other military installation Wikidata places, with the state that runs it, the country it is in, and when it opened and closed where recorded. Those run by another state than the one they stand in are marked. Copied daily." },
+    // Round 118b (asked 30 September: "join the same data point types into
+    // single layers rather than duplicating across multiple ... the slicing
+    // needs to be done on the data level"): the installations of Wikidata,
+    // OpenStreetMap and the Defense Department's register, one row per kind.
+    { id: "mil_k_air", name: "Air bases and military airfields, in use and closed (Wikidata, OpenStreetMap, US Defense Department)", unit: "places", colour: "#4F7FE0", keepColour: true, route: "geojsonlive", ready: true, lazy: true, buildScript: "military_kinds",
+      files: [{ label: "Air bases and military airfields, in use and closed", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/kinds/air.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by whether it is in use",
+      waiting: "not built yet: culprits-tiles-more builds it on its next run",
+      colourAuto: false, noOneColour: true,
+      colourChoices: [{ label: "in use or closed", field: "status", classes: "auto" }, { label: "where the record comes from", field: "source", classes: "auto" },
+        { label: "the source's own word for it", field: "kind", classes: "auto" }, { label: "country", field: "country", classes: "auto" }],
+      note: "Every place of this kind in the three military records this map copies (Wikidata's installations, OpenStreetMap's military places and the US Department of Defense's register of its installations, ranges and training areas), sorted by what each source says the place is, not by which source holds it: one row for each kind of place, whatever the source. The source, its own word for the place and every field it gives are in each box; the rules are in culprits-tiles-more military/kinds/build.json. Built daily by culprits-tiles-more (scripts/military_kinds.py)." },
+    { id: "mil_k_naval", name: "Naval bases and stations, in use and closed (Wikidata, OpenStreetMap, US Defense Department)", unit: "places", colour: "#2E5C8A", keepColour: true, route: "geojsonlive", ready: true, lazy: true, buildScript: "military_kinds",
+      files: [{ label: "Naval bases and stations, in use and closed", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/kinds/naval.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by whether it is in use",
+      waiting: "not built yet: culprits-tiles-more builds it on its next run",
+      colourAuto: false, noOneColour: true,
+      colourChoices: [{ label: "in use or closed", field: "status", classes: "auto" }, { label: "where the record comes from", field: "source", classes: "auto" },
+        { label: "the source's own word for it", field: "kind", classes: "auto" }, { label: "country", field: "country", classes: "auto" }],
+      note: "Every place of this kind in the three military records this map copies (Wikidata's installations, OpenStreetMap's military places and the US Department of Defense's register of its installations, ranges and training areas), sorted by what each source says the place is, not by which source holds it: one row for each kind of place, whatever the source. The source, its own word for the place and every field it gives are in each box; the rules are in culprits-tiles-more military/kinds/build.json. Built daily by culprits-tiles-more (scripts/military_kinds.py)." },
+    { id: "mil_k_bases", name: "Army bases, barracks, garrisons, armouries and depots, in use and closed (Wikidata, OpenStreetMap, US Defense Department)", unit: "places", colour: "#5A6FC0", keepColour: true, route: "geojsonlive", ready: true, lazy: true, buildScript: "military_kinds",
+      files: [{ label: "Army bases, barracks, garrisons, armouries and depots, in use and closed", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/kinds/bases.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by whether it is in use",
+      waiting: "not built yet: culprits-tiles-more builds it on its next run",
+      colourAuto: false, noOneColour: true,
+      colourChoices: [{ label: "in use or closed", field: "status", classes: "auto" }, { label: "where the record comes from", field: "source", classes: "auto" },
+        { label: "the source's own word for it", field: "kind", classes: "auto" }, { label: "country", field: "country", classes: "auto" }],
+      note: "Every place of this kind in the three military records this map copies (Wikidata's installations, OpenStreetMap's military places and the US Department of Defense's register of its installations, ranges and training areas), sorted by what each source says the place is, not by which source holds it: one row for each kind of place, whatever the source. The source, its own word for the place and every field it gives are in each box; the rules are in culprits-tiles-more military/kinds/build.json. Built daily by culprits-tiles-more (scripts/military_kinds.py)." },
+    { id: "mil_k_ranges", name: "Firing ranges and military training areas (OpenStreetMap, Wikidata, US Defense Department)", unit: "places", colour: "#3E8E9E", keepColour: true, route: "geojsonlive", ready: true, lazy: true, buildScript: "military_kinds",
+      files: [{ label: "Firing ranges and military training areas", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/kinds/ranges.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by whether it is in use",
+      waiting: "not built yet: culprits-tiles-more builds it on its next run",
+      colourAuto: false, noOneColour: true,
+      colourChoices: [{ label: "in use or closed", field: "status", classes: "auto" }, { label: "where the record comes from", field: "source", classes: "auto" },
+        { label: "the source's own word for it", field: "kind", classes: "auto" }, { label: "country", field: "country", classes: "auto" }],
+      note: "Every place of this kind in the three military records this map copies (Wikidata's installations, OpenStreetMap's military places and the US Department of Defense's register of its installations, ranges and training areas), sorted by what each source says the place is, not by which source holds it: one row for each kind of place, whatever the source. The source, its own word for the place and every field it gives are in each box; the rules are in culprits-tiles-more military/kinds/build.json. Built daily by culprits-tiles-more (scripts/military_kinds.py)." },
+    { id: "mil_k_schools", name: "Military academies, schools and hospitals (Wikidata)", unit: "places", colour: "#7C8FB0", keepColour: true, route: "geojsonlive", ready: true, lazy: true, buildScript: "military_kinds",
+      files: [{ label: "Military academies, schools and hospitals", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/kinds/schools.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by whether it is in use",
+      waiting: "not built yet: culprits-tiles-more builds it on its next run",
+      colourAuto: false, noOneColour: true,
+      colourChoices: [{ label: "in use or closed", field: "status", classes: "auto" }, { label: "where the record comes from", field: "source", classes: "auto" },
+        { label: "the source's own word for it", field: "kind", classes: "auto" }, { label: "country", field: "country", classes: "auto" }],
+      note: "Every place of this kind in the three military records this map copies (Wikidata's installations, OpenStreetMap's military places and the US Department of Defense's register of its installations, ranges and training areas), sorted by what each source says the place is, not by which source holds it: one row for each kind of place, whatever the source. The source, its own word for the place and every field it gives are in each box; the rules are in culprits-tiles-more military/kinds/build.json. Built daily by culprits-tiles-more (scripts/military_kinds.py)." },
+    { id: "mil_k_forts", name: "Castles, forts and other fortifications, mostly historic (Wikidata)", unit: "places", colour: "#6D6A8A", keepColour: true, route: "geojsonlive", ready: true, lazy: true, buildScript: "military_kinds",
+      files: [{ label: "Castles, forts and other fortifications, mostly historic", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/kinds/forts.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by whether it is in use",
+      waiting: "not built yet: culprits-tiles-more builds it on its next run",
+      colourAuto: false, noOneColour: true,
+      colourChoices: [{ label: "in use or closed", field: "status", classes: "auto" }, { label: "where the record comes from", field: "source", classes: "auto" },
+        { label: "the source's own word for it", field: "kind", classes: "auto" }, { label: "country", field: "country", classes: "auto" }],
+      note: "Every place of this kind in the three military records this map copies (Wikidata's installations, OpenStreetMap's military places and the US Department of Defense's register of its installations, ranges and training areas), sorted by what each source says the place is, not by which source holds it: one row for each kind of place, whatever the source. The source, its own word for the place and every field it gives are in each box; the rules are in culprits-tiles-more military/kinds/build.json. Built daily by culprits-tiles-more (scripts/military_kinds.py)." },
+    { id: "mil_k_other", name: "Other places the sources file as military (Wikidata, OpenStreetMap)", unit: "places", colour: "#8696A6", keepColour: true, route: "geojsonlive", ready: true, lazy: true, buildScript: "military_kinds",
+      files: [{ label: "Other places the sources file as military", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/kinds/other.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by whether it is in use",
+      waiting: "not built yet: culprits-tiles-more builds it on its next run",
+      colourAuto: false, noOneColour: true,
+      colourChoices: [{ label: "in use or closed", field: "status", classes: "auto" }, { label: "where the record comes from", field: "source", classes: "auto" },
+        { label: "the source's own word for it", field: "kind", classes: "auto" }, { label: "country", field: "country", classes: "auto" }],
+      note: "Every place of this kind in the three military records this map copies (Wikidata's installations, OpenStreetMap's military places and the US Department of Defense's register of its installations, ranges and training areas), sorted by what each source says the place is, not by which source holds it: one row for each kind of place, whatever the source. The source, its own word for the place and every field it gives are in each box; the rules are in culprits-tiles-more military/kinds/build.json. Built daily by culprits-tiles-more (scripts/military_kinds.py)." },
+    { id: "mil_k_nuclear", name: "Nuclear explosion and test sites, and missile launch sites (OpenStreetMap, Wikidata)", unit: "places", colour: "#5FA8C9", keepColour: true, route: "geojsonlive", ready: true, lazy: true, buildScript: "military_kinds",
+      files: [{ label: "Nuclear explosion and test sites, and missile launch sites", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/kinds/nuclear.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by whether it is in use",
+      waiting: "not built yet: culprits-tiles-more builds it on its next run",
+      colourAuto: false, noOneColour: true,
+      colourChoices: [{ label: "in use or closed", field: "status", classes: "auto" }, { label: "where the record comes from", field: "source", classes: "auto" },
+        { label: "the source's own word for it", field: "kind", classes: "auto" }, { label: "country", field: "country", classes: "auto" }],
+      note: "Every place of this kind in the three military records this map copies (Wikidata's installations, OpenStreetMap's military places and the US Department of Defense's register of its installations, ranges and training areas), sorted by what each source says the place is, not by which source holds it: one row for each kind of place, whatever the source. The source, its own word for the place and every field it gives are in each box; the rules are in culprits-tiles-more military/kinds/build.json. Built daily by culprits-tiles-more (scripts/military_kinds.py)." },
     { id: "mil_units", name: "Military units at their headquarters, active and disbanded (Wikidata)", unit: "units", colour: "#7FA6FF", keepColour: true, route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Units", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/military/units.geojson" }],
       note: "Every military unit in Wikidata with a headquarters it places: the headquarters, not where the unit is deployed. Copied daily." },
@@ -19853,6 +20561,9 @@ function queueBuild(id, job) {
     queueNext();
   });
 }
+// Rows of LAYERS itself built on their first tick, not at load (round 118b).
+const TOP_DEFERRED_ROUTES = new Set(["geojsonlive", "switch"]);
+const TOP_DEFERRED = new Set();
 function ensureLayer(cfg) {
   if (created.has(cfg.id)) return;
   created.add(cfg.id);
@@ -19894,6 +20605,7 @@ function ensureLayer(cfg) {
       : cfg.route === "remains" ? addRemainsLayer(cfg)
       : cfg.route === "remainsfac" ? addRemainsFacLayer(cfg)
       : cfg.route === "remainsfind" ? addRemainsFindLayer(cfg)
+      : cfg.route === "switch" ? Promise.resolve().then(() => addSwitchLayer(cfg))
       : cfg.route === "remainspanel" ? addRemainsPanel(cfg)
       : cfg.route === "leave" ? Promise.resolve().then(() => { setLayerState(cfg.id, cfg.unit); applyVisibility(cfg.id); })
       : cfg.route === "rte" ? addRteLayer(cfg)
@@ -20080,6 +20792,7 @@ const LAYER_KIND = {
   slick_archive: ["animal", "downstream"],
   giga_countries: ["human", "upstream"],
   capture_cases: ["human", "upstream"],
+  capture_all: ["human", "upstream"],
   capture_countries: ["human", "upstream"], capture_share: ["human", "upstream"],
   policy_rates: ["human", "upstream"],
   imbalances: ["human", "upstream"],
@@ -20413,18 +21126,30 @@ function buildPanel() {
     const id = e.target.dataset.layer;
     if (!id) return;
     syncCopies(box, id, e.target.checked);
+    // Round 118b: a row that draws another with it (two layers made one, the
+    // other's own row out of the menu) ticks and unticks it alongside.
+    const lead = childById(id) || LAYERS.find((c) => c.id === id);
+    if (lead && lead.route === "switch" && lead.parts) switchShow(lead, e.target.checked);
+    for (const o of (lead && lead.alsoShows) || []) {
+      const other = box.querySelector(`[data-layer="${o}"]`) || document.querySelector(`[data-layer="${o}"]`);
+      if (other && other.checked !== e.target.checked) {
+        other.checked = e.target.checked;
+        if (typeof other.dispatchEvent === "function" && typeof Event === "function") other.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    }
     // Remembered, because layers load asynchronously: a toggle flipped before
     // its archive arrives would otherwise be lost and the layer would appear.
     visibility.set(id, e.target.checked ? "visible" : "none");
     // Lazy layers do not exist until now. Created on the first tick, so an
     // unopened year costs no header fetch, no index read and no tile request.
     if (e.target.checked) {
-      const child = childById(id);
+      const child = childById(id) || (TOP_DEFERRED.has(id) ? LAYERS.find((c) => c.id === id) : null);
       if (child) ensureLayer(child);
     }
     applyVisibility(id);
     buildLegend();
     syncGroupBox(box);
+    if (typeof COMBO !== "undefined" && COMBO.mode !== "off") comboSoon();
   });
 
 }
@@ -20445,7 +21170,7 @@ function updateZoomState() {
 const badTiles = new Set();
 map.on("error", (e) => {
   const src = e && e.sourceId;
-  if (src && ["base", "s2", "hillshade", "labels", "atlas-plate"].includes(src) && !badTiles.has(src)) {
+  if (src && ["base", "s2", "hillshade", "labels", "plate-base"].includes(src) && !badTiles.has(src)) {
     badTiles.add(src);
     console.warn(`[culprits] basemap source "${src}" is failing to load tiles ` +
                  `— the map still works, but it will look wrong.`);
@@ -20496,6 +21221,9 @@ map.on("load", () => {
   });
   LAYERS.filter((c) => c.ready).forEach((cfg) => {
     try {
+      // Round 118b: a lazy row read from a live file waits for its first tick
+      // (the archive builder would ask for a .pmtiles it never had).
+      if (cfg.lazy && TOP_DEFERRED_ROUTES.has(cfg.route)) { TOP_DEFERRED.add(cfg.id); return; }
       if (cfg.route === "worker") addLiveLayer(cfg);
       else if (cfg.route === "tile") addTileLayer(cfg);
       else if (cfg.route === "wmts") addWmtsLayer(cfg);
@@ -21236,7 +21964,7 @@ const PANEL_ORDER = [
   // map's own country figures, rebuilt daily.
   { h: 1, t: "On-planet invasion" },
   { h: 2, t: "Pre-birth frontlines" },
-  { h: 3, t: "Genetic engineering" }, "gmo_env", "gmo_decisions", "gmo_ogtr", "gmo_industry", "gmo_escapes", "gmo_cultivation", "gmo_gmofree", "gmo_incidents", "gmo_regime", "gmo_treaties", "gmo_trials", "gmo_bodies", "gmo_act",
+  { h: 3, t: "Genetic engineering" }, "gmo_env", "gmo_decisions", "gmo_ogtr", "gmo_industry", "gmo_escapes", "gmo_cultivation", "gmo_gmofree", "gmo_incidents", "gmo_regime", "gmo_treaties", "gmo_trials", "gmo_bodies",
   { h: 3, t: "Human reproduction and gene therapy" }, "gmo_therapy", "gmo_fertility",
   // Renamed 26 September (round 60): the living, from birth to death, and
   // the after-life, beside the pre-birth frontlines.
@@ -21246,21 +21974,35 @@ const PANEL_ORDER = [
   // one layer with a row per kind of conflict under it, and everything that
   // was under Suppression > Land and territory is here, the Land Matrix
   // excepted (under Meat and agriculture > Agriculture).
-  { h: 3, t: "Invasion of humans" }, "site_settler_colonialism", "other_invaded", "gw_defenders", "capture_cases", "capture_countries", "capture_share",
-  { h: 4, bundle: "indigenous_conflicts", colour: "#6B5A4A" }, "site_indigenous_conflicts",
-  { h: 4, bundle: "landmark", colour: "#6A5E66" },
-  { h: 4, bundle: "resrights", colour: "#5E6A66" },
+  // Round 118b (asked 30 September): under subheadings.
+  { h: 3, t: "Invasion of humans" },
+  { h: 4, t: "How each country is invaded" }, "other_invaded",
+  { h: 4, t: "Where Indigenous peoples and local communities live" },
+  { h: 5, bundle: "landmark", colour: "#6A5E66" },
+  { h: 4, t: "Indigenous and community rights" },
+  { h: 5, bundle: "resrights", colour: "#5E6A66" },
+  { h: 4, t: "Quality of laws protecting their land" },
+  { h: 4, t: "Conflicts and killings" }, "gw_defenders",
+  { h: 5, bundle: "indigenous_conflicts", colour: "#6B5A4A" }, "site_indigenous_conflicts",
   // Round 74 (27 September): the map's own conflict and military layers in
   // place of the Guerillamap row, which could only link to another site.
-  { h: 3, t: "Of countries by countries" }, "site_secret_societies",
-  { h: 4, bundle: "military", colour: "#6A5E5A" }, "mil_news", "mil_news_archive", "mil_conflicts", "mil_attacks", "mil_aircraft", "mil_sites", "mil_units",
-  "mil_nuclear_storage", "mil_usni_fleet", "mil_osm", "mil_mirta", "mil_test_sites", "mil_minefields", "mil_alliances",
-  { h: 5, bundle: "milcompare", colour: "#6E5F52" }, "mil_spend_gdp", "mil_spend_gov", "mil_spend_usd", "mil_personnel", "mil_warheads", "mil_tests", "mil_nuclear_position",
+  { h: 3, t: "Of countries by countries" }, "site_secret_societies", "capture_all",
+  // Round 118b (asked 30 September): every part of the two military layers a
+  // row of its own, under headings; the places sorted by kind across their
+  // sources; everything nuclear under one heading.
+  { h: 4, t: "Wars, militaries and weapons, past and current" },
+  { h: 5, t: "Fighting and attacks" }, "mil_news", "mil_news_archive", "mil_conflicts", "mil_attacks", "mil_minefields",
+  { h: 5, t: "Forces and alliances now" }, "mil_aircraft", "mil_usni_fleet", "mil_units", "mil_alliances",
+  { h: 5, t: "Bases, airfields, ports and ranges" }, "mil_k_bases", "mil_k_air", "mil_k_naval", "mil_k_ranges", "mil_k_schools", "mil_k_other", "mil_k_forts",
+  { h: 5, t: "Nuclear weapons" }, "mil_k_nuclear", "mil_nuclear_storage", "mil_warheads", "mil_tests", "mil_nuclear_position",
+  { h: 5, t: "Armies and military spending, country by country" }, "mil_spend_gdp", "mil_spend_gov", "mil_spend_usd", "mil_personnel",
   // Round 77: the whole Unearthings map, in its own order.
-  { h: 2, t: "Invasion of the after-life" }, "remains_records", "remains_units", "remains_findings", "remains_cemeteries",
-  "remains_crematoria", "remains_mortuaries", "remains_museums", "remains_fire",
+  // Round 118b (asked 30 September): the country shading, the guides panel
+  // and the news wire row out (the wire is in the news wires box); the fires
+  // are under Fire.
+  { h: 2, t: "Invasion of the after-life" }, "remains_records", "remains_findings", "remains_cemeteries",
+  "remains_crematoria", "remains_mortuaries", "remains_museums",
   { note: "Permafrost thaw and coastal erosion unearth remains too; no public service publishes either as a live worldwide layer, so the Unearthings map leaves them off rather than faking them, and so does this one." },
-  "remains_help", "remains_wire",
 
   { h: 1, t: "Destruction" },
   { h: 2, t: "Of the planet" },
@@ -21573,7 +22315,7 @@ const PANEL_ORDER = [
   // Round 104b (asked 28 September): School here, out of Economic inequality:
   // every school Giga maps, and who made schooling a machine for the grid.
   { h: 4, t: "School" }, "school_culprits", "giga_school_points", "giga_countries",
-  { h: 4, t: "Politics as a front" }, "capture_cases", "capture_countries", "capture_share",
+  { h: 4, t: "Politics as a front" }, "capture_all",
   // Round 105b (asked 28 September): V-Dem's democracy scores.
   { h: 5, t: "Voter suppression" },
   { h: 5, t: "Representation as presentation" },
@@ -21617,6 +22359,8 @@ const PANEL_ORDER = [
   { h: 1, t: "Buildings" }, "building_types", "osm_landuse",
 ];
 const PANEL_REMOVED = new Set([
+  // Round 118b: the three capture rows are views of capture_all.
+  "capture_cases", "capture_countries", "capture_share",
   // Round 112b: Final Nail's farms are in the fur farms file (fur/farms.geojson).
   "final_nail",
   // Round 107b (asked 28 September): the threat index and V-Dem rows are not wanted.
@@ -21658,6 +22402,14 @@ const PANEL_REMOVED = new Set([
   "epa_tri_sites", "slick_archive", "skytruth_posts", "pirg_plastic",
   // Round 84b: MISSILEMAP's panel (another site in a box) is out, at the owner's word.
   "mil_missile_ranges",
+  // Round 118b (asked 30 September): out of the menu. The Unearthings wire is
+  // read in the news wires box; the consultations panel and the guides panel
+  // are not wanted; the country shading of the Unearthings records is not.
+  "remains_units", "remains_help", "remains_wire", "gmo_act",
+  // Round 118b: drawn with the other countries' row (alsoShows), one row.
+  "site_settler_colonialism",
+  // Round 118b: their places are in the rows of each kind (mil_k_*).
+  "mil_sites", "mil_osm", "mil_mirta", "mil_test_sites",
   // Round 85b: Russia's storage sites opened another site in a panel; the
   // Nuclear Notebook row above it names them, at the owner's word.
   "mil_russia_storage",
@@ -22555,7 +23307,7 @@ const KIND_NATIONAL = new Set(["giga", "country", "owidgrapher"]);
 // Rows whose route says points but which draw areas (round 57: FracTracker's
 // map draws the world's oil and gas basins and the US shale basins, both
 // outlines).
-const KIND_OVERRIDE = { fractracker_refineries: "shape" };
+const KIND_OVERRIDE = { fractracker_refineries: "shape", capture_all: "point" };
 function layerKind(cfg) {
   if (!cfg || !cfg.route) return "";
   if (KIND_OVERRIDE[cfg.id]) return KIND_OVERRIDE[cfg.id];

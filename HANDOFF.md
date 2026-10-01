@@ -5,6 +5,66 @@ touches.
 
 ---
 
+## Round 118b (30 September)
+
+Needs round 117b. Tiles patch round118b_tiles.py beside it. No app.js?v= bump.
+The Worker changed too (route /v1/adsbmil): redeploy it.
+
+- Globe went dark with a layer raised as ground: the vertical-perspective view
+  cannot carry terrain. drawnProjection() now gives "globe" while terrain or a
+  raised row holds the ground, and reliefGround switches it. The painted plate
+  is now raster tiles (plate:// protocol, source and layer "plate-base"), left
+  out of the colour remapping (GLAD_SKIP_SOURCES). Fixes the richest
+  dynasties' points darkened at world view and the black globe with banking
+  dynasties ticked.
+- gladValue maps a two-stop interpolate or step stop by stop: the wrap made
+  MapLibre refuse the Social Spheres' lines ("Type string is not
+  interpolatable").
+- shapeLift no longer adds before `${id}-line` (that layer did not exist yet;
+  it broke other_invaded, settler colonialism, gmo_regime, treaties, trials,
+  mil_alliances, remains_units).
+- Countries raised by their own score: shapeColouring returns lift heights;
+  rowLift adds a fill-extrusion `${id}-lift`; addCountryCatLayer, sitemap
+  colourings and the trackers use it; riseRow stands national rows (by kind
+  or drawsCountries) as countries, never as smoothed continent ground, and
+  skips rows with cfg.centroids (state and country middles, head offices).
+- Combine ticked layers (View box, new section): off / by how densely places
+  gather / by each place's own figure (rank within its row: largest 1,
+  smallest 0.1, none 0.5); each row scaled to its own top first, then weighted
+  0 to 3 by the menu under it (COMBO, comboBuild, comboDraw). Rows' own bands
+  step aside while it shows. Country rows are not folded in.
+- Capture: capture_all (route "switch", parts capture_cases,
+  capture_countries, capture_share, a menu under the row) under Of countries
+  by countries and Politics as a front; the parts are in PANEL_REMOVED.
+- Invasion of humans in h4 subheadings (How each country is invaded; Where
+  Indigenous peoples and local communities live; Indigenous and community
+  rights; Quality of laws protecting their land; Conflicts and killings);
+  CATALOGUE_BY_TITLE files the tenure indicators, LandMark's population and
+  land-share rows and the ITTs under them.
+- Settler colonialism drawn with other_invaded (alsoShows), its own row out.
+- Military: eight rows by kind of place from all four sources
+  (military/kinds/*.geojson, tiles military_kinds.py), nuclear under its own
+  h5, every part of the old layers a row; no one-colour choice (noOneColour);
+  UCDP coloured by kind of violence or deaths, no bands; ADS-B through the
+  Worker (/v1/adsbmil: adsb.lol, airplanes.live, adsb.fi).
+- GMO: organisations and escapes from the map's own page (tiles gmo_seed.py),
+  field-trial boxes list each release authorisation (gmo/trials), bodies
+  brighter, gmo_act out, centroid rows not raised.
+- Unearthings: records spread in a small spiral, findings brighter,
+  remains_units, remains_help and remains_wire out, remains_fire only under
+  Fire; density bands gone by zoom 7.5.
+- Rows of 25 points or fewer get a pale ring (fewBeacon).
+- Stock exchanges: no figure = hollow ring. Who keeps the profits: dark =
+  keeps them (reverse). resourcetrade.earth: hover a country, only its flows
+  and partners stay lit (rteHover). Trade imbalances: surplus or deficit, one
+  at a time. Banking dynasties: filter by any measure, bowed lines, button
+  "Complete Visual" closes by button, click outside or Escape.
+- LandMark and FUNAI boxes titled by the area's own name, working fields
+  hidden (gfwRecordBox, FIELD_WORDS); lighter = less protection on the tenure
+  rows.
+- Lazy geojsonlive and switch rows of the main LAYERS list wait for their
+  first tick (TOP_DEFERRED), instead of asking for a .pmtiles they never had.
+
 ## Round 117b (30 September)
 
 Needs round 116b. Tiles patch round117b_tiles.py beside it. No app.js?v= bump.

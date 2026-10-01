@@ -857,6 +857,30 @@ export default {
     // reshaped here: the catalogue's own JSON goes back as it arrives, with
     // this Worker's CORS headers on it. Only the parameters the row sends are
     // forwarded, so this cannot be used as an open proxy for the rest of the API.
+    // Military aircraft heard now (round 118b: the map's row read "no ADS-B
+    // source answered this page"; read from a page, the open ADS-B APIs do not
+    // always answer). Read here and handed back with this Worker's CORS
+    // headers; the first source that answers wins. Cached for 30 seconds.
+    if (url.pathname === "/v1/adsbmil") {
+      const key = new Request(`${url.origin}${url.pathname}?_c=${CACHE_VERSION}`);
+      const hit = await cache.match(key);
+      if (hit) return withCors(hit, origin);
+      const tried = [];
+      for (const target of ["https://api.adsb.lol/v2/mil", "https://api.airplanes.live/v2/mil", "https://opendata.adsb.fi/api/v2/mil"]) {
+        try {
+          const upstream = await fetch(target, { headers: { Accept: "application/json", "User-Agent": "culprits-proxy (welcometoyourgalaxy.github.io)" } });
+          if (!upstream.ok) { tried.push(`${target}: ${upstream.status}`); continue; }
+          const j = await upstream.json();
+          if (!j || !Array.isArray(j.ac)) { tried.push(`${target}: no aircraft list`); continue; }
+          const stored = new Response(JSON.stringify(Object.assign(j, { _from: target })), {
+            status: 200, headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=30" } });
+          ctx.waitUntil(cache.put(key, stored.clone()));
+          return withCors(stored, origin);
+        } catch (e) { tried.push(`${target}: ${e.message}`); }
+      }
+      return bad(`no ADS-B source answered: ${tried.join("; ")}`, 502, origin);
+    }
+
     if (url.pathname === "/v1/carbonmapper") {
       const pass = new URLSearchParams();
       for (const k of ["limit", "offset", "sort", "bbox", "plume_gas", "datetime"]) {
