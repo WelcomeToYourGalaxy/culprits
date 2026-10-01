@@ -5,6 +5,51 @@ touches.
 
 ---
 
+## Round 119b (30 September)
+
+Needs round 118b. Tiles patch round119b_tiles.py beside it. No app.js?v= bump.
+
+- Attacks rows read attacks/plain/*.geojson (tiles attacks_plain.py) first,
+  the originals until built (files[].fallback in readGeojsonFiles): labels in
+  English from a table of the sources' terms, longer texts machine-translated
+  with Argos Translate on the build machine (cached in
+  attacks/plain/translations.json, a time budget per run, so CIMI's 9,202
+  cases fill in over several days), Brazil's state codes as names, the Land
+  of Resistance's record dates as dates ("added to the database on"), CIMI's
+  cases by family of violence (report chapter), Front Line Defenders' tags
+  in English. Areas in land conflict drawn as municipalities (cgaz-boundaries
+  BRA2, state rows as BRA), one shape per municipality and year, year bar.
+- filterBy (filterByTokens): chips by a row's own fields, list fields under
+  each value; groupLabel names the kind chips (default "Kind", was "Layer").
+  gw_killings coloured and filtered by who killed them; land_of_resistance,
+  frontline (rights at stake, violations), cimi, CPT rows likewise.
+- Bundles killing_indigenous, defenders, brazil_land, homicides under
+  Destruction > Of individuals > Of humans and again under Invasion of humans
+  > Conflicts and killings. Water conflicts under Water scarcity;
+  overexploitation under Slavery's cases and enforcement.
+- Homicides: homicide_rates (World Bank VC.IHR.PSRC.P5, UNODC), homicide_cases
+  (mvtlive tiles/homicide_cases.pmtiles: Chicago, LA, NYC, Washington Post 50
+  cities), homicide_colombia (towns), homicide_wikidata; tiles homicides.py.
+- Wreckers: one layer (bundle wreckers), London uMap and worldwide; worldwide
+  grouped by Corporate Watch's own directory sections (tiles
+  troutwood_layers.py), tobacco, airlines and shipping out, arms makers kept
+  as Corporate Watch lists them; the company box says why it is on the layer.
+- They Rule's page replaced by boards_interlocks (tiles boards.py: Wikidata
+  board members, chairs and chief executives of the 500 largest companies,
+  lines between companies sharing a person). EJAtlas below it, its ten
+  categories named (EJ_CATEGORIES) and coloured.
+- AUTO_GROUP_COLOURS 24; kinds past the colours said in the key; years in
+  colour keys without commas; "as the row draws them" now "its own colours".
+- Raised rows' hillshade lighter and gone by zoom 7.5 (the dark grey
+  shading); glow cores and dots sharp (blur 0.12/0.15, cores at least
+  1.8 px).
+- WJP: wjp_discrimination_2022 (score_2022, ranks per edition, tiles
+  wjp_discrimination.py). Global Witness countries: totals without the
+  chart's LAT/LON, columns named (global_witness.py).
+- rte_trade reads every flow (rte/trades_all_<year>.json, tiles rte.py) and
+  shows every flow by default; carbon plumes read every page; Launch Library
+  up to 60 pages.
+
 ## Round 118b (30 September)
 
 Needs round 117b. Tiles patch round118b_tiles.py beside it. No app.js?v= bump.

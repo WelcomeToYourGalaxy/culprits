@@ -2448,8 +2448,10 @@ function addHud(layer, rawAddLayer) {
     } }, wide, base);
   const coreSpec = Object.assign({ id: core, type: "circle", layout: { visibility: vis }, paint: {
       "circle-color": GLOW.core(w),
-      "circle-radius": z(0, ["*", 0.8, lift], 4, ["*", 1.1, lift], 8, ["*", 1.6, lift], 11, ["*", 2.1, lift]),
-      "circle-blur": 0.6,
+      // Round 119b (asked 30 September: points "disappearing or blurring
+      // across zooms"): a sharp speck at least 1.8 px across, not a soft blur.
+      "circle-radius": z(0, ["max", 1.8, ["*", 0.9, lift]], 4, ["max", 2, ["*", 1.2, lift]], 8, ["max", 2.4, ["*", 1.7, lift]], 11, ["*", 2.2, lift]),
+      "circle-blur": 0.12,
       "circle-opacity": z(GLOW.fadeOut, ["+", 0.3, ["*", 0.7, ["sqrt", w]]], GLOW.gone, 0),
       "circle-stroke-width": 0,
     } }, wide, base);
@@ -2468,7 +2470,7 @@ function addHud(layer, rawAddLayer) {
     // well inside the clickable circle), and unseen wider out, where the cores
     // stand for them; they are still there to be clicked.
     const paint = hudRaw.setPaintProperty || map.setPaintProperty.bind(map);
-    paint(layer.id, "circle-blur", 1);
+    paint(layer.id, "circle-blur", 0.15);   // round 119b: sharp, not soft (was 1)
     paint(layer.id, "circle-stroke-width", 0);
     if (p["circle-opacity"] === undefined) paint(layer.id, "circle-opacity", z(GLOW.fadeOut, 0, GLOW.gone, 0.9));
     hudOf.set(layer.id, [haze, core, soft]);
@@ -4371,6 +4373,29 @@ function relabelRow(id, title) {
 }
 
 // items: [{ geometry, key, name, colour, group, h, t }]
+// Round 119b (asked 30 September: "should be filterable"): a row may name
+// fields to filter by, each a set of chips under the row (with the kind it is
+// coloured by, if it has kinds); a field holding several values ("a; b")
+// counts under each.
+function filterByTokens(cfg, items) {
+  const sets = cfg.filterBy.map((fb) => ({ label: fb.label, n: new Map() }));
+  for (const it of items) {
+    const p = it._pc || {};
+    let tok = "";
+    cfg.filterBy.forEach((fb, i) => {
+      const raw = fb.get ? fb.get(p) : p[fb.field];
+      if (raw === undefined || raw === null || raw === "") return;
+      const vals = (Array.isArray(raw) ? raw : fb.list ? String(raw).split(/\s*;\s*/) : [raw]).map((v) => String(v).trim()).filter(Boolean);
+      for (const v of new Set(vals.map((x) => (fb.words && fb.words[x]) || x))) {
+        tok += `|f${i}:${v}|`;
+        sets[i].n.set(v, (sets[i].n.get(v) || 0) + 1);
+      }
+    });
+    it.fb = tok;
+  }
+  cfg._fbSets = sets.map((st, i) => ({ label: st.label, values: [...st.n].sort((a, b) => b[1] - a[1]).map(([v, n]) => ({ k: `f${i}:${v}`, label: v, n })) }))
+    .filter((st) => st.values.length > 1);
+}
 function livePlacesToSitemap(cfg, items) {
   const groups = new Map();
   const features = [], boxes = {};
@@ -4381,12 +4406,12 @@ function livePlacesToSitemap(cfg, items) {
     const c = it.hollow || it.colour === AMOUNT_NONE || ((cfg.colourBy || cfg.groupColours || cfg.periods) && it.colour) ? it.colour : softColour(it.colour, cfg.colour);
     features.push({ type: "Feature", geometry: it.geometry,
       properties: { k: it.key, p: 1, t: it.name ? 1 : 0, n: it.name || "", c, ...(yearFromOf(cfg) ? { y: it.y != null ? it.y : -9999 } : {}),
-                    f: g ? `|g:${g}|` : "", ...(it.hollow ? { o: 0.15, s: it.colour, w: 1.8 } : {}),
+                    f: (g ? `|g:${g}|` : "") + (it.fb || ""), ...(it.hollow ? { o: 0.15, s: it.colour, w: 1.8 } : {}),
                     ...(it.pc ? Object.fromEntries(it.pc.map((pc, j) => [`pc${j}`, pc])) : {}) } });
     if (!boxes[it.key]) boxes[it.key] = { h: it.h, t: it.name ? `<b>${escapeHtml(it.name)}</b>` : "", o: { maxWidth: 340, maxHeight: 420 } };
   }
-  const filters = groups.size > 1
-    ? [{ label: "Layer", values: [...groups].map(([g, n]) => ({ k: `g:${g}`, label: g, n })) }] : [];
+  const filters = (groups.size > 1
+    ? [{ label: cfg.groupLabel || "Kind", values: [...groups].map(([g, n]) => ({ k: `g:${g}`, label: g, n })) }] : []).concat(cfg._fbSets || []);
   return { data: { type: "FeatureCollection", filters, features },
            boxes: { name: cfg.name, css: "", stylesheets: [], chain: [], boxes } };
 }
@@ -4414,6 +4439,9 @@ async function addLivePlacesLayer(cfg) {
   }
   // A row the owner has named keeps its name (round 61: Zoos and Aquariums).
   if (!cfg.fixedName) relabelRow(cfg.id, got.title);
+  // Round 119b: filters by the row's own fields (cfg.filterBy), read before
+  // the colour choices use the records up.
+  if (cfg.filterBy) filterByTokens(cfg, got.items);
   // Round 117b: the choices of colour under the row, from its own records.
   const pcList = got.items.some((it) => it._pc) ? pointColourItems(cfg, got.items) : [];
   const { data, boxes } = livePlacesToSitemap(cfg, got.items);
@@ -6592,6 +6620,22 @@ function pointOf(r) {
 }
 
 // EJAtlas: its conflicts, page by page.
+// Round 119b (asked 30 September: "titles the sublayers by number up to 7.
+// Nobody knows what those mean"): EJAtlas's ten categories, in its own order
+// and words (its map's filter; the API gives the number only).
+const EJ_CATEGORIES = { 1: "Nuclear", 2: "Mineral ores and building materials extraction", 3: "Waste management",
+  4: "Biomass and land conflicts (forests, agriculture, fisheries and livestock)", 5: "Fossil fuels and climate justice / energy",
+  6: "Water management", 7: "Infrastructure and built environment", 8: "Tourism and recreation", 9: "Biodiversity conservation conflicts",
+  10: "Industrial and utilities conflicts" };
+const ejWords = (v) => (Array.isArray(v) ? v : v == null ? [] : [v]).map((x) => String(x).replace(/-/g, " ").replace(/^./, (c) => c.toUpperCase())).join("; ");
+function ejPlain(r) {
+  const o = Object.assign({}, r);
+  if (o.category != null && EJ_CATEGORIES[o.category]) { o["category (EJAtlas)"] = EJ_CATEGORIES[o.category]; delete o.category; }
+  for (const k of ["type", "commodity", "company", "country"]) if (o[k] != null) o[k] = ejWords(o[k]);
+  for (const k of ["status", "project_status", "reaction"]) if (o[k] != null) { o[`${k.replace("_", " ")} (EJAtlas's own code number)`] = o[k]; delete o[k]; }
+  delete o.locale;
+  return o;
+}
 async function readEjatlas(cfg) {
   const items = [];
   // Since September 2026 the list pages carry no position (only id, slug,
@@ -6615,12 +6659,16 @@ async function readEjatlas(cfg) {
         if (!f || !f.geometry) continue;
         const r = Object.assign({ id: f.id }, f.properties || {});
         const title = r.title || r.name || r.headline || `Conflict ${r.id}`;
-        items.push({ geometry: f.geometry, key: `c${r.id}`, name: title, group: r.category || r.type || "", h: box(r) });
+        const cat = EJ_CATEGORIES[r.category] || (r.category != null ? `Category ${r.category}` : ejWords(r.type));
+        items.push({ geometry: f.geometry, key: `c${r.id}`, name: title, group: cat, h: box(ejPlain(r)) });
       }
       gurl = j.next || null; n++;
     }
   } catch (e) { console.warn(`[culprits] ejatlas: the GeoJSON list did not answer (${e.message}); trying the plain list`); }
-  if (items.length) return { title: cfg.name, items };
+  if (items.length) {
+    const coloured = cfg.groupColours ? colourByGroup(cfg, items) : null;
+    return { title: cfg.name, items, key: coloured && coloured.key, keyHint: coloured && coloured.hint };
+  }
   let url = `${cfg.api}?limit=500&offset=0`, pages = 0, sample = null;
   // The first page says how many there are; the rest are then read four at a
   // time rather than one after another (about a second and a quarter each),
@@ -6645,7 +6693,7 @@ async function readEjatlas(cfg) {
       if (!g) continue;
       const title = r.title || r.name || r.headline || `Conflict ${r.id}`;
       const link = r.slug ? `https://ejatlas.org/conflict/${encodeURIComponent(r.slug)}` : (r.url || "");
-      items.push({ geometry: g, key: `c${r.id}`, name: title, group: r.category || r.type || "",
+      items.push({ geometry: g, key: `c${r.id}`, name: title, group: EJ_CATEGORIES[r.category] || r.category || r.type || "",
         h: boxOpen + `<h4 style="margin:0 0 6px">${escapeHtml(title)}</h4>` +
           (r.image ? `<img src="${escapeHtml(r.image)}" style="max-width:100%;margin:4px 0">` : "") +
           (r.headline && r.headline !== title ? `<p>${escapeHtml(r.headline)}</p>` : "") +
@@ -6688,12 +6736,19 @@ function recordsAsFeatures(rows) {
     return { type: "Feature", geometry: { type: "Point", coordinates: [lng, lat] }, properties: p };
   }).filter(Boolean);
 }
-const AUTO_GROUP_COLOURS = ["#E0304A", "#3FA9C2", "#F28FB0", "#1E6FA8", "#B04FC8", "#F4F1EA", "#7A1F3D", "#6E5AE0", "#8FB8FF", "#C23A8A", "#5E7C99", "#A87CA0"];
+// Round 119b (asked 30 September: a row's kinds "all same grey"): 24 colours,
+// so a row with many kinds no longer gives every one past the twelfth grey.
+const AUTO_GROUP_COLOURS = ["#E0304A", "#3FA9C2", "#F28FB0", "#1E6FA8", "#B04FC8", "#F4F1EA", "#7A1F3D", "#6E5AE0", "#8FB8FF", "#C23A8A", "#5E7C99", "#A87CA0",
+  "#9E2A3E", "#2E8FA6", "#D97AA0", "#174E80", "#8A3CA6", "#C9C3B6", "#5A1530", "#4F45B8", "#6F9FE0", "#A0306E", "#3E5E7A", "#7E5E8C"];
 async function readGeojsonFiles(cfg) {
   const items = [];
   let nowhere = 0;
   for (const f of cfg.files) {
-    const got = await getJson(f.url, 60000);
+    // Round 119b: a file rebuilt in plain English (attacks/plain/) is read
+    // first; until the build has made it, the original.
+    let got;
+    try { got = await getJson(f.url, 60000); }
+    catch (e) { if (!f.fallback) throw e; got = await getJson(f.fallback, 60000); }
     // A file that holds several kinds, one row per kind: only: [field, value].
     if (f.only && got && Array.isArray(got.features)) got.features = got.features.filter((ft) => String((ft.properties || {})[f.only[0]]) === f.only[1]);
     const gj = Array.isArray(got) ? { features: recordsAsFeatures(got) }
@@ -6786,15 +6841,18 @@ const CARDS = {
     const money = (v) => (v == null || v === "" ? "" : `$${amountWords(Number(v))}`);
     const where = [p.city, p.state, p.country].filter(Boolean).join(", ");
     return boxOpen + `<h4 style="margin:0 0 4px">${escapeHtml(name)}${p.symbol ? ` <span class="meta">(${escapeHtml(p.symbol)})</span>` : ""}</h4>` +
+      // Round 119b (asked 30 September: "a popup box explaining how they are on the list").
+      (p["why it is on this layer"] ? `<p style="margin:4px 0 6px">${escapeHtml(p["why it is on this layer"])}</p>` +
+        `<div class="meta">${escapeHtml(p["how this layer was made"] || "")}</div>` : "") +
       (p.market_cap ? `<div style="font-size:20px;font-weight:600;line-height:1.2">${escapeHtml(money(p.market_cap))}</div><div class="meta">market value (all its shares at today's price)</div>` : "") +
       `<table style="margin-top:6px">` +
       cardLine("Industry", [p.sector, p.industry].filter(Boolean).join(": ")) +
-      (p.group && p.group !== p.sector ? cardLine("Wrecking industry group", p.group) : "") +
+      (p.group && p.group !== p.sector ? cardLine("Corporate Watch's section", p.group) : "") +
       cardLine("Head office", where) +
       cardLine("Share price", p.price != null ? `$${Number(p.price).toLocaleString("en", { maximumFractionDigits: 2 })}${p.change_pct != null ? ` (${pct(p.change_pct)} on the day)` : ""}` : "") +
       cardLine("Year's range", p.price_52w_low != null && p.price_52w_high != null ? `$${p.price_52w_low} to $${p.price_52w_high}` : "") +
       cardLine("In the indices", Array.isArray(p.member_indices) ? p.member_indices.join(", ") : p.member_indices) + `</table>` +
-      everyField(p, ["display_on_map"]) + `</div>`;
+      everyField(p, ["display_on_map", "why it is on this layer", "how this layer was made"]) + `</div>`;
   },
 };
 
@@ -6953,8 +7011,11 @@ function pcFinish(ch, values) {
       if (ch.sort === "value") cls.sort((a, b) => (pcNum(a[0]) != null && pcNum(b[0]) != null ? pcNum(a[0]) - pcNum(b[0]) : String(a[0]).localeCompare(String(b[0]))));
     }
     const ordered = ch.ordered;
-    ch.cls = cls.slice(0, 12).map(([v, label], i) => [String(v), label == null ? String(v) : label,
-      ordered ? pcRampAt(i / Math.max(1, Math.min(cls.length, 12) - 1)) : AUTO_GROUP_COLOURS[i % AUTO_GROUP_COLOURS.length]]);
+    const most = ordered ? 12 : AUTO_GROUP_COLOURS.length;
+    ch.cls = cls.slice(0, most).map(([v, label], i) => [String(v), label == null ? String(v) : label,
+      ordered ? pcRampAt(i / Math.max(1, Math.min(cls.length, most) - 1)) : AUTO_GROUP_COLOURS[i % AUTO_GROUP_COLOURS.length]]);
+    // Past the colours there are: said in the key, not left as "not given".
+    if (cls.length > most) ch.noneWords = `the other ${cls.length - most} kinds, or not given`;
     ch.kind = "cls";
     return ch.cls.length >= 2 ? ch : null;
   }
@@ -6962,7 +7023,9 @@ function pcFinish(ch, values) {
   const distinct = [...new Set(nums)].sort((a, b) => a - b);
   // A few whole numbers (a rating, a handful of years): each its own step.
   if (!ch.breaks && distinct.length > 0 && distinct.length <= (distinct.every((x) => x >= 1800 && x <= 2100) ? 12 : 6) && distinct.every((x) => Number.isInteger(x))) {
-    ch.classes = distinct.map((x) => [String(x), ch.labels && ch.labels[x] != null ? ch.labels[x] : `${x.toLocaleString()}${ch.unit ? " " + ch.unit : ""}`]);
+    // A year is written as a year (2013, not 2,013: asked 30 September).
+    const yearly = distinct.every((x) => x >= 1800 && x <= 2100);
+    ch.classes = distinct.map((x) => [String(x), ch.labels && ch.labels[x] != null ? ch.labels[x] : `${yearly ? String(x) : x.toLocaleString()}${ch.unit ? " " + ch.unit : ""}`]);
     ch.ordered = true;
     ch.num = true;
     return pcFinish(ch, values);
@@ -7090,7 +7153,7 @@ function pcRender(id) {
   el.innerHTML = `<div style="font-size:10.5px;color:var(--dim)">Colour the points by ` +
     `<select data-pc="${escapeHtml(id)}" aria-label="Colour the points by" style="font:inherit;font-size:11px;max-width:100%">` +
     st.choices.map((c, i) => `<option value="${i}"${i === st.pick ? " selected" : ""}>${escapeHtml(c.label)}</option>`).join("") +
-    (st.cfg.noOneColour ? "" : `<option value="-1"${st.pick < 0 ? " selected" : ""}>${st.own ? `as the row draws them (${escapeHtml(String(st.own).replace(/^Coloured by /i, "").toLowerCase())})` : "one colour (the row's own look)"}</option>`) + `</select></div>` +
+    (st.cfg.noOneColour ? "" : `<option value="-1"${st.pick < 0 ? " selected" : ""}>${st.own ? `its own colours: ${escapeHtml(String(st.own).replace(/^Coloured by /i, "").toLowerCase())}` : "one colour for every point"}</option>`) + `</select></div>` +
     (ch && ch.hint ? `<div style="font-size:10.5px;color:var(--dim)">${escapeHtml(ch.hint)}</div>` : "") +
     (ch ? pcKeyPairs(ch).map(([c, t]) => `<div class="lg-row lg-sub"><span class="lg-sw lg-key" data-glad="1" style="background:${c}"></span><span class="lg-nm">${escapeHtml(t)}</span></div>`).join("") : "");
 }
@@ -7889,7 +7952,7 @@ function columnEdge() {
 // and says how many of the total it is holding rather than pretending to have
 // all of it.
 const CARBON_PLUME_ZOOM = 10;     // from here in, the plumes' own pictures
-const CARBON_PLUME_PAGES = 10;    // 1,000 plumes a page
+const CARBON_PLUME_PAGES = 200;   // 1,000 plumes a page; round 119b: every page there is (was the newest 10)
 const CARBON_PAGES_AT_ONCE = 3;    // after the first, which is drawn on its own
 const CARBON_PICTURES_AT_ONCE = 40;
 async function addCarbonMapperLayer(cfg) {
@@ -8245,6 +8308,12 @@ const BUNDLES = {
   resrights: "Community rights to natural resources, worldwide and in Cameroon, Equatorial Guinea, Liberia and Namibia (LandMark and Global Forest Watch)",
   landghg: "Greenhouse gases from farmland and livestock, CO2 equivalent (WRI land greenhouse gas monitoring system)",
   indigenous_conflicts: "Indigenous Environmental Conflicts",
+  // Round 119b (asked 30 September): like layers as one, each a part.
+  killing_indigenous: "Killings of and violence against Indigenous peoples in Brazil (CIMI, Caci)",
+  defenders: "Land and environmental defenders killed and attacked (Global Witness, Land of Resistance, Front Line Defenders)",
+  brazil_land: "Land conflicts in Brazil: threats, murders, massacres and areas in conflict (Pastoral Land Commission)",
+  homicides: "Homicides worldwide: rates by country, and cases where they are published",
+  wreckers: "Wreckers of the Earth: Corporate Watch's companies in London, and listed companies in the same industries worldwide (Corporate Watch)",
   selected: "Selected Layers",
   // Round 81: the four outlet rows as one layer, as the coastal waters row has
   // its four choices in one (asked 27 September).
@@ -10733,7 +10802,7 @@ const LL2 = "https://ll.thespacedevs.com/2.3.0";
 async function ll2All(path) {
   const out = [];
   let url = `${LL2}${path}${path.includes("?") ? "&" : "?"}limit=100&mode=detailed`;
-  for (let i = 0; url && i < 6; i++) {
+  for (let i = 0; url && i < 60; i++) {         // round 119b: every page (was the first 6)
     const r = await fetch(url);
     if (r.status === 429) throw new Error("rate");
     if (!r.ok) throw new Error(`${r.status}`);
@@ -10917,7 +10986,7 @@ async function addRteLayer(cfg) {
                1, ["match", tier, 0, RTE_W[0], 1, RTE_W[1], 2, RTE_W[2], 3, RTE_W[3], RTE_W[4]],
                6, ["*", 1.6, ["match", tier, 0, RTE_W[0], 1, RTE_W[1], 2, RTE_W[2], 3, RTE_W[3], RTE_W[4]]]] } });
   // Round 104b: the largest 50 by default, and one country's flows alone on asking.
-  let rteAll = [], rteKeep = 50, rteOne = "";
+  let rteAll = [], rteKeep = 0, rteOne = "";      // round 119b: every flow read, by default
   const rteShow = () => {
     const src = map.getSource(`${cfg.id}-src`);
     if (!src) return;
@@ -10928,8 +10997,15 @@ async function addRteLayer(cfg) {
   const draw = async (year) => {
     setLayerState(cfg.id, `reading ${year}\u2026`);
     let j;
-    try { j = await rteGet(cfg, `/trades?year=${year}&autozoom=1`, `trades_${year}.json`); }
-    catch (e) { setLayerState(cfg.id, `no flows could be read for ${year}`); return; }
+    // Round 119b (asked 30 September: "are there any other layers ... only a
+    // sample"): every flow of the year, from the copy that holds them all
+    // (scripts/rte.py, autozoom=0); the live address gives only the largest.
+    let whole = false;
+    try { j = await getJson(`${cfg.copy}/trades_all_${year}.json`, 60000); whole = Array.isArray(j.main) && j.main.length > 0; } catch (e) { j = null; }
+    if (!whole) {
+      try { j = await rteGet(cfg, `/trades?year=${year}&autozoom=1`, `trades_${year}.json`); }
+      catch (e) { setLayerState(cfg.id, `no flows could be read for ${year}`); return; }
+    }
     const rows = (j.main || []).filter((r) => C.has(r.exporter) && C.has(r.importer));
     const max = Math.max(1, ...rows.map((r) => Number(r.value) || 0));
     const feats = rows.map((r) => {
@@ -10959,7 +11035,7 @@ async function addRteLayer(cfg) {
       buildLegend();
     }
     const left = (j.main || []).length - rows.length;
-    setLayerState(cfg.id, `${feats.length} largest flows of ${Number(j.total || 0).toLocaleString()} in ${year}` +
+    setLayerState(cfg.id, (whole ? `${feats.length.toLocaleString()} flows, every one in ${year}` : `${feats.length} largest flows of ${Number(j.total || 0).toLocaleString()} in ${year} (the whole year's copy is not made yet)`) +
       (left ? ` (${left} to or from unplaced areas)` : "") + (cfg._fromCopy ? " \u00b7 from today's copy" : ""));
   };
   const n = (v) => (v == null ? "\u2014" : Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 }));
@@ -10977,8 +11053,8 @@ async function addRteLayer(cfg) {
     const el = document.createElement("div");
     el.className = "facet";
     el.innerHTML = `<select aria-label="Year">${years.map((y) => `<option value="${y}">${y}</option>`).join("")}</select> ` +
-      `<select aria-label="How many flows" data-rte-keep><option value="0">every flow read</option><option value="25">the largest 25</option>` +
-      `<option value="50" selected>the largest 50</option><option value="100">the largest 100</option></select> ` +
+      `<select aria-label="How many flows" data-rte-keep><option value="0" selected>every flow read</option><option value="25">the largest 25</option>` +
+      `<option value="50">the largest 50</option><option value="100">the largest 100</option><option value="1000">the largest 1,000</option></select> ` +
       `<select aria-label="One country" data-rte-one><option value="">every country</option>` +
       [...C.values()].sort((x, y) => String(x.name).localeCompare(String(y.name))).map((c) => `<option value="${escapeHtml(String(c.id))}">${escapeHtml(c.name)}</option>`).join("") +
       `</select><div style="font-size:10.5px;color:var(--dim)">Each line runs from light blue, where the goods leave, to red, where they arrive; wider lines carry more. Each country's lines meet a small ring round it, facing the other country, so they fan out rather than meet in one dot.</div>`;
@@ -12501,8 +12577,12 @@ const reliefStack = [];                 // rows holding the ground, last on top
 // shading is a plain grey-blue shadow with no bright highlight or glow.
 const RELIEF_BANDS = [[129, 187, 179, 150], [109, 181, 180, 163], [89, 163, 174, 176], [75, 140, 163, 189],
   [64, 115, 147, 201], [54, 91, 131, 214], [45, 69, 114, 227], [36, 49, 97, 240]];
-const RELIEF_SHADE = { "hillshade-method": "igor", "hillshade-shadow-color": "rgba(12, 24, 40, 0.6)",
-  "hillshade-highlight-color": "rgba(0, 0, 0, 0)", "hillshade-accent-color": "rgba(12, 24, 40, 0.2)", "hillshade-exaggeration": 0.5 };
+// Round 119b (asked 30 September: "when certain layers are selected, they
+// shade the map with dark grey"): the shading of a raised row is lighter and
+// gone by zoom 7.5, as its bands are, so close in the map is not greyed over.
+const RELIEF_SHADE = { "hillshade-method": "igor", "hillshade-shadow-color": "rgba(12, 24, 40, 0.38)",
+  "hillshade-highlight-color": "rgba(0, 0, 0, 0)", "hillshade-accent-color": "rgba(12, 24, 40, 0.12)",
+  "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 0, 0.5, 5, 0.35, 7.5, 0] };
 function reliefBand(h) {
   return Math.max(0, Math.min(RELIEF_BANDS.length - 1, Math.floor(Math.max(0, Math.min(1, h)) * RELIEF_BANDS.length)));
 }
@@ -18939,8 +19019,12 @@ const OTHER_MAPS = {
       attribution: "Tang and Werner 2023, Communications Earth & Environment (Zenodo 7894216, CC BY 4.0)",
       note: "74,548 outlines drawn tight round each feature of a mine - the pit, the waste rock dump, the tailings dam, the pond, the heap leach pad, the plant - rather than round the whole site, which is how this differs from the Mines row. The release carries an id, a name (mostly blank or a digitising leftover; a few say Au, Cu, Fe, diamond, coal, tungsten), a length and an area, and no commodity or impact figure. Every feature as its own point from the world view, none merged (since 23 September); outlines from zoom 7." },
     { id: "ejatlas", name: "Environmental justice conflicts (EJAtlas)", unit: "conflicts", colour: "#7A5A55", route: "ejatlas", ready: true, lazy: true,
-      api: "https://ejatlas.org/api/v1/conflicts/",
-      note: "Every conflict in the EJAtlas, read live from its own data address; each box links the conflict's page." },
+      api: "https://ejatlas.org/api/v1/conflicts/", groupLabel: "Category", groupHint: "Coloured by EJAtlas's category",
+      groupColours: { "Nuclear": "#F4F1EA", "Mineral ores and building materials extraction": "#7A1F3D", "Waste management": "#A87CA0",
+        "Biomass and land conflicts (forests, agriculture, fisheries and livestock)": "#B04FC8", "Fossil fuels and climate justice / energy": "#E0304A",
+        "Water management": "#3FA9C2", "Infrastructure and built environment": "#5E7C99", "Tourism and recreation": "#F28FB0",
+        "Biodiversity conservation conflicts": "#8FB8FF", "Industrial and utilities conflicts": "#1E6FA8" },
+      note: "Every conflict in the EJAtlas, read live from its own data address, coloured and filtered by EJAtlas's ten categories (the address gives each as a number, 1 to 10, in the order of EJAtlas's own map menu, named here); each box links the conflict's page." },
     { id: "seas_of_plastic", name: "Plastic sampled in the oceans: the stations, the voyages and the sea areas (Seas of Plastic)", unit: "stations, trips and ocean areas", colour: "#5E7377", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Stations", url: "https://app.dumpark.com/seas-of-plastic-2/app/data/AllStations.geojson" },
               { label: "Trips", url: "https://app.dumpark.com/seas-of-plastic-2/app/data/AllTrips.geojson" },
@@ -19217,6 +19301,12 @@ const OTHER_MAPS = {
       linear: [-0.12, 0.12], reverse: true,
       countryNote: "The latest score less the 2015 edition's (WJP sub-factor 4.1). Below zero: the score fell, discrimination got worse. Darker on the map: a larger fall. Countries WJP did not score in 2015 are left clear.",
       note: "How each country's equal treatment and absence of discrimination score (World Justice Project, sub-factor 4.1) has moved since the 2015 edition: darker, the score fell and discrimination got worse; paler, it rose. Countries first scored after 2015 are left clear. Same copy as the row above." },
+    { id: "wjp_discrimination_2022", name: "Discrimination around the world, 2022: the World Justice Project's map, redrawn from its scores (WJP Rule of Law Index 2022, equal treatment)", unit: "(score out of 1)", colour: "#1E6FA8", route: "country", ready: true, lazy: true, buildScript: "wjp_discrimination",
+      // Round 119b (asked 30 September, with WJP's own picture of the 2022 map).
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/discrimination/wjp.json", field: "score_2022" },
+      linear: [0, 1], reverse: true,
+      countryNote: "WJP Rule of Law Index 2022, sub-factor 4.1, perceptions of equal treatment: 0 is the most discrimination, 1 the least. Darker on the map: lower score, more discrimination. The country's rank in 2022 is in the box.",
+      note: "The World Justice Project's map Discrimination Around the World (Rule of Law Index 2022, perceptions of equal treatment), drawn here from WJP's own scores rather than copied from its picture, on the same scale (0 to 1) in this map's colours: darker, more discrimination. WJP's own map lists Afghanistan, Sudan and Nicaragua as the most discriminatory, and Finland, Estonia and Singapore as the least. Same copy as the rows above (scripts/wjp_discrimination.py)." },
     // Forced labour and trafficking enforcement, every country.
     { id: "slavery_convicted_world", name: "People convicted of human trafficking, country by country, latest year (UNODC)", unit: "people convicted", colour: "#1E6FA8", keepColour: true, route: "country", ready: true, lazy: true, buildScript: "slavery_world",
       totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/slavery_world/unodc.json", field: "convicted" },
@@ -19287,13 +19377,18 @@ const OTHER_MAPS = {
       colourBy: { field: "market_cap", label: "market value", steps: [1e9, 1e10, 5e10, 1e11, 5e11], unit: "US$ of market value" },
       attribution: "Troutwood (map.troutwood.com)",
       note: "The companies on Troutwood's global map (its 2022 map of listed companies' head offices, still kept current): some 12,000 companies on the world's stock exchanges, each at its head office, with its sector, industry, market value, share price and the indices it is in. Copied daily from the data Troutwood's own map reads, by culprits-tiles-more (scripts/troutwood.py and troutwood_layers.py)." },
-    { id: "wreckers_world", name: "Wreckers of the Earth, worldwide: listed companies in the industries that wreck the planet, at their head offices", unit: "companies", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true, buildScript: "troutwood_layers",
+    { id: "wreckers_world", name: "Worldwide: listed companies in the industries Corporate Watch lists, at their head offices (Troutwood's data)", unit: "companies", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true, buildScript: "troutwood_layers",
       files: [{ label: "Wreckers of the Earth, worldwide", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/troutwood/wreckers.geojson" }], nameFrom: ["name"], card: "company",
-      groupColours: { "Fossil fuels": "#E0304A", "Mining and metals": "#7A1F3D", "Agribusiness, logging and paper": "#B04FC8", "Chemicals and cement": "#3FA9C2",
-        "Weapons": "#F4F1EA", "Aviation and shipping": "#1E6FA8", "Tobacco": "#F28FB0", "Big finance behind them": "#6E5AE0" },
-      groupHint: "Coloured by industry",
-      attribution: "Troutwood (map.troutwood.com); grouping by this map",
-      note: "The kinds of company Corporate Watch's Wreckers of the Earth maps in London, for every city in the world: each listed company on Troutwood's map whose industry is oil and gas, coal, mining and metals, farming commodities, logging and paper, chemicals and cement, weapons, airlines and shipping, or tobacco, and the big banks and asset managers that fund them. Sorted by the industry Troutwood's data gives each company: a grouping by industry, not a finding about any one company. Rebuilt daily by culprits-tiles-more (scripts/troutwood_layers.py)." },
+      // Round 119b (asked 30 September: "explain your methodology"): Corporate
+      // Watch's own sections of its directory, matched to industries; tobacco,
+      // airlines and general shipping out (not on its list); arms makers in, as
+      // its list has them.
+      groupColours: { "Oil, gas and coal": "#E0304A", "Oil and gas services and drilling": "#9E2A3E", "Nuclear fuel": "#F4F1EA", "Mining and metals": "#7A1F3D",
+        "Engineering and construction": "#5E7C99", "Agribusiness and logging": "#B04FC8", "Plastics, chemicals and cement": "#3FA9C2", "Banks": "#6E5AE0",
+        "Investment funds": "#8FB8FF", "Insurers": "#1E6FA8", "Stock exchanges and rating agencies": "#A87CA0", "Arms makers and security firms": "#F28FB0" },
+      groupHint: "Coloured by Corporate Watch's section", groupLabel: "Corporate Watch's section", colourAuto: false,
+      attribution: "Troutwood (map.troutwood.com); sections from Corporate Watch's Wreckers of the Earth directory (2021)",
+      note: "How it is made: Corporate Watch's Wreckers of the Earth directory (2021) lists some 300 companies and institutions based in London under sections of its own: front-line \"planet-killers\" (oil, gas and coal; oil and gas services; nuclear, biomass and dams; mining; engineering and construction; agribusiness; plastics, chemicals and cement), the finance and services behind them (banks, investment funds, insurers, stock exchanges and rating agencies, law firms, arms makers and security firms), and the ideology industry. This layer applies those sections to the whole world: every listed company on Troutwood's map whose industry, in Troutwood's data, falls under one of them, at its head office. Sections with no industry of their own in that data (law firms, government, universities, media, think tanks, lobbyists) cannot be applied and are left out; tobacco, airlines and general shipping, on the layer before, are not on Corporate Watch's list and were taken out. Arms makers and security firms are on it because Corporate Watch lists them, as firms that arm and guard the destruction, not because they harm the environment directly. Each box says which section the company falls under and why that section is on the list. It is a grouping by industry, not a finding about any one company; for Corporate Watch's own entries on each London company, see the London part of this layer. Rebuilt daily by culprits-tiles-more (scripts/troutwood_layers.py)." },
     { id: "threat_overall", name: "Where the threat is greatest overall: destruction, suppression and organised crime together (the map's own index, rebuilt daily)", unit: "(score out of 1)", colour: "#1E6FA8", route: "country", ready: true, lazy: true, buildScript: "threat_index",
       totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/threat/index.json", field: "overall" }, linear: [0, 1],
       countryNote: "The map's own threat score, 0 (least of the countries scored) to 1 (most)",
@@ -19338,18 +19433,48 @@ const OTHER_MAPS = {
       slug: "political-regime",
       note: "Each country's regime type by the Regimes of the World classification, from V-Dem's data: closed autocracy (0), electoral autocracy (1), electoral democracy (2) or liberal democracy (3). Read live from Our World in Data each time it is ticked (V-Dem's figures, as Our World in Data publishes them), by country and year." },
     // ---- round 107b (asked 28 September) ----
-    { id: "attacks_cpt_areas", name: "Areas in land conflict in Brazil, year by year (Pastoral Land Commission)", unit: "areas", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Areas in land conflict in Brazil, year by year", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/cpt_areas_of_conflict.geojson" }], nameFrom: ["name"], autoGroups: true,
-      note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the Pastoral Land Commission's yearly tables of areas in conflict: 8,149 rows, at their town (7,947) or state. Rows read for 6,911 of them add up to the count each state's subtotal prints; each box says whether its state matched." },
+    { id: "attacks_cpt_areas", name: "Areas in land conflict in Brazil, municipality by municipality, year by year (Pastoral Land Commission)", unit: "municipalities and years", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true, buildScript: "attacks_plain",
+      // Round 119b (asked 30 September: "the layer depicts areas, right? Don't
+      // use points"): each municipality's own area, from the owner's copy of
+      // geoBoundaries' boundaries (cgaz-boundaries), shaded by how many areas
+      // in conflict the tables list in it that year; a year bar under the row.
+      files: [{ label: "Areas in land conflict", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/plain/cpt_areas_municipal.geojson" }], nameFrom: ["name"],
+      waiting: "not built yet: culprits-tiles-more builds it on its next run (attacks_plain)",
+      colourBy: { field: "areas in conflict", steps: [2, 4, 8, 16, 32], unit: "areas in conflict that year" }, yearFrom: ["year"], noBands: true,
+      noColourBy: true, noAreaDots: true, groupLabel: "Areas in conflict that year",
+      filterBy: [{ label: "State", field: "state" }],
+      note: "The Pastoral Land Commission's (CPT) yearly tables of areas in conflict, 2013 on: 8,149 rows, each a named area (a farm, a settlement, a community's land) with its families and hectares where the table gives them. The tables do not give the areas' own boundaries, and none are published, so each is drawn as the municipality it lies in: one shape for each municipality and year, shaded by how many areas in conflict it holds that year, every area listed in the box. The municipal boundaries are geoBoundaries' (CGAZ, CC BY 4.0), from the owner's copy (WelcomeToYourGalaxy/cgaz-boundaries); rows that name only a state are drawn as the whole state, and the box says so. Use the year bar under the row to see one year: with every year shown, the years lie on top of each other. Built by culprits-tiles-more (scripts/attacks_plain.py)." },
     { id: "attacks_cpt_land", name: "Land conflicts in Brazil, 2013 to 2020 (Pastoral Land Commission)", unit: "conflicts", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Land conflicts in Brazil, 2013 to 2020", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/cpt_land_conflicts.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by year",
+      files: [{ label: "Land conflicts in Brazil, 2013 to 2020", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/plain/cpt_land_conflicts.geojson", fallback: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/cpt_land_conflicts.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by year",
+      groupLabel: "Year", filterBy: [{ label: "State", field: "state" }],
       note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the Pastoral Land Commission's yearly tables of land conflicts: 7,063 rows, at their town (6,592) or state. The rows match each state's printed count, but the tables' many narrow columns could be checked for only 1,057; for the rest, the values that could not be matched to a column are kept in reading order in one field, as the box says. The 2012 and 2021 tables could not be read." },
     { id: "attacks_cpt_water", name: "Water conflicts in Brazil, 2013 to 2021 (Pastoral Land Commission)", unit: "conflicts", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Water conflicts in Brazil, 2013 to 2021", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/cpt_water_conflicts.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by kind of conflict",
+      files: [{ label: "Water conflicts in Brazil, 2013 to 2021", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/plain/cpt_water_conflicts.geojson", fallback: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/cpt_water_conflicts.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by kind of conflict",
+      groupLabel: "Kind of conflict", yearFrom: ["year"], filterBy: [{ label: "What happened", field: "conflict_situation" }, { label: "State", field: "state" }],
       note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the Pastoral Land Commission's yearly tables of water conflicts (dams, private appropriation, use and preservation): 2,144 rows, at their town or state; every year's rows add up to its printed total." },
     { id: "attacks_cpt_overexploitation", name: "Overexploitation of workers in Brazil, 2005 to 2015 (Pastoral Land Commission)", unit: "cases", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Overexploitation of workers in Brazil, 2005 to 2015", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/cpt_overexploitation.geojson" }], nameFrom: ["name"], autoGroups: true,
+      files: [{ label: "Overexploitation of workers in Brazil, 2005 to 2015", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/plain/cpt_overexploitation.geojson", fallback: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/cpt_overexploitation.geojson" }], nameFrom: ["name"], autoGroups: true,
+      yearFrom: ["year"], filterBy: [{ label: "State", field: "state" }],
       note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the Pastoral Land Commission's tables of cases of overexploitation of workers: 507, at their town or state; every file adds up to its printed total." },
+    { id: "homicide_rates", name: "Homicides per 100,000 people, by country, latest year (UNODC's figures, from the World Bank)", unit: "homicides per 100,000 people", colour: "#7A1F3D", route: "country", ready: true, lazy: true, buildScript: "homicides",
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/homicides/countries.json", field: "rate" },
+      countryNote: "Intentional homicides per 100,000 people, the latest year the World Bank gives (indicator VC.IHR.PSRC.P5, from UNODC); every year in the box",
+      note: "Every country's intentional homicide rate per 100,000 people, the latest year given, every earlier year in the box: the World Bank's indicator VC.IHR.PSRC.P5 (CC BY 4.0), which carries the UN Office on Drugs and Crime's figures. Built weekly by culprits-tiles-more (scripts/homicides.py)." },
+    { id: "homicide_cases", name: "Homicides case by case where cities publish them: Chicago, Los Angeles, New York and 50 US cities (city police records, The Washington Post)", unit: "homicides", colour: "#E0304A", keepColour: true, route: "mvtlive", ready: true, lazy: true, buildScript: "homicides",
+      copy: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/homicide_cases.pmtiles", field: "group",
+      classes: [["Chicago", "#E0304A", "Chicago (City of Chicago, 2001 on)"], ["Los Angeles", "#3FA9C2", "Los Angeles (LAPD, 2020 to 2024)"],
+        ["New York City", "#F28FB0", "New York City (NYPD, 2006 on)"], ["50 US cities (The Washington Post)", "#1E6FA8", "50 US cities (The Washington Post, about 2007 to 2017)"]],
+      attribution: "City of Chicago; LAPD (CC0); NYPD; The Washington Post (CC BY-NC-SA 4.0)",
+      note: "No source publishes every homicide in the world as a place. These are the open records that place each case: every homicide in Chicago's crime records since 2001 (at its block); Los Angeles's criminal homicides, 2020 to 2024; New York City's murders and non-negligent manslaughters, 2006 on; and The Washington Post's 52,000 criminal homicides in 50 large US cities, about 2007 to 2017, with whether anyone was arrested. The Post's cities overlap the three cities' own records for those years: each source is its own colour, nothing is merged. Wide out, one mark per square with how many it holds; close in, each case. Built weekly by culprits-tiles-more (scripts/homicides.py)." },
+    { id: "homicide_colombia", name: "Homicides in Colombia, every one the police record since 2010, counted at each town (Ministry of Defence)", unit: "towns", colour: "#7A1F3D", route: "geojsonlive", ready: true, lazy: true, buildScript: "homicides",
+      files: [{ label: "Homicides in Colombia", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/homicides/colombia.geojson" }], nameFrom: ["name"],
+      waiting: "not built yet: culprits-tiles-more builds it on its next run (homicides)",
+      colourBy: { field: "homicides", steps: [10, 50, 200, 1000, 5000], unit: "homicides" }, groupLabel: "Homicides recorded",
+      note: "Every homicide Colombia's police record, day by day (Ministry of Defence open data, HOMICIDIO, CC BY-SA 4.0), counted at the centre of the town it happened in (DANE's own list of towns), with the counts by year, weapon, presumed motive, sex and urban or rural in each box. Built weekly by culprits-tiles-more (scripts/homicides.py)." },
+    { id: "homicide_wikidata", name: "Murders recorded in Wikidata, worldwide, with a place (notable cases, not a count)", unit: "murders", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true, buildScript: "homicides",
+      files: [{ label: "Murders in Wikidata", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/homicides/wikidata.geojson" }], nameFrom: ["name"],
+      waiting: "not built yet: culprits-tiles-more builds it on its next run (homicides)", yearFrom: ["year", "date"],
+      note: "Every item Wikidata records as a murder or a kind of murder (assassinations, massacres and the like) with a place, with its date, victims, perpetrators and deaths where recorded (CC0). These are the cases notable enough to have a Wikidata entry, mostly with a Wikipedia article: not a count of homicides anywhere. Built weekly by culprits-tiles-more (scripts/homicides.py)." },
     { id: "attacks_cpt_slave_cases", name: "Slave labour cases in Brazil, 2014 to 2019 (Pastoral Land Commission)", unit: "cases", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Slave labour cases in Brazil, 2014 to 2019", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/cpt_slave_labour_cases.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by kind of work",
       // Round 117b (asked 30 September): coloured by kind of work, by the
@@ -19367,31 +19492,67 @@ const OTHER_MAPS = {
       note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the shapefile filed as All Cases in South America in GIS Format, which is INPE's (Brazil's space research institute) fire detections from 1 January to 11 December 2023: 332,432, each with its time, satellite, country, state, town, biome, days without rain, fire risk and fire power, every field kept. Zoomed far out (below zoom 6) each fire's dot carries its time, country, biome and name; zoom in to read its whole record (round 111b: the full record at every zoom made the file too big for GitHub)." },
     // ---- round 106b (asked 28 September): the owner's Attacks On Activists collection ----
     { id: "attacks_gw_killings", name: "Land and environmental defenders killed, 2012 to 2022, one by one (Global Witness)", unit: "people killed", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Land and environmental defenders killed, 2012 to 2022, one by one", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/gw_killings.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by the industry each killing was linked to",
+      files: [{ label: "Land and environmental defenders killed, 2012 to 2022, one by one", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/plain/gw_killings.geojson", fallback: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/gw_killings.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by the industry each killing was linked to",
+      groupLabel: "Industry behind it", yearFrom: ["date"], colourAuto: false, colourPick: 0,
+      // Round 119b (asked 30 September: "filterable, color code able by culprit type").
+      colourChoices: [{ label: "who killed them (as Global Witness records it)", field: "perpetrator_type", classes: "auto" },
+        { label: "the industry behind it", field: "industry_driver", classes: "auto" },
+        { label: "who they were (as Global Witness records it)", field: "person_characteristics", classes: "auto" },
+        { label: "gender", field: "gender", classes: "auto" }, { label: "year", field: "date", get: (p) => String(p.date || "").slice(0, 4) || null, classes: "auto", sort: "value", ordered: true }],
+      filterBy: [{ label: "Who killed them", field: "perpetrator_type" }, { label: "Who they were", field: "person_characteristics", list: true },
+        { label: "Country", field: "country" }],
       note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: Global Witness's own records as of 10 September 2023 (All records as of 09-10-23.csv): 1,910 people, with date, name, gender, age, who they were, the industry behind it and who killed them, as Global Witness gives them. Global Witness gives a region, not a place: each is at the middle of its province where one is named (1,313), else of its country (580), else of its town (17), spread a little where several share one point; the box says which." },
     { id: "attacks_land_resistance", name: "Attacks on land and environmental defenders in Latin America: killings, threats, harassment (Land of Resistance)", unit: "cases", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Attacks on land and environmental defenders in Latin America: killings, threats, harassment", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/land_of_resistance.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by the kind of attack",
+      files: [{ label: "Attacks on land and environmental defenders in Latin America: killings, threats, harassment", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/plain/land_of_resistance.geojson", fallback: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/land_of_resistance.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by the kind of attack",
+      groupLabel: "Kind of attack", yearFrom: ["event_year", "date_of_event"], colourAuto: false,
+      colourChoices: [{ label: "kind of attack", field: "type_of_violence", classes: "auto" }, { label: "what they were defending it from", field: "defending_from", classes: "auto" },
+        { label: "what they were defending", field: "resource_defended", classes: "auto" }, { label: "state of the case", field: "case_status", classes: "auto" },
+        { label: "whether the state was responsible", field: "state_responsibility", classes: "auto" }, { label: "gender", field: "gender", classes: "auto" }],
+      filterBy: [{ label: "Defending it from", field: "defending_from" }, { label: "Defending", field: "resource_defended" }, { label: "Country", field: "country" },
+        { label: "State of the case", field: "case_status" }, { label: "Member of an ethnic community", field: "ethnic_community (yes/no)" }],
       note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the Land of Resistance (Tierra de Resistentes) database, 2,461 cases, every field it gives (dates of birth and photo links included, at the owner's word), placed where the database places them (2,366), else at the province, town or country it names." },
     { id: "attacks_frontline", name: "Human rights defenders at risk: cases, profiles and statements (Front Line Defenders)", unit: "cases and profiles", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Human rights defenders at risk: cases, profiles and statements", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/frontline_cases.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by the kind of page",
+      files: [{ label: "Human rights defenders at risk: cases, profiles and statements", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/plain/frontline_cases.geojson", fallback: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/frontline_cases.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by the kind of page",
+      groupLabel: "Kind of page", colourAuto: false,
+      colourChoices: [{ label: "kind of page", field: "record_type", classes: "auto" }],
+      // Round 119b (asked 30 September: "filterable by rights at stake type?").
+      filterBy: [{ label: "Rights at stake", field: "rights", list: true }, { label: "What was done to them", field: "violations", list: true }],
       note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the Front Line Defenders pages saved in the collection: 258 cases, defender profiles and statements, each at the middle of the country Front Line Defenders tags it with, spread a little where several share one country, with a link to the page." },
     { id: "attacks_cimi", name: "Violence against Indigenous peoples in Brazil, case by case, 2003 to 2021 (CIMI reports)", unit: "cases", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Violence against Indigenous peoples in Brazil, case by case, 2003 to 2021", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/cimi_indigenous_violence.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by the kind of violence",
+      files: [{ label: "Violence against Indigenous peoples in Brazil, case by case, 2003 to 2021", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/plain/cimi_indigenous_violence.geojson", fallback: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/cimi_indigenous_violence.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by the kind of violence",
+      groupLabel: "Kind of violence", colourAuto: false, colourPick: 0,
+      // Round 119b: coloured by the four families the reports print the cases
+      // under (24 kinds in one colour each read as grey past the twelfth).
+      colourChoices: [{ label: "family of violence (the report's chapter)", field: "family of violence", classes: [
+          ["Against the person: killings, attacks, threats", "against the person: killings, attacks, threats"],
+          ["Against their land and property", "against their land and property"],
+          ["By the state's neglect: health, schooling, help", "by the state's neglect: health, schooling, help"],
+          ["Against isolated and recently contacted peoples", "against isolated and recently contacted peoples"]] },
+        { label: "report year", field: "report year", classes: "auto", sort: "value", ordered: true }],
+      filterBy: [{ label: "Family of violence", field: "family of violence" }, { label: "State", field: "state (from heading)" }],
       note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the case lists printed in the Indigenous Missionary Council's yearly reports, Violence against Indigenous Peoples in Brazil: 9,202 cases, at their town (6,259) or else the middle of their state. Read from the reports' pages; each box says whether its state's count matched the total the report prints (2,518 of 2,626 did), and a few descriptions may carry stray text from the page." },
     { id: "attacks_caci", name: "Indigenous people killed in Brazil, 1986 to 1993 (Caci)", unit: "people killed", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Indigenous people killed in Brazil, 1986 to 1993", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/caci_indigenous.geojson" }], nameFrom: ["name"], autoGroups: true,
+      files: [{ label: "Indigenous people killed in Brazil, 1986 to 1993", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/plain/caci_indigenous.geojson", fallback: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/caci_indigenous.geojson" }], nameFrom: ["name"], autoGroups: true,
+      colourAuto: false, colourChoices: [{ label: "year", field: "year", classes: "auto", sort: "value", ordered: true },
+        { label: "Indigenous territory", field: "indigenous_territory", classes: "auto" }],
       note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the Cartography of Attacks Against Indigenous People (Caci) table in the collection, 40 cases, at the coordinates Caci gives. Caci is licensed CC BY-SA 4.0; its cases come from CIMI and the Pastoral Land Commission." },
     { id: "attacks_cpt_violence", name: "Death threats, attempted murders and murders in land conflicts in Brazil, 2013 to 2022 (Pastoral Land Commission)", unit: "people", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Death threats, attempted murders and murders in land conflicts in Brazil, 2013 to 2022", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/cpt_violence_tables.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by what was done to them",
+      files: [{ label: "Death threats, attempted murders and murders in land conflicts in Brazil, 2013 to 2022", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/plain/cpt_violence_tables.geojson", fallback: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/cpt_violence_tables.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by what was done to them",
+      groupLabel: "What was done to them", yearFrom: ["year"],
+      filterBy: [{ label: "Who they were", field: "category" }, { label: "State", field: "state" }],
       note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the Pastoral Land Commission's (CPT) yearly tables of people threatened with death, attacked and murdered in rural conflicts: 2,357 people, at their town. The counts match every total the tables print (the 2019 tables print none)." },
     { id: "attacks_cpt_threatened", name: "People threatened with death, attacked or murdered in land conflicts in Brazil, 2000 to 2011 (Pastoral Land Commission)", unit: "people", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "People threatened with death, attacked or murdered in land conflicts in Brazil, 2000 to 2011", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/cpt_threatened_2000_2011.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by what was done to them",
+      files: [{ label: "People threatened with death, attacked or murdered in land conflicts in Brazil, 2000 to 2011", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/plain/cpt_threatened_2000_2011.geojson", fallback: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/cpt_threatened_2000_2011.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by what was done to them",
+      groupLabel: "What was done to them",
+      filterBy: [{ label: "Who they were", field: "category" }, { label: "Situation", field: "situation_of_violence" }],
       note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the Pastoral Land Commission's spreadsheet of people threatened more than once, 2000 to 2011: 3,223 rows, at their town where one is given, else the middle of Brazil (216). Its three sheets overlap, so one person can appear more than once." },
     { id: "attacks_cpt_massacres", name: "Massacres in land conflicts in Brazil (Pastoral Land Commission)", unit: "massacres", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Massacres in land conflicts in Brazil", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/cpt_massacres.geojson" }], nameFrom: ["name"], autoGroups: true,
+      files: [{ label: "Massacres in land conflicts in Brazil", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/plain/cpt_massacres.geojson", fallback: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/cpt_massacres.geojson" }], nameFrom: ["name"], autoGroups: true,
+      colourAuto: false, colourChoices: [{ label: "state", field: "state", classes: "auto" }, { label: "year", field: "title", get: (p) => (String(p.title || "").match(/(19|20)\d\d/) || [null])[0], classes: "auto", sort: "value", ordered: true }],
       note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the Pastoral Land Commission's pages on massacres in the countryside (three or more people killed in one event): 56 massacres, at their town or state, with the page's own text in Portuguese and its link." },
     { id: "attacks_public_agencies", name: "Land conflicts in Brazil by town, 2020 (Public Agencies Map of Conflicts)", unit: "towns", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Land conflicts in Brazil by town, 2020", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/public_agencies_conflicts.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by the number of conflicts recorded in 2020",
+      files: [{ label: "Land conflicts in Brazil by town, 2020", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/plain/public_agencies_conflicts.geojson", fallback: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/public_agencies_conflicts.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by the number of conflicts recorded in 2020",
+      groupLabel: "Conflicts in 2020",
       note: "From the owner's own collection, Attacks On Activists (sent 28 September 2026), read by this map's build: the Public Agencies Map of Conflicts database: 772 towns, each with its counts by theme and year as the database gives them (totals, not single cases), at the town's own point." },
     { id: "attacks_slave_labour_states", name: "Workers freed from slave labour in Brazil, by state and year (Pastoral Land Commission)", unit: "states", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Workers freed from slave labour", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/cpt_slave_labour_by_state.geojson" }], nameFrom: ["name"], autoGroups: true,
@@ -19591,6 +19752,16 @@ const OTHER_MAPS = {
     { id: "theyrule", name: "Who sits on the boards of the biggest companies (They Rule)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://theyrule.net/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    { id: "boards_interlocks", name: "Who sits on the boards of the largest companies, and the companies one person ties together (Wikidata, the source They Rule names)", unit: "companies and ties", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true, buildScript: "boards",
+      // Round 119b (asked 30 September: "any way to get their data onto this
+      // map directly?"): They Rule packs its data into its page's program and
+      // states no licence for it; its 2021 boards say they come from Wikidata,
+      // which is read here (CC0) for the 500 largest companies by revenue.
+      files: [{ label: "Boards", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/boards/interlocks.geojson" }], nameFrom: ["name"],
+      waiting: "not built yet: culprits-tiles-more builds it on its next run (boards)",
+      groupColours: { "Board recorded in Wikidata": "#E0304A", "No board members recorded in Wikidata": "#C9C3B6", "Tie now: a person on both": "#3FA9C2", "Tie in the past": "#5E7C99" },
+      groupHint: "Companies, and the lines between two companies that share a person", groupLabel: "Show",
+      note: "The world's 500 largest companies by revenue (from Wikidata), each at its head office, with every person Wikidata records as sitting on its board, chairing it or running it, now or in the past; and a line between two companies for every person recorded at both, the way They Rule (theyrule.net) draws its boards. They Rule's own data is packed inside its page and has no stated licence, so it is not copied; its 2021 boards say they come from Wikidata, which is what this reads (CC0). Wikidata's records of boards are uneven: many large companies have no one recorded, so a missing line means nothing is recorded, not that there is no tie. Built weekly by culprits-tiles-more (scripts/boards.py)." },
     { id: "pe_bankrolling", name: "Banks' money behind the destruction of nature (Bankrolling Extinction, Portfolio Earth)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://portfolio.earth/campaigns/bankrolling-extinction/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
@@ -19696,9 +19867,9 @@ const OTHER_MAPS = {
     { id: "leverage_chart", name: "The Leverage Chart", unit: "opens it in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://welcometoyourgalaxy.github.io/maps/leverage-chart.html",
       note: "Your own chart from the Solution page, whole, in the panel along the bottom." },
-    { id: "wreckers_umap", name: "Companies wrecking the planet (Wreckers of the Earth, Corporate Watch)", unit: "companies and sites", colour: "#6E5A55", route: "umap", ready: true, lazy: true,
+    { id: "wreckers_umap", name: "London: Corporate Watch's own map of the companies it lists, with what each does (Wreckers of the Earth, Corporate Watch)", unit: "companies and sites", colour: "#6E5A55", route: "umap", ready: true, lazy: true,
       umap: "https://umap.openstreetmap.fr/en", umapId: 409815,
-      note: "Read live from Corporate Watch's uMap each time it is ticked, with its own layers, colours and popups." },
+      note: "Corporate Watch's own Wreckers of the Earth map (corporatewatch.org), read live from its uMap each time it is ticked, with its own layers, colours and boxes: the companies, banks, funds and institutions based in London that it lists as most responsible for ecological destruction, and what each does." },
     { id: "mymaps_chlorine", name: "Plastics and chlorine (Google My Maps)", unit: "placemarks", colour: "#5F6B70", route: "kml", ready: true, lazy: true,
       kml: "https://www.google.com/maps/d/kml?mid=1PwPKisRf73FPC6hTtZDCv2s_B6_x0Pk7&forcekml=1",
       note: "Read live from the map's Google My Maps file; the row takes the map's own title once it loads." },
@@ -20793,6 +20964,8 @@ const LAYER_KIND = {
   giga_countries: ["human", "upstream"],
   capture_cases: ["human", "upstream"],
   capture_all: ["human", "upstream"],
+  wjp_discrimination_2022: ["human", "downstream"], boards_interlocks: ["human", "upstream"],
+  homicide_rates: ["human", "downstream"], homicide_cases: ["human", "downstream"], homicide_colombia: ["human", "downstream"], homicide_wikidata: ["human", "downstream"],
   capture_countries: ["human", "upstream"], capture_share: ["human", "upstream"],
   policy_rates: ["human", "upstream"],
   imbalances: ["human", "upstream"],
@@ -21982,8 +22155,14 @@ const PANEL_ORDER = [
   { h: 4, t: "Indigenous and community rights" },
   { h: 5, bundle: "resrights", colour: "#5E6A66" },
   { h: 4, t: "Quality of laws protecting their land" },
-  { h: 4, t: "Conflicts and killings" }, "gw_defenders",
+  // Round 119b (asked 30 September): the killings and attacks of Destruction >
+  // Of individuals > Of humans here as well, the same layers.
+  { h: 4, t: "Conflicts and killings" },
   { h: 5, bundle: "indigenous_conflicts", colour: "#6B5A4A" }, "site_indigenous_conflicts",
+  { h: 5, bundle: "killing_indigenous", colour: "#7A1F3D" }, "attacks_cimi", "attacks_caci",
+  { h: 5, bundle: "defenders", colour: "#9E2A3E" }, "gw_defenders", "attacks_gw_killings", "attacks_land_resistance", "attacks_frontline",
+  { h: 5, bundle: "brazil_land", colour: "#5E3A44" }, "attacks_cpt_violence", "attacks_cpt_threatened", "attacks_cpt_massacres", "attacks_cpt_areas", "attacks_public_agencies", "attacks_cpt_land",
+  { h: 5, bundle: "homicides", colour: "#6A2A3A" }, "homicide_rates", "homicide_cases", "homicide_colombia", "homicide_wikidata",
   // Round 74 (27 September): the map's own conflict and military layers in
   // place of the Guerillamap row, which could only link to another site.
   { h: 3, t: "Of countries by countries" }, "site_secret_societies", "capture_all",
@@ -22006,7 +22185,12 @@ const PANEL_ORDER = [
 
   { h: 1, t: "Destruction" },
   { h: 2, t: "Of the planet" },
-  { h: 3, t: "General" }, "ejatlas", "wreckers_world", "wreckers_umap", "theyrule",
+  // Round 119b (asked 30 September): the two Wreckers rows one layer; They
+  // Rule's boards drawn from their source; the EJAtlas below them.
+  { h: 3, t: "General" },
+  { h: 4, bundle: "wreckers", colour: "#7A1F3D" }, "wreckers_umap", "wreckers_world",
+  { h: 4, t: "Boards" }, "boards_interlocks",
+  { h: 4, t: "Environmental justice conflicts" }, "ejatlas",
   // Round 75 (27 September, at the owner's word): Climate in the Destruction
   // page's order - General, then carbon dioxide, methane, nitrous oxide,
   // F-gases and black carbon - each gas split into what is emitted, who is
@@ -22184,7 +22368,7 @@ const PANEL_ORDER = [
   // Item 23: the EC JRC's own surface water map, back and drawn from its tiles.
   // Round 93b (asked 27 September): Surface water's layers under Water
   // scarcity; Aqueduct's projected and farmland water stress as the map's own.
-  { h: 3, t: "Water scarcity" }, "aqueduct_proj", "aqueduct_crop", "jrc_water",
+  { h: 3, t: "Water scarcity" }, "aqueduct_proj", "aqueduct_crop", "jrc_water", "attacks_cpt_water",
   { h: 4, bundle: "waterwatch", colour: "#5E7377" },
   // Item 14: the mines layers are one row with sublayers.
   { h: 3, t: "Mining" },
@@ -22279,7 +22463,14 @@ const PANEL_ORDER = [
   { h: 2, t: "Of groups" },
   { h: 3, t: "Of humans" },
   { h: 2, t: "Of individuals" },
-  { h: 3, t: "Of humans" }, "gw_defenders", "attacks_gw_killings", "attacks_land_resistance", "attacks_frontline", "attacks_cimi", "attacks_caci", "attacks_cpt_violence", "attacks_cpt_threatened", "attacks_cpt_massacres", "attacks_public_agencies", "attacks_cpt_areas", "attacks_cpt_land", "attacks_cpt_water", "attacks_cpt_overexploitation",
+  // Round 119b (asked 30 September): like layers as one layer each, with
+  // their parts under it; the water conflicts under Water scarcity, the
+  // overexploitation of workers under Slavery; homicides worldwide added.
+  { h: 3, t: "Of humans" },
+  { h: 4, bundle: "killing_indigenous", colour: "#7A1F3D" }, "attacks_cimi", "attacks_caci",
+  { h: 4, bundle: "defenders", colour: "#9E2A3E" }, "gw_defenders", "attacks_gw_killings", "attacks_land_resistance", "attacks_frontline",
+  { h: 4, bundle: "brazil_land", colour: "#5E3A44" }, "attacks_cpt_violence", "attacks_cpt_threatened", "attacks_cpt_massacres", "attacks_cpt_areas", "attacks_public_agencies", "attacks_cpt_land",
+  { h: 4, bundle: "homicides", colour: "#6A2A3A" }, "homicide_rates", "homicide_cases", "homicide_colombia", "homicide_wikidata",
   { h: 3, t: "Of animals" }, "site_animal_sacrifice",
 
   { h: 1, t: "Suppression" },
@@ -22299,7 +22490,7 @@ const PANEL_ORDER = [
   { h: 5, t: "The stock market" }, "stock_exchanges", "troutwood_companies",
   { h: 4, t: "Law enforcement" }, "bld_police", "police_stations_latam", "gang_infiltration",
   { h: 4, t: "Courts and corrections" }, "bld_courts", "bld_prisons",
-  { h: 4, t: "Discrimination" }, "wjp_discrimination", "wjp_discrimination_change",
+  { h: 4, t: "Discrimination" }, "wjp_discrimination_2022", "wjp_discrimination", "wjp_discrimination_change",
   { h: 4, t: "Slavery" },
   { h: 5, t: "Prevalence" }, "slavery_prevalence",
   { h: 5, t: "Sites on land" }, "slavery_sites",
@@ -22308,7 +22499,7 @@ const PANEL_ORDER = [
   // routes, with enforcement in every country beside Brazil's register.
   { h: 5, t: "Routes" }, "slavery_routes",
   { h: 5, t: "Cases and enforcement" }, "slavery_cases", "slavery_determinations", "slavery_enforcement",
-  "slavery_convicted_world", "slavery_detected_world", "slavery_cbp_world", "attacks_slave_labour_states", "attacks_cpt_slave_cases",
+  "slavery_convicted_world", "slavery_detected_world", "slavery_cbp_world", "attacks_slave_labour_states", "attacks_cpt_slave_cases", "attacks_cpt_overexploitation",
   // Round 95b: the anti-slavery trackers, country by country, back.
   { h: 5, t: "What each country does about it" }, "slavery_trackers",
   { h: 3, t: "Suppression by “representation” within it" },
@@ -22359,6 +22550,8 @@ const PANEL_ORDER = [
   { h: 1, t: "Buildings" }, "building_types", "osm_landuse",
 ];
 const PANEL_REMOVED = new Set([
+  // Round 119b: They Rule's page in a panel; its boards are drawn from their source (boards_interlocks).
+  "theyrule",
   // Round 118b: the three capture rows are views of capture_all.
   "capture_cases", "capture_countries", "capture_share",
   // Round 112b: Final Nail's farms are in the fur farms file (fur/farms.geojson).

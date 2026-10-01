@@ -2640,7 +2640,7 @@ console.log("\nOff-planet sections, Of groups, names, launch links, drag bar, ma
   // Round 116b: the glow orbs are back (112b's solid dots undone at the owner's asking).
   check("every point layer gets a faint wide haze and tight cores; the round one stays for clicks, soft-edged and unseen wider out",
         /function addHud\(/.test(src) && /rawAddLayer\(coreSpec, layer\.id\)/.test(src) && /rawAddLayer\(softSpec, layer\.id\)/.test(src) &&
-        /hudOf\.set\(layer\.id, \[haze, core, soft\]\)/.test(src) && /paint\(layer\.id, "circle-blur", 1\)/.test(src) &&
+        /hudOf\.set\(layer\.id, \[haze, core, soft\]\)/.test(src) && /paint\(layer\.id, "circle-blur", 0\.15\)/.test(src) &&
         /z\(GLOW\.fadeOut, 0, GLOW\.gone, 0\.9\)/.test(src) && !/if \(!hotspotOf\(layer\)\) \{/.test(src));
   check("\u2026no grain over the map: its strength is 0 and it is never made (23 September)",
         /grain: 0,\s/.test(src) && /if \(!GLOW\.grain && !GLOW\.grainSatellite\) return;/.test(src));
@@ -5483,7 +5483,7 @@ console.log("\nround 102b (28 September): the insentient's kinds, Of groups, Chr
         out.filters[0].values.length === 1 && out.features.length === 2 &&
         /dropTypes: \["Bottled & decorative water", "Collectibles & novelty", "Luxury & fast fashion"\], name: "The Insentient 2026"/.test(src));
   check("Destruction's Of groups holds Of humans alone; Of individuals Of humans and Of animals",
-        /\{ h: 2, t: "Of groups" \},\n  \{ h: 3, t: "Of humans" \},\n  \{ h: 2, t: "Of individuals" \},\n  \{ h: 3, t: "Of humans" \}, "gw_defenders",[^\n]*\n  \{ h: 3, t: "Of animals" \}, "site_animal_sacrifice",\n\n/.test(src));
+        /\{ h: 2, t: "Of groups" \},\n  \{ h: 3, t: "Of humans" \},\n  \{ h: 2, t: "Of individuals" \},\n[\s\S]{0,400}\{ h: 3, t: "Of humans" \},\n(  \{ h: 4, bundle[^\n]*\n){4}  \{ h: 3, t: "Of animals" \}, "site_animal_sacrifice",\n\n/.test(src));
   check("Christmas tree farms and sellers worldwide, the United States map inside it", /id: "xmas_trees"[^\n]*route: "geojsonlive"/.test(src) &&
         /"site_enslaved_plants", "xmas_trees",/.test(src) && /"mymaps_trees",/.test(src.slice(src.indexOf("const PANEL_REMOVED"))));
   check("the asteroids show round the flat map too, the map pulls back to them, and their see-through bar works",
@@ -5548,7 +5548,7 @@ console.log("\nround 105b (28 September): threat index, V-Dem, Troutwood's compa
   check("V-Dem's scores: taken out in round 107b", /"vdem_civil", "vdem_regime",/.test(src.slice(src.indexOf("const PANEL_REMOVED"))) || 
         /\{ h: 5, t: "How democratic each country is \(V-Dem\)" \}, "vdem_liberal",/.test(src) && /id: "vdem_liberal"[^\n]*route: "owidgrapher"/.test(src) && /slug: "liberal-democracy-index",/.test(src));
   check("Troutwood's companies and Wreckers of the Earth worldwide are the map's own rows; the rows that only showed other sites' pages are out",
-        /"stock_exchanges", "troutwood_companies",/.test(src) && /"ejatlas", "wreckers_world", "wreckers_umap",/.test(src) &&
+        /"stock_exchanges", "troutwood_companies",/.test(src) && /\{ h: 4, bundle: "wreckers", colour: "#7A1F3D" \}, "wreckers_umap", "wreckers_world",/.test(src) &&
         /"cfr_tracker", "tableau_zsf", "troutwood", "site_banking_dynasties_charts",/.test(src.slice(src.indexOf("const PANEL_REMOVED"))) &&
         !order.includes("cfr_tracker") && !order.includes("troutwood"));
   const box = new Function("escapeHtml", "boxOpen", "everyField", "amountWords",
@@ -5589,7 +5589,7 @@ console.log("\nround 106b (28 September): the View and 3D terrain boxes, Turn on
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("the owner's Attacks On Activists collection: killings, threats and cases, one by one, under Of individuals > Of humans",
-        /\{ h: 3, t: "Of humans" \}, "gw_defenders", "attacks_gw_killings", "attacks_land_resistance", "attacks_frontline", "attacks_cimi",/.test(src) &&
+        /bundle: "defenders", colour: "#9E2A3E" \}, "gw_defenders", "attacks_gw_killings", "attacks_land_resistance", "attacks_frontline",/.test(src) &&
         /id: "attacks_gw_killings"[^\n]*route: "geojsonlive"/.test(src) && /if \(cfg\.autoGroups && !cfg\.groupColours\)/.test(src) && /dates of birth and photo links included, at the owner\x27s word/.test(src));
 }
 console.log("\nround 107b (28 September): threat index and V-Dem out, the Pastoral Land Commission's tables, fires in South America");
@@ -5598,7 +5598,7 @@ console.log("\nround 107b (28 September): threat index and V-Dem out, the Pastor
   check("the threat index and V-Dem rows are out of the menu, and no AI rows", /\/\/ Round 107b \(asked 28 September\): the threat index and V-Dem rows are not wanted\.\n  "threat_overall",[^\n]*"vdem_regime",/.test(src) &&
         !/\{ h: 1, t: "Where the threat is greatest" \}/.test(src) && !/ai_threat/.test(src));
   check("the Pastoral Land Commission's case tables and INPE's 2023 fires are rows",
-        /"attacks_cpt_areas", "attacks_cpt_land", "attacks_cpt_water", "attacks_cpt_overexploitation",/.test(src) && /"attacks_slave_labour_states", "attacks_cpt_slave_cases",/.test(src) &&
+        /"attacks_cpt_areas", "attacks_public_agencies", "attacks_cpt_land",/.test(src) && /"attacks_slave_labour_states", "attacks_cpt_slave_cases", "attacks_cpt_overexploitation",/.test(src) && /"jrc_water", "attacks_cpt_water",/.test(src) &&
         /\{ h: 3, t: "Fire" \}, "remains_fire", "inpe_fire_2023",/.test(src) && /id: "inpe_fire_2023"[^\n]*route: "pmtiles"/.test(src));
 }
 console.log("\nround 108b (28 September): the drag note above Selected Layers, an atlas-like relief, picture rows raised, the fires read again");
@@ -5788,7 +5788,7 @@ console.log("\nround 117b (30 September): heights made quick, points coloured by
   const o = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("// A heading's tick reads its layers")) + "; return { PANEL_ORDER };")();
   const d = o.PANEL_ORDER.findIndex((x) => x && x.t === "Discrimination");
   check("discrimination (WJP) is the first thing under Discrimination, darker where it is worse",
-        o.PANEL_ORDER[d + 1] === "wjp_discrimination" && o.PANEL_ORDER[d + 2] === "wjp_discrimination_change" && /linear: \[0\.2, 0\.9\], reverse: true/.test(src) &&
+        o.PANEL_ORDER[d + 1] === "wjp_discrimination_2022" && o.PANEL_ORDER[d + 2] === "wjp_discrimination" && o.PANEL_ORDER[d + 3] === "wjp_discrimination_change" && /linear: \[0\.2, 0\.9\], reverse: true/.test(src) &&
         /const at = cfg\.reverse \? \["-", 1, at0\] : at0;/.test(src));
   check("the Unearthings' blurred halos are drawn (zoom at the top of their size)", /"circle-radius": \["interpolate", \["linear"\], \["zoom"\], 1, \["\*", 2\.4,/.test(src));
 }
@@ -5838,6 +5838,47 @@ console.log("\nround 118b (30 September): one surface from all ticked layers, ca
         /function linksMeasureFilter\(/.test(src) && /Complete Visual/.test(src) && /function bowedArc\(/.test(src));
   check("LandMark and FUNAI areas are titled by their own names, their working fields hidden", /function gfwRecordBox\(/.test(src) && /gfw_geostore_id/.test(src) && /terrai_nom/.test(src));
   check("a two-step colour is mapped stop by stop, so the social spheres' lines draw", /out\[i\] = gladCss\(v\[i\], salt\)/.test(src));
+}
+console.log("\nround 119b (30 September): attacks in plain English and as like layers, homicides, Wreckers by Corporate Watch's sections, boards, EJAtlas categories");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const o = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("];", src.indexOf("const PANEL_ORDER = [")) + 2) + "; return PANEL_ORDER;")();
+  const at = (t) => o.findIndex((x) => x && (x.t === t || x.bundle === t));
+  const all = (t) => o.map((x, i) => (x && (x.t === t || x.bundle === t) ? i : -1)).filter((i) => i > -1);
+  check("like layers are one layer each, under Destruction > Of individuals and again under Invasion of humans",
+        ["killing_indigenous", "defenders", "brazil_land", "homicides"].every((b) => all(b).length === 2) &&
+        o[at("killing_indigenous") + 1] === "attacks_cimi" && o[at("defenders") + 1] === "gw_defenders" && o[at("homicides") + 1] === "homicide_rates");
+  check("the water conflicts are under Water scarcity and the overexploitation of workers under Slavery, once each",
+        o.filter((x) => x === "attacks_cpt_water").length === 1 && o.indexOf("attacks_cpt_water") > at("Water scarcity") &&
+        o.filter((x) => x === "attacks_cpt_overexploitation").length === 1 && o.indexOf("attacks_cpt_overexploitation") === o.indexOf("attacks_cpt_slave_cases") + 1);
+  check("the attacks rows read the plain-English copies first, the originals until they are built",
+        ["gw_killings", "land_of_resistance", "frontline_cases", "cimi_indigenous_violence", "cpt_massacres"].every((f) => src.includes(`attacks/plain/${f}.geojson", fallback: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/attacks/${f}.geojson"`)) &&
+        /catch \(e\) \{ if \(!f\.fallback\) throw e; got = await getJson\(f\.fallback, 60000\); \}/.test(src));
+  const fb = new Function(src.slice(src.indexOf("function filterByTokens"), src.indexOf("function livePlacesToSitemap")) + "; return filterByTokens;")();
+  const cfg = { filterBy: [{ label: "Rights", field: "rights", list: true }, { label: "Who", field: "who" }] };
+  const items = [{ _pc: { rights: "Land Rights; Human Rights", who: "Police" } }, { _pc: { rights: "Land Rights", who: "Hitmen" } }, { _pc: {} }];
+  fb(cfg, items);
+  check("a row filters by its own fields, a field of several values under each",
+        items[0].fb === "|f0:Land Rights||f0:Human Rights||f1:Police|" && items[2].fb === "" &&
+        cfg._fbSets[0].values[0].label === "Land Rights" && cfg._fbSets[0].values[0].n === 2 && cfg._fbSets[1].values.length === 2);
+  check("defenders killed: coloured and filtered by who killed them; rights at stake for Front Line Defenders",
+        /id: "attacks_gw_killings"[\s\S]{0,2500}field: "perpetrator_type"[\s\S]{0,1500}filterBy: \[\{ label: "Who killed them"/.test(src) &&
+        /filterBy: \[\{ label: "Rights at stake", field: "rights", list: true \}/.test(src));
+  check("areas in land conflict are drawn as municipalities, by year", /attacks\/plain\/cpt_areas_municipal\.geojson/.test(src) && /steps: \[2, 4, 8, 16, 32\], unit: "areas in conflict that year"/.test(src));
+  check("a year is written as a year in the colour keys", /yearly \? String\(x\) : x\.toLocaleString\(\)/.test(src));
+  check("24 colours for kinds, and the rest said in the key", /const AUTO_GROUP_COLOURS = \[[^\]]*"#7E5E8C"\];/.test(src) && /the other \$\{cls\.length - most\} kinds, or not given/.test(src));
+  check("the colour menu says its own colours, not how the row draws them", !/as the row draws them/.test(src) && /its own colours: \$\{/.test(src));
+  check("a raised row's shading is lighter and gone close in; dots are sharp", /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 0, 0\.5, 5, 0\.35, 7\.5, 0\]/.test(src) && /"circle-blur": 0\.12,/.test(src));
+  check("EJAtlas's categories by name", /const EJ_CATEGORIES = \{ 1: "Nuclear", 2: "Mineral ores and building materials extraction"/.test(src) && /group: cat, h: box\(ejPlain\(r\)\)/.test(src));
+  check("Wreckers of the Earth is one layer, London and worldwide, by Corporate Watch's sections, with why each is on it",
+        o[at("wreckers") + 1] === "wreckers_umap" && o[at("wreckers") + 2] === "wreckers_world" && !/"Tobacco":/.test(src) &&
+        /"Arms makers and security firms": "#F28FB0"/.test(src) && /p\["why it is on this layer"\]/.test(src));
+  check("They Rule's boards from their source, and the EJAtlas below them", o.indexOf("boards_interlocks") < o.indexOf("ejatlas") && o.indexOf("boards_interlocks") > at("wreckers") &&
+        /"theyrule",/.test(src.slice(src.indexOf("const PANEL_REMOVED"))) && /boards\/interlocks\.geojson/.test(src));
+  check("homicides worldwide: rates, cases, Colombia's towns, Wikidata", ["homicide_rates", "homicide_cases", "homicide_colombia", "homicide_wikidata"].every((i) => new RegExp(`id: "${i}"`).test(src)) &&
+        /tiles\/homicide_cases\.pmtiles", field: "group"/.test(src));
+  check("WJP's 2022 map, from its scores", /id: "wjp_discrimination_2022"[\s\S]{0,1200}field: "score_2022"/.test(src));
+  check("every resource trade flow, and every carbon plume page", /trades_all_\$\{year\}\.json/.test(src) && /let rteAll = \[\], rteKeep = 0, rteOne = "";/.test(src) && /const CARBON_PLUME_PAGES = 200;/.test(src));
 }
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
