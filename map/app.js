@@ -1719,14 +1719,9 @@ maplibregl.addProtocol("cerulean", async (params, abortController) => {
 // The painted chart is the same plate as the Pre-Birth Rights map: already
 // reprojected to Web Mercator, covering 80.55°S to 85.05°N. MapLibre places an
 // image source linearly in Mercator space, so it registers with no warping.
-// Round 123b: an ArcGIS Location Platform API key (free tier), if the owner
-// makes one; empty means the keyless imagery (see the base source).
-const ESRI_TOKEN = "";
-if (!ESRI_TOKEN && typeof maplibregl !== "undefined" && maplibregl.addProtocol) {
-  // No key, no Esri hillshade: an empty square instead of a refused one. The
-  // relief comes from the map's own height tiles (outline-dem) instead.
-  maplibregl.addProtocol("esri-hillshade-off", async () => ({ data: rawPng(new Uint8ClampedArray(256 * 256 * 4), 256, 256) }));
-}
+// Round 126b (asked 2 October): the Satellite and atlas imagery and the
+// hillshade are Esri's again, exactly as before round 123b, at the owner's
+// word (the looks were tuned on them).
 const PLATE = {
   url: abs("./atlas-plate.webp"),
   coordinates: [[-180, 85.05112877980659], [180, 85.05112877980659],
@@ -2084,22 +2079,12 @@ const map = new maplibregl.Map({
       // washes on top of these through a WebGL layer. Two of its three washes
       // are reproduced exactly and one is matched at mid-tones; the comments
       // there say which.
-      // Round 123b (2 October): Esri's keyless World Imagery now answers
-      // close in with "API key required" squares. Without a key of our own
-      // (ESRI_TOKEN), the imagery is EOX's Sentinel-2 cloudless 2024 at every
-      // zoom (free for non-commercial use with credit); with one, Esri's
-      // photo as before, through its current tile service.
-      base: ESRI_TOKEN ? {
+      base: {
         type: "raster",
-        tiles: ["https://ibasemaps-api.arcgis.com/arcgis/rest/services/" +
-                "World_Imagery/MapServer/tile/{z}/{y}/{x}?token=" + encodeURIComponent(ESRI_TOKEN)],
+        tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/" +
+                "World_Imagery/MapServer/tile/{z}/{y}/{x}"],
         tileSize: 256, maxzoom: 18,
         attribution: "Imagery © Esri, Maxar",
-      } : {
-        type: "raster",
-        tiles: ["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg"],
-        tileSize: 256, maxzoom: 14,
-        attribution: '<a href="https://s2maps.eu" target="_blank" rel="noopener">Sentinel-2 cloudless - https://s2maps.eu</a> by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024)',
       },
       // The Satellite basemap's wide views (SAT_CLOSE.handover). Free for
       // non-commercial use with this attribution (CC BY-NC-SA 4.0).
@@ -2114,9 +2099,8 @@ const map = new maplibregl.Map({
       // top at low opacity, which is weaker but the same idea.
       hillshade: {
         type: "raster",
-        tiles: [ESRI_TOKEN ? "https://ibasemaps-api.arcgis.com/arcgis/rest/services/" +
-                "Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}?token=" + encodeURIComponent(ESRI_TOKEN)
-                : "esri-hillshade-off://{z}/{x}/{y}"],
+        tiles: ["https://services.arcgisonline.com/arcgis/rest/services/" +
+                "Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}"],
         tileSize: 256, maxzoom: 16,
         attribution: "Hillshade © Esri",
       },
@@ -24314,18 +24298,20 @@ function liveShareBadge() {
   try { n = liveShareCount(); } catch (e) { return; }
   const { live, all } = n;
   if (!all) return;
+  // Round 126b (asked 2 October): at the top of the layer menu, not over the map.
   let el = document.getElementById("live-share");
   if (!el) {
+    const box = document.getElementById("layers");
+    if (!box || !box.parentElement) return;
     el = document.createElement("div");
     el.id = "live-share";
     el.setAttribute("role", "status");
-    document.body.appendChild(el);
-    addStyle("#live-share{position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:5;font:11.5px/1.3 'IBM Plex Mono',ui-monospace,monospace;" +
-      "color:#DCE6EA;background:rgba(10,18,26,.78);border:1px solid rgba(143,214,232,.28);border-radius:12px;padding:3px 10px;pointer-events:auto;white-space:nowrap}" +
-      "body.holo-on #live-share{opacity:.85}", "live-share");
+    const first = document.getElementById("combo-box") || box;
+    box.parentElement.insertBefore(el, first.parentElement === box.parentElement ? first : box);
+    addStyle("#live-share{font-size:11.5px;margin:2px 0 6px;color:var(--ink,#e8e2d6)}", "live-share");
   }
   const pct = Math.round((100 * live) / all);
-  el.textContent = `${pct}% of the map is live`;
+  el.textContent = `${pct}% of the map's layers are live layers`;
   el.title = `${live} of ${all} layers are read from their source each time they are ticked; the other ${all - live} are copies kept here and renewed on a schedule (each row says which).`;
 }
 map.on("load", () => {

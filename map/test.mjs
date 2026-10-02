@@ -5943,8 +5943,8 @@ console.log("\nround 123b (2 October): keyless imagery, overlap modes, raise off
   const order = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("const PANEL_REMOVED")) + "; return PANEL_ORDER;")();
   const at = (t) => order.findIndex((x) => x && x.t === t);
   const removed = src.slice(src.indexOf("const PANEL_REMOVED"), src.indexOf("]);", src.indexOf("const PANEL_REMOVED")));
-  check("no key, no Esri: the imagery is EOX's Sentinel-2 at every zoom, the Esri hillshade an empty square",
-        /const ESRI_TOKEN = "";/.test(src) && /base: ESRI_TOKEN \? \{/.test(src) && /esri-hillshade-off:\/\//.test(src));
+  check("the satellite and atlas imagery and hillshade are Esri's, as the owner tuned them (round 126b)",
+        /"World_Imagery\/MapServer\/tile\/\{z\}\/\{y\}\/\{x\}"\]/.test(src) && /"Elevation\/World_Hillshade\/MapServer\/tile\/\{z\}\/\{y\}\/\{x\}"\]/.test(src) && !/esri-hillshade-off/.test(src));
   check("the two ways to combine are the owner's, and raising is off until ticked",
         /\["overlap", "Where they overlap the most"\]/.test(src) && /\["peaks", "Where their highest values overlap"\]/.test(src) && /var LIFT_ON = false;/.test(src));
   check("hologram blue shading off by default, a saved 'on' not kept once", /shade: false \};/.test(html) && /opt\.shade123/.test(html));
@@ -5963,7 +5963,7 @@ console.log("\nround 123b (2 October): keyless imagery, overlap modes, raise off
   check("mining split; land cover under Land Use and Ecoregions; fire rows as asked",
         !/\{ h: 4, bundle: "mines"/.test(src) && at("Forest and land cover") === -1 && /\{ h: 4, bundle: "viirs"/.test(src) &&
         /TRASE_REMOVED_METRICS = new Set\(\["BURNED_PEAT", "EMISSION_BURNED_PEAT_CO2"\]\)/.test(src) && /tcl_fire: \{ mode: "year"/.test(src));
-  check("the share of the map that is live shows at the top", /function liveShareBadge\(/.test(src) && /% of the map is live/.test(src));
+  check("the share of the map that is live shows at the top", /function liveShareBadge\(/.test(src) && /% of the map's layers are live layers/.test(src) && /getElementById\("combo-box"\) \|\| box/.test(src));
 }
 console.log("\nround 124b (2 October): a fire's country and place on the map");
 {

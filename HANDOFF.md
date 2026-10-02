@@ -5,6 +5,17 @@ touches.
 
 ---
 
+## Round 126b (2 October)
+
+Needs round 125b. No tiles patch. No app.js?v= bump.
+
+- Basemaps: the Satellite basemap's and the painted atlas's imagery and the
+  hillshade are Esri's again, exactly as before round 123b (the owner tuned
+  the looks on them). If Esri's "API key required" squares return close in,
+  the fix that keeps the look is a free ArcGIS key on the same imagery.
+- The live share moved to the top of the layer menu, above Combine the
+  ticked layers: "N% of the map's layers are live layers".
+
 ## Round 125b (2 October)
 
 Needs round 124b. Tiles patch round125b_tiles.py beside it. No app.js?v= bump.
