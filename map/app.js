@@ -1144,15 +1144,16 @@ maplibregl.addProtocol("tint", async (params, abortController) => {
 const REMAP = {
   // Palettes as the JRC publishes them (Pekel et al. 2016, Global Surface Water
   // Explorer), mapped onto muted blue-greys, plum, rose and sage.
-  gsw_occurrence: { mode: "ramp", src: ["ffcccc", "0000ff"], dst: ["A9B4B8", "2F4652"] },
-  gsw_change: { mode: "ramp", src: ["ff0000", "000000", "00ff00"], dst: ["B07087", "2A2622", "8E9E7C"] },
-  gsw_seasonality: { mode: "ramp", src: ["99d9ea", "0000ff"], dst: ["A9B4B8", "2F4652"] },
-  gsw_recurrence: { mode: "ramp", src: ["ff7f27", "99d9ea"], dst: ["8C5A68", "A9B4B8"] },
+  gsw_occurrence: { mode: "ramp", dataOnly: true, src: ["ffcccc", "0000ff"], dst: ["A9B4B8", "2F4652"] },
+  gsw_change: { mode: "ramp", dataOnly: true, src: ["ff0000", "000000", "00ff00"], dst: ["B07087", "2A2622", "8E9E7C"] },
+  gsw_seasonality: { mode: "ramp", dataOnly: true, src: ["99d9ea", "0000ff"], dst: ["A9B4B8", "2F4652"] },
+  gsw_recurrence: { mode: "ramp", dataOnly: true, src: ["ff7f27", "99d9ea"], dst: ["8C5A68", "A9B4B8"] },
   // Round 93b: the JRC publishes no "extent" tiles (asked for, they answered
   // 404, which is why the chip drew nothing). Anywhere water was ever seen is
   // every pixel of the occurrence map, drawn in one colour.
-  gsw_extent: { mode: "class", src: ["0000ff"], dst: ["5E7377"] },
-  gsw_transitions: { mode: "class",
+  tcl_fire: { mode: "year", last: 24, dst: ["B8E2E8", "3FA9C2", "1E6FA8", "0E2F66"] },
+  gsw_extent: { mode: "ramp", dataOnly: true, src: ["ffcccc", "0000ff"], dst: ["5E7377", "5E7377"] },
+  gsw_transitions: { mode: "class", dataOnly: true,
     src: ["0000ff", "22b14c", "d1102d", "99d9ea", "b5e61d", "e68a00", "ff7f27", "ffc90e", "7f7f7f", "c3c3c3"],
     dst: ["2F4652", "6F805F", "8C4F5A", "8C9DA6", "A3AE8E", "B07087", "5E7377", "C9CFD2", "6A6258", "A39C92"] },
 };
@@ -1182,14 +1183,52 @@ function remapColour(spec, r, g, b) {
   const at = bestT * (dst.length - 1), k = Math.min(dst.length - 2, Math.floor(at)), f = at - k;
   return [0, 1, 2].map((c) => Math.round(dst[k][c] + (dst[k + 1][c] - dst[k][c]) * f));
 }
+// Round 123b (asked 2 October: Surface water "highlights its data area with a
+// blue haze; I just want the actual data"): a faint pixel, or one far from
+// every colour of the publisher's palette, is not data and is left clear.
+const REMAP_FAINT = 96, REMAP_FAR = 3 * 70 * 70;
+function remapFits(spec, r, g, b) {
+  const px = [r, g, b];
+  const d2 = (p, q) => (p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2 + (p[2] - q[2]) ** 2;
+  const src = spec.src.map((h) => [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]);
+  let best = Infinity;
+  if (spec.mode === "class" || src.length < 2) { for (const c of src) best = Math.min(best, d2(px, c)); return best <= REMAP_FAR; }
+  for (let i = 0; i < src.length - 1; i++) {
+    const a = src[i], b2 = src[i + 1], ab = [b2[0] - a[0], b2[1] - a[1], b2[2] - a[2]];
+    const len = ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2 || 1;
+    const u = Math.max(0, Math.min(1, ((px[0] - a[0]) * ab[0] + (px[1] - a[1]) * ab[1] + (px[2] - a[2]) * ab[2]) / len));
+    best = Math.min(best, d2(px, [a[0] + ab[0] * u, a[1] + ab[1] * u, a[2] + ab[2] * u]));
+  }
+  return best <= REMAP_FAR;
+}
 function remapPixels(px, spec) {
+  // Round 123b (asked 2 October: Tree cover lost to fire "shows as dark grey and
+  // so impossible to read"): Global Forest Watch's tiles hold numbers, not
+  // colours: blue is the year of loss less 2000 (red its intensity). Each
+  // pixel is drawn by its year, pale teal for the first years to deep cobalt
+  // for the latest.
+  if (spec.mode === "year") {
+    const dst = spec.dst.map(hex3);
+    for (let i = 0; i < px.length; i += 4) {
+      const yr = px[i + 2];
+      if (!px[i + 3] || !yr || yr > spec.last) { px[i + 3] = 0; continue; }
+      const at = Math.max(0, Math.min(1, (yr - 1) / Math.max(1, spec.last - 1))) * (dst.length - 1);
+      const k = Math.min(dst.length - 2, Math.floor(at)), f = at - k;
+      for (let c = 0; c < 3; c++) px[i + c] = Math.round(dst[k][c] + (dst[k + 1][c] - dst[k][c]) * f);
+      px[i + 3] = 255;
+    }
+    return;
+  }
   const seen = new Map();
+  const strict = !!spec.dataOnly;
   for (let i = 0; i < px.length; i += 4) {
     if (!px[i + 3]) continue;
+    if (strict && px[i + 3] < REMAP_FAINT) { px[i + 3] = 0; continue; }
     const key = (px[i] << 16) | (px[i + 1] << 8) | px[i + 2];
     let c = seen.get(key);
-    if (!c) { c = remapColour(spec, px[i], px[i + 1], px[i + 2]); seen.set(key, c); }
-    px[i] = c[0]; px[i + 1] = c[1]; px[i + 2] = c[2];
+    if (!c) { c = strict && !remapFits(spec, px[i], px[i + 1], px[i + 2]) ? null : remapColour(spec, px[i], px[i + 1], px[i + 2]); seen.set(key, c || 0); }
+    if (!c) { px[i + 3] = 0; continue; }
+    px[i] = c[0]; px[i + 1] = c[1]; px[i + 2] = c[2]; px[i + 3] = 255;
   }
 }
 maplibregl.addProtocol("remap", async (params, abortController) => {
@@ -1680,6 +1719,14 @@ maplibregl.addProtocol("cerulean", async (params, abortController) => {
 // The painted chart is the same plate as the Pre-Birth Rights map: already
 // reprojected to Web Mercator, covering 80.55°S to 85.05°N. MapLibre places an
 // image source linearly in Mercator space, so it registers with no warping.
+// Round 123b: an ArcGIS Location Platform API key (free tier), if the owner
+// makes one; empty means the keyless imagery (see the base source).
+const ESRI_TOKEN = "";
+if (!ESRI_TOKEN && typeof maplibregl !== "undefined" && maplibregl.addProtocol) {
+  // No key, no Esri hillshade: an empty square instead of a refused one. The
+  // relief comes from the map's own height tiles (outline-dem) instead.
+  maplibregl.addProtocol("esri-hillshade-off", async () => ({ data: rawPng(new Uint8ClampedArray(256 * 256 * 4), 256, 256) }));
+}
 const PLATE = {
   url: abs("./atlas-plate.webp"),
   coordinates: [[-180, 85.05112877980659], [180, 85.05112877980659],
@@ -2037,12 +2084,22 @@ const map = new maplibregl.Map({
       // washes on top of these through a WebGL layer. Two of its three washes
       // are reproduced exactly and one is matched at mid-tones; the comments
       // there say which.
-      base: {
+      // Round 123b (2 October): Esri's keyless World Imagery now answers
+      // close in with "API key required" squares. Without a key of our own
+      // (ESRI_TOKEN), the imagery is EOX's Sentinel-2 cloudless 2024 at every
+      // zoom (free for non-commercial use with credit); with one, Esri's
+      // photo as before, through its current tile service.
+      base: ESRI_TOKEN ? {
         type: "raster",
-        tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/" +
-                "World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+        tiles: ["https://ibasemaps-api.arcgis.com/arcgis/rest/services/" +
+                "World_Imagery/MapServer/tile/{z}/{y}/{x}?token=" + encodeURIComponent(ESRI_TOKEN)],
         tileSize: 256, maxzoom: 18,
         attribution: "Imagery © Esri, Maxar",
+      } : {
+        type: "raster",
+        tiles: ["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg"],
+        tileSize: 256, maxzoom: 14,
+        attribution: '<a href="https://s2maps.eu" target="_blank" rel="noopener">Sentinel-2 cloudless - https://s2maps.eu</a> by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024)',
       },
       // The Satellite basemap's wide views (SAT_CLOSE.handover). Free for
       // non-commercial use with this attribution (CC BY-NC-SA 4.0).
@@ -2057,8 +2114,9 @@ const map = new maplibregl.Map({
       // top at low opacity, which is weaker but the same idea.
       hillshade: {
         type: "raster",
-        tiles: ["https://services.arcgisonline.com/arcgis/rest/services/" +
-                "Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}"],
+        tiles: [ESRI_TOKEN ? "https://ibasemaps-api.arcgis.com/arcgis/rest/services/" +
+                "Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}?token=" + encodeURIComponent(ESRI_TOKEN)
+                : "esri-hillshade-off://{z}/{x}/{y}"],
         tileSize: 256, maxzoom: 16,
         attribution: "Hillshade © Esri",
       },
@@ -2477,6 +2535,8 @@ function addHud(layer, rawAddLayer) {
     glowGrain();
   } catch (e) { /* this layer keeps its round markers alone */ }
 }
+// Round 123b: the fire-loss years' colours are drawn as written.
+["#B8E2E8", "#3FA9C2", "#1E6FA8", "#0E2F66"].forEach((c) => typeof GLAD_OUT !== "undefined" && GLAD_OUT.add(c));
 // The map's own ramps are drawn as written; their keys are not moved either (round 82b).
 HOT_KEY.forEach(([c]) => GLAD_OUT.add(c));
 // The grain: made once, from a fixed seed, so it is the same on every redraw
@@ -4522,6 +4582,9 @@ async function addLivePlacesLayer(cfg) {
         : cfg.route === "trasefac" ? await readTraseFacilities(cfg)
         : await readArcgisApp(cfg);
     if (cfg.pdfs) linkAtlasPdfs(cfg, got.items);
+    // Round 123b: a row that shows one of its source's categories (EJAtlas's
+    // water conflicts under Water scarcity).
+    if (cfg.onlyGroup && got && Array.isArray(got.items)) got.items = got.items.filter((it) => it.group === cfg.onlyGroup);
   } catch (e) {
     setLayerState(cfg.id, cfg.waiting && /\b404\b/.test(e.message) ? cfg.waiting : `the source did not answer (${e.message})`);
     console.error(`[culprits] ${cfg.id}: ${e.message}`);
@@ -5293,6 +5356,9 @@ function traseFormat(x) {
 // the municipality level where Trase publishes the measure there, otherwise
 // the first level Trase lists for it - the same default the single row used.
 const TRASE_REMOVED = [/^GDP per capita\b/i];
+// Round 123b (asked 2 October): Peatland burned each year (Indonesia) and the
+// greenhouse gases from peat burning inside plantations taken out.
+const TRASE_REMOVED_METRICS = new Set(["BURNED_PEAT", "EMISSION_BURNED_PEAT_CO2"]);
 // Round 88b (asked 27 September: the pulpwood rows looked alike): each titled
 // by what Trase's own description says it counts.
 const TRASE_TITLES = {
@@ -6115,7 +6181,7 @@ async function addTraseLayer(cfg) {
   cfg._regions = regions;
   // The owner asked for Trase's "GDP per capita" measure (Colombia only) to be
   // taken out of the box (23 September); every other measure stays.
-  const entries = traseMerge(traseMeasures(cat.countries || {}).filter((e) => !TRASE_REMOVED.some((r) => r.test(e.name || ""))));
+  const entries = traseMerge(traseMeasures(cat.countries || {}).filter((e) => !TRASE_REMOVED.some((r) => r.test(e.name || "")) && !TRASE_REMOVED_METRICS.has(e.metric)));
   const drawn = new Map();          // measure id -> the layer ids it drew
   const safe = (x) => String(x).replace(/[^a-z0-9_]/gi, "_");
   cfg._layerIds = [];
@@ -8386,7 +8452,7 @@ const PLANTS = AG + " > Cropland > " + PLANT_T;
 // is ticked on its own like any row. They are named in PANEL_ORDER with
 // bundle: true, and a catalogue layer is put inside one by giving its path.
 const BUNDLES = {
-  mines: "Mines and mining land, every source together",
+  viirs: "Active fires seen by the VIIRS satellites, last 3 months, with the last 24 hours inside (NASA)",
   ponds: "Fish and shrimp farm ponds in the tropics, 1999, 2014 and 2018 (Clark Labs)",
   mangroves: "Mangroves in 1996, 2016 and 2020 (Global Mangrove Watch)",
   waterwatch: "Reservoirs holding more or less water than usual (Global Water Watch)",
@@ -8491,7 +8557,9 @@ const CATALOGUE_PLACES = [
   // at the owner's request (22 September). A layer only this rule claims is
   // left out, and counted on the catalogue's own row.
   // Kept where they were, at the owner's word (22 September, "I'll decide later").
-  [/forest cover|forest and non-forest|land cover|tree height|forest as a share|tree cover extent|forest extent|tree cover density|forest age|industrial land/i, P + " > Forest and land cover"],
+  // Round 123b (asked 2 October): what was under Forest and land cover is
+  // under Biodiversity loss > Land Use and Ecoregions.
+  [/forest cover|forest and non-forest|land cover|tree height|forest as a share|tree cover extent|forest extent|tree cover density|forest age|industrial land/i, P + " > Biodiversity loss > Land Use and Ecoregions"],
   [/mangrove|reef|benthic|coral/i, P + " > Oceans > Reefs and mangroves"],
   [/water|aqueduct|\brivers?\b|watershed|flood|\bpond\b|canal/i, P + " > Water scarcity"],
   [/customary|\badat\b|indigenous|community land|tenure|land rights|quilombola|village forest|community forest|social forestry|rural settlement|forestry employment/i,
@@ -8578,7 +8646,9 @@ const CATALOGUE_BY_TITLE = [
   // Colombia's agricultural frontier out of Plantations. Round 96b (asked 28
   // September): under Deforestation > Forest zoning and management plans, with
   // the other lines the law draws around forest.
-  [/\bberkeley_earth_temp_anomaly_2000_2020\b|annual surface temperature anomal/i, [P + " > Natural disasters > Extreme heat"]],
+  // Round 123b: GFW publishes no picture of it; berkeley_warming is drawn from
+  // Berkeley Earth's own file instead.
+  [/\bberkeley_earth_temp_anomaly_2000_2020\b|annual surface temperature anomal/i, null],
   [/\blapig_degraded_pasture\b|degraded pasture/i, null],
   [/\bcol_frontera_agricola\b|frontera agr[ií]cola/i, [P + " > Deforestation > Forest zoning and management plans"]],
   // Round 94b (asked 27 September): Liberia's three mining rows, Merauke's
@@ -8705,6 +8775,15 @@ const CATALOGUE_BY_TITLE = [
   // cover taken out. The JRC's managed land for Canada and the United States
   // is one row with two sublayers, under forest management.
   [/\bGNW\b/, null],
+  // Round 123b: Global Forest Watch publishes no picture of UMD's land cover
+  // 2000-2020 (no tiles in its catalogue), so it never drew; land cover
+  // worldwide is the glc_fcs30d row (35 kinds, 30 m).
+  [/\bumd_land_cover_2000_2020\b/, null],
+  // Round 123b (asked 2 October): MODIS active fires out (nothing published
+  // to draw; VIIRS sees the same fires at 375 m, MODIS at 1 km). VIIRS's three
+  // months hold the last 24 hours as a part.
+  [/\bnasa_modis_fire_alerts\b/, null],
+  [/\bnasa_viirs_fire_alerts\b/, [IN(P + " > Fire", "viirs")]],
   [/(?=.*natural forests?)(?=.*indonesia)/i, null],
   [/\bIDN_FC2020_KLHK\b|forest cover 2020, indonesia's own/i, null],
   [/tree height|tree_cover_height|treeheight/i, null],
@@ -8765,10 +8844,10 @@ const CATALOGUE_BY_TITLE = [
   [/\bGlobal_FC-FNF(-HS_Latest|_2024|_2025)_TTM\b|\bREGBRNIDNMYS_FC-FNF-HS_Latest_TTM\b|\bIDNMYSBorneo_LCIndustrial_1970\b/, null],
   // Layers with sublayers.
   [/\bclark_labs_tropical_pond_aquaculture_(1999|2014|2018|change_1999_2018)\b/, [IN(P + " > Oceans > Fishing", "ponds")]],
-  [/\bpangaea_global_mining\b|\bgfw_mining_concessions\b|\bIDN_Mining_2023\b|\bconcessionmining_spv\b/, [IN(P + " > Mining", "mines")]],
+  [/\bpangaea_global_mining\b|\bgfw_mining_concessions\b|\bIDN_Mining_2023\b|\bconcessionmining_spv\b/, [P + " > Mining"]],
   // Round 94b: the mangroves of 1996, 2016 and 2020 under Deforestation > Mangroves.
   [/\bgmw_global_mangrove_extent(_1996|_2016)?\b/, [IN(P + " > Deforestation > Mangroves", "mangroves")]],
-  [/\bglobal_water_watch_anomalies2?\b/, [IN(P + " > Water scarcity", "waterwatch")]],
+  [/\bglobal_water_watch_anomalies2?\b/, [IN(P + " > Water scarcity > Reservoirs", "waterwatch")]],
   // Round 42 (24 September): of the forest cover maps only the JRC's 2020 map
   // stays, the reference the EU's deforestation regulation measures from.
   [/\bjrc_global_forest_cover\b/, [P + " > Deforestation > Forest cover"]],
@@ -8834,7 +8913,7 @@ const CATALOGUE_BY_TITLE = [
   [/\bbirdlife_alliance_for_zero_extinction_sites\b/, [P + " > Biodiversity loss > Places that matter most for species"]],
   [/\bwcs_forest_landscape_integrity_index\b/, [P + " > Biodiversity loss > Intact and primary forests"]],
   [/\bicf_hnd_forest_type_2013\b|\bjrc_managed_land_(can|usa)\b|\brspo_southeast_asia_land_cover_2010\b|\bumd_tree_cover_gain\b|\bumd_tree_cover_height_20\d\d\b/,
-   [P + " > Forest and land cover"]],
+   [P + " > Biodiversity loss > Land Use and Ecoregions"]],
   [/\bwri_global_power_plant_database\b/, [P + " > Climate > Carbon dioxide"]],
   // Taken out 24 September (round 41): wind speed potential and Brazil's biomes.
   [/\bdtu_wb_wind_speed_potential_2001_2010\b|\bibge_bra_biomes\b/, null],
@@ -8990,7 +9069,7 @@ function catalogueSub(path, words) {
 // Rows whose words say peat are not land cover rows, whatever their group says
 // (Trase files its peatland area under "Land cover"; item 26).
 function catalogueRefine(paths, words) {
-  let out = paths.filter((x) => !(x === P + " > Forest and land cover" && /\bpeat/i.test(words)));
+  let out = paths.filter((x) => !((x === P + " > Forest and land cover" || x === P + " > Biodiversity loss > Land Use and Ecoregions") && /\bpeat/i.test(words)));
   if (!out.length && paths.length) out = [P + " > Deforestation > Peatland"];
   // Under Intact and primary forests only two rows stay (24 September): the
   // biodiversity intactness of forested biomes and the forest landscape
@@ -9399,7 +9478,7 @@ const LEFT_OUT = "(left out)";
 // Round 92b: the worldwide peatland map leads the Peatland heading.
 // Round 102b: the plantations spreading year by year first under Plantations
 // of no single crop, above the layers with parts.
-const CATALOGUE_FIRST = new Set(["tsc_tree_cover_loss_drivers", "gfw_integrated_dist_alerts", "gfw_peatlands", "Global_AllExpansionRGB_2000to2025"]);
+const CATALOGUE_FIRST = new Set(["tsc_tree_cover_loss_drivers", "gfw_integrated_dist_alerts", "gfw_peatlands", "Global_AllExpansionRGB_2000to2025", "pangaea_global_mining"]);
 function cataloguePlaces(words, title) {
   if (title != null) {
     // The title and, after it, the id (the id rules above end in $ or name it).
@@ -10077,6 +10156,12 @@ const GFW_MIN_ZOOM = { umd_modis_burned_areas: 5 };
 // newest version has only tiles made from a database on request, which do not
 // answer wider out; its 2023 version's ready-made picture tiles are drawn.
 const GFW_FIXED = {
+  // Round 123b (asked 2 October: the land cover rows did not draw): the ESA
+  // land cover's first-listed tiles were never finished (status pending); its
+  // finished set is "landcover". Indonesia's land cover, its finished set.
+  esa_land_cover_2015: { how: "raster", uri: "https://tiles.globalforestwatch.org/esa_land_cover_2015/v2016/landcover/{z}/{x}/{y}.png", minzoom: 0, maxzoom: 9 },
+  umd_tree_cover_loss_from_fires: { how: "raster", uri: "remap://tcl_fire/tiles.globalforestwatch.org/umd_tree_cover_loss_from_fires/v20240301/tcd_30/{z}/{x}/{y}.png", minzoom: 0, maxzoom: 12 },
+  idn_land_cover_2017: { how: "raster", uri: "https://tiles.globalforestwatch.org/idn_land_cover_2017/v201807/default/{z}/{x}/{y}.png", minzoom: 0, maxzoom: 12 },
   gfw_planted_forests: { how: "raster", uri: "https://tiles.globalforestwatch.org/gfw_planted_forests/v20231128/default/{z}/{x}/{y}.png", minzoom: 0, maxzoom: 12 },
 };
 const GFW_DRAWABLE_KINDS = ["Static vector tile cache", "Dynamic vector tile cache", "Raster tile cache", "COG"];
@@ -10137,8 +10222,20 @@ function waterSignExpr(spec, feats) {
     v = own ? m : null;
     say = `${m.slice(0, 4)}-${m.slice(5)}`;
     if (!own) {
-      const d = ["-", ["to-number", ["get", m], 0], ["to-number", ["get", `${m}_monthly`], 0]];
-      return { expr: ["case", ["==", ["to-number", ["get", m], -1e12], -1e12], WATER_NONE, ["<", d, 0], WATER_LESS, [">", d, 0], WATER_MORE, WATER_NONE], month: say, rule: "area against the usual area" };
+      // Round 123b (asked 2 October: every reservoir drew blue): with no usual
+      // area beside it, the month's area was set against 0 and every reservoir
+      // read "more than usual". A reservoir with no usual area is "no reading".
+      const usual = `${m}_monthly`;
+      const hasUsual = feats.some((p) => num(p[usual]));
+      if (!hasUsual) {
+        const alt = Object.keys(feats[0] || {}).find((k) => /anomal/i.test(k));
+        if (alt) { v = alt; say = ""; }
+        else return { expr: WATER_NONE, month: say, rule: "no usual area given to compare with" };
+      } else {
+        const d = ["-", ["to-number", ["get", m], 0], ["to-number", ["get", usual], 0]];
+        return { expr: ["case", ["any", ["==", ["to-number", ["get", m], -1e12], -1e12], ["==", ["to-number", ["get", usual], -1e12], -1e12]], WATER_NONE,
+          ["<", d, 0], WATER_LESS, [">", d, 0], WATER_MORE, WATER_NONE], month: say, rule: "area against the usual area" };
+      }
     }
   }
   const x = ["to-number", ["get", v], -1e12];
@@ -13467,7 +13564,8 @@ async function countryTotalsFrom(cfg) {
   return out;
 }
 // Round 100b: country and region rows raised by their figures (see below).
-var LIFT_ON = true;
+// Round 123b: off until ticked (asked 2 October).
+var LIFT_ON = false;
 const LIFT_TOP = 800000;     // metres at the top of the scale, from the world view
 const LIFTED = new Set();
 // ---- Round 101b (asked 28 September): layer colour themes ----------------
@@ -16201,8 +16299,13 @@ if (typeof map.on === "function") map.on("moveend", () => {
 // Under both, each row's weight (0 to 3, under the menu) says how much it
 // counts against the others. Rows that shade whole countries are not folded
 // in: their figures belong to a whole country, not to a place in it.
-const COMBO_MODES = [["off", "Off: each layer shown on its own"], ["density", "Where their places are most crowded"],
-  ["intensity", "Where their biggest numbers are (each place weighted by its own figure, such as tonnes or deaths)"]];
+// Round 123b (asked 2 October): the two ways renamed and remade. "Where they
+// overlap the most" counts how many of the ticked layers are present at each
+// place; "Where their highest values overlap" adds each layer's own values
+// (scaled to its own top) where two or more layers meet. Neither turns on 3D
+// or raised ground: the surface rises only if Raise figures as heights is on.
+const COMBO_MODES = [["off", "Off: each layer shown on its own"], ["overlap", "Where they overlap the most"],
+  ["peaks", "Where their highest values overlap"]];
 const COMBO = { mode: "off", weights: new Map(), pr: { rid: "combo__all", grid: null }, timer: null, rows: [] };
 const COMBO_MAX_ROWS = 40;
 function comboFigure(id) {
@@ -16260,22 +16363,37 @@ async function comboBuild() {
   if (mode === "off" || !ids.length) return null;
   const W = Math.round(360 / POINT_RELIEF_RES), H = Math.round(180 / POINT_RELIEF_RES);
   const sum = new Float32Array(W * H);
-  let any = false;
+  const present = new Uint8Array(W * H);
+  let any = false, used = 0;
   for (const id of ids) {
     const wt = COMBO.weights.has(id) ? COMBO.weights.get(id) : 1;
     if (!(wt > 0)) continue;
     const { features } = await rowFeatures(id);
     if (COMBO.mode !== mode) return null;           // changed meanwhile
-    const pts = comboPoints(features, comboFigure(id), mode);
+    const pts = comboPoints(features, comboFigure(id), mode === "peaks" ? "intensity" : "density");
     const cover = shapeCover(features);
     if (!pts.length && !cover) continue;
     const g = pointReliefGrid(pts, cover);
     if (!(g.max > 0)) continue;
-    const k = wt / g.max;
-    for (let i = 0; i < sum.length; i++) sum[i] += g.g[i] * k;
+    // Present at a place: anything of the row within about 200 km.
+    const floor = g.max * 0.02;
+    for (let i = 0; i < sum.length; i++) {
+      const v = g.g[i];
+      if (!(v > floor)) continue;
+      present[i]++;
+      sum[i] += mode === "overlap" ? wt : wt * (v / g.max);
+    }
+    used++;
     any = true;
   }
   if (!any) return null;
+  // With two or more layers, only the places where at least two of them meet
+  // count; with one, its own spread shows. Highest values are scaled by the
+  // share of the layers present, so one layer's peak alone does not top it.
+  for (let i = 0; i < sum.length; i++) {
+    if (used >= 2 && present[i] < 2) { sum[i] = 0; continue; }
+    if (mode === "peaks") sum[i] *= present[i] / used;
+  }
   let max = 0; for (const v of sum) if (v > max) max = v;
   // Scaled up so the log steps of the bands spread as a row's own do.
   const K = 1000 / (max || 1);
@@ -16333,9 +16451,11 @@ async function comboDraw() {
     if (map.getLayer(`${rid}-hill`)) map.setLayoutProperty(`${rid}-hill`, "visibility", "none");
     reliefGround(rid, false);
   }
-  if (say) say.textContent = COMBO.mode === "density"
-    ? "Where the places of the ticked layers gather, each layer scaled to its own busiest place first. Light: few; dark: many."
-    : "Where the ticked layers' biggest figures gather: each place counts by its own figure within its layer (the figure the layer is coloured by, else its count; the largest counts 1, the smallest 0.1, a place with no figure 0.5). Light: little; dark: much.";
+  const two = COMBO.rows.length >= 2;
+  if (say) say.textContent = COMBO.mode === "overlap"
+    ? (two ? "Shaded where two or more of the ticked layers are present within about 200 km. Light: two layers meet; dark: the most layers meet." : "Tick a second layer: this shows where layers meet. For now it shows where the one layer reaches.")
+    : (two ? "Shaded where two or more ticked layers meet, by how high their own values are there (each layer scaled to its own highest; places count by the figure the layer is coloured by, else how many places crowd there). Dark: several layers at their highest in the same place."
+           : "Tick a second layer: this shows where layers' highest values meet. For now it shows the one layer's highest values.");
 }
 function comboHideRows(hide) {
   COMBO.hidden = COMBO.hidden || new Set();
@@ -18801,14 +18921,21 @@ const SITE_MAPS = {
       note: "From the Suppression page's subsistence cultures map." },
     { id: "site_self_sufficiency", typeRows: true, name: "Why some famous programs aren’t on this map", unit: "programs", colour: "#5E6F5B", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_self_sufficiency.places.geojson",
       note: "From the Solution page's self-sufficiency programs map." },
-    { id: "site_environment_law", name: "Environmental law instruments", unit: "legal instruments", colour: "#5A6B72", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/site_environment_law.pmtiles",
-      note: "From the Destruction page's environmental law map (enviro-atlas repo)." },
+    // Round 123b (asked 2 October: the environmental law layers 404ed): drawn
+    // from the enviro-atlas repo's own index (tiles scripts/envlaw.py, daily).
+    { id: "site_environment_law", name: "Environmental laws and policies in force, place by place: every country, state and province (FAOLEX, via the site's environmental law atlas)", unit: "countries, states and provinces", colour: "#1E6FA8", route: "geojsonlive", ready: true, lazy: true, buildScript: "envlaw",
+      files: [{ label: "Places with laws", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/envlaw/jurisdictions.geojson" }],
+      colourBy: { field: "instruments", steps: [50, 200, 500, 1500, 4000], unit: "laws, regulations and policies" },
+      attribution: "FAOLEX, Food and Agriculture Organization of the United Nations",
+      note: "Every country, state and province the site's environmental law atlas (enviro-atlas repo, built from FAO's FAOLEX database of national laws, regulations and policies) holds instruments for: how many, the first and latest year, and how many on each of its commonest subjects; the box links to the place's full list. 7,994 instruments that belong to no one country (international and global ones) have no place to be drawn; the build file counts them. Made daily by culprits-tiles-more (scripts/envlaw.py)." },
     { id: "site_cartel_cells", name: "Cartel cells", unit: "cells and sites", colour: "#6A5A58", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_cartel_cells.places.geojson",
       note: "From the Suppression page's cartel cells map (maps repo), with its connecting lines." },
     { id: "site_indigenous_conflicts", typeRows: true, name: "Indigenous Environmental Conflicts", unit: "conflicts", colour: "#6B5A4A", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_indigenous_conflicts.places.geojson",
       note: "From local-map's Indigenous Environmental Conflicts map (EJAtlas cases, real coordinates)." },
-    { id: "enviro_law_by_country", name: "Environmental laws, by country and region (enviro-atlas)", unit: "countries", colour: "#5A6B72", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/enviro_law_by_country.geojson",
-      note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
+    { id: "enviro_law_by_country", name: "Environmental laws and policies, country by country: how many each country has (FAOLEX, via the site's environmental law atlas)", unit: "laws, regulations and policies", colour: "#1E6FA8", route: "country", ready: true, lazy: true, buildScript: "envlaw",
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/envlaw/countries.json", field: "x_instruments" },
+      attribution: "FAOLEX, Food and Agriculture Organization of the United Nations",
+      note: "Each country shaded by how many national environmental and natural resource laws, regulations and policies FAOLEX records for it, as the site's environmental law atlas holds them; the box gives the years and the commonest subjects, with a link to the full list. States' and provinces' own laws are on the row above. Made daily by culprits-tiles-more (scripts/envlaw.py)." },
     { id: "site_earmarked_funding", name: "Money given to international organisations for set purposes (earmarked funding)", unit: "countries", colour: "#6A5E66", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_earmarked_funding.geojson",
       note: "Each country shaded by what the source map says it gave in earmarked funding, or received; a menu in the key picks which. Countries it gives no figure for are left clear." },
     { id: "site_trade_profits", name: "Who keeps the profits in global trade (OECD trade in value added)", unit: "countries", colour: "#6E6358", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_trade_profits.geojson",
@@ -19215,6 +19342,18 @@ const OTHER_MAPS = {
         "Water management": "#3FA9C2", "Infrastructure and built environment": "#5E7C99", "Tourism and recreation": "#F28FB0",
         "Biodiversity conservation conflicts": "#8FB8FF", "Industrial and utilities conflicts": "#1E6FA8" },
       note: "Every conflict in the EJAtlas, read live from its own data address, coloured and filtered by EJAtlas's ten categories (the address gives each as a number, 1 to 10, in the order of EJAtlas's own map menu, named here); each box links the conflict's page." },
+    // Round 123b (asked 2 October): who causes water scarcity. Farming takes
+    // most of the world's freshwater; this shades each country by how much of
+    // its renewable water farming alone takes (tiles scripts/water_culprits.py).
+    { id: "water_culprits", name: "How much of each country's renewable water farming alone takes, with industry's and homes' shares (FAO AQUASTAT, via the World Bank)", unit: "% of renewable freshwater, taken by farming", colour: "#8C4F5A", route: "country", ready: true, lazy: true, buildScript: "water_culprits",
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/water/culprits.json", field: "x_farming_takes_pct_of_renewable" },
+      attribution: "FAO AQUASTAT, via the World Bank's World Development Indicators (CC BY 4.0)",
+      note: "Water scarcity's main cause is how much is taken, and farming (irrigation, livestock and fish farming) takes about seven tenths of the freshwater withdrawn worldwide. Each country is shaded by the share of its renewable freshwater that farming alone withdraws: FAO's level of water stress (all withdrawals against the renewable water left after nature's needs, SDG 6.4.2) times farming's share of withdrawals. Over 100% means farming alone takes more than is renewed: rivers and groundwater are being run down. The box gives the same for industry, homes' share, and the billions of cubic metres withdrawn, each with its year. The multiplication is this map's; the figures are FAO's. Copied weekly by culprits-tiles-more." },
+    // Round 123b (asked 2 October): EJAtlas's water conflicts as one row under
+    // Water scarcity > Water conflicts.
+    { id: "ejatlas_water", name: "Water conflicts worldwide: dams, water grabs, pollution and diversions people resisted (EJAtlas)", unit: "conflicts", colour: "#3FA9C2", route: "ejatlas", ready: true, lazy: true,
+      api: "https://ejatlas.org/api/v1/conflicts/", onlyGroup: "Water management", groupLabel: "Category", groupColours: { "Water management": "#3FA9C2" },
+      note: "Every conflict the EJAtlas files under its Water management category (dams and water transfers, water grabbing, water pollution and access to water), read live from its own data address; each box links the conflict's page. A conflict EJAtlas files first under another category (a mine that poisons a river, say) is in the full EJAtlas row, not here." },
     { id: "seas_of_plastic", name: "Plastic sampled in the oceans: the stations, the voyages and the sea areas (Seas of Plastic)", unit: "stations, trips and ocean areas", colour: "#5E7377", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Stations", url: "https://app.dumpark.com/seas-of-plastic-2/app/data/AllStations.geojson" },
               { label: "Trips", url: "https://app.dumpark.com/seas-of-plastic-2/app/data/AllTrips.geojson" },
@@ -19867,12 +20006,16 @@ const OTHER_MAPS = {
     { id: "troutwood", name: "Troutwood map", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://map.troutwood.com/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "ect_secrets", name: "Energy Charter Treaty: fossil fuel companies suing governments over climate action", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
-      page: "https://energy-charter-dirty-secrets.org/",
-      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
-    { id: "isds_tracker", name: "Companies suing governments in private tribunals (ISDS tracker)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
-      page: "https://www.globalisdstracker.org/database/",
-      note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    // Round 123b (asked 2 October: add their data to the map in their
+    // entirety): from UNCTAD's full case list (tiles scripts/isds_unctad.py).
+    { id: "ect_secrets", name: "Governments sued under the Energy Charter Treaty, often by fossil fuel companies, country by country (UNCTAD)", unit: "cases against the country", colour: "#1E6FA8", route: "country", ready: true, lazy: true, buildScript: "isds_unctad",
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/isds/ect_respondents.json", field: "x_cases" },
+      attribution: "UNCTAD, Investment Dispute Settlement Navigator: full data release (excel format)",
+      note: "Every case UN Trade and Development (UNCTAD) knows of that was brought under the Energy Charter Treaty: each state sued is shaded by how many, and its box lists each case's name, year and outcome. Investigate Europe's Energy Charter Treaty pages (energy-charter-dirty-secrets.org) offer no data to copy; UNCTAD's list is the public record of the cases. Cite as: UNCTAD, Investment Dispute Settlement Navigator: full data release (excel format). Copied weekly by culprits-tiles-more." },
+    { id: "isds_tracker", name: "Governments sued by companies in private tribunals (investor-state dispute settlement), country by country (UNCTAD)", unit: "cases against the country", colour: "#1E6FA8", route: "country", ready: true, lazy: true, buildScript: "isds_unctad",
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/isds/respondents.json", field: "x_cases" },
+      attribution: "UNCTAD, Investment Dispute Settlement Navigator: full data release (excel format)",
+      note: "Every publicly known treaty-based case in which a foreign investor sued a state, from UN Trade and Development's full release: each state shaded by how many times it has been sued, its box listing each case's name, year and outcome. The Global ISDS Tracker (Transnational Institute, PowerShift, Trade Justice Movement) offers no download; UNCTAD's release covers the same public cases. Cite as: UNCTAD, Investment Dispute Settlement Navigator: full data release (excel format). Copied weekly by culprits-tiles-more." },
     { id: "giga_schools", name: "Giga: school connectivity map", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://maps.giga.global/map",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
@@ -20019,7 +20162,7 @@ const OTHER_MAPS = {
     { id: "skytruth_tests", name: "Test entries left by SkyTruth Monitor's own developers (SkyTruth Monitor)", unit: "test entries", colour: "#6A6A66", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_tests.pmtiles",
       boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_10101",
       note: "Every alert SkyTruth's service will give, from a daily copy read square by square as tiles: the service hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. A click reads the alert's own text from the copy. Feed 10101: entries its developers made while trying the service out (\"This is dan's house\"). Not environmental data; here because the service publishes it and nothing it publishes is left out." },
-    { id: "skytruth_quakes", name: "Earthquakes, worldwide (SkyTruth Monitor)", unit: "earthquakes", colour: "#65676A", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_quakes.pmtiles",
+    { id: "skytruth_quakes", name: "Earthquakes SkyTruth's feed flagged, 2011 to 2015 only, month by month (SkyTruth Monitor)", unit: "earthquakes", colour: "#65676A", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/skytruth_quakes.pmtiles",
       timeline: { field: "x_date", from: "2011-01", to: "2015-12" },
       boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/skytruth/feed_6",
       note: "Every alert SkyTruth's service will give, from a daily copy read square by square as tiles: the service hands out only the 100 newest for any area asked, so the copy asks area by area, smaller and smaller wherever 100 came back, keeps everything gathered on earlier days, and fetches the back history over several days. A click reads the alert's own text from the copy. The earthquakes SkyTruth's feed carries; the newest seen on 20 September 2026 was from July 2015." },
@@ -20339,28 +20482,28 @@ const OTHER_MAPS = {
       note: "The Fur Free Alliance's record of each country's fur farming law, as Our World in Data publishes it (fur-farming-ban; CC BY 4.0), the newest year for each country: banned, banned but not yet in effect, partially banned, phased out through stricter rules, no active farms reported, or not banned. Copied weekly by culprits-tiles-more." },
     // Round 94b (asked 27 September): the rest of natural disasters, every
     // kind together and each kind on its own (scripts/natural_hazards.py).
-    { id: "haz_eonet", name: "Natural events as NASA tracks them: wildfires, storms, volcanoes, floods, landslides, drought, dust, ice and more (NASA EONET)", unit: "events", colour: "#3FA9C2", route: "geojsonlive", ready: true, lazy: true,
+    { id: "haz_eonet", name: "Natural events NASA tracked from space, every kind, 2000 to now: wildfires, storms, volcanoes, floods, ice and more (NASA EONET)", unit: "events", colour: "#3FA9C2", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Events", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/hazards/eonet.geojson" }],
       groupColours: { "Wildfires": "#8C4F5A", "Severe Storms": "#1E6FA8", "Volcanoes": "#B06A5E", "Floods": "#3FA9C2", "Landslides": "#7A6A5E", "Drought": "#A89A7A", "Dust and Haze": "#B8B0A0", "Sea and Lake Ice": "#D6EEF6", "Snow": "#E8EEF2", "Temperature Extremes": "#8C6A72", "Water Color": "#40BFB0", "Earthquakes": "#0E2F66", "Manmade": "#77726A" },
       groupHint: "Coloured by kind of event, at its latest recorded position",
       note: "NASA's Earth Observatory Natural Event Tracker (EONET v3): every natural event it has catalogued, open or closed, each at its latest recorded position, with its first and latest dates, its magnitude where given, and the sources that reported it. Copied weekly by culprits-tiles-more." },
-    { id: "haz_gdacs", name: "Disaster alerts: earthquakes, tropical cyclones, floods, volcanoes, droughts and wildfires, since 2000 (GDACS, UN and European Commission)", unit: "alerts", colour: "#1E6FA8", route: "geojsonlive", ready: true, lazy: true,
+    { id: "haz_gdacs", name: "Disaster alerts with their danger to people, every kind, since 2000: earthquakes, cyclones, floods, volcanoes, droughts, wildfires (GDACS, UN and European Commission)", unit: "alerts", colour: "#1E6FA8", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Alerts", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/hazards/gdacs.geojson" }],
       groupColours: { "Earthquake": "#0E2F66", "Tropical cyclone": "#1E6FA8", "Flood": "#3FA9C2", "Volcano": "#B06A5E", "Drought": "#A89A7A", "Wildfire": "#8C4F5A" },
-      groupHint: "Coloured by kind; the box gives GDACS's alert level (green, orange, red) and severity",
+      groupHint: "Coloured by kind of disaster; the colour menu can colour by alert level instead (green: minor, outside help unlikely to be needed; orange: moderate, outside help may be needed; red: severe, outside help likely to be needed)",
       note: "The Global Disaster Alert and Coordination System (the United Nations and the European Commission's Joint Research Centre): every alert it has issued since 2000 for earthquakes, tropical cyclones, floods, volcanoes, droughts and wildfires, with its alert level, severity and the countries affected. Copied weekly, ten days at a time, by culprits-tiles-more." },
-    { id: "usgs_quakes", name: "Earthquakes of magnitude 5 and over, 1900 to now (USGS)", unit: "earthquakes", colour: "#3FA9C2", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/usgs_quakes.pmtiles",
+    { id: "usgs_quakes", name: "Every strong earthquake, magnitude 5 and over, 1900 to now, month by month (USGS)", unit: "earthquakes", colour: "#3FA9C2", route: "pmtiles", ready: true, lazy: true, archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/usgs_quakes.pmtiles",
       timeline: { field: "x_date", from: "1900-01", to: "now" },
       note: "The US Geological Survey's earthquake catalogue: every earthquake of magnitude 5 or more worldwide from 1900, with its date, magnitude, depth and place; the timeline under the row chooses the months shown. Copied weekly by culprits-tiles-more." },
-    { id: "haz_ncei_quakes", name: "Significant earthquakes in history, with deaths and damage (NOAA NCEI)", unit: "earthquakes", colour: "#0E2F66", route: "geojsonlive", ready: true, lazy: true,
+    { id: "haz_ncei_quakes", name: "Earthquakes that killed or did great damage, 2150 BC to now, with their toll (NOAA NCEI)", unit: "earthquakes", colour: "#0E2F66", route: "geojsonlive", ready: true, lazy: true,
       // Round 100b (asked 28 September): coloured by its own figure.
       colourBy: { field: "eqMagnitude", steps: [5, 6, 6.5, 7, 8], unit: "magnitude" },
       files: [{ label: "Significant earthquakes", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/hazards/ncei_earthquakes.geojson" }],
       note: "NOAA's National Centers for Environmental Information, Global Significant Earthquake Database, 2150 BC to now: earthquakes that killed, did $1 million or more of damage, reached magnitude 7.5 or intensity X, or caused a tsunami; with deaths, injuries, houses destroyed and damage where recorded. Copied weekly." },
-    { id: "haz_volcanoes", name: "Volcanoes active in the last 12,000 years (Smithsonian Global Volcanism Program)", unit: "volcanoes", colour: "#B06A5E", route: "geojsonlive", ready: true, lazy: true,
+    { id: "haz_volcanoes", name: "Every volcano that has erupted in the last 12,000 years, by type (Smithsonian Global Volcanism Program)", unit: "volcanoes", colour: "#B06A5E", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Volcanoes", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/hazards/volcanoes.geojson" }],
       note: "The Smithsonian Institution's Volcanoes of the World: every volcano active in the Holocene (the last 11,700 years), with its type, last known eruption, rock type and tectonic setting. Copied weekly." },
-    { id: "haz_eruptions", name: "Significant volcanic eruptions in history, by explosivity (NOAA NCEI)", unit: "eruptions", colour: "#8C4F5A", route: "geojsonlive", ready: true, lazy: true,
+    { id: "haz_eruptions", name: "Eruptions that killed or did great damage, 4360 BC to now, by explosivity (NOAA NCEI)", unit: "eruptions", colour: "#8C4F5A", route: "geojsonlive", ready: true, lazy: true,
       // Round 100b (asked 28 September): coloured by its own figure.
       colourBy: { field: "vei", steps: [1, 2, 3, 4, 5], unit: "on the explosivity index (VEI)" },
       files: [{ label: "Eruptions", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/hazards/ncei_eruptions.geojson" }],
@@ -20381,6 +20524,11 @@ const OTHER_MAPS = {
       groupColours: { "downpour": "#1E6FA8", "rain": "#3FA9C2", "continuous_rain": "#8FD6E8", "tropical_cyclone": "#0E2F66", "monsoon": "#40BFB0", "earthquake": "#8C4F5A", "snowfall_snowmelt": "#D6EEF6", "construction": "#B06A5E", "mining": "#8C6A72", "unknown": "#77726A" },
       groupHint: "Coloured by what set it off",
       note: "NASA's Global Landslide Catalog (with the Cooperative Open Online Landslide Repository): landslides reported in the news, in reports and by the public since 2007, each with its date, trigger, size, setting and the deaths and injuries recorded. Copied weekly." },
+    // Round 123b (asked 2 October: GFW published no picture of the warmer years).
+    { id: "berkeley_warming", name: "How much warmer or cooler each place was than in 1951 to 1980, year by year from 2000 (Berkeley Earth)", unit: "°C against 1951 to 1980, 1° squares", colour: "#955A62", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "Berkeley Earth, Land + Ocean gridded temperature (CC BY-NC 4.0)", rasterPaint: { "raster-opacity": 0.85 },
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/berkeley_warming.choices.json",
+      note: "Berkeley Earth's Land + Ocean temperature record, on squares of 1 degree (about 110 km): each year from 2000 is the average of its twelve months, each month as Berkeley Earth gives it, in degrees Celsius above or below that place's 1951 to 1980 average for that month. Choose the year under the row. Drawn from the map's own copy, made by culprits-tiles-more (scripts/berkeley_warming.py), weekly." },
     // Round 94b (asked 27 September): new Oceans subjects.
     { id: "ocean_dead_zones", name: "Coastal dead zones and waters choked by nutrients (WRI eutrophication and hypoxia)", unit: "coastal systems", colour: "#8C4F5A", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Coastal systems", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/oceans/dead_zones.geojson" }],
@@ -20753,14 +20901,10 @@ const PLAIN_NAMES = {
   site_export_credit: "Export credit agencies: government lenders that back their countries' companies abroad",
   site_subsistence_cultures: "Peoples who still live off the land (Global Subsistence Cultures)",
   site_self_sufficiency: "Self-sufficiency map: famous programs and why some aren’t on it",
-  site_environment_law: "Environmental laws and treaties, place by place",
   site_environment_law_shapes: "Areas covered by environmental laws and treaties",
-  enviro_law_by_country: "Environmental laws, country by country and region by region (enviro-atlas)",
   slavery_trackers: "What each country does against slavery: its anti-slavery tracker scores (anti-slavery map)",
   cultivated_meat_laws: "Where meat grown from cells, as an alternative to slaughter, is restricted or banned, by country (abattoir atlas)",
   site_ufo_pre1900: "UFO sightings recorded before 1900",
-  ect_secrets: "Fossil fuel companies suing governments over climate action under the Energy Charter Treaty",
-  isds_tracker: "Companies suing governments in private tribunals (investor-state dispute settlement, ISDS)",
   dff: "Investment funds, and how much deforestation is in the companies they own (Deforestation Free Funds)",
   powerbi_report: "Environmental crimes tracked worldwide (Environmental Crime Tracker)",
   ufo_sightings: "UFO sightings reported worldwide (UFOSINT)",
@@ -21082,6 +21226,8 @@ const LAYER_KIND = {
   haz_tsunamis: ["insentient", "downstream"],
   haz_cyclones: ["insentient", "downstream"],
   haz_landslides: ["insentient", "downstream"],
+  ejatlas_water: ["human", "downstream"], water_culprits: ["insentient", "upstream"],
+  berkeley_warming: ["insentient", "downstream"],
   ocean_dead_zones: ["insentient", "downstream"],
   ocean_seabed_mining: ["insentient", "downstream"],
   aqueduct_proj: ["insentient", "downstream"],
@@ -21846,6 +21992,7 @@ const LAYER_SITE = {
   haz_tsunamis: "https://www.ngdc.noaa.gov/hazard/tsu_db.shtml",
   haz_cyclones: "https://www.ncei.noaa.gov/products/international-best-track-archive",
   haz_landslides: "https://gpm.nasa.gov/landslides/",
+  berkeley_warming: "https://berkeleyearth.org/data/",
   ocean_dead_zones: "https://www.wri.org/data/eutrophication-hypoxia-map-data-set",
   ocean_seabed_mining: "https://www.isa.org.jm/exploration-contracts/maps/",
   aqueduct_proj: "https://www.wri.org/data/aqueduct-water-stress-projections-data",
@@ -22219,6 +22366,12 @@ const NOT_LIVE = {
   haz_tsunamis: "Copied weekly from its publisher by culprits-tiles-more",
   haz_cyclones: "Copied weekly from its publisher by culprits-tiles-more",
   haz_landslides: "Copied weekly from its publisher by culprits-tiles-more",
+  berkeley_warming: "Made from Berkeley Earth's gridded file by culprits-tiles-more, weekly",
+  site_environment_law: "Made daily from the enviro-atlas index by culprits-tiles-more",
+  enviro_law_by_country: "Made daily from the enviro-atlas index by culprits-tiles-more",
+  ect_secrets: "Copied weekly from UNCTAD's case list by culprits-tiles-more",
+  isds_tracker: "Copied weekly from UNCTAD's case list by culprits-tiles-more",
+  water_culprits: "Copied weekly from the World Bank (FAO AQUASTAT) by culprits-tiles-more",
   ocean_dead_zones: "Copied weekly from its publisher by culprits-tiles-more",
   ocean_seabed_mining: "Copied weekly from its publisher by culprits-tiles-more",
   fur_bans: "Copied weekly from Our World in Data by culprits-tiles-more",
@@ -22525,7 +22678,8 @@ const PANEL_ORDER = [
   { h: 5, t: "Oil and chemical spills on land" }, "skytruth_nrc", "skytruth_monitor", "skytruth_posts_land",
   // Round 75: the wells and the oil and gas concessions, where spills start.
   { h: 5, t: "Where oil and gas is drilled" }, "skytruth_fracfocus",
-  { h: 3, t: "Fire" }, "remains_fire", "inpe_fire_2023",
+  { h: 3, t: "Fire" },
+  { h: 4, bundle: "viirs", colour: "#8C5548" }, "remains_fire",
   { h: 3, t: "Deforestation" }, "forest_management",
   // Split one level further where the lists ran long (round 23, item 27); the
   // catalogue rows find their sub-heading through CATALOGUE_SUBS. Spatial plans
@@ -22607,15 +22761,23 @@ const PANEL_ORDER = [
   // Item 30: the most detailed worldwide land cover and land use found. Round
   // 92b (asked 27 September): the land cover to Land Use and Ecoregions, the
   // land use plot by plot to Buildings, Peatland into Deforestation.
-  { h: 3, t: "Forest and land cover" },
+  // Round 123b: Forest and land cover's rows moved to Biodiversity loss > Land Use and Ecoregions.
   // Item 23: the EC JRC's own surface water map, back and drawn from its tiles.
   // Round 93b (asked 27 September): Surface water's layers under Water
   // scarcity; Aqueduct's projected and farmland water stress as the map's own.
-  { h: 3, t: "Water scarcity" }, "aqueduct_proj", "aqueduct_crop", "jrc_water", "attacks_cpt_water",
-  { h: 4, bundle: "waterwatch", colour: "#5E7377" },
+  // Round 123b (asked 2 October): surface water first; the projected water
+  // stress with the dry spells under it; then Reservoirs, then Water
+  // conflicts; the crop-by-crop water stress taken out; and who causes it.
+  { h: 3, t: "Water scarcity" }, "jrc_water", "aqueduct_proj",
+  { h: 4, t: "Reservoirs" },
+  { h: 5, bundle: "waterwatch", colour: "#5E7377" },
+  { h: 4, t: "Water conflicts" }, "ejatlas_water", "attacks_cpt_water",
+  { h: 4, t: "Who causes water scarcity" }, "water_culprits",
   // Item 14: the mines layers are one row with sublayers.
-  { h: 3, t: "Mining" },
-  { h: 4, bundle: "mines", colour: "#6E5E52" }, "mines_global", "mine_features", "raisg_illegal_mining",
+  // Round 123b (asked 2 October): the mines bundle split, each source its own
+  // row; worldwide ones first (PANGAEA's mining areas lead, CATALOGUE_FIRST),
+  // then those of a region or one country.
+  { h: 3, t: "Mining" }, "mines_global", "mine_features", "raisg_illegal_mining",
   // Round 112b (asked 29 September): who owns the food industry straight
   // under Meat and agriculture, above the land deals; its old heading under
   // Meat ("The culprits") is gone.
@@ -22689,18 +22851,20 @@ const PANEL_ORDER = [
   { h: 3, t: "Environmental crime" }, "goc_flora", "goc_fauna", "goc_resources", "iuu_vessels", "ibama_embargos", "ibama_infractions", "raisg_illegal_mining", "powerbi_report",
   // Round 95b (asked 27 September): environmental law, and the cases companies
   // bring against governments over it.
-  { h: 3, t: "Environmental law" }, "site_environment_law", "site_environment_law_shapes", "enviro_law_by_country", "ect_secrets", "isds_tracker",
+  { h: 3, t: "Environmental law" }, "site_environment_law", "enviro_law_by_country", "ect_secrets", "isds_tracker",
   // Round 94b (asked 27 September): every kind of natural disaster, together
   // and one kind at a time; the fur farms moved under Meat and agriculture.
   { h: 3, t: "Natural disasters" },
+  // Round 123b (asked 2 October): the kinds one at a time indented under
+  // Every kind together.
   { h: 4, t: "Every kind together" }, "haz_gdacs", "haz_eonet",
-  { h: 4, t: "Earthquakes" }, "skytruth_quakes", "usgs_quakes", "haz_ncei_quakes",
-  { h: 4, t: "Volcanoes" }, "haz_volcanoes", "haz_eruptions",
-  { h: 4, t: "Tsunamis" }, "haz_tsunamis",
-  { h: 4, t: "Tropical cyclones" }, "haz_cyclones",
-  { h: 4, t: "Landslides" }, "haz_landslides",
-  // Round 95b: Berkeley Earth's warmer-than-usual years here (CATALOGUE_BY_TITLE).
-  { h: 4, t: "Extreme heat" },
+  { h: 5, t: "Earthquakes" }, "usgs_quakes", "haz_ncei_quakes", "skytruth_quakes",
+  { h: 5, t: "Volcanoes" }, "haz_volcanoes", "haz_eruptions",
+  { h: 5, t: "Tsunamis" }, "haz_tsunamis",
+  { h: 5, t: "Tropical cyclones" }, "haz_cyclones",
+  { h: 5, t: "Landslides" }, "haz_landslides",
+  // Round 123b: Berkeley Earth's warmer years from its own file (berkeley_warming).
+  { h: 5, t: "Extreme heat" }, "berkeley_warming",
   // Round 102b (asked 28 September): under Destruction, Of groups keeps Of
   // humans alone, and Of individuals Of humans and Of animals.
   { h: 2, t: "Of groups" },
@@ -22793,6 +22957,12 @@ const PANEL_ORDER = [
   { h: 1, t: "Buildings" }, "building_types", "osm_landuse",
 ];
 const PANEL_REMOVED = new Set([
+  // Round 123b: INPE's 2023 fires across South America taken out (asked 2 October).
+  "inpe_fire_2023",
+  // Round 123b: the crop-by-crop water stress taken out (asked 2 October).
+  "aqueduct_crop",
+  // Round 123b: its areas are drawn by enviro_law_by_country and site_environment_law, from the enviro-atlas index.
+  "site_environment_law_shapes",
   // Round 121b: the soy traders are drawn coloured by revenue (soy_traders_money).
   "site_soybean_companies",
   // Round 120b: the grain stores and soy silos were only under Nitrous oxide's Infrastructure, taken out.
@@ -24066,6 +24236,54 @@ function trackBoxHeights() {
   set();
 }
 map.on("load", () => setTimeout(trackBoxHeights, 0));
+
+/* ---------- round 123b: how much of the map is live ---------- */
+// Asked 2 October: "add to the top of the map the % of the entire map that is
+// live". Counted over the layer rows the menu shows, each once (a row filed
+// under two headings counts once): live = read from its source when ticked;
+// the rest are copies kept here and renewed on a schedule.
+function liveShareCount() {
+  const seen = new Map();
+  for (const box of Array.from(document.querySelectorAll("#layers [data-layer]") || [])) {
+    const id = box.getAttribute ? box.getAttribute("data-layer") : null;
+    if (!id || seen.has(id)) continue;
+    const row = box.closest(".layer") || box.parentElement;
+    const mark = row && row.querySelector(".live");
+    if (!mark) continue;
+    seen.set(id, !mark.classList.contains("notlive"));
+  }
+  let live = 0;
+  for (const v of seen.values()) if (v) live++;
+  return { live, all: seen.size };
+}
+function liveShareBadge() {
+  if (typeof document === "undefined" || typeof document.querySelectorAll !== "function" || typeof document.createElement !== "function") return;
+  let n;
+  try { n = liveShareCount(); } catch (e) { return; }
+  const { live, all } = n;
+  if (!all) return;
+  let el = document.getElementById("live-share");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "live-share";
+    el.setAttribute("role", "status");
+    document.body.appendChild(el);
+    addStyle("#live-share{position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:5;font:11.5px/1.3 'IBM Plex Mono',ui-monospace,monospace;" +
+      "color:#DCE6EA;background:rgba(10,18,26,.78);border:1px solid rgba(143,214,232,.28);border-radius:12px;padding:3px 10px;pointer-events:auto;white-space:nowrap}" +
+      "body.holo-on #live-share{opacity:.85}", "live-share");
+  }
+  const pct = Math.round((100 * live) / all);
+  el.textContent = `${pct}% of the map is live`;
+  el.title = `${live} of ${all} layers are read from their source each time they are ticked; the other ${all - live} are copies kept here and renewed on a schedule (each row says which).`;
+}
+map.on("load", () => {
+  setTimeout(liveShareBadge, 1500);
+  const box = typeof document !== "undefined" && document.getElementById ? document.getElementById("layers") : null;
+  if (box && typeof MutationObserver !== "undefined") {
+    let t = null;
+    new MutationObserver(() => { clearTimeout(t); t = setTimeout(liveShareBadge, 800); }).observe(box, { childList: true, subtree: true });
+  }
+});
 
 map.on("moveend", () => { clearTimeout(gmTimer); gmTimer = setTimeout(gmSync, 900); });
 

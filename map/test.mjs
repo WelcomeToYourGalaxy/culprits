@@ -2957,7 +2957,7 @@ console.log("\na row can sit under more than one subject");
   check("the eight new headings are in, in the order's own style",
         // Spatial plans is one row with sublayers under Deforestation since round 23.
         ["Fire", "Peatland", "Water scarcity", "Invasion of humans"].every((t) => at(t) > -1) && at("Base and reference") === -1 && at("Spatial plans") === -1 &&
-        at("Land held under permit") === -1 && at("Forest and land cover") > -1);
+        at("Land held under permit") === -1 && at("Forest and land cover") === -1);   // round 123b: its rows under Land Use and Ecoregions
   check("the planet's new headings sit under Of the planet, before Of groups",
         ["Fire", "Peatland", "Water scarcity", "Other concessions", "General", "Oil spills and slicks at sea"]
           .every((t) => at(t) > at("Of the planet") && at(t) < at("Of groups")));
@@ -3016,11 +3016,11 @@ console.log("\nNusantara's layers spread through the box");
         places("Moratorium areas (PIPPIB)").join() === "Destruction > Of the planet > Deforestation > Forest zoning and management plans > Indonesia's land-use plans, state forest estate and ban on new clearing permits" &&
         places("Detailed spatial plan 2023, Badung (RDTR)", "Detailed spatial plan 2023, Badung (RDTR)").join() === "(taken out)");
   check("\u2026a land-cover layer is back under Forest and land cover until the owner decides; mangroves under Reefs and mangroves",
-        places("Land cover 2020, Indonesia").join() === "Destruction > Of the planet > Forest and land cover" && places("Mangrove extent").join() === "Destruction > Of the planet > Oceans > Reefs and mangroves" &&
+        places("Land cover 2020, Indonesia").join() === "Destruction > Of the planet > Biodiversity loss > Land Use and Ecoregions" &&   // round 123b places("Mangrove extent").join() === "Destruction > Of the planet > Oceans > Reefs and mangroves" &&
         /leftOut\+\+; item\.leftOut = true; return;/.test(src));
   check("the Tang and Werner mine features are a row under Mining, drawn like the mines, and say what the release carries",
         /id: "mine_features"[^\n]*route: "pmshapes"/.test(src) && /tiles\/mine_features\.pmtiles/.test(src) && /pointLayer: "mine_feature_points"/.test(src) &&
-        /\{ h: 3, t: "Mining" \},\n\s*\{ h: 4, bundle: "mines", colour: "#6E5E52" \}, "mines_global", "mine_features",/.test(src) && /no commodity or impact figure/.test(src));
+        /\{ h: 3, t: "Mining" \}, "mines_global", "mine_features",/.test(src) && /no commodity or impact figure/.test(src));
   check("\u2026the cultivated-meat row is back under Meat (round 95b), and Culprits upstream is dissolved", !/"cultivated_meat_laws",/.test(src.slice(src.indexOf("const PANEL_REMOVED"))) && atH("Culprits upstream") === -1);
   check("fire alerts are fire and deforestation is deforestation",
         places("Fire alerts, VIIRS")[0] === "Destruction > Of the planet > Deforestation" ||
@@ -3183,7 +3183,7 @@ console.log("\nround of 22 September (2): the box refiled, rows taken out");
         f("Intact forest landscapes \u2014 Global") === P + " > Biodiversity loss > Places that matter most for species > Wild and intact places" &&
         f("Biodiversity hotspots (global, land only)") === P + " > Biodiversity loss > Places that matter most for species > Where species are threatened");
   check("dams go under Biodiversity loss > Fish",
-        f("Major dams") === P + " > Biodiversity loss > Fish" && at("Fish") > at("Biodiversity loss") && at("Fish") < at("Forest and land cover"));
+        f("Major dams") === P + " > Biodiversity loss > Fish" && at("Fish") > at("Biodiversity loss") && at("Fish") < at("Mining"));
   check("forest greenhouse gas emissions and net flux go under Climate only (24 September)",
         f("Forest greenhouse gas emissions") === P + " > Climate > Carbon dioxide > Emissions" &&
         f("Forest greenhouse gas net flux \u2014 Global gfw_forest_carbon_net_flux") === `${P} > Climate > Carbon dioxide > Emissions`);
@@ -3628,8 +3628,9 @@ console.log("\nround of 23 September (23): the owner's thirty notes on the layer
         /const GLOW_FULL = new Set\(\["skytruth_voc", "mine_features", "aquaculture_ponds"(, "remains_findings")?\]\);/.test(src) &&
         /replace\(\/-\(src\|pm\)\$\/, ""\)/.test(src) && /featureWord: "Mine feature"/.test(src) && /escapeHtml\(cfg\.attribution \|\| "Maus et al/.test(src));
   check("14: the mines layers are one row with sublayers under Mining",
-        bat("mines") > at("Mining") && order[bat("mines") + 1] === "mines_global" && order[bat("mines") + 2] === "mine_features" &&
-        ["pangaea_global_mining", "gfw_mining_concessions", "IDN_Mining_2023", "concessionmining_spv"].every((id) => f("x", id) === `${P} > Mining > ${B.mines}`));
+        // Round 123b (asked 2 October): split, each source its own row under Mining.
+        bat("mines") === -1 && order[at("Mining") + 1] === "mines_global" && order[at("Mining") + 2] === "mine_features" &&
+        ["pangaea_global_mining", "gfw_mining_concessions", "IDN_Mining_2023", "concessionmining_spv"].every((id) => f("x", id) === `${P} > Mining`));
   check("15: the Equatorial Asia peatland and the two undrawable peatland datasets are out; Trase draws the latest year it has values for",
         ["base_peatland", "cifor_peatlands", "gfwpro_peatlands"].every((id) => f("Peatland", id) === "(taken out)") &&
         f("Global peatland extent", "gfw_peatlands") === `${P} > Deforestation > Peatland`);   // round 92b: under Deforestation
@@ -3645,7 +3646,7 @@ console.log("\nround of 23 September (23): the owner's thirty notes on the layer
         ["v1.9", "v1.12", "v1.10"].sort((a, b) => a.localeCompare(b, "en", { numeric: true })).pop() === "v1.12" &&
         f("Surface water change", "Global_WaterChange_1984to2021") === "(taken out)");
   check("20: the two reservoir anomaly layers are one row, their titles saying how they differ",
-        ["global_water_watch_anomalies", "global_water_watch_anomalies2"].every((id) => f("x", id) === `${P} > Water scarcity > ${B.waterwatch}`) &&   // round 93b
+        ["global_water_watch_anomalies", "global_water_watch_anomalies2"].every((id) => f("x", id) === `${P} > Water scarcity > Reservoirs > ${B.waterwatch}`) &&   // round 123b
         /global_water_watch_anomalies: "Each reservoir month by month through 2025/.test(src) && /global_water_watch_anomalies2: "Each reservoir at one reading/.test(src));
   check("21: the Key Biodiversity Areas are out of Surface water, under Biodiversity loss",
         f("Key Biodiversity Areas — Global, terrestrial, freshwater and marine.", "birdlife_key_biodiversity_areas") === `${P} > Biodiversity loss > Places that matter most for species > Where species are threatened`);
@@ -3881,7 +3882,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         !at("Soy traded under zero deforestation commitments (%) \u2014 Paraguay (Trase) X").some((x) => x.startsWith(N2O)));
   check("fertilizer is under Climate only", same("Fertilizer use x", [N2O + " > Emissions"]) && !/\{ h: 5, t: "Farm inputs" \}/.test(src));
   check("Aqueduct's layers are under Water scarcity (round 93b: the farmland one is the map's own copy)", same("Water risk for crops, baseline 2020 (WRI Aqueduct) aqueduct_crop_baseline_2020", [lib.CATALOGUE_TAKEN_OUT]) &&
-        /\{ h: 3, t: "Water scarcity" \}, "aqueduct_proj", "aqueduct_crop", "jrc_water",/.test(src) &&
+        /\{ h: 3, t: "Water scarcity" \}, "jrc_water", "aqueduct_proj",/.test(src) &&   // round 123b: the farmland one out
         /\{ h: 3, t: "Water scarcity" \}/.test(src));
   check("plantation rows for Indonesia and its neighbours are one row with sublayers; worldwide ones stay beside it",
         same("Established plantations \u2014 Merauke plantation_established_merauke", [lib.IN(lib.AG + " > Cropland > Plantations of no single crop (single crops are under By crop)", "idnplant")]) &&
@@ -4125,7 +4126,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /id: "eyes_craft"[^\n]*route: "leave"/.test(src) && /if \(vis === "visible" && !AWAY\) leaveEarth\(\);/.test(src) &&
         /if \(!c \|\| c\.route !== "leave"\) continue;/.test(src) && /cfg\.route === "leave" \? Promise\.resolve\(\)/.test(src));
   check("the earthquakes are under Destruction > Of the planet > Natural disasters, and nowhere under Base and reference",
-        /\{ h: 4, t: "Earthquakes" \}, "skytruth_quakes", "usgs_quakes",/.test(src) && !/"Physical and human geography"/.test(src));
+        /\{ h: 5, t: "Earthquakes" \}, "usgs_quakes", "haz_ncei_quakes", "skytruth_quakes",/.test(src) && !/"Physical and human geography"/.test(src));
   check("a Soil biodiversity heading under Biodiversity loss holds the Underground Atlas and SoilGrids",
         /\{ h: 4, t: "Soil biodiversity" \}, "soil_spun", ("soil_nematodes", )?("soil_earthworms", )?"soilgrids",/.test(src) && /id: "soil_spun"[^\n]*route: "rasterlive"/.test(src) &&
         /soil\/spun_choices\.json/.test(src) && /if \(!cfg\.choices \|\| !cfg\.choices\.length\) \{ setLayerState/.test(src));
@@ -5269,9 +5270,10 @@ console.log("\nround 95b: rows back where asked; environmental law; skin farms; 
   const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   const removed = src.slice(src.indexOf("const PANEL_REMOVED"), src.indexOf("function syncHeadingBoxes"));
   check("the rows asked back are back, each where asked",
-        ["cultivated_meat_laws", "site_ufo_pre1900", "slavery_trackers", "site_environment_law", "enviro_law_by_country", "site_environment_law_shapes", "ect_secrets", "isds_tracker"]
+        ["cultivated_meat_laws", "site_ufo_pre1900", "slavery_trackers", "site_environment_law", "enviro_law_by_country", "ect_secrets", "isds_tracker"]
           .every((i) => !removed.includes(`"${i}"`)) &&
-        /\{ h: 3, t: "Environmental law" \}, "site_environment_law", "site_environment_law_shapes", "enviro_law_by_country", "ect_secrets", "isds_tracker",/.test(src) &&
+        // Round 123b: the areas row is folded into the country row.
+        /\{ h: 3, t: "Environmental law" \}, "site_environment_law", "enviro_law_by_country", "ect_secrets", "isds_tracker",/.test(src) &&
         /"ufo_sightings", "site_ufo_pre1900",/.test(src) && /\{ h: 5, t: "Meat grown from cells" \}, "cultivated_meat_laws",/.test(src) &&   // round 100b: last under Meat
         /"slavery_trackers",/.test(src.slice(src.indexOf("const PANEL_ORDER"))));
   check("every row named in everyday words is renamed at start, and keeps its name", /const PLAIN_NAMES = \{/.test(src) && /row\.name = PLAIN_NAMES\[row\.id\]; row\.fixedName = true;/.test(src) &&
@@ -5279,8 +5281,9 @@ console.log("\nround 95b: rows back where asked; environmental law; skin farms; 
   const nw = new Function(src.match(/function notWorldwide\(t\) \{[\s\S]*?\n\}\n/)[0] + "; return notWorldwide;")();
   check("the plantation layers are not called worldwide", nw("Plantations of every kind 2024 — worldwide") === "Plantations of every kind 2024" && nw("Smallholder plantations 2025 — worldwide") === "Smallholder plantations 2025");
   check("Berkeley Earth's warmer years under Extreme heat; worn-out pasture out; the frontier kept only under Where clearing is likely",
-        /\[\/\\bberkeley_earth_temp_anomaly_2000_2020\\b\|annual surface temperature anomal\/i, \[P \+ " > Natural disasters > Extreme heat"\]\]/.test(src) &&
-        /\[\/\\blapig_degraded_pasture\\b\|degraded pasture\/i, null\]/.test(src) && /\{ h: 4, t: "Extreme heat" \},/.test(src));
+        // Round 123b: GFW's copy draws nothing; the map's own (berkeley_warming) instead.
+        /\[\/\\bberkeley_earth_temp_anomaly_2000_2020\\b\|annual surface temperature anomal\/i, null\]/.test(src) &&
+        /\[\/\\blapig_degraded_pasture\\b\|degraded pasture\/i, null\]/.test(src) && /\{ h: 5, t: "Extreme heat" \}, "berkeley_warming",/.test(src));
   const g = new Function(src.slice(src.indexOf("function glwRamp("), src.indexOf("async function addGlwRelief(")) + "; return glwRamp;")();
   check("livestock is raised by density, animal by animal, from its own copy", /id:"abattoir_glw"[^\n]*route:"glwrelief"/.test(src) && g(400)[g(400).length - 1][0] === 400 && g(40000).length === 6 &&
         /archiveBase: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/tiles\/glw_"/.test(src));
@@ -5354,7 +5357,7 @@ console.log("\nround 99b: Biodiversity loss refiled; one row each for critical h
   const o = new Function(src.slice(src.indexOf("const BUNDLES = {"), src.indexOf("const ZDC = ")) + src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("];", src.indexOf("const PANEL_ORDER = [")) + 2) + "; return { PANEL_ORDER, BUNDLES };")();
   const heads = (from, to) => o.PANEL_ORDER.slice(o.PANEL_ORDER.findIndex((x) => x && x.t === from), o.PANEL_ORDER.findIndex((x) => x && x.t === to)).filter((x) => x && x.t && x.h === 4).map((x) => x.t);
   check("Biodiversity loss reads Land Use and Ecoregions, Places that matter most for species, Disturbance, Birds, Fish, Soil, Wildlife and timber crime, Companies and financiers",
-        JSON.stringify(heads("Biodiversity loss", "Forest and land cover")) === JSON.stringify(["Land Use and Ecoregions", "Places that matter most for species", "Disturbance", "Birds", "Fish", "Soil biodiversity", "Wildlife and timber crime", "Companies and financiers"]));
+        JSON.stringify(heads("Biodiversity loss", "Water scarcity")) === JSON.stringify(["Land Use and Ecoregions", "Places that matter most for species", "Disturbance", "Birds", "Fish", "Soil biodiversity", "Wildlife and timber crime", "Companies and financiers"]));
   const i = o.PANEL_ORDER.findIndex((x) => x && x.t === "Places that matter most for species");
   const fives = o.PANEL_ORDER.slice(i, o.PANEL_ORDER.findIndex((x) => x && x.t === "Disturbance")).filter((x) => x && x.h === 5).map((x) => x.t);
   check("…and Places that matter most for species in five parts", JSON.stringify(fives) === JSON.stringify(["Where species are threatened", "Protected areas", "Species richness", "Wild and intact places", "Where animals gather and migrate"]) &&
@@ -5493,7 +5496,7 @@ console.log("\nround 102b (28 September): the insentient's kinds, Of groups, Chr
   check("Eyes warms on the button and the map rests while Eyes has the screen",
         /for \(const ev of \["pointerenter", "focus", "touchstart"\]\) leave\.addEventListener/.test(src) && /setTimeout\(\(\) => \{ if \(AWAY\) pauseMapWhileAway\(true\); \}, 600\);/.test(src));
   check("each world's card has its picture from Wikipedia", /worldPicture\(wd\)\.then/.test(src) && /en\.wikipedia\.org\/api\/rest_v1\/page\/summary\//.test(src) && /Europa: "Europa \(moon\)"/.test(src));
-  check("plantations spreading year by year lead their heading", /"gfw_peatlands", "Global_AllExpansionRGB_2000to2025"\]\)/.test(src) && /CATALOGUE_FIRST\.has\(item\.id \|\| item\.name\)/.test(src));
+  check("plantations spreading year by year lead their heading", /"gfw_peatlands", "Global_AllExpansionRGB_2000to2025", "pangaea_global_mining"\]\)/.test(src) && /CATALOGUE_FIRST\.has\(item\.id \|\| item\.name\)/.test(src));
 }
 console.log("\nround 103b (28 September): drug underworld colours, fertility policies, holiday culprits, fake science, one-line lists, headings dragged, slavery enforcement worldwide");
 {
@@ -5597,8 +5600,9 @@ console.log("\nround 107b (28 September): threat index and V-Dem out, the Pastor
   check("the threat index and V-Dem rows are out of the menu, and no AI rows", /\/\/ Round 107b \(asked 28 September\): the threat index and V-Dem rows are not wanted\.\n  "threat_overall",[^\n]*"vdem_regime",/.test(src) &&
         !/\{ h: 1, t: "Where the threat is greatest" \}/.test(src) && !/ai_threat/.test(src));
   check("the Pastoral Land Commission's case tables and INPE's 2023 fires are rows",
-        /"attacks_cpt_areas", "attacks_public_agencies", "attacks_cpt_land",/.test(src) && /"attacks_slave_labour_states", "attacks_cpt_slave_cases", "attacks_cpt_overexploitation",/.test(src) && /"jrc_water", "attacks_cpt_water",/.test(src) &&
-        /\{ h: 3, t: "Fire" \}, "remains_fire", "inpe_fire_2023",/.test(src) && /id: "inpe_fire_2023"[^\n]*route: "pmtiles"/.test(src));
+        /"attacks_cpt_areas", "attacks_public_agencies", "attacks_cpt_land",/.test(src) && /"attacks_slave_labour_states", "attacks_cpt_slave_cases", "attacks_cpt_overexploitation",/.test(src) && /"ejatlas_water", "attacks_cpt_water",/.test(src) &&
+        // Round 123b: INPE's 2023 fires taken out at the owner's word.
+        /id: "inpe_fire_2023"[^\n]*route: "pmtiles"/.test(src) && /"inpe_fire_2023"/.test(src.slice(src.indexOf("const PANEL_REMOVED"))));
 }
 console.log("\nround 108b (28 September): the drag note above Selected Layers, an atlas-like relief, picture rows raised, the fires read again");
 {
@@ -5802,7 +5806,7 @@ console.log("\nround 118b (30 September): one surface from all ticked layers, ca
   check("a lift layer is added without naming a line layer that does not exist yet", !/shapeLift[\s\S]{0,900}`\$\{cfg\.id\}-line`\)/.test(src.slice(src.indexOf("function shapeLift"), src.indexOf("function shapeLift") + 900)));
   const pick = new Function(src.slice(src.indexOf("const COMBO_MODES"), src.indexOf("function comboFigure")) + "; return { COMBO_MODES, COMBO };")();
   check("one surface from every ticked layer: off, by density, or by the size of each place's figure, each layer weighed",
-        pick.COMBO_MODES.map((m) => m[0]).join() === "off,density,intensity" && pick.COMBO.mode === "off" &&
+        pick.COMBO_MODES.map((m) => m[0]).join() === "off,overlap,peaks" && pick.COMBO.mode === "off" &&
         /id="combo-mode"/.test(src) && /data-combo-weight/.test(src) && /COMBO\.mode !== "off"\) on = false;/.test(src));
   const rank = new Function("reliefPoints", "DENSITY_WEIGHT", src.slice(src.indexOf("function comboPoints"), src.indexOf("async function comboBuild")) + "; return comboPoints;")(() => [], ["_count"]);
   const pt = (v) => ({ geometry: { type: "Point", coordinates: [Math.random(), Math.random()] }, properties: { v } });
@@ -5931,6 +5935,35 @@ console.log("\nround 122b (2 October): every company and financial institution F
         ["forest500_companies", "forest500_institutions"].every((id) => /total score, last assessed \(out of 100\)/.test(row(id)) && /field: "commodities", list: true/.test(row(id)) && /capital/.test(row(id))));
   check("the trading countries are shaded darker for a lower total rank; the producers' unit is the sheet's own",
         /field: "x_Total rank" \}, reverse: true, linear: \[0, 130\]/.test(row("forest500_trading_countries")) && /the sheet's figure/.test(row("forest500_producer_countries")));
+}
+console.log("\nround 123b (2 October): keyless imagery, overlap modes, raise off, disasters, laws, water, mining, fire");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const order = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("const PANEL_REMOVED")) + "; return PANEL_ORDER;")();
+  const at = (t) => order.findIndex((x) => x && x.t === t);
+  const removed = src.slice(src.indexOf("const PANEL_REMOVED"), src.indexOf("]);", src.indexOf("const PANEL_REMOVED")));
+  check("no key, no Esri: the imagery is EOX's Sentinel-2 at every zoom, the Esri hillshade an empty square",
+        /const ESRI_TOKEN = "";/.test(src) && /base: ESRI_TOKEN \? \{/.test(src) && /esri-hillshade-off:\/\//.test(src));
+  check("the two ways to combine are the owner's, and raising is off until ticked",
+        /\["overlap", "Where they overlap the most"\]/.test(src) && /\["peaks", "Where their highest values overlap"\]/.test(src) && /var LIFT_ON = false;/.test(src));
+  check("hologram blue shading off by default, a saved 'on' not kept once", /shade: false \};/.test(html) && /opt\.shade123/.test(html));
+  check("each kind of disaster indented under Every kind together, and the warmer years drawn from Berkeley Earth",
+        at("Earthquakes") > at("Every kind together") && order[at("Earthquakes")].h === 5 && order[at("Extreme heat")].h === 5 &&
+        /id: "berkeley_warming"[^\n]*route: "rasterlive"/.test(src) && /berkeley_warming\.choices\.json/.test(src));
+  check("environmental law, investor-state suits and the Energy Charter Treaty drawn on the map from data",
+        /id: "site_environment_law"[^\n]*route: "geojsonlive"/.test(src) && /envlaw\/countries\.json/.test(src) &&
+        /isds\/respondents\.json/.test(src) && /isds\/ect_respondents\.json/.test(src) && /"site_environment_law_shapes"/.test(removed));
+  check("water scarcity: surface water first, then projected stress, Reservoirs, Water conflicts, and who causes it",
+        at("Reservoirs") > at("Water scarcity") && at("Water conflicts") > at("Reservoirs") && at("Who causes water scarcity") > at("Water conflicts") &&
+        order.indexOf("jrc_water") === at("Water scarcity") + 1 && /"aqueduct_crop"/.test(removed) && /onlyGroup: "Water management"/.test(src) &&
+        /water\/culprits\.json/.test(src));
+  check("the surface water's haze left out: only the publisher's own colours are drawn", /dataOnly: true/.test(src) && /function remapFits\(/.test(src));
+  check("reservoirs with no usual area to compare are 'no reading', not blue", /no usual area given to compare with/.test(src));
+  check("mining split; land cover under Land Use and Ecoregions; fire rows as asked",
+        !/\{ h: 4, bundle: "mines"/.test(src) && at("Forest and land cover") === -1 && /\{ h: 4, bundle: "viirs"/.test(src) &&
+        /TRASE_REMOVED_METRICS = new Set\(\["BURNED_PEAT", "EMISSION_BURNED_PEAT_CO2"\]\)/.test(src) && /tcl_fire: \{ mode: "year"/.test(src));
+  check("the share of the map that is live shows at the top", /function liveShareBadge\(/.test(src) && /% of the map is live/.test(src));
 }
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {

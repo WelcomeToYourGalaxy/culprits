@@ -633,9 +633,11 @@
   // Every option starts on except the basemap underneath. The key is new
   // (was "culprits-holo") so choices kept under the old defaults, with place
   // names off, do not carry over.
-  const opt = { grat: true, floor: true, stars: true, detail: true, names: true, fx: true, under: false, tint: 55, fold: false, shade: true };
+  const opt = { grat: true, floor: true, stars: true, detail: true, names: true, fx: true, under: false, tint: 55, fold: false, shade: false };  // round 123b: blue shading off by default
   const OPT_KEY = "culprits-holo-2";
   try { Object.assign(opt, JSON.parse(localStorage.getItem(OPT_KEY) || "{}")); } catch (e) { /* defaults */ }
+  // Round 123b: a saved "on" from before the default changed is not kept.
+  if (!opt.shade123) { opt.shade = false; opt.shade123 = true; }
   const keepOpt = () => { try { localStorage.setItem(OPT_KEY, JSON.stringify(opt)); } catch (e) { /* not kept */ } };
   // The Place names box in the View section governs every name on the map,
   // the hologram's included.

@@ -5,6 +5,38 @@ touches.
 
 ---
 
+## Round 123b (2 October)
+
+Needs round 122b. Tiles patch round123b_tiles.py beside it. No app.js?v= bump.
+
+- Basemap: Esri's keyless imagery now answers "API key required" close in.
+  With ESRI_TOKEN empty, the imagery is EOX Sentinel-2 cloudless 2024 at every
+  zoom and the Esri hillshade an empty square (esri-hillshade-off://); a free
+  ArcGIS key in ESRI_TOKEN brings Esri back through ibasemaps-api.
+- Combine ticked layers: "Where they overlap the most" (overlap: layers
+  present within ~200 km, counted, two or more) and "Where their highest
+  values overlap" (peaks). LIFT_ON false by default; nothing turns on 3D.
+- Hologram blue shading off by default (opt.shade123 resets a saved on).
+- Natural disasters: kinds as h5 under Every kind together; plainer titles;
+  berkeley_warming (tiles berkeley_warming.py) replaces GFW's undrawn copy.
+- Environmental law: site_environment_law and enviro_law_by_country from
+  envlaw/ (tiles envlaw.py); _shapes removed; isds_tracker and ect_secrets
+  are country rows from UNCTAD's case list (tiles isds_unctad.py).
+- Water scarcity: jrc_water first (dataOnly remap: non-palette and faint
+  pixels left clear), aqueduct_proj, then Reservoirs, Water conflicts
+  (ejatlas_water, onlyGroup), Who causes water scarcity (water_culprits, tiles
+  water_culprits.py); aqueduct_crop removed; reservoirs with no usual area are
+  "no reading".
+- Mining: bundle split; pangaea_global_mining leads. Forest and land cover
+  rows under Land Use and Ecoregions; ESA and Indonesia land cover pinned to
+  finished tiles (GFW_FIXED); UMD land cover 2000-2020 out (no tiles).
+- Fire: inpe_fire_2023, Trase BURNED_PEAT and EMISSION_BURNED_PEAT_CO2, MODIS
+  active fires out; VIIRS bundle (3 months, with remains_fire inside); tree
+  cover lost to fire coloured by year (remap tcl_fire).
+- "% of the map is live" badge at the top (liveShareBadge).
+- Not done: development projects vanishing (not reproduced); MODIS burned
+  areas still on-request; named water culprits points.
+
 ## Round 122b (2 October)
 
 Needs round 121b. Tiles patch round122b_tiles.py beside it. No app.js?v= bump.
