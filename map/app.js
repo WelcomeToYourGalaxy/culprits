@@ -14210,7 +14210,9 @@ const CORAL_ATLAS_PICTURE_FROM = 12;
 // Below this zoom the world reef map is drawn coarse so that reefs a few
 // hundred metres across are still findable; at and above it, full size.
 const CORAL_WORLD_SHARP = 7;
-const CORAL_WORLD_TINT = "E3D2CC";      // pale bone with a little rose, for the world view only
+// Round 135b (asked 2 October: the reefs looked like white squares): the
+// world view in the map's light teal, at full size, smoothed, not bone.
+const CORAL_WORLD_TINT = "6FC2DA";
 function addCoralLayer(cfg) {
   map.addSource(`${cfg.id}-tiles`, {
     type: "vector",
@@ -14261,9 +14263,9 @@ function addCoralLayer(cfg) {
   const wcmc = (px, how) => `tint://${how || CORAL_CLASSES["Coral/Algae"].slice(1)}/data-gis.unep-wcmc.org/server/rest/services/HabitatsAndBiotopes/Global_Distribution_of_Coral_Reefs/MapServer/export` +
     `?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857&size=${px},${px}&format=png32&transparent=true&f=image`;
   map.addSource(`${cfg.id}-globe`, { type: "raster", tileSize: 256,
-    attribution: "UNEP-WCMC, WorldFish Centre, WRI, TNC", tiles: [wcmc(96, CORAL_WORLD_TINT + "+grow")] });
+    attribution: "UNEP-WCMC, WorldFish Centre, WRI, TNC", tiles: [wcmc(256, CORAL_WORLD_TINT + "+grow")] });
   map.addLayer({ id: `${cfg.id}-world`, type: "raster", source: `${cfg.id}-globe`, maxzoom: CORAL_WORLD_SHARP,
-    layout: { visibility: "none" }, paint: { "raster-opacity": 1, "raster-resampling": "nearest" } });
+    layout: { visibility: "none" }, paint: { "raster-opacity": 0.85, "raster-resampling": "linear" } });
   map.addSource(`${cfg.id}-globe-near`, { type: "raster", tileSize: 256,
     attribution: "UNEP-WCMC, WorldFish Centre, WRI, TNC", tiles: [wcmc(256)] });
   // No upper stop here either: UNEP-WCMC's reef map is the one thing that
@@ -18999,8 +19001,10 @@ const SITE_MAPS = {
       note: "From the Suppression page's export credit agencies map: its 80 agencies at their head offices. The map's countries were its plain background (every country one fill), not figures, so they are left out (round 62)." },
     { id: "site_wealth_atlas", name: "The World's Richest Dynasties & Individuals", unit: "families and individuals", colour: "#735E57", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_wealth_atlas.places.geojson",
       note: "From the Suppression page's wealth atlas." },
-    { id: "site_food_system", name: "Who Owns the Food Industry", unit: "companies", colour: "#6E6A55", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_food_system.places.geojson",
-      note: "From the Suppression page's food system ownership map." },
+    // Round 135b (asked 2 October: only the companies' names had come across):
+    // the page's whole data, from tiles food_system.py.
+    { id: "site_food_system", name: "Who Owns the Food Industry", unit: "companies, financiers, lobby groups and ties", colour: "#6E6A55", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/food/system.places.geojson",
+      note: "From the Suppression page's food system ownership map, all of it: the 48 companies with their sector, revenue, share of the whole system, ownership, headquarters, brands and regional sites; the 8 asset managers and financiers, 5 lobby groups and 12 bodies in the industry's orbit; and a line for every tie the page draws (shareholdings, lobby membership, orbit ties). Each box lists who holds the company, which lobby groups it belongs to and what it is tied to. Figures as the page gives them." },
     { id: "site_world_advertising", typeRows: true, typeTitles: { "Owners: Family / founder-controlled": "Who owns them: families and founders", "Owners: Government / state": "Who owns them: governments", "Owners: Government / sovereign fund": "Who owns them: governments and their funds", "Owners: Institutional / fund": "Who owns them: investment funds", "Owners: Institutional / trust / fund": "Who owns them: funds and trusts", "Owners: Public company / platform": "Who owns them: public companies", "Owners: Public company": "Who owns them: public companies" }, name: "The advertising industries", unit: "companies and owners", colour: "#6C5F66", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_world_advertising.places.geojson",
       note: "From the Suppression page's world advertising map: both of its tabs, the companies and who owns them (the owners were added in round 112b)." },
     { id: "site_world_news", typeRows: true, typeTitles: { "Owners: Family / founder-controlled": "Who owns them: families and founders", "Owners: Government / state": "Who owns them: governments", "Owners: Government / sovereign fund": "Who owns them: governments and their funds", "Owners: Institutional / fund": "Who owns them: investment funds", "Owners: Institutional / trust / fund": "Who owns them: funds and trusts", "Owners: Public company / platform": "Who owns them: public companies", "Owners: Public company": "Who owns them: public companies" }, name: "The news industry", unit: "outlets and owners", colour: "#626A6F", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_world_news.places.geojson",

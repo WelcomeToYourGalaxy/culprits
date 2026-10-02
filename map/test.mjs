@@ -1011,7 +1011,7 @@ console.log("\nsite maps, each its own map");
   const rows = [...block.matchAll(/\{ id: "([^"]+)"[^\n]*route: "sitemap"[^\n]*dataUrl: "([^"]+)"/g)];
   check("the simple site maps use their own boxes", rows.length >= 20, String(rows.length));
   check("each map's places file sits in the tile repo, named for the map",
-        rows.every(([, id, u]) => u.endsWith(`/sitemaps/${id}.places.geojson`) && u.startsWith("https://welcometoyourgalaxy.github.io/")));
+        rows.every(([, id, u]) => (u.endsWith(`/sitemaps/${id}.places.geojson`) || (id === "site_food_system" && u.endsWith("/food/system.places.geojson"))) && u.startsWith("https://welcometoyourgalaxy.github.io/")));
   check("the cartel map is one row again, lines included", !/site_cartel_lines/.test(block));
 }
 {
@@ -1878,7 +1878,7 @@ console.log("\nTrase, and coral at world zoom");
         /id: `\$\{cfg\.id\}-world-near`[\s\S]{0,160}minzoom: CORAL_WORLD_SHARP,\n/.test(src) &&
         /tint:\/\/\$\{how \|\| CORAL_CLASSES\["Coral\/Algae"\]\.slice\(1\)\}\/data-gis\.unep-wcmc\.org/.test(src));
   check("from the world view the reefs are drawn coarse, so a reef a few hundred metres across can be seen",
-        /wcmc\(96, CORAL_WORLD_TINT \+ "\+grow"\)/.test(src) && /wcmc\(256\)/.test(src) && /"raster-resampling": "nearest"/.test(src));
+        /wcmc\(256, CORAL_WORLD_TINT \+ "\+grow"\)/.test(src) && /wcmc\(256\)/.test(src) /* round 135b: full size, smoothed (white squares) */);
   check("…and the row says whose map it is", /UNEP-WCMC's warm-water reefs at this width/.test(src));
   check("the switch reaches the world layer", /`\$\{id\}-world`/.test(src));
 }
@@ -3613,7 +3613,7 @@ console.log("\nround of 23 September (23): the owner's thirty notes on the layer
         /buildScript: "scripts\/aquaculture_ponds\.py"/.test(src) && order.lastIndexOf("aquaculture_ponds") > at("Fishing") && order.lastIndexOf("aquaculture_ponds") < at("Reefs and mangroves")   /* round 132b: also under Marine meats */ &&
         /not built yet: run \$\{cfg\.buildScript\}/.test(src));
   check("7: the coral row says warm-water only, and the world view is drawn pale and grown so reefs outside the Caribbean show",
-        /name:"Coral reefs, warm-water only \(Allen Coral Atlas and UNEP-WCMC\)"/.test(src) && /const CORAL_WORLD_TINT = "E3D2CC"/.test(src) &&
+        /name:"Coral reefs, warm-water only \(Allen Coral Atlas and UNEP-WCMC\)"/.test(src) && /const CORAL_WORLD_TINT = "6FC2DA"/.test(src) /* round 135b: teal */ &&
         /if \(grow\) growPixels\(img\.data, bmp\.width, zoomOfBbox\(url\)\)/.test(src));
   check("8, 10: the three Global Mangrove Watch years are one row; 1996 is kept, and drawn without waiting on the world tile",
         ["", "_1996", "_2016"].every((y) => f("Mangroves", `gmw_global_mangrove_extent${y}`) === `${P} > Deforestation > Mangroves > ${B.mangroves}`)   /* round 94b */ &&
@@ -6048,6 +6048,12 @@ console.log("\nround 134b (2 October): glowing orbs, all farm animals, slaughter
   check("places with no size can be hidden too", JSON.stringify(one) === JSON.stringify(["all", ["all", ["has", "p"], ["!=", ["get", "p"], null]]]) &&
         JSON.stringify(two) === JSON.stringify(["all", ["any", false, ["in", ["get", "p"], ["literal", ["b"]]]]]));
   check("the Trase slaughterhouse row is out: the registries row holds every Trase site", /\n  "trase_meat_brazil",\n/.test(src));
+}
+console.log("\nround 135b (2 October): reefs drawn smooth in teal; the food industry map whole");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the reefs' world view is light teal, full size, smoothed", /const CORAL_WORLD_TINT = "6FC2DA";/.test(src) && /wcmc\(256, CORAL_WORLD_TINT \+ "\+grow"\)/.test(src) && /"raster-opacity": 0\.85, "raster-resampling": "linear"/.test(src));
+  check("Who Owns the Food Industry reads the page's whole data", /id: "site_food_system"[^\n]*food\/system\.places\.geojson/.test(src));
 }
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {

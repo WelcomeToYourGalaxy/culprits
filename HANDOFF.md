@@ -5,6 +5,23 @@ touches.
 
 ---
 
+## Round 135b (2 October)
+
+Needs round 134b. Tiles patch round135b_tiles.py beside it. No app.js?v= bump.
+
+- Reefs (allen_coral): the world view no longer reads as white squares
+  (asked 2 October). UNEP-WCMC's picture is asked at full size (256, was
+  96 stretched with nearest-neighbour), drawn smoothed, in the map's light
+  teal 6FC2DA (was bone E3D2CC), still grown a pixel or two so small reefs
+  show.
+- Who Owns the Food Industry: the row reads food/system.places.geojson (tiles
+  food_system.py), the page's whole data: 48 companies (sector, revenue,
+  share of the page's $12 trillion system, ownership, HQ, brands, regional
+  sites), 8 asset managers and financiers, 5 lobby groups, 12 orbit bodies,
+  and 191 tie lines (shareholdings, lobby membership, orbit ties); each
+  company's box lists who holds it, its lobby groups and its orbit ties. The
+  tiles patch carries a first build.
+
 ## Round 134b (2 October)
 
 Needs round 133b. Tiles patch round134b_tiles.py beside it. No app.js?v= bump.
