@@ -16524,6 +16524,9 @@ async function comboBuild(gen) {
   const W = Math.round(360 / POINT_RELIEF_RES), H = Math.round(180 / POINT_RELIEF_RES);
   const count = new Uint8Array(W * H);
   const used = [], none = [];
+  // Round 143b: layers in one group count as one (mine sites and mining
+  // features together are "mining"); a square counts the groups present.
+  const groupOf = comboGroups(ids), present = new Map();
   COMBO.seen = COMBO.seen || new Map();
   for (const id of ids) {
     const wt = COMBO.weights.has(id) ? COMBO.weights.get(id) : 1;
@@ -16563,7 +16566,10 @@ async function comboBuild(gen) {
       vals.sort((a, b) => a - b);
       cut = vals.length ? vals[Math.floor(vals.length * (1 - COMBO_TOP))] : Infinity;
     }
-    for (let i = 0; i < count.length; i++) if (g.g[i] > floor && g.g[i] >= cut) count[i]++;
+    const grp = groupOf.get(id) || id;
+    const here = present.get(grp) || new Uint8Array(W * H);
+    present.set(grp, here);
+    for (let i = 0; i < here.length; i++) if (g.g[i] > floor && g.g[i] >= cut) here[i] = 1;
     used.push(id);
   }
   COMBO.none = none;
@@ -16571,15 +16577,19 @@ async function comboBuild(gen) {
   // Round 142b: nothing past 85 degrees (the map does not reach it; squares
   // there drew lines round the world).
   for (let y = 0; y < H; y++) if (Math.abs(90 - (y + 0.5) * POINT_RELIEF_RES) > 85) count.fill(0, y * W, (y + 1) * W);
-  if (used.length < 2) return { keep: null, best: used.length, used };
+  for (const here of present.values()) for (let i = 0; i < count.length; i++) count[i] += here[i];
+  const groups = present.size;
+  COMBO.groupCount = groups;
+  if (used.length < 2) return { keep: null, best: used.length, used, groups };
+  if (groups < 2) return { keep: null, best: 1, used, groups, oneGroup: true };
   let best = 0; for (const c of count) if (c > best) best = c;
-  if (best < 2) return { keep: null, best, used, empty: true };
+  if (best < 2) return { keep: null, best, used, groups, empty: true };
   const keep = new Uint8Array(W * H);
   let n = 0;
   // Round 142b: every crossing of two or more is kept (a third layer adds its
   // own crossings); where the most meet is edged more strongly.
   for (let i = 0; i < count.length; i++) if (count[i] >= 2) { keep[i] = 1; n++; }
-  return { keep: comboShape(keep, W, H), keepGrid: keep, count, W, H, best, used, squares: n };
+  return { keep: comboShape(keep, W, H), keepGrid: keep, count, W, H, best, used, groups, squares: n };
 }
 function comboSoon(ms) {
   clearTimeout(COMBO.timer);
@@ -16638,6 +16648,7 @@ async function comboDraw() {
     COMBO.lastKey = null;
     comboCut(null);
     comboMaskSet(null);
+    if (say && r && r.oneGroup) { say.textContent = "All the ticked layers are in one group, so there is nothing to cross: put at least two of them in different groups below." + tail; return; }
     if (say) say.textContent = (!r || r.best < 2) && !(r && r.empty)
       ? "Tick two or more layers: only the places where they cross will show, over the base map. Layers are picked up as you tick them." + tail
       : (COMBO.mode === "overlap" ? "The ticked layers do not cross anywhere on what the map has read so far." : "Nowhere are two of the ticked layers in their own top fifth at the same place.") + tail;
@@ -16646,17 +16657,17 @@ async function comboDraw() {
   // The same crossings from the same rows: nothing on the map is touched again.
   let h = 2166136261;
   for (let i = 0; i < r.keepGrid.length; i++) if (r.keepGrid[i]) h = Math.imul(h ^ i, 16777619);
-  const key = `${h}|${r.best}|${r.used.join(",")}|${r.used.map((id) => (COMBO.feats.get(id) || []).length).join(",")}`;
+  const key = `${h}|${r.best}|${r.used.map((id) => `${id}=${(COMBO.groupNow && COMBO.groupNow.get(id)) || ""}`).join(",")}|${r.used.map((id) => (COMBO.feats.get(id) || []).length).join(",")}`;
   if (key !== COMBO.lastKey) {
     COMBO.lastKey = key;
     COMBO.keepGrid = r.keepGrid;
     comboCut(r.keep);
     comboMaskSet(r);
   }
-  const most = r.best > 2 ? ` The brighter, thicker edge marks where the most (${r.best} of ${r.used.length}) cross.` : "";
+  const most = r.best > 2 ? ` The brighter, thicker edge marks where the most groups (${r.best} of ${r.groups}) cross.` : "";
   if (say) say.textContent = (COMBO.mode === "overlap"
-    ? `Showing only the places where two or more of the ${r.used.length} ticked layers cross (each within about 50 km), edged in pale blue; the base map shows everywhere.`
-    : `Showing only the places where two or more of the ${r.used.length} ticked layers are each in the top fifth of their own values (within about 50 km), edged in pale blue; the base map shows everywhere.`)
+    ? `Showing only the places where layers of two or more of the ${r.groups} groups cross (each within about 50 km), edged in pale blue; the base map shows everywhere.`
+    : `Showing only the places where layers of two or more of the ${r.groups} groups are each in the top fifth of their own values (within about 50 km), edged in pale blue; the base map shows everywhere.`)
     + most + " Tiled layers are read as you look round, so moving the map can widen what is found." + tail;
 }
 // Rounds 140b-142b (asked 2 October): the combine follows every tick in either
@@ -16759,7 +16770,7 @@ function comboSig() {
   const out = [];
   for (const [id, vis] of visibility) {
     if (vis !== "visible" || id === COMBO.pr.rid) continue;
-    out.push(`${id}:${rowVectorLayers(id).length}:${comboPictureSource(id) || ""}:${COMBO.weights.has(id) ? COMBO.weights.get(id) : 1}`);
+    out.push(`${id}:${rowVectorLayers(id).length}:${comboPictureSource(id) || ""}:${COMBO.weights.has(id) ? COMBO.weights.get(id) : 1}${COMBO.groups && COMBO.groups.has(id) ? COMBO.groups.get(id) : ""}`);
     if (out.length > 80) break;
   }
   return out.join("|");
@@ -17003,17 +17014,55 @@ function comboMode(mode) {
   }
   comboDraw();
 }
+// Round 143b (asked 2 October: two similar layers, mine sites and mining
+// features, crossed each other and drowned out what the third, protected
+// areas, was ticked for): each taking-part layer is in a group, and layers in
+// one group count as one; only crossings between different groups show.
+// A layer starts in the group of its heading in the layers menu (layers under
+// one heading are alike); any layer can be moved to another group or left out.
+const COMBO_LETTERS = "ABCDEFGH";
+COMBO.groups = new Map();          // layer -> letter chosen by the reader
+function comboHeadingOf(id) {
+  if (typeof document === "undefined" || !document.querySelector) return "";
+  let el = null;
+  try { el = document.querySelector(`#layers [data-layer="${String(id).replace(/"/g, "")}"]`); } catch (e) { el = null; }
+  let sec = el && el.closest ? el.closest(".toc-sec:not(.toc-bundle)") : null;
+  const t = sec && sec.querySelector ? sec.querySelector(":scope > .toc-line .toc-t, :scope > .toc-head .toc-t, .toc-t") : null;
+  return t ? String(t.textContent || "").trim() : "";
+}
+// Each layer's group letter: the reader's choice, else one letter per heading
+// in the order the headings first appear.
+function comboGroups(ids) {
+  const out = new Map(), byHeading = new Map(), taken = new Set();
+  for (const id of ids) if (COMBO.groups.has(id)) taken.add(COMBO.groups.get(id));
+  let next = 0;
+  const free = () => { while (next < COMBO_LETTERS.length - 1 && taken.has(COMBO_LETTERS[next])) next++; const l = COMBO_LETTERS[next]; taken.add(l); return l; };
+  for (const id of ids) {
+    if (COMBO.groups.has(id)) { out.set(id, COMBO.groups.get(id)); continue; }
+    const h = comboHeadingOf(id) || id;
+    if (!byHeading.has(h)) byHeading.set(h, free());
+    out.set(id, byHeading.get(h));
+  }
+  COMBO.groupNow = out;
+  return out;
+}
 function comboList() {
   const el = typeof document !== "undefined" && document.getElementById ? document.getElementById("combo-rows") : null;
   if (!el) return;
   if (COMBO.mode === "off") { el.innerHTML = ""; return; }
   const ids = COMBO.rows.length ? COMBO.rows : comboRowsNow();
   const nameOf = (id) => { const c = LAYERS.find((x) => x.id === id) || (typeof childById === "function" ? childById(id) : null); return String((c && c.name) || id); };
-  el.innerHTML = ids.length ? `<div style="margin:4px 0 2px">Every ticked layer takes part unless you leave it out here (it then shows whole, uncut).</div>` + ids.map((id) =>
-    `<div style="display:flex;gap:6px;align-items:center;margin:2px 0"><select data-combo-weight="${escapeHtml(id)}" style="font:inherit;font-size:10.5px">` +
-    [[1, "takes part"], [0, "left out"]].map(([v, t]) =>
-      `<option value="${v}"${((COMBO.weights.has(id) ? COMBO.weights.get(id) : 1) > 0 ? 1 : 0) === v ? " selected" : ""}>${t}</option>`).join("") +
-    `</select><span title="${escapeHtml(nameOf(id))}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(nameOf(id))}</span></div>`).join("") : "";
+  const grp = comboGroups(ids);
+  el.innerHTML = ids.length ? `<div style="margin:4px 0 2px">Every ticked layer takes part unless you leave it out here (it then shows whole, uncut). ` +
+    `Layers in the same group count as one, so their crossings with each other are not shown: only crossings between different groups. ` +
+    `Layers start grouped by their heading; change any of them.</div>` + ids.map((id) => {
+      const out = (COMBO.weights.has(id) ? COMBO.weights.get(id) : 1) > 0 ? null : "0";
+      const now = out || grp.get(id);
+      return `<div style="display:flex;gap:6px;align-items:center;margin:2px 0"><select data-combo-weight="${escapeHtml(id)}" style="font:inherit;font-size:10.5px">` +
+        [...COMBO_LETTERS].map((l) => [l, `group ${l}`]).concat([["0", "left out"]]).map(([v, t]) =>
+          `<option value="${v}"${now === v ? " selected" : ""}>${t}</option>`).join("") +
+        `</select>`;
+    }).map((head, i) => head + `<span title="${escapeHtml(nameOf(ids[i]))}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(nameOf(ids[i]))}</span></div>`).join("") : "";
 }
 if (typeof map.on === "function") map.on("moveend", () => { if (COMBO.mode !== "off" && (COMBO.rows || []).some((id) => rowVectorLayers(id).some((l) => l.source && map.getSource(l.source) && map.getSource(l.source).type === "vector"))) comboSoon(2500); });
 // Which kind of rising a row gets, when it is shown or the switch changes.
@@ -25056,7 +25105,14 @@ function comboBox(box) {
   box.parentElement.insertBefore(wrap, box);
   wrap.addEventListener("change", (e) => {
     if (e.target && e.target.id === "combo-mode") comboMode(e.target.value);
-    if (e.target && e.target.dataset && e.target.dataset.comboWeight) { COMBO.weights.set(e.target.dataset.comboWeight, Number(e.target.value)); comboSoon(50); }
+    if (e.target && e.target.dataset && e.target.dataset.comboWeight) {
+      const id = e.target.dataset.comboWeight, v = e.target.value;
+      // Round 143b: a group letter, or 0 for left out.
+      if (v === "0") COMBO.weights.set(id, 0);
+      else { COMBO.weights.set(id, 1); COMBO.groups.set(id, v); }
+      COMBO.lastKey = null;
+      comboSoon(50);
+    }
   });
   addStyle(".combo-box{margin:2px 0 8px;padding:6px 8px;border:1px solid rgba(255,255,255,.14);border-radius:5px;background:rgba(0,0,0,.18)}", "combo-box");
 }

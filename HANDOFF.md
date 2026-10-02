@@ -5,6 +5,22 @@ touches.
 
 ---
 
+## Round 143b (2 October)
+
+Needs round 142b. No tiles patch. No app.js?v= bump.
+
+- Combine the ticked layers: groups (asked 2 October: with three ticked, two
+  alike layers such as mine sites and mining features crossed each other and
+  drowned out the crossings with the third, protected areas). Each layer
+  taking part is in a group (A to H), and layers in one group count as one:
+  a square counts the groups present (comboGroups; present per group, then
+  summed), so only crossings between different groups show. Layers start in
+  the group of their heading in the layers menu (comboHeadingOf: the nearest
+  heading, not a bundle); the menu under each row (data-combo-weight, now
+  "group A" to "group H" or "left out") moves any of them. If every layer is
+  in one group the box says to split them. The brighter edge marks where the
+  most groups cross.
+
 ## Round 142b (2 October)
 
 Needs round 141b. No tiles patch. No app.js?v= bump.

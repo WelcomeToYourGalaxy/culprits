@@ -6117,6 +6117,23 @@ console.log("\nround 140b-142b (2 October): combine in any order; base map kept,
   check("the same crossings leave the map untouched", /if \(key !== COMBO\.lastKey\) \{/.test(src) && /ms == null \? 400 : ms/.test(src));
 }
 
+console.log("\nround 143b (2 October): layers grouped, so alike layers do not cross each other");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const heads = { mine_sites: "Mining", mine_features: "Mining", wdpa: "Protected areas", ufo: "" };
+  const document = { querySelector: (q) => { const id = (q.match(/data-layer="([^"]+)"/) || [])[1]; return heads[id] ? { closest: () => ({ querySelector: () => ({ textContent: ` ${heads[id]} ` }) }) } : null; } };
+  const COMBO = { groups: new Map() };
+  const lib = new Function("document", "COMBO", src.slice(src.indexOf("const COMBO_LETTERS = "), src.indexOf("function comboList() {")).replace("COMBO.groups = new Map();", "") + "; return { comboGroups };")(document, COMBO);
+  const g = lib.comboGroups(["mine_sites", "mine_features", "wdpa", "ufo"]);
+  check("layers under one heading start in one group, others in their own", g.get("mine_sites") === "A" && g.get("mine_features") === "A" && g.get("wdpa") === "B" && g.get("ufo") === "C");
+  COMBO.groups.set("mine_features", "B");
+  const g2 = lib.comboGroups(["mine_sites", "mine_features", "wdpa"]);
+  check("a layer moved by the reader keeps its group; the others take letters not chosen", g2.get("mine_features") === "B" && g2.get("mine_sites") === "A" && g2.get("wdpa") === "C");
+  check("a square counts the groups present, not the layers", /here\[i\] = 1;/.test(src) && /for \(const here of present\.values\(\)\) for \(let i = 0; i < count\.length; i\+\+\) count\[i\] \+= here\[i\];/.test(src) &&
+        /if \(groups < 2\) return \{ keep: null, best: 1, used, groups, oneGroup: true \};/.test(src));
+  check("each row's menu: group A to H or left out", /\[\.\.\.COMBO_LETTERS\]\.map\(\(l\) => \[l, `group \$\{l\}`\]\)\.concat\(\[\["0", "left out"\]\]\)/.test(src) && /else \{ COMBO\.weights\.set\(id, 1\); COMBO\.groups\.set\(id, v\); \}/.test(src));
+}
+
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
