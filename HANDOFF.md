@@ -5,6 +5,18 @@ touches.
 
 ---
 
+## Round 124b (2 October)
+
+Needs round 123b. Tiles patch round124b_tiles.py beside it. No app.js?v= bump.
+
+- GFW records that carry their own latitude and longitude (the VIIRS fires)
+  show the country they fall in, from the map's own outlines (countryNameAt,
+  COUNTRY_SHAPES), and a link to the spot on OpenStreetMap (recordWhere).
+  NASA names no fires.
+- tiles medical_culprits.py: the company is read from the settlements
+  table's own Company column (it took drug names such as Neurontin and
+  Zoladex as companies); rows under cells spanning several rows carry them down.
+
 ## Round 123b (2 October)
 
 Needs round 122b. Tiles patch round123b_tiles.py beside it. No app.js?v= bump.

@@ -10275,13 +10275,51 @@ function gfwKindColours(order, spec) {
 const GFW_NAME_FIELDS = ["name", "terrai_nom", "Name", "NAME", "nome", "nom", "nombre", "site_name", "area_name", "comm_name"];
 const GFW_PEOPLE_FIELDS = ["ethncty_1", "etnia_nome", "ethnicity", "people", "peoples"];
 const GFW_HIDDEN = new Set(["gfw_fid", "gfw_geostore_id", "gfw_bbox", "gfw_geojson", "created_on", "updated_on", "shape_length", "shape_area", "epsg", "gid", "cartodb_id"]);
+// Round 123b (asked 2 October: the VIIRS fires' boxes "don't have much; a
+// location or fire name would be helpful"): NASA names no fires, so a record
+// that carries its own latitude and longitude is given the country it falls in
+// (the map's own country outlines) and a link to the spot on OpenStreetMap.
+let COUNTRY_SHAPES = null;
+function countryShapesSoon() {
+  if (COUNTRY_SHAPES || typeof getJson !== "function") return;
+  COUNTRY_SHAPES = [];
+  getJson(BOUNDARIES_URL, 60000).then((g) => { COUNTRY_SHAPES = (g && g.features) || []; }).catch(() => { COUNTRY_SHAPES = null; });
+}
+function inRing(x, y, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi || 1e-12) + xi) inside = !inside;
+  }
+  return inside;
+}
+function countryNameAt(lon, lat) {
+  if (!Array.isArray(COUNTRY_SHAPES)) return null;
+  for (const f of COUNTRY_SHAPES) {
+    const g = f && f.geometry;
+    if (!g) continue;
+    const polys = g.type === "Polygon" ? [g.coordinates] : g.type === "MultiPolygon" ? g.coordinates : [];
+    for (const poly of polys) if (poly[0] && inRing(lon, lat, poly[0]) && !poly.slice(1).some((h) => inRing(lon, lat, h))) return (f.properties || {}).name || null;
+  }
+  return null;
+}
+function recordWhere(p) {
+  const num = (v) => (v == null || v === "" ? NaN : Number(v));
+  const lat = [p.latitude, p.lat, p.LATITUDE].map(num).find(Number.isFinite);
+  const lon = [p.longitude, p.lon, p.lng, p.LONGITUDE].map(num).find(Number.isFinite);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return "";
+  const c = countryNameAt(lon, lat);
+  return `<div class="meta">${c ? `In ${escapeHtml(c)} \u00b7 ` : ""}<a href="https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=11/${lat}/${lon}" target="_blank" rel="noopener">${lat.toFixed(4)}, ${lon.toFixed(4)} on OpenStreetMap</a>` +
+    `${c ? " (country from this map's own outlines)" : ""}</div>`;
+}
 function gfwRecordBox(d, p) {
+  countryShapesSoon();
   const name = GFW_NAME_FIELDS.map((k) => p[k]).find((v) => v != null && String(v).trim() !== "");
   const people = GFW_PEOPLE_FIELDS.map((k) => p[k]).find((v) => v != null && String(v).trim() !== "");
   const rest = Object.fromEntries(Object.entries(p).filter(([k]) => !GFW_HIDDEN.has(k)));
   return `<b>${escapeHtml(String(name || d.title))}</b>` +
     (people ? `<div class="meta">People: ${escapeHtml(String(people))}</div>` : "") +
-    (name ? `<div class="meta">${escapeHtml(d.title)}</div>` : "") +
+    (name ? `<div class="meta">${escapeHtml(d.title)}</div>` : "") + recordWhere(p) +
     `<table class="meta">${fieldRows(rest)}</table>`;
 }
 function gfwColourBy(d, src, names, ids) {
@@ -10549,6 +10587,7 @@ async function addGfwMenuLayer(cfg) {
           map.addLayer({ id: `${src}-p-${safe(n)}`, type: "circle", ...base, filter: ["==", ["geometry-type"], "Point"], paint: { "circle-color": neon, "circle-radius": 3, "circle-stroke-width": 0.5, "circle-stroke-color": "#17150F" } });
           for (const id of [`${src}-f-${safe(n)}`, `${src}-l-${safe(n)}`, `${src}-p-${safe(n)}`]) {
             ids.push(id);
+            countryShapesSoon();
             bindHtmlPopup(id, (p) => gfwRecordBox(d, p));
           }
         }

@@ -5965,6 +5965,15 @@ console.log("\nround 123b (2 October): keyless imagery, overlap modes, raise off
         /TRASE_REMOVED_METRICS = new Set\(\["BURNED_PEAT", "EMISSION_BURNED_PEAT_CO2"\]\)/.test(src) && /tcl_fire: \{ mode: "year"/.test(src));
   check("the share of the map that is live shows at the top", /function liveShareBadge\(/.test(src) && /% of the map is live/.test(src));
 }
+console.log("\nround 124b (2 October): a fire's country and place on the map");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const ring = new Function(src.slice(src.indexOf("function inRing("), src.indexOf("function countryNameAt(")) + "; return inRing;")();
+  const sq = [[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]];
+  check("a point is found inside its country's outline", ring(5, 5, sq) && !ring(15, 5, sq));
+  check("records with their own latitude and longitude get a country and an OpenStreetMap link",
+        /function recordWhere\(p\)/.test(src) && /recordWhere\(p\) \+/.test(src) && /countryShapesSoon\(\);\n\s*bindHtmlPopup\(id, \(p\) => gfwRecordBox\(d, p\)\);/.test(src));
+}
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
