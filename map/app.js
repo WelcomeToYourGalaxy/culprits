@@ -19597,6 +19597,10 @@ const OTHER_MAPS = {
       totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/iuu/flags.json", field: "value" },
       countryNote: "Combined IUU Vessel List (Trygg Mat Tracking and the International MCS Network): the vessels on the illegal, unreported and unregulated fishing lists of the regional fisheries bodies whose current flag is this country; their names are in the box",
       note: "The Combined IUU Vessel List (iuu-vessels.org), kept by Trygg Mat Tracking with the International MCS Network: every fishing and support vessel on the IUU lists of the regional fisheries management organisations, with its flag, owner, operator and the history of its names, flags and listings. Shaded by how many listed vessels fly each country's flag now; vessels whose current flag the list gives as unknown are counted in the build record (iuu/build.json), not placed. Read weekly from each vessel's page by culprits-tiles-more (scripts/iuu_vessels.py)." },
+    // Round 129b: the blacklisted vessels where the list last saw them.
+    { id: "iuu_positions", name: "Fishing vessels blacklisted for illegal fishing, where each was last seen (Combined IUU Vessel List)", unit: "vessels", colour: "#2A5E9C", route: "geojsonlive", ready: true, lazy: true, buildScript: "iuu_vessels",
+      files: [{ label: "Last seen", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/iuu/positions.geojson" }],
+      note: "The vessels on the Combined IUU Vessel List (Trygg Mat Tracking and the International MCS Network) whose page gives a last known position, each with every field of its page. Most positions are written as a port or a sea (\"Yantai, China / Bohai Sea\"), not coordinates: those are placed at the port, or failing that the sea, by OpenStreetMap's Nominatim, and the box says so. Only a few of the list's vessels have a last known position at all." },
     // ---- round 103b (asked 28 September) ---------------------------------
     // The second tab of the research integrity map: who makes fake science.
     { id: "research_makers", name: "Who makes fake science: paper mills, named scientists with the most fabricated papers, predatory operators and enablers (World Research Integrity 2026)", unit: "makers", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true, buildScript: "research_makers",
@@ -19625,6 +19629,13 @@ const OTHER_MAPS = {
       groupHint: "Coloured by which way round it went; each box quotes its source and says how far it was proven",
       note: "Compiled for this map on 29 September 2026: 24 documented cases in 15 countries, each box quoting the source it links (Wikipedia's articles, the US Justice Department, PBS, AP, OCCRP, InSight Crime, KRIK, Radio Free Europe, Dagens Nyheter via The Local, and Brazilian and Ecuadorian news) and saying how far it was proven, from reported to convicted. Each is placed at the city of the force or the case, as the box says. Among them: the Los Angeles sheriff's deputy gangs, the Rampart scandal, New York's Mafia cops, the FBI's protection of Whitey Bulger, the Iguala police who handed 43 students to a cartel, Mexico's security secretary convicted of Sinaloa Cartel bribes, Honduras's police chief, Rio's police-made milícias, the Glenanne gang, and police leaks to gangs in Sweden and the Netherlands. A short list, not every case." },
     // ---- round 115b (asked 29 September): the medical industry, from the Suppression page's own section ----
+    // Round 130b: Open Payments, what companies pay prescribers, state by state.
+    { id: "open_payments", name: "What drug and device companies pay doctors, United States, state by state and year by year (CMS Open Payments)", unit: "states and years", colour: "#3E6FB0", route: "geojsonlive", ready: true, lazy: true, buildScript: "open_payments",
+      files: [{ label: "Paid to prescribers", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/openpay/states.geojson" }], nameFrom: ["name"],
+      waiting: "not built yet: culprits-tiles-more builds it on its next run (open_payments)",
+      colourBy: { field: "paid (US$)", steps: [20000000, 50000000, 100000000, 250000000, 500000000], unit: "US$ paid that year" }, yearFrom: ["year"], noBands: true,
+      noColourBy: true, noAreaDots: true,
+      note: "The general payments drug and medical-device companies reported to the US government's Open Payments program (CMS): meals, travel, speaking and consulting fees, gifts and the like, given to doctors and other prescribers. Each state is shaded by the total paid to prescribers practising there in a year; use the year bar to see one year (with every year shown, the years lie on top of each other). The box lists the 50 largest payers there that year and links CMS's full list of every company and amount. Research payments and ownership interests are separate and not added. Added up by CMS's own data service; US government data (public domain). A payment being reported does not by itself mean anything unlawful was done." },
     { id: "medical_culprits", name: "Who profits from sickness: illegal drug marketing and kickbacks, the opioid epidemic, blood sold with HIV (compiled from Wikipedia)", unit: "companies and owners", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true, buildScript: "medical_culprits", waiting: "not built yet: culprits-tiles-more builds it on its next run",
       files: [{ label: "Medical culprits", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/medical/culprits.geojson" }], nameFrom: ["name"], autoGroups: true, groupHint: "Coloured by what each is named for",
       note: "For the first half of the Suppression page's medical section (doctors paid to prescribe, drugs pushed for profit, addictive ones above all, and the 1980s blood products sold with HIV in them): every row of Wikipedia's List of largest pharmaceutical settlements (illegal marketing, off-label promotion, kickbacks to doctors, false claims), every column kept; the makers, distributors, pharmacies, owners and consultants named in Wikipedia's article on the US opioid epidemic; and the companies named in its article on contaminated haemophilia blood products. The last two are a list compiled for this map, and each is kept only if the article cited for it names it when the copy is made; its box quotes the article's sentences that do. Each is placed at its headquarters (Wikidata), else its country. Built weekly by culprits-tiles-more (scripts/medical_culprits.py)." },
@@ -20267,6 +20278,17 @@ const OTHER_MAPS = {
     { id: "ibama_infractions", name: "Environmental crime notices issued, Brazil, every infraction notice (IBAMA)", unit: "notices", colour: "#1E90FF", route: "pmtiles", ready: true, lazy: true,
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ibama_infractions.pmtiles", boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/enforcement/ibama_infractions", boxesGz: true,
       note: "Every infraction notice (auto de infração) IBAMA has issued for an environmental offence and gives coordinates for: the offence, the law broken, the fine, the date. From IBAMA's open data, copied weekly (open licence)." },
+    // Round 127b (2 October): national environmental-crime registers that
+    // publish whole tables (culprits-tiles-more scripts/enforcement_registers.py).
+    { id: "ea_enforcement", name: "Environmental enforcement actions, England, every action in the public register (Environment Agency)", unit: "actions", colour: "#2F7FA8", route: "pmtiles", ready: true, lazy: true, buildScript: "enforcement_registers",
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ea_enforcement.pmtiles", boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/enforcement/ea_enforcement", boxesGz: true,
+      note: "Every enforcement action in the Environment Agency's public register for England: the offender, address, date, law and kind of action as the register gives them (many actions leave the law and kind blank). Each is placed at the centre of the postcode at the end of its address (postcodes.io), not the exact site; actions with no postcode in their address are not placed and are counted in the build file. Open Government Licence v3.0." },
+    { id: "canada_offenders", name: "Companies convicted of environmental offences, Canada, every entry in the registry (Environment and Climate Change Canada)", unit: "convictions", colour: "#3E6FB0", route: "pmtiles", ready: true, lazy: true, buildScript: "enforcement_registers",
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/canada_offenders.pmtiles", boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/enforcement/canada_offenders", boxesGz: true,
+      note: "Every conviction in Canada's Environmental Offenders Registry, from the registry's own export: the company, the offence, the law, the court, the sentence and fine, and the case summary. Each is placed at the town of the offence by OpenStreetMap's Nominatim, or, where the registry gives no town for the offence, the company's own town; the box says which." },
+    { id: "epa_cases", name: "Environmental enforcement cases, United States, every civil and criminal case (US EPA)", unit: "cases", colour: "#4A5FA8", route: "pmtiles", ready: true, lazy: true, buildScript: "enforcement_registers",
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/epa_cases.pmtiles", boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/enforcement/epa_cases", boxesGz: true,
+      note: "Every federal enforcement case in the EPA's ECHO case files, civil and criminal, from 1970s cases to now: the case, its outcome and penalty, the violations, laws, pollutants and defendants. One point for each facility a case names, at the centre of the facility's ZIP code (US Census Bureau), because ECHO's case files give addresses, not coordinates; cases that name no facility are counted in the build file. US government work (public domain)." },
     { id: "raisg_illegal_mining", name: "Illegal mining across the Amazon, its sites, areas and rivers (RAISG)", unit: "places", colour: "#5FD3C4", route: "geojsonlive", ready: true, lazy: true, fixedName: true,
       files: [{ label: "Illegal mining", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/raisg/illegal_mining.geojson" }],
       waiting: "waiting for RAISG's file: it is given only to registered users, so it is downloaded by hand from raisg.org and uploaded to culprits-tiles-more's raisg folder",
@@ -21275,7 +21297,7 @@ const LAYER_KIND = {
   ecoregions_2017: ["plant", "downstream"],
   wb_harm_projects: ["insentient", "downstream"], imf_fossil_subsidies: ["insentient", "downstream"],
   fish_rivers: ["animal", "downstream"], fish_basins: ["animal", "downstream"],
-  crops_spam: ["plant", "upstream"], crop_oilp: ["plant", "upstream"], crop_soyb: ["plant", "upstream"], crop_coco: ["plant", "upstream"], crop_coffee: ["plant", "upstream"], crop_sugc: ["plant", "upstream"], crop_maiz: ["plant", "upstream"], crop_rice: ["plant", "upstream"], crop_cott: ["plant", "upstream"], crop_cnut: ["plant", "upstream"], iuu_vessels: ["animal", "upstream"],
+  crops_spam: ["plant", "upstream"], crop_oilp: ["plant", "upstream"], crop_soyb: ["plant", "upstream"], crop_coco: ["plant", "upstream"], crop_coffee: ["plant", "upstream"], crop_sugc: ["plant", "upstream"], crop_maiz: ["plant", "upstream"], crop_rice: ["plant", "upstream"], crop_cott: ["plant", "upstream"], crop_cnut: ["plant", "upstream"], iuu_vessels: ["animal", "upstream"], iuu_positions: ["animal", "upstream"],
   ifl_2000: ["plant", "downstream"], ifl_2013: ["plant", "downstream"], ifl_2016: ["plant", "downstream"], ifl_2020: ["plant", "downstream"], ifl_2025: ["plant", "downstream"],
   ftw_fields: ["plant", "downstream"],
   potapov_cropland: ["plant", "downstream"],
@@ -21350,7 +21372,7 @@ const LAYER_KIND = {
   site_world_entertainment: ["human", "upstream"],
   site_research_integrity: ["human", "upstream"], troutwood_companies: ["human", "upstream"], wreckers_world: ["insentient", "upstream"], threat_overall: ["human", "upstream"], threat_destruction: ["human", "upstream"], threat_suppression: ["human", "upstream"], threat_crime: ["human", "upstream"], vdem_liberal: ["human", "upstream"], vdem_electoral: ["human", "upstream"], vdem_participatory: ["human", "upstream"], vdem_deliberative: ["human", "upstream"], vdem_egalitarian: ["human", "upstream"], vdem_expression: ["human", "upstream"], vdem_rights: ["human", "upstream"], vdem_civil: ["human", "upstream"], vdem_regime: ["human", "upstream"], school_culprits: ["human", "upstream"], giga_school_points: ["human", "downstream"], stock_exchanges: ["human", "upstream"], research_makers: ["human", "upstream"], fertility_policy: ["human", "upstream"],
   bld_police: ["human", "downstream"], bld_courts: ["human", "downstream"], bld_prisons: ["human", "downstream"], gang_infiltration: ["human", "upstream"],
-  holiday_culprits: ["human", "upstream"], medical_culprits: ["human", "upstream"], sports_facilities: ["human", "upstream"], sports_betting: ["human", "upstream"], sports_fixing: ["human", "upstream"],
+  holiday_culprits: ["human", "upstream"], medical_culprits: ["human", "upstream"], open_payments: ["human", "upstream"], sports_facilities: ["human", "upstream"], sports_betting: ["human", "upstream"], sports_fixing: ["human", "upstream"],
   pet_food_world: ["animal", "upstream"], animal_breeding_osm: ["animal", "upstream"], zoos_aquariums_osm: ["animal", "upstream"], wjp_discrimination: ["human", "downstream"], wjp_discrimination_change: ["human", "downstream"], slavery_convicted_world: ["human", "downstream"], slavery_detected_world: ["human", "downstream"], slavery_cbp_world: ["human", "upstream"],
   site_eyes_network: ["human", "upstream"],
   site_earmarked_funding: ["human", "upstream"],
@@ -21478,6 +21500,7 @@ const LAYER_KIND = {
   mymaps_chlorine: ["insentient", "upstream"],
   ibama_embargos: ["insentient", "downstream"],
   ibama_infractions: ["insentient", "downstream"],
+  ea_enforcement: ["insentient", "downstream"], canada_offenders: ["insentient", "downstream"], epa_cases: ["insentient", "downstream"],
   raisg_illegal_mining: ["insentient", "downstream"],
   gw_defenders: ["human", "downstream"], attacks_cpt_areas: ["human", "downstream"], attacks_cpt_land: ["human", "downstream"], attacks_cpt_water: ["human", "downstream"], attacks_cpt_overexploitation: ["human", "downstream"], attacks_cpt_slave_cases: ["human", "downstream"], inpe_fire_2023: ["insentient", "downstream"], attacks_gw_killings: ["human", "downstream"], attacks_land_resistance: ["human", "downstream"], attacks_frontline: ["human", "downstream"], attacks_cimi: ["human", "downstream"], attacks_caci: ["human", "downstream"], attacks_cpt_violence: ["human", "downstream"], attacks_cpt_threatened: ["human", "downstream"], attacks_cpt_massacres: ["human", "downstream"], attacks_public_agencies: ["human", "downstream"], attacks_slave_labour_states: ["human", "downstream"], police_stations_latam: ["human", "upstream"],
   goc_flora: ["plant", "downstream"],
@@ -22052,6 +22075,7 @@ const LAYER_SITE = {
   crop_cott: "https://www.mapspam.info/data/",
   crop_cnut: "https://www.mapspam.info/data/",
   iuu_vessels: "https://iuu-vessels.org/",
+  iuu_positions: "https://iuu-vessels.org/",
   fish_basins: "https://doi.org/10.6084/m9.figshare.c.3739145",
   ifl_2000: "https://intactforests.org/", ifl_2013: "https://intactforests.org/", ifl_2016: "https://intactforests.org/", ifl_2020: "https://intactforests.org/", ifl_2025: "https://intactforests.org/",
   ftw_fields: "https://source.coop/ftw/global-data",
@@ -22104,6 +22128,9 @@ const LAYER_SITE = {
   skytruth_posts: "https://monitor.skytruth.org/",
   ibama_embargos: "https://dadosabertos.ibama.gov.br/dataset/fiscalizacao-termo-de-embargo",
   ibama_infractions: "https://dadosabertos.ibama.gov.br/dataset/fiscalizacao-auto-de-infracao",
+  ea_enforcement: "https://environment.data.gov.uk/public-register/enforcement-action/registration",
+  canada_offenders: "https://environmental-protection.canada.ca/offenders-registry/",
+  epa_cases: "https://echo.epa.gov/tools/data-downloads",
   raisg_illegal_mining: "https://www.raisg.org/en/maps/",
   gw_defenders: "https://globalwitness.org/en/campaigns/land-and-environmental-defenders/in-numbers-lethal-attacks-against-defenders-since-2012/",
   goc_flora: "https://ocindex.net/downloads",
@@ -22240,6 +22267,7 @@ const LAYER_SITE = {
   forestatrisk: "https://forestatrisk.cirad.fr/rasters.html",
   holiday_culprits: "https://en.wikipedia.org/wiki/Santa_Claus",
   medical_culprits: "https://en.wikipedia.org/wiki/List_of_largest_pharmaceutical_settlements",
+  open_payments: "https://openpaymentsdata.cms.gov/",
   sports_facilities: "https://docs.overturemaps.org/", sports_betting: "https://www.wikidata.org/", sports_fixing: "https://en.wikipedia.org/wiki/Match_fixing",
   pet_food_world: "https://www.wikidata.org/", animal_breeding_osm: "https://wiki.openstreetmap.org/wiki/Key:animal_breeding",
   zoos_aquariums_osm: "https://wiki.openstreetmap.org/wiki/Tag:tourism%3Dzoo",
@@ -22435,6 +22463,7 @@ const NOT_LIVE = {
   holiday_culprits: "Compiled for this map from the sources in each box",
   gang_infiltration: "Compiled for this map from the sources in each box",
   medical_culprits: "Built weekly by culprits-tiles-more from Wikipedia and Wikidata",
+  open_payments: "Added up weekly from CMS Open Payments by culprits-tiles-more",
   sports_facilities: "Built monthly by culprits-tiles-more from Overture Maps", sports_betting: "Built weekly by culprits-tiles-more from Wikidata",
   sports_fixing: "Built weekly by culprits-tiles-more from Wikidata", pet_food_world: "Built weekly by culprits-tiles-more from Wikidata",
   animal_breeding_osm: "Built weekly by culprits-tiles-more from OpenStreetMap", zoos_aquariums_osm: "Built weekly by culprits-tiles-more from OpenStreetMap",
@@ -22453,6 +22482,7 @@ const NOT_LIVE = {
   crop_cott: "Made from SPAM 2020 by culprits-tiles-more",
   crop_cnut: "Made from SPAM 2020 by culprits-tiles-more",
   iuu_vessels: "Copied weekly from the Combined IUU Vessel List by culprits-tiles-more",
+  iuu_positions: "Copied weekly from the Combined IUU Vessel List by culprits-tiles-more",
   fish_basins: "Made from the freshwater fish database by culprits-tiles-more",
   ifl_2000: "Made from Global Forest Watch's table by culprits-tiles-more", ifl_2013: "Made from Global Forest Watch's table by culprits-tiles-more",
   ifl_2016: "Made from Global Forest Watch's table by culprits-tiles-more", ifl_2020: "Made from Global Forest Watch's table by culprits-tiles-more",
@@ -22461,6 +22491,9 @@ const NOT_LIVE = {
   // Round 84b.
   ibama_embargos: "Copied weekly from IBAMA's open data by culprits-tiles-more",
   ibama_infractions: "Copied weekly from IBAMA's open data by culprits-tiles-more",
+  ea_enforcement: "Copied weekly from the Environment Agency's register by culprits-tiles-more",
+  canada_offenders: "Copied weekly from Canada's Environmental Offenders Registry by culprits-tiles-more",
+  epa_cases: "Copied weekly from the EPA's ECHO case files by culprits-tiles-more",
   raisg_illegal_mining: "From RAISG's file, downloaded by hand (RAISG gives it to registered users) and made into this copy",
   gw_defenders: "Copied weekly from Global Witness's data page by culprits-tiles-more",
   attacks_cpt_areas: "From the owner's Attacks On Activists collection, read once (28 September 2026)",
@@ -22867,7 +22900,7 @@ const PANEL_ORDER = [
   // Item 11: Fishing above Reefs and mangroves. Items 4, 5, 6: the pond maps
   // as one row, and the worldwide pond map beside them.
   { h: 3, t: "Oceans" },
-  { h: 4, t: "Fishing" }, "fishing", "aquaculture_ponds", "iuu_vessels",
+  { h: 4, t: "Fishing" }, "fishing", "aquaculture_ponds", "iuu_vessels", "iuu_positions",
   { h: 5, bundle: "ponds", colour: "#5E7377" },
   { h: 4, t: "Reefs and mangroves" }, "allen_coral",
   // Round 94b (asked 27 September): more of what is done to the oceans.
@@ -22884,7 +22917,7 @@ const PANEL_ORDER = [
   { h: 3, t: "Other concessions" },
   // Asked for 25 September: the earthquakes under a heading of their own.
   // Round 84b: governments' own records of environmental crimes, and illegal mining.
-  { h: 3, t: "Environmental crime" }, "goc_flora", "goc_fauna", "goc_resources", "iuu_vessels", "ibama_embargos", "ibama_infractions", "raisg_illegal_mining", "powerbi_report",
+  { h: 3, t: "Environmental crime" }, "goc_flora", "goc_fauna", "goc_resources", "iuu_vessels", "iuu_positions", "ibama_embargos", "ibama_infractions", "ea_enforcement", "canada_offenders", "epa_cases", "raisg_illegal_mining", "powerbi_report",
   // Round 95b (asked 27 September): environmental law, and the cases companies
   // bring against governments over it.
   { h: 3, t: "Environmental law" }, "site_environment_law", "enviro_law_by_country", "ect_secrets", "isds_tracker",
@@ -22955,7 +22988,7 @@ const PANEL_ORDER = [
   { h: 5, t: "Representation as presentation" },
   { h: 5, t: "For money-written-law" },
   { h: 4, t: "The food and drink industries" }, "site_food_system",
-  { h: 4, t: "The medical industry" }, "medical_culprits",
+  { h: 4, t: "The medical industry" }, "medical_culprits", "open_payments",
   { h: 3, t: "Suppression by information" },
   { h: 4, t: "The advertising industries" }, "site_world_advertising",
   { h: 4, t: "The news industry" }, "site_world_news",

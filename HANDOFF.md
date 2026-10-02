@@ -5,6 +5,70 @@ touches.
 
 ---
 
+## Round 131b (2 October)
+
+Needs round 126b. Carries rounds 128b, 129b and 130b, which failed because 127b was never uploaded. 127b (the combine-the-ticked-layers fix) is not carried: it is redone with the new overlap modes in a later round. No tiles patch. No app.js?v= bump.
+
+## Round 130b (2 October)
+
+Needs round 129b. Tiles patch round130b_tiles.py beside it. No app.js?v= bump.
+
+- open_payments (geojsonlive openpay/states.geojson) after medical_culprits
+  under Suppression > The medical industry: each US state and year shaded by
+  general payments to prescribers practising there, year bar, the 50 largest
+  payers in the box and a link to every company (openpay/years/<year>.json).
+- Tiles open_payments.py: CMS's DKAN data service is asked for sums grouped
+  by recipient_state and paying company (expression sum/count, groupings),
+  per "<year> General Payment Data" dataset found in its metastore, so the
+  multi-GB files are never downloaded. State shapes from cgaz-boundaries USA,
+  simplified with attacks_plain.rounded. Not verified: that this DKAN accepts
+  groupings with expressions (the sandbox reaches only one plain query). If
+  build.json lists every year under "refused", the next step is the yearly
+  CSV, read in a stream.
+- Research payments and ownership interests are not added (separate files).
+
+## Round 129b (2 October)
+
+Needs round 128b. Tiles patch round129b_tiles.py beside it. No app.js?v= bump.
+
+- iuu_positions (geojsonlive iuu/positions.geojson) after iuu_vessels under
+  Fishing and Environmental crime. The 2 October build read 212 vessels but
+  placed none: positions are written as "Yantai, China / Bohai Sea". Tiles
+  iuu_vessels.py now places them at the port, else the sea, by Nominatim
+  (cached in iuu/places.json; box says so), and drops the history-table rows
+  that were read as labels (779 fields down to 44).
+- Tiles medical_culprits.py: the settlements table is read as a full grid
+  with rowspan/colspan (grid()); the 123b left-shift guess took drug names
+  ("Neurontin", "Claritin") as companies when a middle column spanned rows.
+- Tiles nusantara_health.py: the 101b probe asked every layer for one square
+  over Kalimantan, so layers elsewhere read as empty. Now also asks each
+  layer where its own data is (first WFS feature, else its area's middle),
+  with each listed style, and how many features it holds. Run by hand, then
+  decide which of the 12 "draw nothing" layers are really empty.
+
+## Round 128b (2 October)
+
+Needs round 127b. Tiles patch round128b_tiles.py beside it. No app.js?v= bump.
+
+- National environmental-crime registers, from what probe/enforcement shows
+  they hold (tiles scripts/enforcement_registers.py, weekly; unbuilt ones
+  daily), under Environmental crime after IBAMA, route pmtiles with boxes:
+  - ea_enforcement: Environment Agency enforcement actions, England (8,288
+    in the probe), placed at the postcode ending each address (postcodes.io;
+    terminated postcodes by their last position). OGL v3.
+  - canada_offenders: Environmental Offenders Registry export (~290), placed
+    at the offence town by Nominatim, else the company's town (box says).
+  - epa_cases: EPA ECHO case files (136,753 cases), one point per named
+    facility at its ZIP code centre (Census gazetteer; ECHO gives no
+    coordinates), with violations, laws, pollutants, defendants, programs.
+  - Counts and what was not placed: enforcement/registers.json.
+- Not mapped, and why: EA prosecutions ("All rights reserved", no licence:
+  needs permission); Chile SMA (PDFs in Drive folders); NSW EPA (search page
+  only); Colombia (no sanctions table found); PROFEPA, OEFA, Ireland EPA,
+  SEPA (addresses refused or gone). IUU vessels already mapped.
+- The script was tested on made-up rows only (the registers are blocked
+  from the sandbox): read the refresh log and registers.json.
+
 ## Round 126b (2 October)
 
 Needs round 125b. No tiles patch. No app.js?v= bump.

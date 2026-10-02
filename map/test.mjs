@@ -5980,6 +5980,24 @@ console.log("\nround 125b (2 October): dots seen close in, named water culprits"
   check("past zoom 12 a dot gains a light rim", /paint\(layer\.id, "circle-stroke-width", z\(GLOW\.fadeOut, 0, GLOW\.gone, 1\.1\)\);/.test(src));
   check("named water culprits are a row under Who causes water scarcity", /"water_culprits", "water_cases",/.test(src) && /water\/cases\.geojson/.test(src));
 }
+console.log("\nround 128b (2 October): national environmental-crime registers");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("three national registers under Environmental crime", /"ibama_infractions", "ea_enforcement", "canada_offenders", "epa_cases",/.test(src) &&
+        ["ea_enforcement", "canada_offenders", "epa_cases"].every((id) => new RegExp(`id: "${id}"[^\\n]*route: "pmtiles"`).test(src) && new RegExp(`\\n  ${id}: "Copied weekly`).test(src)));
+}
+console.log("\nround 129b (2 October): blacklisted vessels where last seen");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("vessel positions row under Fishing and Environmental crime", /"iuu_vessels", "iuu_positions",/.test(src) && /"iuu_vessels", "iuu_positions", "ibama_embargos",/.test(src) &&
+        /id: "iuu_positions"[^\n]*route: "geojsonlive"/.test(src) && /\n  iuu_positions: "Copied weekly/.test(src));
+}
+console.log("\nround 130b (2 October): Open Payments by state");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("Open Payments row under The medical industry", /"medical_culprits", "open_payments",/.test(src) && /id: "open_payments"[^\n]*route: "geojsonlive"/.test(src) &&
+        /openpay\/states\.geojson/.test(src) && /\n  open_payments: "Added up weekly/.test(src));
+}
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
