@@ -5,6 +5,28 @@ touches.
 
 ---
 
+## Round 136b (2 October)
+
+Needs round 135b. Tiles patch round136b_tiles.py beside it. No app.js?v= bump.
+
+- Six more ocean pressures, each its own row under Every human impact together
+  (asked 2 October: yes to the ocean harms not yet on the map), from the same
+  study (Halpern et al. 2019, KNB, CC0), 2013 and 2003, 0 to 1 as the authors
+  rescaled them: ocean_slr (sea level rise), ocean_light (light at night),
+  ocean_trawling (bottom trawling and dredging: demersal destructive fishing),
+  ocean_bycatch (high and low bycatch, demersal and pelagic), ocean_coastal_people
+  (direct human), ocean_runoff (fertiliser and pesticides; also under
+  Pollution at sea). Tiles ocean_stressors.py finds the files through
+  DataONE's search by name and writes every name it found and what it took to
+  oceans/stressors.build.json: check it after the first run.
+- offshore_platforms: every platform OpenStreetMap maps at sea (man_made =
+  offshore_platform, seamark:type = platform), every tag, coloured by what its
+  tags say (oil, gas, both, wind, not stated); under Oceans and under Oil
+  spills and slicks at sea. Tiles offshore_platforms.py (Overpass, 30-degree
+  slices). Not a register: coverage is as complete as the volunteers' mapping.
+- Not done yet: noise, seagrass and salt marsh loss, sand dredging, ghost
+  gear, shark finning and whaling (sources to be checked).
+
 ## Round 135b (2 October)
 
 Needs round 134b. Tiles patch round135b_tiles.py beside it. No app.js?v= bump.

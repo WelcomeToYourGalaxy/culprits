@@ -6009,7 +6009,7 @@ console.log("\nround 132b (2 October): crops, cropland spread, meat, promises, o
   check("By crop: Other groups last", src.indexOf('{ h: 6, t: "Yams" }') < src.indexOf('{ h: 6, t: "Other cereals" }') && src.indexOf('{ h: 6, t: "Banana" }') < src.indexOf('{ h: 6, t: "Wheat" }'));
   check("Cattle and pasture and Pigs and chickens gone; Herds above Facilities; Marine meats", !src.includes('t: "Cattle and pasture" }') && !src.includes('t: "Pigs and chickens" }') && src.indexOf('{ h: 5, t: "Herds" }') < src.indexOf('{ h: 5, t: "Facilities" }') && src.includes('{ h: 5, t: "Marine meats" }'));
   check("Deforestation promises heading", src.includes('{ h: 4, t: "Deforestation promises" }') && src.includes('" > Deforestation > Deforestation promises"'));
-  check("Every human impact together leads Oceans, with notes", /\{ h: 3, t: "Oceans" \},\n  \{ note: [^\n]*\},\n  \{ h: 4, t: "Every human impact together" \}, "ocean_impacts",/.test(src) && (src.match(/tag: "[^"]*Every human impact together layer/g) || []).length === 8);
+  check("Every human impact together leads Oceans, with notes", /\{ h: 3, t: "Oceans" \},\n  \{ note: [^\n]*\},\n  \{ h: 4, t: "Every human impact together" \}, "ocean_impacts",/.test(src) && (src.match(/tag: "[^"]*Every human impact together layer/g) || []).length >= 8);   // round 136b: more headings
   check("heatwaves and bleaching are two rows of the same files", /id: "ocean_bleaching"[^\n]*choiceMatch/.test(src) && /id: "ocean_heat"[^\n]*choiceMatch: \/\^Sea surface temperature\/i/.test(src));
 }
 console.log("\nround 133b (2 October): combining the ticked layers cuts them to where they meet");
@@ -6054,6 +6054,14 @@ console.log("\nround 135b (2 October): reefs drawn smooth in teal; the food indu
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("the reefs' world view is light teal, full size, smoothed", /const CORAL_WORLD_TINT = "6FC2DA";/.test(src) && /wcmc\(256, CORAL_WORLD_TINT \+ "\+grow"\)/.test(src) && /"raster-opacity": 0\.85, "raster-resampling": "linear"/.test(src));
   check("Who Owns the Food Industry reads the page's whole data", /id: "site_food_system"[^\n]*food\/system\.places\.geojson/.test(src));
+}
+console.log("\nround 136b (2 October): six more ocean pressures, and offshore platforms");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const ids = ["ocean_slr", "ocean_light", "ocean_trawling", "ocean_bycatch", "ocean_coastal_people", "ocean_runoff"];
+  check("each pressure is a row of its own, read from its build's choices", ids.every((i) => new RegExp(`id: "${i}"[^\\n]*route: "rasterlive"`).test(src) && src.includes(`tiles/${i}.choices.json`) && src.includes(`"${i}",`)));
+  check("offshore platforms under Oceans and under oil spills at sea", /id: "offshore_platforms"[^\n]*route: "geojsonlive"/.test(src) &&
+        /"skytruth_marine_incidents", "offshore_platforms",\n/.test(src) && /t: "Offshore platforms", tag: "not counted/.test(src));
 }
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
