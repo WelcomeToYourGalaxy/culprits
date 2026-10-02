@@ -6070,6 +6070,12 @@ console.log("\nround 137b (2 October): fish decline, stocks and populations");
         /id: "fish_stocks"[^\n]*route: "country"/.test(src) && /id: "lpi_populations"[^\n]*route: "pmtiles"/.test(src) && /keys: \[\{ label: "Kind of animal", property: "x_class"/.test(src) &&
         /t: "Fish" \}, "fish_stocks", "lpi_populations",/.test(src) && /t: "Fish decline"[^\n]*\}, "fish_stocks", "lpi_populations",/.test(src));
 }
+console.log("\nround 139b (2 October): fish caught and farmed, country by country (FAO)");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("FAO capture and aquaculture under Marine meats and under Oceans > Fishing", /id: "fao_capture"[^\n]*route: "country"/.test(src) && /id: "fao_aquaculture"[^\n]*route: "country"/.test(src) &&
+        /t: "Wild-caught fish" \}, "fao_capture",/.test(src) && /t: "Fish and shrimp farms" \}, "fao_aquaculture",/.test(src) && /"fao_capture", "fishing", "iuu_vessels", "iuu_positions", "fao_aquaculture"/.test(src));
+}
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");

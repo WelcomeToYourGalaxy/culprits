@@ -5,6 +5,21 @@ touches.
 
 ---
 
+## Round 139b (2 October)
+
+Needs round 138b. Tiles patch round139b_tiles.py beside it. No app.js?v= bump.
+
+- fao_capture and fao_aquaculture (route country): tonnes caught and farmed by
+  each country in FAO's latest year, with ten years before, sea and inland
+  (or fresh, brackish, sea), FAO's groups of animals, the top 15 species and
+  animals FAO counts by head (whales, seals). Under Meat > Marine meats (Wild-
+  caught fish; Fish and shrimp farms) and Oceans > Fishing. Tiles
+  fao_fisheries.py reads the newest Capture_*.zip and Aquaculture_*.zip from
+  FAO's own listing (fao.org/fishery/static/Data/, CC BY-NC-SA 3.0 IGO).
+- Researched, not built: Sea Around Us (catch with unreported, illegal and
+  discards; CC BY-NC) sits in an S3 bucket whose files are not documented;
+  Global Fishing Watch's trawler effort needs a free API token (a repo secret).
+
 ## Round 138b (2 October)
 
 Needs round 137b. Tiles patch round138b_tiles.py beside it. No app.js?v= bump.
