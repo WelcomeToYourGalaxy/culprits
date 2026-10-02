@@ -6076,6 +6076,33 @@ console.log("\nround 139b (2 October): fish caught and farmed, country by countr
   check("FAO capture and aquaculture under Marine meats and under Oceans > Fishing", /id: "fao_capture"[^\n]*route: "country"/.test(src) && /id: "fao_aquaculture"[^\n]*route: "country"/.test(src) &&
         /t: "Wild-caught fish" \}, "fao_capture",/.test(src) && /t: "Fish and shrimp farms" \}, "fao_aquaculture",/.test(src) && /"fao_capture", "fishing", "iuu_vessels", "iuu_positions", "fao_aquaculture"/.test(src));
 }
+console.log("\nround 140b (2 October): combine in any order; areas and pictures faded outside");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("each tick reaches the combine, whichever came first", /Round 140b: the combine follows every tick[^\n]*\n  if \(typeof COMBO !== "undefined" && COMBO\.mode !== "off"\) comboSoon\(600\);/.test(src) &&
+        /map\.on\("idle", \(\) => \{\n  if \(COMBO\.mode === "off"\) return;\n  const sig = comboSig\(\);/.test(src));
+  check("pictures take part, counted where they paint", /if \(!rowVectorLayers\(id\)\.length && !comboPictureSource\(id\)\) continue;/.test(src) && /const pic = await comboPictureGrid\(id\);/.test(src));
+  check("the veil is kept out of the colour mapping", /const GLAD_BASE_LAYERS = \/\^\(bg\|combo-mask\|/.test(src));
+  // The veil: the world less the kept squares, above the highest picture or area taking part.
+  const added = [], moved = [];
+  const layers = [{ id: "base", type: "raster", source: "base" }, { id: "a-raster", type: "raster", source: "a-src" }, { id: "b-pt", type: "circle", source: "b-src" }];
+  const fake = { _l: new Map(), _s: new Map(),
+    getLayer(id) { return this._l.get(id); }, getSource(id) { return this._s.get(id); },
+    addSource(id, sp) { this._s.set(id, { data: sp.data, setData(d) { this.data = d; } }); },
+    addLayer(l, before) { added.push([l.id, before]); this._l.set(l.id, l); }, moveLayer(id, b) { moved.push([id, b]); },
+    setLayoutProperty(id, k, v) { this._l.get(id).vis = v; }, getStyle() { return { layers }; } };
+  const s0 = src.indexOf("const COMBO_MASK = "), s1 = src.indexOf("if (typeof map.on === \"function\") map.on(\"idle\"");
+  const lib = new Function("map", "COMBO", "POINT_RELIEF_RES", "visibility", "rowVectorLayers",
+    src.slice(src.indexOf("function comboShape(keep, W, H)"), src.indexOf("function comboPoints(")) + src.slice(s0, s1) + "; return { comboMaskSet, comboSig };")(fake, { pr: { rid: "x" }, weights: new Map() }, 90, new Map([["a", "visible"], ["b", "none"]]), () => []);
+  lib.comboMaskSet({ keepGrid: Uint8Array.from([1, 0, 0, 0, 0, 0, 0, 0]), W: 4, H: 2, used: ["a", "b"] });
+  const g = fake._s.get("combo-mask").data.geometry;
+  check("the veil covers every square but the kept one, clamped to the map's latitudes", added[0][0] === "combo-mask" && added[0][1] === "b-pt" &&
+        g.type === "MultiPolygon" && g.coordinates.length === 2 && g.coordinates.every((p) => p[0].every((c) => Math.abs(c[1]) <= 85.05)) && fake._l.get("combo-mask").vis === "visible");
+  lib.comboMaskSet(null);
+  check("the veil goes when nothing is kept", fake._l.get("combo-mask").vis === "none" && /if \(!hide\) \{ comboCut\(null\); comboMaskSet\(null\); \}/.test(src));
+  check("what the combine was made from: the rows showing", lib.comboSig() === "a:0::1");
+}
+
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");

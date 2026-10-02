@@ -975,7 +975,7 @@ function gladSourceSpec(id, spec) {
 // (round 66, asked 26 September): mapped, its land came out purple and its
 // roads violet, which the GLAD mapping was never meant to reach (it says the
 // basemaps are not touched).
-const GLAD_BASE_LAYERS = /^(bg|base|plate-base|base-s2|base-close|hillshade|labels|atlas-plate.*|sat-relief-seabed|sat-relief-sea|holo-.*|sat-relief-colour|outline-.*)$/;
+const GLAD_BASE_LAYERS = /^(bg|combo-mask|base|plate-base|base-s2|base-close|hillshade|labels|atlas-plate.*|sat-relief-seabed|sat-relief-sea|holo-.*|sat-relief-colour|outline-.*)$/;
 function gladLayer(layer) {
   if (!layer || !layer.id || GLAD_BASE_LAYERS.test(layer.id) || layer.type === "custom" || layer.type === "background" || layer.type === "hillshade") return layer;
   if (gladKept(layer.id)) return layer;
@@ -16216,6 +16216,28 @@ function rowVectorLayers(id) {
   return ((style && style.layers) || []).filter((l) => l.id.startsWith(`${id}-`) && ["fill", "line", "circle", "symbol", "heatmap"].includes(l.type) &&
     l.source && l.source !== "boundaries" && !/__crowd|__rise/.test(l.source));
 }
+// Round 140b: a row's GeoJSON file, read once per address (the combine reads
+// every ticked row again at each change); addresses on the map's own
+// protocols (own://, pmtiles:// …) go through those, as the map reads them.
+const ROW_JSON = new Map();
+function rowJson(url) {
+  if (ROW_JSON.has(url)) return ROW_JSON.get(url);
+  const p = (async () => {
+    const scheme = (String(url).match(/^([a-z0-9]+):\/\//i) || [])[1];
+    if (scheme && !/^https?$/i.test(scheme) && PROTOCOL_HANDLERS[scheme]) {
+      const got = await PROTOCOL_HANDLERS[scheme]({ url, type: "json" }, new AbortController());
+      let d = got && got.data;
+      if (d instanceof ArrayBuffer) d = JSON.parse(new TextDecoder().decode(d));
+      else if (typeof d === "string") d = JSON.parse(d);
+      return d;
+    }
+    return getJsonOnce(url, 60000);
+  })();
+  p.catch(() => ROW_JSON.delete(url));
+  ROW_JSON.set(url, p);
+  if (ROW_JSON.size > 8) ROW_JSON.delete(ROW_JSON.keys().next().value);
+  return p;
+}
 async function rowFeatures(id) {
   const out = [], seen = new Set();
   let vector = false;
@@ -16228,7 +16250,7 @@ async function rowFeatures(id) {
     if (s.type === "geojson") {
       let d = null;
       try {
-        if (s._data && typeof s._data.url === "string") d = await (await fetch(s._data.url)).json();
+        if (s._data && typeof s._data.url === "string") d = await rowJson(s._data.url);
         else if (typeof s.getData === "function") d = await s.getData();
       } catch (e) { d = null; }
       if (d) out.push(...(d.type === "FeatureCollection" ? d.features || [] : d.type === "Feature" ? [d] : []));
@@ -16387,7 +16409,7 @@ function comboRowsNow() {
   const out = [];
   for (const [id, vis] of visibility) {
     if (vis !== "visible" || id === COMBO.pr.rid) continue;
-    if (!rowVectorLayers(id).length) continue;
+    if (!rowVectorLayers(id).length && !comboPictureSource(id)) continue;
     out.push(id);
     if (out.length >= COMBO_MAX_ROWS) break;
   }
@@ -16522,7 +16544,11 @@ async function comboBuild() {
       features = [...all.values()];
     }
     const pts = comboPoints(features, comboFigure(id), mode === "peaks" ? "intensity" : "density");
-    const cover = shapeCover(features);
+    let cover = shapeCover(features);
+    // Round 140b: a picture row counts where its picture paints.
+    const pic = await comboPictureGrid(id);
+    if (COMBO.mode !== mode) return null;
+    if (pic) { if (cover) for (let i = 0; i < cover.length; i++) cover[i] += pic[i] * 8; else cover = pic.map((v) => v * 8); }
     if (!pts.length && !cover) { none.push(id); continue; }
     const g = pointReliefGrid(pts, cover);
     if (!(g.max > 0)) { none.push(id); continue; }
@@ -16546,7 +16572,7 @@ async function comboBuild() {
   const keep = new Uint8Array(W * H);
   let n = 0;
   for (let i = 0; i < count.length; i++) if (count[i] === best) { keep[i] = 1; n++; }
-  return { keep: comboShape(keep, W, H), best, used, squares: n };
+  return { keep: comboShape(keep, W, H), keepGrid: keep, W, H, best, used, squares: n };
 }
 function comboSoon(ms) {
   clearTimeout(COMBO.timer);
@@ -16583,35 +16609,150 @@ async function comboDraw() {
   // The surface of rounds 118b-127b is not drawn any more.
   const rid = COMBO.pr.rid;
   for (const l of [`${rid}-tint`, `${rid}-hill`]) if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", "none");
+  COMBO.sigBuilt = comboSig();
   const r = await comboBuild();
   if (COMBO.mode === "off") return;
   for (const [, own] of POINT_RELIEFS) if (map.getLayer(`${own.rid}-tint`)) map.setLayoutProperty(`${own.rid}-tint`, "visibility", "none");
   const nameOf = (id) => { const c = LAYERS.find((x) => x.id === id) || (typeof childById === "function" ? childById(id) : null); return String((c && c.name) || id); };
-  const whole = (COMBO.used || []).filter((id) => rowVectorLayers(id).some((l) => l.type === "fill")).map(nameOf);
+  const faded = (COMBO.used || []).filter((id) => rowVectorLayers(id).some((l) => l.type === "fill") || comboPictureSource(id)).map(nameOf);
   const left = (COMBO.none || []).map(nameOf);
-  const tail = (whole.length ? ` Areas cannot be cut, so these show whole: ${whole.join("; ")}.` : "") +
-    (left.length ? ` Nothing of these is on the map yet, so they take no part: ${left.join("; ")}.` : "") +
-    " Pictures (shaded maps) take no part.";
+  const tail = (faded.length ? ` Areas and pictures cannot be cut along the edge, so outside the meeting places they are faded instead: ${faded.join("; ")}.` : "") +
+    (left.length ? ` Nothing of these has been read yet, so they take no part until it has: ${left.join("; ")}.` : "");
   if (!r || !r.keep) {
     comboCut(null);
+    comboMaskSet(null);
     if (say) say.textContent = (!r || r.best < 2) && !(r && r.empty)
-      ? "Tick two or more layers of points, lines or areas: this keeps only the places where they meet." + tail
+      ? "Tick two or more layers: only the places where they meet will show. The ticked layers are picked up as you tick them." + tail
       : (COMBO.mode === "overlap" ? "The ticked layers do not meet anywhere on what the map has read so far." : "Nowhere are two of the ticked layers in their own top fifth at the same place.") + tail;
     return;
   }
   comboCut(r.keep);
+  comboMaskSet(r);
   if (say) say.textContent = (COMBO.mode === "overlap"
-    ? `Showing only the places where ${r.best} of the ${r.used.length} ticked layers meet (each within about 200 km); everything else of them is hidden.`
-    : `Showing only the places where ${r.best} of the ${r.used.length} ticked layers are each in the top fifth of their own values (within about 200 km); everything else of them is hidden.`)
+    ? `Showing only the places where ${r.best} of the ${r.used.length} ticked layers meet (each within about 200 km); everything else of them is taken away or faded.`
+    : `Showing only the places where ${r.best} of the ${r.used.length} ticked layers are each in the top fifth of their own values (within about 200 km); everything else of them is taken away or faded.`)
     + " Tiled layers are read as you look round, so moving the map can widen what is found." + tail;
 }
+// Round 140b (asked 2 October: "only those parts overlapping should show, the
+// rest deleted or faded out; it should not require having to select the
+// option before selecting the layers or after"):
+//  - every tick, untick or new layer of a row re-runs the combine (the hook in
+//    applyVisibility, and comboSig checked when the map is idle), so the
+//    choice and the ticks can come in either order;
+//  - rows whose data had not arrived are tried again a few times;
+//  - pictures (shaded maps) count where they paint (comboPictureGrid);
+//  - what cannot be cut exactly (areas, pictures) is faded outside the meeting
+//    places by one dark veil (comboMaskSet, layer "combo-mask"), laid just above
+//    the highest picture or area taking part, else just below the lowest row
+//    taking part, so points and lines above it are cut, not veiled.
+const COMBO_MASK = "combo-mask";
+const COMBO_PIC_ZOOM = 2;
+COMBO.pics = new Map();
+COMBO.retries = 0;
+function comboPictureSource(id) {
+  return typeof rowRasterSource === "function" ? rowRasterSource(id) : null;
+}
+// Where a row's picture paints, on the combine's grid, from its squares at a
+// low zoom (16 squares at zoom 2), read once per picture address.
+function comboPictureGrid(id) {
+  const src = comboPictureSource(id);
+  const s = src && map.getSource(src);
+  if (!s || !Array.isArray(s.tiles) || !s.tiles.length) return Promise.resolve(null);
+  const tpl = String(s.tiles[0]).replace(/^gladpx:\/\/[^/]*\//, "");
+  if (COMBO.pics.has(tpl)) return COMBO.pics.get(tpl);
+  const p = (async () => {
+    const z = Math.max(s.minzoom || 0, Math.min(COMBO_PIC_ZOOM, s.maxzoom == null ? 22 : s.maxzoom));
+    if (z > 4) return null;                     // shown only close in: too many squares to read
+    const W = Math.round(360 / POINT_RELIEF_RES), H = Math.round(180 / POINT_RELIEF_RES), n = 1 << z;
+    const out = new Float32Array(W * H);
+    let any = false;
+    const jobs = [];
+    for (let ty = 0; ty < n; ty++) for (let tx = 0; tx < n; tx++) jobs.push([tx, ty]);
+    await Promise.all(jobs.map(async ([tx, ty]) => {
+      let buf = null;
+      try { buf = await riseBytes(riseTileUrl(tpl, z, tx, ty, s.scheme)); } catch (e) { buf = null; }
+      if (!buf) return;
+      let bmp;
+      try { bmp = await createImageBitmap(new Blob([buf])); } catch (e) { return; }
+      const S = bmp.width, T = bmp.height;
+      const cv = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(S, T) : Object.assign(document.createElement("canvas"), { width: S, height: T });
+      const ctx = cv.getContext("2d");
+      ctx.drawImage(bmp, 0, 0);
+      const a = ctx.getImageData(0, 0, S, T).data;
+      const gx0 = Math.floor(tx / n * W), gx1 = Math.ceil((tx + 1) / n * W);
+      for (let gy = 0; gy < H; gy++) {
+        const lat = 90 - (gy + 0.5) * POINT_RELIEF_RES;
+        if (Math.abs(lat) > 85.05) continue;
+        const r = lat * Math.PI / 180;
+        const my = (1 - Math.log(Math.tan(Math.PI / 4 + r / 2)) / Math.PI) / 2 * n;
+        if (Math.floor(my) !== ty) continue;
+        const py = Math.min(T - 1, Math.floor((my - ty) * T));
+        for (let gx = gx0; gx < gx1 && gx < W; gx++) {
+          const mx = ((gx + 0.5) * POINT_RELIEF_RES) / 360 * n;
+          if (Math.floor(mx) !== tx) continue;
+          const px = Math.min(S - 1, Math.floor((mx - tx) * S));
+          if (a[(py * S + px) * 4 + 3] > 24) { out[gy * W + gx] = 1; any = true; }
+        }
+      }
+    }));
+    return any ? out : null;
+  })();
+  p.catch(() => COMBO.pics.delete(tpl));
+  COMBO.pics.set(tpl, p);
+  return p;
+}
+// What the combine was last made from: the rows showing and what each has on the map.
+function comboSig() {
+  const out = [];
+  for (const [id, vis] of visibility) {
+    if (vis !== "visible" || id === COMBO.pr.rid) continue;
+    out.push(`${id}:${rowVectorLayers(id).length}:${comboPictureSource(id) || ""}:${COMBO.weights.has(id) ? COMBO.weights.get(id) : 1}`);
+    if (out.length > 80) break;
+  }
+  return out.join("|");
+}
+// The veil: the world less the kept squares, as runs of squares (no holes).
+function comboMaskSet(r) {
+  if (!r || !r.keepGrid) { if (map.getLayer(COMBO_MASK)) map.setLayoutProperty(COMBO_MASK, "visibility", "none"); return; }
+  const inv = new Uint8Array(r.keepGrid.length);
+  for (let i = 0; i < inv.length; i++) inv[i] = r.keepGrid[i] ? 0 : 1;
+  const shape = comboShape(inv, r.W, r.H);
+  if (shape) for (const poly of shape.coordinates) for (const ring of poly) for (const c of ring) c[1] = Math.max(-85.05, Math.min(85.05, c[1]));
+  const data = shape ? { type: "Feature", properties: {}, geometry: shape } : { type: "FeatureCollection", features: [] };
+  const src = map.getSource(COMBO_MASK);
+  if (src) src.setData(data); else map.addSource(COMBO_MASK, { type: "geojson", data });
+  const order = ((map.getStyle() || {}).layers || []).filter((l) => l.id !== COMBO_MASK);
+  let top = -1, low = -1;
+  for (const id of r.used || []) {
+    order.forEach((l, i) => {
+      if (!l.id.startsWith(`${id}-`) || !l.source || /__crowd|__rise|^relief:/.test(l.source)) return;
+      if (low < 0 || i < low) low = i;
+      if ((l.type === "raster" || l.type === "fill") && i > top) top = i;
+    });
+  }
+  const before = top > -1 ? (order[top + 1] ? order[top + 1].id : undefined) : (low > -1 ? order[low].id : undefined);
+  if (!map.getLayer(COMBO_MASK)) {
+    map.addLayer({ id: COMBO_MASK, type: "fill", source: COMBO_MASK, paint: { "fill-color": "#050A12", "fill-opacity": 0.82, "fill-antialias": false } }, before);
+  } else {
+    try { map.moveLayer(COMBO_MASK, before); } catch (e) { /* stays where it is */ }
+  }
+  map.setLayoutProperty(COMBO_MASK, "visibility", "visible");
+}
+if (typeof map.on === "function") map.on("idle", () => {
+  if (COMBO.mode === "off") return;
+  const sig = comboSig();
+  if (sig !== COMBO.sigBuilt) { COMBO.retries = 0; comboSoon(300); return; }
+  // Rows whose data had not arrived yet are tried again, a few times.
+  if ((COMBO.none || []).length && COMBO.retries < 6) { COMBO.retries++; comboSoon(1500); }
+});
 // Kept for the rows' own marks: nothing is hidden any more, only cut.
 function comboHideRows(hide) {
-  if (!hide) comboCut(null);
+  if (!hide) { comboCut(null); comboMaskSet(null); }
 }
 function comboMode(mode) {
   COMBO.mode = mode;
   COMBO.seen = new Map();
+  COMBO.retries = 0;
   if (mode === "off") {
     clearTimeout(COMBO.timer);
     comboHideRows(false);
@@ -18673,6 +18814,8 @@ function applyVisibility(id) {
   const rc = cfg || (typeof childById === "function" ? childById(id) : null);
   if (rc && rc.linked) for (const l of rc.linked) { visibility.set(l, vis); if (l !== id) applyVisibility(l); }
   if (rc && typeof rc.afterVisibility === "function") rc.afterVisibility(vis);
+  // Round 140b: the combine follows every tick, whether it was chosen before or after.
+  if (typeof COMBO !== "undefined" && COMBO.mode !== "off") comboSoon(600);
   if (cfg && cfg.route === "cerulean" && vis === "visible") {
     // Its timeline is set up the first time it is shown (round 81), so nothing
     // is asked for while the row is off.
@@ -24669,6 +24812,7 @@ function comboBox(box) {
   wrap.id = "combo-box";
   wrap.className = "combo-box";
   wrap.innerHTML = `<div style="font-size:11.5px">Combine the ticked layers: show only where they meet</div>` +
+    `<div style="font-size:10.5px;color:var(--dim)">Choose a way here and tick layers in any order; it follows each tick.</div>` +
     `<select id="combo-mode" aria-label="Combine the ticked layers" style="font:inherit;font-size:11.5px;max-width:100%;margin:3px 0">` +
     COMBO_MODES.map(([k, t]) => `<option value="${k}">${t}</option>`).join("") + `</select>` +
     `<div id="combo-say" style="font-size:10.5px;color:var(--dim)"></div>` +

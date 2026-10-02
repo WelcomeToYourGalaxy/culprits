@@ -5,6 +5,30 @@ touches.
 
 ---
 
+## Round 140b (2 October)
+
+Needs round 139b. No tiles patch. No app.js?v= bump.
+
+- Combine the ticked layers (asked 2 October: it did not work on the map;
+  only the overlapping parts should show, the rest deleted or faded out, and
+  the choice should not depend on being made before or after the ticks):
+  - every tick or untick re-runs it (hook at the end of applyVisibility), and
+    when the map is idle comboSig compares the rows showing with what the
+    combine was made from, so rows whose layers are made late (lazy rows)
+    join too; rows with nothing read yet are tried again up to six times;
+  - pictures (shaded maps) now take part, counted where they paint, read from
+    their zoom-2 squares (comboPictureGrid, cached per picture address);
+  - areas and pictures cannot be cut along an edge, so outside the meeting
+    places they are faded by a dark veil (layer combo-mask, #050A12 at 0.82,
+    kept out of the colour mapping), the world less the kept squares, laid
+    just above the highest picture or area taking part (else just below the
+    lowest row taking part); points and lines are still cut with "within";
+  - rowFeatures reads a row's GeoJSON once per address (rowJson) and through
+    the map's own protocols (fetch alone failed on own:// style addresses).
+- Checked in Chromium (MapLibre 5.24, globe): the within cut keeps only the
+  points inside, the veil covers the rest of an area. The whole map was not
+  run in a browser.
+
 ## Round 139b (2 October)
 
 Needs round 138b. Tiles patch round139b_tiles.py beside it. No app.js?v= bump.
