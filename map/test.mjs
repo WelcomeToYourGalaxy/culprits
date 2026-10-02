@@ -5947,7 +5947,7 @@ console.log("\nround 123b (2 October): keyless imagery, overlap modes, raise off
   check("the satellite and atlas imagery and hillshade are Esri's, as the owner tuned them (round 126b)",
         /"World_Imagery\/MapServer\/tile\/\{z\}\/\{y\}\/\{x\}"\]/.test(src) && /"Elevation\/World_Hillshade\/MapServer\/tile\/\{z\}\/\{y\}\/\{x\}"\]/.test(src) && !/esri-hillshade-off/.test(src));
   check("the two ways to combine are the owner's, and raising is off until ticked",
-        /\["overlap", "Where they overlap the most"\]/.test(src) && /\["peaks", "Where their highest values overlap"\]/.test(src) && /var LIFT_ON = false;/.test(src));
+        /\["overlap", "Where they cross"\]/.test(src) && /\["peaks", "Where their highest values overlap"\]/.test(src) && /var LIFT_ON = false;/.test(src));
   check("hologram blue shading off by default, a saved 'on' not kept once", /shade: false \};/.test(html) && /opt\.shade123/.test(html));
   check("each kind of disaster indented under Every kind together, and the warmer years drawn from Berkeley Earth",
         at("Earthquakes") > at("Every kind together") && order[at("Earthquakes")].h === 5 && order[at("Extreme heat")].h === 5 &&
@@ -6015,7 +6015,7 @@ console.log("\nround 132b (2 October): crops, cropland spread, meat, promises, o
 console.log("\nround 133b (2 October): combining the ticked layers cuts them to where they meet");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  const lib = new Function("POINT_RELIEF_RES", src.slice(src.indexOf("function comboExpr(f)"), src.indexOf("async function comboBuild()")) + "; return { comboExpr, comboJoin, comboShape };")(90);
+  const lib = new Function("POINT_RELIEF_RES", src.slice(src.indexOf("function comboExpr(f)"), src.indexOf("async function comboBuild(")) + "; return { comboExpr, comboJoin, comboShape };")(90);
   check("old-style filters become expressions before the cut is added", JSON.stringify(lib.comboExpr(["all", ["==", "k", "a"], ["!has", "z"], ["in", "t", 1, 2]])) ===
         JSON.stringify(["all", ["==", ["get", "k"], "a"], ["!", ["has", "z"]], ["match", ["get", "t"], [1, 2], true, false]]) &&
         JSON.stringify(lib.comboExpr(["!=", ["get", "x"], "yes"])) === JSON.stringify(["!=", ["get", "x"], "yes"]));
@@ -6026,7 +6026,7 @@ console.log("\nround 133b (2 October): combining the ticked layers cuts them to 
   const sh = lib.comboShape(Uint8Array.from([1, 1, 0, 0, 1, 1, 0, 1]), 4, 2);
   check("kept squares are joined into rectangles", sh.coordinates.length === 2 &&
         JSON.stringify(sh.coordinates[0][0][0]) === "[-180,90]" && JSON.stringify(sh.coordinates[0][0][2]) === "[0,-90]" && JSON.stringify(sh.coordinates[1][0][0]) === "[90,0]");
-  check("the two ways: where the most layers meet, or where the most are in their own top fifth", /if \(count\[i\] === best\) \{ keep\[i\] = 1;/.test(src) && /const COMBO_TOP = 0\.2;/.test(src) &&
+  check("the two ways: where the most layers meet, or where the most are in their own top fifth", /if \(count\[i\] >= 2\) \{ keep\[i\] = 1;/.test(src) && /const COMBO_TOP = 0\.2;/.test(src) &&
         /cut = vals\.length \? vals\[Math\.floor\(vals\.length \* \(1 - COMBO_TOP\)\)\] : Infinity;/.test(src));
   check("the layers are cut, not hidden, and nothing turns on 3D", /function comboCut\(shape\)/.test(src) && !/comboHideRows\(true\)/.test(src) &&
         !/reliefGround\(rid, true, true\);\n  \} else \{\n    if \(map\.getLayer\(`\$\{rid\}-hill`\)\)/.test(src) && /setFilter[^\n]*\n  if \(!COMBO_BYPASS && COMBO_OWN\.has\(id\)\)/.test(src));
@@ -6076,33 +6076,45 @@ console.log("\nround 139b (2 October): fish caught and farmed, country by countr
   check("FAO capture and aquaculture under Marine meats and under Oceans > Fishing", /id: "fao_capture"[^\n]*route: "country"/.test(src) && /id: "fao_aquaculture"[^\n]*route: "country"/.test(src) &&
         /t: "Wild-caught fish" \}, "fao_capture",/.test(src) && /t: "Fish and shrimp farms" \}, "fao_aquaculture",/.test(src) && /"fao_capture", "fishing", "iuu_vessels", "iuu_positions", "fao_aquaculture"/.test(src));
 }
-console.log("\nround 140b (2 October): combine in any order; areas and pictures faded outside");
+console.log("\nround 140b-142b (2 October): combine in any order; base map kept, crossings outlined");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("each tick reaches the combine, whichever came first", /Round 140b: the combine follows every tick[^\n]*\n  if \(typeof COMBO !== "undefined" && COMBO\.mode !== "off"\) comboSoon\(600\);/.test(src) &&
         /map\.on\("idle", \(\) => \{\n  if \(COMBO\.mode === "off"\) return;\n  const sig = comboSig\(\);/.test(src));
   check("pictures take part, counted where they paint", /if \(!rowVectorLayers\(id\)\.length && !comboPictureSource\(id\)\) continue;/.test(src) && /const pic = await comboPictureGrid\(id\);/.test(src));
   check("the veil is kept out of the colour mapping", /const GLAD_BASE_LAYERS = \/\^\(bg\|combo-mask\.\*\|/.test(src));
-  // The veil: the world less the kept squares, above the highest picture or area taking part.
-  const added = [], moved = [];
-  const layers = [{ id: "base", type: "raster", source: "base" }, { id: "a-raster", type: "raster", source: "a-src" }, { id: "b-pt", type: "circle", source: "b-src" }];
+  // Round 142b: no veil; lines and areas clipped, crossings outlined, polar rows out.
+  const added = [];
   const fake = { _l: new Map(), _s: new Map(),
     getLayer(id) { return this._l.get(id); }, getSource(id) { return this._s.get(id); },
     addSource(id, sp) { this._s.set(id, { data: sp.data, setData(d) { this.data = d; } }); },
-    addLayer(l, before) { added.push([l.id, before]); this._l.set(l.id, l); }, moveLayer(id, b) { moved.push([id, b]); },
-    setLayoutProperty(id, k, v) { this._l.get(id).vis = v; }, getStyle() { return { layers }; } };
-  const s0 = src.indexOf("const COMBO_MASK = "), s1 = src.indexOf("if (typeof map.on === \"function\") map.on(\"idle\"");
-  const lib = new Function("map", "COMBO", "POINT_RELIEF_RES", "visibility", "rowVectorLayers", "hudMates",
-    src.slice(src.indexOf("function comboShape(keep, W, H)"), src.indexOf("function comboPoints(")) + src.slice(s0, s1) + "; return { comboMaskSet, comboSig };")(fake, { pr: { rid: "x" }, weights: new Map() }, 90, new Map([["a", "visible"], ["b", "none"]]), (id) => layers.filter((l) => l.type !== "raster" && l.id.startsWith(`${id}-`)), () => []);
-  lib.comboMaskSet({ keepGrid: Uint8Array.from([1, 0, 0, 0, 0, 0, 0, 0]), W: 4, H: 2, used: ["a", "b"] });
-  const g = fake._s.get("combo-mask").data.geometry;
-  check("the veil covers every square but the kept one, clamped to the map's latitudes", added[0][0] === "combo-mask" && added[0][1] === undefined &&
-        g.type === "MultiPolygon" && g.coordinates.length === 2 && g.coordinates.every((p) => p[0].every((c) => Math.abs(c[1]) <= 85.05)) && fake._l.get("combo-mask").vis === "visible");
-  lib.comboMaskSet(null);
-  check("the veil goes when nothing is kept", fake._l.get("combo-mask").vis === "none" && /if \(!hide\) \{ comboCut\(null\); comboMaskSet\(null\); \}/.test(src));
+    addLayer(l, before) { added.push([l.id, before]); this._l.set(l.id, l); }, moveLayer() {},
+    setLayoutProperty(id, k, v) { this._l.get(id).vis = v; }, getStyle() { return { layers: [] }; } };
+  const cut = (a, b) => src.slice(src.indexOf(a), src.indexOf(b));
+  const lib = new Function("map", "COMBO", "POINT_RELIEF_RES", "visibility", "rowVectorLayers", "rowRasterSource",
+    cut("function comboShape(keep, W, H)", "function comboPoints(") + cut("function comboPictureSource(id)", "// A picture's own address") +
+    cut("function comboSig()", "const COMBO_COPY = new Map();") + "const COMBO_MASK = \"combo-mask\", COMBO_EDGE = \"#CFEAF4\", COMBO_EDGE_MOST = \"#9FD8EA\";" +
+    cut("function comboEdges(keep, W, H)", "if (typeof map.on === \"function\") map.on(\"idle\"") + "; return { comboMaskSet, comboSig, comboClip, comboRects, comboEdges, comboShape };")(
+    fake, { pr: { rid: "x" }, weights: new Map() }, 90, new Map([["a", "visible"], ["b", "none"]]), () => [], () => null);
   check("what the combine was made from: the rows showing", lib.comboSig() === "a:0::1");
-  check("round 141b: the veil above every layer taking part, nearly opaque, crossings edged", added.map((a) => a[0]).join() === "combo-mask,combo-mask-glow,combo-mask-edge" &&
-        /const COMBO_VEIL = 0\.94;/.test(src) && fake._l.get("combo-mask-edge").vis === "none");
+  const rects = lib.comboRects(lib.comboShape(Uint8Array.from([0, 0, 1, 0, 0, 0, 0, 0]), 4, 2));
+  const clipped = lib.comboClip([{ properties: { k: 1 }, geometry: { type: "Polygon", coordinates: [[[-10, -10], [50, -10], [50, 50], [-10, 50], [-10, -10]]] } },
+    { properties: {}, geometry: { type: "LineString", coordinates: [[-50, 10], [120, 10]] } }, { properties: {}, geometry: { type: "Point", coordinates: [10, 10] } }], rects);
+  check("areas and lines are cut to the crossings, their fields kept", JSON.stringify(rects) === "[[0,0,90,90]]" && clipped.length === 2 && clipped[0].properties.k === 1 &&
+        JSON.stringify(clipped[0].geometry.coordinates[0][0].map((c) => c.map(Math.round)).sort()) === JSON.stringify([[50, 0], [50, 50], [0, 50], [0, 0], [50, 0]].sort()) &&
+        JSON.stringify(clipped[1].geometry.coordinates) === "[[[0,10],[90,10]]]");
+  const edges = lib.comboEdges(Uint8Array.from([1, 1, 0, 0, 0, 0, 0, 0]), 4, 2);
+  check("the outline goes round the crossings, not along each square", edges.length === 4 && edges.some((l) => JSON.stringify(l) === "[[-180,90],[0,90]]") && edges.some((l) => JSON.stringify(l) === "[[-180,0],[0,0]]"));
+  lib.comboMaskSet({ keepGrid: Uint8Array.from([1, 1, 0, 0, 0, 0, 0, 0]), count: Uint8Array.from([3, 2, 0, 0, 0, 0, 0, 0]), W: 4, H: 2, best: 3, used: ["a", "b", "c"] });
+  check("crossings edged in pale ice, the most-crossed brighter and thicker, no veil over the base map", added.map((a) => a[0]).join() === "combo-mask-edge,combo-mask-most" &&
+        fake._l.get("combo-mask-most").paint["line-width"] > fake._l.get("combo-mask-edge").paint["line-width"] && !/fill-opacity": COMBO_VEIL/.test(src) && !/id: COMBO_MASK, type: "fill"/.test(src));
+  lib.comboMaskSet(null);
+  check("the outline goes when nothing is kept", fake._l.get("combo-mask-edge").vis === "none" && /if \(!hide\) \{ COMBO\.lastKey = null; COMBO\.keepGrid = null; comboCut\(null\); comboMaskSet\(null\); \}/.test(src));
+  check("no squares past 85 degrees (they drew lines round the world)", /if \(Math\.abs\(90 - \(y \+ 0\.5\) \* POINT_RELIEF_RES\) > 85\) count\.fill\(0, y \* W, \(y \+ 1\) \* W\);/.test(src));
+  check("an older run is dropped when a newer one starts", /const gen = \+\+COMBO\.gen;/.test(src) && /if \(COMBO\.mode === "off" \|\| gen !== COMBO\.gen\) return;/.test(src) && /const stale = \(\) =>/.test(src));
+  check("pictures are clipped pixel by pixel, and put back after", /maplibregl\.addProtocol\("combocut"/.test(src) && /s\.setTiles\(own\.map\(\(t\) => `combocut:\/\/\$\{COMBO\.gen\}\/\{z\}\/\{x\}\/\{y\}\/\$\{t\}`\)\)/.test(src) &&
+        /if \(cur && \/\^combocut:\/\.test\(cur\[0\]\) && typeof s\.setTiles === "function"\) s\.setTiles\(tiles\);/.test(src));
+  check("the same crossings leave the map untouched", /if \(key !== COMBO\.lastKey\) \{/.test(src) && /ms == null \? 400 : ms/.test(src));
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");

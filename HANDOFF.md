@@ -5,6 +5,36 @@ touches.
 
 ---
 
+## Round 142b (2 October)
+
+Needs round 141b. No tiles patch. No app.js?v= bump.
+
+- Combine the ticked layers (asked 2 October: the base map must show for
+  context; a third layer ticked did not update it; lines ran round the
+  southern hemisphere; too slow):
+  - no veil over the map any more: what is not a crossing is taken off the
+    layers themselves. Points by "within" as before; lines and areas drawn
+    again from their own features clipped to the crossings (comboCopies,
+    comboClip: layers <layer>__cut on source <row>__cut, the originals made
+    clear and put back after); pictures clipped pixel by pixel through a new
+    combocut:// protocol (setTiles, put back after). The base map shows
+    everywhere.
+  - every crossing of two or more layers is kept (was only where the most
+    meet), so a third layer adds its crossings; the outline is drawn round
+    the crossings only (comboEdges), pale ice, and brighter and thicker where
+    the most cross. Menu choice renamed "Where they cross".
+  - squares past 85 degrees take no part (pictures covering Antarctica made
+    full-width squares there, drawn as lines round the world).
+  - each run is numbered (COMBO.gen): an older run still reading when a newer
+    one starts is dropped (it had overwritten the newer one: the third layer
+    lost). A run that finds the same crossings from the same rows touches
+    nothing on the map (COMBO.lastKey); first run 400 ms after a tick (was up
+    to 1.8 s).
+- Checked in Chromium (MapLibre 5.24, globe) on a test page with the code:
+  an area cut to the crossing, a picture cleared outside it, the outline and
+  the brighter inner outline drawn, everything put back when turned off. The
+  whole map was not run in a browser.
+
 ## Round 141b (2 October)
 
 Needs round 140b. No tiles patch. No app.js?v= bump.
