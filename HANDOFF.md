@@ -5,6 +5,26 @@ touches.
 
 ---
 
+## Round 133b (2 October)
+
+Needs round 132b. No tiles patch. No app.js?v= bump.
+
+- Combine the ticked layers now cuts the ticked layers to where they meet,
+  instead of drawing one surface in their place (asked 2 October). "Where
+  they overlap the most": only the squares (0.25 degrees, each layer present
+  within about 200 km) where the most ticked layers meet, two at least.
+  "Where their highest values overlap": only the squares where the most
+  layers are each in the top fifth of their own values (COMBO_TOP).
+- The cut is a MapLibre "within" filter added to each layer's own filter
+  (COMBO_OWN; a setFilter wrapper keeps later filter changes, comboExpr turns
+  old-style filters into expressions). Layers are never hidden, so tiled
+  layers keep loading; what the map has seen of them is kept (COMBO.seen) and
+  the cut is made again as the map moves. Areas (fill layers) count but show
+  whole ("within" cannot cut them); pictures take no part; the box names both.
+- The weights menu is now "takes part" / "left out". No 3D, no raised ground.
+- Checked in Chromium (MapLibre 5.24): a within filter joined to a layer's own
+  filter shows only the points inside. The whole map was not run in a browser.
+
 ## Round 132b (2 October)
 
 Needs round 131b. Tiles patch round132b_tiles.py beside it. No app.js?v= bump.

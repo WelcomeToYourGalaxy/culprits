@@ -5896,7 +5896,7 @@ console.log("\nround 120b (1 October): news box titles, no automatic tilt, NASA 
   check("a click on another region opens it in place of the one open", /map\.queryRenderedFeatures\(e\.point, \{ layers: own \}\)\.length\) return;/.test(src));
   check("the numbered cities' tips have a solid box", /background:rgba\(16,20,26,0\.96\)/.test(src));
   check("the combined surface sits at the top of the layers menu, hides the layers it combines, and says what the weights do",
-        /comboBox\(box\);\n  layerSearch\(box\);/.test(src) && /function comboHideRows\(hide\)/.test(src) && /Every layer counts once unless you change it/.test(src) && !/data-sect="combo"/.test(src));
+        /comboBox\(box\);\n  layerSearch\(box\);/.test(src) && /function comboHideRows\(hide\)/.test(src) && /Every ticked layer takes part unless you leave it out/.test(src)   /* round 133b: cut, not hidden */ && !/data-sect="combo"/.test(src));
   const o = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("];", src.indexOf("const PANEL_ORDER = [")) + 2) + "; return PANEL_ORDER;")();
   const at = (t, from = 0) => o.findIndex((x, i) => i >= from && x && x.t === t);
   const ch4 = at("Methane"), n2o = at("Nitrous oxide"), fg = at("F-gases");
@@ -6011,6 +6011,25 @@ console.log("\nround 132b (2 October): crops, cropland spread, meat, promises, o
   check("Deforestation promises heading", src.includes('{ h: 4, t: "Deforestation promises" }') && src.includes('" > Deforestation > Deforestation promises"'));
   check("Every human impact together leads Oceans, with notes", /\{ h: 3, t: "Oceans" \},\n  \{ note: [^\n]*\},\n  \{ h: 4, t: "Every human impact together" \}, "ocean_impacts",/.test(src) && (src.match(/tag: "[^"]*Every human impact together layer/g) || []).length === 8);
   check("heatwaves and bleaching are two rows of the same files", /id: "ocean_bleaching"[^\n]*choiceMatch/.test(src) && /id: "ocean_heat"[^\n]*choiceMatch: \/\^Sea surface temperature\/i/.test(src));
+}
+console.log("\nround 133b (2 October): combining the ticked layers cuts them to where they meet");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const lib = new Function("POINT_RELIEF_RES", src.slice(src.indexOf("function comboExpr(f)"), src.indexOf("async function comboBuild()")) + "; return { comboExpr, comboJoin, comboShape };")(90);
+  check("old-style filters become expressions before the cut is added", JSON.stringify(lib.comboExpr(["all", ["==", "k", "a"], ["!has", "z"], ["in", "t", 1, 2]])) ===
+        JSON.stringify(["all", ["==", ["get", "k"], "a"], ["!", ["has", "z"]], ["match", ["get", "t"], [1, 2], true, false]]) &&
+        JSON.stringify(lib.comboExpr(["!=", ["get", "x"], "yes"])) === JSON.stringify(["!=", ["get", "x"], "yes"]));
+  const cut = { type: "MultiPolygon", coordinates: [] };
+  check("a layer's own filter is kept and the cut added", JSON.stringify(lib.comboJoin(null, cut)) === JSON.stringify(["within", cut]) &&
+        JSON.stringify(lib.comboJoin(["has", "a"], cut)) === JSON.stringify(["all", ["has", "a"], ["within", cut]]) && lib.comboJoin(["has", "a"], null)[0] === "has");
+  // 4 x 2 squares of 90 degrees: the two left squares of both lines, one rectangle.
+  const sh = lib.comboShape(Uint8Array.from([1, 1, 0, 0, 1, 1, 0, 1]), 4, 2);
+  check("kept squares are joined into rectangles", sh.coordinates.length === 2 &&
+        JSON.stringify(sh.coordinates[0][0][0]) === "[-180,90]" && JSON.stringify(sh.coordinates[0][0][2]) === "[0,-90]" && JSON.stringify(sh.coordinates[1][0][0]) === "[90,0]");
+  check("the two ways: where the most layers meet, or where the most are in their own top fifth", /if \(count\[i\] === best\) \{ keep\[i\] = 1;/.test(src) && /const COMBO_TOP = 0\.2;/.test(src) &&
+        /cut = vals\.length \? vals\[Math\.floor\(vals\.length \* \(1 - COMBO_TOP\)\)\] : Infinity;/.test(src));
+  check("the layers are cut, not hidden, and nothing turns on 3D", /function comboCut\(shape\)/.test(src) && !/comboHideRows\(true\)/.test(src) &&
+        !/reliefGround\(rid, true, true\);\n  \} else \{\n    if \(map\.getLayer\(`\$\{rid\}-hill`\)\)/.test(src) && /setFilter[^\n]*\n  if \(!COMBO_BYPASS && COMBO_OWN\.has\(id\)\)/.test(src));
 }
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {

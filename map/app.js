@@ -16363,6 +16363,75 @@ function comboRowsNow() {
   }
   return out;
 }
+// Round 133b (asked 2 October: "I was expecting it to remove any parts of the
+// layers not overlapping spatially (where they overlap the most) and those not
+// highest values (where highest values overlap)"): the ticked layers stay as
+// they are drawn, cut to the places that pass, instead of one surface in their
+// place. Each place is a square of POINT_RELIEF_RES degrees; a layer is present
+// in it when anything of it lies within about 200 km (the grid's smoothing).
+//   overlap - kept: the squares where the most of the ticked layers meet (two
+//             at least);
+//   peaks   - kept: the squares where the most layers are each in the top
+//             fifth of their own values (by the figure the layer is coloured
+//             by, else how many places crowd there), two at least.
+// A layer's own filter (facets, year bars) is kept and the cut added to it
+// (COMBO_OWN); the layers are never hidden, so their tiles keep loading and
+// what the map has seen of a tiled layer is kept as the reader looks round
+// (COMBO.seen). Areas (fill layers) cannot be cut by MapLibre's "within"; they
+// count towards where the others meet and are shown whole. Pictures are not
+// read. Nothing here turns on 3D or raised ground.
+const COMBO_TOP = 0.2;
+const COMBO_OWN = new Map();     // layer id -> its own filter while the cut is on
+let COMBO_BYPASS = false;
+hudWrap("setFilter", (raw) => function (id, f, o) {
+  if (!COMBO_BYPASS && COMBO_OWN.has(id)) {
+    COMBO_OWN.set(id, f == null ? null : f);
+    return raw(id, comboJoin(f, COMBO.cut), o);
+  }
+  return raw(id, f, o);
+});
+// Old-style filters (["==", "key", v]) cannot sit inside an expression; they
+// are rewritten as expressions first.
+function comboExpr(f) {
+  if (!Array.isArray(f) || !f.length) return f;
+  const op = f[0], k = f[1];
+  const get = (key) => (key === "$type" ? ["geometry-type"] : key === "$id" ? ["id"] : ["get", key]);
+  if ((op === "all" || op === "any") && f.slice(1).every(Array.isArray)) return [op, ...f.slice(1).map(comboExpr)];
+  if (op === "none" && f.slice(1).every(Array.isArray)) return ["!", ["any", ...f.slice(1).map(comboExpr)]];
+  if (typeof k !== "string") return f;
+  if (["==", "!=", "<", ">", "<=", ">="].includes(op) && f.length === 3) return [op, get(k), f[2]];
+  if (op === "in" && f.length >= 3) return ["match", get(k), f.slice(2), true, false];
+  if (op === "!in" && f.length >= 2) return f.length === 2 ? true : ["match", get(k), f.slice(2), false, true];
+  if (op === "has") return ["has", k];
+  if (op === "!has") return ["!", ["has", k]];
+  return f;
+}
+function comboJoin(own, cut) {
+  if (!cut) return own == null ? null : own;
+  const w = ["within", cut];
+  return own == null ? w : ["all", comboExpr(own), w];
+}
+// Kept squares as a MultiPolygon: runs along each line of squares, a run
+// joined with the same run on the lines below.
+function comboShape(keep, W, H) {
+  const res = POINT_RELIEF_RES, open = new Map(), polys = [];
+  const close = (r) => polys.push([[[r.x0 * res - 180, 90 - r.y0 * res], [r.x1 * res - 180, 90 - r.y0 * res],
+    [r.x1 * res - 180, 90 - r.y1 * res], [r.x0 * res - 180, 90 - r.y1 * res], [r.x0 * res - 180, 90 - r.y0 * res]]]);
+  for (let y = 0; y <= H; y++) {
+    const runs = new Map();
+    if (y < H) for (let x = 0; x < W; x++) {
+      if (!keep[y * W + x]) continue;
+      let e = x; while (e + 1 < W && keep[y * W + e + 1]) e++;
+      runs.set(`${x},${e + 1}`, true);
+      x = e;
+    }
+    for (const [k, r] of open) {
+      if (runs.has(k)) { r.y1 = y + 1; runs.delete(k); } else { close(r); open.delete(k); }
+    }
+    for (const k of runs.keys()) { const [x0, x1] = k.split(",").map(Number); open.set(k, { x0, x1, y0: y, y1: y + 1 }); }
+  }
+  return polys.length ? { type: "MultiPolygon", coordinates: polys } : null;
+}
 function comboPoints(features, field, mode) {
   const pts = reliefPoints(features);
   if (mode !== "intensity") return pts;
@@ -16400,125 +16469,124 @@ async function comboBuild() {
   comboList();
   if (mode === "off" || !ids.length) return null;
   const W = Math.round(360 / POINT_RELIEF_RES), H = Math.round(180 / POINT_RELIEF_RES);
-  const sum = new Float32Array(W * H);
-  const present = new Uint8Array(W * H);
-  let any = false, used = 0;
+  const count = new Uint8Array(W * H);
+  const used = [], none = [];
+  COMBO.seen = COMBO.seen || new Map();
   for (const id of ids) {
     const wt = COMBO.weights.has(id) ? COMBO.weights.get(id) : 1;
     if (!(wt > 0)) continue;
-    const { features } = await rowFeatures(id);
+    const got = await rowFeatures(id);
     if (COMBO.mode !== mode) return null;           // changed meanwhile
+    let features = got.features;
+    if (got.vector) {
+      // A tiled layer: everything the map has shown of it so far, once each.
+      const all = COMBO.seen.get(id) || new Map();
+      for (const f of features) {
+        const g = f && f.geometry;
+        if (!g) continue;
+        const c = g.type === "Point" ? g.coordinates : null;
+        const k = c ? `${c[0].toFixed(4)},${c[1].toFixed(4)},${(f.properties || {}).id || ""}` : `${f.id}|${JSON.stringify(g.coordinates).slice(0, 80)}`;
+        all.set(k, { geometry: g, properties: f.properties || {} });
+      }
+      COMBO.seen.set(id, all);
+      features = [...all.values()];
+    }
     const pts = comboPoints(features, comboFigure(id), mode === "peaks" ? "intensity" : "density");
     const cover = shapeCover(features);
-    if (!pts.length && !cover) continue;
+    if (!pts.length && !cover) { none.push(id); continue; }
     const g = pointReliefGrid(pts, cover);
-    if (!(g.max > 0)) continue;
-    // Present at a place: anything of the row within about 200 km.
+    if (!(g.max > 0)) { none.push(id); continue; }
     const floor = g.max * 0.02;
-    for (let i = 0; i < sum.length; i++) {
-      const v = g.g[i];
-      if (!(v > floor)) continue;
-      present[i]++;
-      sum[i] += mode === "overlap" ? wt : wt * (v / g.max);
+    let cut = floor;
+    if (mode === "peaks") {
+      // The top fifth of the squares the layer reaches, by its own values.
+      const vals = [];
+      for (const v of g.g) if (v > floor) vals.push(v);
+      vals.sort((a, b) => a - b);
+      cut = vals.length ? vals[Math.floor(vals.length * (1 - COMBO_TOP))] : Infinity;
     }
-    used++;
-    any = true;
+    for (let i = 0; i < count.length; i++) if (g.g[i] > floor && g.g[i] >= cut) count[i]++;
+    used.push(id);
   }
-  if (!any) return null;
-  // With two or more layers, only the places where at least two of them meet
-  // count; with one, its own spread shows. Highest values are scaled by the
-  // share of the layers present, so one layer's peak alone does not top it.
-  for (let i = 0; i < sum.length; i++) {
-    if (used >= 2 && present[i] < 2) { sum[i] = 0; continue; }
-    if (mode === "peaks") sum[i] *= present[i] / used;
-  }
-  let max = 0; for (const v of sum) if (v > max) max = v;
-  // Scaled up so the log steps of the bands spread as a row's own do.
-  const K = 1000 / (max || 1);
-  for (let i = 0; i < sum.length; i++) sum[i] *= K;
-  return { g: sum, W, H, max: 1000 };
+  COMBO.none = none;
+  COMBO.used = used;
+  if (used.length < 2) return { keep: null, best: used.length, used };
+  let best = 0; for (const c of count) if (c > best) best = c;
+  if (best < 2) return { keep: null, best, used, empty: true };
+  const keep = new Uint8Array(W * H);
+  let n = 0;
+  for (let i = 0; i < count.length; i++) if (count[i] === best) { keep[i] = 1; n++; }
+  return { keep: comboShape(keep, W, H), best, used, squares: n };
 }
 function comboSoon(ms) {
   clearTimeout(COMBO.timer);
   if (COMBO.mode === "off") { comboList(); return; }
   COMBO.timer = setTimeout(() => { comboDraw(); }, ms == null ? 1800 : ms);
 }
-async function comboDraw() {
-  const pr = COMBO.pr, rid = pr.rid;
-  const say = typeof document !== "undefined" && document.getElementById ? document.getElementById("combo-say") : null;
-  const grid = await comboBuild();
-  if (!grid) {
-    if (map.getLayer(`${rid}-tint`)) map.setLayoutProperty(`${rid}-tint`, "visibility", "none");
-    if (map.getLayer(`${rid}-hill`)) map.setLayoutProperty(`${rid}-hill`, "visibility", "none");
-    reliefGround(rid, false);
-    if (say) say.textContent = COMBO.mode === "off" ? "" : "Tick one or more layers of points or areas to see them as one surface.";
-    return;
+// The cut on every layer of the rows taking part; the rest left as they were.
+function comboCut(shape) {
+  COMBO.cut = shape || null;
+  const want = new Set();
+  if (shape) for (const id of COMBO.used || []) {
+    const ls = rowVectorLayers(id);
+    if (ls.some((l) => l.type === "fill")) continue;          // areas shown whole
+    for (const l of ls) for (const lid of [l.id, ...hudMates(l.id)]) want.add(lid);
   }
-  pr.grid = grid;
-  if (!RELIEFS.has(rid)) RELIEFS.set(rid, { values: pointReliefValues(pr), colour: (v) => (v > 0.04 ? [0, 0, 0, 255] : [0, 0, 0, 0]), height: (v) => v, top: 150000, maxzoom: 8 });
-  const r = RELIEFS.get(rid);
-  r._cache = null;
-  const q = Date.now().toString(36);
-  if (!map.getSource(`${rid}-col`)) map.addSource(`${rid}-col`, { type: "raster", tiles: [`relief://${rid}/col/{z}/{x}/{y}?${q}`], tileSize: 256, maxzoom: 8 });
-  else if (map.getSource(`${rid}-col`).setTiles) map.getSource(`${rid}-col`).setTiles([`relief://${rid}/col/{z}/{x}/{y}?${q}`]);
-  if (!map.getLayer(`${rid}-tint`)) {
-    map.addLayer({ id: `${rid}-tint`, type: "raster", source: `${rid}-col`,
-      paint: { "raster-opacity": ["interpolate", ["linear"], ["zoom"], ...DENSITY_FADE.flat()], "raster-resampling": "nearest" } });
-    for (const c of RELIEF_BANDS) GLAD_OUT.add(hexOf(c));
-  }
-  // Under the lowest of the ticked rows' own marks, above every picture.
-  const order = ((map.getStyle() || {}).layers || []).map((l) => l.id);
-  const marks = COMBO.rows.flatMap((id) => rowVectorLayers(id).map((l) => l.id)).filter((x) => order.includes(x));
-  const lowest = marks.sort((a, b) => order.indexOf(a) - order.indexOf(b))[0];
-  if (lowest && typeof map.moveLayer === "function") { map.moveLayer(`${rid}-tint`, lowest); if (map.getLayer(`${rid}-hill`)) map.moveLayer(`${rid}-hill`, `${rid}-tint`); }
-  map.setLayoutProperty(`${rid}-tint`, "visibility", "visible");
-  // The rows' own bands step aside while the surface of all of them shows.
-  for (const [id, own] of POINT_RELIEFS) if (map.getLayer(`${own.rid}-tint`)) map.setLayoutProperty(`${own.rid}-tint`, "visibility", "none");
-  // Round 120b (asked 1 October: "when it's on, the individual layers should
-  // not show, only the combined one"): the rows' own marks step aside too.
-  comboHideRows(true);
-  if (LIFT_ON) {
-    if (!map.getSource(`${rid}-dem`)) {
-      map.addSource(`${rid}-dem`, { type: "raster-dem", tiles: [`relief://${rid}/dem/{z}/{x}/{y}?${q}`], tileSize: 256, maxzoom: 8, encoding: "mapbox" });
-      map.addSource(`${rid}-shade`, { type: "raster-dem", tiles: [`relief://${rid}/dem/{z}/{x}/{y}?${q}`], tileSize: 256, maxzoom: 8, encoding: "mapbox" });
-      map.addLayer({ id: `${rid}-hill`, type: "hillshade", source: `${rid}-shade`, paint: Object.assign({}, RELIEF_SHADE) }, `${rid}-tint`);
-    } else for (const kind of ["dem", "shade"]) { const sr = map.getSource(`${rid}-${kind}`); if (sr && sr.setTiles) sr.setTiles([`relief://${rid}/dem/{z}/{x}/{y}?${q}`]); }
-    map.setLayoutProperty(`${rid}-hill`, "visibility", "visible");
-    reliefGround(rid, true, true);
-  } else {
-    if (map.getLayer(`${rid}-hill`)) map.setLayoutProperty(`${rid}-hill`, "visibility", "none");
-    reliefGround(rid, false);
-  }
-  const two = COMBO.rows.length >= 2;
-  if (say) say.textContent = COMBO.mode === "overlap"
-    ? (two ? "Shaded where two or more of the ticked layers are present within about 200 km. Light: two layers meet; dark: the most layers meet." : "Tick a second layer: this shows where layers meet. For now it shows where the one layer reaches.")
-    : (two ? "Shaded where two or more ticked layers meet, by how high their own values are there (each layer scaled to its own highest; places count by the figure the layer is coloured by, else how many places crowd there). Dark: several layers at their highest in the same place."
-           : "Tick a second layer: this shows where layers' highest values meet. For now it shows the one layer's highest values.");
-}
-function comboHideRows(hide) {
-  COMBO.hidden = COMBO.hidden || new Set();
-  if (hide) {
-    for (const id of COMBO.rows) for (const l of rowVectorLayers(id)) {
-      if (map.getLayoutProperty(l.id, "visibility") === "none") continue;
-      map.setLayoutProperty(l.id, "visibility", "none");
-      COMBO.hidden.add(l.id);
+  COMBO_BYPASS = true;
+  try {
+    for (const [lid, own] of [...COMBO_OWN]) {
+      if (want.has(lid)) continue;
+      if (map.getLayer(lid)) map.setFilter(lid, own);
+      COMBO_OWN.delete(lid);
     }
+    for (const lid of want) {
+      if (!map.getLayer(lid)) continue;
+      const own = COMBO_OWN.has(lid) ? COMBO_OWN.get(lid) : (map.getFilter(lid) == null ? null : map.getFilter(lid));
+      COMBO_OWN.set(lid, own);
+      try { map.setFilter(lid, comboJoin(own, shape)); }
+      catch (e) { map.setFilter(lid, own); COMBO_OWN.delete(lid); }
+    }
+  } finally { COMBO_BYPASS = false; }
+}
+async function comboDraw() {
+  const say = typeof document !== "undefined" && document.getElementById ? document.getElementById("combo-say") : null;
+  // The surface of rounds 118b-127b is not drawn any more.
+  const rid = COMBO.pr.rid;
+  for (const l of [`${rid}-tint`, `${rid}-hill`]) if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", "none");
+  const r = await comboBuild();
+  if (COMBO.mode === "off") return;
+  for (const [, own] of POINT_RELIEFS) if (map.getLayer(`${own.rid}-tint`)) map.setLayoutProperty(`${own.rid}-tint`, "visibility", "none");
+  const nameOf = (id) => { const c = LAYERS.find((x) => x.id === id) || (typeof childById === "function" ? childById(id) : null); return String((c && c.name) || id); };
+  const whole = (COMBO.used || []).filter((id) => rowVectorLayers(id).some((l) => l.type === "fill")).map(nameOf);
+  const left = (COMBO.none || []).map(nameOf);
+  const tail = (whole.length ? ` Areas cannot be cut, so these show whole: ${whole.join("; ")}.` : "") +
+    (left.length ? ` Nothing of these is on the map yet, so they take no part: ${left.join("; ")}.` : "") +
+    " Pictures (shaded maps) take no part.";
+  if (!r || !r.keep) {
+    comboCut(null);
+    if (say) say.textContent = (!r || r.best < 2) && !(r && r.empty)
+      ? "Tick two or more layers of points, lines or areas: this keeps only the places where they meet." + tail
+      : (COMBO.mode === "overlap" ? "The ticked layers do not meet anywhere on what the map has read so far." : "Nowhere are two of the ticked layers in their own top fifth at the same place.") + tail;
     return;
   }
-  for (const lid of COMBO.hidden) {
-    const row = gladRowOf(lid) || lid.split("-")[0];
-    if (map.getLayer(lid) && (visibility.get(row) || "visible") === "visible") map.setLayoutProperty(lid, "visibility", "visible");
-  }
-  COMBO.hidden.clear();
+  comboCut(r.keep);
+  if (say) say.textContent = (COMBO.mode === "overlap"
+    ? `Showing only the places where ${r.best} of the ${r.used.length} ticked layers meet (each within about 200 km); everything else of them is hidden.`
+    : `Showing only the places where ${r.best} of the ${r.used.length} ticked layers are each in the top fifth of their own values (within about 200 km); everything else of them is hidden.`)
+    + " Tiled layers are read as you look round, so moving the map can widen what is found." + tail;
+}
+// Kept for the rows' own marks: nothing is hidden any more, only cut.
+function comboHideRows(hide) {
+  if (!hide) comboCut(null);
 }
 function comboMode(mode) {
   COMBO.mode = mode;
+  COMBO.seen = new Map();
   if (mode === "off") {
-    comboHideRows(false);
     clearTimeout(COMBO.timer);
+    comboHideRows(false);
     const rid = COMBO.pr.rid;
     for (const l of [`${rid}-tint`, `${rid}-hill`]) if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", "none");
-    reliefGround(rid, false);
     // The rows' own bands come back.
     for (const [id, pr] of POINT_RELIEFS) if ((visibility.get(id) || "none") === "visible") densityBandsShow(id, pr, true);
     const say = document.getElementById && document.getElementById("combo-say");
@@ -16534,15 +16602,13 @@ function comboList() {
   if (COMBO.mode === "off") { el.innerHTML = ""; return; }
   const ids = COMBO.rows.length ? COMBO.rows : comboRowsNow();
   const nameOf = (id) => { const c = LAYERS.find((x) => x.id === id) || (typeof childById === "function" ? childById(id) : null); return String((c && c.name) || id); };
-  el.innerHTML = ids.length ? `<div style="margin:4px 0 2px">How much each layer counts in the surface. Every layer counts once unless you change it: ` +
-    `"twice" or "three times" makes a layer weigh more than the others (where it gathers, the surface rises more), "half" weighs it less, ` +
-    `and "not at all" leaves it out of the surface without unticking it.</div>` + ids.map((id) =>
+  el.innerHTML = ids.length ? `<div style="margin:4px 0 2px">Every ticked layer takes part unless you leave it out here (it then shows whole, uncut).</div>` + ids.map((id) =>
     `<div style="display:flex;gap:6px;align-items:center;margin:2px 0"><select data-combo-weight="${escapeHtml(id)}" style="font:inherit;font-size:10.5px">` +
-    [[0, "not at all"], [0.5, "half"], [1, "once"], [2, "twice"], [3, "three times"]].map(([v, t]) =>
-      `<option value="${v}"${(COMBO.weights.has(id) ? COMBO.weights.get(id) : 1) === v ? " selected" : ""}>${t}</option>`).join("") +
+    [[1, "takes part"], [0, "left out"]].map(([v, t]) =>
+      `<option value="${v}"${((COMBO.weights.has(id) ? COMBO.weights.get(id) : 1) > 0 ? 1 : 0) === v ? " selected" : ""}>${t}</option>`).join("") +
     `</select><span title="${escapeHtml(nameOf(id))}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(nameOf(id))}</span></div>`).join("") : "";
 }
-if (typeof map.on === "function") map.on("moveend", () => { if (COMBO.mode !== "off" && COMBO.rows.some((id) => POINT_RELIEFS.has(id) && POINT_RELIEFS.get(id).vector)) comboSoon(2500); });
+if (typeof map.on === "function") map.on("moveend", () => { if (COMBO.mode !== "off" && (COMBO.rows || []).some((id) => rowVectorLayers(id).some((l) => l.source && map.getSource(l.source) && map.getSource(l.source).type === "vector"))) comboSoon(2500); });
 // Which kind of rising a row gets, when it is shown or the switch changes.
 function riseRow(id, on, tries) {
   if (RELIEFS.has(id) || LIFTED.has(id)) return;     // its own relief, or country towers
@@ -24473,7 +24539,7 @@ function comboBox(box) {
   const wrap = document.createElement("div");
   wrap.id = "combo-box";
   wrap.className = "combo-box";
-  wrap.innerHTML = `<div style="font-size:11.5px">Combine the ticked layers into one surface</div>` +
+  wrap.innerHTML = `<div style="font-size:11.5px">Combine the ticked layers: show only where they meet</div>` +
     `<select id="combo-mode" aria-label="Combine the ticked layers" style="font:inherit;font-size:11.5px;max-width:100%;margin:3px 0">` +
     COMBO_MODES.map(([k, t]) => `<option value="${k}">${t}</option>`).join("") + `</select>` +
     `<div id="combo-say" style="font-size:10.5px;color:var(--dim)"></div>` +
