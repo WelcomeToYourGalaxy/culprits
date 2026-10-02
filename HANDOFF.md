@@ -5,6 +5,17 @@ touches.
 
 ---
 
+## Round 125b (2 October)
+
+Needs round 124b. Tiles patch round125b_tiles.py beside it. No app.js?v= bump.
+
+- Points close in: past zoom 12 the glow is gone and the dot alone shows; it
+  now gains a thin light rim (addHud), so dull-coloured rows (development
+  projects) stay visible at city level. Asked 2 October.
+- water_cases: named companies a government body found or ruled to have taken
+  or depleted water (BlueTriton, Fondomonte/Almarai, Coca-Cola Plachimada),
+  each with its source; tiles water_cases.py places them by Nominatim.
+
 ## Round 124b (2 October)
 
 Needs round 123b. Tiles patch round124b_tiles.py beside it. No app.js?v= bump.

@@ -2529,7 +2529,13 @@ function addHud(layer, rawAddLayer) {
     // stand for them; they are still there to be clicked.
     const paint = hudRaw.setPaintProperty || map.setPaintProperty.bind(map);
     paint(layer.id, "circle-blur", 0.15);   // round 119b: sharp, not soft (was 1)
-    paint(layer.id, "circle-stroke-width", 0);
+    // Round 125b (asked 2 October: development projects' points disappeared
+    // "at very high zoom, about small city level"): past zoom 12 the glow is
+    // gone and the dot alone remains, in the row's own colour, often a dull
+    // grey on dark imagery. Close in, the dot gains a thin light rim and full
+    // strength, so it stays seen; wider out nothing changes.
+    paint(layer.id, "circle-stroke-width", z(GLOW.fadeOut, 0, GLOW.gone, 1.1));
+    paint(layer.id, "circle-stroke-color", "rgba(226,236,242,0.85)");
     if (p["circle-opacity"] === undefined) paint(layer.id, "circle-opacity", z(GLOW.fadeOut, 0, GLOW.gone, 0.9));
     hudOf.set(layer.id, [haze, core, soft]);
     glowGrain();
@@ -19388,6 +19394,12 @@ const OTHER_MAPS = {
       totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/water/culprits.json", field: "x_farming_takes_pct_of_renewable" },
       attribution: "FAO AQUASTAT, via the World Bank's World Development Indicators (CC BY 4.0)",
       note: "Water scarcity's main cause is how much is taken, and farming (irrigation, livestock and fish farming) takes about seven tenths of the freshwater withdrawn worldwide. Each country is shaded by the share of its renewable freshwater that farming alone withdraws: FAO's level of water stress (all withdrawals against the renewable water left after nature's needs, SDG 6.4.2) times farming's share of withdrawals. Over 100% means farming alone takes more than is renewed: rivers and groundwater are being run down. The box gives the same for industry, homes' share, and the billions of cubic metres withdrawn, each with its year. The multiplication is this map's; the figures are FAO's. Copied weekly by culprits-tiles-more." },
+    // Round 125b (asked 2 October): named culprits, each tied by its source to
+    // drying up water (tiles scripts/water_cases.py).
+    { id: "water_cases", name: "Companies officially found or ruled to have drained water: one point per case, each with its source", unit: "cases", colour: "#8C4F5A", route: "geojsonlive", ready: true, lazy: true, buildScript: "water_cases",
+      files: [{ label: "Cases", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/water/cases.geojson" }],
+      groupHint: "Coloured by industry",
+      note: "Companies a government body, regulator or official inquiry has found or ruled to have taken water they had no right to or depleted it: so far BlueTriton in California's San Bernardino National Forest (State Water Board order, 2023), Fondomonte (Almarai) in Arizona's Butler Valley (state leases cancelled, 2023), and Coca-Cola's Plachimada plant in Kerala (state high-power committee, 2010). Each box gives the finding in this map's words and its source; each is placed at the named place, not the exact well or plant. Cases are added only with a source that ties the company to the water taken." },
     // Round 123b (asked 2 October): EJAtlas's water conflicts as one row under
     // Water scarcity > Water conflicts.
     { id: "ejatlas_water", name: "Water conflicts worldwide: dams, water grabs, pollution and diversions people resisted (EJAtlas)", unit: "conflicts", colour: "#3FA9C2", route: "ejatlas", ready: true, lazy: true,
@@ -21265,7 +21277,7 @@ const LAYER_KIND = {
   haz_tsunamis: ["insentient", "downstream"],
   haz_cyclones: ["insentient", "downstream"],
   haz_landslides: ["insentient", "downstream"],
-  ejatlas_water: ["human", "downstream"], water_culprits: ["insentient", "upstream"],
+  ejatlas_water: ["human", "downstream"], water_culprits: ["insentient", "upstream"], water_cases: ["insentient", "upstream"],
   berkeley_warming: ["insentient", "downstream"],
   ocean_dead_zones: ["insentient", "downstream"],
   ocean_seabed_mining: ["insentient", "downstream"],
@@ -22411,6 +22423,7 @@ const NOT_LIVE = {
   ect_secrets: "Copied weekly from UNCTAD's case list by culprits-tiles-more",
   isds_tracker: "Copied weekly from UNCTAD's case list by culprits-tiles-more",
   water_culprits: "Copied weekly from the World Bank (FAO AQUASTAT) by culprits-tiles-more",
+  water_cases: "Compiled from the sources named in each box; placed weekly by culprits-tiles-more",
   ocean_dead_zones: "Copied weekly from its publisher by culprits-tiles-more",
   ocean_seabed_mining: "Copied weekly from its publisher by culprits-tiles-more",
   fur_bans: "Copied weekly from Our World in Data by culprits-tiles-more",
@@ -22811,7 +22824,7 @@ const PANEL_ORDER = [
   { h: 4, t: "Reservoirs" },
   { h: 5, bundle: "waterwatch", colour: "#5E7377" },
   { h: 4, t: "Water conflicts" }, "ejatlas_water", "attacks_cpt_water",
-  { h: 4, t: "Who causes water scarcity" }, "water_culprits",
+  { h: 4, t: "Who causes water scarcity" }, "water_culprits", "water_cases",
   // Item 14: the mines layers are one row with sublayers.
   // Round 123b (asked 2 October): the mines bundle split, each source its own
   // row; worldwide ones first (PANGAEA's mining areas lead, CATALOGUE_FIRST),

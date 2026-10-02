@@ -5974,6 +5974,12 @@ console.log("\nround 124b (2 October): a fire's country and place on the map");
   check("records with their own latitude and longitude get a country and an OpenStreetMap link",
         /function recordWhere\(p\)/.test(src) && /recordWhere\(p\) \+/.test(src) && /countryShapesSoon\(\);\n\s*bindHtmlPopup\(id, \(p\) => gfwRecordBox\(d, p\)\);/.test(src));
 }
+console.log("\nround 125b (2 October): dots seen close in, named water culprits");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("past zoom 12 a dot gains a light rim", /paint\(layer\.id, "circle-stroke-width", z\(GLOW\.fadeOut, 0, GLOW\.gone, 1\.1\)\);/.test(src));
+  check("named water culprits are a row under Who causes water scarcity", /"water_culprits", "water_cases",/.test(src) && /water\/cases\.geojson/.test(src));
+}
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
