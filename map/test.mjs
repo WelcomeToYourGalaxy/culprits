@@ -5429,7 +5429,7 @@ console.log("\nround 100b: skin and fur farms their own heading; the food indust
         grid.max > 0 && grid.g[Math.floor((90 - 20.1) / 0.25) * grid.W + Math.floor((10.1 + 180) / 0.25)] === grid.max &&
         /function riseRow\(id, on, tries\)/.test(src));
   check("fish: free-flowing rivers and fish species by basin, under Fish",
-        /\{ h: 4, t: "Fish" \}, "fish_rivers", "fish_basins",/.test(src) && /id: "fish_rivers"[^\n]*route: "rasterlive"/.test(src) && /id: "fish_basins"[^\n]*route: "pmchoose"/.test(src));
+        /\{ h: 4, t: "Fish" \}, ("fish_stocks", "lpi_populations", )?"fish_rivers", "fish_basins",/.test(src) && /id: "fish_rivers"[^\n]*route: "rasterlive"/.test(src) && /id: "fish_basins"[^\n]*route: "pmchoose"/.test(src));
   check("the fields counted wider out, under the shapes", /overview: \{ choicesUrl: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/tiles\/ftw_overview\.choices\.json", maxzoom: 9 \}/.test(src) &&
         /if \(cfg\.overview\) pmVectorOverview\(cfg\);/.test(src));
   check("the hologram's blue shading can be switched off", /tick\("holo-shade", "shade", "Blue shading"/.test(html) && /const earthOn = on && opt\.shade && /.test(html) &&
@@ -6062,6 +6062,13 @@ console.log("\nround 136b (2 October): six more ocean pressures, and offshore pl
   check("each pressure is a row of its own, read from its build's choices", ids.every((i) => new RegExp(`id: "${i}"[^\\n]*route: "rasterlive"`).test(src) && src.includes(`tiles/${i}.choices.json`) && src.includes(`"${i}",`)));
   check("offshore platforms under Oceans and under oil spills at sea", /id: "offshore_platforms"[^\n]*route: "geojsonlive"/.test(src) &&
         /"skytruth_marine_incidents", "offshore_platforms",\n/.test(src) && /t: "Offshore platforms", tag: "not counted/.test(src));
+}
+console.log("\nround 137b (2 October): fish decline, stocks and populations");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("fish stocks by country from RAM Legacy, and the Living Planet populations, under Fish and under Oceans",
+        /id: "fish_stocks"[^\n]*route: "country"/.test(src) && /id: "lpi_populations"[^\n]*route: "geojsonlive"/.test(src) &&
+        /t: "Fish" \}, "fish_stocks", "lpi_populations",/.test(src) && /t: "Fish decline"[^\n]*\}, "fish_stocks", "lpi_populations",/.test(src));
 }
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {

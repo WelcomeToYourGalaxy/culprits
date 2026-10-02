@@ -5,6 +5,24 @@ touches.
 
 ---
 
+## Round 137b (2 October)
+
+Needs round 136b. Tiles patch round137b_tiles.py beside it. No app.js?v= bump.
+
+- Fish decline (asked 2 October), under Biodiversity loss > Fish and under
+  Oceans > Every human impact together > Fish decline (tagged not counted):
+  - fish_stocks (route country): each country shaded by the share of the
+    stocks assessed in its waters whose latest B/Bmsy is under 1; every count
+    and every stock in the box. Tiles fish_stocks.py reads the newest RAM
+    Legacy Stock Assessment Database from Zenodo (CC BY 4.0). Stocks RAM gives
+    to no single country are listed in fish/ram_build.json.
+  - lpi_populations (geojsonlive): every population in ZSL and WWF's public
+    Living Planet Database at its place, every field, its counts, first and
+    last counted years and the change between them; coloured by system,
+    filtered by class. Its download is behind an agreement form: the owner
+    downloads it and uploads it to tiles lpi/download/; tiles
+    lpi_populations.py builds from there.
+
 ## Round 136b (2 October)
 
 Needs round 135b. Tiles patch round136b_tiles.py beside it. No app.js?v= bump.
