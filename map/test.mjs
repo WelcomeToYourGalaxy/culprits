@@ -6082,7 +6082,7 @@ console.log("\nround 140b (2 October): combine in any order; areas and pictures 
   check("each tick reaches the combine, whichever came first", /Round 140b: the combine follows every tick[^\n]*\n  if \(typeof COMBO !== "undefined" && COMBO\.mode !== "off"\) comboSoon\(600\);/.test(src) &&
         /map\.on\("idle", \(\) => \{\n  if \(COMBO\.mode === "off"\) return;\n  const sig = comboSig\(\);/.test(src));
   check("pictures take part, counted where they paint", /if \(!rowVectorLayers\(id\)\.length && !comboPictureSource\(id\)\) continue;/.test(src) && /const pic = await comboPictureGrid\(id\);/.test(src));
-  check("the veil is kept out of the colour mapping", /const GLAD_BASE_LAYERS = \/\^\(bg\|combo-mask\|/.test(src));
+  check("the veil is kept out of the colour mapping", /const GLAD_BASE_LAYERS = \/\^\(bg\|combo-mask\.\*\|/.test(src));
   // The veil: the world less the kept squares, above the highest picture or area taking part.
   const added = [], moved = [];
   const layers = [{ id: "base", type: "raster", source: "base" }, { id: "a-raster", type: "raster", source: "a-src" }, { id: "b-pt", type: "circle", source: "b-src" }];
@@ -6092,15 +6092,17 @@ console.log("\nround 140b (2 October): combine in any order; areas and pictures 
     addLayer(l, before) { added.push([l.id, before]); this._l.set(l.id, l); }, moveLayer(id, b) { moved.push([id, b]); },
     setLayoutProperty(id, k, v) { this._l.get(id).vis = v; }, getStyle() { return { layers }; } };
   const s0 = src.indexOf("const COMBO_MASK = "), s1 = src.indexOf("if (typeof map.on === \"function\") map.on(\"idle\"");
-  const lib = new Function("map", "COMBO", "POINT_RELIEF_RES", "visibility", "rowVectorLayers",
-    src.slice(src.indexOf("function comboShape(keep, W, H)"), src.indexOf("function comboPoints(")) + src.slice(s0, s1) + "; return { comboMaskSet, comboSig };")(fake, { pr: { rid: "x" }, weights: new Map() }, 90, new Map([["a", "visible"], ["b", "none"]]), () => []);
+  const lib = new Function("map", "COMBO", "POINT_RELIEF_RES", "visibility", "rowVectorLayers", "hudMates",
+    src.slice(src.indexOf("function comboShape(keep, W, H)"), src.indexOf("function comboPoints(")) + src.slice(s0, s1) + "; return { comboMaskSet, comboSig };")(fake, { pr: { rid: "x" }, weights: new Map() }, 90, new Map([["a", "visible"], ["b", "none"]]), (id) => layers.filter((l) => l.type !== "raster" && l.id.startsWith(`${id}-`)), () => []);
   lib.comboMaskSet({ keepGrid: Uint8Array.from([1, 0, 0, 0, 0, 0, 0, 0]), W: 4, H: 2, used: ["a", "b"] });
   const g = fake._s.get("combo-mask").data.geometry;
-  check("the veil covers every square but the kept one, clamped to the map's latitudes", added[0][0] === "combo-mask" && added[0][1] === "b-pt" &&
+  check("the veil covers every square but the kept one, clamped to the map's latitudes", added[0][0] === "combo-mask" && added[0][1] === undefined &&
         g.type === "MultiPolygon" && g.coordinates.length === 2 && g.coordinates.every((p) => p[0].every((c) => Math.abs(c[1]) <= 85.05)) && fake._l.get("combo-mask").vis === "visible");
   lib.comboMaskSet(null);
   check("the veil goes when nothing is kept", fake._l.get("combo-mask").vis === "none" && /if \(!hide\) \{ comboCut\(null\); comboMaskSet\(null\); \}/.test(src));
   check("what the combine was made from: the rows showing", lib.comboSig() === "a:0::1");
+  check("round 141b: the veil above every layer taking part, nearly opaque, crossings edged", added.map((a) => a[0]).join() === "combo-mask,combo-mask-glow,combo-mask-edge" &&
+        /const COMBO_VEIL = 0\.94;/.test(src) && fake._l.get("combo-mask-edge").vis === "none");
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");

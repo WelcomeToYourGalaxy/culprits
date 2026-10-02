@@ -5,6 +5,21 @@ touches.
 
 ---
 
+## Round 141b (2 October)
+
+Needs round 140b. No tiles patch. No app.js?v= bump.
+
+- Combine the ticked layers, made easier to read (asked 2 October: the
+  highlight and the fade were too alike):
+  - the veil is nearly opaque (COMBO_VEIL 0.94, was 0.82) and lies above every
+    layer of the rows taking part, points and lines included, so everything
+    that is not a crossing is almost gone;
+  - the crossings are edged in pale ice (#CFEAF4, layer combo-mask-edge) and
+    faintly tinted (combo-mask-glow);
+  - the combine has its own grid (comboGrid): smoothed once by one square, so
+    a layer counts in a 0.25-degree square when it lies within about 50 km
+    (was about 200 km, the density bands' smoothing): crossings are tighter.
+
 ## Round 140b (2 October)
 
 Needs round 139b. No tiles patch. No app.js?v= bump.

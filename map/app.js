@@ -975,7 +975,7 @@ function gladSourceSpec(id, spec) {
 // (round 66, asked 26 September): mapped, its land came out purple and its
 // roads violet, which the GLAD mapping was never meant to reach (it says the
 // basemaps are not touched).
-const GLAD_BASE_LAYERS = /^(bg|combo-mask|base|plate-base|base-s2|base-close|hillshade|labels|atlas-plate.*|sat-relief-seabed|sat-relief-sea|holo-.*|sat-relief-colour|outline-.*)$/;
+const GLAD_BASE_LAYERS = /^(bg|combo-mask.*|base|plate-base|base-s2|base-close|hillshade|labels|atlas-plate.*|sat-relief-seabed|sat-relief-sea|holo-.*|sat-relief-colour|outline-.*)$/;
 function gladLayer(layer) {
   if (!layer || !layer.id || GLAD_BASE_LAYERS.test(layer.id) || layer.type === "custom" || layer.type === "background" || layer.type === "hillshade") return layer;
   if (gladKept(layer.id)) return layer;
@@ -16550,7 +16550,7 @@ async function comboBuild() {
     if (COMBO.mode !== mode) return null;
     if (pic) { if (cover) for (let i = 0; i < cover.length; i++) cover[i] += pic[i] * 8; else cover = pic.map((v) => v * 8); }
     if (!pts.length && !cover) { none.push(id); continue; }
-    const g = pointReliefGrid(pts, cover);
+    const g = comboGrid(pts, cover);
     if (!(g.max > 0)) { none.push(id); continue; }
     const floor = g.max * 0.02;
     let cut = floor;
@@ -16629,8 +16629,8 @@ async function comboDraw() {
   comboCut(r.keep);
   comboMaskSet(r);
   if (say) say.textContent = (COMBO.mode === "overlap"
-    ? `Showing only the places where ${r.best} of the ${r.used.length} ticked layers meet (each within about 200 km); everything else of them is taken away or faded.`
-    : `Showing only the places where ${r.best} of the ${r.used.length} ticked layers are each in the top fifth of their own values (within about 200 km); everything else of them is taken away or faded.`)
+    ? `Showing only the places where ${r.best} of the ${r.used.length} ticked layers meet (each within about 50 km), edged in pale blue; everything else is taken away or veiled.`
+    : `Showing only the places where ${r.best} of the ${r.used.length} ticked layers are each in the top fifth of their own values (within about 50 km), edged in pale blue; everything else is taken away or veiled.`)
     + " Tiled layers are read as you look round, so moving the map can widen what is found." + tail;
 }
 // Round 140b (asked 2 October: "only those parts overlapping should show, the
@@ -16646,6 +16646,36 @@ async function comboDraw() {
 //    the highest picture or area taking part, else just below the lowest row
 //    taking part, so points and lines above it are cut, not veiled.
 const COMBO_MASK = "combo-mask";
+// Round 141b (asked 2 October: the highlight and the fade were too alike to
+// read the overlap): the veil is nearly opaque (COMBO_VEIL) and lies above
+// every layer taking part, so what is not a crossing is almost gone; the
+// crossings are edged in pale ice (combo-mask-edge) and lightly tinted
+// (combo-mask-glow). The combine's own grid is smoothed once, by one square
+// (comboGrid): a layer counts in a square when it lies within about 50 km,
+// not 200 km as the density bands use, so the crossings are close to exact.
+const COMBO_VEIL = 0.94;
+const COMBO_EDGE = "#CFEAF4";
+function comboGrid(pts, cover) {
+  const W = Math.round(360 / POINT_RELIEF_RES), H = Math.round(180 / POINT_RELIEF_RES);
+  const g = cover && cover.length === W * H ? Float32Array.from(cover) : new Float32Array(W * H);
+  for (const [lng, lat, w] of pts) {
+    const x = Math.floor((lng + 180) / POINT_RELIEF_RES), y = Math.floor((90 - lat) / POINT_RELIEF_RES);
+    if (x >= 0 && x < W && y >= 0 && y < H) g[y * W + x] += w > 0 ? w : 1;
+  }
+  const h = new Float32Array(W * H);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    let t = 0; for (let d = -1; d <= 1; d++) t += g[y * W + ((x + d + W) % W)];
+    h[y * W + x] = t / 3;
+  }
+  const v = new Float32Array(W * H);
+  let max = 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    let t = 0, n = 0; for (let d = -1; d <= 1; d++) { const yy = y + d; if (yy >= 0 && yy < H) { t += h[yy * W + x]; n++; } }
+    v[y * W + x] = t / n;
+    if (v[y * W + x] > max) max = v[y * W + x];
+  }
+  return { g: v, W, H, max };
+}
 const COMBO_PIC_ZOOM = 2;
 COMBO.pics = new Map();
 COMBO.retries = 0;
@@ -16713,30 +16743,40 @@ function comboSig() {
 }
 // The veil: the world less the kept squares, as runs of squares (no holes).
 function comboMaskSet(r) {
-  if (!r || !r.keepGrid) { if (map.getLayer(COMBO_MASK)) map.setLayoutProperty(COMBO_MASK, "visibility", "none"); return; }
+  const hide = () => { for (const l of [COMBO_MASK, `${COMBO_MASK}-edge`, `${COMBO_MASK}-glow`]) if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", "none"); };
+  if (!r || !r.keepGrid) { hide(); return; }
   const inv = new Uint8Array(r.keepGrid.length);
   for (let i = 0; i < inv.length; i++) inv[i] = r.keepGrid[i] ? 0 : 1;
-  const shape = comboShape(inv, r.W, r.H);
-  if (shape) for (const poly of shape.coordinates) for (const ring of poly) for (const c of ring) c[1] = Math.max(-85.05, Math.min(85.05, c[1]));
-  const data = shape ? { type: "Feature", properties: {}, geometry: shape } : { type: "FeatureCollection", features: [] };
-  const src = map.getSource(COMBO_MASK);
-  if (src) src.setData(data); else map.addSource(COMBO_MASK, { type: "geojson", data });
-  const order = ((map.getStyle() || {}).layers || []).filter((l) => l.id !== COMBO_MASK);
-  let top = -1, low = -1;
+  const clamp = (shape) => { if (shape) for (const poly of shape.coordinates) for (const ring of poly) for (const c of ring) c[1] = Math.max(-85.05, Math.min(85.05, c[1])); return shape; };
+  const asData = (shape) => shape ? { type: "Feature", properties: {}, geometry: shape } : { type: "FeatureCollection", features: [] };
+  const veil = asData(clamp(comboShape(inv, r.W, r.H)));
+  const kept = asData(clamp(comboShape(r.keepGrid, r.W, r.H)));
+  for (const [id, data] of [[COMBO_MASK, veil], [`${COMBO_MASK}-kept`, kept]]) {
+    const src = map.getSource(id);
+    if (src) src.setData(data); else map.addSource(id, { type: "geojson", data });
+  }
+  // Above every layer of the rows taking part (their points and lines are cut
+  // to the crossings already, so the veil hides only what does not cross).
+  const order = ((map.getStyle() || {}).layers || []).filter((l) => !l.id.startsWith(COMBO_MASK));
+  let top = -1;
   for (const id of r.used || []) {
-    order.forEach((l, i) => {
-      if (!l.id.startsWith(`${id}-`) || !l.source || /__crowd|__rise|^relief:/.test(l.source)) return;
-      if (low < 0 || i < low) low = i;
-      if ((l.type === "raster" || l.type === "fill") && i > top) top = i;
-    });
+    for (const lid of rowVectorLayers(id).map((l) => l.id).concat(...rowVectorLayers(id).map((l) => typeof hudMates === "function" ? hudMates(l.id) : []))) {
+      const i = order.findIndex((l) => l.id === lid);
+      if (i > top) top = i;
+    }
+    order.forEach((l, i) => { if (l.type === "raster" && l.id.startsWith(`${id}-`) && l.source && !/__crowd|__rise|^relief:/.test(l.source) && i > top) top = i; });
   }
-  const before = top > -1 ? (order[top + 1] ? order[top + 1].id : undefined) : (low > -1 ? order[low].id : undefined);
-  if (!map.getLayer(COMBO_MASK)) {
-    map.addLayer({ id: COMBO_MASK, type: "fill", source: COMBO_MASK, paint: { "fill-color": "#050A12", "fill-opacity": 0.82, "fill-antialias": false } }, before);
-  } else {
-    try { map.moveLayer(COMBO_MASK, before); } catch (e) { /* stays where it is */ }
+  const before = top > -1 && order[top + 1] ? order[top + 1].id : undefined;
+  const want = [
+    { id: COMBO_MASK, type: "fill", source: COMBO_MASK, paint: { "fill-color": "#050A12", "fill-opacity": COMBO_VEIL, "fill-antialias": false } },
+    { id: `${COMBO_MASK}-glow`, type: "fill", source: `${COMBO_MASK}-kept`, paint: { "fill-color": COMBO_EDGE, "fill-opacity": 0.08, "fill-antialias": false } },
+    { id: `${COMBO_MASK}-edge`, type: "line", source: `${COMBO_MASK}-kept`, paint: { "line-color": COMBO_EDGE, "line-width": 1.6, "line-opacity": 0.95 } },
+  ];
+  for (const l of want) {
+    if (!map.getLayer(l.id)) map.addLayer(l, before);
+    else { try { map.moveLayer(l.id, before); } catch (e) { /* stays where it is */ } }
+    map.setLayoutProperty(l.id, "visibility", "visible");
   }
-  map.setLayoutProperty(COMBO_MASK, "visibility", "visible");
 }
 if (typeof map.on === "function") map.on("idle", () => {
   if (COMBO.mode === "off") return;
