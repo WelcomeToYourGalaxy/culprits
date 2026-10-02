@@ -5,6 +5,34 @@ touches.
 
 ---
 
+## Round 132b (2 October)
+
+Needs round 131b. Tiles patch round132b_tiles.py beside it. No app.js?v= bump.
+
+- Cropland spread: potapov_cropland shows only net gain and net loss
+  (choiceMatch, a new filter on rows that read a build's list of chips).
+- Every SPAM 2020 crop is its own row (spam_<code>, 38 new) under its crop
+  in By crop, alphabetical, the "other" groups last; crops_spam and
+  crop_coffee (its files never existed in SPAM 2020) in PANEL_REMOVED.
+  SPAM's COFF entry is titled as its general coffee entry, kinds unstated.
+- Meat: Trase's chickens and pigs slaughtered and beef produced (Brazil) and
+  Paraguay's cattle herd size taken out (CATALOGUE_BY_TITLE); Cattle and
+  pasture and Pigs and chickens headings gone; Herds above Facilities; Marine
+  meats (Wild-caught fish: fishing, iuu_vessels, iuu_positions; Fish and
+  shrimp farms: aquaculture_ponds, ponds).
+- Deforestation promises (h4 under Deforestation): every zero-deforestation
+  share, beef, soy, cocoa and palm (corn stays out).
+- Oceans: Every human impact together first; the kinds of harm under it as
+  h5, each with a tag (new heading option `tag`) saying whether that layer
+  counts it; Pollution at sea (wastewater plumes, slicks, sunken ships,
+  plastic); a note pointing to Meat and Pollution. ocean_heat split: sea
+  temperature only; ocean_bleaching (bleaching alert and degree heating
+  weeks, same files) under Reefs and mangroves. Dead zones also under
+  Biodiversity loss > Fish; deep-sea mining also under Mining.
+- Tiles: oceans_more.py heat falls back to Coral Reef Watch's own server;
+  acid looks through sub-folders and logs every file it finds; shipping is
+  its own script, ocean_shipping.py, with a 120-minute budget per run.
+
 ## Round 131b (2 October)
 
 Needs round 126b. Carries rounds 128b, 129b and 130b, which failed because 127b was never uploaded. 127b (the combine-the-ticked-layers fix) is not carried: it is redone with the new overlap modes in a later round. No tiles patch. No app.js?v= bump.

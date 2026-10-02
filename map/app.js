@@ -5213,7 +5213,14 @@ function addRasterChoiceLayer(cfg) {
     return getJson(cfg.choicesUrl, 20000)
       .then((d) => { if (d && Array.isArray(d.choices) && d.choices.length) cfg.choices = d.choices; })
       .catch(() => {})
-      .then(() => addRasterChoiceLayer(cfg));
+      .then(() => {
+        // Round 132b: a row can take only some of the chips its build lists
+        // (one crop of SPAM's file; Potapov's net gain and loss; the heat and
+        // the bleaching parts of Coral Reef Watch as two rows).
+        if (cfg.choiceMatch) cfg.choices = (cfg.choices || []).filter((c) => cfg.choiceMatch.test(c.label || ""));
+        if (cfg.choiceName) for (const c of cfg.choices || []) c.label = cfg.choiceName(c.label || "");
+        return addRasterChoiceLayer(cfg);
+      });
   }
   // A newer release is used once its squares answer (round 87b, glad_loss).
   if (cfg.newer && !cfg._newerTried) {
@@ -8580,6 +8587,12 @@ const BIO_LAND = BIO + " > Land Use and Ecoregions", BIO_THREAT = PMM + " > Wher
   BIO_PROT = PMM + " > Protected areas", BIO_RICH = PMM + " > Species richness",
   BIO_WILD = PMM + " > Wild and intact places", BIO_MOVE = PMM + " > Where animals gather and migrate";
 const CATALOGUE_BY_TITLE = [
+  // ---- 2 October (round 132b), at the owner's word -----------------------
+  // Trase's chickens and pigs slaughtered and beef produced in Brazil, and
+  // Paraguay's cattle herd size, taken out.
+  [/^(?=.*\b(chickens?|pigs?|swine|poultry|frango|suínos?)\b)(?=.*(slaughter|abat))|\bCATTLE_TN\b|^beef produced|tonnes of carcass|CATTLE HEADS/i, null],
+  // Shares under a zero-deforestation promise, every commodity, together.
+  [/^(?!.*\bcorn\b)(?=.*(\bzdc\b|zero.deforestation (promise|commitment)|promise zero deforestation))/i, [P + " > Deforestation > Deforestation promises"]],
   // ---- 28 September (round 101b), at the owner's word --------------------
   // Cameroon's agro-industrial zones taken out; Nusantara's "v3p3" oil palm
   // concessions are the same layer as its oil palm concessions, published
@@ -9046,8 +9059,8 @@ const CATALOGUE_SUBS = {
   [P + " > Meat and agriculture > Meat"]: [
     // Round 95b: counts of animals (Paraguay's cattle herd size) under Herds.
     [/\bherds?\b|herd size|head count|\bheads? of cattle\b|number of (cattle|animals)/i, "Herds"],
-    [/\bpigs?\b|chicken/i, "Pigs and chickens"],
-    [/.*/, "Cattle and pasture"],
+    // Round 132b: Pigs and chickens and Cattle and pasture are gone.
+    [/.*/, null],
   ],
 };
 function catalogueSub(path, words) {
@@ -9498,12 +9511,8 @@ function cataloguePlaces(words, title) {
   // (24 September): beef under Meat, soy and cocoa under Agriculture, palm oil
   // and pulp with theirs; the Zero-deforestation heading is gone.
   if (out.includes(ZDC)) {
-    out = [/\bbeef\b|cattle/i.test(words) ? P + " > Meat and agriculture > Meat > Cattle and pasture"
-      : /\bsoy/i.test(words) ? CROPS + " > Soy"
-      : /cocoa/i.test(words) ? CROPS + " > Cocoa"
-      : /palm/i.test(words) ? CROPS + " > Palm oil"
-      : /pulp/i.test(words) ? P + " > Deforestation > Wood pulp, Indonesia"
-      : P + " > Deforestation > Companies and financiers"];
+    // Round 132b (asked 2 October): every promise together, under Deforestation.
+    out = [P + " > Deforestation > Deforestation promises"];
   }
   // A concession or permit whose words name no material and no activity.
   if (!out.length && !dropped && /concession|permit|licen[cs]e|\bizin\b/i.test(words)) out.push(P + " > Other concessions");
@@ -19545,7 +19554,7 @@ const OTHER_MAPS = {
       overview: { choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ftw_overview.choices.json", maxzoom: 9 },
       attribution: "Fields of The World, Robinson et al. 2026 (CC BY 4.0)",
       note: "Fields of The World's worldwide field boundaries for 2025 (Robinson et al. 2026; CC BY 4.0): about 1.6 billion fields drawn by a model from Sentinel-2 pictures at 10 m, read directly from the project's own archive on Source Cooperative. The closest worldwide picture of where farming is; the fields show when zoomed in." },
-    { id: "potapov_cropland", name: "Cropland share and its spread, 2003 to 2019, 3 km (Potapov et al. 2022, UMD GLAD)", unit: "share of each 3 km cell under crops", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+    { id: "potapov_cropland", name: "Cropland spread, 2003 to 2019, 3 km (Potapov et al. 2022, UMD GLAD)", choiceMatch: /^net (gain|loss)/i, unit: "share of each 3 km cell under crops", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
       attribution: "Potapov et al. 2022, Nature Food; UMD GLAD", rasterPaint: { "raster-opacity": 0.88, "raster-saturation": 0 },
       choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/potapov_cropland.choices.json",
       note: "Potapov et al. 2022 (Nature Food), the University of Maryland GLAD lab's cropland maps from Landsat: the share of each 3 km cell under crops in 2003, 2007, 2011, 2015 and 2019, and where the share rose (net gain) or fell (net loss) between 2003 and 2019. Cropland grew by 9% in that time, half of it replacing natural vegetation and tree cover. The lab's 3 km release, made into this map's own copy by culprits-tiles-more (scripts/cropland_expansion.py); its 30 m release is too large for a copy here. GLAD states no licence for it; it is published free for use with citation." },
@@ -19592,6 +19601,159 @@ const OTHER_MAPS = {
       attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 },
       choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crop_cnut.choices.json",
       note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land each crop is grown on around 2020, in squares of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model that weighs cropland maps, climate, soils and markets. Shown as the share of each square the crop stands on, in the same five steps for every crop. The map's own copy, made by culprits-tiles-more (scripts/mapspam.py); the download's read-me, licence words and all, is kept in spam/build.json there." },
+    // ---- round 132b (asked 2 October): every SPAM crop a row of its own ----
+    { id: "spam_coff", name: "Where coffee is grown, SPAM's general coffee entry, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^COFF$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land this coffee entry stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py). SPAM 2020's files call this entry COFF and do not say which kinds of coffee it holds; robusta coffee has its own row." },
+    { id: "spam_bana", name: "Where banana is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^banana$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land banana stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_barl", name: "Where barley is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^barley$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land barley stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_bean", name: "Where beans are grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^beans$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land beans stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_cass", name: "Where cassava is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^cassava$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land cassava stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_chic", name: "Where chickpeas are grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^chickpeas$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land chickpeas stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_citr", name: "Where citrus is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^citrus$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land citrus stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_cowp", name: "Where cowpeas are grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^cowpeas$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land cowpeas stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_grou", name: "Where groundnuts are grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^groundnuts$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land groundnuts stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_lent", name: "Where lentils are grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^lentils$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land lentils stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_mill", name: "Where millet is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^millet$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land millet stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_onio", name: "Where onion is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^onion$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land onion stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_ocer", name: "Where other cereals are grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^other\\ cereals$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land other cereals stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_rest", name: "Where other crops are grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^other\\ crops$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land other crops stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_ofib", name: "Where other fibre crops are grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^other\\ fibre\\ crops$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land other fibre crops stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_ooil", name: "Where other oil crops are grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^other\\ oil\\ crops$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land other oil crops stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_opul", name: "Where other pulses are grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^other\\ pulses$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land other pulses stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_orts", name: "Where other roots and tubers are grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^other\\ roots\\ and\\ tubers$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land other roots and tubers stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_trof", name: "Where other tropical fruit is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^other\\ tropical\\ fruit$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land other tropical fruit stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_vege", name: "Where other vegetables are grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^other\\ vegetables$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land other vegetables stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_pmil", name: "Where pearl millet is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^pearl\\ millet$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land pearl millet stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_pige", name: "Where pigeon peas are grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^pigeon\\ peas$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land pigeon peas stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_plnt", name: "Where plantain is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^plantain$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land plantain stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_pota", name: "Where potato is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^potato$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land potato stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_rape", name: "Where rapeseed is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^rapeseed$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land rapeseed stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_rcof", name: "Where robusta coffee is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^robusta\\ coffee$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land robusta coffee stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_rubb", name: "Where rubber is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^rubber$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land rubber stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_sesa", name: "Where sesame is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^sesame$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land sesame stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_sorg", name: "Where sorghum is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^sorghum$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land sorghum stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_sugb", name: "Where sugar beet is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^sugar\\ beet$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land sugar beet stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_sunf", name: "Where sunflower is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^sunflower$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land sunflower stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_swpo", name: "Where sweet potato is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^sweet\\ potato$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land sweet potato stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_teas", name: "Where tea is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^tea$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land tea stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_temf", name: "Where temperate fruit is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^temperate\\ fruit$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land temperate fruit stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_toba", name: "Where tobacco is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^tobacco$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land tobacco stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_toma", name: "Where tomato is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^tomato$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land tomato stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_whea", name: "Where wheat is grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^wheat$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land wheat stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
+    { id: "spam_yams", name: "Where yams are grown, around 2020 (SPAM 2020, IFPRI)", unit: "share of each 9 km square", colour: "#3E88A8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "SPAM 2020, IFPRI (mapspam.info)", rasterPaint: { "raster-opacity": 0.9 }, choiceMatch: new RegExp("^yams$"),
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/crops_spam.choices.json",
+      note: "IFPRI's Spatial Production Allocation Model, SPAM 2020 (mapspam.info): the land yams stands on around 2020, as a share of each square of about 9 km, all farming systems together, from national and local farm statistics spread over the land by a model. Read from the map's own copy of every SPAM crop (culprits-tiles-more scripts/mapspam.py)." },
     // Fishing vessels blacklisted for illegal, unreported and unregulated fishing.
     { id: "iuu_vessels", name: "Fishing vessels blacklisted for illegal fishing, by the flag each flies now (Combined IUU Vessel List)", unit: "vessels", colour: "#1E6FA8", keepColour: true, route: "country", ready: true, lazy: true, buildScript: "iuu_vessels",
       totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/iuu/flags.json", field: "value" },
@@ -20514,10 +20676,14 @@ const OTHER_MAPS = {
       attribution: "Jiang et al. 2023, NOAA NCEI 0259391 (CC0)", rasterPaint: { "raster-opacity": 0.85, "raster-saturation": 0 },
       choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ocean_acid.choices.json",
       note: "Surface ocean pH worldwide from Jiang et al. 2023 (NOAA NCEI accession 0259391, CC0), from before industry to the end of the century: the lower the pH, the more acidic, as the sea takes up the carbon dioxide people release. Shells and corals grow with more difficulty as it falls. The map's own copy, made by culprits-tiles-more (scripts/oceans_more.py)." },
-    { id: "ocean_heat", name: "Marine heatwaves and coral bleaching: sea temperature against usual, bleaching alerts and heat stress, newest day (NOAA Coral Reef Watch)", unit: "5 km", colour: "#A0525A", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+    { id: "ocean_heat", name: "Marine heatwaves: how much warmer or colder the sea surface is than usual, newest day (NOAA Coral Reef Watch)", choiceMatch: /^Sea surface temperature/i, unit: "5 km", colour: "#A0525A", keepColour: true, route: "rasterlive", ready: true, lazy: true,
       attribution: "NOAA Coral Reef Watch", rasterPaint: { "raster-opacity": 0.85, "raster-saturation": 0 },
       choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ocean_heat.choices.json",
       note: "NOAA Coral Reef Watch's daily satellite maps: how much warmer or colder the sea surface is than usual for the time of year, its coral bleaching alert level, and the heat stress built up over the last 12 weeks (degree heating weeks; 4 or more and corals bleach, 8 or more and many die). Remade weekly from the newest day by culprits-tiles-more (scripts/oceans_more.py)." },
+    { id: "ocean_bleaching", name: "Coral bleaching: alert level and the heat stress built up over 12 weeks, newest day (NOAA Coral Reef Watch)", choiceMatch: /bleaching alert|degree heating/i, unit: "5 km", colour: "#A0525A", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "NOAA Coral Reef Watch", rasterPaint: { "raster-opacity": 0.85, "raster-saturation": 0 },
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ocean_heat.choices.json",
+      note: "NOAA Coral Reef Watch's daily satellite maps of the risk to coral reefs: the bleaching alert level, and the heat stress built up over the last 12 weeks (degree heating weeks; 4 or more and corals bleach, 8 or more and many die). Read from the same files as the marine heatwaves row, which Coral Reef Watch makes from the same sea temperatures; nothing in them is changed. Remade weekly from the newest day by culprits-tiles-more (scripts/oceans_more.py)." },
     { id: "ocean_shipping", name: "Ship traffic: how many ship positions were recorded in each place, 2015 to 2021, all ships or by kind (World Bank and IMF)", unit: "ship positions", colour: "#1E6FA8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
       attribution: "World Bank / IMF Global Shipping Traffic Density (CC BY 4.0)", rasterPaint: { "raster-opacity": 0.88, "raster-saturation": 0 },
       choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ocean_shipping.choices.json",
@@ -21269,7 +21435,7 @@ const LAYER_KIND = {
   plastic_polluters: ["insentient", "downstream"],
   skin_farms: ["animal", "downstream"],
   ocean_acid: ["insentient", "downstream"],
-  ocean_heat: ["insentient", "downstream"],
+  ocean_heat: ["insentient", "downstream"], ocean_bleaching: ["animal", "downstream"],
   ocean_shipping: ["insentient", "downstream"],
   ocean_impacts: ["insentient", "downstream"],
   fur_world: ["animal", "downstream"],
@@ -21297,6 +21463,7 @@ const LAYER_KIND = {
   ecoregions_2017: ["plant", "downstream"],
   wb_harm_projects: ["insentient", "downstream"], imf_fossil_subsidies: ["insentient", "downstream"],
   fish_rivers: ["animal", "downstream"], fish_basins: ["animal", "downstream"],
+  spam_coff: ["plant", "upstream"], spam_bana: ["plant", "upstream"], spam_barl: ["plant", "upstream"], spam_bean: ["plant", "upstream"], spam_cass: ["plant", "upstream"], spam_chic: ["plant", "upstream"], spam_citr: ["plant", "upstream"], spam_cowp: ["plant", "upstream"], spam_grou: ["plant", "upstream"], spam_lent: ["plant", "upstream"], spam_mill: ["plant", "upstream"], spam_onio: ["plant", "upstream"], spam_ocer: ["plant", "upstream"], spam_rest: ["plant", "upstream"], spam_ofib: ["plant", "upstream"], spam_ooil: ["plant", "upstream"], spam_opul: ["plant", "upstream"], spam_orts: ["plant", "upstream"], spam_trof: ["plant", "upstream"], spam_vege: ["plant", "upstream"], spam_pmil: ["plant", "upstream"], spam_pige: ["plant", "upstream"], spam_plnt: ["plant", "upstream"], spam_pota: ["plant", "upstream"], spam_rape: ["plant", "upstream"], spam_rcof: ["plant", "upstream"], spam_rubb: ["plant", "upstream"], spam_sesa: ["plant", "upstream"], spam_sorg: ["plant", "upstream"], spam_sugb: ["plant", "upstream"], spam_sunf: ["plant", "upstream"], spam_swpo: ["plant", "upstream"], spam_teas: ["plant", "upstream"], spam_temf: ["plant", "upstream"], spam_toba: ["plant", "upstream"], spam_toma: ["plant", "upstream"], spam_whea: ["plant", "upstream"], spam_yams: ["plant", "upstream"],
   crops_spam: ["plant", "upstream"], crop_oilp: ["plant", "upstream"], crop_soyb: ["plant", "upstream"], crop_coco: ["plant", "upstream"], crop_coffee: ["plant", "upstream"], crop_sugc: ["plant", "upstream"], crop_maiz: ["plant", "upstream"], crop_rice: ["plant", "upstream"], crop_cott: ["plant", "upstream"], crop_cnut: ["plant", "upstream"], iuu_vessels: ["animal", "upstream"], iuu_positions: ["animal", "upstream"],
   ifl_2000: ["plant", "downstream"], ifl_2013: ["plant", "downstream"], ifl_2016: ["plant", "downstream"], ifl_2020: ["plant", "downstream"], ifl_2025: ["plant", "downstream"],
   ftw_fields: ["plant", "downstream"],
@@ -22037,6 +22204,7 @@ const LAYER_SITE = {
   skin_farms: "https://www.farmtransparency.org/facilities/skin-fur-farms",
   ocean_acid: "https://www.ncei.noaa.gov/access/ocean-carbon-acidification-data-system/",
   ocean_heat: "https://coralreefwatch.noaa.gov/",
+  ocean_bleaching: "https://coralreefwatch.noaa.gov/",
   ocean_shipping: "https://datacatalog.worldbank.org/search/dataset/0037580",
   ocean_impacts: "https://doi.org/10.5063/F12B8WBS",
   fur_world: "https://www.farmtransparency.org/facilities/skin-fur-farms",
@@ -22074,6 +22242,44 @@ const LAYER_SITE = {
   crop_rice: "https://www.mapspam.info/data/",
   crop_cott: "https://www.mapspam.info/data/",
   crop_cnut: "https://www.mapspam.info/data/",
+  spam_coff: "https://www.mapspam.info/data/",
+  spam_bana: "https://www.mapspam.info/data/",
+  spam_barl: "https://www.mapspam.info/data/",
+  spam_bean: "https://www.mapspam.info/data/",
+  spam_cass: "https://www.mapspam.info/data/",
+  spam_chic: "https://www.mapspam.info/data/",
+  spam_citr: "https://www.mapspam.info/data/",
+  spam_cowp: "https://www.mapspam.info/data/",
+  spam_grou: "https://www.mapspam.info/data/",
+  spam_lent: "https://www.mapspam.info/data/",
+  spam_mill: "https://www.mapspam.info/data/",
+  spam_onio: "https://www.mapspam.info/data/",
+  spam_ocer: "https://www.mapspam.info/data/",
+  spam_rest: "https://www.mapspam.info/data/",
+  spam_ofib: "https://www.mapspam.info/data/",
+  spam_ooil: "https://www.mapspam.info/data/",
+  spam_opul: "https://www.mapspam.info/data/",
+  spam_orts: "https://www.mapspam.info/data/",
+  spam_trof: "https://www.mapspam.info/data/",
+  spam_vege: "https://www.mapspam.info/data/",
+  spam_pmil: "https://www.mapspam.info/data/",
+  spam_pige: "https://www.mapspam.info/data/",
+  spam_plnt: "https://www.mapspam.info/data/",
+  spam_pota: "https://www.mapspam.info/data/",
+  spam_rape: "https://www.mapspam.info/data/",
+  spam_rcof: "https://www.mapspam.info/data/",
+  spam_rubb: "https://www.mapspam.info/data/",
+  spam_sesa: "https://www.mapspam.info/data/",
+  spam_sorg: "https://www.mapspam.info/data/",
+  spam_sugb: "https://www.mapspam.info/data/",
+  spam_sunf: "https://www.mapspam.info/data/",
+  spam_swpo: "https://www.mapspam.info/data/",
+  spam_teas: "https://www.mapspam.info/data/",
+  spam_temf: "https://www.mapspam.info/data/",
+  spam_toba: "https://www.mapspam.info/data/",
+  spam_toma: "https://www.mapspam.info/data/",
+  spam_whea: "https://www.mapspam.info/data/",
+  spam_yams: "https://www.mapspam.info/data/",
   iuu_vessels: "https://iuu-vessels.org/",
   iuu_positions: "https://iuu-vessels.org/",
   fish_basins: "https://doi.org/10.6084/m9.figshare.c.3739145",
@@ -22417,6 +22623,7 @@ const NOT_LIVE = {
   skin_farms: "Made from its publisher's data by culprits-tiles-more",
   ocean_acid: "Made from its publisher's data by culprits-tiles-more",
   ocean_heat: "Made from its publisher's data by culprits-tiles-more",
+  ocean_bleaching: "Made from its publisher's data by culprits-tiles-more",
   ocean_shipping: "Made from its publisher's data by culprits-tiles-more",
   ocean_impacts: "Made from its publisher's data by culprits-tiles-more",
   fur_world: "Copied weekly from its publisher by culprits-tiles-more",
@@ -22481,6 +22688,44 @@ const NOT_LIVE = {
   crop_rice: "Made from SPAM 2020 by culprits-tiles-more",
   crop_cott: "Made from SPAM 2020 by culprits-tiles-more",
   crop_cnut: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_coff: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_bana: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_barl: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_bean: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_cass: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_chic: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_citr: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_cowp: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_grou: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_lent: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_mill: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_onio: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_ocer: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_rest: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_ofib: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_ooil: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_opul: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_orts: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_trof: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_vege: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_pmil: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_pige: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_plnt: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_pota: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_rape: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_rcof: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_rubb: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_sesa: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_sorg: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_sugb: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_sunf: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_swpo: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_teas: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_temf: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_toba: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_toma: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_whea: "Made from SPAM 2020 by culprits-tiles-more",
+  spam_yams: "Made from SPAM 2020 by culprits-tiles-more",
   iuu_vessels: "Copied weekly from the Combined IUU Vessel List by culprits-tiles-more",
   iuu_positions: "Copied weekly from the Combined IUU Vessel List by culprits-tiles-more",
   fish_basins: "Made from the freshwater fish database by culprits-tiles-more",
@@ -22788,6 +23033,8 @@ const PANEL_ORDER = [
   { h: 5, t: "Timber and rubber plantations" }, "nus_itp",
   { h: 5, t: "Illegal logging and timber trafficking" }, "powerbi_report",
   { h: 5, t: "Wood pulp, Indonesia" }, "trase_pulp_indonesia", "trase_pulp_concessions",
+  // Round 132b (asked 2 October): every zero-deforestation promise row together.
+  { h: 4, t: "Deforestation promises" },
   { h: 4, t: "Companies and financiers" }, "dff", "forest500_companies", "forest500_institutions", "forest500_producer_countries", "forest500_trading_countries",
   // Round 90b: the map's own mangroves, drawn to show from the world view.
   { h: 4, t: "Mangroves" }, "own_mangroves",
@@ -22816,7 +23063,7 @@ const PANEL_ORDER = [
   { h: 5, t: "Where animals gather and migrate" },
   { h: 4, t: "Disturbance" },
   { h: 4, t: "Birds" },
-  { h: 4, t: "Fish" }, "fish_rivers", "fish_basins",
+  { h: 4, t: "Fish" }, "fish_rivers", "fish_basins", "ocean_dead_zones",
   // Asked for 25 September: most biodiversity layers leave out the soil.
   { h: 4, t: "Soil biodiversity" }, "soil_spun", "soil_nematodes", "soilgrids",
   // Round 100b (asked 28 September): no page that only links out; the
@@ -22846,7 +23093,7 @@ const PANEL_ORDER = [
   // Round 123b (asked 2 October): the mines bundle split, each source its own
   // row; worldwide ones first (PANGAEA's mining areas lead, CATALOGUE_FIRST),
   // then those of a region or one country.
-  { h: 3, t: "Mining" }, "mines_global", "mine_features", "raisg_illegal_mining",
+  { h: 3, t: "Mining" }, "mines_global", "mine_features", "raisg_illegal_mining", "ocean_seabed_mining",
   // Round 112b (asked 29 September): who owns the food industry straight
   // under Meat and agriculture, above the land deals; its old heading under
   // Meat ("The culprits") is gone.
@@ -22856,12 +23103,31 @@ const PANEL_ORDER = [
   // Round 101b (asked 28 September): every crop, and the plantations that are
   // of no one crop, inside Cropland; each crop that clears the most land
   // under By crop, palm oil, soy and cocoa among them.
-  { h: 5, t: "Cropland" }, "ftw_fields", "potapov_cropland", "crops_spam",
+  { h: 5, t: "Cropland" }, "ftw_fields", "potapov_cropland",
   { h: 6, t: "Plantations of no single crop (single crops are under By crop)" },
   { h: 7, bundle: "plantall", colour: "#5E6A78" },
   { h: 7, bundle: "plantsmall", colour: "#5E6A78" },
   { h: 7, bundle: "idnplant", colour: "#6E6A55" },
   { h: 5, t: "By crop" },
+  // Round 132b (asked 2 October): every SPAM crop its own row under its own
+  // crop, in alphabetical order, the "other" groups last.
+  // Soy and cocoa as trade (24 September): the companies and financiers of soy.
+  { h: 6, t: "Banana" }, "spam_bana",
+  { h: 6, t: "Barley" }, "spam_barl",
+  { h: 6, t: "Beans" }, "spam_bean",
+  { h: 6, t: "Cassava" }, "spam_cass",
+  { h: 6, t: "Chickpeas" }, "spam_chic",
+  { h: 6, t: "Citrus" }, "spam_citr",
+  { h: 6, t: "Cocoa" }, "crop_coco",
+  { h: 6, t: "Coconut" }, "crop_cnut",
+  { h: 6, t: "Coffee" }, "spam_coff", "spam_rcof",
+  { h: 6, t: "Cotton" }, "crop_cott",
+  { h: 6, t: "Cowpeas" }, "spam_cowp",
+  { h: 6, t: "Groundnuts" }, "spam_grou",
+  { h: 6, t: "Lentils" }, "spam_lent",
+  { h: 6, t: "Maize (corn)" }, "crop_maiz",
+  { h: 6, t: "Millet" }, "spam_mill", "spam_pmil",
+  { h: 6, t: "Onion" }, "spam_onio",
   { h: 6, t: "Palm oil" }, "crop_oilp",
   { h: 7, t: "Concessions" },
   { h: 7, t: "Plantations" },
@@ -22869,26 +23135,46 @@ const PANEL_ORDER = [
   { h: 7, t: "Mills and refineries" }, "palmwatch", "trase_palm_indonesia",
   { h: 7, t: "Who finances them" },
   { h: 7, t: "Clearing and emissions" },
-  // Soy and cocoa as trade (24 September): the companies and financiers of
-  // soy and the shares of soy and cocoa under zero-deforestation commitments.
-  // Soy's fields are under Climate > Nitrous oxide, and here too.
-  { h: 6, t: "Soy" }, "crop_soyb", "site_forest500_soy", "soy_traders_money", "soy_organizations",
-  { h: 6, t: "Cocoa" }, "crop_coco",
-  { h: 6, t: "Coffee" }, "crop_coffee",
-  { h: 6, t: "Sugarcane" }, "crop_sugc",
-  { h: 6, t: "Maize (corn)" }, "crop_maiz",
+  { h: 6, t: "Pigeon peas" }, "spam_pige",
+  { h: 6, t: "Plantain" }, "spam_plnt",
+  { h: 6, t: "Potato" }, "spam_pota",
+  { h: 6, t: "Rapeseed" }, "spam_rape",
   { h: 6, t: "Rice" }, "crop_rice",
-  { h: 6, t: "Cotton" }, "crop_cott",
-  { h: 6, t: "Coconut" }, "crop_cnut",
+  { h: 6, t: "Rubber" }, "spam_rubb",
   { h: 6, t: "Sago" },
+  { h: 6, t: "Sesame" }, "spam_sesa",
+  { h: 6, t: "Sorghum" }, "spam_sorg",
+  { h: 6, t: "Soy" }, "crop_soyb", "site_forest500_soy", "soy_traders_money", "soy_organizations",
+  { h: 6, t: "Sugar beet" }, "spam_sugb",
+  { h: 6, t: "Sugarcane" }, "crop_sugc",
+  { h: 6, t: "Sunflower" }, "spam_sunf",
+  { h: 6, t: "Sweet potato" }, "spam_swpo",
+  { h: 6, t: "Tea" }, "spam_teas",
+  { h: 6, t: "Temperate fruit" }, "spam_temf",
+  { h: 6, t: "Tobacco" }, "spam_toba",
+  { h: 6, t: "Tomato" }, "spam_toma",
+  { h: 6, t: "Wheat" }, "spam_whea",
+  { h: 6, t: "Yams" }, "spam_yams",
+  { h: 6, t: "Other cereals" }, "spam_ocer",
+  { h: 6, t: "Other crops" }, "spam_rest",
+  { h: 6, t: "Other fibre crops" }, "spam_ofib",
+  { h: 6, t: "Other oil crops" }, "spam_ooil",
+  { h: 6, t: "Other pulses" }, "spam_opul",
+  { h: 6, t: "Other roots and tubers" }, "spam_orts",
+  { h: 6, t: "Other tropical fruit" }, "spam_trof",
+  { h: 6, t: "Other vegetables" }, "spam_vege",
   { h: 5, t: "Pasture and grassland" },
   { h: 5, t: "Water for crops" },
   { h: 5, t: "Clearing for farming" },
   { h: 4, t: "Meat" },
-  { h: 5, t: "Facilities" }, "abattoir_facilities", "trase_meat_brazil", "abattoir_cafo",
+  // Round 132b (asked 2 October): Herds above Facilities; Cattle and pasture
+  // and Pigs and chickens gone with the Brazil trade rows; Marine meats.
   { h: 5, t: "Herds" }, "abattoir_glw",
-  { h: 5, t: "Cattle and pasture" },
-  { h: 5, t: "Pigs and chickens" },
+  { h: 5, t: "Facilities" }, "abattoir_facilities", "trase_meat_brazil", "abattoir_cafo",
+  { h: 5, t: "Marine meats" },
+  { h: 6, t: "Wild-caught fish" }, "fishing", "iuu_vessels", "iuu_positions",
+  { h: 6, t: "Fish and shrimp farms" }, "aquaculture_ponds",
+  { h: 7, bundle: "ponds", colour: "#5E7377" },
   // Round 100b: meat grown from cells last of all.
   { h: 5, t: "Meat grown from cells" }, "cultivated_meat_laws",
   // Round 94b/95b: fur and skin farms. Round 100b (asked 28 September): a
@@ -22899,19 +23185,22 @@ const PANEL_ORDER = [
   { h: 4, t: "Skin farms" }, "skin_farms",
   // Item 11: Fishing above Reefs and mangroves. Items 4, 5, 6: the pond maps
   // as one row, and the worldwide pond map beside them.
+  // Round 132b (asked 2 October): every human impact together first, each kind
+  // of harm under it with a note saying whether that layer (Halpern et al.
+  // 2019, 14 pressures) counts it. Fishing and pollution rows are here and
+  // under Meat and Pollution too.
   { h: 3, t: "Oceans" },
-  { h: 4, t: "Fishing" }, "fishing", "aquaculture_ponds", "iuu_vessels", "iuu_positions",
-  { h: 5, bundle: "ponds", colour: "#5E7377" },
-  { h: 4, t: "Reefs and mangroves" }, "allen_coral",
-  // Round 94b (asked 27 September): more of what is done to the oceans.
-  { h: 4, t: "Dead zones" }, "ocean_dead_zones",
-  { h: 4, t: "Deep-sea mining" }, "ocean_seabed_mining",
-  // Round 95b (asked 27 September): acidification, heatwaves and bleaching,
-  // shipping, and every human impact together.
-  { h: 4, t: "Ocean acidification" }, "ocean_acid",
-  { h: 4, t: "Marine heatwaves and coral bleaching" }, "ocean_heat",
-  { h: 4, t: "Shipping" }, "ocean_shipping",
+  { note: "Fishing and fish farms are also under Meat and agriculture > Meat > Marine meats. Plastic, oil and gas spills are also under Pollution." },
   { h: 4, t: "Every human impact together" }, "ocean_impacts",
+  { h: 5, t: "Fishing", tag: "fishing is counted in the Every human impact together layer; fish farm ponds are not" }, "fishing", "iuu_vessels", "iuu_positions", "aquaculture_ponds",
+  { h: 6, bundle: "ponds", colour: "#5E7377" },
+  { h: 5, t: "Ocean acidification", tag: "counted in the Every human impact together layer" }, "ocean_acid",
+  { h: 5, t: "Marine heatwaves", tag: "counted in the Every human impact together layer, as sea surface temperature" }, "ocean_heat",
+  { h: 5, t: "Shipping", tag: "counted in the Every human impact together layer" }, "ocean_shipping",
+  { h: 5, t: "Pollution at sea", tag: "nutrient and chemical runoff are counted in the Every human impact together layer; plastic and oil spills are not" }, "wastewater_plumes", "cerulean_sources", "cerulean_slicks", "skytruth_voc", "skytruth_marine_incidents", "skytruth_posts_sea", "seas_of_plastic", "coastal_cleanup",
+  { h: 5, t: "Dead zones", tag: "partly counted in the Every human impact together layer, through the nutrient runoff that causes them" }, "ocean_dead_zones",
+  { h: 5, t: "Deep-sea mining", tag: "not counted in the Every human impact together layer" }, "ocean_seabed_mining",
+  { h: 5, t: "Reefs and mangroves", tag: "not counted in the Every human impact together layer: these are what is harmed" }, "allen_coral", "ocean_bleaching",
   { h: 3, t: "Construction" }, "local_projects",
   // Concessions that name no material or activity a heading covers (23 September).
   { h: 3, t: "Other concessions" },
@@ -23026,6 +23315,9 @@ const PANEL_ORDER = [
   { h: 1, t: "Buildings" }, "building_types", "osm_landuse",
 ];
 const PANEL_REMOVED = new Set([
+  // Round 132b: every crop is its own row under By crop; SPAM's one-menu row and
+  // the coffee row that waited on files SPAM 2020 does not have go.
+  "crops_spam", "crop_coffee",
   // Round 123b: INPE's 2023 fires across South America taken out (asked 2 October).
   "inpe_fire_2023",
   // Round 123b: the crop-by-crop water stress taken out (asked 2 October).
@@ -23492,7 +23784,7 @@ function arrangePanel() {
     head.setAttribute("aria-expanded", "false");
     head.innerHTML = bundle
       ? `<span class="swatch" style="background:${escapeHtml(item.colour || "#6A6258")}"></span><span class="toc-t">${escapeHtml(t)}</span><span class="toc-n"></span><span class="toc-arrow">\u25BE</span>`
-      : `<span class="toc-arrow">\u25B8</span><span class="toc-t">${escapeHtml(titleCase(t))}</span><span class="toc-n"></span>`;
+      : `<span class="toc-arrow">\u25B8</span><span class="toc-t">${escapeHtml(titleCase(t))}${item && item.tag ? `<span class="toc-tag">${escapeHtml(item.tag)}</span>` : ""}</span><span class="toc-n"></span>`;
     const body = document.createElement("div");
     body.className = "toc-body";
     body.hidden = true;

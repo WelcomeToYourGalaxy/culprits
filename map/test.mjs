@@ -2538,7 +2538,7 @@ console.log("\nthe layers box, as asked for");
   const at = (t) => o.PANEL_ORDER.findIndex((x) => x && x.t === t);
   const between = (id, a, b) => o.PANEL_ORDER.indexOf(id) > at(a) && o.PANEL_ORDER.indexOf(id) < at(b);
   check("the fishing-effort layer sits under Fishing, under Oceans, and the modelled one under Slavery",
-        at("Oceans") < at("Fishing") && between("fishing", "Fishing", "Construction") &&
+        at("Oceans") < at("Fishing") && o.PANEL_ORDER.lastIndexOf("fishing") > at("Fishing") && o.PANEL_ORDER.lastIndexOf("fishing") < at("Construction") &&   /* round 132b: also under Marine meats */
         o.PANEL_ORDER.indexOf("slavery_fishing") > at("Slavery"));
   check("the reefs sit under Biodiversity loss, with the Global Safety Net at the top of it",
         // Round 23: Fishing above Reefs and mangroves (item 11); the Global
@@ -2548,7 +2548,7 @@ console.log("\nthe layers box, as asked for");
         o.PANEL_ORDER[at("Biodiversity loss") + 1].t === "Land Use and Ecoregions" && o.PANEL_ORDER[at("Protected areas") + 1] === "gsn_countries");
   check("Agriculture is Meat and agriculture, holding Agriculture and Meat",
         at("Meat and agriculture") > 0 && at("Agriculture") > at("Meat and agriculture") &&
-        between("land_matrix", "Meat and agriculture", "Agriculture") && between("abattoir_facilities", "Facilities", "Herds"));
+        between("land_matrix", "Meat and agriculture", "Agriculture") && between("abattoir_facilities", "Facilities", "Marine meats"));   // round 132b: Herds above Facilities
   check("the Power BI row is named for what it shows", /id: "powerbi_report", name: "Environmental Crime Tracker"/.test(src));
   check("every row carries the fold control, ticked or not, groups included",
         /"#layers label\.layer:has\(\+ \.facet:not\(\.row-tools\)\) \.fold,#layers label\.layer:has\(\+ \.row-tools \+ \.facet\) \.fold\{display:inline-block\}"/.test(src) &&
@@ -3610,7 +3610,7 @@ console.log("\nround of 23 September (23): the owner's thirty notes on the layer
         /clark_labs_tropical_pond_aquaculture_2014: "Aquaculture ponds in 2014/.test(src) && /clark_labs_tropical_pond_aquaculture_2018: "Aquaculture ponds in 2018/.test(src));
   check("5: a worldwide aquaculture pond row under Fishing, built by culprits-tiles-more, saying so until built",
         /id: "aquaculture_ponds"[^\n]*route: "pmshapes"/.test(src) && /tiles\/aquaculture_ponds\.pmtiles/.test(src) &&
-        /buildScript: "scripts\/aquaculture_ponds\.py"/.test(src) && order.indexOf("aquaculture_ponds") > at("Fishing") && order.indexOf("aquaculture_ponds") < at("Reefs and mangroves") &&
+        /buildScript: "scripts\/aquaculture_ponds\.py"/.test(src) && order.lastIndexOf("aquaculture_ponds") > at("Fishing") && order.lastIndexOf("aquaculture_ponds") < at("Reefs and mangroves")   /* round 132b: also under Marine meats */ &&
         /not built yet: run \$\{cfg\.buildScript\}/.test(src));
   check("7: the coral row says warm-water only, and the world view is drawn pale and grown so reefs outside the Caribbean show",
         /name:"Coral reefs, warm-water only \(Allen Coral Atlas and UNEP-WCMC\)"/.test(src) && /const CORAL_WORLD_TINT = "E3D2CC"/.test(src) &&
@@ -3668,8 +3668,8 @@ console.log("\nround of 23 September (23): the owner's thirty notes on the layer
   check("27: long lists are split a level further, and a row lands in a sub-heading, not between heading and sub-headings",
         f("Oil palm concessions — Equatorial Asia", "concessioniop_spv") === `${AG} > By crop > Palm oil > Concessions` &&
         f("Palm oil mills — Equatorial Asia", "millop_spv") === `${AG} > By crop > Palm oil > Mills and refineries` &&
-        f("Cattle herd size Production beef CATTLE HEADS trase") === `${P} > Meat and agriculture > Meat > Herds` &&   // round 95b
-        f("Soy traded under zero deforestation commitments trase") === `${AG} > By crop > Soy` &&
+        f("Cattle herd size Production beef CATTLE HEADS trase") === "(taken out)" &&   // round 132b: taken out
+        f("Soy traded under zero deforestation commitments trase") === `${P} > Deforestation > Deforestation promises` &&   // round 132b
         at("Palm oil") < at("Concessions") && order[at("Concessions")].h === 7 && /"\.panel-h7\{/.test(src));
   check("…a heading of the same name deeper down is not mistaken for this one", /found = own\.find\(named\) \|\| null;/.test(src));
   check("28: of the forest cover maps only the JRC's 2020 map stays, under Deforestation > Forest cover in 2020 (24 September, round 42)",
@@ -4014,9 +4014,10 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   const f = (t, id = "") => lib.cataloguePlaces(`${t} ${id}`, `${t} ${id}`).join(" | ");
   const P = "Destruction > Of the planet";
   check("each zero-deforestation share goes with its commodity; the heading is gone",
-        f("Beef traded under zero deforestation commitments (%) \u2014 Paraguay (Trase)", "X") === P + " > Meat and agriculture > Meat > Cattle and pasture" &&
-        f("Soy exported under a ZDC (%) \u2014 Brazil (Trase)", "X") === lib.AG + " > By crop > Soy" &&
-        f("Percentage of (total) cocoa that is exported under a zero deforestation commitment (%) \u2014 C\u00f4te d'Ivoire (Trase)", "X") === lib.AG + " > By crop > Cocoa" &&
+        // Round 132b (asked 2 October): every promise under Deforestation promises.
+        f("Beef traded under zero deforestation commitments (%) \u2014 Paraguay (Trase)", "X") === P + " > Deforestation > Deforestation promises" &&
+        f("Soy exported under a ZDC (%) \u2014 Brazil (Trase)", "X") === P + " > Deforestation > Deforestation promises" &&
+        f("Percentage of (total) cocoa that is exported under a zero deforestation commitment (%) \u2014 C\u00f4te d'Ivoire (Trase)", "X") === P + " > Deforestation > Deforestation promises" &&
         !/\{ h: 4, t: "Zero-deforestation commitments" \}/.test(src));
   check("soy's companies and financiers are under Agriculture > Soy", /\{ h: 6, t: "Soy" \}, "crop_soyb", "site_forest500_soy", "soy_traders_money", "soy_organizations"/.test(src) &&
         /\{ h: 4, t: "Companies and financiers" \}, "dff",/.test(src));
@@ -5155,7 +5156,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   const d = at("Deforestation"), next = o.PANEL_ORDER.findIndex((x, i) => i > d && x && x.h === 3);
   const h4 = o.PANEL_ORDER.slice(d, next).filter((x) => x && x.h === 4).map((x) => x.t);
   check("Deforestation reads Forest cover, Forest zoning, Tree cover loss and alerts, The Culprits, Companies and financiers, Mangroves",
-        JSON.stringify(h4) === JSON.stringify(["Forest cover", "Forest zoning and management plans", "Tree cover loss and alerts", "The Culprits", "Companies and financiers", "Mangroves", "Peatland"]));   // round 92b: Peatland last
+        JSON.stringify(h4) === JSON.stringify(["Forest cover", "Forest zoning and management plans", "Tree cover loss and alerts", "The Culprits", "Deforestation promises", "Companies and financiers", "Mangroves", "Peatland"]));   // round 132b: promises   // round 92b: Peatland last
   const c = at("The Culprits");
   check("The Culprits holds the logging, plantation, timber crime and wood pulp headings",
         ["Logging and timber concessions", "Timber and rubber plantations", "Illegal logging and timber trafficking", "Wood pulp, Indonesia"].every((h) => { const i = at(h); return i > c && i < at("Companies and financiers") && o.PANEL_ORDER[i].h === 5; }));
@@ -5260,7 +5261,7 @@ console.log("\nround 94b: Liberia's mines and Merauke's roads out; fur farms wor
   check("the crime tracker is under Environmental crime; Liberia's mines, Merauke's roads and the broken coral copy are out",
         /"raisg_illegal_mining", "powerbi_report",\n/.test(src) && /\[\/\\blbr_\(development_exploration_license\|mineral_development_agreement\|mineral_exploration_license\)\\b\/, null\]/.test(src) &&
         /merauke_road_plan/.test(src) && /\[\/\\bbenthic_allencorral_global\\b\/, null\]/.test(src));
-  check("fur farming law by country, and the new Oceans headings", /id: "fur_bans"[^\n]*route: "countrycat"/.test(src) && /\{ h: 4, t: "Dead zones" \}, "ocean_dead_zones",/.test(src) && /\{ h: 4, t: "Deep-sea mining" \}, "ocean_seabed_mining",/.test(src));
+  check("fur farming law by country, and the new Oceans headings", /id: "fur_bans"[^\n]*route: "countrycat"/.test(src) && /\{ h: 5, t: "Dead zones"[^\n]*\}, "ocean_dead_zones",/.test(src) && /\{ h: 5, t: "Deep-sea mining"[^\n]*\}, "ocean_seabed_mining",/.test(src));   // round 132b
   check("the page asks for this round's script", appVersion(html) >= 94);
 }
 
@@ -5441,8 +5442,8 @@ console.log("\nround 101b (28 September): By crop, plantations, palm oil, themes
   const lib = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return { cataloguePlaces, CATALOGUE_TAKEN_OUT, AG, CROPS, PLANTS, IN, BUNDLES };")();
   const f = (t, id = "") => lib.cataloguePlaces(`${t} ${id}`, `${t} ${id}`);
   check("plantations of no single crop are inside Cropland; the crops under By crop",
-        /\{ h: 5, t: "Cropland" \}, "ftw_fields", "potapov_cropland", "crops_spam",\n\s*\{ h: 6, t: "Plantations of no single crop \(single crops are under By crop\)" \},/.test(src) &&
-        /\{ h: 5, t: "By crop" \},\n\s*\{ h: 6, t: "Palm oil" \}, "crop_oilp",/.test(src) && lib.PLANTS === lib.AG + " > Cropland > Plantations of no single crop (single crops are under By crop)");
+        /\{ h: 5, t: "Cropland" \}, "ftw_fields", "potapov_cropland",\n\s*\{ h: 6, t: "Plantations of no single crop \(single crops are under By crop\)" \},/.test(src) &&
+        /\{ h: 6, t: "Palm oil" \}, "crop_oilp",/.test(src) && lib.PLANTS === lib.AG + " > Cropland > Plantations of no single crop (single crops are under By crop)");
   check("each 2024 and 2025 pair is one layer",
         f("Plantations of every kind 2024", "Global_PlantationAll_2024")[0] === lib.IN(lib.PLANTS, "plantall") &&
         f("Smallholder plantations 2025", "Global_PlantationSmallholder_2025")[0] === lib.IN(lib.PLANTS, "plantsmall") &&
@@ -5472,7 +5473,7 @@ console.log("\nround 101b (28 September): By crop, plantations, palm oil, themes
   check("the Forest 500 soy scores are coloured red for the worst to blue", /recolour: \{ "#874545": \["#FF3B5C", 9\]/.test(src) && /if \(cfg\.recolour\) data = /.test(src));
   check("the planted trees map is drawn from its ready-made picture tiles", /gfw_planted_forests: \{ how: "raster", uri: "https:\/\/tiles\.globalforestwatch\.org\/gfw_planted_forests\/v20231128\/default/.test(src));
   check("blacklisted fishing vessels by flag, under Fishing and Environmental crime",
-        /id: "iuu_vessels"[^\n]*route: "country"/.test(src) && /"fishing", "aquaculture_ponds", "iuu_vessels",/.test(src) && /"goc_resources", "iuu_vessels",/.test(src));
+        /id: "iuu_vessels"[^\n]*route: "country"/.test(src) && /"fishing", "iuu_vessels", "iuu_positions",/.test(src) && /"goc_resources", "iuu_vessels",/.test(src));
 }
 console.log("\nround 102b (28 September): the insentient's kinds, Of groups, Christmas trees, asteroids on the flat map, launches, Eyes, worlds' pictures");
 {
@@ -5997,6 +5998,19 @@ console.log("\nround 130b (2 October): Open Payments by state");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("Open Payments row under The medical industry", /"medical_culprits", "open_payments",/.test(src) && /id: "open_payments"[^\n]*route: "geojsonlive"/.test(src) &&
         /openpay\/states\.geojson/.test(src) && /\n  open_payments: "Added up weekly/.test(src));
+}
+console.log("\nround 132b (2 October): crops, cropland spread, meat, promises, oceans");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const ids = [...src.matchAll(/id: "(spam_[a-z]+)"/g)].map((m) => m[1]);
+  check("every SPAM crop not already a row has its own row (38)", ids.length === 38 && ids.every((i) => src.includes(`"${i}",`) || src.includes(`"${i}"\n`)));
+  check("rows can take only some of their build's chips", /cfg\.choiceMatch\) cfg\.choices = \(cfg\.choices \|\| \[\]\)\.filter/.test(src));
+  check("cropland spread shows only net gain and net loss", /id: "potapov_cropland", name: "Cropland spread, 2003 to 2019[^\n]*choiceMatch: \/\^net \(gain\|loss\)\/i/.test(src));
+  check("By crop: Other groups last", src.indexOf('{ h: 6, t: "Yams" }') < src.indexOf('{ h: 6, t: "Other cereals" }') && src.indexOf('{ h: 6, t: "Banana" }') < src.indexOf('{ h: 6, t: "Wheat" }'));
+  check("Cattle and pasture and Pigs and chickens gone; Herds above Facilities; Marine meats", !src.includes('t: "Cattle and pasture" }') && !src.includes('t: "Pigs and chickens" }') && src.indexOf('{ h: 5, t: "Herds" }') < src.indexOf('{ h: 5, t: "Facilities" }') && src.includes('{ h: 5, t: "Marine meats" }'));
+  check("Deforestation promises heading", src.includes('{ h: 4, t: "Deforestation promises" }') && src.includes('" > Deforestation > Deforestation promises"'));
+  check("Every human impact together leads Oceans, with notes", /\{ h: 3, t: "Oceans" \},\n  \{ note: [^\n]*\},\n  \{ h: 4, t: "Every human impact together" \}, "ocean_impacts",/.test(src) && (src.match(/tag: "[^"]*Every human impact together layer/g) || []).length === 8);
+  check("heatwaves and bleaching are two rows of the same files", /id: "ocean_bleaching"[^\n]*choiceMatch/.test(src) && /id: "ocean_heat"[^\n]*choiceMatch: \/\^Sea surface temperature\/i/.test(src));
 }
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
