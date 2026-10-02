@@ -5,6 +5,23 @@ touches.
 
 ---
 
+## Round 144b (2 October)
+
+Needs round 143b. No tiles patch. No app.js?v= bump.
+
+- Combine the ticked layers: how much of each layer is crossed (asked 2
+  October), in the combine box under its message (#combo-stats). For each
+  layer taking part: the share of it crossed by any other group, or by one
+  group picked in the menu (#combo-by), worldwide and in the part of the map
+  in view (comboViewCells from map.getBounds, wrapping round 180 degrees).
+  Places count one each; areas and pictures count the ground they cover
+  (cover x cos latitude). "Crossed" is the outline's own test: a layer of
+  that group present in the square (within about 50 km; in "highest values",
+  in its own top fifth). comboBuild keeps each layer's squares sparsely
+  (COMBO.stats); comboShares adds them up; the view share is redone on every
+  map move. Worldwide is all the map has read of a layer, so tiled layers
+  grow as the reader looks round (the box says so).
+
 ## Round 143b (2 October)
 
 Needs round 142b. No tiles patch. No app.js?v= bump.

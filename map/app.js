@@ -16527,6 +16527,9 @@ async function comboBuild(gen) {
   // Round 143b: layers in one group count as one (mine sites and mining
   // features together are "mining"); a square counts the groups present.
   const groupOf = comboGroups(ids), present = new Map();
+  // Round 144b: what each layer holds, square by square, for the shares.
+  const statRows = [], amt = new Float32Array(W * H), cosLat = new Float32Array(H);
+  for (let y = 0; y < H; y++) cosLat[y] = Math.cos((90 - (y + 0.5) * POINT_RELIEF_RES) * Math.PI / 180);
   COMBO.seen = COMBO.seen || new Map();
   for (const id of ids) {
     const wt = COMBO.weights.has(id) ? COMBO.weights.get(id) : 1;
@@ -16571,6 +16574,16 @@ async function comboBuild(gen) {
     present.set(grp, here);
     for (let i = 0; i < here.length; i++) if (g.g[i] > floor && g.g[i] >= cut) here[i] = 1;
     used.push(id);
+    // Places counted one each; areas and pictures by the ground they cover.
+    amt.fill(0);
+    for (const [lng, lat] of pts) {
+      const x = Math.floor((lng + 180) / POINT_RELIEF_RES), y = Math.floor((90 - lat) / POINT_RELIEF_RES);
+      if (x >= 0 && x < W && y >= 0 && y < H) amt[y * W + x] += 1;
+    }
+    if (cover) for (let i = 0; i < amt.length; i++) if (cover[i] > 0) amt[i] += cover[i] * cosLat[Math.floor(i / W)];
+    const idx = [], wv = [];
+    for (let i = 0; i < amt.length; i++) if (amt[i] > 0) { idx.push(i); wv.push(amt[i]); }
+    statRows.push({ id, grp, idx: Int32Array.from(idx), w: Float32Array.from(wv), kind: pts.length && cover ? "mixed" : pts.length ? "points" : "area" });
   }
   COMBO.none = none;
   COMBO.used = used;
@@ -16580,6 +16593,7 @@ async function comboBuild(gen) {
   for (const here of present.values()) for (let i = 0; i < count.length; i++) count[i] += here[i];
   const groups = present.size;
   COMBO.groupCount = groups;
+  COMBO.stats = { W, H, rows: statRows, present };
   if (used.length < 2) return { keep: null, best: used.length, used, groups };
   if (groups < 2) return { keep: null, best: 1, used, groups, oneGroup: true };
   let best = 0; for (const c of count) if (c > best) best = c;
@@ -16640,6 +16654,7 @@ async function comboDraw() {
   COMBO.sigBuilt = comboSig();
   const r = await comboBuild(gen);
   if (COMBO.mode === "off" || gen !== COMBO.gen) return;
+  comboStatsRender();
   for (const [, own] of POINT_RELIEFS) if (map.getLayer(`${own.rid}-tint`)) map.setLayoutProperty(`${own.rid}-tint`, "visibility", "none");
   const nameOf = (id) => { const c = LAYERS.find((x) => x.id === id) || (typeof childById === "function" ? childById(id) : null); return String((c && c.name) || id); };
   const left = (COMBO.none || []).map(nameOf);
@@ -17009,6 +17024,8 @@ function comboMode(mode) {
     for (const [id, pr] of POINT_RELIEFS) if ((visibility.get(id) || "none") === "visible") densityBandsShow(id, pr, true);
     const say = document.getElementById && document.getElementById("combo-say");
     if (say) say.textContent = "";
+    COMBO.stats = null;
+    comboStatsRender();
     comboList();
     return;
   }
@@ -17065,6 +17082,69 @@ function comboList() {
     }).map((head, i) => head + `<span title="${escapeHtml(nameOf(ids[i]))}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(nameOf(ids[i]))}</span></div>`).join("") : "";
 }
 if (typeof map.on === "function") map.on("moveend", () => { if (COMBO.mode !== "off" && (COMBO.rows || []).some((id) => rowVectorLayers(id).some((l) => l.source && map.getSource(l.source) && map.getSource(l.source).type === "vector"))) comboSoon(2500); });
+// Round 144b (asked 2 October): for each layer taking part, the share of it
+// that is crossed by the other groups, or by one group chosen, worldwide (all
+// the map has read of it) and in the part of the map in view. Places count
+// one each; areas and pictures count the ground they cover. "Crossed" is the
+// same test the outline uses: a layer of that group within about 50 km (in
+// "highest values", in its own top fifth there).
+COMBO.statsBy = "any";
+function comboViewCells(W, H) {
+  const res = POINT_RELIEF_RES;
+  let b = null;
+  try { b = map.getBounds && map.getBounds(); } catch (e) { b = null; }
+  const cols = new Uint8Array(W);
+  if (!b) return { cols: cols.fill(1), y0: 0, y1: H - 1 };
+  const w = b.getWest(), e = b.getEast(), n = Math.min(90, b.getNorth()), s = Math.max(-90, b.getSouth());
+  if (e - w >= 360) cols.fill(1);
+  else {
+    const a = (((w + 180) % 360) + 360) % 360, x0 = Math.floor(a / res), x1 = Math.floor((a + (e - w)) / res - 1e-9);
+    for (let k = x0; k <= x1 && k - x0 < W; k++) cols[k % W] = 1;
+  }
+  return { cols, y0: Math.max(0, Math.floor((90 - n) / res)), y1: Math.min(H - 1, Math.floor((90 - s) / res)) };
+}
+function comboShares(st, by, view) {
+  const out = [];
+  const groups = [...st.present.keys()];
+  for (const r of st.rows) {
+    const others = by === "any" ? groups.filter((g) => g !== r.grp).map((g) => st.present.get(g)) : (by === r.grp || !st.present.has(by) ? [] : [st.present.get(by)]);
+    let tot = 0, cr = 0, vt = 0, vc = 0;
+    for (let k = 0; k < r.idx.length; k++) {
+      const i = r.idx[k], w = r.w[k];
+      let hit = false;
+      for (const m of others) if (m[i]) { hit = true; break; }
+      tot += w; if (hit) cr += w;
+      if (view) {
+        const y = Math.floor(i / st.W), x = i - y * st.W;
+        if (y >= view.y0 && y <= view.y1 && view.cols[x]) { vt += w; if (hit) vc += w; }
+      }
+    }
+    out.push({ id: r.id, grp: r.grp, kind: r.kind, same: by !== "any" && by === r.grp, world: tot > 0 ? cr / tot : null, view: vt > 0 ? vc / vt : null });
+  }
+  return out;
+}
+function comboStatsRender() {
+  const el = typeof document !== "undefined" && document.getElementById ? document.getElementById("combo-stats") : null;
+  if (!el) return;
+  const st = COMBO.stats;
+  if (COMBO.mode === "off" || !st || st.present.size < 2 || !st.rows.length) { el.innerHTML = ""; return; }
+  const groups = [...st.present.keys()].sort();
+  let by = COMBO.statsBy;
+  if (by !== "any" && !st.present.has(by)) by = COMBO.statsBy = "any";
+  const nameOf = (id) => { const c = LAYERS.find((x) => x.id === id) || (typeof childById === "function" ? childById(id) : null); return String((c && c.name) || id); };
+  const members = (g) => st.rows.filter((r) => r.grp === g).map((r) => nameOf(r.id));
+  const pct = (v) => v == null ? "nothing there" : v > 0 && v < 0.005 ? "under 1%" : `${Math.round(v * 100)}%`;
+  const what = (k) => k === "points" ? "of its places" : k === "area" ? "of the ground it covers" : "of what it holds";
+  const rows = comboShares(st, by, comboViewCells(st.W, st.H));
+  el.innerHTML = `<div style="margin:6px 0 2px">How much of each layer is crossed by ` +
+    `<select id="combo-by" style="font:inherit;font-size:10.5px;max-width:100%"><option value="any"${by === "any" ? " selected" : ""}>any other group</option>` +
+    groups.map((g) => { const m = members(g); return `<option value="${escapeHtml(g)}"${by === g ? " selected" : ""}>group ${escapeHtml(g)}: ${escapeHtml(m[0] || "")}${m.length > 1 ? ` and ${m.length - 1} more` : ""}</option>`; }).join("") +
+    `</select></div>` +
+    rows.map((r) => `<div style="margin:2px 0">${escapeHtml(nameOf(r.id))} (group ${escapeHtml(r.grp)}): ` +
+      (r.same ? "in that group itself" : `${pct(r.world)} ${what(r.kind)} worldwide, ${pct(r.view)} in the part of the map in view`) + `</div>`).join("") +
+    `<div style="margin:3px 0 0">Worldwide means everything the map has read of a layer: layers read in tiles grow as you look round. Crossed means a layer of the other group lies within about 50 km.</div>`;
+}
+if (typeof map.on === "function") map.on("moveend", () => { if (COMBO.mode !== "off" && COMBO.stats) comboStatsRender(); });
 // Which kind of rising a row gets, when it is shown or the switch changes.
 function riseRow(id, on, tries) {
   if (RELIEFS.has(id) || LIFTED.has(id)) return;     // its own relief, or country towers
@@ -25101,10 +25181,12 @@ function comboBox(box) {
     `<select id="combo-mode" aria-label="Combine the ticked layers" style="font:inherit;font-size:11.5px;max-width:100%;margin:3px 0">` +
     COMBO_MODES.map(([k, t]) => `<option value="${k}">${t}</option>`).join("") + `</select>` +
     `<div id="combo-say" style="font-size:10.5px;color:var(--dim)"></div>` +
+    `<div id="combo-stats" style="font-size:10.5px"></div>` +
     `<div id="combo-rows" style="font-size:10.5px"></div>`;
   box.parentElement.insertBefore(wrap, box);
   wrap.addEventListener("change", (e) => {
     if (e.target && e.target.id === "combo-mode") comboMode(e.target.value);
+    if (e.target && e.target.id === "combo-by") { COMBO.statsBy = e.target.value; comboStatsRender(); return; }
     if (e.target && e.target.dataset && e.target.dataset.comboWeight) {
       const id = e.target.dataset.comboWeight, v = e.target.value;
       // Round 143b: a group letter, or 0 for left out.

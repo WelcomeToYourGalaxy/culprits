@@ -6134,6 +6134,23 @@ console.log("\nround 143b (2 October): layers grouped, so alike layers do not cr
   check("each row's menu: group A to H or left out", /\[\.\.\.COMBO_LETTERS\]\.map\(\(l\) => \[l, `group \$\{l\}`\]\)\.concat\(\[\["0", "left out"\]\]\)/.test(src) && /else \{ COMBO\.weights\.set\(id, 1\); COMBO\.groups\.set\(id, v\); \}/.test(src));
 }
 
+console.log("\nround 144b (2 October): how much of each layer is crossed, worldwide and in view");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const bounds = { getWest: () => -180, getEast: () => 0, getNorth: () => 90, getSouth: () => 1 };
+  const map = { getBounds: () => bounds };
+  const lib = new Function("map", "POINT_RELIEF_RES", src.slice(src.indexOf("function comboViewCells(W, H)"), src.indexOf("function comboStatsRender()")) + "; return { comboViewCells, comboShares };")(map, 90);
+  // A 4 x 2 world: mines (A) in squares 0, 1 and 5; protected (B) present in 1 and 5; water (C) in 0.
+  const present = new Map([["A", Uint8Array.from([1, 1, 0, 0, 0, 1, 0, 0])], ["B", Uint8Array.from([0, 1, 0, 0, 0, 1, 0, 0])], ["C", Uint8Array.from([1, 0, 0, 0, 0, 0, 0, 0])]]);
+  const st = { W: 4, H: 2, present, rows: [{ id: "mines", grp: "A", idx: Int32Array.from([0, 1, 5]), w: Float32Array.from([2, 1, 1]), kind: "points" }] };
+  const view = lib.comboViewCells(4, 2);
+  const byB = lib.comboShares(st, "B", view)[0], any = lib.comboShares(st, "any", view)[0], own = lib.comboShares(st, "A", view)[0];
+  check("the share crossed by one group, worldwide and in view", byB.world === 0.5 && byB.view === 1 / 3 && JSON.stringify([...view.cols]) === "[1,1,0,0]");
+  check("by any other group, and none by its own", any.world === 1 && any.view === 1 && own.same === true);
+  check("the shares sit in the combine box, follow the map and the menu", /<div id="combo-stats"/.test(src) && /e\.target\.id === "combo-by"\) \{ COMBO\.statsBy = e\.target\.value; comboStatsRender\(\); return; \}/.test(src) &&
+        /map\.on\("moveend", \(\) => \{ if \(COMBO\.mode !== "off" && COMBO\.stats\) comboStatsRender\(\); \}\);/.test(src));
+}
+
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
