@@ -6067,7 +6067,7 @@ console.log("\nround 137b (2 October): fish decline, stocks and populations");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("fish stocks by country from RAM Legacy, and the Living Planet populations, under Fish and under Oceans",
-        /id: "fish_stocks"[^\n]*route: "country"/.test(src) && /id: "lpi_populations"[^\n]*route: "geojsonlive"/.test(src) &&
+        /id: "fish_stocks"[^\n]*route: "country"/.test(src) && /id: "lpi_populations"[^\n]*route: "pmtiles"/.test(src) && /keys: \[\{ label: "Kind of animal", property: "x_class"/.test(src) &&
         /t: "Fish" \}, "fish_stocks", "lpi_populations",/.test(src) && /t: "Fish decline"[^\n]*\}, "fish_stocks", "lpi_populations",/.test(src));
 }
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");

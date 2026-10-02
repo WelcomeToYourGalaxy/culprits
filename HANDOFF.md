@@ -5,6 +5,23 @@ touches.
 
 ---
 
+## Round 138b (2 October)
+
+Needs round 137b. Tiles patch round138b_tiles.py beside it. No app.js?v= bump.
+
+- lpi_populations is map tiles with boxes (route pmtiles), not one file: the
+  2024 public Living Planet Database (uploaded 2 October) is 35,996
+  populations, 46 MB as one GeoJSON, too heavy for a browser. Tiles
+  lpi_populations.py writes tiles/lpi_populations.pmtiles (class, system,
+  name, change, last year counted) and each record whole to
+  lpi/lpi_populations/<hh>.json.gz (env_enforcement.write_layer). It skips the
+  Mac copies the zip carries (__MACOSX/._*.csv) and reads the BOM in the
+  header. Coloured by system, change or class; key filters by kind of animal
+  (LPI_CLASSES, plain words) and system.
+- Key filters now draw for rows inside groups too (they were drawn only for
+  the main list's rows).
+- Tested on the real download: 35,996 populations, all with a position.
+
 ## Round 137b (2 October)
 
 Needs round 136b. Tiles patch round137b_tiles.py beside it. No app.js?v= bump.

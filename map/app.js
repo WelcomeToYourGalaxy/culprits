@@ -267,6 +267,9 @@ function keysRow(cfg) {
 const ABATTOIR_SIZES = [["Large", "large: 500 or more employees"], ["Small", "small: 10 to 499 employees"],
   ["Very Small", "very small: under 10 employees, or under $2.5 million in sales a year"], ["N / A", "the register gives no size (N/A)"],
   ["1.0", "1, as the register gives it (6 sites; the register does not explain it)"]];
+// Round 137b: the Living Planet Database's classes, in plain words.
+const LPI_CLASSES = [["Actinopteri", "ray-finned fishes"], ["Elasmobranchii", "sharks and rays"], ["Holocephali", "chimaeras"], ["Myxini", "hagfishes"],
+  ["Petromyzonti", "lampreys"], ["Dipneusti", "lungfishes"], ["Coelacanthi", "coelacanths"], ["Aves", "birds"], ["Mammalia", "mammals"], ["Reptilia", "reptiles"], ["Amphibia", "amphibians"]];
 const LAYERS = [
   { id:"owid_co2",             name:"National CO₂ emissions (Our World in Data)", unit:"Mt CO₂/yr", colour:"#8A5750", route:"country", ready:true, off:true },
   // Every row is ONE MONTH for one source, not one facility: 2021-01 through
@@ -19854,12 +19857,16 @@ const OTHER_MAPS = {
       totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/fish/ram_countries.json", field: "value" },
       countryNote: "RAM Legacy Stock Assessment Database: the scientific assessments of fished stocks in this country's waters, each stock's latest B/Bmsy (its size over the size that would give the most catch year after year; under 1, fished below it) and U/Umsy (how hard it is fished over the rate that would). Every stock is listed in the box.",
       note: "The RAM Legacy Stock Assessment Database (University of Washington; Zenodo, CC BY 4.0; Ricard et al. 2012): stock assessments of commercially fished populations, mostly at sea. Each country is shaded by the share of the stocks assessed in its waters whose latest assessment puts them below the size that gives the most catch; its box gives every count and every stock. Stocks shared by several countries are listed in the build file, not given to one country. Only assessed stocks are counted: most of the world's fished stocks have never been assessed. Read weekly by culprits-tiles-more (scripts/fish_stocks.py)." },
-    { id: "lpi_populations", name: "Animal populations rising or falling, fish among them, freshwater and at sea, 1950 to 2020 (Living Planet Database, ZSL and WWF)", unit: "populations", colour: "#1E6FA8", route: "geojsonlive", ready: true, lazy: true, buildScript: "lpi_populations",
-      files: [{ label: "Populations", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/lpi/populations.geojson" }],
-      groupColours: { "Freshwater": "#2E8FBA", "Marine": "#0C2E5E", "Terrestrial": "#9CD6E6" }, groupLabel: "System",
-      groupHint: "Coloured by where the population lives (freshwater, marine, terrestrial); the colour menu can colour by the change between its first and last counts",
-      filterBy: [{ label: "Class", field: "Class" }],
-      note: "ZSL and WWF's Living Planet Database (public version): each counted population of a vertebrate species, fish among them, at the place it was counted, with every count over the years and the change from its first count to its last. Filter by Class for the fish (Actinopteri, the ray-finned fishes; Elasmobranchii, sharks and rays) and by System for fresh water or the sea. Used under the database's terms (conservation, research and education, with credit to the database and to each record's own source, given in its box)." },
+    { id: "lpi_populations", name: "Animal populations rising or falling, fish among them, freshwater and at sea, 1950 to 2020 (Living Planet Database, ZSL and WWF)", unit: "populations", colour: "#1E6FA8", route: "pmtiles", ready: true, lazy: true, buildScript: "lpi_populations",
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/lpi_populations.pmtiles", boxes: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/lpi/lpi_populations", boxesGz: true,
+      colourChoices: [
+        { label: "where it lives", field: "x_system", classes: [["Freshwater", "fresh water"], ["Marine", "the sea"], ["Terrestrial", "on land"]] },
+        { label: "change from first to last count", field: "x_change", breaks: [-75, -50, -25, 0, 25], unit: "%" },
+        { label: "kind of animal", field: "x_class", classes: LPI_CLASSES },
+      ],
+      keys: [{ label: "Kind of animal", property: "x_class", values: LPI_CLASSES.map(([v]) => v), labels: Object.fromEntries(LPI_CLASSES) },
+             { label: "Where it lives", property: "x_system", values: ["Freshwater", "Marine", "Terrestrial"], labels: { Freshwater: "fresh water", Marine: "the sea", Terrestrial: "on land" } }],
+      note: "ZSL and WWF's Living Planet Database, 2024 public version: each of its 35,996 counted populations of a vertebrate species, fish among them, at the place it was counted; its box gives every field of the record, every count over the years, and the change from its first count to its last. Untick kinds under the row to see only the fish (ray-finned fishes, sharks and rays, and the rest), and fresh water or the sea. Used under the database's terms (conservation, research and education, with credit to the database and to each record's own source, given in its box)." },
     // Fishing vessels blacklisted for illegal, unreported and unregulated fishing.
     { id: "iuu_vessels", name: "Fishing vessels blacklisted for illegal fishing, by the flag each flies now (Combined IUU Vessel List)", unit: "vessels", colour: "#1E6FA8", keepColour: true, route: "country", ready: true, lazy: true, buildScript: "iuu_vessels",
       totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/iuu/flags.json", field: "value" },
@@ -21536,6 +21543,13 @@ function ensureLayer(cfg) {
           const row = box.querySelector(`[data-layer="${cfg.id}"]`).closest("label");
           row.after(facetRow(cfg));
         }
+      }
+      // Round 137b: key filters for rows inside a group too (they were drawn
+      // only for the main list's rows).
+      if (cfg.keys && box && !box.querySelector(`.key-filters[data-for="${cfg.id}"]`)) {
+        const cb = box.querySelector(`[data-layer="${cfg.id}"]`);
+        const row = cb && cb.closest ? cb.closest("label") : null;
+        if (row && row.after) row.after(keysRow(cfg));
       }
       applyVisibility(cfg.id);
       buildLegend();
