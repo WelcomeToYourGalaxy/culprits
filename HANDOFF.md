@@ -5,6 +5,28 @@ touches.
 
 ---
 
+## Round 134b (2 October)
+
+Needs round 133b. Tiles patch round134b_tiles.py beside it. No app.js?v= bump.
+
+- Points: the glowing orbs again (asked 2 October): cores soft-edged
+  (circle-blur 0.6, round 119b had 0.12) and the dots soft (0.8, was 0.15);
+  the light rim close in (125b) stays.
+- How many farm animals are kept: an All choice, first (every animal counted
+  as one head or bird, the six FAO GLW4 grids added; tiles glw_relief.py
+  writes glw_all). Until it is built the row opens on cattle as before.
+- Registered animal-use facilities: the colour menu says each value in words
+  (US FSIS sizes: large 500+ employees, small 10-499, very small under 10 or
+  under $2.5 million in sales; "N / A" and "1.0" as the register gives them);
+  a Size filter under the row (keys), with "no size given" as its own choice
+  (missingLabel, __none__ in keyFilterExpr). Only the US register gives a
+  size; Trase's capacities are in each box but in mixed units, so no filter.
+- trase_meat_brazil out (PANEL_REMOVED): the abattoir atlas reads Trase's
+  whole facilities file (15,119 rows) into abattoir_facilities, one point per
+  site with SIF and the other registers, every Trase field in the box.
+- GDACS alert levels in words and EONET were done in round 123b; EONET's file
+  is built on tiles main.
+
 ## Round 133b (2 October)
 
 Needs round 132b. No tiles patch. No app.js?v= bump.

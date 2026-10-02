@@ -241,7 +241,9 @@ function keyFilterExpr(cfg) {
     const gone = off.get(k.property);
     if (!gone || !gone.size) continue;
     const kept = k.values.filter((v) => !gone.has(v));
-    const missing = ["any", ["!", ["has", k.property]], ["==", ["get", k.property], null]];
+    if (gone.size === 1 && gone.has("__none__")) { parts.push(["all", ["has", k.property], ["!=", ["get", k.property], null]]); continue; }
+    // Round 134b: a key can offer the places with no value as a choice of its own.
+    const missing = gone.has("__none__") ? false : ["any", ["!", ["has", k.property]], ["==", ["get", k.property], null]];
     const match = k.list
       ? ["any", ...kept.map((v) => ["in", `|${v}|`, ["to-string", ["get", k.property]]]), false]
       : ["in", ["get", k.property], ["literal", kept]];
@@ -256,10 +258,15 @@ function keysRow(cfg) {
   box.innerHTML = cfg.keys.map((k) =>
     `<div class="kf-h">${escapeHtml(k.label)}</div>` + k.values.map((v) =>
       `<label class="kf"><input type="checkbox" checked data-kf="${cfg.id}" data-kp="${escapeHtml(k.property)}" data-kv="${escapeHtml(v)}">` +
-      `${escapeHtml((k.labels && k.labels[v]) || v.charAt(0).toUpperCase() + v.slice(1))}</label>`).join("")).join("");
+      `${escapeHtml((k.labels && k.labels[v]) || v.charAt(0).toUpperCase() + v.slice(1))}</label>`).join("") +
+    (k.missingLabel ? `<label class="kf"><input type="checkbox" checked data-kf="${cfg.id}" data-kp="${escapeHtml(k.property)}" data-kv="__none__">${escapeHtml(k.missingLabel)}</label>` : "")).join("");
   return box;
 }
 
+// Round 134b: the US register's (FSIS) own size classes, in plain words.
+const ABATTOIR_SIZES = [["Large", "large: 500 or more employees"], ["Small", "small: 10 to 499 employees"],
+  ["Very Small", "very small: under 10 employees, or under $2.5 million in sales a year"], ["N / A", "the register gives no size (N/A)"],
+  ["1.0", "1, as the register gives it (6 sites; the register does not explain it)"]];
 const LAYERS = [
   { id:"owid_co2",             name:"National CO₂ emissions (Our World in Data)", unit:"Mt CO₂/yr", colour:"#8A5750", route:"country", ready:true, off:true },
   // Every row is ONE MONTH for one source, not one facility: 2021-01 through
@@ -556,12 +563,27 @@ const LAYERS = [
              labels: { "yes": "registered to slaughter",
                        "no": "registered, does not slaughter",
                        "not stated": "registry does not say" } },
+    // Round 134b (asked 2 October: the colour key read "1, large, , ..."; a way
+    // to show only some sizes). Size is given only by the US register (FSIS),
+    // in its own HACCP size classes; Trase's capacities (Brazil) are in each
+    // box, in units that differ from site to site (animals, kilograms, per day
+    // or per hour), so they are not a filter.
+    colourChoices: [
+      { label: "size (US register only)", field: "x_size_class", ordered: true, classes: ABATTOIR_SIZES },
+      { label: "registered to slaughter", field: "x_slaughter", classes: [["yes", "registered to slaughter"], ["no", "registered, does not slaughter"], ["not stated", "registry does not say"]] },
+      { label: "how exact the position is", field: "x_position_precision", ordered: true, classes: [["rooftop", "at the building"], ["street", "on the street"], ["locality", "at the town only (hollow)"]] },
+      { label: "where the position came from", field: "x_position_found_by", classes: [["source", "the register's own position"], ["nominatim", "found from the address (OpenStreetMap Nominatim)"], ["photon", "found from the address (Photon)"]] },
+    ],
+    keys: [{ label: "Size (only the US register gives one)", property: "x_size_class", values: ABATTOIR_SIZES.map(([v]) => v),
+             labels: Object.fromEntries(ABATTOIR_SIZES), missingLabel: "no size given (every register outside the US)" }],
     note: "Most of these are not slaughterhouses: farms, dairies, processors, transporters, hatcheries and zoos are registered animal-use sites too. Slaughter is marked yes or no only where a registry says; for most it says neither. Hollow points are placed at a town, not the site. Records with no position at all are not drawn." },
   { id:"abattoir_cafo",        name:"Confined animal feeding operations \u2014 a model's estimate, not registered sites (Climate TRACE)", unit:"modelled facilities", colour:"#7B6A4E", route:"cafo", ready:true, off: true, lazy:true,
     note: "A model's estimate from satellite imagery and census data, not a permit register: nothing here has necessarily been visited, licensed or confirmed by any authority. Hollow where Climate TRACE give an area rather than the facility's own position." },
   { id:"abattoir_glw",         name:"Livestock density \u2014 a model's estimate, not a count of farms (FAO Gridded Livestock of the World 4, 2020)", unit:"animals per square km", colour:"#6E6A55", route:"glwrelief", ready:true, off: true, lazy:true,
     // Round 95b (asked 27 September): raised by density, not altitude.
-    species: [["ctl", "Cattle", 400], ["bfl", "Buffaloes", 400], ["shp", "Sheep", 600], ["gts", "Goats", 600], ["pgs", "Pigs", 1500], ["chk", "Chickens", 40000]],
+    // Round 134b (asked 2 October): an All choice, every animal counted as one
+    // (head or bird), from tiles glw_relief.py's glw_all; first when built.
+    species: [["all", "All animals", 40000], ["ctl", "Cattle", 400], ["bfl", "Buffaloes", 400], ["shp", "Sheep", 600], ["gts", "Goats", 600], ["pgs", "Pigs", 1500], ["chk", "Chickens", 40000]],
     archiveBase: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/glw_",
     note: "A modelled grid of where animals are kept, not a count of farms. FAO fit census totals to land cover and other predictors, so a dense square means the model puts animals there." },
   { id:"slavery_cases",        name:"Identified trafficking cases", unit:"identified cases", colour:"#7A6A72", route:"country", ready:true, off:true,
@@ -2490,10 +2512,11 @@ function addHud(layer, rawAddLayer) {
     } }, wide, base);
   const coreSpec = Object.assign({ id: core, type: "circle", layout: { visibility: vis }, paint: {
       "circle-color": GLOW.core(w),
-      // Round 119b (asked 30 September: points "disappearing or blurring
-      // across zooms"): a sharp speck at least 1.8 px across, not a soft blur.
-      "circle-radius": z(0, ["max", 1.8, ["*", 0.9, lift]], 4, ["max", 2, ["*", 1.2, lift]], 8, ["max", 2.4, ["*", 1.7, lift]], 11, ["*", 2.2, lift]),
-      "circle-blur": 0.12,
+      // Round 134b (asked 2 October: "id like that effect back"): the glowing
+      // orbs of round 116b again, soft-edged cores (round 119b had made them
+      // sharp specks), a little larger at every zoom so they stay easy to find.
+      "circle-radius": z(0, ["max", 1.6, ["*", 0.9, lift]], 4, ["max", 2, ["*", 1.2, lift]], 8, ["max", 2.4, ["*", 1.7, lift]], 11, ["*", 2.2, lift]),
+      "circle-blur": 0.6,
       "circle-opacity": z(GLOW.fadeOut, ["+", 0.3, ["*", 0.7, ["sqrt", w]]], GLOW.gone, 0),
       "circle-stroke-width": 0,
     } }, wide, base);
@@ -2512,7 +2535,7 @@ function addHud(layer, rawAddLayer) {
     // well inside the clickable circle), and unseen wider out, where the cores
     // stand for them; they are still there to be clicked.
     const paint = hudRaw.setPaintProperty || map.setPaintProperty.bind(map);
-    paint(layer.id, "circle-blur", 0.15);   // round 119b: sharp, not soft (was 1)
+    paint(layer.id, "circle-blur", 0.8);    // round 134b: soft orbs again (119b: 0.15)
     // Round 125b (asked 2 October: development projects' points disappeared
     // "at very high zoom, about small city level"): past zoom 12 the glow is
     // gone and the dot alone remains, in the row's own colour, often a dull
@@ -13104,12 +13127,14 @@ async function addGlwRelief(cfg) {
   };
   let pick = cfg.species[0];
   let archive = await open(pick[0]);
+  // A choice not built yet (All, round 134b) gives way to the next one.
+  for (let i = 1; !archive && i < cfg.species.length && pick[0] === "all"; i++) { pick = cfg.species[i]; archive = await open(pick[0]); }
   if (!archive) { setLayerState(cfg.id, "the relief copy is not built yet; FAO's flat picture is drawn meanwhile"); return addGlwLayer(cfg); }
   cfg.keepColour = true;
   let ramp = glwRamp(pick[2]);
   const r = { values: heightValues(archive, 5), colour: (v) => rampColour(ramp, v), top: 150000, maxzoom: 10,
     height: (v) => (v > 1 ? Math.log10(v) / Math.log10(pick[2]) : 0) };
-  const keyOf = () => ramp.slice(1).map(([v], i, a) => [bandHex(r.height(v)), `${v.toLocaleString()}${i === a.length - 1 ? " or more, highest ground" : ""} ${pick[0] === "chk" ? "birds" : "head"} per square km`]);
+  const keyOf = () => ramp.slice(1).map(([v], i, a) => [bandHex(r.height(v)), `${v.toLocaleString()}${i === a.length - 1 ? " or more, highest ground" : ""} ${pick[0] === "chk" ? "birds" : pick[0] === "all" ? "animals (head and birds)" : "head"} per square km`]);
   addReliefLayers(cfg, r, keyOf(), "Colour and height both follow how many animals are kept there; the land's own altitude is not shown while this is on");
   const box = document.getElementById("layers");
   const row = box && box.querySelector && box.querySelector(`[data-layer="${cfg.id}"]`);
@@ -13117,7 +13142,7 @@ async function addGlwRelief(cfg) {
   if (anchor && anchor.after && typeof document.createElement === "function") {
     const el = document.createElement("div");
     el.className = "facet";
-    el.innerHTML = cfg.species.map(([c, label], i) => `<button type="button" class="chip${i ? "" : " on"}" data-glw="${c}">${escapeHtml(label)}</button>`).join("");
+    el.innerHTML = cfg.species.map(([c, label]) => `<button type="button" class="chip${c === pick[0] ? " on" : ""}" data-glw="${c}">${escapeHtml(label)}</button>`).join("");
     el.addEventListener("click", async (ev) => {
       const b = ev.target.closest && ev.target.closest("[data-glw]");
       if (!b) return;
@@ -23236,7 +23261,7 @@ const PANEL_ORDER = [
   // Round 132b (asked 2 October): Herds above Facilities; Cattle and pasture
   // and Pigs and chickens gone with the Brazil trade rows; Marine meats.
   { h: 5, t: "Herds" }, "abattoir_glw",
-  { h: 5, t: "Facilities" }, "abattoir_facilities", "trase_meat_brazil", "abattoir_cafo",
+  { h: 5, t: "Facilities" }, "abattoir_facilities", "abattoir_cafo",
   { h: 5, t: "Marine meats" },
   { h: 6, t: "Wild-caught fish" }, "fishing", "iuu_vessels", "iuu_positions",
   { h: 6, t: "Fish and shrimp farms" }, "aquaculture_ponds",
@@ -23381,6 +23406,11 @@ const PANEL_ORDER = [
   { h: 1, t: "Buildings" }, "building_types", "osm_landuse",
 ];
 const PANEL_REMOVED = new Set([
+  // Round 134b (asked 2 October: the official registries and the Trase row
+  // show the same thing): the abattoir atlas reads Trase's whole file (15,119
+  // rows) into abattoir_facilities, joined with SIF and the other registers
+  // where they are one site, every Trase field in the box; the separate row goes.
+  "trase_meat_brazil",
   // Round 132b: every crop is its own row under By crop; SPAM's one-menu row and
   // the coffee row that waited on files SPAM 2020 does not have go.
   "crops_spam", "crop_coffee",

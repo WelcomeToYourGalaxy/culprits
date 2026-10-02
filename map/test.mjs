@@ -2522,7 +2522,7 @@ console.log("\nrows gathered, moved and renamed");
         ["trase_palm_indonesia"]
           .every((i) => order.lastIndexOf(i) > at("Agriculture") && order.lastIndexOf(i) < at("Meat")) &&
         !order.includes("trase_cocoa_ivory") &&
-        order.indexOf("trase_meat_brazil") > at("Meat") && order.indexOf("trase_meat_brazil") < at("Oceans") &&
+        !order.includes("trase_meat_brazil") &&   // round 134b: its sites are in abattoir_facilities
         !order.includes("group:trase_data"));
   check("a group owns its children, so no row is rendered twice and none falls into Not yet placed",
         !/rowsById/.test(src) && (src.match(/id:"gfw_dist_year"/g) || []).length === 1 && (src.match(/id: "trase_measures"/g) || []).length === 1);
@@ -2640,7 +2640,7 @@ console.log("\nOff-planet sections, Of groups, names, launch links, drag bar, ma
   // Round 116b: the glow orbs are back (112b's solid dots undone at the owner's asking).
   check("every point layer gets a faint wide haze and tight cores; the round one stays for clicks, soft-edged and unseen wider out",
         /function addHud\(/.test(src) && /rawAddLayer\(coreSpec, layer\.id\)/.test(src) && /rawAddLayer\(softSpec, layer\.id\)/.test(src) &&
-        /hudOf\.set\(layer\.id, \[haze, core, soft\]\)/.test(src) && /paint\(layer\.id, "circle-blur", 0\.15\)/.test(src) &&
+        /hudOf\.set\(layer\.id, \[haze, core, soft\]\)/.test(src) && /paint\(layer\.id, "circle-blur", 0\.8\)/.test(src) /* round 134b: soft orbs again */ &&
         /z\(GLOW\.fadeOut, 0, GLOW\.gone, 0\.9\)/.test(src) && !/if \(!hotspotOf\(layer\)\) \{/.test(src));
   check("\u2026no grain over the map: its strength is 0 and it is never made (23 September)",
         /grain: 0,\s/.test(src) && /if \(!GLOW\.grain && !GLOW\.grainSatellite\) return;/.test(src));
@@ -5872,7 +5872,7 @@ console.log("\nround 119b (30 September): attacks in plain English and as like l
   check("a year is written as a year in the colour keys", /yearly \? String\(x\) : x\.toLocaleString\(\)/.test(src));
   check("24 colours for kinds, and the rest said in the key", /const AUTO_GROUP_COLOURS = \[[^\]]*"#7E5E8C"\];/.test(src) && /the other \$\{cls\.length - most\} kinds, or not given/.test(src));
   check("the colour menu says its own colours, not how the row draws them", !/as the row draws them/.test(src) && /its own colours: \$\{/.test(src));
-  check("a raised row's shading is lighter and gone close in; dots are sharp", /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 0, 0\.5, 5, 0\.35, 7\.5, 0\]/.test(src) && /"circle-blur": 0\.12,/.test(src));
+  check("a raised row's shading is lighter and gone close in; dots are sharp", /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 0, 0\.5, 5, 0\.35, 7\.5, 0\]/.test(src) && /"circle-blur": 0\.6,/.test(src));   // round 134b: glowing orbs again (asked 2 October)
   check("EJAtlas's categories by name", /const EJ_CATEGORIES = \{ 1: "Nuclear", 2: "Mineral ores and building materials extraction"/.test(src) && /group: cat, h: box\(ejPlain\(r\)\)/.test(src));
   check("Wreckers of the Earth is one layer, London and worldwide, by Corporate Watch's sections, with why each is on it",
         o[at("wreckers") + 1] === "wreckers_umap" && o[at("wreckers") + 2] === "wreckers_world" && !/"Tobacco":/.test(src) &&
@@ -6030,6 +6030,24 @@ console.log("\nround 133b (2 October): combining the ticked layers cuts them to 
         /cut = vals\.length \? vals\[Math\.floor\(vals\.length \* \(1 - COMBO_TOP\)\)\] : Infinity;/.test(src));
   check("the layers are cut, not hidden, and nothing turns on 3D", /function comboCut\(shape\)/.test(src) && !/comboHideRows\(true\)/.test(src) &&
         !/reliefGround\(rid, true, true\);\n  \} else \{\n    if \(map\.getLayer\(`\$\{rid\}-hill`\)\)/.test(src) && /setFilter[^\n]*\n  if \(!COMBO_BYPASS && COMBO_OWN\.has\(id\)\)/.test(src));
+}
+console.log("\nround 134b (2 October): glowing orbs, all farm animals, slaughterhouse sizes, one slaughterhouse row");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the points' cores are soft glowing orbs again", /"circle-blur": 0\.6,/.test(src) && /paint\(layer\.id, "circle-blur", 0\.8\);/.test(src));
+  check("farm animals: All first, falling back to the first animal built", /species: \[\["all", "All animals", 40000\], \["ctl", "Cattle", 400\],/.test(src) &&
+        /!archive && i < cfg\.species\.length && pick\[0\] === "all"/.test(src));
+  const sizes = new Function(src.slice(src.indexOf("const ABATTOIR_SIZES"), src.indexOf("const LAYERS = [")) + "; return ABATTOIR_SIZES;")();
+  check("the US register's sizes are said in words, and can be chosen", sizes.length === 5 && sizes.every(([v, w]) => v && w.length > 10) &&
+        /keys: \[\{ label: "Size \(only the US register gives one\)", property: "x_size_class"/.test(src) && /data-kv="__none__"/.test(src));
+  const kf = new Function("keyOff", src.slice(src.indexOf("function keyFilterExpr(cfg)"), src.indexOf("function keysRow(cfg)")) + "; return keyFilterExpr;");
+  const off = new Map([["r", new Map([["p", new Set(["__none__"])]])]]);
+  const one = kf(off)({ id: "r", keys: [{ property: "p", values: ["a", "b"] }] });
+  const off2 = new Map([["r", new Map([["p", new Set(["a", "__none__"])]])]]);
+  const two = kf(off2)({ id: "r", keys: [{ property: "p", values: ["a", "b"] }] });
+  check("places with no size can be hidden too", JSON.stringify(one) === JSON.stringify(["all", ["all", ["has", "p"], ["!=", ["get", "p"], null]]]) &&
+        JSON.stringify(two) === JSON.stringify(["all", ["any", false, ["in", ["get", "p"], ["literal", ["b"]]]]]));
+  check("the Trase slaughterhouse row is out: the registries row holds every Trase site", /\n  "trase_meat_brazil",\n/.test(src));
 }
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
