@@ -6394,7 +6394,7 @@ console.log("\nround 150b (4 October): Autumn woodlands, a sixth basemap");
   const html = els.get("basemaps")?.innerHTML || "";
   check("Autumn woodlands is a choice, Hell and the outlines still there", html.includes('value="wood"') && html.includes('value="hell"') && html.includes('value="outlines"'));
   const wood = map.layers.filter((l) => /^outline-wood-/.test(l.id));
-  check("its layers are added and shown", wood.length === 15 && wood.every((l) => l.layout?.visibility === "visible"), wood.map((l) => l.id).join(", "));
+  check("its layers are added and shown", wood.length === 14 && wood.every((l) => l.layout?.visibility === "visible"), wood.map((l) => l.id).join(", "));
   check("the painted plate is hidden under it", map.getLayer("plate-base").layout?.visibility === "none");
   const lab = map.getLayer("labels");
   check("place names in grey ink", !lab || (lab.paint["raster-saturation"] === -1 && lab.paint["raster-brightness-max"] === 0.75));
@@ -6425,7 +6425,7 @@ console.log("\nround 152b (4 October): Woodlands painted from the real Earth in 
   const block = src.slice(src.indexOf("/* ---------- Autumn woodlands, a sixth basemap"), src.indexOf("/* ---------- end of Autumn woodlands ---------- */"));
   check("no made-up noise or tone clouds left (every variation is the Earth's own)", !/woodNoise|woodBrushPiece|woodbrush:/.test(block));
   check("painted from the cloud-free Sentinel-2 picture, credited", /s2cloudless/.test(block) && /EOX IT Services/.test(block));
-  check("no mist over the sea", /mist: \["interpolate", \["linear"\], \["elevation"\],\s*-1, "rgba\(226,214,170,0\)"/.test(block));
+  check("no mist over the sea", /mist: \["interpolate", \["linear"\], \["elevation"\],\s*-1, "rgba\(\d+,\d+,\d+,0\)"/.test(block));
   const lib = new Function(block.slice(block.indexOf("var WOOD = {"), block.indexOf("maplibregl.addProtocol(\"woodpaint\"")) + "; return { woodPaintPixels, WOOD };")();
   const tile = (f) => { const d = new Uint8ClampedArray(64 * 64 * 4); for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) { const c = f(x, y), q = (y * 64 + x) * 4; d[q] = c[0]; d[q + 1] = c[1]; d[q + 2] = c[2]; d[q + 3] = 255; } return d; };
   const at = (d, x, y) => { const q = (y * 64 + x) * 4; return [d[q], d[q + 1], d[q + 2]]; };
@@ -6465,6 +6465,56 @@ console.log("\nround 154b (4 October): Woodlands as a watercolour in soft golden
   // The paper's grain carries on across the squares' edges.
   const a = lib.woodPaintPixels(tile(() => [90, 100, 70]), 64, 64, 0, 0), b = lib.woodPaintPixels(tile(() => [90, 100, 70]), 64, 64, 64, 0);
   check("no seam between squares", Math.abs(a[(10 * 64 + 63) * 4] - b[(10 * 64) * 4]) <= 6);
+}
+
+console.log("\nround 155b (4 October): Woodlands in visible brushstrokes at every scale");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const block = src.slice(src.indexOf("/* ---------- Autumn woodlands, a sixth basemap"), src.indexOf("/* ---------- end of Autumn woodlands ---------- */"));
+  const core = block.slice(block.indexOf("var WOOD = {"), block.indexOf("// The paintings are made off the page's main thread"));
+  const lib = new Function(core + "; return { woodPaintPixels, woodStrokes, WOOD };")();
+  // A made-up world 600 x 600: forest with a winding valley of fields.
+  const WW = 600, world = new Uint8ClampedArray(WW * WW * 4);
+  for (let y = 0; y < WW; y++) for (let x = 0; x < WW; x++) {
+    const v = Math.abs(x - 300 - 60 * Math.sin(y / 70)) < 40, q = (y * WW + x) * 4;
+    const c = v ? [150, 132, 100] : [34, 62, 30];
+    world[q] = c[0]; world[q + 1] = c[1]; world[q + 2] = c[2]; world[q + 3] = 255;
+  }
+  const M = 32, N = 320;
+  const square = (tx, ty) => {
+    const gx0 = tx * 256 - M, gy0 = ty * 256 - M, d = new Uint8ClampedArray(N * N * 4);
+    for (let v = 0; v < N; v++) for (let u = 0; u < N; u++) { const sx = gx0 + u, sy = gy0 + v, q = (v * N + u) * 4, p = (sy * WW + sx) * 4; for (let c = 0; c < 4; c++) d[q + c] = world[p + c]; }
+    lib.woodPaintPixels(d, N, N, gx0, gy0, 1);
+    return lib.woodStrokes(d, N, M, 10, gx0, gy0);
+  };
+  const a = square(1, 0), b = square(1, 0), r = square(2, 0);
+  check("the same square paints the same strokes every time", a.every((v, i) => v === b[i]));
+  // Strokes show: even forest is not flat; neighbouring pixels differ.
+  let sd = 0, m = 0; const pts = []; for (let y = 20; y < 236; y += 3) for (let x = 0; x < 40; x += 3) pts.push(a[(y * 256 + x) * 4 + 1]);
+  m = pts.reduce((s, v) => s + v, 0) / pts.length; sd = Math.sqrt(pts.reduce((s, v) => s + (v - m) * (v - m), 0) / pts.length);
+  check("brushwork is visible even over even ground", sd > 1.5, sd.toFixed(2));
+  let seam = 0, inner = 0;
+  for (let y = 0; y < 256; y++) { seam += Math.abs(a[(y * 256 + 255) * 4 + 1] - r[(y * 256) * 4 + 1]); inner += Math.abs(a[(y * 256 + 200) * 4 + 1] - a[(y * 256 + 201) * 4 + 1]); }
+  check("no seam between squares (the edge differs no more than any two neighbouring pixels)", seam <= inner * 1.6 + 256, seam + " / " + inner);
+  check("the valley of fields stays where it is, lighter than the forest", a[(100 * 256 + 60) * 4] > a[(100 * 256 + 200) * 4]);
+  check("painted off the main thread, with a fallback", /new Worker\(url\)/.test(block) && /woodWorkHere/.test(block));
+  check("sharp past the picture's own zooms (painted up to 18, the picture read at 14 and enlarged)", /maxzoom: 18, attribution: WOOD\.attribution/.test(block) && /sourceMaxzoom: 14/.test(block));
+  check("no flat sea fill over the strokes; the sea's depths only tint them", !/outline-wood-coast/.test(block) && /seaOpacity: 0\.35/.test(block));
+}
+
+console.log("\nround 156b (4 October): light colours only where the light is wide");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const block = src.slice(src.indexOf("/* ---------- Autumn woodlands, a sixth basemap"), src.indexOf("/* ---------- end of Autumn woodlands ---------- */"));
+  const lib = new Function(block.slice(block.indexOf("var WOOD = {"), block.indexOf("// The paintings are made off the page's main thread")) + "; return { woodPaintPixels };")();
+  const tile = (f) => { const d = new Uint8ClampedArray(64 * 64 * 4); for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) { const c = f(x, y), q = (y * 64 + x) * 4; d[q] = c[0]; d[q + 1] = c[1]; d[q + 2] = c[2]; d[q + 3] = 255; } return d; };
+  const L = (d, x, y) => { const q = (y * 64 + x) * 4; return 0.3 * d[q] + 0.59 * d[q + 1] + 0.11 * d[q + 2]; };
+  // A forest with single bright pixels in it, and a wide bright field.
+  const dots = lib.woodPaintPixels(tile((x, y) => (x % 9 === 4 && y % 9 === 4) ? [210, 200, 160] : [34, 62, 30]), 64, 64);
+  const field = lib.woodPaintPixels(tile(() => [210, 200, 160]), 64, 64);
+  const spot = L(dots, 31, 31), round = L(dots, 27, 27), wide = L(field, 32, 32);
+  check("a single bright pixel in a forest is no pale spot (close to its surroundings)", spot - round < 25, spot.toFixed(0) + " / " + round.toFixed(0));
+  check("a wide light field still takes the light colours", wide > 170, wide.toFixed(0));
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");

@@ -5,6 +5,47 @@ touches.
 
 ---
 
+## Round 157b (4 October)
+
+Needs round 154b. No tiles patch. No app.js?v= bump.
+
+- Rounds 155b and 156b in one patch: 155b was never applied on main, so 156b
+  failed (patches/failed). Nothing new beyond them; their notes follow. Each
+  note is added only if missing.
+
+## Round 156b (4 October)
+
+Needs round 155b. No tiles patch. No app.js?v= bump.
+
+- Owner: the light colours (#B38C53 ochre-tan, #DCC08A warm sand, #A2A253
+  golden green, #D6C67E pale golden light) were used in a way that made the
+  close zooms look spotted. They came from single bright pixels in the
+  picture. Now each pixel may be only a little lighter than the ground round
+  it (WOOD.lift 0.1 over a 10 px blur, WOOD.lightReach, widened when the
+  picture is enlarged), so the light colours fall only in wide light areas,
+  as broad washes. Colours unchanged.
+
+## Round 155b (4 October)
+
+Needs round 154b. No tiles patch. No app.js?v= bump. Woodlands basemap in brushstrokes.
+
+- Owner on 154b: too dark over the seas, a one-colour olive daze at world
+  views (not Griffing's deep woodland glow), still spotted at the closest
+  zooms; wants organic, hand-made, visible brushstrokes at every scale.
+- Colours: cool blue-green shadows to golden-green lights, earths to warm
+  sand; the glaze gone; sea painted from the picture in lighter teals
+  (WOOD.waters), the depth layer only a 35% tint; the flat coast fill gone,
+  lakes 35% (14 layers).
+- woodStrokes: strokes over the underpainting, broad to fine (WOOD.brushes),
+  coloured from where they lie, running along the land's lines (structure
+  tensor) or at a hand's slant on even ground, finer strokes only where the
+  land has detail; bristles, dry ends, raised paint. Seeded per world cell
+  with a 32 px margin from the neighbouring picture squares (woodComposite),
+  so no seams. Painted to zoom 18 from the picture's zoom 14, washes widened
+  when enlarged (no spots). Two Web Workers paint (woodHelpers; main-thread
+  fallback). About 250-500 ms a square in a helper. Checked on sample
+  satellite pictures; not seen live.
+
 ## Round 155k (3 October)
 
 Needs round 154k. No tiles patch. No app.js?v= bump. The seventh basemap redrawn.

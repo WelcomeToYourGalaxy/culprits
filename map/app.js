@@ -13893,52 +13893,71 @@ if (typeof MutationObserver === "function" && typeof document !== "undefined" &&
 //            sky and horizon on the globe
 //   water    deep, dark, earthy blue-green, darkest in the deeps (AWS depths);
 //            lakes dark; rivers a paler reflecting line
+// Round 155b (owner: too dark over the seas, a one-colour olive daze at world
+// views, spotted close in; wants visible hand-made brushstrokes at every scale):
+// cool blue-green shadows and golden lights, no glaze; the sea painted from
+// the picture in lighter teals, its depths only a light tint; strokes laid
+// over the underpainting (woodStrokes) on helpers off the main thread, painted
+// sharp to zoom 18 from the picture's zoom 14, washes widened when enlarged.
 // Greens and earth colours are used here only, at the owner's request.
 // Layers are named "outline-wood-...", so the colour mapping and the themes
 // leave them alone.
 var WOOD = {
-  sheet: "#1B2418",
+  sheet: "#1E3326",
   source: "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg",
   sourceMaxzoom: 14,
   attribution: '<a href="https://s2maps.eu" target="_blank" rel="noopener">Sentinel-2 cloudless - https://s2maps.eu</a> by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024)',
-  // Growing things, from forest shadow to sunlit leaves.
-  greens: [[0, "#1A2311"], [0.25, "#2C3C1C"], [0.5, "#465827"], [0.72, "#677331"], [0.88, "#8B8745"], [1, "#ACA062"]],
-  // Bare ground, from dark umber to pale sand.
-  earths: [[0, "#2A2416"], [0.25, "#4B4227"], [0.5, "#75683E"], [0.75, "#A08E5A"], [1, "#C8B585"]],
-  snow: "#E6DEC8",
-  paper: "#EFE4C6",          // the warm paper under the washes
-  glaze: [1.03, 1.0, 0.93],   // a warm golden glaze over everything
-  lakeTone: "#1D2C26",
+  // Round 155b: cool blue-green in the shadows, warm golden green where the
+  // light falls, as in a woodland lit from behind through haze.
+  greens: [[0, "#10221A"], [0.2, "#183320"], [0.4, "#25482A"], [0.6, "#3D6230"], [0.78, "#6B8638"], [0.9, "#A2A253"], [1, "#D6C67E"]],
+  // Bare ground, from dark umber to warm sand in the light.
+  earths: [[0, "#2E2116"], [0.25, "#5A4027"], [0.5, "#8A6639"], [0.75, "#B38C53"], [1, "#DCC08A"]],
+  // Water, from the deeps to light on the shallows (round 155b: lighter).
+  waters: [[0, "#24414A"], [0.35, "#2F5054"], [0.65, "#4C7068"], [1, "#93A88A"]],
+  snow: "#EDE4CC",
+  paper: "#F1E6C8",
   sea: ["interpolate", ["linear"], ["elevation"],
-    -8000, "#0B1515", -4000, "#0F1C1B", -1500, "#14231F", -400, "#1A2B24", -60, "#22342A", -1, "#2A3B2E",
+    -8000, "#1C3A46", -4000, "#24464E", -1500, "#2C5254", -400, "#3A6260", -60, "#4F7568", -1, "#5E806C",
     0, "rgba(0,0,0,0)"],
+  seaOpacity: 0.35,
   mist: ["interpolate", ["linear"], ["elevation"],
-    -1, "rgba(226,214,170,0)", 0, "rgba(226,214,170,0.16)", 300, "rgba(226,214,170,0.1)",
-    1000, "rgba(226,214,170,0)"],
+    -1, "rgba(234,220,170,0)", 0, "rgba(234,220,170,0.16)", 300, "rgba(234,220,170,0.1)",
+    1000, "rgba(234,220,170,0)"],
   shade: {
     "hillshade-method": "multidirectional",
     "hillshade-illumination-direction": [225, 270, 180, 0],
     "hillshade-illumination-altitude": [24, 32, 32, 55],
-    "hillshade-highlight-color": ["rgba(244,218,156,0.34)", "rgba(244,218,156,0.14)", "rgba(244,218,156,0.1)", "rgba(244,218,156,0.04)"],
-    "hillshade-shadow-color": ["rgba(28,30,14,0.46)", "rgba(28,30,14,0.24)", "rgba(28,30,14,0.18)", "rgba(28,30,14,0.1)"],
-    "hillshade-accent-color": "rgba(16,20,8,0.25)",
+    "hillshade-highlight-color": ["rgba(250,222,150,0.36)", "rgba(250,222,150,0.14)", "rgba(250,222,150,0.1)", "rgba(250,222,150,0.04)"],
+    "hillshade-shadow-color": ["rgba(10,30,28,0.46)", "rgba(10,30,28,0.24)", "rgba(10,30,28,0.18)", "rgba(10,30,28,0.1)"],
+    "hillshade-accent-color": "rgba(10,30,28,0.22)",
     "hillshade-exaggeration": 1,
     "hillshade-illumination-anchor": "map",
   },
-  coast: "#22342A",
-  lake: "#1F2F28", lakeEdge: "#16231D",
-  river: "#4F6150",
-  town: "#7A684F", townWork: "#6E5E48",
+  lake: "#2F5054", lakeOpacity: 0.35,
+  river: "#6E8C7C",
+  town: "#8A7556", townWork: "#7A684D",
   road: ["#6A5840", "#5C4C37", "#4E402E"],
   rail: "#3A3024", building: "#8A7558",
   border: "rgba(30,22,12,0.45)",
   names: { sat: -1, min: 0, max: 0.8 },
-  sky: { "sky-color": "#B9B79C", "horizon-color": "#DDD3B0", "fog-color": "#CFC6A4",
+  sky: { "sky-color": "#C2C3A0", "horizon-color": "#EEDDA8", "fog-color": "#DCCD9C",
     "sky-horizon-blend": 0.8, "horizon-fog-blend": 0.75, "fog-ground-blend": 0.5,
     "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.8, 8, 0.85, 12, 0.5] },
+  // The brush: three sizes of stroke in screen pixels, laid broad to fine.
+  // sp: spacing; len, w: length and width; detail: how much the land must
+  // change there (luminance per pixel) before the stroke is laid, else it is
+  // laid at chance "often".
+  brushes: [
+    { sp: 9, len: [15, 25], w: [6, 9], a: [0.5, 0.78], detail: 0, often: 1 },
+    { sp: 6, len: [8, 14], w: [3, 5], a: [0.5, 0.8], detail: 2.5, often: 0.35 },
+    { sp: 4, len: [4, 7], w: [1.6, 2.6], a: [0.5, 0.85], detail: 5, often: 0.08 },
+  ],
+  margin: 32,
+  lightReach: 10,   // round 156b: how wide (px) the light must be to reach the light colours
+  lift: 0.1,        // how much lighter than its surroundings one pixel may be
 };
 var WOOD_IDS = ["outline-wood-sheet", "outline-wood-paint", "outline-wood-sea", "outline-wood-shade",
-  "outline-wood-mist", "outline-wood-coast", "outline-wood-lake", "outline-wood-town", "outline-wood-river",
+  "outline-wood-mist", "outline-wood-lake", "outline-wood-town", "outline-wood-river",
   "outline-wood-rail", "outline-wood-road-minor", "outline-wood-road", "outline-wood-road-major",
   "outline-wood-buildings", "outline-wood-border"];
 function woodHex(h) { return [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); }
@@ -13953,25 +13972,24 @@ function woodRamp(stops) {
     return s[s.length - 1][1];
   };
 }
-// Re-paint one picture square (data: RGBA, w x h) in place, as a watercolour
-// (round 154b; the owner found 152b's flat strokes programmatic and its tans
-// and greens spotty against soft golden light). gx0, gy0: the square's first
-// pixel in the whole world's pixels at this zoom, so the paper's grain runs on
-// across the squares' edges.
 function woodGrain(x, y) {
   const h = (i, j) => (Math.imul(Math.imul(i, 374761393) ^ Math.imul(j, 668265263), 1274126177) >>> 0) / 4294967296;
   const i = Math.floor(x), j = Math.floor(y), fx = x - i, fy = y - j;
   const a = h(i, j) + (h(i + 1, j) - h(i, j)) * fx, b = h(i, j + 1) + (h(i + 1, j + 1) - h(i, j + 1)) * fx;
   return a + (b - a) * fy;
 }
-function woodPaintPixels(data, w, h, gx0, gy0) {
-  gx0 = gx0 || 0; gy0 = gy0 || 0;
-  const greens = woodRamp(WOOD.greens), earths = woodRamp(WOOD.earths), snow = woodHex(WOOD.snow), lake = woodHex(WOOD.lakeTone), paper = woodHex(WOOD.paper);
+// The underpainting: re-colours a picture (data: RGBA, w x h) in place.
+// gx0, gy0: its first pixel in the world's pixels at this zoom; soft (1 and
+// up) widens the washes past the picture's own detail, so trees in a
+// picture enlarged past its sharpest zoom do not show as spots.
+function woodPaintPixels(data, w, h, gx0, gy0, soft) {
+  gx0 = gx0 || 0; gy0 = gy0 || 0; soft = Math.max(1, Math.min(4, soft || 1));
+  const greens = woodRamp(WOOD.greens), earths = woodRamp(WOOD.earths), waters = woodRamp(WOOD.waters), snow = woodHex(WOOD.snow), paper = woodHex(WOOD.paper);
   const n = w * h, W = w + 1;
   const sat = (A) => { const S = new Float64Array(W * (h + 1)); for (let y = 0; y < h; y++) { let row = 0; for (let x = 0; x < w; x++) { row += A[y * w + x]; S[(y + 1) * W + x + 1] = S[y * W + x + 1] + row; } } return S; };
-  // A soft blur: the mean of a square of radius r round each pixel (twice
-  // over, it is close to a gaussian).
   const blur = (A, r) => {
+    r = Math.round(r);
+    if (r < 1) return A;
     let cur = A;
     for (let pass = 0; pass < 2; pass++) {
       const S = sat(cur), out = new Float32Array(n);
@@ -13983,68 +14001,224 @@ function woodPaintPixels(data, w, h, gx0, gy0) {
     }
     return cur;
   };
-  // 1. How green and how bright each pixel is; water and snow marked.
   const V = new Float32Array(n), T = new Float32Array(n), K = new Uint8Array(n);
   for (let p = 0; p < n; p++) {
     const r = data[p * 4], g = data[p * 4 + 1], b = data[p * 4 + 2];
     const lum = (0.3 * r + 0.59 * g + 0.11 * b) / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b);
-    if ((b > g + 6 && b > r + 10 && lum < 0.4) || (lum < 0.06 && b >= r)) K[p] = 1;
+    if ((b > g + 6 && b > r + 10 && lum < 0.45) || (lum < 0.07 && b >= r)) K[p] = 1;
     else if (lum > 0.72 && mx - mn < 28) K[p] = 2;
     V[p] = Math.max(0, Math.min(1, ((2 * g - r - b) / 255 + 0.01) / 0.1));
-    let t = Math.min(1, Math.pow(Math.max(0, lum - 0.015) / 0.45, 0.75));
-    T[p] = Math.max(0, Math.min(1, 0.5 + (t - 0.5) * 1.12));
+    if (K[p] === 1) T[p] = Math.max(0, Math.min(1, (lum - 0.02) / 0.35));
+    else {
+      const t = Math.min(1, Math.pow(Math.max(0, lum - 0.015) / 0.45, 0.75));
+      T[p] = Math.max(0, Math.min(1, 0.5 + (t - 0.5) * 1.15));
+    }
   }
-  // 2. Plants and bare ground run into each other like wet washes, instead of
-  // meeting pixel by pixel; brightness keeps a little more of the land's form.
-  const Vs = blur(V, 4), Ts = blur(T, 1);
+  const Vs = blur(V, 3 * soft), Tp = blur(T, soft - 0.5);
+  // Round 156b: the light colours (ochre-tan, warm sand, golden green, pale
+  // golden light) are reached only where the ground round about is light too.
+  // A pixel may be only a little lighter than its surroundings (WOOD.lift),
+  // so single bright pixels (gaps between trees, roofs, a bare patch) stay in
+  // the middle tones instead of standing out as pale spots; wide fields,
+  // clearings and dry land still take the light colours, as broad washes.
+  const Tw = blur(T, WOOD.lightReach * soft), Ts = new Float32Array(n);
+  for (let p = 0; p < n; p++) Ts[p] = Math.min(Tp[p], Tw[p] + WOOD.lift);
   const R = new Float32Array(n), G = new Float32Array(n), B = new Float32Array(n);
   for (let p = 0; p < n; p++) {
     let c;
-    if (K[p] === 1) c = lake;
+    if (K[p] === 1) c = waters(Ts[p]);
     else if (K[p] === 2) c = snow;
     else {
-      const v = 0.9 * Vs[p], a = greens(Ts[p]), e = earths(Ts[p]);
+      const v = 0.92 * Vs[p], a = greens(Ts[p]), e = earths(Ts[p]);
       c = [e[0] + (a[0] - e[0]) * v, e[1] + (a[1] - e[1]) * v, e[2] + (a[2] - e[2]) * v];
     }
     R[p] = c[0]; G[p] = c[1]; B[p] = c[2];
   }
-  // 3. Washes: colour bleeds softly into its neighbours.
-  const Rb = blur(R, 3), Gb = blur(G, 3), Bb = blur(B, 3);
-  const L = new Float32Array(n);
-  for (let p = 0; p < n; p++) { R[p] = R[p] * 0.45 + Rb[p] * 0.55; G[p] = G[p] * 0.45 + Gb[p] * 0.55; B[p] = B[p] * 0.45 + Bb[p] * 0.55; L[p] = 0.3 * R[p] + 0.59 * G[p] + 0.11 * B[p]; }
-  const Lw = blur(L, 6);
+  const Rb = blur(R, 3 * soft), Gb = blur(G, 3 * soft), Bb = blur(B, 3 * soft);
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     const p = y * w + x, q = p * 4;
-    let r = R[p], g = G[p], b = B[p];
-    // 4. Pigment gathers where a wash meets a lighter one: a soft darker
-    // rim on the darker side, as a watercolour dries.
-    const rim = Math.max(0, Math.min(1, (Lw[p] - L[p]) / 30)) * 0.16;
-    r *= 1 - rim; g *= 1 - rim; b *= 1 - rim;
-    // 5. The paper's grain, and pigment settling in it, more in the darks.
-    const gx = gx0 + x, gy = gy0 + y;
-    const grain = 0.6 * woodGrain(gx / 1.7, gy / 1.7) + 0.4 * woodGrain(gx / 6 + 11, gy / 6 + 7) - 0.5;
-    const k = 1 + grain * (0.05 + 0.07 * (1 - L[p] / 255));
-    r *= k; g *= k; b *= k;
-    // 6. Diffused golden light: the paper shows through the lighter washes,
-    // and a warm glaze lies over everything.
-    const show = 0.05 + 0.14 * (L[p] / 255);
-    r = r + (paper[0] - r) * show; g = g + (paper[1] - g) * show; b = b + (paper[2] - b) * show;
-    data[q] = r * WOOD.glaze[0]; data[q + 1] = g * WOOD.glaze[1]; data[q + 2] = b * WOOD.glaze[2]; data[q + 3] = 255;
+    let r = R[p] * 0.45 + Rb[p] * 0.55, g = G[p] * 0.45 + Gb[p] * 0.55, b = B[p] * 0.45 + Bb[p] * 0.55;
+    const L = 0.3 * r + 0.59 * g + 0.11 * b;
+    const grain = 0.6 * woodGrain((gx0 + x) / 1.7, (gy0 + y) / 1.7) + 0.4 * woodGrain((gx0 + x) / 6 + 11, (gy0 + y) / 6 + 7) - 0.5;
+    const k = 1 + grain * (0.04 + 0.05 * (1 - L / 255));
+    const show = 0.03 + 0.08 * (L / 255);
+    data[q] = (r * k) + (paper[0] - r * k) * show; data[q + 1] = (g * k) + (paper[1] - g * k) * show;
+    data[q + 2] = (b * k) + (paper[2] - b * k) * show; data[q + 3] = 255;
   }
   return data;
 }
-maplibregl.addProtocol("woodpaint", async (params, abortController) => {
+// The brushwork (round 155b, asked: visible, hand-made strokes at every
+// scale, not a pattern). Strokes are laid over the underpainting broad to
+// fine, as a painter works: each takes its colour from the underpainting
+// where it lies, and runs along the land's own lines (the way the colour
+// changes round it), or, where the land is even, at a hand's slant that
+// wanders a little. Finer strokes go only where the land has detail. Each
+// stroke has bristle streaks, a ragged dry end and a little raised paint
+// catching the light on one side. Strokes belong to the world, not the
+// square: each comes from a seed for its own place, and the squares round
+// a square are part of the picture, so no seams.
+// painted: the underpainting, RGBA, N x N, the square in its middle with M
+// pixels round it; gx0, gy0: world pixel of painted's first pixel. Returns
+// the square's 256 x 256 RGBA.
+function woodStrokes(painted, N, M, z, gx0, gy0) {
+  const S = 256, out = new Uint8ClampedArray(S * S * 4), n = N * N;
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const p = ((y + M) * N + x + M) * 4, q = (y * S + x) * 4;
+    out[q] = painted[p]; out[q + 1] = painted[p + 1]; out[q + 2] = painted[p + 2]; out[q + 3] = 255;
+  }
+  // The land's lines: the structure of the brightness, smoothed.
+  const L = new Float32Array(n);
+  for (let p = 0; p < n; p++) L[p] = 0.3 * painted[p * 4] + 0.59 * painted[p * 4 + 1] + 0.11 * painted[p * 4 + 2];
+  const XX = new Float32Array(n), YY = new Float32Array(n), XY = new Float32Array(n);
+  for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) {
+    const i = y * N + x;
+    const gx = (L[i - N + 1] + 2 * L[i + 1] + L[i + N + 1] - L[i - N - 1] - 2 * L[i - 1] - L[i + N - 1]) / 8;
+    const gy = (L[i + N - 1] + 2 * L[i + N] + L[i + N + 1] - L[i - N - 1] - 2 * L[i - N] - L[i - N + 1]) / 8;
+    XX[i] = gx * gx; YY[i] = gy * gy; XY[i] = gx * gy;
+  }
+  const W = N + 1, sum = (A) => { const T = new Float64Array(W * W); for (let y = 0; y < N; y++) { let row = 0; for (let x = 0; x < N; x++) { row += A[y * N + x]; T[(y + 1) * W + x + 1] = T[y * W + x + 1] + row; } } return T; };
+  const SXX = sum(XX), SYY = sum(YY), SXY = sum(XY);
+  const near = (T, x, y, r) => { const x0 = Math.max(0, x - r), x1 = Math.min(N - 1, x + r), y0 = Math.max(0, y - r), y1 = Math.min(N - 1, y + r); return (T[(y1 + 1) * W + x1 + 1] - T[y0 * W + x1 + 1] - T[(y1 + 1) * W + x0] + T[y0 * W + x0]) / ((x1 - x0 + 1) * (y1 - y0 + 1)); };
+  const rand = (seed) => { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+  const CELL = 72, world = 256 * Math.pow(2, z);
+  const sx0 = gx0 + M, sy0 = gy0 + M;                // the square's first world pixel
+  const reach = 30;
+  const c0 = Math.floor((sx0 - reach) / CELL), c1 = Math.floor((sx0 + S + reach) / CELL);
+  const r0 = Math.floor((sy0 - reach) / CELL), r1 = Math.floor((sy0 + S + reach) / CELL);
+  WOOD.brushes.forEach((br, li) => {
+    for (let cr = r0; cr <= r1; cr++) for (let cc = c0; cc <= c1; cc++) {
+      const wc = ((cc % Math.ceil(world / CELL)) + Math.ceil(world / CELL)) % Math.ceil(world / CELL);
+      const rnd = rand(Math.imul(z + 1, 73856093) ^ Math.imul(li + 1, 2654435761) ^ Math.imul(wc + 7, 19349663) ^ Math.imul(cr + 7, 83492791));
+      for (let oy = 0; oy < CELL; oy += br.sp) for (let ox = 0; ox < CELL; ox += br.sp) {
+        const wx = cc * CELL + ox + rnd() * br.sp, wy = cr * CELL + oy + rnd() * br.sp;
+        const len = br.len[0] + rnd() * (br.len[1] - br.len[0]), wd = br.w[0] + rnd() * (br.w[1] - br.w[0]);
+        const alpha = br.a[0] + rnd() * (br.a[1] - br.a[0]), chance = rnd(), jit = rnd() - 0.5, slant = rnd() - 0.5, bend = (rnd() - 0.5) * 4;
+        const id = (rnd() * 1e9) | 0, f1 = 2 + rnd() * 1.5, ph = rnd() * 6.28, warm = rnd() - 0.5;
+        const px = Math.floor(wx - gx0), py = Math.floor(wy - gy0);           // in painted
+        if (px < 1 || py < 1 || px >= N - 1 || py >= N - 1) continue;
+        const cx = wx - sx0, cy = wy - sy0;                                    // in the square
+        const ext = len / 2 + wd / 2 + 3;
+        if (cx < -ext || cx > S + ext || cy < -ext || cy > S + ext) continue;
+        const jxx = near(SXX, px, py, 4), jyy = near(SYY, px, py, 4), jxy = near(SXY, px, py, 4);
+        const tr = jxx + jyy, detail = Math.sqrt(tr);
+        if (br.detail > 0 && detail < br.detail && chance > br.often) continue;
+        const coh = tr > 1e-6 ? Math.sqrt((jxx - jyy) * (jxx - jyy) + 4 * jxy * jxy) / tr : 0;
+        // Along the land's lines where it has them; a hand's slant elsewhere.
+        const along = 0.5 * Math.atan2(2 * jxy, jxx - jyy) + Math.PI / 2;
+        const hand = -0.55 + 0.35 * slant;
+        const k = Math.min(1, coh * Math.min(1, detail / 2));
+        const ang = Math.atan2(k * Math.sin(2 * along) + (1 - k) * Math.sin(2 * hand), k * Math.cos(2 * along) + (1 - k) * Math.cos(2 * hand)) / 2 + jit * 0.2;
+        const pi = (py * N + px) * 4, f = 1 + jit * 0.1;
+        const col = [painted[pi] * f * (1 + warm * 0.04), painted[pi + 1] * f, painted[pi + 2] * f * (1 - warm * 0.05)];
+        const ux = Math.cos(ang), uy = Math.sin(ang), h = len / 2, hw = wd / 2;
+        const i0 = Math.max(0, Math.floor(cx - ext)), i1 = Math.min(S - 1, Math.ceil(cx + ext));
+        const j0 = Math.max(0, Math.floor(cy - ext)), j1 = Math.min(S - 1, Math.ceil(cy + ext));
+        for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+          const qx = i + 0.5 - cx, qy = j + 0.5 - cy, t = qx * ux + qy * uy;
+          if (t < -h || t > h) continue;
+          const tt = t / h, u = (-qx * uy + qy * ux) - bend * (tt * tt - 0.33);
+          const half = hw * (0.55 + 0.45 * Math.sqrt(1 - tt * tt));
+          if (Math.abs(u) > half) continue;
+          const bi = Math.floor((u + half) / 1.2);
+          const hb = (Math.imul(id ^ Math.imul(bi + 7, 0x9E3779B1), 0x85EBCA6B) >>> 0) / 4294967296;
+          if (Math.abs(tt) > 0.62 + 0.38 * hb) continue;                     // ragged, dry ends
+          const edge = Math.min(1, (half - Math.abs(u)) / 1.5);
+          const bristle = 0.5 + 0.5 * hb + 0.08 * Math.sin(u * f1 + ph);
+          const a = Math.min(1, alpha * edge * bristle * (0.65 + 0.35 * (1 - Math.abs(tt))));
+          const ridge = 1 + 0.07 * (-u / (half || 1));                         // raised paint, lit on one side
+          const q = (j * S + i) * 4;
+          out[q] = out[q] + (col[0] * ridge - out[q]) * a;
+          out[q + 1] = out[q + 1] + (col[1] * ridge - out[q + 1]) * a;
+          out[q + 2] = out[q + 2] + (col[2] * ridge - out[q + 2]) * a;
+        }
+      }
+    }
+  });
+  return out;
+}
+// The paintings are made off the page's main thread (two helpers), so the
+// map stays smooth while squares are painted; on the main thread if helpers
+// cannot start.
+var WOOD_HELPERS = null, WOOD_JOBS = new Map(), WOOD_JOB = 0;
+function woodHelpers() {
+  if (WOOD_HELPERS !== null) return WOOD_HELPERS;
+  WOOD_HELPERS = [];
+  try {
+    const code = "var WOOD = " + JSON.stringify(WOOD) + ";\nconst PNG_CRC = new Uint32Array([" + Array.from(PNG_CRC).join(",") + "]);\n" +
+      [woodHex, woodRamp, woodGrain, woodPaintPixels, woodStrokes, pngCrc, rawPng].map(String).join("\n") +
+      "\nfunction woodWork(d) { const px = new Uint8ClampedArray(d.data); woodPaintPixels(px, d.N, d.N, d.gx0, d.gy0, d.soft); return rawPng(woodStrokes(px, d.N, d.M, d.z, d.gx0, d.gy0), 256, 256); }" +
+      "\nonmessage = (e) => { try { const png = woodWork(e.data); postMessage({ id: e.data.id, png }, [png]); } catch (err) { postMessage({ id: e.data.id, error: String(err) }); } };";
+    const url = URL.createObjectURL(new Blob([code], { type: "text/javascript" }));
+    for (let i = 0; i < 2; i++) {
+      const wk = new Worker(url);
+      wk.onmessage = (e) => { const job = WOOD_JOBS.get(e.data.id); if (!job) return; WOOD_JOBS.delete(e.data.id); if (e.data.error) job.no(new Error(e.data.error)); else job.yes(e.data.png); };
+      WOOD_HELPERS.push(wk);
+    }
+  } catch (e) { WOOD_HELPERS = []; }
+  return WOOD_HELPERS;
+}
+function woodWorkHere(d) { const px = new Uint8ClampedArray(d.data); woodPaintPixels(px, d.N, d.N, d.gx0, d.gy0, d.soft); return rawPng(woodStrokes(px, d.N, d.M, d.z, d.gx0, d.gy0), 256, 256); }
+function woodPaintJob(d) {
+  const hs = woodHelpers();
+  if (!hs.length) return Promise.resolve(woodWorkHere(d));
+  const id = ++WOOD_JOB;
+  return new Promise((yes, no) => { WOOD_JOBS.set(id, { yes, no }); hs[id % hs.length].postMessage(Object.assign({ id }, d), [d.data]); });
+}
+// The picture's own squares, read once and kept (a few dozen).
+var WOOD_SRC = new Map();
+function woodSourceSquare(z, x, y) {
+  const n = Math.pow(2, z);
+  if (y < 0 || y >= n) return Promise.resolve(null);
+  x = ((x % n) + n) % n;
+  const key = z + "/" + x + "/" + y;
+  let p = WOOD_SRC.get(key);
+  if (!p) {
+    const url = WOOD.source.replace("{z}", z).replace("{x}", x).replace("{y}", y);
+    p = fetch(url).then((r) => (r.ok ? r.blob() : null)).then((b) => (b ? createImageBitmap(b) : null)).then((bm) => {
+      if (!bm) return null;
+      const c = new OffscreenCanvas(256, 256), g = c.getContext("2d", { willReadFrequently: true });
+      g.drawImage(bm, 0, 0, 256, 256);
+      return g.getImageData(0, 0, 256, 256).data;
+    }).catch(() => null);
+    WOOD_SRC.set(key, p);
+    if (WOOD_SRC.size > 96) WOOD_SRC.delete(WOOD_SRC.keys().next().value);
+  }
+  return p;
+}
+// The picture under one square and M pixels round it, from the picture's own
+// squares at this zoom (or enlarged from its sharpest zoom, 14).
+async function woodComposite(z, x, y, M) {
+  const zz = Math.min(z, WOOD.sourceMaxzoom), k = Math.pow(2, z - zz), N = 256 + 2 * M;
+  const gx0 = x * 256 - M, gy0 = y * 256 - M;
+  const a0 = Math.floor((gx0 / k - 1) / 256), a1 = Math.floor(((gx0 + N) / k + 1) / 256);
+  const b0 = Math.floor((gy0 / k - 1) / 256), b1 = Math.floor(((gy0 + N) / k + 1) / 256);
+  const got = new Map(), wait = [];
+  for (let b = b0; b <= b1; b++) for (let a = a0; a <= a1; a++) wait.push(woodSourceSquare(zz, a, b).then((d) => got.set(a + "/" + b, d)));
+  await Promise.all(wait);
+  const lim = Math.pow(2, zz) * 256 - 1;
+  const px = (sx, sy, c) => {
+    sy = Math.max(0, Math.min(lim, sy));
+    const a = Math.floor(sx / 256), b = Math.floor(sy / 256), d = got.get(a + "/" + b);
+    if (!d) return [42, 70, 46][c];
+    return d[((sy - b * 256) * 256 + (sx - a * 256)) * 4 + c];
+  };
+  const out = new Uint8ClampedArray(N * N * 4);
+  for (let v = 0; v < N; v++) for (let u = 0; u < N; u++) {
+    const fx = (gx0 + u + 0.5) / k - 0.5, fy = (gy0 + v + 0.5) / k - 0.5;
+    const ax = Math.floor(fx), ay = Math.floor(fy), tx = fx - ax, ty = fy - ay, q = (v * N + u) * 4;
+    for (let c = 0; c < 3; c++) {
+      const top = px(ax, ay, c) * (1 - tx) + px(ax + 1, ay, c) * tx, bot = px(ax, ay + 1, c) * (1 - tx) + px(ax + 1, ay + 1, c) * tx;
+      out[q + c] = top * (1 - ty) + bot * ty;
+    }
+    out[q + 3] = 255;
+  }
+  return { data: out.buffer, N, M, z, gx0, gy0, soft: k };
+}
+maplibregl.addProtocol("woodpaint", async (params) => {
   const m = params.url.match(/^woodpaint:\/\/(\d+)\/(\d+)\/(\d+)/);
   if (!m) throw new Error("not a woodland square");
-  const url = WOOD.source.replace("{z}", m[1]).replace("{x}", m[2]).replace("{y}", m[3]);
-  const r = await fetch(url, { signal: abortController && abortController.signal });
-  if (!r.ok) throw new Error(String(r.status));
-  const bmp = await createImageBitmap(await r.blob());
-  const c = new OffscreenCanvas(bmp.width, bmp.height), g = c.getContext("2d", { willReadFrequently: true });
-  g.drawImage(bmp, 0, 0);
-  const img = g.getImageData(0, 0, bmp.width, bmp.height);
-  woodPaintPixels(img.data, bmp.width, bmp.height, Number(m[2]) * bmp.width, Number(m[3]) * bmp.height);
-  return { data: rawPng(img.data, bmp.width, bmp.height) };
+  const d = await woodComposite(Number(m[1]), Number(m[2]), Number(m[3]), WOOD.margin);
+  return { data: await woodPaintJob(d) };
 });
 function woodLayers() {
   const road = (w) => ["interpolate", ["exponential", 1.4], ["zoom"], 4, w * .25, 10, w, 16, w * 6];
@@ -14054,18 +14228,15 @@ function woodLayers() {
     { id: "outline-wood-sheet", type: "fill", source: "outline-wood-sheet",
       paint: { "fill-color": WOOD.sheet, "fill-antialias": false } },
     { id: "outline-wood-paint", type: "raster", source: "outline-wood-paint",
-      paint: { "raster-opacity": 1, "raster-fade-duration": 150, "raster-resampling": "linear" } },
+      paint: { "raster-opacity": 1, "raster-fade-duration": 200, "raster-resampling": "linear" } },
     { id: "outline-wood-sea", type: "color-relief", source: "sea-dem",
-      paint: { "color-relief-color": WOOD.sea, "color-relief-opacity": 1 } },
+      paint: { "color-relief-color": WOOD.sea, "color-relief-opacity": WOOD.seaOpacity } },
     { id: "outline-wood-shade", type: "hillshade", source: "outline-dem", paint: WOOD.shade },
     { id: "outline-wood-mist", type: "color-relief", source: "sea-dem",
       paint: { "color-relief-color": WOOD.mist, "color-relief-opacity": 1 } },
-    { id: "outline-wood-coast", type: "fill", source: "osm", "source-layer": "water", minzoom: 7,
-      filter: ["==", ["get", "class"], "ocean"],
-      paint: { "fill-color": WOOD.coast, "fill-opacity": fade(7, 9, 1) } },
     { id: "outline-wood-lake", type: "fill", source: "osm", "source-layer": "water",
       filter: ["!=", ["get", "class"], "ocean"],
-      paint: { "fill-color": WOOD.lake, "fill-outline-color": WOOD.lakeEdge } },
+      paint: { "fill-color": WOOD.lake, "fill-opacity": WOOD.lakeOpacity } },
     { id: "outline-wood-town", type: "fill", source: "osm", "source-layer": "landuse", minzoom: 6,
       filter: kind(["residential", "commercial", "industrial", "retail", "suburb", "neighbourhood"]),
       paint: { "fill-color": ["match", ["get", "class"], "industrial", WOOD.townWork, WOOD.town], "fill-opacity": fade(6, 8, .55) } },
@@ -14113,7 +14284,7 @@ function addWoodLayers() {
     }
     if (!map.getSource("outline-wood-paint")) {
       map.addSource("outline-wood-paint", { type: "raster", tiles: ["woodpaint://{z}/{x}/{y}"], tileSize: 256,
-        maxzoom: WOOD.sourceMaxzoom, attribution: WOOD.attribution });
+        maxzoom: 18, attribution: WOOD.attribution });
     }
     const st = typeof map.getStyle === "function" ? map.getStyle() : null;
     const all = (st && st.layers) || [];
