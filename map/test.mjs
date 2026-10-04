@@ -6344,7 +6344,7 @@ console.log("\nround 150b (4 October): Autumn woodlands, a sixth basemap");
   console.warn = cw;
   check("choosing Autumn woodlands throws nothing and warns nothing", err === null && !warned.some((w) => /wood|hell/.test(w)), (err && err.message) || warned.join("; "));
   const html = els.get("basemaps")?.innerHTML || "";
-  check("Autumn woodlands is a choice, Hell and the outlines still there", html.includes('value="wood"') && html.includes("Autumn woodlands") && html.includes('value="hell"') && html.includes('value="outlines"'));
+  check("Autumn woodlands is a choice, Hell and the outlines still there", html.includes('value="wood"') && html.includes('value="hell"') && html.includes('value="outlines"'));
   const wood = map.layers.filter((l) => /^outline-wood-/.test(l.id));
   check("its layers are added and shown", wood.length === 18 && wood.every((l) => l.layout?.visibility === "visible"), wood.map((l) => l.id).join(", "));
   check("the painted plate is hidden under it", map.getLayer("plate-base").layout?.visibility === "none");
@@ -6359,41 +6359,39 @@ console.log("\nround 150b (4 October): Autumn woodlands, a sixth basemap");
   check("back to the atlas: hidden, plate and names as they were",
         wood.every((l) => l.layout?.visibility === "none") && map.getLayer("plate-base").layout?.visibility === "visible" &&
         (!lab || (lab.paint["raster-brightness-min"] === 0 && lab.paint["raster-brightness-max"] === 1)));
-  // Fall warmth was asked for, so warm earth colours are allowed here only:
-  // muted (no strong colour), nothing green, nothing neon.
+  // (Round 151b replaced these colour and leaf checks; see round 151b.)
+}
+
+console.log("\nround 151b (4 October): Woodlands redone in soft tones, no pattern");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const block = src.slice(src.indexOf("/* ---------- Autumn woodlands, a sixth basemap"), src.indexOf("/* ---------- end of Autumn woodlands ---------- */"));
+  check("the choice is called Woodlands", block.includes('concat([["wood", "Woodlands"]])'));
+  check("no leaf dabs left", !/woodMarks|leaves:|evergreen:/.test(block));
   const hues = [];
   for (const m of block.matchAll(/#([0-9A-Fa-f]{6})\b|rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/g)) {
     const [r, g, b] = m[1] ? [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16)) : [m[2], m[3], m[4]].map(Number);
-    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, s = mx ? d / mx : 0;
-    let h = 0;
-    if (d) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
-    hues.push({ c: m[0], h: (h * 60 + 360) % 360, s, k: d / 255 });
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    hues.push({ c: m[0], s: mx ? (mx - mn) / mx : 0 });
   }
-  const green = hues.filter((x) => x.s > 0.12 && x.h > 62 && x.h < 165);
-  check("no green in it", hues.length > 30 && green.length === 0, green.map((x) => x.c).join(" "));
-  check("nothing loud (strongest minus weakest of red, green, blue at most 45%)", hues.every((x) => x.k <= 0.45), hues.filter((x) => x.k > 0.45).map((x) => x.c).join(" "));
-  // The leaf squares, painted without a browser.
+  // Greens asked for here only: all greyed (tonalism), none strong or neon.
+  check("every colour greyed (saturation under 0.4)", hues.length > 30 && hues.every((x) => x.s < 0.4), hues.filter((x) => x.s >= 0.4).map((x) => x.c).join(" "));
   const WOOD = new Function(block.slice(block.indexOf("var WOOD = {"), block.indexOf("var WOOD_IDS")) + "; return WOOD;")();
-  const lib = new Function("WOOD", "rawPng", block.slice(block.indexOf("function woodHex"), block.indexOf("var WOOD_DEM")) + "; return { woodBrushPiece };")(WOOD, (rgba) => rgba);
+  const lib = new Function("WOOD", "rawPng", block.slice(block.indexOf("function woodHex"), block.indexOf("// The heights of one square")) + "; return { woodBrushPiece };")(WOOD, (rgba) => rgba);
   const land = new Float32Array(65536).fill(300), sea = new Float32Array(65536).fill(-200), peak = new Float32Array(65536).fill(4000);
-  const coast = new Float32Array(65536); for (let i = 0; i < 65536; i++) coast[i] = (i % 256) < 128 ? 200 : -50;
   const cover = (p) => { let n = 0; for (let i = 3; i < p.length; i += 4) n += p[i]; return n / 65536 / 255; };
   const a = lib.woodBrushPiece(6, 18, 23, land), b = lib.woodBrushPiece(6, 18, 23, land);
-  check("the same square paints the same leaves every time", a.every((v, i) => v === b[i]));
-  check("leaves cover much of low land", cover(a) > 0.2, cover(a).toFixed(2));
-  const s = lib.woodBrushPiece(6, 18, 23, sea);
-  check("over the sea only mist and gleams, no leaves", cover(s) < 0.15, cover(s).toFixed(2));
-  const pk = lib.woodBrushPiece(6, 18, 23, peak);
-  check("no leaves on bare heights", cover(pk) < cover(a) / 3, cover(pk).toFixed(2));
-  const c = lib.woodBrushPiece(6, 18, 23, coast);
-  let left = 0, right = 0; for (let j = 0; j < 256; j++) { for (let i = 20; i < 108; i++) left += c[(j * 256 + i) * 4 + 3]; for (let i = 148; i < 236; i++) right += c[(j * 256 + i) * 4 + 3]; }
-  check("leaves stop at the shore", left > right * 3, left + " / " + right);
-  const none = lib.woodBrushPiece(6, 18, 23, null);
-  check("without heights only the mist is painted", cover(none) > 0 && cover(none) < 0.2, cover(none).toFixed(2));
-  // Seams: the strip each side of the shared edge carries marks from both squares.
-  const r1 = lib.woodBrushPiece(6, 19, 23, land);
-  let ea = 0, eb = 0; for (let j = 0; j < 256; j++) { ea += a[(j * 256 + 255) * 4 + 3]; eb += r1[(j * 256) * 4 + 3]; }
-  check("marks carry across the squares' edges (no bare seam)", ea > 0 && eb > 0 && Math.abs(ea - eb) / Math.max(ea, eb) < 0.5, ea + " / " + eb);
+  check("the same square paints the same every time", a.every((v, i) => v === b[i]));
+  check("soft tone over low land", cover(a) > 0.25 && cover(a) < 0.6, cover(a).toFixed(2));
+  check("over the sea only mist", cover(lib.woodBrushPiece(6, 18, 23, sea)) < 0.25);
+  check("high peaks left to the ground's own haze", cover(lib.woodBrushPiece(6, 18, 23, peak)) < 0.05);
+  // Smooth, not marks: neighbouring pixels differ little anywhere.
+  let jump = 0;
+  for (let j = 0; j < 256; j++) for (let i = 1; i < 256; i++) { const k = (j * 256 + i) * 4; jump = Math.max(jump, Math.abs(a[k] - a[k - 4]), Math.abs(a[k + 3] - a[k - 1])); }
+  check("no marks: next pixels never differ by more than 6 of 255", jump <= 6, String(jump));
+  const r = lib.woodBrushPiece(6, 19, 23, land);
+  let seam = 0; for (let j = 0; j < 256; j++) { const k1 = (j * 256 + 255) * 4, k2 = j * 256 * 4; seam = Math.max(seam, Math.abs(a[k1] - r[k2]), Math.abs(a[k1 + 3] - r[k2 + 3])); }
+  check("no seam between squares", seam <= 6, String(seam));
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");

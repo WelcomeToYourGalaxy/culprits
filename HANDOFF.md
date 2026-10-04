@@ -5,6 +5,22 @@ touches.
 
 ---
 
+## Round 151b (4 October)
+
+Needs round 150b. No tiles patch. No app.js?v= bump. Woodlands basemap redone.
+
+- The 150b basemap (Autumn woodlands) redone as Woodlands after the owner found
+  its leaf dabs a pattern. Asked: Robert Griffing's tonalist green woodlands,
+  not a pattern. Now one soft key: greyed sage and olive greens and warm
+  greys; ground paler, greyer and bluer with height (atmospheric perspective);
+  soft golden light from the south-west, gentle grey-green shadow; warm grey
+  mist in valleys and over water; still grey-green water; hazy sky.
+- woodbrush:// now paints smooth, blended clouds of darker and paler tone and
+  level mist from each pixel's place in the world (no marks, no seams; about
+  35 ms a square). Leaf dabs (woodMarks) gone. Greens and earth colours here
+  only, at the owner's request; all greyed (tested, saturation under 0.4).
+  Not seen against real tiles.
+
 ## Round 150b (4 October)
 
 Needs round 149b. No tiles patch. No app.js?v= bump. One new basemap.
