@@ -5,6 +5,32 @@ touches.
 
 ---
 
+## Round 169n (4 October)
+
+Needs round 168p (guards on its heading). No tiles patch. app.js?v=1009.
+Replaces round 168n, which failed (patches/failed): it was made before 167p
+and 168p, and their index.html and test.mjs changes were in its way.
+
+- Asked 4 October: another space-themed basemap beside Deep space, "Earth at
+  night" (key night): the planet as seen from orbit after dark, from NASA's
+  Black Marble 2016 (VIIRS, GIBS WMTS epsg3857 best, VIIRS_Black_Marble,
+  GoogleMapsCompatible_Level8, source maxzoom 8). One block ("Earth at night,
+  a second space basemap" to "end of Earth at night"), after Deep space;
+  layers outline-night-* (NIGHT_IDS), settings in NIGHT.
+- The picture's sodium orange lights are recoloured square by square
+  (nightlights:// protocol, nightTable, nightRecolour, rawPng): each pixel by
+  its brightness, from near-black navy through cobalt to pale ice and a cool
+  bone white. The picture's own spread of light is kept.
+- Over it: faint cold moonlight on the relief (outline-dem hillshade), major
+  roads as lit threads from zoom 7 with a soft glow, smaller roads closer in
+  (Streets and places hides them), fine faint borders, a black sky with a
+  thin cobalt rim. Names: the usual dark picture labels (themedSync leaves
+  them on this basemap). Layer colours "suited to the basemap": bright.
+- Tests: ramp rises from dark to light, orange light turns cool, no orange,
+  yellow or green hex, choosing it shows its layers, another basemap hides
+  them. GIBS is blocked from the sandbox, so the recoloured picture was not
+  seen against the live tiles.
+
 ## Round 168p (4 October)
 
 Needs round 167p (guards on its heading). No tiles patch. app.js?v=1008.

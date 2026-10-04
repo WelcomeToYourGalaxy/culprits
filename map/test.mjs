@@ -6783,6 +6783,42 @@ console.log("\nround 168p (4 October): the Mother Earth basemap removed altogeth
   check("the page asks for a fresh copy of the script", appVersion(fs.readFileSync(path.join(HERE, "index.html"), "utf8")) >= 1008);
 }
 
+console.log("\nround 168n (4 October): Earth at night, a second space basemap from NASA's Black Marble");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const block = src.slice(src.indexOf("/* ---------- Earth at night, a second space basemap"), src.indexOf("/* ---------- end of Earth at night ---------- */"));
+  check("its own block, listed as Earth at night", block.length > 0 && /\["night", "Earth at night"\]/.test(block));
+  const hsl = (h) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, l = (mx + mn) / 510;
+    if (!d) return [0, 0, l]; const s = d / (255 * (1 - Math.abs(2 * l - 1))); let hh = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4); return [(hh + 360) % 360, s, l]; };
+  const hexes = [...block.matchAll(/#[0-9A-Fa-f]{6}\b/g)].map((m) => m[0]);
+  const warm = hexes.filter((h) => { const [hh, s] = hsl(h); return hh >= 20 && hh <= 165 && s > 0.2; });
+  check("no orange, yellow or green anywhere in it", hexes.length > 10 && warm.length === 0, warm.join(" "));
+  const lib = new Function("rawPng", block.slice(block.indexOf("var NIGHT = {"), block.indexOf("var NIGHT_TABLE = null;")) +
+    block.slice(block.indexOf("function nightLayers()"), block.indexOf("// Added the first time it is chosen")) +
+    "; return { NIGHT, NIGHT_IDS, nightTable, nightRecolour, nightLayers };")(() => null);
+  const t = lib.nightTable();
+  check("the ramp darkest at no light and lightest at full light, rising all the way", t[0] + t[1] + t[2] < 40 && t[765] + t[766] + t[767] > 700 &&
+        Array.from({ length: 255 }, (_, v) => t[(v + 1) * 3] + t[(v + 1) * 3 + 1] + t[(v + 1) * 3 + 2] >= t[v * 3] + t[v * 3 + 1] + t[v * 3 + 2]).every(Boolean));
+  const px = Uint8ClampedArray.from([255, 190, 80, 255, 4, 6, 22, 255]);   // a sodium-lit city, the dark sea
+  lib.nightRecolour(px, t);
+  check("orange city light turns pale and cool, the sea stays near black", px[2] >= px[0] && px[0] > 150 && px[4] + px[5] + px[6] < 60);
+  const ids = lib.nightLayers().map((l) => l.id);
+  check("every layer is an outline-night- layer, so the colour mapping and themes leave it alone",
+        ids.every((id) => id.startsWith("outline-night-")) && ids.join() === lib.NIGHT_IDS.join());
+  check("the picture is NASA's Black Marble from GIBS, recoloured square by square", /VIIRS_Black_Marble\/default\/2016-01-01\/GoogleMapsCompatible_Level8/.test(block) &&
+        /addProtocol\("nightlights"/.test(block) && /maxzoom: 8/.test(block));
+  check("only its own block: the menu and the switch are reached by wrapping",
+        /const basemapPanelHtmlBeforeNight = basemapPanelHtml;/.test(block) && /const setBasemapBeforeNight = setBasemap;/.test(block));
+  const { map, els } = run();
+  map.fire("load");
+  els.get("basemaps").fire("change", { target: { name: "basemap", value: "night" } });
+  check("choosing it adds and shows its layers", map.getLayer("outline-night-lights")?.layout?.visibility === "visible" && map.getLayer("outline-night-road-major")?.layout?.visibility === "visible");
+  els.get("basemaps").fire("change", { target: { name: "basemap", value: "space" } });
+  check("choosing another basemap hides them", map.getLayer("outline-night-lights").layout?.visibility === "none" && map.getLayer("outline-space-ground")?.layout?.visibility === "visible");
+  els.get("basemaps").fire("change", { target: { name: "basemap", value: "atlas" } });
+  check("round 169n: the page asks for a fresh copy of the script", appVersion(fs.readFileSync(path.join(HERE, "index.html"), "utf8")) >= 1009);
+}
+
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");

@@ -15497,6 +15497,182 @@ if (typeof MutationObserver === "function" && typeof document !== "undefined" &&
 }
 /* ---------- end of Deep space ---------- */
 
+/* ---------- Earth at night, a second space basemap (round 169n) ---------- */
+// Asked 4 October: another basemap with a space theme, beside Deep space.
+// Deep space draws the Earth as a chart; this one shows it as it looks from
+// orbit on the night side: NASA's Black Marble (VIIRS, 2016), the real
+// picture of the planet's lights after dark, from NASA's GIBS. Nothing is
+// drawn by hand or made up: the lights are where people light the ground.
+// Black Marble's lights are sodium orange and yellow, so each square is
+// recoloured here by its own brightness (NIGHT.ramp): unlit ground and sea
+// near-black navy, faint light deep cobalt, bright cities pale ice to a
+// cool bone white. The picture's own soft spread of light is kept, so it
+// reads as a photograph, not as a pattern. Over it:
+//   relief   a faint cold moonlight on the mountains (the map's own heights)
+//   roads    from zoom 8, where the picture runs out of detail, the major
+//            roads as faint lit threads, the smaller ones closer in
+//   borders  fine, faint lines
+//   sky      black, with a thin cobalt rim at the world view
+// Place names: the map's usual picture labels, made for dark maps. Colours:
+// navy, cobalt, ice and bone; no orange, yellow or green, nothing neon.
+// Layers are named "outline-night-...", so the colour mapping and the
+// layer-colour themes leave them alone. One block; the menu and the switch
+// are reached by wrapping basemapPanelHtml and setBasemap.
+var NIGHT = {
+  tiles: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png",
+  // Brightness of the source pixel (0-255) -> colour.
+  ramp: [[0, "#02040C"], [14, "#050918"], [34, "#0B1430"], [62, "#17295A"], [100, "#2E5390"],
+         [145, "#5E8DC2"], [190, "#A5C7E2"], [230, "#DCE8F0"], [255, "#F1F4F6"]],
+  sheet: "#02040C",
+  shade: {
+    "hillshade-method": "multidirectional",
+    "hillshade-illumination-direction": [315, 270, 0, 225],
+    "hillshade-illumination-altitude": [35, 30, 30, 45],
+    "hillshade-highlight-color": ["rgba(170,196,230,0.12)", "rgba(170,196,230,0.05)", "rgba(170,196,230,0.05)", "rgba(170,196,230,0.03)"],
+    "hillshade-shadow-color": ["rgba(0,1,6,0.45)", "rgba(0,1,6,0.25)", "rgba(0,1,6,0.25)", "rgba(0,1,6,0.15)"],
+    "hillshade-accent-color": "rgba(0,1,6,0.15)",
+    "hillshade-exaggeration": 0.8,
+    "hillshade-illumination-anchor": "map",
+  },
+  road: ["rgba(150,186,222,0.30)", "rgba(170,202,232,0.45)", "rgba(206,226,240,0.70)"],   // minor, middle, major
+  roadGlow: "#2D5C96",
+  border: "rgba(120,140,196,0.32)",
+  sky: { "sky-color": "#02030A", "horizon-color": "#1C3566", "fog-color": "#0B1630",
+         "fog-ground-blend": 0.9, "horizon-fog-blend": 0.3, "sky-horizon-blend": 0.6,
+         "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.55, 4, 0.3, 7, 0] },
+};
+var NIGHT_IDS = ["outline-night-sheet", "outline-night-lights", "outline-night-shade", "outline-night-road-glow",
+  "outline-night-road-minor", "outline-night-road", "outline-night-road-major", "outline-night-border"];
+// The ramp as a table of 256 colours, blended between its stops.
+function nightTable() {
+  const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const t = new Uint8Array(256 * 3), R = NIGHT.ramp;
+  for (let v = 0; v < 256; v++) {
+    let k = 0; while (k < R.length - 2 && v > R[k + 1][0]) k++;
+    const [v0, c0] = R[k], [v1, c1] = R[k + 1];
+    const f = Math.max(0, Math.min(1, (v - v0) / (v1 - v0))), a = hex(c0), b = hex(c1);
+    for (let i = 0; i < 3; i++) t[v * 3 + i] = Math.round(a[i] + (b[i] - a[i]) * f);
+  }
+  return t;
+}
+// Each pixel by its brightness. Lights are judged by their brightest channel
+// (sodium light is red and green, little blue), so a city keeps its full glow.
+function nightRecolour(px, table) {
+  for (let i = 0; i < px.length; i += 4) {
+    const r = px[i], g = px[i + 1], b = px[i + 2];
+    const v = Math.round(0.5 * Math.max(r, g, b) + 0.5 * (0.3 * r + 0.59 * g + 0.11 * b));
+    px[i] = table[v * 3]; px[i + 1] = table[v * 3 + 1]; px[i + 2] = table[v * 3 + 2]; px[i + 3] = 255;
+  }
+  return px;
+}
+var NIGHT_TABLE = null;
+if (typeof maplibregl !== "undefined" && typeof maplibregl.addProtocol === "function") {
+  maplibregl.addProtocol("nightlights", async (params, ac) => {
+    const m = params.url.match(/^nightlights:\/\/(\d+)\/(\d+)\/(\d+)$/);
+    if (!m) throw new Error("not a night square");
+    const url = NIGHT.tiles.replace("{z}", m[1]).replace("{y}", m[2]).replace("{x}", m[3]);
+    const r = await fetch(url, ac && ac.signal ? { signal: ac.signal } : undefined);
+    if (!r.ok) throw new Error(`GIBS ${r.status}`);
+    const img = await createImageBitmap(await r.blob());
+    const w = img.width, h = img.height;
+    const cv = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(w, h) : Object.assign(document.createElement("canvas"), { width: w, height: h });
+    const ctx = cv.getContext("2d");
+    ctx.drawImage(img, 0, 0);
+    const d = ctx.getImageData(0, 0, w, h);
+    if (!NIGHT_TABLE) NIGHT_TABLE = nightTable();
+    nightRecolour(d.data, NIGHT_TABLE);
+    return { data: rawPng(d.data, w, h) };
+  });
+}
+function nightLayers() {
+  const road = (w) => ["interpolate", ["exponential", 1.4], ["zoom"], 6, w * .3, 10, w, 16, w * 5];
+  const kind = (list) => ["match", ["get", "class"], list, true, false];
+  const fade = (z0, z1, a) => ["interpolate", ["linear"], ["zoom"], z0, 0, z1, a];
+  return [
+    { id: "outline-night-sheet", type: "fill", source: "outline-night-sheet",
+      paint: { "fill-color": NIGHT.sheet, "fill-antialias": false } },
+    { id: "outline-night-lights", type: "raster", source: "outline-night-lights",
+      paint: { "raster-fade-duration": 200, "raster-resampling": "linear" } },
+    { id: "outline-night-shade", type: "hillshade", source: "outline-dem", paint: NIGHT.shade },
+    { id: "outline-night-road-glow", type: "line", source: "osm", "source-layer": "transportation", minzoom: 7,
+      filter: kind(["motorway", "trunk", "primary"]),
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": NIGHT.roadGlow, "line-width": road(3), "line-blur": road(2.5), "line-opacity": fade(7, 10, .35) } },
+    { id: "outline-night-road-minor", type: "line", source: "osm", "source-layer": "transportation", minzoom: 11,
+      filter: kind(["minor", "service", "street", "street_limited"]),
+      paint: { "line-color": NIGHT.road[0], "line-width": road(.4), "line-opacity": fade(11, 13, 1) } },
+    { id: "outline-night-road", type: "line", source: "osm", "source-layer": "transportation", minzoom: 9,
+      filter: kind(["secondary", "tertiary"]),
+      paint: { "line-color": NIGHT.road[1], "line-width": road(.5), "line-opacity": fade(9, 11, 1) } },
+    { id: "outline-night-road-major", type: "line", source: "osm", "source-layer": "transportation", minzoom: 7,
+      filter: kind(["motorway", "trunk", "primary"]),
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": NIGHT.road[2], "line-width": road(.6), "line-opacity": fade(7, 9, 1) } },
+    { id: "outline-night-border", type: "line", source: "boundaries",
+      paint: { "line-color": NIGHT.border, "line-width": ["interpolate", ["linear"], ["zoom"], 2, .4, 6, .8] } },
+  ];
+}
+// Added the first time it is chosen, just above the painted plate, so the
+// other basemaps are under it and every data layer over it.
+function addNightLayers() {
+  if (map.getLayer("outline-night-lights")) return;
+  try {
+    ensureBoundaries();
+    const share = (id, spec) => { if (!map.getSource(id)) map.addSource(id, Object.assign({}, spec)); };
+    share("osm", OSM_SOURCE);
+    share("outline-dem", RELIEF_SOURCE);
+    if (!map.getSource("outline-night-sheet")) {
+      map.addSource("outline-night-sheet", { type: "geojson", data: { type: "Feature", properties: {},
+        geometry: { type: "Polygon", coordinates: [[[-180, -85.06], [180, -85.06], [180, 85.06], [-180, 85.06], [-180, -85.06]]] } } });
+    }
+    if (!map.getSource("outline-night-lights")) {
+      map.addSource("outline-night-lights", { type: "raster", tiles: ["nightlights://{z}/{y}/{x}"], tileSize: 256, maxzoom: 8,
+        attribution: '<a href="https://earthobservatory.nasa.gov/features/NightLights" target="_blank" rel="noopener">NASA Black Marble 2016</a> via <a href="https://www.earthdata.nasa.gov/engage/open-data-services-software/earthdata-developer-portal/gibs-api" target="_blank" rel="noopener">GIBS</a>' });
+    }
+    const st = typeof map.getStyle === "function" ? map.getStyle() : null;
+    const all = (st && st.layers) || [];
+    const at = all.findIndex((l) => l.id === "plate-base");
+    const before = at >= 0 && all[at + 1] ? all[at + 1].id : undefined;
+    const hide = (l) => Object.assign({ layout: {} }, l, { layout: Object.assign({}, l.layout || {}, { visibility: "none" }) });
+    for (const l of nightLayers()) map.addLayer(hide(l), before);
+  } catch (e) { console.warn("[culprits] Earth at night basemap unavailable:", e.message || e); }
+}
+let nightSkyBefore = null;
+function nightSky(on) {
+  if (typeof map.setSky !== "function") return;
+  if (typeof DEFENCE_ON !== "undefined" && DEFENCE_ON) return;
+  try {
+    if (on && !nightSkyBefore) {
+      nightSkyBefore = (typeof map.getSky === "function" && map.getSky()) || {};
+      map.setSky(Object.assign({}, nightSkyBefore, NIGHT.sky));
+    } else if (!on && nightSkyBefore) { map.setSky(nightSkyBefore); nightSkyBefore = null; }
+  } catch (e) { /* the sky stays as it was */ }
+}
+function nightShow(on) {
+  const vis = on && !hellHoloHides() ? "visible" : "none";
+  for (const id of NIGHT_IDS) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
+  nightSky(on);
+}
+BASE_GRADE.night = {};          // nothing of the daytime imagery shows under it
+const basemapPanelHtmlBeforeNight = basemapPanelHtml;
+basemapPanelHtml = function (opts) {
+  const list = (opts || []).some((o) => o[0] === "night") ? opts : (opts || []).concat([["night", "Earth at night"]]);
+  return basemapPanelHtmlBeforeNight(list);
+};
+const setBasemapBeforeNight = setBasemap;
+setBasemap = function (kind) {
+  if (typeof THEME_BY_BASEMAP === "object" && THEME_BY_BASEMAP && !THEME_BY_BASEMAP.night) THEME_BY_BASEMAP.night = "bright";
+  if (kind === "night") addNightLayers();
+  if (kind !== "night") nightShow(false);
+  setBasemapBeforeNight(kind);
+  if (kind === "night") nightShow(true);
+};
+if (typeof MutationObserver === "function" && typeof document !== "undefined" && document.body) {
+  new MutationObserver(() => { if (BASEMAP === "night") nightShow(true); })
+    .observe(document.body, { attributes: true, attributeFilter: ["class"] });
+}
+/* ---------- end of Earth at night ---------- */
+
 
 
 // Place names on and off, all at once (asked for 23 September): every symbol
