@@ -5,6 +5,35 @@ touches.
 
 ---
 
+## Round 148b (3 October)
+
+Needs round 147i. No tiles patch. No app.js?v= bump. Oil painting basemap only.
+
+- A sixth basemap, Oil painting (asked 3 October: like the paintings of JB
+  Clemens and Robert Griffing combined, after the owner's two pictures of
+  Clemens's work). Taken from them is the way they are painted, not anything
+  in them: visible brush strokes, mist low in the valleys (Griffing), a low
+  sun lighting the faces of slopes over deep shadow (Clemens). Their golds,
+  oranges and greens are turned into the map's own colours: navy sea paler
+  over the shelves; misty grey-teal lowlands deepening to slate and dusk
+  cobalt, bone on the highest peaks (AWS terrain heights, sea-dem); bone
+  light from a low western sun over navy shadow (Mapterhorn); a pale haze
+  over ground below 1,500 m; forests a slate-teal wash; lakes and rivers
+  slate blue; towns and roads cool grey (OpenFreeMap); names in grey ink.
+- Brush strokes painted square by square on the reader's computer
+  (oilbrush:// protocol, oilBrushPiece, rawPng): broad soft patches under
+  flat-brush strokes whose slant follows a slow wave so neighbours lean
+  alike, dry-brush streaks and ragged ends, small pale dabs like meadow
+  flowers. Each square's strokes come from its own seed, and the eight
+  squares round it are painted in where they reach, so no seams (also across
+  the date line). About 70 ms a square in the sandbox.
+- Layers outline-oil-* (OIL_IDS), one block of app.js ("Oil painting, a
+  sixth basemap" to "end of Oil painting"), reached by wrapping
+  basemapPanelHtml and setBasemap after Indigenous's wrappers. The wrapper
+  also turns Hell's names light again when coming from Indigenous (they were
+  left dark). Not seen against real tiles (the sandbox cannot reach them):
+  check the look live.
+
 ## Round 147i (3 October)
 
 Needs round 146h. No tiles patch. No app.js?v= bump. Indigenous basemap only.

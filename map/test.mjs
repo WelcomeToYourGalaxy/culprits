@@ -6356,6 +6356,63 @@ console.log("\nround 145b (3 October; built as 144b): Plantations its own headin
   }
 }
 
+console.log("\nround 148b (3 October): Oil painting, a sixth basemap");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const block = src.slice(src.indexOf("/* ---------- Oil painting, a sixth basemap"), src.indexOf("/* ---------- end of Oil painting ---------- */"));
+  const { map, els } = run();
+  const warned = []; const cw = console.warn; console.warn = (...a) => warned.push(a.join(" "));
+  let err = null;
+  try {
+    map.fire("load"); await new Promise((r) => setTimeout(r, 5));
+    els.get("basemaps").fire("change", { target: { name: "basemap", value: "oil" } });
+  } catch (e) { err = e; }
+  console.warn = cw;
+  check("choosing Oil painting throws nothing and warns nothing", err === null && !warned.some((w) => /oil|indigenous|hell/.test(w)), (err && err.message) || warned.join("; "));
+  const html = els.get("basemaps")?.innerHTML || "";
+  check("Oil painting is a sixth choice, the others still there", html.includes('value="oil"') && html.includes('value="indigenous"') && html.includes('value="hell"') && html.includes('value="outlines"'));
+  const oil = map.layers.filter((l) => /^outline-oil-/.test(l.id));
+  check("its layers are added and shown", oil.length === 18 && oil.every((l) => l.layout?.visibility === "visible"), oil.map((l) => l.id).join(", "));
+  check("the painted plate is hidden under it", map.getLayer("plate-base").layout?.visibility === "none");
+  const lab = map.getLayer("labels");
+  check("place names in grey ink", !lab || (lab.paint["raster-saturation"] === -1 && lab.paint["raster-brightness-max"] === 0.8));
+  els.get("basemaps").fire("change", { target: { name: "basemap", value: "indigenous" } });
+  els.get("basemaps").fire("change", { target: { name: "basemap", value: "hell" } });
+  const hell = map.layers.filter((l) => /^outline-hell-/.test(l.id));
+  check("to Hell (by way of Indigenous): Oil painting hidden, Hell shown with its light names",
+        oil.every((l) => l.layout?.visibility === "none") && hell.every((l) => l.layout?.visibility === "visible") &&
+        (!lab || lab.paint["raster-brightness-min"] > lab.paint["raster-brightness-max"]));
+  els.get("basemaps").fire("change", { target: { name: "basemap", value: "atlas" } });
+  check("back to the atlas: hidden, plate and names as they were",
+        oil.every((l) => l.layout?.visibility === "none") && map.getLayer("plate-base").layout?.visibility === "visible" &&
+        (!lab || (lab.paint["raster-brightness-min"] === 0 && lab.paint["raster-brightness-max"] === 1)));
+  // Teal to cobalt (170 to 235), navy, greys and bone. No orange, yellow or green.
+  const hues = [];
+  for (const m of block.matchAll(/#([0-9A-Fa-f]{6})\b|rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/g)) {
+    const [r, g, b] = m[1] ? [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16)) : [m[2], m[3], m[4]].map(Number);
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, s = mx ? d / mx : 0;
+    let h = 0;
+    if (d) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    hues.push({ c: m[0], h: (h * 60 + 360) % 360, s, k: d / 255 });
+  }
+  const bad = hues.filter((x) => x.s > 0.1 && !(x.h >= 170 && x.h <= 235));
+  check("its colours are teal, slate, cobalt, navy, grey and bone (no orange, yellow or green)", hues.length > 30 && bad.length === 0, bad.map((x) => x.c).join(" "));
+  check("nothing loud (the gap between strongest and weakest of red, green, blue under 35%)", hues.every((x) => x.k <= 0.35), hues.filter((x) => x.k > 0.35).map((x) => x.c).join(" "));
+  // The brush squares, painted without a browser.
+  const OIL = new Function(block.slice(block.indexOf("var OIL = {"), block.indexOf("var OIL_IDS")) + "; return OIL;")();
+  const lib = new Function("OIL", "rawPng", block.slice(block.indexOf("function oilHex"), block.indexOf("maplibregl.addProtocol(\"oilbrush\"")) + "; return { oilBrushPiece };")(OIL, (rgba) => rgba);
+  const a = lib.oilBrushPiece(3, 2, 2), b = lib.oilBrushPiece(3, 2, 2), c = lib.oilBrushPiece(3, 3, 2), far = lib.oilBrushPiece(3, 6, 5);
+  let cover = 0; for (let i = 3; i < a.length; i += 4) if (a[i] > 0) cover++;
+  check("a brush square paints the same strokes every time, over much of the square", a.every((v, i) => v === b[i]) && cover > 256 * 256 * 0.3, `${cover}`);
+  const col = (p, x) => Array.from({ length: 256 }, (_, j) => p[(j * 256 + x) * 4 + 3]);
+  const diff = (u, v) => u.reduce((s, x, i) => s + Math.abs(x - v[i]), 0) / u.length;
+  check("strokes carry across the edge between squares (no seams)", diff(col(a, 255), col(c, 0)) < diff(col(a, 255), col(far, 0)) * 0.6,
+        `${diff(col(a, 255), col(c, 0)).toFixed(1)} vs ${diff(col(a, 255), col(far, 0)).toFixed(1)}`);
+  const w0 = lib.oilBrushPiece(2, 0, 1), w3 = lib.oilBrushPiece(2, 3, 1);
+  check("and across the date line", diff(col(w3, 255), col(w0, 0)) < diff(col(a, 255), col(far, 0)) * 0.6);
+  check("the squares are asked through oilbrush://", /maplibregl\.addProtocol\("oilbrush"/.test(src) && /tiles: \["oilbrush:\/\/\{z\}\/\{x\}\/\{y\}"\]/.test(src));
+}
+
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
