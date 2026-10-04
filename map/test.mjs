@@ -6648,6 +6648,14 @@ console.log("\nround 162m (4 October): Mother Earth, an eighth basemap, with its
   const ramps = [...lib.MOTHER.pines, ...lib.MOTHER.stone, ...lib.MOTHER.waters].map((x) => x[1]).concat([lib.MOTHER.snow, lib.MOTHER.sheet, lib.MOTHER.town, lib.MOTHER.building, ...lib.MOTHER.road]);
   check("round 163m: no purple on the ground or the water; violet only in the sky", ramps.every((h) => { const [hh, s] = hsl(h); return !(hh >= 245 && hh <= 330 && s > 0.12); }) &&
         hsl(lib.MOTHER.sky["sky-color"])[0] >= 230, ramps.filter((h) => { const [hh, s] = hsl(h); return hh >= 245 && hh <= 330 && s > 0.12; }).join(" "));
+  const shore = tile([12, 30, 70]);
+  for (let y = 0; y < 64; y++) for (let x = 0; x < 32; x++) { const q = (y * 64 + x) * 4; shore[q] = 200; shore[q + 1] = 185; shore[q + 2] = 160; }
+  const sh = lib.motherPaintPixels(shore, 64, 64);
+  const lum = (x) => { const q = (32 * 64 + x) * 4; return sh[q] + sh[q + 1] + sh[q + 2]; };
+  check("round 164m: the land keeps its full size; its edge by the sea is as light as its middle (land and sea softened apart)", Math.abs(lum(31) - lum(10)) < 15, lum(31) + " vs " + lum(10));
+  check("round 164m: less brown; the lit ground is pale pearl, the plants a misty sage", (() => { const s = lib.MOTHER.stone[lib.MOTHER.stone.length - 1][1], p = lib.MOTHER.pines[lib.MOTHER.pines.length - 1][1];
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(s.slice(i, i + 2), 16)); const [r2, g2, b2] = [1, 3, 5].map((i) => parseInt(p.slice(i, i + 2), 16));
+    return r + g + b > 660 && r - b < 25 && g2 > r2 && r2 + g2 + b2 > 480; })());
   const speck = tile([120, 105, 85]);
   for (let y = 30; y < 34; y++) for (let x = 30; x < 34; x++) { const q = (y * 64 + x) * 4; speck[q] = 10; speck[q + 1] = 20; speck[q + 2] = 40; }
   const sp = mid(lib.motherPaintPixels(speck, 64, 64));

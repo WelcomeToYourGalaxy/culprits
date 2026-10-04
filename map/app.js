@@ -15074,10 +15074,11 @@ if (typeof MutationObserver === "function" && typeof document !== "undefined" &&
 //             re-coloured pixel by pixel, then softened like airbrush: no
 //             brushstrokes, no grain, every variation the Earth's own
 //   palette   the painting's land, not its sky (round 163m: the owner found
-//             162m far too purple; the violets belong to the sky only):
-//             forests in deep muted spruce, bare ground and rock in warm
-//             earth, lit to pale stone on the faces toward the light, seas
-//             and lakes deep blue-teal. The painting's gold light becomes
+//             162m far too purple; the violets belong to the sky only;
+//             round 164m: too much brown took away the dreamlike look):
+//             forests from deep teal-spruce to a misty sage, bare ground and
+//             rock pale pearl and rose-sand, lit to near white on the faces
+//             toward the light, seas and lakes deep blue-teal. The painting's gold light becomes
 //             warm bone (the owner's rule: no orange, no yellow; nothing
 //             bright or neon)
 //   water     lit from within: shallows and every coast glow pale cyan, as
@@ -15096,17 +15097,17 @@ if (typeof MutationObserver === "function" && typeof document !== "undefined" &&
 // Layers are named "outline-mother-...", so the colour mapping and the themes
 // leave them alone.
 var MOTHER = {
-  sheet: "#14201E",
+  sheet: "#1A2C30",
   attribution: WOOD.attribution,
   // Plants: the painting's pines, deep muted spruce in shadow to a pale
   // grey sage in the light (nothing bright).
-  pines: [[0, "#0D1918"], [0.2, "#142622"], [0.4, "#1D3830"], [0.6, "#2D4D40"], [0.8, "#506B5A"], [1, "#93A592"]],
+  pines: [[0, "#16302E"], [0.2, "#1F4039"], [0.4, "#30554A"], [0.6, "#43705C"], [0.8, "#6F9580"], [1, "#AFC6B3"]],
   // Bare ground and rock: dark earth in shadow, warm stone where the light
   // falls, pale bone on the brightest faces.
-  stone: [[0, "#1E1814"], [0.3, "#423229"], [0.55, "#6E5546"], [0.75, "#9C7F6C"], [0.9, "#C2A796"], [1, "#E2D0C2"]],
+  stone: [[0, "#2A2830"], [0.3, "#4E4950"], [0.55, "#857873"], [0.75, "#B8A69D"], [0.9, "#DCCCC2"], [1, "#F1E7DF"]],
   // Water: deep blue-teal to the pale lit cyan of the pour.
   waters: [[0, "#0B1A2C"], [0.35, "#123552"], [0.65, "#1F5E7C"], [1, "#7FC2CF"]],
-  glow: "#A6DDE3", glowReach: 7, glowStrength: 0.38,
+  glow: "#A6DDE3", glowReach: 7, glowStrength: 0.26,
   snow: "#E6E8EE",
   lightReach: 10, lift: 0.1,
   sea: ["interpolate", ["linear"], ["elevation"],
@@ -15128,9 +15129,9 @@ var MOTHER = {
   },
   lake: "#1B4663", lakeOpacity: 0.45,
   river: "#6FAFC0",
-  town: "#5A4A3E", townWork: "#4E4036",
-  road: ["#6A5646", "#5E4B3D", "#524134"],
-  rail: "#2E2620", building: "#6B5A4C",
+  town: "#6E6866", townWork: "#625C5B",
+  road: ["#7E7672", "#726A66", "#665F5C"],
+  rail: "#3A3636", building: "#857C78",
   border: "rgba(236,226,210,0.35)",
   // A violet sky round the globe, a rose-lilac horizon, lavender fog.
   sky: { "sky-color": "#1E2468", "horizon-color": "#B88FC0", "fog-color": "#7C76B8",
@@ -15163,7 +15164,7 @@ function motherKind(r, g, b) {
 function motherTone(r, g, b, kind) {
   const lum = (0.3 * r + 0.59 * g + 0.11 * b) / 255;
   if (kind === 1) return Math.max(0, Math.min(1, (lum - 0.02) / 0.35));
-  const t = Math.min(1, Math.pow(Math.max(0, lum - 0.015) / 0.85, 0.8));
+  const t = Math.min(1, Math.pow(Math.max(0, lum - 0.015) / 0.75, 0.75));
   return Math.max(0, Math.min(1, 0.5 + (t - 0.5) * 1.1));
 }
 // How much a pixel is plants: green over red, and over blue. Sand and
@@ -15205,16 +15206,28 @@ function motherPaintPixels(data, w, h, soft) {
     V[p] = motherPlants(r, g, b);
     T[p] = motherTone(r, g, b, K[p]);
   }
-  const Vs = blur(V, 3 * soft), Tp = blur(T, soft - 0.5);
+  // Round 164m (owner: the continents looked shrunk and squeezed): every
+  // softening keeps land with land and water with water. Before, the dark sea
+  // was averaged into the land's edge, darkening a band along every coast, so
+  // the continents read smaller than they are.
+  const Wat = Float32Array.from(Land, (l) => 1 - l);
+  const mblur = (A, r) => {
+    const AL = new Float32Array(n), AW = new Float32Array(n);
+    for (let p = 0; p < n; p++) { AL[p] = A[p] * Land[p]; AW[p] = A[p] * Wat[p]; }
+    const bl = blur(AL, r), bw = blur(AW, r), ml = blur(Land, r), mw = blur(Wat, r), out = new Float32Array(n);
+    for (let p = 0; p < n; p++) out[p] = Land[p] ? (ml[p] > 1e-4 ? bl[p] / ml[p] : A[p]) : (mw[p] > 1e-4 ? bw[p] / mw[p] : A[p]);
+    return out;
+  };
+  const Vs = mblur(V, 3 * soft), Tp = mblur(T, soft - 0.5);
   // No pixel much lighter than the ground round it: the lights come as soft
   // washes, as airbrush lays them, not as spots.
-  const Tw = blur(T, MOTHER.lightReach * soft), Ts = new Float32Array(n);
+  const Tw = mblur(T, MOTHER.lightReach * soft), Ts = new Float32Array(n);
   for (let p = 0; p < n; p++) Ts[p] = Math.min(Tp[p], Tw[p] + MOTHER.lift);
   // Water lit from within: the nearer the land, the paler the glow.
   const Near = blur(Land, MOTHER.glowReach * soft);
   // Round 163m: only open water glows; a lone dark-blue speck (a shadow read
   // as water) is left unlit.
-  const Open = blur(Float32Array.from(Land, (l) => 1 - l), 4 * soft);
+  const Open = blur(Wat, 4 * soft);
   const R = new Float32Array(n), G = new Float32Array(n), B = new Float32Array(n);
   for (let p = 0; p < n; p++) {
     let c = motherColour(Ts[p], 0.9 * Vs[p], K[p], Rp);
@@ -15224,7 +15237,7 @@ function motherPaintPixels(data, w, h, soft) {
     }
     R[p] = c[0]; G[p] = c[1]; B[p] = c[2];
   }
-  const Rb = blur(R, 2.5 * soft), Gb = blur(G, 2.5 * soft), Bb = blur(B, 2.5 * soft);
+  const Rb = mblur(R, 2.5 * soft), Gb = mblur(G, 2.5 * soft), Bb = mblur(B, 2.5 * soft);
   for (let p = 0; p < n; p++) {
     const q = p * 4;
     data[q] = R[p] * 0.3 + Rb[p] * 0.7; data[q + 1] = G[p] * 0.3 + Gb[p] * 0.7; data[q + 2] = B[p] * 0.3 + Bb[p] * 0.7; data[q + 3] = 255;
@@ -15491,7 +15504,7 @@ const namesRasterBeforeMother = namesRaster;
 namesRaster = function () { namesRasterBeforeMother(); motherLabelsHide(); };
 // The (i) beside the menu name, and its note.
 var MOTHER_NOTE = '<b class="mn-h">Mother Earth</b>' +
-  '<p>The ground here is the real planet, from satellite pictures, painted in the colours and light of a dusk landscape: deep spruce forests, warm stone pale on the faces toward the light, and blue water that glows where it meets the land, under a violet sky. Every coast, ridge and river is where it actually is.</p>' +
+  '<p>The ground here is the real planet, from satellite pictures, painted in the colours and light of a dusk landscape: deep spruce and misty sage forests, pale pearl stone lit on the faces toward the light, and blue water that glows where it meets the land, under a violet sky. Every coast, ridge and river is where it actually is.</p>' +
   '<p>In the spirit of Lone Wolf Circles, the name Jesse Wolf Hardin wrote under in the 1980s, when he was urging people to rewild themselves and the land:</p>' +
   '<p>The Earth on this map is not scenery and not a store of resources. It is a living body, and we are part of it. Its water, soil and air are what our own bodies are made from. The layers you turn on over it show where that body is cut, drained, burned and poisoned, and where the people and animals who live from it are pushed out.</p>' +
   '<p class="mn-src">Colours chosen after a painting the site\'s owner sent; nothing of the painting is copied. Names in Alegreya (SIL Open Font License).</p>';

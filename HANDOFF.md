@@ -5,6 +5,24 @@ touches.
 
 ---
 
+## Round 164m (4 October)
+
+Needs round 163m. No tiles patch. No app.js?v= bump.
+
+- Owner on 163m: the continents looked dwarfed and compressed, and too much
+  brown took away the dreamlike look.
+- Shrunk continents: every softening in motherPaintPixels (the plants mix,
+  the light washes, the colour blur) now averages land with land and water
+  with water only (mblur, weighted by the land and water masks). Before, the
+  dark sea was averaged into a band along every coast, so the land's edge
+  went dark and the continents read smaller. Coast glow gentler (0.26).
+- Less brown: plants from deep teal-spruce to a misty sage (MOTHER.pines),
+  bare ground and rock pale pearl and rose-sand to near white
+  (MOTHER.stone), a lighter tone curve; towns, roads and buildings in soft
+  warm greys instead of umber; the sheet a dark blue-teal. Sky unchanged.
+- Checked on sample world-view satellite tiles in Chromium, side by side with
+  the original: coasts where the picture has them. Not seen live.
+
 ## Round 165b (4 October)
 
 Needs round 158b. No tiles patch. No app.js?v= bump.
