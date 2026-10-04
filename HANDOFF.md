@@ -5,6 +5,34 @@ touches.
 
 ---
 
+## Round 144h (3 October)
+
+Needs round 144b. No tiles patch. No app.js?v= bump. Made in a separate chat
+("h" for Hell) while the "b" chat goes on with the layers; everything is in one
+new block of app.js ("Hell, a fourth basemap" to "end of Hell") and one test
+block before round 143b's, so it does not touch lines the other chat edits.
+
+- A fourth basemap, Hell (asked 3 October, after the owner's pictures: a red
+  sea round black land, a relief map cut by red rivers, hell's place names on
+  black, graveyards glowing on black; "nothing cheesy"). The same Earth from
+  the same open data in other colours: oxblood sea, darker in the deeps and
+  lighter on the shelves (AWS terrain heights, sea-dem); basalt-black land,
+  ash grey up the slopes (same tiles); cold blue-grey relief light over black
+  shadow (Mapterhorn, outline-dem); lakes dark blood, rivers thin red veins
+  with a faint glow, graveyards dull red from zoom 9, towns dark ash, roads
+  dark maroon, borders faint dark red (OpenFreeMap, boundaries); the label set
+  turned light on dark and grey (raster brightness min above max). No orange,
+  yellow or green; a test checks the colours.
+- Layers named outline-hell-* (HELL_IDS), added on first choice just above
+  plate-base, so the colour mapping and themes leave them alone
+  (GLAD_BASE_LAYERS and themeTouches already skip "outline-").
+- Reached by wrapping, not editing: basemapPanelHtml adds the "Hell" choice;
+  setBasemap adds and shows the layers and sets BASE_GRADE.hell = {} and
+  THEME_BY_BASEMAP.hell = "bright"; the hologram's holo-on mark hides them
+  unless the hologram keeps the basemap under it.
+- Not seen against real tiles (the sandbox cannot reach them): check the look
+  live.
+
 ## Round 144b (2 October)
 
 Needs round 143b. No tiles patch. No app.js?v= bump.

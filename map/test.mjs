@@ -6117,6 +6117,46 @@ console.log("\nround 140b-142b (2 October): combine in any order; base map kept,
   check("the same crossings leave the map untouched", /if \(key !== COMBO\.lastKey\) \{/.test(src) && /ms == null \? 400 : ms/.test(src));
 }
 
+console.log("\nround 144h (3 October): Hell, a fourth basemap");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const block = src.slice(src.indexOf("/* ---------- Hell, a fourth basemap"), src.indexOf("/* ---------- end of Hell ---------- */"));
+  const { map, els } = run();
+  const warned = []; const cw = console.warn; console.warn = (...a) => warned.push(a.join(" "));
+  let err = null;
+  try {
+    map.fire("load"); await new Promise((r) => setTimeout(r, 5));
+    els.get("basemaps").fire("change", { target: { name: "basemap", value: "hell" } });
+  } catch (e) { err = e; }
+  console.warn = cw;
+  check("choosing Hell throws nothing and warns nothing", err === null && !warned.some((w) => /hell/.test(w)), (err && err.message) || warned.join("; "));
+  check("Hell is a fourth choice in the basemap box", (els.get("basemaps")?.innerHTML || "").includes('value="hell"') &&
+        (els.get("basemaps")?.innerHTML || "").includes('value="outlines"'));
+  const hell = map.layers.filter((l) => /^outline-hell-/.test(l.id));
+  check("its layers are added and shown", hell.length === 15 && hell.every((l) => l.layout?.visibility === "visible"), hell.map((l) => l.id).join(", "));
+  check("every one is named outline-hell-, so the colour mapping and themes leave it alone",
+        /outline-\.\*/.test((src.match(/const GLAD_BASE_LAYERS = .*/) || [""])[0]) && /\^\(sat-relief\|outline-\|holo-\|bg\$\)/.test(src));
+  check("the painted plate and the imagery are hidden under it", map.getLayer("plate-base").layout?.visibility === "none" && (!map.getLayer("base") || map.getLayer("base").layout?.visibility === "none"));
+  const lab = map.getLayer("labels");
+  check("place names turned light on dark", !lab || (lab.paint["raster-brightness-min"] > lab.paint["raster-brightness-max"] && lab.paint["raster-saturation"] === -1));
+  els.get("basemaps").fire("change", { target: { name: "basemap", value: "atlas" } });
+  check("back to the atlas: Hell hidden, the plate back, names as they were",
+        hell.every((l) => l.layout?.visibility === "none") && map.getLayer("plate-base").layout?.visibility === "visible" &&
+        (!lab || (lab.paint["raster-brightness-min"] === 0 && lab.paint["raster-brightness-max"] === 1)));
+  // Reds, blacks and greys only: no orange, yellow or green, nothing bright.
+  const hues = [];
+  for (const m of block.matchAll(/#([0-9A-Fa-f]{6})\b|rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/g)) {
+    const [r, g, b] = m[1] ? [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16)) : [m[2], m[3], m[4]].map(Number);
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, s = mx ? d / mx : 0;
+    let h = 0;
+    if (d) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    hues.push({ c: m[0], h: (h * 60 + 360) % 360, s, v: mx / 255, a: m[5] === undefined ? 1 : Number(m[5]) });
+  }
+  const bad = hues.filter((x) => x.s > 0.2 && !(x.h >= 340 || x.h <= 8) && !(x.h >= 200 && x.h <= 235 && x.s < 0.3));
+  check("Hell's colours are dark reds, blacks and cold greys (no orange, yellow or green)", hues.length > 30 && bad.length === 0, bad.map((x) => x.c).join(" "));
+  check("nothing bright: no solid colour above 70% lightness (the faint see-through lights aside)", hues.every((x) => x.v <= 0.7 || x.a < 0.35), hues.filter((x) => x.v > 0.7 && x.a >= 0.35).map((x) => x.c).join(" "));
+}
+
 console.log("\nround 143b (2 October): layers grouped, so alike layers do not cross each other");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");

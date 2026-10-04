@@ -13520,6 +13520,182 @@ function buildBasemapPanel() {
   });
 }
 
+/* ---------- Hell, a fourth basemap (round 144h) ---------- */
+// Asked 3 October: a basemap in the theme of a hell, after the owner's
+// pictures (a red sea round black land, a relief map cut by red rivers, the
+// devil's place names on black, graveyards glowing on black), and nothing
+// cheesy: no flames, pentagrams or gothic letters. The same Earth from the
+// same open data, drawn in other colours:
+//   sea      oxblood, darker in the deeps and lighter over the shelves, so
+//            every coast is rimmed in red (AWS terrain tiles, which carry depths)
+//   land     basalt black, ash grey up the slopes, pale ash on the highest
+//            ground and the ice (the same tiles)
+//   relief   cold blue-grey light from four directions over black shadow
+//            (Mapterhorn heights, as the other basemaps)
+//   water    lakes as dark blood, rivers as thin red veins with a faint
+//            glow round them; graveyards in dull red close in (OpenFreeMap)
+//   towns    dark ash; roads in dark maroon; borders a faint dark red
+//   names    the label set turned light on dark and grey
+// No orange or yellow, nothing bright. Its layers are all named
+// "outline-hell-...": the colour mapping and the layer-colour themes leave
+// every "outline-" layer alone, as they leave the other basemaps.
+// Kept to this one block so the other chat's work on the basemaps is not
+// touched: the menu, the switch and the hologram are reached by wrapping
+// basemapPanelHtml and setBasemap, not by editing them.
+var HELL = {
+  sheet: "#1E080B",
+  ground: ["interpolate", ["linear"], ["elevation"],
+    -8000, "#110407", -5000, "#18060A", -3000, "#20070C", -1500, "#2A0A0F", -500, "#360C11",
+    -120, "#481116", -20, "#57151A", -1, "#5F181D",
+    0, "#131215", 200, "#161519", 600, "#1B1A1F", 1200, "#232228", 2000, "#2D2C33",
+    3000, "#3A3941", 4200, "#4F4E57", 5600, "#67666F"],
+  shade: {
+    "hillshade-method": "multidirectional",
+    "hillshade-illumination-direction": [315, 270, 0, 225],
+    "hillshade-illumination-altitude": [40, 35, 35, 50],
+    "hillshade-highlight-color": ["rgba(150,164,186,0.2)", "rgba(150,164,186,0.08)", "rgba(150,164,186,0.08)", "rgba(150,164,186,0.04)"],
+    "hillshade-shadow-color": ["rgba(0,0,0,0.8)", "rgba(0,0,0,0.45)", "rgba(0,0,0,0.45)", "rgba(0,0,0,0.25)"],
+    "hillshade-accent-color": "rgba(0,0,0,0.3)",
+    "hillshade-exaggeration": 1,
+    "hillshade-illumination-anchor": "map",
+  },
+  coast: "#521419",        // the open sea close in, where the depth tiles' coast is too rough
+  lake: "#3A0C11", lakeEdge: "#5E171C",
+  river: "#9C252B", riverGlow: "#6A1318",
+  grave: "#561519", graveEdge: "#74202A",
+  town: "#1C1719", townWork: "#221C1E",
+  road: ["#2B1C1E", "#3A2124", "#4C2529"],   // minor, middle, major
+  rail: "#3A3034", building: "#201B1D",
+  border: "rgba(170,58,62,0.32)",
+  names: { min: 0.86, max: 0.05 },          // light on dark: low above high turns the picture over
+};
+var HELL_IDS = ["outline-hell-sheet", "outline-hell-ground", "outline-hell-shade", "outline-hell-coast",
+  "outline-hell-lake", "outline-hell-town", "outline-hell-grave", "outline-hell-river-glow", "outline-hell-river",
+  "outline-hell-rail", "outline-hell-road-minor", "outline-hell-road", "outline-hell-road-major",
+  "outline-hell-buildings", "outline-hell-border"];
+function hellLayers() {
+  const road = (w) => ["interpolate", ["exponential", 1.4], ["zoom"], 4, w * .25, 10, w, 16, w * 6];
+  const kind = (list) => ["match", ["get", "class"], list, true, false];
+  const fade = (z0, z1, a) => ["interpolate", ["linear"], ["zoom"], z0, 0, z1, a];
+  return [
+    { id: "outline-hell-sheet", type: "fill", source: "outline-hell-sheet",
+      paint: { "fill-color": HELL.sheet, "fill-antialias": false } },
+    { id: "outline-hell-ground", type: "color-relief", source: "sea-dem",
+      paint: { "color-relief-color": HELL.ground, "color-relief-opacity": 1 } },
+    { id: "outline-hell-shade", type: "hillshade", source: "outline-dem", paint: HELL.shade },
+    { id: "outline-hell-coast", type: "fill", source: "osm", "source-layer": "water", minzoom: 7,
+      filter: ["==", ["get", "class"], "ocean"],
+      paint: { "fill-color": HELL.coast, "fill-opacity": fade(7, 9, 1) } },
+    { id: "outline-hell-lake", type: "fill", source: "osm", "source-layer": "water",
+      filter: ["!=", ["get", "class"], "ocean"],
+      paint: { "fill-color": HELL.lake, "fill-outline-color": HELL.lakeEdge } },
+    { id: "outline-hell-town", type: "fill", source: "osm", "source-layer": "landuse", minzoom: 6,
+      filter: kind(["residential", "commercial", "industrial", "retail", "suburb", "neighbourhood"]),
+      paint: { "fill-color": ["match", ["get", "class"], "industrial", HELL.townWork, HELL.town], "fill-opacity": fade(6, 8, .9) } },
+    { id: "outline-hell-grave", type: "fill", source: "osm", "source-layer": "landuse", minzoom: 9,
+      filter: ["==", ["get", "class"], "cemetery"],
+      paint: { "fill-color": HELL.grave, "fill-outline-color": HELL.graveEdge, "fill-opacity": fade(9, 11, .8) } },
+    { id: "outline-hell-river-glow", type: "line", source: "osm", "source-layer": "waterway", minzoom: 3,
+      filter: ["==", ["get", "class"], "river"],
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": HELL.riverGlow, "line-width": road(4), "line-blur": road(3), "line-opacity": .45 } },
+    { id: "outline-hell-river", type: "line", source: "osm", "source-layer": "waterway", minzoom: 3,
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": HELL.river,
+               // Rivers wider and from the world view; streams and canals
+               // thinner, fading in close.
+               "line-width": ["interpolate", ["exponential", 1.4], ["zoom"],
+                 4, ["match", ["get", "class"], "river", .25, .11], 10, ["match", ["get", "class"], "river", 1, .45],
+                 16, ["match", ["get", "class"], "river", 6, 2.7]],
+               "line-opacity": ["interpolate", ["linear"], ["zoom"],
+                 8, ["match", ["get", "class"], "river", .9, 0], 11, ["match", ["get", "class"], "river", .9, .7]] } },
+    { id: "outline-hell-rail", type: "line", source: "osm", "source-layer": "transportation", minzoom: 9,
+      filter: kind(["rail", "transit"]),
+      paint: { "line-color": HELL.rail, "line-width": 1, "line-dasharray": [3, 2] } },
+    { id: "outline-hell-road-minor", type: "line", source: "osm", "source-layer": "transportation", minzoom: 11,
+      filter: kind(["minor", "service", "track", "street", "street_limited"]),
+      paint: { "line-color": HELL.road[0], "line-width": road(.45) } },
+    { id: "outline-hell-road", type: "line", source: "osm", "source-layer": "transportation", minzoom: 7,
+      filter: kind(["secondary", "tertiary"]),
+      paint: { "line-color": HELL.road[1], "line-width": road(.6) } },
+    { id: "outline-hell-road-major", type: "line", source: "osm", "source-layer": "transportation", minzoom: 4,
+      filter: kind(["motorway", "trunk", "primary"]),
+      paint: { "line-color": HELL.road[2], "line-width": road(.8), "line-opacity": fade(4, 6, 1) } },
+    { id: "outline-hell-buildings", type: "fill-extrusion", source: "osm", "source-layer": "building", minzoom: 13,
+      paint: { "fill-extrusion-color": HELL.building,
+               "fill-extrusion-height": ["coalesce", ["get", "render_height"], 6],
+               "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
+               "fill-extrusion-opacity": ["interpolate", ["linear"], ["zoom"], 13, 0, 14, .9] } },
+    { id: "outline-hell-border", type: "line", source: "boundaries",
+      paint: { "line-color": HELL.border, "line-width": ["interpolate", ["linear"], ["zoom"], 2, .5, 5, .9] } },
+  ];
+}
+// Added the first time Hell is chosen, just above the painted plate, so the
+// washes and the other basemaps are under it and every data layer over it.
+function addHellLayers() {
+  if (map.getLayer("outline-hell-ground")) return;
+  try {
+    ensureBoundaries();
+    // The same three sources, under the same names, as the other basemaps,
+    // so whichever adds one first, the others reuse it.
+    const share = (id, spec) => { if (!map.getSource(id)) map.addSource(id, Object.assign({}, spec)); };
+    share("osm", OSM_SOURCE);
+    share("outline-dem", RELIEF_SOURCE);
+    share("sea-dem", TERRAIN_SOURCE);
+    if (!map.getSource("outline-hell-sheet")) {
+      map.addSource("outline-hell-sheet", { type: "geojson", data: { type: "Feature", properties: {},
+        geometry: { type: "Polygon", coordinates: [[[-180, -85.06], [180, -85.06], [180, 85.06], [-180, 85.06], [-180, -85.06]]] } } });
+    }
+    const st = typeof map.getStyle === "function" ? map.getStyle() : null;
+    const all = (st && st.layers) || [];
+    const at = all.findIndex((l) => l.id === "plate-base");
+    const before = at >= 0 && all[at + 1] ? all[at + 1].id : undefined;
+    for (const l of hellLayers()) map.addLayer(Object.assign({ layout: {} }, l, { layout: Object.assign({ visibility: "none" }, l.layout || {}) }), before);
+  } catch (e) { console.warn("[culprits] hell basemap unavailable:", e.message || e); }
+}
+// The hologram hides the basemap under it unless asked to keep it; it knows
+// only the other basemaps' layers, so Hell's follow the page's holo-on mark.
+function hellHoloHides() {
+  if (typeof document === "undefined" || !document.body || !document.body.classList || !document.body.classList.contains("holo-on")) return false;
+  try { return !JSON.parse(localStorage.getItem("culprits-holo-2") || "{}").under; } catch (e) { return true; }
+}
+let hellNamesTurned = false;
+function hellShow(on) {
+  const vis = on && !hellHoloHides() ? "visible" : "none";
+  for (const id of HELL_IDS) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
+  if (!map.getLayer("labels")) return;
+  if (on) {
+    map.setPaintProperty("labels", "raster-saturation", -1);
+    map.setPaintProperty("labels", "raster-brightness-min", HELL.names.min);
+    map.setPaintProperty("labels", "raster-brightness-max", HELL.names.max);
+    map.setPaintProperty("labels", "raster-opacity", .85);
+    hellNamesTurned = true;
+  } else if (hellNamesTurned) {
+    map.setPaintProperty("labels", "raster-brightness-min", 0);
+    map.setPaintProperty("labels", "raster-brightness-max", 1);
+    hellNamesTurned = false;
+  }
+}
+BASE_GRADE.hell = {};          // nothing of the imagery shows under Hell
+const basemapPanelHtmlPlain = basemapPanelHtml;
+basemapPanelHtml = function (opts) {
+  const list = (opts || []).some((o) => o[0] === "hell") ? opts : (opts || []).concat([["hell", "Hell"]]);
+  return basemapPanelHtmlPlain(list);
+};
+const setBasemapPlain = setBasemap;
+setBasemap = function (kind) {
+  // Dark ground: layer colours "suited to the basemap" are the brighter set.
+  if (typeof THEME_BY_BASEMAP === "object" && THEME_BY_BASEMAP && !THEME_BY_BASEMAP.hell) THEME_BY_BASEMAP.hell = "bright";
+  if (kind === "hell") addHellLayers();
+  setBasemapPlain(kind);
+  hellShow(kind === "hell");
+};
+if (typeof MutationObserver === "function" && typeof document !== "undefined" && document.body) {
+  new MutationObserver(() => { if (BASEMAP === "hell") hellShow(true); })
+    .observe(document.body, { attributes: true, attributeFilter: ["class"] });
+}
+/* ---------- end of Hell ---------- */
+
 // Place names on and off, all at once (asked for 23 September): every symbol
 // layer's words, the basemap's and the layers' own. The words are taken out
 // of the layer (its text-field emptied) and put back as they were, so the
