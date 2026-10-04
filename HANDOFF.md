@@ -5,6 +5,15 @@ touches.
 
 ---
 
+## Round 149b (4 October)
+
+Needs round 148b. No tiles patch. No app.js?v= bump.
+
+- Taken out at the owner's word: the Indigenous basemap (147i) and the Oil
+  painting basemap (148b). Their app.js blocks (INDIG, OIL, the oilbrush://
+  protocol and their basemapPanelHtml / setBasemap wrappers) and their test
+  blocks are gone. Hell and the other basemaps are unchanged.
+
 ## Round 148b (3 October)
 
 Needs round 147i. No tiles patch. No app.js?v= bump. Oil painting basemap only.
