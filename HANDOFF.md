@@ -5,6 +5,20 @@ touches.
 
 ---
 
+## Round 165b (4 October)
+
+Needs round 158b. No tiles patch. No app.js?v= bump.
+
+- Owner: the place names in the Woodlands theme. On Woodlands, CARTO's grey
+  picture of names is hidden and names are drawn from OpenFreeMap's place,
+  water, river, road and peak names (10 layers, outline-wood-name-*,
+  WOOD_NAME_IDS) in EB Garamond from map/glyphs/, as Hell does (round 163h):
+  countries in spaced capitals of pale parchment (#E6D8AE), cities warm cream
+  (#F0E6C8), towns #E0D4B2, water in italic pale sage (#C3D4C4), on soft dark
+  forest-green haloes. Kept above the layers (woodNamesOnTop); the Place
+  names switch still works. Falls back to the grey picture if the map's
+  letters were set elsewhere.
+
 ## Round 164s (4 October)
 
 Needs round 163h (guards on its heading). No tiles patch. No app.js?v= bump.

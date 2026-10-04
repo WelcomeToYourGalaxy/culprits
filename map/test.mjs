@@ -6781,6 +6781,32 @@ console.log("\nround 162b (4 October): Old fantasy painting's place names in its
   check("the usual names come back on the other basemaps", country.layout.visibility === "none" && (!labels || labels.layout?.visibility !== "none"));
 }
 
+console.log("\nround 165b (4 October): Woodlands place names in the same theme");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const block = src.slice(src.indexOf("/* ---------- Autumn woodlands, a sixth basemap"), src.indexOf("/* ---------- end of Autumn woodlands ---------- */"));
+  const { map, els } = run();
+  let glyphs = null;
+  map.setGlyphs = (u) => { glyphs = u; };
+  map.getGlyphs = () => glyphs;
+  if (typeof document !== "undefined" && !document.baseURI) { try { Object.defineProperty(document, "baseURI", { value: "https://example.org/map/", configurable: true }); } catch (e) {} }
+  const warned = []; const cw = console.warn; console.warn = (...a) => warned.push(a.join(" "));
+  map.fire("load");
+  els.get("basemaps").fire("change", { target: { name: "basemap", value: "wood" } });
+  console.warn = cw;
+  const names = map.layers.filter((l) => /^outline-wood-name-/.test(l.id));
+  check("Woodlands draws its own names, shown", names.length === 10 && names.every((l) => l.layout?.visibility === "visible"), names.length + " " + warned.join("; "));
+  check("in EB Garamond, a book face of the period, from the map's own letter files", names.every((l) => /^EBGaramond-/.test(l.layout["text-font"][0])) && /glyphs\/\{fontstack\}\/\{range\}\.pbf$/.test(glyphs || ""));
+  const lab = map.getLayer("labels");
+  check("CARTO's grey picture of names is hidden on Woodlands", !lab || lab.layout?.visibility === "none");
+  els.get("basemaps").fire("change", { target: { name: "basemap", value: "atlas" } });
+  check("back to the atlas: Woodlands names hidden, CARTO's names back", names.every((l) => l.layout?.visibility === "none") && (!lab || lab.layout?.visibility !== "none"));
+  // Names' colours: warm creams and pale sage on dark green haloes; nothing bright green, orange or neon.
+  const nb = block.slice(block.indexOf("var WOOD_NAME = {"), block.indexOf("var WOOD_NAME_IDS"));
+  const cols = [...nb.matchAll(/#([0-9A-Fa-f]{6})\b/g)].map((m) => [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16)));
+  check("names are pale and muted (saturation under 0.3)", cols.length >= 7 && cols.every(([r, g, b]) => { const mx = Math.max(r, g, b); return mx > 150 && (mx - Math.min(r, g, b)) / mx < 0.3; }));
+}
+
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");

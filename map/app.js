@@ -14442,6 +14442,105 @@ function addWoodLayers() {
     for (const l of woodLayers()) map.addLayer(Object.assign({ layout: {} }, l, { layout: Object.assign({ visibility: "none" }, l.layout || {}) }), before);
   } catch (e) { console.warn("[culprits] woodlands basemap unavailable:", e.message || e); }
 }
+// Round 165b (asked 4 October: the place names in the same theme). On
+// Woodlands, CARTO's picture of names is hidden and names are drawn from
+// OpenFreeMap's own place, water, river and peak names in EB Garamond (SIL
+// Open Font License, already in map/glyphs/), a book face of the 18th century's
+// kind: countries in spaced capitals of pale parchment, cities and towns in
+// warm cream, seas, lakes and rivers in italic pale sage, all on a soft dark
+// forest-green halo, so they read on the deep greens and the light washes.
+// English names where OpenStreetMap has them, else the name in Latin
+// letters, else the local name. If the map's letters were already set from
+// somewhere else, the picture of names stays, in grey ink as before.
+var WOOD_FONT = { regular: ["EBGaramond-Regular"], bold: ["EBGaramond-SemiBold"], italic: ["EBGaramond-Italic"] };
+var WOOD_NAME = {
+  country: "#E6D8AE", state: "#D2C49C", city: "#F0E6C8", town: "#E0D4B2", minor: "#CBBF9E",
+  water: "#C3D4C4", peak: "#D4C8A2",
+  halo: "rgba(14,30,18,0.78)", haloWater: "rgba(12,34,36,0.78)",
+};
+var WOOD_NAME_IDS = ["outline-wood-name-ocean", "outline-wood-name-water", "outline-wood-name-river", "outline-wood-name-road",
+  "outline-wood-name-peak", "outline-wood-name-village", "outline-wood-name-town", "outline-wood-name-state",
+  "outline-wood-name-city", "outline-wood-name-country"];
+var WOOD_GLYPHS = false;
+function woodNameLayers() {
+  const nm = ["coalesce", ["get", "name_en"], ["get", "name:latin"], ["get", "name"]];
+  const cls = (list) => ["match", ["get", "class"], list, true, false];
+  const zs = (...a) => ["interpolate", ["linear"], ["zoom"], ...a];
+  const halo = (c, w) => ({ "text-halo-color": c, "text-halo-width": w, "text-halo-blur": 0.8 });
+  return [
+    { id: "outline-wood-name-ocean", type: "symbol", source: "osm", "source-layer": "water_name", filter: cls(["ocean", "sea"]),
+      layout: { "text-field": nm, "text-font": WOOD_FONT.italic, "text-size": zs(1, 11, 6, 16), "text-letter-spacing": 0.22, "text-max-width": 6 },
+      paint: Object.assign({ "text-color": WOOD_NAME.water }, halo(WOOD_NAME.haloWater, 1)) },
+    { id: "outline-wood-name-water", type: "symbol", source: "osm", "source-layer": "water_name", minzoom: 5, filter: ["!", cls(["ocean", "sea"])],
+      layout: { "text-field": nm, "text-font": WOOD_FONT.italic, "text-size": zs(5, 11, 14, 14), "text-letter-spacing": 0.08, "text-max-width": 7 },
+      paint: Object.assign({ "text-color": WOOD_NAME.water }, halo(WOOD_NAME.haloWater, 1)) },
+    { id: "outline-wood-name-river", type: "symbol", source: "osm", "source-layer": "waterway", minzoom: 9,
+      layout: { "text-field": nm, "text-font": WOOD_FONT.italic, "text-size": zs(9, 11, 15, 14), "symbol-placement": "line", "text-letter-spacing": 0.1 },
+      paint: Object.assign({ "text-color": WOOD_NAME.water }, halo(WOOD_NAME.haloWater, 1)) },
+    { id: "outline-wood-name-road", type: "symbol", source: "osm", "source-layer": "transportation_name", minzoom: 13,
+      layout: { "text-field": nm, "text-font": WOOD_FONT.regular, "text-size": zs(13, 11, 17, 14), "symbol-placement": "line" },
+      paint: Object.assign({ "text-color": WOOD_NAME.minor }, halo(WOOD_NAME.halo, 1.2)) },
+    { id: "outline-wood-name-peak", type: "symbol", source: "osm", "source-layer": "mountain_peak", minzoom: 9,
+      layout: { "text-field": nm, "text-font": WOOD_FONT.italic, "text-size": 12, "text-max-width": 7 },
+      paint: Object.assign({ "text-color": WOOD_NAME.peak }, halo(WOOD_NAME.halo, 1.1)) },
+    { id: "outline-wood-name-village", type: "symbol", source: "osm", "source-layer": "place", minzoom: 11, filter: cls(["village", "hamlet", "suburb", "neighbourhood", "quarter"]),
+      layout: { "text-field": nm, "text-font": WOOD_FONT.regular, "text-size": zs(11, 11, 16, 14), "text-max-width": 7 },
+      paint: Object.assign({ "text-color": WOOD_NAME.minor }, halo(WOOD_NAME.halo, 1.2)) },
+    { id: "outline-wood-name-town", type: "symbol", source: "osm", "source-layer": "place", minzoom: 7, filter: cls(["town"]),
+      layout: { "text-field": nm, "text-font": WOOD_FONT.regular, "text-size": zs(7, 11, 14, 16), "text-max-width": 7 },
+      paint: Object.assign({ "text-color": WOOD_NAME.town }, halo(WOOD_NAME.halo, 1.2)) },
+    { id: "outline-wood-name-state", type: "symbol", source: "osm", "source-layer": "place", minzoom: 4, maxzoom: 9, filter: cls(["state", "province"]),
+      layout: { "text-field": nm, "text-font": WOOD_FONT.italic, "text-size": zs(4, 10, 8, 13), "text-transform": "uppercase", "text-letter-spacing": 0.15, "text-max-width": 8 },
+      paint: Object.assign({ "text-color": WOOD_NAME.state, "text-opacity": 0.9 }, halo(WOOD_NAME.halo, 1)) },
+    { id: "outline-wood-name-city", type: "symbol", source: "osm", "source-layer": "place", minzoom: 3, filter: cls(["city"]),
+      layout: { "text-field": nm, "text-font": WOOD_FONT.bold, "text-size": zs(3, 11, 8, 15, 14, 20), "text-max-width": 7 },
+      paint: Object.assign({ "text-color": WOOD_NAME.city }, halo(WOOD_NAME.halo, 1.3)) },
+    { id: "outline-wood-name-country", type: "symbol", source: "osm", "source-layer": "place", maxzoom: 8, filter: cls(["country"]),
+      layout: { "text-field": nm, "text-font": WOOD_FONT.bold, "text-size": zs(1, 10, 3, 13, 6, 17), "text-transform": "uppercase",
+                "text-letter-spacing": 0.26, "text-max-width": 7 },
+      paint: Object.assign({ "text-color": WOOD_NAME.country }, halo(WOOD_NAME.halo, 1.3)) },
+  ];
+}
+function addWoodNames() {
+  if (map.getLayer("outline-wood-name-country")) return;
+  try {
+    if (typeof map.setGlyphs === "function" && typeof document !== "undefined") {
+      const had = typeof map.getGlyphs === "function" ? map.getGlyphs() : null;
+      if (had) WOOD_GLYPHS = /glyphs\/\{fontstack\}\/\{range\}\.pbf$/.test(had);
+      else { map.setGlyphs(new URL("glyphs/", document.baseURI).href + "{fontstack}/{range}.pbf"); WOOD_GLYPHS = true; }
+    }
+    if (!WOOD_GLYPHS) return;
+    for (const l of woodNameLayers()) map.addLayer(Object.assign({}, l, { layout: Object.assign({ visibility: "none" }, l.layout) }));
+    let off = false;
+    try { off = !NAMES_ON; } catch (e) { /* the setting is not read yet: names on */ }
+    if (off && typeof namesApply === "function") namesApply();
+  } catch (e) { WOOD_GLYPHS = false; console.warn("[culprits] woodland names unavailable:", e.message || e); }
+}
+function woodOwnNames() { return WOOD_GLYPHS && !!map.getLayer("outline-wood-name-country"); }
+// The names stay over the layers, with only the news marks above them.
+let woodNamesMoving = false;
+function woodNamesOnTop() {
+  if (BASEMAP !== "wood" || woodNamesMoving || typeof map.moveLayer !== "function" || typeof map.getStyle !== "function") return;
+  const all = ((map.getStyle() || {}).layers || []).map((l) => l.id);
+  const first = all.findIndex((id) => WOOD_NAME_IDS.includes(id));
+  if (first < 0) return;
+  if (all.slice(first).every((id) => WOOD_NAME_IDS.includes(id) || id.startsWith("wire-"))) return;
+  woodNamesMoving = true;
+  try {
+    const wire = all.find((id) => id.startsWith("wire-"));
+    for (const id of WOOD_NAME_IDS) if (map.getLayer(id)) map.moveLayer(id, wire);
+  } catch (e) { /* the order stays as it was */ }
+  woodNamesMoving = false;
+}
+if (typeof map.on === "function") map.on("styledata", woodNamesOnTop);
+const namesRasterBeforeWood = namesRaster;
+namesRaster = function () {
+  namesRasterBeforeWood();
+  if (BASEMAP === "wood" && woodOwnNames() && map.getLayer("labels") &&
+      !(typeof document !== "undefined" && document.body && document.body.classList && document.body.classList.contains("holo-on"))) {
+    map.setLayoutProperty("labels", "visibility", "none");
+  }
+};
 let woodNamesTurned = false, woodSkyBefore = null;
 function woodSky(on) {
   if (typeof map.setSky !== "function") return;
@@ -14455,10 +14554,12 @@ function woodSky(on) {
 }
 function woodShow(on) {
   const vis = on && !hellHoloHides() ? "visible" : "none";
-  for (const id of WOOD_IDS) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
+  for (const id of WOOD_IDS.concat(WOOD_NAME_IDS)) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
   woodSky(on);
+  if (on) woodNamesOnTop();
+  if (typeof namesRaster === "function") namesRaster();
   if (!map.getLayer("labels")) return;
-  if (on) {
+  if (on && !woodOwnNames()) {
     map.setPaintProperty("labels", "raster-saturation", WOOD.names.sat);
     map.setPaintProperty("labels", "raster-brightness-min", WOOD.names.min);
     map.setPaintProperty("labels", "raster-brightness-max", WOOD.names.max);
@@ -14480,7 +14581,7 @@ const setBasemapBeforeWood = setBasemap;
 setBasemap = function (kind) {
   // Dark, rich ground: the brighter layer colours stand out on it.
   if (typeof THEME_BY_BASEMAP === "object" && THEME_BY_BASEMAP && !THEME_BY_BASEMAP.wood) THEME_BY_BASEMAP.wood = "bright";
-  if (kind === "wood") addWoodLayers();
+  if (kind === "wood") { addWoodLayers(); addWoodNames(); }
   if (kind !== "wood") woodShow(false);
   setBasemapBeforeWood(kind);
   if (kind === "wood") woodShow(true);
