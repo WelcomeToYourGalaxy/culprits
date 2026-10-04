@@ -117,13 +117,13 @@ class FakePopup {
 }
 
 const fetched = [];
-function run({ layersReady = null, fetchImpl = null } = {}) {
+function run({ layersReady = null, fetchImpl = null, lite = false } = {}) {
   const map = new FakeMap();
   popups = []; fetched.length = 0;
 
   // Fresh window each run: app.js guards against executing twice, and every
   // test needs a clean slate.
-  globalThis.window = {};
+  globalThis.window = lite ? { __culpritsLite: true } : {};
   const els = new Map();
   const states = {};
   globalThis.document = {
@@ -1446,7 +1446,7 @@ console.log("\nreading the map");
   check("Climate TRACE draws plain dots, one size per zoom, in its own colours", /if \(cfg\.fine\)/.test(src) &&
         /"circle-radius": \["interpolate", \["linear"\], \["zoom"\], 0, 1\.2, 3, 1\.7, 6, 2\.4, 8, 3\]/.test(src) &&
         /colour: CT_COLOURS\[id\]/.test(src) && !/circle-sort-key/.test(src));
-  check("the map draws at most 1.5 pixels per pixel, with no fades", /pixelRatio: Math\.min\(/.test(src) && /fadeDuration: 0/.test(src));
+  check("the map draws at most 1.5 pixels per pixel, with no fades", /pixelRatio: (liteOn\(\) \? 1 : )?Math\.min\(/.test(src) && /fadeDuration: 0/.test(src));
   check("terrain heights stop at zoom 12, and the Esri relief is put away under them",
         /encoding: "terrarium", tileSize: 256, maxzoom: 12/.test(src) && /show\("hillshade", kind === "atlas" && !TERRAIN_ON\)/.test(src));
   check("the outlines gain OpenStreetMap detail, relief and buildings closer in, with no key",
@@ -6833,6 +6833,33 @@ console.log("\nround 170b (4 October): basemaps renamed and reordered; one note 
   check("Woodlands says the Native peoples who live in them", !/peoples who lived in them/.test(src) && /peoples who live in them\./.test(src));
   const css = src.slice(src.indexOf("function bmNoteCss()"), src.indexOf("function bmNoteToggle"));
   check("every note box takes the Woodlands look", /'#bm-note\{background:linear-gradient\(165deg/.test(css) && !/bn-dusk/.test(css));
+}
+
+console.log("\nround 171b (4 October): a lighter map for slower computers");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("the page notes the choice before app.js runs", html.indexOf("window.__culpritsLite = on") > 0 && html.indexOf("window.__culpritsLite = on") < html.indexOf("./app.js?v="));
+  check("a button beside Reload switches it and reloads", /id="lite-map"[\s\S]{0,400}localStorage\.setItem\('culprits-lite'/.test(html) && html.indexOf('id="lite-map"') > html.indexOf('id="reload-map"'));
+  check("?lite=1 and ?lite=0 in the address work too", /get\("lite"\)/.test(html));
+  check("the lighter map puts away 3D terrain, Combine and Leave Earth", /html\.lite \.sect\[data-sect="terrain"\],html\.lite #combo-box,html\.lite #leave-earth/.test(html));
+  check("it draws one pixel per screen pixel", /pixelRatio: liteOn\(\) \? 1 :/.test(src));
+  check("no density bands, no Eyes on zoom-out", /if \(on && liteOn\(\)\) on = false;/.test(src) && (src.match(/AWAY \|\| leaving \|\| liteOn\(\)\) return;/g) || []).length === 2);
+  const full = run();
+  full.map.fire("load");
+  const lite = run({ lite: true });
+  lite.map.fire("load");
+  const glow = (m) => m.layers.filter((l) => /-(haze|core|soft)$/.test(l.id)).length;
+  check("the full map still has its glow", glow(full.map) > 0, String(glow(full.map)));
+  check("the lighter map has the same layers, without the glow", glow(lite.map) === 0 &&
+        lite.map.layers.filter((l) => !/-(haze|core|soft)$/.test(l.id)).length === full.map.layers.filter((l) => !/-(haze|core|soft)$/.test(l.id)).length);
+  const liteTerrains = [];
+  lite.map.setTerrain = (t) => liteTerrains.push(t && t.source);
+  lite.els.get("basemaps").fire("change", { target: { id: "terrain-toggle", checked: true } });
+  lite.els.get("basemaps").fire("change", { target: { id: "lift-toggle", checked: true } });
+  check("3D terrain and raised figures stay off on the lighter map", !liteTerrains.some(Boolean) && !lite.map.layers.some((l) => /-lift$/.test(l.id) && l.layout?.visibility === "visible"));
+  check("the lighter map has no Combine box", !lite.els.has("combo-box") || !lite.els.get("combo-box").innerHTML);
+  window.__culpritsLite = false;
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");

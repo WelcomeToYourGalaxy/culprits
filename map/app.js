@@ -2106,6 +2106,17 @@ function flatConstrain(lngLat, zoom) {
   return t.defaultConstrain(lngLat, zoom);
 }
 
+// Round 171b (asked 4 October: "on some comps it wont all load"): the lighter
+// map. The button beside Reload (index.html) keeps the choice in the browser
+// and reloads; the page notes it as window.__culpritsLite before this script
+// runs. The same layers, basemaps and boxes show; left out are the costly
+// extras: the glow round points (plain dots instead), the shaded density
+// bands, 3D terrain and Raise figures as heights, Combine the ticked layers,
+// and the Leave Earth button and zoom-out into NASA's Eyes (the Eyes layer
+// row still opens it when ticked). The map draws one pixel per screen pixel.
+function liteOn() {
+  try { return !!(typeof window !== "undefined" && window && window.__culpritsLite); } catch (e) { return false; }
+}
 const map = new maplibregl.Map({
   container: "map",
   transformConstrain: flatConstrain,
@@ -2113,7 +2124,7 @@ const map = new maplibregl.Map({
   renderWorldCopies: false,
   // Speed. A Retina screen draws four pixels for every one; capped at 1.5 the
   // map draws about half as many, and the dots stay sharp. No cross-fades.
-  pixelRatio: Math.min((typeof window !== "undefined" && window.devicePixelRatio) || 1, 1.5),
+  pixelRatio: liteOn() ? 1 : Math.min((typeof window !== "undefined" && window.devicePixelRatio) || 1, 1.5),
   fadeDuration: 0,
   // Tilt and turn on every axis: right-drag (or Ctrl-drag) turns and tilts,
   // Ctrl + right-drag rolls. Tilt goes to 85 degrees, near the horizon.
@@ -2436,6 +2447,7 @@ function hudImages() {
 }
 const hudOf = new Map();       // circle layer id -> its symbol layer id
 function hudEligible(layer) {
+  if (liteOn()) return false;    // round 171b: the lighter map's points are plain dots
   // Rows coloured by their own figures (round 81) keep their colours at every
   // zoom: the glow would paint them all in its one range.
   if (layer && layer.id && HUD_SKIP.has(rowOfLayer(layer.id))) return false;
@@ -3853,7 +3865,7 @@ function watchForLeaving() {
   const say = (on) => { if (hint) hint.hidden = !on; };
   const atEdge = () => map.getZoom() <= edge() + 0.02;
   const check = () => {
-    if (!VIEWS[VIEW].leave || AWAY || leaving) return;
+    if (!VIEWS[VIEW].leave || AWAY || leaving || liteOn()) return;    // round 171b: the lighter map stays on Earth when zoomed out
     if (map.getZoom() < handoffZoom() + 2) warmSpace();
     if (!atEdge()) { warned = 0; say(false); }
   };
@@ -3861,7 +3873,7 @@ function watchForLeaving() {
   map.on("moveend", check);
   const box = map.getContainer && map.getContainer();
   if (box && box.addEventListener) box.addEventListener("wheel", (e) => {
-    if (!VIEWS[VIEW].leave || AWAY || leaving) return;
+    if (!VIEWS[VIEW].leave || AWAY || leaving || liteOn()) return;
     const now = Date.now(), fresh = now - lastWheel > LEAVE_GAP_MS;
     lastWheel = now;
     if (fresh) gestureWarned = false;
@@ -13469,7 +13481,7 @@ function setBuildings3D(on) {
 if (typeof window !== "undefined") window.setBuildings3D = setBuildings3D;
 
 function setTerrain(on) {
-  TERRAIN_ON = !!on;
+  TERRAIN_ON = !!on && !liteOn();    // round 171b: never on the lighter map
   if (typeof map.setTerrain !== "function") return;
   setView(VIEW);
   // The Esri relief layer is a second set of tiles to fetch; with real
@@ -16466,7 +16478,7 @@ function setTheme(name) {
   themeApply();
 }
 function setLift(on) {
-  LIFT_ON = !!on;
+  LIFT_ON = !!on && !liteOn();    // round 171b: never on the lighter map
   for (const id of LIFTED) {
     const l = `${id}-lift`;
     if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", LIFT_ON && (visibility.get(id) || "visible") === "visible" ? "visible" : "none");
@@ -18834,6 +18846,7 @@ function densityKey(id) {
   at.after(el);
 }
 async function pointReliefSet(id, on, tries) {
+  if (on && liteOn()) on = false;    // round 171b: no density bands on the lighter map
   const rid = `${id}__crowd`;
   let pr = POINT_RELIEFS.get(id);
   if (!on) {
@@ -27596,7 +27609,7 @@ function mapBusyMark(m) {
   m.on("idle", () => { clearTimeout(t); el.hidden = true; });
   const canvas = typeof m.getCanvas === "function" ? m.getCanvas() : null;
   if (canvas && canvas.addEventListener) {
-    canvas.addEventListener("webglcontextlost", () => { el.hidden = false; el.querySelector("span").textContent = "Too much to draw at once: the browser paused the map. Turn some layers off; it redraws by itself."; });
+    canvas.addEventListener("webglcontextlost", () => { el.hidden = false; el.querySelector("span").textContent = "Too much to draw at once: the browser paused the map. Turn some layers off; it redraws by itself." + (liteOn() ? "" : " Or try the lighter map: the button beside Reload."); });
     canvas.addEventListener("webglcontextrestored", () => { el.querySelector("span").textContent = "Loading…"; if (typeof m.triggerRepaint === "function") m.triggerRepaint(); check(); });
   }
 }
@@ -27896,6 +27909,7 @@ function layerKindSwitch(box) {
 // Round 120b (asked 1 October): the combined surface at the top of the
 // layers menu, above the search (it was in the View box).
 function comboBox(box) {
+  if (liteOn()) return;    // round 171b: not on the lighter map
   if (!box || !box.parentElement || typeof document.createElement !== "function" || document.getElementById("combo-box")) return;
   const wrap = document.createElement("div");
   wrap.id = "combo-box";

@@ -5,6 +5,35 @@ touches.
 
 ---
 
+## Round 171b (4 October)
+
+Needs round 170b (guards on its heading). No tiles patch. No app.js?v= bump.
+
+- Asked 4 October: on some computers the map will not all load. A "Lighter
+  map" button beside Reload (plain page markup, so it works before the map
+  has loaded) keeps the choice in this browser (localStorage culprits-lite)
+  and reloads at the same view; it then reads "Full map" to go back.
+  ?lite=1 or ?lite=0 in the address does the same. index.html notes it as
+  window.__culpritsLite and the class "lite" on <html> before app.js runs;
+  app.js asks liteOn().
+- The same layers, basemaps, boxes, keys and filters show. Left out:
+  - the glow round points (hudEligible false: plain dots in each row's own
+    colour, no haze, cores, soft surround or grain);
+  - the density bands under crowded point rows (pointReliefSet never on);
+  - 3D terrain and Raise figures as heights (setTerrain, setLift stay off;
+    the 3D terrain box is hidden);
+  - Combine the ticked layers (comboBox not built);
+  - the Leave Earth button and the zoom-out hand-over to NASA's Eyes (the
+    Eyes layer row still opens it when ticked);
+  - the map draws 1 pixel per screen pixel (was up to 1.5).
+- The WebGL-lost notice on the full map now suggests the lighter map.
+- Tests: the full map has its glow, the lighter one the same layers without
+  it; terrain, raised figures and Combine stay off; the button and the
+  address switch. Browser (SwiftShader): both versions load with no page
+  errors and the button reads right; the map itself never fires "load" there.
+- Named 171b because the other chat's basemap round took 170b minutes
+  earlier.
+
 ## Round 170b (4 October)
 
 Needs round 169n (guards on its heading). No tiles patch. No app.js?v= bump.

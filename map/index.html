@@ -4,6 +4,22 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>The Culprits — compilation map</title>
+<!-- Round 171b: the lighter map. Chosen with the button beside Reload (kept in
+     this browser), or by adding ?lite=1 (?lite=0 for the full map) to the
+     address. Noted here, before app.js runs, so it can leave the heavy parts
+     out from the start. -->
+<script>
+(function () {
+  var on = false;
+  try {
+    var q = new URLSearchParams(location.search).get("lite");
+    if (q === "1" || q === "0") localStorage.setItem("culprits-lite", q);
+    on = localStorage.getItem("culprits-lite") === "1";
+  } catch (e) { /* the full map */ }
+  window.__culpritsLite = on;
+  if (on) document.documentElement.className += " lite";
+})();
+</script>
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
 <!-- HOLOGRAM VIEW (1 of 2): colours, font and overlays. The code is in the
      script block with id "holo-script" at the bottom of this file. -->
@@ -121,6 +137,11 @@
   #reload-map{width:26px;height:26px;border-radius:4px;border:0;cursor:pointer;flex:none;
     background:#fff;color:#333;font:16px/26px system-ui,sans-serif;box-shadow:0 0 0 2px rgba(0,0,0,.1)}
   .reload-cap{line-height:1.2;max-width:none;flex:1;min-width:0}
+  /* Round 171b: the lighter map's switch, and what it puts away. */
+  #lite-map{flex:none;padding:3px 8px;border-radius:4px;border:1px solid var(--rule);background:transparent;
+    color:inherit;font:inherit;font-size:11px;cursor:pointer;white-space:nowrap}
+  #lite-map:hover{background:rgba(255,255,255,.08)}
+  html.lite .sect[data-sect="terrain"],html.lite #combo-box,html.lite #leave-earth,html.lite #lift-toggle{display:none!important}
   /* Layer rows in the layers box, laid out like Global Safety Net's own list:
      a small square of the layer's colour, the name, little space between. A
      row's line of detail (its count, or why it is empty) shows once it is ticked. */
@@ -501,6 +522,18 @@
   <button type="button" id="reload-map" aria-label="Reload the map"
           onclick="try{var v=window.__culpritsView;if(v)sessionStorage.setItem('culprits-view',v)}catch(e){}location.reload()">&#8635;</button>
   <span class="reload-cap">Stuck? Reload here, or press ⌘R (Ctrl-R)</span>
+  <button type="button" id="lite-map"
+          onclick="try{var v=window.__culpritsView;if(v)sessionStorage.setItem('culprits-view',v);localStorage.setItem('culprits-lite',window.__culpritsLite?'0':'1');var u=new URL(location.href);u.searchParams.delete('lite');history.replaceState(null,'',u)}catch(e){}location.reload()">Lighter map</button>
+  <script>
+  (function () {
+    var b = document.getElementById("lite-map");
+    if (!b) return;
+    b.textContent = window.__culpritsLite ? "Full map" : "Lighter map";
+    b.title = window.__culpritsLite
+      ? "Back to the full map, with the glow, 3D terrain, raised figures, Combine and NASA's Eyes"
+      : "For slower computers: the same layers and basemaps, without the glow, 3D terrain, raised figures, Combine and NASA's Eyes";
+  })();
+  </script>
 </div>
 <div class="right-col">
   <div id="basemaps" class="ctrl-box"></div>
