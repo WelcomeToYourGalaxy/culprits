@@ -14862,6 +14862,501 @@ if (typeof MutationObserver === "function" && typeof document !== "undefined" &&
     .observe(document.body, { attributes: true, attributeFilter: ["class"] });
 }
 /* ---------- end of Old fantasy painting ---------- */
+/* ---------- Mother Earth, an eighth basemap (round 162m) ---------- */
+// Asked 4 October, with a painting the owner sent (an airbrushed dusk scene:
+// a woman pouring water from a glowing sphere over lakes, pines and
+// mountains). Only the colours and the light are taken; nothing of the
+// painting is copied or drawn. How each trait is carried onto a map:
+//   paint     the real Earth (the same Sentinel-2 picture as Woodlands)
+//             re-coloured pixel by pixel, then softened like airbrush: no
+//             brushstrokes, no grain, every variation the Earth's own
+//   palette   ultramarine and indigo seas, violet stone with rose-lilac on
+//             the light, forests in deep blue-teal shadow, lavender snow.
+//             The painting's gold sunlight becomes rose and pale bone (the
+//             owner's rule: no orange, no yellow, no green)
+//   water     lit from within: shallows and every coast glow pale cyan, as
+//             the water pouring from the sphere does (MOTHER.glow)
+//   depth     high ground fades into lavender haze (MOTHER.haze); the globe
+//             sits in a violet sky like the sphere in the painting
+//   names     the map's own words (not the picture labels) in Alegreya, an
+//             open calligraphic typeface (SIL Open Font License), pale
+//             lavender on a soft indigo halo; seas in italic pale cyan. Its
+//             letter files sit in map/glyphs/ beside round 162b's EB
+//             Garamond, so whichever basemap sets the letters first, both
+//             basemaps' names load
+// The menu entry carries a small (i) with a note written in the spirit of
+// Lone Wolf Circles, the pen name Jesse Wolf Hardin wrote under in the 1980s.
+// Layers are named "outline-mother-...", so the colour mapping and the themes
+// leave them alone.
+var MOTHER = {
+  sheet: "#151A3E",
+  attribution: WOOD.attribution,
+  // Plants: deep blue-teal in shadow, as the painting's pines, to a pale
+  // sea-glass in the light. No green.
+  pines: [[0, "#0D1433"], [0.2, "#152448"], [0.4, "#1D3A5E"], [0.6, "#2A5A78"], [0.8, "#4A8396"], [1, "#8DBFCB"]],
+  // Bare ground and rock: violet in shadow, rose-lilac where the light falls.
+  stone: [[0, "#1A1534"], [0.3, "#3B2E62"], [0.55, "#6A5294"], [0.75, "#9A7CB0"], [0.9, "#C59DBE"], [1, "#E2C4D4"]],
+  // Water: deep ultramarine to the pale lit cyan of the pour.
+  waters: [[0, "#0B1238"], [0.35, "#14286A"], [0.65, "#225B92"], [1, "#7FC9DC"]],
+  glow: "#A6E1EA", glowReach: 7, glowStrength: 0.42,
+  snow: "#D2CBE6",
+  lightReach: 10, lift: 0.1,
+  sea: ["interpolate", ["linear"], ["elevation"],
+    -8000, "#0C1340", -4000, "#111C55", -1500, "#16296A", -400, "#1E3F82", -60, "#2B6A9C", -1, "#5FAFCB",
+    0, "rgba(0,0,0,0)"],
+  seaOpacity: 0.45,
+  haze: ["interpolate", ["linear"], ["elevation"],
+    -1, "rgba(196,178,226,0)", 600, "rgba(196,178,226,0)", 1500, "rgba(196,178,226,0.1)",
+    3000, "rgba(196,178,226,0.22)", 5000, "rgba(206,190,232,0.34)"],
+  shade: {
+    "hillshade-method": "multidirectional",
+    "hillshade-illumination-direction": [300, 340, 260, 0],
+    "hillshade-illumination-altitude": [25, 35, 35, 60],
+    "hillshade-highlight-color": ["rgba(241,196,211,0.34)", "rgba(241,196,211,0.14)", "rgba(241,196,211,0.1)", "rgba(241,196,211,0.04)"],
+    "hillshade-shadow-color": ["rgba(14,12,48,0.5)", "rgba(14,12,48,0.24)", "rgba(14,12,48,0.16)", "rgba(14,12,48,0.08)"],
+    "hillshade-accent-color": "rgba(14,12,48,0.2)",
+    "hillshade-exaggeration": 1,
+    "hillshade-illumination-anchor": "map",
+  },
+  lake: "#1E3F82", lakeOpacity: 0.45,
+  river: "#6FB8D2",
+  town: "#3A3360", townWork: "#332D55",
+  road: ["#4D4475", "#574C80", "#66578E"],
+  rail: "#2A2450", building: "#4B4272",
+  border: "rgba(220,205,240,0.35)",
+  // A violet sky round the globe, a rose-lilac horizon, lavender fog.
+  sky: { "sky-color": "#1E2468", "horizon-color": "#B88FC0", "fog-color": "#7C76B8",
+    "sky-horizon-blend": 0.6, "horizon-fog-blend": 0.6, "fog-ground-blend": 0.45,
+    "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.9, 6, 0.6, 12, 0.35] },
+  margin: 32,
+  // How wide the softening is at each zoom: narrower at the world views,
+  // where one pixel is already many kilometres, so coasts stay clear.
+  loose: [[4, 0.5], [7, 0.75], [99, 1]],
+  // The closest zooms: the photograph, sharp, moved part way to the palette.
+  photo: WOOD.photo, photoAttribution: WOOD.photoAttribution,
+  photoFrom: 15.5, photoFull: 16.5, photoGrade: 0.35,
+  // Place names in the same light (letters made from Alegreya, map/glyphs/).
+  font: "Alegreya-Medium", fontItalic: "Alegreya-MediumItalic",
+  ink: "#EFE5F0", inkSoft: "#CDBEDD", inkWater: "#BCE4EC",
+  halo: "rgba(22,20,62,0.86)",
+};
+var MOTHER_IDS = ["outline-mother-sheet", "outline-mother-paint", "outline-mother-photo", "outline-mother-sea", "outline-mother-shade",
+  "outline-mother-haze", "outline-mother-lake", "outline-mother-town", "outline-mother-river",
+  "outline-mother-rail", "outline-mother-road-minor", "outline-mother-road", "outline-mother-road-major",
+  "outline-mother-buildings", "outline-mother-border"];
+var MOTHER_NAME_IDS = ["outline-mother-name-water", "outline-mother-name-water-line", "outline-mother-name-continent",
+  "outline-mother-name-country", "outline-mother-name-state", "outline-mother-name-city", "outline-mother-name-town", "outline-mother-name-village"];
+function motherKind(r, g, b) {
+  const lum = (0.3 * r + 0.59 * g + 0.11 * b) / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+  if ((b > g + 6 && b > r + 10 && lum < 0.45) || (lum < 0.07 && b >= r)) return 1;
+  if (lum > 0.72 && mx - mn < 28) return 2;
+  return 0;
+}
+function motherTone(r, g, b, kind) {
+  const lum = (0.3 * r + 0.59 * g + 0.11 * b) / 255;
+  if (kind === 1) return Math.max(0, Math.min(1, (lum - 0.02) / 0.35));
+  const t = Math.min(1, Math.pow(Math.max(0, lum - 0.015) / 0.85, 0.8));
+  return Math.max(0, Math.min(1, 0.5 + (t - 0.5) * 1.1));
+}
+// How much a pixel is plants: green over red, and over blue. Sand and
+// rock (red at or over green) stay stone; a looser test turned deserts teal.
+function motherPlants(r, g, b) { return Math.max(0, Math.min(1, (((g - r) + 0.5 * (g - b)) / 255 - 0.05) / 0.07)); }
+function motherColour(t, v, kind, R) {
+  if (kind === 1) return R.waters(t);
+  if (kind === 2) return R.snow;
+  const a = R.pines(t), e = R.stone(t);
+  return [e[0] + (a[0] - e[0]) * v, e[1] + (a[1] - e[1]) * v, e[2] + (a[2] - e[2]) * v];
+}
+// The painting: re-colours a picture (RGBA, w x h) in place, airbrush-soft.
+// soft (1 and up) widens the softening when the picture is enlarged.
+function motherPaintPixels(data, w, h, soft) {
+  soft = Math.max(0.5, Math.min(4, soft || 1));
+  const Rp = { pines: woodRamp(MOTHER.pines), stone: woodRamp(MOTHER.stone), waters: woodRamp(MOTHER.waters), snow: woodHex(MOTHER.snow) };
+  const glow = woodHex(MOTHER.glow);
+  const n = w * h, W = w + 1;
+  const sat = (A) => { const S = new Float64Array(W * (h + 1)); for (let y = 0; y < h; y++) { let row = 0; for (let x = 0; x < w; x++) { row += A[y * w + x]; S[(y + 1) * W + x + 1] = S[y * W + x + 1] + row; } } return S; };
+  const blur = (A, r) => {
+    r = Math.round(r);
+    if (r < 1) return A;
+    let cur = A;
+    for (let pass = 0; pass < 2; pass++) {
+      const S = sat(cur), out = new Float32Array(n);
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const x0 = Math.max(0, x - r), x1 = Math.min(w - 1, x + r), y0 = Math.max(0, y - r), y1 = Math.min(h - 1, y + r);
+        out[y * w + x] = (S[(y1 + 1) * W + x1 + 1] - S[y0 * W + x1 + 1] - S[(y1 + 1) * W + x0] + S[y0 * W + x0]) / ((x1 - x0 + 1) * (y1 - y0 + 1));
+      }
+      cur = out;
+    }
+    return cur;
+  };
+  const V = new Float32Array(n), T = new Float32Array(n), K = new Uint8Array(n), Land = new Float32Array(n);
+  for (let p = 0; p < n; p++) {
+    const r = data[p * 4], g = data[p * 4 + 1], b = data[p * 4 + 2];
+    K[p] = motherKind(r, g, b);
+    Land[p] = K[p] === 1 ? 0 : 1;
+    V[p] = motherPlants(r, g, b);
+    T[p] = motherTone(r, g, b, K[p]);
+  }
+  const Vs = blur(V, 3 * soft), Tp = blur(T, soft - 0.5);
+  // No pixel much lighter than the ground round it: the lights come as soft
+  // washes, as airbrush lays them, not as spots.
+  const Tw = blur(T, MOTHER.lightReach * soft), Ts = new Float32Array(n);
+  for (let p = 0; p < n; p++) Ts[p] = Math.min(Tp[p], Tw[p] + MOTHER.lift);
+  // Water lit from within: the nearer the land, the paler the glow.
+  const Near = blur(Land, MOTHER.glowReach * soft);
+  const R = new Float32Array(n), G = new Float32Array(n), B = new Float32Array(n);
+  for (let p = 0; p < n; p++) {
+    let c = motherColour(Ts[p], 0.9 * Vs[p], K[p], Rp);
+    if (K[p] === 1) {
+      const k = MOTHER.glowStrength * Math.min(1, Near[p] * 2.2);
+      c = [c[0] + (glow[0] - c[0]) * k, c[1] + (glow[1] - c[1]) * k, c[2] + (glow[2] - c[2]) * k];
+    }
+    R[p] = c[0]; G[p] = c[1]; B[p] = c[2];
+  }
+  const Rb = blur(R, 2.5 * soft), Gb = blur(G, 2.5 * soft), Bb = blur(B, 2.5 * soft);
+  for (let p = 0; p < n; p++) {
+    const q = p * 4;
+    data[q] = R[p] * 0.3 + Rb[p] * 0.7; data[q + 1] = G[p] * 0.3 + Gb[p] * 0.7; data[q + 2] = B[p] * 0.3 + Bb[p] * 0.7; data[q + 3] = 255;
+  }
+  return data;
+}
+// One square: painted with its margin, then the middle 256 x 256 kept.
+function motherWork(d) {
+  const px = new Uint8ClampedArray(d.data);
+  motherPaintPixels(px, d.N, d.N, d.soft);
+  const S = 256, out = new Uint8ClampedArray(S * S * 4);
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const p = ((y + d.M) * d.N + x + d.M) * 4, q = (y * S + x) * 4;
+    out[q] = px[p]; out[q + 1] = px[p + 1]; out[q + 2] = px[p + 2]; out[q + 3] = 255;
+  }
+  return rawPng(out, S, S);
+}
+function motherLoose(z) { for (const [upTo, s] of MOTHER.loose) if (z <= upTo) return s; return 1; }
+var MOTHER_HELPERS = null, MOTHER_JOBS = new Map(), MOTHER_JOB = 0;
+function motherHelpers() {
+  if (MOTHER_HELPERS !== null) return MOTHER_HELPERS;
+  MOTHER_HELPERS = [];
+  try {
+    const code = "var WOOD = " + JSON.stringify(WOOD) + ";\nvar MOTHER = " + JSON.stringify(MOTHER) + ";\nconst PNG_CRC = new Uint32Array([" + Array.from(PNG_CRC).join(",") + "]);\n" +
+      [woodHex, woodRamp, pngCrc, rawPng, motherKind, motherTone, motherPlants, motherColour, motherPaintPixels, motherWork].map(String).join("\n") +
+      "\nonmessage = (e) => { try { const png = motherWork(e.data); postMessage({ id: e.data.id, png }, [png]); } catch (err) { postMessage({ id: e.data.id, error: String(err) }); } };";
+    const url = URL.createObjectURL(new Blob([code], { type: "text/javascript" }));
+    for (let i = 0; i < 2; i++) {
+      const wk = new Worker(url);
+      wk.onmessage = (e) => { const job = MOTHER_JOBS.get(e.data.id); if (!job) return; MOTHER_JOBS.delete(e.data.id); if (e.data.error) job.no(new Error(e.data.error)); else job.yes(e.data.png); };
+      MOTHER_HELPERS.push(wk);
+    }
+  } catch (e) { MOTHER_HELPERS = []; }
+  return MOTHER_HELPERS;
+}
+function motherPaintJob(d) {
+  const hs = motherHelpers();
+  if (!hs.length) return Promise.resolve(motherWork(d));
+  const id = ++MOTHER_JOB;
+  return new Promise((yes, no) => { MOTHER_JOBS.set(id, { yes, no }); hs[id % hs.length].postMessage(Object.assign({ id }, d), [d.data]); });
+}
+maplibregl.addProtocol("motherpaint", async (params) => {
+  const m = params.url.match(/^motherpaint:\/\/(\d+)\/(\d+)\/(\d+)/);
+  if (!m) throw new Error("not a Mother Earth square");
+  const z = Number(m[1]);
+  const d = await woodComposite(z, Number(m[2]), Number(m[3]), MOTHER.margin);
+  d.soft = d.soft > 1 ? d.soft : motherLoose(z);
+  return { data: await motherPaintJob(d) };
+});
+// The closest zooms' photograph, moved part way to the palette, colour only.
+function motherGradePixels(data, w, h) {
+  const Rp = { pines: woodRamp(MOTHER.pines), stone: woodRamp(MOTHER.stone), waters: woodRamp(MOTHER.waters), snow: woodHex(MOTHER.snow) };
+  const g0 = MOTHER.photoGrade;
+  for (let p = 0, n = w * h; p < n; p++) {
+    const q = p * 4, r = data[q], g = data[q + 1], b = data[q + 2], kind = motherKind(r, g, b);
+    const v = 0.9 * motherPlants(r, g, b);
+    const c = motherColour(motherTone(r, g, b, kind), v, kind, Rp);
+    data[q] = r + (c[0] - r) * g0; data[q + 1] = g + (c[1] - g) * g0; data[q + 2] = b + (c[2] - b) * g0; data[q + 3] = 255;
+  }
+  return data;
+}
+maplibregl.addProtocol("motherphoto", async (params, abortController) => {
+  const m = params.url.match(/^motherphoto:\/\/(\d+)\/(\d+)\/(\d+)/);
+  if (!m) throw new Error("not a Mother Earth photo square");
+  const url = MOTHER.photo.replace("{z}", m[1]).replace("{x}", m[2]).replace("{y}", m[3]);
+  const r = await fetch(url, { signal: abortController && abortController.signal });
+  if (!r.ok) throw new Error(String(r.status));
+  const bm = await createImageBitmap(await r.blob());
+  const c = new OffscreenCanvas(bm.width, bm.height), g = c.getContext("2d", { willReadFrequently: true });
+  g.drawImage(bm, 0, 0);
+  const img = g.getImageData(0, 0, bm.width, bm.height);
+  return { data: rawPng(motherGradePixels(img.data, bm.width, bm.height), bm.width, bm.height) };
+});
+function motherLayers() {
+  const road = (w) => ["interpolate", ["exponential", 1.4], ["zoom"], 4, w * .25, 10, w, 16, w * 6];
+  const kind = (list) => ["match", ["get", "class"], list, true, false];
+  const fade = (z0, z1, a) => ["interpolate", ["linear"], ["zoom"], z0, 0, z1, a];
+  return [
+    { id: "outline-mother-sheet", type: "fill", source: "outline-wood-sheet",
+      paint: { "fill-color": MOTHER.sheet, "fill-antialias": false } },
+    { id: "outline-mother-paint", type: "raster", source: "outline-mother-paint", maxzoom: MOTHER.photoFull + 0.5,
+      paint: { "raster-opacity": 1, "raster-fade-duration": 200, "raster-resampling": "linear" } },
+    { id: "outline-mother-photo", type: "raster", source: "outline-mother-photo", minzoom: MOTHER.photoFrom,
+      paint: { "raster-opacity": ["interpolate", ["linear"], ["zoom"], MOTHER.photoFrom, 0, MOTHER.photoFull, 1],
+               "raster-fade-duration": 200, "raster-resampling": "linear" } },
+    { id: "outline-mother-sea", type: "color-relief", source: "sea-dem",
+      paint: { "color-relief-color": MOTHER.sea, "color-relief-opacity": MOTHER.seaOpacity } },
+    { id: "outline-mother-shade", type: "hillshade", source: "outline-dem", paint: MOTHER.shade },
+    { id: "outline-mother-haze", type: "color-relief", source: "sea-dem",
+      paint: { "color-relief-color": MOTHER.haze, "color-relief-opacity": 1 } },
+    { id: "outline-mother-lake", type: "fill", source: "osm", "source-layer": "water",
+      filter: ["!=", ["get", "class"], "ocean"],
+      paint: { "fill-color": MOTHER.lake, "fill-opacity": MOTHER.lakeOpacity } },
+    { id: "outline-mother-town", type: "fill", source: "osm", "source-layer": "landuse", minzoom: 6,
+      filter: kind(["residential", "commercial", "industrial", "retail", "suburb", "neighbourhood"]),
+      paint: { "fill-color": ["match", ["get", "class"], "industrial", MOTHER.townWork, MOTHER.town], "fill-opacity": fade(6, 8, .5) } },
+    { id: "outline-mother-river", type: "line", source: "osm", "source-layer": "waterway", minzoom: 3,
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": MOTHER.river,
+               "line-width": ["interpolate", ["exponential", 1.4], ["zoom"],
+                 4, ["match", ["get", "class"], "river", .35, .12], 10, ["match", ["get", "class"], "river", 1.2, .5],
+                 16, ["match", ["get", "class"], "river", 6, 2.7]],
+               "line-opacity": ["interpolate", ["linear"], ["zoom"],
+                 8, ["match", ["get", "class"], "river", .75, 0], 11, ["match", ["get", "class"], "river", .75, .55]] } },
+    { id: "outline-mother-rail", type: "line", source: "osm", "source-layer": "transportation", minzoom: 9,
+      filter: kind(["rail", "transit"]),
+      paint: { "line-color": MOTHER.rail, "line-width": 1, "line-dasharray": [3, 2] } },
+    { id: "outline-mother-road-minor", type: "line", source: "osm", "source-layer": "transportation", minzoom: 11,
+      filter: kind(["minor", "service", "track", "street", "street_limited"]),
+      paint: { "line-color": MOTHER.road[0], "line-width": road(.45) } },
+    { id: "outline-mother-road", type: "line", source: "osm", "source-layer": "transportation", minzoom: 7,
+      filter: kind(["secondary", "tertiary"]),
+      paint: { "line-color": MOTHER.road[1], "line-width": road(.6) } },
+    { id: "outline-mother-road-major", type: "line", source: "osm", "source-layer": "transportation", minzoom: 4,
+      filter: kind(["motorway", "trunk", "primary"]),
+      paint: { "line-color": MOTHER.road[2], "line-width": road(.8), "line-opacity": fade(4, 6, .7) } },
+    { id: "outline-mother-buildings", type: "fill-extrusion", source: "osm", "source-layer": "building", minzoom: 13,
+      paint: { "fill-extrusion-color": MOTHER.building,
+               "fill-extrusion-height": ["coalesce", ["get", "render_height"], 6],
+               "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
+               "fill-extrusion-opacity": ["interpolate", ["linear"], ["zoom"], 13, 0, 14, .9] } },
+    { id: "outline-mother-border", type: "line", source: "boundaries",
+      paint: { "line-color": MOTHER.border,
+               "line-width": ["interpolate", ["linear"], ["zoom"], 2, .5, 5, .9] } },
+  ];
+}
+// The place names: OpenStreetMap's own (OpenFreeMap), in English where it
+// has it, else in Latin letters, else as written.
+function motherNameLayers() {
+  const name = ["coalesce", ["get", "name:en"], ["get", "name_en"], ["get", "name:latin"], ["get", "name"]];
+  const ink = (c) => ({ "text-color": c, "text-halo-color": MOTHER.halo, "text-halo-width": 1.6, "text-halo-blur": 0.9 });
+  const cls = (list) => ["match", ["get", "class"], list, true, false];
+  return [
+    { id: "outline-mother-name-water", type: "symbol", source: "osm", "source-layer": "water_name",
+      filter: ["==", ["geometry-type"], "Point"],
+      layout: { "text-field": name, "text-font": [MOTHER.fontItalic], "text-letter-spacing": 0.22, "text-max-width": 8,
+                "text-size": ["interpolate", ["linear"], ["zoom"], 1, ["match", ["get", "class"], "ocean", 13, 10], 6, ["match", ["get", "class"], "ocean", 18, 13], 12, 14] },
+      paint: ink(MOTHER.inkWater) },
+    { id: "outline-mother-name-water-line", type: "symbol", source: "osm", "source-layer": "water_name", minzoom: 5,
+      filter: ["==", ["geometry-type"], "LineString"],
+      layout: { "text-field": name, "text-font": [MOTHER.fontItalic], "symbol-placement": "line", "text-letter-spacing": 0.18, "text-size": 12 },
+      paint: ink(MOTHER.inkWater) },
+    { id: "outline-mother-name-continent", type: "symbol", source: "osm", "source-layer": "place", maxzoom: 3,
+      filter: cls(["continent"]),
+      layout: { "text-field": name, "text-font": [MOTHER.fontItalic], "text-transform": "uppercase", "text-letter-spacing": 0.3, "text-size": 13 },
+      paint: ink(MOTHER.inkSoft) },
+    { id: "outline-mother-name-country", type: "symbol", source: "osm", "source-layer": "place", minzoom: 2,
+      filter: cls(["country"]),
+      layout: { "text-field": name, "text-font": [MOTHER.font], "text-transform": "uppercase", "text-letter-spacing": 0.16, "text-max-width": 7,
+                "symbol-sort-key": ["coalesce", ["get", "rank"], 9],
+                "text-size": ["interpolate", ["linear"], ["zoom"], 2, ["step", ["coalesce", ["get", "rank"], 9], 12, 3, 10.5, 5, 9.5], 6, ["step", ["coalesce", ["get", "rank"], 9], 17, 3, 15, 5, 13]] },
+      paint: ink(MOTHER.ink) },
+    { id: "outline-mother-name-state", type: "symbol", source: "osm", "source-layer": "place", minzoom: 4.5, maxzoom: 9,
+      filter: cls(["state", "province"]),
+      layout: { "text-field": name, "text-font": [MOTHER.fontItalic], "text-transform": "uppercase", "text-letter-spacing": 0.12, "text-size": 10.5, "text-max-width": 8 },
+      paint: ink(MOTHER.inkSoft) },
+    { id: "outline-mother-name-city", type: "symbol", source: "osm", "source-layer": "place", minzoom: 3.5,
+      filter: cls(["city"]),
+      layout: { "text-field": name, "text-font": [MOTHER.font], "text-max-width": 8,
+                "symbol-sort-key": ["coalesce", ["get", "rank"], 12],
+                "text-size": ["interpolate", ["linear"], ["zoom"], 4, 11.5, 10, 16] },
+      paint: ink(MOTHER.ink) },
+    { id: "outline-mother-name-town", type: "symbol", source: "osm", "source-layer": "place", minzoom: 7,
+      filter: cls(["town"]),
+      layout: { "text-field": name, "text-font": [MOTHER.font], "text-max-width": 8,
+                "symbol-sort-key": ["coalesce", ["get", "rank"], 14],
+                "text-size": ["interpolate", ["linear"], ["zoom"], 7, 10.5, 12, 13.5] },
+      paint: ink(MOTHER.ink) },
+    { id: "outline-mother-name-village", type: "symbol", source: "osm", "source-layer": "place", minzoom: 10,
+      filter: cls(["village", "hamlet", "suburb", "neighbourhood", "quarter"]),
+      layout: { "text-field": name, "text-font": [MOTHER.font], "text-size": 11.5, "text-max-width": 8 },
+      paint: ink(MOTHER.inkSoft) },
+  ];
+}
+// The names' letters come from map/glyphs/ beside the page, the folder
+// round 162b's names use too. Only set when the map has no letters yet, so
+// nothing another part of the map set is replaced.
+var MOTHER_GLYPHS = false;
+function motherGlyphs() {
+  if (typeof map.setGlyphs !== "function" || typeof document === "undefined") return;
+  try {
+    const had = typeof map.getGlyphs === "function" ? map.getGlyphs() : "";
+    if (had) { MOTHER_GLYPHS = /glyphs\/\{fontstack\}\/\{range\}\.pbf$/.test(had); return; }
+    map.setGlyphs(new URL("glyphs/", document.baseURI).href + "{fontstack}/{range}.pbf");
+    MOTHER_GLYPHS = true;
+  } catch (e) { MOTHER_GLYPHS = false; }
+}
+function addMotherLayers() {
+  if (map.getLayer("outline-mother-paint")) return;
+  try {
+    ensureBoundaries();
+    const share = (id, spec) => { if (!map.getSource(id)) map.addSource(id, Object.assign({}, spec)); };
+    share("osm", OSM_SOURCE);
+    share("outline-dem", RELIEF_SOURCE);
+    share("sea-dem", TERRAIN_SOURCE);
+    if (!map.getSource("outline-wood-sheet")) {
+      map.addSource("outline-wood-sheet", { type: "geojson", data: { type: "Feature", properties: {},
+        geometry: { type: "Polygon", coordinates: [[[-180, -85.06], [180, -85.06], [180, 85.06], [-180, 85.06], [-180, -85.06]]] } } });
+    }
+    if (!map.getSource("outline-mother-paint")) {
+      map.addSource("outline-mother-paint", { type: "raster", tiles: ["motherpaint://{z}/{x}/{y}"], tileSize: 256,
+        maxzoom: 18, attribution: MOTHER.attribution });
+    }
+    if (!map.getSource("outline-mother-photo")) {
+      map.addSource("outline-mother-photo", { type: "raster", tiles: ["motherphoto://{z}/{x}/{y}"], tileSize: 256,
+        minzoom: 15, maxzoom: 18, attribution: MOTHER.photoAttribution });
+    }
+    const st = typeof map.getStyle === "function" ? map.getStyle() : null;
+    const all = (st && st.layers) || [];
+    const at = all.findIndex((l) => l.id === "plate-base");
+    const before = at >= 0 && all[at + 1] ? all[at + 1].id : undefined;
+    const hide = (l) => Object.assign({ layout: {} }, l, { layout: Object.assign({}, l.layout || {}, { visibility: "none" }) });
+    for (const l of motherLayers()) map.addLayer(hide(l), before);
+    // The names go over the layers (motherNamesOnTop keeps them there).
+    motherGlyphs();
+    for (const l of motherNameLayers()) map.addLayer(hide(l));
+    if (typeof namesApply === "function" && typeof NAMES_ON !== "undefined" && !NAMES_ON) namesApply();
+  } catch (e) { console.warn("[culprits] Mother Earth basemap unavailable:", e.message || e); }
+}
+let motherSkyBefore = null;
+function motherSky(on) {
+  if (typeof map.setSky !== "function") return;
+  if (typeof DEFENCE_ON !== "undefined" && DEFENCE_ON) return;
+  try {
+    if (on && !motherSkyBefore) {
+      motherSkyBefore = (typeof map.getSky === "function" && map.getSky()) || {};
+      map.setSky(Object.assign({}, motherSkyBefore, MOTHER.sky));
+    } else if (!on && motherSkyBefore) { map.setSky(motherSkyBefore); motherSkyBefore = null; }
+  } catch (e) { /* the sky stays as it was */ }
+}
+// The picture labels hide while this basemap's own names show.
+function motherLabelsHide() {
+  // Only when this basemap's letters could be set; otherwise the picture
+  // labels stay, so the map is never left with no names.
+  if (BASEMAP !== "mother" || !MOTHER_GLYPHS || !map.getLayer("labels")) return;
+  if (map.getLayer("outline-mother-name-country") && (map.getLayoutProperty("labels", "visibility") || "visible") !== "none") {
+    map.setLayoutProperty("labels", "visibility", "none");
+  }
+}
+// The names stay over the layers, with only the news marks above them, as
+// round 162b does for its names.
+let motherNamesMoving = false;
+function motherNamesOnTop() {
+  if (BASEMAP !== "mother" || motherNamesMoving || typeof map.moveLayer !== "function" || typeof map.getStyle !== "function") return;
+  const all = ((map.getStyle() || {}).layers || []).map((l) => l.id);
+  const first = all.findIndex((id) => MOTHER_NAME_IDS.includes(id));
+  if (first < 0) return;
+  if (all.slice(first).every((id) => MOTHER_NAME_IDS.includes(id) || id.startsWith("wire-"))) return;
+  motherNamesMoving = true;
+  try {
+    const wire = all.find((id) => id.startsWith("wire-"));
+    for (const id of MOTHER_NAME_IDS) if (map.getLayer(id)) map.moveLayer(id, wire);
+  } catch (e) { /* the order stays as it was */ }
+  motherNamesMoving = false;
+}
+map.on("styledata", motherNamesOnTop);
+function motherShow(on) {
+  const vis = on && !hellHoloHides() ? "visible" : "none";
+  for (const id of MOTHER_IDS.concat(MOTHER_NAME_IDS)) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
+  motherSky(on);
+  if (on) { motherNamesOnTop(); motherLabelsHide(); }
+}
+const namesRasterBeforeMother = namesRaster;
+namesRaster = function () { namesRasterBeforeMother(); motherLabelsHide(); };
+// The (i) beside the menu name, and its note.
+var MOTHER_NOTE = '<b class="mn-h">Mother Earth</b>' +
+  '<p>The ground here is the real planet, from satellite pictures, painted in the colours of a dusk sky: indigo seas, violet stone, forests in deep shadow, and water that glows where it meets the land. Every coast, ridge and river is where it actually is.</p>' +
+  '<p>In the spirit of Lone Wolf Circles, the name Jesse Wolf Hardin wrote under in the 1980s, when he was urging people to rewild themselves and the land:</p>' +
+  '<p>The Earth on this map is not scenery and not a store of resources. It is a living body, and we are part of it. Its water, soil and air are what our own bodies are made from. The layers you turn on over it show where that body is cut, drained, burned and poisoned, and where the people and animals who live from it are pushed out.</p>' +
+  '<p class="mn-src">Colours chosen after a painting the site\'s owner sent; nothing of the painting is copied. Names in Alegreya (SIL Open Font License).</p>';
+function motherNoteCss() {
+  if (typeof document === "undefined" || document.getElementById("mother-css")) return;
+  const s = document.createElement("style");
+  s.id = "mother-css";
+  s.textContent =
+    '@font-face{font-family:"Alegreya ME";src:url(glyphs/Alegreya.ttf) format("truetype");font-weight:400 900;font-display:swap}' +
+    '@font-face{font-family:"Alegreya ME";src:url(glyphs/Alegreya-Italic.ttf) format("truetype");font-style:italic;font-weight:400 900;font-display:swap}' +
+    '.bm-info{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:5px;padding:0;border-radius:50%;' +
+    'border:1px solid rgba(205,190,221,.7);background:rgba(30,36,104,.55);color:#EFE5F0;font:italic 600 10px/1 "Alegreya ME",Georgia,serif;cursor:pointer;vertical-align:middle}' +
+    '.bm-info:hover,.bm-info:focus-visible{background:rgba(184,143,192,.45);outline:none}' +
+    '#mother-note{position:fixed;z-index:60;max-width:300px;padding:12px 14px;border-radius:8px;border:1px solid rgba(205,190,221,.35);' +
+    'background:linear-gradient(160deg,rgba(30,36,104,.96),rgba(21,26,62,.97));color:#EFE5F0;font:15px/1.4 "Alegreya ME",Georgia,serif;box-shadow:0 6px 24px rgba(8,8,30,.5)}' +
+    '#mother-note p{margin:6px 0 0}#mother-note .mn-h{font-size:17px;letter-spacing:.06em;color:#F3EBF0}' +
+    '#mother-note .mn-src{font-style:italic;font-size:12.5px;color:#BCE4EC}' +
+    '#mother-note .mn-x{position:absolute;top:6px;right:8px;border:0;background:none;color:#CDBEDD;font-size:16px;cursor:pointer}';
+  (document.head || document.body).appendChild(s);
+}
+function motherNoteToggle(btn) {
+  if (typeof document === "undefined") return;
+  let el = document.getElementById("mother-note");
+  if (el && !el.hidden) { el.hidden = true; btn.setAttribute("aria-expanded", "false"); return; }
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "mother-note";
+    el.setAttribute("role", "dialog");
+    el.setAttribute("aria-label", "About the Mother Earth basemap");
+    el.innerHTML = '<button type="button" class="mn-x" aria-label="Close">&#215;</button>' + MOTHER_NOTE;
+    document.body.appendChild(el);
+  }
+  el.hidden = false;
+  btn.setAttribute("aria-expanded", "true");
+  const r = btn.getBoundingClientRect ? btn.getBoundingClientRect() : { left: 0, right: 0, top: 0, bottom: 0 };
+  const vw = window.innerWidth || 800, vh = window.innerHeight || 600, w = Math.min(300, vw - 16);
+  let left = r.right + 8; if (left + w > vw - 8) left = Math.max(8, r.left - w - 8);
+  el.style.left = left + "px";
+  el.style.top = Math.max(8, Math.min(vh - 260, r.top - 10)) + "px";
+}
+if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
+  document.addEventListener("click", (e) => {
+    const t = e.target;
+    const btn = t && t.closest ? t.closest("[data-bm-info]") : null;
+    if (btn) { e.preventDefault(); e.stopPropagation(); motherNoteCss(); motherNoteToggle(btn); return; }
+    const el = document.getElementById("mother-note");
+    if (el && !el.hidden && (!t || !t.closest || !t.closest("#mother-note") || t.closest(".mn-x"))) el.hidden = true;
+  }, true);
+  document.addEventListener("keydown", (e) => {
+    const el = document.getElementById("mother-note");
+    if (e.key === "Escape" && el && !el.hidden) el.hidden = true;
+  });
+}
+BASE_GRADE.mother = {};
+const basemapPanelHtmlBeforeMother = basemapPanelHtml;
+basemapPanelHtml = function (opts) {
+  const list = (opts || []).some((o) => o[0] === "mother") ? opts : (opts || []).concat([["mother", "Mother Earth"]]);
+  motherNoteCss();
+  return basemapPanelHtmlBeforeMother(list).replace(
+    /(<input type="radio" name="basemap" value="mother"[^>]*><span class="nm">Mother Earth<\/span>)/,
+    '$1<button type="button" class="bm-info" data-bm-info="mother" aria-label="About the Mother Earth basemap" aria-expanded="false" title="About this basemap">i</button>');
+};
+const setBasemapBeforeMother = setBasemap;
+setBasemap = function (kind) {
+  // Dark indigo ground: the brighter layer colours stand out on it.
+  if (typeof THEME_BY_BASEMAP === "object" && THEME_BY_BASEMAP && !THEME_BY_BASEMAP.mother) THEME_BY_BASEMAP.mother = "bright";
+  if (kind === "mother") addMotherLayers();
+  if (kind !== "mother") motherShow(false);
+  setBasemapBeforeMother(kind);
+  if (kind === "mother") motherShow(true);
+};
+if (typeof MutationObserver === "function" && typeof document !== "undefined" && document.body) {
+  new MutationObserver(() => { if (BASEMAP === "mother") motherShow(true); })
+    .observe(document.body, { attributes: true, attributeFilter: ["class"] });
+}
+/* ---------- end of Mother Earth ---------- */
 
 // Place names on and off, all at once (asked for 23 September): every symbol
 // layer's words, the basemap's and the layers' own. The words are taken out

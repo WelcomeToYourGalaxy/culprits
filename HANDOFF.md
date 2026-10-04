@@ -5,6 +5,42 @@ touches.
 
 ---
 
+## Round 162m (4 October)
+
+Needs round 162b (guards on its heading). No tiles patch. No app.js?v= bump.
+Made in a third chat (letter "m"), beside the "b" chat's rounds.
+
+- Asked 4 October, with a painting (an airbrushed dusk scene of water poured
+  from a glowing sphere over lakes, pines and mountains): an eighth basemap,
+  "Mother Earth" (key mother), after Old fantasy painting. One block
+  ("Mother Earth, an eighth basemap" to "end of Mother Earth"), layers
+  outline-mother-* (MOTHER_IDS, MOTHER_NAME_IDS), settings in MOTHER. Only
+  the painting's colours and light are taken; nothing is copied or drawn.
+- Paint: the Sentinel-2 picture (woodComposite) re-coloured pixel by pixel
+  (motherPaintPixels): ultramarine to pale cyan water, deep blue-teal plants
+  (motherPlants: green over red and over blue, so deserts stay stone), violet
+  to rose-lilac stone, lavender snow; softened like airbrush (no strokes, no
+  grain); water paler near land (MOTHER.glow). Narrower softening far out
+  (MOTHER.loose). Off the main thread (motherpaint://, two helpers), with a
+  main-thread fallback. Closest zooms: Esri photo 35% toward the palette
+  (motherphoto://). Sea tinted by depth, lavender haze on high ground, rose
+  hillshade light, violet sky. The painting's gold is rose and bone, its
+  greens blue-teal (owner's no orange, yellow or green rule).
+- Names: OpenFreeMap place and water_name in Alegreya (SIL OFL), pale
+  lavender on a soft indigo halo, seas italic pale cyan. Letter files in
+  map/glyphs/Alegreya-Medium and -MediumItalic, beside 162b's EB Garamond, so
+  either basemap may set the letters first. setGlyphs only if none set;
+  CARTO's picture labels hidden only when the letters are this folder's
+  (MOTHER_GLYPHS), via a namesRaster wrapper. Names kept over the layers,
+  under the news marks (motherNamesOnTop, as duskNamesOnTop).
+- Menu: a small (i) beside the name (button.bm-info, data-bm-info) opens
+  #mother-note: what the basemap shows and a note in the spirit of Lone Wolf
+  Circles (Jesse Wolf Hardin's 1980s pen name), in Alegreya (glyphs/*.ttf).
+  Closes on a click elsewhere or Escape. CSS injected (#mother-css).
+- Checked: names render in Chromium with the letter files; the paint seen on
+  sample world-view satellite tiles; the note box seen. Not seen against the
+  live tiles.
+
 ## Round 162b (4 October)
 
 Needs round 161b. No tiles patch. No app.js?v= bump.
