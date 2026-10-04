@@ -5,6 +5,16 @@ touches.
 
 ---
 
+## Round 153b (4 October)
+
+Needs round 152b. No tiles patch. No app.js?v= bump. One-line fix.
+
+- The Woodlands basemap showed as pale blue "snow": its painted picture
+  source (outline-wood-paint) went through the map-wide layer colour mapping
+  (gladpx), which turned its greens and browns teal-to-cobalt. gladSourceSpec
+  now leaves every "outline-..." (basemap) source alone. Layer pictures are
+  still mapped (tested).
+
 ## Round 152b (4 October)
 
 Needs round 151b. No tiles patch. No app.js?v= bump. Woodlands basemap redone again.

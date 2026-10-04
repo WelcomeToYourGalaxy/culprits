@@ -955,7 +955,9 @@ function gladKept(id) {
 function gladSourceSpec(id, spec) {
   // Pictures this map draws in its own colours (round 82b: the EPA density
   // pictures, the nitrogen dioxide relief) are not mapped again.
-  if (!spec || spec.type !== "raster" || GLAD_SKIP_SOURCES.has(id) || /^atlas-plate/.test(id) || /-dens-src\d+$/.test(id) || gladKept(id)) return spec;
+  // Basemaps' own pictures ("outline-..." sources, round 153b) keep their
+  // colours: mapped, the Woodlands' greens and browns came out pale blue.
+  if (!spec || spec.type !== "raster" || GLAD_SKIP_SOURCES.has(id) || /^outline-/.test(id) || /^atlas-plate/.test(id) || /-dens-src\d+$/.test(id) || gladKept(id)) return spec;
   // The relief's own stepped tints (round 108b) are in this map's colours already.
   if (Array.isArray(spec.tiles) && spec.tiles.every((t) => /^relief:\/\//.test(t))) return spec;
   const salt = gladRowOf(id) || id;

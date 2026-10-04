@@ -6392,6 +6392,16 @@ console.log("\nround 152b (4 October): Woodlands painted from the real Earth in 
   check("the same picture paints the same every time", a.every((v, i) => v === b[i]));
 }
 
+console.log("\nround 153b (4 October): the Woodlands picture keeps its own colours");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const fn = src.slice(src.indexOf("function gladSourceSpec("), src.indexOf("\n}\n", src.indexOf("function gladSourceSpec(")) + 3);
+  const gladSourceSpec = new Function("GLAD_SKIP_SOURCES", "gladKept", "gladRowOf", "GLAD_PM_RASTER", fn + "; return gladSourceSpec;")(new Set(), () => false, (id) => id, new Map());
+  const spec = { type: "raster", tiles: ["woodpaint://{z}/{x}/{y}"] };
+  check("basemap pictures are not mapped into the layer colours", gladSourceSpec("outline-wood-paint", spec).tiles[0] === "woodpaint://{z}/{x}/{y}");
+  check("layer pictures still are", /^gladpx:/.test(gladSourceSpec("some_row", spec).tiles[0]));
+}
+
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
