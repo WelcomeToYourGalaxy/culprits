@@ -5,6 +5,43 @@ touches.
 
 ---
 
+## Round 164s (4 October)
+
+Needs round 163h (guards on its heading). No tiles patch. No app.js?v= bump.
+Made in a fourth chat (letter "s"); it adds one block of its own and touches
+no other block.
+
+- Asked 4 October, with two pictures (a swirl of glowing teal and blue
+  filaments with a muted magenta core; a navy chart of the solar system with
+  thin orbit rings and small spaced capitals): a ninth basemap, "Deep space"
+  (key space), after the others. Nothing cheesy: no planets, nebula pictures
+  or space fonts; nothing of either picture is copied. One block ("Deep
+  space, a ninth basemap" to "end of Deep space"), after the notes block;
+  layers outline-space-* (SPACE_IDS, SPACE_NAME_IDS), settings in SPACE.
+- Ground: near-black navy deeps with thin rings of light at 200, 1,000 and
+  2,000 m deep and a teal glow along every coast (AWS heights, sea-dem); land
+  indigo rising to a muted violet on high mountains; pale-cyan relief light
+  (outline-dem). Rivers as pale-blue filaments with a faint glow, roads as
+  thin tracks, borders dashed, a faint 15-degree grid (outline-space-grid,
+  GeoJSON made in code, gone by zoom 7) with the equator and prime meridian a
+  little stronger. Cities and towns as small points of light with a soft
+  halo (outline-space-dot, -dot-glow, sized by OpenMapTiles rank). Sky:
+  navy with a thin cobalt rim at the world view.
+- Names in the same theme: OpenFreeMap place, water_name, waterway,
+  mountain_peak and transportation_name in Jost (SIL OFL), small spaced
+  capitals: continents wide and faint lavender to zoom 3, countries muted
+  teal, cities pale bone, towns grey-blue, oceans and seas lavender italic,
+  lakes and rivers pale-blue italic, all on a navy halo. Letter files
+  map/glyphs/Jost-Light, Jost-Regular, Jost-LightItalic (made in the sandbox,
+  weights 300/400, 24 px SDF, buffer 3, radius 8, ranges 0-8959 and
+  65280-65535; Jost-README.md, Jost-OFL.txt). setGlyphs only if none set;
+  the picture labels are hidden only when these letters load (SPACE_GLYPHS,
+  namesRaster wrapped). Names and points kept over the layers, under the
+  news marks (spaceNamesOnTop). Place names box turns the words off.
+- Checked: layers pass the style-spec validator; rendered in Chromium
+  (MapLibre 5.24) on Natural Earth stand-in data, since OpenFreeMap and the
+  height tiles are blocked from the sandbox. Not seen against the live tiles.
+
 ## Round 163m (4 October)
 
 Needs round 162m. No tiles patch. No app.js?v= bump.

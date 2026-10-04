@@ -15577,6 +15577,321 @@ basemapPanelHtml = function (opts) {
 };
 /* ---------- end of notes beside the painted basemaps ---------- */
 
+/* ---------- Deep space, a ninth basemap (round 164s) ---------- */
+// Asked 4 October, with two pictures the owner sent: a swirl of fine glowing
+// filaments on black (teal and blue, a muted magenta at its core) and a
+// scientific chart of the solar system (navy ground, thin orbit rings, a
+// fine axis cross, small spaced capitals in a few quiet colours). Nothing
+// cheesy: no planets, nebula pictures, lens flares or space fonts. Only the
+// look is taken; nothing of either picture is copied or drawn. The same
+// Earth from the same open data, drawn as a chart of a body in space:
+//   ground    deep navy and indigo land rising to a dull violet on the high
+//             mountains (the magenta core, muted), lit by a cold pale-cyan
+//             light, as the filaments are (Mapterhorn and AWS heights)
+//   sea       near-black navy, with thin rings of light at 200, 1,000 and
+//             2,000 m deep, like the chart's orbit rings, and a teal glow
+//             along every coast (the depths the AWS tiles carry)
+//   lines     rivers as fine pale-blue filaments with a faint glow; roads as
+//             thin tracks; borders as fine dashed lines; a faint grid of
+//             longitude and latitude every 15 degrees, the equator and the
+//             prime meridian a little stronger, like the chart's axis cross
+//   places    cities and towns as small points of light with a soft halo,
+//             like the chart's bodies, from the map's own place data
+//   names     the map's own words (not the picture labels) in Jost, an open
+//             geometric typeface (SIL Open Font License), in small spaced
+//             capitals: continents and oceans wide and faint, countries in
+//             muted teal, cities in pale bone, seas in lavender italic. Its
+//             letter files sit in map/glyphs/ beside the other basemaps', so
+//             whichever basemap sets the letters first, all of them load
+// Colours: navy, cobalt, teal, lavender and a muted violet; no orange,
+// yellow or green, nothing neon. Layers are named "outline-space-...", so
+// the colour mapping and the layer-colour themes leave them alone. Kept to
+// this one block, as the other basemaps are: the menu, the switch and the
+// names are reached by wrapping basemapPanelHtml, setBasemap and
+// namesRaster, not by editing them.
+var SPACE = {
+  sheet: "#0B0E2B",
+  ground: ["interpolate", ["linear"], ["elevation"],
+    -9000, "#04061A", -6000, "#05081D", -3500, "#070A22", -2200, "#090C27",
+    -2030, "#0A0D29", -2000, "#26407F", -1970, "#0A0E2B",
+    -1030, "#0C1230", -1000, "#2F5E96", -970, "#0D1333",
+    -230, "#0F173C", -200, "#4189AC", -170, "#10183F",
+    -60, "#13204A", -15, "#1F4F7E", -1, "#4A9AB6",
+    0, "#151943", 300, "#181C4A", 800, "#1C1F52", 1500, "#22225A", 2500, "#2B2562", 3500, "#362868", 5000, "#472D6E", 7000, "#56346F"],
+  shade: {
+    "hillshade-method": "multidirectional",
+    "hillshade-illumination-direction": [315, 270, 0, 225],
+    "hillshade-illumination-altitude": [40, 35, 35, 50],
+    "hillshade-highlight-color": ["rgba(150,214,232,0.22)", "rgba(150,214,232,0.08)", "rgba(150,214,232,0.08)", "rgba(150,214,232,0.05)"],
+    "hillshade-shadow-color": ["rgba(2,3,14,0.7)", "rgba(2,3,14,0.4)", "rgba(2,3,14,0.4)", "rgba(2,3,14,0.25)"],
+    "hillshade-accent-color": "rgba(2,3,14,0.25)",
+    "hillshade-exaggeration": 1,
+    "hillshade-illumination-anchor": "map",
+  },
+  coast: "#080B24",                  // the open sea close in, where the depth tiles' coast is too rough
+  lake: "#0A0F33", lakeEdge: "#3F7FA8",
+  river: "#86AEDD", riverGlow: "#3C5EA2",
+  town: "#171C47", townWork: "#1B1F4C", building: "#20275A",
+  road: ["rgba(96,128,196,0.35)", "rgba(110,146,210,0.45)", "rgba(128,168,226,0.6)"],   // minor, middle, major
+  rail: "rgba(150,140,210,0.4)",
+  border: "rgba(164,172,232,0.42)",
+  grid: "rgba(150,160,224,0.11)", axis: "rgba(170,182,238,0.26)",
+  dot: "#E4F0F5", dotGlow: "#58B2C8",
+  sky: { "sky-color": "#090C26", "horizon-color": "#2A4386", "fog-color": "#18235E",
+         "fog-ground-blend": 0.9, "horizon-fog-blend": 0.3, "sky-horizon-blend": 0.6,
+         "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.6, 4, 0.35, 7, 0] },
+};
+var SPACE_IDS = ["outline-space-sheet", "outline-space-ground", "outline-space-shade", "outline-space-coast",
+  "outline-space-lake", "outline-space-town", "outline-space-grid", "outline-space-river-glow", "outline-space-river",
+  "outline-space-rail", "outline-space-road-minor", "outline-space-road", "outline-space-road-major",
+  "outline-space-buildings", "outline-space-border"];
+// The grid as lines with a point every 2 degrees, so they bend with the globe.
+function spaceGrid() {
+  const f = [];
+  for (let lon = -180; lon < 180; lon += 15) {
+    const c = []; for (let lat = -84; lat <= 84; lat += 2) c.push([lon, lat]);
+    f.push({ type: "Feature", properties: { axis: lon === 0 }, geometry: { type: "LineString", coordinates: c } });
+  }
+  for (let lat = -75; lat <= 75; lat += 15) {
+    const c = []; for (let lon = -180; lon <= 180; lon += 2) c.push([lon, lat]);
+    f.push({ type: "Feature", properties: { axis: lat === 0 }, geometry: { type: "LineString", coordinates: c } });
+  }
+  return { type: "FeatureCollection", features: f };
+}
+function spaceLayers() {
+  const road = (w) => ["interpolate", ["exponential", 1.4], ["zoom"], 4, w * .25, 10, w, 16, w * 6];
+  const kind = (list) => ["match", ["get", "class"], list, true, false];
+  const fade = (z0, z1, a) => ["interpolate", ["linear"], ["zoom"], z0, 0, z1, a];
+  const gridWidth = ["case", ["get", "axis"], 0.8, 0.5];   // the equator and prime meridian a little wider
+  return [
+    { id: "outline-space-sheet", type: "fill", source: "outline-space-sheet",
+      paint: { "fill-color": SPACE.sheet, "fill-antialias": false } },
+    { id: "outline-space-ground", type: "color-relief", source: "sea-dem",
+      paint: { "color-relief-color": SPACE.ground, "color-relief-opacity": 1 } },
+    { id: "outline-space-shade", type: "hillshade", source: "outline-dem", paint: SPACE.shade },
+    { id: "outline-space-coast", type: "fill", source: "osm", "source-layer": "water", minzoom: 8,
+      filter: ["==", ["get", "class"], "ocean"],
+      paint: { "fill-color": SPACE.coast, "fill-opacity": fade(8, 10, .85) } },
+    { id: "outline-space-lake", type: "fill", source: "osm", "source-layer": "water",
+      filter: ["!=", ["get", "class"], "ocean"],
+      paint: { "fill-color": SPACE.lake, "fill-outline-color": SPACE.lakeEdge } },
+    { id: "outline-space-town", type: "fill", source: "osm", "source-layer": "landuse", minzoom: 6,
+      filter: kind(["residential", "commercial", "industrial", "retail", "suburb", "neighbourhood"]),
+      paint: { "fill-color": ["match", ["get", "class"], "industrial", SPACE.townWork, SPACE.town], "fill-opacity": fade(6, 8, .85) } },
+    { id: "outline-space-grid", type: "line", source: "outline-space-grid", maxzoom: 7,
+      paint: { "line-color": ["case", ["get", "axis"], SPACE.axis, SPACE.grid],
+               "line-width": gridWidth,
+               "line-opacity": ["interpolate", ["linear"], ["zoom"], 4, 1, 7, 0] } },
+    { id: "outline-space-river-glow", type: "line", source: "osm", "source-layer": "waterway", minzoom: 3,
+      filter: ["==", ["get", "class"], "river"],
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": SPACE.riverGlow, "line-width": road(4), "line-blur": road(3), "line-opacity": .4 } },
+    { id: "outline-space-river", type: "line", source: "osm", "source-layer": "waterway", minzoom: 3,
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": SPACE.river,
+               "line-width": ["interpolate", ["exponential", 1.4], ["zoom"],
+                 4, ["match", ["get", "class"], "river", .22, .1], 10, ["match", ["get", "class"], "river", .9, .4],
+                 16, ["match", ["get", "class"], "river", 5, 2.4]],
+               "line-opacity": ["interpolate", ["linear"], ["zoom"],
+                 8, ["match", ["get", "class"], "river", .85, 0], 11, ["match", ["get", "class"], "river", .85, .65]] } },
+    { id: "outline-space-rail", type: "line", source: "osm", "source-layer": "transportation", minzoom: 9,
+      filter: kind(["rail", "transit"]),
+      paint: { "line-color": SPACE.rail, "line-width": .8, "line-dasharray": [3, 3] } },
+    { id: "outline-space-road-minor", type: "line", source: "osm", "source-layer": "transportation", minzoom: 11,
+      filter: kind(["minor", "service", "track", "street", "street_limited"]),
+      paint: { "line-color": SPACE.road[0], "line-width": road(.4) } },
+    { id: "outline-space-road", type: "line", source: "osm", "source-layer": "transportation", minzoom: 7,
+      filter: kind(["secondary", "tertiary"]),
+      paint: { "line-color": SPACE.road[1], "line-width": road(.5) } },
+    { id: "outline-space-road-major", type: "line", source: "osm", "source-layer": "transportation", minzoom: 4,
+      filter: kind(["motorway", "trunk", "primary"]),
+      paint: { "line-color": SPACE.road[2], "line-width": road(.7), "line-opacity": fade(4, 6, 1) } },
+    { id: "outline-space-buildings", type: "fill-extrusion", source: "osm", "source-layer": "building", minzoom: 13,
+      paint: { "fill-extrusion-color": SPACE.building,
+               "fill-extrusion-height": ["coalesce", ["get", "render_height"], 6],
+               "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
+               "fill-extrusion-opacity": ["interpolate", ["linear"], ["zoom"], 13, 0, 14, .85] } },
+    { id: "outline-space-border", type: "line", source: "boundaries",
+      paint: { "line-color": SPACE.border, "line-dasharray": [3, 2],
+               "line-width": ["interpolate", ["linear"], ["zoom"], 2, .5, 5, .8] } },
+  ];
+}
+// Names: Jost (SIL Open Font License; the letter files are map/glyphs/
+// Jost-Light, Jost-Regular and Jost-LightItalic, made at weights 300 and 400
+// from Google Fonts' copy, ofl/jost). English names where OpenStreetMap has
+// them, else the name in Latin letters, else the local name.
+var SPACE_FONT = { light: ["Jost-Light"], regular: ["Jost-Regular"], italic: ["Jost-LightItalic"] };
+var SPACE_NAME = {
+  continent: "#B9B1E4", ocean: "#A99CDB", water: "#8FB2E0",
+  country: "#8CCBD3", state: "#7F8AB8", city: "#E4E8F2", town: "#AEB8D6", minor: "#8C95B8", peak: "#9AA0C4",
+  halo: "rgba(8,10,34,0.85)", haloWater: "rgba(6,8,30,0.8)",
+};
+var SPACE_NAME_IDS = ["outline-space-dot-glow", "outline-space-dot",
+  "outline-space-name-ocean", "outline-space-name-water", "outline-space-name-river", "outline-space-name-road",
+  "outline-space-name-peak", "outline-space-name-village", "outline-space-name-town", "outline-space-name-state",
+  "outline-space-name-city", "outline-space-name-country", "outline-space-name-continent"];
+var SPACE_GLYPHS = false;
+function spaceNameLayers() {
+  const nm = ["coalesce", ["get", "name_en"], ["get", "name:latin"], ["get", "name"]];
+  const cls = (list) => ["match", ["get", "class"], list, true, false];
+  const zs = (...a) => ["interpolate", ["linear"], ["zoom"], ...a];
+  const halo = (c, w) => ({ "text-halo-color": c, "text-halo-width": w, "text-halo-blur": 0.8 });
+  // Bigger places glow a little larger: OpenMapTiles ranks cities 1 (largest) and up.
+  const rank = ["coalesce", ["get", "rank"], 12];
+  const dotR = (k) => zs(2, ["*", k, ["interpolate", ["linear"], rank, 1, 2.2, 6, 1.5, 14, 1]],
+                         10, ["*", k, ["interpolate", ["linear"], rank, 1, 3.4, 6, 2.4, 14, 1.6]]);
+  const dotWhere = ["any", cls(["city"]), ["all", cls(["town"]), [">=", ["zoom"], 7]]];
+  const beside = { "text-variable-anchor": ["left", "right", "top", "bottom"], "text-radial-offset": 0.75, "text-justify": "auto" };
+  return [
+    { id: "outline-space-dot-glow", type: "circle", source: "osm", "source-layer": "place", minzoom: 2, filter: dotWhere,
+      paint: { "circle-color": SPACE.dotGlow, "circle-radius": dotR(3.6), "circle-blur": 1, "circle-opacity": 0.38,
+               "circle-pitch-alignment": "map" } },
+    { id: "outline-space-dot", type: "circle", source: "osm", "source-layer": "place", minzoom: 2, filter: dotWhere,
+      paint: { "circle-color": SPACE.dot, "circle-radius": dotR(0.62), "circle-blur": 0.25, "circle-opacity": 0.95,
+               "circle-pitch-alignment": "map" } },
+    { id: "outline-space-name-ocean", type: "symbol", source: "osm", "source-layer": "water_name", filter: cls(["ocean", "sea"]),
+      layout: { "text-field": nm, "text-font": SPACE_FONT.italic, "text-size": zs(1, 10, 6, 14), "text-transform": "uppercase",
+                "text-letter-spacing": 0.4, "text-max-width": 8 },
+      paint: Object.assign({ "text-color": SPACE_NAME.ocean, "text-opacity": 0.85 }, halo(SPACE_NAME.haloWater, 1)) },
+    { id: "outline-space-name-water", type: "symbol", source: "osm", "source-layer": "water_name", minzoom: 5, filter: ["!", cls(["ocean", "sea"])],
+      layout: { "text-field": nm, "text-font": SPACE_FONT.italic, "text-size": zs(5, 10, 14, 13), "text-letter-spacing": 0.08, "text-max-width": 7 },
+      paint: Object.assign({ "text-color": SPACE_NAME.water }, halo(SPACE_NAME.haloWater, 1)) },
+    { id: "outline-space-name-river", type: "symbol", source: "osm", "source-layer": "waterway", minzoom: 9,
+      layout: { "text-field": nm, "text-font": SPACE_FONT.italic, "text-size": zs(9, 10, 15, 13), "symbol-placement": "line", "text-letter-spacing": 0.12 },
+      paint: Object.assign({ "text-color": SPACE_NAME.water }, halo(SPACE_NAME.haloWater, 1)) },
+    { id: "outline-space-name-road", type: "symbol", source: "osm", "source-layer": "transportation_name", minzoom: 13,
+      layout: { "text-field": nm, "text-font": SPACE_FONT.light, "text-size": zs(13, 10, 17, 13), "symbol-placement": "line", "text-letter-spacing": 0.05 },
+      paint: Object.assign({ "text-color": SPACE_NAME.minor }, halo(SPACE_NAME.halo, 1.2)) },
+    { id: "outline-space-name-peak", type: "symbol", source: "osm", "source-layer": "mountain_peak", minzoom: 9,
+      layout: { "text-field": nm, "text-font": SPACE_FONT.italic, "text-size": 11, "text-max-width": 7 },
+      paint: Object.assign({ "text-color": SPACE_NAME.peak }, halo(SPACE_NAME.halo, 1.1)) },
+    { id: "outline-space-name-village", type: "symbol", source: "osm", "source-layer": "place", minzoom: 11, filter: cls(["village", "hamlet", "suburb", "neighbourhood", "quarter"]),
+      layout: { "text-field": nm, "text-font": SPACE_FONT.light, "text-size": zs(11, 10, 16, 13), "text-transform": "uppercase", "text-letter-spacing": 0.1, "text-max-width": 8 },
+      paint: Object.assign({ "text-color": SPACE_NAME.minor }, halo(SPACE_NAME.halo, 1.2)) },
+    { id: "outline-space-name-town", type: "symbol", source: "osm", "source-layer": "place", minzoom: 7, filter: cls(["town"]),
+      layout: Object.assign({ "text-field": nm, "text-font": SPACE_FONT.light, "text-size": zs(7, 10, 14, 14), "text-transform": "uppercase",
+                "text-letter-spacing": 0.12, "text-max-width": 8 }, beside),
+      paint: Object.assign({ "text-color": SPACE_NAME.town }, halo(SPACE_NAME.halo, 1.2)) },
+    { id: "outline-space-name-state", type: "symbol", source: "osm", "source-layer": "place", minzoom: 4, maxzoom: 9, filter: cls(["state", "province"]),
+      layout: { "text-field": nm, "text-font": SPACE_FONT.light, "text-size": zs(4, 9, 8, 12), "text-transform": "uppercase", "text-letter-spacing": 0.25, "text-max-width": 9 },
+      paint: Object.assign({ "text-color": SPACE_NAME.state, "text-opacity": 0.9 }, halo(SPACE_NAME.halo, 1)) },
+    { id: "outline-space-name-city", type: "symbol", source: "osm", "source-layer": "place", minzoom: 3, filter: cls(["city"]),
+      layout: Object.assign({ "text-field": nm, "text-font": SPACE_FONT.regular, "text-size": zs(3, 10, 8, 13, 14, 18), "text-transform": "uppercase",
+                "text-letter-spacing": 0.14, "text-max-width": 8 }, beside),
+      paint: Object.assign({ "text-color": SPACE_NAME.city }, halo(SPACE_NAME.halo, 1.3)) },
+    { id: "outline-space-name-country", type: "symbol", source: "osm", "source-layer": "place", minzoom: 1.5, maxzoom: 8, filter: cls(["country"]),
+      layout: { "text-field": nm, "text-font": SPACE_FONT.regular, "text-size": zs(1.5, 9, 3, 12, 6, 16), "text-transform": "uppercase",
+                "text-letter-spacing": 0.35, "text-max-width": 8 },
+      paint: Object.assign({ "text-color": SPACE_NAME.country }, halo(SPACE_NAME.halo, 1.3)) },
+    { id: "outline-space-name-continent", type: "symbol", source: "osm", "source-layer": "place", maxzoom: 3, filter: cls(["continent"]),
+      layout: { "text-field": nm, "text-font": SPACE_FONT.light, "text-size": zs(0, 12, 2.5, 17), "text-transform": "uppercase",
+                "text-letter-spacing": 0.6, "text-max-width": 12 },
+      paint: Object.assign({ "text-color": SPACE_NAME.continent, "text-opacity": zs(0, 0.6, 2, 0.6, 3, 0) }, halo(SPACE_NAME.halo, 1)) },
+  ];
+}
+// Letters: set only if the map has none yet, in the same folder the other
+// basemaps use, so nothing already set is replaced.
+function spaceGlyphs() {
+  if (typeof map.setGlyphs !== "function" || typeof document === "undefined") return;
+  const had = typeof map.getGlyphs === "function" ? map.getGlyphs() : null;
+  if (had) { SPACE_GLYPHS = /glyphs\/\{fontstack\}\/\{range\}\.pbf$/.test(had); return; }
+  map.setGlyphs(new URL("glyphs/", document.baseURI).href + "{fontstack}/{range}.pbf");
+  SPACE_GLYPHS = true;
+}
+// Added the first time Deep space is chosen, just above the painted plate, so
+// the other basemaps are under it and every data layer over it.
+function addSpaceLayers() {
+  if (map.getLayer("outline-space-ground")) return;
+  try {
+    ensureBoundaries();
+    const share = (id, spec) => { if (!map.getSource(id)) map.addSource(id, Object.assign({}, spec)); };
+    share("osm", OSM_SOURCE);
+    share("outline-dem", RELIEF_SOURCE);
+    share("sea-dem", TERRAIN_SOURCE);
+    if (!map.getSource("outline-space-sheet")) {
+      map.addSource("outline-space-sheet", { type: "geojson", data: { type: "Feature", properties: {},
+        geometry: { type: "Polygon", coordinates: [[[-180, -85.06], [180, -85.06], [180, 85.06], [-180, 85.06], [-180, -85.06]]] } } });
+    }
+    if (!map.getSource("outline-space-grid")) map.addSource("outline-space-grid", { type: "geojson", data: spaceGrid() });
+    const st = typeof map.getStyle === "function" ? map.getStyle() : null;
+    const all = (st && st.layers) || [];
+    const at = all.findIndex((l) => l.id === "plate-base");
+    const before = at >= 0 && all[at + 1] ? all[at + 1].id : undefined;
+    const hide = (l) => Object.assign({ layout: {} }, l, { layout: Object.assign({}, l.layout || {}, { visibility: "none" }) });
+    for (const l of spaceLayers()) map.addLayer(hide(l), before);
+    spaceGlyphs();
+    // Without this basemap's letters, the picture labels stay (no names lost).
+    if (!SPACE_GLYPHS) return;
+    for (const l of spaceNameLayers()) map.addLayer(hide(l));
+    let off = false;
+    try { off = !NAMES_ON; } catch (e) { /* the setting is not read yet: names on */ }
+    if (off && typeof namesApply === "function") namesApply();
+  } catch (e) { console.warn("[culprits] Deep space basemap unavailable:", e.message || e); }
+}
+let spaceSkyBefore = null;
+function spaceSky(on) {
+  if (typeof map.setSky !== "function") return;
+  if (typeof DEFENCE_ON !== "undefined" && DEFENCE_ON) return;
+  try {
+    if (on && !spaceSkyBefore) {
+      spaceSkyBefore = (typeof map.getSky === "function" && map.getSky()) || {};
+      map.setSky(Object.assign({}, spaceSkyBefore, SPACE.sky));
+    } else if (!on && spaceSkyBefore) { map.setSky(spaceSkyBefore); spaceSkyBefore = null; }
+  } catch (e) { /* the sky stays as it was */ }
+}
+function spaceOwnNames() { return SPACE_GLYPHS && !!map.getLayer("outline-space-name-country"); }
+// The names (and the points of light) stay over the layers, with only the
+// news marks above them, as the other basemaps' names do.
+let spaceNamesMoving = false;
+function spaceNamesOnTop() {
+  if (BASEMAP !== "space" || spaceNamesMoving || typeof map.moveLayer !== "function" || typeof map.getStyle !== "function") return;
+  const all = ((map.getStyle() || {}).layers || []).map((l) => l.id);
+  const first = all.findIndex((id) => SPACE_NAME_IDS.includes(id));
+  if (first < 0) return;
+  if (all.slice(first).every((id) => SPACE_NAME_IDS.includes(id) || id.startsWith("wire-"))) return;
+  spaceNamesMoving = true;
+  try {
+    const wire = all.find((id) => id.startsWith("wire-"));
+    for (const id of SPACE_NAME_IDS) if (map.getLayer(id)) map.moveLayer(id, wire);
+  } catch (e) { /* the order stays as it was */ }
+  spaceNamesMoving = false;
+}
+if (typeof map.on === "function") map.on("styledata", spaceNamesOnTop);
+function spaceLabelsHide() {
+  if (BASEMAP !== "space" || !spaceOwnNames() || !map.getLayer("labels")) return;
+  if (typeof document !== "undefined" && document.body && document.body.classList && document.body.classList.contains("holo-on")) return;
+  if ((map.getLayoutProperty("labels", "visibility") || "visible") !== "none") map.setLayoutProperty("labels", "visibility", "none");
+}
+const namesRasterBeforeSpace = namesRaster;
+namesRaster = function () { namesRasterBeforeSpace(); spaceLabelsHide(); };
+function spaceShow(on) {
+  const vis = on && !hellHoloHides() ? "visible" : "none";
+  for (const id of SPACE_IDS.concat(SPACE_NAME_IDS)) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
+  spaceSky(on);
+  if (on) { spaceNamesOnTop(); spaceLabelsHide(); }
+}
+BASE_GRADE.space = {};          // nothing of the imagery shows under Deep space
+const basemapPanelHtmlBeforeSpace = basemapPanelHtml;
+basemapPanelHtml = function (opts) {
+  const list = (opts || []).some((o) => o[0] === "space") ? opts : (opts || []).concat([["space", "Deep space"]]);
+  return basemapPanelHtmlBeforeSpace(list);
+};
+const setBasemapBeforeSpace = setBasemap;
+setBasemap = function (kind) {
+  // Dark ground: layer colours "suited to the basemap" are the brighter set.
+  if (typeof THEME_BY_BASEMAP === "object" && THEME_BY_BASEMAP && !THEME_BY_BASEMAP.space) THEME_BY_BASEMAP.space = "bright";
+  if (kind === "space") addSpaceLayers();
+  if (kind !== "space") spaceShow(false);
+  setBasemapBeforeSpace(kind);
+  if (kind === "space") spaceShow(true);
+};
+if (typeof MutationObserver === "function" && typeof document !== "undefined" && document.body) {
+  new MutationObserver(() => { if (BASEMAP === "space") spaceShow(true); })
+    .observe(document.body, { attributes: true, attributeFilter: ["class"] });
+}
+/* ---------- end of Deep space ---------- */
+
+
 
 // Place names on and off, all at once (asked for 23 September): every symbol
 // layer's words, the basemap's and the layers' own. The words are taken out

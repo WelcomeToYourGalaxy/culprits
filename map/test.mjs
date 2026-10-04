@@ -6515,6 +6515,43 @@ console.log("\nround 158b (4 October): closest zooms show the real photograph, s
   els.get("basemaps").fire("change", { target: { name: "basemap", value: "atlas" } });
 }
 
+console.log("\nround 164s (4 October): Deep space, a ninth basemap, with names in its own theme");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const block = src.slice(src.indexOf("/* ---------- Deep space, a ninth basemap"), src.indexOf("/* ---------- end of Deep space ---------- */"));
+  check("its own block, listed as Deep space", block.length > 0 && /\["space", "Deep space"\]/.test(block));
+  const hsl = (h) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, l = (mx + mn) / 510;
+    if (!d) return [0, 0, l]; const s = d / (255 * (1 - Math.abs(2 * l - 1))); let hh = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4); return [(hh + 360) % 360, s, l]; };
+  const hexes = [...block.matchAll(/#[0-9A-Fa-f]{6}\b/g)].map((m) => m[0]);
+  const warm = hexes.filter((h) => { const [hh, s] = hsl(h); return hh >= 20 && hh <= 165 && s > 0.2; });
+  check("no orange, yellow or green anywhere in it", hexes.length > 30 && warm.length === 0, warm.join(" "));
+  const lib = new Function(block.slice(block.indexOf("var SPACE = {"), block.indexOf("// Letters: set only if the map has none yet")) +
+    "; return { spaceLayers, spaceNameLayers, spaceGrid, SPACE_IDS, SPACE_NAME_IDS };")();
+  const ids = lib.spaceLayers().map((l) => l.id), names = lib.spaceNameLayers().map((l) => l.id);
+  check("every layer is an outline-space- layer, so the colour mapping and themes leave it alone",
+        ids.concat(names).every((id) => id.startsWith("outline-space-")) && ids.join() === lib.SPACE_IDS.join() && names.join() === lib.SPACE_NAME_IDS.join());
+  const grid = lib.spaceGrid();
+  check("a grid every 15 degrees, the equator and prime meridian marked", grid.features.length === 24 + 11 &&
+        grid.features.filter((f) => f.properties.axis).length === 2);
+  const fonts = new Set(lib.spaceNameLayers().filter((l) => l.type === "symbol").map((l) => l.layout["text-font"][0]));
+  check("names in Jost, with its letter files and licence in map/glyphs",
+        [...fonts].sort().join() === "Jost-Light,Jost-LightItalic,Jost-Regular" &&
+        [...fonts].every((f) => fs.existsSync(path.join(HERE, "glyphs", f, "0-255.pbf"))) && fs.existsSync(path.join(HERE, "glyphs", "Jost-OFL.txt")));
+  const pbf = fs.readFileSync(path.join(HERE, "glyphs", "Jost-Light", "0-255.pbf"));
+  check("the letter file names its own font and range", pbf.includes(Buffer.from("Jost-Light")) && pbf.includes(Buffer.from("0-255")) && pbf.length > 15000);
+  check("letters are set only when the map has none, and the picture labels stay without them",
+        /if \(had\) \{ SPACE_GLYPHS = /.test(block) && /if \(!SPACE_GLYPHS\) return;/.test(block));
+  check("only its own block: the menu, the switch and the names are reached by wrapping",
+        /const basemapPanelHtmlBeforeSpace = basemapPanelHtml;/.test(block) && /const setBasemapBeforeSpace = setBasemap;/.test(block) && /const namesRasterBeforeSpace = namesRaster;/.test(block));
+  const { map, els } = run();
+  map.fire("load");
+  els.get("basemaps").fire("change", { target: { name: "basemap", value: "space" } });
+  const g = map.getLayer("outline-space-ground");
+  check("choosing it adds and shows its layers", !!g && g.layout?.visibility === "visible" && map.getLayer("outline-space-grid")?.layout?.visibility === "visible");
+  els.get("basemaps").fire("change", { target: { name: "basemap", value: "hell" } });
+  check("choosing another basemap hides them", map.getLayer("outline-space-ground").layout?.visibility === "none" && map.getLayer("outline-hell-ground").layout?.visibility === "visible");
+  els.get("basemaps").fire("change", { target: { name: "basemap", value: "atlas" } });
+}
 console.log("\nround 147b (3 October): combining the ticked layers made quick");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
