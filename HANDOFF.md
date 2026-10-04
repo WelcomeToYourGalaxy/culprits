@@ -5,6 +5,24 @@ touches.
 
 ---
 
+## Round 168p (4 October)
+
+Needs round 167p (guards on its heading). No tiles patch. app.js?v=1008.
+
+- Owner: remove the Mother Earth basemap altogether. The whole block
+  ("Mother Earth, an eighth basemap" to "end of Mother Earth", round 162m and
+  its changes in 163m, 164m and 167m) is gone from app.js: the menu entry,
+  its (i) note, its painted ground, sky and names. Round 167p's one-line
+  MOTHER_NOTE is taken out too. Its letter files (map/glyphs/Alegreya*)
+  are deleted; no other basemap used them.
+- Tests: the 162m block removed; 163h's check now expects no Mother Earth
+  (i); 167p's notes check covers the two notes left; a 168p block checks
+  nothing of Mother Earth is left. The basemap choice is not kept between
+  visits, so nobody is left on a basemap that no longer exists.
+- Checked in Chromium (MapLibre 5.24): the menu lists atlas, satellite,
+  outlines, Deep space, Old fantasy painting, Woodlands, Hell and the
+  hologram; switching through them and opening a note gives no errors.
+
 ## Round 167p (4 October)
 
 Needs round 166p (guards on its heading). No tiles patch. app.js?v= raised to 1007 by

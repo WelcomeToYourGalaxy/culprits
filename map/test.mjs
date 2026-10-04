@@ -6195,10 +6195,10 @@ console.log("\nround 163h (4 October): Hell's names in its own theme; notes besi
   const { map, els } = run();
   map.fire("load"); await new Promise((r) => setTimeout(r, 5));
   const html = els.get("basemaps")?.innerHTML || "";
-  check("an (i) beside Woodlands and beside Old fantasy painting, Mother Earth's own (i) left as it was",
+  check("an (i) beside Woodlands and beside Old fantasy painting (Mother Earth removed in round 168p)",
         /<span class="nm">Woodlands<\/span><button type="button" class="bn-btn" data-bm-note="wood"/.test(html) &&
         /<span class="nm">Old fantasy painting<\/span><button type="button" class="bn-btn" data-bm-note="dusk"/.test(html) &&
-        /data-bm-info="mother"/.test(html) && (html.match(/data-bm-note=/g) || []).length === 2);
+        !/data-bm-info="mother"/.test(html) && (html.match(/data-bm-note=/g) || []).length === 2);
   const b = src.slice(src.indexOf("var BM_NOTES = {"), src.indexOf("function bmNoteCss()"));
   check("the notes name their spirit and say nothing is copied", /Magic: The Gathering/.test(b) && /Robert Griffing/.test(b) && (b.match(/nothing is copied/g) || []).length === 2);
   const h = src.slice(src.indexOf("var HELL_NAME = {"), src.indexOf("var HELL_NAME_IDS"));
@@ -6618,89 +6618,6 @@ console.log("\nround 147b (3 October): combining the ticked layers made quick");
   check("a tiled feature's key is short and tells pieces apart", key({ id: 3, properties: {}, geometry: { type: "Point", coordinates: [1.23456, 2] } }) === "3||Point|1.2346,2.0000|0" &&
         key({ properties: {}, geometry: { type: "Polygon", coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] } }) !== key({ properties: {}, geometry: { type: "Polygon", coordinates: [[[5, 0], [1, 0], [1, 1], [5, 0]]] } }));
 }
-console.log("\nround 162m (4 October): Mother Earth, an eighth basemap, with its own place names and a note");
-{
-  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  const block = src.slice(src.indexOf("/* ---------- Mother Earth, an eighth basemap"), src.indexOf("/* ---------- end of Mother Earth ---------- */"));
-  const wood = src.slice(src.indexOf("/* ---------- Autumn woodlands, a sixth basemap"), src.indexOf("/* ---------- end of Autumn woodlands ---------- */"));
-  const png0 = src.indexOf("const PNG_CRC = (() => {"), png1 = src.indexOf("\n}\n", src.indexOf("function rawPng(")) + 3;
-  const lib = new Function(src.slice(png0, png1) + "\n" + wood.slice(wood.indexOf("var WOOD = {"), wood.indexOf("// The paintings are made off the page's main thread")) + "\n" +
-    block.slice(block.indexOf("var MOTHER = {"), block.indexOf("var MOTHER_HELPERS")) + "\n" +
-    block.slice(block.indexOf("function motherGradePixels"), block.indexOf("maplibregl.addProtocol(\"motherphoto\"")) +
-    "; return { motherPaintPixels, motherWork, motherGradePixels, MOTHER };")();
-  check("its own block after Old fantasy painting, listed as Mother Earth", block.length > 0 &&
-        src.indexOf("end of Old fantasy painting") < src.indexOf("Mother Earth, an eighth basemap") && /\["mother", "Mother Earth"\]/.test(block));
-  const hsl = (h) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, l = (mx + mn) / 510;
-    if (!d) return [0, 0, l]; const s = d / (255 * (1 - Math.abs(2 * l - 1))); let hh = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4); return [(hh + 360) % 360, s, l]; };
-  const hexes = [...block.matchAll(/#[0-9A-Fa-f]{6}\b/g)].map((m) => m[0]);
-  check("no orange, yellow or bright green anywhere in it (round 163m: earth tones kept muted)", hexes.length > 30 &&
-        hexes.every((h) => { const [hh, s, l] = hsl(h); return l < 0.2 || l > 0.8 || (!(hh >= 20 && hh <= 65 && s > 0.35) && !(hh > 65 && hh <= 165 && s > 0.3)); }),
-        hexes.filter((h) => { const [hh, s, l] = hsl(h); return l >= 0.2 && l <= 0.8 && ((hh >= 20 && hh <= 65 && s > 0.35) || (hh > 65 && hh <= 165 && s > 0.3)); }).join(" "));
-  const tile = (c) => { const d = new Uint8ClampedArray(64 * 64 * 4); for (let p = 0; p < 4096; p++) { d[p * 4] = c[0]; d[p * 4 + 1] = c[1]; d[p * 4 + 2] = c[2]; d[p * 4 + 3] = 255; } return d; };
-  const mid = (d) => Array.from(d.slice((32 * 64 + 32) * 4, (32 * 64 + 32) * 4 + 3));
-  const sea = mid(lib.motherPaintPixels(tile([12, 30, 70]), 64, 64));
-  const forest = mid(lib.motherPaintPixels(tile([34, 62, 30]), 64, 64));
-  const desert = mid(lib.motherPaintPixels(tile([190, 160, 120]), 64, 64));
-  check("the sea is a deep blue (blue the strongest, red the weakest)", sea[2] > sea[1] && sea[1] > sea[0] && sea[2] > sea[0] + 30, sea.join(","));
-  check("forest is a dark muted spruce (green over red, nothing bright)", forest[1] > forest[0] && forest[0] + forest[1] + forest[2] < 260, forest.join(","));
-  check("bare ground is a pale pearl, lighter than forest, neither violet nor brown (round 167m: red and blue within 14)", Math.abs(desert[0] - desert[2]) <= 14 &&
-        desert[0] + desert[1] + desert[2] > forest[0] + forest[1] + forest[2], desert.join(","));
-  check("round 167m: no brown in the ground's colours (every stone, town and road colour has red at most 12 over blue)",
-        [...lib.MOTHER.stone.map((x) => x[1]), lib.MOTHER.town, lib.MOTHER.townWork, lib.MOTHER.building, ...lib.MOTHER.road].every((h) => { const [r, , b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); return r - b <= 12; }));
-  const ramps = [...lib.MOTHER.pines, ...lib.MOTHER.stone, ...lib.MOTHER.waters].map((x) => x[1]).concat([lib.MOTHER.snow, lib.MOTHER.sheet, lib.MOTHER.town, lib.MOTHER.building, ...lib.MOTHER.road]);
-  check("round 163m: no purple on the ground or the water; violet only in the sky", ramps.every((h) => { const [hh, s] = hsl(h); return !(hh >= 245 && hh <= 330 && s > 0.12); }) &&
-        hsl(lib.MOTHER.sky["sky-color"])[0] >= 230, ramps.filter((h) => { const [hh, s] = hsl(h); return hh >= 245 && hh <= 330 && s > 0.12; }).join(" "));
-  const shore = tile([12, 30, 70]);
-  for (let y = 0; y < 64; y++) for (let x = 0; x < 32; x++) { const q = (y * 64 + x) * 4; shore[q] = 200; shore[q + 1] = 185; shore[q + 2] = 160; }
-  const sh = lib.motherPaintPixels(shore, 64, 64);
-  const lum = (x) => { const q = (32 * 64 + x) * 4; return sh[q] + sh[q + 1] + sh[q + 2]; };
-  check("round 164m: the land keeps its full size; its edge by the sea is as light as its middle (land and sea softened apart)", Math.abs(lum(31) - lum(10)) < 15, lum(31) + " vs " + lum(10));
-  check("round 164m: less brown; the lit ground is pale pearl, the plants a misty sage", (() => { const s = lib.MOTHER.stone[lib.MOTHER.stone.length - 1][1], p = lib.MOTHER.pines[lib.MOTHER.pines.length - 1][1];
-    const [r, g, b] = [1, 3, 5].map((i) => parseInt(s.slice(i, i + 2), 16)); const [r2, g2, b2] = [1, 3, 5].map((i) => parseInt(p.slice(i, i + 2), 16));
-    return r + g + b > 660 && r - b < 25 && g2 > r2 && r2 + g2 + b2 > 480; })());
-  const speck = tile([120, 105, 85]);
-  for (let y = 30; y < 34; y++) for (let x = 30; x < 34; x++) { const q = (y * 64 + x) * 4; speck[q] = 10; speck[q + 1] = 20; speck[q + 2] = 40; }
-  const sp = mid(lib.motherPaintPixels(speck, 64, 64));
-  check("a lone dark-blue speck (a shadow) does not glow pale cyan", sp[0] + sp[1] + sp[2] < 330, sp.join(","));
-  const coast = tile([12, 30, 70]);
-  for (let y = 0; y < 64; y++) for (let x = 0; x < 32; x++) { const q = (y * 64 + x) * 4; coast[q] = 120; coast[q + 1] = 110; coast[q + 2] = 90; }
-  const lit = lib.motherPaintPixels(coast, 64, 64);
-  const by = (x) => { const q = (32 * 64 + x) * 4; return lit[q] + lit[q + 1] + lit[q + 2]; };
-  check("water glows paler near the land, as the poured water does", by(36) > by(60) + 25, by(36) + " vs " + by(60));
-  const N = 256 + 2 * 32, data = new Uint8ClampedArray(N * N * 4).fill(80);
-  const png = new Uint8Array(lib.motherWork({ data: data.buffer, N, M: 32, soft: 1 }));
-  check("a square comes out as a 256 x 256 picture", png[1] === 0x50 && png[2] === 0x4E && png[3] === 0x47 && ((png[16] << 24) | (png[17] << 16) | (png[18] << 8) | png[19]) === 256);
-  const d = new Uint8ClampedArray(64 * 64 * 4);
-  for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) { const q = (y * 64 + x) * 4, on = (x + y) % 2; d[q] = on ? 120 : 30; d[q + 1] = on ? 140 : 60; d[q + 2] = on ? 90 : 30; d[q + 3] = 255; }
-  const g = lib.motherGradePixels(d.slice(), 64, 64);
-  check("the closest zooms' photograph keeps every detail, only part way to the palette", Math.abs(g[(10 * 64 + 10) * 4 + 1] - g[(10 * 64 + 11) * 4 + 1]) > 40 && g[2] !== d[2]);
-  check("airbrush, not brushwork: no strokes and no grain", !/woodStrokes|woodGrain\(/.test(block.slice(block.indexOf("var MOTHER = {"))));
-  check("painted off the main thread, with a fallback", /new Worker\(url\)/.test(block) && /Promise\.resolve\(motherWork\(d\)\)/.test(block));
-  check("its place names use the map's own letters, made from Alegreya and kept in map/glyphs beside round 162b's", /"text-font": \[MOTHER\.font\]/.test(block) &&
-        fs.existsSync(path.join(HERE, "glyphs", "Alegreya-Medium", "0-255.pbf")) && fs.existsSync(path.join(HERE, "glyphs", "Alegreya-MediumItalic", "0-255.pbf")) &&
-        fs.existsSync(path.join(HERE, "glyphs", "Alegreya-OFL.txt")));
-  const pbf = fs.readFileSync(path.join(HERE, "glyphs", "Alegreya-Medium", "0-255.pbf"));
-  check("the letter file names its own font and range", pbf.includes(Buffer.from("Alegreya-Medium")) && pbf.includes(Buffer.from("0-255")) && pbf.length > 20000);
-  check("letters are set only when the map has none, so nothing else is replaced", /if \(had\) \{ MOTHER_GLYPHS = /.test(block));
-  check("the picture labels stay unless this basemap's own names can show", /!MOTHER_GLYPHS/.test(block));
-  check("the same letters folder as round 162b's names, so either basemap first works", /new URL\("glyphs\/", document\.baseURI\)/.test(block) && /new URL\("glyphs\/", document\.baseURI\)/.test(src.slice(src.indexOf("function duskGlyphs"))));
-  check("its names are kept over the layers, under the news marks", /map\.on\("styledata", motherNamesOnTop\)/.test(block) && /id\.startsWith\("wire-"\)/.test(block));
-  check("the note is in the spirit of Lone Wolf Circles and says whose pen name it was", /Lone Wolf Circles, the name Jesse Wolf Hardin wrote under/.test(block));
-  const { map, els } = run();
-  map.fire("load");
-  els.get("basemaps").fire("change", { target: { name: "basemap", value: "mother" } });
-  const paint = map.getLayer("outline-mother-paint"), haze = map.getLayer("outline-mother-haze");
-  check("choosing it adds and shows its layers", !!paint && !!haze && paint.layout?.visibility === "visible");
-  els.get("basemaps").fire("change", { target: { name: "basemap", value: "dusk" } });
-  check("choosing another basemap hides them", map.getLayer("outline-mother-paint").layout?.visibility === "none" && map.getLayer("outline-dusk-paint").layout?.visibility === "visible");
-  els.get("basemaps").fire("change", { target: { name: "basemap", value: "atlas" } });
-  const menu = new Function("BASEMAP", "sectHead", src.slice(src.indexOf("function basemapPanelHtml(opts)"), src.indexOf("// Round 96b (asked 28 September)")) +
-    "; var basemapPanelHtmlBeforeMother = basemapPanelHtml; var motherNoteCss = () => {};" +
-    block.slice(block.indexOf("basemapPanelHtml = function"), block.indexOf("const setBasemapBeforeMother")) + "; return basemapPanelHtml;")("atlas", () => "");
-  const out = menu([["atlas", "Painted atlas"]]);
-  check("the menu has Mother Earth with a small (i) beside its name", /<span class="nm">Mother Earth<\/span><button type="button" class="bm-info" data-bm-info="mother"/.test(out));
-}
-
 console.log("\nround 160b (4 October): Old fantasy painting, a seventh basemap");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
@@ -6838,10 +6755,9 @@ console.log("\nround 167p (4 October): one-line basemap notes; atlas, satellite 
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const block = src.slice(src.indexOf("/* ---------- Names and notes in each basemap's own theme (round 167p)"), src.indexOf("/* ---------- end of names and notes in each basemap's own theme ---------- */"));
-  check("the three notes are just the owner's sentences",
+  check("the notes are just the owner's sentences",
         block.includes("In the spirit of Robert Griffing, who paints the forests of eastern North America in the 1700s and the Native peoples who lived in them.</p>';") &&
-        block.includes("'<p class=\"bn-flavour\">In the spirit of the card art and flavour text of Magic: The Gathering.</p>';") &&
-        block.includes("MOTHER_NOTE = '<p>In the spirit of Lone Wolf Circles, the name Jesse Wolf Hardin wrote under in the 1980s, when he was urging people to rewild themselves and the land.</p>';"));
+        block.includes("'<p class=\"bn-flavour\">In the spirit of the card art and flavour text of Magic: The Gathering.</p>';"));
   const fonts = ["IMFellEnglish-Regular", "IMFellEnglish-Italic", "IMFellEnglishSC-Regular", "BarlowSemiCondensed-Regular", "BarlowSemiCondensed-Medium",
                  "BarlowSemiCondensed-Italic", "IBMPlexMono-Regular", "IBMPlexMono-Medium", "IBMPlexMono-Italic"];
   check("every typeface's letter files are in the repository, with their licences",
@@ -6857,6 +6773,14 @@ console.log("\nround 167p (4 October): one-line basemap notes; atlas, satellite 
   check("no yellow or orange in the names", hexes.length > 15 && !hexes.some(warm), hexes.filter(warm).join(","));
   check("the pictures of names give way to the drawn ones; Place names and the hologram's names tick still rule",
         /for \(const pic of \["labels", "holo-labels"\]\)/.test(block) && /\.names !== false/.test(block) && /if \(off && typeof namesApply === "function"\) namesApply\(\);/.test(block));
+}
+
+console.log("\nround 168p (4 October): the Mother Earth basemap removed altogether");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("no Mother Earth block, menu entry, note or layers left", !/MOTHER|motherNote|"mother"|outline-mother-/.test(src) && !/\["mother", "Mother Earth"\]/.test(src));
+  check("its letter files are gone with it", !fs.readdirSync(path.join(HERE, "glyphs")).some((f) => /^Alegreya/.test(f)));
+  check("the page asks for a fresh copy of the script", appVersion(fs.readFileSync(path.join(HERE, "index.html"), "utf8")) >= 1008);
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
