@@ -13863,6 +13863,346 @@ if (typeof MutationObserver === "function" && typeof document !== "undefined" &&
     .observe(document.body, { attributes: true, attributeFilter: ["class"] });
 }
 /* ---------- end of Hell ---------- */
+/* ---------- Autumn woodlands, a sixth basemap (round 150b) ---------- */
+// Asked 4 October: a basemap as close as can be to a Robert Griffing painting:
+// 18th-century Eastern Woodlands in autumn, warm colours, soft hazy light.
+// Nothing is copied from any painting; what is taken is the way they look:
+//   forests  hardwoods in fall, painted as dappled masses of leaves (russet,
+//            sienna, amber, ochre, deep crimson) with dark evergreen stands
+//            among them; each mass lit on its upper left by a low sun
+//   light    a low afternoon sun from the south-west: warm cream light on the
+//            slopes that face it, soft violet-grey shadow behind; low contrast
+//   haze     a warm mist lying level in the valleys and over the water, and
+//            far ridges fading to hazy blue-grey (the higher, the paler)
+//   water    still, silvery blue-grey, with faint level gleams on the sea
+//   sky      a warm hazy sky and horizon on the globe
+// The same Earth from the same open data as the other basemaps (AWS terrain
+// tiles for heights and depths, Mapterhorn for the shading, OpenFreeMap for
+// forests, water, towns and roads). The leaves are painted square by square on
+// the reader's computer (woodbrush://), only on land below about 2,600 m,
+// read from the AWS heights of the same square; the same marks every time,
+// joined across the squares' edges. The owner's no-orange, no-yellow rule is
+// set aside here only, because fall warmth was asked for: the warm colours
+// are muted earth colours (sienna, umber, ochre), nothing bright or neon, and
+// there is no green. Layers are named "outline-wood-...", so the colour
+// mapping and the themes leave them alone.
+var WOOD = {
+  sheet: "#3A4450",
+  ground: ["interpolate", ["linear"], ["elevation"],
+    -8000, "#2C3642", -5000, "#334050", -2500, "#3E4C5A", -800, "#4E5E6A", -150, "#62727A",
+    -20, "#78868A", -1, "#869294",
+    0, "#B49C76", 120, "#A88B65", 350, "#977657", 750, "#86684F", 1200, "#7C6C62",
+    1800, "#807C86", 2700, "#8E8D98", 3900, "#A7A6AE", 5200, "#DCD5C8"],
+  // Warm valley mist: thick over the lowlands and the water's edge, gone by 1,400 m.
+  mist: ["interpolate", ["linear"], ["elevation"],
+    -200, "rgba(226,214,192,0)", -1, "rgba(226,214,192,0.18)", 0, "rgba(232,218,194,0.30)",
+    250, "rgba(232,218,194,0.20)", 700, "rgba(232,218,194,0.09)", 1400, "rgba(232,218,194,0)"],
+  shade: {
+    "hillshade-method": "multidirectional",
+    "hillshade-illumination-direction": [225, 270, 180, 0],
+    "hillshade-illumination-altitude": [24, 32, 32, 55],
+    "hillshade-highlight-color": ["rgba(244,224,186,0.45)", "rgba(244,224,186,0.18)", "rgba(244,224,186,0.12)", "rgba(244,224,186,0.05)"],
+    "hillshade-shadow-color": ["rgba(58,52,74,0.55)", "rgba(58,52,74,0.28)", "rgba(58,52,74,0.22)", "rgba(58,52,74,0.12)"],
+    "hillshade-accent-color": "rgba(58,52,74,0.2)",
+    "hillshade-exaggeration": 0.9,
+    "hillshade-illumination-anchor": "map",
+  },
+  coast: "#7A888C",
+  forest: "#7A4630", ice: "#E4DDD0", wet: "#6E7068",
+  lake: "#7E8C90", lakeEdge: "#66747A",
+  river: "#8E9A9C",
+  town: "#A39582", townWork: "#958877",
+  road: ["#8C7E6C", "#7C6E5E", "#6C5E50"],
+  rail: "#5E5248", building: "#9C8E7C",
+  border: "rgba(64,44,34,0.38)",
+  names: { sat: -1, min: 0, max: 0.75 },
+  // Leaf colours, from deep crimson to pale ochre; then the dark evergreens.
+  leaves: ["#7A3428", "#8E4630", "#A05C38", "#AE7442", "#B88A4E", "#C2A06C"],
+  evergreen: "#3C3B3E",
+  far: "#8C8A98",           // what far ridges fade to
+  hazeLight: "#EADCC2",     // mist strokes and water gleams
+  sky: { "sky-color": "#C9C0B0", "horizon-color": "#E6D8BE", "fog-color": "#E0D2B8",
+    "sky-horizon-blend": 0.8, "horizon-fog-blend": 0.8, "fog-ground-blend": 0.55,
+    "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.85, 8, 0.9, 12, 0.5] },
+};
+var WOOD_IDS = ["outline-wood-sheet", "outline-wood-ground", "outline-wood-forest", "outline-wood-wet",
+  "outline-wood-shade", "outline-wood-brush", "outline-wood-mist", "outline-wood-coast", "outline-wood-lake",
+  "outline-wood-ice", "outline-wood-town", "outline-wood-river", "outline-wood-rail", "outline-wood-road-minor",
+  "outline-wood-road", "outline-wood-road-major", "outline-wood-buildings", "outline-wood-border"];
+function woodHex(h) { return [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); }
+function woodRandom(seed) {
+  let a = seed >>> 0;
+  return () => { a = (a + 0x6D2B79F5) >>> 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+// Smooth noise on the whole world's pixels at this zoom, so stands of one
+// colour run across the squares' edges.
+function woodNoise(x, y) {
+  const h = (i, j) => (Math.imul(Math.imul(i, 374761393) ^ Math.imul(j, 668265263), 1274126177) >>> 0) / 4294967296;
+  const i = Math.floor(x), j = Math.floor(y), fx = x - i, fy = y - j;
+  const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+  const a = h(i, j) + (h(i + 1, j) - h(i, j)) * sx, b = h(i, j + 1) + (h(i + 1, j + 1) - h(i, j + 1)) * sx;
+  return a + (b - a) * sy;
+}
+function woodMarks(z, x, y) {
+  const rnd = woodRandom(Math.imul(z + 1, 73856093) ^ Math.imul(x + 1, 19349663) ^ Math.imul(y + 1, 83492791) ^ 0x5bd1e995);
+  const out = [];
+  const leaf = (gx, gy) => {
+    if (woodNoise(gx / 38 + 91, gy / 38 + 17) > 0.7) return -1;          // an evergreen stand
+    const n = 0.65 * woodNoise(gx / 70, gy / 70) + 0.35 * woodNoise(gx / 19 + 5, gy / 19 + 3);
+    return Math.max(0, Math.min(5, Math.floor(n * 6.5 - 0.4)));
+  };
+  // Mist lying level: long soft strokes, thickest low down.
+  for (let i = 0; i < 9; i++) out.push({ mist: true, x: rnd() * 256, y: rnd() * 256, rx: 40 + rnd() * 40, ry: 5 + rnd() * 8, a: 0.08 + rnd() * 0.08 });
+  // Crowns of trees: a few broad masses under many small ones.
+  for (let i = 0; i < 1250; i++) {
+    const big = i < 130, sx = rnd() * 256, sy = rnd() * 256;
+    out.push({ x: sx, y: sy, r: big ? 5 + rnd() * 5 : 1.3 + rnd() * 2.4, leaf: leaf(x * 256 + sx, y * 256 + sy),
+      a: big ? 0.22 + rnd() * 0.12 : 0.34 + rnd() * 0.3, ph: rnd() * 6.28, k: 0.1 + rnd() * 0.12 });
+  }
+  // Gleams on still water: short level lines.
+  for (let i = 0; i < 28; i++) out.push({ gleam: true, x: rnd() * 256, y: rnd() * 256, len: 5 + rnd() * 12, a: 0.12 + rnd() * 0.12 });
+  return out;
+}
+// H: the 256 x 256 heights of this square in metres (sea below 0), or null
+// when they could not be read, in which case only the mist is painted.
+function woodBrushPiece(z, x, y, H) {
+  const n = Math.pow(2, z), px = new Float32Array(256 * 256 * 4);
+  const over = (i, c, a) => { const k = 1 - a; px[i] = c[0] * a + px[i] * k; px[i + 1] = c[1] * a + px[i + 1] * k; px[i + 2] = c[2] * a + px[i + 2] * k; px[i + 3] = a + px[i + 3] * k; };
+  const leaves = WOOD.leaves.map(woodHex), ever = woodHex(WOOD.evergreen), far = woodHex(WOOD.far), light = woodHex(WOOD.hazeLight);
+  const mixc = (c, d, t) => [c[0] + (d[0] - c[0]) * t, c[1] + (d[1] - c[1]) * t, c[2] + (d[2] - c[2]) * t];
+  const lift = (c, t) => mixc(c, [246, 232, 204], t);
+  const hAt = (i, j) => (H ? H[j * 256 + i] : NaN);
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    const ty = y + dy; if (ty < 0 || ty >= n) continue;
+    const tx = ((x + dx) % n + n) % n;
+    for (const s of woodMarks(z, tx, ty)) {
+      const cx = s.x + dx * 256, cy = s.y + dy * 256;
+      if (cx < -82 || cx > 338 || cy < -82 || cy > 338) continue;
+      if (s.mist) {
+        const i0 = Math.max(0, Math.floor(cx - s.rx)), i1 = Math.min(255, Math.ceil(cx + s.rx));
+        const j0 = Math.max(0, Math.floor(cy - s.ry)), j1 = Math.min(255, Math.ceil(cy + s.ry));
+        for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+          const q = Math.pow((i + 0.5 - cx) / s.rx, 2) + Math.pow((j + 0.5 - cy) / s.ry, 2);
+          if (q >= 1) continue;
+          const h = hAt(i, j), low = isNaN(h) ? 0.6 : h <= 0 ? 0.7 : Math.max(0, 1 - h / 1400);
+          if (low > 0) over((j * 256 + i) * 4, light, s.a * low * (1 - q) * (1 - q));
+        }
+        continue;
+      }
+      if (!H) continue;
+      if (s.gleam) {
+        const j = Math.floor(cy); if (j < 0 || j > 255) continue;
+        for (let i = Math.max(0, Math.floor(cx - s.len / 2)); i <= Math.min(255, cx + s.len / 2); i++) {
+          if (hAt(i, j) > -1) continue;
+          const t = Math.abs(i + 0.5 - cx) / (s.len / 2);
+          over((j * 256 + i) * 4, light, s.a * (1 - t * t));
+        }
+        continue;
+      }
+      const base = s.leaf < 0 ? ever : leaves[s.leaf], R = s.r * 1.2 + 1;
+      const i0 = Math.max(0, Math.floor(cx - R)), i1 = Math.min(255, Math.ceil(cx + R));
+      const j0 = Math.max(0, Math.floor(cy - R)), j1 = Math.min(255, Math.ceil(cy + R));
+      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+        const h = hAt(i, j);
+        if (!(h > 0.5) || h > 2600) continue;                     // leaves on land only, none on bare heights
+        const qx = i + 0.5 - cx, qy = j + 0.5 - cy, d = Math.hypot(qx, qy);
+        const th = Math.atan2(qy, qx), rr = s.r * (1 + s.k * (0.6 * Math.sin(2 * th + s.ph) + 0.4 * Math.sin(3 * th + 2 * s.ph)));   // a ragged crown
+        if (d >= rr + 0.5) continue;
+        const edge = Math.min(1, rr + 0.5 - d);
+        // Lit on its upper left by the low sun, darker below right.
+        const lit = Math.max(-1, Math.min(1, (-qx - qy) / (rr * 1.4 || 1)));
+        let c = lit > 0 ? lift(base, 0.28 * lit) : mixc(base, [52, 44, 50], -0.22 * lit);
+        // Far up, the leaves fade into the haze.
+        if (h > 1100) c = mixc(c, far, Math.min(1, (h - 1100) / 1500));
+        const thin = h > 1600 ? Math.max(0, 1 - (h - 1600) / 1000) : 1;
+        over((j * 256 + i) * 4, c, s.a * edge * thin);
+      }
+    }
+  }
+  const rgba = new Uint8ClampedArray(256 * 256 * 4);
+  for (let i = 0; i < rgba.length; i += 4) {
+    const a = px[i + 3];
+    if (a <= 0) continue;
+    rgba[i] = px[i] / a; rgba[i + 1] = px[i + 1] / a; rgba[i + 2] = px[i + 2] / a; rgba[i + 3] = a * 255;
+  }
+  return rawPng(rgba, 256, 256);
+}
+// The heights of one square, from the AWS terrain tiles (the zoom-12 square
+// enlarged past zoom 12), read smoothly; a few dozen squares are kept.
+var WOOD_DEM = new Map();
+function woodDemSquare(zz, px, py) {
+  const key = zz + "/" + px + "/" + py;
+  let p = WOOD_DEM.get(key);
+  if (!p) {
+    const url = TERRAIN_SOURCE.tiles[0].replace("{z}", zz).replace("{x}", px).replace("{y}", py);
+    p = fetch(url).then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.blob(); })
+      .then((b) => createImageBitmap(b))
+      .then((bm) => {
+        const c = new OffscreenCanvas(256, 256), g = c.getContext("2d", { willReadFrequently: true });
+        g.drawImage(bm, 0, 0);
+        const d = g.getImageData(0, 0, 256, 256).data, e = new Float32Array(65536);
+        for (let i = 0; i < 65536; i++) e[i] = d[i * 4] * 256 + d[i * 4 + 1] + d[i * 4 + 2] / 256 - 32768;
+        return e;
+      }).catch(() => null);
+    WOOD_DEM.set(key, p);
+    if (WOOD_DEM.size > 64) WOOD_DEM.delete(WOOD_DEM.keys().next().value);
+  }
+  return p;
+}
+async function woodHeights(z, x, y) {
+  const zz = Math.min(z, 12), k = Math.pow(2, z - zz), px = Math.floor(x / k), py = Math.floor(y / k);
+  const e = await woodDemSquare(zz, px, py);
+  if (!e) return null;
+  if (k === 1) return e;
+  const ox = (x - px * k) * 256 / k, oy = (y - py * k) * 256 / k, H = new Float32Array(65536);
+  for (let j = 0; j < 256; j++) for (let i = 0; i < 256; i++) {
+    const fx = Math.min(254.999, Math.max(0, ox + (i + 0.5) / k - 0.5)), fy = Math.min(254.999, Math.max(0, oy + (j + 0.5) / k - 0.5));
+    const a = Math.floor(fx), b = Math.floor(fy), u = fx - a, v = fy - b;
+    const t = e[b * 256 + a] * (1 - u) + e[b * 256 + a + 1] * u, w = e[(b + 1) * 256 + a] * (1 - u) + e[(b + 1) * 256 + a + 1] * u;
+    H[j * 256 + i] = t * (1 - v) + w * v;
+  }
+  return H;
+}
+maplibregl.addProtocol("woodbrush", async (params) => {
+  const m = params.url.match(/^woodbrush:\/\/(\d+)\/(\d+)\/(\d+)/);
+  if (!m) throw new Error("not a woodland square");
+  const z = Number(m[1]), x = Number(m[2]), y = Number(m[3]);
+  let H = null;
+  try { H = await woodHeights(z, x, y); } catch (e) { H = null; }
+  return { data: woodBrushPiece(z, x, y, H) };
+});
+function woodLayers() {
+  const road = (w) => ["interpolate", ["exponential", 1.4], ["zoom"], 4, w * .25, 10, w, 16, w * 6];
+  const kind = (list) => ["match", ["get", "class"], list, true, false];
+  const fade = (z0, z1, a) => ["interpolate", ["linear"], ["zoom"], z0, 0, z1, a];
+  return [
+    { id: "outline-wood-sheet", type: "fill", source: "outline-wood-sheet",
+      paint: { "fill-color": WOOD.sheet, "fill-antialias": false } },
+    { id: "outline-wood-ground", type: "color-relief", source: "sea-dem",
+      paint: { "color-relief-color": WOOD.ground, "color-relief-opacity": 1 } },
+    { id: "outline-wood-forest", type: "fill", source: "osm", "source-layer": "landcover", minzoom: 4,
+      filter: ["==", ["get", "class"], "wood"],
+      paint: { "fill-color": WOOD.forest, "fill-opacity": fade(4, 7, .3), "fill-antialias": false } },
+    { id: "outline-wood-wet", type: "fill", source: "osm", "source-layer": "landcover", minzoom: 6,
+      filter: ["==", ["get", "class"], "wetland"],
+      paint: { "fill-color": WOOD.wet, "fill-opacity": fade(6, 8, .3) } },
+    { id: "outline-wood-shade", type: "hillshade", source: "outline-dem", paint: WOOD.shade },
+    { id: "outline-wood-brush", type: "raster", source: "outline-wood-brush",
+      paint: { "raster-opacity": ["interpolate", ["linear"], ["zoom"], 0, .9, 10, .85, 15, .6], "raster-fade-duration": 0, "raster-resampling": "linear" } },
+    { id: "outline-wood-mist", type: "color-relief", source: "sea-dem",
+      paint: { "color-relief-color": WOOD.mist, "color-relief-opacity": 1 } },
+    { id: "outline-wood-coast", type: "fill", source: "osm", "source-layer": "water", minzoom: 7,
+      filter: ["==", ["get", "class"], "ocean"],
+      paint: { "fill-color": WOOD.coast, "fill-opacity": fade(7, 9, 1) } },
+    { id: "outline-wood-lake", type: "fill", source: "osm", "source-layer": "water",
+      filter: ["!=", ["get", "class"], "ocean"],
+      paint: { "fill-color": WOOD.lake, "fill-outline-color": WOOD.lakeEdge } },
+    { id: "outline-wood-ice", type: "fill", source: "osm", "source-layer": "landcover",
+      filter: ["==", ["get", "class"], "ice"],
+      paint: { "fill-color": WOOD.ice, "fill-opacity": .85 } },
+    { id: "outline-wood-town", type: "fill", source: "osm", "source-layer": "landuse", minzoom: 6,
+      filter: kind(["residential", "commercial", "industrial", "retail", "suburb", "neighbourhood"]),
+      paint: { "fill-color": ["match", ["get", "class"], "industrial", WOOD.townWork, WOOD.town], "fill-opacity": fade(6, 8, .7) } },
+    { id: "outline-wood-river", type: "line", source: "osm", "source-layer": "waterway", minzoom: 3,
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": WOOD.river, "line-blur": .6,
+               "line-width": ["interpolate", ["exponential", 1.4], ["zoom"],
+                 4, ["match", ["get", "class"], "river", .35, .12], 10, ["match", ["get", "class"], "river", 1.2, .5],
+                 16, ["match", ["get", "class"], "river", 6, 2.7]],
+               "line-opacity": ["interpolate", ["linear"], ["zoom"],
+                 8, ["match", ["get", "class"], "river", .85, 0], 11, ["match", ["get", "class"], "river", .85, .65]] } },
+    { id: "outline-wood-rail", type: "line", source: "osm", "source-layer": "transportation", minzoom: 9,
+      filter: kind(["rail", "transit"]),
+      paint: { "line-color": WOOD.rail, "line-width": 1, "line-dasharray": [3, 2] } },
+    { id: "outline-wood-road-minor", type: "line", source: "osm", "source-layer": "transportation", minzoom: 11,
+      filter: kind(["minor", "service", "track", "street", "street_limited"]),
+      paint: { "line-color": WOOD.road[0], "line-width": road(.45) } },
+    { id: "outline-wood-road", type: "line", source: "osm", "source-layer": "transportation", minzoom: 7,
+      filter: kind(["secondary", "tertiary"]),
+      paint: { "line-color": WOOD.road[1], "line-width": road(.6) } },
+    { id: "outline-wood-road-major", type: "line", source: "osm", "source-layer": "transportation", minzoom: 4,
+      filter: kind(["motorway", "trunk", "primary"]),
+      paint: { "line-color": WOOD.road[2], "line-width": road(.8), "line-opacity": fade(4, 6, .8) } },
+    { id: "outline-wood-buildings", type: "fill-extrusion", source: "osm", "source-layer": "building", minzoom: 13,
+      paint: { "fill-extrusion-color": WOOD.building,
+               "fill-extrusion-height": ["coalesce", ["get", "render_height"], 6],
+               "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
+               "fill-extrusion-opacity": ["interpolate", ["linear"], ["zoom"], 13, 0, 14, .9] } },
+    { id: "outline-wood-border", type: "line", source: "boundaries",
+      paint: { "line-color": WOOD.border,
+               "line-width": ["interpolate", ["linear"], ["zoom"], 2, .5, 5, .9] } },
+  ];
+}
+function addWoodLayers() {
+  if (map.getLayer("outline-wood-ground")) return;
+  try {
+    ensureBoundaries();
+    const share = (id, spec) => { if (!map.getSource(id)) map.addSource(id, Object.assign({}, spec)); };
+    share("osm", OSM_SOURCE);
+    share("outline-dem", RELIEF_SOURCE);
+    share("sea-dem", TERRAIN_SOURCE);
+    if (!map.getSource("outline-wood-sheet")) {
+      map.addSource("outline-wood-sheet", { type: "geojson", data: { type: "Feature", properties: {},
+        geometry: { type: "Polygon", coordinates: [[[-180, -85.06], [180, -85.06], [180, 85.06], [-180, 85.06], [-180, -85.06]]] } } });
+    }
+    if (!map.getSource("outline-wood-brush")) {
+      map.addSource("outline-wood-brush", { type: "raster", tiles: ["woodbrush://{z}/{x}/{y}"], tileSize: 256, maxzoom: 15 });
+    }
+    const st = typeof map.getStyle === "function" ? map.getStyle() : null;
+    const all = (st && st.layers) || [];
+    const at = all.findIndex((l) => l.id === "plate-base");
+    const before = at >= 0 && all[at + 1] ? all[at + 1].id : undefined;
+    for (const l of woodLayers()) map.addLayer(Object.assign({ layout: {} }, l, { layout: Object.assign({ visibility: "none" }, l.layout || {}) }), before);
+  } catch (e) { console.warn("[culprits] autumn woodlands basemap unavailable:", e.message || e); }
+}
+let woodNamesTurned = false, woodSkyBefore = null;
+function woodSky(on) {
+  if (typeof map.setSky !== "function") return;
+  if (typeof DEFENCE_ON !== "undefined" && DEFENCE_ON) return;     // the defence view keeps its own sky
+  try {
+    if (on && !woodSkyBefore) {
+      woodSkyBefore = (typeof map.getSky === "function" && map.getSky()) || {};
+      map.setSky(Object.assign({}, woodSkyBefore, WOOD.sky));
+    } else if (!on && woodSkyBefore) { map.setSky(woodSkyBefore); woodSkyBefore = null; }
+  } catch (e) { /* the sky stays as it was */ }
+}
+function woodShow(on) {
+  const vis = on && !hellHoloHides() ? "visible" : "none";
+  for (const id of WOOD_IDS) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
+  woodSky(on);
+  if (!map.getLayer("labels")) return;
+  if (on) {
+    map.setPaintProperty("labels", "raster-saturation", WOOD.names.sat);
+    map.setPaintProperty("labels", "raster-brightness-min", WOOD.names.min);
+    map.setPaintProperty("labels", "raster-brightness-max", WOOD.names.max);
+    map.setPaintProperty("labels", "raster-opacity", .9);
+    woodNamesTurned = true;
+  } else if (woodNamesTurned) {
+    map.setPaintProperty("labels", "raster-brightness-min", 0);
+    map.setPaintProperty("labels", "raster-brightness-max", 1);
+    woodNamesTurned = false;
+  }
+}
+BASE_GRADE.wood = {};
+const basemapPanelHtmlBeforeWood = basemapPanelHtml;
+basemapPanelHtml = function (opts) {
+  const list = (opts || []).some((o) => o[0] === "wood") ? opts : (opts || []).concat([["wood", "Autumn woodlands"]]);
+  return basemapPanelHtmlBeforeWood(list);
+};
+const setBasemapBeforeWood = setBasemap;
+setBasemap = function (kind) {
+  // Pale warm ground: the deeper layer colours stand out on it.
+  if (typeof THEME_BY_BASEMAP === "object" && THEME_BY_BASEMAP && !THEME_BY_BASEMAP.wood) THEME_BY_BASEMAP.wood = "deep";
+  if (kind === "wood") addWoodLayers();
+  if (kind !== "wood") woodShow(false);
+  setBasemapBeforeWood(kind);
+  if (kind === "wood") woodShow(true);
+};
+if (typeof MutationObserver === "function" && typeof document !== "undefined" && document.body) {
+  new MutationObserver(() => { if (BASEMAP === "wood") woodShow(true); })
+    .observe(document.body, { attributes: true, attributeFilter: ["class"] });
+}
+/* ---------- end of Autumn woodlands ---------- */
 
 // Place names on and off, all at once (asked for 23 September): every symbol
 // layer's words, the basemap's and the layers' own. The words are taken out

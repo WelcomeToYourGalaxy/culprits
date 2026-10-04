@@ -5,6 +5,26 @@ touches.
 
 ---
 
+## Round 150b (4 October)
+
+Needs round 149b. No tiles patch. No app.js?v= bump. One new basemap.
+
+- Autumn woodlands, a sixth basemap (asked 4 October: as close as can be to a
+  Robert Griffing painting, 18th-century Eastern Woodlands, fall warmth, soft
+  hazy light). Nothing copied from any painting; the look only: hardwoods in
+  fall painted as dappled leaf masses (russet, sienna, amber, ochre, deep
+  crimson) with dark evergreen stands, each lit upper left by a low sun; warm
+  cream light and violet-grey shadow from the south-west (Mapterhorn); warm
+  mist lying level in the valleys and over water, far ridges fading to hazy
+  blue-grey (AWS heights); still silvery water; a warm hazy sky on the globe.
+- Leaves painted square by square on the reader's computer (woodbrush://,
+  woodBrushPiece), only on land below about 2,600 m, read from the AWS height
+  square (woodHeights); seamless across edges. About 140 ms a square in node.
+- The no-orange/no-yellow rule is set aside for this basemap only (fall warmth
+  asked for): muted earth colours, no green, nothing loud (tested). Layers
+  outline-wood-* (WOOD_IDS), one block ("Autumn woodlands, a sixth basemap"
+  to "end of Autumn woodlands"), after Hell. Not seen against real tiles.
+
 ## Round 149b (4 October)
 
 Needs round 148b. No tiles patch. No app.js?v= bump.
