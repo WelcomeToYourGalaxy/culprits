@@ -5,6 +5,22 @@ touches.
 
 ---
 
+## Round 154b (4 October)
+
+Needs round 153b. No tiles patch. No app.js?v= bump. Woodlands basemap as a watercolour.
+
+- Owner on 152b/153b: too many flat colours, programmatic not handmade
+  watercolour; tans against greens spotty, not soft diffused golden light.
+- woodPaintPixels redone: the Kuwahara flat strokes are gone. Plants and bare
+  ground blend over several pixels (greenness blurred), colour bleeds softly
+  (55% of a blur), a darker rim where a wash meets a lighter one, the paper's
+  faint grain (woodGrain, by world pixel, seamless) with pigment settling
+  more in the darks, the warm paper showing through lighter washes
+  (WOOD.paper), a warm golden glaze (WOOD.glaze). Earth ramp moved toward
+  olive-tan so tans and greens sit together; contrast gentler; hillshade
+  shadow softer, light warmer. Checked on sample satellite pictures; not seen
+  live.
+
 ## Round 153b (4 October)
 
 Needs round 152b. No tiles patch. No app.js?v= bump. One-line fix.

@@ -6383,9 +6383,9 @@ console.log("\nround 152b (4 October): Woodlands painted from the real Earth in 
   const at = (d, x, y) => { const q = (y * 64 + x) * 4; return [d[q], d[q + 1], d[q + 2]]; };
   const forest = lib.woodPaintPixels(tile(() => [34, 62, 30]), 64, 64), field = lib.woodPaintPixels(tile(() => [150, 132, 100]), 64, 64);
   const f = at(forest, 32, 32), e = at(field, 32, 32);
-  check("forest becomes a deep green (green strongest, dark)", f[1] > f[0] && f[1] > f[2] && f[1] < 90, f.join(","));
+  check("forest becomes a green (green strongest, darker than bare ground; round 154b washes lift it a little)", f[1] > f[0] && f[1] > f[2] && f[1] < 115 && f[0] + f[1] + f[2] < e[0] + e[1] + e[2], f.join(","));
   check("bare ground becomes a warm earth (red over green over blue)", e[0] > e[1] && e[1] > e[2], e.join(","));
-  check("flat ground stays flat (no marks added)", [[3, 5], [40, 20], [60, 60]].every(([x, y]) => at(forest, x, y).every((v, i) => Math.abs(v - f[i]) < 1)));
+  check("flat ground stays nearly flat (only the paper's faint grain, round 154b)", [[3, 5], [40, 20], [60, 60]].every(([x, y]) => at(forest, x, y).every((v, i) => Math.abs(v - f[i]) < 9)));
   const half = lib.woodPaintPixels(tile((x) => x < 32 ? [34, 62, 30] : [150, 132, 100]), 64, 64);
   check("the edge between forest and field stays where the Earth puts it", at(half, 20, 30)[1] > at(half, 20, 30)[0] && at(half, 44, 30)[0] > at(half, 44, 30)[1]);
   const a = lib.woodPaintPixels(tile((x, y) => [(x * 7 + y * 3) % 200, 80, 40]), 64, 64), b = lib.woodPaintPixels(tile((x, y) => [(x * 7 + y * 3) % 200, 80, 40]), 64, 64);
@@ -6400,6 +6400,23 @@ console.log("\nround 153b (4 October): the Woodlands picture keeps its own colou
   const spec = { type: "raster", tiles: ["woodpaint://{z}/{x}/{y}"] };
   check("basemap pictures are not mapped into the layer colours", gladSourceSpec("outline-wood-paint", spec).tiles[0] === "woodpaint://{z}/{x}/{y}");
   check("layer pictures still are", /^gladpx:/.test(gladSourceSpec("some_row", spec).tiles[0]));
+}
+
+console.log("\nround 154b (4 October): Woodlands as a watercolour in soft golden light");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const block = src.slice(src.indexOf("/* ---------- Autumn woodlands, a sixth basemap"), src.indexOf("/* ---------- end of Autumn woodlands ---------- */"));
+  const lib = new Function(block.slice(block.indexOf("var WOOD = {"), block.indexOf("maplibregl.addProtocol(\"woodpaint\"")) + "; return { woodPaintPixels };")();
+  const tile = (f) => { const d = new Uint8ClampedArray(64 * 64 * 4); for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) { const c = f(x, y), q = (y * 64 + x) * 4; d[q] = c[0]; d[q + 1] = c[1]; d[q + 2] = c[2]; d[q + 3] = 255; } return d; };
+  check("no flat-stroke filter left (Kuwahara)", !/Kuwahara: each pixel/.test(block));
+  // A forest beside a field: the change runs over several pixels, not one.
+  const half = lib.woodPaintPixels(tile((x) => x < 32 ? [34, 62, 30] : [150, 132, 100]), 64, 64);
+  const g = (x) => half[(30 * 64 + x) * 4 + 1];
+  const steps = [26, 28, 30, 32, 34, 36, 38].map(g);
+  check("plants and bare ground blend into each other like wet washes", steps.every((v, i) => i === 0 || v >= steps[i - 1] - 3) && steps[6] - steps[0] > 20 && [28, 30, 32, 34, 36].filter((x) => g(x) > g(26) + 4 && g(x) < g(38) - 4).length >= 3, steps.join(","));
+  // The paper's grain carries on across the squares' edges.
+  const a = lib.woodPaintPixels(tile(() => [90, 100, 70]), 64, 64, 0, 0), b = lib.woodPaintPixels(tile(() => [90, 100, 70]), 64, 64, 64, 0);
+  check("no seam between squares", Math.abs(a[(10 * 64 + 63) * 4] - b[(10 * 64) * 4]) <= 6);
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");

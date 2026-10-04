@@ -13881,10 +13881,12 @@ if (typeof MutationObserver === "function" && typeof document !== "undefined" &&
 //            ground on a ramp of earths from dark umber through brown to ochre
 //            and pale sand; snow a warm ivory. So every variation is the
 //            Earth's own, never a made-up pattern.
-//   brush    a Kuwahara filter (an old "oil paint" filter): each pixel takes
-//            the colour of the calmest patch around it, so the picture breaks
-//            into soft flat strokes that follow the land's own edges
-//   contrast deeper shadows and warmer lights (an S-curve)
+//   brush    (round 154b) a watercolour: plants and bare ground run into
+//            each other like wet washes, colour bleeds softly, pigment gathers
+//            in a darker rim where a wash dries, the paper's faint grain and
+//            settled pigment show, the paper glows through the lighter washes
+//            and a warm golden glaze lies over all (woodPaintPixels)
+//   contrast gentle (soft diffused light), shadows softened in 154b
 //   light    a low south-west sun: warm golden light on the slopes that face
 //            it, deep olive-black shadow behind (Mapterhorn heights)
 //   haze     warm mist lying low over land only, gone by 1,000 m; a warm hazy
@@ -13900,10 +13902,12 @@ var WOOD = {
   sourceMaxzoom: 14,
   attribution: '<a href="https://s2maps.eu" target="_blank" rel="noopener">Sentinel-2 cloudless - https://s2maps.eu</a> by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024)',
   // Growing things, from forest shadow to sunlit leaves.
-  greens: [[0, "#141C0F"], [0.25, "#24361A"], [0.5, "#3A5224"], [0.72, "#5E6E2C"], [0.88, "#857F3C"], [1, "#A59456"]],
+  greens: [[0, "#1A2311"], [0.25, "#2C3C1C"], [0.5, "#465827"], [0.72, "#677331"], [0.88, "#8B8745"], [1, "#ACA062"]],
   // Bare ground, from dark umber to pale sand.
-  earths: [[0, "#261B12"], [0.25, "#4A3520"], [0.5, "#765632"], [0.75, "#9A7646"], [1, "#C2A574"]],
+  earths: [[0, "#2A2416"], [0.25, "#4B4227"], [0.5, "#75683E"], [0.75, "#A08E5A"], [1, "#C8B585"]],
   snow: "#E6DEC8",
+  paper: "#EFE4C6",          // the warm paper under the washes
+  glaze: [1.03, 1.0, 0.93],   // a warm golden glaze over everything
   lakeTone: "#1D2C26",
   sea: ["interpolate", ["linear"], ["elevation"],
     -8000, "#0B1515", -4000, "#0F1C1B", -1500, "#14231F", -400, "#1A2B24", -60, "#22342A", -1, "#2A3B2E",
@@ -13915,8 +13919,8 @@ var WOOD = {
     "hillshade-method": "multidirectional",
     "hillshade-illumination-direction": [225, 270, 180, 0],
     "hillshade-illumination-altitude": [24, 32, 32, 55],
-    "hillshade-highlight-color": ["rgba(240,212,140,0.42)", "rgba(240,212,140,0.16)", "rgba(240,212,140,0.1)", "rgba(240,212,140,0.04)"],
-    "hillshade-shadow-color": ["rgba(16,20,8,0.62)", "rgba(16,20,8,0.3)", "rgba(16,20,8,0.24)", "rgba(16,20,8,0.12)"],
+    "hillshade-highlight-color": ["rgba(244,218,156,0.34)", "rgba(244,218,156,0.14)", "rgba(244,218,156,0.1)", "rgba(244,218,156,0.04)"],
+    "hillshade-shadow-color": ["rgba(28,30,14,0.46)", "rgba(28,30,14,0.24)", "rgba(28,30,14,0.18)", "rgba(28,30,14,0.1)"],
     "hillshade-accent-color": "rgba(16,20,8,0.25)",
     "hillshade-exaggeration": 1,
     "hillshade-illumination-anchor": "map",
@@ -13949,49 +13953,83 @@ function woodRamp(stops) {
     return s[s.length - 1][1];
   };
 }
-// Re-paint one picture square (data: RGBA, w x h) in place.
-function woodPaintPixels(data, w, h) {
-  const greens = woodRamp(WOOD.greens), earths = woodRamp(WOOD.earths), snow = woodHex(WOOD.snow), lake = woodHex(WOOD.lakeTone);
-  const n = w * h, R = new Float32Array(n), G = new Float32Array(n), B = new Float32Array(n), L = new Float32Array(n);
+// Re-paint one picture square (data: RGBA, w x h) in place, as a watercolour
+// (round 154b; the owner found 152b's flat strokes programmatic and its tans
+// and greens spotty against soft golden light). gx0, gy0: the square's first
+// pixel in the whole world's pixels at this zoom, so the paper's grain runs on
+// across the squares' edges.
+function woodGrain(x, y) {
+  const h = (i, j) => (Math.imul(Math.imul(i, 374761393) ^ Math.imul(j, 668265263), 1274126177) >>> 0) / 4294967296;
+  const i = Math.floor(x), j = Math.floor(y), fx = x - i, fy = y - j;
+  const a = h(i, j) + (h(i + 1, j) - h(i, j)) * fx, b = h(i, j + 1) + (h(i + 1, j + 1) - h(i, j + 1)) * fx;
+  return a + (b - a) * fy;
+}
+function woodPaintPixels(data, w, h, gx0, gy0) {
+  gx0 = gx0 || 0; gy0 = gy0 || 0;
+  const greens = woodRamp(WOOD.greens), earths = woodRamp(WOOD.earths), snow = woodHex(WOOD.snow), lake = woodHex(WOOD.lakeTone), paper = woodHex(WOOD.paper);
+  const n = w * h, W = w + 1;
+  const sat = (A) => { const S = new Float64Array(W * (h + 1)); for (let y = 0; y < h; y++) { let row = 0; for (let x = 0; x < w; x++) { row += A[y * w + x]; S[(y + 1) * W + x + 1] = S[y * W + x + 1] + row; } } return S; };
+  // A soft blur: the mean of a square of radius r round each pixel (twice
+  // over, it is close to a gaussian).
+  const blur = (A, r) => {
+    let cur = A;
+    for (let pass = 0; pass < 2; pass++) {
+      const S = sat(cur), out = new Float32Array(n);
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const x0 = Math.max(0, x - r), x1 = Math.min(w - 1, x + r), y0 = Math.max(0, y - r), y1 = Math.min(h - 1, y + r);
+        out[y * w + x] = (S[(y1 + 1) * W + x1 + 1] - S[y0 * W + x1 + 1] - S[(y1 + 1) * W + x0] + S[y0 * W + x0]) / ((x1 - x0 + 1) * (y1 - y0 + 1));
+      }
+      cur = out;
+    }
+    return cur;
+  };
+  // 1. How green and how bright each pixel is; water and snow marked.
+  const V = new Float32Array(n), T = new Float32Array(n), K = new Uint8Array(n);
   for (let p = 0; p < n; p++) {
     const r = data[p * 4], g = data[p * 4 + 1], b = data[p * 4 + 2];
     const lum = (0.3 * r + 0.59 * g + 0.11 * b) / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b);
-    let c;
-    if ((b > g + 6 && b > r + 10 && lum < 0.4) || (lum < 0.06 && b >= r)) c = lake;   // open water seen in the picture
-    else if (lum > 0.72 && mx - mn < 28) c = snow;                             // snow and ice
-    else {
-      // How green it is decides plants or bare ground; how bright, where on
-      // the ramp. An S-curve deepens the shadows and warms the lights.
-      const veg = 0.88 * Math.max(0, Math.min(1, ((2 * g - r - b) / 255 + 0.01) / 0.1));
-      let t = Math.min(1, Math.pow(Math.max(0, lum - 0.015) / 0.45, 0.75));
-      t = Math.max(0, Math.min(1, 0.5 + (t - 0.5) * 1.35));
-      const a = greens(t), e = earths(Math.min(1, t * 1.05));
-      c = [e[0] + (a[0] - e[0]) * veg, e[1] + (a[1] - e[1]) * veg, e[2] + (a[2] - e[2]) * veg];
-    }
-    R[p] = c[0]; G[p] = c[1]; B[p] = c[2]; L[p] = 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2];
+    if ((b > g + 6 && b > r + 10 && lum < 0.4) || (lum < 0.06 && b >= r)) K[p] = 1;
+    else if (lum > 0.72 && mx - mn < 28) K[p] = 2;
+    V[p] = Math.max(0, Math.min(1, ((2 * g - r - b) / 255 + 0.01) / 0.1));
+    let t = Math.min(1, Math.pow(Math.max(0, lum - 0.015) / 0.45, 0.75));
+    T[p] = Math.max(0, Math.min(1, 0.5 + (t - 0.5) * 1.12));
   }
-  // Kuwahara: each pixel takes the mean colour of the calmest of the four
-  // squares that have it as a corner (sums over areas from running totals).
-  const k = 2, mixIn = 0.65, W = w + 1, sat = (A) => { const S = new Float64Array(W * (h + 1)); for (let y = 0; y < h; y++) { let row = 0; for (let x = 0; x < w; x++) { row += A[y * w + x]; S[(y + 1) * W + x + 1] = S[y * W + x + 1] + row; } } return S; };
-  const L2 = new Float32Array(n); for (let p = 0; p < n; p++) L2[p] = L[p] * L[p];
-  const SR = sat(R), SG = sat(G), SB = sat(B), SL = sat(L), SL2 = sat(L2);
-  const box = (S, x0, y0, x1, y1) => S[(y1 + 1) * W + x1 + 1] - S[y0 * W + x1 + 1] - S[(y1 + 1) * W + x0] + S[y0 * W + x0];
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    let best = Infinity, bx0 = x, by0 = y, bx1 = x, by1 = y;
-    for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-      const x0 = Math.max(0, Math.min(x, x + dx * k)), x1 = Math.min(w - 1, Math.max(x, x + dx * k));
-      const y0 = Math.max(0, Math.min(y, y + dy * k)), y1 = Math.min(h - 1, Math.max(y, y + dy * k));
-      const cnt = (x1 - x0 + 1) * (y1 - y0 + 1), m = box(SL, x0, y0, x1, y1) / cnt;
-      const v = box(SL2, x0, y0, x1, y1) / cnt - m * m;
-      if (v < best) { best = v; bx0 = x0; by0 = y0; bx1 = x1; by1 = y1; }
+  // 2. Plants and bare ground run into each other like wet washes, instead of
+  // meeting pixel by pixel; brightness keeps a little more of the land's form.
+  const Vs = blur(V, 4), Ts = blur(T, 1);
+  const R = new Float32Array(n), G = new Float32Array(n), B = new Float32Array(n);
+  for (let p = 0; p < n; p++) {
+    let c;
+    if (K[p] === 1) c = lake;
+    else if (K[p] === 2) c = snow;
+    else {
+      const v = 0.9 * Vs[p], a = greens(Ts[p]), e = earths(Ts[p]);
+      c = [e[0] + (a[0] - e[0]) * v, e[1] + (a[1] - e[1]) * v, e[2] + (a[2] - e[2]) * v];
     }
-    const cnt = (bx1 - bx0 + 1) * (by1 - by0 + 1), q = (y * w + x) * 4;
-    // Mostly the stroke's colour, a little of the pixel's own, so strokes
-    // stay soft rather than square.
-    const p = y * w + x;
-    data[q] = box(SR, bx0, by0, bx1, by1) / cnt * mixIn + R[p] * (1 - mixIn);
-    data[q + 1] = box(SG, bx0, by0, bx1, by1) / cnt * mixIn + G[p] * (1 - mixIn);
-    data[q + 2] = box(SB, bx0, by0, bx1, by1) / cnt * mixIn + B[p] * (1 - mixIn); data[q + 3] = 255;
+    R[p] = c[0]; G[p] = c[1]; B[p] = c[2];
+  }
+  // 3. Washes: colour bleeds softly into its neighbours.
+  const Rb = blur(R, 3), Gb = blur(G, 3), Bb = blur(B, 3);
+  const L = new Float32Array(n);
+  for (let p = 0; p < n; p++) { R[p] = R[p] * 0.45 + Rb[p] * 0.55; G[p] = G[p] * 0.45 + Gb[p] * 0.55; B[p] = B[p] * 0.45 + Bb[p] * 0.55; L[p] = 0.3 * R[p] + 0.59 * G[p] + 0.11 * B[p]; }
+  const Lw = blur(L, 6);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const p = y * w + x, q = p * 4;
+    let r = R[p], g = G[p], b = B[p];
+    // 4. Pigment gathers where a wash meets a lighter one: a soft darker
+    // rim on the darker side, as a watercolour dries.
+    const rim = Math.max(0, Math.min(1, (Lw[p] - L[p]) / 30)) * 0.16;
+    r *= 1 - rim; g *= 1 - rim; b *= 1 - rim;
+    // 5. The paper's grain, and pigment settling in it, more in the darks.
+    const gx = gx0 + x, gy = gy0 + y;
+    const grain = 0.6 * woodGrain(gx / 1.7, gy / 1.7) + 0.4 * woodGrain(gx / 6 + 11, gy / 6 + 7) - 0.5;
+    const k = 1 + grain * (0.05 + 0.07 * (1 - L[p] / 255));
+    r *= k; g *= k; b *= k;
+    // 6. Diffused golden light: the paper shows through the lighter washes,
+    // and a warm glaze lies over everything.
+    const show = 0.05 + 0.14 * (L[p] / 255);
+    r = r + (paper[0] - r) * show; g = g + (paper[1] - g) * show; b = b + (paper[2] - b) * show;
+    data[q] = r * WOOD.glaze[0]; data[q + 1] = g * WOOD.glaze[1]; data[q + 2] = b * WOOD.glaze[2]; data[q + 3] = 255;
   }
   return data;
 }
@@ -14005,7 +14043,7 @@ maplibregl.addProtocol("woodpaint", async (params, abortController) => {
   const c = new OffscreenCanvas(bmp.width, bmp.height), g = c.getContext("2d", { willReadFrequently: true });
   g.drawImage(bmp, 0, 0);
   const img = g.getImageData(0, 0, bmp.width, bmp.height);
-  woodPaintPixels(img.data, bmp.width, bmp.height);
+  woodPaintPixels(img.data, bmp.width, bmp.height, Number(m[2]) * bmp.width, Number(m[3]) * bmp.height);
   return { data: rawPng(img.data, bmp.width, bmp.height) };
 });
 function woodLayers() {
