@@ -5,6 +5,26 @@ touches.
 
 ---
 
+## Round 172b (4 October)
+
+Needs round 171b (guards on its heading). Tiles patch round172b_tiles.py
+beside it. No app.js?v= bump.
+
+- Rounds 146b, 147b and 148b of the "b" chat never reached main: other
+  sessions used those names first. This round carries 146b's map change:
+  Global Forest Watch's integrated alerts (gfw_integrated_dist_alerts) are
+  out, because its newest copy is only the overlap of several alert systems
+  and so shows mostly the tropics. The worldwide DIST-ALERT rows stay.
+  147b's colour box per layer and 148b's ESDAC soil maps and WBA Nature
+  Benchmark are still to be redone.
+- Tiles: medical_culprits.py places the settlements rows Wikipedia leaves
+  unlinked after a company's first mention (Pfizer, GlaxoSmithKline,
+  AstraZeneca, Schering-Plough): they take the article of the same name's
+  linked row, else the name as a Wikipedia title; the box says which.
+  forest500_map.py places a headquarters country with no capital in Natural
+  Earth (the British Virgin Islands) at its most populous listed place, and
+  the box says so instead of "capital".
+
 ## Round 171b (4 October)
 
 Needs round 170b (guards on its heading). No tiles patch. No app.js?v= bump.

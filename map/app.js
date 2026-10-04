@@ -8740,6 +8740,11 @@ const CATALOGUE_BY_TITLE = [
   // No tiles published (sbtn_natural_lands, umd_land_cover) or GFW's build
   // failed (fao_forest_extent); the 2001 ecoregions out (the 2017 version stays).
   [/\b(sbtn_natural_lands|umd_land_cover|fao_forest_extent|wwf_terrestrial_ecoregions)\b(?!_)/, null],
+  // Round 172b (carries the lost round 146b, asked 3 October): Global Forest
+  // Watch's integrated alerts out. Its newest copy is only the overlap of
+  // several alert systems, so it showed mostly the tropics. The worldwide
+  // DIST-ALERT rows stay.
+  [/\bgfw_integrated_dist_alerts\b/, null],
   // The JRC forest cover 2020 also under Land Use and Ecoregions, in place of FAO's forest area.
   [/\bjrc_global_forest_cover\b/, [P + " > Deforestation > Forest cover", P + " > Biodiversity loss > Land Use and Ecoregions"]],
   // Global Safety Net: the human modification index under Disturbance; its

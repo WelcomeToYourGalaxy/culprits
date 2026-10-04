@@ -5024,11 +5024,11 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("fire lookout towers, and places that are only observation towers or belfries, leave the military installations",
         leave({ kind: "fire lookout tower" }) && leave({ kind: "fire lookout tower, watchtower" }) && leave({ kind: "observation tower" }) &&
         !leave({ kind: "observation tower, military building" }) && !leave({ kind: "airbase" }) && /if \(cfg\.leaveOut && cfg\.leaveOut\(p\)\) return;/.test(src));
-  check("the all-ecosystem disturbance alerts and GLAD alerts are out; the integrated rows stay",
+  check("the all-ecosystem disturbance alerts and GLAD alerts are out; the integrated deforestation alerts stay (the integrated disturbance alerts went in round 172b)",
         f("Global all ecosystem disturbance alerts (DIST-ALERT)", "umd_glad_dist_alerts") === "(taken out)" &&
         f("GLAD alerts \u2014 30\u00b0S to 30\u00b0N", "umd_glad_landsat_alerts") === "(taken out)" &&
         f("Integrated deforestation alerts", "gfw_integrated_alerts") !== "(taken out)" &&
-        f("Global integrated disturbance alerts", "gfw_integrated_dist_alerts") !== "(taken out)");
+        f("Global integrated disturbance alerts", "gfw_integrated_dist_alerts") === "(taken out)");   // round 172b: now out too
   check("the drivers' coverage shape and Global Forest Watch's agriculture-linked deforestation are out",
         f("Drivers of disturbance alerts \u2014 the area they cover, as one shape, with no drivers in it", "wur_alert_drivers_coverage") === "(taken out)" &&
         f("Agriculture-Linked Deforestation \u2014 Global", "wri_agriculture_linked_deforestation") === "(taken out)");
@@ -5105,9 +5105,9 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("West Africa's cocoa deforestation risk is under Cocoa; the loss due to fire is under Deforestation and Fire",
         f("West Africa Cocoa Deforestation Risk Assessment", "gfw_west_africa_cocoa_deforestation_risk") === T + " > Cocoa" &&
         f("Tree cover loss due to fire \u2014 Global land area", "umd_tree_cover_loss_from_fires") === T + " > What drove the loss | " + P + " > Fire");
-  check("the worldwide integrated alerts are named as a live deforestation map and lead Alerts and Disturbance",
+  check("the integrated disturbance alerts, once named as a live deforestation map, are out (round 172b)",
         /gfw_integrated_dist_alerts: "Plant cover lost as it happens, where several alert systems overlap, so mostly the tropics/.test(src) &&   // round 145b: not worldwide
-        f("x", "gfw_integrated_dist_alerts") === T + " > Alerts | " + P + " > Biodiversity loss > Disturbance" &&
+        f("x", "gfw_integrated_dist_alerts") === "(taken out)" &&   // round 172b: out (overlap only, mostly tropical)
         /const CATALOGUE_FIRST = new Set\(\[[^\]]*"gfw_integrated_dist_alerts"/.test(src));
   {
     const pick = (a, b) => src.slice(src.indexOf(a), src.indexOf(b));
@@ -6860,6 +6860,14 @@ console.log("\nround 171b (4 October): a lighter map for slower computers");
   check("3D terrain and raised figures stay off on the lighter map", !liteTerrains.some(Boolean) && !lite.map.layers.some((l) => /-lift$/.test(l.id) && l.layout?.visibility === "visible"));
   check("the lighter map has no Combine box", !lite.els.has("combo-box") || !lite.els.get("combo-box").innerHTML);
   window.__culpritsLite = false;
+}
+
+console.log("\nround 172b (4 October): the integrated alerts out (the lost 146b)");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const nul = src.indexOf("[/\\bgfw_integrated_dist_alerts\\b/, null]");
+  const filed = src.indexOf("[/\\bgfw_integrated_dist_alerts\\b/, [P");
+  check("GFW's integrated alerts are taken out before any rule files them", nul > 0 && (filed < 0 || nul < filed));
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
