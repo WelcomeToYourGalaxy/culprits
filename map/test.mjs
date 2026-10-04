@@ -6815,6 +6815,23 @@ console.log("\nround 165b (4 October): Woodlands place names in the same theme")
   check("names are pale and muted (saturation under 0.3)", cols.length >= 7 && cols.every(([r, g, b]) => { const mx = Math.max(r, g, b); return mx > 150 && (mx - Math.min(r, g, b)) / mx < 0.3; }));
 }
 
+console.log("\nround 166p (4 October): Streets and places on and off, like Place names");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const block = src.slice(src.indexOf("/* ---------- Streets and places (round 166p)"), src.indexOf("/* ---------- end of Streets and places ---------- */"));
+  check("a Streets and places box beside Place names, wired to setDetails", /id="details-toggle"/.test(src) && /"details-toggle"\) setDetails\(e\.target\.checked\)/.test(src));
+  check("OpenStreetMap's points of interest are added from zoom 14, every kind (no filter)",
+        /id: "outline-places-dot", type: "circle", source: "osm", "source-layer": "poi", minzoom: 14,\n      paint/.test(block));
+  const colours = [...block.matchAll(/"#([0-9A-F]{6})"/g)].map((m) => m[1]);
+  const hue = (h) => { const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255); const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    if (mx === mn) return null; const d = mx - mn; let x = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return (x * 60 + 360) % 360; };
+  check("the places' colours are teal to cobalt or grey (no green, orange or yellow)", colours.every((c) => { const h = hue(c); return h === null || (h >= 165 && h <= 235); }), colours.join(","));
+  check("hidden by narrowing a layer's zooms to none and put back to its own, so basemaps' showing and hiding is untouched",
+        /map\.setLayerZoomRange\(l\.id, 24, 24\)/.test(block) && /map\.setLayerZoomRange\(l\.id, lo, hi\)/.test(block) && !/"visibility"/.test(block));
+  check("the land and sea are never hidden (water and land cover are not details)", !/"water"|"landcover"/.test(block.slice(block.indexOf("const DETAIL_PARTS"), block.indexOf("const detailsZoom"))));
+  check("the places get no glow and no recolouring (basemap layer names)", /\^\(wire-\|ct-\|outline-places-\)/.test(src) && /id: "outline-places-name", type: "symbol"/.test(block));
+}
+
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");

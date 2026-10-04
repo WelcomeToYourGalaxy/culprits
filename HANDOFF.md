@@ -5,6 +5,36 @@ touches.
 
 ---
 
+## Round 166p (4 October)
+
+Needs round 165b (the Woodlands names; guards on its heading). No tiles
+patch. No app.js?v= bump. Named "p" so it cannot clash with the other chats'
+numbers.
+
+- Asked 4 October: a box like Place names that shows or hides the places,
+  anything an OpenStreetMap map would show. New tick "Streets and places"
+  under Place names in the View box (details-toggle, DETAILS_ON, setDetails,
+  localStorage culprits-details), on by default.
+- It hides or shows, on every basemap, each basemap layer drawn from
+  OpenStreetMap's roads and railways, road names, buildings (and the 3D
+  buildings), land use, rivers and their names, airports, parks, town marks,
+  house numbers and points of interest (DETAIL_PARTS). The land and sea
+  (water, land cover) always stay; place names stay with the Place names box.
+  Layers are hidden by narrowing their zooms to 24-24 and put back to their
+  own (detailsZoom), so setBasemap's visibility switching is untouched;
+  basemaps added later are caught on styledata.
+- No basemap drew OpenStreetMap's points of interest, so they are added:
+  outline-places-dot (from zoom 14, every kind the tiles carry, coloured by
+  kind in teal to cobalt, OSM_PLACE_KINDS) and outline-places-name (Jost, from
+  zoom 15.5), source "osm". Named as basemap layers so the colour wheel and
+  remap leave them alone; hudEligible skips them (no glow). Kept just over the
+  basemap stack and under the data (osmPlacesBefore, osmPlacesPlace); hidden
+  while the hologram is on.
+- Checked in Chromium (MapLibre 5.24): box shows, roads hidden and the sea
+  kept on Country outlines, Deep space and Woodlands, back at their own zooms
+  when ticked, places sit above the basemap stack. OpenFreeMap is blocked from
+  the sandbox, so the places themselves were not seen drawn.
+
 ## Round 164m (4 October)
 
 Needs round 163m. No tiles patch. No app.js?v= bump.

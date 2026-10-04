@@ -2439,7 +2439,7 @@ function hudEligible(layer) {
   // Rows coloured by their own figures (round 81) keep their colours at every
   // zoom: the glow would paint them all in its one range.
   if (layer && layer.id && HUD_SKIP.has(rowOfLayer(layer.id))) return false;
-  if (!layer || layer.type !== "circle" || !layer.id || /^(wire-|ct-)/.test(layer.id) || /-(halo|hud|glow|haze|core|soft|ring)$/.test(layer.id)) return false;
+  if (!layer || layer.type !== "circle" || !layer.id || /^(wire-|ct-|outline-places-)/.test(layer.id) || /-(halo|hud|glow|haze|core|soft|ring)$/.test(layer.id)) return false;
   const c = JSON.stringify((layer.paint || {})["circle-color"] || "");
   return !/rgba\(0,\s*0,\s*0,\s*0\)|transparent/.test(c);
 }
@@ -13627,7 +13627,12 @@ function viewPanelHtml() {
     `<span class="compass-cap">North up, level</span>` +
     `<label class="layer names-under"><input type="checkbox" id="names-toggle"${NAMES_ON ? " checked" : ""}` +
     ` title="Every place name on the map: the basemap's and the layers' own.">` +
-    `<span class="nm">Place names</span></label></div>` +
+    `<span class="nm">Place names</span></label>` +
+    // Round 166p (asked 4 October): everything else an OpenStreetMap map shows,
+    // on and off together, like the names.
+    `<label class="layer names-under"><input type="checkbox" id="details-toggle"${DETAILS_ON ? " checked" : ""}` +
+    ` title="Everything OpenStreetMap draws besides the land and sea: roads, railways, rivers, buildings, towns, land use, and shops, schools, hospitals and other places close in.">` +
+    `<span class="nm">Streets and places</span></label></div>` +
     `<div class="view-go">` +
     `<button type="button" id="to-globe" class="snap" title="Out to the whole world, in the view you are in">` +
     `Snap back to global scale</button>` +
@@ -13683,6 +13688,7 @@ function buildBasemapPanel() {
     if (e.target && e.target.name === "view") setView(e.target.value);
     if (e.target && e.target.id === "terrain-toggle") setTerrain(e.target.checked);
     if (e.target && e.target.id === "names-toggle") setNames(e.target.checked);
+    if (e.target && e.target.id === "details-toggle") setDetails(e.target.checked);
     if (e.target && e.target.id === "lift-toggle") setLift(e.target.checked);
     if (e.target && e.target.id === "theme-pick") setTheme(e.target.value);
   });
@@ -16053,6 +16059,152 @@ function setNames(on) {
   }
 }
 map.on("styledata", () => { if (!NAMES_ON) namesApply(); });
+
+/* ---------- Streets and places (round 166p) ---------- */
+// Asked 4 October: a box like Place names that shows or hides the places,
+// anything an OpenStreetMap map would show. Every basemap draws its streets,
+// railways, rivers, buildings, town marks and land use from OpenStreetMap
+// (OpenFreeMap's tiles, source "osm"); none drew OpenStreetMap's own points of
+// interest, so they are added here (outline-places-dot, outline-places-name; named as basemap
+// layers, so the colour wheel, the colour remap and the glow leave them alone): shops,
+// cafes, schools, hospitals, places of worship, stations and the rest, from
+// zoom 14, every kind the tiles carry. The box hides or shows all of these
+// together, on every basemap. The land and sea themselves (OpenStreetMap's
+// water and land cover) stay, so the map is never left blank. Names of places
+// stay with the Place names box; road and river names go with their roads and
+// rivers. A layer is hidden by narrowing its zooms to none (24 to 24) and put
+// back to its own, so the basemaps' own showing and hiding is left alone.
+var DETAILS_ON = true;
+try { DETAILS_ON = localStorage.getItem("culprits-details") !== "off"; } catch (e) { /* storage refused: shown */ }
+const DETAIL_PARTS = new Set(["transportation", "transportation_name", "building", "landuse", "waterway", "aeroway",
+  "park", "poi", "housenumber", "aerodrome_label", "place"]);
+// Names that stay with the Place names box even when their part is a detail.
+const DETAIL_NAME_PARTS = new Set(["place"]);
+const detailsZoom = new Map();         // layer id -> its own [minzoom, maxzoom]
+function isDetailLayer(l) {
+  if (!l || !l.id) return false;
+  if (l.id.startsWith("outline-places-")) return true;
+  if (!(l.id.startsWith("outline-") || l.id === "buildings-3d")) return false;
+  const part = l["source-layer"];
+  if (!DETAIL_PARTS.has(part)) return false;
+  if (l.type === "symbol" && DETAIL_NAME_PARTS.has(part)) return false;
+  return true;
+}
+// Points of interest, in the map's teal to cobalt, by kind; names small and pale.
+const OSM_PLACE_KINDS = [
+  [["restaurant", "fast_food", "cafe", "bar", "beer", "ice_cream", "bakery", "alcohol_shop"], "#5FA8B4"],
+  [["shop", "grocery", "clothing_store", "convenience", "supermarket", "jewelry", "hairdresser", "laundry",
+    "furniture", "hardware", "mobile_phone", "books", "music", "gift", "shoe", "florist", "butcher",
+    "car", "bicycle", "electronics", "toys", "pet", "optician", "art_gallery"], "#6F93C8"],
+  [["hospital", "doctors", "dentist", "pharmacy", "veterinary"], "#8FC3D6"],
+  [["school", "college", "kindergarten", "library", "music_school"], "#4E8FAE"],
+  [["place_of_worship", "cemetery", "grave_yard"], "#7A86B8"],
+  [["bus", "railway", "fuel", "parking", "ferry_terminal", "harbor", "airport", "aerialway", "entrance", "bicycle_rental", "car_rental"], "#5B7DA6"],
+  [["town_hall", "police", "fire_station", "post", "prison", "office", "embassy", "townhall", "court"], "#3F6E9A"],
+  [["park", "garden", "playground", "pitch", "stadium", "swimming", "sports", "golf", "zoo", "museum",
+    "attraction", "theatre", "cinema", "monument", "castle", "viewpoint", "campsite", "information"], "#78B0A8"],
+];
+function osmPlaceLayers() {
+  const colour = ["match", ["get", "class"]];
+  for (const [list, c] of OSM_PLACE_KINDS) colour.push(list, c);
+  colour.push("#8A9AAE");
+  const nm = ["coalesce", ["get", "name_en"], ["get", "name:latin"], ["get", "name"]];
+  return [
+    { id: "outline-places-dot", type: "circle", source: "osm", "source-layer": "poi", minzoom: 14,
+      paint: { "circle-color": colour, "circle-radius": ["interpolate", ["linear"], ["zoom"], 14, 2.2, 18, 4.5],
+               "circle-stroke-color": "#0B1620", "circle-stroke-width": 0.8, "circle-opacity": 0.92,
+               "circle-pitch-alignment": "map" } },
+    { id: "outline-places-name", type: "symbol", source: "osm", "source-layer": "poi", minzoom: 15.5,
+      layout: { "text-field": nm, "text-font": ["Jost-Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 15.5, 10, 19, 12.5],
+                "text-variable-anchor": ["left", "right", "top", "bottom"], "text-radial-offset": 0.7, "text-justify": "auto",
+                "text-max-width": 8, "text-optional": true },
+      paint: { "text-color": "#C9D3D8", "text-halo-color": "#0B1620", "text-halo-width": 1.1, "text-halo-blur": 0.6 } },
+  ];
+}
+// Just over the basemap and under every data layer: after the last layer of
+// the basemaps' own stacks (their names, moved over the data, aside). Themed
+// basemaps add their stacks when first chosen, so the places are moved up
+// over a stack that came in above them.
+const BASEMAP_STACK = /^(outline-|plate-base$|atlas-washes$|base$|base-s2$|base-close$|hillshade$|sat-relief-|buildings-3d$)/;
+function osmPlacesBefore() {
+  const all = ((map.getStyle && map.getStyle()) || {}).layers || [];
+  let last = -1;
+  all.forEach((l, i) => {
+    if (l.id.startsWith("outline-places-")) return;
+    if (BASEMAP_STACK.test(l.id) && !/-name|-dot/.test(l.id)) last = i;
+  });
+  for (let i = last + 1; i < all.length; i++) if (!all[i].id.startsWith("outline-places-")) return { before: all[i].id, last };
+  return { before: undefined, last };
+}
+function osmPlacesPlace() {
+  if (typeof map.moveLayer !== "function" || !map.getLayer("outline-places-dot")) return;
+  const all = map.getStyle().layers || [];
+  const at = all.findIndex((l) => l.id === "outline-places-dot");
+  const { before, last } = osmPlacesBefore();
+  if (at > last) return;
+  for (const id of ["outline-places-dot", "outline-places-name"]) if (map.getLayer(id)) map.moveLayer(id, before);
+}
+function addOsmPlaces() {
+  if (typeof map.addLayer !== "function" || typeof map.getLayer !== "function") return;
+  if (map.getLayer("outline-places-dot")) return;
+  try {
+    if (!map.getSource("osm")) map.addSource("osm", { ...OSM_SOURCE });
+    // Letters from the page's own folder (Jost, SIL Open Font License), unless
+    // a basemap has set them already.
+    if (typeof map.setGlyphs === "function" && typeof document !== "undefined" &&
+        !(typeof map.getGlyphs === "function" && map.getGlyphs())) {
+      map.setGlyphs(new URL("glyphs/", document.baseURI).href + "{fontstack}/{range}.pbf");
+    }
+    const { before } = osmPlacesBefore();
+    for (const l of osmPlaceLayers()) map.addLayer(l, before && map.getLayer(before) ? before : undefined);
+  } catch (e) { console.warn("[culprits] OpenStreetMap places unavailable:", e.message || e); }
+}
+function detailsHoloHides() {
+  return typeof document !== "undefined" && document.body && document.body.classList && document.body.classList.contains("holo-on");
+}
+function detailsApply() {
+  if (typeof map.getStyle !== "function" || typeof map.setLayerZoomRange !== "function") return;
+  const st = map.getStyle();
+  for (const l of (st && st.layers) || []) {
+    if (!isDetailLayer(l)) continue;
+    // The hologram hides the basemap; the places added here follow it too.
+    const hide = !DETAILS_ON || (l.id.startsWith("outline-places-") && detailsHoloHides());
+    if (hide) {
+      if (!detailsZoom.has(l.id)) {
+        detailsZoom.set(l.id, [l.minzoom === undefined ? 0 : l.minzoom, l.maxzoom === undefined ? 24 : l.maxzoom]);
+        map.setLayerZoomRange(l.id, 24, 24);
+      }
+    } else if (detailsZoom.has(l.id)) {
+      const [lo, hi] = detailsZoom.get(l.id);
+      detailsZoom.delete(l.id);
+      map.setLayerZoomRange(l.id, lo, hi);
+    }
+  }
+}
+function setDetails(on) {
+  DETAILS_ON = !!on;
+  try { localStorage.setItem("culprits-details", DETAILS_ON ? "on" : "off"); } catch (e) { /* not kept */ }
+  detailsApply();
+}
+// Basemaps add their layers when first chosen: those come in hidden if the box
+// is off. A layer added while a basemap is drawn is caught on the next change.
+let detailsSoon = 0;
+map.on("styledata", () => {
+  if (detailsSoon) return;
+  detailsSoon = setTimeout(() => {
+    detailsSoon = 0;
+    try {
+      if (!map.getLayer("outline-places-dot")) addOsmPlaces(); else osmPlacesPlace();
+      if (!DETAILS_ON || detailsHoloHides() || detailsZoom.size) detailsApply();
+    } catch (e) { /* kept */ }
+  }, 50);
+});
+if (typeof map.once === "function") map.once("idle", () => { try { addOsmPlaces(); detailsApply(); } catch (e) { /* kept */ } });
+if (typeof MutationObserver === "function" && typeof document !== "undefined" && document.body) {
+  new MutationObserver(() => { try { detailsApply(); } catch (e) { /* kept */ } })
+    .observe(document.body, { attributes: true, attributeFilter: ["class"] });
+}
+/* ---------- end of Streets and places ---------- */
 
 // Choropleth fills belong under the point layers so they don't hide them. But
 // the point layers are added asynchronously too, so the id may not exist yet —
