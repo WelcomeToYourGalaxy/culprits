@@ -5,6 +5,41 @@ touches.
 
 ---
 
+## Round 159b (4 October)
+
+Needs round 158b. Carries round 147b, which failed: main had moved on by the time it was uploaded (its test block clashed). No tiles patch. No app.js?v= bump.
+
+- Combine the ticked layers made quick (asked 3 October: "takes way too
+  long"). The cause: points were cut with MapLibre's "within" filter against
+  one shape made of every crossing square. Measured: about 2 ms a point with
+  4,000 squares, for each of a point row's four layers (dot, haze, core, soft
+  glow), redone for every map square and every change. In Chromium with 5,000
+  points and 300 areas the map took about 61 s to settle (20,000 points: not
+  done after 5 minutes); now about 3 s (20,000 points: about 4 s).
+- Now every layer of a row taking part, points included, is drawn as a copy
+  ("<layer>__cut", its glow "<layer>__cut-haze" etc.) on one source per row
+  and source/source-layer ("<row>__<hash>__cut"), from the row's features in
+  the crossings: a point by the square it lies in (comboKeepPoints, one
+  look-up), lines and areas clipped as before but through a 5-degree index of
+  the crossings (comboRectIndex), an area wholly inside one crossing kept
+  whole. The original gets a filter that lets nothing through (COMBO_HIDE); a
+  filter set on it later is kept (COMBO_OWN) and passed to the copy, and its
+  visibility and paint changes follow. Clicks and hovers reach the copies
+  (queryRenderedFeatures asked of a layer also asks its copy; checked in
+  Chromium). Copies are added through the raw addLayer (hudRaw.addLayer), so
+  colours are not mapped twice; the theme's own colours are carried over.
+- Also: a GeoJSON row's features are read from the source as the map holds
+  them (s._data.geojson), not asked of the worker every run; each row's grid
+  is kept and reused while its features, figure and picture are unchanged
+  (COMBO.calc); the run pauses between layers so the page stays usable; the
+  top-fifth sort is a native number sort; tiled features are keyed briefly
+  (comboFeatKey) instead of writing out their geometry; pictures are asked
+  again only when the crossings change (combocut:// carries their number,
+  COMBO.cutHash). The squares past 85 degrees were added back after being
+  cleared; now cleared after.
+- Not seen against the real layers in a browser (the sandbox cannot reach the
+  data); tested with made-up rows. Check live with several rows ticked.
+
 ## Round 158b (4 October)
 
 Needs round 157b. No tiles patch. No app.js?v= bump.

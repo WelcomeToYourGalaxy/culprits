@@ -6023,13 +6023,8 @@ console.log("\nround 132b (2 October): crops, cropland spread, meat, promises, o
 console.log("\nround 133b (2 October): combining the ticked layers cuts them to where they meet");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  const lib = new Function("POINT_RELIEF_RES", src.slice(src.indexOf("function comboExpr(f)"), src.indexOf("async function comboBuild(")) + "; return { comboExpr, comboJoin, comboShape };")(90);
-  check("old-style filters become expressions before the cut is added", JSON.stringify(lib.comboExpr(["all", ["==", "k", "a"], ["!has", "z"], ["in", "t", 1, 2]])) ===
-        JSON.stringify(["all", ["==", ["get", "k"], "a"], ["!", ["has", "z"]], ["match", ["get", "t"], [1, 2], true, false]]) &&
-        JSON.stringify(lib.comboExpr(["!=", ["get", "x"], "yes"])) === JSON.stringify(["!=", ["get", "x"], "yes"]));
-  const cut = { type: "MultiPolygon", coordinates: [] };
-  check("a layer's own filter is kept and the cut added", JSON.stringify(lib.comboJoin(null, cut)) === JSON.stringify(["within", cut]) &&
-        JSON.stringify(lib.comboJoin(["has", "a"], cut)) === JSON.stringify(["all", ["has", "a"], ["within", cut]]) && lib.comboJoin(["has", "a"], null)[0] === "has");
+  // Round 147b: the "within" cut (and its filter rewriting) is gone; see round 147b's checks.
+  const lib = new Function("POINT_RELIEF_RES", src.slice(src.indexOf("function comboShape(keep, W, H)"), src.indexOf("function comboPoints(")) + "; return { comboShape };")(90);
   // 4 x 2 squares of 90 degrees: the two left squares of both lines, one rectangle.
   const sh = lib.comboShape(Uint8Array.from([1, 1, 0, 0, 1, 1, 0, 1]), 4, 2);
   check("kept squares are joined into rectangles", sh.coordinates.length === 2 &&
@@ -6120,7 +6115,7 @@ console.log("\nround 140b-142b (2 October): combine in any order; base map kept,
   check("the outline goes when nothing is kept", fake._l.get("combo-mask-edge").vis === "none" && /if \(!hide\) \{ COMBO\.lastKey = null; COMBO\.keepGrid = null; comboCut\(null\); comboMaskSet\(null\); \}/.test(src));
   check("no squares past 85 degrees (they drew lines round the world)", /if \(Math\.abs\(90 - \(y \+ 0\.5\) \* POINT_RELIEF_RES\) > 85\) count\.fill\(0, y \* W, \(y \+ 1\) \* W\);/.test(src));
   check("an older run is dropped when a newer one starts", /const gen = \+\+COMBO\.gen;/.test(src) && /if \(COMBO\.mode === "off" \|\| gen !== COMBO\.gen\) return;/.test(src) && /const stale = \(\) =>/.test(src));
-  check("pictures are clipped pixel by pixel, and put back after", /maplibregl\.addProtocol\("combocut"/.test(src) && /s\.setTiles\(own\.map\(\(t\) => `combocut:\/\/\$\{COMBO\.gen\}\/\{z\}\/\{x\}\/\{y\}\/\$\{t\}`\)\)/.test(src) &&
+  check("pictures are clipped pixel by pixel, and put back after", /maplibregl\.addProtocol\("combocut"/.test(src) && /own\.map\(\(t\) => `combocut:\/\/\$\{COMBO\.cutHash \|\| 0\}\/\{z\}\/\{x\}\/\{y\}\/\$\{t\}`\)/.test(src) &&
         /if \(cur && \/\^combocut:\/\.test\(cur\[0\]\) && typeof s\.setTiles === "function"\) s\.setTiles\(tiles\);/.test(src));
   check("the same crossings leave the map untouched", /if \(key !== COMBO\.lastKey\) \{/.test(src) && /ms == null \? 400 : ms/.test(src));
 }
@@ -6538,6 +6533,72 @@ console.log("\nround 158b (4 October): closest zooms show the real photograph, s
   els.get("basemaps").fire("change", { target: { name: "basemap", value: "atlas" } });
 }
 
+console.log("\nround 147b (3 October): combining the ticked layers made quick");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const cut = (a, b) => src.slice(src.indexOf(a), src.indexOf(b));
+  check("no within filter: the cut is made by copies", !/\["within", cut\]/.test(src) && !/function comboJoin\(/.test(src) && /const COMBO_HIDE = \["boolean", false\];/.test(src));
+  // Points by the square they are in.
+  const pts = new Function("POINT_RELIEF_RES", cut("// Points kept where they lie in a crossing square", "// Round 147b: every layer of a row taking part is drawn as a copy") + "; return comboKeepPoints;")(90);
+  const keep = Uint8Array.from([0, 0, 1, 0, 0, 0, 0, 0]);   // 4 x 2 squares of 90 degrees: lng 0..90, lat 0..90
+  const kept = pts([{ properties: { a: 1 }, geometry: { type: "Point", coordinates: [10, 10] } }, { properties: {}, geometry: { type: "Point", coordinates: [-10, 10] } },
+    { properties: { b: 2 }, geometry: { type: "MultiPoint", coordinates: [[20, 20], [-20, -20]] } }], keep, 4, 2);
+  check("points are kept by the square they lie in, their fields kept", kept.length === 2 && kept[0].properties.a === 1 && JSON.stringify(kept[1].geometry.coordinates) === "[[20,20]]" && kept[1].properties.b === 2);
+  // Areas found through the coarse index give the same cut as trying every crossing.
+  const lib = new Function(cut("function comboClipRing(ring", "// Every line and area feature cut") + cut("function comboRectIndex(rects)", "// Points kept where they lie") + "; return { comboRectIndex, comboClip };")();
+  const rects = [];
+  for (let i = 0; i < 400; i++) { const x = -180 + (i * 37 % 1436) * 0.25, y = -60 + (i * 53 % 480) * 0.25; rects.push([x, y, x + 0.25 * (1 + i % 3), y + 0.25]); }
+  const near = lib.comboRectIndex(rects);
+  let same = true;
+  for (let k = 0; k < 200; k++) {
+    const w = -180 + (k * 71 % 350), s = -80 + (k * 29 % 150), e = w + (k % 9) + 0.1, n = s + (k % 7) + 0.1;
+    const a = near(w, s, e, n).map((r) => r.join()).sort().join("|");
+    const b = rects.filter((r) => r[0] < e && r[2] > w && r[1] < n && r[3] > s).map((r) => r.join()).sort().join("|");
+    if (a !== b) { same = false; break; }
+  }
+  check("the coarse index finds exactly the crossings a feature's box touches", same);
+  const whole = { properties: { z: 1 }, geometry: { type: "Polygon", coordinates: [[[1, 1], [2, 1], [2, 2], [1, 2], [1, 1]]] } };
+  const out = lib.comboClip([whole], [[0, 0, 90, 90]]);
+  check("an area wholly inside one crossing is kept as it is", out.length === 1 && out[0] === whole);
+  // The copies on a stand-in map: dot and glow copied, original let nothing through, own filter kept.
+  const layers = [{ id: "r-pt-haze", type: "heatmap", source: "r", paint: {} }, { id: "r-pt-core", type: "circle", source: "r", paint: {} },
+    { id: "r-pt", type: "circle", source: "r", paint: { "circle-color": "#123" }, filter: ["==", ["get", "k"], 1], minzoom: 2 }, { id: "next", type: "line", source: "o", paint: {} }];
+  const filters = new Map([["r-pt", ["==", ["get", "k"], 1]]]), sources = new Map([["r", { serialize: () => ({ type: "geojson" }) }]]), adds = [];
+  const fake = {
+    getStyle: () => ({ layers }), getLayer: (id) => layers.find((l) => l.id === id),
+    getFilter: (id) => filters.get(id), setFilter: (id, f) => filters.set(id, f),
+    getSource: (id) => sources.get(id), addSource: (id, sp) => sources.set(id, Object.assign({ setData(d) { this.data = d; } }, sp)),
+    removeSource: (id) => sources.delete(id),
+    addLayer: (l, before) => { adds.push([l.id, before]); layers.splice(layers.findIndex((x) => x.id === before), 0, l); },
+    removeLayer: (id) => { const i = layers.findIndex((x) => x.id === id); if (i >= 0) layers.splice(i, 1); },
+  };
+  const hudOf = new Map([["r-pt", ["r-pt-haze", "r-pt-core"]]]);
+  const COMBO = { parts: new Map([["r", new Map([["r|", [{ properties: { k: 1 }, geometry: { type: "Point", coordinates: [10, 10] } }, { properties: { k: 1 }, geometry: { type: "Point", coordinates: [-10, 10] } }]]])]]),
+    keepGrid: keep, cut: { type: "MultiPolygon", coordinates: [[[[0, 90], [90, 90], [90, 0], [0, 0], [0, 90]]]] } };
+  const c = new Function("map", "COMBO", "hudOf", "hudRaw", "POINT_RELIEF_RES", "comboClip", "comboRects",
+    "const hudMates = (id) => (hudOf.get(id) || []).filter((h) => map.getLayer(h)); const THEME_ORIG = null; const COMBO_HIDE = [\"boolean\", false]; const COMBO_OWN = new Map(); let COMBO_BYPASS = false;" +
+    cut("// Points kept where they lie in a crossing square", "// Pictures: each square of the picture asked through combocut://") + "; return { comboCopies, COMBO_OWN, COMBO_COPY };")(
+    fake, COMBO, hudOf, {}, 90, lib.comboClip, (sh) => sh ? sh.coordinates.map((p) => { const r = p[0]; return [r[0][0], r[2][1], r[1][0], r[0][1]]; }) : []);
+  c.comboCopies(new Map([["r-pt", "r"]]));
+  const copy = fake.getLayer("r-pt__cut"), csrc = sources.get(copy && copy.source);
+  check("each layer is copied with its glow, under the original's next layer, in order", copy && fake.getLayer("r-pt__cut-haze") && fake.getLayer("r-pt__cut-core") &&
+        JSON.stringify(hudOf.get("r-pt__cut")) === JSON.stringify(["r-pt__cut-haze", "r-pt__cut-core"]) &&
+        layers.map((l) => l.id).join() === "r-pt-haze,r-pt__cut-haze,r-pt-core,r-pt__cut-core,r-pt,r-pt__cut,next");
+  check("the copy holds only the kept points, with the original's filter and zooms", csrc && csrc.data.features.length === 1 && csrc.data.features[0].geometry.coordinates[0] === 10 &&
+        JSON.stringify(copy.filter) === JSON.stringify(["==", ["get", "k"], 1]) && copy.minzoom === 2 && /__cut$/.test(copy.source));
+  check("the original lets nothing through while cut, its own filter kept", JSON.stringify(filters.get("r-pt")) === "[\"boolean\",false]" && JSON.stringify(c.COMBO_OWN.get("r-pt")) === JSON.stringify(["==", ["get", "k"], 1]));
+  c.comboCopies(new Map());
+  check("ending the cut takes the copies away and gives the filter back", !fake.getLayer("r-pt__cut") && !fake.getLayer("r-pt__cut-haze") && ![...sources.keys()].some((k) => /__cut$/.test(k)) &&
+        JSON.stringify(filters.get("r-pt")) === JSON.stringify(["==", ["get", "k"], 1]) && !c.COMBO_OWN.size);
+  check("filters, visibility and paint set later reach the copy; clicks find the copy", /if \(map\.getLayer\(`\$\{id\}__cut`\)\) raw\(`\$\{id\}__cut`, f == null \? null : f, o\);/.test(src) &&
+        /hudWrap\("queryRenderedFeatures"/.test(src) && (src.match(/if \(COMBO_OWN\.has\(id\) && map\.getLayer\(`\$\{id\}__cut`\)\)/g) || []).length === 2);
+  check("a run lets the page breathe, reuses unchanged layers, and sorts numbers natively", /await comboYield\(\);/.test(src) && /res = prev\.res;/.test(src) && /vals\.sort\(\);/.test(src) &&
+        /if \(s\._data && s\._data\.geojson && typeof s\._data\.geojson === "object"\) d = s\._data\.geojson;/.test(src));
+  check("pictures asked again only when the crossings change", /if \(want && want\.join\("\\n"\) !== cur\.join\("\\n"\)\) s\.setTiles\(want\);/.test(src) && /COMBO\.cutHash = h >>> 0;/.test(src));
+  const key = new Function(cut("function comboFeatKey(f)", "// One layer on the combine's grid") + "; return comboFeatKey;")();
+  check("a tiled feature's key is short and tells pieces apart", key({ id: 3, properties: {}, geometry: { type: "Point", coordinates: [1.23456, 2] } }) === "3||Point|1.2346,2.0000|0" &&
+        key({ properties: {}, geometry: { type: "Polygon", coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] } }) !== key({ properties: {}, geometry: { type: "Polygon", coordinates: [[[5, 0], [1, 0], [1, 1], [5, 0]]] } }));
+}
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
