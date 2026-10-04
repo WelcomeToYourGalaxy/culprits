@@ -5,6 +5,43 @@ touches.
 
 ---
 
+## Round 167p (4 October)
+
+Needs round 166p (guards on its heading). No tiles patch. app.js?v= raised to 1007 by
+the script (only if lower), so browsers load the new script.
+One block of its own ("Names and notes in each basemap's own theme" to its
+end marker), after the Streets and places block; letter files in map/glyphs.
+
+- Owner: the (i) notes cut to one sentence each, in their words: Woodlands
+  (Robert Griffing), Old fantasy painting (Magic: The Gathering), Mother
+  Earth (Lone Wolf Circles). BM_NOTES.wood/.dusk html and MOTHER_NOTE are
+  replaced; the boxes keep their own look (note-one-css: no rule over the
+  card's line, space for the close button).
+- Owner: the Satellite, Painted atlas and 80s hologram names to match their
+  themes. All three showed CARTO's picture of names ("labels", "holo-labels").
+  Now OpenFreeMap's place, water, river, road and peak names are drawn
+  (THEMED_NAMES, THEMED_IDS, outline-<atlas|satellite|holo>-name-*, 10 each,
+  source "osm"): atlas in IM Fell English (roman, italic, small capitals;
+  parchment and sea-teal, fading in with the plate, zoom 3 to 5); satellite
+  in Barlow Semi Condensed (greys, pale blue water; the planetary-defence
+  instrument look); hologram in IBM Plex Mono, its controls' typeface, in its
+  line blues on navy. themedSync shows the hologram's set while body.holo-on
+  (and its names tick, culprits-holo-2 .names, is on), else the basemap's;
+  hides the two pictures of names when the drawn ones are there; keeps them
+  over the layers under the news marks (themedOnTop). Wraps namesRaster and
+  setBasemap; styledata coalesced (30 ms). Glyphs set only if none are set;
+  if they come from elsewhere (THEMED_GLYPHS false), the pictures stay.
+- Letter files made in the sandbox (24 px SDF, buffer 3, radius 8, cutoff
+  0.25, ranges 0-8959 and 65280-65535) from github.com/google/fonts, SIL OFL:
+  IMFellEnglish-Regular/-Italic, IMFellEnglishSC-Regular,
+  BarlowSemiCondensed-Regular/-Medium/-Italic, IBMPlexMono-Regular/-Medium/
+  -Italic; licences and Fell-Barlow-Plex-README.md beside them. IM Fell has
+  no Greek or Cyrillic.
+- Checked in Chromium (MapLibre 5.24): each typeface renders (accents,
+  Cyrillic); the right set shows on atlas, satellite, Hell (none) and the
+  hologram, the pictures hidden; Place names empties them. OpenFreeMap is
+  blocked from the sandbox, so the names were not seen on real map data.
+
 ## Round 167m (4 October)
 
 Needs round 164m. No tiles patch. app.js?v= bumped to 1006.

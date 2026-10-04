@@ -16208,6 +16208,193 @@ if (typeof MutationObserver === "function" && typeof document !== "undefined" &&
 }
 /* ---------- end of Streets and places ---------- */
 
+/* ---------- Names and notes in each basemap's own theme (round 167p) ---------- */
+// Asked 4 October:
+// 1. The (i) notes of three basemaps cut to one line each, in the owner's
+//    words: Woodlands (Robert Griffing), Old fantasy painting (Magic: The
+//    Gathering) and Mother Earth (Lone Wolf Circles). Their boxes keep their
+//    own look; only the words change.
+// 2. The place names of the Painted atlas, the Satellite imagery and the 80s
+//    hologram to match their own themes. All three showed CARTO's picture of
+//    names (the same grey set on both basemaps, a pale set on the hologram).
+//    Now each draws OpenFreeMap's own place, water, river, road and peak
+//    names, as the other basemaps do, in an open typeface (SIL Open Font
+//    License, letter files in map/glyphs/):
+//      atlas      IM Fell English, the 17th-century Fell Types used on old
+//                 charts like the painted plate: countries in its small
+//                 capitals, cities in roman, seas and rivers in italic; pale
+//                 parchment and sea-teal on a dark halo. They come in as the
+//                 plate fades (zoom 3 to 5), as the picture of names did.
+//      satellite  Barlow Semi Condensed, a plain instrument-panel sans for the
+//                 planetary-defence view: spaced capitals for countries, light
+//                 grey names, pale blue italic water, on a dark halo.
+//      hologram   IBM Plex Mono, the typeface of the hologram's own controls,
+//                 in its line colour (#7FB8D9) on its screen's navy.
+// English names where OpenStreetMap has them, else the name in Latin letters,
+// else the local name. The Place names box and the hologram's own names tick
+// still turn them off; road and river names go with Streets and places. If
+// the map's letters were set from somewhere else, the picture stays.
+(function themedNotes() {
+  try {
+    if (typeof BM_NOTES === "object" && BM_NOTES) {
+      if (BM_NOTES.wood) BM_NOTES.wood.html = '<p class="bn-flavour">In the spirit of Robert Griffing, who paints the forests of eastern North America in the 1700s and the Native peoples who lived in them.</p>';
+      if (BM_NOTES.dusk) BM_NOTES.dusk.html = '<p class="bn-flavour">In the spirit of the card art and flavour text of Magic: The Gathering.</p>';
+    }
+    MOTHER_NOTE = '<p>In the spirit of Lone Wolf Circles, the name Jesse Wolf Hardin wrote under in the 1980s, when he was urging people to rewild themselves and the land.</p>';
+  } catch (e) { /* the notes stay as they were */ }
+})();
+// The one-line notes sit clear of the close button.
+if (typeof document !== "undefined" && document.head && !document.getElementById("note-one-css")) {
+  const s = document.createElement("style");
+  s.id = "note-one-css";
+  s.textContent = '#bm-note > p:first-of-type,#mother-note > p:first-of-type{margin:0;padding-right:16px}' +
+    '#bm-note.bn-dusk p.bn-flavour{border-top:0;padding-top:2px;margin-top:0}';
+  document.head.appendChild(s);
+}
+var THEMED_NAMES = {
+  atlas: {
+    font: { caps: ["IMFellEnglishSC-Regular"], regular: ["IMFellEnglish-Regular"], italic: ["IMFellEnglish-Italic"], bold: ["IMFellEnglish-Regular"] },
+    colour: { country: "#E6DAC0", state: "#CFC3A8", city: "#EEE5D0", town: "#DCD2BC", minor: "#C9C0AC", water: "#A8CFCB", peak: "#C9C0AC" },
+    halo: "rgba(14,22,22,0.82)", haloWater: "rgba(10,26,30,0.8)", haloWidth: 1.3,
+    spacing: 0.18, opacity: ["interpolate", ["linear"], ["zoom"], PLATE.fadeIn, 0, PLATE.fadeOut, 1],
+  },
+  satellite: {
+    font: { caps: ["BarlowSemiCondensed-Medium"], regular: ["BarlowSemiCondensed-Regular"], italic: ["BarlowSemiCondensed-Italic"], bold: ["BarlowSemiCondensed-Medium"] },
+    colour: { country: "#E2E5E4", state: "#C4CACB", city: "#E8EAE8", town: "#CDD1D0", minor: "#B5BBBC", water: "#A9C4D2", peak: "#B5BBBC" },
+    halo: "rgba(10,12,14,0.8)", haloWater: "rgba(8,16,24,0.78)", haloWidth: 1.2,
+    spacing: 0.3, opacity: 0.95,
+  },
+  holo: {
+    font: { caps: ["IBMPlexMono-Medium"], regular: ["IBMPlexMono-Regular"], italic: ["IBMPlexMono-Italic"], bold: ["IBMPlexMono-Medium"] },
+    colour: { country: "#7FB8D9", state: "#6D9FC0", city: "#B9DCEE", town: "#93C2DB", minor: "#7FA9C2", water: "#6FB0BD", peak: "#7FA9C2" },
+    halo: "rgba(8,23,41,0.85)", haloWater: "rgba(8,23,41,0.85)", haloWidth: 1.2,
+    spacing: 0.22, opacity: 0.95,
+  },
+};
+var THEMED_PARTS = ["ocean", "water", "river", "road", "peak", "village", "town", "state", "city", "country"];
+var THEMED_IDS = {};
+for (const k of Object.keys(THEMED_NAMES)) THEMED_IDS[k] = THEMED_PARTS.map((p) => `outline-${k}-name-${p}`);
+var THEMED_GLYPHS = false;
+function themedNameLayers(k) {
+  const t = THEMED_NAMES[k];
+  const nm = ["coalesce", ["get", "name_en"], ["get", "name:latin"], ["get", "name"]];
+  const cls = (list) => ["match", ["get", "class"], list, true, false];
+  const zs = (...a) => ["interpolate", ["linear"], ["zoom"], ...a];
+  const paint = (c, water) => ({ "text-color": c, "text-opacity": t.opacity,
+    "text-halo-color": water ? t.haloWater : t.halo, "text-halo-width": t.haloWidth, "text-halo-blur": 0.6 });
+  const id = (p) => `outline-${k}-name-${p}`;
+  return [
+    { id: id("ocean"), type: "symbol", source: "osm", "source-layer": "water_name", filter: cls(["ocean", "sea"]),
+      layout: { "text-field": nm, "text-font": t.font.italic, "text-size": zs(1, 11, 6, 16), "text-letter-spacing": t.spacing, "text-max-width": 6 },
+      paint: paint(t.colour.water, true) },
+    { id: id("water"), type: "symbol", source: "osm", "source-layer": "water_name", minzoom: 5, filter: ["!", cls(["ocean", "sea"])],
+      layout: { "text-field": nm, "text-font": t.font.italic, "text-size": zs(5, 11, 14, 14), "text-letter-spacing": 0.06, "text-max-width": 7 },
+      paint: paint(t.colour.water, true) },
+    { id: id("river"), type: "symbol", source: "osm", "source-layer": "waterway", minzoom: 9,
+      layout: { "text-field": nm, "text-font": t.font.italic, "text-size": zs(9, 11, 15, 14), "symbol-placement": "line", "text-letter-spacing": 0.08 },
+      paint: paint(t.colour.water, true) },
+    { id: id("road"), type: "symbol", source: "osm", "source-layer": "transportation_name", minzoom: 13,
+      layout: { "text-field": nm, "text-font": t.font.regular, "text-size": zs(13, 11, 17, 14), "symbol-placement": "line" },
+      paint: paint(t.colour.minor) },
+    { id: id("peak"), type: "symbol", source: "osm", "source-layer": "mountain_peak", minzoom: 9,
+      layout: { "text-field": nm, "text-font": t.font.italic, "text-size": 12, "text-max-width": 7 },
+      paint: paint(t.colour.peak) },
+    { id: id("village"), type: "symbol", source: "osm", "source-layer": "place", minzoom: 11, filter: cls(["village", "hamlet", "suburb", "neighbourhood", "quarter"]),
+      layout: { "text-field": nm, "text-font": t.font.regular, "text-size": zs(11, 11, 16, 14), "text-max-width": 7 },
+      paint: paint(t.colour.minor) },
+    { id: id("town"), type: "symbol", source: "osm", "source-layer": "place", minzoom: 7, filter: cls(["town"]),
+      layout: { "text-field": nm, "text-font": t.font.regular, "text-size": zs(7, 11, 14, 16), "text-max-width": 7 },
+      paint: paint(t.colour.town) },
+    { id: id("state"), type: "symbol", source: "osm", "source-layer": "place", minzoom: 4, maxzoom: 9, filter: cls(["state", "province"]),
+      layout: { "text-field": nm, "text-font": t.font.italic, "text-size": zs(4, 10, 8, 13), "text-transform": "uppercase", "text-letter-spacing": 0.12, "text-max-width": 8 },
+      paint: paint(t.colour.state) },
+    { id: id("city"), type: "symbol", source: "osm", "source-layer": "place", minzoom: 3, filter: cls(["city"]),
+      layout: { "text-field": nm, "text-font": t.font.bold, "text-size": zs(3, 11, 8, 15, 14, 20), "text-max-width": 7 },
+      paint: paint(t.colour.city) },
+    { id: id("country"), type: "symbol", source: "osm", "source-layer": "place", maxzoom: 8, filter: cls(["country"]),
+      layout: { "text-field": nm, "text-font": t.font.caps, "text-size": zs(1, 10, 3, 13, 6, 17), "text-transform": "uppercase",
+                "text-letter-spacing": t.spacing + 0.06, "text-max-width": 7 },
+      paint: paint(t.colour.country) },
+  ];
+}
+function addThemedNames() {
+  if (map.getLayer("outline-holo-name-country")) return;
+  try {
+    if (typeof map.setGlyphs === "function" && typeof document !== "undefined") {
+      const had = typeof map.getGlyphs === "function" ? map.getGlyphs() : null;
+      if (had) THEMED_GLYPHS = /glyphs\/\{fontstack\}\/\{range\}\.pbf$/.test(had);
+      else { map.setGlyphs(new URL("glyphs/", document.baseURI).href + "{fontstack}/{range}.pbf"); THEMED_GLYPHS = true; }
+    }
+    if (!THEMED_GLYPHS) return;
+    if (!map.getSource("osm")) map.addSource("osm", { ...OSM_SOURCE });
+    for (const k of Object.keys(THEMED_NAMES)) {
+      for (const l of themedNameLayers(k)) map.addLayer(Object.assign({}, l, { layout: Object.assign({ visibility: "none" }, l.layout) }));
+    }
+    let off = false;
+    try { off = !NAMES_ON; } catch (e) { /* the setting is not read yet: names on */ }
+    if (off && typeof namesApply === "function") namesApply();
+  } catch (e) { THEMED_GLYPHS = false; console.warn("[culprits] themed names unavailable:", e.message || e); }
+}
+function themedOwn() { return THEMED_GLYPHS && !!map.getLayer("outline-holo-name-country"); }
+function themedHolo() { return typeof document !== "undefined" && document.body && document.body.classList && document.body.classList.contains("holo-on"); }
+// The hologram's own names tick (its settings in this browser).
+function holoNamesTicked() { try { return JSON.parse(localStorage.getItem("culprits-holo-2") || "{}").names !== false; } catch (e) { return true; } }
+// Which set shows now: the hologram's while it is on, else the basemap's.
+function themedWhich() {
+  if (themedHolo()) return holoNamesTicked() ? "holo" : null;
+  return BASEMAP === "atlas" || BASEMAP === "satellite" ? BASEMAP : null;
+}
+let themedSyncing = false;
+function themedSync() {
+  if (themedSyncing || typeof map.getLayer !== "function" || !themedOwn()) return;
+  themedSyncing = true;
+  try {
+    const want = themedWhich();
+    for (const [k, ids] of Object.entries(THEMED_IDS)) {
+      const v = k === want ? "visible" : "none";
+      for (const id of ids) if (map.getLayer(id) && (map.getLayoutProperty(id, "visibility") || "visible") !== v) map.setLayoutProperty(id, "visibility", v);
+    }
+    // The pictures of names give way to the drawn ones.
+    for (const pic of ["labels", "holo-labels"]) {
+      if (!map.getLayer(pic)) continue;
+      const mine = pic === "holo-labels" ? themedHolo() : (BASEMAP === "atlas" || BASEMAP === "satellite") && !themedHolo();
+      if (mine && (map.getLayoutProperty(pic, "visibility") || "visible") !== "none") map.setLayoutProperty(pic, "visibility", "none");
+    }
+    if (want) themedOnTop(THEMED_IDS[want]);
+  } catch (e) { /* kept */ }
+  themedSyncing = false;
+}
+// The names stay over the layers, with only the news marks above them.
+function themedOnTop(ids) {
+  if (typeof map.moveLayer !== "function") return;
+  const all = ((map.getStyle() || {}).layers || []).map((l) => l.id);
+  const first = all.findIndex((id) => ids.includes(id));
+  if (first < 0) return;
+  if (all.slice(first).every((id) => ids.includes(id) || id.startsWith("wire-") || /-name-|-name$/.test(id))) return;
+  const wire = all.find((id) => id.startsWith("wire-"));
+  for (const id of ids) if (map.getLayer(id)) map.moveLayer(id, wire);
+}
+const namesRasterBeforeThemed = namesRaster;
+namesRaster = function () { namesRasterBeforeThemed(); themedSync(); };
+const setBasemapBeforeThemed = setBasemap;
+setBasemap = function (kind) {
+  addThemedNames();
+  setBasemapBeforeThemed(kind);
+  themedSync();
+};
+// Many layers change at once; one check after them is enough.
+let themedSoon = 0;
+if (typeof map.on === "function") map.on("styledata", () => {
+  if (themedSyncing || themedSoon) return;
+  themedSoon = setTimeout(() => { themedSoon = 0; themedSync(); }, 30);
+});
+if (typeof map.once === "function") map.once("idle", () => { try { addThemedNames(); themedSync(); } catch (e) { /* kept */ } });
+if (typeof MutationObserver === "function" && typeof document !== "undefined" && document.body) {
+  new MutationObserver(() => { try { themedSync(); } catch (e) { /* kept */ } })
+    .observe(document.body, { attributes: true, attributeFilter: ["class"] });
+}
+/* ---------- end of names and notes in each basemap's own theme ---------- */
+
 // Choropleth fills belong under the point layers so they don't hide them. But
 // the point layers are added asynchronously too, so the id may not exist yet —
 // and MapLibre throws on a beforeId that isn't there. Return undefined in that

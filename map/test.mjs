@@ -6834,6 +6834,31 @@ console.log("\nround 166p (4 October): Streets and places on and off, like Place
   check("the places get no glow and no recolouring (basemap layer names)", /\^\(wire-\|ct-\|outline-places-\)/.test(src) && /id: "outline-places-name", type: "symbol"/.test(block));
 }
 
+console.log("\nround 167p (4 October): one-line basemap notes; atlas, satellite and hologram names in their own typefaces");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const block = src.slice(src.indexOf("/* ---------- Names and notes in each basemap's own theme (round 167p)"), src.indexOf("/* ---------- end of names and notes in each basemap's own theme ---------- */"));
+  check("the three notes are just the owner's sentences",
+        block.includes("In the spirit of Robert Griffing, who paints the forests of eastern North America in the 1700s and the Native peoples who lived in them.</p>';") &&
+        block.includes("'<p class=\"bn-flavour\">In the spirit of the card art and flavour text of Magic: The Gathering.</p>';") &&
+        block.includes("MOTHER_NOTE = '<p>In the spirit of Lone Wolf Circles, the name Jesse Wolf Hardin wrote under in the 1980s, when he was urging people to rewild themselves and the land.</p>';"));
+  const fonts = ["IMFellEnglish-Regular", "IMFellEnglish-Italic", "IMFellEnglishSC-Regular", "BarlowSemiCondensed-Regular", "BarlowSemiCondensed-Medium",
+                 "BarlowSemiCondensed-Italic", "IBMPlexMono-Regular", "IBMPlexMono-Medium", "IBMPlexMono-Italic"];
+  check("every typeface's letter files are in the repository, with their licences",
+        fonts.every((f) => ["0-255", "256-511", "1024-1279", "8192-8447"].every((r) => fs.existsSync(path.join(HERE, "glyphs", f, r + ".pbf")))) &&
+        ["IMFellEnglish-OFL.txt", "BarlowSemiCondensed-OFL.txt", "IBMPlexMono-OFL.txt"].every((f) => /SIL Open Font License/i.test(fs.readFileSync(path.join(HERE, "glyphs", f), "utf8"))));
+  const pbf = fs.readFileSync(path.join(HERE, "glyphs", "IMFellEnglish-Regular", "0-255.pbf"));
+  check("a letter file names its own typeface and range", pbf.includes(Buffer.from("IMFellEnglish-Regular")) && pbf.includes(Buffer.from("0-255")) && pbf.length > 15000);
+  check("atlas in IM Fell, satellite in Barlow, hologram in IBM Plex Mono (the hologram's own typeface)",
+        /atlas: \{\n    font: \{ caps: \["IMFellEnglishSC-Regular"\]/.test(block) && /satellite: \{\n    font: \{ caps: \["BarlowSemiCondensed-Medium"\]/.test(block) &&
+        /holo: \{\n    font: \{ caps: \["IBMPlexMono-Medium"\]/.test(block) && /--holo-font: "IBM Plex Mono"/.test(fs.readFileSync(path.join(HERE, "index.html"), "utf8")));
+  const hexes = [...block.matchAll(/"#([0-9A-F]{6})"/g)].map((m) => m[1]);
+  const warm = (h) => { const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)); return r - b > 45 && g - b > 35; };
+  check("no yellow or orange in the names", hexes.length > 15 && !hexes.some(warm), hexes.filter(warm).join(","));
+  check("the pictures of names give way to the drawn ones; Place names and the hologram's names tick still rule",
+        /for \(const pic of \["labels", "holo-labels"\]\)/.test(block) && /\.names !== false/.test(block) && /if \(off && typeof namesApply === "function"\) namesApply\(\);/.test(block));
+}
+
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
