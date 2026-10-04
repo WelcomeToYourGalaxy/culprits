@@ -14972,17 +14972,21 @@ if (typeof MutationObserver === "function" && typeof document !== "undefined" &&
 //   paint     the real Earth (the same Sentinel-2 picture as Woodlands)
 //             re-coloured pixel by pixel, then softened like airbrush: no
 //             brushstrokes, no grain, every variation the Earth's own
-//   palette   ultramarine and indigo seas, violet stone with rose-lilac on
-//             the light, forests in deep blue-teal shadow, lavender snow.
-//             The painting's gold sunlight becomes rose and pale bone (the
-//             owner's rule: no orange, no yellow, no green)
+//   palette   the painting's land, not its sky (round 163m: the owner found
+//             162m far too purple; the violets belong to the sky only):
+//             forests in deep muted spruce, bare ground and rock in warm
+//             earth, lit to pale stone on the faces toward the light, seas
+//             and lakes deep blue-teal. The painting's gold light becomes
+//             warm bone (the owner's rule: no orange, no yellow; nothing
+//             bright or neon)
 //   water     lit from within: shallows and every coast glow pale cyan, as
 //             the water pouring from the sphere does (MOTHER.glow)
-//   depth     high ground fades into lavender haze (MOTHER.haze); the globe
-//             sits in a violet sky like the sphere in the painting
+//   depth     high ground fades into a thin cool blue haze (MOTHER.haze);
+//             the globe sits in a violet sky like the sphere in the painting,
+//             the one place the painting's purples are kept
 //   names     the map's own words (not the picture labels) in Alegreya, an
-//             open calligraphic typeface (SIL Open Font License), pale
-//             lavender on a soft indigo halo; seas in italic pale cyan. Its
+//             open calligraphic typeface (SIL Open Font License), pale bone
+//             on a soft dark slate halo; seas in italic pale cyan. Its
 //             letter files sit in map/glyphs/ beside round 162b's EB
 //             Garamond, so whichever basemap sets the letters first, both
 //             basemaps' names load
@@ -14991,41 +14995,42 @@ if (typeof MutationObserver === "function" && typeof document !== "undefined" &&
 // Layers are named "outline-mother-...", so the colour mapping and the themes
 // leave them alone.
 var MOTHER = {
-  sheet: "#151A3E",
+  sheet: "#14201E",
   attribution: WOOD.attribution,
-  // Plants: deep blue-teal in shadow, as the painting's pines, to a pale
-  // sea-glass in the light. No green.
-  pines: [[0, "#0D1433"], [0.2, "#152448"], [0.4, "#1D3A5E"], [0.6, "#2A5A78"], [0.8, "#4A8396"], [1, "#8DBFCB"]],
-  // Bare ground and rock: violet in shadow, rose-lilac where the light falls.
-  stone: [[0, "#1A1534"], [0.3, "#3B2E62"], [0.55, "#6A5294"], [0.75, "#9A7CB0"], [0.9, "#C59DBE"], [1, "#E2C4D4"]],
-  // Water: deep ultramarine to the pale lit cyan of the pour.
-  waters: [[0, "#0B1238"], [0.35, "#14286A"], [0.65, "#225B92"], [1, "#7FC9DC"]],
-  glow: "#A6E1EA", glowReach: 7, glowStrength: 0.42,
-  snow: "#D2CBE6",
+  // Plants: the painting's pines, deep muted spruce in shadow to a pale
+  // grey sage in the light (nothing bright).
+  pines: [[0, "#0D1918"], [0.2, "#142622"], [0.4, "#1D3830"], [0.6, "#2D4D40"], [0.8, "#506B5A"], [1, "#93A592"]],
+  // Bare ground and rock: dark earth in shadow, warm stone where the light
+  // falls, pale bone on the brightest faces.
+  stone: [[0, "#1E1814"], [0.3, "#423229"], [0.55, "#6E5546"], [0.75, "#9C7F6C"], [0.9, "#C2A796"], [1, "#E2D0C2"]],
+  // Water: deep blue-teal to the pale lit cyan of the pour.
+  waters: [[0, "#0B1A2C"], [0.35, "#123552"], [0.65, "#1F5E7C"], [1, "#7FC2CF"]],
+  glow: "#A6DDE3", glowReach: 7, glowStrength: 0.38,
+  snow: "#E6E8EE",
   lightReach: 10, lift: 0.1,
   sea: ["interpolate", ["linear"], ["elevation"],
-    -8000, "#0C1340", -4000, "#111C55", -1500, "#16296A", -400, "#1E3F82", -60, "#2B6A9C", -1, "#5FAFCB",
+    -8000, "#0B1B30", -4000, "#0F2440", -1500, "#14314F", -400, "#1B4663", -60, "#29677D", -1, "#5FA4B2",
     0, "rgba(0,0,0,0)"],
   seaOpacity: 0.45,
   haze: ["interpolate", ["linear"], ["elevation"],
-    -1, "rgba(196,178,226,0)", 600, "rgba(196,178,226,0)", 1500, "rgba(196,178,226,0.1)",
-    3000, "rgba(196,178,226,0.22)", 5000, "rgba(206,190,232,0.34)"],
+    -1, "rgba(184,198,214,0)", 600, "rgba(184,198,214,0)", 1500, "rgba(184,198,214,0.08)",
+    3000, "rgba(184,198,214,0.16)", 5000, "rgba(196,206,220,0.26)"],
   shade: {
     "hillshade-method": "multidirectional",
     "hillshade-illumination-direction": [300, 340, 260, 0],
     "hillshade-illumination-altitude": [25, 35, 35, 60],
-    "hillshade-highlight-color": ["rgba(241,196,211,0.34)", "rgba(241,196,211,0.14)", "rgba(241,196,211,0.1)", "rgba(241,196,211,0.04)"],
-    "hillshade-shadow-color": ["rgba(14,12,48,0.5)", "rgba(14,12,48,0.24)", "rgba(14,12,48,0.16)", "rgba(14,12,48,0.08)"],
-    "hillshade-accent-color": "rgba(14,12,48,0.2)",
+    "hillshade-highlight-color": ["rgba(240,228,210,0.32)", "rgba(240,228,210,0.13)", "rgba(240,228,210,0.09)", "rgba(240,228,210,0.04)"],
+    "hillshade-shadow-color": ["rgba(12,20,30,0.5)", "rgba(12,20,30,0.24)", "rgba(12,20,30,0.16)", "rgba(12,20,30,0.08)"],
+    "hillshade-accent-color": "rgba(12,20,30,0.2)",
     "hillshade-exaggeration": 1,
     "hillshade-illumination-anchor": "map",
   },
-  lake: "#1E3F82", lakeOpacity: 0.45,
-  river: "#6FB8D2",
-  town: "#3A3360", townWork: "#332D55",
-  road: ["#4D4475", "#574C80", "#66578E"],
-  rail: "#2A2450", building: "#4B4272",
-  border: "rgba(220,205,240,0.35)",
+  lake: "#1B4663", lakeOpacity: 0.45,
+  river: "#6FAFC0",
+  town: "#5A4A3E", townWork: "#4E4036",
+  road: ["#6A5646", "#5E4B3D", "#524134"],
+  rail: "#2E2620", building: "#6B5A4C",
+  border: "rgba(236,226,210,0.35)",
   // A violet sky round the globe, a rose-lilac horizon, lavender fog.
   sky: { "sky-color": "#1E2468", "horizon-color": "#B88FC0", "fog-color": "#7C76B8",
     "sky-horizon-blend": 0.6, "horizon-fog-blend": 0.6, "fog-ground-blend": 0.45,
@@ -15039,8 +15044,8 @@ var MOTHER = {
   photoFrom: 15.5, photoFull: 16.5, photoGrade: 0.35,
   // Place names in the same light (letters made from Alegreya, map/glyphs/).
   font: "Alegreya-Medium", fontItalic: "Alegreya-MediumItalic",
-  ink: "#EFE5F0", inkSoft: "#CDBEDD", inkWater: "#BCE4EC",
-  halo: "rgba(22,20,62,0.86)",
+  ink: "#EFE7DA", inkSoft: "#D3C8B8", inkWater: "#BCE2E8",
+  halo: "rgba(16,24,32,0.86)",
 };
 var MOTHER_IDS = ["outline-mother-sheet", "outline-mother-paint", "outline-mother-photo", "outline-mother-sea", "outline-mother-shade",
   "outline-mother-haze", "outline-mother-lake", "outline-mother-town", "outline-mother-river",
@@ -15106,11 +15111,14 @@ function motherPaintPixels(data, w, h, soft) {
   for (let p = 0; p < n; p++) Ts[p] = Math.min(Tp[p], Tw[p] + MOTHER.lift);
   // Water lit from within: the nearer the land, the paler the glow.
   const Near = blur(Land, MOTHER.glowReach * soft);
+  // Round 163m: only open water glows; a lone dark-blue speck (a shadow read
+  // as water) is left unlit.
+  const Open = blur(Float32Array.from(Land, (l) => 1 - l), 4 * soft);
   const R = new Float32Array(n), G = new Float32Array(n), B = new Float32Array(n);
   for (let p = 0; p < n; p++) {
     let c = motherColour(Ts[p], 0.9 * Vs[p], K[p], Rp);
     if (K[p] === 1) {
-      const k = MOTHER.glowStrength * Math.min(1, Near[p] * 2.2);
+      const k = MOTHER.glowStrength * Math.min(1, Near[p] * 2.2) * Math.max(0, Math.min(1, (Open[p] - 0.35) / 0.25));
       c = [c[0] + (glow[0] - c[0]) * k, c[1] + (glow[1] - c[1]) * k, c[2] + (glow[2] - c[2]) * k];
     }
     R[p] = c[0]; G[p] = c[1]; B[p] = c[2];
@@ -15382,7 +15390,7 @@ const namesRasterBeforeMother = namesRaster;
 namesRaster = function () { namesRasterBeforeMother(); motherLabelsHide(); };
 // The (i) beside the menu name, and its note.
 var MOTHER_NOTE = '<b class="mn-h">Mother Earth</b>' +
-  '<p>The ground here is the real planet, from satellite pictures, painted in the colours of a dusk sky: indigo seas, violet stone, forests in deep shadow, and water that glows where it meets the land. Every coast, ridge and river is where it actually is.</p>' +
+  '<p>The ground here is the real planet, from satellite pictures, painted in the colours and light of a dusk landscape: deep spruce forests, warm stone pale on the faces toward the light, and blue water that glows where it meets the land, under a violet sky. Every coast, ridge and river is where it actually is.</p>' +
   '<p>In the spirit of Lone Wolf Circles, the name Jesse Wolf Hardin wrote under in the 1980s, when he was urging people to rewild themselves and the land:</p>' +
   '<p>The Earth on this map is not scenery and not a store of resources. It is a living body, and we are part of it. Its water, soil and air are what our own bodies are made from. The layers you turn on over it show where that body is cut, drained, burned and poisoned, and where the people and animals who live from it are pushed out.</p>' +
   '<p class="mn-src">Colours chosen after a painting the site\'s owner sent; nothing of the painting is copied. Names in Alegreya (SIL Open Font License).</p>';

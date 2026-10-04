@@ -5,6 +5,25 @@ touches.
 
 ---
 
+## Round 163m (4 October)
+
+Needs round 162m. No tiles patch. No app.js?v= bump.
+
+- Owner on 162m: way too purple; the painting's purples and blues are its
+  sky, not the colour of the land. Mother Earth recoloured: the violets kept
+  only in the sky round the globe (MOTHER.sky, unchanged).
+- Land and water now follow the painting's land: forests deep muted spruce
+  (MOTHER.pines), bare ground and rock warm earth to pale stone on lit faces
+  (MOTHER.stone), seas and lakes deep blue-teal (MOTHER.waters, MOTHER.sea,
+  lake, river), snow a cool white, high-ground haze a thin cool blue-grey,
+  hillshade light warm bone and shadows dark slate, towns, roads and
+  buildings umber, borders bone. Place names pale bone on a dark slate halo
+  (seas still pale cyan). The (i) note's wording follows.
+- Only open water glows near land (Open, a blur of the water mask): a lone
+  dark-blue speck, such as a shadow read as water, is left unlit.
+- Checked on sample world-view satellite tiles in Chromium; not seen against
+  the live tiles.
+
 ## Round 163h (4 October)
 
 Needs round 162m (guards on its heading). No tiles patch. No app.js?v= bump.

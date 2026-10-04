@@ -6596,17 +6596,25 @@ console.log("\nround 162m (4 October): Mother Earth, an eighth basemap, with its
   const hsl = (h) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, l = (mx + mn) / 510;
     if (!d) return [0, 0, l]; const s = d / (255 * (1 - Math.abs(2 * l - 1))); let hh = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4); return [(hh + 360) % 360, s, l]; };
   const hexes = [...block.matchAll(/#[0-9A-Fa-f]{6}\b/g)].map((m) => m[0]);
-  check("no orange, yellow or green anywhere in it (the painting's gold is rose and bone)", hexes.length > 30 &&
-        hexes.every((h) => { const [hh, s] = hsl(h); return !(hh >= 20 && hh <= 165 && s > 0.2); }), hexes.filter((h) => { const [hh, s] = hsl(h); return hh >= 20 && hh <= 165 && s > 0.2; }).join(" "));
+  check("no orange, yellow or bright green anywhere in it (round 163m: earth tones kept muted)", hexes.length > 30 &&
+        hexes.every((h) => { const [hh, s, l] = hsl(h); return l < 0.2 || l > 0.8 || (!(hh >= 20 && hh <= 65 && s > 0.35) && !(hh > 65 && hh <= 165 && s > 0.3)); }),
+        hexes.filter((h) => { const [hh, s, l] = hsl(h); return l >= 0.2 && l <= 0.8 && ((hh >= 20 && hh <= 65 && s > 0.35) || (hh > 65 && hh <= 165 && s > 0.3)); }).join(" "));
   const tile = (c) => { const d = new Uint8ClampedArray(64 * 64 * 4); for (let p = 0; p < 4096; p++) { d[p * 4] = c[0]; d[p * 4 + 1] = c[1]; d[p * 4 + 2] = c[2]; d[p * 4 + 3] = 255; } return d; };
   const mid = (d) => Array.from(d.slice((32 * 64 + 32) * 4, (32 * 64 + 32) * 4 + 3));
   const sea = mid(lib.motherPaintPixels(tile([12, 30, 70]), 64, 64));
   const forest = mid(lib.motherPaintPixels(tile([34, 62, 30]), 64, 64));
   const desert = mid(lib.motherPaintPixels(tile([190, 160, 120]), 64, 64));
-  check("the sea is a deep ultramarine (blue far the strongest)", sea[2] > sea[1] + 30 && sea[2] > sea[0] + 30, sea.join(","));
-  check("forest is a deep blue-teal shadow, never green (blue at least green)", forest[2] >= forest[1] && forest[0] + forest[1] + forest[2] < 260, forest.join(","));
-  check("bare ground is a violet to rose-lilac, lighter than forest (red and blue over green)", desert[0] > desert[1] && desert[2] > desert[1] &&
+  check("the sea is a deep blue (blue the strongest, red the weakest)", sea[2] > sea[1] && sea[1] > sea[0] && sea[2] > sea[0] + 30, sea.join(","));
+  check("forest is a dark muted spruce (green over red, nothing bright)", forest[1] > forest[0] && forest[0] + forest[1] + forest[2] < 260, forest.join(","));
+  check("bare ground is a warm earth, lighter than forest (red over green over blue; round 163m: not violet)", desert[0] > desert[1] && desert[1] > desert[2] &&
         desert[0] + desert[1] + desert[2] > forest[0] + forest[1] + forest[2], desert.join(","));
+  const ramps = [...lib.MOTHER.pines, ...lib.MOTHER.stone, ...lib.MOTHER.waters].map((x) => x[1]).concat([lib.MOTHER.snow, lib.MOTHER.sheet, lib.MOTHER.town, lib.MOTHER.building, ...lib.MOTHER.road]);
+  check("round 163m: no purple on the ground or the water; violet only in the sky", ramps.every((h) => { const [hh, s] = hsl(h); return !(hh >= 245 && hh <= 330 && s > 0.12); }) &&
+        hsl(lib.MOTHER.sky["sky-color"])[0] >= 230, ramps.filter((h) => { const [hh, s] = hsl(h); return hh >= 245 && hh <= 330 && s > 0.12; }).join(" "));
+  const speck = tile([120, 105, 85]);
+  for (let y = 30; y < 34; y++) for (let x = 30; x < 34; x++) { const q = (y * 64 + x) * 4; speck[q] = 10; speck[q + 1] = 20; speck[q + 2] = 40; }
+  const sp = mid(lib.motherPaintPixels(speck, 64, 64));
+  check("a lone dark-blue speck (a shadow) does not glow pale cyan", sp[0] + sp[1] + sp[2] < 330, sp.join(","));
   const coast = tile([12, 30, 70]);
   for (let y = 0; y < 64; y++) for (let x = 0; x < 32; x++) { const q = (y * 64 + x) * 4; coast[q] = 120; coast[q + 1] = 110; coast[q + 2] = 90; }
   const lit = lib.motherPaintPixels(coast, 64, 64);
