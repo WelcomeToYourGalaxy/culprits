@@ -14411,45 +14411,53 @@ if (typeof MutationObserver === "function" && typeof document !== "undefined" &&
 //             that face it (Mapterhorn heights)
 //   corners   softly darkened (#dusk-corners, takes no clicks)
 //   no camera effects: no glow, no lens flare, no blur over the map
+// Round 161b (owner: too dreary; muddy fields close in, blotchy and mouldy
+// at middle zooms, a dreary purple world): lighter ramps, colours dulled only
+// a little and toward a cool grey (not violet), narrower washes far out,
+// gentler broad strokes, lighter cool shadows, a slate-blue sky with a bone
+// horizon, lighter corners, the close-in photograph graded less.
 // Not carried: cloud banks, ruins, standing stones and a lone figure. A map
 // is seen from above; nothing is drawn that is not in the picture.
 // Layers are named "outline-dusk-...", so the colour mapping and the themes
 // leave them alone.
 var DUSK = {
-  sheet: "#1B2027",
+  sheet: "#2A3440",
   attribution: WOOD.attribution,
   // Plants: from near-black slate-moss in shadow to grey sage in the light.
-  moss: [[0, "#14191B"], [0.22, "#1D2725"], [0.45, "#2F3A30"], [0.68, "#4B5341"], [0.86, "#717461"], [1, "#A6A592"]],
+  moss: [[0, "#1E2826"], [0.2, "#2C3B33"], [0.4, "#405241"], [0.6, "#586B4E"], [0.8, "#879075"], [1, "#BDBFA6"]],
   // Bare ground: dark umber to bone.
-  umber: [[0, "#1A1614"], [0.3, "#352A23"], [0.58, "#56473B"], [0.84, "#7E7264"], [1, "#B7AE9D"]],
+  umber: [[0, "#241E1A"], [0.3, "#4A3F35"], [0.55, "#74685A"], [0.8, "#A39886"], [1, "#CFC6B3"]],
   // Water: deep slate to pale grey-blue on the shallows.
-  waters: [[0, "#141B24"], [0.35, "#212B37"], [0.65, "#384453"], [1, "#78828C"]],
+  waters: [[0, "#1A2531"], [0.35, "#283849"], [0.65, "#3F5366"], [1, "#8495A3"]],
   snow: "#D6D0C2",
   board: "#CFC7B6",
-  violet: "#5D5868",       // the grey-violet the colours are dulled toward
-  dull: 0.28,              // how far every colour is dulled toward it
+  violet: "#5F6670",       // the cool grey the colours are dulled toward (round 161b: not violet)
+  dull: 0.12,              // how far every colour is dulled toward it (round 161b: was 0.28)
   lightReach: 10, lift: 0.1,
-  // Detail falloff: the washes widen at the world views.
-  loose: [[3, 2], [6, 1.45], [99, 1]],
+  // How wide the washes are (1 = as Woodlands). Round 161b: narrower at the
+  // world views, where one pixel is already many kilometres (wider washes
+  // there smeared the continents into blotches); the looseness far out comes
+  // from the broad strokes alone.
+  loose: [[4, 0.5], [7, 0.75], [99, 1]],
   sea: ["interpolate", ["linear"], ["elevation"],
-    -8000, "#10161F", -4000, "#151D28", -1500, "#1C2632", -400, "#26323F", -60, "#34404D", -1, "#3E4A56",
+    -8000, "#1A2633", -4000, "#20303F", -1500, "#283A4B", -400, "#334759", -60, "#425668", -1, "#4E6274",
     0, "rgba(0,0,0,0)"],
-  seaOpacity: 0.4,
+  seaOpacity: 0.3,
   // Atmospheric perspective by height: the high ground pale and far.
   haze: ["interpolate", ["linear"], ["elevation"],
-    -1, "rgba(206,200,210,0)", 400, "rgba(206,200,210,0)", 1200, "rgba(206,200,210,0.1)",
-    2400, "rgba(206,200,210,0.24)", 4000, "rgba(206,200,210,0.38)", 6500, "rgba(214,208,216,0.46)"],
+    -1, "rgba(204,210,214,0)", 400, "rgba(204,210,214,0)", 1200, "rgba(204,210,214,0.08)",
+    2400, "rgba(204,210,214,0.2)", 4000, "rgba(204,210,214,0.32)", 6500, "rgba(214,218,220,0.4)"],
   shade: {
     "hillshade-method": "multidirectional",
     "hillshade-illumination-direction": [255, 300, 210, 0],
     "hillshade-illumination-altitude": [12, 22, 22, 50],
-    "hillshade-highlight-color": ["rgba(220,208,194,0.34)", "rgba(220,208,194,0.1)", "rgba(220,208,194,0.06)", "rgba(220,208,194,0.03)"],
-    "hillshade-shadow-color": ["rgba(16,15,30,0.6)", "rgba(16,15,30,0.26)", "rgba(16,15,30,0.18)", "rgba(16,15,30,0.1)"],
-    "hillshade-accent-color": "rgba(16,15,30,0.25)",
+    "hillshade-highlight-color": ["rgba(236,228,212,0.4)", "rgba(236,228,212,0.12)", "rgba(236,228,212,0.08)", "rgba(236,228,212,0.04)"],
+    "hillshade-shadow-color": ["rgba(18,26,36,0.45)", "rgba(18,26,36,0.2)", "rgba(18,26,36,0.14)", "rgba(18,26,36,0.08)"],
+    "hillshade-accent-color": "rgba(18,26,36,0.18)",
     "hillshade-exaggeration": 1,
     "hillshade-illumination-anchor": "map",
   },
-  lake: "#212B37", lakeOpacity: 0.45,
+  lake: "#283849", lakeOpacity: 0.35,
   river: "#56606B",
   town: "#4E463F", townWork: "#463F39",
   road: ["#4A4139", "#3F3731", "#352E29"],
@@ -14458,22 +14466,22 @@ var DUSK = {
   names: { sat: -1, min: 0, max: 0.78 },
   // A slate sky, a grey-violet horizon, pale bone fog: a tilted view fades
   // into the distance; the globe's edge into haze.
-  sky: { "sky-color": "#38404C", "horizon-color": "#9A94A0", "fog-color": "#B8B1B2",
-    "sky-horizon-blend": 0.7, "horizon-fog-blend": 0.6, "fog-ground-blend": 0.35,
-    "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.85, 8, 0.8, 12, 0.45] },
+  sky: { "sky-color": "#5C6E80", "horizon-color": "#CBC8BC", "fog-color": "#C6C8C3",
+    "sky-horizon-blend": 0.7, "horizon-fog-blend": 0.6, "fog-ground-blend": 0.4,
+    "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.45, 8, 0.6, 12, 0.4] },
   // Loose brushwork: broader strokes than Woodlands; the fine brush only
   // from zoom 5 (DUSK.fineFrom).
   brushes: [
-    { sp: 11, len: [18, 30], w: [7, 11], a: [0.45, 0.75], detail: 0, often: 1 },
-    { sp: 7, len: [9, 16], w: [3.5, 6], a: [0.45, 0.78], detail: 3, often: 0.3 },
+    { sp: 10, len: [16, 26], w: [6, 9], a: [0.35, 0.6], detail: 0, often: 1 },
+    { sp: 7, len: [9, 15], w: [3.5, 5.5], a: [0.4, 0.7], detail: 3, often: 0.3 },
     { sp: 4, len: [4, 8], w: [1.6, 2.6], a: [0.45, 0.8], detail: 6, often: 0.05 },
   ],
   fineFrom: 5,
   margin: 32,
   // The closest zooms: the photograph, sharp, moved part way to the palette.
   photo: WOOD.photo, photoAttribution: WOOD.photoAttribution,
-  photoFrom: 15.5, photoFull: 16.5, photoGrade: 0.4,
-  corners: "radial-gradient(ellipse at center, rgba(12,12,20,0) 58%, rgba(12,12,20,0.16) 82%, rgba(12,12,20,0.34) 100%)",
+  photoFrom: 15.5, photoFull: 16.5, photoGrade: 0.22,
+  corners: "radial-gradient(ellipse at center, rgba(12,12,20,0) 58%, rgba(14,18,24,0.1) 82%, rgba(14,18,24,0.24) 100%)",
 };
 var DUSK_IDS = ["outline-dusk-sheet", "outline-dusk-paint", "outline-dusk-photo", "outline-dusk-sea", "outline-dusk-shade",
   "outline-dusk-haze", "outline-dusk-lake", "outline-dusk-town", "outline-dusk-river",
@@ -14495,7 +14503,7 @@ function duskKind(r, g, b) {
 function duskTone(r, g, b, kind) {
   const lum = (0.3 * r + 0.59 * g + 0.11 * b) / 255;
   if (kind === 1) return Math.max(0, Math.min(1, (lum - 0.02) / 0.35));
-  const t = Math.min(1, Math.pow(Math.max(0, lum - 0.015) / 0.62, 0.85));
+  const t = Math.min(1, Math.pow(Math.max(0, lum - 0.015) / 0.56, 0.66));
   return Math.max(0, Math.min(1, 0.5 + (t - 0.5) * 1.1));
 }
 // Dulled toward grey-violet, keeping the colour's lightness.
@@ -14507,7 +14515,7 @@ function duskDull(c, V, k) {
 // its first pixel in the world's pixels at this zoom; soft (1 and up) widens
 // the washes (picture enlarged, or a world view).
 function duskPaintPixels(data, w, h, gx0, gy0, soft) {
-  gx0 = gx0 || 0; gy0 = gy0 || 0; soft = Math.max(1, Math.min(4, soft || 1));
+  gx0 = gx0 || 0; gy0 = gy0 || 0; soft = Math.max(0.5, Math.min(4, soft || 1));
   const Rp = { moss: woodRamp(DUSK.moss), umber: woodRamp(DUSK.umber), waters: woodRamp(DUSK.waters), snow: woodHex(DUSK.snow) };
   const V0 = woodHex(DUSK.violet), board = woodHex(DUSK.board);
   const n = w * h, W = w + 1;
@@ -14598,7 +14606,7 @@ maplibregl.addProtocol("duskpaint", async (params) => {
   if (!m) throw new Error("not a painted square");
   const z = Number(m[1]);
   const d = await woodComposite(z, Number(m[2]), Number(m[3]), DUSK.margin);
-  d.soft = Math.max(d.soft, duskLoose(z));
+  d.soft = d.soft > 1 ? d.soft : duskLoose(z);
   d.brushes = duskBrushes(z);
   return { data: await duskPaintJob(d) };
 });

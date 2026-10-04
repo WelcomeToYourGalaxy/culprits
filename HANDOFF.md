@@ -5,6 +5,25 @@ touches.
 
 ---
 
+## Round 161b (4 October)
+
+Needs round 160b. No tiles patch. No app.js?v= bump.
+
+- Owner on 160b: too dreary; muddy crop fields close in, blotchy mouldy
+  landscapes at middle zooms, a dreary purple world view.
+- Old fantasy painting (DUSK) lightened and cooled: lighter moss, umber and
+  slate ramps and a lighter tone curve; colours dulled 12% toward a cool grey
+  (#5F6670) instead of 28% toward grey-violet; height haze, sky, fog and
+  shadows cool grey and slate rather than violet (sky #5C6E80, horizon
+  #CBC8BC, atmosphere 0.45 at the world view); lighter shadows and corners;
+  sea tint lighter; the close-in photograph graded 22% (was 40%).
+- Blotches: the washes were widened at world views (DUSK.loose 2), which
+  smeared continents; now narrower there (0.5 to zoom 4, 0.75 to zoom 7) and
+  the broad strokes thinner and fainter. Looseness far out comes from the
+  broad strokes alone.
+- Checked on real satellite squares (MapLibre's test tiles, zoom 1 and 17)
+  in node; not seen against the live picture.
+
 ## Round 160b (4 October)
 
 Needs round 157k (guards on its heading). No tiles patch. No app.js?v= bump.

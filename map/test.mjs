@@ -6579,18 +6579,18 @@ console.log("\nround 160b (4 October): Old fantasy painting, a seventh basemap")
   const forest = at(lib.duskPaintPixels(tile(() => [34, 62, 30]), 64, 64), 32, 32);
   const desert = at(lib.duskPaintPixels(tile(() => [190, 160, 120]), 64, 64), 32, 32);
   check("the sea is a dark slate blue (blue strongest)", sea[2] >= sea[0] && sea[2] >= sea[1] && sea[0] + sea[1] + sea[2] < 200, sea.join(","));
-  check("forest is a dark moss (green a little over red, nothing bright)", forest[1] >= forest[0] && forest[0] + forest[1] + forest[2] < 220, forest.join(","));
+  check("forest is a moss (green a little over red, nothing bright; round 161b: lighter)", forest[1] >= forest[0] && forest[0] + forest[1] + forest[2] < 300, forest.join(","));
   check("bare ground is an umber, lighter than forest, not orange", desert[0] >= desert[2] && desert[0] - desert[2] < 40 && desert[0] + desert[1] + desert[2] > forest[0] + forest[1] + forest[2], desert.join(","));
   const a = lib.duskPaintPixels(tile(() => [90, 100, 70]), 64, 64, 0, 0), b = lib.duskPaintPixels(tile(() => [90, 100, 70]), 64, 64, 64, 0);
   check("no seam between squares (the board's grain runs on)", Math.abs(a[(10 * 64 + 63) * 4] - b[(10 * 64) * 4]) <= 6);
-  check("loose far out, tight close in: wide washes and broad strokes only at the world views",
-        lib.duskLoose(2) > lib.duskLoose(5) && lib.duskLoose(5) > 1 && lib.duskLoose(10) === 1 &&
+  check("loose far out, tight close in: broad strokes only at the world views (round 161b: narrower washes there, not wider)",
+        lib.duskLoose(2) < lib.duskLoose(6) && lib.duskLoose(6) < 1 && lib.duskLoose(10) === 1 &&
         lib.duskBrushes(3).length === 2 && lib.duskBrushes(lib.DUSK.fineFrom).length === 3);
   const d = new Uint8ClampedArray(64 * 64 * 4);
   for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) { const q = (y * 64 + x) * 4, on = (x + y) % 2; d[q] = on ? 120 : 30; d[q + 1] = on ? 140 : 60; d[q + 2] = on ? 90 : 30; d[q + 3] = 255; }
   const g = lib.duskGradePixels(d.slice(), 64, 64);
   check("the closest zooms' photograph keeps every detail, only part way to the palette", Math.abs(g[(10 * 64 + 10) * 4 + 1] - g[(10 * 64 + 11) * 4 + 1]) > 40 && g[1] !== d[1]);
-  check("the high ground hazier the higher it is; the low ground clear", /400, "rgba\(206,200,210,0\)"/.test(block) && /4000, "rgba\(206,200,210,0\.38\)"/.test(block));
+  check("the high ground hazier the higher it is; the low ground clear", /400, "rgba\(204,210,214,0\)"/.test(block) && /4000, "rgba\(204,210,214,0\.32\)"/.test(block));
   check("a low dusk light from the west-south-west, long grey-violet shadows", /"hillshade-illumination-direction": \[255,/.test(block) && /"hillshade-illumination-altitude": \[12,/.test(block));
   check("no glow, no blur over the map: the corners are one see-through layer that takes no clicks",
         /pointer-events:none/.test(block) && !/line-blur|filter:\s*blur|blur\(\d|-blur"/.test(block) && !/hud|halo|glow/i.test(block.slice(block.indexOf("var DUSK = {"))));
@@ -6603,6 +6603,24 @@ console.log("\nround 160b (4 October): Old fantasy painting, a seventh basemap")
   els.get("basemaps").fire("change", { target: { name: "basemap", value: "wood" } });
   check("choosing another basemap hides them", map.getLayer("outline-dusk-paint").layout?.visibility === "none" && map.getLayer("outline-wood-paint").layout?.visibility === "visible");
   els.get("basemaps").fire("change", { target: { name: "basemap", value: "atlas" } });
+}
+
+console.log("\nround 161b (4 October): Old fantasy painting less dreary");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const block = src.slice(src.indexOf("/* ---------- Old fantasy painting, a seventh basemap"), src.indexOf("/* ---------- end of Old fantasy painting ---------- */"));
+  const wood = src.slice(src.indexOf("/* ---------- Autumn woodlands, a sixth basemap"), src.indexOf("/* ---------- end of Autumn woodlands ---------- */"));
+  const lib = new Function(wood.slice(wood.indexOf("var WOOD = {"), wood.indexOf("// The paintings are made off the page's main thread")) + "\n" +
+    block.slice(block.indexOf("var DUSK = {"), block.indexOf("var DUSK_HELPERS")) + "; return { duskPaintPixels, DUSK };")();
+  const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const v = hex(lib.DUSK.violet), sky = hex(lib.DUSK.sky["horizon-color"]);
+  check("the colours are dulled toward a cool grey, not purple, and only a little", v[2] >= v[0] && v[1] >= v[0] && lib.DUSK.dull <= 0.15);
+  check("no purple sky or haze: the horizon is a pale bone, the haze a cool pale grey", sky[0] >= sky[2] && /rgba\(204,210,214,/.test(block) && !/rgba\(206,200,210/.test(block));
+  const tile = (c) => { const d = new Uint8ClampedArray(64 * 64 * 4); for (let p = 0; p < 4096; p++) { d[p * 4] = c[0]; d[p * 4 + 1] = c[1]; d[p * 4 + 2] = c[2]; d[p * 4 + 3] = 255; } return d; };
+  const field = lib.duskPaintPixels(tile([120, 125, 80]), 64, 64).slice(32 * 64 * 4 + 128, 32 * 64 * 4 + 131);
+  check("farmland is a light sage, not mud (lighter than mid-grey)", field[0] + field[1] + field[2] > 330 && field[1] >= field[0], Array.from(field).join(","));
+  check("narrower washes at the world views, so continents keep their coasts", lib.DUSK.loose[0][1] < 1 && /d\.soft = d\.soft > 1 \? d\.soft : duskLoose\(z\);/.test(block));
+  check("lighter shadows and corners", /"rgba\(18,26,36,0\.45\)"/.test(block) && /rgba\(14,18,24,0\.24\) 100%/.test(block) && lib.DUSK.photoGrade <= 0.25);
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
