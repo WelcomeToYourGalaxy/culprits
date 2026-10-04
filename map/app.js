@@ -14389,6 +14389,389 @@ if (typeof MutationObserver === "function" && typeof document !== "undefined" &&
 }
 /* ---------- end of Autumn woodlands ---------- */
 
+/* ---------- Old fantasy painting, a seventh basemap (round 160b) ---------- */
+// Asked 4 October: a basemap in the manner of the fantasy card landscapes of
+// about 1993 to 2003 (acrylic and gouache on board, scanned for a small
+// printed window). Only the manner is taken; nothing is copied from any
+// painting. How each trait is carried onto a map:
+//   paint     the real Earth (the same Sentinel-2 picture as Woodlands)
+//             re-coloured pixel by pixel in a dulled palette, then laid over
+//             with loose brushstrokes (woodStrokes) and the board's faint
+//             grain; every variation is the Earth's own, no made-up noise
+//   palette   slate blue, umber, moss, grey-violet and bone, all muted (as
+//             the old printing dulled everything); no orange, no yellow
+//   depth     three layers by height: low ground dark and detailed, middle
+//             heights softened, high mountains pale and hazy (DUSK.haze); on
+//             a tilted view the distance fades into pale fog, and the globe's
+//             edge dissolves into a hazy sky
+//   detail    tight close in, loose far out: wide washes and only broad
+//             strokes at the world views, finer strokes only from zoom 5
+//   light     a low dusk sun from the west-south-west: long dark grey-violet
+//             shadows behind every ridge, a dull bone light on the slopes
+//             that face it (Mapterhorn heights)
+//   corners   softly darkened (#dusk-corners, takes no clicks)
+//   no camera effects: no glow, no lens flare, no blur over the map
+// Not carried: cloud banks, ruins, standing stones and a lone figure. A map
+// is seen from above; nothing is drawn that is not in the picture.
+// Layers are named "outline-dusk-...", so the colour mapping and the themes
+// leave them alone.
+var DUSK = {
+  sheet: "#1B2027",
+  attribution: WOOD.attribution,
+  // Plants: from near-black slate-moss in shadow to grey sage in the light.
+  moss: [[0, "#14191B"], [0.22, "#1D2725"], [0.45, "#2F3A30"], [0.68, "#4B5341"], [0.86, "#717461"], [1, "#A6A592"]],
+  // Bare ground: dark umber to bone.
+  umber: [[0, "#1A1614"], [0.3, "#352A23"], [0.58, "#56473B"], [0.84, "#7E7264"], [1, "#B7AE9D"]],
+  // Water: deep slate to pale grey-blue on the shallows.
+  waters: [[0, "#141B24"], [0.35, "#212B37"], [0.65, "#384453"], [1, "#78828C"]],
+  snow: "#D6D0C2",
+  board: "#CFC7B6",
+  violet: "#5D5868",       // the grey-violet the colours are dulled toward
+  dull: 0.28,              // how far every colour is dulled toward it
+  lightReach: 10, lift: 0.1,
+  // Detail falloff: the washes widen at the world views.
+  loose: [[3, 2], [6, 1.45], [99, 1]],
+  sea: ["interpolate", ["linear"], ["elevation"],
+    -8000, "#10161F", -4000, "#151D28", -1500, "#1C2632", -400, "#26323F", -60, "#34404D", -1, "#3E4A56",
+    0, "rgba(0,0,0,0)"],
+  seaOpacity: 0.4,
+  // Atmospheric perspective by height: the high ground pale and far.
+  haze: ["interpolate", ["linear"], ["elevation"],
+    -1, "rgba(206,200,210,0)", 400, "rgba(206,200,210,0)", 1200, "rgba(206,200,210,0.1)",
+    2400, "rgba(206,200,210,0.24)", 4000, "rgba(206,200,210,0.38)", 6500, "rgba(214,208,216,0.46)"],
+  shade: {
+    "hillshade-method": "multidirectional",
+    "hillshade-illumination-direction": [255, 300, 210, 0],
+    "hillshade-illumination-altitude": [12, 22, 22, 50],
+    "hillshade-highlight-color": ["rgba(220,208,194,0.34)", "rgba(220,208,194,0.1)", "rgba(220,208,194,0.06)", "rgba(220,208,194,0.03)"],
+    "hillshade-shadow-color": ["rgba(16,15,30,0.6)", "rgba(16,15,30,0.26)", "rgba(16,15,30,0.18)", "rgba(16,15,30,0.1)"],
+    "hillshade-accent-color": "rgba(16,15,30,0.25)",
+    "hillshade-exaggeration": 1,
+    "hillshade-illumination-anchor": "map",
+  },
+  lake: "#212B37", lakeOpacity: 0.45,
+  river: "#56606B",
+  town: "#4E463F", townWork: "#463F39",
+  road: ["#4A4139", "#3F3731", "#352E29"],
+  rail: "#2A2522", building: "#5A5048",
+  border: "rgba(20,18,26,0.5)",
+  names: { sat: -1, min: 0, max: 0.78 },
+  // A slate sky, a grey-violet horizon, pale bone fog: a tilted view fades
+  // into the distance; the globe's edge into haze.
+  sky: { "sky-color": "#38404C", "horizon-color": "#9A94A0", "fog-color": "#B8B1B2",
+    "sky-horizon-blend": 0.7, "horizon-fog-blend": 0.6, "fog-ground-blend": 0.35,
+    "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.85, 8, 0.8, 12, 0.45] },
+  // Loose brushwork: broader strokes than Woodlands; the fine brush only
+  // from zoom 5 (DUSK.fineFrom).
+  brushes: [
+    { sp: 11, len: [18, 30], w: [7, 11], a: [0.45, 0.75], detail: 0, often: 1 },
+    { sp: 7, len: [9, 16], w: [3.5, 6], a: [0.45, 0.78], detail: 3, often: 0.3 },
+    { sp: 4, len: [4, 8], w: [1.6, 2.6], a: [0.45, 0.8], detail: 6, often: 0.05 },
+  ],
+  fineFrom: 5,
+  margin: 32,
+  // The closest zooms: the photograph, sharp, moved part way to the palette.
+  photo: WOOD.photo, photoAttribution: WOOD.photoAttribution,
+  photoFrom: 15.5, photoFull: 16.5, photoGrade: 0.4,
+  corners: "radial-gradient(ellipse at center, rgba(12,12,20,0) 58%, rgba(12,12,20,0.16) 82%, rgba(12,12,20,0.34) 100%)",
+};
+var DUSK_IDS = ["outline-dusk-sheet", "outline-dusk-paint", "outline-dusk-photo", "outline-dusk-sea", "outline-dusk-shade",
+  "outline-dusk-haze", "outline-dusk-lake", "outline-dusk-town", "outline-dusk-river",
+  "outline-dusk-rail", "outline-dusk-road-minor", "outline-dusk-road", "outline-dusk-road-major",
+  "outline-dusk-buildings", "outline-dusk-border"];
+// The colour a picture pixel takes in the palette, before any blending.
+function duskColour(r, g, b, t, v, kind, R) {
+  if (kind === 1) return R.waters(t);
+  if (kind === 2) return R.snow;
+  const a = R.moss(t), e = R.umber(t);
+  return [e[0] + (a[0] - e[0]) * v, e[1] + (a[1] - e[1]) * v, e[2] + (a[2] - e[2]) * v];
+}
+function duskKind(r, g, b) {
+  const lum = (0.3 * r + 0.59 * g + 0.11 * b) / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+  if ((b > g + 6 && b > r + 10 && lum < 0.45) || (lum < 0.07 && b >= r)) return 1;
+  if (lum > 0.72 && mx - mn < 28) return 2;
+  return 0;
+}
+function duskTone(r, g, b, kind) {
+  const lum = (0.3 * r + 0.59 * g + 0.11 * b) / 255;
+  if (kind === 1) return Math.max(0, Math.min(1, (lum - 0.02) / 0.35));
+  const t = Math.min(1, Math.pow(Math.max(0, lum - 0.015) / 0.62, 0.85));
+  return Math.max(0, Math.min(1, 0.5 + (t - 0.5) * 1.1));
+}
+// Dulled toward grey-violet, keeping the colour's lightness.
+function duskDull(c, V, k) {
+  const L = 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2], LV = 0.3 * V[0] + 0.59 * V[1] + 0.11 * V[2], s = LV > 0 ? L / LV : 0;
+  return [c[0] + (V[0] * s - c[0]) * k, c[1] + (V[1] * s - c[1]) * k, c[2] + (V[2] * s - c[2]) * k];
+}
+// The underpainting: re-colours a picture (RGBA, w x h) in place. gx0, gy0:
+// its first pixel in the world's pixels at this zoom; soft (1 and up) widens
+// the washes (picture enlarged, or a world view).
+function duskPaintPixels(data, w, h, gx0, gy0, soft) {
+  gx0 = gx0 || 0; gy0 = gy0 || 0; soft = Math.max(1, Math.min(4, soft || 1));
+  const Rp = { moss: woodRamp(DUSK.moss), umber: woodRamp(DUSK.umber), waters: woodRamp(DUSK.waters), snow: woodHex(DUSK.snow) };
+  const V0 = woodHex(DUSK.violet), board = woodHex(DUSK.board);
+  const n = w * h, W = w + 1;
+  const sat = (A) => { const S = new Float64Array(W * (h + 1)); for (let y = 0; y < h; y++) { let row = 0; for (let x = 0; x < w; x++) { row += A[y * w + x]; S[(y + 1) * W + x + 1] = S[y * W + x + 1] + row; } } return S; };
+  const blur = (A, r) => {
+    r = Math.round(r);
+    if (r < 1) return A;
+    let cur = A;
+    for (let pass = 0; pass < 2; pass++) {
+      const S = sat(cur), out = new Float32Array(n);
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const x0 = Math.max(0, x - r), x1 = Math.min(w - 1, x + r), y0 = Math.max(0, y - r), y1 = Math.min(h - 1, y + r);
+        out[y * w + x] = (S[(y1 + 1) * W + x1 + 1] - S[y0 * W + x1 + 1] - S[(y1 + 1) * W + x0] + S[y0 * W + x0]) / ((x1 - x0 + 1) * (y1 - y0 + 1));
+      }
+      cur = out;
+    }
+    return cur;
+  };
+  const V = new Float32Array(n), T = new Float32Array(n), K = new Uint8Array(n);
+  for (let p = 0; p < n; p++) {
+    const r = data[p * 4], g = data[p * 4 + 1], b = data[p * 4 + 2];
+    K[p] = duskKind(r, g, b);
+    V[p] = Math.max(0, Math.min(1, ((2 * g - r - b) / 255 + 0.01) / 0.1));
+    T[p] = duskTone(r, g, b, K[p]);
+  }
+  const Vs = blur(V, 3 * soft), Tp = blur(T, soft - 0.5);
+  // As in Woodlands (round 156b): no single pixel much lighter than the
+  // ground round it, so the lights come as broad washes, not spots.
+  const Tw = blur(T, DUSK.lightReach * soft), Ts = new Float32Array(n);
+  for (let p = 0; p < n; p++) Ts[p] = Math.min(Tp[p], Tw[p] + DUSK.lift);
+  const R = new Float32Array(n), G = new Float32Array(n), B = new Float32Array(n);
+  for (let p = 0; p < n; p++) {
+    const c = duskDull(duskColour(0, 0, 0, Ts[p], 0.9 * Vs[p], K[p], Rp), V0, DUSK.dull);
+    R[p] = c[0]; G[p] = c[1]; B[p] = c[2];
+  }
+  const Rb = blur(R, 3 * soft), Gb = blur(G, 3 * soft), Bb = blur(B, 3 * soft);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const p = y * w + x, q = p * 4;
+    let r = R[p] * 0.4 + Rb[p] * 0.6, g = G[p] * 0.4 + Gb[p] * 0.6, b = B[p] * 0.4 + Bb[p] * 0.6;
+    const L = 0.3 * r + 0.59 * g + 0.11 * b;
+    // The board's faint tooth, by world pixel (seamless), a little more in
+    // the lights where thin paint lets it show.
+    const grain = 0.6 * woodGrain((gx0 + x) / 1.6, (gy0 + y) / 1.6) + 0.4 * woodGrain((gx0 + x) / 5 + 23, (gy0 + y) / 5 + 5) - 0.5;
+    const k = 1 + grain * (0.035 + 0.04 * (L / 255));
+    const show = 0.02 + 0.05 * (L / 255);
+    data[q] = (r * k) + (board[0] - r * k) * show; data[q + 1] = (g * k) + (board[1] - g * k) * show;
+    data[q + 2] = (b * k) + (board[2] - b * k) * show; data[q + 3] = 255;
+  }
+  return data;
+}
+function duskLoose(z) { for (const [upTo, s] of DUSK.loose) if (z <= upTo) return s; return 1; }
+function duskBrushes(z) { return z >= DUSK.fineFrom ? DUSK.brushes : DUSK.brushes.slice(0, 2); }
+// The strokes are laid by woodStrokes, with this basemap's brushes.
+function duskWorkWith(wood, d) {
+  const keep = wood.brushes;
+  wood.brushes = d.brushes;
+  try {
+    const px = new Uint8ClampedArray(d.data);
+    duskPaintPixels(px, d.N, d.N, d.gx0, d.gy0, d.soft);
+    return rawPng(woodStrokes(px, d.N, d.M, d.z, d.gx0, d.gy0), 256, 256);
+  } finally { wood.brushes = keep; }
+}
+var DUSK_HELPERS = null, DUSK_JOBS = new Map(), DUSK_JOB = 0;
+function duskHelpers() {
+  if (DUSK_HELPERS !== null) return DUSK_HELPERS;
+  DUSK_HELPERS = [];
+  try {
+    const code = "var WOOD = " + JSON.stringify(WOOD) + ";\nvar DUSK = " + JSON.stringify(DUSK) + ";\nconst PNG_CRC = new Uint32Array([" + Array.from(PNG_CRC).join(",") + "]);\n" +
+      [woodHex, woodRamp, woodGrain, woodStrokes, pngCrc, rawPng, duskColour, duskKind, duskTone, duskDull, duskPaintPixels, duskWorkWith].map(String).join("\n") +
+      "\nonmessage = (e) => { try { const png = duskWorkWith(WOOD, e.data); postMessage({ id: e.data.id, png }, [png]); } catch (err) { postMessage({ id: e.data.id, error: String(err) }); } };";
+    const url = URL.createObjectURL(new Blob([code], { type: "text/javascript" }));
+    for (let i = 0; i < 2; i++) {
+      const wk = new Worker(url);
+      wk.onmessage = (e) => { const job = DUSK_JOBS.get(e.data.id); if (!job) return; DUSK_JOBS.delete(e.data.id); if (e.data.error) job.no(new Error(e.data.error)); else job.yes(e.data.png); };
+      DUSK_HELPERS.push(wk);
+    }
+  } catch (e) { DUSK_HELPERS = []; }
+  return DUSK_HELPERS;
+}
+function duskPaintJob(d) {
+  const hs = duskHelpers();
+  if (!hs.length) return Promise.resolve(duskWorkWith(WOOD, d));
+  const id = ++DUSK_JOB;
+  return new Promise((yes, no) => { DUSK_JOBS.set(id, { yes, no }); hs[id % hs.length].postMessage(Object.assign({ id }, d), [d.data]); });
+}
+maplibregl.addProtocol("duskpaint", async (params) => {
+  const m = params.url.match(/^duskpaint:\/\/(\d+)\/(\d+)\/(\d+)/);
+  if (!m) throw new Error("not a painted square");
+  const z = Number(m[1]);
+  const d = await woodComposite(z, Number(m[2]), Number(m[3]), DUSK.margin);
+  d.soft = Math.max(d.soft, duskLoose(z));
+  d.brushes = duskBrushes(z);
+  return { data: await duskPaintJob(d) };
+});
+// The closest zooms' photograph, moved part way to the palette, colour only.
+function duskGradePixels(data, w, h) {
+  const Rp = { moss: woodRamp(DUSK.moss), umber: woodRamp(DUSK.umber), waters: woodRamp(DUSK.waters), snow: woodHex(DUSK.snow) };
+  const V0 = woodHex(DUSK.violet), g0 = DUSK.photoGrade;
+  for (let p = 0, n = w * h; p < n; p++) {
+    const q = p * 4, r = data[q], g = data[q + 1], b = data[q + 2], kind = duskKind(r, g, b);
+    const v = 0.9 * Math.max(0, Math.min(1, ((2 * g - r - b) / 255 + 0.01) / 0.1));
+    const c = duskDull(duskColour(r, g, b, duskTone(r, g, b, kind), v, kind, Rp), V0, DUSK.dull);
+    data[q] = r + (c[0] - r) * g0; data[q + 1] = g + (c[1] - g) * g0; data[q + 2] = b + (c[2] - b) * g0; data[q + 3] = 255;
+  }
+  return data;
+}
+maplibregl.addProtocol("duskphoto", async (params, abortController) => {
+  const m = params.url.match(/^duskphoto:\/\/(\d+)\/(\d+)\/(\d+)/);
+  if (!m) throw new Error("not a painted photo square");
+  const url = DUSK.photo.replace("{z}", m[1]).replace("{x}", m[2]).replace("{y}", m[3]);
+  const r = await fetch(url, { signal: abortController && abortController.signal });
+  if (!r.ok) throw new Error(String(r.status));
+  const bm = await createImageBitmap(await r.blob());
+  const c = new OffscreenCanvas(bm.width, bm.height), g = c.getContext("2d", { willReadFrequently: true });
+  g.drawImage(bm, 0, 0);
+  const img = g.getImageData(0, 0, bm.width, bm.height);
+  return { data: rawPng(duskGradePixels(img.data, bm.width, bm.height), bm.width, bm.height) };
+});
+function duskLayers() {
+  const road = (w) => ["interpolate", ["exponential", 1.4], ["zoom"], 4, w * .25, 10, w, 16, w * 6];
+  const kind = (list) => ["match", ["get", "class"], list, true, false];
+  const fade = (z0, z1, a) => ["interpolate", ["linear"], ["zoom"], z0, 0, z1, a];
+  return [
+    { id: "outline-dusk-sheet", type: "fill", source: "outline-wood-sheet",
+      paint: { "fill-color": DUSK.sheet, "fill-antialias": false } },
+    { id: "outline-dusk-paint", type: "raster", source: "outline-dusk-paint", maxzoom: DUSK.photoFull + 0.5,
+      paint: { "raster-opacity": 1, "raster-fade-duration": 200, "raster-resampling": "linear" } },
+    { id: "outline-dusk-photo", type: "raster", source: "outline-dusk-photo", minzoom: DUSK.photoFrom,
+      paint: { "raster-opacity": ["interpolate", ["linear"], ["zoom"], DUSK.photoFrom, 0, DUSK.photoFull, 1],
+               "raster-fade-duration": 200, "raster-resampling": "linear" } },
+    { id: "outline-dusk-sea", type: "color-relief", source: "sea-dem",
+      paint: { "color-relief-color": DUSK.sea, "color-relief-opacity": DUSK.seaOpacity } },
+    { id: "outline-dusk-shade", type: "hillshade", source: "outline-dem", paint: DUSK.shade },
+    { id: "outline-dusk-haze", type: "color-relief", source: "sea-dem",
+      paint: { "color-relief-color": DUSK.haze, "color-relief-opacity": 1 } },
+    { id: "outline-dusk-lake", type: "fill", source: "osm", "source-layer": "water",
+      filter: ["!=", ["get", "class"], "ocean"],
+      paint: { "fill-color": DUSK.lake, "fill-opacity": DUSK.lakeOpacity } },
+    { id: "outline-dusk-town", type: "fill", source: "osm", "source-layer": "landuse", minzoom: 6,
+      filter: kind(["residential", "commercial", "industrial", "retail", "suburb", "neighbourhood"]),
+      paint: { "fill-color": ["match", ["get", "class"], "industrial", DUSK.townWork, DUSK.town], "fill-opacity": fade(6, 8, .5) } },
+    { id: "outline-dusk-river", type: "line", source: "osm", "source-layer": "waterway", minzoom: 3,
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": DUSK.river,
+               "line-width": ["interpolate", ["exponential", 1.4], ["zoom"],
+                 4, ["match", ["get", "class"], "river", .35, .12], 10, ["match", ["get", "class"], "river", 1.2, .5],
+                 16, ["match", ["get", "class"], "river", 6, 2.7]],
+               "line-opacity": ["interpolate", ["linear"], ["zoom"],
+                 8, ["match", ["get", "class"], "river", .8, 0], 11, ["match", ["get", "class"], "river", .8, .6]] } },
+    { id: "outline-dusk-rail", type: "line", source: "osm", "source-layer": "transportation", minzoom: 9,
+      filter: kind(["rail", "transit"]),
+      paint: { "line-color": DUSK.rail, "line-width": 1, "line-dasharray": [3, 2] } },
+    { id: "outline-dusk-road-minor", type: "line", source: "osm", "source-layer": "transportation", minzoom: 11,
+      filter: kind(["minor", "service", "track", "street", "street_limited"]),
+      paint: { "line-color": DUSK.road[0], "line-width": road(.45) } },
+    { id: "outline-dusk-road", type: "line", source: "osm", "source-layer": "transportation", minzoom: 7,
+      filter: kind(["secondary", "tertiary"]),
+      paint: { "line-color": DUSK.road[1], "line-width": road(.6) } },
+    { id: "outline-dusk-road-major", type: "line", source: "osm", "source-layer": "transportation", minzoom: 4,
+      filter: kind(["motorway", "trunk", "primary"]),
+      paint: { "line-color": DUSK.road[2], "line-width": road(.8), "line-opacity": fade(4, 6, .75) } },
+    { id: "outline-dusk-buildings", type: "fill-extrusion", source: "osm", "source-layer": "building", minzoom: 13,
+      paint: { "fill-extrusion-color": DUSK.building,
+               "fill-extrusion-height": ["coalesce", ["get", "render_height"], 6],
+               "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
+               "fill-extrusion-opacity": ["interpolate", ["linear"], ["zoom"], 13, 0, 14, .9] } },
+    { id: "outline-dusk-border", type: "line", source: "boundaries",
+      paint: { "line-color": DUSK.border,
+               "line-width": ["interpolate", ["linear"], ["zoom"], 2, .5, 5, .9] } },
+  ];
+}
+function addDuskLayers() {
+  if (map.getLayer("outline-dusk-paint")) return;
+  try {
+    ensureBoundaries();
+    const share = (id, spec) => { if (!map.getSource(id)) map.addSource(id, Object.assign({}, spec)); };
+    share("osm", OSM_SOURCE);
+    share("outline-dem", RELIEF_SOURCE);
+    share("sea-dem", TERRAIN_SOURCE);
+    if (!map.getSource("outline-wood-sheet")) {
+      map.addSource("outline-wood-sheet", { type: "geojson", data: { type: "Feature", properties: {},
+        geometry: { type: "Polygon", coordinates: [[[-180, -85.06], [180, -85.06], [180, 85.06], [-180, 85.06], [-180, -85.06]]] } } });
+    }
+    if (!map.getSource("outline-dusk-paint")) {
+      map.addSource("outline-dusk-paint", { type: "raster", tiles: ["duskpaint://{z}/{x}/{y}"], tileSize: 256,
+        maxzoom: 18, attribution: DUSK.attribution });
+    }
+    if (!map.getSource("outline-dusk-photo")) {
+      map.addSource("outline-dusk-photo", { type: "raster", tiles: ["duskphoto://{z}/{x}/{y}"], tileSize: 256,
+        minzoom: 15, maxzoom: 18, attribution: DUSK.photoAttribution });
+    }
+    const st = typeof map.getStyle === "function" ? map.getStyle() : null;
+    const all = (st && st.layers) || [];
+    const at = all.findIndex((l) => l.id === "plate-base");
+    const before = at >= 0 && all[at + 1] ? all[at + 1].id : undefined;
+    for (const l of duskLayers()) map.addLayer(Object.assign({ layout: {} }, l, { layout: Object.assign({ visibility: "none" }, l.layout || {}) }), before);
+  } catch (e) { console.warn("[culprits] old fantasy painting basemap unavailable:", e.message || e); }
+}
+// The softly darkened corners: one see-through layer over the map picture,
+// under the markers and boxes, taking no clicks.
+function duskCorners(on) {
+  if (typeof document === "undefined" || typeof map.getCanvas !== "function") return;
+  let el = document.getElementById("dusk-corners");
+  if (on && !el) {
+    const cv = map.getCanvas();
+    if (!cv || !cv.insertAdjacentElement) return;
+    el = document.createElement("div");
+    el.id = "dusk-corners";
+    el.setAttribute("aria-hidden", "true");
+    el.style.cssText = "position:absolute;inset:0;pointer-events:none;background:" + DUSK.corners + ";";
+    cv.insertAdjacentElement("afterend", el);
+  }
+  if (el) el.hidden = !on;
+}
+let duskNamesTurned = false, duskSkyBefore = null;
+function duskSky(on) {
+  if (typeof map.setSky !== "function") return;
+  if (typeof DEFENCE_ON !== "undefined" && DEFENCE_ON) return;
+  try {
+    if (on && !duskSkyBefore) {
+      duskSkyBefore = (typeof map.getSky === "function" && map.getSky()) || {};
+      map.setSky(Object.assign({}, duskSkyBefore, DUSK.sky));
+    } else if (!on && duskSkyBefore) { map.setSky(duskSkyBefore); duskSkyBefore = null; }
+  } catch (e) { /* the sky stays as it was */ }
+}
+function duskShow(on) {
+  const vis = on && !hellHoloHides() ? "visible" : "none";
+  for (const id of DUSK_IDS) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
+  duskSky(on);
+  duskCorners(vis === "visible");
+  if (!map.getLayer("labels")) return;
+  if (on) {
+    map.setPaintProperty("labels", "raster-saturation", DUSK.names.sat);
+    map.setPaintProperty("labels", "raster-brightness-min", DUSK.names.min);
+    map.setPaintProperty("labels", "raster-brightness-max", DUSK.names.max);
+    map.setPaintProperty("labels", "raster-opacity", .9);
+    duskNamesTurned = true;
+  } else if (duskNamesTurned) {
+    map.setPaintProperty("labels", "raster-brightness-min", 0);
+    map.setPaintProperty("labels", "raster-brightness-max", 1);
+    duskNamesTurned = false;
+  }
+}
+BASE_GRADE.dusk = {};
+const basemapPanelHtmlBeforeDusk = basemapPanelHtml;
+basemapPanelHtml = function (opts) {
+  const list = (opts || []).some((o) => o[0] === "dusk") ? opts : (opts || []).concat([["dusk", "Old fantasy painting"]]);
+  return basemapPanelHtmlBeforeDusk(list);
+};
+const setBasemapBeforeDusk = setBasemap;
+setBasemap = function (kind) {
+  // Dark, dull ground: the brighter layer colours stand out on it.
+  if (typeof THEME_BY_BASEMAP === "object" && THEME_BY_BASEMAP && !THEME_BY_BASEMAP.dusk) THEME_BY_BASEMAP.dusk = "bright";
+  if (kind === "dusk") addDuskLayers();
+  if (kind !== "dusk") duskShow(false);
+  setBasemapBeforeDusk(kind);
+  if (kind === "dusk") duskShow(true);
+};
+if (typeof MutationObserver === "function" && typeof document !== "undefined" && document.body) {
+  new MutationObserver(() => { if (BASEMAP === "dusk") duskShow(true); })
+    .observe(document.body, { attributes: true, attributeFilter: ["class"] });
+}
+/* ---------- end of Old fantasy painting ---------- */
+
 // Place names on and off, all at once (asked for 23 September): every symbol
 // layer's words, the basemap's and the layers' own. The words are taken out
 // of the layer (its text-field emptied) and put back as they were, so the

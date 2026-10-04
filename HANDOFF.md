@@ -5,6 +5,38 @@ touches.
 
 ---
 
+## Round 160b (4 October)
+
+Needs round 157k (guards on its heading). No tiles patch. No app.js?v= bump.
+
+- Asked 4 October: a basemap in the manner of the fantasy card landscapes of
+  about 1993-2003 (acrylic and gouache on board, three depth layers, low
+  dusk light, muted slate, umber, moss, grey-violet and bone, loose far
+  brushwork, darkened corners, no camera effects). Only the manner is taken;
+  nothing is copied from any painting. Menu: "Old fantasy painting" (key
+  dusk), after Woodlands. One block ("Old fantasy painting, a seventh
+  basemap" to "end of Old fantasy painting"), layers outline-dusk-*
+  (DUSK_IDS), settings in DUSK.
+- Paint: the same Sentinel-2 picture as Woodlands (woodComposite) re-coloured
+  pixel by pixel (duskPaintPixels: moss for plants, umber to bone for bare
+  ground, slate for water, bone for snow, all dulled 28% toward grey-violet),
+  the board's faint grain, then loose strokes by woodStrokes with DUSK's own
+  broader brushes (duskpaint://, two helpers, duskWorkWith; main-thread
+  fallback). Detail falls off far out: wider washes below zoom 6
+  (DUSK.loose), the fine brush only from zoom 5 (DUSK.fineFrom).
+- Depth: high ground hazier with height (outline-dusk-haze: clear below
+  400 m, pale bone-violet by 4,000 m); a tilted view fades into pale fog and
+  the globe's edge into haze (DUSK.sky). Light: low dusk sun from 255
+  degrees at 12 degrees (multidirectional hillshade), grey-violet shadows,
+  dull bone light. Sea tinted slate by depth. Corners: #dusk-corners, one
+  see-through gradient just above the map canvas, under markers and boxes,
+  no clicks, hidden with the basemap or the hologram.
+- Closest zooms: Esri imagery moved 40% toward the palette, sharp
+  (duskphoto://, from 15.5 to 16.5), as Woodlands does.
+- Not carried: cloud banks, ruins, standing stones, a lone figure (nothing
+  is drawn that the picture does not show). Layer colours: bright.
+- Checked on made-up pictures in node; not seen against the live picture.
+
 ## Round 157k (4 October)
 
 Needs round 156k. No tiles patch. No app.js?v= bump.

@@ -6558,6 +6558,53 @@ console.log("\nround 147b (3 October): combining the ticked layers made quick");
   check("a tiled feature's key is short and tells pieces apart", key({ id: 3, properties: {}, geometry: { type: "Point", coordinates: [1.23456, 2] } }) === "3||Point|1.2346,2.0000|0" &&
         key({ properties: {}, geometry: { type: "Polygon", coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] } }) !== key({ properties: {}, geometry: { type: "Polygon", coordinates: [[[5, 0], [1, 0], [1, 1], [5, 0]]] } }));
 }
+console.log("\nround 160b (4 October): Old fantasy painting, a seventh basemap");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const block = src.slice(src.indexOf("/* ---------- Old fantasy painting, a seventh basemap"), src.indexOf("/* ---------- end of Old fantasy painting ---------- */"));
+  const wood = src.slice(src.indexOf("/* ---------- Autumn woodlands, a sixth basemap"), src.indexOf("/* ---------- end of Autumn woodlands ---------- */"));
+  const core = wood.slice(wood.indexOf("var WOOD = {"), wood.indexOf("// The paintings are made off the page's main thread")) + "\n" +
+    block.slice(block.indexOf("var DUSK = {"), block.indexOf("var DUSK_HELPERS")) + "\n" +
+    block.slice(block.indexOf("function duskGradePixels"), block.indexOf("maplibregl.addProtocol(\"duskphoto\""));
+  const lib = new Function(core + "; return { duskPaintPixels, duskGradePixels, duskBrushes, duskLoose, woodStrokes, WOOD, DUSK };")();
+  check("after Woodlands, its own block, listed as Old fantasy painting", block.length > 0 && src.indexOf("end of Autumn woodlands") < src.indexOf("Old fantasy painting, a seventh basemap") && /\["dusk", "Old fantasy painting"\]/.test(block));
+  const hsl = (h) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, l = (mx + mn) / 510;
+    if (!d) return [0, 0, l]; const s = d / (255 * (1 - Math.abs(2 * l - 1))); let hh = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4); return [(hh + 360) % 360, s, l]; };
+  const hexes = [...block.matchAll(/#[0-9A-Fa-f]{6}\b/g)].map((m) => m[0]);
+  check("a muted palette: every colour greyed (saturation under 0.35)", hexes.length > 20 && hexes.every((h) => hsl(h)[1] < 0.35), hexes.filter((h) => hsl(h)[1] >= 0.35).join(" "));
+  check("no orange or yellow anywhere in it", hexes.every((h) => { const [hh, s] = hsl(h); return !(hh >= 25 && hh <= 65 && s > 0.25); }));
+  const tile = (f) => { const d = new Uint8ClampedArray(64 * 64 * 4); for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) { const c = f(x, y), q = (y * 64 + x) * 4; d[q] = c[0]; d[q + 1] = c[1]; d[q + 2] = c[2]; d[q + 3] = 255; } return d; };
+  const at = (d, x, y) => [0, 1, 2].map((c) => d[(y * 64 + x) * 4 + c]);
+  const sea = at(lib.duskPaintPixels(tile(() => [12, 30, 70]), 64, 64), 32, 32);
+  const forest = at(lib.duskPaintPixels(tile(() => [34, 62, 30]), 64, 64), 32, 32);
+  const desert = at(lib.duskPaintPixels(tile(() => [190, 160, 120]), 64, 64), 32, 32);
+  check("the sea is a dark slate blue (blue strongest)", sea[2] >= sea[0] && sea[2] >= sea[1] && sea[0] + sea[1] + sea[2] < 200, sea.join(","));
+  check("forest is a dark moss (green a little over red, nothing bright)", forest[1] >= forest[0] && forest[0] + forest[1] + forest[2] < 220, forest.join(","));
+  check("bare ground is an umber, lighter than forest, not orange", desert[0] >= desert[2] && desert[0] - desert[2] < 40 && desert[0] + desert[1] + desert[2] > forest[0] + forest[1] + forest[2], desert.join(","));
+  const a = lib.duskPaintPixels(tile(() => [90, 100, 70]), 64, 64, 0, 0), b = lib.duskPaintPixels(tile(() => [90, 100, 70]), 64, 64, 64, 0);
+  check("no seam between squares (the board's grain runs on)", Math.abs(a[(10 * 64 + 63) * 4] - b[(10 * 64) * 4]) <= 6);
+  check("loose far out, tight close in: wide washes and broad strokes only at the world views",
+        lib.duskLoose(2) > lib.duskLoose(5) && lib.duskLoose(5) > 1 && lib.duskLoose(10) === 1 &&
+        lib.duskBrushes(3).length === 2 && lib.duskBrushes(lib.DUSK.fineFrom).length === 3);
+  const d = new Uint8ClampedArray(64 * 64 * 4);
+  for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) { const q = (y * 64 + x) * 4, on = (x + y) % 2; d[q] = on ? 120 : 30; d[q + 1] = on ? 140 : 60; d[q + 2] = on ? 90 : 30; d[q + 3] = 255; }
+  const g = lib.duskGradePixels(d.slice(), 64, 64);
+  check("the closest zooms' photograph keeps every detail, only part way to the palette", Math.abs(g[(10 * 64 + 10) * 4 + 1] - g[(10 * 64 + 11) * 4 + 1]) > 40 && g[1] !== d[1]);
+  check("the high ground hazier the higher it is; the low ground clear", /400, "rgba\(206,200,210,0\)"/.test(block) && /4000, "rgba\(206,200,210,0\.38\)"/.test(block));
+  check("a low dusk light from the west-south-west, long grey-violet shadows", /"hillshade-illumination-direction": \[255,/.test(block) && /"hillshade-illumination-altitude": \[12,/.test(block));
+  check("no glow, no blur over the map: the corners are one see-through layer that takes no clicks",
+        /pointer-events:none/.test(block) && !/line-blur|filter:\s*blur|blur\(\d|-blur"/.test(block) && !/hud|halo|glow/i.test(block.slice(block.indexOf("var DUSK = {"))));
+  check("painted off the main thread, with a fallback", /new Worker\(url\)/.test(block) && /duskWorkWith\(WOOD, d\)/.test(block));
+  const { map, els } = run();
+  map.fire("load");
+  els.get("basemaps").fire("change", { target: { name: "basemap", value: "dusk" } });
+  const paint = map.getLayer("outline-dusk-paint"), haze = map.getLayer("outline-dusk-haze");
+  check("choosing it adds and shows its layers", !!paint && !!haze && paint.layout?.visibility === "visible");
+  els.get("basemaps").fire("change", { target: { name: "basemap", value: "wood" } });
+  check("choosing another basemap hides them", map.getLayer("outline-dusk-paint").layout?.visibility === "none" && map.getLayer("outline-wood-paint").layout?.visibility === "visible");
+  els.get("basemaps").fire("change", { target: { name: "basemap", value: "atlas" } });
+}
+
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
