@@ -5,6 +5,18 @@ touches.
 
 ---
 
+## Round 157k (4 October)
+
+Needs round 156k. No tiles patch. No app.js?v= bump.
+
+- The owner: remove the seventh basemap (Pen and ink / Black and white,
+  rounds 154k-156k) altogether. Its whole block is gone from app.js (layers
+  outline-ink-*, inkdraw://, inkDrawSquare, inkPattern, the menu entry and
+  its wrappers of basemapPanelHtml and setBasemap); its tests are replaced by
+  one check that nothing of it is left. The chosen basemap is not remembered
+  between visits, so nobody is left on it. The notes for 154k-156k below
+  stay as history only.
+
 ## Round 156k (4 October)
 
 Needs round 155k. No tiles patch. No app.js?v= bump. The seventh basemap redrawn again.
