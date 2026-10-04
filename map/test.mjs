@@ -6165,6 +6165,15 @@ console.log("\nround 144h (3 October): Hell, a fourth basemap");
   check("nothing bright: no solid colour above 70% lightness (the faint see-through lights aside)", hues.every((x) => x.v <= 0.7 || x.a < 0.35), hues.filter((x) => x.v > 0.7 && x.a >= 0.35).map((x) => x.c).join(" "));
 }
 
+console.log("\nround 145h (3 October): no grey on Hell's high ground");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const g = src.slice(src.indexOf("var HELL = {"), src.indexOf("  shade: {", src.indexOf("var HELL = {")));
+  const land = [...g.matchAll(/(\d+), "#([0-9A-F]{6})"/g)].filter((m) => +m[1] >= 0 && !g.slice(m.index - 1, m.index).includes("-")).map((m) => [0, 2, 4].map((i) => parseInt(m[2].slice(i, i + 2), 16)));
+  check("the land darkens into oxblood as it rises: red leads every step above sea level, none grey", land.length === 8 &&
+        land.slice(1).every(([r, gg, b]) => r > gg + 2 && r >= b) && land.every(([r]) => r < 70));
+}
+
 console.log("\nround 143b (2 October): layers grouped, so alike layers do not cross each other");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");

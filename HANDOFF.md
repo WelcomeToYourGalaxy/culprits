@@ -5,6 +5,20 @@ touches.
 
 ---
 
+## Round 145h (3 October)
+
+Needs round 144h. No tiles patch. No app.js?v= bump. Hell basemap only.
+
+- Hell's land no longer fades to grey on high ground (asked 3 October: it did
+  not fit). HELL.ground above sea level now darkens from basalt black into
+  scorched oxblood (#131215 to #3B171E); a test checks every step is red-led.
+- Found while checking "place names show API key required": CARTO now stamps
+  "API KEY REQUIRED" on its raster tiles when no key is sent (carto.com/
+  basemaps/apikey). This hits the place names on every basemap (app.js
+  "labels" source, voyager_only_labels) and the hologram's names
+  (index.html, dark_only_labels). The key is free; waiting on the owner to
+  request one, then append ?key= to both tile addresses.
+
 ## Round 145b (3 October)
 
 Needs round 144h. Tiles patch round145b_tiles.py beside it. No app.js?v= bump.

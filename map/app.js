@@ -13693,8 +13693,8 @@ function buildBasemapPanel() {
 // same open data, drawn in other colours:
 //   sea      oxblood, darker in the deeps and lighter over the shelves, so
 //            every coast is rimmed in red (AWS terrain tiles, which carry depths)
-//   land     basalt black, ash grey up the slopes, pale ash on the highest
-//            ground and the ice (the same tiles)
+//   land     basalt black, darkening into scorched oxblood up the slopes
+//            (the same tiles; no grey on high ground since round 145h)
 //   relief   cold blue-grey light from four directions over black shadow
 //            (Mapterhorn heights, as the other basemaps)
 //   water    lakes as dark blood, rivers as thin red veins with a faint
@@ -13712,8 +13712,11 @@ var HELL = {
   ground: ["interpolate", ["linear"], ["elevation"],
     -8000, "#110407", -5000, "#18060A", -3000, "#20070C", -1500, "#2A0A0F", -500, "#360C11",
     -120, "#481116", -20, "#57151A", -1, "#5F181D",
-    0, "#131215", 200, "#161519", 600, "#1B1A1F", 1200, "#232228", 2000, "#2D2C33",
-    3000, "#3A3941", 4200, "#4F4E57", 5600, "#67666F"],
+    // Round 145h (asked 3 October: the grey on high ground did not fit):
+    // the land darkens from basalt black into scorched oxblood as it rises,
+    // with no grey or ash at the top.
+    0, "#131215", 200, "#151215", 600, "#1A1214", 1200, "#1F1416", 2000, "#241418",
+    3000, "#2B151A", 4200, "#33161C", 5600, "#3B171E"],
   shade: {
     "hillshade-method": "multidirectional",
     "hillshade-illumination-direction": [315, 270, 0, 225],
