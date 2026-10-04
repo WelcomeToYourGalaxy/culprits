@@ -5,6 +5,23 @@ touches.
 
 ---
 
+## Round 167m (4 October)
+
+Needs round 164m. No tiles patch. app.js?v= bumped to 1006.
+
+- Owner: Mother Earth still way too brown, and it looked as if 164m had not
+  gone through. 164m was on main (51f7eb0); the page still asked for
+  app.js?v=1005, as it had for many rounds, so browsers could keep an older
+  copy of the script. index.html now asks for v=1006 (test: appVersion >=
+  1006). Other chats: bump past 1006 if you need a fresh load.
+- No brown left on the ground: MOTHER.stone's middle tones were taupe; now
+  cool pearl and silver, warm only at the very lightest; towns, roads, rail
+  and buildings cool greys; hillshade light a neutral pale. The closest
+  zooms' photograph is moved 50% toward the palette (was 35%), so street
+  level is less brown too. Plants, water and the violet sky unchanged.
+- Test: every stone, town, building and road colour has red at most 12 over
+  blue; bare ground's red and blue within 14.
+
 ## Round 166p (4 October)
 
 Needs round 165b (the Woodlands names; guards on its heading). No tiles

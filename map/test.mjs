@@ -6643,8 +6643,10 @@ console.log("\nround 162m (4 October): Mother Earth, an eighth basemap, with its
   const desert = mid(lib.motherPaintPixels(tile([190, 160, 120]), 64, 64));
   check("the sea is a deep blue (blue the strongest, red the weakest)", sea[2] > sea[1] && sea[1] > sea[0] && sea[2] > sea[0] + 30, sea.join(","));
   check("forest is a dark muted spruce (green over red, nothing bright)", forest[1] > forest[0] && forest[0] + forest[1] + forest[2] < 260, forest.join(","));
-  check("bare ground is a warm earth, lighter than forest (red over green over blue; round 163m: not violet)", desert[0] > desert[1] && desert[1] > desert[2] &&
+  check("bare ground is a pale pearl, lighter than forest, neither violet nor brown (round 167m: red and blue within 14)", Math.abs(desert[0] - desert[2]) <= 14 &&
         desert[0] + desert[1] + desert[2] > forest[0] + forest[1] + forest[2], desert.join(","));
+  check("round 167m: no brown in the ground's colours (every stone, town and road colour has red at most 12 over blue)",
+        [...lib.MOTHER.stone.map((x) => x[1]), lib.MOTHER.town, lib.MOTHER.townWork, lib.MOTHER.building, ...lib.MOTHER.road].every((h) => { const [r, , b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); return r - b <= 12; }));
   const ramps = [...lib.MOTHER.pines, ...lib.MOTHER.stone, ...lib.MOTHER.waters].map((x) => x[1]).concat([lib.MOTHER.snow, lib.MOTHER.sheet, lib.MOTHER.town, lib.MOTHER.building, ...lib.MOTHER.road]);
   check("round 163m: no purple on the ground or the water; violet only in the sky", ramps.every((h) => { const [hh, s] = hsl(h); return !(hh >= 245 && hh <= 330 && s > 0.12); }) &&
         hsl(lib.MOTHER.sky["sky-color"])[0] >= 230, ramps.filter((h) => { const [hh, s] = hsl(h); return hh >= 245 && hh <= 330 && s > 0.12; }).join(" "));
@@ -6869,6 +6871,7 @@ console.log("\nround 113c (29 September): capture boxes in plain words, truer pl
   check("the capture row uses its own box", /buildScript: "capture", card: "capture",/.test(src) && /  capture\(p, name\) \{/.test(src) && /everyField\(p, \["summary", "name", "part"\]\)/.test(src));
   check("the capture note says how points are placed", /placed at the constituency they were elected for/.test(src));
   check("the page asks for this round's script", appVersion(html) >= 1005);
+  check("round 167m: the page asks for a fresh copy of the script (browsers kept the old one)", appVersion(html) >= 1006);
 }
 console.log("\nround 116b (29 September): glow orbs back, blue underworld countries, police, courts and prisons filed twice, gangs inside law enforcement");
 {

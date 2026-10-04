@@ -15110,7 +15110,9 @@ var MOTHER = {
   pines: [[0, "#16302E"], [0.2, "#1F4039"], [0.4, "#30554A"], [0.6, "#43705C"], [0.8, "#6F9580"], [1, "#AFC6B3"]],
   // Bare ground and rock: dark earth in shadow, warm stone where the light
   // falls, pale bone on the brightest faces.
-  stone: [[0, "#2A2830"], [0.3, "#4E4950"], [0.55, "#857873"], [0.75, "#B8A69D"], [0.9, "#DCCCC2"], [1, "#F1E7DF"]],
+  // Round 167m (owner: still way too brown): the middle tones were taupe;
+  // now cool pearl and silver, warm only at the very lightest.
+  stone: [[0, "#262C33"], [0.3, "#48515A"], [0.55, "#7E878F"], [0.75, "#AEB4B8"], [0.9, "#D6D7D5"], [1, "#F0ECE8"]],
   // Water: deep blue-teal to the pale lit cyan of the pour.
   waters: [[0, "#0B1A2C"], [0.35, "#123552"], [0.65, "#1F5E7C"], [1, "#7FC2CF"]],
   glow: "#A6DDE3", glowReach: 7, glowStrength: 0.26,
@@ -15127,7 +15129,7 @@ var MOTHER = {
     "hillshade-method": "multidirectional",
     "hillshade-illumination-direction": [300, 340, 260, 0],
     "hillshade-illumination-altitude": [25, 35, 35, 60],
-    "hillshade-highlight-color": ["rgba(240,228,210,0.32)", "rgba(240,228,210,0.13)", "rgba(240,228,210,0.09)", "rgba(240,228,210,0.04)"],
+    "hillshade-highlight-color": ["rgba(236,236,232,0.32)", "rgba(236,236,232,0.13)", "rgba(236,236,232,0.09)", "rgba(236,236,232,0.04)"],
     "hillshade-shadow-color": ["rgba(12,20,30,0.5)", "rgba(12,20,30,0.24)", "rgba(12,20,30,0.16)", "rgba(12,20,30,0.08)"],
     "hillshade-accent-color": "rgba(12,20,30,0.2)",
     "hillshade-exaggeration": 1,
@@ -15135,9 +15137,9 @@ var MOTHER = {
   },
   lake: "#1B4663", lakeOpacity: 0.45,
   river: "#6FAFC0",
-  town: "#6E6866", townWork: "#625C5B",
-  road: ["#7E7672", "#726A66", "#665F5C"],
-  rail: "#3A3636", building: "#857C78",
+  town: "#66707A", townWork: "#5C656E",
+  road: ["#7A838C", "#6E7780", "#626B74"],
+  rail: "#363C42", building: "#7E868E",
   border: "rgba(236,226,210,0.35)",
   // A violet sky round the globe, a rose-lilac horizon, lavender fog.
   sky: { "sky-color": "#1E2468", "horizon-color": "#B88FC0", "fog-color": "#7C76B8",
@@ -15149,7 +15151,7 @@ var MOTHER = {
   loose: [[4, 0.5], [7, 0.75], [99, 1]],
   // The closest zooms: the photograph, sharp, moved part way to the palette.
   photo: WOOD.photo, photoAttribution: WOOD.photoAttribution,
-  photoFrom: 15.5, photoFull: 16.5, photoGrade: 0.35,
+  photoFrom: 15.5, photoFull: 16.5, photoGrade: 0.5,
   // Place names in the same light (letters made from Alegreya, map/glyphs/).
   font: "Alegreya-Medium", fontItalic: "Alegreya-MediumItalic",
   ink: "#EFE7DA", inkSoft: "#D3C8B8", inkWater: "#BCE2E8",
