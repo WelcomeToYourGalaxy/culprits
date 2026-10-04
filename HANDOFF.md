@@ -5,6 +5,29 @@ touches.
 
 ---
 
+## Round 155k (3 October)
+
+Needs round 154k. No tiles patch. No app.js?v= bump. The seventh basemap redrawn.
+
+- Owner on 154k: not an engraved pen-and-ink look, too programmatic; wants a
+  natural, hand-crafted black and white Earth First! look. Redrawn as a
+  hand-cut relief print and renamed "Black and white" in the menu (key still
+  "ink"; layers still outline-ink-*). Nothing from any picture is copied.
+- inkDrawSquare redone: sea solid black, a white cut hugging every shore, short
+  wavering cuts out to sea, fewer over the deeps; land white, the side away
+  from the light cut in black strokes that follow the lie of the land (along
+  height lines, swelling into shadow, tapering into light), solid black where
+  too steep to carve; slow wandering fields tied to the ground bend every
+  line and break strokes off (nothing ruled); a print's texture (inkGrain).
+  Heights softened first so the grid's steps don't show as zigzags. North
+  cap black (Arctic sea), south cap white. About 0.25 s a square.
+- Close in: forests a large sheet of scattered hand-drawn conifers, each
+  different (inkPattern pines, 224 px); reed tufts and uneven town dots the
+  same way; sea from zoom 8, lakes and buildings solid black. Layer colours
+  "suited to the basemap": as drawn (black sea, white land).
+- Checked in Chromium with sample heights (zooms 0-2); not seen against the
+  live height tiles. Preview: black_and_white_preview.png in that chat.
+
 ## Round 154k (3 October)
 
 Needs round 154b. No tiles patch. No app.js?v= bump. One new basemap, Pen and ink.
