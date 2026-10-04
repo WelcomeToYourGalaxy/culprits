@@ -5,6 +5,30 @@ touches.
 
 ---
 
+## Round 156k (4 October)
+
+Needs round 155k. No tiles patch. No app.js?v= bump. The seventh basemap redrawn again.
+
+- Owner on 155k, with two scans of Earth First! artwork (a moonlit mountain,
+  a wolf among conifers): too much of a black-and-white theme, not the Earth
+  First! look; fewer squiggles and patterns, natural hand-crafted intricate
+  shadows. Nothing from any picture is copied.
+- inkDrawSquare redone in the manner of those drawings: shadow sides solid
+  black with ragged, blotchy edges and a few fine white scratches; half-tones
+  in fine, short, straight pen strokes down the fall line (directions in
+  twelfths of a turn from heavily smoothed slopes, chosen patch by patch;
+  strokes fixed in place and drawn whole, the tone deciding how many and how
+  thick); light ground paper with sparse stipple; the sea white paper
+  stippled with round, uneven dots, closer over the deeps, with bare paper
+  and one ragged inked line along the shore. No wavy cuts, no wander.
+  About 60-90 ms a square in Chromium.
+- Close in: no drawn motifs. Forests dense stipple, wetlands and towns light
+  stipple, sea (from zoom 7) and lakes medium stipple (256 px sheets of
+  chance-placed dots), buildings solid black. Layer colours "suited to the
+  basemap": deep (pale ground again). Menu name unchanged: Black and white.
+- Checked in Chromium with sample heights (zooms 0-2); not seen against the
+  live height tiles.
+
 ## Round 159b (4 October)
 
 Needs round 158b. Carries round 147b, which failed: main had moved on by the time it was uploaded (its test block clashed). No tiles patch. No app.js?v= bump.

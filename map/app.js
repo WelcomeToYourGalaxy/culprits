@@ -14388,35 +14388,36 @@ if (typeof MutationObserver === "function" && typeof document !== "undefined" &&
     .observe(document.body, { attributes: true, attributeFilter: ["class"] });
 }
 /* ---------- end of Autumn woodlands ---------- */
-/* ---------- Black and white, a seventh basemap (round 154k, redrawn 155k) ---------- */
+/* ---------- Black and white, a seventh basemap (round 154k, redrawn 155k, 156k) ---------- */
 // Asked 3 October: a basemap in the look of the Earth First! artwork in Cal
 // Poly Humboldt's Special Collections and a photocopied sabotage zine. Round
-// 155k (the owner on 154k: not an engraved pen-and-ink look, too
-// programmatic; a natural, hand-crafted black and white Earth First! look):
-// redrawn as a hand-cut relief print. Only the way those posters are made is
-// taken; nothing from any picture in them is copied. The same Earth from the
-// same open data:
-//   sea      solid black; a white cut hugs every shore; out to sea, short
-//            wavering cuts like a carver's water, thinning over the deeps
-//            (AWS terrain heights, which carry depths); from zoom 8 the sea
-//            is OpenFreeMap's, solid black
-//   land     white paper; the side of each slope away from a north-west light
-//            cut in black strokes that follow the lie of the land, swelling
-//            into the shadow and tapering into the light; where too steep to
-//            carve, solid black shapes; far out, high ground shaded by height
-//   hand     every line and edge bent a little by slow wandering fields tied
-//            to the ground, and strokes left to break off; nothing ruled
-//   print    ink that did not take in the blacks, the odd speck in the whites
-//   shapes   forests as scattered hand-drawn conifers, each different, wetlands
-//            as reed tufts, towns as uneven dots, lakes and buildings solid
-//            black, roads black (main roads doubled), railways with ties,
-//            borders dash-dot (OpenFreeMap, boundaries)
+// 156k (the owner on 155k, with two scans of the artwork: too much of a
+// black-and-white theme, not the Earth First! look; fewer squiggles and
+// patterns, natural hand-crafted intricate shadows): redrawn as those
+// drawings are made. Only the way they are drawn is taken; nothing from any
+// picture is copied. The same Earth from the same open data:
+//   shadow   solid black masses with ragged, blotchy edges and a few fine
+//            white scratches, on the side of each slope away from a
+//            north-west light; far out, high ground shaded by its height
+//   half     fine, short, straight pen strokes running down the slope (the
+//            fall line), thicker and more of them as it darkens, each stroke
+//            tapered and drawn whole; directions in twelfths of a turn,
+//            changing patch by patch as an artist turns the page
+//   light    white paper with sparse stipple
+//   sea      white paper stippled with round, uneven dots, closer together
+//            over the deeps; bare paper along the shore, one ragged inked
+//            shore line (AWS terrain heights, which carry depths); from
+//            zoom 7 the sea is OpenFreeMap's, stippled the same way
+//   shapes   forests dense stipple, wetlands and towns light stipple, lakes
+//            stippled with an inked edge, ice white, buildings solid black,
+//            roads black (main roads doubled), railways with ties, borders
+//            dash-dot (OpenFreeMap, boundaries); no drawn motifs
 //   names    the label set in black and grey
 // Black and paper only. Drawn square by square on the reader's computer
-// (inkdraw://, inkDrawSquare), seamless across squares. Layers are named
-// "outline-ink-...", so the colour mapping and the themes leave them alone.
-// One block; the menu and the switch are reached by wrapping
-// basemapPanelHtml and setBasemap, as the basemaps before it are.
+// (inkdraw://, inkDrawSquare, about 60-90 ms a square in Chromium), seamless
+// across squares. Layers are named "outline-ink-...", so the colour mapping
+// and the themes leave them alone. One block; the menu and the switch are
+// reached by wrapping basemapPanelHtml and setBasemap.
 var INK = {
   paper: "#ECEAE3",        // pale, nearly neutral paper
   ink: "#16181B",          // black ink
@@ -14454,7 +14455,6 @@ function inkGrain() {
   }
   return (INK_GRAIN = g);
 }
-function inkCarveStep(z) { return z <= 3 ? 700 : z <= 5 ? 400 : z <= 7 ? 300 : z <= 9 ? 250 : z <= 11 ? 150 : 60; }
 function inkDrawSquare(E, n, z, tx, ty, S) {
   S = S || INK.size;
   const P = inkHex(INK.paper), K = inkHex(INK.ink), out = new Uint8ClampedArray(S * S * 4), o32 = new Uint32Array(out.buffer);
@@ -14462,13 +14462,14 @@ function inkDrawSquare(E, n, z, tx, ty, S) {
   for (let t = 0; t < 256; t++) { const a = t / 255; TONE[t] = ((255 << 24) | (Math.round(P[2] + (K[2] - P[2]) * a) << 16) | (Math.round(P[1] + (K[1] - P[1]) * a) << 8) | Math.round(P[0] + (K[0] - P[0]) * a)) >>> 0; }
   const GR = inkGrain(), gx0 = ((tx * S) % 509 + 509) % 509, gy0 = ((ty * S) % 509 + 509) % 509;
   const sea = z <= INK.seaUntil, scale = n / S, Z = Math.pow(2, z);
-  // Soften the height grid (two 3-point passes each way), so its stair-steps
-  // don't show as zigzags.
-  const H = new Float32Array(E), T = new Float32Array(n * n);
-  for (let pass = 0; pass < 2; pass++) {
-    for (let v = 0; v < n; v++) { const r = v * n; for (let u = 0; u < n; u++) T[r + u] = (H[r + (u ? u - 1 : 0)] + H[r + u] + H[r + (u < n - 1 ? u + 1 : u)]) / 3; }
-    for (let v = 0; v < n; v++) { const up = (v ? v - 1 : 0) * n, dn = (v < n - 1 ? v + 1 : v) * n, r = v * n; for (let u = 0; u < n; u++) H[r + u] = (T[up + u] + T[r + u] + T[dn + u]) / 3; }
-  }
+  // Soften the heights (no stair-steps), and soften the slope directions far
+  // more, so pen strokes keep one direction over a whole face of a hill.
+  const blur = (A, passes) => { const H = new Float32Array(A), T = new Float32Array(n * n);
+    for (let pass = 0; pass < passes; pass++) {
+      for (let v = 0; v < n; v++) { const r = v * n; for (let u = 0; u < n; u++) T[r + u] = (H[r + (u ? u - 1 : 0)] + H[r + u] + H[r + (u < n - 1 ? u + 1 : u)]) / 3; }
+      for (let v = 0; v < n; v++) { const up = (v ? v - 1 : 0) * n, dn = (v < n - 1 ? v + 1 : v) * n, r = v * n; for (let u = 0; u < n; u++) H[r + u] = (T[up + u] + T[r + u] + T[dn + u]) / 3; }
+    } return H; };
+  const H = blur(E, 2);
   const GX = new Float32Array(n * n), GY = new Float32Array(n * n);
   const ex = Math.max(1, Math.min(160, Math.pow(2, (10 - z) * 0.72)));
   for (let v = 0; v < n; v++) {
@@ -14479,121 +14480,125 @@ function inkDrawSquare(E, n, z, tx, ty, S) {
       GY[v * n + u] = (H[vd + u] - H[vu + u]) / m2;
     }
   }
-  // Slow wandering fields tied to the world, on an 8-pixel lattice: they bend
-  // every line and edge (the hand), shift where cuts fall, and break strokes.
-  const LW = S / 8 + 2, WX = new Float32Array(LW * LW), WY = new Float32Array(LW * LW), WB = new Float32Array(LW * LW), WP = new Float32Array(LW * LW);
-  for (let b = 0; b < LW; b++) for (let a = 0; a < LW; a++) {
-    const X = tx * S + a * 8, Y = ty * S + b * 8, k = b * LW + a;
-    WX[k] = 3.6 * inkWander(X / 70, Y / 70) + 0.6 * inkWander(X / 31 + 9, Y / 31);
-    WY[k] = 3.6 * inkWander(X / 70 + 31, Y / 70) + 0.6 * inkWander(X / 31 + 77, Y / 31);
-    WB[k] = inkWander(X / 34 + 140, Y / 34 + 3) + 0.5 * inkWander(X / 11 + 5, Y / 11 + 60);   // where strokes break off
-    WP[k] = 0.45 * inkWander(X / 90 + 400, Y / 90);                                             // where cuts fall
-  }
+  const DX = blur(GX, 6), DY = blur(GY, 6);
+  // Where the pen changes from one stroke direction to the next: slow,
+  // irregular patches tied to the ground, as an artist turns the page.
+  const LW = S / 8 + 2, WB = new Float32Array(LW * LW);
+  for (let b = 0; b < LW; b++) for (let a = 0; a < LW; a++) { const X = tx * S + a * 8, Y = ty * S + b * 8; WB[b * LW + a] = 0.5 + inkWander(X / 29, Y / 29) + 0.4 * inkWander(X / 9 + 7, Y / 9); }
   const az = INK.light.az * Math.PI / 180, alt = INK.light.alt * Math.PI / 180;
   const Lx = Math.sin(az) * Math.cos(alt), Ly = -Math.cos(az) * Math.cos(alt), Lz = Math.sin(alt);
-  const hiK = z <= 3 ? 1 : z >= 7 ? 0 : (7 - z) / 4, step = inkCarveStep(z), deep = Math.log1p(6000);
-  const at = (A, k, fx, fy) => (A[k] * (1 - fx) + A[k + 1] * fx) * (1 - fy) + (A[k + LW] * (1 - fx) + A[k + LW + 1] * fx) * fy;
+  const hiK = z <= 3 ? 1 : z >= 7 ? 0 : (7 - z) / 4, deep = Math.log1p(6000);
+  const SP = 5, STEP = Math.PI / 6;
+  // One short straight pen stroke field at angle a: lines SP apart, each line
+  // broken into strokes of its own length and spacing, tapered at both ends.
+  const CS = [], SN = [];
+  for (let k = -7; k <= 7; k++) { CS[k + 7] = Math.cos(k * STEP); SN[k + 7] = Math.sin(k * STEP); }
+  // Strokes sit in fixed places on the ground; the tone only decides how
+  // many of them are drawn (keep: share of strokes, 0 to 1) and how thick,
+  // so strokes come and go whole, never chopped.
+  const strokes = (X, Y, k, half, sp, long, keep) => {
+    const ca = CS[k + 7], sa = SN[k + 7], along = X * ca + Y * sa, across = -X * sa + Y * ca;
+    const L = Math.floor(across / sp), off = across - (L + 0.5) * sp, hsh = inkHash(L | 0, k * 7919 + 13);
+    const r2 = (hsh * 7.13) % 1, r3 = (hsh * 31.7) % 1;
+    const per = long * (1.25 + 0.5 * r2);
+    let m = (along + r3 * per) / per; const mi = Math.floor(m); m -= mi;
+    if (m >= 0.9) return 0;
+    const rk = inkHash((L | 0) * 131 + mi, k + 77), len = 0.55 + 0.35 * rk;      // this stroke's length, as a share of its slot
+    if (rk > keep || m >= len) return 0;
+    const t = m / len, h = half * Math.pow(Math.sin(Math.PI * t), 0.3) * (0.8 + 0.4 * r2);
+    const q = h - (off < 0 ? -off : off) + 0.5; return q <= 0 ? 0 : q >= 1 ? 1 : q;
+  };
+  // Stipple: one possible dot per 3 x 3-pixel cell, its middle and size set
+  // by chance, so dots are round, uneven and never on a grid. Returns the
+  // dot's chance value inside a dot, 2 outside.
+  const dotAt = (X, Y) => {
+    const cx = Math.floor(X / 3), cy = Math.floor(Y / 3), dh = inkHash(cx, cy + 90001);
+    const ddx = X - (cx * 3 + 0.5 + 2 * ((dh * 13.7) % 1)), ddy = Y - (cy * 3 + 0.5 + 2 * ((dh * 71.3) % 1)), dr = 0.55 + 0.75 * ((dh * 5.3) % 1);
+    return ddx * ddx + ddy * ddy < dr * dr ? dh : 2;
+  };
   for (let j = 0; j < S; j++) {
+    let v = (j + 0.5) * scale - 0.5; if (v < 0) v = 0; if (v > n - 1) v = n - 1;
+    const v0 = Math.min(n - 2, v | 0), fv = v - v0;
     const lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * (ty + (j + 0.5) / S) / Z)));
     const mpp = 40075016.686 * Math.cos(lat) / (S * Z), Y = ty * S + j;
     const wb = j >> 3, wfy = (j & 7) / 8, grow = ((gy0 + j) % 509) * 509;
     let gcol = gx0;
     for (let i = 0; i < S; i++) {
-      const X = tx * S + i, wk = wb * LW + (i >> 3), wfx = (i & 7) / 8;
-      // The hand: read the ground a little off from where the pixel is.
-      let u = (i + 0.5 + at(WX, wk, wfx, wfy)) * scale - 0.5, v = (j + 0.5 + at(WY, wk, wfx, wfy)) * scale - 0.5;
-      if (u < 0) u = 0; if (u > n - 1) u = n - 1; if (v < 0) v = 0; if (v > n - 1) v = n - 1;
-      const u0 = Math.min(n - 2, u | 0), v0 = Math.min(n - 2, v | 0), fu = u - u0, fv = v - v0, p = v0 * n + u0;
+      let u = (i + 0.5) * scale - 0.5; if (u < 0) u = 0; if (u > n - 1) u = n - 1;
+      const u0 = Math.min(n - 2, u | 0), fu = u - u0, p = v0 * n + u0;
       const w00 = (1 - fu) * (1 - fv), w10 = fu * (1 - fv), w01 = (1 - fu) * fv, w11 = fu * fv;
       let e = H[p] * w00 + H[p + 1] * w10 + H[p + n] * w01 + H[p + n + 1] * w11;
       const gx = GX[p] * w00 + GX[p + 1] * w10 + GX[p + n] * w01 + GX[p + n + 1] * w11;
       const gy = GY[p] * w00 + GY[p + 1] * w10 + GY[p + n] * w01 + GY[p + n + 1] * w11;
-      const grad = Math.sqrt(gx * gx + gy * gy) * mpp + 1e-6;     // metres per drawn pixel
-      const brk = at(WB, wk, wfx, wfy), shift = at(WP, wk, wfx, wfy);
-      const g = GR[grow + gcol]; if (++gcol === 509) gcol = 0;
-      let c;
+      const grad = Math.sqrt(gx * gx + gy * gy) * mpp + 1e-6;
+      const X = tx * S + i, g = GR[grow + gcol]; if (++gcol === 509) gcol = 0;
+      let c = 0;
       if (sea && e < 0) {
-        // The sea: solid black. A white cut hugs every shore; out to sea,
-        // short wavering cuts like a carver's water, fewer over the deeps.
+        // The sea, like the sky in the drawings: white paper stippled with
+        // fine dots, closer together over the deeps; bare paper along the
+        // shore, and one ragged inked shore line.
         const toCoast = -e / grad, f = Math.min(1, Math.log1p(-e) / deep);
-        if (toCoast < 1.8) c = 1;
-        else if (toCoast < 3.4 + 1.4 * brk) c = 0;
-        else {
-          const wy = (Y + 9 * at(WY, wk, wfx, wfy) + 4 * Math.sin(X / 37 + Y / 91)) / 15, r = Math.abs(wy - Math.round(wy));
-          const width = (0.13 - 0.1 * f) * (brk > -0.05 ? 1 : 0) * (1 - Math.max(0, brk - 0.3));
-          c = r < width ? 0 : 1;
-        }
+        if (toCoast < 1.4 + 0.5 * g) c = 1;
+        else if (toCoast > 4) c = dotAt(X, Y) < (0.05 + 0.3 * f * f) * Math.min(1, (toCoast - 4) / 12) ? 1 : 0;
       } else {
         if (e < 0) e = 0;
         const nx = -gx * ex, ny = -gy * ex, nl = Math.sqrt(nx * nx + ny * ny + 1);
-        let d = (Lz - (nx * Lx + ny * Ly + Lz) / nl) * 2.2;
-        if (hiK > 0 && e > 500) { const h = (e - 500) / 2600; d += hiK * 0.62 * (h > 1 ? 1 : h); }
+        let d = (Lz - (nx * Lx + ny * Ly + Lz) / nl) * 1.35;
+        d = d > 0 ? Math.sqrt(d) * 0.9 : 0;
+        if (hiK > 0 && e > 500) { const hh = (e - 500) / 2600; d += hiK * 0.85 * (hh > 1 ? 1 : hh); }
         d = d < 0 ? 0 : d > 1 ? 1 : d;
-        // Lines cut along the lie of the land (along the slope, as a carver
-        // follows a form): black takes the share of each band the shadow
-        // asks for, so strokes swell into the dark and taper into the light.
-        const t = d * (0.85 + 0.45 * brk) - 0.12;
-        const spacingPx = step / grad;
-        if (t <= 0) c = 0;
-        else if (spacingPx < 3) c = t + 0.25 * g > 0.45 ? 1 : 0;   // too steep to carve: a solid mass with a rough edge
-        else { const k = e / step + shift, r = Math.abs(k - Math.round(k)); c = r < Math.min(0.5, t * 0.7) ? 1 : 0; }
+        const wk = wb * LW + (i >> 3), wfx = (i & 7) / 8;
+        const pick = (WB[wk] * (1 - wfx) + WB[wk + 1] * wfx) * (1 - wfy) + (WB[wk + LW] * (1 - wfx) + WB[wk + LW + 1] * wfx) * wfy;
+        // Strokes run down the slope (the fall line), as in the drawings;
+        // directions snapped to twelfths of a turn, the nearer one chosen
+        // patch by patch.
+        const dx = DX[p] * w00 + DX[p + 1] * w10 + DX[p + n] * w01 + DX[p + n + 1] * w11, dy = DY[p] * w00 + DY[p + 1] * w10 + DY[p + n] * w01 + DY[p + n + 1] * w11;
+        const ang = (dx === 0 && dy === 0 ? Math.PI / 4 : Math.atan2(dy, dx)) / STEP, a0 = Math.floor(ang);
+        let a = ang - a0 > pick - 0.25 ? a0 + 1 : a0; a = ((a % 6) + 6) % 6;     // a stroke has no head or tail: six directions
+        const dk = d + 0.16 * (pick - 0.5) + 0.03 * g;                  // ragged, blotchy edges between tones
+        if (dk > 0.7) {
+          // Shadow: solid black, with a few fine white scratches.
+          c = 1 - strokes(X, Y, a, 0.7, 13, 18, 0.3);
+        } else if (dk > 0.14) {
+          // Half-tone: fine short strokes down the slope, thicker and closer
+          // together as it darkens, until they run into the black.
+          const t = (dk - 0.14) / 0.56;
+          c = strokes(X, Y, a, 0.5 + 1.8 * t * t, 5, 26, 0.35 + 0.65 * Math.sqrt(t));
+        } else if (dk > 0.06) {
+          c = dotAt(X, Y) < (dk - 0.06) * 1.2 ? 1 : 0;                        // sparse stipple in the half-light
+        }
       }
-      // A relief print's texture: ink that did not take in the blacks, the
-      // odd speck in the whites.
-      if (c === 1 && g > 0.62) c = 0; else if (c === 0 && g < -0.66) c = 1;
-      // The world's top rows black (the Arctic is sea), its bottom rows white
-      // (Antarctica is land): the globe stretches them over the poles, and
-      // stretched marks would show as a pinwheel.
-      if (ty === 0 && j < 4) c = 1; else if (ty === Z - 1 && j >= S - 4) c = 0;
-      o32[j * S + i] = TONE[c * 255];
+      if ((ty === 0 && j < 4) || (ty === Z - 1 && j >= S - 4)) c = 0;
+      o32[j * S + i] = TONE[(c * 255 + 0.5) | 0];
     }
   }
   return out;
 }
-// Forests, wetlands and towns close in: a large sheet of marks scattered
-// unevenly (each a different size, lean and shape), so the repeat is hard
-// to see. Drawn here as pixels at twice screen size, not taken from any
-// picture.
+// Close-in stipple for OpenFreeMap's shapes: a 256-pixel sheet of round,
+// uneven dots placed by chance (one possible dot per 3 x 3 cell, as on the
+// drawn ground), so it reads as tone, with no motif to see repeat.
 function inkPattern(kind) {
-  const W = { pines: 224, marsh: 192, stipple: 160 }[kind];
-  if (!W) return null;
-  const H = W, K = inkHex(INK.ink), cover = new Float32Array(W * H), data = new Uint8ClampedArray(W * H * 4);
-  const put = (x, y, a) => { x = ((Math.round(x) % W) + W) % W; y = ((Math.round(y) % H) + H) % H; const i = y * W + x; if (a > cover[i]) cover[i] = Math.min(1, a); };
-  const dab = (cx, cy, r) => { for (let y = Math.floor(cy - r - 1); y <= Math.ceil(cy + r + 1); y++) for (let x = Math.floor(cx - r - 1); x <= Math.ceil(cx + r + 1); x++) put(x, y, r - Math.hypot(x + 0.5 - cx, y + 0.5 - cy) + 0.5); };
-  // A stroke that swells in the middle and tapers at both ends, as a brush does.
-  const stroke = (x0, y0, x1, y1, w) => { const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) * 1.5) + 1; for (let s = 0; s <= n; s++) { const t = s / n; dab(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, w * (0.35 + 0.65 * Math.sin(Math.PI * t))); } };
-  let seed = { pines: 11, marsh: 23, stipple: 37 }[kind];
-  const rnd = () => inkHash(seed++, 97);
-  // Place marks apart from each other (dart throwing), so none overlap badly.
-  const spots = (count, gap) => { const out = []; for (let tries = 0; out.length < count && tries < count * 60; tries++) { const x = rnd() * W, y = rnd() * H; if (out.every(([a, b]) => { const dx = Math.min(Math.abs(a - x), W - Math.abs(a - x)), dy = Math.min(Math.abs(b - y), H - Math.abs(b - y)); return Math.hypot(dx, dy) > gap; })) out.push([x, y]); } return out; };
-  if (kind === "pines") {
-    for (const [cx, by] of spots(19, 29)) {
-      const h = 22 + rnd() * 18, lean = (rnd() - 0.5) * 0.25, tiers = 5 + Math.floor(rnd() * 3);
-      stroke(cx, by, cx + lean * h, by - h, 1.1);                                   // trunk
-      for (let k = 0; k < tiers; k++) {
-        const t = (k + 0.6) / tiers, y = by - h * (1 - t) - 2, x = cx + lean * h * (1 - t), reach = (3 + 9 * t) * (0.8 + 0.4 * rnd());
-        const droop = 2 + 3 * t;
-        stroke(x, y - 1, x - reach, y + droop + (rnd() - 0.5) * 2, 0.9 + 0.5 * t);   // bough, left
-        stroke(x, y - 1, x + reach, y + droop + (rnd() - 0.5) * 2, 0.9 + 0.5 * t);   // bough, right
-      }
+  const share = { dense: 0.42, mid: 0.16, light: 0.07 }[kind];
+  if (!share) return null;
+  const W = 256, K = inkHex(INK.ink), cover = new Float32Array(W * W), data = new Uint8ClampedArray(W * W * 4);
+  const seed = { dense: 501, mid: 503, light: 509 }[kind];
+  for (let cy = 0; cy < W / 4; cy++) for (let cx = 0; cx < W / 4; cx++) {
+    const dh = inkHash(cx + seed, cy * 7 + seed);
+    if (dh >= share) continue;
+    const mx = cx * 4 + 0.5 + 3 * ((dh * 13.7) % 1), my = cy * 4 + 0.5 + 3 * ((dh * 71.3) % 1), r = 0.6 + 0.8 * ((dh * 5.3) % 1);
+    for (let y = Math.floor(my - r - 1); y <= Math.ceil(my + r + 1); y++) for (let x = Math.floor(mx - r - 1); x <= Math.ceil(mx + r + 1); x++) {
+      const q = r - Math.hypot(x + 0.5 - mx, y + 0.5 - my) + 0.5, i = (((y % W) + W) % W) * W + (((x % W) + W) % W);
+      if (q > cover[i]) cover[i] = Math.min(1, q);
     }
-  } else if (kind === "marsh") {
-    for (const [cx, cy] of spots(11, 36)) {
-      const w = 8 + rnd() * 7;
-      stroke(cx - w, cy + (rnd() - 0.5) * 2, cx + w, cy + (rnd() - 0.5) * 2, 0.8);
-      for (let k = 0; k < 4; k++) { const x = cx - w * 0.5 + k * w / 3 + (rnd() - 0.5) * 2, len = 5 + rnd() * 6; stroke(x, cy, x + (rnd() - 0.5) * 6, cy - len, 0.7); }
-    }
-  } else {
-    for (const [x, y] of spots(70, 9)) dab(x, y, 0.8 + rnd() * 1.1);
   }
-  for (let i = 0; i < W * H; i++) { const q = i * 4; data[q] = K[0]; data[q + 1] = K[1]; data[q + 2] = K[2]; data[q + 3] = Math.round(255 * cover[i]); }
-  return { width: W, height: H, data };
+  for (let i = 0; i < W * W; i++) { const q = i * 4; data[q] = K[0]; data[q + 1] = K[1]; data[q + 2] = K[2]; data[q + 3] = Math.round(255 * cover[i]); }
+  return { width: W, height: W, data };
 }
 var INK_IDS = ["outline-ink-sheet", "outline-ink-draw", "outline-ink-sea", "outline-ink-ice", "outline-ink-forest",
   "outline-ink-marsh", "outline-ink-town", "outline-ink-lake", "outline-ink-lake-edge", "outline-ink-river",
   "outline-ink-rail", "outline-ink-rail-ties", "outline-ink-road-minor", "outline-ink-road", "outline-ink-road-major-case",
   "outline-ink-road-major", "outline-ink-buildings", "outline-ink-building-edge", "outline-ink-border"];
-var INK_PATTERNS = ["pines", "marsh", "stipple"];
+var INK_PATTERNS = ["dense", "mid", "light"];
 maplibregl.addProtocol("inkdraw", async (params, abortController) => {
   const m = params.url.match(/^inkdraw:\/\/(\d+)\/(\d+)\/(\d+)/);
   if (!m) throw new Error("not an ink square");
@@ -14619,22 +14624,22 @@ function inkLayers() {
       paint: { "raster-opacity": 1, "raster-fade-duration": 150, "raster-resampling": "linear" } },
     { id: "outline-ink-sea", type: "fill", source: "osm", "source-layer": "water", minzoom: INK.seaUntil,
       filter: ["==", ["get", "class"], "ocean"],
-      paint: { "fill-color": INK.ink, "fill-opacity": fade(INK.seaUntil, INK.seaUntil + 1, 1) } },
+      paint: { "fill-pattern": "ink-mid", "fill-opacity": fade(INK.seaUntil, INK.seaUntil + 1, 1) } },
     { id: "outline-ink-ice", type: "fill", source: "osm", "source-layer": "landcover", minzoom: 5,
       filter: ["==", ["get", "class"], "ice"],
       paint: { "fill-color": INK.paper, "fill-opacity": fade(5, 7, .8) } },
     { id: "outline-ink-forest", type: "fill", source: "osm", "source-layer": "landcover", minzoom: 7,
       filter: ["==", ["get", "class"], "wood"],
-      paint: { "fill-pattern": "ink-pines", "fill-opacity": fade(7, 9, .85) } },
+      paint: { "fill-pattern": "ink-dense", "fill-opacity": fade(7, 9, .85) } },
     { id: "outline-ink-marsh", type: "fill", source: "osm", "source-layer": "landcover", minzoom: 8,
       filter: ["==", ["get", "class"], "wetland"],
-      paint: { "fill-pattern": "ink-marsh", "fill-opacity": fade(8, 10, .85) } },
+      paint: { "fill-pattern": "ink-light", "fill-opacity": fade(8, 10, .85) } },
     { id: "outline-ink-town", type: "fill", source: "osm", "source-layer": "landuse", minzoom: 8,
       filter: kind(["residential", "commercial", "industrial", "retail", "suburb", "neighbourhood"]),
-      paint: { "fill-pattern": "ink-stipple", "fill-opacity": fade(8, 10, .8) } },
+      paint: { "fill-pattern": "ink-light", "fill-opacity": fade(8, 10, .8) } },
     { id: "outline-ink-lake", type: "fill", source: "osm", "source-layer": "water",
       filter: ["!=", ["get", "class"], "ocean"],
-      paint: { "fill-color": INK.ink } },
+      paint: { "fill-pattern": "ink-mid" } },
     { id: "outline-ink-lake-edge", type: "line", source: "osm", "source-layer": "water", minzoom: 5,
       filter: ["!=", ["get", "class"], "ocean"],
       paint: { "line-color": INK.ink, "line-width": ["interpolate", ["linear"], ["zoom"], 5, .4, 12, 1.1] } },
@@ -14741,8 +14746,8 @@ basemapPanelHtml = function (opts) {
 };
 const setBasemapBeforeInk = setBasemap;
 setBasemap = function (kind) {
-  // Black sea and white land: the layers' own mid-tone colours show on both.
-  if (typeof THEME_BY_BASEMAP === "object" && THEME_BY_BASEMAP && (!THEME_BY_BASEMAP.ink || THEME_BY_BASEMAP.ink === "deep")) THEME_BY_BASEMAP.ink = "drawn";
+  // Pale paper, land and sea: the deeper layer colours stand out on it.
+  if (typeof THEME_BY_BASEMAP === "object" && THEME_BY_BASEMAP && (!THEME_BY_BASEMAP.ink || THEME_BY_BASEMAP.ink === "drawn")) THEME_BY_BASEMAP.ink = "deep";
   if (kind === "ink") addInkLayers();
   if (kind !== "ink") inkShow(false);
   setBasemapBeforeInk(kind);

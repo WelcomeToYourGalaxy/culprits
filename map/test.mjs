@@ -6127,45 +6127,48 @@ console.log("\nround 154k (3 October): Pen and ink, a seventh basemap");
 
 console.log("\nround 155k (3 October): the seventh basemap redrawn as a hand-cut black and white print");
 {
+  // (Round 156k redrew this basemap and replaced these checks; see round 156k.)
+}
+
+console.log("\nround 156k (4 October): the seventh basemap drawn like the Earth First! artwork");
+{
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const block = src.slice(src.indexOf("/* ---------- Black and white, a seventh basemap"), src.indexOf("/* ---------- end of Black and white ---------- */"));
-  check("the block is there, after Woodlands, and the engraved look is gone", block.length > 1000 && src.indexOf("/* ---------- Black and white") > src.indexOf("/* ---------- end of Autumn woodlands") &&
-        !/Pen and ink, a seventh/.test(src) && !/"ink-hatch"|"ink-sea"|"ink-lake"|inkContourStep/.test(block));
+  check("the block is there, after Woodlands, with the cut-print look gone", block.length > 1000 && src.indexOf("/* ---------- Black and white") > src.indexOf("/* ---------- end of Autumn woodlands") &&
+        !/inkCarveStep|"ink-pines"|"ink-marsh"|"ink-stipple"/.test(block) && /redrawn 155k, 156k/.test(block));
   const hexes = block.match(/#[0-9A-Fa-f]{6}\b/g) || [];
   const sat = (h) => { const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); return (Math.max(...c) - Math.min(...c)) / 255; };
   check("black ink and paper only: no colour anywhere in the block", hexes.length >= 2 && hexes.every((h) => sat(h) < 0.06), hexes.filter((h) => sat(h) >= 0.06).join(","));
   check("every layer is an outline- layer, so the colour mapping leaves it alone", (block.match(/id: "outline-ink-[a-z-]+"/g) || []).length === 19 &&
         !/id: "(?!outline-ink-)[a-z]/.test(block.slice(block.indexOf("function inkLayers"))));
-  check("sea, lakes and buildings are solid black close in", /id: "outline-ink-sea"[\s\S]{0,260}"fill-color": INK\.ink/.test(block) && /id: "outline-ink-lake", [\s\S]{0,160}"fill-color": INK\.ink/.test(block) &&
-        /id: "outline-ink-buildings"[\s\S]{0,140}"fill-color": INK\.ink/.test(block));
+  check("close in: no drawn motifs, only stipple; buildings solid black", /var INK_PATTERNS = \["dense", "mid", "light"\]/.test(block) &&
+        /id: "outline-ink-forest"[\s\S]{0,200}"fill-pattern": "ink-dense"/.test(block) && /id: "outline-ink-buildings"[\s\S]{0,140}"fill-color": INK\.ink/.test(block));
+  check("pale ground: the deeper layer colours", /THEME_BY_BASEMAP\.ink = "deep"/.test(block));
   check("the heights are credited", /attribution: TERRAIN_SOURCE\.attribution/.test(block));
-  const menuFn = new Function("BASEMAP", block.slice(block.indexOf("const basemapPanelHtmlBeforeInk"), block.indexOf("const setBasemapBeforeInk")).replace("const basemapPanelHtmlBeforeInk = basemapPanelHtml;", "let basemapPanelHtml, basemapPanelHtmlBeforeInk = (o) => `<div>` + o.concat([[\"wood\", \"Woodlands\"], [\"hell\", \"Hell\"]]).map(([k, n]) => `<label><input value=\"${k}\"><span class=\"nm\">${n}</span></label>`).join(\"\") + `</div><div class=\"view-zoom\"></div>`;") + "; return basemapPanelHtml;")("atlas");
-  const menu = menuFn([["atlas", "Painted atlas"]]);
-  const order = [...menu.matchAll(/value="(\w+)"/g)].map((x) => x[1]);
-  check("in the menu as Black and white, listed last", order.join(",") === "atlas,wood,hell,ink" && /Black and white<\/span><\/label><\/div><div class="view-zoom"/.test(menu), order.join(","));
-  check("layers keep their own colours on it (black sea, white land)", /THEME_BY_BASEMAP\.ink = "drawn"/.test(block));
   const lib = new Function(block.slice(block.indexOf("var INK = {"), block.indexOf("var INK_IDS = [")) + "; return { inkDrawSquare, inkPattern, INK };")();
   const n = 64, S = 128, grid = (f) => { const E = new Float32Array(n * n); for (let v = 0; v < n; v++) for (let u = 0; u < n; u++) E[v * n + u] = f(u, v); return E; };
   const black = (d, x0 = 0, x1 = S, y0 = 0, y1 = S) => { let k = 0, all = 0; for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { all++; if (d[(y * S + x) * 4] < 120) k++; } return k / all; };
   const flat = lib.inkDrawSquare(grid(() => 120), n, 9, 100, 200, S);
-  check("flat land is white paper (only the odd speck)", black(flat) < 0.01, black(flat).toFixed(4));
+  check("flat land is bare paper", black(flat) < 0.005, black(flat).toFixed(4));
   const sea = lib.inkDrawSquare(grid(() => -4000), n, 3, 2, 3, S), shelf = lib.inkDrawSquare(grid(() => -80), n, 3, 2, 3, S);
-  check("the sea is black, with white cuts", black(sea) > 0.8 && black(sea) < 0.995 && black(shelf) < black(sea), black(sea).toFixed(3) + " / shelf " + black(shelf).toFixed(3));
-  const rowWhite = []; for (let y = 4; y < S - 4; y++) rowWhite.push(1 - black(shelf, 0, S, y, y + 1));
-  check("nothing ruled: the water's cuts waver and break, no row is cut straight across", Math.max(...rowWhite) < 0.6, Math.max(...rowWhite).toFixed(2));
-  const away = lib.inkDrawSquare(grid((u, v) => 300 + (u + v) * 70), n, 10, 300, 400, S), lit = lib.inkDrawSquare(grid((u, v) => 9300 - (u + v) * 70), n, 10, 300, 400, S);
-  check("slopes turned from the light are cut in black, those facing it stay white", black(lit) > 0.15 && black(away) < 0.05, black(lit).toFixed(3) + " vs " + black(away).toFixed(3));
+  check("the sea is paper stippled with dots, closer over the deeps", black(sea) > 0.03 && black(sea) < 0.3 && black(shelf) < black(sea), black(sea).toFixed(3) + " / shelf " + black(shelf).toFixed(3));
+  const rows = []; for (let y = 0; y < S; y++) rows.push(black(sea, 0, S, y, y + 1));
+  check("the stipple is uneven, not ruled or gridded (no row much darker than the rest)", Math.max(...rows) < black(sea) * 3 + 0.05, Math.max(...rows).toFixed(3));
+  const steep = lib.inkDrawSquare(grid((u, v) => 21000 - (u + v) * 160), n, 10, 300, 400, S), lit = lib.inkDrawSquare(grid((u, v) => 300 + (u + v) * 160), n, 10, 300, 400, S);
+  check("slopes turned from the light are shadowed in black, slopes facing it stay paper", black(steep) > 0.4 && black(lit) < 0.05, black(steep).toFixed(3) + " vs " + black(lit).toFixed(3));
+  const mid = lib.inkDrawSquare(grid((u, v) => 12000 - (u + v) * 70), n, 10, 300, 400, S);
+  let runs = 0; for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {             // fine strokes: ink in runs several pixels long
+    if (mid[(y * S + x) * 4] < 120) { let len = 0; for (let k = 1; k < 8; k++) { const xx = x + k, yy = y + k; if (xx < S && yy < S && mid[(yy * S + xx) * 4] < 120) len++; } if (len >= 4) runs++; } }
+  check("half-shadow is drawn in fine pen strokes down the slope, not dots", black(mid) > 0.08 && black(mid) < 0.6 && runs > 150, black(mid).toFixed(3) + ", " + runs + " stroke pixels");
   const coast = lib.inkDrawSquare(grid((u) => (u - 32) * 40), n, 5, 10, 12, S);
-  let cut = 0; for (let y = 8; y < S - 8; y++) { let sawWhite = false; for (let x = 50; x < 64; x++) if (coast[(y * S + x) * 4] > 160) sawWhite = true; if (sawWhite && black(coast, 30, 44, y, y + 1) > 0.7) cut++; }
-  check("a white cut hugs the shore between the black sea and the land", cut > (S - 16) * 0.8, cut + " of " + (S - 16));
+  let shore = 0; for (let y = 0; y < S; y++) for (let x = 60; x < 68; x++) if (coast[(y * S + x) * 4] < 120) { shore++; break; }
+  check("every shore gets an inked line", shore > S * 0.85, shore + " of " + S);
   const top = lib.inkDrawSquare(grid(() => -4000), n, 0, 0, 0, S);
-  check("the poles are clean: black over the Arctic sea, white over Antarctica", black(top, 0, S, 0, 4) === 1 && black(top, 0, S, S - 4, S) === 0);
+  check("the world's top and bottom rows stay paper, so the poles are clean", black(top, 0, S, 0, 4) === 0 && black(top, 0, S, S - 4, S) === 0);
   const a = lib.inkDrawSquare(grid(() => -4000), n, 3, 3, 3, S), b2 = lib.inkDrawSquare(grid(() => -4000), n, 3, 3, 3, S);
   check("the same square draws the same every time", a.every((v, i) => v === b2[i]));
-  let same = 0; for (let y = 0; y < S; y++) if ((sea[(y * S + S - 1) * 4] < 120) === (a[(y * S) * 4] < 120)) same++;
-  check("the cuts run on across the join between squares (no seams)", same > S * 0.9, same + " of " + S);
-  const pines = lib.inkPattern("pines");
-  check("forests are a large sheet of scattered hand-drawn trees on clear ground", pines.width >= 200 && pines.data[3] === 0 && pines.data.filter((v, i) => i % 4 === 3 && v > 200).length > 1500);
+  const dense = lib.inkPattern("dense"), light = lib.inkPattern("light"), share = (p) => p.data.filter((v, i) => i % 4 === 3 && v > 128).length / (p.width * p.height);
+  check("forest stipple darker than town and wetland stipple, on clear ground", dense.width === 256 && dense.data[3] === 0 && share(dense) > share(light) * 3, share(dense).toFixed(3) + " vs " + share(light).toFixed(3));
 }
 
 console.log("\nround 144h (3 October): Hell, a fourth basemap");
