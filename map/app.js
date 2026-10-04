@@ -1362,26 +1362,33 @@ function geotiffLib() {
 // 2022. Codes and names as the dataset publishes them; colours this map's own,
 // earthy, with no orange, yellow or bright green.
 const GLC_FCS30D_CLASSES = [
-  [10, "#8A7E6A", "Rainfed cropland"], [11, "#9A8E78", "Herbaceous cropland"], [12, "#7A7560", "Cropland with trees or shrubs"],
-  [20, "#6F8A86", "Irrigated cropland"],
-  [51, "#4F6B47", "Open evergreen broadleaved forest"], [52, "#3B5536", "Closed evergreen broadleaved forest"],
-  [61, "#6E8058", "Open deciduous broadleaved forest"], [62, "#56684A", "Closed deciduous broadleaved forest"],
-  [71, "#46604F", "Open evergreen needle-leaved forest"], [72, "#33483C", "Closed evergreen needle-leaved forest"],
-  [81, "#5E7560", "Open deciduous needle-leaved forest"], [82, "#4A5E4C", "Closed deciduous needle-leaved forest"],
-  [91, "#667A5A", "Open mixed-leaf forest"], [92, "#4E6045", "Closed mixed-leaf forest"],
-  [120, "#7D6E5E", "Shrubland"], [121, "#6F6153", "Evergreen shrubland"], [122, "#8A7A68", "Deciduous shrubland"],
-  [130, "#9C9A84", "Grassland"], [140, "#8C8F7E", "Lichens and mosses"],
-  [150, "#B3A999", "Sparse vegetation"], [152, "#A89A8A", "Sparse shrubland"], [153, "#BDB3A5", "Sparse herbaceous"],
-  [181, "#4F6E6A", "Swamp"], [182, "#6B8A84", "Marsh"], [183, "#8C9DA6", "Flooded flat"], [184, "#A39C92", "Saline"],
-  [185, "#6E4A6A", "Mangrove"], [186, "#7D9A8E", "Salt marsh"], [187, "#5E6D8A", "Tidal flat"],
-  [190, "#B07087", "Impervious surfaces (built over)"],
-  [200, "#D2CBC2", "Bare areas"], [201, "#C4BCB2", "Consolidated bare areas"], [202, "#DCD4C8", "Unconsolidated bare areas"],
-  [210, "#3E5561", "Water body"], [220, "#EDE8E0", "Permanent ice and snow"],
+  // Round 145b (asked 2 October: neighbouring kinds could not be told apart):
+  // each family its own hues - cropland taupe, forests teal (broadleaf) to
+  // blue and indigo (needle-leaved, mixed), open lighter than closed; shrubs
+  // violet; grass and lichen lavender grey; sparse pale stone; wetlands cyan;
+  // built-over muted rose; bare land bone; water navy; ice white. No green,
+  // orange or yellow. The row keeps these (keepColour).
+  [10, "#8C8070", "Rainfed cropland"], [11, "#A89C8A", "Herbaceous cropland"], [12, "#6E6457", "Cropland with trees or shrubs"],
+  [20, "#7FA3A8", "Irrigated cropland"],
+  [51, "#3FA3A0", "Open evergreen broadleaved forest"], [52, "#1F6F70", "Closed evergreen broadleaved forest"],
+  [61, "#6CB7C4", "Open deciduous broadleaved forest"], [62, "#2F7F95", "Closed deciduous broadleaved forest"],
+  [71, "#5A8FD0", "Open evergreen needle-leaved forest"], [72, "#2A4F9A", "Closed evergreen needle-leaved forest"],
+  [81, "#8AA6E0", "Open deciduous needle-leaved forest"], [82, "#45619E", "Closed deciduous needle-leaved forest"],
+  [91, "#7C86C8", "Open mixed-leaf forest"], [92, "#3D4688", "Closed mixed-leaf forest"],
+  [120, "#8A6C8E", "Shrubland"], [121, "#6E5378", "Evergreen shrubland"], [122, "#A88AAE", "Deciduous shrubland"],
+  [130, "#B8B1C8", "Grassland"], [140, "#9A9AAE", "Lichens and mosses"],
+  [150, "#C9C2B6", "Sparse vegetation"], [152, "#B3A89A", "Sparse shrubland"], [153, "#DAD3C8", "Sparse herbaceous"],
+  [181, "#4FB3C9", "Swamp"], [182, "#88CFDC", "Marsh"], [183, "#A9C7D8", "Flooded flat"], [184, "#D8C9D8", "Saline"],
+  [185, "#0E5C6B", "Mangrove"], [186, "#9E7FB8", "Salt marsh"], [187, "#7E8FA6", "Tidal flat"],
+  [190, "#A85A72", "Impervious surfaces (built over)"],
+  [200, "#E2D8C8", "Bare areas"], [201, "#CDBFA9", "Consolidated bare areas"], [202, "#EFE6D8", "Unconsolidated bare areas"],
+  [210, "#14325E", "Water body"], [220, "#F4F6F8", "Permanent ice and snow"],
 ];
 const COG_SOURCES = {
   glc_fcs30d: {
     url: (year) => `https://s3.openlandmap.org/arco/lc_glc.fcs30d_c_30m_s_${year}0101_${year}1231_go_epsg.4326_v20231026.tif`,
     classes: new Map(GLC_FCS30D_CLASSES.map(([v, c]) => [v, hex3(c.slice(1))])),
+    names: new Map(GLC_FCS30D_CLASSES.map(([v, , t]) => [v, t])),
     who: "OpenLandMap's copy of GLC_FCS30D",
   },
 };
@@ -1455,6 +1462,35 @@ async function cogSquare(url, classes, z, x, y, signal) {
     ? await canvas.convertToBlob({ type: "image/png" })
     : await new Promise((res) => canvas.toBlob(res, "image/png"));
   return blob.arrayBuffer();
+}
+// Round 145b (asked 2 October: the land cover had no boxes): the kind at a
+// clicked point, read from the file's full-detail level, one pixel.
+async function cogValueAt(url, lng, lat) {
+  const c = await cogOpen(url);
+  const col = Math.floor((lng - c.x0) / c.rx), row = Math.floor((lat - c.y0) / c.ry);
+  if (col < 0 || row < 0 || col >= c.w || row >= c.h) return null;
+  const d = await c.images[0].readRasters({ window: [col, row, col + 1, row + 1], samples: [0], interleave: true });
+  return d[0];
+}
+function cogClickWire(cfg) {
+  if (cfg._clickWired || typeof map === "undefined" || typeof map.on !== "function") return;
+  cfg._clickWired = true;
+  const src = COG_SOURCES[cfg.cogClick];
+  map.on("click", async (e) => {
+    const lid = `${cfg.id}-raster`;
+    if (!map.getLayer(lid) || map.getLayoutProperty(lid, "visibility") === "none") return;
+    // A click on a point or shape of another row is that row's.
+    if (map.queryRenderedFeatures(e.point).some((f) => f.layer && f.layer.type !== "raster" && f.layer.type !== "background" && !/^(basemap|plate)/.test(f.layer.id))) return;
+    const year = String((cfg.choices[cfg._pick || 0] || {}).label || "");
+    try {
+      const v = await cogValueAt(src.url(year), e.lngLat.lng, e.lngLat.lat);
+      const hit = src.names && src.names.get(v);
+      new maplibregl.Popup({ maxWidth: "300px" }).setLngLat(e.lngLat)
+        .setHTML(`<b>${escapeHtml(hit || "No land cover given here")}</b><div class="meta">${escapeHtml(cfg.name)}, ${escapeHtml(year)}${hit ? "" : v != null ? ` (code ${escapeHtml(String(v))})` : ""}</div>`).addTo(map);
+    } catch (err) {
+      console.warn(`[culprits] ${cfg.id}: the kind could not be read (${err.message})`);
+    }
+  });
 }
 maplibregl.addProtocol("cog4326", async (params, abortController) => {
   const m = params.url.match(/^cog4326:\/\/([a-z0-9_]+)\/(\d{4})\/(\d+)\/(\d+)\/(\d+)/);
@@ -5153,7 +5189,13 @@ function addPmChooseLayer(cfg) {
     map.addLayer({ id: `${cfg.id}-line`, type: "line", source: src, "source-layer": cfg.sourceLayer, paint: { "line-color": "#0B2344", "line-width": 0.25, "line-opacity": 0.6 } }, pointLayerAbove());
     cfg._layerIds = [`${cfg.id}-fill`, `${cfg.id}-line`];
   }
-  bindHtmlPopup(main, (p) => `<b>${escapeHtml(cfg.name)}</b><table class="meta">${fieldRows(p)}</table>`);
+  // Round 145b (asked 2 October): a box titled by the place's own name where
+  // the row names the field (the ecoregions: ECO_NAME), the row's title under it.
+  bindHtmlPopup(main, (p) => {
+    const own = (cfg.nameFrom || []).map((k) => p[k]).find((v) => v != null && String(v).trim() !== "");
+    return own ? `<b>${escapeHtml(String(own))}</b><div class="meta">${escapeHtml(cfg.name)}</div><table class="meta">${fieldRows(p)}</table>`
+      : `<b>${escapeHtml(cfg.name)}</b><table class="meta">${fieldRows(p)}</table>`;
+  });
   if (cfg.mode === "classes") {
     const expr = ["match", ["to-number", ["get", cfg.field], -99], ...cfg.classes.flatMap(([v, c]) => [v, c]), CHOOSE_NONE];
     map.setPaintProperty(main, prop, expr);
@@ -5245,6 +5287,18 @@ function addRasterChoiceLayer(cfg) {
         // the bleaching parts of Coral Reef Watch as two rows).
         if (cfg.choiceMatch) cfg.choices = (cfg.choices || []).filter((c) => cfg.choiceMatch.test(c.label || ""));
         if (cfg.choiceName) for (const c of cfg.choices || []) c.label = cfg.choiceName(c.label || "");
+        // Round 145b (asked 2 October): choices drawing several of the build's
+        // pictures at once (the fungi's two kinds together), put first.
+        if (cfg.togetherOf) {
+          const made = cfg.togetherOf.map((t) => {
+            const parts = (cfg.choices || []).filter((c) => t.match.test(c.label || "") && c.archive);
+            if (parts.length < 2) return null;
+            const key = [];
+            for (const c of parts) for (const k of c.key || []) if (!key.some((x) => x[0] === k[0] && x[1] === k[1])) key.push(k);
+            return { label: t.label, archive: parts[0].archive, parts: parts.map((c) => c.archive), key: key.length ? key : undefined };
+          }).filter(Boolean);
+          cfg.choices = made.concat(cfg.choices || []);
+        }
         return addRasterChoiceLayer(cfg);
       });
   }
@@ -5274,10 +5328,34 @@ function addRasterChoiceLayer(cfg) {
       setLayerState(cfg.id, `${cfg.choices[cfg._pick].label}: the source did not answer for ${failed} square${failed > 1 ? "s" : ""}`);
     }
   });
+  rasterTogether(cfg);
   if (cfg.choices.length > 1 || cfg.choices.some((c) => c.key) || cfg.key) rasterChoiceRow(cfg);
+  if (cfg.cogClick) cogClickWire(cfg);
   setLayerState(cfg.id, `${cfg.choices[cfg._pick].label} \u00b7 live`);
   applyVisibility(cfg.id);
   buildLegend();
+}
+// Round 145b: a choice with parts draws its other pictures as extra layers
+// above the first (<row>-raster-t1 ...), found with the row's own layers by
+// their name, so ticking, hiding and opacity reach them.
+function rasterTogether(cfg) {
+  for (let i = 1; map.getLayer(`${cfg.id}-raster-t${i}`) || map.getSource(`${cfg.id}-img-t${i}`); i++) {
+    if (map.getLayer(`${cfg.id}-raster-t${i}`)) map.removeLayer(`${cfg.id}-raster-t${i}`);
+    if (map.getSource(`${cfg.id}-img-t${i}`)) map.removeSource(`${cfg.id}-img-t${i}`);
+  }
+  const ch = cfg.choices[cfg._pick || 0];
+  if (!ch || !ch.parts) return;
+  const paint = Object.assign({ "raster-opacity": 0.8, "raster-saturation": -0.35 }, cfg.rasterPaint || {});
+  let below = `${cfg.id}-raster`;
+  ch.parts.slice(1).forEach((a, k) => {
+    const i = k + 1;
+    map.addSource(`${cfg.id}-img-t${i}`, { type: "raster", tileSize: 256, url: `pmtiles://${a}`, attribution: cfg.attribution || "" });
+    const order = map.getStyle().layers.map((l) => l.id);
+    const next = order[order.indexOf(below) + 1];
+    map.addLayer({ id: `${cfg.id}-raster-t${i}`, type: "raster", source: `${cfg.id}-img-t${i}`, paint }, next && map.getLayer(next) ? next : undefined);
+    below = `${cfg.id}-raster-t${i}`;
+  });
+  applyVisibility(cfg.id);
 }
 // A choice is live squares (tiles) or a PMTiles copy (archive).
 function rasterChoiceSource(cfg) {
@@ -5323,6 +5401,7 @@ function rasterChoiceClicked(btn) {
     map.addLayer({ id: `${cfg.id}-raster`, type: "raster", source: `${cfg.id}-img`, paint }, before && map.getLayer(before) ? before : undefined);
     applyVisibility(cfg.id);
   } else s.setTiles([cfg.choices[cfg._pick].tiles]);
+  rasterTogether(cfg);
   const box = document.getElementById("layers");
   const row = box && box.querySelector(`.facet[data-raster-for="${cfg.id}"]`);
   if (row) for (const c of row.querySelectorAll("[data-ri]")) c.classList.toggle("on", Number(c.dataset.ri) === cfg._pick);
@@ -5381,7 +5460,8 @@ function traseFormat(x) {
 const TRASE_REMOVED = [/^GDP per capita\b/i];
 // Round 123b (asked 2 October): Peatland burned each year (Indonesia) and the
 // greenhouse gases from peat burning inside plantations taken out.
-const TRASE_REMOVED_METRICS = new Set(["BURNED_PEAT", "EMISSION_BURNED_PEAT_CO2"]);
+// Round 145b (asked 2 October): Peatland burned each year back, under Peatland.
+const TRASE_REMOVED_METRICS = new Set(["EMISSION_BURNED_PEAT_CO2"]);
 // Round 88b (asked 27 September: the pulpwood rows looked alike): each titled
 // by what Trase's own description says it counts.
 const TRASE_TITLES = {
@@ -5473,7 +5553,11 @@ function traseMeasures(cat) {
     const unit = e.meta.unit_abbreviation ? ` (${e.meta.unit_abbreviation})` : "";
     e.title = `${e.name}${count[e.name] > 1 ? ` [${e.metric}]` : ""}${unit} \u2014 ${where} (Trase)`;
     const plain = typeof TRASE_PLAIN !== "undefined" && TRASE_PLAIN[e.metric];
-    e.label = plain ? `${plain}${unit} \u2014 ${where} (Trase)` : e.title;
+    // Round 145b (asked 2 October): a measure of one country says it first, where
+    // a narrow menu cannot cut it off.
+    const one = Object.keys(e.countries).length === 1;
+    const bare = one && plain ? plain.replace(new RegExp(`,? ${where}$`), "") : plain;
+    e.label = plain ? (one ? `${where}: ${bare.charAt(0).toLowerCase()}${bare.slice(1)}${unit} (Trase)` : `${plain}${unit} \u2014 ${where} (Trase)`) : e.title;
   }
   return list.sort((a, b) => a.title.localeCompare(b.title));
 }
@@ -6710,6 +6794,17 @@ const boxOpen = `<div style="font:13px/1.4 system-ui,sans-serif;max-width:340px"
 // short forms are spelt out. The source's own name stays on the row, shown
 // when the pointer rests on it, so nothing is lost.
 const FIELD_WORDS = {
+  // Round 145b (asked 2 October: "nobody knows what figure 1 is").
+  rank_in_figure_1: "Rank by finance linked to biodiversity loss (the report's Figure 1)",
+  sp_global_rank: "Rank among the world's largest banks by assets (S&P Global)",
+  total_assets_2019_million_usd: "Total assets, 2019, millions of US$",
+  finance_linked_to_biodiversity_risk_2019_billion_usd_approx: "Loans and underwriting linked to biodiversity loss, 2019, billions of US$ (approximate)",
+  of_which_direct_risk_billion_usd_approx: "Of which to companies that harm nature directly, billions of US$ (approximate)",
+  of_which_indirect_risk_billion_usd_approx: "Of which to companies that harm it through their suppliers, billions of US$ (approximate)",
+  as_share_of_total_assets_percent_approx: "Linked to biodiversity loss, as a share of the bank's assets, % (approximate)",
+  direct_as_share_of_total_assets_percent_approx: "Linked directly, as a share of the bank's assets, % (approximate)",
+  how_measured: "How the amounts were measured",
+  legal_entity: "Legal name", lei: "Legal Entity Identifier (LEI)", headquarters_address: "Headquarters", gleif_record: "Record in the GLEIF register",
   iso3: "Country code (ISO 3-letter)", iso_a3: "Country code (ISO 3-letter)", iso2: "Country code (ISO 2-letter)", iso_a2: "Country code (ISO 2-letter)",
   adm0_a3: "Country code", lat: "Latitude", latitude: "Latitude", lon: "Longitude", lng: "Longitude", longitude: "Longitude",
   gdp_md: "GDP (economic output), millions of US$", gdp_year: "Year of the GDP figure", pop_est: "Population (estimate)", pop_year: "Year of the population figure",
@@ -7044,7 +7139,11 @@ const CARDS = {
 // the place does give, at the rate the places giving both show between them
 // (Waste Atlas dumpsites: waste per person working informally there); an
 // estimated place is drawn as a ring and its box says how it was worked out.
-const AMOUNT_RAMP = ["#0B2E6B", "#1747B8", "#2F6BFF", "#1A9FD6", "#14A8A0", "#CFEFF2"];  // round 85b: navy to teal to ice, no green
+// Round 145b (asked 2 October: the soil nematodes' key and dots did not match,
+// and the steps were too alike): one scale for every row coloured by a figure,
+// pale ice (least) through teal and blue to indigo and violet (most), the
+// same as the colour menu under point rows (PC_RAMP). Was navy (least) to ice.
+const AMOUNT_RAMP = ["#D8F1F0", "#86CFCB", "#3AA6B9", "#2E6FC4", "#3B3FA3", "#6A2E8F"];
 const AMOUNT_NONE = "#8A8F93";
 // A row coloured by the kind of place (round 81, the plastics rows): each kind
 // its own colour and chip, and the key lists them with how many of each.
@@ -7137,7 +7236,7 @@ function colourByAmount(cfg, items) {
 // soft surround take the chosen colours too. Figures run pale teal (fewest)
 // to deep cobalt (most); kinds take the map's twelve kind colours; a point
 // with no value for the field chosen is grey.
-const PC_RAMP = ["#A6D3CC", "#78BCB9", "#529FAF", "#3E80A3", "#2F6195", "#233F80"];
+const PC_RAMP = ["#D8F1F0", "#86CFCB", "#3AA6B9", "#2E6FC4", "#3B3FA3", "#6A2E8F"];
 const PC_NONE = "#8A8F93";
 try { PC_RAMP.forEach((c) => GLAD_OUT.add(c)); GLAD_OUT.add(PC_NONE); } catch (e) { /* read on its own (the tests) */ }
 const PC_SKIP = /^(id|fid|gid|objectid|name|title|url|link|href|licence|license|source|unit|lat|lon|lng|latitude|longitude|x|y|_count|point_count|clustered|sqrt_point_count|point_count_abbreviated|k|p|t|n|c|f|o|s|w|r|_k|_map_colour|group)$/i;
@@ -8468,8 +8567,8 @@ const AG = P + " > Meat and agriculture > Agriculture";
 // Round 101b (asked 28 September): the crops each under By crop, and the
 // plantations that are of no one crop inside Cropland.
 const CROPS = AG + " > By crop";
-const PLANT_T = "Plantations of no single crop (single crops are under By crop)";
-const PLANTS = AG + " > Cropland > " + PLANT_T;
+const PLANT_T = "Plantations";
+const PLANTS = AG + " > " + PLANT_T;
 // Layers with sublayers (round 23). Each is one row in the box whose tick turns
 // on everything inside it and whose arrow opens the list of its parts; a part
 // is ticked on its own like any row. They are named in PANEL_ORDER with
@@ -8509,14 +8608,14 @@ const BUNDLES = {
   wwoutlets: "Nitrogen from human wastewater entering the sea at each coastal outlet, by where the wastewater came from (Tuholske et al.)",
   wastecountries: "Countries' waste figures, one measure a layer (Waste Atlas)",
   oilslicks: "Oil slicks seen from space, with SkyTruth's own write-ups at sea and on land (Cerulean and SkyTruth)",
-  publicharm: "Public money behind the destruction of nature: development bank projects rated the most harmful, and fossil fuel subsidies",
   // Round 99b (asked 28 September): pairs and series of the same data as one
   // row each, with its parts inside.
   crithab: "Critical habitat, on land and at sea, as the International Finance Corporation defines it (UNEP-WCMC, Dunnett et al. 2025)",
   bii: "How intact wildlife communities are, 0 to 100 (Biodiversity Intactness Index, Natural History Museum, London)",
+  palmmills: "Where each palm oil mill likely buys its fruit: two estimates, PalmWatch's and Nusantara Atlas's, every kind of area each draws, with the mills",
   ifl: "Large unbroken forests with no roads or clearing, 2000 to 2025 (Intact Forest Landscapes)",
   // Round 101b (asked 28 September): each 2024 and 2025 pair as one layer.
-  plantall: "Plantations of every kind, 2024 and 2025 (Nusantara Atlas, TheTreeMap)",
+  plantall: "Plantations of every kind, 2024 and 2025, the tropics only, about 12\u00b0S to 16\u00b0N (Nusantara Atlas, TheTreeMap)",
   plantsmall: "Small family farm plantations, 2024 and 2025 (Nusantara Atlas, TheTreeMap)",
   palmco: "Company oil palm plantations, 2024 and 2025 (Nusantara Atlas, TheTreeMap)",
 };
@@ -8575,7 +8674,7 @@ const CATALOGUE_PLACES = [
   [/air quality|aerosol|pm2/i, P + " > Pollution > Air pollution > General and all pollutants"],
   [/protect|conserv|reserve|restoration|biodivers|intact forest|primary forest|wdpa|ramsar|species|habitat|ecozone|ecosystem|\bkba\b/i,
    P + " > Biodiversity loss"],
-  [/peat/i, P + " > Deforestation > Peatland"],
+  [/peat/i, P + " > Biodiversity loss > Land Use and Ecoregions > Peatland"],
   // Forest and land cover: the heading and its rows were taken out of the box
   // at the owner's request (22 September). A layer only this rule claims is
   // left out, and counted on the catalogue's own row.
@@ -8613,6 +8712,36 @@ const BIO_LAND = BIO + " > Land Use and Ecoregions", BIO_THREAT = PMM + " > Wher
   BIO_PROT = PMM + " > Protected areas", BIO_RICH = PMM + " > Species richness",
   BIO_WILD = PMM + " > Wild and intact places", BIO_MOVE = PMM + " > Where animals gather and migrate";
 const CATALOGUE_BY_TITLE = [
+  // ---- 2 October (round 144b), at the owner's word -----------------------
+  // Nusantara's mill and concession finance layers and two of its mill areas
+  // draw nothing (probe/nusantara/health.json: blank at every zoom tried);
+  // the rest of its mill layers are one row with sublayers.
+  [/\b(millop_finance_(credit|invest)|concessioniop_finance_(credit|invest)|millopbuffer_spv|millopbuffer10km_spv)\b/, null],
+  [/\b(millop_spv|millopbuffer1hr_spv|millopbuffer2hr_spv|millopbufferol50km_spv|millopbufferol_spv|millopbufferpolyloreal_spv)\b/, [IN(CROPS + " > Palm oil > Mills and refineries", "palmmills")]],
+  // Soy's zero-deforestation shares also under Soy.
+  [/^(?!.*\bcorn\b)(?=.*soy)(?=.*(\bzdc|zero.deforestation|promise zero deforestation))/i, [P + " > Deforestation > Deforestation promises", CROPS + " > Soy > Deforestation promises"]],
+  // Peatland burned each year (Trase) under Peatland.
+  [/\bBURNED_PEAT\b/, [P + " > Biodiversity loss > Land Use and Ecoregions > Peatland"]],
+  // No tiles published (sbtn_natural_lands, umd_land_cover) or GFW's build
+  // failed (fao_forest_extent); the 2001 ecoregions out (the 2017 version stays).
+  [/\b(sbtn_natural_lands|umd_land_cover|fao_forest_extent|wwf_terrestrial_ecoregions)\b(?!_)/, null],
+  // The JRC forest cover 2020 also under Land Use and Ecoregions, in place of FAO's forest area.
+  [/\bjrc_global_forest_cover\b/, [P + " > Deforestation > Forest cover", P + " > Biodiversity loss > Land Use and Ecoregions"]],
+  // Global Safety Net: the human modification index under Disturbance; its
+  // cropland under Agriculture; where forest could grow back under
+  // Deforestation only; the grasses inside the places most important for
+  // species under Places that matter most; the land cover kinds together.
+  [/^HM90 \(White\) \(Global Safety Net\)/, [P + " > Biodiversity loss > Disturbance"]],
+  [/^Cropland \(Global Safety Net\)/, [AG + " > Cropland"]],
+  [/^Constrained Reforestation \(Global Safety Net\)/, [P + " > Deforestation > Forest cover"]],
+  [/^Herbaceous\/Other \(Global Safety Net\)/, [P + " > Biodiversity loss > Places that matter most for species"]],
+  [/^(Inland Water|Water Bodies|Shrubs\/Mosaic|Grassland|Herbaceous Wetland|Ice\/Snow|Sparse Vegetation|Bare Areas|Natural and Barren Land|Seminatural Land) \(Global Safety Net\)/,
+    [P + " > Biodiversity loss > Land Use and Ecoregions > Kinds of land cover"]],
+  // Critical habitat at sea: the map's own copy (land and sea) already holds it.
+  [/^Critical habitats?\b.*\bmarine\b.*\(Global Safety Net\)/i, null],
+  [/^Critical habitats?\b.*\bterrestrial\b.*\(Global Safety Net\)/i, [IN(BIO_THREAT, "crithab")]],
+  // The Intact Forest Landscapes also under Deforestation > Forest cover.
+  [/\bifl_intact_forest_landscapes\b(?!_)/, [IN(BIO_WILD, "ifl"), IN(P + " > Deforestation > Forest cover", "ifl")]],
   // ---- 2 October (round 132b), at the owner's word -----------------------
   // Trase's chickens and pigs slaughtered and beef produced in Brazil, and
   // Paraguay's cattle herd size, taken out.
@@ -8716,7 +8845,7 @@ const CATALOGUE_BY_TITLE = [
   // Round 88b: back under Deforestation too (What drove the loss), at the owner's word.
   [/tree cover loss (due to|from|by) fires?|\bumd_tree_cover_loss_from_fires\b/i, [P + " > Deforestation > Tree cover loss and alerts > What drove the loss", P + " > Fire"]],
   // The planted area on peatland under Peatland.
-  [/planted area on peat/i, [P + " > Deforestation > Peatland"]],
+  [/planted area on peat/i, [P + " > Biodiversity loss > Land Use and Ecoregions > Peatland"]],
   // The industrial timber plantations, 2024 and 2025, are one row now (nus_itp).
   [/\b(v3p\d_)?Global_PlantationITP_20\d\d\b/, null],
   // ---- 27 September (round 84b) -----------------------------------------
@@ -8925,7 +9054,7 @@ const CATALOGUE_BY_TITLE = [
   // pulpwood goes under Peatland; SBTN's Natural Lands Map (natural land as of
   // 2020) under Forest cover and Protected and conserved areas.
   [/\bCONCESSION_AREA\b/, null],
-  [/\bDEFORESTATION_ON_PEAT\b/, [P + " > Deforestation > Peatland"]],
+  [/\bDEFORESTATION_ON_PEAT\b/, [P + " > Biodiversity loss > Land Use and Ecoregions > Peatland"]],
   [/\bsbtn_natural_lands(_classification)?\b/, [P + " > Deforestation > Forest cover", P + " > Biodiversity loss > Protected and conserved areas"]],
   // Round 85b: the drivers of tree cover loss are one layer with sublayers.
   [/\b(tsc_tree_cover_loss_drivers|wri_google_tree_cover_loss_drivers|tsc_drivers|umd_drivers)\b/, [IN(P + " > Deforestation > Tree cover loss and alerts > What drove the loss", "drivers")]],
@@ -9056,12 +9185,11 @@ const CATALOGUE_SUBS = {
     // Round 101b: a plantation of one crop under that crop.
     [/coconut/i, "By crop > Coconut"],
     [/\bsago\b/i, "By crop > Sago"],
-    [/.*/, "Cropland > " + PLANT_T],
+    [/.*/, PLANT_T],
   ],
   [CROPS + " > Palm oil"]: [
-    [/lends|invests|financ/i, "Who finances them"],
     [/\bmills?\b|refiner/i, "Mills and refineries"],
-    [/deforest|emission/i, "Clearing and emissions"],
+    [/deforest|emission/i, "Clearing and emissions, Indonesia"],
     [/concession/i, "Concessions"],
     [/.*/, "Plantations"],
   ],
@@ -9099,7 +9227,7 @@ function catalogueSub(path, words) {
 // (Trase files its peatland area under "Land cover"; item 26).
 function catalogueRefine(paths, words) {
   let out = paths.filter((x) => !((x === P + " > Forest and land cover" || x === P + " > Biodiversity loss > Land Use and Ecoregions") && /\bpeat/i.test(words)));
-  if (!out.length && paths.length) out = [P + " > Deforestation > Peatland"];
+  if (!out.length && paths.length) out = [P + " > Biodiversity loss > Land Use and Ecoregions > Peatland"];
   // Under Intact and primary forests only two rows stay (24 September): the
   // biodiversity intactness of forested biomes and the forest landscape
   // integrity index, both worldwide.
@@ -9273,7 +9401,7 @@ const CATALOGUE_PLAIN = {
   gfw_tiger_landscapes: "Landscapes where wild tigers still live (Tiger Conservation Landscapes)",
   wwf_tiger_conservation_landscapes: "Landscapes where wild tigers still live (Tiger Conservation Landscapes, WWF)",
   gfw_universal_mill_list: "Palm oil mills in every country, each a point (Universal Mill List, Global Forest Watch)",
-  gfw_pre_2000_plantations: "Plantations that already stood in 2000 (Global Forest Watch)",
+  gfw_pre_2000_plantations: "Plantations in 2000 (Global Forest Watch)",
   gfw_universal_mill_list_buffered_50_km: "Land within 50 km of each palm oil mill, every country (Universal Mill List, Global Forest Watch)",
   gfw_planted_forests_palm_oil_buffered_10km: "Land within 10 km of oil palm plantations, every country (Global Forest Watch's planted trees map)",
   gfw_west_africa_cocoa_deforestation_risk: "Risk of forest being cleared for cocoa, West Africa",
@@ -9400,7 +9528,7 @@ const CATALOGUE_PLAIN = {
   base_roadRGB: "Roads, coloured by the year they appeared",
   base_road_edited: "Roads (Nusantara's edited version)",
   base_roadtrans: "Roads built for transmigration settlements",
-  base_sagoindicative: "Where sago palm is likely to grow",
+  base_sagoindicative: "Where sago palm is likely to grow, Maluku and Papua, Indonesia only (Nusantara Atlas)",
   burnedareanrt: "Burned area, near real time, where burns overlap",
   concessionfca_spv: "Forest clearance permits: forest licensed to be cleared (FCA)",
   concessionhgu_spv: "Plantation land leases: land leased to companies for plantations (HGU)",
@@ -9468,19 +9596,19 @@ const TRASE_PLAIN = {
   ZDC_TRADED_ARGENTINA_SOY_PERC: "Share of soy exported by companies that promise zero deforestation, Argentina",
   ZDC_TRADED_COTE_DIVOIRE_COCOA_PERC: "Share of cocoa traded by companies that promise zero deforestation",
   CO2_GROSS_EMISSIONS_CATTLE_DEFORESTATION_5_YEAR_TOTAL_EXPOSURE: "Greenhouse gases released by clearing for cattle",
-  CO2_NET_EMISSIONS_CATTLE_DEFORESTATION_5_YEAR_TOTAL_EXPOSURE: "Greenhouse gases released by clearing for cattle, less what the pasture takes back up",
+  CO2_NET_EMISSIONS_CATTLE_DEFORESTATION_5_YEAR_TOTAL_EXPOSURE: "Greenhouse gases released by clearing for cattle, after taking away the carbon the new pasture absorbs",
   CO2_GROSS_EMISSIONS_CATTLE_DEFORESTATION_PER_TN_5_YEAR_TOTAL: "Greenhouse gases released by clearing for cattle, per tonne of beef",
   CO2_EMISSIONS_CATTLE_DEFORESTATION_PER_TN_5_YEAR_TOTAL: "Greenhouse gases released by clearing for cattle, per tonne of beef, Paraguay's measure",
-  CO2_NET_EMISSIONS_CATTLE_DEFORESTATION_PER_TN_5_YEAR_TOTAL: "Greenhouse gases released by clearing for cattle, per tonne of beef, less what the pasture takes back up",
+  CO2_NET_EMISSIONS_CATTLE_DEFORESTATION_PER_TN_5_YEAR_TOTAL: "Greenhouse gases released by clearing for cattle, per tonne of beef, after taking away the carbon the new pasture absorbs",
   CO2_GROSS_EMISSIONS_PASTURE_DEFORESTATION_5_YEAR_TOTAL: "Greenhouse gases released by clearing for pasture",
-  CO2_NET_EMISSIONS_PASTURE_DEFORESTATION_5_YEAR_TOTAL: "Greenhouse gases released by clearing for pasture, less what the pasture takes back up",
+  CO2_NET_EMISSIONS_PASTURE_DEFORESTATION_5_YEAR_TOTAL: "Greenhouse gases released by clearing for pasture, after taking away the carbon the new pasture absorbs",
   COCOA_DEFORESTATION_15_YEARS_TOTAL: "Forest cleared for cocoa, over 15 years",
   COCOA_DEFORESTATION_ANNUAL: "Forest cleared for each year's cocoa harvest",
   COCOA_AREA: "Land growing cocoa",
   COCOA_GROSS_EMISSIONS_15_YEARS_TOTAL: "Greenhouse gases released by clearing for cocoa, over 15 years",
-  COCOA_NET_EMISSIONS_15_YEARS_TOTAL: "Greenhouse gases released by clearing for cocoa, over 15 years, less what the cocoa trees take back up",
+  COCOA_NET_EMISSIONS_15_YEARS_TOTAL: "Greenhouse gases released by clearing for cocoa, over 15 years, after taking away the carbon the cocoa trees absorb",
   COCOA_GROSS_EMISSIONS_ANNUAL: "Greenhouse gases released by clearing for each year's cocoa harvest",
-  COCOA_NET_EMISSIONS_ANNUAL: "Greenhouse gases released by clearing for each year's cocoa harvest, less what the cocoa trees take back up",
+  COCOA_NET_EMISSIONS_ANNUAL: "Greenhouse gases released by clearing for each year's cocoa harvest, after taking away the carbon the cocoa trees absorb",
   SOY_DEFORESTATION_5_YEAR_TOTAL: "Soy grown on land cleared in the five years before",
   SOY_DEFORESTATION_PER_TN_5_YEAR_TOTAL: "Land recently cleared for soy, per tonne of soy",
   CO2_GROSS_EMISSIONS_SOY_DEFORESTATION_5_YEAR_TOTAL: "Greenhouse gases released by clearing for soy",
@@ -9492,11 +9620,11 @@ const TRASE_PLAIN = {
   OIL_PALM_HA: "Company oil palm plantations",
   PALM_PLANTATIONS_ON_PEAT: "Oil palm planted on peat",
   EMISSION_BURNED_PEAT_CO2: "Greenhouse gases from peat burning inside plantations",
-  EMISSION_SUBSIDENCE_CO2: "Greenhouse gases from drained peat rotting under plantations (subsidence)",
-  GROSS_EMISSION_LUC_CO2: "Greenhouse gases released by turning land into plantations",
-  NET_EMISSION_LUC_CO2: "Greenhouse gases released by turning land into plantations, less what the new plantations take back up",
-  TOTAL_EMISSION_CO2: "All greenhouse gases from oil palm plantations: peat, fire and clearing, less what they take back up",
-  TOTAL_EMISSION_CONCESSION_CO2: "All greenhouse gases from pulpwood concessions: peat, fire and clearing, less what the plantations take back up",
+  EMISSION_SUBSIDENCE_CO2: "Greenhouse gases from drained peat rotting under oil palm plantations (subsidence)",
+  GROSS_EMISSION_LUC_CO2: "Greenhouse gases released by turning land into oil palm plantations",
+  NET_EMISSION_LUC_CO2: "Greenhouse gases released by turning land into oil palm plantations, after taking away the carbon the palms absorb",
+  TOTAL_EMISSION_CO2: "All greenhouse gases from oil palm plantations (peat, fire and clearing), after taking away the carbon the palms absorb",
+  TOTAL_EMISSION_CONCESSION_CO2: "All greenhouse gases from pulpwood concessions (peat, fire and clearing), after taking away the carbon the plantations absorb",
   WOOD_PULP_AREA: "Pulpwood (acacia and eucalyptus) planted in each concession",
   PULPWOOD_PLANTATIONS_ON_PEAT: "Pulpwood planted on peat",
   WOOD_PULP_PRODUCTION_VOLUME_M3: "Pulpwood harvested (cubic metres)",
@@ -9508,6 +9636,24 @@ const LEFT_OUT = "(left out)";
 // Round 102b: the plantations spreading year by year first under Plantations
 // of no single crop, above the layers with parts.
 const CATALOGUE_FIRST = new Set(["tsc_tree_cover_loss_drivers", "gfw_integrated_dist_alerts", "gfw_peatlands", "Global_AllExpansionRGB_2000to2025", "pangaea_global_mining"]);
+// Round 145b (asked 2 October): rows asked to lead their heading, in this
+// order, whichever catalogue answers first; and a row that leads one heading
+// but not another (the plantations spreading into forest lead their own
+// heading, not Plantations).
+const CATALOGUE_LEAD = { gfw_planted_forests: 1, gfw_planted_forests_palm_oil_buffered_10km: 1, gfw_oil_palm: 1, rspo_oil_palm: 2, wdpa_licensed_protected_areas: 1 };
+const CATALOGUE_NOT_FIRST_IN = { Global_AllExpansionRGB_2000to2025: ["Destruction > Of the planet > Meat and agriculture > Agriculture > Plantations"] };
+function catalogueLead(id, path) {
+  if (CATALOGUE_LEAD[id]) return CATALOGUE_LEAD[id];
+  return CATALOGUE_FIRST.has(id) && !(CATALOGUE_NOT_FIRST_IN[id] || []).includes(path) ? 0.5 : 0;
+}
+function catalogueInsert(body, row, id, path) {
+  const lead = catalogueLead(id, path);
+  if (!lead || !body.firstChild || typeof body.insertBefore !== "function") { body.appendChild(row); return; }
+  if (row.dataset) row.dataset.lead = String(lead);
+  let at = body.firstChild;
+  while (at && at.dataset && at.dataset.lead && Number(at.dataset.lead) <= lead) at = at.nextSibling;
+  body.insertBefore(row, at || null);
+}
 function cataloguePlaces(words, title) {
   if (title != null) {
     // The title and, after it, the id (the id rules above end in $ or name it).
@@ -9613,7 +9759,7 @@ function catalogueRows(cfg, items) {
         `<span class="un" data-state="${escapeHtml(key)}">${escapeHtml(cfg.catUnit || "")}</span></span>`;
       const body = sectionBody(box, path) || spare;
       // Round 85b: a row asked to lead its heading goes first in it.
-      if (CATALOGUE_FIRST.has(item.id || item.name) && body.firstChild && typeof body.insertBefore === "function") body.insertBefore(row, body.firstChild); else body.appendChild(row);
+      catalogueInsert(body, row, item.id || item.name, path);
     });
   });
   if (leftOut) console.info(`[culprits] ${cfg.id}: ${leftOut} land-cover layers have no row, at the owner's request (22 September)`);
@@ -9862,7 +10008,11 @@ const GFW_TITLES = {
   test_wat_006_projected_water_stress: "Water stress projected for the coming decades, Global Forest Watch's test copy (WRI Aqueduct)",
   // Round 88b (asked 27 September): named for what it is, a live map of
   // clearing and loss worldwide.
-  gfw_integrated_dist_alerts: "Deforestation and loss of plant cover as it happens, worldwide, 10 m (integrated alerts: DIST-ALERT, GLAD-L, GLAD-S2, RADD)",
+  // Round 145b (asked 2 October: it is not worldwide): Global Forest Watch's
+  // newest copy of the integrated alerts holds only overlap.tif, the alerts
+  // where the tropical systems and DIST-ALERT overlap. The worldwide alerts are
+  // the DIST-ALERT rows (gfw_dist, gfw_dist_year).
+  gfw_integrated_dist_alerts: "Plant cover lost as it happens, where several alert systems overlap, so mostly the tropics (integrated alerts, Global Forest Watch)",
   // Round 87b.
   gfwpro_negligible_risk_analysis: "Districts where deforestation risk is negligible or not, by natural forest lost since 2021 (GFW Pro, Accountability Framework method)",
   col_frontera_agricola: "Colombia's national agricultural frontier: where farming is allowed, and the forests and protected lands beyond it (UPRA)",
@@ -9870,6 +10020,9 @@ const GFW_TITLES = {
 // What is known about how rows of the same name differ, put first in the
 // row's "i" box, ahead of Global Forest Watch's own description.
 const GFW_ABOUT = {
+  // Round 145b (asked 3 October): why the plantation maps do not line up.
+  gfw_planted_forests: "Planted trees as the Spatial Database of Planted Trees maps them, around 2020, in 158 countries. It does not line up with the other plantation rows because each is a different source: Plantations in 2000 is a separate, older Global Forest Watch map; Plantations of every kind (TheTreeMap) covers only the tropics, about 12\u00b0S to 16\u00b0N, in 2024 and 2025. Each leaves out places the others include.",
+  gfw_pre_2000_plantations: "Plantations that already stood in 2000, a separate, older Global Forest Watch map. It does not line up with Planted forests and tree crops (the Spatial Database of Planted Trees, around 2020, 158 countries) or with Plantations of every kind (TheTreeMap, the tropics only, 2024 and 2025): each is a different source, year and method, and each leaves out places the others include.",
   tsc_tree_cover_loss_drivers: "The original method (Curtis et al. 2018, The Sustainability Consortium): each square of a coarse grid, about 10 km across, is given the one driver that caused most of its tree cover loss. Five drivers: commodity-driven deforestation, shifting agriculture, forestry, wildfire, urbanization. Global Forest Watch lists three other datasets under the same title; this is the one its id marks as the Sustainability Consortium's.",
   wri_google_tree_cover_loss_drivers: "The newest version, made by WRI with Google at 1 km, much finer than the original coarse grid, with more kinds of driver, among them mining and energy, and settlements and infrastructure, which the original grouped differently.",
   tsc_drivers: "A second dataset under the Sustainability Consortium's name with the same title. Global Forest Watch lists map tiles for it that it has not finished making; if it still has none when ticked, the row leaves the list. Its record does not say how it differs from the first.",
@@ -10337,9 +10490,21 @@ function recordWhere(p) {
   return `<div class="meta">${c ? `In ${escapeHtml(c)} \u00b7 ` : ""}<a href="https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=11/${lat}/${lon}" target="_blank" rel="noopener">${lat.toFixed(4)}, ${lon.toFixed(4)} on OpenStreetMap</a>` +
     `${c ? " (country from this map's own outlines)" : ""}</div>`;
 }
+// Round 145b (asked 2 October): the Alliance for Zero Extinction sites' boxes
+// titled by the site and the species that lives there, as their fields give
+// them ("Sierra de San Pedro M\u00e1rtir Tamiasciurus mearnsi").
+const GFW_TITLE_FROM = {
+  birdlife_alliance_for_zero_extinction_sites: [/^(site_?name|sitename|aze_?site(_?name)?|site|name)$/i, /^(species|species_?name|scientific_?name|sci_?name|latin_?name|taxon|binomial)$/i],
+};
+function gfwOwnTitle(d, p) {
+  const rules = GFW_TITLE_FROM[d && d.id];
+  if (!rules) return null;
+  const parts = rules.map((re) => { const k = Object.keys(p).find((x) => re.test(x)); return k ? String(p[k]).trim() : ""; }).filter(Boolean);
+  return parts.length ? parts.join(" ") : null;
+}
 function gfwRecordBox(d, p) {
   countryShapesSoon();
-  const name = GFW_NAME_FIELDS.map((k) => p[k]).find((v) => v != null && String(v).trim() !== "");
+  const name = gfwOwnTitle(d, p) || GFW_NAME_FIELDS.map((k) => p[k]).find((v) => v != null && String(v).trim() !== "");
   const people = GFW_PEOPLE_FIELDS.map((k) => p[k]).find((v) => v != null && String(v).trim() !== "");
   const rest = Object.fromEntries(Object.entries(p).filter(([k]) => !GFW_HIDDEN.has(k)));
   return `<b>${escapeHtml(String(name || d.title))}</b>` +
@@ -20278,10 +20443,17 @@ const OTHER_MAPS = {
       attribution: "UNEP-WCMC Global Critical Habitat screening layer v2.1, Dunnett et al. 2025 (CC BY 4.0)", rasterPaint: { "raster-opacity": 0.88, "raster-saturation": 0 },
       choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/own_critical_habitat.choices.json",
       note: "The Global Critical Habitat screening layer version 2.1 (UNEP-WCMC; Dunnett et al. 2025, Scientific Data; CC BY 4.0), on land and at sea: places that meet the criteria of the International Finance Corporation's Performance Standard 6 - the habitats of critically endangered and endangered species, of species found nowhere else, of great migrations and gatherings, highly threatened or unique ecosystems - which banks following it may not finance projects to harm without strict conditions. Made into this map's own copy by culprits-tiles-more (scripts/critical_habitat.py); its classes and their names are read from the file itself." },
+    // Round 145b (asked 2 October: Global Safety Net's intactness draws in one
+    // colour): the Natural History Museum's index as the map's own copy, in ten
+    // steps (culprits-tiles-more scripts/bii_nhm.py).
+    { id: "own_bii", name: "How intact wildlife communities are, 0 to 100, in ten steps (Biodiversity Intactness Index, Natural History Museum; the map's own copy)", unit: "about 10 km", colour: "#2E8FBA", keepColour: true, route: "rasterlive", ready: true, lazy: true, buildScript: "bii_nhm",
+      attribution: "Biodiversity Intactness Index v2.1.1, Natural History Museum, London (CC BY-NC-SA 4.0)", rasterPaint: { "raster-opacity": 0.85, "raster-saturation": 0 },
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/own_bii.choices.json",
+      note: "The Biodiversity Intactness Index (Natural History Museum, London; version 2.1.1, CC BY-NC-SA 4.0): an estimate of how much of each place's original community of plants and animals is left, on average, compared with before people changed the land, 0 to 100. Drawn in ten steps of 10, lighter where less is left. Global Safety Net's two rows of the same index (0 to 50 and 50 to 100) draw each half in one colour." },
     // Round 99b (asked 28 September): the 2017 ecoregions from the map's own
     // copy, coloured by biome; Global Safety Net's copy of them did not draw.
     { id: "ecoregions_2017", name: "Ecoregions, 2017 version: the world's land in 846 natural regions, each with its own plants and animals, coloured by biome (RESOLVE Ecoregions 2017, Dinerstein et al.)", unit: "ecoregions", colour: "#3C6FA0", keepColour: true, route: "pmchoose", ready: true, lazy: true,
-      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ecoregions_2017.pmtiles", sourceLayer: "ecoregions", mode: "classes", menus: [], field: "BIOME_NUM",
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ecoregions_2017.pmtiles", sourceLayer: "ecoregions", nameFrom: ["ECO_NAME"], mode: "classes", menus: [], field: "BIOME_NUM",
       classes: [[1, "#0E4F5C", "Tropical and subtropical moist broadleaf forests"], [2, "#2E7F8A", "Tropical and subtropical dry broadleaf forests"], [3, "#1C6470", "Tropical and subtropical coniferous forests"], [4, "#3C6FA0", "Temperate broadleaf and mixed forests"], [5, "#26508A", "Temperate conifer forests"], [6, "#1B3766", "Boreal forests and taiga"], [7, "#6FB7C0", "Tropical and subtropical grasslands, savannas and shrublands"], [8, "#8FB4D6", "Temperate grasslands, savannas and shrublands"], [9, "#4FA3B5", "Flooded grasslands and savannas"], [10, "#9BC7CE", "Montane grasslands and shrublands"], [11, "#C9DDEA", "Tundra"], [12, "#5C86B8", "Mediterranean forests, woodlands and scrub"], [13, "#D6E6EC", "Deserts and xeric shrublands"], [14, "#0A3D4A", "Mangroves"]], classHint: "The biome each ecoregion belongs to; its own name and every field are in its box",
       attribution: "RESOLVE Ecoregions 2017, Dinerstein et al. 2017, BioScience (CC BY 4.0)",
       note: "Ecoregions 2017 (Dinerstein et al. 2017, BioScience; RESOLVE, CC BY 4.0): the world's land divided into 846 ecoregions, each an area whose plants, animals and ground are more like each other than like those around it, grouped into 14 biomes, with how much of each is protected (its Nature Needs Half category). The map's own copy, made by culprits-tiles-more (scripts/ecoregions.py) from RESOLVE's file; every field is in the box. Rock and ice, and lakes, are grey." },
@@ -20311,8 +20483,8 @@ const OTHER_MAPS = {
     { id: "wb_harm_projects", name: "World Bank projects the Bank itself rated most harmful to the environment (Category A, or High risk under its newer rules), at the places they are built", unit: "projects", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Category A projects", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/subsidies/wb_category_a.geojson" }], nameFrom: ["project_name"],
       colourBy: { field: "totalcommamt", steps: [2.5e7, 1e8, 2.5e8, 5e8, 1e9], unit: "USD committed by the World Bank" },
-      attribution: "World Bank Projects & Operations API (CC BY 4.0)",
-      note: "Every World Bank project the Bank itself put in environmental Category A, its rating for projects \u201clikely to have significant adverse environmental impacts that are sensitive, diverse, or unprecedented\u201d: dams, mines, roads, pipelines, power plants and farms paid for with public money. Projects approved under its newer Environmental and Social Framework (from 2018) are rated by risk instead; those it rated High risk are here too. Each is drawn at every place the Bank's own record gives for it; a project the Bank gives no place for is drawn as a ring at the middle of its country. Every field of the record is in the box. Copied weekly from the World Bank's projects API by culprits-tiles-more (scripts/public_harm.py)." },
+      attribution: "World Bank Projects & Operations API (CC BY 4.0); places geocoded by AidData, World Bank Geocoded Research Release v1.4.2 (ODC-By)",
+      note: "Placed where AidData geocoded each project (its World Bank Geocoded Research Release, projects approved 1995 to 2014; the box says whether at the exact place, near it, or at the district or province named); later projects at their country. Every World Bank project the Bank itself put in environmental Category A, its rating for projects \u201clikely to have significant adverse environmental impacts that are sensitive, diverse, or unprecedented\u201d: dams, mines, roads, pipelines, power plants and farms paid for with public money. Projects approved under its newer Environmental and Social Framework (from 2018) are rated by risk instead; those it rated High risk are here too. Each is drawn at every place the Bank's own record gives for it; a project the Bank gives no place for is drawn as a ring at the middle of its country. Every field of the record is in the box. Copied weekly from the World Bank's projects API by culprits-tiles-more (scripts/public_harm.py)." },
     { id: "imf_fossil_subsidies", name: "Fossil fuel subsidies, country by country, as a share of the economy, latest year (IMF)", unit: "% of GDP", colour: "#1E6FA8", keepColour: true, route: "country", ready: true, lazy: true, buildScript: "public_harm",
       totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/subsidies/imf_fossil_subsidies.json", field: "value" }, linear: [0, 20],
       countryNote: "IMF Fossil Fuel Subsidies Data: fossil fuels sold for less than their cost of supply (explicit) and less than their full cost to people and nature (implicit), together, as a share of GDP; every measure the IMF gives for the country is in the box",
@@ -21117,10 +21289,10 @@ const OTHER_MAPS = {
     // from Figure 1's bars, which print no numbers, at the owner's word.
     { id: "pe_banks", name: "Bankrolling Extinction: the 50 largest banks' finance linked to biodiversity loss, 2019, at their headquarters (Portfolio Earth)", unit: "banks", colour: "#6A6258", route: "geojsonlive", ready: true, lazy: true,
       // Round 100b (asked 28 September): coloured by its own figure.
-      colourBy: { field: "finance_linked_to_biodiversity_risk_2019_billion_usd_approx", steps: [5, 20, 50, 100, 150], unit: "billion USD linked to biodiversity risk in 2019 (measured from the report's bars)" },
+      colourBy: { field: "finance_linked_to_biodiversity_risk_2019_billion_usd_approx", steps: [5, 20, 50, 100, 150], unit: "billion US$ of loans and underwriting linked to biodiversity loss, 2019", label: "Loans and underwriting linked to biodiversity loss (measured from the report's bars)" },
       files: [{ label: "Bankrolling Extinction", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/pe/banks.geojson" }], nameFrom: ["bank"],
       attribution: "Bankrolling Extinction (Portfolio Earth, 2020); GLEIF; OpenStreetMap",
-      note: "Each of the report's 50 banks at the headquarters its parent company gives in the Global Legal Entity Identifier register (GLEIF), found in OpenStreetMap. Each box gives the report's Table 2 as printed (S&P Global rank, country, region, total assets 2019) and the bank's loans and underwriting linked to biodiversity risk in 2019, with the part linked to direct risk and both as a share of assets. Figure 1 prints no numbers for these: they are measured from the length of its bars, rounded to the nearest billion USD, and approximate (checked against the report's own average, 52 billion, and largest, more than 210 billion). Four banks' bars are drawn at one smallest length; their boxes say so rather than give an amount. Portfolio Earth publishes no data file and states no licence." },
+      note: "From Portfolio Earth's report Bankrolling Extinction (2020), https://portfolio.earth/campaigns/bankrolling-extinction/. Each of the report's 50 banks at the headquarters its parent company gives in the Global Legal Entity Identifier register (GLEIF), found in OpenStreetMap. Each box gives the report's Table 2 as printed (S&P Global rank, country, region, total assets 2019) and the bank's loans and underwriting linked to biodiversity risk in 2019, with the part linked to direct risk and both as a share of assets. Figure 1 prints no numbers for these: they are measured from the length of its bars, rounded to the nearest billion USD, and approximate (checked against the report's own average, 52 billion, and largest, more than 210 billion). Four banks' bars are drawn at one smallest length; their boxes say so rather than give an amount. Portfolio Earth publishes no data file and states no licence." },
     { id: "pe_subsidising", name: "Government subsidies that destroy nature (Subsidising Extinction, Portfolio Earth)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://portfolio.earth/campaigns/subsidising-extinction/",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
@@ -21350,6 +21522,11 @@ const OTHER_MAPS = {
     { id: "soil_spun", name: "Fungi that feed plant roots underground: the hotspots of how many kinds live there and of kinds found almost nowhere else, 1 km (SPUN Underground Atlas)", unit: "modelled from 2.8 billion fungal DNA sequences", colour: "#6B5A4A", route: "rasterlive", ready: true, lazy: true,
       attribution: "SPUN Underground Atlas: Van Nuland, Kiers et al. 2025, Nature (CC BY 4.0)", maxzoom: 12,
       choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/soil/spun_choices.json", choices: [],
+      togetherOf: [
+        { label: "Both kinds together: hotspots of how many kinds live there", match: /^Hotspots of .*how many kinds live there/ },
+        { label: "Both kinds together: hotspots of kinds found almost nowhere else", match: /^Hotspots of .*found almost nowhere else/ },
+        { label: "Both kinds together: all four hotspot maps", match: /^Hotspots of / },
+      ],
       note: "SPUN's Underground Atlas (Van Nuland, Kiers et al. 2025, Nature; CC BY 4.0), from 2.8 billion fungal DNA sequences sampled in 130 countries: the paper's hotspot maps of the fungi that live with plant roots (arbuscular and ectomycorrhizal), for how many kinds live in a place and for kinds found almost nowhere else, about 1 km across. Every map in the paper's data record is a choice here, the hotspots first, then how thoroughly each part of the world was sampled, and the protected-area and biome masks the paper used; each is shaded in 12 steps between its own 2nd and 98th percentiles. The full maps of predicted richness behind the hotspots are given out by SPUN only on request (spun.earth/data-request), so they are not here. Round 99b: the row said \"not built yet\" because its list of maps held a value JSON cannot carry; that is mended." },
     // Round 50 (25 September): soil nematodes, the samples behind the global
     // nematode maps (van den Hoogen et al.), CC0; copied by culprits-tiles-more
@@ -21410,6 +21587,19 @@ const OTHER_MAPS = {
       filterBy: [{ label: "Sector", field: "sector" }, { label: "Country", field: "country" }],
       attribution: "Climate TRACE (CC BY 4.0)",
       note: "Every site Climate TRACE estimates methane for and names an owner of (oil and gas fields, coal mines, landfills, cattle operations and more), with its methane in tonnes a year and its owners; the 20 owners whose sites put out the most methane (shares weighted where Climate TRACE gives them) each have a colour, the rest share one. Their ranking is in methane/ct_owners.json in culprits-tiles-more. Sites with no owner named are left off this row (they are under Emissions). Built weekly by culprits-tiles-more (scripts/methane_culprits.py)." },
+    // Round 145b (3 October: Global Energy Monitor said the supplemental files
+    // come with the tracker download): the coal mines with their methane and
+    // every owner, and the mine boundaries, once the owner uploads the download
+    // into culprits-tiles-more gem/coal/download/ (scripts/gem_coal.py).
+    { id: "gem_coal_mines", name: "Coal mines with their methane and owners, every field (Global Energy Monitor, Global Coal Mine Tracker)", unit: "mines", colour: "#4F5B78", route: "geojsonlive", ready: true, lazy: true, buildScript: "gem_coal",
+      files: [{ label: "Coal mines", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/methane/gem_coal_mines.geojson" }], nameFrom: ["Mine Name", "Mine name", "mine_name", "Name"],
+      waiting: "not built yet: the Global Coal Mine Tracker download goes in culprits-tiles-more gem/coal/download/, then the refresh runs gem_coal",
+      attribution: "Global Energy Monitor, Global Coal Mine Tracker (CC BY 4.0)",
+      note: "Every coal mine in Global Energy Monitor's Global Coal Mine Tracker (CC BY 4.0), every column of its record in the box, with the ownership chain rows from GEM's supplemental file joined to each mine by its GEM mine ID. Colour the points by the methane estimate, or any other field, in the menu under the row." },
+    { id: "gem_coal_boundaries", name: "Coal mine boundaries and their likely sources of methane (Global Energy Monitor, Global Coal Mine Tracker)", unit: "mine areas", colour: "#6F7FA8", keepColour: true, route: "pmvector", ready: true, lazy: true, own: true, buildScript: "gem_coal",
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/gem_coal_boundaries.pmtiles", sourceLayer: "boundaries", edge: "#2A3558", fillOpacity: 0.4,
+      stateSay: "mine areas \u00b7 from the map's own copy", attribution: "Global Energy Monitor, Global Coal Mine Tracker (CC BY 4.0)",
+      note: "Global Energy Monitor's supplemental file of coal mine boundaries and the potential sources of coal mine methane inside them, every field in the box. Built once the tracker download is uploaded (see the coal mines row)." },
     { id: "n2o_crop_fertiliser", name: "Which crop gets the most nitrogen fertiliser, country by country (IFA, Ludemann et al. 2022)", unit: "countries", colour: "#1E6FA8", keepColour: true, route: "countrycat", ready: true, lazy: true, buildScript: "fertiliser_by_crop",
       // Round 120b (asked 1 October: the crops most responsible for nitrous oxide).
       url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/fertiliser/by_crop.json", field: "top crop", categories: "auto",
@@ -21643,7 +21833,7 @@ const OTHER_MAPS = {
       note: "The EC Joint Research Centre's map of every pixel of surface water seen by Landsat from 1984 to 2024, read live from the JRC's own tiles. The JRC's colours are redrawn in this map's own; what each pixel means is unchanged." },
     // Item 30: the most detailed land cover map published worldwide, by class
     // and by pixel together, read live from OpenLandMap's copy.
-    { id: "glc_fcs30d", name: "Land cover in 35 kinds, 30 m, worldwide, 2000 to 2022 (GLC_FCS30D)", unit: "35 kinds of cover, 30 m", colour: "#6F805F", route: "rasterlive", ready: true, lazy: true,
+    { id: "glc_fcs30d", name: "Land cover in 35 kinds, 30 m, worldwide, 2000 to 2022 (GLC_FCS30D)", unit: "35 kinds of cover, 30 m; click for the kind", colour: "#5A8FD0", keepColour: true, cogClick: "glc_fcs30d", route: "rasterlive", ready: true, lazy: true,
       attribution: "GLC_FCS30D, Zhang et al. 2023 (CC BY 4.0), via OpenLandMap", maxzoom: 13, rasterPaint: { "raster-opacity": 0.85, "raster-saturation": 0, "raster-resampling": "nearest" },
       choices: [2022, 2020, 2015, 2010, 2005, 2000].map((y) => ({ label: String(y), tiles: `cog4326://glc_fcs30d/${y}/{z}/{x}/{y}` })),
       key: GLC_FCS30D_CLASSES.map(([, c, label]) => [c, label]),
@@ -22304,7 +22494,8 @@ const LAYER_KIND = {
   gsn_countries: ["plant", "downstream"],
   // Round 90b.
   own_mangroves: ["plant", "downstream"],
-  own_critical_habitat: ["plant", "downstream"],
+  own_critical_habitat: ["plant", "downstream"], own_bii: ["plant", "downstream"],
+  gem_coal_mines: ["insentient", "upstream"], gem_coal_boundaries: ["insentient", "upstream"],
   ecoregions_2017: ["plant", "downstream"],
   wb_harm_projects: ["insentient", "downstream"], imf_fossil_subsidies: ["insentient", "downstream"],
   fish_rivers: ["animal", "downstream"], fish_basins: ["animal", "downstream"],
@@ -23080,6 +23271,9 @@ const LAYER_SITE = {
   // Round 90b.
   own_mangroves: "https://zenodo.org/records/12756047",
   own_critical_habitat: "https://doi.org/10.34892/snwv-a025",
+  own_bii: "https://data.nhm.ac.uk/dataset/bii-developed-by-nhm-v2-1-1-limited-release",
+  gem_coal_mines: "https://globalenergymonitor.org/projects/global-coal-mine-tracker/",
+  gem_coal_boundaries: "https://globalenergymonitor.org/projects/global-coal-mine-tracker/",
   ecoregions_2017: "https://ecoregions.appspot.com/",
   wb_harm_projects: "https://projects.worldbank.org/en/projects-operations/projects-list",
   imf_fossil_subsidies: "https://www.imf.org/en/Topics/climate-change/energy-subsidies",
@@ -23513,6 +23707,9 @@ const NOT_LIVE = {
   // Round 90b.
   own_mangroves: "Made from Global Mangrove Watch's 2020 files by culprits-tiles-more",
   own_critical_habitat: "Made from UNEP-WCMC's critical habitat file by culprits-tiles-more",
+  own_bii: "Made from the Natural History Museum's index file by culprits-tiles-more",
+  gem_coal_mines: "Made from Global Energy Monitor's download by culprits-tiles-more",
+  gem_coal_boundaries: "Made from Global Energy Monitor's download by culprits-tiles-more",
   ecoregions_2017: "Made from RESOLVE's Ecoregions 2017 file by culprits-tiles-more",
   wb_harm_projects: "Copied weekly from the World Bank's projects API by culprits-tiles-more",
   imf_fossil_subsidies: "Copied weekly from the World Bank's Data360 by culprits-tiles-more",
@@ -23757,6 +23954,9 @@ const PANEL_ORDER = [
   { h: 4, bundle: "wreckers", colour: "#7A1F3D" }, "wreckers_umap", "wreckers_world",
   { h: 4, t: "Boards" }, "boards_interlocks",
   { h: 4, t: "Environmental justice conflicts" }, "ejatlas",
+  // Round 145b (asked 2 October): the World Bank's most harmful projects are
+  // not about wildlife alone: here and under Construction.
+  { h: 4, t: "Projects their own lender rated most harmful" }, "wb_harm_projects",
   // Round 75 (27 September, at the owner's word): Climate in the Destruction
   // page's order - General, then carbon dioxide, methane, nitrous oxide,
   // F-gases and black carbon - each gas split into what is emitted, who is
@@ -23791,7 +23991,7 @@ const PANEL_ORDER = [
   // carbon bombs out of Methane; the fracked wells and the oil and gas
   // concessions under Culprits, the Infrastructure heading gone; the sites and
   // owners behind the most methane added.
-  { h: 5, t: "Culprits" }, "methane_imeo_plumes", "methane_imeo_top50", "methane_ct_owners", "skytruth_fracfocus", "bocc",
+  { h: 5, t: "Culprits" }, "methane_imeo_plumes", "methane_imeo_top50", "methane_ct_owners", "gem_coal_mines", "gem_coal_boundaries", "skytruth_fracfocus", "bocc",
   // Nitrous oxide (round 120b, asked 1 October): Emissions, then Culprits by
   // the sources behind most of it (Tian et al. 2020, Nature), the soy rows
   // under Crops, the fertiliser plants under Synthetic fertiliser; the grain
@@ -23814,6 +24014,8 @@ const PANEL_ORDER = [
   // Refineries are not under Black carbon (round 75): they put out well under
   // one per cent of it; Climate TRACE's black carbon row stays.
   { h: 4, t: "Black carbon" }, "ct_air_bc",
+  // Round 145b (asked 2 October): money behind the climate's destruction.
+  { h: 4, t: "Finances" }, "imf_fossil_subsidies",
   { h: 3, t: "Overpopulation" }, "ct_pop",
   // Pollution by where it goes (round 81, asked 27 September): all-around
   // (several at once), air, water and land; air pollution by pollutant as
@@ -23871,6 +24073,8 @@ const PANEL_ORDER = [
   // carbon and biomass", which held only the mangrove biomass).
   // Round 91b: Global Safety Net's tree layers are filed here (CATALOGUE_BY_TITLE).
   { h: 4, t: "Forest cover" },
+  // Round 145b (asked 2 October): the Intact Forest Landscapes here too.
+  { h: 5, bundle: "ifl", colour: "#4F6E7A" }, "ifl_2000", "ifl_2013", "ifl_2016", "ifl_2020", "ifl_2025",
   // Round 89b (asked 27 September): Forest zoning and management plans right
   // after Forest cover, Indonesia's plans inside it.
   { h: 4, t: "Forest zoning and management plans" },
@@ -23907,9 +24111,6 @@ const PANEL_ORDER = [
   { h: 4, t: "Mangroves" }, "own_mangroves",
   // Round 94b: the 1996, 2016 and 2020 mangroves moved here from Oceans.
   { h: 5, bundle: "mangroves", colour: "#62755F" },
-  // Round 92b (asked 27 September): Peatland a sub-heading of Deforestation,
-  // the worldwide peatland map first (CATALOGUE_FIRST).
-  { h: 4, t: "Peatland" },
   { h: 3, t: "Biodiversity loss" },
   // Round 90b/91b (asked 27 September): Global Safety Net's land cover layers
   // (Water Bodies to Inland Water) and the terrestrial ecoregions, filed by title.
@@ -23919,13 +24120,17 @@ const PANEL_ORDER = [
   // Companies and financiers. Protected and conserved areas and Intact and
   // primary forests are now parts of Places that matter most for species.
   { h: 4, t: "Land Use and Ecoregions" }, "ecoregions_2017", "glc_fcs30d",
+  // Round 145b (asked 2 October): the land cover kinds together, and Peatland
+  // here (it was under Deforestation).
+  { h: 5, t: "Kinds of land cover" },
+  { h: 5, t: "Peatland" },
   { h: 4, t: "Places that matter most for species" },
   { h: 5, t: "Where species are threatened" }, "atlas_hotspots", "atlas_cities",
   { h: 6, bundle: "crithab", colour: "#5E6A78" }, "own_critical_habitat",
   { h: 5, t: "Protected areas" }, "gsn_countries",
   { h: 5, t: "Species richness" },
   { h: 5, t: "Wild and intact places" },
-  { h: 6, bundle: "bii", colour: "#5E6478" },
+  { h: 6, bundle: "bii", colour: "#5E6478" }, "own_bii",
   { h: 6, bundle: "ifl", colour: "#4F6E7A" }, "ifl_2000", "ifl_2013", "ifl_2016", "ifl_2020", "ifl_2025",
   { h: 5, t: "Where animals gather and migrate" },
   { h: 4, t: "Disturbance" },
@@ -23937,10 +24142,9 @@ const PANEL_ORDER = [
   // Global Organized Crime Index's scores for crimes against wild plants,
   // timber and wild animals, country by country.
   { h: 4, t: "Wildlife and timber crime" }, "goc_flora", "goc_fauna",
-  { h: 4, t: "Companies and financiers" }, "pe_bankrolling", "pe_banks",
+  { h: 4, t: "Companies and financiers" }, "pe_banks",
   // Round 100b (asked 28 September): public money behind the harm, the map's
   // own rows in place of the Subsidising Extinction page.
-  { h: 5, bundle: "publicharm", colour: "#5E6470" }, "wb_harm_projects", "imf_fossil_subsidies",
   // Item 30: the most detailed worldwide land cover and land use found. Round
   // 92b (asked 27 September): the land cover to Land Use and Ecoregions, the
   // land use plot by plot to Buildings, Peatland into Deforestation.
@@ -23971,10 +24175,13 @@ const PANEL_ORDER = [
   // of no one crop, inside Cropland; each crop that clears the most land
   // under By crop, palm oil, soy and cocoa among them.
   { h: 5, t: "Cropland" }, "ftw_fields", "potapov_cropland",
-  { h: 6, t: "Plantations of no single crop (single crops are under By crop)" },
-  { h: 7, bundle: "plantall", colour: "#5E6A78" },
-  { h: 7, bundle: "plantsmall", colour: "#5E6A78" },
-  { h: 7, bundle: "idnplant", colour: "#6E6A55" },
+  // Round 145b (asked 2 October): Plantations its own heading, out of
+  // Cropland; the planted trees map first, every kind of plantation above the
+  // plantations spreading into forest (CATALOGUE_LEAD, CATALOGUE_NOT_FIRST_IN).
+  { h: 5, t: "Plantations" },
+  { h: 6, bundle: "plantall", colour: "#5E6A78" },
+  { h: 6, bundle: "plantsmall", colour: "#5E6A78" },
+  { h: 6, bundle: "idnplant", colour: "#6E6A55" },
   { h: 5, t: "By crop" },
   // Round 132b (asked 2 October): every SPAM crop its own row under its own
   // crop, in alphabetical order, the "other" groups last.
@@ -23995,13 +24202,18 @@ const PANEL_ORDER = [
   { h: 6, t: "Maize (corn)" }, "crop_maiz",
   { h: 6, t: "Millet" }, "spam_mill", "spam_pmil",
   { h: 6, t: "Onion" }, "spam_onio",
+  // Round 145b (asked 2 October): Clearing and emissions first, and said to be
+  // Indonesia's; Nusantara's mill layers one row with sublayers; the mill and
+  // concession finance layers out (Nusantara's server draws nothing for them).
   { h: 6, t: "Palm oil" }, "crop_oilp",
+  { h: 7, t: "Clearing and emissions, Indonesia" },
   { h: 7, t: "Concessions" },
   { h: 7, t: "Plantations" },
   { h: 8, bundle: "palmco", colour: "#5E6A78" },
-  { h: 7, t: "Mills and refineries" }, "palmwatch", "trase_palm_indonesia",
-  { h: 7, t: "Who finances them" },
-  { h: 7, t: "Clearing and emissions" },
+  // Round 145b (asked 3 October): PalmWatch's estimate in the same row as
+  // Nusantara's, each its own sublayer, so one tick shows both and either can go.
+  { h: 7, t: "Mills and refineries" }, "trase_palm_indonesia",
+  { h: 8, bundle: "palmmills", colour: "#5E6A78" }, "palmwatch",
   { h: 6, t: "Pigeon peas" }, "spam_pige",
   { h: 6, t: "Plantain" }, "spam_plnt",
   { h: 6, t: "Potato" }, "spam_pota",
@@ -24011,7 +24223,11 @@ const PANEL_ORDER = [
   { h: 6, t: "Sago" },
   { h: 6, t: "Sesame" }, "spam_sesa",
   { h: 6, t: "Sorghum" }, "spam_sorg",
-  { h: 6, t: "Soy" }, "crop_soyb", "site_forest500_soy", "soy_traders_money", "soy_organizations",
+  // Round 145b (asked 2 October): Soy's culprits and its zero-deforestation
+  // promises each a heading of their own under Soy.
+  { h: 6, t: "Soy" }, "crop_soyb", "soy_organizations",
+  { h: 7, t: "Culprits" }, "soy_traders_money", "site_forest500_soy",
+  { h: 7, t: "Deforestation promises" },
   { h: 6, t: "Sugar beet" }, "spam_sugb",
   { h: 6, t: "Sugarcane" }, "crop_sugc",
   { h: 6, t: "Sunflower" }, "spam_sunf",
@@ -24075,7 +24291,9 @@ const PANEL_ORDER = [
   { h: 5, t: "Dead zones", tag: "partly counted in the Every human impact together layer, through the nutrient runoff that causes them" }, "ocean_dead_zones",
   { h: 5, t: "Deep-sea mining", tag: "not counted in the Every human impact together layer" }, "ocean_seabed_mining",
   { h: 5, t: "Reefs and mangroves", tag: "not counted in the Every human impact together layer: these are what is harmed" }, "allen_coral", "ocean_bleaching",
-  { h: 3, t: "Construction" }, "local_projects",
+  // Round 145b (asked 2 October): the worldwide plant cover loss alerts and
+  // the World Bank's most harmful projects also here.
+  { h: 3, t: "Construction" }, "local_projects", "wb_harm_projects", "gfw_dist", "gfw_dist_year",
   // Concessions that name no material or activity a heading covers (23 September).
   { h: 3, t: "Other concessions" },
   // Asked for 25 September: the earthquakes under a heading of their own.
@@ -24189,6 +24407,9 @@ const PANEL_ORDER = [
   { h: 1, t: "Buildings" }, "building_types", "osm_landuse",
 ];
 const PANEL_REMOVED = new Set([
+  // Round 145b (asked 2 October): the page-in-a-panel copy of Bankrolling
+  // Extinction; its banks are mapped (pe_banks), whose note links the page.
+  "pe_bankrolling",
   // Round 134b (asked 2 October: the official registries and the Trase row
   // show the same thing): the abattoir atlas reads Trase's whole file (15,119
   // rows) into abattoir_facilities, joined with SIF and the other registers
@@ -24225,7 +24446,7 @@ const PANEL_REMOVED = new Set([
   // Round 102b: its farms are inside xmas_trees now, with the world's.
   "mymaps_trees",
   // Round 100b (asked 28 September): the page that only linked out, replaced
-  // by the map's own rows (publicharm).
+  // by the map's own rows.
   "pe_subsidising",
   // Round 75 (27 September): SkyTruth's Pennsylvania-only rows, at the owner's word.
   "skytruth_pa_permits", "skytruth_pa_spud", "skytruth_pa_violations", "skytruth_well_permits",
@@ -24753,7 +24974,7 @@ function arrangePanel() {
       const gname = gnm ? String(([...gnm.childNodes].find((n) => n.nodeType === 3 && n.data.trim()) || {}).data || "").trim() : "";
       const cnm = copy && copy.querySelector(".nm");
       const words = cnm && [...cnm.childNodes].find((n) => n.nodeType === 3 && n.data.trim());
-      if (words && gname) words.data = `${words.data.trim().charAt(0).toUpperCase()}${words.data.trim().slice(1)} \u2014 ${gname.charAt(0).toLowerCase()}${gname.slice(1)}, all gases as CO\u2082e `;
+      if (words && gname && /^(climate_trace|ct_)/.test(item)) words.data = `${words.data.trim().charAt(0).toUpperCase()}${words.data.trim().slice(1)} \u2014 ${gname.charAt(0).toLowerCase()}${gname.slice(1)}, all gases as CO\u2082e `;
       if (copy) { into().appendChild(copy); placed.add(item); leads.set(item, lead); }
       continue;
     }

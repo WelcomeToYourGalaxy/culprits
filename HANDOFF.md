@@ -5,6 +5,102 @@ touches.
 
 ---
 
+## Round 145b (3 October)
+
+Needs round 144h. Tiles patch round145b_tiles.py beside it. No app.js?v= bump.
+
+This round carries the "b" chat's first round 144b, which never applied: the
+other chat's 144b reached main first under the same name. Code comments say
+Round 145b throughout.
+
+Asked 2 October (the owner's long list; this round is the menu, the titles
+and the colours; the rest is listed at the end).
+
+- Agriculture: Plantations its own heading (PLANT_T "Plantations", PLANTS =
+  Agriculture > Plantations), out of Cropland. Rows asked to lead their
+  heading now lead it in a fixed order whichever catalogue answers first
+  (CATALOGUE_LEAD, catalogueInsert, catalogueLead): the planted trees map
+  first under Plantations; the plantations spreading into forest no longer
+  lead Plantations (CATALOGUE_NOT_FIRST_IN), so every kind of plantation sits
+  above them; "Plantations in 2000 (Global Forest Watch)"; sago titled as
+  Maluku and Papua only (its map server's own extent).
+- Palm oil: "Clearing and emissions, Indonesia" first; Global Forest Watch's
+  two concession maps lead Concessions; land within 10 km of oil palm
+  plantations leads Plantations. Nusantara's mill layers are one row with
+  sublayers (bundle palmmills: the mills, 1 and 2 hours' drive, 50 km, company
+  plantation land, L'Oreal's mills). Taken out, as their server draws nothing
+  for them (probe/nusantara/health.json, blank at zooms 2 to 8): mills and
+  oil palm concessions by lenders and by investors, the unstated-distance
+  areas and the 10 km areas. "Who finances them" is gone with them.
+- Trase: a measure of one country says the country first ("Indonesia: ...")
+  and not again at the end; "less what ... takes back up" reads "after taking
+  away the carbon ... absorbs".
+- Soy: Culprits (soy traders' offices, Forest 500's soy financiers) and
+  Deforestation promises (Trase's soy shares, also still under Deforestation
+  > Deforestation promises) as headings under Soy. UMD's soy fields stay: they
+  are not in SPAM (South America only, year by year, field by field).
+- Peatland moved from Deforestation to Biodiversity loss > Land Use and
+  Ecoregions > Peatland; Trase's peatland burned each year is back there
+  (TRASE_REMOVED_METRICS keeps only the burned-peat emissions).
+- Land Use and Ecoregions: Global Safety Net's land cover kinds, natural and
+  semi-natural land under "Kinds of land cover"; human modification at 90 m
+  under Disturbance; its cropland under Agriculture > Cropland; where forest
+  could grow back under Deforestation only; the grasses inside the places
+  most important for species under Places that matter most for species. Out:
+  FAO forest area by country (GFW's build failed), SBTN natural lands (no
+  tiles), UMD land cover (no tiles), WWF's 2001 ecoregions. The JRC forest
+  cover 2020 also here. Ecoregion boxes are titled by ECO_NAME (pmchoose
+  nameFrom).
+- Land cover in 35 kinds: a palette of its own (each family its own hues, no
+  green), kept out of the map-wide remap (keepColour), and a click box naming
+  the kind, read from the GeoTIFF one pixel at full detail (cogValueAt,
+  cogClickWire, cfg.cogClick).
+- Biodiversity: the Intact Forest Landscapes also under Deforestation > Forest
+  cover; Global Safety Net's marine critical habitat out (the map's own copy
+  holds land and sea), its land one matched more loosely into crithab; the
+  WDPA copy leads Protected areas; Alliance for Zero Extinction boxes titled
+  by site and species (GFW_TITLE_FROM, gfwOwnTitle; the fields are found by
+  name, not yet seen live).
+- Alerts: the integrated alerts are titled as mostly tropical (GFW's newest
+  copy holds only overlap.tif); the worldwide DIST-ALERT rows (gfw_dist,
+  gfw_dist_year) also under Construction (copies; a grouped row's copy says
+  "all gases as CO2e" only for Climate TRACE rows now).
+- Money: the World Bank's most harmful projects under Of the planet > General
+  and Construction; fossil fuel subsidies under Climate > Finances; the
+  publicharm bundle and the Bankrolling Extinction page row (pe_bankrolling)
+  gone; pe_banks' note names the campaign page, its fields in plain words
+  (FIELD_WORDS: "Rank by finance linked to biodiversity loss (the report's
+  Figure 1)" and the rest).
+- One colour scale for every figure: AMOUNT_RAMP (colourBy) and PC_RAMP (the
+  points' colour menu) are the same six steps, pale ice (least) to violet
+  (most). AMOUNT_RAMP ran the other way (navy least), which is why the soil
+  nematodes' key and dots disagreed.
+- Added 3 October:
+  - PalmWatch inside the mills row (bundle palmmills, retitled: two
+    estimates, PalmWatch's and Nusantara Atlas's).
+  - The plantation rows say why they do not line up (GFW_ABOUT for
+    gfw_planted_forests and gfw_pre_2000_plantations; plantall titled as the
+    tropics only, about 12S to 16N).
+  - World Bank projects: placed where AidData geocoded them (tiles
+    public_harm.py reads AidData-WM/public_datasets
+    WorldBank_GeocodedResearchRelease_Level1_v1.4.2, ODC-By; precision 1 to
+    4 only, the box says which; later projects at their country).
+  - own_bii in the bii bundle: the NHM Biodiversity Intactness Index v2.1.1
+    (CC BY-NC-SA) in ten steps (tiles bii_nhm.py, through data.nhm.ac.uk's
+    CKAN API; stops and lists the resources if there is no GeoTIFF).
+  - gem_coal_mines and gem_coal_boundaries under Methane > Culprits (tiles
+    gem_coal.py reads whatever the owner uploads to gem/coal/download/: the
+    Global Coal Mine Tracker with both supplemental files; every column; the
+    ownership rows joined by GEM mine ID; GEM said 2 October the supplements
+    come with the download; CC BY 4.0).
+  - Fungi (soil_spun): togetherOf adds three choices drawing several of the
+    build's pictures at once (rasterTogether: <row>-raster-t1 ...).
+  - tiles gfw_trawling.py: a browser User-Agent (every box was 403 on 3
+    October) and GFW's reply recorded; stops after three refusals running.
+
+Not done (next): a colour changer for one row or a heading; the research
+answers. Not checked in a browser.
+
 ## Round 144h (3 October)
 
 Needs round 144b. No tiles patch. No app.js?v= bump. Made in a separate chat
