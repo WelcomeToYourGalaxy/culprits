@@ -14411,6 +14411,7 @@ if (typeof MutationObserver === "function" && typeof document !== "undefined" &&
 //             that face it (Mapterhorn heights)
 //   corners   softly darkened (#dusk-corners, takes no clicks)
 //   no camera effects: no glow, no lens flare, no blur over the map
+// Round 162b: its own place names in a book serif (DUSK_NAME_IDS, below).
 // Round 161b (owner: too dreary; muddy fields close in, blotchy and mouldy
 // at middle zooms, a dreary purple world): lighter ramps, colours dulled only
 // a little and toward a cool grey (not violet), narrower washes far out,
@@ -14463,7 +14464,6 @@ var DUSK = {
   road: ["#4A4139", "#3F3731", "#352E29"],
   rail: "#2A2522", building: "#5A5048",
   border: "rgba(20,18,26,0.5)",
-  names: { sat: -1, min: 0, max: 0.78 },
   // A slate sky, a grey-violet horizon, pale bone fog: a tilted view fades
   // into the distance; the globe's edge into haze.
   sky: { "sky-color": "#5C6E80", "horizon-color": "#CBC8BC", "fog-color": "#C6C8C3",
@@ -14730,7 +14730,7 @@ function duskCorners(on) {
   }
   if (el) el.hidden = !on;
 }
-let duskNamesTurned = false, duskSkyBefore = null;
+let duskSkyBefore = null;
 function duskSky(on) {
   if (typeof map.setSky !== "function") return;
   if (typeof DEFENCE_ON !== "undefined" && DEFENCE_ON) return;
@@ -14741,23 +14741,106 @@ function duskSky(on) {
     } else if (!on && duskSkyBefore) { map.setSky(duskSkyBefore); duskSkyBefore = null; }
   } catch (e) { /* the sky stays as it was */ }
 }
+// Round 162b (asked: place names in the same theme). The picture of names
+// every other basemap uses (CARTO's, a fixed sans-serif) is hidden here; the
+// names are drawn instead from OpenFreeMap's own place, water and peak names
+// in EB Garamond (SIL Open Font License; its glyphs are in map/glyphs/), a
+// book serif like the type on old fantasy cards: bone on a soft dark halo,
+// countries in spaced capitals, seas and rivers in italic pale slate. English
+// names where OpenStreetMap has them, else the name in Latin letters, else
+// the local name. The Place names box turns them off like any other names.
+var DUSK_FONT = { regular: ["EBGaramond-Regular"], bold: ["EBGaramond-SemiBold"], italic: ["EBGaramond-Italic"] };
+var DUSK_NAME = {
+  text: "#E6DECB", minor: "#CFC7B5", water: "#AFBEC8", peak: "#C9C1B2",
+  halo: "rgba(22,25,30,0.78)", haloWater: "rgba(18,26,36,0.7)",
+};
+var DUSK_NAME_IDS = ["outline-dusk-name-ocean", "outline-dusk-name-water", "outline-dusk-name-river", "outline-dusk-name-road",
+  "outline-dusk-name-peak", "outline-dusk-name-village", "outline-dusk-name-town", "outline-dusk-name-state",
+  "outline-dusk-name-city", "outline-dusk-name-country"];
+function duskGlyphs() {
+  try { return new URL("glyphs/", document.baseURI).href + "{fontstack}/{range}.pbf"; } catch (e) { return "glyphs/{fontstack}/{range}.pbf"; }
+}
+function duskNameLayers() {
+  const nm = ["coalesce", ["get", "name_en"], ["get", "name:latin"], ["get", "name"]];
+  const cls = (list) => ["match", ["get", "class"], list, true, false];
+  const zs = (...a) => ["interpolate", ["linear"], ["zoom"], ...a];
+  const halo = (c, w) => ({ "text-halo-color": c, "text-halo-width": w, "text-halo-blur": 0.8 });
+  return [
+    { id: "outline-dusk-name-ocean", type: "symbol", source: "osm", "source-layer": "water_name", filter: cls(["ocean", "sea"]),
+      layout: { "text-field": nm, "text-font": DUSK_FONT.italic, "text-size": zs(1, 11, 6, 16), "text-letter-spacing": 0.22, "text-max-width": 6 },
+      paint: Object.assign({ "text-color": DUSK_NAME.water }, halo(DUSK_NAME.haloWater, 1)) },
+    { id: "outline-dusk-name-water", type: "symbol", source: "osm", "source-layer": "water_name", minzoom: 5, filter: ["!", cls(["ocean", "sea"])],
+      layout: { "text-field": nm, "text-font": DUSK_FONT.italic, "text-size": zs(5, 11, 14, 14), "text-letter-spacing": 0.08, "text-max-width": 7 },
+      paint: Object.assign({ "text-color": DUSK_NAME.water }, halo(DUSK_NAME.haloWater, 1)) },
+    { id: "outline-dusk-name-river", type: "symbol", source: "osm", "source-layer": "waterway", minzoom: 9,
+      layout: { "text-field": nm, "text-font": DUSK_FONT.italic, "text-size": zs(9, 11, 15, 14), "symbol-placement": "line", "text-letter-spacing": 0.1 },
+      paint: Object.assign({ "text-color": DUSK_NAME.water }, halo(DUSK_NAME.haloWater, 1)) },
+    { id: "outline-dusk-name-road", type: "symbol", source: "osm", "source-layer": "transportation_name", minzoom: 13,
+      layout: { "text-field": nm, "text-font": DUSK_FONT.regular, "text-size": zs(13, 11, 17, 14), "symbol-placement": "line" },
+      paint: Object.assign({ "text-color": DUSK_NAME.minor }, halo(DUSK_NAME.halo, 1.2)) },
+    { id: "outline-dusk-name-peak", type: "symbol", source: "osm", "source-layer": "mountain_peak", minzoom: 9,
+      layout: { "text-field": nm, "text-font": DUSK_FONT.italic, "text-size": 12, "text-max-width": 7 },
+      paint: Object.assign({ "text-color": DUSK_NAME.peak }, halo(DUSK_NAME.halo, 1.1)) },
+    { id: "outline-dusk-name-village", type: "symbol", source: "osm", "source-layer": "place", minzoom: 11, filter: cls(["village", "hamlet", "suburb", "neighbourhood", "quarter"]),
+      layout: { "text-field": nm, "text-font": DUSK_FONT.regular, "text-size": zs(11, 11, 16, 14), "text-max-width": 7 },
+      paint: Object.assign({ "text-color": DUSK_NAME.minor }, halo(DUSK_NAME.halo, 1.2)) },
+    { id: "outline-dusk-name-town", type: "symbol", source: "osm", "source-layer": "place", minzoom: 7, filter: cls(["town"]),
+      layout: { "text-field": nm, "text-font": DUSK_FONT.regular, "text-size": zs(7, 11, 14, 16), "text-max-width": 7 },
+      paint: Object.assign({ "text-color": DUSK_NAME.text }, halo(DUSK_NAME.halo, 1.2)) },
+    { id: "outline-dusk-name-state", type: "symbol", source: "osm", "source-layer": "place", minzoom: 4, maxzoom: 9, filter: cls(["state", "province"]),
+      layout: { "text-field": nm, "text-font": DUSK_FONT.italic, "text-size": zs(4, 10, 8, 13), "text-transform": "uppercase", "text-letter-spacing": 0.15, "text-max-width": 8 },
+      paint: Object.assign({ "text-color": DUSK_NAME.minor, "text-opacity": 0.85 }, halo(DUSK_NAME.halo, 1)) },
+    { id: "outline-dusk-name-city", type: "symbol", source: "osm", "source-layer": "place", minzoom: 3, filter: cls(["city"]),
+      layout: { "text-field": nm, "text-font": DUSK_FONT.bold, "text-size": zs(3, 11, 8, 15, 14, 20), "text-max-width": 7 },
+      paint: Object.assign({ "text-color": DUSK_NAME.text }, halo(DUSK_NAME.halo, 1.3)) },
+    { id: "outline-dusk-name-country", type: "symbol", source: "osm", "source-layer": "place", maxzoom: 8, filter: cls(["country"]),
+      layout: { "text-field": nm, "text-font": DUSK_FONT.bold, "text-size": zs(1, 10, 3, 13, 6, 17), "text-transform": "uppercase",
+                "text-letter-spacing": 0.24, "text-max-width": 7 },
+      paint: Object.assign({ "text-color": DUSK_NAME.text }, halo(DUSK_NAME.halo, 1.3)) },
+  ];
+}
+function addDuskNames() {
+  if (map.getLayer("outline-dusk-name-country")) return;
+  try {
+    if (typeof map.setGlyphs === "function" && !(typeof map.getGlyphs === "function" && map.getGlyphs())) map.setGlyphs(duskGlyphs());
+    if (!map.getSource("osm")) map.addSource("osm", { ...OSM_SOURCE });
+    for (const l of duskNameLayers()) map.addLayer(Object.assign({}, l, { layout: Object.assign({ visibility: "none" }, l.layout) }));
+  } catch (e) { console.warn("[culprits] old fantasy painting names unavailable:", e.message || e); }
+}
+// The names stay over the layers (only the news marks above them), as the
+// picture of names does elsewhere.
+let duskNamesMoving = false;
+function duskNamesOnTop() {
+  if (BASEMAP !== "dusk" || duskNamesMoving || typeof map.moveLayer !== "function" || typeof map.getStyle !== "function") return;
+  const all = ((map.getStyle() || {}).layers || []).map((l) => l.id);
+  const first = all.findIndex((id) => DUSK_NAME_IDS.includes(id));
+  if (first < 0) return;
+  if (all.slice(first).every((id) => DUSK_NAME_IDS.includes(id) || id.startsWith("wire-"))) return;
+  duskNamesMoving = true;
+  try {
+    const wire = all.find((id) => id.startsWith("wire-"));
+    for (const id of DUSK_NAME_IDS) if (map.getLayer(id)) map.moveLayer(id, wire);
+  } catch (e) { /* the order stays as it was */ }
+  duskNamesMoving = false;
+}
+map.on("styledata", duskNamesOnTop);
+// CARTO's picture of names is hidden on this basemap; elsewhere the Place
+// names box decides, as before.
+const namesRasterBeforeDusk = namesRaster;
+namesRaster = function () {
+  namesRasterBeforeDusk();
+  if (BASEMAP === "dusk" && typeof map.getLayer === "function" && map.getLayer("labels") &&
+      !(typeof document !== "undefined" && document.body && document.body.classList && document.body.classList.contains("holo-on"))) {
+    map.setLayoutProperty("labels", "visibility", "none");
+  }
+};
 function duskShow(on) {
   const vis = on && !hellHoloHides() ? "visible" : "none";
-  for (const id of DUSK_IDS) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
+  for (const id of DUSK_IDS.concat(DUSK_NAME_IDS)) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
   duskSky(on);
   duskCorners(vis === "visible");
-  if (!map.getLayer("labels")) return;
-  if (on) {
-    map.setPaintProperty("labels", "raster-saturation", DUSK.names.sat);
-    map.setPaintProperty("labels", "raster-brightness-min", DUSK.names.min);
-    map.setPaintProperty("labels", "raster-brightness-max", DUSK.names.max);
-    map.setPaintProperty("labels", "raster-opacity", .9);
-    duskNamesTurned = true;
-  } else if (duskNamesTurned) {
-    map.setPaintProperty("labels", "raster-brightness-min", 0);
-    map.setPaintProperty("labels", "raster-brightness-max", 1);
-    duskNamesTurned = false;
-  }
+  if (on) duskNamesOnTop();
+  namesRaster();
 }
 BASE_GRADE.dusk = {};
 const basemapPanelHtmlBeforeDusk = basemapPanelHtml;
@@ -14769,7 +14852,7 @@ const setBasemapBeforeDusk = setBasemap;
 setBasemap = function (kind) {
   // Dark, dull ground: the brighter layer colours stand out on it.
   if (typeof THEME_BY_BASEMAP === "object" && THEME_BY_BASEMAP && !THEME_BY_BASEMAP.dusk) THEME_BY_BASEMAP.dusk = "bright";
-  if (kind === "dusk") addDuskLayers();
+  if (kind === "dusk") { addDuskLayers(); addDuskNames(); }
   if (kind !== "dusk") duskShow(false);
   setBasemapBeforeDusk(kind);
   if (kind === "dusk") duskShow(true);

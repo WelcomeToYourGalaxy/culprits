@@ -5,6 +5,30 @@ touches.
 
 ---
 
+## Round 162b (4 October)
+
+Needs round 161b. No tiles patch. No app.js?v= bump.
+
+- Owner: the place names should be in the same theme. On Old fantasy
+  painting the CARTO picture of names ("labels") is hidden (namesRaster
+  wrapped: hidden while BASEMAP is dusk, otherwise as before) and names are
+  drawn from OpenFreeMap's own place, water_name, waterway, mountain_peak and
+  transportation_name (DUSK_NAME_IDS, duskNameLayers): EB Garamond, bone
+  (#E6DECB) on a soft dark halo; countries SemiBold in spaced capitals;
+  states italic capitals; cities SemiBold, towns and villages Regular; seas,
+  lakes and rivers italic pale slate (#AFBEC8); peaks italic from zoom 9;
+  street names from zoom 13. English name, else name:latin, else name.
+- Glyphs: map/glyphs/EBGaramond-{Regular,SemiBold,Italic}/<range>.pbf
+  (2.6 MB), made in the sandbox from Google Fonts' EB Garamond (SIL OFL 1.1,
+  OFL.txt beside them): 24 px signed-distance glyphs, buffer 3, radius 8,
+  cutoff 0.25; Latin, Latin Extended, Greek, Cyrillic, Vietnamese,
+  punctuation. map.setGlyphs is set only if the style has none. Names stay
+  above the layers and under the news marks (duskNamesOnTop on styledata,
+  moved before the first wire- layer). The Place names box turns them off.
+- Checked: the glyphs render in Chromium (MapLibre 5.24) with accents, Greek
+  and Cyrillic; layers pass the style-spec validator. Not seen with the live
+  OpenFreeMap tiles.
+
 ## Round 161b (4 October)
 
 Needs round 160b. No tiles patch. No app.js?v= bump.

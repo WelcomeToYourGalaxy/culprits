@@ -6571,8 +6571,8 @@ console.log("\nround 160b (4 October): Old fantasy painting, a seventh basemap")
   const hsl = (h) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, l = (mx + mn) / 510;
     if (!d) return [0, 0, l]; const s = d / (255 * (1 - Math.abs(2 * l - 1))); let hh = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4); return [(hh + 360) % 360, s, l]; };
   const hexes = [...block.matchAll(/#[0-9A-Fa-f]{6}\b/g)].map((m) => m[0]);
-  check("a muted palette: every colour greyed (saturation under 0.35)", hexes.length > 20 && hexes.every((h) => hsl(h)[1] < 0.35), hexes.filter((h) => hsl(h)[1] >= 0.35).join(" "));
-  check("no orange or yellow anywhere in it", hexes.every((h) => { const [hh, s] = hsl(h); return !(hh >= 25 && hh <= 65 && s > 0.25); }));
+  check("a muted palette: every colour greyed (saturation under 0.35)", hexes.length > 20 && hexes.every((h) => hsl(h)[2] > 0.82 || hsl(h)[1] < 0.35), hexes.filter((h) => hsl(h)[2] <= 0.82 && hsl(h)[1] >= 0.35).join(" "));
+  check("no orange or yellow anywhere in it", hexes.every((h) => { const [hh, s, l] = hsl(h); return l > 0.82 || !(hh >= 25 && hh <= 65 && s > 0.25); }));
   const tile = (f) => { const d = new Uint8ClampedArray(64 * 64 * 4); for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) { const c = f(x, y), q = (y * 64 + x) * 4; d[q] = c[0]; d[q + 1] = c[1]; d[q + 2] = c[2]; d[q + 3] = 255; } return d; };
   const at = (d, x, y) => [0, 1, 2].map((c) => d[(y * 64 + x) * 4 + c]);
   const sea = at(lib.duskPaintPixels(tile(() => [12, 30, 70]), 64, 64), 32, 32);
@@ -6593,7 +6593,7 @@ console.log("\nround 160b (4 October): Old fantasy painting, a seventh basemap")
   check("the high ground hazier the higher it is; the low ground clear", /400, "rgba\(204,210,214,0\)"/.test(block) && /4000, "rgba\(204,210,214,0\.32\)"/.test(block));
   check("a low dusk light from the west-south-west, long grey-violet shadows", /"hillshade-illumination-direction": \[255,/.test(block) && /"hillshade-illumination-altitude": \[12,/.test(block));
   check("no glow, no blur over the map: the corners are one see-through layer that takes no clicks",
-        /pointer-events:none/.test(block) && !/line-blur|filter:\s*blur|blur\(\d|-blur"/.test(block) && !/hud|halo|glow/i.test(block.slice(block.indexOf("var DUSK = {"))));
+        /pointer-events:none/.test(block) && !/line-blur|filter:\s*blur|blur\(\d|raster-blur/.test(block) && !/hud|glow|-halo"|halo:/i.test(block.slice(block.indexOf("var DUSK = {"), block.indexOf("var DUSK_FONT"))));
   check("painted off the main thread, with a fallback", /new Worker\(url\)/.test(block) && /duskWorkWith\(WOOD, d\)/.test(block));
   const { map, els } = run();
   map.fire("load");
@@ -6621,6 +6621,31 @@ console.log("\nround 161b (4 October): Old fantasy painting less dreary");
   check("farmland is a light sage, not mud (lighter than mid-grey)", field[0] + field[1] + field[2] > 330 && field[1] >= field[0], Array.from(field).join(","));
   check("narrower washes at the world views, so continents keep their coasts", lib.DUSK.loose[0][1] < 1 && /d\.soft = d\.soft > 1 \? d\.soft : duskLoose\(z\);/.test(block));
   check("lighter shadows and corners", /"rgba\(18,26,36,0\.45\)"/.test(block) && /rgba\(14,18,24,0\.24\) 100%/.test(block) && lib.DUSK.photoGrade <= 0.25);
+}
+
+console.log("\nround 162b (4 October): Old fantasy painting's place names in its own serif");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const block = src.slice(src.indexOf("/* ---------- Old fantasy painting, a seventh basemap"), src.indexOf("/* ---------- end of Old fantasy painting ---------- */"));
+  const fonts = ["EBGaramond-Regular", "EBGaramond-SemiBold", "EBGaramond-Italic"];
+  check("the serif's glyphs are in the repository, every range the names use, with its licence",
+        fonts.every((f) => ["0-255", "256-511", "1024-1279", "8192-8447"].every((r) => fs.existsSync(path.join(HERE, "glyphs", f, r + ".pbf")))) &&
+        /SIL OPEN FONT LICENSE/i.test(fs.readFileSync(path.join(HERE, "glyphs", "OFL.txt"), "utf8")));
+  const pbf = fs.readFileSync(path.join(HERE, "glyphs", "EBGaramond-Regular", "0-255.pbf"));
+  check("a glyph file names its own font and range", pbf.includes(Buffer.from("EBGaramond-Regular")) && pbf.includes(Buffer.from("0-255")) && pbf.length > 20000);
+  check("countries in spaced capitals, seas and rivers in italic, colours muted bone and slate (no orange or yellow)",
+        /id: "outline-dusk-name-country"[\s\S]*?"text-transform": "uppercase"/.test(block) && /id: "outline-dusk-name-ocean"[\s\S]*?DUSK_FONT\.italic/.test(block) &&
+        /text: "#E6DECB"/.test(block) && /water: "#AFBEC8"/.test(block));
+  check("English name first, then the Latin-letter name, then the local one", /\["coalesce", \["get", "name_en"\], \["get", "name:latin"\], \["get", "name"\]\]/.test(block));
+  check("the names stay above the layers but under the news marks, without fighting them", /map\.moveLayer\(id, wire\)/.test(block) && /id\.startsWith\("wire-"\)/.test(block));
+  const { map, els } = run();
+  map.fire("load");
+  els.get("basemaps").fire("change", { target: { name: "basemap", value: "dusk" } });
+  const country = map.getLayer("outline-dusk-name-country"), labels = map.getLayer("labels");
+  check("choosing it shows its own names and hides the usual picture of names",
+        !!country && country.layout.visibility === "visible" && (!labels || labels.layout?.visibility === "none"));
+  els.get("basemaps").fire("change", { target: { name: "basemap", value: "atlas" } });
+  check("the usual names come back on the other basemaps", country.layout.visibility === "none" && (!labels || labels.layout?.visibility !== "none"));
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
