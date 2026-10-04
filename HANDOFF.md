@@ -5,6 +5,26 @@ touches.
 
 ---
 
+## Round 152b (4 October)
+
+Needs round 151b. No tiles patch. No app.js?v= bump. Woodlands basemap redone again.
+
+- Owner on 151b: keep the mist, but deep earthy greens (not grey, not alien
+  green), an organic oil-painting look with no pattern at world views, the
+  sea and the mist over it wrong, too many greys; wants living earthy
+  contrast in colour and light, like Griffing's woodlands.
+- Land is now the cloud-free Sentinel-2 picture (EOX s2cloudless 2024,
+  CC BY-NC-SA, credited) re-painted pixel by pixel (woodpaint://,
+  woodPaintPixels): plants on a ramp from forest-shadow near-black through
+  deep earthy green to sunlit olive; bare ground umber to ochre; snow ivory;
+  an S-curve for contrast; then a soft Kuwahara (oil paint) filter. No
+  made-up noise anywhere: every variation is the Earth's own.
+- Warm golden light and deep olive-black shadow (Mapterhorn); mist on land
+  only, gone by 1,000 m; sea deep dark earthy blue-green by depth, no mist.
+  Ground and wet fills and the tone clouds gone (15 layers). Theme: bright.
+  Checked on sample satellite pictures (the sandbox cannot reach EOX), about
+  100 ms a square; not seen live.
+
 ## Round 151b (4 October)
 
 Needs round 150b. No tiles patch. No app.js?v= bump. Woodlands basemap redone.

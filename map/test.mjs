@@ -6346,7 +6346,7 @@ console.log("\nround 150b (4 October): Autumn woodlands, a sixth basemap");
   const html = els.get("basemaps")?.innerHTML || "";
   check("Autumn woodlands is a choice, Hell and the outlines still there", html.includes('value="wood"') && html.includes('value="hell"') && html.includes('value="outlines"'));
   const wood = map.layers.filter((l) => /^outline-wood-/.test(l.id));
-  check("its layers are added and shown", wood.length === 18 && wood.every((l) => l.layout?.visibility === "visible"), wood.map((l) => l.id).join(", "));
+  check("its layers are added and shown", wood.length === 15 && wood.every((l) => l.layout?.visibility === "visible"), wood.map((l) => l.id).join(", "));
   check("the painted plate is hidden under it", map.getLayer("plate-base").layout?.visibility === "none");
   const lab = map.getLayer("labels");
   check("place names in grey ink", !lab || (lab.paint["raster-saturation"] === -1 && lab.paint["raster-brightness-max"] === 0.75));
@@ -6368,30 +6368,28 @@ console.log("\nround 151b (4 October): Woodlands redone in soft tones, no patter
   const block = src.slice(src.indexOf("/* ---------- Autumn woodlands, a sixth basemap"), src.indexOf("/* ---------- end of Autumn woodlands ---------- */"));
   check("the choice is called Woodlands", block.includes('concat([["wood", "Woodlands"]])'));
   check("no leaf dabs left", !/woodMarks|leaves:|evergreen:/.test(block));
-  const hues = [];
-  for (const m of block.matchAll(/#([0-9A-Fa-f]{6})\b|rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/g)) {
-    const [r, g, b] = m[1] ? [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16)) : [m[2], m[3], m[4]].map(Number);
-    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
-    hues.push({ c: m[0], s: mx ? (mx - mn) / mx : 0 });
-  }
-  // Greens asked for here only: all greyed (tonalism), none strong or neon.
-  check("every colour greyed (saturation under 0.4)", hues.length > 30 && hues.every((x) => x.s < 0.4), hues.filter((x) => x.s >= 0.4).map((x) => x.c).join(" "));
-  const WOOD = new Function(block.slice(block.indexOf("var WOOD = {"), block.indexOf("var WOOD_IDS")) + "; return WOOD;")();
-  const lib = new Function("WOOD", "rawPng", block.slice(block.indexOf("function woodHex"), block.indexOf("// The heights of one square")) + "; return { woodBrushPiece };")(WOOD, (rgba) => rgba);
-  const land = new Float32Array(65536).fill(300), sea = new Float32Array(65536).fill(-200), peak = new Float32Array(65536).fill(4000);
-  const cover = (p) => { let n = 0; for (let i = 3; i < p.length; i += 4) n += p[i]; return n / 65536 / 255; };
-  const a = lib.woodBrushPiece(6, 18, 23, land), b = lib.woodBrushPiece(6, 18, 23, land);
-  check("the same square paints the same every time", a.every((v, i) => v === b[i]));
-  check("soft tone over low land", cover(a) > 0.25 && cover(a) < 0.6, cover(a).toFixed(2));
-  check("over the sea only mist", cover(lib.woodBrushPiece(6, 18, 23, sea)) < 0.25);
-  check("high peaks left to the ground's own haze", cover(lib.woodBrushPiece(6, 18, 23, peak)) < 0.05);
-  // Smooth, not marks: neighbouring pixels differ little anywhere.
-  let jump = 0;
-  for (let j = 0; j < 256; j++) for (let i = 1; i < 256; i++) { const k = (j * 256 + i) * 4; jump = Math.max(jump, Math.abs(a[k] - a[k - 4]), Math.abs(a[k + 3] - a[k - 1])); }
-  check("no marks: next pixels never differ by more than 6 of 255", jump <= 6, String(jump));
-  const r = lib.woodBrushPiece(6, 19, 23, land);
-  let seam = 0; for (let j = 0; j < 256; j++) { const k1 = (j * 256 + 255) * 4, k2 = j * 256 * 4; seam = Math.max(seam, Math.abs(a[k1] - r[k2]), Math.abs(a[k1 + 3] - r[k2 + 3])); }
-  check("no seam between squares", seam <= 6, String(seam));
+  // (Round 152b replaced the soft grey tones and their checks; see round 152b.)
+}
+
+console.log("\nround 152b (4 October): Woodlands painted from the real Earth in deep earthy greens");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const block = src.slice(src.indexOf("/* ---------- Autumn woodlands, a sixth basemap"), src.indexOf("/* ---------- end of Autumn woodlands ---------- */"));
+  check("no made-up noise or tone clouds left (every variation is the Earth's own)", !/woodNoise|woodBrushPiece|woodbrush:/.test(block));
+  check("painted from the cloud-free Sentinel-2 picture, credited", /s2cloudless/.test(block) && /EOX IT Services/.test(block));
+  check("no mist over the sea", /mist: \["interpolate", \["linear"\], \["elevation"\],\s*-1, "rgba\(226,214,170,0\)"/.test(block));
+  const lib = new Function(block.slice(block.indexOf("var WOOD = {"), block.indexOf("maplibregl.addProtocol(\"woodpaint\"")) + "; return { woodPaintPixels, WOOD };")();
+  const tile = (f) => { const d = new Uint8ClampedArray(64 * 64 * 4); for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) { const c = f(x, y), q = (y * 64 + x) * 4; d[q] = c[0]; d[q + 1] = c[1]; d[q + 2] = c[2]; d[q + 3] = 255; } return d; };
+  const at = (d, x, y) => { const q = (y * 64 + x) * 4; return [d[q], d[q + 1], d[q + 2]]; };
+  const forest = lib.woodPaintPixels(tile(() => [34, 62, 30]), 64, 64), field = lib.woodPaintPixels(tile(() => [150, 132, 100]), 64, 64);
+  const f = at(forest, 32, 32), e = at(field, 32, 32);
+  check("forest becomes a deep green (green strongest, dark)", f[1] > f[0] && f[1] > f[2] && f[1] < 90, f.join(","));
+  check("bare ground becomes a warm earth (red over green over blue)", e[0] > e[1] && e[1] > e[2], e.join(","));
+  check("flat ground stays flat (no marks added)", [[3, 5], [40, 20], [60, 60]].every(([x, y]) => at(forest, x, y).every((v, i) => Math.abs(v - f[i]) < 1)));
+  const half = lib.woodPaintPixels(tile((x) => x < 32 ? [34, 62, 30] : [150, 132, 100]), 64, 64);
+  check("the edge between forest and field stays where the Earth puts it", at(half, 20, 30)[1] > at(half, 20, 30)[0] && at(half, 44, 30)[0] > at(half, 44, 30)[1]);
+  const a = lib.woodPaintPixels(tile((x, y) => [(x * 7 + y * 3) % 200, 80, 40]), 64, 64), b = lib.woodPaintPixels(tile((x, y) => [(x * 7 + y * 3) % 200, 80, 40]), 64, 64);
+  check("the same picture paints the same every time", a.every((v, i) => v === b[i]));
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");

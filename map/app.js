@@ -13864,157 +13864,147 @@ if (typeof MutationObserver === "function" && typeof document !== "undefined" &&
 }
 /* ---------- end of Hell ---------- */
 /* ---------- Autumn woodlands, a sixth basemap (round 150b) ---------- */
-// Round 151b: redone as Woodlands, after the owner found 150b's leaf dabs
-// a pattern, not a painting. Asked: as close as can be to Robert Griffing's
-// tonalist green woodlands, 18th-century Eastern Woodlands, soft hazy light,
-// earthy and natural, nothing like a pattern. Nothing is copied from any
-// painting; what is taken is the way they look:
-//   tone     the whole map in one soft key: greyed sage and olive greens,
-//            warm greys, nothing strong or pure
-//   distance atmospheric perspective: ground grows paler, greyer and bluer
-//            the higher it rises, as far ridges do in haze
-//   light    soft golden light from a low south-west sun, gentle shadow in
-//            dark grey-green; low contrast
-//   mist     warm grey mist lying in the valleys and over the water
-//   paint    soft, blended variation, painted on the reader's computer
-//            (woodbrush://): smooth clouds of darker and paler tone, no marks
-//            or dabs, the same every time and seamless (it is worked out from
-//            each pixel's place in the world)
-//   water    still grey-green, darker in the deeps
-//   sky      warm hazy sky and horizon on the globe
-// Heights and depths: AWS terrain tiles; shading: Mapterhorn; forests,
-// water, towns, roads: OpenFreeMap. Green and warm earth colours are used
-// here only, because the owner asked for this look; all are greyed (tested).
+// Round 152b: Woodlands painted from the real Earth. The owner (after 151b):
+// keep the mist and haze, but deep earthy greens, not grey or "alien" green;
+// an oil-painting look that is organic everywhere, not programmatic, and no
+// pattern at world views; the sea's colour and the mist over it were wrong;
+// fewer greys; living, earthy contrast in colour and in light and shadow,
+// like Robert Griffing's woodland paintings (the owner's example: dark,
+// deep-green forest shadow, sunlit warm olive foliage, brown earth paths,
+// dark reflecting water). Nothing is copied from any painting. How:
+//   colour   the cloud-free Sentinel-2 picture of the Earth (EOX, the same one
+//            the Satellite basemap uses at wide views) re-painted pixel by
+//            pixel: what grows is put on a ramp of greens from near-black
+//            forest shadow through deep earthy green to sunlit olive; bare
+//            ground on a ramp of earths from dark umber through brown to ochre
+//            and pale sand; snow a warm ivory. So every variation is the
+//            Earth's own, never a made-up pattern.
+//   brush    a Kuwahara filter (an old "oil paint" filter): each pixel takes
+//            the colour of the calmest patch around it, so the picture breaks
+//            into soft flat strokes that follow the land's own edges
+//   contrast deeper shadows and warmer lights (an S-curve)
+//   light    a low south-west sun: warm golden light on the slopes that face
+//            it, deep olive-black shadow behind (Mapterhorn heights)
+//   haze     warm mist lying low over land only, gone by 1,000 m; a warm hazy
+//            sky and horizon on the globe
+//   water    deep, dark, earthy blue-green, darkest in the deeps (AWS depths);
+//            lakes dark; rivers a paler reflecting line
+// Greens and earth colours are used here only, at the owner's request.
 // Layers are named "outline-wood-...", so the colour mapping and the themes
 // leave them alone.
 var WOOD = {
-  sheet: "#4A5452",
-  ground: ["interpolate", ["linear"], ["elevation"],
-    -8000, "#38423F", -5000, "#3F4946", -2500, "#4B5652", -800, "#5A6560", -150, "#6C7770",
-    -20, "#7E8880", -1, "#89928A",
-    0, "#8F9579", 150, "#80886A", 400, "#727D60", 800, "#6A745E", 1300, "#737A70",
-    2000, "#858B88", 3000, "#9A9E9E", 4200, "#B5B5B0", 5300, "#D6D2C6"],
-  // Warm grey mist: thick over the lowlands and the water's edge, gone by 1,400 m.
+  sheet: "#1B2418",
+  source: "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg",
+  sourceMaxzoom: 14,
+  attribution: '<a href="https://s2maps.eu" target="_blank" rel="noopener">Sentinel-2 cloudless - https://s2maps.eu</a> by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024)',
+  // Growing things, from forest shadow to sunlit leaves.
+  greens: [[0, "#141C0F"], [0.25, "#24361A"], [0.5, "#3A5224"], [0.72, "#5E6E2C"], [0.88, "#857F3C"], [1, "#A59456"]],
+  // Bare ground, from dark umber to pale sand.
+  earths: [[0, "#261B12"], [0.25, "#4A3520"], [0.5, "#765632"], [0.75, "#9A7646"], [1, "#C2A574"]],
+  snow: "#E6DEC8",
+  lakeTone: "#1D2C26",
+  sea: ["interpolate", ["linear"], ["elevation"],
+    -8000, "#0B1515", -4000, "#0F1C1B", -1500, "#14231F", -400, "#1A2B24", -60, "#22342A", -1, "#2A3B2E",
+    0, "rgba(0,0,0,0)"],
   mist: ["interpolate", ["linear"], ["elevation"],
-    -300, "rgba(220,216,198,0)", -1, "rgba(220,216,198,0.2)", 0, "rgba(224,218,198,0.3)",
-    250, "rgba(224,218,198,0.2)", 700, "rgba(224,218,198,0.09)", 1400, "rgba(224,218,198,0)"],
+    -1, "rgba(226,214,170,0)", 0, "rgba(226,214,170,0.16)", 300, "rgba(226,214,170,0.1)",
+    1000, "rgba(226,214,170,0)"],
   shade: {
     "hillshade-method": "multidirectional",
     "hillshade-illumination-direction": [225, 270, 180, 0],
-    "hillshade-illumination-altitude": [26, 34, 34, 55],
-    "hillshade-highlight-color": ["rgba(236,224,186,0.38)", "rgba(236,224,186,0.15)", "rgba(236,224,186,0.1)", "rgba(236,224,186,0.04)"],
-    "hillshade-shadow-color": ["rgba(44,52,48,0.48)", "rgba(44,52,48,0.24)", "rgba(44,52,48,0.2)", "rgba(44,52,48,0.1)"],
-    "hillshade-accent-color": "rgba(44,52,48,0.18)",
-    "hillshade-exaggeration": 0.85,
+    "hillshade-illumination-altitude": [24, 32, 32, 55],
+    "hillshade-highlight-color": ["rgba(240,212,140,0.42)", "rgba(240,212,140,0.16)", "rgba(240,212,140,0.1)", "rgba(240,212,140,0.04)"],
+    "hillshade-shadow-color": ["rgba(16,20,8,0.62)", "rgba(16,20,8,0.3)", "rgba(16,20,8,0.24)", "rgba(16,20,8,0.12)"],
+    "hillshade-accent-color": "rgba(16,20,8,0.25)",
+    "hillshade-exaggeration": 1,
     "hillshade-illumination-anchor": "map",
   },
-  coast: "#7C8780",
-  forest: "#4E5944", ice: "#E0DCD0", wet: "#6C7564",
-  lake: "#848F88", lakeEdge: "#6E7972",
-  river: "#97A098",
-  town: "#9C9888", townWork: "#8F8B7D",
-  road: ["#8A8574", "#7B7666", "#6C6758"],
-  rail: "#5C5A50", building: "#9A9686",
-  border: "rgba(48,52,44,0.36)",
-  names: { sat: -1, min: 0, max: 0.75 },
-  // The soft clouds of tone on land: dark woods, mid sage, pale haze.
-  tones: ["#47513F", "#76805F", "#D6D0BA"],
-  far: "#8E9290",           // what high ground fades to
-  hazeLight: "#DCD6C0",     // mist over low ground and water
-  sky: { "sky-color": "#C4C6BC", "horizon-color": "#E0DBC8", "fog-color": "#D6D3C2",
-    "sky-horizon-blend": 0.8, "horizon-fog-blend": 0.8, "fog-ground-blend": 0.55,
-    "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.85, 8, 0.9, 12, 0.5] },
+  coast: "#22342A",
+  lake: "#1F2F28", lakeEdge: "#16231D",
+  river: "#4F6150",
+  town: "#7A684F", townWork: "#6E5E48",
+  road: ["#6A5840", "#5C4C37", "#4E402E"],
+  rail: "#3A3024", building: "#8A7558",
+  border: "rgba(30,22,12,0.45)",
+  names: { sat: -1, min: 0, max: 0.8 },
+  sky: { "sky-color": "#B9B79C", "horizon-color": "#DDD3B0", "fog-color": "#CFC6A4",
+    "sky-horizon-blend": 0.8, "horizon-fog-blend": 0.75, "fog-ground-blend": 0.5,
+    "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.8, 8, 0.85, 12, 0.5] },
 };
-var WOOD_IDS = ["outline-wood-sheet", "outline-wood-ground", "outline-wood-forest", "outline-wood-wet",
-  "outline-wood-shade", "outline-wood-brush", "outline-wood-mist", "outline-wood-coast", "outline-wood-lake",
-  "outline-wood-ice", "outline-wood-town", "outline-wood-river", "outline-wood-rail", "outline-wood-road-minor",
-  "outline-wood-road", "outline-wood-road-major", "outline-wood-buildings", "outline-wood-border"];
+var WOOD_IDS = ["outline-wood-sheet", "outline-wood-paint", "outline-wood-sea", "outline-wood-shade",
+  "outline-wood-mist", "outline-wood-coast", "outline-wood-lake", "outline-wood-town", "outline-wood-river",
+  "outline-wood-rail", "outline-wood-road-minor", "outline-wood-road", "outline-wood-road-major",
+  "outline-wood-buildings", "outline-wood-border"];
 function woodHex(h) { return [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); }
-// Smooth noise on the whole world's pixels at this zoom, so the clouds of
-// tone run across the squares' edges with no seam.
-function woodNoise(x, y) {
-  const h = (i, j) => (Math.imul(Math.imul(i, 374761393) ^ Math.imul(j, 668265263), 1274126177) >>> 0) / 4294967296;
-  const i = Math.floor(x), j = Math.floor(y), fx = x - i, fy = y - j;
-  const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
-  const a = h(i, j) + (h(i + 1, j) - h(i, j)) * sx, b = h(i, j + 1) + (h(i + 1, j + 1) - h(i, j + 1)) * sx;
-  return a + (b - a) * sy;
-}
-// H: the 256 x 256 heights of this square in metres (sea below 0), or null
-// when they could not be read, in which case only the mist is painted.
-function woodBrushPiece(z, x, y, H) {
-  const rgba = new Uint8ClampedArray(256 * 256 * 4);
-  const [dark, mid, pale] = WOOD.tones.map(woodHex), far = woodHex(WOOD.far), light = woodHex(WOOD.hazeLight);
-  const mixc = (c, d, t) => [c[0] + (d[0] - c[0]) * t, c[1] + (d[1] - c[1]) * t, c[2] + (d[2] - c[2]) * t];
-  const ox = x * 256, oy = y * 256;
-  for (let j = 0; j < 256; j++) for (let i = 0; i < 256; i++) {
-    const gx = ox + i, gy = oy + j, k = (j * 256 + i) * 4;
-    const h = H ? H[j * 256 + i] : NaN;
-    // Mist lies level: noise stretched sideways, thickest low down.
-    const band = woodNoise(gx / 230, gy / 38 + 7);
-    const low = isNaN(h) ? 0.5 : h <= 0 ? 0.6 : Math.max(0, 1 - h / 1400);
-    const mistA = low * Math.max(0, band - 0.35) * 0.45;
-    let c = light, a = mistA;
-    if (h > 0.5) {
-      // Broad, soft clouds of tone (three sizes blended), as a painter lays
-      // in darker woods and paler glades with a wide soft brush.
-      const n = 0.55 * woodNoise(gx / 150, gy / 150) + 0.3 * woodNoise(gx / 60 + 13, gy / 60 + 5) + 0.15 * woodNoise(gx / 24 + 3, gy / 24 + 29);
-      const t = Math.max(0, Math.min(1, (n - 0.2) / 0.6));
-      let tone = t < 0.5 ? mixc(dark, mid, t * 2) : mixc(mid, pale, (t - 0.5) * 2);
-      if (h > 1100) tone = mixc(tone, far, Math.min(1, (h - 1100) / 1600));     // fading into haze
-      const toneA = 0.3 * (h > 2400 ? Math.max(0, 1 - (h - 2400) / 1200) : 1);
-      // Mist over the tone.
-      const out = toneA + mistA * (1 - toneA);
-      c = out > 0 ? mixc(tone, light, mistA / out) : tone;
-      a = out;
+function woodRamp(stops) {
+  const s = stops.map(([t, c]) => [t, woodHex(c)]);
+  return (t) => {
+    if (t <= s[0][0]) return s[0][1];
+    for (let i = 1; i < s.length; i++) if (t <= s[i][0]) {
+      const u = (t - s[i - 1][0]) / (s[i][0] - s[i - 1][0]), a = s[i - 1][1], b = s[i][1];
+      return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u];
     }
-    if (a <= 0) continue;
-    rgba[k] = c[0]; rgba[k + 1] = c[1]; rgba[k + 2] = c[2]; rgba[k + 3] = Math.min(255, a * 255);
-  }
-  return rawPng(rgba, 256, 256);
+    return s[s.length - 1][1];
+  };
 }
-// The heights of one square, from the AWS terrain tiles (the zoom-12 square
-// enlarged past zoom 12), read smoothly; a few dozen squares are kept.
-var WOOD_DEM = new Map();
-function woodDemSquare(zz, px, py) {
-  const key = zz + "/" + px + "/" + py;
-  let p = WOOD_DEM.get(key);
-  if (!p) {
-    const url = TERRAIN_SOURCE.tiles[0].replace("{z}", zz).replace("{x}", px).replace("{y}", py);
-    p = fetch(url).then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.blob(); })
-      .then((b) => createImageBitmap(b))
-      .then((bm) => {
-        const c = new OffscreenCanvas(256, 256), g = c.getContext("2d", { willReadFrequently: true });
-        g.drawImage(bm, 0, 0);
-        const d = g.getImageData(0, 0, 256, 256).data, e = new Float32Array(65536);
-        for (let i = 0; i < 65536; i++) e[i] = d[i * 4] * 256 + d[i * 4 + 1] + d[i * 4 + 2] / 256 - 32768;
-        return e;
-      }).catch(() => null);
-    WOOD_DEM.set(key, p);
-    if (WOOD_DEM.size > 64) WOOD_DEM.delete(WOOD_DEM.keys().next().value);
+// Re-paint one picture square (data: RGBA, w x h) in place.
+function woodPaintPixels(data, w, h) {
+  const greens = woodRamp(WOOD.greens), earths = woodRamp(WOOD.earths), snow = woodHex(WOOD.snow), lake = woodHex(WOOD.lakeTone);
+  const n = w * h, R = new Float32Array(n), G = new Float32Array(n), B = new Float32Array(n), L = new Float32Array(n);
+  for (let p = 0; p < n; p++) {
+    const r = data[p * 4], g = data[p * 4 + 1], b = data[p * 4 + 2];
+    const lum = (0.3 * r + 0.59 * g + 0.11 * b) / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    let c;
+    if ((b > g + 6 && b > r + 10 && lum < 0.4) || (lum < 0.06 && b >= r)) c = lake;   // open water seen in the picture
+    else if (lum > 0.72 && mx - mn < 28) c = snow;                             // snow and ice
+    else {
+      // How green it is decides plants or bare ground; how bright, where on
+      // the ramp. An S-curve deepens the shadows and warms the lights.
+      const veg = 0.88 * Math.max(0, Math.min(1, ((2 * g - r - b) / 255 + 0.01) / 0.1));
+      let t = Math.min(1, Math.pow(Math.max(0, lum - 0.015) / 0.45, 0.75));
+      t = Math.max(0, Math.min(1, 0.5 + (t - 0.5) * 1.35));
+      const a = greens(t), e = earths(Math.min(1, t * 1.05));
+      c = [e[0] + (a[0] - e[0]) * veg, e[1] + (a[1] - e[1]) * veg, e[2] + (a[2] - e[2]) * veg];
+    }
+    R[p] = c[0]; G[p] = c[1]; B[p] = c[2]; L[p] = 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2];
   }
-  return p;
-}
-async function woodHeights(z, x, y) {
-  const zz = Math.min(z, 12), k = Math.pow(2, z - zz), px = Math.floor(x / k), py = Math.floor(y / k);
-  const e = await woodDemSquare(zz, px, py);
-  if (!e) return null;
-  if (k === 1) return e;
-  const ox = (x - px * k) * 256 / k, oy = (y - py * k) * 256 / k, H = new Float32Array(65536);
-  for (let j = 0; j < 256; j++) for (let i = 0; i < 256; i++) {
-    const fx = Math.min(254.999, Math.max(0, ox + (i + 0.5) / k - 0.5)), fy = Math.min(254.999, Math.max(0, oy + (j + 0.5) / k - 0.5));
-    const a = Math.floor(fx), b = Math.floor(fy), u = fx - a, v = fy - b;
-    const t = e[b * 256 + a] * (1 - u) + e[b * 256 + a + 1] * u, w = e[(b + 1) * 256 + a] * (1 - u) + e[(b + 1) * 256 + a + 1] * u;
-    H[j * 256 + i] = t * (1 - v) + w * v;
+  // Kuwahara: each pixel takes the mean colour of the calmest of the four
+  // squares that have it as a corner (sums over areas from running totals).
+  const k = 2, mixIn = 0.65, W = w + 1, sat = (A) => { const S = new Float64Array(W * (h + 1)); for (let y = 0; y < h; y++) { let row = 0; for (let x = 0; x < w; x++) { row += A[y * w + x]; S[(y + 1) * W + x + 1] = S[y * W + x + 1] + row; } } return S; };
+  const L2 = new Float32Array(n); for (let p = 0; p < n; p++) L2[p] = L[p] * L[p];
+  const SR = sat(R), SG = sat(G), SB = sat(B), SL = sat(L), SL2 = sat(L2);
+  const box = (S, x0, y0, x1, y1) => S[(y1 + 1) * W + x1 + 1] - S[y0 * W + x1 + 1] - S[(y1 + 1) * W + x0] + S[y0 * W + x0];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    let best = Infinity, bx0 = x, by0 = y, bx1 = x, by1 = y;
+    for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      const x0 = Math.max(0, Math.min(x, x + dx * k)), x1 = Math.min(w - 1, Math.max(x, x + dx * k));
+      const y0 = Math.max(0, Math.min(y, y + dy * k)), y1 = Math.min(h - 1, Math.max(y, y + dy * k));
+      const cnt = (x1 - x0 + 1) * (y1 - y0 + 1), m = box(SL, x0, y0, x1, y1) / cnt;
+      const v = box(SL2, x0, y0, x1, y1) / cnt - m * m;
+      if (v < best) { best = v; bx0 = x0; by0 = y0; bx1 = x1; by1 = y1; }
+    }
+    const cnt = (bx1 - bx0 + 1) * (by1 - by0 + 1), q = (y * w + x) * 4;
+    // Mostly the stroke's colour, a little of the pixel's own, so strokes
+    // stay soft rather than square.
+    const p = y * w + x;
+    data[q] = box(SR, bx0, by0, bx1, by1) / cnt * mixIn + R[p] * (1 - mixIn);
+    data[q + 1] = box(SG, bx0, by0, bx1, by1) / cnt * mixIn + G[p] * (1 - mixIn);
+    data[q + 2] = box(SB, bx0, by0, bx1, by1) / cnt * mixIn + B[p] * (1 - mixIn); data[q + 3] = 255;
   }
-  return H;
+  return data;
 }
-maplibregl.addProtocol("woodbrush", async (params) => {
-  const m = params.url.match(/^woodbrush:\/\/(\d+)\/(\d+)\/(\d+)/);
+maplibregl.addProtocol("woodpaint", async (params, abortController) => {
+  const m = params.url.match(/^woodpaint:\/\/(\d+)\/(\d+)\/(\d+)/);
   if (!m) throw new Error("not a woodland square");
-  const z = Number(m[1]), x = Number(m[2]), y = Number(m[3]);
-  let H = null;
-  try { H = await woodHeights(z, x, y); } catch (e) { H = null; }
-  return { data: woodBrushPiece(z, x, y, H) };
+  const url = WOOD.source.replace("{z}", m[1]).replace("{x}", m[2]).replace("{y}", m[3]);
+  const r = await fetch(url, { signal: abortController && abortController.signal });
+  if (!r.ok) throw new Error(String(r.status));
+  const bmp = await createImageBitmap(await r.blob());
+  const c = new OffscreenCanvas(bmp.width, bmp.height), g = c.getContext("2d", { willReadFrequently: true });
+  g.drawImage(bmp, 0, 0);
+  const img = g.getImageData(0, 0, bmp.width, bmp.height);
+  woodPaintPixels(img.data, bmp.width, bmp.height);
+  return { data: rawPng(img.data, bmp.width, bmp.height) };
 });
 function woodLayers() {
   const road = (w) => ["interpolate", ["exponential", 1.4], ["zoom"], 4, w * .25, 10, w, 16, w * 6];
@@ -14023,17 +14013,11 @@ function woodLayers() {
   return [
     { id: "outline-wood-sheet", type: "fill", source: "outline-wood-sheet",
       paint: { "fill-color": WOOD.sheet, "fill-antialias": false } },
-    { id: "outline-wood-ground", type: "color-relief", source: "sea-dem",
-      paint: { "color-relief-color": WOOD.ground, "color-relief-opacity": 1 } },
-    { id: "outline-wood-forest", type: "fill", source: "osm", "source-layer": "landcover", minzoom: 4,
-      filter: ["==", ["get", "class"], "wood"],
-      paint: { "fill-color": WOOD.forest, "fill-opacity": fade(4, 7, .35), "fill-antialias": false } },
-    { id: "outline-wood-wet", type: "fill", source: "osm", "source-layer": "landcover", minzoom: 6,
-      filter: ["==", ["get", "class"], "wetland"],
-      paint: { "fill-color": WOOD.wet, "fill-opacity": fade(6, 8, .3) } },
+    { id: "outline-wood-paint", type: "raster", source: "outline-wood-paint",
+      paint: { "raster-opacity": 1, "raster-fade-duration": 150, "raster-resampling": "linear" } },
+    { id: "outline-wood-sea", type: "color-relief", source: "sea-dem",
+      paint: { "color-relief-color": WOOD.sea, "color-relief-opacity": 1 } },
     { id: "outline-wood-shade", type: "hillshade", source: "outline-dem", paint: WOOD.shade },
-    { id: "outline-wood-brush", type: "raster", source: "outline-wood-brush",
-      paint: { "raster-opacity": ["interpolate", ["linear"], ["zoom"], 0, 1, 12, .9, 15, .7], "raster-fade-duration": 0, "raster-resampling": "linear" } },
     { id: "outline-wood-mist", type: "color-relief", source: "sea-dem",
       paint: { "color-relief-color": WOOD.mist, "color-relief-opacity": 1 } },
     { id: "outline-wood-coast", type: "fill", source: "osm", "source-layer": "water", minzoom: 7,
@@ -14042,12 +14026,9 @@ function woodLayers() {
     { id: "outline-wood-lake", type: "fill", source: "osm", "source-layer": "water",
       filter: ["!=", ["get", "class"], "ocean"],
       paint: { "fill-color": WOOD.lake, "fill-outline-color": WOOD.lakeEdge } },
-    { id: "outline-wood-ice", type: "fill", source: "osm", "source-layer": "landcover",
-      filter: ["==", ["get", "class"], "ice"],
-      paint: { "fill-color": WOOD.ice, "fill-opacity": .85 } },
     { id: "outline-wood-town", type: "fill", source: "osm", "source-layer": "landuse", minzoom: 6,
       filter: kind(["residential", "commercial", "industrial", "retail", "suburb", "neighbourhood"]),
-      paint: { "fill-color": ["match", ["get", "class"], "industrial", WOOD.townWork, WOOD.town], "fill-opacity": fade(6, 8, .7) } },
+      paint: { "fill-color": ["match", ["get", "class"], "industrial", WOOD.townWork, WOOD.town], "fill-opacity": fade(6, 8, .55) } },
     { id: "outline-wood-river", type: "line", source: "osm", "source-layer": "waterway", minzoom: 3,
       layout: { "line-cap": "round", "line-join": "round" },
       paint: { "line-color": WOOD.river, "line-blur": .6,
@@ -14079,7 +14060,7 @@ function woodLayers() {
   ];
 }
 function addWoodLayers() {
-  if (map.getLayer("outline-wood-ground")) return;
+  if (map.getLayer("outline-wood-paint")) return;
   try {
     ensureBoundaries();
     const share = (id, spec) => { if (!map.getSource(id)) map.addSource(id, Object.assign({}, spec)); };
@@ -14090,15 +14071,16 @@ function addWoodLayers() {
       map.addSource("outline-wood-sheet", { type: "geojson", data: { type: "Feature", properties: {},
         geometry: { type: "Polygon", coordinates: [[[-180, -85.06], [180, -85.06], [180, 85.06], [-180, 85.06], [-180, -85.06]]] } } });
     }
-    if (!map.getSource("outline-wood-brush")) {
-      map.addSource("outline-wood-brush", { type: "raster", tiles: ["woodbrush://{z}/{x}/{y}"], tileSize: 256, maxzoom: 15 });
+    if (!map.getSource("outline-wood-paint")) {
+      map.addSource("outline-wood-paint", { type: "raster", tiles: ["woodpaint://{z}/{x}/{y}"], tileSize: 256,
+        maxzoom: WOOD.sourceMaxzoom, attribution: WOOD.attribution });
     }
     const st = typeof map.getStyle === "function" ? map.getStyle() : null;
     const all = (st && st.layers) || [];
     const at = all.findIndex((l) => l.id === "plate-base");
     const before = at >= 0 && all[at + 1] ? all[at + 1].id : undefined;
     for (const l of woodLayers()) map.addLayer(Object.assign({ layout: {} }, l, { layout: Object.assign({ visibility: "none" }, l.layout || {}) }), before);
-  } catch (e) { console.warn("[culprits] autumn woodlands basemap unavailable:", e.message || e); }
+  } catch (e) { console.warn("[culprits] woodlands basemap unavailable:", e.message || e); }
 }
 let woodNamesTurned = false, woodSkyBefore = null;
 function woodSky(on) {
@@ -14136,8 +14118,8 @@ basemapPanelHtml = function (opts) {
 };
 const setBasemapBeforeWood = setBasemap;
 setBasemap = function (kind) {
-  // Soft mid-tone ground: the deeper layer colours stand out on it.
-  if (typeof THEME_BY_BASEMAP === "object" && THEME_BY_BASEMAP && !THEME_BY_BASEMAP.wood) THEME_BY_BASEMAP.wood = "deep";
+  // Dark, rich ground: the brighter layer colours stand out on it.
+  if (typeof THEME_BY_BASEMAP === "object" && THEME_BY_BASEMAP && !THEME_BY_BASEMAP.wood) THEME_BY_BASEMAP.wood = "bright";
   if (kind === "wood") addWoodLayers();
   if (kind !== "wood") woodShow(false);
   setBasemapBeforeWood(kind);
