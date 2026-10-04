@@ -6394,7 +6394,7 @@ console.log("\nround 150b (4 October): Autumn woodlands, a sixth basemap");
   const html = els.get("basemaps")?.innerHTML || "";
   check("Autumn woodlands is a choice, Hell and the outlines still there", html.includes('value="wood"') && html.includes('value="hell"') && html.includes('value="outlines"'));
   const wood = map.layers.filter((l) => /^outline-wood-/.test(l.id));
-  check("its layers are added and shown", wood.length === 14 && wood.every((l) => l.layout?.visibility === "visible"), wood.map((l) => l.id).join(", "));
+  check("its layers are added and shown", wood.length === 15 && wood.every((l) => l.layout?.visibility === "visible"), wood.map((l) => l.id).join(", "));
   check("the painted plate is hidden under it", map.getLayer("plate-base").layout?.visibility === "none");
   const lab = map.getLayer("labels");
   check("place names in grey ink", !lab || (lab.paint["raster-saturation"] === -1 && lab.paint["raster-brightness-max"] === 0.75));
@@ -6515,6 +6515,27 @@ console.log("\nround 156b (4 October): light colours only where the light is wid
   const spot = L(dots, 31, 31), round = L(dots, 27, 27), wide = L(field, 32, 32);
   check("a single bright pixel in a forest is no pale spot (close to its surroundings)", spot - round < 25, spot.toFixed(0) + " / " + round.toFixed(0));
   check("a wide light field still takes the light colours", wide > 170, wide.toFixed(0));
+}
+
+console.log("\nround 158b (4 October): closest zooms show the real photograph, sharp, lightly graded");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const block = src.slice(src.indexOf("/* ---------- Autumn woodlands, a sixth basemap"), src.indexOf("/* ---------- end of Autumn woodlands ---------- */"));
+  const lib = new Function(block.slice(block.indexOf("var WOOD = {"), block.indexOf("// The paintings are made off the page's main thread")) + "\n" +
+    block.slice(block.indexOf("function woodGradePixels"), block.indexOf("maplibregl.addProtocol(\"woodphoto\"")) + "; return { woodGradePixels, WOOD };")();
+  check("the photograph fades in at the closest zooms only", lib.WOOD.photoFrom >= 15 && lib.WOOD.photoFull > lib.WOOD.photoFrom && /World_Imagery/.test(lib.WOOD.photo));
+  const d = new Uint8ClampedArray(64 * 64 * 4);
+  for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) { const q = (y * 64 + x) * 4, on = (x + y) % 2; d[q] = on ? 120 : 30; d[q + 1] = on ? 140 : 60; d[q + 2] = on ? 90 : 30; d[q + 3] = 255; }
+  const g = lib.woodGradePixels(d.slice(), 64, 64);
+  const diff = Math.abs(g[(10 * 64 + 10) * 4 + 1] - g[(10 * 64 + 11) * 4 + 1]);
+  check("every detail kept: a one-pixel checkerboard stays a checkerboard (no blur)", diff > 50, String(diff));
+  check("only a light grade: each pixel moves part way, not all the way", Math.abs(g[1] - d[1]) < 30 && g[1] !== d[1]);
+  const { map, els } = run();
+  map.fire("load");
+  els.get("basemaps").fire("change", { target: { name: "basemap", value: "wood" } });
+  const photo = map.getLayer("outline-wood-photo"), paint = map.getLayer("outline-wood-paint");
+  check("the photograph layer sits over the painting, the painting stops past the closest zooms", !!photo && photo.minzoom === lib.WOOD.photoFrom && paint.maxzoom === lib.WOOD.photoFull + 0.5);
+  els.get("basemaps").fire("change", { target: { name: "basemap", value: "atlas" } });
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");

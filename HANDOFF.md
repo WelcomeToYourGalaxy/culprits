@@ -5,6 +5,19 @@ touches.
 
 ---
 
+## Round 158b (4 October)
+
+Needs round 157b. No tiles patch. No app.js?v= bump.
+
+- Owner: at the closest zooms only, back to the normal satellite picture,
+  keeping some of the woodland look without blurring the detail; all else
+  good.
+- New layer outline-wood-photo (woodphoto://, woodGradePixels): Esri World
+  Imagery (as the Satellite basemap uses close in), each pixel moved 35% of
+  the way to its woodland colour (WOOD.photoGrade), colour only: no blur, no
+  strokes. Fades in from zoom 15.5 to 16.5 (WOOD.photoFrom / photoFull); the
+  painting stops at 17. The light, mist and sea tint still lie over it.
+
 ## Round 157b (4 October)
 
 Needs round 154b. No tiles patch. No app.js?v= bump.

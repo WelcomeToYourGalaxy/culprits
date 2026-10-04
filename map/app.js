@@ -13955,8 +13955,15 @@ var WOOD = {
   margin: 32,
   lightReach: 10,   // round 156b: how wide (px) the light must be to reach the light colours
   lift: 0.1,        // how much lighter than its surroundings one pixel may be
+  // Round 158b: at the closest zooms the real photograph (Esri World Imagery,
+  // as the Satellite basemap uses close in), sharp, with a light woodland
+  // grade: each pixel moved photoGrade of the way to its woodland colour, and
+  // nothing blurred or painted over. It fades in from photoFrom to photoFull.
+  photo: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  photoAttribution: "Imagery © Esri, Maxar",
+  photoFrom: 15.5, photoFull: 16.5, photoGrade: 0.35,
 };
-var WOOD_IDS = ["outline-wood-sheet", "outline-wood-paint", "outline-wood-sea", "outline-wood-shade",
+var WOOD_IDS = ["outline-wood-sheet", "outline-wood-paint", "outline-wood-photo", "outline-wood-sea", "outline-wood-shade",
   "outline-wood-mist", "outline-wood-lake", "outline-wood-town", "outline-wood-river",
   "outline-wood-rail", "outline-wood-road-minor", "outline-wood-road", "outline-wood-road-major",
   "outline-wood-buildings", "outline-wood-border"];
@@ -14220,6 +14227,38 @@ maplibregl.addProtocol("woodpaint", async (params) => {
   const d = await woodComposite(Number(m[1]), Number(m[2]), Number(m[3]), WOOD.margin);
   return { data: await woodPaintJob(d) };
 });
+// The closest zooms' photograph, given a light woodland grade pixel by pixel
+// (colour only: no blur, no strokes, every detail kept).
+function woodGradePixels(data, w, h) {
+  const greens = woodRamp(WOOD.greens), earths = woodRamp(WOOD.earths), waters = woodRamp(WOOD.waters), snow = woodHex(WOOD.snow), g0 = WOOD.photoGrade;
+  for (let p = 0, n = w * h; p < n; p++) {
+    const q = p * 4, r = data[q], g = data[q + 1], b = data[q + 2];
+    const lum = (0.3 * r + 0.59 * g + 0.11 * b) / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    let c;
+    if ((b > g + 6 && b > r + 10 && lum < 0.45) || (lum < 0.07 && b >= r)) c = waters(Math.max(0, Math.min(1, (lum - 0.02) / 0.35)));
+    else if (lum > 0.72 && mx - mn < 28) c = snow;
+    else {
+      const v = 0.92 * Math.max(0, Math.min(1, ((2 * g - r - b) / 255 + 0.01) / 0.1));
+      const t0 = Math.min(1, Math.pow(Math.max(0, lum - 0.015) / 0.45, 0.75)), t = Math.max(0, Math.min(1, 0.5 + (t0 - 0.5) * 1.15));
+      const a = greens(t), e = earths(t);
+      c = [e[0] + (a[0] - e[0]) * v, e[1] + (a[1] - e[1]) * v, e[2] + (a[2] - e[2]) * v];
+    }
+    data[q] = r + (c[0] - r) * g0; data[q + 1] = g + (c[1] - g) * g0; data[q + 2] = b + (c[2] - b) * g0; data[q + 3] = 255;
+  }
+  return data;
+}
+maplibregl.addProtocol("woodphoto", async (params, abortController) => {
+  const m = params.url.match(/^woodphoto:\/\/(\d+)\/(\d+)\/(\d+)/);
+  if (!m) throw new Error("not a woodland photo square");
+  const url = WOOD.photo.replace("{z}", m[1]).replace("{x}", m[2]).replace("{y}", m[3]);
+  const r = await fetch(url, { signal: abortController && abortController.signal });
+  if (!r.ok) throw new Error(String(r.status));
+  const bm = await createImageBitmap(await r.blob());
+  const c = new OffscreenCanvas(bm.width, bm.height), g = c.getContext("2d", { willReadFrequently: true });
+  g.drawImage(bm, 0, 0);
+  const img = g.getImageData(0, 0, bm.width, bm.height);
+  return { data: rawPng(woodGradePixels(img.data, bm.width, bm.height), bm.width, bm.height) };
+});
 function woodLayers() {
   const road = (w) => ["interpolate", ["exponential", 1.4], ["zoom"], 4, w * .25, 10, w, 16, w * 6];
   const kind = (list) => ["match", ["get", "class"], list, true, false];
@@ -14227,8 +14266,11 @@ function woodLayers() {
   return [
     { id: "outline-wood-sheet", type: "fill", source: "outline-wood-sheet",
       paint: { "fill-color": WOOD.sheet, "fill-antialias": false } },
-    { id: "outline-wood-paint", type: "raster", source: "outline-wood-paint",
+    { id: "outline-wood-paint", type: "raster", source: "outline-wood-paint", maxzoom: WOOD.photoFull + 0.5,
       paint: { "raster-opacity": 1, "raster-fade-duration": 200, "raster-resampling": "linear" } },
+    { id: "outline-wood-photo", type: "raster", source: "outline-wood-photo", minzoom: WOOD.photoFrom,
+      paint: { "raster-opacity": ["interpolate", ["linear"], ["zoom"], WOOD.photoFrom, 0, WOOD.photoFull, 1],
+               "raster-fade-duration": 200, "raster-resampling": "linear" } },
     { id: "outline-wood-sea", type: "color-relief", source: "sea-dem",
       paint: { "color-relief-color": WOOD.sea, "color-relief-opacity": WOOD.seaOpacity } },
     { id: "outline-wood-shade", type: "hillshade", source: "outline-dem", paint: WOOD.shade },
@@ -14285,6 +14327,10 @@ function addWoodLayers() {
     if (!map.getSource("outline-wood-paint")) {
       map.addSource("outline-wood-paint", { type: "raster", tiles: ["woodpaint://{z}/{x}/{y}"], tileSize: 256,
         maxzoom: 18, attribution: WOOD.attribution });
+    }
+    if (!map.getSource("outline-wood-photo")) {
+      map.addSource("outline-wood-photo", { type: "raster", tiles: ["woodphoto://{z}/{x}/{y}"], tileSize: 256,
+        minzoom: 15, maxzoom: 18, attribution: WOOD.photoAttribution });
     }
     const st = typeof map.getStyle === "function" ? map.getStyle() : null;
     const all = (st && st.layers) || [];
