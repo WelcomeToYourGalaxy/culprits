@@ -14170,6 +14170,371 @@ if (typeof MutationObserver === "function" && typeof document !== "undefined" &&
     .observe(document.body, { attributes: true, attributeFilter: ["class"] });
 }
 /* ---------- end of Autumn woodlands ---------- */
+/* ---------- Pen and ink, a seventh basemap (round 154k) ---------- */
+// Asked 3 October: a basemap in the look of the owner's two sources, the
+// Earth First! artwork in Cal Poly Humboldt's Special Collections and a
+// photocopied sabotage zine: black pen work on pale paper, hatching and
+// cross-hatching, stipple, ruled woodcut skies, hand-held lines, photocopy
+// grain. Only the way they are drawn is taken; nothing from any picture in
+// them is copied. The same Earth from the same open data:
+//   sea      ruled lines across, hairlines over the shelves, heavier in the
+//            deeps (AWS terrain heights, which carry depths), a margin of
+//            paper and one firm line along every shore; from zoom 7 the sea
+//            comes from OpenFreeMap's shapes, ruled the same way
+//   land     paper; the side of every slope away from a north-west light
+//            hatched, cross-hatched where darker, stipple in the half-light;
+//            far out, high ground shaded by its height as engravers shaded
+//            whole ranges; height lines from zoom 4, every fifth heavier
+//   shapes   forests as small pen-drawn conifers, wetlands as reed tufts,
+//            towns stippled, lakes ruled with an inked edge, ice left white,
+//            buildings hatched, roads in black (main roads drawn double),
+//            railways with ties, borders dash-dot (OpenFreeMap, boundaries)
+//   grain    the odd speck, and ink that did not take, fixed to the ground
+//   names    the label set in black and grey
+// Black and paper only. Drawn square by square on the reader's computer
+// (inkdraw://, inkDrawSquare), seamless across squares. Layers are named
+// "outline-ink-...", so the colour mapping and the themes leave them alone.
+// One block; the menu and the switch are reached by wrapping
+// basemapPanelHtml and setBasemap, as the basemaps before it are.
+var INK = {
+  paper: "#ECEAE3",        // pale, nearly neutral paper
+  ink: "#16181B",          // black ink
+  // Heights: the same AWS terrain squares as the other basemaps (they carry
+  // the sea's depths). Drawn up to zoom 12; past that the drawing is enlarged
+  // and the close-in detail comes from OpenFreeMap's vectors.
+  sourceMaxzoom: 12,
+  size: 512,               // each square drawn at twice its screen size, so lines stay crisp
+  hatch: 8,                // line spacing in drawn pixels (4 screen pixels)
+  seaUntil: 7,             // the sea is drawn from the heights up to this zoom; closer in, from OpenFreeMap's sea
+  light: { az: 315, alt: 40 },
+  names: { sat: -1, contrast: 0.35 },
+  sky: { "sky-color": "#ECEAE3", "horizon-color": "#ECEAE3", "fog-color": "#ECEAE3",
+    "sky-horizon-blend": 0.6, "horizon-fog-blend": 0.6, "fog-ground-blend": 0.6,
+    "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.5, 8, 0.6, 12, 0.3] },
+};
+function inkHex(h) { return [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); }
+// A fixed number for every whole point of the world: the same place always
+// gets the same mark, so squares meet without seams.
+function inkHash(x, y) {
+  let h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+// Smooth, slow wandering, so ruled lines waver like a hand-held pen.
+function inkWander(x, y) {
+  const x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0;
+  const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+  const a = inkHash(x0, y0), b = inkHash(x0 + 1, y0), c = inkHash(x0, y0 + 1), d = inkHash(x0 + 1, y0 + 1);
+  return (a + (b - a) * sx) * (1 - sy) + (c + (d - c) * sx) * sy - 0.5;
+}
+// The grain sheet: one fixed number per drawn pixel, repeating every 509
+// pixels (a prime, so its repeat does not line up with the squares).
+var INK_GRAIN = null;
+function inkGrain() {
+  if (INK_GRAIN) return INK_GRAIN;
+  const g = new Float32Array(509 * 509);
+  for (let y = 0; y < 509; y++) for (let x = 0; x < 509; x++) g[y * 509 + x] = inkHash(x + 7919, y + 104729);
+  return (INK_GRAIN = g);
+}
+function inkContourStep(z) { return z <= 5 ? 1000 : z <= 7 ? 500 : z <= 9 ? 250 : z <= 11 ? 100 : 50; }
+// Draw one square. E: heights in metres, n x n, for square z/tx/ty.
+// Returns RGBA, S x S: black ink on paper.
+function inkDrawSquare(E, n, z, tx, ty, S) {
+  S = S || INK.size;
+  const P = inkHex(INK.paper), K = inkHex(INK.ink), out = new Uint8ClampedArray(S * S * 4), o32 = new Uint32Array(out.buffer);
+  // Every shade from paper to ink, ready packed as one pixel (little-endian RGBA).
+  const TONE = new Uint32Array(256);
+  for (let t = 0; t < 256; t++) { const a = t / 255; TONE[t] = ((255 << 24) | (Math.round(P[2] + (K[2] - P[2]) * a) << 16) | (Math.round(P[1] + (K[1] - P[1]) * a) << 8) | Math.round(P[0] + (K[0] - P[0]) * a)) >>> 0; }
+  const GR = inkGrain(), gx0 = ((tx * S) % 509 + 509) % 509, gy0 = ((ty * S) % 509 + 509) % 509;
+  const sea = z <= INK.seaUntil, sp = INK.hatch, hsp = sp / 2, scale = n / S, Z = Math.pow(2, z);
+  // Slopes on the height grid, made steeper far out, where one height pixel
+  // spans tens of kilometres and real slopes would not show.
+  const GX = new Float32Array(n * n), GY = new Float32Array(n * n);
+  const ex = Math.max(1, Math.min(160, Math.pow(2, (10 - z) * 0.72)));
+  for (let v = 0; v < n; v++) {
+    const lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * (ty + (v + 0.5) / n) / Z)));
+    const m2 = 2 * 40075016.686 * Math.cos(lat) / (n * Z), vu = Math.max(0, v - 1) * n, vd = Math.min(n - 1, v + 1) * n;
+    for (let u = 0; u < n; u++) {
+      GX[v * n + u] = (E[v * n + Math.min(n - 1, u + 1)] - E[v * n + Math.max(0, u - 1)]) / m2;
+      GY[v * n + u] = (E[vd + u] - E[vu + u]) / m2;
+    }
+  }
+  // The pen's waver, on an 8-pixel lattice tied to the world, smoothed between.
+  const LW = S / 8 + 2, WV = new Float32Array(LW * LW);
+  for (let b = 0; b < LW; b++) for (let a = 0; a < LW; a++) {
+    const X = tx * S + a * 8, Y = ty * S + b * 8;
+    WV[b * LW + a] = 2.4 * inkWander(X / 43, Y / 43) + 1.1 * inkWander(X / 12 + 50, Y / 12);
+  }
+  const az = INK.light.az * Math.PI / 180, alt = INK.light.alt * Math.PI / 180;
+  const Lx = Math.sin(az) * Math.cos(alt), Ly = -Math.cos(az) * Math.cos(alt), Lz = Math.sin(alt);
+  const hiK = z <= 3 ? 1 : z >= 7 ? 0 : (7 - z) / 4, step = inkContourStep(z), deep = Math.log1p(6000), contours = z >= 4;
+  const line = (pos, half) => { const t = pos - Math.floor(pos / sp) * sp; const r = t - hsp; const k = half - (r < 0 ? -r : r) + 0.5; return k <= 0 ? 0 : k >= 1 ? 1 : k; };
+  for (let j = 0; j < S; j++) {
+    let v = (j + 0.5) * scale - 0.5; if (v < 0) v = 0; if (v > n - 1) v = n - 1;
+    const v0 = Math.min(n - 2, v | 0), fv = v - v0;
+    const lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * (ty + (j + 0.5) / S) / Z)));
+    const mpp = 40075016.686 * Math.cos(lat) / (S * Z), Y = ty * S + j;
+    const wb = j >> 3, wfy = (j & 7) / 8, grow = ((gy0 + j) % 509) * 509;
+    let gcol = gx0;
+    for (let i = 0; i < S; i++) {
+      let u = (i + 0.5) * scale - 0.5; if (u < 0) u = 0; if (u > n - 1) u = n - 1;
+      const u0 = Math.min(n - 2, u | 0), fu = u - u0, p = v0 * n + u0;
+      const w00 = (1 - fu) * (1 - fv), w10 = fu * (1 - fv), w01 = (1 - fu) * fv, w11 = fu * fv;
+      let e = E[p] * w00 + E[p + 1] * w10 + E[p + n] * w01 + E[p + n + 1] * w11;
+      const gx = GX[p] * w00 + GX[p + 1] * w10 + GX[p + n] * w01 + GX[p + n + 1] * w11;
+      const gy = GY[p] * w00 + GY[p + 1] * w10 + GY[p + n] * w01 + GY[p + n + 1] * w11;
+      const grad = Math.sqrt(gx * gx + gy * gy) * mpp + 1e-6;     // metres per drawn pixel
+      const X = tx * S + i, wa = i >> 3, wfx = (i & 7) / 8, wq = wb * LW + wa;
+      const w = (WV[wq] * (1 - wfx) + WV[wq + 1] * wfx) * (1 - wfy) + (WV[wq + LW] * (1 - wfx) + WV[wq + LW + 1] * wfx) * wfy;
+      let c = 0;
+      if (sea && e < 0) {
+        // The sea: ruled lines across, hairlines over the shelves, heavier
+        // in the deeps; a clear margin of paper along the shore.
+        const f = Math.log1p(-e) / deep;
+        if (-e / grad > 3.2) c = line(Y + w * 0.5, 0.3 + 0.95 * Math.pow(f > 1 ? 1 : f, 1.8));
+      } else {
+        if (e < 0) e = 0;
+        const nx = -gx * ex, ny = -gy * ex, nl = Math.sqrt(nx * nx + ny * ny + 1);
+        let d = (Lz - (nx * Lx + ny * Ly + Lz) / nl) * 1.9;
+        // Far out, where slopes flatten away, high ground is shaded by its
+        // height too, as engravers shaded whole ranges; gone by zoom 7.
+        if (hiK > 0 && e > 500) { const h = (e - 500) / 2600; d += hiK * 0.62 * (h > 1 ? 1 : h); }
+        d = d < 0 ? 0 : d > 1 ? 1 : d;
+        // The side away from the light, hatched: one way, then crossed, then
+        // ruled across too where it is darkest. Stipple in the half-light.
+        if (d > 0.1) { c = line(X + Y + w, 0.2 + 1.25 * (d - 0.1) / 0.9);
+          if (d > 0.45) { const k = line(X - Y + w * 0.8 + 3, 1.15 * (d - 0.45) / 0.55); if (k > c) c = k;
+            if (d > 0.8) { const k2 = line(Y + w * 0.5 + 1, 1.0 * (d - 0.8) / 0.2); if (k2 > c) c = k2; } } }
+        else if (d > 0.025 && GR[grow + ((gcol + 211) % 509)] < d * 0.45) c = 0.8;
+        // Height lines, every fifth one heavier.
+        if (contours && e > step * 0.5) {
+          const k = e / step, r = Math.round(k), idx = r % 5 === 0, dist = (k > r ? k - r : r - k) * step / grad;
+          const a = ((idx ? 0.75 : 0.35) - dist + 0.5) * (idx ? 0.9 : 0.45);
+          if (a > c) c = a > 1 ? 1 : a;
+        }
+      }
+      // The shore, one firm line.
+      if (sea) { const dc = (e < 0 ? -e : e) / grad; if (dc < 1.5) { const a = 1.35 - dc; if (a > c) c = a > 1 ? 1 : a; } }
+      // The world's top and bottom rows left as paper: the globe stretches
+      // them over the poles, and stretched lines would show as a pinwheel.
+      if ((ty === 0 && j < 4) || (ty === Z - 1 && j >= S - 4)) c = 0;
+      // A photocopy's grain: the odd speck, and ink that did not take.
+      const g = GR[grow + gcol]; if (++gcol === 509) gcol = 0;
+      if (g < 0.0012 && !((ty === 0 && j < 4) || (ty === Z - 1 && j >= S - 4))) c = 1; else if (c > 0 && g > 0.965) c *= 0.25;
+      o32[j * S + i] = TONE[(c * 255 + 0.5) | 0];
+    }
+  }
+  return out;
+}
+// Small repeating pen drawings for OpenFreeMap's shapes, drawn here as
+// pixels (twice screen size) rather than taken from any picture.
+function inkPattern(kind) {
+  const P = inkHex(INK.paper), K = inkHex(INK.ink);
+  const size = { sea: [32, 32], lake: [32, 32], pines: [48, 48], marsh: [48, 32], stipple: [24, 24], hatch: [24, 24] }[kind];
+  if (!size) return null;
+  const [W, H] = size, data = new Uint8ClampedArray(W * H * 4), opaque = kind === "sea" || kind === "lake" || kind === "hatch";
+  const cover = new Float32Array(W * H), put = (x, y, a) => { x = ((x % W) + W) % W; y = ((y % H) + H) % H; const i = y * W + x; if (a > cover[i]) cover[i] = Math.min(1, a); };
+  const stroke = (x0, y0, x1, y1, half) => {
+    const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) * 2) + 1;
+    for (let s = 0; s <= n; s++) {
+      const cx = x0 + (x1 - x0) * s / n, cy = y0 + (y1 - y0) * s / n;
+      for (let y = Math.floor(cy - half - 1); y <= Math.ceil(cy + half + 1); y++)
+        for (let x = Math.floor(cx - half - 1); x <= Math.ceil(cx + half + 1); x++)
+          put(x, y, half - Math.hypot(x + 0.5 - cx, y + 0.5 - cy) + 0.5);
+    }
+  };
+  if (kind === "sea" || kind === "lake") {
+    const half = kind === "sea" ? 0.75 : 0.5;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const r = Math.abs(((y + 4) % 8) - 4 + 0.5); put(x, y, half - r + 0.5); }
+  } else if (kind === "hatch") {
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const r = Math.abs(((x + y) % 6) - 3 + 0.5) / Math.SQRT2; put(x, y, 0.6 - r + 0.5); }
+  } else if (kind === "pines") {
+    // Two small conifers, offset, each three tiers and a trunk.
+    for (const [cx, by] of [[12, 22], [36, 46]]) {
+      stroke(cx, by, cx, by - 4, 0.8);
+      for (const [top, base, half] of [[by - 17, by - 10, 3.5], [by - 13, by - 6, 4.8], [by - 9, by - 2, 6]]) {
+        for (let y = top; y <= base; y++) { const wdt = half * (y - top) / (base - top); stroke(cx - wdt, y, cx + wdt, y, 0.55); }
+      }
+    }
+  } else if (kind === "marsh") {
+    for (const [cx, cy] of [[12, 12], [36, 28]]) {
+      stroke(cx - 6, cy, cx + 6, cy, 0.5);
+      stroke(cx, cy, cx, cy - 6, 0.5); stroke(cx - 1, cy, cx - 4, cy - 4, 0.45); stroke(cx + 1, cy, cx + 4, cy - 4, 0.45);
+    }
+  } else if (kind === "stipple") {
+    for (let k = 0; k < 22; k++) { const x = Math.floor(inkHash(k, 3) * W), y = Math.floor(inkHash(k, 11) * H); put(x, y, 1); if (inkHash(k, 17) < 0.5) put(x + 1, y, 0.8); }
+  }
+  for (let i = 0; i < W * H; i++) {
+    const a = cover[i], q = i * 4;
+    if (opaque) { data[q] = P[0] + (K[0] - P[0]) * a; data[q + 1] = P[1] + (K[1] - P[1]) * a; data[q + 2] = P[2] + (K[2] - P[2]) * a; data[q + 3] = 255; }
+    else { data[q] = K[0]; data[q + 1] = K[1]; data[q + 2] = K[2]; data[q + 3] = Math.round(255 * a); }
+  }
+  return { width: W, height: H, data };
+}
+var INK_IDS = ["outline-ink-sheet", "outline-ink-draw", "outline-ink-sea", "outline-ink-ice", "outline-ink-forest",
+  "outline-ink-marsh", "outline-ink-town", "outline-ink-lake", "outline-ink-lake-edge", "outline-ink-river",
+  "outline-ink-rail", "outline-ink-rail-ties", "outline-ink-road-minor", "outline-ink-road", "outline-ink-road-major-case",
+  "outline-ink-road-major", "outline-ink-buildings", "outline-ink-building-edge", "outline-ink-border"];
+var INK_PATTERNS = ["sea", "lake", "pines", "marsh", "stipple", "hatch"];
+maplibregl.addProtocol("inkdraw", async (params, abortController) => {
+  const m = params.url.match(/^inkdraw:\/\/(\d+)\/(\d+)\/(\d+)/);
+  if (!m) throw new Error("not an ink square");
+  const z = +m[1], x = +m[2], y = +m[3];
+  const url = TERRAIN_SOURCE.tiles[0].replace("{z}", z).replace("{x}", x).replace("{y}", y);
+  const r = await fetch(url, { signal: abortController && abortController.signal });
+  if (!r.ok) throw new Error(String(r.status));
+  const bmp = await createImageBitmap(await r.blob(), { premultiplyAlpha: "none", colorSpaceConversion: "none" });
+  const n = bmp.width, c = new OffscreenCanvas(n, n), g = c.getContext("2d", { willReadFrequently: true });
+  g.drawImage(bmp, 0, 0);
+  const px = g.getImageData(0, 0, n, n).data, E = new Float32Array(n * n);
+  for (let i = 0; i < n * n; i++) E[i] = px[i * 4] * 256 + px[i * 4 + 1] + px[i * 4 + 2] / 256 - 32768;   // terrarium heights
+  return { data: rawPng(inkDrawSquare(E, n, z, x, y, INK.size), INK.size, INK.size) };
+});
+function inkLayers() {
+  const road = (w) => ["interpolate", ["exponential", 1.4], ["zoom"], 4, w * .25, 10, w, 16, w * 6];
+  const kind = (list) => ["match", ["get", "class"], list, true, false];
+  const fade = (z0, z1, a) => ["interpolate", ["linear"], ["zoom"], z0, 0, z1, a];
+  return [
+    { id: "outline-ink-sheet", type: "fill", source: "outline-ink-sheet",
+      paint: { "fill-color": INK.paper, "fill-antialias": false } },
+    { id: "outline-ink-draw", type: "raster", source: "outline-ink-draw",
+      paint: { "raster-opacity": 1, "raster-fade-duration": 150, "raster-resampling": "linear" } },
+    { id: "outline-ink-sea", type: "fill", source: "osm", "source-layer": "water", minzoom: INK.seaUntil,
+      filter: ["==", ["get", "class"], "ocean"],
+      paint: { "fill-pattern": "ink-sea", "fill-opacity": fade(INK.seaUntil, INK.seaUntil + 1, 1) } },
+    { id: "outline-ink-ice", type: "fill", source: "osm", "source-layer": "landcover", minzoom: 5,
+      filter: ["==", ["get", "class"], "ice"],
+      paint: { "fill-color": INK.paper, "fill-opacity": fade(5, 7, .8) } },
+    { id: "outline-ink-forest", type: "fill", source: "osm", "source-layer": "landcover", minzoom: 7,
+      filter: ["==", ["get", "class"], "wood"],
+      paint: { "fill-pattern": "ink-pines", "fill-opacity": fade(7, 9, .85) } },
+    { id: "outline-ink-marsh", type: "fill", source: "osm", "source-layer": "landcover", minzoom: 8,
+      filter: ["==", ["get", "class"], "wetland"],
+      paint: { "fill-pattern": "ink-marsh", "fill-opacity": fade(8, 10, .85) } },
+    { id: "outline-ink-town", type: "fill", source: "osm", "source-layer": "landuse", minzoom: 8,
+      filter: kind(["residential", "commercial", "industrial", "retail", "suburb", "neighbourhood"]),
+      paint: { "fill-pattern": "ink-stipple", "fill-opacity": fade(8, 10, .8) } },
+    { id: "outline-ink-lake", type: "fill", source: "osm", "source-layer": "water",
+      filter: ["!=", ["get", "class"], "ocean"],
+      paint: { "fill-pattern": "ink-lake" } },
+    { id: "outline-ink-lake-edge", type: "line", source: "osm", "source-layer": "water", minzoom: 5,
+      filter: ["!=", ["get", "class"], "ocean"],
+      paint: { "line-color": INK.ink, "line-width": ["interpolate", ["linear"], ["zoom"], 5, .4, 12, 1.1] } },
+    { id: "outline-ink-river", type: "line", source: "osm", "source-layer": "waterway", minzoom: 3,
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": INK.ink,
+               "line-width": ["interpolate", ["exponential", 1.4], ["zoom"],
+                 4, ["match", ["get", "class"], "river", .3, .1], 10, ["match", ["get", "class"], "river", 1.1, .45],
+                 16, ["match", ["get", "class"], "river", 5, 2.2]],
+               "line-opacity": ["interpolate", ["linear"], ["zoom"],
+                 8, ["match", ["get", "class"], "river", .9, 0], 11, ["match", ["get", "class"], "river", .9, .75]] } },
+    { id: "outline-ink-rail", type: "line", source: "osm", "source-layer": "transportation", minzoom: 9,
+      filter: kind(["rail", "transit"]),
+      paint: { "line-color": INK.ink, "line-width": .8 } },
+    { id: "outline-ink-rail-ties", type: "line", source: "osm", "source-layer": "transportation", minzoom: 12,
+      filter: kind(["rail", "transit"]),
+      paint: { "line-color": INK.ink, "line-width": 3.5, "line-dasharray": [.3, 2.2] } },
+    { id: "outline-ink-road-minor", type: "line", source: "osm", "source-layer": "transportation", minzoom: 12,
+      filter: kind(["minor", "service", "track", "street", "street_limited"]),
+      paint: { "line-color": INK.ink, "line-width": road(.35), "line-opacity": .8 } },
+    { id: "outline-ink-road", type: "line", source: "osm", "source-layer": "transportation", minzoom: 8,
+      filter: kind(["secondary", "tertiary"]),
+      paint: { "line-color": INK.ink, "line-width": road(.5) } },
+    { id: "outline-ink-road-major-case", type: "line", source: "osm", "source-layer": "transportation", minzoom: 5,
+      filter: kind(["motorway", "trunk", "primary"]),
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": INK.ink, "line-width": road(1.3), "line-opacity": fade(5, 7, 1) } },
+    { id: "outline-ink-road-major", type: "line", source: "osm", "source-layer": "transportation", minzoom: 9,
+      filter: kind(["motorway", "trunk", "primary"]),
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": INK.paper, "line-width": road(.6) } },
+    { id: "outline-ink-buildings", type: "fill", source: "osm", "source-layer": "building", minzoom: 13,
+      paint: { "fill-pattern": "ink-hatch", "fill-opacity": fade(13, 14, 1) } },
+    { id: "outline-ink-building-edge", type: "line", source: "osm", "source-layer": "building", minzoom: 13,
+      paint: { "line-color": INK.ink, "line-width": .7, "line-opacity": fade(13, 14, 1) } },
+    { id: "outline-ink-border", type: "line", source: "boundaries",
+      paint: { "line-color": INK.ink, "line-opacity": .7, "line-dasharray": [5, 2, 1, 2],
+               "line-width": ["interpolate", ["linear"], ["zoom"], 2, .5, 5, .9, 10, 1.3] } },
+  ];
+}
+function addInkLayers() {
+  if (map.getLayer("outline-ink-draw")) return;
+  try {
+    ensureBoundaries();
+    const share = (id, spec) => { if (!map.getSource(id)) map.addSource(id, Object.assign({}, spec)); };
+    share("osm", OSM_SOURCE);
+    for (const k of INK_PATTERNS) {
+      const id = `ink-${k}`;
+      if (typeof map.hasImage === "function" && map.hasImage(id)) continue;
+      if (typeof map.addImage === "function") map.addImage(id, inkPattern(k), { pixelRatio: 2 });
+    }
+    if (!map.getSource("outline-ink-sheet")) {
+      map.addSource("outline-ink-sheet", { type: "geojson", data: { type: "Feature", properties: {},
+        geometry: { type: "Polygon", coordinates: [[[-180, -85.06], [180, -85.06], [180, 85.06], [-180, 85.06], [-180, -85.06]]] } } });
+    }
+    if (!map.getSource("outline-ink-draw")) {
+      map.addSource("outline-ink-draw", { type: "raster", tiles: ["inkdraw://{z}/{x}/{y}"], tileSize: 256,
+        maxzoom: INK.sourceMaxzoom, attribution: TERRAIN_SOURCE.attribution });
+    }
+    const st = typeof map.getStyle === "function" ? map.getStyle() : null;
+    const all = (st && st.layers) || [];
+    const at = all.findIndex((l) => l.id === "plate-base");
+    const before = at >= 0 && all[at + 1] ? all[at + 1].id : undefined;
+    for (const l of inkLayers()) map.addLayer(Object.assign({ layout: {} }, l, { layout: Object.assign({ visibility: "none" }, l.layout || {}) }), before);
+  } catch (e) { console.warn("[culprits] pen and ink basemap unavailable:", e.message || e); }
+}
+let inkNamesTurned = false, inkSkyBefore = null;
+function inkSky(on) {
+  if (typeof map.setSky !== "function") return;
+  if (typeof DEFENCE_ON !== "undefined" && DEFENCE_ON) return;     // the defence view keeps its own sky
+  try {
+    if (on && !inkSkyBefore) {
+      inkSkyBefore = (typeof map.getSky === "function" && map.getSky()) || {};
+      map.setSky(Object.assign({}, inkSkyBefore, INK.sky));
+    } else if (!on && inkSkyBefore) { map.setSky(inkSkyBefore); inkSkyBefore = null; }
+  } catch (e) { /* the sky stays as it was */ }
+}
+function inkShow(on) {
+  const hidden = typeof hellHoloHides === "function" ? hellHoloHides() : false;
+  const vis = on && !hidden ? "visible" : "none";
+  for (const id of INK_IDS) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
+  inkSky(on);
+  if (!map.getLayer("labels")) return;
+  if (on) {
+    map.setPaintProperty("labels", "raster-saturation", INK.names.sat);
+    map.setPaintProperty("labels", "raster-contrast", INK.names.contrast);
+    map.setPaintProperty("labels", "raster-opacity", .95);
+    inkNamesTurned = true;
+  } else if (inkNamesTurned) {
+    map.setPaintProperty("labels", "raster-contrast", 0);
+    inkNamesTurned = false;
+  }
+}
+BASE_GRADE.ink = {};
+const basemapPanelHtmlBeforeInk = basemapPanelHtml;
+// Listed last: the basemaps wrapped before it add themselves first, then
+// this one is put after the last choice in the menu.
+basemapPanelHtml = function (opts) {
+  const list = (opts || []).filter((o) => o[0] !== "ink");
+  const html = basemapPanelHtmlBeforeInk(list), end = html.indexOf(`</div><div class="view-zoom"`);
+  const mine = `<label class="layer"><input type="radio" name="basemap" value="ink"${BASEMAP === "ink" ? " checked" : ""}>` +
+    `<span class="nm">Pen and ink</span></label>`;
+  return end >= 0 ? html.slice(0, end) + mine + html.slice(end) : basemapPanelHtmlBeforeInk(list.concat([["ink", "Pen and ink"]]));
+};
+const setBasemapBeforeInk = setBasemap;
+setBasemap = function (kind) {
+  // Pale paper: the deeper layer colours stand out on it.
+  if (typeof THEME_BY_BASEMAP === "object" && THEME_BY_BASEMAP && !THEME_BY_BASEMAP.ink) THEME_BY_BASEMAP.ink = "deep";
+  if (kind === "ink") addInkLayers();
+  if (kind !== "ink") inkShow(false);
+  setBasemapBeforeInk(kind);
+  if (kind === "ink") inkShow(true);
+};
+if (typeof MutationObserver === "function" && typeof document !== "undefined" && document.body) {
+  new MutationObserver(() => { if (BASEMAP === "ink") inkShow(true); })
+    .observe(document.body, { attributes: true, attributeFilter: ["class"] });
+}
+/* ---------- end of Pen and ink ---------- */
 
 // Place names on and off, all at once (asked for 23 September): every symbol
 // layer's words, the basemap's and the layers' own. The words are taken out

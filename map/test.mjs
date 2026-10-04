@@ -6125,6 +6125,46 @@ console.log("\nround 140b-142b (2 October): combine in any order; base map kept,
   check("the same crossings leave the map untouched", /if \(key !== COMBO\.lastKey\) \{/.test(src) && /ms == null \? 400 : ms/.test(src));
 }
 
+console.log("\nround 154k (3 October): Pen and ink, a seventh basemap");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const block = src.slice(src.indexOf("/* ---------- Pen and ink, a seventh basemap"), src.indexOf("/* ---------- end of Pen and ink ---------- */"));
+  check("the block is there, after Woodlands", block.length > 1000 && src.indexOf("/* ---------- Pen and ink") > src.indexOf("/* ---------- end of Autumn woodlands"));
+  const hexes = block.match(/#[0-9A-Fa-f]{6}\b/g) || [];
+  const sat = (h) => { const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); return (Math.max(...c) - Math.min(...c)) / 255; };
+  check("black ink and paper only: no colour anywhere in the block", hexes.length >= 2 && hexes.every((h) => sat(h) < 0.06), hexes.filter((h) => sat(h) >= 0.06).join(","));
+  check("every layer is an outline- layer, so the colour mapping leaves it alone", /var INK_IDS = \[/.test(block) && (block.match(/id: "outline-ink-[a-z-]+"/g) || []).length === 19 &&
+        !/id: "(?!outline-ink-)[a-z]/.test(block.slice(block.indexOf("function inkLayers"))));
+  check("it is in the basemap menu as Pen and ink, listed last", /<span class="nm">Pen and ink<\/span>/.test(block) && /\["ink", "Pen and ink"\]/.test(block) && /setBasemap = function \(kind\)/.test(block));
+  const menuFn = new Function("BASEMAP", block.slice(block.indexOf("const basemapPanelHtmlBeforeInk"), block.indexOf("const setBasemapBeforeInk")).replace("const basemapPanelHtmlBeforeInk = basemapPanelHtml;", "let basemapPanelHtml, basemapPanelHtmlBeforeInk = (o) => `<div>` + o.concat([[\"wood\", \"Woodlands\"], [\"hell\", \"Hell\"]]).map(([k, n]) => `<label><input value=\"${k}\"><span class=\"nm\">${n}</span></label>`).join(\"\") + `</div><div class=\"view-zoom\"></div>`;") + "; return basemapPanelHtml;")("atlas");
+  const order = [...menuFn([["atlas", "Painted atlas"]]).matchAll(/value="(\w+)"/g)].map((x) => x[1]);
+  check("the menu order ends with Pen and ink, after the other basemaps", order.join(",") === "atlas,wood,hell,ink", order.join(","));
+  check("the heights are credited", /attribution: TERRAIN_SOURCE\.attribution/.test(block));
+  const lib = new Function(block.slice(block.indexOf("var INK = {"), block.indexOf("var INK_IDS = [")) + "; return { inkDrawSquare, inkPattern, INK };")();
+  const n = 64, S = 128, grid = (f) => { const E = new Float32Array(n * n); for (let v = 0; v < n; v++) for (let u = 0; u < n; u++) E[v * n + u] = f(u, v); return E; };
+  const inkShare = (d, x0 = 0, x1 = S, y0 = 0, y1 = S) => { let k = 0, all = 0; for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { all++; if (d[(y * S + x) * 4] < 120) k++; } return k / all; };
+  const flat = lib.inkDrawSquare(grid(() => 120), n, 9, 100, 200, S);
+  check("flat land is bare paper (only the photocopy's odd speck)", inkShare(flat) < 0.01, inkShare(flat).toFixed(4));
+  const sea = lib.inkDrawSquare(grid(() => -4000), n, 3, 2, 3, S);
+  const rows = []; for (let y = 0; y < S; y++) rows.push(inkShare(sea, 0, S, y, y + 1));
+  check("the open sea is ruled in lines across", inkShare(sea) > 0.15 && inkShare(sea) < 0.7 && rows.filter((r) => r > 0.6).length > 5 && rows.filter((r) => r < 0.1).length > 5, inkShare(sea).toFixed(3));
+  const shelf = lib.inkDrawSquare(grid(() => -60), n, 3, 2, 3, S);
+  check("shelves in hairlines, the deeps heavier", inkShare(shelf) < inkShare(sea) * 0.7, inkShare(shelf).toFixed(3) + " < " + inkShare(sea).toFixed(3));
+  const away = lib.inkDrawSquare(grid((u, v) => 300 + (u + v) * 70), n, 10, 300, 400, S);     // falls to the north-west, faces the light
+  const lit = lib.inkDrawSquare(grid((u, v) => 9300 - (u + v) * 70), n, 10, 300, 400, S);      // rises to the north-west: faces away
+  check("slopes turned from the light are hatched, those facing it carry only height lines", inkShare(lit) > inkShare(away) * 1.5, inkShare(lit).toFixed(3) + " vs " + inkShare(away).toFixed(3));
+  const coast = lib.inkDrawSquare(grid((u) => (u - 32) * 40), n, 5, 10, 12, S);
+  let shore = 0; for (let y = 0; y < S; y++) for (let x = 60; x < 68; x++) if (coast[(y * S + x) * 4] < 120) { shore++; break; }
+  check("every shore gets one firm line", shore > S * 0.9, shore + " of " + S);
+  const a = lib.inkDrawSquare(grid(() => -4000), n, 3, 3, 3, S), b = lib.inkDrawSquare(grid(() => -4000), n, 3, 3, 3, S);
+  const top = lib.inkDrawSquare(grid(() => -4000), n, 0, 0, 0, S);
+  check("the world's top and bottom rows stay paper, so the poles are clean", inkShare(top, 0, S, 0, 4) === 0 && inkShare(top, 0, S, S - 4, S) === 0);
+  check("the same square draws the same every time", a.every((v, i) => v === b[i]));
+  const rowsA = [], rowsB = []; for (let y = 0; y < S; y++) { rowsA.push(inkShare(sea, S - 4, S, y, y + 1) > 0.5); rowsB.push(inkShare(a, 0, 4, y, y + 1) > 0.5); }
+  check("lines run on across the join between squares (no seams)", rowsA.filter((r, i) => r === rowsB[i]).length > S * 0.85);
+  const pines = lib.inkPattern("pines"), seaP = lib.inkPattern("sea");
+  check("forest pattern is pen-drawn conifers on clear ground; the sea pattern is ruled on paper", pines.data[3] === 0 && pines.data.some((v, i) => i % 4 === 3 && v > 200) && seaP.data[3] === 255);
+}
 console.log("\nround 144h (3 October): Hell, a fourth basemap");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");

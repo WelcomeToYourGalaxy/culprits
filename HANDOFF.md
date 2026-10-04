@@ -5,6 +5,33 @@ touches.
 
 ---
 
+## Round 154k (3 October)
+
+Needs round 154b. No tiles patch. No app.js?v= bump. One new basemap, Pen and ink.
+Made in a separate chat (letter "k") so it does not clash with the "b" rounds.
+
+- Asked 3 October: a basemap in the look of the Earth First! artwork in Cal
+  Poly Humboldt's Special Collections and a photocopied sabotage zine. Only the
+  way they are drawn is taken (black pen on pale paper, hatching, stipple,
+  ruled woodcut lines, photocopy grain); nothing from any picture is copied.
+- Drawn square by square on the reader's computer from the AWS heights
+  (inkdraw://, inkDrawSquare, about 0.2 s a square): the sea ruled across,
+  hairlines over the shelves and heavier in the deeps, a paper margin and one
+  firm line on every shore; land paper, slopes away from a north-west light
+  hatched, cross-hatched where darker, stippled in the half-light; far out,
+  high ground shaded by height; height lines from zoom 4. Seamless; the
+  world's top and bottom rows left paper so the globe's poles are clean.
+- Close in (OpenFreeMap): the sea ruled from zoom 7, forests as small pen
+  conifers, wetlands as reed tufts, towns stippled, lakes ruled and inked,
+  ice white, buildings hatched, main roads double-lined, railways with ties,
+  borders dash-dot (patterns drawn as pixels, inkPattern). Names black/grey.
+- Black ink and paper only (tested). Layers outline-ink-* (INK_IDS), one
+  block ("Pen and ink, a seventh basemap" to "end of Pen and ink") after
+  Woodlands; menu and switch by wrapping basemapPanelHtml and setBasemap;
+  listed last in the menu. Layer colours "suited to the basemap": deep.
+- Checked in Chromium with sample heights (zooms 0-2); not seen against the
+  live height tiles.
+
 ## Round 154b (4 October)
 
 Needs round 153b. No tiles patch. No app.js?v= bump. Woodlands basemap as a watercolour.
