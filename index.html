@@ -693,7 +693,7 @@
     // set (dark text). This is CARTO's set for dark maps, same provider, pale
     // text with a dark edge, so it reads on the hologram.
     if (!map.getSource("holo-labels")) map.addSource("holo-labels", { type: "raster", tileSize: 256,
-      tiles: ["https://a.basemaps.cartocdn.com/rastertiles/dark_only_labels/{z}/{x}/{y}@2x.png"],
+      tiles: ["https://a.basemaps.cartocdn.com/rastertiles/dark_only_labels/{z}/{x}/{y}@2x.png?key=cb1_494p_1_eebbbfcb65bc573e54783d42"],
       attribution: "Labels © CARTO, © OpenStreetMap" });
     if (!map.getSource("outline-dem")) map.addSource("outline-dem", Object.assign({}, RELIEF_SOURCE));
     const before = holoBefore();

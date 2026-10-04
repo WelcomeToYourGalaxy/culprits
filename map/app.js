@@ -2170,7 +2170,7 @@ const map = new maplibregl.Map({
       labels: {
         type: "raster",
         tiles: ["https://a.basemaps.cartocdn.com/rastertiles/" +
-                "voyager_only_labels/{z}/{x}/{y}@2x.png"],
+                "voyager_only_labels/{z}/{x}/{y}@2x.png?key=cb1_494p_1_eebbbfcb65bc573e54783d42"],
         tileSize: 256,
         attribution: "Labels © CARTO, © OpenStreetMap",
       },

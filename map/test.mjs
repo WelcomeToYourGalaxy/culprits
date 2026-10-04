@@ -6174,6 +6174,17 @@ console.log("\nround 145h (3 October): no grey on Hell's high ground");
         land.slice(1).every(([r, gg, b]) => r > gg + 2 && r >= b) && land.every(([r]) => r < 70));
 }
 
+console.log("\nround 146h (3 October): CARTO's place names asked with the map's key");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const holo = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const top = fs.readFileSync(path.join(HERE, "..", "index.html"), "utf8");
+  const k = /cartocdn\.com\/rastertiles\/[^"]*\?key=cb1_[0-9a-z_]+"/;
+  check("every CARTO label address carries the key (no API KEY REQUIRED stamp)",
+        /voyager_only_labels\/\{z\}\/\{x\}\/\{y\}@2x\.png\?key=cb1_/.test(src) && k.test(holo) && k.test(top) &&
+        ![src, holo, top].some((t) => /@2x\.png"\]/.test(t.slice(t.indexOf("cartocdn")))));
+}
+
 console.log("\nround 143b (2 October): layers grouped, so alike layers do not cross each other");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");

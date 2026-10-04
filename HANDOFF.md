@@ -5,6 +5,19 @@ touches.
 
 ---
 
+## Round 146h (3 October)
+
+Needs round 145h. No tiles patch. No app.js?v= bump.
+
+- CARTO's place names were stamped "API KEY REQUIRED" on every basemap and in
+  the hologram (CARTO now asks for a free key: carto.com/basemaps/apikey). The
+  owner's key is added as ?key= to the three CARTO addresses: the "labels"
+  source in map/app.js (voyager_only_labels) and the hologram's names in
+  map/index.html and index.html (dark_only_labels). The key is meant to be
+  seen in the page; keys are managed at dashboard.basemaps.carto.com. Not
+  checked from the sandbox (CARTO is blocked there). Browsers and CARTO's
+  servers may hold stamped squares for a while: force-refresh.
+
 ## Round 145h (3 October)
 
 Needs round 144h. No tiles patch. No app.js?v= bump. Hell basemap only.
