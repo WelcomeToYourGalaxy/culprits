@@ -5,6 +5,28 @@ touches.
 
 ---
 
+## Round 147i (3 October)
+
+Needs round 146h. No tiles patch. No app.js?v= bump. Indigenous basemap only.
+
+- A fifth basemap, Indigenous (asked 3 October, after the owner's pictures: a
+  hand-painted relief map of Canada's First Peoples and painted hunting
+  scenes; "blend them all" into one). Built from what peoples on every
+  continent share rather than any one nation's designs: the earth pigments
+  (red ochre, white clay, charcoal, indigo) and the painted-relief look. No
+  motifs that belong to particular peoples, no portraits. Indigo sea, darker
+  in the deeps and paler on the shelves (AWS terrain heights, sea-dem); land
+  from pale clay through red ochre and charcoal to white clay on the highest
+  peaks; warm daylight relief over umber shadow (Mapterhorn); forests as a
+  slate-teal wash, ice in white clay, wetlands in indigo, lakes and rivers
+  indigo, towns clay grey, roads charcoal brown, borders a faint charcoal
+  dash (OpenFreeMap, boundaries); place names in grey ink. No orange,
+  yellow or green; a test checks the colours.
+- Layers outline-indig-* (INDIG_IDS), one block of app.js ("Indigenous, a
+  fifth basemap" to "end of Indigenous"), reached by wrapping
+  basemapPanelHtml and setBasemap after Hell's wrappers. Not seen against
+  real tiles (the sandbox cannot reach them): check the look live.
+
 ## Round 146h (3 October)
 
 Needs round 145h. No tiles patch. No app.js?v= bump.

@@ -13863,6 +13863,173 @@ if (typeof MutationObserver === "function" && typeof document !== "undefined" &&
     .observe(document.body, { attributes: true, attributeFilter: ["class"] });
 }
 /* ---------- end of Hell ---------- */
+/* ---------- Indigenous, a fifth basemap (round 147i) ---------- */
+// Asked 3 October: a basemap in an Indigenous theme, blending the many
+// regional ways of drawing land into one, after the owner's pictures (a
+// hand-painted relief map of Canada's First Peoples, painted hunting scenes):
+// warm painted ground, strong daylight relief, blue water, forests as
+// texture. It is built from what peoples on every continent share, not from
+// any one nation's designs: the earth pigments themselves (red ochre, white
+// clay, charcoal, indigo) and the painted-relief look. No feathers, totems,
+// dot or knot patterns or other motifs that belong to particular peoples,
+// and no portraits. The same Earth from the same open data as the others:
+//   sea      indigo, deep in the deeps and paler over the shelves
+//            (AWS terrain tiles, which carry depths)
+//   land     pale clay on the lowlands, red ochre up the slopes, charcoal
+//            on the high ground, white clay on the highest peaks (same tiles)
+//   relief   warm daylight from the north-west over umber shadow (Mapterhorn)
+//   forests  a dark slate-teal wash, as painted texture; ice in white clay
+//   water    lakes and rivers in indigo (OpenFreeMap)
+//   towns    clay grey; roads charcoal brown; borders a faint charcoal dash
+//   names    the label set in grey ink
+// No orange, yellow or green (forests are slate-teal); nothing bright but the
+// white clay of ice and peaks. Its layers are all named "outline-indig-...",
+// so the colour mapping and the themes leave them alone. Reached by wrapping
+// basemapPanelHtml and setBasemap, as Hell is.
+var INDIG = {
+  sheet: "#1B2238",
+  ground: ["interpolate", ["linear"], ["elevation"],
+    -8000, "#151B30", -5000, "#1A2239", -3000, "#202A45", -1500, "#283553", -500, "#324265",
+    -120, "#3E5276", -20, "#4E6486", -1, "#5A6F8E",
+    0, "#C6B7B0", 150, "#BDA9A1", 500, "#B0968C", 1000, "#A07C70", 1700, "#8D6358",
+    2600, "#6A4A45", 3800, "#4A3A39", 5000, "#D8D0CC"],
+  shade: {
+    "hillshade-method": "multidirectional",
+    "hillshade-illumination-direction": [315, 280, 350, 0],
+    "hillshade-illumination-altitude": [35, 40, 40, 55],
+    "hillshade-highlight-color": ["rgba(244,236,232,0.45)", "rgba(244,236,232,0.15)", "rgba(244,236,232,0.12)", "rgba(244,236,232,0.06)"],
+    "hillshade-shadow-color": ["rgba(52,30,28,0.62)", "rgba(52,30,28,0.3)", "rgba(52,30,28,0.25)", "rgba(52,30,28,0.15)"],
+    "hillshade-accent-color": "rgba(52,30,28,0.25)",
+    "hillshade-exaggeration": 1,
+    "hillshade-illumination-anchor": "map",
+  },
+  coast: "#4A5F82",                         // the open sea close in
+  forest: "#2F4A4E", ice: "#E2DAD6", wet: "#55688A",
+  lake: "#3A4E72", lakeEdge: "#2A3A5A",
+  river: "#3B5580",
+  town: "#A2948F", townWork: "#958884",
+  road: ["#8A746E", "#73605B", "#5E4B47"],  // minor, middle, major
+  rail: "#4A3E3C", building: "#9C8E89",
+  border: "rgba(48,34,32,0.5)",
+  names: { sat: -1, min: 0, max: 0.82 },    // grey ink, a little softer than black
+};
+var INDIG_IDS = ["outline-indig-sheet", "outline-indig-ground", "outline-indig-forest", "outline-indig-ice",
+  "outline-indig-wet", "outline-indig-shade", "outline-indig-coast", "outline-indig-lake", "outline-indig-town",
+  "outline-indig-river", "outline-indig-rail", "outline-indig-road-minor", "outline-indig-road",
+  "outline-indig-road-major", "outline-indig-buildings", "outline-indig-border"];
+function indigLayers() {
+  const road = (w) => ["interpolate", ["exponential", 1.4], ["zoom"], 4, w * .25, 10, w, 16, w * 6];
+  const kind = (list) => ["match", ["get", "class"], list, true, false];
+  const fade = (z0, z1, a) => ["interpolate", ["linear"], ["zoom"], z0, 0, z1, a];
+  return [
+    { id: "outline-indig-sheet", type: "fill", source: "outline-indig-sheet",
+      paint: { "fill-color": INDIG.sheet, "fill-antialias": false } },
+    { id: "outline-indig-ground", type: "color-relief", source: "sea-dem",
+      paint: { "color-relief-color": INDIG.ground, "color-relief-opacity": 1 } },
+    { id: "outline-indig-forest", type: "fill", source: "osm", "source-layer": "landcover", minzoom: 4,
+      filter: ["==", ["get", "class"], "wood"],
+      paint: { "fill-color": INDIG.forest, "fill-opacity": fade(4, 7, .38), "fill-antialias": false } },
+    { id: "outline-indig-ice", type: "fill", source: "osm", "source-layer": "landcover",
+      filter: ["==", ["get", "class"], "ice"],
+      paint: { "fill-color": INDIG.ice, "fill-opacity": .85 } },
+    { id: "outline-indig-wet", type: "fill", source: "osm", "source-layer": "landcover", minzoom: 6,
+      filter: ["==", ["get", "class"], "wetland"],
+      paint: { "fill-color": INDIG.wet, "fill-opacity": fade(6, 8, .3) } },
+    { id: "outline-indig-shade", type: "hillshade", source: "outline-dem", paint: INDIG.shade },
+    { id: "outline-indig-coast", type: "fill", source: "osm", "source-layer": "water", minzoom: 7,
+      filter: ["==", ["get", "class"], "ocean"],
+      paint: { "fill-color": INDIG.coast, "fill-opacity": fade(7, 9, 1) } },
+    { id: "outline-indig-lake", type: "fill", source: "osm", "source-layer": "water",
+      filter: ["!=", ["get", "class"], "ocean"],
+      paint: { "fill-color": INDIG.lake, "fill-outline-color": INDIG.lakeEdge } },
+    { id: "outline-indig-town", type: "fill", source: "osm", "source-layer": "landuse", minzoom: 6,
+      filter: kind(["residential", "commercial", "industrial", "retail", "suburb", "neighbourhood"]),
+      paint: { "fill-color": ["match", ["get", "class"], "industrial", INDIG.townWork, INDIG.town], "fill-opacity": fade(6, 8, .75) } },
+    { id: "outline-indig-river", type: "line", source: "osm", "source-layer": "waterway", minzoom: 3,
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": INDIG.river,
+               "line-width": ["interpolate", ["exponential", 1.4], ["zoom"],
+                 4, ["match", ["get", "class"], "river", .35, .12], 10, ["match", ["get", "class"], "river", 1.2, .5],
+                 16, ["match", ["get", "class"], "river", 6, 2.7]],
+               "line-opacity": ["interpolate", ["linear"], ["zoom"],
+                 8, ["match", ["get", "class"], "river", .9, 0], 11, ["match", ["get", "class"], "river", .9, .7]] } },
+    { id: "outline-indig-rail", type: "line", source: "osm", "source-layer": "transportation", minzoom: 9,
+      filter: kind(["rail", "transit"]),
+      paint: { "line-color": INDIG.rail, "line-width": 1, "line-dasharray": [3, 2] } },
+    { id: "outline-indig-road-minor", type: "line", source: "osm", "source-layer": "transportation", minzoom: 11,
+      filter: kind(["minor", "service", "track", "street", "street_limited"]),
+      paint: { "line-color": INDIG.road[0], "line-width": road(.45) } },
+    { id: "outline-indig-road", type: "line", source: "osm", "source-layer": "transportation", minzoom: 7,
+      filter: kind(["secondary", "tertiary"]),
+      paint: { "line-color": INDIG.road[1], "line-width": road(.6) } },
+    { id: "outline-indig-road-major", type: "line", source: "osm", "source-layer": "transportation", minzoom: 4,
+      filter: kind(["motorway", "trunk", "primary"]),
+      paint: { "line-color": INDIG.road[2], "line-width": road(.8), "line-opacity": fade(4, 6, .9) } },
+    { id: "outline-indig-buildings", type: "fill-extrusion", source: "osm", "source-layer": "building", minzoom: 13,
+      paint: { "fill-extrusion-color": INDIG.building,
+               "fill-extrusion-height": ["coalesce", ["get", "render_height"], 6],
+               "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
+               "fill-extrusion-opacity": ["interpolate", ["linear"], ["zoom"], 13, 0, 14, .9] } },
+    { id: "outline-indig-border", type: "line", source: "boundaries",
+      paint: { "line-color": INDIG.border, "line-dasharray": [4, 2],
+               "line-width": ["interpolate", ["linear"], ["zoom"], 2, .5, 5, .9] } },
+  ];
+}
+function addIndigLayers() {
+  if (map.getLayer("outline-indig-ground")) return;
+  try {
+    ensureBoundaries();
+    const share = (id, spec) => { if (!map.getSource(id)) map.addSource(id, Object.assign({}, spec)); };
+    share("osm", OSM_SOURCE);
+    share("outline-dem", RELIEF_SOURCE);
+    share("sea-dem", TERRAIN_SOURCE);
+    if (!map.getSource("outline-indig-sheet")) {
+      map.addSource("outline-indig-sheet", { type: "geojson", data: { type: "Feature", properties: {},
+        geometry: { type: "Polygon", coordinates: [[[-180, -85.06], [180, -85.06], [180, 85.06], [-180, 85.06], [-180, -85.06]]] } } });
+    }
+    const st = typeof map.getStyle === "function" ? map.getStyle() : null;
+    const all = (st && st.layers) || [];
+    const at = all.findIndex((l) => l.id === "plate-base");
+    const before = at >= 0 && all[at + 1] ? all[at + 1].id : undefined;
+    for (const l of indigLayers()) map.addLayer(Object.assign({ layout: {} }, l, { layout: Object.assign({ visibility: "none" }, l.layout || {}) }), before);
+  } catch (e) { console.warn("[culprits] indigenous basemap unavailable:", e.message || e); }
+}
+let indigNamesTurned = false;
+function indigShow(on) {
+  const vis = on && !hellHoloHides() ? "visible" : "none";
+  for (const id of INDIG_IDS) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
+  if (!map.getLayer("labels")) return;
+  if (on) {
+    map.setPaintProperty("labels", "raster-saturation", INDIG.names.sat);
+    map.setPaintProperty("labels", "raster-brightness-min", INDIG.names.min);
+    map.setPaintProperty("labels", "raster-brightness-max", INDIG.names.max);
+    map.setPaintProperty("labels", "raster-opacity", .9);
+    indigNamesTurned = true;
+  } else if (indigNamesTurned) {
+    map.setPaintProperty("labels", "raster-brightness-min", 0);
+    map.setPaintProperty("labels", "raster-brightness-max", 1);
+    indigNamesTurned = false;
+  }
+}
+BASE_GRADE.indigenous = {};
+const basemapPanelHtmlBeforeIndig = basemapPanelHtml;
+basemapPanelHtml = function (opts) {
+  const list = (opts || []).some((o) => o[0] === "indigenous") ? opts : (opts || []).concat([["indigenous", "Indigenous"]]);
+  return basemapPanelHtmlBeforeIndig(list);
+};
+const setBasemapBeforeIndig = setBasemap;
+setBasemap = function (kind) {
+  // Light painted ground, like the atlas: the same layer colours suit it.
+  if (typeof THEME_BY_BASEMAP === "object" && THEME_BY_BASEMAP && !THEME_BY_BASEMAP.indigenous) THEME_BY_BASEMAP.indigenous = "bright";
+  if (kind === "indigenous") addIndigLayers();
+  setBasemapBeforeIndig(kind);
+  indigShow(kind === "indigenous");
+};
+if (typeof MutationObserver === "function" && typeof document !== "undefined" && document.body) {
+  new MutationObserver(() => { if (BASEMAP === "indigenous") indigShow(true); })
+    .observe(document.body, { attributes: true, attributeFilter: ["class"] });
+}
+/* ---------- end of Indigenous ---------- */
 
 // Place names on and off, all at once (asked for 23 September): every symbol
 // layer's words, the basemap's and the layers' own. The words are taken out

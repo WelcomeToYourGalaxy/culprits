@@ -6185,6 +6185,48 @@ console.log("\nround 146h (3 October): CARTO's place names asked with the map's 
         ![src, holo, top].some((t) => /@2x\.png"\]/.test(t.slice(t.indexOf("cartocdn")))));
 }
 
+console.log("\nround 147i (3 October): Indigenous, a fifth basemap");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const block = src.slice(src.indexOf("/* ---------- Indigenous, a fifth basemap"), src.indexOf("/* ---------- end of Indigenous ---------- */"));
+  const { map, els } = run();
+  const warned = []; const cw = console.warn; console.warn = (...a) => warned.push(a.join(" "));
+  let err = null;
+  try {
+    map.fire("load"); await new Promise((r) => setTimeout(r, 5));
+    els.get("basemaps").fire("change", { target: { name: "basemap", value: "indigenous" } });
+  } catch (e) { err = e; }
+  console.warn = cw;
+  check("choosing Indigenous throws nothing and warns nothing", err === null && !warned.some((w) => /indigenous|hell/.test(w)), (err && err.message) || warned.join("; "));
+  const html = els.get("basemaps")?.innerHTML || "";
+  check("Indigenous is a fifth choice, Hell and the others still there", html.includes('value="indigenous"') && html.includes('value="hell"') && html.includes('value="outlines"'));
+  const ind = map.layers.filter((l) => /^outline-indig-/.test(l.id));
+  check("its layers are added and shown", ind.length === 16 && ind.every((l) => l.layout?.visibility === "visible"), ind.map((l) => l.id).join(", "));
+  check("the painted plate is hidden under it", map.getLayer("plate-base").layout?.visibility === "none");
+  els.get("basemaps").fire("change", { target: { name: "basemap", value: "hell" } });
+  const hell = map.layers.filter((l) => /^outline-hell-/.test(l.id));
+  check("to Hell: Indigenous hidden, Hell shown", ind.every((l) => l.layout?.visibility === "none") && hell.every((l) => l.layout?.visibility === "visible"));
+  els.get("basemaps").fire("change", { target: { name: "basemap", value: "atlas" } });
+  const lab = map.getLayer("labels");
+  check("back to the atlas: both hidden, plate and names as they were",
+        ind.every((l) => l.layout?.visibility === "none") && hell.every((l) => l.layout?.visibility === "none") &&
+        map.getLayer("plate-base").layout?.visibility === "visible" &&
+        (!lab || (lab.paint["raster-brightness-min"] === 0 && lab.paint["raster-brightness-max"] === 1)));
+  // Earth pigments only: red ochres and clays (hue 340 to 25), indigo and
+  // slate-teal (170 to 235), greys. No orange, yellow or green.
+  const hues = [];
+  for (const m of block.matchAll(/#([0-9A-Fa-f]{6})\b|rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/g)) {
+    const [r, g, b] = m[1] ? [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16)) : [m[2], m[3], m[4]].map(Number);
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, s = mx ? d / mx : 0;
+    let h = 0;
+    if (d) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    hues.push({ c: m[0], h: (h * 60 + 360) % 360, s, v: mx / 255, k: d / 255 });
+  }
+  const bad = hues.filter((x) => x.s > 0.1 && !(x.h >= 340 || x.h <= 25) && !(x.h >= 170 && x.h <= 235));
+  check("its colours are ochres, clays, indigo and slate (no orange, yellow or green)", hues.length > 30 && bad.length === 0, bad.map((x) => x.c).join(" "));
+  check("nothing loud: muted colours only (the gap between strongest and weakest of red, green, blue under 35%)", hues.every((x) => x.k <= 0.35), hues.filter((x) => x.k > 0.35).map((x) => x.c).join(" "));
+}
+
 console.log("\nround 143b (2 October): layers grouped, so alike layers do not cross each other");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
