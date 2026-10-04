@@ -5,6 +5,22 @@ touches.
 
 ---
 
+## Round 170b (4 October)
+
+Needs round 169n (guards on its heading). No tiles patch. No app.js?v= bump.
+
+- Asked 4 October: the basemap menu named and ordered Jurassic, Atlas,
+  Woodlands, Bioluminescent, Earth at Night, Hologram, Hell, Standard.
+  Jurassic = Satellite imagery (key satellite), Bioluminescent = Deep space
+  (space), Standard = Country outlines (outlines), Earth at Night (night),
+  Hologram view now "Hologram". One block after Earth at night ("The basemap
+  menu: names and order", BASEMAP_MENU) passes the whole list to the wrappers
+  so their order holds; the hologram switch in index.html is put before Hell.
+- Old fantasy painting (dusk) is out of the menu; its code is left unused.
+  Mother Earth was already removed in 168p.
+- Every basemap (i) note uses the Woodlands box (bmNoteCss); the card frame is
+  gone. Woodlands' note: "the Native peoples who live in them".
+
 ## Round 169n (4 October)
 
 Needs round 168p (guards on its heading). No tiles patch. app.js?v=1009.

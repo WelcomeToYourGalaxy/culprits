@@ -1123,7 +1123,7 @@
       // A round choice like the three basemaps above it (round 71): picking it
       // clears the basemap it came from, unless Basemap underneath is ticked.
       `<label class="layer" title="A wireframe screen: country outlines, no imagery. Your layers stay on.">` +
-      `<input type="radio" id="holo-toggle"${on ? " checked" : ""}><span class="nm">Hologram view</span></label>` +
+      `<input type="radio" id="holo-toggle"${on ? " checked" : ""}><span class="nm">Hologram</span></label>` +
       tick("holo-under", "under", "Basemap underneath", "The basemap ticked above, under the hologram, dimmed by a navy wash") +
       `<button type="button" class="holo-fold" id="holo-fold" title="Roll the hologram's options up or down"` +
       ` aria-expanded="${opt.fold ? "false" : "true"}"${on ? "" : " hidden"}>${opt.fold ? "&#9656;" : "&#9662;"}</button></div>` +
@@ -1138,7 +1138,10 @@
       tick("holo-shade", "shade", "Blue shading", "The navy fill over the planet and the screen; off, both are left dark and colourless") +
       `</div>` +
       `<label class="holo-tint"${on && opt.under && !opt.fold ? "" : " hidden"}>wash <input type="range" id="holo-tint" min="0" max="90" step="5" value="${opt.tint}"><span id="holo-tint-n">${opt.tint}%</span></label>`;
-    body.appendChild(d);
+    // Round 170b: listed after Earth at Night, before Hell.
+    const hellIn = body.querySelector('input[name="basemap"][value="hell"]');
+    const hellAt = hellIn && hellIn.closest ? hellIn.closest("label") : null;
+    if (hellAt && hellAt.parentNode === body) body.insertBefore(d, hellAt); else body.appendChild(d);
     const sync = () => {
       d.querySelector(".holo-sub").hidden = !on || opt.fold;
       d.querySelector(".holo-tint").hidden = !(on && opt.under && !opt.fold);

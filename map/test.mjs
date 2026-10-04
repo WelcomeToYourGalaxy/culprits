@@ -6195,10 +6195,9 @@ console.log("\nround 163h (4 October): Hell's names in its own theme; notes besi
   const { map, els } = run();
   map.fire("load"); await new Promise((r) => setTimeout(r, 5));
   const html = els.get("basemaps")?.innerHTML || "";
-  check("an (i) beside Woodlands and beside Old fantasy painting (Mother Earth removed in round 168p)",
+  check("an (i) beside Woodlands (Mother Earth removed in round 168p, Old fantasy painting out of the menu in 170b)",
         /<span class="nm">Woodlands<\/span><button type="button" class="bn-btn" data-bm-note="wood"/.test(html) &&
-        /<span class="nm">Old fantasy painting<\/span><button type="button" class="bn-btn" data-bm-note="dusk"/.test(html) &&
-        !/data-bm-info="mother"/.test(html) && (html.match(/data-bm-note=/g) || []).length === 2);
+        !/data-bm-info="mother"/.test(html) && (html.match(/data-bm-note=/g) || []).length === 1);
   const b = src.slice(src.indexOf("var BM_NOTES = {"), src.indexOf("function bmNoteCss()"));
   check("the notes name their spirit and say nothing is copied", /Magic: The Gathering/.test(b) && /Robert Griffing/.test(b) && (b.match(/nothing is copied/g) || []).length === 2);
   const h = src.slice(src.indexOf("var HELL_NAME = {"), src.indexOf("var HELL_NAME_IDS"));
@@ -6756,7 +6755,7 @@ console.log("\nround 167p (4 October): one-line basemap notes; atlas, satellite 
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const block = src.slice(src.indexOf("/* ---------- Names and notes in each basemap's own theme (round 167p)"), src.indexOf("/* ---------- end of names and notes in each basemap's own theme ---------- */"));
   check("the notes are just the owner's sentences",
-        block.includes("In the spirit of Robert Griffing, who paints the forests of eastern North America in the 1700s and the Native peoples who lived in them.</p>';") &&
+        block.includes("In the spirit of Robert Griffing, who paints the forests of eastern North America in the 1700s and the Native peoples who live in them.</p>';") &&
         block.includes("'<p class=\"bn-flavour\">In the spirit of the card art and flavour text of Magic: The Gathering.</p>';"));
   const fonts = ["IMFellEnglish-Regular", "IMFellEnglish-Italic", "IMFellEnglishSC-Regular", "BarlowSemiCondensed-Regular", "BarlowSemiCondensed-Medium",
                  "BarlowSemiCondensed-Italic", "IBMPlexMono-Regular", "IBMPlexMono-Medium", "IBMPlexMono-Italic"];
@@ -6817,6 +6816,23 @@ console.log("\nround 168n (4 October): Earth at night, a second space basemap fr
   check("choosing another basemap hides them", map.getLayer("outline-night-lights").layout?.visibility === "none" && map.getLayer("outline-space-ground")?.layout?.visibility === "visible");
   els.get("basemaps").fire("change", { target: { name: "basemap", value: "atlas" } });
   check("round 169n: the page asks for a fresh copy of the script", appVersion(fs.readFileSync(path.join(HERE, "index.html"), "utf8")) >= 1009);
+}
+
+console.log("\nround 170b (4 October): basemaps renamed and reordered; one note style; Woodlands note in the present tense");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const page = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const { map, els } = run();
+  map.fire("load"); await new Promise((r) => setTimeout(r, 5));
+  const html = els.get("basemaps")?.innerHTML || "";
+  const names = [...html.matchAll(/name="basemap" value="([a-z]+)"[^>]*><span class="nm">([^<]+)<\/span>/g)].map((m) => m[1] + ":" + m[2]);
+  check("the menu reads Jurassic, Atlas, Woodlands, Bioluminescent, Earth at Night, Hell, Standard",
+        names.join(",") === "satellite:Jurassic,atlas:Atlas,wood:Woodlands,space:Bioluminescent,night:Earth at Night,hell:Hell,outlines:Standard", names.join(","));
+  check("no Old fantasy painting or Mother Earth in the menu", !/value="dusk"/.test(html) && !/Mother Earth/.test(html));
+  check("Hologram named so and put before Hell", /<span class="nm">Hologram<\/span><\/label>/.test(page) && /body\.insertBefore\(d, hellAt\)/.test(page));
+  check("Woodlands says the Native peoples who live in them", !/peoples who lived in them/.test(src) && /peoples who live in them\./.test(src));
+  const css = src.slice(src.indexOf("function bmNoteCss()"), src.indexOf("function bmNoteToggle"));
+  check("every note box takes the Woodlands look", /'#bm-note\{background:linear-gradient\(165deg/.test(css) && !/bn-dusk/.test(css));
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");

@@ -15101,7 +15101,7 @@ var BM_NOTES = {
     html:
       '<b class="bn-h">Woodlands</b>' +
       '<p>The ground is the real Earth from satellite pictures, painted like a woodland canvas: deep forest shadow, sunlit leaves, brown earth, dark water, and mist lying low over the land. Every ridge, river and lake is where it actually is.</p>' +
-      '<p>In the spirit of Robert Griffing, who paints the forests of eastern North America in the 1700s and the Native peoples who lived in them:</p>' +
+      '<p>In the spirit of Robert Griffing, who paints the forests of eastern North America in the 1700s and the Native peoples who live in them:</p>' +
       '<p class="bn-flavour">Mist lifts off a river at first light. A canoe keeps close to the bank, under trees that were already old when the first colonists landed. These forests were never an empty wilderness. They were the homelands of the Haudenosaunee, the Lenape, the Shawnee and many other nations, who travelled them by river and trail and used fire to keep the woods open for hunting and travel. By the end of the 1800s almost all of the old forest had been cut.</p>' +
       '<p>The layers you turn on over this map show where forests are still being cleared, and whose land they stand on.</p>' +
       '<p class="bn-src">Colours and light chosen after Robert Griffing\'s woodland paintings; nothing is copied from any painting. Satellite picture: Sentinel-2 cloudless by EOX.</p>',
@@ -15118,15 +15118,11 @@ function bmNoteCss() {
     '#bm-note{position:fixed;z-index:60;max-width:310px;padding:12px 14px;border-radius:8px;font:14.5px/1.42 Georgia,"Times New Roman",serif;box-shadow:0 6px 24px rgba(6,8,12,.55)}' +
     '#bm-note p{margin:7px 0 0}#bm-note .bn-x{position:absolute;top:6px;right:8px;border:0;background:none;font-size:16px;cursor:pointer;color:inherit;opacity:.75}' +
     '#bm-note .bn-src{font-style:italic;font-size:12px;opacity:.8}' +
-    // Woodlands: dark forest and bark, ivory text
-    '#bm-note.bn-wood{background:linear-gradient(165deg,rgba(30,38,28,.97),rgba(22,24,18,.98));border:1px solid rgba(170,160,128,.4);color:#ECE5D2}' +
-    '#bm-note.bn-wood .bn-h{font-size:17px;letter-spacing:.05em;color:#F2ECDC}' +
-    '#bm-note.bn-wood .bn-flavour{font-style:italic;color:#D9D4BE}' +
-    // Old fantasy painting: a card frame of slate, bone text, a thin rule over the flavour text
-    '#bm-note.bn-dusk{background:#23272D;border:6px solid #3A4048;outline:1px solid #15181C;border-radius:12px;color:#E6DECB;padding:10px 12px 12px}' +
-    '#bm-note.bn-dusk .bn-card-name{font-size:16px;font-weight:600;letter-spacing:.03em;padding:4px 8px;margin-right:18px;border:1px solid #59606A;border-radius:6px;background:linear-gradient(#4A515A,#383E46)}' +
-    '#bm-note.bn-dusk .bn-card-type{font-size:13px;padding:3px 8px;margin-top:8px;border:1px solid #59606A;border-radius:6px;background:linear-gradient(#444B53,#353A41)}' +
-    '#bm-note.bn-dusk .bn-flavour{font-style:italic;border-top:1px solid #59606A;padding-top:8px;margin-top:9px;color:#D6CDB8}';
+    // Round 170b: every basemap's note in the Woodlands box (dark forest and
+    // bark, ivory text); Old fantasy painting's card frame is gone.
+    '#bm-note{background:linear-gradient(165deg,rgba(30,38,28,.97),rgba(22,24,18,.98));border:1px solid rgba(170,160,128,.4);color:#ECE5D2}' +
+    '#bm-note .bn-h{font-size:17px;letter-spacing:.05em;color:#F2ECDC}' +
+    '#bm-note .bn-flavour{font-style:italic;color:#D9D4BE}';
   (document.head || document.body).appendChild(s);
 }
 function bmNoteToggle(btn) {
@@ -15673,6 +15669,25 @@ if (typeof MutationObserver === "function" && typeof document !== "undefined" &&
 }
 /* ---------- end of Earth at night ---------- */
 
+/* ---------- The basemap menu: names and order (round 170b) ---------- */
+// Asked 4 October: the basemaps named and listed as Jurassic, Atlas,
+// Woodlands, Bioluminescent, Earth at Night, Hologram, Hell, Standard.
+// Jurassic is the Satellite imagery (graded after the owner's paleo-map
+// plates), Bioluminescent is Deep space, Standard is Country outlines.
+// Old fantasy painting leaves the menu (its code stays, unused). The
+// Hologram line is put before Hell by the switch in index.html. Each wrapper
+// above adds its basemap only when the list lacks it, so the full list
+// passed here keeps this order; Old fantasy painting's line, added by its
+// own wrapper, is taken out of the finished menu.
+var BASEMAP_MENU = [["satellite", "Jurassic"], ["atlas", "Atlas"], ["wood", "Woodlands"], ["space", "Bioluminescent"],
+  ["night", "Earth at Night"], ["hell", "Hell"], ["outlines", "Standard"]];
+const basemapPanelHtmlBeforeMenu = basemapPanelHtml;
+basemapPanelHtml = function () {
+  return basemapPanelHtmlBeforeMenu(BASEMAP_MENU.slice())
+    .replace(/<label class="layer"><input type="radio" name="basemap" value="dusk"[^]*?<\/label>/, "");
+};
+/* ---------- end of the basemap menu ---------- */
+
 
 
 // Place names on and off, all at once (asked for 23 September): every symbol
@@ -15898,7 +15913,7 @@ if (typeof MutationObserver === "function" && typeof document !== "undefined" &&
 (function themedNotes() {
   try {
     if (typeof BM_NOTES === "object" && BM_NOTES) {
-      if (BM_NOTES.wood) BM_NOTES.wood.html = '<p class="bn-flavour">In the spirit of Robert Griffing, who paints the forests of eastern North America in the 1700s and the Native peoples who lived in them.</p>';
+      if (BM_NOTES.wood) BM_NOTES.wood.html = '<p class="bn-flavour">In the spirit of Robert Griffing, who paints the forests of eastern North America in the 1700s and the Native peoples who live in them.</p>';
       if (BM_NOTES.dusk) BM_NOTES.dusk.html = '<p class="bn-flavour">In the spirit of the card art and flavour text of Magic: The Gathering.</p>';
     }
   } catch (e) { /* the notes stay as they were */ }
@@ -15907,8 +15922,7 @@ if (typeof MutationObserver === "function" && typeof document !== "undefined" &&
 if (typeof document !== "undefined" && document.head && !document.getElementById("note-one-css")) {
   const s = document.createElement("style");
   s.id = "note-one-css";
-  s.textContent = '#bm-note > p:first-of-type{margin:0;padding-right:16px}' +
-    '#bm-note.bn-dusk p.bn-flavour{border-top:0;padding-top:2px;margin-top:0}';
+  s.textContent = '#bm-note > p:first-of-type{margin:0;padding-right:16px}';
   document.head.appendChild(s);
 }
 var THEMED_NAMES = {
