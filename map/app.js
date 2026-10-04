@@ -23864,6 +23864,28 @@ const OTHER_MAPS = {
       choices: ["2025", "2024"].map((y) => ({ label: y, tiles: "https://map.nusantara-atlas.org/geoserver/atlas-workspace-v3/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap" +
         `&LAYERS=Global_PlantationITP_${y}&STYLES=&SRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=true` })),
       note: "TheTreeMap's industrial timber plantations (acacia, eucalyptus and other plantation trees grown for pulp and timber), as the Nusantara Atlas publishes them for 2024 and 2025; a chip picks the year. Read live from the Atlas's own map server; the record does not list which countries it covers." },
+    // Round 172b (redoes the lost round 148b): the Global Soil Biodiversity
+    // Atlas's two world maps lead Soil biodiversity. Built once in the sandbox
+    // from the owner's two GeoTIFFs (0.1 degree); only coloured pictures are
+    // published (ESDAC allowed display with the citation; its terms forbid
+    // passing the data on), in five steps, each a fifth of the map's own
+    // places: the Atlas's own class breaks were not supplied.
+    { id: "esdac_soil_biodiversity", name: "How much life the soil can hold: potential soil biodiversity, in five steps (Global Soil Biodiversity Atlas, European Commission JRC)", unit: "about 10 km", colour: "#1E6FA8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "\"Global Soil Biodiversity Maps\" associated to the Global Soil Biodiversity Atlas, European Soil Data Centre, Joint Research Centre of the European Commission. June 2016. Orgiazzi A. et al. (eds.), 2016, Global Soil Biodiversity Atlas, European Commission, Publications Office of the European Union", rasterPaint: { "raster-opacity": 0.85, "raster-saturation": 0 },
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/esdac_soil_biodiversity.choices.json",
+      note: "The Global Soil Biodiversity Atlas's map of potential soil biodiversity (pages 90 to 91 of the Atlas): an index of how many kinds of soil life a place could hold, from its climate and soil. Drawn in five steps, each a fifth of the places on the map, from fewest (lightest) to most (darkest). The Atlas's own steps were not supplied, so these are not its colours. Shown as a picture only, with the citation ESDAC asked for." },
+    { id: "esdac_soil_threats", name: "Threats to the life in the soil: potential threats to soil organisms, in five steps (Global Soil Biodiversity Atlas, European Commission JRC)", unit: "about 10 km", colour: "#0E2F66", keepColour: true, route: "rasterlive", ready: true, lazy: true,
+      attribution: "\"Global Soil Biodiversity Maps\" associated to the Global Soil Biodiversity Atlas, European Soil Data Centre, Joint Research Centre of the European Commission. June 2016. Orgiazzi A. et al. (eds.), 2016, Global Soil Biodiversity Atlas, European Commission, Publications Office of the European Union", rasterPaint: { "raster-opacity": 0.85, "raster-saturation": 0 },
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/esdac_soil_threats.choices.json",
+      note: "The Global Soil Biodiversity Atlas's map of potential threats to soil organisms (pages 134 to 135 of the Atlas): an index combining pressures such as farming, pollution, land change, invasive species and climate change. Drawn in five steps, each a fifth of the places on the map, from least threatened (lightest) to most (darkest). The Atlas's own steps were not supplied, so these are not its colours. Shown as a picture only, with the citation ESDAC asked for." },
+    // Round 172b (redoes the lost round 148b): the World Benchmarking
+    // Alliance's Nature Benchmark, every column, at each company's
+    // headquarters country (culprits-tiles-more scripts/wba_nature.py, needs
+    // the WBA_API_KEY secret).
+    { id: "wba_nature_companies", name: "Companies scored on how they harm and depend on nature, every column (Nature Benchmark, World Benchmarking Alliance)", unit: "companies", colour: "#3E6E9E", route: "geojsonlive", ready: true, lazy: true, buildScript: "wba_nature",
+      files: [{ label: "Companies", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/wba/nature_companies.geojson" }],
+      attribution: 'World Benchmarking Alliance, Nature Benchmark, <a href="https://data.worldbenchmarkingalliance.org" target="_blank" rel="noopener">data.worldbenchmarkingalliance.org</a> (CC BY 4.0)',
+      note: "The World Benchmarking Alliance's Nature Benchmark: the companies it assessed on their effects on nature and their reliance on it, with every column of their benchmark rows (each year's columns start with the year). WBA gives each company's headquarters country, not its address, so each is placed at that country's capital and spread out so each can be clicked; where in the spread means nothing. Read through WBA's Data API (CC BY 4.0)." },
     { id: "soil_spun", name: "Fungi that feed plant roots underground: the hotspots of how many kinds live there and of kinds found almost nowhere else, 1 km (SPUN Underground Atlas)", unit: "modelled from 2.8 billion fungal DNA sequences", colour: "#6B5A4A", route: "rasterlive", ready: true, lazy: true,
       attribution: "SPUN Underground Atlas: Van Nuland, Kiers et al. 2025, Nature (CC BY 4.0)", maxzoom: 12,
       choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/soil/spun_choices.json", choices: [],
@@ -24902,6 +24924,7 @@ const LAYER_KIND = {
   site_forest500_soy: ["plant", "upstream"],
   forest500_companies: ["plant", "upstream"],
   forest500_institutions: ["plant", "upstream"],
+  esdac_soil_biodiversity: ["plant", "downstream"], esdac_soil_threats: ["plant", "downstream"], wba_nature_companies: ["plant", "upstream"],
   forest500_producer_countries: ["plant", "upstream"],
   forest500_trading_countries: ["plant", "upstream"],
   soy_traders_money: ["plant", "upstream"],
@@ -25837,6 +25860,9 @@ const LAYER_SITE = {
   site_forest500_soy: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/destruction_embed_9_leaflet-map.html",
   forest500_companies: "https://forest500.org/forest-500-data-methods/",
   forest500_institutions: "https://forest500.org/forest-500-data-methods/",
+  esdac_soil_biodiversity: "https://esdac.jrc.ec.europa.eu/content/global-soil-biodiversity-maps-0",
+  esdac_soil_threats: "https://esdac.jrc.ec.europa.eu/content/global-soil-biodiversity-maps-0",
+  wba_nature_companies: "https://www.worldbenchmarkingalliance.org/benchmarks/2026-benchmark-hub",
   forest500_producer_countries: "https://forest500.org/forest-500-data-methods/",
   forest500_trading_countries: "https://forest500.org/forest-500-data-methods/",
   soy_traders_money: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/soybean_companies.html",
@@ -26053,6 +26079,9 @@ const NOT_LIVE = {
   own_mangroves: "Made from Global Mangrove Watch's 2020 files by culprits-tiles-more",
   own_critical_habitat: "Made from UNEP-WCMC's critical habitat file by culprits-tiles-more",
   own_bii: "Made from the Natural History Museum's index file by culprits-tiles-more",
+  esdac_soil_biodiversity: "Made once from ESDAC's files; a published map from 2016",
+  esdac_soil_threats: "Made once from ESDAC's files; a published map from 2016",
+  wba_nature_companies: "Read from WBA's Data API by culprits-tiles-more",
   gem_coal_mines: "Made from Global Energy Monitor's download by culprits-tiles-more",
   gem_coal_boundaries: "Made from Global Energy Monitor's download by culprits-tiles-more",
   ecoregions_2017: "Made from RESOLVE's Ecoregions 2017 file by culprits-tiles-more",
@@ -26482,12 +26511,12 @@ const PANEL_ORDER = [
   { h: 4, t: "Birds" },
   { h: 4, t: "Fish" }, "fish_stocks", "lpi_populations", "fish_rivers", "fish_basins", "ocean_dead_zones",
   // Asked for 25 September: most biodiversity layers leave out the soil.
-  { h: 4, t: "Soil biodiversity" }, "soil_spun", "soil_nematodes", "soilgrids",
+  { h: 4, t: "Soil biodiversity" }, "esdac_soil_biodiversity", "esdac_soil_threats", "soil_spun", "soil_nematodes", "soilgrids",
   // Round 100b (asked 28 September): no page that only links out; the
   // Global Organized Crime Index's scores for crimes against wild plants,
   // timber and wild animals, country by country.
   { h: 4, t: "Wildlife and timber crime" }, "goc_flora", "goc_fauna",
-  { h: 4, t: "Companies and financiers" }, "pe_banks",
+  { h: 4, t: "Companies and financiers" }, "wba_nature_companies", "pe_banks",
   // Round 100b (asked 28 September): public money behind the harm, the map's
   // own rows in place of the Subsidising Extinction page.
   // Item 30: the most detailed worldwide land cover and land use found. Round

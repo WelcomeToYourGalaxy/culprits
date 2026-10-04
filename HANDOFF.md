@@ -5,6 +5,32 @@ touches.
 
 ---
 
+## Round 173b (4 October)
+
+Needs round 172b (guards on its heading). Tiles patch round173b_tiles.py
+beside it. No app.js?v= bump. Redoes the lost round 148b.
+
+- Soil biodiversity is led by the Global Soil Biodiversity Atlas's two maps:
+  esdac_soil_biodiversity (potential soil biodiversity, Atlas pp. 90-91) and
+  esdac_soil_threats (potential threats to soil organisms, pp. 134-135).
+  Built in the sandbox from the owner's GeoTIFFs (soil_bio_new.tif,
+  threat_soil_bio.tif; float, 0.1 degree) with scripts/lib/pyramid.py: five
+  steps, each a fifth of the map's own places, RAMP5, zoom 0-6, mean of the
+  steps under each pixel. Only coloured pictures and plain keys are published
+  (no values): ESDAC allowed display with its citation and forbids passing
+  the data on. The GeoTIFFs are in neither repo.
+- wba_nature_companies under Biodiversity loss > Companies and financiers:
+  the World Benchmarking Alliance's Nature Benchmark (CC BY 4.0), every
+  column, at the headquarters country's capital on a spiral. Tiles
+  scripts/wba_nature.py reads WBA's Data API (base URL and endpoints from
+  WBA's API specification page: /datasets/benchmarks, /datasets/companies,
+  their /cols; per_page 1000; one request a second; Bearer key). Columns are
+  found by name and recorded in wba/build.json and wba/columns.json; rows
+  whose benchmark name holds "Nature" are kept; countries matched exactly
+  (pycountry lookup, no fuzzy match). Without the WBA_API_KEY secret it says
+  so in wba/build.json and exits 0. Tested only against a stand-in API.
+- 147b's colour box per layer is still to be redone.
+
 ## Round 172b (4 October)
 
 Needs round 171b (guards on its heading). Tiles patch round172b_tiles.py

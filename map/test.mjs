@@ -4133,7 +4133,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("the earthquakes are under Destruction > Of the planet > Natural disasters, and nowhere under Base and reference",
         /\{ h: 5, t: "Earthquakes" \}, "usgs_quakes", "haz_ncei_quakes", "skytruth_quakes",/.test(src) && !/"Physical and human geography"/.test(src));
   check("a Soil biodiversity heading under Biodiversity loss holds the Underground Atlas and SoilGrids",
-        /\{ h: 4, t: "Soil biodiversity" \}, "soil_spun", ("soil_nematodes", )?("soil_earthworms", )?"soilgrids",/.test(src) && /id: "soil_spun"[^\n]*route: "rasterlive"/.test(src) &&
+        /\{ h: 4, t: "Soil biodiversity" \}, ("esdac_soil_biodiversity", "esdac_soil_threats", )?"soil_spun", ("soil_nematodes", )?("soil_earthworms", )?"soilgrids",/.test(src) && /id: "soil_spun"[^\n]*route: "rasterlive"/.test(src) &&
         /soil\/spun_choices\.json/.test(src) && /if \(!cfg\.choices \|\| !cfg\.choices\.length\) \{ setLayerState/.test(src));
   check("each layer in the Showing box has its colour key indented under it",
         /`<span class="lg-un">\$\{c\.unit \|\| ""\}<\/span><\/div>` \+ legendKeyRows\(c\.id\)/.test(src) && /function legendKeyPairs\(id\)/.test(src) && /function watchKeysForLegend\(\)/.test(src));
@@ -4444,7 +4444,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /const slow = setTimeout\(free, QUEUE_SLOT_MS\);/.test(src) && /\.then\(\(\) => \{ clearTimeout\(slow\); free\(\); \}\);/.test(src));
   check("Bankrolling Extinction's 50 banks are a row at their headquarters, their measured amounts said to be measured",
         /id: "pe_banks"[^\n]*route: "geojsonlive"/.test(src) && /culprits-tiles-more\/pe\/banks\.geojson/.test(src) && /measured from the length of its bars/.test(src) &&
-        /"Companies and financiers" \}, "pe_banks",/.test(src));   // round 100b: Subsidising Extinction's page replaced; round 145b: Bankrolling's page out
+        /"Companies and financiers" \}, ("wba_nature_companies", )?"pe_banks",/.test(src));   // round 100b: Subsidising Extinction's page replaced; round 145b: Bankrolling's page out
   check("an opened hotspot shows its conflicts page over page 1 and a mark per city opening its inset",
         /if \(what\.plate\) atlasInsets\(what\.plate\);/.test(src) && /map\.addLayer\(\{ id: "atlas-plate-conflicts", type: "raster"/.test(src) &&
         /new maplibregl\.Marker\(\{ element: el \}\)/.test(src) && /for \(const m of atlasInsets\.markers \|\| \[\]\) m\.remove\(\);/.test(src));
@@ -6868,6 +6868,19 @@ console.log("\nround 172b (4 October): the integrated alerts out (the lost 146b)
   const nul = src.indexOf("[/\\bgfw_integrated_dist_alerts\\b/, null]");
   const filed = src.indexOf("[/\\bgfw_integrated_dist_alerts\\b/, [P");
   check("GFW's integrated alerts are taken out before any rule files them", nul > 0 && (filed < 0 || nul < filed));
+}
+
+console.log("\nround 173b (4 October): the ESDAC soil maps and WBA's Nature Benchmark (the lost 148b)");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the Atlas's two soil maps lead Soil biodiversity",
+        /\{ h: 4, t: "Soil biodiversity" \}, "esdac_soil_biodiversity", "esdac_soil_threats", "soil_spun",/.test(src));
+  check("both are pictures only, from the map's own copies, with ESDAC's citation",
+        ["esdac_soil_biodiversity", "esdac_soil_threats"].every((id) => new RegExp(`id: "${id}"[^\\n]*route: "rasterlive"`).test(src) &&
+          src.includes(`tiles/${id}.choices.json`)) && /Global Soil Biodiversity Maps\\" associated to the Global Soil Biodiversity Atlas, European Soil Data Centre/.test(src));
+  check("the Nature Benchmark row reads the tiles build, first under Companies and financiers",
+        /id: "wba_nature_companies"[^\n]*buildScript: "wba_nature"/.test(src) && /wba\/nature_companies\.geojson/.test(src) &&
+        /"Companies and financiers" \}, "wba_nature_companies", "pe_banks",/.test(src));
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
