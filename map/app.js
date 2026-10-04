@@ -13830,12 +13830,113 @@ function hellHoloHides() {
   if (typeof document === "undefined" || !document.body || !document.body.classList || !document.body.classList.contains("holo-on")) return false;
   try { return !JSON.parse(localStorage.getItem("culprits-holo-2") || "{}").under; } catch (e) { return true; }
 }
+// Round 163h (asked 4 October: the place names should be in the same
+// theme). CARTO's picture of names is hidden on Hell; names are drawn from
+// OpenFreeMap's own place, water, river and peak names in EB Garamond (SIL
+// Open Font License, the letter files round 162b put in map/glyphs/): plain
+// book capitals and italics, the way the names sit on the old relief maps of
+// the underworld the owner sent, with no gothic letters. Countries in spaced
+// capitals of dull blood red, cities and towns in ash, seas, lakes and rivers
+// in italic dark rose, all on a black halo. English names where
+// OpenStreetMap has them, else the name in Latin letters, else the local
+// name. If the map's letters were already set from somewhere else, the
+// picture of names stays, turned light on dark as before.
+var HELL_FONT = { regular: ["EBGaramond-Regular"], bold: ["EBGaramond-SemiBold"], italic: ["EBGaramond-Italic"] };
+var HELL_NAME = {
+  country: "#A9504C", state: "#8C4A47", city: "#CDBDB4", town: "#B4A39B", minor: "#9A8B85",
+  water: "#B0605F", peak: "#958680",
+  halo: "rgba(8,4,5,0.85)", haloWater: "rgba(24,6,9,0.8)",
+};
+var HELL_NAME_IDS = ["outline-hell-name-ocean", "outline-hell-name-water", "outline-hell-name-river", "outline-hell-name-road",
+  "outline-hell-name-peak", "outline-hell-name-village", "outline-hell-name-town", "outline-hell-name-state",
+  "outline-hell-name-city", "outline-hell-name-country"];
+var HELL_GLYPHS = false;
+function hellNameLayers() {
+  const nm = ["coalesce", ["get", "name_en"], ["get", "name:latin"], ["get", "name"]];
+  const cls = (list) => ["match", ["get", "class"], list, true, false];
+  const zs = (...a) => ["interpolate", ["linear"], ["zoom"], ...a];
+  const halo = (c, w) => ({ "text-halo-color": c, "text-halo-width": w, "text-halo-blur": 0.6 });
+  return [
+    { id: "outline-hell-name-ocean", type: "symbol", source: "osm", "source-layer": "water_name", filter: cls(["ocean", "sea"]),
+      layout: { "text-field": nm, "text-font": HELL_FONT.italic, "text-size": zs(1, 11, 6, 16), "text-letter-spacing": 0.22, "text-max-width": 6 },
+      paint: Object.assign({ "text-color": HELL_NAME.water }, halo(HELL_NAME.haloWater, 1)) },
+    { id: "outline-hell-name-water", type: "symbol", source: "osm", "source-layer": "water_name", minzoom: 5, filter: ["!", cls(["ocean", "sea"])],
+      layout: { "text-field": nm, "text-font": HELL_FONT.italic, "text-size": zs(5, 11, 14, 14), "text-letter-spacing": 0.08, "text-max-width": 7 },
+      paint: Object.assign({ "text-color": HELL_NAME.water }, halo(HELL_NAME.haloWater, 1)) },
+    { id: "outline-hell-name-river", type: "symbol", source: "osm", "source-layer": "waterway", minzoom: 9,
+      layout: { "text-field": nm, "text-font": HELL_FONT.italic, "text-size": zs(9, 11, 15, 14), "symbol-placement": "line", "text-letter-spacing": 0.1 },
+      paint: Object.assign({ "text-color": HELL_NAME.water }, halo(HELL_NAME.haloWater, 1)) },
+    { id: "outline-hell-name-road", type: "symbol", source: "osm", "source-layer": "transportation_name", minzoom: 13,
+      layout: { "text-field": nm, "text-font": HELL_FONT.regular, "text-size": zs(13, 11, 17, 14), "symbol-placement": "line" },
+      paint: Object.assign({ "text-color": HELL_NAME.minor }, halo(HELL_NAME.halo, 1.2)) },
+    { id: "outline-hell-name-peak", type: "symbol", source: "osm", "source-layer": "mountain_peak", minzoom: 9,
+      layout: { "text-field": nm, "text-font": HELL_FONT.italic, "text-size": 12, "text-max-width": 7 },
+      paint: Object.assign({ "text-color": HELL_NAME.peak }, halo(HELL_NAME.halo, 1.1)) },
+    { id: "outline-hell-name-village", type: "symbol", source: "osm", "source-layer": "place", minzoom: 11, filter: cls(["village", "hamlet", "suburb", "neighbourhood", "quarter"]),
+      layout: { "text-field": nm, "text-font": HELL_FONT.regular, "text-size": zs(11, 11, 16, 14), "text-max-width": 7 },
+      paint: Object.assign({ "text-color": HELL_NAME.minor }, halo(HELL_NAME.halo, 1.2)) },
+    { id: "outline-hell-name-town", type: "symbol", source: "osm", "source-layer": "place", minzoom: 7, filter: cls(["town"]),
+      layout: { "text-field": nm, "text-font": HELL_FONT.regular, "text-size": zs(7, 11, 14, 16), "text-max-width": 7 },
+      paint: Object.assign({ "text-color": HELL_NAME.town }, halo(HELL_NAME.halo, 1.2)) },
+    { id: "outline-hell-name-state", type: "symbol", source: "osm", "source-layer": "place", minzoom: 4, maxzoom: 9, filter: cls(["state", "province"]),
+      layout: { "text-field": nm, "text-font": HELL_FONT.italic, "text-size": zs(4, 10, 8, 13), "text-transform": "uppercase", "text-letter-spacing": 0.15, "text-max-width": 8 },
+      paint: Object.assign({ "text-color": HELL_NAME.state, "text-opacity": 0.9 }, halo(HELL_NAME.halo, 1)) },
+    { id: "outline-hell-name-city", type: "symbol", source: "osm", "source-layer": "place", minzoom: 3, filter: cls(["city"]),
+      layout: { "text-field": nm, "text-font": HELL_FONT.bold, "text-size": zs(3, 11, 8, 15, 14, 20), "text-max-width": 7 },
+      paint: Object.assign({ "text-color": HELL_NAME.city }, halo(HELL_NAME.halo, 1.3)) },
+    { id: "outline-hell-name-country", type: "symbol", source: "osm", "source-layer": "place", maxzoom: 8, filter: cls(["country"]),
+      layout: { "text-field": nm, "text-font": HELL_FONT.bold, "text-size": zs(1, 10, 3, 13, 6, 17), "text-transform": "uppercase",
+                "text-letter-spacing": 0.26, "text-max-width": 7 },
+      paint: Object.assign({ "text-color": HELL_NAME.country }, halo(HELL_NAME.halo, 1.3)) },
+  ];
+}
+function addHellNames() {
+  if (map.getLayer("outline-hell-name-country")) return;
+  try {
+    if (typeof map.setGlyphs === "function" && typeof document !== "undefined") {
+      const had = typeof map.getGlyphs === "function" ? map.getGlyphs() : null;
+      if (had) HELL_GLYPHS = /glyphs\/\{fontstack\}\/\{range\}\.pbf$/.test(had);
+      else { map.setGlyphs(new URL("glyphs/", document.baseURI).href + "{fontstack}/{range}.pbf"); HELL_GLYPHS = true; }
+    }
+    if (!HELL_GLYPHS) return;
+    for (const l of hellNameLayers()) map.addLayer(Object.assign({}, l, { layout: Object.assign({ visibility: "none" }, l.layout) }));
+    let off = false;
+    try { off = !NAMES_ON; } catch (e) { /* the setting is not read yet: names on */ }
+    if (off && typeof namesApply === "function") namesApply();
+  } catch (e) { HELL_GLYPHS = false; console.warn("[culprits] hell names unavailable:", e.message || e); }
+}
+// The names stay over the layers, with only the news marks above them.
+let hellNamesMoving = false;
+function hellNamesOnTop() {
+  if (BASEMAP !== "hell" || hellNamesMoving || typeof map.moveLayer !== "function" || typeof map.getStyle !== "function") return;
+  const all = ((map.getStyle() || {}).layers || []).map((l) => l.id);
+  const first = all.findIndex((id) => HELL_NAME_IDS.includes(id));
+  if (first < 0) return;
+  if (all.slice(first).every((id) => HELL_NAME_IDS.includes(id) || id.startsWith("wire-"))) return;
+  hellNamesMoving = true;
+  try {
+    const wire = all.find((id) => id.startsWith("wire-"));
+    for (const id of HELL_NAME_IDS) if (map.getLayer(id)) map.moveLayer(id, wire);
+  } catch (e) { /* the order stays as it was */ }
+  hellNamesMoving = false;
+}
+if (typeof map.on === "function") map.on("styledata", hellNamesOnTop);
+function hellOwnNames() { return HELL_GLYPHS && !!map.getLayer("outline-hell-name-country"); }
+const namesRasterBeforeHell = namesRaster;
+namesRaster = function () {
+  namesRasterBeforeHell();
+  if (BASEMAP === "hell" && hellOwnNames() && map.getLayer("labels") &&
+      !(typeof document !== "undefined" && document.body && document.body.classList && document.body.classList.contains("holo-on"))) {
+    map.setLayoutProperty("labels", "visibility", "none");
+  }
+};
 let hellNamesTurned = false;
 function hellShow(on) {
   const vis = on && !hellHoloHides() ? "visible" : "none";
-  for (const id of HELL_IDS) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
+  for (const id of HELL_IDS.concat(HELL_NAME_IDS)) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
+  if (on) hellNamesOnTop();
   if (!map.getLayer("labels")) return;
-  if (on) {
+  if (on && !hellOwnNames()) {
     map.setPaintProperty("labels", "raster-saturation", -1);
     map.setPaintProperty("labels", "raster-brightness-min", HELL.names.min);
     map.setPaintProperty("labels", "raster-brightness-max", HELL.names.max);
@@ -13846,6 +13947,7 @@ function hellShow(on) {
     map.setPaintProperty("labels", "raster-brightness-max", 1);
     hellNamesTurned = false;
   }
+  namesRaster();
 }
 BASE_GRADE.hell = {};          // nothing of the imagery shows under Hell
 const basemapPanelHtmlPlain = basemapPanelHtml;
@@ -13857,7 +13959,7 @@ const setBasemapPlain = setBasemap;
 setBasemap = function (kind) {
   // Dark ground: layer colours "suited to the basemap" are the brighter set.
   if (typeof THEME_BY_BASEMAP === "object" && THEME_BY_BASEMAP && !THEME_BY_BASEMAP.hell) THEME_BY_BASEMAP.hell = "bright";
-  if (kind === "hell") addHellLayers();
+  if (kind === "hell") { addHellLayers(); addHellNames(); }
   setBasemapPlain(kind);
   hellShow(kind === "hell");
 };
@@ -15357,6 +15459,116 @@ if (typeof MutationObserver === "function" && typeof document !== "undefined" &&
     .observe(document.body, { attributes: true, attributeFilter: ["class"] });
 }
 /* ---------- end of Mother Earth ---------- */
+
+/* ---------- Notes beside the painted basemaps (round 163h) ---------- */
+// Asked 4 October: Old fantasy painting "in the spirit of Magic: The
+// Gathering", Woodlands "in the spirit of Robert Griffing", as Mother Earth
+// has its note in the spirit of Lone Wolf Circles (round 162m). Each gets a
+// small (i) beside its name in the basemap menu that opens a note: what the
+// basemap shows, then a passage in that spirit. Old fantasy painting's note is
+// laid out like a card (name, type line, what it does, then flavour text in
+// italics); Woodlands' like the caption of a historical painting. Nothing is
+// copied from any card or painting. Kept in this one block: the menu is
+// reached by wrapping basemapPanelHtml, and the buttons use their own mark
+// (data-bm-note), so Mother Earth's (i) and note are left as they are.
+var BM_NOTES = {
+  dusk: {
+    name: "Old fantasy painting",
+    html:
+      '<div class="bn-card-name">Old Fantasy Painting</div>' +
+      '<div class="bn-card-type">Basemap &#8212; The Painted Earth</div>' +
+      '<p>Shows the real Earth from satellite pictures, painted over in moss, umber, slate and bone under a low evening sun. Mountains grow hazy with height; the far edge of the world fades into fog.</p>' +
+      '<p>Turn on any layer to see what is being done to the land beneath it.</p>' +
+      '<p class="bn-flavour">The painter worked from life. Every forest, river and range on this board was there when the satellite passed over. Not all of them will still be there when you look.</p>' +
+      '<p class="bn-src">In the spirit of the card art and flavour text of Magic: The Gathering (Wizards of the Coast) in the 1990s; nothing is copied from any card. Names in EB Garamond (SIL Open Font License).</p>',
+  },
+  wood: {
+    name: "Woodlands",
+    html:
+      '<b class="bn-h">Woodlands</b>' +
+      '<p>The ground is the real Earth from satellite pictures, painted like a woodland canvas: deep forest shadow, sunlit leaves, brown earth, dark water, and mist lying low over the land. Every ridge, river and lake is where it actually is.</p>' +
+      '<p>In the spirit of Robert Griffing, who paints the forests of eastern North America in the 1700s and the Native peoples who lived in them:</p>' +
+      '<p class="bn-flavour">Mist lifts off a river at first light. A canoe keeps close to the bank, under trees that were already old when the first colonists landed. These forests were never an empty wilderness. They were the homelands of the Haudenosaunee, the Lenape, the Shawnee and many other nations, who travelled them by river and trail and used fire to keep the woods open for hunting and travel. By the end of the 1800s almost all of the old forest had been cut.</p>' +
+      '<p>The layers you turn on over this map show where forests are still being cleared, and whose land they stand on.</p>' +
+      '<p class="bn-src">Colours and light chosen after Robert Griffing\'s woodland paintings; nothing is copied from any painting. Satellite picture: Sentinel-2 cloudless by EOX.</p>',
+  },
+};
+function bmNoteCss() {
+  if (typeof document === "undefined" || document.getElementById("bm-note-css")) return;
+  const s = document.createElement("style");
+  s.id = "bm-note-css";
+  s.textContent =
+    '.bn-btn{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:5px;padding:0;border-radius:50%;' +
+    'border:1px solid rgba(214,204,186,.65);background:rgba(40,44,50,.6);color:#EAE2D0;font:italic 600 10px/1 Georgia,serif;cursor:pointer;vertical-align:middle}' +
+    '.bn-btn:hover,.bn-btn:focus-visible{background:rgba(120,112,98,.55);outline:none}' +
+    '#bm-note{position:fixed;z-index:60;max-width:310px;padding:12px 14px;border-radius:8px;font:14.5px/1.42 Georgia,"Times New Roman",serif;box-shadow:0 6px 24px rgba(6,8,12,.55)}' +
+    '#bm-note p{margin:7px 0 0}#bm-note .bn-x{position:absolute;top:6px;right:8px;border:0;background:none;font-size:16px;cursor:pointer;color:inherit;opacity:.75}' +
+    '#bm-note .bn-src{font-style:italic;font-size:12px;opacity:.8}' +
+    // Woodlands: dark forest and bark, ivory text
+    '#bm-note.bn-wood{background:linear-gradient(165deg,rgba(30,38,28,.97),rgba(22,24,18,.98));border:1px solid rgba(170,160,128,.4);color:#ECE5D2}' +
+    '#bm-note.bn-wood .bn-h{font-size:17px;letter-spacing:.05em;color:#F2ECDC}' +
+    '#bm-note.bn-wood .bn-flavour{font-style:italic;color:#D9D4BE}' +
+    // Old fantasy painting: a card frame of slate, bone text, a thin rule over the flavour text
+    '#bm-note.bn-dusk{background:#23272D;border:6px solid #3A4048;outline:1px solid #15181C;border-radius:12px;color:#E6DECB;padding:10px 12px 12px}' +
+    '#bm-note.bn-dusk .bn-card-name{font-size:16px;font-weight:600;letter-spacing:.03em;padding:4px 8px;margin-right:18px;border:1px solid #59606A;border-radius:6px;background:linear-gradient(#4A515A,#383E46)}' +
+    '#bm-note.bn-dusk .bn-card-type{font-size:13px;padding:3px 8px;margin-top:8px;border:1px solid #59606A;border-radius:6px;background:linear-gradient(#444B53,#353A41)}' +
+    '#bm-note.bn-dusk .bn-flavour{font-style:italic;border-top:1px solid #59606A;padding-top:8px;margin-top:9px;color:#D6CDB8}';
+  (document.head || document.body).appendChild(s);
+}
+function bmNoteToggle(btn) {
+  if (typeof document === "undefined") return;
+  const kind = btn.getAttribute("data-bm-note"), note = BM_NOTES[kind];
+  if (!note) return;
+  let el = document.getElementById("bm-note");
+  if (el && !el.hidden && el.getAttribute("data-kind") === kind) { el.hidden = true; btn.setAttribute("aria-expanded", "false"); return; }
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "bm-note";
+    el.setAttribute("role", "dialog");
+    document.body.appendChild(el);
+  }
+  el.setAttribute("data-kind", kind);
+  el.setAttribute("aria-label", "About the " + note.name + " basemap");
+  el.className = "bn-" + kind;
+  el.innerHTML = '<button type="button" class="bn-x" aria-label="Close">&#215;</button>' + note.html;
+  el.hidden = false;
+  btn.setAttribute("aria-expanded", "true");
+  const r = btn.getBoundingClientRect ? btn.getBoundingClientRect() : { left: 0, right: 0, top: 0, bottom: 0 };
+  const vw = window.innerWidth || 800, vh = window.innerHeight || 600, w = Math.min(310, vw - 16);
+  let left = r.right + 8; if (left + w > vw - 8) left = Math.max(8, r.left - w - 8);
+  el.style.left = left + "px";
+  el.style.top = Math.max(8, Math.min(vh - 340, r.top - 10)) + "px";
+}
+if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
+  document.addEventListener("click", (e) => {
+    const t = e.target;
+    const btn = t && t.closest ? t.closest("[data-bm-note]") : null;
+    if (btn) { e.preventDefault(); e.stopPropagation(); bmNoteCss(); bmNoteToggle(btn); return; }
+    const el = document.getElementById("bm-note");
+    if (el && !el.hidden && (!t || !t.closest || !t.closest("#bm-note") || t.closest(".bn-x"))) el.hidden = true;
+  }, true);
+  document.addEventListener("keydown", (e) => {
+    const el = document.getElementById("bm-note");
+    if (e.key === "Escape" && el && !el.hidden) el.hidden = true;
+  });
+}
+const basemapPanelHtmlBeforeNotes = basemapPanelHtml;
+basemapPanelHtml = function (opts) {
+  let html = basemapPanelHtmlBeforeNotes(opts);
+  bmNoteCss();
+  for (const [kind, note] of Object.entries(BM_NOTES)) {
+    const span = '<span class="nm">' + note.name + '</span>';
+    const at = html.indexOf('value="' + kind + '"');
+    const end = at < 0 ? -1 : html.indexOf(span, at);
+    if (end < 0 || html.slice(end + span.length).startsWith('<button type="button" class="bn-btn"')) continue;
+    html = html.slice(0, end + span.length) +
+      '<button type="button" class="bn-btn" data-bm-note="' + kind + '" aria-label="About the ' + note.name + ' basemap" aria-expanded="false" title="About this basemap">i</button>' +
+      html.slice(end + span.length);
+  }
+  return html;
+};
+/* ---------- end of notes beside the painted basemaps ---------- */
+
 
 // Place names on and off, all at once (asked for 23 September): every symbol
 // layer's words, the basemap's and the layers' own. The words are taken out

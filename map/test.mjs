@@ -6130,7 +6130,9 @@ console.log("\nround 157k (4 October): the seventh basemap (154k-156k) removed a
 console.log("\nround 144h (3 October): Hell, a fourth basemap");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  const block = src.slice(src.indexOf("/* ---------- Hell, a fourth basemap"), src.indexOf("/* ---------- end of Hell ---------- */"));
+  // The ground's colours; the names (round 163h) are lighter to be read and checked on their own.
+  const block = src.slice(src.indexOf("/* ---------- Hell, a fourth basemap"), src.indexOf("/* ---------- end of Hell ---------- */"))
+    .replace(/var HELL_NAME = \{[\s\S]*?\n\};/, "");
   const { map, els } = run();
   const warned = []; const cw = console.warn; console.warn = (...a) => warned.push(a.join(" "));
   let err = null;
@@ -6185,6 +6187,27 @@ console.log("\nround 146h (3 October): CARTO's place names asked with the map's 
   check("every CARTO label address carries the key (no API KEY REQUIRED stamp)",
         /voyager_only_labels\/\{z\}\/\{x\}\/\{y\}@2x\.png\?key=cb1_/.test(src) && k.test(holo) && k.test(top) &&
         ![src, holo, top].some((t) => /@2x\.png"\]/.test(t.slice(t.indexOf("cartocdn")))));
+}
+
+console.log("\nround 163h (4 October): Hell's names in its own theme; notes beside Woodlands and Old fantasy painting");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const { map, els } = run();
+  map.fire("load"); await new Promise((r) => setTimeout(r, 5));
+  const html = els.get("basemaps")?.innerHTML || "";
+  check("an (i) beside Woodlands and beside Old fantasy painting, Mother Earth's own (i) left as it was",
+        /<span class="nm">Woodlands<\/span><button type="button" class="bn-btn" data-bm-note="wood"/.test(html) &&
+        /<span class="nm">Old fantasy painting<\/span><button type="button" class="bn-btn" data-bm-note="dusk"/.test(html) &&
+        /data-bm-info="mother"/.test(html) && (html.match(/data-bm-note=/g) || []).length === 2);
+  const b = src.slice(src.indexOf("var BM_NOTES = {"), src.indexOf("function bmNoteCss()"));
+  check("the notes name their spirit and say nothing is copied", /Magic: The Gathering/.test(b) && /Robert Griffing/.test(b) && (b.match(/nothing is copied/g) || []).length === 2);
+  const h = src.slice(src.indexOf("var HELL_NAME = {"), src.indexOf("var HELL_NAME_IDS"));
+  const bad = [...h.matchAll(/#([0-9A-F]{6})/g)].map((m) => [m[0], [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16))])
+    .filter(([, [r, g, bb]]) => !(r >= g && r >= bb && g - bb < 12));
+  check("Hell's names are blood red, rose and ash (red leads, nothing leaning to orange or yellow)", bad.length === 0, bad.map((x) => x[0]).join(" "));
+  check("Hell's names: EB Garamond from map/glyphs, CARTO's picture hidden only while they show",
+        /HELL_FONT = \{ regular: \["EBGaramond-Regular"\]/.test(src) && /BASEMAP === "hell" && hellOwnNames\(\)/.test(src) &&
+        HERE && fs.existsSync(path.join(HERE, "glyphs", "EBGaramond-SemiBold", "0-255.pbf")));
 }
 
 console.log("\nround 143b (2 October): layers grouped, so alike layers do not cross each other");

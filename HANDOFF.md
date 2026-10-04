@@ -5,6 +5,39 @@ touches.
 
 ---
 
+## Round 163h (4 October)
+
+Needs round 162m (guards on its heading). No tiles patch. No app.js?v= bump.
+Made in the Hell chat ("h"); it touches only its own blocks and adds one.
+
+- Hell's place names in its own theme (asked: "the place names should be in
+  the same theme"). CARTO's picture of names is hidden on Hell (namesRaster
+  wrapped) and names are drawn from OpenFreeMap's place, water_name,
+  waterway, mountain_peak and transportation_name in EB Garamond (the 162b
+  letter files in map/glyphs): countries in spaced SemiBold capitals of dull
+  blood red (#A9504C), states italic capitals, cities and towns ash (#CDBDB4,
+  #B4A39B), seas, lakes and rivers italic dark rose (#B0605F), black halos
+  (HELL_NAME, HELL_NAME_IDS outline-hell-name-*, hellNameLayers,
+  addHellNames, hellNamesOnTop). Glyphs set only if none are set; if the
+  map's letters come from elsewhere (HELL_GLYPHS false), the picture of names
+  stays, turned light on dark as before. Names off in the Place names box stay
+  off when the layers are first added.
+- Notes beside two painted basemaps, as Mother Earth has (162m): an (i)
+  beside Woodlands and beside Old fantasy painting (data-bm-note, BM_NOTES,
+  #bm-note, CSS #bm-note-css). Old fantasy painting's is laid out like a card
+  (name bar, type line "Basemap - The Painted Earth", what it shows, flavour
+  text over a rule), in the spirit of Magic: The Gathering's 1990s card art and
+  flavour text. Woodlands' reads like a painting's caption, in the spirit of
+  Robert Griffing: the eastern forests as the homelands of the Haudenosaunee,
+  Lenape, Shawnee and other nations, kept open with fire, almost all the old
+  forest cut by the end of the 1800s. Both say nothing is copied. One block
+  ("Notes beside the painted basemaps" to its end) after Mother Earth's;
+  Mother Earth's (i) (data-bm-info) is untouched.
+- Waiting on the owner: who "Carl-August W." is, and which basemap the note
+  in the spirit of Nusantara Atlas and Carl-August W. belongs to.
+- Checked: layers pass the style-spec validator; panel buttons in the test
+  run. Not seen against live tiles.
+
 ## Round 162m (4 October)
 
 Needs round 162b (guards on its heading). No tiles patch. No app.js?v= bump.
