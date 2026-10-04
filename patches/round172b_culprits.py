@@ -1,0 +1,46 @@
+#!/usr/bin/env python3
+"""
+Round 172b (culprits), 4 October 2026. Needs round 171b.
+
+GFW's integrated alerts out (the lost round 146b).
+
+Run from the repository root (the apply-patch workflow does).
+"""
+import base64, pathlib, subprocess, sys, tempfile
+
+NOTES = ["## Round 172b (4 October)\n\nNeeds round 171b (guards on its heading). Tiles patch round172b_tiles.py\nbeside it. No app.js?v= bump.\n\n- Rounds 146b, 147b and 148b of the \"b\" chat never reached main: other\n  sessions used those names first. This round carries 146b's map change:\n  Global Forest Watch's integrated alerts (gfw_integrated_dist_alerts) are\n  out, because its newest copy is only the overlap of several alert systems\n  and so shows mostly the tropics. The worldwide DIST-ALERT rows stay.\n  147b's colour box per layer and 148b's ESDAC soil maps and WBA Nature\n  Benchmark are still to be redone.\n- Tiles: medical_culprits.py places the settlements rows Wikipedia leaves\n  unlinked after a company's first mention (Pfizer, GlaxoSmithKline,\n  AstraZeneca, Schering-Plough): they take the article of the same name's\n  linked row, else the name as a Wikipedia title; the box says which.\n  forest500_map.py places a headquarters country with no capital in Natural\n  Earth (the British Virgin Islands) at its most populous listed place, and\n  the box says so instead of \"capital\".\n"]
+
+DIFF = "ZGlmZiAtLWdpdCBhL21hcC9hcHAuanMgYi9tYXAvYXBwLmpzCmluZGV4IDkzOGI0MjMuLjQ3MjczODAgMTAwNjQ0Ci0tLSBhL21hcC9hcHAuanMKKysrIGIvbWFwL2FwcC5qcwpAQCAtODc0MCw2ICs4NzQwLDExIEBAIGNvbnN0IENBVEFMT0dVRV9CWV9USVRMRSA9IFsKICAgLy8gTm8gdGlsZXMgcHVibGlzaGVkIChzYnRuX25hdHVyYWxfbGFuZHMsIHVtZF9sYW5kX2NvdmVyKSBvciBHRlcncyBidWlsZAogICAvLyBmYWlsZWQgKGZhb19mb3Jlc3RfZXh0ZW50KTsgdGhlIDIwMDEgZWNvcmVnaW9ucyBvdXQgKHRoZSAyMDE3IHZlcnNpb24gc3RheXMpLgogICBbL1xiKHNidG5fbmF0dXJhbF9sYW5kc3x1bWRfbGFuZF9jb3ZlcnxmYW9fZm9yZXN0X2V4dGVudHx3d2ZfdGVycmVzdHJpYWxfZWNvcmVnaW9ucylcYig/IV8pLywgbnVsbF0sCisgIC8vIFJvdW5kIDE3MmIgKGNhcnJpZXMgdGhlIGxvc3Qgcm91bmQgMTQ2YiwgYXNrZWQgMyBPY3RvYmVyKTogR2xvYmFsIEZvcmVzdAorICAvLyBXYXRjaCdzIGludGVncmF0ZWQgYWxlcnRzIG91dC4gSXRzIG5ld2VzdCBjb3B5IGlzIG9ubHkgdGhlIG92ZXJsYXAgb2YKKyAgLy8gc2V2ZXJhbCBhbGVydCBzeXN0ZW1zLCBzbyBpdCBzaG93ZWQgbW9zdGx5IHRoZSB0cm9waWNzLiBUaGUgd29ybGR3aWRlCisgIC8vIERJU1QtQUxFUlQgcm93cyBzdGF5LgorICBbL1xiZ2Z3X2ludGVncmF0ZWRfZGlzdF9hbGVydHNcYi8sIG51bGxdLAogICAvLyBUaGUgSlJDIGZvcmVzdCBjb3ZlciAyMDIwIGFsc28gdW5kZXIgTGFuZCBVc2UgYW5kIEVjb3JlZ2lvbnMsIGluIHBsYWNlIG9mIEZBTydzIGZvcmVzdCBhcmVhLgogICBbL1xianJjX2dsb2JhbF9mb3Jlc3RfY292ZXJcYi8sIFtQICsgIiA+IERlZm9yZXN0YXRpb24gPiBGb3Jlc3QgY292ZXIiLCBQICsgIiA+IEJpb2RpdmVyc2l0eSBsb3NzID4gTGFuZCBVc2UgYW5kIEVjb3JlZ2lvbnMiXV0sCiAgIC8vIEdsb2JhbCBTYWZldHkgTmV0OiB0aGUgaHVtYW4gbW9kaWZpY2F0aW9uIGluZGV4IHVuZGVyIERpc3R1cmJhbmNlOyBpdHMKZGlmZiAtLWdpdCBhL21hcC90ZXN0Lm1qcyBiL21hcC90ZXN0Lm1qcwppbmRleCBlOGYwMGJmLi5mNzliN2Q2IDEwMDY0NAotLS0gYS9tYXAvdGVzdC5tanMKKysrIGIvbWFwL3Rlc3QubWpzCkBAIC01MDI0LDExICs1MDI0LDExIEBAIEFBQUFBQUFBQUFBQSBBQUFBQUFBQUFBQUFBQUFBIHwgTk5OTiB8ICAgIEEgICAgfCBZWVlZLU1NLUREIEhIOk1NIHwgRUVFRUVFRUUgfCBOCiAgIGNoZWNrKCJmaXJlIGxvb2tvdXQgdG93ZXJzLCBhbmQgcGxhY2VzIHRoYXQgYXJlIG9ubHkgb2JzZXJ2YXRpb24gdG93ZXJzIG9yIGJlbGZyaWVzLCBsZWF2ZSB0aGUgbWlsaXRhcnkgaW5zdGFsbGF0aW9ucyIsCiAgICAgICAgIGxlYXZlKHsga2luZDogImZpcmUgbG9va291dCB0b3dlciIgfSkgJiYgbGVhdmUoeyBraW5kOiAiZmlyZSBsb29rb3V0IHRvd2VyLCB3YXRjaHRvd2VyIiB9KSAmJiBsZWF2ZSh7IGtpbmQ6ICJvYnNlcnZhdGlvbiB0b3dlciIgfSkgJiYKICAgICAgICAgIWxlYXZlKHsga2luZDogIm9ic2VydmF0aW9uIHRvd2VyLCBtaWxpdGFyeSBidWlsZGluZyIgfSkgJiYgIWxlYXZlKHsga2luZDogImFpcmJhc2UiIH0pICYmIC9pZiBcKGNmZ1wubGVhdmVPdXQgJiYgY2ZnXC5sZWF2ZU91dFwocFwpXCkgcmV0dXJuOy8udGVzdChzcmMpKTsKLSAgY2hlY2soInRoZSBhbGwtZWNvc3lzdGVtIGRpc3R1cmJhbmNlIGFsZXJ0cyBhbmQgR0xBRCBhbGVydHMgYXJlIG91dDsgdGhlIGludGVncmF0ZWQgcm93cyBzdGF5IiwKKyAgY2hlY2soInRoZSBhbGwtZWNvc3lzdGVtIGRpc3R1cmJhbmNlIGFsZXJ0cyBhbmQgR0xBRCBhbGVydHMgYXJlIG91dDsgdGhlIGludGVncmF0ZWQgZGVmb3Jlc3RhdGlvbiBhbGVydHMgc3RheSAodGhlIGludGVncmF0ZWQgZGlzdHVyYmFuY2UgYWxlcnRzIHdlbnQgaW4gcm91bmQgMTcyYikiLAogICAgICAgICBmKCJHbG9iYWwgYWxsIGVjb3N5c3RlbSBkaXN0dXJiYW5jZSBhbGVydHMgKERJU1QtQUxFUlQpIiwgInVtZF9nbGFkX2Rpc3RfYWxlcnRzIikgPT09ICIodGFrZW4gb3V0KSIgJiYKICAgICAgICAgZigiR0xBRCBhbGVydHMgXHUyMDE0IDMwXHUwMGIwUyB0byAzMFx1MDBiME4iLCAidW1kX2dsYWRfbGFuZHNhdF9hbGVydHMiKSA9PT0gIih0YWtlbiBvdXQpIiAmJgogICAgICAgICBmKCJJbnRlZ3JhdGVkIGRlZm9yZXN0YXRpb24gYWxlcnRzIiwgImdmd19pbnRlZ3JhdGVkX2FsZXJ0cyIpICE9PSAiKHRha2VuIG91dCkiICYmCi0gICAgICAgIGYoIkdsb2JhbCBpbnRlZ3JhdGVkIGRpc3R1cmJhbmNlIGFsZXJ0cyIsICJnZndfaW50ZWdyYXRlZF9kaXN0X2FsZXJ0cyIpICE9PSAiKHRha2VuIG91dCkiKTsKKyAgICAgICAgZigiR2xvYmFsIGludGVncmF0ZWQgZGlzdHVyYmFuY2UgYWxlcnRzIiwgImdmd19pbnRlZ3JhdGVkX2Rpc3RfYWxlcnRzIikgPT09ICIodGFrZW4gb3V0KSIpOyAgIC8vIHJvdW5kIDE3MmI6IG5vdyBvdXQgdG9vCiAgIGNoZWNrKCJ0aGUgZHJpdmVycycgY292ZXJhZ2Ugc2hhcGUgYW5kIEdsb2JhbCBGb3Jlc3QgV2F0Y2gncyBhZ3JpY3VsdHVyZS1saW5rZWQgZGVmb3Jlc3RhdGlvbiBhcmUgb3V0IiwKICAgICAgICAgZigiRHJpdmVycyBvZiBkaXN0dXJiYW5jZSBhbGVydHMgXHUyMDE0IHRoZSBhcmVhIHRoZXkgY292ZXIsIGFzIG9uZSBzaGFwZSwgd2l0aCBubyBkcml2ZXJzIGluIGl0IiwgInd1cl9hbGVydF9kcml2ZXJzX2NvdmVyYWdlIikgPT09ICIodGFrZW4gb3V0KSIgJiYKICAgICAgICAgZigiQWdyaWN1bHR1cmUtTGlua2VkIERlZm9yZXN0YXRpb24gXHUyMDE0IEdsb2JhbCIsICJ3cmlfYWdyaWN1bHR1cmVfbGlua2VkX2RlZm9yZXN0YXRpb24iKSA9PT0gIih0YWtlbiBvdXQpIik7CkBAIC01MTA1LDkgKzUxMDUsOSBAQCBBQUFBQUFBQUFBQUEgQUFBQUFBQUFBQUFBQUFBQSB8IE5OTk4gfCAgICBBICAgIHwgWVlZWS1NTS1ERCBISDpNTSB8IEVFRUVFRUVFIHwgTgogICBjaGVjaygiV2VzdCBBZnJpY2EncyBjb2NvYSBkZWZvcmVzdGF0aW9uIHJpc2sgaXMgdW5kZXIgQ29jb2E7IHRoZSBsb3NzIGR1ZSB0byBmaXJlIGlzIHVuZGVyIERlZm9yZXN0YXRpb24gYW5kIEZpcmUiLAogICAgICAgICBmKCJXZXN0IEFmcmljYSBDb2NvYSBEZWZvcmVzdGF0aW9uIFJpc2sgQXNzZXNzbWVudCIsICJnZndfd2VzdF9hZnJpY2FfY29jb2FfZGVmb3Jlc3RhdGlvbl9yaXNrIikgPT09IFQgKyAiID4gQ29jb2EiICYmCiAgICAgICAgIGYoIlRyZWUgY292ZXIgbG9zcyBkdWUgdG8gZmlyZSBcdTIwMTQgR2xvYmFsIGxhbmQgYXJlYSIsICJ1bWRfdHJlZV9jb3Zlcl9sb3NzX2Zyb21fZmlyZXMiKSA9PT0gVCArICIgPiBXaGF0IGRyb3ZlIHRoZSBsb3NzIHwgIiArIFAgKyAiID4gRmlyZSIpOwotICBjaGVjaygidGhlIHdvcmxkd2lkZSBpbnRlZ3JhdGVkIGFsZXJ0cyBhcmUgbmFtZWQgYXMgYSBsaXZlIGRlZm9yZXN0YXRpb24gbWFwIGFuZCBsZWFkIEFsZXJ0cyBhbmQgRGlzdHVyYmFuY2UiLAorICBjaGVjaygidGhlIGludGVncmF0ZWQgZGlzdHVyYmFuY2UgYWxlcnRzLCBvbmNlIG5hbWVkIGFzIGEgbGl2ZSBkZWZvcmVzdGF0aW9uIG1hcCwgYXJlIG91dCAocm91bmQgMTcyYikiLAogICAgICAgICAvZ2Z3X2ludGVncmF0ZWRfZGlzdF9hbGVydHM6ICJQbGFudCBjb3ZlciBsb3N0IGFzIGl0IGhhcHBlbnMsIHdoZXJlIHNldmVyYWwgYWxlcnQgc3lzdGVtcyBvdmVybGFwLCBzbyBtb3N0bHkgdGhlIHRyb3BpY3MvLnRlc3Qoc3JjKSAmJiAgIC8vIHJvdW5kIDE0NWI6IG5vdCB3b3JsZHdpZGUKLSAgICAgICAgZigieCIsICJnZndfaW50ZWdyYXRlZF9kaXN0X2FsZXJ0cyIpID09PSBUICsgIiA+IEFsZXJ0cyB8ICIgKyBQICsgIiA+IEJpb2RpdmVyc2l0eSBsb3NzID4gRGlzdHVyYmFuY2UiICYmCisgICAgICAgIGYoIngiLCAiZ2Z3X2ludGVncmF0ZWRfZGlzdF9hbGVydHMiKSA9PT0gIih0YWtlbiBvdXQpIiAmJiAgIC8vIHJvdW5kIDE3MmI6IG91dCAob3ZlcmxhcCBvbmx5LCBtb3N0bHkgdHJvcGljYWwpCiAgICAgICAgIC9jb25zdCBDQVRBTE9HVUVfRklSU1QgPSBuZXcgU2V0XChcW1teXF1dKiJnZndfaW50ZWdyYXRlZF9kaXN0X2FsZXJ0cyIvLnRlc3Qoc3JjKSk7CiAgIHsKICAgICBjb25zdCBwaWNrID0gKGEsIGIpID0+IHNyYy5zbGljZShzcmMuaW5kZXhPZihhKSwgc3JjLmluZGV4T2YoYikpOwpAQCAtNjg2Miw2ICs2ODYyLDE0IEBAIGNvbnNvbGUubG9nKCJcbnJvdW5kIDE3MWIgKDQgT2N0b2Jlcik6IGEgbGlnaHRlciBtYXAgZm9yIHNsb3dlciBjb21wdXRlcnMiKTsKICAgd2luZG93Ll9fY3VscHJpdHNMaXRlID0gZmFsc2U7CiB9CiAKK2NvbnNvbGUubG9nKCJcbnJvdW5kIDE3MmIgKDQgT2N0b2Jlcik6IHRoZSBpbnRlZ3JhdGVkIGFsZXJ0cyBvdXQgKHRoZSBsb3N0IDE0NmIpIik7Cit7CisgIGNvbnN0IHNyYyA9IGZzLnJlYWRGaWxlU3luYyhwYXRoLmpvaW4oSEVSRSwgImFwcC5qcyIpLCAidXRmOCIpOworICBjb25zdCBudWwgPSBzcmMuaW5kZXhPZigiWy9cXGJnZndfaW50ZWdyYXRlZF9kaXN0X2FsZXJ0c1xcYi8sIG51bGxdIik7CisgIGNvbnN0IGZpbGVkID0gc3JjLmluZGV4T2YoIlsvXFxiZ2Z3X2ludGVncmF0ZWRfZGlzdF9hbGVydHNcXGIvLCBbUCIpOworICBjaGVjaygiR0ZXJ3MgaW50ZWdyYXRlZCBhbGVydHMgYXJlIHRha2VuIG91dCBiZWZvcmUgYW55IHJ1bGUgZmlsZXMgdGhlbSIsIG51bCA+IDAgJiYgKGZpbGVkIDwgMCB8fCBudWwgPCBmaWxlZCkpOworfQorCiBjb25zb2xlLmxvZygiXG5yb3VuZCAxMTBjICgyOSBTZXB0ZW1iZXIpOiBwbGFudGVkLCBib3VnaHQgb3IgY2FwdHVyZWQsIHdvcmxkd2lkZSIpOwogewogICBjb25zdCBzcmMgPSBmcy5yZWFkRmlsZVN5bmMocGF0aC5qb2luKEhFUkUsICJhcHAuanMiKSwgInV0ZjgiKTsK"
+
+
+def git(*a, check=True):
+    return subprocess.run(["git", *a], capture_output=True, text=True, check=check)
+
+
+def main():
+    root = pathlib.Path(".")
+    if not (root / "map" / "app.js").exists():
+        sys.exit("round172b: run from the culprits repository root")
+    h = root / "HANDOFF.md"
+    if "## Round 171b" not in h.read_text(encoding="utf-8"):
+        sys.exit("round172b: round 171b must be applied first")
+    with tempfile.NamedTemporaryFile("wb", suffix=".diff", delete=False) as f:
+        f.write(base64.b64decode(DIFF))
+        path = f.name
+    if git("apply", "--check", "-R", path, check=False).returncode == 0:
+        print("round172b: already applied")
+    else:
+        r = git("apply", "--3way", path, check=False)
+        if r.returncode != 0:
+            git("checkout", "--", "map/app.js", "map/test.mjs", check=False)
+            sys.exit("round172b: the diff did not apply:\n" + r.stdout + r.stderr)
+        print("round172b: applied")
+    text = h.read_text(encoding="utf-8")
+    add = "".join(n if n.endswith("\n\n") else n.rstrip("\n") + "\n\n" for n in NOTES if n.split("\n", 1)[0] not in text)
+    if add:
+        at = text.index("\n## Round ") + 1
+        h.write_text(text[:at] + add + text[at:], encoding="utf-8")
+
+
+if __name__ == "__main__":
+    main()
