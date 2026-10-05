@@ -6928,6 +6928,16 @@ console.log("\nround 176b (5 October): coal mine parent companies ranked by meth
         /counted once, at the largest share any chain gives/.test(src) && /that mine's methane is not divided/.test(src));
 }
 
+console.log("\nround 177b (5 October): a note on the boxes; As drawn only once a colour is chosen");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const hint = src.slice(src.indexOf('hint.id = "layer-drag-hint";'), src.indexOf("if (box.parentElement && box.parentElement.insertBefore) box.parentElement.insertBefore(hint, box);"));
+  check("the note under the drag note explains the tick boxes, the colour squares and As drawn",
+        /tick box on a layer/.test(hint) && /tick box on a heading/.test(hint) && /colour square/.test(hint) && /As drawn button appears/.test(hint));
+  check("As drawn starts hidden and shows once a colour is chosen", /class="chip tint-off" hidden/.test(src) && /rowTint\(row, pick\.value\); off\.hidden = false;/.test(src) &&
+        /\.tint-off\[hidden\]\{display:none!important\}/.test(src));
+}
+
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");

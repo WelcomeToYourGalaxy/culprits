@@ -5,6 +5,19 @@ touches.
 
 ---
 
+## Round 177b (5 October)
+
+Needs round 176b (guards on its heading). No tiles patch. No app.js?v= bump.
+
+- Asked 5 October: a note under the drag note (#layer-drag-hint, second
+  span .lh-boxes) on what the boxes on each line do: a layer's tick box, a
+  heading's tick box, the colour square (one colour for a layer, or for
+  every ticked layer under a heading), and As drawn.
+- Asked whether As drawn is needed: it is the only way back to a layer's own
+  colours once a colour is chosen (a colour box cannot be emptied), so it
+  stays, but now appears only after a colour is chosen and goes away again
+  once used (.tint-off[hidden]); the square goes back to its starting colour.
+
 ## Round 176b (5 October)
 
 Needs round 175b (guards on its heading). Tiles patch round176b_tiles.py

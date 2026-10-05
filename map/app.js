@@ -27139,7 +27139,7 @@ const TINT_START = "#3FA9C2";
 function tintControl(title) {
   return `<span class="tint-box" style="display:inline-flex;align-items:center;gap:4px">` +
     `<input type="color" class="tint-pick" value="${TINT_START}" title="${title}" aria-label="${title}" style="width:22px;height:18px;padding:0;border:1px solid var(--rule);background:none;cursor:pointer">` +
-    `<button type="button" class="chip tint-off" title="Back to the layer's own colours" style="font-size:10.5px;padding:1px 6px">As drawn</button></span>`;
+    `<button type="button" class="chip tint-off" hidden title="Back to the layer's own colours" style="font-size:10.5px;padding:1px 6px">As drawn</button></span>`;
 }
 function tintTools(box) {
   if (!box || !box.querySelectorAll || typeof document.createElement !== "function") return;
@@ -27148,8 +27148,9 @@ function tintTools(box) {
     const row = tools.dataset.for;
     tools.insertAdjacentHTML("beforeend", tintControl("One colour for this layer"));
     const pick = tools.querySelector(".tint-pick");
-    pick.addEventListener("input", () => rowTint(row, pick.value));
-    tools.querySelector(".tint-off").addEventListener("click", (e) => { e.preventDefault(); rowTint(row, null); });
+    const off = tools.querySelector(".tint-off");
+    pick.addEventListener("input", () => { rowTint(row, pick.value); off.hidden = false; });
+    off.addEventListener("click", (e) => { e.preventDefault(); rowTint(row, null); off.hidden = true; pick.value = TINT_START; });
   }
   for (const sec of box.querySelectorAll(".toc-sec")) {
     const line = sec.querySelector(".toc-line");
@@ -27163,11 +27164,22 @@ function tintTools(box) {
         rowTint(row, pick.value);
         const own = box.querySelector(`.row-tools[data-for="${row}"] .tint-pick`);
         if (own) own.value = pick.value;
+        const ownOff = box.querySelector(`.row-tools[data-for="${row}"] .tint-off`);
+        if (ownOff) ownOff.hidden = false;
       }
+      line.querySelector(".tint-off").hidden = false;
     });
     line.querySelector(".tint-off").addEventListener("click", (e) => {
       e.preventDefault(); e.stopPropagation();
-      for (const row of ticked()) rowTint(row, null);
+      for (const row of ticked()) {
+        rowTint(row, null);
+        const ownOff = box.querySelector(`.row-tools[data-for="${row}"] .tint-off`);
+        if (ownOff) ownOff.hidden = true;
+        const own = box.querySelector(`.row-tools[data-for="${row}"] .tint-pick`);
+        if (own) own.value = TINT_START;
+      }
+      line.querySelector(".tint-off").hidden = true;
+      pick.value = TINT_START;
     });
   }
 }
@@ -27689,11 +27701,15 @@ function layerMenuHelp(box) {
   hint.id = "layer-drag-hint";
   hint.className = "layer-help";
   hint.innerHTML = `<span class="lh-t">Drag a layer by its \u2807 grip above or below another to draw it above or below that layer on the map. ` +
-    `Drag it anywhere, even out of its heading or onto the Selected Layers heading, to gather your own selection.</span>`;
+    `Drag it anywhere, even out of its heading or onto the Selected Layers heading, to gather your own selection.</span>` +
+    // Round 177b (asked 5 October): what the boxes on each line do.
+    `<span class="lh-t lh-boxes">The tick box on a layer turns that layer on and off; the tick box on a heading turns on or off every layer under it. ` +
+    `The small colour square on a heading, or on a ticked layer, paints it in one colour of your choosing; a heading's square paints every ticked layer under it. ` +
+    `Once a colour is chosen, an As drawn button appears beside the square: it puts the layer's own colours back.</span>`;
   if (box.parentElement && box.parentElement.insertBefore) box.parentElement.insertBefore(hint, box);
   addStyle(".layer-help{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 6px;font-size:10.5px;color:var(--dim)}" +
     ".layer-help .chip{font:inherit;font-size:11px;padding:2px 8px;border-radius:10px;border:1px solid rgba(30,160,200,.45);background:none;color:var(--ink,#e8e2d6);cursor:pointer}" +
-    ".layer-help .lh-t{flex:1 1 200px}#layers .toc-line.drop-below{outline:1px dashed rgba(30,160,200,.8);outline-offset:2px}", "layer-help");
+    ".layer-help .lh-t{flex:1 1 200px}.tint-off[hidden]{display:none!important}#layers .toc-line.drop-below{outline:1px dashed rgba(30,160,200,.8);outline-offset:2px}", "layer-help");
 }
 // Rows taken out by where they stand in the box (round 84b, asked 27
 // September: "delete all of the layers from the tree and plant cover loss as
