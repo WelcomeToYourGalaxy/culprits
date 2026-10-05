@@ -5,6 +5,24 @@ touches.
 
 ---
 
+## Round 185o (5 October)
+
+Needs round 184b (guards on its heading; the mended 184b re-uploaded with it). Tiles patch round185o_tiles.py
+beside it. No app.js?v= bump.
+
+- Shark finning (asked among the ocean harms): no open source maps finning
+  itself. Added shark_catch: FAO FishStat's catch of its own group "Sharks,
+  rays, chimaeras" (CC BY-NC-SA 3.0 IGO), each country shaded by tonnes in the
+  latest year, with ten years before, every species and the fishing areas in
+  the box (tiles fao_fisheries.py now writes fish/fao_sharks.json). Under
+  Oceans > Shark fishing and finning, and Marine meats > Sharks and rays. The
+  note says finned sharks thrown back and unreported catch are not counted.
+- Investor-state cases: isds_unctad.py had never written anything (no isds/
+  folder), so isds_tracker and ect_secrets never drew, and why was unknown.
+  It now tries UNCTAD's download links too, checks a file is really excel,
+  writes every page and link tried to isds/build.json, and reads a copy
+  uploaded by hand to isds/download/ first.
+
 ## Round 184b (5 October)
 
 Needs round 184o (guards on its heading; re-made after round 184o, whose test checks sat in the same place). No tiles patch. No app.js?v= bump.

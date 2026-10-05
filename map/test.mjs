@@ -7056,6 +7056,17 @@ console.log("\nround 184b (5 October): Glass Garden in the Frutiger Aero look");
   check("rays and lens rings, no orange or yellow in them", /createRadialGradient\(cx, cy, R, cx, cy, len\)/.test(block) && /aura: \{ outer: "#0C3B4C", mid: "#3E9BA6", inner: "#E8FBF8"/.test(block));
 }
 
+console.log("\nround 185o (5 October): sharks and rays caught (FAO)");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the shark row shades countries from FAO's own shark group, with a kind, a site and a not-live note",
+        /id: "shark_catch"[^\n]*route: "country"[^\n]*buildScript: "fao_fisheries"/.test(src) && src.includes("fish/fao_sharks.json") &&
+        /\bshark_catch: \["animal", "upstream"\]/.test(src) && /\bshark_catch: "https:\/\/www\.fao\.org/.test(src) && /\bshark_catch: "Read weekly/.test(src));
+  check("filed under Oceans and Marine meats, and its note says finning itself is not in the figures",
+        /\{ h: 5, t: "Shark fishing and finning"[^}]*\}, "shark_catch",/.test(src) && /\{ h: 6, t: "Sharks and rays" \}, "shark_catch",/.test(src) &&
+        /No open source maps shark finning itself/.test(src));
+}
+
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
