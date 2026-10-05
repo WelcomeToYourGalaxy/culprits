@@ -15693,266 +15693,6 @@ if (typeof MutationObserver === "function" && typeof document !== "undefined" &&
 }
 /* ---------- end of Earth at night ---------- */
 
-/* ---------- Glass house, a modern basemap (round 181b, was Aqua in 180b) ---------- */
-// Round 180b's Aqua (pale aqua, white, soft glow) read as baby blue. Asked 5
-// October instead: modern, sleek ecology, like the house and plants in Ex
-// Machina (a glass and concrete house set into a Norwegian forest: polished
-// grey concrete, dark glass, moss and rock, spruce forest under an overcast
-// sky). Nothing is copied from the film. Still made from the real Earth, as
-// Woodlands is, so nothing is a made-up pattern:
-//   colour   the cloud-free Sentinel-2 picture (EOX) re-coloured pixel by
-//            pixel: what grows on muted forest greens, from spruce shadow to
-//            soft moss under cloud; bare ground on concrete and stone greys;
-//            water dark slate glass; snow a cool white (glassPaintPixels)
-//   finish   crisp, not soft: a little local contrast brings out the
-//            ground's own edges, like light on polished stone
-//   sea      dark graphite, a little lighter on the shallows (AWS depths)
-//   light    soft overcast light from several sides, deep shade in valleys
-//   cloud    a thin grey mist on the mountainsides, gone at the coast and
-//            the summits, as cloud sits on a fjord's walls
-//   streets  fine pale concrete lines; buildings as concrete blocks close in
-//   sky      overcast grey on the globe
-// Greens here are the muted, earthy ones the owner allows on basemaps
-// (as on Woodlands); no bright or alien green, orange, yellow or neon.
-// Layers are named "outline-glass-...", so the colour mapping and the
-// layer-colour themes leave them alone. The menu and the switch are reached
-// by wrapping basemapPanelHtml and setBasemap.
-var GLASS = {
-  sheet: "#1A1E1D",
-  // What grows: spruce shadow to soft moss.
-  greens: [[0, "#121815"], [0.3, "#1C251F"], [0.55, "#2E3A2F"], [0.8, "#4B5544"], [1, "#717763"]],
-  // Bare ground: dark stone to polished pale concrete.
-  stones: [[0, "#1C1E1E"], [0.3, "#383A39"], [0.6, "#676965"], [0.85, "#9C9D98"], [1, "#C4C5BF"]],
-  // Water in the picture: dark slate glass.
-  waters: [[0, "#0D1416"], [0.5, "#19242A"], [1, "#3A4A50"]],
-  snow: "#DADCD9",
-  crisp: 0.45,         // how much of the ground's own edges are sharpened
-  sea: ["interpolate", ["linear"], ["elevation"],
-    -8000, "#090E10", -3000, "#0E1518", -800, "#141D21", -150, "#1C282C", -25, "#26343A", -1, "#33444A",
-    0, "rgba(0,0,0,0)"],
-  seaOpacity: 0.6,
-  mist: ["interpolate", ["linear"], ["elevation"],
-    -1, "rgba(196,202,200,0)", 150, "rgba(196,202,200,0)", 700, "rgba(196,202,200,0.07)", 1600, "rgba(196,202,200,0.12)",
-    3200, "rgba(196,202,200,0.05)", 5000, "rgba(196,202,200,0)"],
-  shade: {
-    "hillshade-method": "multidirectional",
-    "hillshade-illumination-direction": [315, 270, 0, 225],
-    "hillshade-illumination-altitude": [40, 40, 40, 60],
-    "hillshade-highlight-color": ["rgba(214,218,214,0.16)", "rgba(214,218,214,0.1)", "rgba(214,218,214,0.08)", "rgba(214,218,214,0.04)"],
-    "hillshade-shadow-color": ["rgba(4,7,6,0.55)", "rgba(4,7,6,0.3)", "rgba(4,7,6,0.25)", "rgba(4,7,6,0.15)"],
-    "hillshade-accent-color": "rgba(4,7,6,0.3)",
-    "hillshade-exaggeration": 0.9,
-    "hillshade-illumination-anchor": "map",
-  },
-  lake: "#18232A", lakeOpacity: 0.7,
-  river: "#3A4A50",
-  town: "#4A4C4A", townWork: "#3E403E",
-  road: ["rgba(170,172,166,0.55)", "rgba(186,188,182,0.75)", "#C9CAC4"],   // minor, middle, major
-  rail: "#6E706B", building: "#8C8E89",
-  border: "rgba(200,202,196,0.38)",
-  sky: { "sky-color": "#2A3031", "horizon-color": "#9AA09E", "fog-color": "#5C6361",
-         "sky-horizon-blend": 0.7, "horizon-fog-blend": 0.6, "fog-ground-blend": 0.5,
-         "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.7, 8, 0.7, 12, 0.4] },
-  margin: 32,
-};
-var GLASS_IDS = ["outline-glass-sheet", "outline-glass-paint", "outline-glass-sea", "outline-glass-shade", "outline-glass-mist",
-  "outline-glass-lake", "outline-glass-town", "outline-glass-river", "outline-glass-rail",
-  "outline-glass-road-minor", "outline-glass-road", "outline-glass-road-major", "outline-glass-buildings", "outline-glass-border"];
-// Re-colours the picture (data: RGBA, N x N, the square in its middle with M
-// pixels round it) and returns the middle 256 x 256. soft (1 and up) widens
-// the smoothing when the picture is enlarged past its sharpest zoom.
-function glassPaintPixels(data, N, M, soft) {
-  soft = Math.max(1, Math.min(4, soft || 1));
-  const greens = woodRamp(GLASS.greens), stones = woodRamp(GLASS.stones), waters = woodRamp(GLASS.waters), snow = woodHex(GLASS.snow);
-  const w = N, h = N, n = w * h, W = w + 1;
-  const sat = (A) => { const S = new Float64Array(W * (h + 1)); for (let y = 0; y < h; y++) { let row = 0; for (let x = 0; x < w; x++) { row += A[y * w + x]; S[(y + 1) * W + x + 1] = S[y * W + x + 1] + row; } } return S; };
-  const blur = (A, r) => {
-    r = Math.round(r);
-    if (r < 1) return A;
-    let cur = A;
-    for (let pass = 0; pass < 2; pass++) {
-      const S = sat(cur), out = new Float32Array(n);
-      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-        const x0 = Math.max(0, x - r), x1 = Math.min(w - 1, x + r), y0 = Math.max(0, y - r), y1 = Math.min(h - 1, y + r);
-        out[y * w + x] = (S[(y1 + 1) * W + x1 + 1] - S[y0 * W + x1 + 1] - S[(y1 + 1) * W + x0] + S[y0 * W + x0]) / ((x1 - x0 + 1) * (y1 - y0 + 1));
-      }
-      cur = out;
-    }
-    return cur;
-  };
-  const V = new Float32Array(n), T = new Float32Array(n), K = new Uint8Array(n);
-  for (let p = 0; p < n; p++) {
-    const r = data[p * 4], g = data[p * 4 + 1], b = data[p * 4 + 2];
-    const lum = (0.3 * r + 0.59 * g + 0.11 * b) / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b);
-    if ((b > g + 6 && b > r + 10 && lum < 0.45) || (lum < 0.07 && b >= r)) K[p] = 1;
-    else if (lum > 0.72 && mx - mn < 28) K[p] = 2;
-    V[p] = Math.max(0, Math.min(1, ((2 * g - r - b) / 255 + 0.01) / 0.1));
-    T[p] = K[p] === 1 ? Math.max(0, Math.min(1, (lum - 0.02) / 0.35)) : Math.min(1, Math.pow(Math.max(0, lum - 0.01) / 0.55, 0.85));
-  }
-  const Vs = blur(V, soft), Ts = blur(T, soft - 0.5);
-  const R = new Float32Array(n), G = new Float32Array(n), B = new Float32Array(n);
-  for (let p = 0; p < n; p++) {
-    let c;
-    if (K[p] === 1) c = waters(Ts[p]);
-    else if (K[p] === 2) c = snow;
-    else { const v = 0.92 * Vs[p], a = greens(Ts[p]), e = stones(Ts[p]); c = [e[0] + (a[0] - e[0]) * v, e[1] + (a[1] - e[1]) * v, e[2] + (a[2] - e[2]) * v]; }
-    R[p] = c[0]; G[p] = c[1]; B[p] = c[2];
-  }
-  // Crisp: each pixel pushed a little away from its surroundings, so the
-  // ground's own edges (ridges, field lines, shores) read cleanly.
-  const r3 = 3 * soft, Rb = blur(R, r3), Gb = blur(G, r3), Bb = blur(B, r3), k = GLASS.crisp;
-  const out = new Uint8ClampedArray(256 * 256 * 4);
-  for (let y = 0; y < 256; y++) for (let x = 0; x < 256; x++) {
-    const p = (y + M) * w + (x + M), q = (y * 256 + x) * 4;
-    out[q] = R[p] + (R[p] - Rb[p]) * k; out[q + 1] = G[p] + (G[p] - Gb[p]) * k; out[q + 2] = B[p] + (B[p] - Bb[p]) * k; out[q + 3] = 255;
-  }
-  return out;
-}
-// The colouring is done off the page's main thread, as Woodlands' is.
-var GLASS_HELPERS = null, GLASS_JOBS = new Map(), GLASS_JOB = 0;
-function glassHelpers() {
-  if (GLASS_HELPERS !== null) return GLASS_HELPERS;
-  GLASS_HELPERS = [];
-  try {
-    const code = "var GLASS = " + JSON.stringify(GLASS) + ";\nconst PNG_CRC = new Uint32Array([" + Array.from(PNG_CRC).join(",") + "]);\n" +
-      [woodHex, woodRamp, glassPaintPixels, pngCrc, rawPng].map(String).join("\n") +
-      "\nfunction glassWork(d) { return rawPng(glassPaintPixels(new Uint8ClampedArray(d.data), d.N, d.M, d.soft), 256, 256); }" +
-      "\nonmessage = (e) => { try { const png = glassWork(e.data); postMessage({ id: e.data.id, png }, [png]); } catch (err) { postMessage({ id: e.data.id, error: String(err) }); } };";
-    const url = URL.createObjectURL(new Blob([code], { type: "text/javascript" }));
-    for (let i = 0; i < 2; i++) {
-      const wk = new Worker(url);
-      wk.onmessage = (e) => { const job = GLASS_JOBS.get(e.data.id); if (!job) return; GLASS_JOBS.delete(e.data.id); if (e.data.error) job.no(new Error(e.data.error)); else job.yes(e.data.png); };
-      GLASS_HELPERS.push(wk);
-    }
-  } catch (e) { GLASS_HELPERS = []; }
-  return GLASS_HELPERS;
-}
-function glassPaintJob(d) {
-  const hs = glassHelpers();
-  if (!hs.length) return Promise.resolve(rawPng(glassPaintPixels(new Uint8ClampedArray(d.data), d.N, d.M, d.soft), 256, 256));
-  const id = ++GLASS_JOB;
-  return new Promise((yes, no) => { GLASS_JOBS.set(id, { yes, no }); hs[id % hs.length].postMessage(Object.assign({ id }, d), [d.data]); });
-}
-if (typeof maplibregl !== "undefined" && typeof maplibregl.addProtocol === "function") {
-  maplibregl.addProtocol("glasspaint", async (params) => {
-    const m = params.url.match(/^glasspaint:\/\/(\d+)\/(\d+)\/(\d+)/);
-    if (!m) throw new Error("not a glass house square");
-    const d = await woodComposite(Number(m[1]), Number(m[2]), Number(m[3]), GLASS.margin);
-    return { data: await glassPaintJob(d) };
-  });
-}
-function glassLayers() {
-  const road = (w) => ["interpolate", ["exponential", 1.4], ["zoom"], 5, w * .25, 10, w, 16, w * 6];
-  const kind = (list) => ["match", ["get", "class"], list, true, false];
-  const fade = (z0, z1, a) => ["interpolate", ["linear"], ["zoom"], z0, 0, z1, a];
-  return [
-    { id: "outline-glass-sheet", type: "fill", source: "outline-glass-sheet",
-      paint: { "fill-color": GLASS.sheet, "fill-antialias": false } },
-    { id: "outline-glass-paint", type: "raster", source: "outline-glass-paint",
-      paint: { "raster-opacity": 1, "raster-fade-duration": 200, "raster-resampling": "linear" } },
-    { id: "outline-glass-sea", type: "color-relief", source: "sea-dem",
-      paint: { "color-relief-color": GLASS.sea, "color-relief-opacity": GLASS.seaOpacity } },
-    { id: "outline-glass-shade", type: "hillshade", source: "outline-dem", paint: GLASS.shade },
-    { id: "outline-glass-mist", type: "color-relief", source: "sea-dem",
-      paint: { "color-relief-color": GLASS.mist, "color-relief-opacity": 1 } },
-    { id: "outline-glass-lake", type: "fill", source: "osm", "source-layer": "water",
-      filter: ["!=", ["get", "class"], "ocean"],
-      paint: { "fill-color": GLASS.lake, "fill-opacity": GLASS.lakeOpacity } },
-    { id: "outline-glass-town", type: "fill", source: "osm", "source-layer": "landuse", minzoom: 6,
-      filter: kind(["residential", "commercial", "industrial", "retail", "suburb", "neighbourhood"]),
-      paint: { "fill-color": ["match", ["get", "class"], "industrial", GLASS.townWork, GLASS.town], "fill-opacity": fade(6, 8, .5) } },
-    { id: "outline-glass-river", type: "line", source: "osm", "source-layer": "waterway", minzoom: 3,
-      layout: { "line-cap": "round", "line-join": "round" },
-      paint: { "line-color": GLASS.river, "line-blur": .5,
-               "line-width": ["interpolate", ["exponential", 1.4], ["zoom"],
-                 4, ["match", ["get", "class"], "river", .35, .12], 10, ["match", ["get", "class"], "river", 1.2, .5],
-                 16, ["match", ["get", "class"], "river", 6, 2.7]],
-               "line-opacity": ["interpolate", ["linear"], ["zoom"],
-                 8, ["match", ["get", "class"], "river", .9, 0], 11, ["match", ["get", "class"], "river", .9, .7]] } },
-    { id: "outline-glass-rail", type: "line", source: "osm", "source-layer": "transportation", minzoom: 9,
-      filter: kind(["rail", "transit"]),
-      paint: { "line-color": GLASS.rail, "line-width": 1, "line-dasharray": [3, 2] } },
-    { id: "outline-glass-road-minor", type: "line", source: "osm", "source-layer": "transportation", minzoom: 11,
-      filter: kind(["minor", "service", "track", "street", "street_limited"]),
-      paint: { "line-color": GLASS.road[0], "line-width": road(.45) } },
-    { id: "outline-glass-road", type: "line", source: "osm", "source-layer": "transportation", minzoom: 7,
-      filter: kind(["secondary", "tertiary"]),
-      paint: { "line-color": GLASS.road[1], "line-width": road(.6) } },
-    { id: "outline-glass-road-major", type: "line", source: "osm", "source-layer": "transportation", minzoom: 5,
-      filter: kind(["motorway", "trunk", "primary"]),
-      layout: { "line-cap": "round", "line-join": "round" },
-      paint: { "line-color": GLASS.road[2], "line-width": road(.8), "line-opacity": fade(5, 7, .9) } },
-    { id: "outline-glass-buildings", type: "fill-extrusion", source: "osm", "source-layer": "building", minzoom: 13,
-      paint: { "fill-extrusion-color": GLASS.building,
-               "fill-extrusion-height": ["coalesce", ["get", "render_height"], 6],
-               "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
-               "fill-extrusion-opacity": ["interpolate", ["linear"], ["zoom"], 13, 0, 14, .82] } },
-    { id: "outline-glass-border", type: "line", source: "boundaries",
-      paint: { "line-color": GLASS.border, "line-width": ["interpolate", ["linear"], ["zoom"], 2, .5, 5, .9] } },
-  ];
-}
-// Added the first time it is chosen, just above the painted plate, so the
-// other basemaps are under it and every data layer over it.
-function addGlassLayers() {
-  if (map.getLayer("outline-glass-paint")) return;
-  try {
-    ensureBoundaries();
-    const share = (id, spec) => { if (!map.getSource(id)) map.addSource(id, Object.assign({}, spec)); };
-    share("osm", OSM_SOURCE);
-    share("outline-dem", RELIEF_SOURCE);
-    share("sea-dem", TERRAIN_SOURCE);
-    if (!map.getSource("outline-glass-sheet")) {
-      map.addSource("outline-glass-sheet", { type: "geojson", data: { type: "Feature", properties: {},
-        geometry: { type: "Polygon", coordinates: [[[-180, -85.06], [180, -85.06], [180, 85.06], [-180, 85.06], [-180, -85.06]]] } } });
-    }
-    if (!map.getSource("outline-glass-paint")) {
-      map.addSource("outline-glass-paint", { type: "raster", tiles: ["glasspaint://{z}/{x}/{y}"], tileSize: 256,
-        maxzoom: 18, attribution: WOOD.attribution });
-    }
-    const st = typeof map.getStyle === "function" ? map.getStyle() : null;
-    const all = (st && st.layers) || [];
-    const at = all.findIndex((l) => l.id === "plate-base");
-    const before = at >= 0 && all[at + 1] ? all[at + 1].id : undefined;
-    for (const l of glassLayers()) map.addLayer(Object.assign({ layout: {} }, l, { layout: Object.assign({}, l.layout || {}, { visibility: "none" }) }), before);
-  } catch (e) { console.warn("[culprits] Glass house basemap unavailable:", e.message || e); }
-}
-let glassSkyBefore = null;
-function glassSky(on) {
-  if (typeof map.setSky !== "function") return;
-  if (typeof DEFENCE_ON !== "undefined" && DEFENCE_ON) return;
-  try {
-    if (on && !glassSkyBefore) {
-      glassSkyBefore = (typeof map.getSky === "function" && map.getSky()) || {};
-      map.setSky(Object.assign({}, glassSkyBefore, GLASS.sky));
-    } else if (!on && glassSkyBefore) { map.setSky(glassSkyBefore); glassSkyBefore = null; }
-  } catch (e) { /* the sky stays as it was */ }
-}
-function glassShow(on) {
-  const vis = on && !hellHoloHides() ? "visible" : "none";
-  for (const id of GLASS_IDS) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
-  glassSky(on);
-}
-BASE_GRADE.glass = {};
-const basemapPanelHtmlBeforeGlass = basemapPanelHtml;
-basemapPanelHtml = function (opts) {
-  const list = (opts || []).some((o) => o[0] === "glass") ? opts : (opts || []).concat([["glass", "Glass house"]]);
-  return basemapPanelHtmlBeforeGlass(list);
-};
-const setBasemapBeforeGlass = setBasemap;
-setBasemap = function (kind) {
-  // Dark ground: the brighter layer colours stand out on it.
-  if (typeof THEME_BY_BASEMAP === "object" && THEME_BY_BASEMAP && !THEME_BY_BASEMAP.glass) THEME_BY_BASEMAP.glass = "bright";
-  if (kind === "glass") addGlassLayers();
-  if (kind !== "glass") glassShow(false);
-  setBasemapBeforeGlass(kind);
-  if (kind === "glass") glassShow(true);
-};
-if (typeof MutationObserver === "function" && typeof document !== "undefined" && document.body) {
-  new MutationObserver(() => { if (BASEMAP === "glass") glassShow(true); })
-    .observe(document.body, { attributes: true, attributeFilter: ["class"] });
-}
-/* ---------- end of Glass house ---------- */
-
 /* ---------- The basemap menu: names and order (round 170b) ---------- */
 // Asked 4 October: the basemaps named and listed as Jurassic, Atlas,
 // Woodlands, Bioluminescent, Earth at Night, Hologram, Hell, Standard.
@@ -15964,7 +15704,7 @@ if (typeof MutationObserver === "function" && typeof document !== "undefined" &&
 // passed here keeps this order; Old fantasy painting's line, added by its
 // own wrapper, is taken out of the finished menu.
 var BASEMAP_MENU = [["satellite", "Jurassic"], ["atlas", "Atlas"], ["wood", "Woodlands"], ["space", "Bioluminescent"],
-  ["glass", "Glass house"], ["night", "Earth at Night"], ["hell", "Hell"], ["outlines", "Standard"]];
+  ["night", "Earth at Night"], ["hell", "Hell"], ["outlines", "Standard"]];
 const basemapPanelHtmlBeforeMenu = basemapPanelHtml;
 basemapPanelHtml = function () {
   return basemapPanelHtmlBeforeMenu(BASEMAP_MENU.slice())
@@ -16222,14 +15962,6 @@ var THEMED_NAMES = {
     halo: "rgba(10,12,14,0.8)", haloWater: "rgba(8,16,24,0.78)", haloWidth: 1.2,
     spacing: 0.3, opacity: 0.95,
   },
-  // Round 181b: Glass house, in Jost (a clean geometric sans, SIL Open Font
-  // License): spaced light capitals in pale concrete on a dark halo.
-  glass: {
-    font: { caps: ["Jost-Regular"], regular: ["Jost-Light"], italic: ["Jost-LightItalic"], bold: ["Jost-Regular"] },
-    colour: { country: "#D9DAD5", state: "#B4B6B0", city: "#E4E5E0", town: "#C7C9C3", minor: "#A9ABA5", water: "#9DB0B4", peak: "#A9ABA5" },
-    halo: "rgba(14,18,17,0.8)", haloWater: "rgba(10,16,18,0.8)", haloWidth: 1.2,
-    spacing: 0.32, opacity: 0.95,
-  },
   holo: {
     font: { caps: ["IBMPlexMono-Medium"], regular: ["IBMPlexMono-Regular"], italic: ["IBMPlexMono-Italic"], bold: ["IBMPlexMono-Medium"] },
     colour: { country: "#7FB8D9", state: "#6D9FC0", city: "#B9DCEE", town: "#93C2DB", minor: "#7FA9C2", water: "#6FB0BD", peak: "#7FA9C2" },
@@ -16308,7 +16040,7 @@ function holoNamesTicked() { try { return JSON.parse(localStorage.getItem("culpr
 // Which set shows now: the hologram's while it is on, else the basemap's.
 function themedWhich() {
   if (themedHolo()) return holoNamesTicked() ? "holo" : null;
-  return BASEMAP === "atlas" || BASEMAP === "satellite" || BASEMAP === "glass" ? BASEMAP : null;
+  return BASEMAP === "atlas" || BASEMAP === "satellite" ? BASEMAP : null;
 }
 let themedSyncing = false;
 function themedSync() {
@@ -16323,7 +16055,7 @@ function themedSync() {
     // The pictures of names give way to the drawn ones.
     for (const pic of ["labels", "holo-labels"]) {
       if (!map.getLayer(pic)) continue;
-      const mine = pic === "holo-labels" ? themedHolo() : (BASEMAP === "atlas" || BASEMAP === "satellite" || BASEMAP === "glass") && !themedHolo();
+      const mine = pic === "holo-labels" ? themedHolo() : (BASEMAP === "atlas" || BASEMAP === "satellite") && !themedHolo();
       if (mine && (map.getLayoutProperty(pic, "visibility") || "visible") !== "none") map.setLayoutProperty(pic, "visibility", "none");
     }
     if (want) themedOnTop(THEMED_IDS[want]);

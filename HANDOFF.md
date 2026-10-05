@@ -5,6 +5,17 @@ touches.
 
 ---
 
+## Round 182b (5 October)
+
+Needs round 181b (guards on its heading). No tiles patch. No app.js?v= bump.
+
+- Owner: remove the Glass house basemap. Taken out whole: its block
+  (GLASS, glassPaintPixels, the glasspaint protocol, its layers, sky and
+  switch), its menu line, THEMED_NAMES.glass and the "glass" checks in
+  themedWhich and themedSync. Rounds 180b (Aqua) and 181b (Glass house)
+  leave nothing behind; the menu is back to Jurassic, Atlas, Woodlands,
+  Bioluminescent, Earth at Night, Hell, Standard.
+
 ## Round 181b (5 October)
 
 Needs round 180b (guards on its heading). No tiles patch. No app.js?v= bump.
