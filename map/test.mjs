@@ -6958,6 +6958,14 @@ console.log("\nround 178b (5 October): the colour squares on each layer's own li
         lib.tintFor("r-fill", "fill-opacity") === undefined);
 }
 
+console.log("\nround 179b (5 October): salt marsh loss and burned area from NASA");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("both rows read the map's own copies and are filed", ["own_salt_marsh", "own_burned"].every((id) => new RegExp(`id: "${id}"[^\\n]*route: "rasterlive"`).test(src) &&
+        src.includes(`tiles/${id}.choices.json`) && new RegExp(`\\b${id}: \\[`).test(src)) &&
+        /\{ h: 5, t: "Salt marsh loss"[^}]*\}, "own_salt_marsh",/.test(src) && /\{ h: 3, t: "Fire" \}, "own_burned",/.test(src));
+}
+
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");

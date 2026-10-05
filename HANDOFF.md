@@ -5,6 +5,29 @@ touches.
 
 ---
 
+## Round 179b (5 October)
+
+Needs round 178b (guards on its heading). Tiles patch round179b_tiles.py
+beside it. No app.js?v= bump.
+
+- The owner added the Earthdata login (secrets EARTHDATA_USER and
+  EARTHDATA_PASS in culprits-tiles-more); refresh.yml must pass them in.
+- tiles scripts/lib/earthdata.py: files found through NASA's CMR (no login),
+  downloaded with the login kept for urs.earthdata.nasa.gov only.
+- own_salt_marsh (Oceans > Salt marsh loss): NASA Global Salt Marsh Change
+  2000-2019 (doi:10.3334/ORNLDAAC/2122). sm_loss.tif and sm_gain.tif, cells
+  2000/2005/2010/2015 (period start) or 0, per NASA's guide. tiles
+  salt_marsh.py reads them at full 30 m in the 1-degree squares a Natural
+  Earth 10 m coastline passes through (and neighbours), each 0.005-degree
+  cell the latest period in it, zoom 0-9; values seen are recorded. Tested
+  on a stand-in file. Built once, again by hand.
+- own_burned (Destruction > Fire, first): MODIS MCD64CMQ v061 monthly
+  burned area at 0.25 degree, every year since 2001, summed per year as the
+  share of each cell burned, six steps (RAMP6). The data set, units and
+  scale factor are read from each file and recorded; units it does not
+  understand stop the build. Years built are kept; the year under way is
+  rebuilt daily. Tested with stand-in files (pyhdf, CMR and NASA blocked here).
+
 ## Round 178b (5 October)
 
 Needs round 177b (guards on its heading). No tiles patch. No app.js?v= bump.

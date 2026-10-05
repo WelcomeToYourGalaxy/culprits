@@ -24074,6 +24074,16 @@ const OTHER_MAPS = {
       note: "The World Bank and IMF's Global Shipping Traffic Density (CC BY 4.0): every position ships broadcast by AIS from January 2015 to February 2021, counted in 500 m cells, for all ships and for commercial, fishing, oil and gas, passenger and leisure vessels; read here at about 2 km and coloured on a log scale. The map's own copy (scripts/oceans_more.py)." },
     // Round 136b (asked 2 October: yes to the ocean harms not yet on the map):
     // single pressures of Halpern et al. 2019, tiles ocean_stressors.py.
+    // Round 179b: two layers from NASA with the Earthdata login (tiles
+    // salt_marsh.py and burned_area.py, scripts/lib/earthdata.py).
+    { id: "own_salt_marsh", name: "Salt marsh lost and gained, 2000 to 2019, by the five years it happened (NASA, Campbell et al. 2022; the map's own copy)", unit: "about 550 m", colour: "#1E6FA8", keepColour: true, route: "rasterlive", ready: true, lazy: true, buildScript: "salt_marsh",
+      attribution: "Campbell, Fatoyinbo and Goldberg 2022, Global Salt Marsh Change 2000-2019, NASA ORNL DAAC, doi:10.3334/ORNLDAAC/2122", rasterPaint: { "raster-opacity": 0.95, "raster-saturation": 0 },
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/own_salt_marsh.choices.json",
+      note: "NASA's Global Salt Marsh Change (Campbell, Fatoyinbo and Goldberg 2022; the study is Campbell et al. 2022, Nature 612, 701-706): where salt marsh was lost, or gained, between 2000 and 2019, found from Landsat pictures at 30 m, and in which five years it happened (2000 to 2004, 2005 to 2009, 2010 to 2014, 2015 to 2019). The study puts the loss at about 0.28% of the world's salt marsh a year. Each map cell of about 550 m shows the latest period of change inside it, so a thin strip of marsh can be seen from far out; zoom in for the detail. Shared by NASA without restriction. Choose lost or gained in the menu under the row." },
+    { id: "own_burned", name: "Burned area worldwide, each year since 2001, as the share of the land that burned (NASA MODIS; the map's own copy)", unit: "about 28 km", colour: "#2275A8", keepColour: true, route: "rasterlive", ready: true, lazy: true, buildScript: "burned_area",
+      attribution: "MODIS MCD64CMQ v061 burned area, Giglio et al., NASA LP DAAC", rasterPaint: { "raster-opacity": 0.85, "raster-saturation": 0 },
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/own_burned.choices.json",
+      note: "NASA's MODIS burned area (MCD64CMQ, collection 6.1; Giglio et al.): the area found burned each month in squares of a quarter of a degree, added up for each year and drawn as the share of the square's area that burned, in six steps. Every year from 2001; the year now under way says how many months it has. Fires that burn the same ground twice in a year count twice. Shared by NASA without restriction. Pick the year in the menu under the row." },
     { id: "ocean_slr", name: "Sea level rise, how strong the pressure is, 2003 and 2013 (Halpern et al. 2019)", unit: "pressure, 0 to 1", colour: "#1E6FA8", keepColour: true, route: "rasterlive", ready: true, lazy: true,
       attribution: "Halpern et al. 2019, KNB (CC0)", rasterPaint: { "raster-opacity": 0.85, "raster-saturation": 0 },
       choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ocean_slr.choices.json",
@@ -24860,7 +24870,7 @@ const LAYER_KIND = {
   ocean_heat: ["insentient", "downstream"], ocean_bleaching: ["animal", "downstream"],
   ocean_shipping: ["insentient", "downstream"],
   ocean_impacts: ["insentient", "downstream"],
-  ocean_slr: ["insentient", "downstream"], ocean_light: ["insentient", "downstream"], ocean_trawling: ["insentient", "downstream"], ocean_bycatch: ["insentient", "downstream"], ocean_coastal_people: ["insentient", "downstream"], ocean_runoff: ["insentient", "downstream"], offshore_platforms: ["insentient", "downstream"],
+  ocean_slr: ["insentient", "downstream"], own_salt_marsh: ["plant", "downstream"], own_burned: ["plant", "downstream"], ocean_light: ["insentient", "downstream"], ocean_trawling: ["insentient", "downstream"], ocean_bycatch: ["insentient", "downstream"], ocean_coastal_people: ["insentient", "downstream"], ocean_runoff: ["insentient", "downstream"], offshore_platforms: ["insentient", "downstream"],
   fur_world: ["animal", "downstream"],
   fur_bans: ["animal", "downstream"],
   haz_eonet: ["insentient", "downstream"],
@@ -25633,6 +25643,8 @@ const LAYER_SITE = {
   ocean_shipping: "https://datacatalog.worldbank.org/search/dataset/0037580",
   ocean_impacts: "https://doi.org/10.5063/F12B8WBS",
   ocean_slr: "https://doi.org/10.1038/s41598-019-47201-9",
+  own_salt_marsh: "https://doi.org/10.3334/ORNLDAAC/2122",
+  own_burned: "https://lpdaac.usgs.gov/products/mcd64cmqv061/",
   ocean_light: "https://doi.org/10.1038/s41598-019-47201-9",
   ocean_trawling: "https://doi.org/10.1038/s41598-019-47201-9",
   ocean_bycatch: "https://doi.org/10.1038/s41598-019-47201-9",
@@ -26070,6 +26082,8 @@ const NOT_LIVE = {
   ocean_shipping: "Made from its publisher's data by culprits-tiles-more",
   ocean_impacts: "Made from its publisher's data by culprits-tiles-more",
   ocean_slr: "Made from its publisher's data by culprits-tiles-more",
+  own_salt_marsh: "Made from NASA's files by culprits-tiles-more (once)",
+  own_burned: "Made from NASA's files by culprits-tiles-more, the year under way daily",
   ocean_light: "Made from its publisher's data by culprits-tiles-more",
   ocean_trawling: "Made from its publisher's data by culprits-tiles-more",
   ocean_bycatch: "Made from its publisher's data by culprits-tiles-more",
@@ -26458,7 +26472,7 @@ const PANEL_ORDER = [
   { h: 5, t: "Oil and chemical spills on land" }, "skytruth_nrc", "skytruth_monitor", "skytruth_posts_land",
   // Round 75: the wells and the oil and gas concessions, where spills start.
   { h: 5, t: "Where oil and gas is drilled" }, "skytruth_fracfocus",
-  { h: 3, t: "Fire" },
+  { h: 3, t: "Fire" }, "own_burned",
   { h: 4, bundle: "viirs", colour: "#8C5548" }, "remains_fire",
   { h: 3, t: "Deforestation" }, "forest_management",
   // Split one level further where the lists ran long (round 23, item 27); the
@@ -26676,6 +26690,7 @@ const PANEL_ORDER = [
   { h: 6, bundle: "ponds", colour: "#5E7377" },
   { h: 5, t: "Ocean acidification", tag: "counted in the Every human impact together layer" }, "ocean_acid",
   { h: 5, t: "Sea level rise", tag: "counted in the Every human impact together layer" }, "ocean_slr",
+  { h: 5, t: "Salt marsh loss", tag: "not counted in the Every human impact together layer" }, "own_salt_marsh",
   { h: 5, t: "Light at night", tag: "counted in the Every human impact together layer" }, "ocean_light",
   { h: 5, t: "Bottom trawling", tag: "counted in the Every human impact together layer" }, "ocean_trawling",
   { h: 5, t: "Bycatch", tag: "counted in the Every human impact together layer" }, "ocean_bycatch",
