@@ -5,6 +5,26 @@ touches.
 
 ---
 
+## Round 174b (4 October)
+
+Needs round 173b (guards on its heading). No tiles patch. No app.js?v= bump.
+Redoes the lost round 147b's colour boxes.
+
+- One colour for a layer: each ticked row's tools (beside the transparency
+  bar) carry a colour box and "As drawn". One colour for a heading: each
+  heading's line carries the same pair, colouring every ticked layer under it
+  (nested headings included) and setting their own boxes to match.
+- rowTint / tintPaints: fills take the colour and their outlines and lines a
+  darker shade (x0.6); lines alone take it; dots, glow cores and soft rings
+  take it, the haze a ramp to it; extrusions take it; pictures are turned by
+  raster-hue-rotate from hue 200 to the colour's hue. Each layer's own value
+  is kept in TINT_ORIG and put back by "As drawn".
+- TINT_RAW: the first setPaintProperty hook passes a chosen colour straight
+  through, so the map-wide colour mapping (gladpx) and the themes leave it
+  alone. tintKeep, on the map's idle, colours layers that arrive later or
+  were repainted by a theme.
+- Not seen in a browser: the map never fires "load" in the sandbox.
+
 ## Round 173b (4 October)
 
 Needs round 172b (guards on its heading). Tiles patch round173b_tiles.py

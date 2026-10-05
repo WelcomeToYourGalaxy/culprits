@@ -6883,6 +6883,35 @@ console.log("\nround 173b (4 October): the ESDAC soil maps and WBA's Nature Benc
         /"Companies and financiers" \}, "wba_nature_companies", "pe_banks",/.test(src));
 }
 
+console.log("\nround 174b (4 October): one colour for a layer or a heading (the lost 147b)");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("const ROW_TINT = new Map();"), src.indexOf("if (typeof map.on === \"function\") map.on(\"idle\", () => { if (ROW_TINT.size)"));
+  const paint = new Map(), raws = [];
+  const layers = { "r1-fill": { id: "r1-fill", type: "fill" }, "r1-line": { id: "r1-line", type: "line" },
+                   "p2": { id: "p2", type: "circle" }, "p2-haze": { id: "p2-haze", type: "heatmap" }, "pic": { id: "pic", type: "raster" } };
+  paint.set("r1-fill|fill-color", "#123456"); paint.set("p2|circle-color", ["get", "c"]);
+  const TINT_RAW = { on: false };
+  const map = { getLayer: (id) => layers[id], getPaintProperty: (id, p) => paint.get(`${id}|${p}`),
+                setPaintProperty: (id, p, v) => { raws.push(TINT_RAW.on); paint.set(`${id}|${p}`, v); } };
+  const layersOfRow = (row) => Object.keys(layers).filter((l) => l === row || l.startsWith(row + "-"));
+  const lib = new Function("map", "layersOfRow", "TINT_RAW", body + "; return { rowTint, tintKeep, ROW_TINT, tintHex, tintHue };")(map, layersOfRow, TINT_RAW);
+  lib.rowTint("r1", "#3FA9C2");
+  check("a fill takes the colour and its edge a darker shade of it", paint.get("r1-fill|fill-color") === "#3FA9C2" &&
+        paint.get("r1-line|line-color") === lib.tintHex("#3FA9C2", 0.6) && paint.get("r1-fill|fill-outline-color") === lib.tintHex("#3FA9C2", 0.6));
+  lib.rowTint("p2", "#8FD6E8");
+  check("dots and their haze take it", paint.get("p2|circle-color") === "#8FD6E8" && JSON.stringify(paint.get("p2-haze|heatmap-color")).includes("#8FD6E8"));
+  check("every colour goes on past the colour mapping and themes", raws.length > 0 && raws.every(Boolean) && !TINT_RAW.on);
+  lib.rowTint("pic", "#0E2F66");
+  check("a picture is turned round the wheel from hue 200", Math.abs(paint.get("pic|raster-hue-rotate") - (lib.tintHue("#0E2F66") - 200)) < 0.01);
+  lib.rowTint("r1", null); lib.rowTint("p2", null);
+  check("As drawn puts back each layer's own paint", paint.get("r1-fill|fill-color") === "#123456" &&
+        JSON.stringify(paint.get("p2|circle-color")) === JSON.stringify(["get", "c"]) && !lib.ROW_TINT.has("r1"));
+  check("the hook lets a chosen colour through untouched", /if \(TINT_RAW\.on\) return raw\(id, prop, v, o\);/.test(src));
+  check("rows and headings get the colour box when the menu is built", /addRowTools\(box\);\n  try \{ tintTools\(box\); \}/.test(src) &&
+        /\.toc-sec/.test(src.slice(src.indexOf("function tintTools(box)"), src.indexOf("function addRowTools(box)"))));
+}
+
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");

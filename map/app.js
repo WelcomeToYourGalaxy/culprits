@@ -2662,6 +2662,9 @@ if (typeof map.addSource === "function") {
 }
 // Everything done to a round layer is done to its symbol.
 const hudRaw = {};
+// Round 174b: while on, a colour asked for one layer or one heading passes the
+// colour mapping and the themes untouched (see rowTint).
+var TINT_RAW = { on: false };
 function hudWrap(name, make) {
   if (typeof map[name] !== "function") return;
   hudRaw[name] = map[name].bind(map);
@@ -2679,6 +2682,7 @@ hudWrap("setFilter", (raw) => function (id, f, o) {
   return out;
 });
 hudWrap("setPaintProperty", (raw) => function (id, prop, v, o) {
+  if (TINT_RAW.on) return raw(id, prop, v, o);    // round 174b: a chosen colour goes on as it is
   if (prop === "raster-hue-rotate" && !GLAD_BASE_LAYERS.test(id)) return undefined;
   v = gladPaint(id, prop, v);
   try { v = themeWrap(id, prop, v); } catch (e) { /* kept */ }
@@ -27039,6 +27043,118 @@ function moveHeading(sec, where, target) {
   const box = document.getElementById("layers");
   if (box) { countHeadings(box); syncHeadingBoxes(box); }
 }
+// Round 174b (redoes the lost round 147b, asked 3 October): one colour for a
+// layer, or for every ticked layer under a heading. Each ticked row's tools
+// carry a colour box and "As drawn"; each heading's line carries a colour box
+// that colours every ticked layer under it (and "As drawn" puts them back).
+// The colour goes on through TINT_RAW, so the map-wide colour mapping and the
+// themes leave it alone; each layer's own paint is kept (TINT_ORIG) and put
+// back by "As drawn". Fills take the colour and their edges a darker shade of
+// it; lines alone take the colour; dots, their glow and haze take it; a
+// picture row is turned round the colour wheel from hue 200 (the middle of the
+// map's teal-to-cobalt) to the colour's own hue. Layers that arrive later (a
+// tiles row filling in) are coloured when the map is next idle.
+const ROW_TINT = new Map();     // row id -> "#rrggbb"
+const TINT_ORIG = new Map();    // "layer|prop" -> the layer's own value
+function tintHex(h, f) {
+  const n = parseInt(String(h).slice(1, 7), 16);
+  const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((x) => Math.max(0, Math.min(255, Math.round(x * f))));
+  return "#" + c.map((x) => x.toString(16).padStart(2, "0")).join("");
+}
+function tintHue(h) {
+  const n = parseInt(String(h).slice(1, 7), 16);
+  const r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  if (!d) return 200;
+  const hue = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return (hue * 60 + 360) % 360;
+}
+// What one layer of a row is given for colour c ([prop, value] pairs).
+function tintPaints(layer, c, rowHasFill) {
+  const id = layer.id, t = layer.type;
+  if (t === "fill") return [["fill-color", c], ["fill-outline-color", tintHex(c, 0.6)]];
+  if (t === "fill-extrusion") return [["fill-extrusion-color", c]];
+  if (t === "line") return [["line-color", rowHasFill ? tintHex(c, 0.6) : c]];
+  if (t === "circle") return [["circle-color", c]];
+  if (t === "heatmap" && /-haze$/.test(id)) return [["heatmap-color", ["interpolate", ["linear"], ["heatmap-density"], 0, "rgba(0,0,0,0)", 0.3, tintHex(c, 0.55), 1, c]]];
+  if (t === "raster") { let r = tintHue(c) - 200; if (r > 180) r -= 360; if (r < -180) r += 360; return [["raster-hue-rotate", r]]; }
+  return [];
+}
+function tintSet(raw, id, prop, v) {
+  TINT_RAW.on = true;
+  try { map.setPaintProperty(id, prop, v); } catch (e) { /* this layer keeps its own */ } finally { TINT_RAW.on = false; }
+}
+// Colours row `row` in c, or puts it back as drawn when c is null.
+function rowTint(row, c) {
+  const layers = layersOfRow(row).map((l) => map.getLayer(l)).filter(Boolean);
+  const hasFill = layers.some((l) => l.type === "fill");
+  if (!c) {
+    ROW_TINT.delete(row);
+    for (const l of layers) for (const [prop] of tintPaints(l, "#000000", hasFill)) {
+      const key = `${l.id}|${prop}`;
+      if (!TINT_ORIG.has(key)) continue;
+      const v = TINT_ORIG.get(key);
+      TINT_ORIG.delete(key);
+      tintSet(null, l.id, prop, v === undefined ? (prop === "raster-hue-rotate" ? 0 : undefined) : v);
+    }
+    return;
+  }
+  ROW_TINT.set(row, c);
+  for (const l of layers) for (const [prop, v] of tintPaints(l, c, hasFill)) {
+    const key = `${l.id}|${prop}`;
+    if (!TINT_ORIG.has(key)) { let was; try { was = map.getPaintProperty(l.id, prop); } catch (e) { was = undefined; } TINT_ORIG.set(key, was); }
+    tintSet(null, l.id, prop, v);
+  }
+}
+// A row's layers that came after its colour was chosen take it too.
+function tintKeep() {
+  for (const [row, c] of ROW_TINT) {
+    const layers = layersOfRow(row).map((l) => map.getLayer(l)).filter(Boolean);
+    const hasFill = layers.some((l) => l.type === "fill");
+    const off = layers.some((l) => tintPaints(l, c, hasFill).some(([prop, v]) => {
+      let now; try { now = map.getPaintProperty(l.id, prop); } catch (e) { return false; }
+      return JSON.stringify(now) !== JSON.stringify(v);
+    }));
+    if (off) rowTint(row, c);
+  }
+}
+if (typeof map.on === "function") map.on("idle", () => { if (ROW_TINT.size) { try { tintKeep(); } catch (e) { /* kept */ } } });
+const TINT_START = "#3FA9C2";
+function tintControl(title) {
+  return `<span class="tint-box" style="display:inline-flex;align-items:center;gap:4px">` +
+    `<input type="color" class="tint-pick" value="${TINT_START}" title="${title}" aria-label="${title}" style="width:22px;height:18px;padding:0;border:1px solid var(--rule);background:none;cursor:pointer">` +
+    `<button type="button" class="chip tint-off" title="Back to the layer's own colours" style="font-size:10.5px;padding:1px 6px">As drawn</button></span>`;
+}
+function tintTools(box) {
+  if (!box || !box.querySelectorAll || typeof document.createElement !== "function") return;
+  for (const tools of box.querySelectorAll(".row-tools")) {
+    if (tools.querySelector(".tint-box")) continue;
+    const row = tools.dataset.for;
+    tools.insertAdjacentHTML("beforeend", tintControl("One colour for this layer"));
+    const pick = tools.querySelector(".tint-pick");
+    pick.addEventListener("input", () => rowTint(row, pick.value));
+    tools.querySelector(".tint-off").addEventListener("click", (e) => { e.preventDefault(); rowTint(row, null); });
+  }
+  for (const sec of box.querySelectorAll(".toc-sec")) {
+    const line = sec.querySelector(".toc-line");
+    if (!line || line.querySelector(".tint-box")) continue;
+    line.insertAdjacentHTML("beforeend", tintControl("One colour for every ticked layer under this heading"));
+    const pick = line.querySelector(".tint-pick");
+    const ticked = () => [...new Set([...sec.querySelectorAll("[data-layer]")].filter((i) => i.checked).map((i) => i.dataset.layer))];
+    pick.addEventListener("click", (e) => e.stopPropagation());
+    pick.addEventListener("input", () => {
+      for (const row of ticked()) {
+        rowTint(row, pick.value);
+        const own = box.querySelector(`.row-tools[data-for="${row}"] .tint-pick`);
+        if (own) own.value = pick.value;
+      }
+    });
+    line.querySelector(".tint-off").addEventListener("click", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      for (const row of ticked()) rowTint(row, null);
+    });
+  }
+}
 function addRowTools(box) {
   for (const input of box.querySelectorAll("label > [data-layer]")) {
     const lead = input.closest("label");
@@ -27389,6 +27505,7 @@ function arrangePanel() {
   readSiteTypeRowsAtStart();
   pinBuildings(box);
   addRowTools(box);
+  try { tintTools(box); } catch (e) { /* the rows keep their own colours */ }
   comboBox(box);
   layerSearch(box);
   layerKindSwitch(box);
