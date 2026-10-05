@@ -5,6 +5,28 @@ touches.
 
 ---
 
+## Round 184b (5 October)
+
+Needs round 184o (guards on its heading; re-made after round 184o, whose test checks sat in the same place). No tiles patch. No app.js?v= bump.
+
+- Owner asked for Glass Garden in a Frutiger Aero / Y2K eco-tech look:
+  translucent aquamarine glass, soft light blooms, pale mint and icy teal
+  plants with a frosted sheen, glowing water, and a light-filled space round
+  the globe with soft rays and lens flares.
+- Plants lighter (icy teal to pale mint, hue 166 and up, kept under the
+  bright-green test), lit more by density; a frosted-glass sheen (frost 0.08)
+  over land; water and sea brighter aquamarine to deep cyan.
+- New layers: outline-lumen-shelf (shelves and reefs glow aquamarine under
+  the surface) and outline-lumen-gloss (sea-dem hillshade, highlights only:
+  a glossy sheen on land and sea floor).
+- Sky paler aqua to white. lumenAura: a canvas #lumen-aura just behind the
+  map, over #stars: deep teal at the window's corners to near white at the
+  globe's rim, blurred rays from behind the globe on its north-west side,
+  three faint lens rings on the far side. Globe only (not the flat map), off
+  with the hologram or Eyes (#map.away), redrawn on move/resize/idle, still.
+- Not seen against the real imagery (EOX blocked here); the aura was drawn
+  in Chromium on a stand-in globe.
+
 ## Round 184o (5 October)
 
 Needs round 183b (guards on its heading). Carries round 183o, whose patch

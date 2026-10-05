@@ -15726,24 +15726,40 @@ if (typeof MutationObserver === "function" && typeof document !== "undefined" &&
 var LUMEN = {
   sheet: "#BFE3E6",
   // What grows: deep teal shade to luminous jade-teal in the light.
-  plants: [[0, "#0F4C55"], [0.3, "#1C7377"], [0.55, "#2E9A97"], [0.8, "#5EC6BA"], [1, "#A8E9E0"]],
+  plants: [[0, "#16615F"], [0.3, "#2C8C84"], [0.55, "#52B5A4"], [0.8, "#8FD8CA"], [1, "#CFF2EA"]],
+  // Round 184b (Frutiger Aero): plants lighter, from icy teal to pale mint.
   // Bare ground: clear glass, cool greys to near white.
   panes: [[0, "#5F7F88"], [0.35, "#93B1B8"], [0.65, "#C7DCE0"], [1, "#F1F8F9"]],
   // Water in the picture, deeps to shallows.
-  waters: [[0, "#0A3F5A"], [0.4, "#0F6A80"], [0.75, "#2BA5AE"], [1, "#7AD8D4"]],
+  waters: [[0, "#06405A"], [0.4, "#0B7890"], [0.75, "#2DB8B8"], [1, "#8CE4D8"]],
   snow: "#F6FBFC",
   white: "#FFFFFF",
-  green: "#7FDCD0",      // the light plants give off
+  green: "#A4E8DA",      // the light plants give off
+  frost: 0.08,           // a frosted-glass sheen over the land
   focus: 0.22,           // share of the softened picture (Aqua was 0.5)
-  plantLight: 0.3,       // how much denser growth lights itself
-  plantGlow: 0.25,       // how far that light spills round it
+  plantLight: 0.35,      // how much denser growth lights itself
+  plantGlow: 0.3,        // how far that light spills round it
   bloom: 0.15,           // white light from bright ground
   bloomFrom: 0.8,
   rim: 0.55,             // the pale rim where brightness changes sharply
   sea: ["interpolate", ["linear"], ["elevation"],
-    -8000, "#0A3350", -4000, "#0D4766", -1500, "#126283", -400, "#1A8197", -120, "#26A3A9", -30, "#4CC4BE", -1, "#8FE0D6",
+    -8000, "#06405A", -4000, "#085A74", -1500, "#0B7890", -400, "#1497A6", -120, "#2DB8B8", -30, "#63D3C8", -1, "#A6EDE0",
     0, "rgba(0,0,0,0)"],
-  seaOpacity: 0.72,
+  seaOpacity: 0.8,
+  // Light under the surface: the shelves and reefs glow aquamarine.
+  shelf: ["interpolate", ["linear"], ["elevation"],
+    -800, "rgba(166,237,224,0)", -150, "rgba(166,237,224,0.16)", -20, "rgba(196,246,236,0.3)", -1, "rgba(220,251,245,0.22)", 0, "rgba(220,251,245,0)"],
+  // A glossy sheen: soft light on every slope facing the light, sea floor
+  // included, with no added shadow.
+  gloss: {
+    "hillshade-method": "standard",
+    "hillshade-illumination-direction": 315,
+    "hillshade-illumination-anchor": "map",
+    "hillshade-highlight-color": "rgba(226,255,250,0.3)",
+    "hillshade-shadow-color": "rgba(0,0,0,0)",
+    "hillshade-accent-color": "rgba(0,0,0,0)",
+    "hillshade-exaggeration": 0.45,
+  },
   coastHaze: ["interpolate", ["linear"], ["elevation"],
     -1, "rgba(244,251,252,0)", 0, "rgba(244,251,252,0.22)", 60, "rgba(244,251,252,0.08)", 200, "rgba(244,251,252,0)"],
   shade: {
@@ -15763,12 +15779,14 @@ var LUMEN = {
   roadGlow: "#6FD0CB",
   rail: "#6E95A3", building: "#D8EEF0", buildingOpacity: 0.62,
   border: "rgba(10,60,80,0.45)",
-  sky: { "sky-color": "#A9DCE4", "horizon-color": "#FFFFFF", "fog-color": "#DDF2F3",
-         "sky-horizon-blend": 0.8, "horizon-fog-blend": 0.75, "fog-ground-blend": 0.6,
-         "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.9, 8, 0.75, 12, 0.35] },
+  sky: { "sky-color": "#BFEDEB", "horizon-color": "#FFFFFF", "fog-color": "#E6F8F6",
+         "sky-horizon-blend": 0.85, "horizon-fog-blend": 0.8, "fog-ground-blend": 0.6,
+         "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 1, 8, 0.8, 12, 0.35] },
+  // Round 184b: the space round the globe, light-filled (lumenAura).
+  aura: { outer: "#0C3B4C", mid: "#3E9BA6", inner: "#E8FBF8", rays: "rgba(230,252,248,0.16)", flare: "rgba(170,236,226,0.1)" },
   margin: 32,
 };
-var LUMEN_IDS = ["outline-lumen-sheet", "outline-lumen-paint", "outline-lumen-sea", "outline-lumen-shade", "outline-lumen-haze",
+var LUMEN_IDS = ["outline-lumen-sheet", "outline-lumen-paint", "outline-lumen-sea", "outline-lumen-shelf", "outline-lumen-shade", "outline-lumen-gloss", "outline-lumen-haze",
   "outline-lumen-lake", "outline-lumen-town", "outline-lumen-river", "outline-lumen-rail", "outline-lumen-road-glow",
   "outline-lumen-road-minor", "outline-lumen-road", "outline-lumen-road-major", "outline-lumen-buildings", "outline-lumen-border"];
 // Re-colours the picture (data: RGBA, N x N, the square in its middle with M
@@ -15814,7 +15832,7 @@ function lumenPaintPixels(data, N, M, soft) {
     else {
       const v = Vs[p];
       // Plants are lit from inside: the denser the growth, the brighter.
-      const a = plants(Math.min(1, 0.05 + 0.5 * Ts[p] + LUMEN.plantLight * v));
+      const a = plants(Math.min(1, 0.15 + 0.5 * Ts[p] + LUMEN.plantLight * v));
       const e = panes(0.05 + 0.85 * Ts[p]), m = Math.min(1, 1.15 * v);
       c = [e[0] + (a[0] - e[0]) * m, e[1] + (a[1] - e[1]) * m, e[2] + (a[2] - e[2]) * m];
     }
@@ -15842,6 +15860,7 @@ function lumenPaintPixels(data, N, M, soft) {
     r += (green[0] - r) * lg; g += (green[1] - g) * lg; b += (green[2] - b) * lg;
     const k = Math.min(1, LUMEN.bloom * glow[p] * 1.6 + LUMEN.rim * Es[p] * (K[p] === 1 ? 0.3 : 1));
     r += (white[0] - r) * k; g += (white[1] - g) * k; b += (white[2] - b) * k;
+    if (K[p] !== 1) { const fz = LUMEN.frost; r += (white[0] - r) * fz; g += (white[1] - g) * fz; b += (white[2] - b) * fz; }
     out[q] = r; out[q + 1] = g; out[q + 2] = b; out[q + 3] = 255;
   }
   return out;
@@ -15890,7 +15909,10 @@ function lumenLayers() {
       paint: { "raster-opacity": 1, "raster-fade-duration": 200, "raster-resampling": "linear" } },
     { id: "outline-lumen-sea", type: "color-relief", source: "sea-dem",
       paint: { "color-relief-color": LUMEN.sea, "color-relief-opacity": LUMEN.seaOpacity } },
+    { id: "outline-lumen-shelf", type: "color-relief", source: "sea-dem",
+      paint: { "color-relief-color": LUMEN.shelf, "color-relief-opacity": 1 } },
     { id: "outline-lumen-shade", type: "hillshade", source: "outline-dem", paint: LUMEN.shade },
+    { id: "outline-lumen-gloss", type: "hillshade", source: "sea-dem", paint: LUMEN.gloss },
     { id: "outline-lumen-haze", type: "color-relief", source: "sea-dem",
       paint: { "color-relief-color": LUMEN.coastHaze, "color-relief-opacity": 1 } },
     { id: "outline-lumen-lake", type: "fill", source: "osm", "source-layer": "water",
@@ -15973,6 +15995,83 @@ function lumenShow(on) {
   const vis = on && !hellHoloHides() ? "visible" : "none";
   for (const id of LUMEN_IDS) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
   lumenSky(on);
+  lumenAuraOn(vis === "visible");
+}
+// Round 184b: the space round the globe, light-filled. A canvas just behind
+// the map (over the stars) draws a glow from deep teal at the window's
+// corners to near white at the globe's rim, a few soft rays of light from the
+// north-west (where the basemap's light comes from) and faint lens rings on
+// the far side. The globe covers whatever falls on it, so all of it shows
+// only round the globe. Drawn on the globe only, not on the flat map, and not
+// while the hologram or Eyes is showing. Nothing moves by itself.
+var LUMEN_AURA = { on: false, el: null, queued: false };
+function lumenAuraEl() {
+  if (LUMEN_AURA.el || typeof document === "undefined") return LUMEN_AURA.el;
+  const stars = document.getElementById("stars");
+  if (!stars || !stars.parentNode) return null;
+  const c = document.createElement("canvas");
+  c.id = "lumen-aura"; c.setAttribute("aria-hidden", "true");
+  c.style.cssText = "position:fixed;inset:0;width:100%;height:100%;pointer-events:none;display:none";
+  stars.parentNode.insertBefore(c, stars.nextSibling);
+  LUMEN_AURA.el = c;
+  if (typeof map.on === "function") for (const ev of ["move", "resize", "idle"]) map.on(ev, lumenAuraSoon);
+  if (typeof window !== "undefined" && window.addEventListener) window.addEventListener("resize", lumenAuraSoon);
+  return c;
+}
+function lumenAuraOn(on) {
+  LUMEN_AURA.on = !!on;
+  const c = on ? lumenAuraEl() : LUMEN_AURA.el;
+  if (c) { c.style.display = on ? "block" : "none"; if (on) lumenAuraSoon(); }
+}
+function lumenAuraSoon() {
+  if (!LUMEN_AURA.on || LUMEN_AURA.queued) return;
+  LUMEN_AURA.queued = true;
+  const go = () => { LUMEN_AURA.queued = false; try { lumenAuraDraw(); } catch (e) { /* the stars show instead */ } };
+  if (typeof requestAnimationFrame === "function") requestAnimationFrame(go); else go();
+}
+function lumenAuraDraw() {
+  const c = LUMEN_AURA.el;
+  if (!c || !LUMEN_AURA.on) return;
+  const mapEl = document.getElementById("map");
+  const hidden = drawnProjection() === "mercator" || (document.body && document.body.classList.contains("holo-on")) ||
+    (mapEl && mapEl.classList.contains("away"));
+  c.style.display = hidden ? "none" : "block";
+  if (hidden) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1), Wd = c.clientWidth, Hd = c.clientHeight;
+  if (c.width !== Math.round(Wd * dpr) || c.height !== Math.round(Hd * dpr)) { c.width = Math.round(Wd * dpr); c.height = Math.round(Hd * dpr); }
+  const g = c.getContext("2d"), A = LUMEN.aura;
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, Wd, Hd);
+  const ctr = map.project(map.getCenter()), cx = ctr.x, cy = ctr.y;
+  const R = globeRadiusPx(map.getZoom(), map.getCenter().lat);
+  const far = Math.hypot(Math.max(cx, Wd - cx), Math.max(cy, Hd - cy));
+  // The light-filled space: near white at the rim, aqua, then deep teal.
+  const bg = g.createRadialGradient(cx, cy, Math.max(1, R * 0.98), cx, cy, Math.max(R * 1.05, far));
+  bg.addColorStop(0, A.inner); bg.addColorStop(0.12, A.mid); bg.addColorStop(1, A.outer);
+  g.fillStyle = bg; g.fillRect(0, 0, Wd, Hd);
+  if (R > far * 1.2) return;   // close in: the globe fills the window
+  // Soft rays out from behind the globe, mostly on the north-west side
+  // (where the basemap's light comes from), blurred like light in haze.
+  g.save(); g.globalCompositeOperation = "lighter";
+  if ("filter" in g) g.filter = "blur(" + Math.max(8, R * 0.06) + "px)";
+  const len = far * 1.2, rays = [[-2.62, 0.05], [-2.4, 0.03], [-2.2, 0.07], [-1.98, 0.035], [-1.75, 0.05], [-2.95, 0.03]];
+  for (const [a, wdt] of rays) {
+    const ray = g.createRadialGradient(cx, cy, R, cx, cy, len);
+    ray.addColorStop(0, A.rays); ray.addColorStop(1, "rgba(230,252,248,0)");
+    g.fillStyle = ray; g.beginPath(); g.moveTo(cx, cy);
+    g.lineTo(cx + Math.cos(a - wdt) * len, cy + Math.sin(a - wdt) * len);
+    g.lineTo(cx + Math.cos(a + wdt) * len, cy + Math.sin(a + wdt) * len);
+    g.closePath(); g.fill();
+  }
+  if ("filter" in g) g.filter = "none";
+  // Faint lens rings on the far side from the light, past the rim.
+  for (const [t, r] of [[1.35, 0.1], [1.7, 0.06], [2.1, 0.16]]) {
+    const fx = cx + Math.cos(0.75) * R * t, fy = cy + Math.sin(0.75) * R * t, fr = R * r;
+    const fl = g.createRadialGradient(fx, fy, fr * 0.5, fx, fy, fr);
+    fl.addColorStop(0, "rgba(170,236,226,0)"); fl.addColorStop(0.75, A.flare); fl.addColorStop(1, "rgba(170,236,226,0)");
+    g.fillStyle = fl; g.beginPath(); g.arc(fx, fy, fr, 0, 2 * Math.PI); g.fill();
+  }
+  g.restore();
 }
 BASE_GRADE.lumen = {};
 const basemapPanelHtmlBeforeLumen = basemapPanelHtml;
@@ -15990,7 +16089,7 @@ setBasemap = function (kind) {
   if (kind === "lumen") lumenShow(true);
 };
 if (typeof MutationObserver === "function" && typeof document !== "undefined" && document.body) {
-  new MutationObserver(() => { if (BASEMAP === "lumen") lumenShow(true); })
+  new MutationObserver(() => { if (BASEMAP === "lumen") lumenShow(true); else lumenAuraOn(false); })
     .observe(document.body, { attributes: true, attributeFilter: ["class"] });
 }
 /* ---------- end of Glass Garden ---------- */
