@@ -2683,6 +2683,9 @@ hudWrap("setFilter", (raw) => function (id, f, o) {
 });
 hudWrap("setPaintProperty", (raw) => function (id, prop, v, o) {
   if (TINT_RAW.on) return raw(id, prop, v, o);    // round 174b: a chosen colour goes on as it is
+  // Round 178b: anything else repainting a layer whose row has a chosen
+  // colour (a theme, the colour wheel, a key, a refresh) gets that colour.
+  try { const t = tintFor(id, prop); if (t !== undefined) return raw(id, prop, t, o); } catch (e) { /* as asked */ }
   if (prop === "raster-hue-rotate" && !GLAD_BASE_LAYERS.test(id)) return undefined;
   v = gladPaint(id, prop, v);
   try { v = themeWrap(id, prop, v); } catch (e) { /* kept */ }
@@ -27070,8 +27073,8 @@ function moveHeading(sec, where, target) {
 // picture row is turned round the colour wheel from hue 200 (the middle of the
 // map's teal-to-cobalt) to the colour's own hue. Layers that arrive later (a
 // tiles row filling in) are coloured when the map is next idle.
-const ROW_TINT = new Map();     // row id -> "#rrggbb"
-const TINT_ORIG = new Map();    // "layer|prop" -> the layer's own value
+var ROW_TINT = new Map();     // row id -> "#rrggbb" (var: the paint hook may ask before this line runs)
+var TINT_ORIG = new Map();    // "layer|prop" -> the layer's own value
 function tintHex(h, f) {
   const n = parseInt(String(h).slice(1, 7), 16);
   const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((x) => Math.max(0, Math.min(255, Math.round(x * f))));
@@ -27141,49 +27144,82 @@ function tintControl(title) {
     `<input type="color" class="tint-pick" value="${TINT_START}" title="${title}" aria-label="${title}" style="width:22px;height:18px;padding:0;border:1px solid var(--rule);background:none;cursor:pointer">` +
     `<button type="button" class="chip tint-off" hidden title="Back to the layer's own colours" style="font-size:10.5px;padding:1px 6px">As drawn</button></span>`;
 }
+// The colour a tinted row's layer should have for prop, or undefined.
+function tintFor(id, prop) {
+  if (typeof ROW_TINT === "undefined" || !ROW_TINT || !ROW_TINT.size || !map.getLayer) return undefined;
+  let row = null;
+  for (const r of ROW_TINT.keys()) if ((id === r || id.startsWith(r + "-")) && (!row || r.length > row.length)) row = r;
+  if (!row) return undefined;
+  const layer = map.getLayer(id);
+  if (!layer) return undefined;
+  const hasFill = layersOfRow(row).some((l) => { const x = map.getLayer(l); return x && x.type === "fill"; });
+  const hit = tintPaints(layer, ROW_TINT.get(row), hasFill).find(([p]) => p === prop);
+  return hit ? hit[1] : undefined;
+}
+// Round 178b (asked 5 October: the colour boxes did nothing, and sat below
+// the menu that unfolds under a ticked layer): each layer's square is on the
+// layer's own line, shown while it is ticked; one listener on the whole box
+// serves every square, so rows added or redrawn later work too.
 function tintTools(box) {
   if (!box || !box.querySelectorAll || typeof document.createElement !== "function") return;
-  for (const tools of box.querySelectorAll(".row-tools")) {
-    if (tools.querySelector(".tint-box")) continue;
-    const row = tools.dataset.for;
-    tools.insertAdjacentHTML("beforeend", tintControl("One colour for this layer"));
-    const pick = tools.querySelector(".tint-pick");
-    const off = tools.querySelector(".tint-off");
-    pick.addEventListener("input", () => { rowTint(row, pick.value); off.hidden = false; });
-    off.addEventListener("click", (e) => { e.preventDefault(); rowTint(row, null); off.hidden = true; pick.value = TINT_START; });
+  for (const input of box.querySelectorAll("label > [data-layer]")) {
+    const lead = input.closest("label");
+    if (!lead || lead.querySelector(".tint-box") || lead.closest("[data-removed]")) continue;
+    lead.dataset.tintRow = input.dataset.layer;
+    const fold = lead.querySelector(".fold");
+    const span = document.createElement("span");
+    span.innerHTML = tintControl("One colour for this layer");
+    const tb = span.firstElementChild;
+    if (fold) lead.insertBefore(tb, fold); else lead.appendChild(tb);
   }
   for (const sec of box.querySelectorAll(".toc-sec")) {
     const line = sec.querySelector(".toc-line");
     if (!line || line.querySelector(".tint-box")) continue;
     line.insertAdjacentHTML("beforeend", tintControl("One colour for every ticked layer under this heading"));
-    const pick = line.querySelector(".tint-pick");
-    const ticked = () => [...new Set([...sec.querySelectorAll("[data-layer]")].filter((i) => i.checked).map((i) => i.dataset.layer))];
-    pick.addEventListener("click", (e) => e.stopPropagation());
-    pick.addEventListener("input", () => {
-      for (const row of ticked()) {
-        rowTint(row, pick.value);
-        const own = box.querySelector(`.row-tools[data-for="${row}"] .tint-pick`);
-        if (own) own.value = pick.value;
-        const ownOff = box.querySelector(`.row-tools[data-for="${row}"] .tint-off`);
-        if (ownOff) ownOff.hidden = false;
-      }
-      line.querySelector(".tint-off").hidden = false;
-    });
-    line.querySelector(".tint-off").addEventListener("click", (e) => {
-      e.preventDefault(); e.stopPropagation();
-      for (const row of ticked()) {
-        rowTint(row, null);
-        const ownOff = box.querySelector(`.row-tools[data-for="${row}"] .tint-off`);
-        if (ownOff) ownOff.hidden = true;
-        const own = box.querySelector(`.row-tools[data-for="${row}"] .tint-pick`);
-        if (own) own.value = TINT_START;
-      }
-      line.querySelector(".tint-off").hidden = true;
-      pick.value = TINT_START;
-    });
   }
+  if (box.dataset.tintWired) return;
+  box.dataset.tintWired = "1";
+  const rowsOf = (t) => {
+    const lead = t.closest("[data-tint-row]");
+    if (lead) return { rows: [lead.dataset.tintRow], heading: null };
+    const sec = t.closest(".toc-sec");
+    if (!sec) return { rows: [], heading: null };
+    return { rows: [...new Set([...sec.querySelectorAll("[data-layer]")].filter((i) => i.checked).map((i) => i.dataset.layer))], heading: sec };
+  };
+  const ownBox = (row) => box.querySelector(`[data-tint-row="${row}"] .tint-box`);
+  box.addEventListener("input", (e) => {
+    const t = e.target;
+    if (!t || !t.classList || !t.classList.contains("tint-pick")) return;
+    e.stopPropagation();
+    const { rows, heading } = rowsOf(t);
+    for (const row of rows) {
+      rowTint(row, t.value);
+      const own = ownBox(row);
+      if (own && own !== t.parentElement) { own.querySelector(".tint-pick").value = t.value; own.querySelector(".tint-off").hidden = false; }
+    }
+    t.parentElement.querySelector(".tint-off").hidden = false;
+  }, true);
+  box.addEventListener("change", (e) => { if (e.target && e.target.classList && e.target.classList.contains("tint-pick")) e.stopPropagation(); }, true);
+  box.addEventListener("click", (e) => {
+    const t = e.target;
+    if (!t || !t.classList) return;
+    if (t.classList.contains("tint-pick")) { e.stopPropagation(); return; }
+    if (!t.classList.contains("tint-off")) return;
+    e.preventDefault(); e.stopPropagation();
+    const { rows } = rowsOf(t);
+    for (const row of rows) {
+      rowTint(row, null);
+      const own = ownBox(row);
+      if (own) { own.querySelector(".tint-pick").value = TINT_START; own.querySelector(".tint-off").hidden = true; }
+    }
+    t.hidden = true;
+    t.parentElement.querySelector(".tint-pick").value = TINT_START;
+  }, true);
+  addStyle("label.layer .tint-box{margin-left:auto;flex:none}label.layer:not(:has(> [data-layer]:checked)) .tint-box{display:none!important}" +
+    ".tint-off[hidden]{display:none!important}", "tint-box");
 }
 function addRowTools(box) {
+  if (typeof document !== "undefined" && document.createElement) setTimeout(() => { try { tintTools(box); } catch (e) { /* the rows keep their own colours */ } }, 0);
   for (const input of box.querySelectorAll("label > [data-layer]")) {
     const lead = input.closest("label");
     if (!lead || lead.closest("[data-removed]") || (lead.nextElementSibling && lead.nextElementSibling.classList.contains("row-tools"))) continue;

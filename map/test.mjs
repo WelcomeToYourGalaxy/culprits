@@ -6886,7 +6886,7 @@ console.log("\nround 173b (4 October): the ESDAC soil maps and WBA's Nature Benc
 console.log("\nround 174b (4 October): one colour for a layer or a heading (the lost 147b)");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  const body = src.slice(src.indexOf("const ROW_TINT = new Map();"), src.indexOf("if (typeof map.on === \"function\") map.on(\"idle\", () => { if (ROW_TINT.size)"));
+  const body = src.slice(src.indexOf("var ROW_TINT = new Map();"), src.indexOf("if (typeof map.on === \"function\") map.on(\"idle\", () => { if (ROW_TINT.size)"));
   const paint = new Map(), raws = [];
   const layers = { "r1-fill": { id: "r1-fill", type: "fill" }, "r1-line": { id: "r1-line", type: "line" },
                    "p2": { id: "p2", type: "circle" }, "p2-haze": { id: "p2-haze", type: "heatmap" }, "pic": { id: "pic", type: "raster" } };
@@ -6908,7 +6908,7 @@ console.log("\nround 174b (4 October): one colour for a layer or a heading (the 
   check("As drawn puts back each layer's own paint", paint.get("r1-fill|fill-color") === "#123456" &&
         JSON.stringify(paint.get("p2|circle-color")) === JSON.stringify(["get", "c"]) && !lib.ROW_TINT.has("r1"));
   check("the hook lets a chosen colour through untouched", /if \(TINT_RAW\.on\) return raw\(id, prop, v, o\);/.test(src));
-  check("rows and headings get the colour box when the menu is built", /addRowTools\(box\);\n  try \{ tintTools\(box\); \}/.test(src) &&
+  check("rows and headings get the colour box when the menu is built", /try \{ tintTools\(box\); \}/.test(src) &&
         /\.toc-sec/.test(src.slice(src.indexOf("function tintTools(box)"), src.indexOf("function addRowTools(box)"))));
 }
 
@@ -6934,8 +6934,28 @@ console.log("\nround 177b (5 October): a note on the boxes; As drawn only once a
   const hint = src.slice(src.indexOf('hint.id = "layer-drag-hint";'), src.indexOf("if (box.parentElement && box.parentElement.insertBefore) box.parentElement.insertBefore(hint, box);"));
   check("the note under the drag note explains the tick boxes, the colour squares and As drawn",
         /tick box on a layer/.test(hint) && /tick box on a heading/.test(hint) && /colour square/.test(hint) && /As drawn button appears/.test(hint));
-  check("As drawn starts hidden and shows once a colour is chosen", /class="chip tint-off" hidden/.test(src) && /rowTint\(row, pick\.value\); off\.hidden = false;/.test(src) &&
+  check("As drawn starts hidden and shows once a colour is chosen", /class="chip tint-off" hidden/.test(src) && /rowTint\(row, t\.value\);/.test(src) &&
         /\.tint-off\[hidden\]\{display:none!important\}/.test(src));
+}
+
+console.log("\nround 178b (5 October): the colour squares on each layer's own line, one listener, the chosen colour kept");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const tt = src.slice(src.indexOf("function tintTools(box) {"), src.indexOf("function addRowTools(box) {"));
+  check("a layer's square sits on its own line, shown while ticked", /lead\.dataset\.tintRow = input\.dataset\.layer;/.test(tt) &&
+        /label\.layer:not\(:has\(> \[data-layer\]:checked\)\) \.tint-box\{display:none!important\}/.test(tt) && !/\.row-tools"\)\) \{\n    if \(tools\.querySelector\("\.tint-box"\)\)/.test(tt));
+  check("one listener on the whole box serves every square, rows added later too", /box\.dataset\.tintWired = "1";/.test(tt) &&
+        /function addRowTools\(box\) \{\n  if \(typeof document !== "undefined" && document\.createElement\) setTimeout\(\(\) => \{ try \{ tintTools\(box\); \}/.test(src));
+  check("the paint hook keeps a chosen colour against later repaints", /try \{ const t = tintFor\(id, prop\); if \(t !== undefined\) return raw\(id, prop, t, o\); \}/.test(src));
+  const body = src.slice(src.indexOf("var ROW_TINT = new Map();"), src.indexOf("if (typeof map.on === \"function\") map.on(\"idle\", () => { if (ROW_TINT.size)")) +
+    src.slice(src.indexOf("// The colour a tinted row's layer should have for prop, or undefined."), src.indexOf("// Round 178b (asked 5 October: the colour boxes did nothing"));
+  const layers = { "r-fill": { id: "r-fill", type: "fill" }, "r-line": { id: "r-line", type: "line" }, "rr-fill": { id: "rr-fill", type: "fill" } };
+  const map = { getLayer: (id) => layers[id], getPaintProperty: () => undefined, setPaintProperty: () => {} };
+  const lib = new Function("map", "layersOfRow", "TINT_RAW", body + "; return { rowTint, tintFor, ROW_TINT };")(map, (r) => Object.keys(layers).filter((l) => l === r || l.startsWith(r + "-")), { on: false });
+  lib.rowTint("r", "#336699");
+  check("a later repaint of a tinted layer is given the chosen colour; other rows and props are left alone",
+        lib.tintFor("r-fill", "fill-color") === "#336699" && lib.tintFor("r-line", "line-color") !== undefined && lib.tintFor("rr-fill", "fill-color") === undefined &&
+        lib.tintFor("r-fill", "fill-opacity") === undefined);
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");

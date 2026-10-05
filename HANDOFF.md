@@ -5,6 +5,26 @@ touches.
 
 ---
 
+## Round 178b (5 October)
+
+Needs round 177b (guards on its heading). No tiles patch. No app.js?v= bump.
+
+- Owner: the colour squares did nothing, and sat below the menu that
+  unfolds under a ticked layer. rowTint itself worked when tried in a
+  browser; the squares lived in .row-tools, each with its own listener.
+- Now each layer's square sits on the layer's own line (label[data-tint-row],
+  before its fold arrow), shown only while it is ticked (:has); headings keep
+  theirs on the heading line. One capturing listener on the layers box
+  serves every square (input, change, click), so rows added or redrawn later
+  work too; addRowTools calls tintTools each time it runs.
+- tintFor: the first paint hook gives a tinted row's layers their chosen
+  colour whenever anything else repaints them (themes, the colour wheel,
+  keys). ROW_TINT and TINT_ORIG are var, for the hook's early calls.
+- Checked in Chromium with a stand-in row: the square shows on the line,
+  colours the layer, keeps it through a repaint, hides when unticked; As
+  drawn restores; a heading's square colours its ticked layers and sets
+  their squares.
+
 ## Round 177b (5 October)
 
 Needs round 176b (guards on its heading). No tiles patch. No app.js?v= bump.
