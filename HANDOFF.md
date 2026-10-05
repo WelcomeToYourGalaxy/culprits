@@ -5,6 +5,34 @@ touches.
 
 ---
 
+## Round 183b (5 October)
+
+Needs round 182b (guards on its heading). No tiles patch. No app.js?v= bump.
+
+- Owner asked again for a basemap like their two pictures (seaside room,
+  desk by a window: aqua, white, glass) and the house and plants of Ex
+  Machina: "dreamy, light-filled, glowing plant and water realm of glass,
+  hazy and see-through". Aqua (180b) was too pale ("baby blue"); Glass house
+  (181b) was too dark and grey and did not read as glass or light.
+- New basemap Glass Garden (kind "lumen", layers "outline-lumen-..."), on
+  the menu after Bioluminescent. Made like Woodlands from the real Earth
+  (EOX Sentinel-2 through woodComposite, lumenPaintPixels in two Web Workers):
+  plants on teals from deep shade to luminous jade, brighter the denser they
+  grow, with a soft teal light round dense growth; bare ground as clear pale
+  glass; water deep blue-teal to clear turquoise; a thin pale rim where the
+  ground's own brightness changes sharply (light on glass edges); mostly
+  sharp (focus 0.22).
+- Over it: see-through sea by depth, turquoise shallows; high bright
+  north-west light with deep teal shade; haze only on low coasts and the
+  globe's rim; white roads with a faint teal glow; see-through pale glass
+  buildings from zoom 13 (opacity 0.62); sky pale aqua to white.
+- Names: THEMED_NAMES.lumen, Jost Light capitals widely spaced, deep
+  sea-teal on a pale halo. Layer colours default to "deep".
+- Tests check: hues teal to cobalt or pale grey only; forest deep and full
+  (not washed out) but lit (not grey); bare ground light; water full
+  blue-teal; a pale rim at forest edges. Not seen against the real imagery
+  (EOX blocked here).
+
 ## Round 182b (5 October)
 
 Needs round 181b (guards on its heading). No tiles patch. No app.js?v= bump.
