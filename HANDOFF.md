@@ -5,6 +5,26 @@ touches.
 
 ---
 
+## Round 186o (5 October)
+
+Needs round 185o (guards on its heading). Tiles patch round186o_tiles.py
+beside it. No app.js?v= bump.
+
+- More holiday corporatizers (asked: entities that corporatized holidays, not
+  sales events). Nine added to tiles holidays/culprits.geojson (now 21), each
+  with its source in the box: Federated Department Stores (Fred Lazarus Jr.
+  had Thanksgiving moved in 1939 for Christmas shopping), Morozoff (1936) and
+  Mary's Chocolate (1958) for Valentine's Day chocolate in Japan, Edgar's
+  Department Store (first shop Santa, Brockton 1890), Dictaphone and Young &
+  Rubicam (devised Secretaries Day, 1952), the Gambrinus Company and Grupo
+  Modelo (Cinco de Mayo as a beer day in the US), and Florists' Telegraph
+  Delivery (Mother's Day flowers; offered Anna Jarvis a commission).
+- Each is placed at a city point from Natural Earth's populated places;
+  Brockton, which Natural Earth lacks, from the US-Cities-Database on GitHub.
+  The box says which city and why.
+- The row's title now says compiled from Wikipedia, histories and reporting,
+  and its note lists the additions.
+
 ## Round 185o (5 October)
 
 Needs round 184b (guards on its heading; the mended 184b re-uploaded with it). Tiles patch round185o_tiles.py

@@ -5737,7 +5737,7 @@ console.log("\nround 113b (29 September): crowded points as banded, raised groun
 console.log("\nround 114b (29 September): holidays cut to corporatizers; sports facilities, betting and rigged games; the animal rows made worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("the holidays row is only who corporatized holidays", /name: "Who corporatized holidays: made a holiday a company's own custom, or invented one to sell \(compiled from Wikipedia\)"/.test(src) &&
+  check("the holidays row is only who corporatized holidays", /name: "Who corporatized holidays: made a holiday a company's own custom, or invented one to sell \(compiled from Wikipedia(, histories and reporting)?\)"/.test(src) &&
         !/Made or remade a holiday to take the place of another/.test(src));
   check("Sports holds facilities, betting and rigged games", /\{ h: 4, t: "Sports" \}, "sports_facilities", "sports_betting", "sports_fixing",/.test(src) &&
         /copy: "https:\/\/welcometoyourgalaxy\.github\.io\/culprits-tiles-more\/tiles\/sports_facilities\.pmtiles", field: "group",/.test(src) &&
@@ -7065,6 +7065,14 @@ console.log("\nround 185o (5 October): sharks and rays caught (FAO)");
   check("filed under Oceans and Marine meats, and its note says finning itself is not in the figures",
         /\{ h: 5, t: "Shark fishing and finning"[^}]*\}, "shark_catch",/.test(src) && /\{ h: 6, t: "Sharks and rays" \}, "shark_catch",/.test(src) &&
         /No open source maps shark finning itself/.test(src));
+}
+
+console.log("\nround 186o (5 October): more holiday corporatizers");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the holidays row says where its entries come from and names the 5 October additions",
+        /Who corporatized holidays[^"]*\(compiled from Wikipedia, histories and reporting\)/.test(src) &&
+        /added 5 October: Federated Department Stores/.test(src) && /Florists' Telegraph Delivery association/.test(src));
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
