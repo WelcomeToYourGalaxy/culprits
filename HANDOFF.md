@@ -5,6 +5,34 @@ touches.
 
 ---
 
+## Round 176b (5 October)
+
+Needs round 175b (guards on its heading). Tiles patch round176b_tiles.py
+beside it. No app.js?v= bump. Carries the lost round 146b's coal work.
+
+- The owner's Global Energy Monitor download, packed into culprits-tiles-more
+  gem/coal/download/ (README there says what): the Global Coal Mine Tracker
+  (August 2026) as it came; the boundaries zip with only its all-mines
+  GeoJSON, spreadsheet and README (the 500 one-mine files repeat them); the
+  Global Energy Ownership Tracker's Coal Mine Ownership sheet as CSV.
+- tiles gem_coal.py: mines from every sheet with positions and mine IDs
+  (open 5,390 rows, closed 1,754; 7,139 placed, 5 without a position), each
+  saying its sheet; colour from GEM's own methane estimate, the reported
+  figure for closed mines. Each mine's box lists its distinct ownership
+  chains, one line each with the parent's headquarters (26,959 lines),
+  instead of every ownership row whole (the file went from 52 to 28 MB).
+- rank_parents: methane/gem_coal_parents.geojson (1,512 placed) and
+  gem_coal_parents.json (all 1,665): each parent's share of each mine's
+  methane, added up. A parent reached by several chains to one mine counts
+  once, at the largest share; an "unknown" share is not divided but shown
+  apart. GEM estimate and reported methane kept apart. Placed at the
+  headquarters country's capital (forest500_map.capitals); GEM_COUNTRY
+  maps Russia and Virgin Islands (British). Run on the real files in the
+  sandbox; 153 parents with no country (small shareholders, natural
+  persons, unknown, some companies) are ranked in the JSON, not placed.
+- Map: gem_coal_parents first under Methane > Culprits, coloured by
+  attributed methane (or methane at unknown-share mines, or mines held).
+
 ## Round 175b (4 October)
 
 Needs round 174b (guards on its heading). Tiles patch round175b_tiles.py

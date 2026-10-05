@@ -6321,7 +6321,7 @@ console.log("\nround 145b (3 October; built as 144b): Plantations its own headin
         /places geocoded by AidData, World Bank Geocoded Research Release v1\.4\.2 \(ODC-By\)/.test(src));
   check("own intactness copy, coal mines and their boundaries are rows, filed and registered",
         ["own_bii", "gem_coal_mines", "gem_coal_boundaries"].every((i) => new RegExp(`\\{ id: "${i}"`).test(src) && new RegExp(`\\b${i}: \\[`).test(src)) &&
-        /\{ h: 6, bundle: "bii", colour: "#5E6478" \}, "own_bii",/.test(src) && /"methane_ct_owners", "gem_coal_mines", "gem_coal_boundaries",/.test(src));
+        /\{ h: 6, bundle: "bii", colour: "#5E6478" \}, "own_bii",/.test(src) && /"methane_ct_owners", ("gem_coal_parents", )?"gem_coal_mines", "gem_coal_boundaries",/.test(src));   // round 176b: the ranking first
   {
     // The fungi's combined choices: made from the build's own list, first, with both pictures.
     const raw = [{ label: "Hotspots of ectomycorrhizal fungi (those that sheathe roots): how many kinds live there", archive: "a", key: [["#1", "x"]] },
@@ -6916,6 +6916,16 @@ console.log("\nround 175b (4 October): ocean acidity from the models' median");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("the acidity row says it is the models' median, with both futures", /as the median of the accession's climate models; the futures are middle of the road \(SSP2-4\.5\) and very high emissions \(SSP5-8\.5\)/.test(src));
+}
+
+console.log("\nround 176b (5 October): coal mine parent companies ranked by methane (the lost 146b)");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the ranking row reads the tiles build and sits under Methane's culprits",
+        /id: "gem_coal_parents"[^\n]*buildScript: "gem_coal"/.test(src) && /methane\/gem_coal_parents\.geojson/.test(src) &&
+        /"methane_ct_owners", "gem_coal_parents", "gem_coal_mines",/.test(src));
+  check("its note says how shares were counted and what was not divided",
+        /counted once, at the largest share any chain gives/.test(src) && /that mine's methane is not divided/.test(src));
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");

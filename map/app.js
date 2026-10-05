@@ -23966,7 +23966,21 @@ const OTHER_MAPS = {
       files: [{ label: "Coal mines", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/methane/gem_coal_mines.geojson" }], nameFrom: ["Mine Name", "Mine name", "mine_name", "Name"],
       waiting: "not built yet: the Global Coal Mine Tracker download goes in culprits-tiles-more gem/coal/download/, then the refresh runs gem_coal",
       attribution: "Global Energy Monitor, Global Coal Mine Tracker (CC BY 4.0)",
-      note: "Every coal mine in Global Energy Monitor's Global Coal Mine Tracker (CC BY 4.0), every column of its record in the box, with the ownership chain rows from GEM's supplemental file joined to each mine by its GEM mine ID. Colour the points by the methane estimate, or any other field, in the menu under the row." },
+      note: "Every coal mine in Global Energy Monitor's Global Coal Mine Tracker (CC BY 4.0), every column of its record in the box, with every distinct ownership chain from GEM's Global Energy Ownership Tracker written into each mine's box, one line each (round 176b). Open and closed mines alike; the box says which sheet each came from. Colour the points by the methane estimate (GEM's own for open mines, the reported figure for closed ones), or any other field, in the menu under the row." },
+    // Round 176b (carries the lost 146b): the parent companies at the top of
+    // the coal mines' ownership chains, ranked by methane, from tiles
+    // gem_coal.py (rank_parents).
+    { id: "gem_coal_parents", name: "Who owns the methane: coal mine parent companies ranked by their share of their mines' methane (Global Energy Monitor)", unit: "parent companies", colour: "#3E5C8C", route: "geojsonlive", ready: true, lazy: true, buildScript: "gem_coal",
+      files: [{ label: "Parent companies", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/methane/gem_coal_parents.geojson" }], nameFrom: ["parent company"],
+      colourAuto: false,
+      colourChoices: [
+        { label: "methane by its shares, GEM estimate", field: "methane, GEM estimate, by its shares (million tonnes a year)", unit: "million tonnes a year", breaks: [0.001, 0.01, 0.05, 0.1, 0.3] },
+        { label: "methane at mines of unknown share", field: "methane, GEM estimate, at mines of unknown share, not divided (million tonnes a year)", unit: "million tonnes a year", breaks: [0.001, 0.01, 0.05, 0.1, 0.3] },
+        { label: "mines held", field: "mines held", breaks: [2, 5, 10, 50, 200] },
+      ],
+      waiting: "not built yet: the refresh runs gem_coal",
+      attribution: "Global Energy Monitor, Global Coal Mine Tracker and Global Energy Ownership Tracker (CC BY 4.0)",
+      note: "Each parent company at the top of a coal mine's ownership chain in Global Energy Monitor's Global Energy Ownership Tracker, ranked by the methane of the mines it owns, each mine's methane counted by the parent's share of it (GEM's own estimate for open mines, in million tonnes a year; the methane mines reported is kept apart in the box). Where several chains lead from one parent to one mine, it is counted once, at the largest share any chain gives. Where GEM gives the share as unknown, that mine's methane is not divided: it is shown apart, as methane at mines of unknown share. Placed at the capital of the headquarters country, spread so each can be clicked. Shareholders GEM lists without a country (small shareholders, natural persons, unknown, and some companies) are ranked in the build file methane/gem_coal_parents.json but not placed." },
     { id: "gem_coal_boundaries", name: "Coal mine boundaries and their likely sources of methane (Global Energy Monitor, Global Coal Mine Tracker)", unit: "mine areas", colour: "#6F7FA8", keepColour: true, route: "pmvector", ready: true, lazy: true, own: true, buildScript: "gem_coal",
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/gem_coal_boundaries.pmtiles", sourceLayer: "boundaries", edge: "#2A3558", fillOpacity: 0.4,
       stateSay: "mine areas \u00b7 from the map's own copy", attribution: "Global Energy Monitor, Global Coal Mine Tracker (CC BY 4.0)",
@@ -24866,7 +24880,7 @@ const LAYER_KIND = {
   // Round 90b.
   own_mangroves: ["plant", "downstream"],
   own_critical_habitat: ["plant", "downstream"], own_bii: ["plant", "downstream"],
-  gem_coal_mines: ["insentient", "upstream"], gem_coal_boundaries: ["insentient", "upstream"],
+  gem_coal_mines: ["insentient", "upstream"], gem_coal_parents: ["insentient", "upstream"], gem_coal_boundaries: ["insentient", "upstream"],
   ecoregions_2017: ["plant", "downstream"],
   wb_harm_projects: ["insentient", "downstream"], imf_fossil_subsidies: ["insentient", "downstream"],
   fish_rivers: ["animal", "downstream"], fish_basins: ["animal", "downstream"],
@@ -25645,6 +25659,7 @@ const LAYER_SITE = {
   own_critical_habitat: "https://doi.org/10.34892/snwv-a025",
   own_bii: "https://data.nhm.ac.uk/dataset/bii-developed-by-nhm-v2-1-1-limited-release",
   gem_coal_mines: "https://globalenergymonitor.org/projects/global-coal-mine-tracker/",
+  gem_coal_parents: "https://globalenergymonitor.org/projects/global-energy-ownership-tracker/",
   gem_coal_boundaries: "https://globalenergymonitor.org/projects/global-coal-mine-tracker/",
   ecoregions_2017: "https://ecoregions.appspot.com/",
   wb_harm_projects: "https://projects.worldbank.org/en/projects-operations/projects-list",
@@ -26087,6 +26102,7 @@ const NOT_LIVE = {
   esdac_soil_threats: "Made once from ESDAC's files; a published map from 2016",
   wba_nature_companies: "Read from WBA's Data API by culprits-tiles-more",
   gem_coal_mines: "Made from Global Energy Monitor's download by culprits-tiles-more",
+  gem_coal_parents: "Made from Global Energy Monitor's download by culprits-tiles-more",
   gem_coal_boundaries: "Made from Global Energy Monitor's download by culprits-tiles-more",
   ecoregions_2017: "Made from RESOLVE's Ecoregions 2017 file by culprits-tiles-more",
   wb_harm_projects: "Copied weekly from the World Bank's projects API by culprits-tiles-more",
@@ -26369,7 +26385,7 @@ const PANEL_ORDER = [
   // carbon bombs out of Methane; the fracked wells and the oil and gas
   // concessions under Culprits, the Infrastructure heading gone; the sites and
   // owners behind the most methane added.
-  { h: 5, t: "Culprits" }, "methane_imeo_plumes", "methane_imeo_top50", "methane_ct_owners", "gem_coal_mines", "gem_coal_boundaries", "skytruth_fracfocus", "bocc",
+  { h: 5, t: "Culprits" }, "methane_imeo_plumes", "methane_imeo_top50", "methane_ct_owners", "gem_coal_parents", "gem_coal_mines", "gem_coal_boundaries", "skytruth_fracfocus", "bocc",
   // Nitrous oxide (round 120b, asked 1 October): Emissions, then Culprits by
   // the sources behind most of it (Tian et al. 2020, Nature), the soy rows
   // under Crops, the fertiliser plants under Synthetic fertiliser; the grain
