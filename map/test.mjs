@@ -6826,8 +6826,8 @@ console.log("\nround 170b (4 October): basemaps renamed and reordered; one note 
   map.fire("load"); await new Promise((r) => setTimeout(r, 5));
   const html = els.get("basemaps")?.innerHTML || "";
   const names = [...html.matchAll(/name="basemap" value="([a-z]+)"[^>]*><span class="nm">([^<]+)<\/span>/g)].map((m) => m[1] + ":" + m[2]);
-  check("the menu reads Jurassic, Atlas, Woodlands, Bioluminescent, (Glass Garden, round 183b), Earth at Night, Hell, Standard",
-        names.join(",") === "satellite:Jurassic,atlas:Atlas,wood:Woodlands,space:Bioluminescent,lumen:Glass Garden,night:Earth at Night,hell:Hell,outlines:Standard", names.join(","));
+  check("the menu reads Jurassic, Atlas, Woodlands, Bioluminescent, Earth at Night, Hell, Standard (Glass Garden taken out, round 187o)",
+        names.join(",") === "satellite:Jurassic,atlas:Atlas,wood:Woodlands,space:Bioluminescent,night:Earth at Night,hell:Hell,outlines:Standard", names.join(","));
   check("no Old fantasy painting or Mother Earth in the menu", !/value="dusk"/.test(html) && !/Mother Earth/.test(html));
   check("Hologram named so and put before Hell", /<span class="nm">Hologram<\/span><\/label>/.test(page) && /body\.insertBefore\(d, hellAt\)/.test(page));
   check("Woodlands says the Native peoples who live in them", !/peoples who lived in them/.test(src) && /peoples who live in them\./.test(src));
@@ -6973,46 +6973,6 @@ console.log("\nround 182b (5 October): the Aqua / Glass house basemap taken out 
         !/outline-glass-|outline-aqua-|glasspaint|aquapaint|\bGLASS\b|\bAQUA\b|"glass"|"aqua"/.test(src));
 }
 
-console.log("\nround 183b (5 October): Glass Garden, a light-filled glass basemap (colours as retuned in 184b)");
-{
-  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  const block = src.slice(src.indexOf("/* ---------- Glass Garden, a light-filled glass basemap"), src.indexOf("/* ---------- end of Glass Garden ---------- */"));
-  const wood = src.slice(src.indexOf("function woodHex("), src.indexOf("function woodGrain("));
-  const lib = new Function(wood + block.slice(block.indexOf("var LUMEN = {"), block.indexOf("// The colouring is done off")) + "; return { lumenPaintPixels, LUMEN };")();
-  const N = 320, M = 32;
-  const tile = (f) => { const d = new Uint8ClampedArray(N * N * 4); for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const c = f(x, y), q = (y * N + x) * 4; d[q] = c[0]; d[q + 1] = c[1]; d[q + 2] = c[2]; d[q + 3] = 255; } return d; };
-  const hue = (r, g, b) => { const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (d < 12) return null;
-    let h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; return h < 0 ? h + 360 : h; };
-  const noisy = (k) => tile((x, y) => k.map((v, i) => Math.max(0, Math.min(255, v + ((x * 7 + y * 13 + i * 5) % 21) - 10))));
-  const kinds = [[34, 62, 30], [70, 110, 50], [150, 132, 100], [205, 178, 138], [20, 40, 90], [240, 242, 244], [12, 14, 18]];
-  let worst = null;
-  for (const k of kinds) {
-    const out = lib.lumenPaintPixels(noisy(k), N, M, 1);
-    for (let q = 0; q < out.length; q += 4) { const h = hue(out[q], out[q + 1], out[q + 2]), l = (out[q] + out[q + 1] + out[q + 2]) / 3;
-      if (h !== null && (h < 150 || h > 227 || (h < 172 && l < 170))) worst = [k.join(","), h, l]; }
-  }
-  check("every colour it paints is teal to cobalt, pale mint, or a pale grey (no green, orange or yellow; mint only when pale)", worst === null, worst);
-  const mean = (d) => { let r = 0, g = 0, b = 0; for (let q = 0; q < d.length; q += 4) { r += d[q]; g += d[q + 1]; b += d[q + 2]; } const n = d.length / 4; return [r / n, g / n, b / n]; };
-  const L = (c) => (c[0] + c[1] + c[2]) / 3, S = (c) => Math.max(...c) - Math.min(...c);
-  const forest = mean(lib.lumenPaintPixels(noisy([34, 62, 30]), N, M, 1));
-  const desert = mean(lib.lumenPaintPixels(noisy([205, 178, 138]), N, M, 1));
-  const sea = mean(lib.lumenPaintPixels(noisy([20, 40, 90]), N, M, 1));
-  check("it gives back one map square, 256 x 256", lib.lumenPaintPixels(noisy([34, 62, 30]), N, M, 1).length === 256 * 256 * 4);
-  check("forest keeps a full colour (round 184b: luminous icy teal to mint, not white)", L(forest) < 215 && S(forest) > 40, [L(forest), S(forest)]);
-  check("forest is lit, not dark and grey (unlike Glass house)", L(forest) > 120, L(forest));
-  check("bare ground is light, clear glass", L(desert) > 200, L(desert));
-  check("water is a clear, full aquamarine to deep cyan", S(sea) > 60 && L(sea) < 170, [L(sea), S(sea)]);
-  const half = lib.lumenPaintPixels(tile((x) => x < N / 2 ? [34, 62, 30] : [205, 178, 138]), N, M, 1);
-  const at = (d, x, y) => { const q = (y * 256 + x) * 4; return d[q] + d[q + 1] + d[q + 2]; };
-  check("a pale rim of light where forest meets bare ground", at(half, 127, 128) > at(half, 60, 128) + 40, [at(half, 127, 128), at(half, 60, 128)]);
-  check("on the menu after Bioluminescent, with its names in Jost Light on a pale halo",
-        /\["space", "Bioluminescent"\],\s*\["lumen", "Glass Garden"\]/.test(src) && /lumen: \{\s*font: \{ caps: \["Jost-Light"\]/.test(src) &&
-        /BASEMAP === "satellite" \|\| BASEMAP === "lumen" \? BASEMAP : null/.test(src));
-  check("its layers are basemap layers (outline-lumen-...), credited to EOX, buildings see-through, deeper layer colours suit it",
-        lib.LUMEN && /"outline-lumen-paint"/.test(block) && /attribution: WOOD\.attribution/.test(block) && lib.LUMEN.buildingOpacity < 0.8 &&
-        /THEME_BY_BASEMAP\.lumen = "deep"/.test(block));
-}
-
 console.log("\nround 184o (5 October): ships' underwater noise and the whaling logbooks");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
@@ -7040,22 +7000,6 @@ console.log("\nround 184o (5 October): the faster map switch, plain and easy to 
         /html\.lite #lite-box\{/.test(html) && /"Back to the full map"/.test(html) && /Or try the Faster map button, under Reload\./.test(src));
 }
 
-console.log("\nround 184b (5 October): Glass Garden in the Frutiger Aero look");
-{
-  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  const block = src.slice(src.indexOf("/* ---------- Glass Garden, a light-filled glass basemap"), src.indexOf("/* ---------- end of Glass Garden ---------- */"));
-  check("glowing shelves under the sea and a glossy sheen are basemap layers, listed to show and hide",
-        /id: "outline-lumen-shelf", type: "color-relief"/.test(block) && /id: "outline-lumen-gloss", type: "hillshade", source: "sea-dem"/.test(block) &&
-        /"outline-lumen-shelf", "outline-lumen-shade", "outline-lumen-gloss"/.test(block) && /"hillshade-shadow-color": "rgba\(0,0,0,0\)"/.test(block));
-  check("land gets a frosted-glass sheen, water does not", /frost: 0\.08/.test(block) && /if \(K\[p\] !== 1\) \{ const fz = LUMEN\.frost;/.test(block));
-  check("a light-filled space round the globe, drawn behind the map just over the stars",
-        /c\.id = "lumen-aura"/.test(block) && /stars\.parentNode\.insertBefore\(c, stars\.nextSibling\)/.test(block) && /pointer-events:none/.test(block));
-  check("the light round the globe goes on and off with the basemap, and stays away on the flat map, the hologram and Eyes",
-        /lumenAuraOn\(vis === "visible"\)/.test(block) && /drawnProjection\(\) === "mercator"/.test(block) && /contains\("holo-on"\)/.test(block) &&
-        /classList\.contains\("away"\)/.test(block) && /else lumenAuraOn\(false\)/.test(block));
-  check("rays and lens rings, no orange or yellow in them", /createRadialGradient\(cx, cy, R, cx, cy, len\)/.test(block) && /aura: \{ outer: "#0C3B4C", mid: "#3E9BA6", inner: "#E8FBF8"/.test(block));
-}
-
 console.log("\nround 185o (5 October): sharks and rays caught (FAO)");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
@@ -7073,6 +7017,14 @@ console.log("\nround 186o (5 October): more holiday corporatizers");
   check("the holidays row says where its entries come from and names the 5 October additions",
         /Who corporatized holidays[^"]*\(compiled from Wikipedia, histories and reporting\)/.test(src) &&
         /added 5 October: Federated Department Stores/.test(src) && /Florists' Telegraph Delivery association/.test(src));
+}
+
+console.log("\nround 187o (5 October): the Glass Garden basemap taken out");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("no Glass Garden left: no layers, painter, aura, sky, names, menu line or checks",
+        !/lumen|Glass Garden/i.test(src) && !/lumen/i.test(html));
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");

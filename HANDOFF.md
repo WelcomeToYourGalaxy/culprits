@@ -5,6 +5,20 @@ touches.
 
 ---
 
+## Round 187o (5 October)
+
+Needs round 186o (guards on its heading). No tiles patch. No app.js?v= bump.
+
+- Owner: delete the Glass Garden basemap altogether. Taken out whole, as 182b
+  did for Aqua and Glass house: its block (LUMEN, lumenPaintPixels and its
+  Web Workers, the lumenpaint protocol, its outline-lumen-... layers, sky,
+  the lumenAura canvas and its switch), its menu line, THEMED_NAMES.lumen and
+  the "lumen" checks in themedWhich and themedSync. Rounds 183b and 184b
+  leave nothing behind; their test blocks are gone and a check says no
+  "lumen" or "Glass Garden" is left. The menu is Jurassic, Atlas, Woodlands,
+  Bioluminescent, Earth at Night, Hell, Standard. The basemap choice is not
+  remembered between visits, so no one is left on a missing basemap.
+
 ## Round 186o (5 October)
 
 Needs round 185o (guards on its heading). Tiles patch round186o_tiles.py
