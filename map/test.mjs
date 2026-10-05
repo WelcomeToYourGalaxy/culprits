@@ -6826,8 +6826,8 @@ console.log("\nround 170b (4 October): basemaps renamed and reordered; one note 
   map.fire("load"); await new Promise((r) => setTimeout(r, 5));
   const html = els.get("basemaps")?.innerHTML || "";
   const names = [...html.matchAll(/name="basemap" value="([a-z]+)"[^>]*><span class="nm">([^<]+)<\/span>/g)].map((m) => m[1] + ":" + m[2]);
-  check("the menu reads Jurassic, Atlas, Woodlands, Bioluminescent, Earth at Night, Hell, Standard",
-        names.join(",") === "satellite:Jurassic,atlas:Atlas,wood:Woodlands,space:Bioluminescent,night:Earth at Night,hell:Hell,outlines:Standard", names.join(","));
+  check("the menu reads Jurassic, Atlas, Woodlands, Bioluminescent, (Aqua, round 180b), Earth at Night, Hell, Standard",
+        names.join(",") === "satellite:Jurassic,atlas:Atlas,wood:Woodlands,space:Bioluminescent,aqua:Aqua,night:Earth at Night,hell:Hell,outlines:Standard", names.join(","));
   check("no Old fantasy painting or Mother Earth in the menu", !/value="dusk"/.test(html) && !/Mother Earth/.test(html));
   check("Hologram named so and put before Hell", /<span class="nm">Hologram<\/span><\/label>/.test(page) && /body\.insertBefore\(d, hellAt\)/.test(page));
   check("Woodlands says the Native peoples who live in them", !/peoples who lived in them/.test(src) && /peoples who live in them\./.test(src));
@@ -6964,6 +6964,38 @@ console.log("\nround 179b (5 October): salt marsh loss and burned area from NASA
   check("both rows read the map's own copies and are filed", ["own_salt_marsh", "own_burned"].every((id) => new RegExp(`id: "${id}"[^\\n]*route: "rasterlive"`).test(src) &&
         src.includes(`tiles/${id}.choices.json`) && new RegExp(`\\b${id}: \\[`).test(src)) &&
         /\{ h: 5, t: "Salt marsh loss"[^}]*\}, "own_salt_marsh",/.test(src) && /\{ h: 3, t: "Fire" \}, "own_burned",/.test(src));
+}
+
+console.log("\nround 180b (5 October): Aqua, a glass-and-water basemap");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const block = src.slice(src.indexOf("/* ---------- Aqua, a glass-and-water basemap"), src.indexOf("/* ---------- end of Aqua ---------- */"));
+  const wood = src.slice(src.indexOf("function woodHex("), src.indexOf("function woodGrain("));
+  const lib = new Function(wood + block.slice(block.indexOf("var AQUA = {"), block.indexOf("// The colouring is done off")) + "; return { aquaPaintPixels, AQUA };")();
+  const N = 320, M = 32;
+  const tile = (f) => { const d = new Uint8ClampedArray(N * N * 4); for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const c = f(x, y), q = (y * N + x) * 4; d[q] = c[0]; d[q + 1] = c[1]; d[q + 2] = c[2]; d[q + 3] = 255; } return d; };
+  const hue = (r, g, b) => { const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (d < 12) return null;
+    let h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; return h < 0 ? h + 360 : h; };
+  const kinds = [[34, 62, 30], [70, 110, 50], [150, 132, 100], [210, 190, 150], [20, 40, 90], [240, 242, 244], [12, 14, 18]];
+  let worst = null;
+  for (const k of kinds) {
+    const out = lib.aquaPaintPixels(tile((x, y) => k.map((v, i) => Math.max(0, Math.min(255, v + ((x * 7 + y * 13 + i * 5) % 21) - 10)))), N, M, 1);
+    for (let q = 0; q < out.length; q += 4) { const h = hue(out[q], out[q + 1], out[q + 2]); if (h !== null && (h < 172 || h > 227)) worst = [k.join(","), h]; }
+  }
+  check("every colour it paints is teal to cobalt or a pale grey (no green, orange or yellow)", worst === null, worst);
+  const one = lib.aquaPaintPixels(tile(() => [150, 132, 100]), N, M, 1);
+  check("it gives back one map square, 256 x 256", one.length === 256 * 256 * 4);
+  const L = (d) => d.reduce((s, v, i) => (i % 4 === 3 ? s : s + v), 0) / (256 * 256 * 3);
+  check("bare ground is pale and airy", L(one) > 175, L(one));
+  const half = lib.aquaPaintPixels(tile((x) => x < N / 2 ? [34, 62, 30] : [210, 190, 150]), N, M, 1);
+  const at = (d, x, y) => { const q = (y * 256 + x) * 4; return d[q] + d[q + 1] + d[q + 2]; };
+  check("the edge between forest and bright ground stays where the Earth puts it, and the bright side glows across it",
+        at(half, 60, 128) < at(half, 200, 128) && at(half, 120, 128) > at(half, 20, 128));
+  check("on the menu after Bioluminescent, with its names in Jost on a white halo",
+        /\["space", "Bioluminescent"\],\s*\["aqua", "Aqua"\]/.test(src) && /aqua: \{\s*font: \{ caps: \["Jost-Regular"\]/.test(src) &&
+        /BASEMAP === "satellite" \|\| BASEMAP === "aqua" \? BASEMAP : null/.test(src));
+  check("its layers are basemap layers (outline-aqua-...), credited to EOX, and deeper layer colours suit it",
+        lib.AQUA && /"outline-aqua-paint"/.test(block) && /attribution: WOOD\.attribution/.test(block) && /THEME_BY_BASEMAP\.aqua = "deep"/.test(block));
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");

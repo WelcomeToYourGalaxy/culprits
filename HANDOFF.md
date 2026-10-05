@@ -5,6 +5,30 @@ touches.
 
 ---
 
+## Round 180b (5 October)
+
+Needs round 179b (guards on its heading). No tiles patch. No app.js?v= bump.
+
+- Asked 5 October: another basemap in the look of the owner's two pictures
+  (a seaside room and a desk by a window, washed in pale aqua, white and
+  glass). New basemap Aqua (kind "aqua"), on the menu after Bioluminescent.
+- Made like Woodlands, from the real Earth: the Sentinel-2 cloudless picture
+  (EOX, read through woodComposite) re-coloured pixel by pixel
+  (aquaPaintPixels, in two Web Workers): what grows on teals from lagoon
+  teal to pale sea-glass, bare ground on cool pearl greys to near white,
+  snow white, water in clear blues; half sharp, half softened (soft focus);
+  bright ground blooms softly into its surroundings; a thin white haze.
+- Over it: the sea by depth from pale aqua shallows to deep blue (sea-dem),
+  a high soft north-west light with white highlights and teal shadow
+  (outline-dem), a white haze over low land, lakes and rivers in aqua,
+  white roads with a faint aqua glow, frosted white buildings from zoom 13,
+  fine teal borders, a pale aqua-to-white sky on the globe.
+- Names: THEMED_NAMES.aqua, Jost (already in map/glyphs), dark sea-teal on a
+  white halo; themedWhich and themedSync take "aqua" with atlas and
+  satellite. Layer colours default to "deep" on it (pale ground).
+- Hues checked by test: every painted colour is teal to cobalt (172-227) or a
+  pale grey. Not seen against the real imagery: EOX is blocked here.
+
 ## Round 179b (5 October)
 
 Needs round 178b (guards on its heading). Tiles patch round179b_tiles.py
