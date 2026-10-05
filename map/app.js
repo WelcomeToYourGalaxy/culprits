@@ -24427,6 +24427,19 @@ const OTHER_MAPS = {
       attribution: "Halpern et al. 2019, KNB (CC0)", rasterPaint: { "raster-opacity": 0.88, "raster-saturation": 0 },
       choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ocean_impacts.choices.json",
       note: "Halpern et al. 2019 (Scientific Reports; KNB doi:10.5063/F12B8WBS, CC0): fourteen human pressures on the ocean - kinds of fishing, warming, acidification, sea level rise, shipping, and pollution and nutrients from land - weighed by how much each harms each habitat and added up, for 2013, at 1 km. Coloured in tenths, lightest the least. The map's own copy (scripts/oceans_more.py)." },
+    // Round 183o (asked 5 October: the ocean harms not yet on the map): ships'
+    // underwater noise (tiles ship_noise.py) and the whaling logbooks
+    // (tiles whaling_logbooks.py), both CC BY 4.0.
+    { id: "ocean_noise", name: "Underwater noise from ships, each year 2014 to 2020, low, middle and high pitch (Finnish Meteorological Institute, Jalkanen et al. 2022)", unit: "joules of noise a year", colour: "#1E6FA8", keepColour: true, route: "rasterlive", ready: true, lazy: true, buildScript: "ship_noise",
+      attribution: "Jalkanen et al. 2022, Underwater noise from ships during 2014-2020, Finnish Meteorological Institute, doi:10.5281/zenodo.4730482 (CC BY 4.0)", rasterPaint: { "raster-opacity": 0.88, "raster-saturation": 0 },
+      choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/ocean_noise.choices.json",
+      note: "How much sound energy ships put into the sea, added up over each year: the Finnish Meteorological Institute's STEAM model works it out ship by ship from their AIS positions, speeds and sizes, in three pitches (63 Hz, the low hum of large ships' propellers; 125 Hz; and 2000 Hz). Its authors find shipping noise doubling about every 11.5 years, fastest in the Arctic, with container ships, bulk carriers and tankers making three quarters of it (Jalkanen et al. 2022, Environmental Pollution 311, 119766). This is noise put into the water where the ships are, not how loud it is where animals hear it. Coloured in eight steps on a log scale, set once for each pitch so the years can be compared; the steps are written in the key. The map's own copy (scripts/ship_noise.py)." },
+    { id: "whaling_logbooks", name: "Whaling ships' logbooks, day by day: where whales were seen, struck and processed, 1784 to 1920 (WhalingHistory.org)", unit: "logbook entries", colour: "#1E6FA8", keepColour: true, route: "mvtlive", ready: true, lazy: true, buildScript: "whaling_logbooks",
+      copy: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/whaling_logbooks.pmtiles", field: "group",
+      classes: [["Whales struck (harpooned)", "#0C2E5E", "Whales struck (harpooned)"], ["Whales seen", "#3FA9C2", "Whales seen"],
+        ["Spoke to a whaler that had caught a whale", "#8FD6E8", "Spoke to a whaler that had caught a whale"], ["No whales reported that day", "#8A8F98", "No whales reported that day (the ship's position)"]],
+      attribution: "WhalingHistory.org: New Bedford Whaling Museum, Mystic Seaport Museum, Nantucket Historical Association (CC BY 4.0)",
+      note: "Every entry with a position in WhalingHistory.org's consolidated logbook data: positions and whale encounters copied from about 1,400 logbooks of American offshore whaling voyages, 1784 to 1920, by Matthew Fontaine Maury in the 1850s, Charles Haskins Townsend in the 1930s and the Census of Marine Life (2000 to 2010), with later additions for British Southern Whale Fishery voyages and Indian Ocean right whale voyages. Each box has the entry's species, how many whales were struck and how many processed for oil, and its voyage from the American Offshore Whaling Voyages database (vessel, master, home port, dates, oil and bone brought back). Colours are the logbook's own Encounter column. These logbooks are a sample of the voyages, not all of them. Entries with no position cannot be placed and are counted in culprits-tiles-more whaling/build.json. Wide out, one mark per square with how many it holds; from zoom 8, each entry. Built weekly by culprits-tiles-more (scripts/whaling_logbooks.py)." },
     // Round 94b (asked 27 September): fur farms worldwide from every public
     // source found, and each country's fur farming status.
     { id: "fur_world", name: "Fur farms worldwide, from every public source found (Farm Transparency Project, Final Nail, OpenStreetMap and more)", unit: "farms", colour: "#8FD6E8", route: "geojsonlive", ready: true, lazy: true,
@@ -25180,6 +25193,7 @@ const LAYER_KIND = {
   ocean_heat: ["insentient", "downstream"], ocean_bleaching: ["animal", "downstream"],
   ocean_shipping: ["insentient", "downstream"],
   ocean_impacts: ["insentient", "downstream"],
+  ocean_noise: ["animal", "downstream"], whaling_logbooks: ["animal", "upstream"],
   ocean_slr: ["insentient", "downstream"], own_salt_marsh: ["plant", "downstream"], own_burned: ["plant", "downstream"], ocean_light: ["insentient", "downstream"], ocean_trawling: ["insentient", "downstream"], ocean_bycatch: ["insentient", "downstream"], ocean_coastal_people: ["insentient", "downstream"], ocean_runoff: ["insentient", "downstream"], offshore_platforms: ["insentient", "downstream"],
   fur_world: ["animal", "downstream"],
   fur_bans: ["animal", "downstream"],
@@ -25952,6 +25966,7 @@ const LAYER_SITE = {
   ocean_bleaching: "https://coralreefwatch.noaa.gov/",
   ocean_shipping: "https://datacatalog.worldbank.org/search/dataset/0037580",
   ocean_impacts: "https://doi.org/10.5063/F12B8WBS",
+  ocean_noise: "https://doi.org/10.1016/j.envpol.2022.119766", whaling_logbooks: "https://whalinghistory.org/av/logs/aowl/about/",
   ocean_slr: "https://doi.org/10.1038/s41598-019-47201-9",
   own_salt_marsh: "https://doi.org/10.3334/ORNLDAAC/2122",
   own_burned: "https://lpdaac.usgs.gov/products/mcd64cmqv061/",
@@ -26391,6 +26406,7 @@ const NOT_LIVE = {
   ocean_bleaching: "Made from its publisher's data by culprits-tiles-more",
   ocean_shipping: "Made from its publisher's data by culprits-tiles-more",
   ocean_impacts: "Made from its publisher's data by culprits-tiles-more",
+  ocean_noise: "Made from the Finnish Meteorological Institute's files by culprits-tiles-more", whaling_logbooks: "Built weekly by culprits-tiles-more from WhalingHistory.org",
   ocean_slr: "Made from its publisher's data by culprits-tiles-more",
   own_salt_marsh: "Made from NASA's files by culprits-tiles-more (once)",
   own_burned: "Made from NASA's files by culprits-tiles-more, the year under way daily",
@@ -26977,6 +26993,7 @@ const PANEL_ORDER = [
   { h: 5, t: "Facilities" }, "abattoir_facilities", "abattoir_cafo",
   { h: 5, t: "Marine meats" },
   { h: 6, t: "Wild-caught fish" }, "fao_capture", "fishing", "iuu_vessels", "iuu_positions",
+  { h: 6, t: "Whales" }, "whaling_logbooks",
   { h: 6, t: "Fish and shrimp farms" }, "fao_aquaculture", "aquaculture_ponds",
   { h: 7, bundle: "ponds", colour: "#5E7377" },
   // Round 100b: meat grown from cells last of all.
@@ -27004,11 +27021,13 @@ const PANEL_ORDER = [
   { h: 5, t: "Light at night", tag: "counted in the Every human impact together layer" }, "ocean_light",
   { h: 5, t: "Bottom trawling", tag: "counted in the Every human impact together layer" }, "ocean_trawling",
   { h: 5, t: "Bycatch", tag: "counted in the Every human impact together layer" }, "ocean_bycatch",
+  { h: 5, t: "Whaling", tag: "not counted in the Every human impact together layer" }, "whaling_logbooks",
   { h: 5, t: "Fish decline", tag: "not counted in the Every human impact together layer: this is what the pressures do" }, "fish_stocks", "lpi_populations",
   { h: 5, t: "Crowded coasts", tag: "counted in the Every human impact together layer" }, "ocean_coastal_people",
   { h: 5, t: "Offshore platforms", tag: "not counted in the Every human impact together layer (its 2019 edition has no oil rigs)" }, "offshore_platforms",
   { h: 5, t: "Marine heatwaves", tag: "counted in the Every human impact together layer, as sea surface temperature" }, "ocean_heat",
   { h: 5, t: "Shipping", tag: "counted in the Every human impact together layer" }, "ocean_shipping",
+  { h: 5, t: "Underwater noise", tag: "not counted in the Every human impact together layer, which counts ship traffic but not its noise" }, "ocean_noise",
   { h: 5, t: "Pollution at sea", tag: "nutrient and chemical runoff are counted in the Every human impact together layer; plastic and oil spills are not" }, "ocean_runoff", "wastewater_plumes", "cerulean_sources", "cerulean_slicks", "skytruth_voc", "skytruth_marine_incidents", "skytruth_posts_sea", "seas_of_plastic", "coastal_cleanup",
   { h: 5, t: "Dead zones", tag: "partly counted in the Every human impact together layer, through the nutrient runoff that causes them" }, "ocean_dead_zones",
   { h: 5, t: "Deep-sea mining", tag: "not counted in the Every human impact together layer" }, "ocean_seabed_mining",
@@ -28153,7 +28172,7 @@ function mapBusyMark(m) {
   m.on("idle", () => { clearTimeout(t); el.hidden = true; });
   const canvas = typeof m.getCanvas === "function" ? m.getCanvas() : null;
   if (canvas && canvas.addEventListener) {
-    canvas.addEventListener("webglcontextlost", () => { el.hidden = false; el.querySelector("span").textContent = "Too much to draw at once: the browser paused the map. Turn some layers off; it redraws by itself." + (liteOn() ? "" : " Or try the lighter map: the button beside Reload."); });
+    canvas.addEventListener("webglcontextlost", () => { el.hidden = false; el.querySelector("span").textContent = "Too much to draw at once: the browser paused the map. Turn some layers off; it redraws by itself." + (liteOn() ? "" : " Or try the Faster map button, under Reload."); });
     canvas.addEventListener("webglcontextrestored", () => { el.querySelector("span").textContent = "Loading…"; if (typeof m.triggerRepaint === "function") m.triggerRepaint(); check(); });
   }
 }

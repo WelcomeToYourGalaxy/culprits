@@ -138,9 +138,19 @@
     background:#fff;color:#333;font:16px/26px system-ui,sans-serif;box-shadow:0 0 0 2px rgba(0,0,0,.1)}
   .reload-cap{line-height:1.2;max-width:none;flex:1;min-width:0}
   /* Round 171b: the lighter map's switch, and what it puts away. */
-  #lite-map{flex:none;padding:3px 8px;border-radius:4px;border:1px solid var(--rule);background:transparent;
-    color:inherit;font:inherit;font-size:11px;cursor:pointer;white-space:nowrap}
-  #lite-map:hover{background:rgba(255,255,255,.08)}
+  /* Round 184o: the owner found the old Lighter map button easy to miss and unclear.
+     Now "Faster map", on a line of its own under Reload, a filled button, with
+     a plain sentence saying what it leaves out; while it is on, the line is
+     marked and says so. */
+  .reload-wrap{flex-wrap:wrap}
+  .reload-early{max-width:360px}
+  #lite-box{flex:0 0 100%;display:flex;align-items:flex-start;gap:8px;margin-top:3px;padding-top:6px;border-top:1px solid var(--rule)}
+  #lite-map{flex:none;padding:5px 10px;border-radius:4px;border:1px solid #2A86B4;background:#1E6FA8;
+    color:#F4F1EA;font:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+  #lite-map:hover{background:#2A86B4}
+  #lite-note{font-size:11px;line-height:1.35;color:var(--dim)}
+  html.lite #lite-box{background:rgba(30,111,168,.16);border:1px solid #2A86B4;border-radius:4px;padding:6px}
+  html.lite #lite-note{color:var(--bone,#DCD6C6)}
   html.lite .sect[data-sect="terrain"],html.lite #combo-box,html.lite #leave-earth,html.lite #lift-toggle{display:none!important}
   /* Layer rows in the layers box, laid out like Global Safety Net's own list:
      a small square of the layer's colour, the name, little space between. A
@@ -523,15 +533,27 @@
           onclick="try{var v=window.__culpritsView;if(v)sessionStorage.setItem('culprits-view',v)}catch(e){}location.reload()">&#8635;</button>
   <span class="reload-cap">Stuck? Reload here, or press ⌘R (Ctrl-R)</span>
   <button type="button" id="lite-map"
-          onclick="try{var v=window.__culpritsView;if(v)sessionStorage.setItem('culprits-view',v);localStorage.setItem('culprits-lite',window.__culpritsLite?'0':'1');var u=new URL(location.href);u.searchParams.delete('lite');history.replaceState(null,'',u)}catch(e){}location.reload()">Lighter map</button>
+          onclick="try{var v=window.__culpritsView;if(v)sessionStorage.setItem('culprits-view',v);localStorage.setItem('culprits-lite',window.__culpritsLite?'0':'1');var u=new URL(location.href);u.searchParams.delete('lite');history.replaceState(null,'',u)}catch(e){}location.reload()">Faster map</button>
+  <span id="lite-note"></span>
   <script>
   (function () {
-    var b = document.getElementById("lite-map");
+    var b = document.getElementById("lite-map"), n = document.getElementById("lite-note");
     if (!b) return;
-    b.textContent = window.__culpritsLite ? "Full map" : "Lighter map";
-    b.title = window.__culpritsLite
-      ? "Back to the full map, with the glow, 3D terrain, raised figures, Combine and NASA's Eyes"
-      : "For slower computers: the same layers and basemaps, without the glow, 3D terrain, raised figures, Combine and NASA's Eyes";
+    var box = document.createElement("div");
+    box.id = "lite-box";
+    b.parentNode.insertBefore(box, b);
+    box.appendChild(b);
+    if (n) box.appendChild(n);
+    var gone = "the glow around points, the shaded bands where points crowd, 3D terrain, raised heights, " +
+      "the Combine ticked layers box, and zooming out into space";
+    if (window.__culpritsLite) {
+      b.textContent = "Back to the full map";
+      if (n) n.textContent = "Faster map is on. Every layer and basemap is still here. Turned off: " + gone + ".";
+    } else {
+      b.textContent = "Faster map";
+      if (n) n.textContent = "Slow or freezing? Every layer and basemap stays. Turns off " + gone + ".";
+    }
+    b.title = n ? n.textContent : "";
   })();
   </script>
 </div>

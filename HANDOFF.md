@@ -5,6 +5,32 @@ touches.
 
 ---
 
+## Round 184o (5 October)
+
+Needs round 183b (guards on its heading). Carries round 183o, whose patch
+failed after 183b changed the same part of test.mjs (patches/failed/
+round183o_culprits.py can be ignored). Tiles patch round184o_tiles.py beside
+it. No app.js?v= bump.
+
+- From 183o: ocean_noise (ships' underwater noise, 2014 to 2020, three
+  pitches; Jalkanen et al. 2022, CC BY 4.0; tiles ship_noise.py) and
+  whaling_logbooks (WhalingHistory.org logbooks joined to voyages, CC BY 4.0;
+  tiles whaling_logbooks.py) under Oceans, whaling also under Marine meats.
+- The owner on the Lighter map button: hard to notice, and nobody knows what
+  it means or what changes. Now "Faster map": a filled button on its own line
+  under Reload (#lite-box), with a sentence saying every layer and basemap
+  stays and naming what it turns off (glow around points, crowd bands, 3D
+  terrain, raised heights, the Combine box, zooming out into space). While on,
+  the line is marked and the button reads "Back to the full map". Same switch
+  (localStorage culprits-lite, ?lite=1 / ?lite=0).
+- Tiles: burned_area.py reads MCD64CMQ from the University of Maryland's
+  fuoco SFTP server (the product's user guide, section 4.1, prints the login);
+  it is not in NASA's Earthdata catalogue, which is why the first run failed.
+  bii_nhm.py writes the museum's 403 refusal to bii/build.json instead of
+  failing, and reads a copy uploaded by hand to bii/download/ if there is one.
+  forest500_map.py places a country with no town in Natural Earth (the
+  British Virgin Islands) at Natural Earth's label point, and says so.
+
 ## Round 183b (5 October)
 
 Needs round 182b (guards on its heading). No tiles patch. No app.js?v= bump.

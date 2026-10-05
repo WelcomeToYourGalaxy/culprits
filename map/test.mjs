@@ -7012,6 +7012,33 @@ console.log("\nround 183b (5 October): Glass Garden, a light-filled glass basema
         /THEME_BY_BASEMAP\.lumen = "deep"/.test(block));
 }
 
+console.log("\nround 184o (5 October): ships' underwater noise and the whaling logbooks");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the noise row reads the map's own yearly copies and the whaling row its point archive",
+        /id: "ocean_noise"[^\n]*route: "rasterlive"[^\n]*buildScript: "ship_noise"/.test(src) && src.includes("tiles/ocean_noise.choices.json") &&
+        /id: "whaling_logbooks"[^\n]*route: "mvtlive"[^\n]*buildScript: "whaling_logbooks"/.test(src) && src.includes("tiles/whaling_logbooks.pmtiles"));
+  check("both have a kind, a site and a not-live note", ["ocean_noise", "whaling_logbooks"].every((id) =>
+        new RegExp(`\\b${id}: \\["animal", "(up|down)stream"\\]`).test(src) && new RegExp(`\\b${id}: "https://`).test(src) && new RegExp(`\\b${id}: "(Made|Built)`).test(src)));
+  check("filed under Oceans, and whaling also under Marine meats",
+        /\{ h: 5, t: "Underwater noise"[^}]*\}, "ocean_noise",/.test(src) && /\{ h: 5, t: "Whaling"[^}]*\}, "whaling_logbooks",/.test(src) &&
+        /\{ h: 6, t: "Whales" \}, "whaling_logbooks",/.test(src));
+  check("the whaling colours are the source's own Encounter values, no green, orange or yellow",
+        /\["Whales struck \(harpooned\)", "#0C2E5E"/.test(src) && /\["No whales reported that day", "#8A8F98"/.test(src));
+}
+
+console.log("\nround 184o (5 October): the faster map switch, plain and easy to see");
+{
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the switch is called Faster map, a filled button on its own line with a sentence saying what it leaves out",
+        />Faster map<\/button>/.test(html) && /id="lite-note"/.test(html) && /box\.id = "lite-box"/.test(html) &&
+        /#lite-map\{[^}]*background:#1E6FA8/.test(html) && /the Combine ticked layers box/.test(html) && /3D terrain/.test(html) &&
+        /Every layer and basemap is still here/.test(html) && /Every layer and basemap stays/.test(html) && !/"Lighter map"|"Full map"/.test(html));
+  check("while it is on, the line is marked and the button says Back to the full map",
+        /html\.lite #lite-box\{/.test(html) && /"Back to the full map"/.test(html) && /Or try the Faster map button, under Reload\./.test(src));
+}
+
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
