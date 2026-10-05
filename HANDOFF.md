@@ -5,6 +5,31 @@ touches.
 
 ---
 
+## Round 175b (4 October)
+
+Needs round 174b (guards on its heading). Tiles patch round175b_tiles.py
+beside it. No app.js?v= bump.
+
+- Ocean acidity (tiles oceans_more.py, acid): the run failed with
+  "'NoneType' object has no attribute 'max'": the old code took one model's
+  file (ACCESS-ESM1-5) and looked for latitude and longitude only under the
+  dimensions' names. Now it takes the accession's own multi-model median,
+  pHT_median_historical.nc (earliest year and the one nearest 2020),
+  pHT_median_ssp245.nc and pHT_median_ssp585.nc (each at its last year), and
+  finds the axes by name or standard_name (nc_axis), 2-D axes too. Tested on
+  stand-in NetCDF files. The ocean_acid note says so.
+- Ocean pressures (tiles ocean_stressors.py): the search over all of DataONE
+  by file name found nothing. Each pressure now reads its own KNB data
+  package (resource maps from the Ocean Health Index data page), listed
+  through KNB's index first and DataONE's second, downloaded from KNB
+  first. A file is taken only if its name says rescaled and has the year, or
+  from a zip named rescaled; otherwise the package's file list is written to
+  oceans/stressors.build.json and nothing is guessed. Tested with stand-ins
+  (KNB is blocked from the sandbox).
+- Coal mine owners ranked by methane: not built. The Global Energy Monitor
+  download (round 146b's tiles) never reached gem/coal/download/, which holds
+  only its README; the owner is asked to attach the files again.
+
 ## Round 174b (4 October)
 
 Needs round 173b (guards on its heading). No tiles patch. No app.js?v= bump.

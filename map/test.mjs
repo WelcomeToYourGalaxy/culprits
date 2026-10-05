@@ -6912,6 +6912,12 @@ console.log("\nround 174b (4 October): one colour for a layer or a heading (the 
         /\.toc-sec/.test(src.slice(src.indexOf("function tintTools(box)"), src.indexOf("function addRowTools(box)"))));
 }
 
+console.log("\nround 175b (4 October): ocean acidity from the models' median");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the acidity row says it is the models' median, with both futures", /as the median of the accession's climate models; the futures are middle of the road \(SSP2-4\.5\) and very high emissions \(SSP5-8\.5\)/.test(src));
+}
+
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
