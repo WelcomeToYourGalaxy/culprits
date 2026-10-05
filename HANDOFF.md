@@ -5,6 +5,27 @@ touches.
 
 ---
 
+## Round 181b (5 October)
+
+Needs round 180b (guards on its heading). No tiles patch. No app.js?v= bump.
+
+- Owner on 180b's Aqua: "it just looks baby blue"; wants modern, sleek
+  ecology, like the house and plants in Ex Machina. Aqua is replaced by
+  Glass house (kind "glass", layers "outline-glass-..."), same place on the
+  menu. Nothing of Aqua is left.
+- Same method (woodComposite, then glassPaintPixels in two Web Workers):
+  what grows on muted forest greens from spruce shadow to soft moss; bare
+  ground on concrete and stone greys; water dark slate glass; snow cool
+  white. Crisp, not soft: a little local contrast (GLASS.crisp). No glow.
+- Over it: dark graphite sea by depth, soft overcast light, a thin grey mist
+  on mountainsides (700 to 3,200 m), dark lakes, fine pale concrete roads,
+  concrete buildings from zoom 13, faint pale borders, overcast grey sky.
+- Names: THEMED_NAMES.glass, Jost Light and spaced Regular capitals in pale
+  concrete on a dark halo. Layer colours default to "bright" (dark ground).
+- Test: every painted colour is muted (no bright green, no orange or
+  yellow). Greens are the earthy ones allowed on basemaps, as on Woodlands.
+  Not seen against the real imagery (EOX blocked here).
+
 ## Round 180b (5 October)
 
 Needs round 179b (guards on its heading). No tiles patch. No app.js?v= bump.
