@@ -5,6 +5,37 @@ touches.
 
 ---
 
+## Round 189o (8 October)
+
+Needs round 188o (guards on its heading). Tiles patch round189o_tiles.py
+beside it. No app.js?v= bump.
+
+- methane_meat_dairy (route sitemap, tiles methane/meat_dairy.places.geojson
+  and .boxes.json, made by tiles meat_dairy_methane.py): the 15 companies of
+  Emissions Impossible: Methane Edition (IATP and Changing Markets
+  Foundation, 2022), from the report's dataset workbook the owner attached
+  (kept whole as tiles methane/emissions_impossible/dataset.json). The owner
+  says the authors agreed to its use. One point per company at its Wikidata
+  headquarters, sized by methane mass, meat #1A5C92 / dairy #6FC2DA, filter
+  Meat / Dairy. Each box holds every workbook row naming the company, under
+  its table's headings and units; the "read them" window holds every sheet
+  whole. Filed under Methane > Culprits (last), Nitrous oxide > Culprits >
+  Manure and grazing livestock, and Meat > Companies (new h5).
+- marine_sand_watch (route companion, unepgrid.ch/en/marinesandwatch) under
+  Oceans > Sand dredging (new h5). GRID-Geneva (Pascal Peduzzi) said
+  non-profits may use and integrate the platform but it does not share the
+  data. The platform itself opens from the globe on that page; its own
+  address was not visible from the sandbox.
+- Tiles medical_culprits.py: Alpha Therapeutic Corporation, which Wikidata
+  gives no place for, is placed at 5555 Valley Boulevard, Los Angeles (its
+  1987 letterhead, Infected Blood Inquiry document KDUD0000001), geocoded by
+  Nominatim at build time.
+- Replies: IEA Global Methane Tracker is CC BY 4.0 (credit IEA, mark
+  modifications "modified by ..."; no embedding the interactive map, no IEA
+  logo); its data needs a free IEA account download by the owner.
+  MethaneSAT asked what "raw data" means and offered its data request form
+  (files via Earth Engine / Google Cloud).
+
 ## Round 188o (8 October)
 
 Needs round 187o (guards on its heading). Tiles patch round188o_tiles.py

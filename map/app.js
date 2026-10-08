@@ -23611,6 +23611,10 @@ const OTHER_MAPS = {
     { id: "cfr_tracker", name: "Central banks' interest rate moves (Council on Foreign Relations tracker)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://public.tableau.com/views/CFRGlobalMonetaryPolicyTrackerNEW/GlobalMonetaryPolicyTracker?:showVizHome=no&:embed=y",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
+    // ---- round 189o (asked 8 October; UNEP/GRID-Geneva said non-profits may use and integrate the platform, but it does not share the data) ----
+    { id: "marine_sand_watch", name: "Sand and sediment dredged from the sea, tracked from dredging ships (Marine Sand Watch, UNEP/GRID-Geneva)", unit: "opens the platform's page in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
+      page: "https://unepgrid.ch/en/marinesandwatch",
+      note: "UNEP/GRID-Geneva's Marine Sand Watch follows large dredging ships by their AIS signals to show where sand, gravel and rock are taken from the sea: maintenance dredging, sand trading at ports, possible sand mining and concessions, and land reclamation. GRID-Geneva allows non-profit use and integration of the platform, but does not yet share its data, so it opens in the panel along the bottom rather than being drawn here. Click the globe on that page to open the platform." },
     { id: "tableau_zsf", name: "Countries' trade and money imbalances (Council on Foreign Relations tracker)", unit: "opens the page itself in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://public.tableau.com/shared/ZSF724HPQ?:showVizHome=no&:embed=y",
       note: "The page as the site shows it, whole, in the panel along the bottom; its data cannot be read directly to draw here." },
@@ -24057,6 +24061,12 @@ const OTHER_MAPS = {
       waiting: "not built yet: the refresh runs gem_coal",
       attribution: "Global Energy Monitor, Global Coal Mine Tracker and Global Energy Ownership Tracker (CC BY 4.0)",
       note: "Each parent company at the top of a coal mine's ownership chain in Global Energy Monitor's Global Energy Ownership Tracker, ranked by the methane of the mines it owns, each mine's methane counted by the parent's share of it (GEM's own estimate for open mines, in million tonnes a year; the methane mines reported is kept apart in the box). Where several chains lead from one parent to one mine, it is counted once, at the largest share any chain gives. Where GEM gives the share as unknown, that mine's methane is not divided: it is shown apart, as methane at mines of unknown share. Placed at the capital of the headquarters country, spread so each can be clicked. Shareholders GEM lists without a country (small shareholders, natural persons, unknown, and some companies) are ranked in the build file methane/gem_coal_parents.json but not placed." },
+    // ---- round 189o (asked 8 October; the authors said the map may use it): methane from 15 big meat and dairy companies ----
+    { id: "methane_meat_dairy", name: "Methane from 15 of the largest meat and dairy companies, 2021 (Emissions Impossible: Methane Edition, IATP and Changing Markets Foundation)", unit: "companies", colour: "#1A5C92", route: "sitemap", ready: true, lazy: true,
+      dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/methane/meat_dairy.places.geojson",
+      keepColour: true, entriesInBoxes: true, entriesLabel: "The dataset workbook, every sheet: read them",
+      key: [["#1A5C92", "Meat company"], ["#6FC2DA", "Dairy company"]], keyHint: "Bigger circles: more methane",
+      note: "The 15 meat and dairy companies in the Institute for Agriculture and Trade Policy and Changing Markets Foundation's report Emissions Impossible: Methane Edition (15 November 2022), from the report's own dataset workbook. The figures are the authors' estimates for 2021: each company's animals processed or milk taken in (from its own reports, or IFCN's dairy ranking), times the FAO's GLEAM 2.0 average emissions for that product in that region. Each company is placed at its headquarters as Wikidata gives it, sized by its methane, and its box holds every row of the workbook that names it (summary, each product and region, both GWP100 and GWP20, the production data with sources, and the comparisons with countries). Every sheet of the workbook, whole, opens from the button under the row. Used with the authors' agreement." },
     { id: "gem_coal_boundaries", name: "Coal mine boundaries and their likely sources of methane (Global Energy Monitor, Global Coal Mine Tracker)", unit: "mine areas", colour: "#6F7FA8", keepColour: true, route: "pmvector", ready: true, lazy: true, own: true, buildScript: "gem_coal",
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/gem_coal_boundaries.pmtiles", sourceLayer: "boundaries", edge: "#2A3558", fillOpacity: 0.4,
       stateSay: "mine areas \u00b7 from the map's own copy", attribution: "Global Energy Monitor, Global Coal Mine Tracker (CC BY 4.0)",
@@ -25111,6 +25121,7 @@ const LAYER_KIND = {
   pe_banks: ["animal", "upstream"],
   pe_subsidising: ["animal", "upstream"],
   powerbi_report: ["human", "upstream"],
+  methane_meat_dairy: ["insentient", "upstream"], marine_sand_watch: ["animal", "upstream"],
   scribd_doc: ["human", "upstream"],
   skytruth_monitor: ["animal", "downstream"],
   skytruth_voc: ["animal", "downstream"],
@@ -25763,6 +25774,7 @@ const LAYER_SITE = {
   own_bii: "https://data.nhm.ac.uk/dataset/bii-developed-by-nhm-v2-1-1-limited-release",
   gem_coal_mines: "https://globalenergymonitor.org/projects/global-coal-mine-tracker/",
   gem_coal_parents: "https://globalenergymonitor.org/projects/global-energy-ownership-tracker/",
+  methane_meat_dairy: "https://www.iatp.org/emissions-impossible-methane-edition", marine_sand_watch: "https://unepgrid.ch/en/marinesandwatch",
   gem_coal_boundaries: "https://globalenergymonitor.org/projects/global-coal-mine-tracker/",
   ecoregions_2017: "https://ecoregions.appspot.com/",
   wb_harm_projects: "https://projects.worldbank.org/en/projects-operations/projects-list",
@@ -26209,6 +26221,7 @@ const NOT_LIVE = {
   wba_nature_companies: "Read from WBA's Data API by culprits-tiles-more",
   gem_coal_mines: "Made from Global Energy Monitor's download by culprits-tiles-more",
   gem_coal_parents: "Made from Global Energy Monitor's download by culprits-tiles-more",
+  methane_meat_dairy: "Made from the report's dataset workbook by culprits-tiles-more (headquarters from Wikidata, checked daily)",
   gem_coal_boundaries: "Made from Global Energy Monitor's download by culprits-tiles-more",
   ecoregions_2017: "Made from RESOLVE's Ecoregions 2017 file by culprits-tiles-more",
   wb_harm_projects: "Copied weekly from the World Bank's projects API by culprits-tiles-more",
@@ -26491,7 +26504,7 @@ const PANEL_ORDER = [
   // carbon bombs out of Methane; the fracked wells and the oil and gas
   // concessions under Culprits, the Infrastructure heading gone; the sites and
   // owners behind the most methane added.
-  { h: 5, t: "Culprits" }, "methane_imeo_plumes", "methane_imeo_top50", "methane_ct_owners", "gem_coal_parents", "gem_coal_mines", "gem_coal_boundaries", "skytruth_fracfocus", "bocc",
+  { h: 5, t: "Culprits" }, "methane_imeo_plumes", "methane_imeo_top50", "methane_ct_owners", "gem_coal_parents", "gem_coal_mines", "gem_coal_boundaries", "skytruth_fracfocus", "bocc", "methane_meat_dairy",
   // Nitrous oxide (round 120b, asked 1 October): Emissions, then Culprits by
   // the sources behind most of it (Tian et al. 2020, Nature), the soy rows
   // under Crops, the fertiliser plants under Synthetic fertiliser; the grain
@@ -26503,7 +26516,7 @@ const PANEL_ORDER = [
   { h: 5, t: "Culprits" },
   { h: 6, t: "Synthetic fertiliser" }, "fertilizer_facilities",
   { h: 6, t: "Crops" }, "n2o_crop_fertiliser", "soy_traders_money", "soy_organizations", "site_forest500_soy",
-  { h: 6, t: "Manure and grazing livestock" },
+  { h: 6, t: "Manure and grazing livestock" }, "methane_meat_dairy",
   { h: 6, t: "Fossil fuels and industry (nitric and adipic acid)" },
   { h: 6, t: "Burning of forests, grassland and crop waste" },
   { h: 6, t: "Waste and wastewater" },
@@ -26754,6 +26767,7 @@ const PANEL_ORDER = [
   // and Pigs and chickens gone with the Brazil trade rows; Marine meats.
   { h: 5, t: "Herds" }, "abattoir_glw",
   { h: 5, t: "Facilities" }, "abattoir_facilities", "abattoir_cafo",
+  { h: 5, t: "Companies" }, "methane_meat_dairy",
   { h: 5, t: "Marine meats" },
   { h: 6, t: "Wild-caught fish" }, "fao_capture", "fishing", "iuu_vessels", "iuu_positions",
   { h: 6, t: "Whales" }, "whaling_logbooks",
@@ -26796,6 +26810,7 @@ const PANEL_ORDER = [
   { h: 5, t: "Pollution at sea", tag: "nutrient and chemical runoff are counted in the Every human impact together layer; plastic and oil spills are not" }, "ocean_runoff", "wastewater_plumes", "cerulean_sources", "cerulean_slicks", "skytruth_voc", "skytruth_marine_incidents", "skytruth_posts_sea", "seas_of_plastic", "coastal_cleanup",
   { h: 5, t: "Dead zones", tag: "partly counted in the Every human impact together layer, through the nutrient runoff that causes them" }, "ocean_dead_zones",
   { h: 5, t: "Deep-sea mining", tag: "not counted in the Every human impact together layer" }, "ocean_seabed_mining",
+  { h: 5, t: "Sand dredging", tag: "not counted in the Every human impact together layer" }, "marine_sand_watch",
   { h: 5, t: "Reefs and mangroves", tag: "not counted in the Every human impact together layer: these are what is harmed" }, "allen_coral", "ocean_bleaching",
   // Round 145b (asked 2 October): the worldwide plant cover loss alerts and
   // the World Bank's most harmful projects also here.

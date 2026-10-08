@@ -7057,6 +7057,22 @@ console.log("\nround 188o (8 October): the Who Writes the Law atlas, and the rev
         /LAW_STEPS6 = \["#D6EEF6", "#8FD6E8", "#3FA9C2", "#2275A8", "#13447A", "#0C2E5E"\]/.test(rich) && !/#6e8a6a|#8a9870/i.test(rich.slice(rich.indexOf("LAW_CATS"), rich.indexOf("LAW_SRAMP"))));
 }
 
+console.log("\nround 189o (8 October): methane from 15 meat and dairy companies; Marine Sand Watch");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the meat and dairy row reads its tiles build, with the workbook in its boxes",
+        /\{ id: "methane_meat_dairy"[^\n]*route: "sitemap"/.test(src) && /methane\/meat_dairy\.places\.geojson/.test(src) &&
+        /entriesLabel: "The dataset workbook, every sheet: read them"/.test(src));
+  check("it is filed under Methane's culprits, nitrous oxide's livestock and Meat's companies",
+        /"bocc", "methane_meat_dairy",/.test(src) && /\{ h: 6, t: "Manure and grazing livestock" \}, "methane_meat_dairy",/.test(src) &&
+        /\{ h: 5, t: "Companies" \}, "methane_meat_dairy",/.test(src) && /\bmethane_meat_dairy: \[/.test(src));
+  check("Marine Sand Watch opens its page in the panel and is filed under Oceans",
+        /\{ id: "marine_sand_watch"[^\n]*route: "companion"/.test(src) && /page: "https:\/\/unepgrid\.ch\/en\/marinesandwatch"/.test(src) &&
+        /\{ h: 5, t: "Sand dredging"[^}]*\}, "marine_sand_watch",/.test(src) && /\bmarine_sand_watch: \[/.test(src));
+  check("their colours keep to teal and cobalt",
+        /key: \[\["#1A5C92", "Meat company"\], \["#6FC2DA", "Dairy company"\]\]/.test(src));
+}
+
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
