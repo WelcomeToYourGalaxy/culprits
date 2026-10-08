@@ -24061,6 +24061,11 @@ const OTHER_MAPS = {
       waiting: "not built yet: the refresh runs gem_coal",
       attribution: "Global Energy Monitor, Global Coal Mine Tracker and Global Energy Ownership Tracker (CC BY 4.0)",
       note: "Each parent company at the top of a coal mine's ownership chain in Global Energy Monitor's Global Energy Ownership Tracker, ranked by the methane of the mines it owns, each mine's methane counted by the parent's share of it (GEM's own estimate for open mines, in million tonnes a year; the methane mines reported is kept apart in the box). Where several chains lead from one parent to one mine, it is counted once, at the largest share any chain gives. Where GEM gives the share as unknown, that mine's methane is not divided: it is shown apart, as methane at mines of unknown share. Placed at the capital of the headquarters country, spread so each can be clicked. Shareholders GEM lists without a country (small shareholders, natural persons, unknown, and some companies) are ranked in the build file methane/gem_coal_parents.json but not placed." },
+    // ---- round 190o (asked 8 October; the IEA confirmed CC BY 4.0): methane from oil and gas, each country ----
+    { id: "iea_oilgas_methane", name: "Methane from oil and gas, each country, 2025, and what would cut it (IEA Global Methane Tracker 2026)", unit: "countries", colour: "#2275A8", route: "sitemap", ready: true, lazy: true, noAreaDots: true, keepColour: true,
+      dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/methane/iea_oilgas.places.geojson",
+      colouringEdge: "#08203F", entriesInBoxes: true, entriesLabel: "Groups of countries, the world's methane by sector, and gas prices: read them",
+      note: "The International Energy Agency's Global Methane Tracker 2026, from its downloads: the methane each country's oil and gas let out in 2025, by production source (onshore, offshore, unconventional, downstream) and by how it escapes (vented on purpose, leaked, not burned off in flares, from abandoned wells), with the large leaks seen by satellite shown apart. Shade the countries by any of these from the row or a country's box. Each box also lists every measure the IEA costs to cut that methane, cheapest first; some measures are alternatives to one another, so their savings are not added up. Rows the IEA gives for groups of countries (World, European Union, Rest of ...) cannot be drawn on one country and open from the button under the row, with the IEA's world methane by sector and the gas prices it uses. Credit: IEA (2026), Global Methane Tracker 2026, IEA, Paris, Licence: CC BY 4.0, modified by Welcome to Your Galaxy (the totals and the shading steps are this map's; every figure is the IEA's)." },
     // ---- round 189o (asked 8 October; the authors said the map may use it): methane from 15 big meat and dairy companies ----
     { id: "methane_meat_dairy", name: "Methane from 15 of the largest meat and dairy companies, 2021 (Emissions Impossible: Methane Edition, IATP and Changing Markets Foundation)", unit: "companies", colour: "#1A5C92", route: "sitemap", ready: true, lazy: true,
       dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/methane/meat_dairy.places.geojson",
@@ -25121,7 +25126,7 @@ const LAYER_KIND = {
   pe_banks: ["animal", "upstream"],
   pe_subsidising: ["animal", "upstream"],
   powerbi_report: ["human", "upstream"],
-  methane_meat_dairy: ["insentient", "upstream"], marine_sand_watch: ["animal", "upstream"],
+  methane_meat_dairy: ["insentient", "upstream"], iea_oilgas_methane: ["insentient", "upstream"], marine_sand_watch: ["animal", "upstream"],
   scribd_doc: ["human", "upstream"],
   skytruth_monitor: ["animal", "downstream"],
   skytruth_voc: ["animal", "downstream"],
@@ -25774,7 +25779,7 @@ const LAYER_SITE = {
   own_bii: "https://data.nhm.ac.uk/dataset/bii-developed-by-nhm-v2-1-1-limited-release",
   gem_coal_mines: "https://globalenergymonitor.org/projects/global-coal-mine-tracker/",
   gem_coal_parents: "https://globalenergymonitor.org/projects/global-energy-ownership-tracker/",
-  methane_meat_dairy: "https://www.iatp.org/emissions-impossible-methane-edition", marine_sand_watch: "https://unepgrid.ch/en/marinesandwatch",
+  methane_meat_dairy: "https://www.iatp.org/emissions-impossible-methane-edition", iea_oilgas_methane: "https://www.iea.org/reports/global-methane-tracker-2026", marine_sand_watch: "https://unepgrid.ch/en/marinesandwatch",
   gem_coal_boundaries: "https://globalenergymonitor.org/projects/global-coal-mine-tracker/",
   ecoregions_2017: "https://ecoregions.appspot.com/",
   wb_harm_projects: "https://projects.worldbank.org/en/projects-operations/projects-list",
@@ -26222,6 +26227,7 @@ const NOT_LIVE = {
   gem_coal_mines: "Made from Global Energy Monitor's download by culprits-tiles-more",
   gem_coal_parents: "Made from Global Energy Monitor's download by culprits-tiles-more",
   methane_meat_dairy: "Made from the report's dataset workbook by culprits-tiles-more (headquarters from Wikidata, checked daily)",
+  iea_oilgas_methane: "Made from the IEA tracker's downloads by culprits-tiles-more",
   gem_coal_boundaries: "Made from Global Energy Monitor's download by culprits-tiles-more",
   ecoregions_2017: "Made from RESOLVE's Ecoregions 2017 file by culprits-tiles-more",
   wb_harm_projects: "Copied weekly from the World Bank's projects API by culprits-tiles-more",
@@ -26496,7 +26502,7 @@ const PANEL_ORDER = [
   // Methane in the page's order: livestock, fossil fuel production and
   // transmission, wastewater, rice, landfills.
   { h: 4, t: "Methane" },
-  { h: 5, t: "Emissions" }, "climate_trace_ag_enteric_fermentation_cattle_operation", "climate_trace_ag_enteric_fermentation_cattle_pasture",
+  { h: 5, t: "Emissions" }, "iea_oilgas_methane", "climate_trace_ag_enteric_fermentation_cattle_operation", "climate_trace_ag_enteric_fermentation_cattle_pasture",
   "climate_trace_ag_manure_management_cattle_operation", "climate_trace_fossil_fuel_operations", "carbon_plumes",
   "hydrowaste", "climate_trace_ag_rice_cultivation", "climate_trace_waste", "wasteatlas_dumpsites", "wasteatlas_landfills",
   "climate_trace_flu_wetland_fires", "climate_trace_flu_water_reservoirs",

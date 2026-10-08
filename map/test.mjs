@@ -7073,6 +7073,16 @@ console.log("\nround 189o (8 October): methane from 15 meat and dairy companies;
         /key: \[\["#1A5C92", "Meat company"\], \["#6FC2DA", "Dairy company"\]\]/.test(src));
 }
 
+console.log("\nround 190o (8 October): methane from oil and gas, each country (IEA)");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the IEA row reads its tiles build, first under Methane's emissions",
+        /\{ id: "iea_oilgas_methane"[^\n]*route: "sitemap"/.test(src) && /methane\/iea_oilgas\.places\.geojson/.test(src) &&
+        /\{ h: 5, t: "Emissions" \}, "iea_oilgas_methane",/.test(src) && /\biea_oilgas_methane: \[/.test(src));
+  check("it credits the IEA as its licence asks and says the measures are not added up",
+        /Licence: CC BY 4\.0, modified by Welcome to Your Galaxy/.test(src) && /some measures are alternatives to one another, so their savings are not added up/.test(src));
+}
+
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");

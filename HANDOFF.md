@@ -5,6 +5,28 @@ touches.
 
 ---
 
+## Round 190o (8 October)
+
+Needs round 189o (guards on its heading). Tiles patch round190o_tiles.py
+beside it. No app.js?v= bump.
+
+- iea_oilgas_methane (route sitemap, tiles methane/iea_oilgas.places.geojson
+  and .boxes.json, made by tiles iea_methane.py from the owner's IEA Global
+  Methane Tracker 2026 downloads kept in tiles methane/iea/: by_source.csv,
+  abatement.csv, gas_prices.csv, comparison.csv). The IEA confirmed CC BY
+  4.0 by email; credit "IEA (2026), Global Methane Tracker 2026 ... modified
+  by Welcome to Your Galaxy"; no IEA logo, no embedding their interactive
+  map. 102 countries on the map's own shapes (Korea = KOR, Cote d'Ivoire,
+  DR Congo aliased), 18 colourings (oil and gas total, gas, oil, satellite
+  large emitters, each reason, each production source), sextile steps.
+  The oil and gas total leaves out the satellite rows (the IEA lists them
+  apart). Abatement measures are listed per country, not summed (LDAR
+  frequencies are alternatives). Group rows (World, EU, Rest of ...), the
+  sector comparison and gas prices are in the entries window. First under
+  Methane > Emissions.
+- Global Tipping Points Report 2025 PDF attached by the owner: not used yet,
+  the owner will say where it goes.
+
 ## Round 189o (8 October)
 
 Needs round 188o (guards on its heading). Tiles patch round189o_tiles.py
