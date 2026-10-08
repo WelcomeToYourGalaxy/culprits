@@ -7083,6 +7083,17 @@ console.log("\nround 190o (8 October): methane from oil and gas, each country (I
         /Licence: CC BY 4\.0, modified by Welcome to Your Galaxy/.test(src) && /some measures are alternatives to one another, so their savings are not added up/.test(src));
 }
 
+console.log("\nround 191o (8 October): tipping points (Global Tipping Points Report 2025)");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the tipping points row reads its tiles copy and is filed under Climate and Oceans",
+        /\{ id: "tipping_points"[^\n]*route: "sitemap"/.test(src) && /tipping\/tipping_points\.places\.geojson/.test(src) &&
+        /\{ h: 3, t: "Climate" \},\n  \{ h: 4, t: "Tipping points" \}, "tipping_points",/.test(src) &&
+        /"ocean_impacts",\n  \{ h: 4, t: "Tipping points" \}, "tipping_points",/.test(src) && /\btipping_points: \[/.test(src));
+  check("its note says the colours are redrawn and the marks are placed by this map",
+        /redrawn in this map's blues; the table uses one red its legend does not list/.test(src) && /they are not boundaries/.test(src));
+}
+
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");

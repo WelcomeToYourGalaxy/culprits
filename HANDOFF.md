@@ -5,6 +5,33 @@ touches.
 
 ---
 
+## Round 191o (8 October)
+
+Needs round 190o (guards on its heading). Tiles patch round191o_tiles.py
+beside it. No app.js?v= bump.
+
+- tipping_points (route sitemap, tiles tipping/tipping_points.places.geojson
+  and .boxes.json, pictures in tiles tipping/img/), from the owner's PDF of
+  the Global Tipping Points Report 2025 (CC BY-SA 4.0; boxes shared alike).
+  Built once in the sandbox (no tiles script): section 2.2 read in column
+  order with PyMuPDF; Table 2.2.1, 2.4.1, 2.4.4, A2.2.1 and the risk
+  register (Figure 2.4.1) transcribed; Table 2.4.3 read cell by cell from
+  its colours. 21 systems placed as marks (placed by this map near the
+  middle of where Figure 2.2.1 draws them; disclosed in each box), 10
+  widespread systems in the entries window. 26 SREX regions (regionmask's
+  outlines) shaded by each of the 9 impact columns or the count of major or
+  worse; each region's box has its row, its continent's text (paragraphs
+  naming the region marked) and the report's continent map. Table 2.4.3
+  uses a red (224,102,102) its legend does not list; shown as "Red (no
+  legend entry)" between Major and Critical. Report colours redrawn in the
+  map's blues. Entries also hold "Do the IPCC's projections include tipping
+  points?" (AR6 WGI SPM C.3, C.3.2, C.3.4, B.5.3, B.4.3; the report pp.46,
+  92, 116, 127; Brysse et al. 2013, Kemp et al. 2022, Hansen et al. 2023,
+  Hausfather & Peters 2020, each checked). Filed under Climate > Tipping
+  points (first) and Oceans > Tipping points.
+- Tiles bii_nhm.py: the museum's zip holds another zip and a manifest; zips
+  inside zips are now opened (up to three deep) to find the GeoTIFF.
+
 ## Round 190o (8 October)
 
 Needs round 189o (guards on its heading). Tiles patch round190o_tiles.py
