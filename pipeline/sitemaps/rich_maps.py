@@ -91,15 +91,19 @@ def great_circle(pts, step_km=250):
     return out
 
 
-def write(mid, name, page, css, features, filters, boxes, colourings=None, notes=()):
+def write(mid, name, page, css, features, filters, boxes, colourings=None, notes=(), entries=None, stylesheets=()):
     OUT.mkdir(parents=True, exist_ok=True)
     places = {"type": "FeatureCollection", "name": name, "overlays": [], "filters": filters, "features": features}
     if colourings:
         places["colourings"] = colourings
     (OUT / f"{mid}.places.geojson").write_text(json.dumps(places, separators=(",", ":"), ensure_ascii=False))
-    (OUT / f"{mid}.boxes.json").write_text(json.dumps({
-        "name": name, "page": page, "css": css, "stylesheets": [], "chain": [], "boxes": boxes},
-        separators=(",", ":"), ensure_ascii=False))
+    bx = {"name": name, "page": page, "css": css, "stylesheets": list(stylesheets), "chain": [], "boxes": boxes}
+    if entries:
+        # Round 188o: what a map writes up beside its places (a list, a
+        # ranking, its method), kept with the boxes, which the daily refresh
+        # copies, and read when its button under the row is pressed.
+        bx["entries"] = entries
+    (OUT / f"{mid}.boxes.json").write_text(json.dumps(bx, separators=(",", ":"), ensure_ascii=False))
     kinds = {}
     for f in features:
         t = f["geometry"]["type"]
@@ -456,7 +460,351 @@ def capture(m):
     return write(mid, m["name"], m["url"], box_css(mid), features, filters, boxes, colourings, notes)
 
 
-BUILDERS = {"eyes": eyes, "capture": capture}
+# ------------------------------------------------------------------ two maps read by running their code
+#
+# Round 188o (asked 8 October): the owner's Who Writes the Law atlas, new, and
+# the revised Who corporatized holidays map. Both write their boxes in their
+# own code when a place is clicked, so page_reader.mjs runs that code and
+# returns what it writes; nothing here rewrites a box.
+
+def read_page(mode, url):
+    out = subprocess.run(["node", str(pathlib.Path(__file__).with_name("page_reader.mjs")), mode, url],
+                         capture_output=True, text=True, timeout=900)
+    if out.returncode != 0:
+        raise RuntimeError(f"page_reader.mjs {mode}: {out.stderr.strip()[:300]}")
+    return json.loads(out.stdout)
+
+
+def colour_hex(c):
+    """A CSS colour the page wrote (#rgb, #rrggbb, rgb(), hsl()) as #RRGGBB, so
+    the map can draw it."""
+    c = str(c or "").strip()
+    m = re.fullmatch(r"#([0-9a-fA-F]{3})", c)
+    if m:
+        return "#" + "".join(ch * 2 for ch in m.group(1)).upper()
+    if re.fullmatch(r"#[0-9a-fA-F]{6}", c):
+        return c.upper()
+    m = re.fullmatch(r"hsla?\(\s*([\d.]+)(?:deg)?[\s,]+([\d.]+)%[\s,]+([\d.]+)%.*\)", c)
+    if m:
+        import colorsys
+        r, g, b = colorsys.hls_to_rgb(float(m.group(1)) / 360, float(m.group(3)) / 100, float(m.group(2)) / 100)
+        return "#%02X%02X%02X" % (round(r * 255), round(g * 255), round(b * 255))
+    m = re.fullmatch(r"rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+).*\)", c)
+    if m:
+        return "#%02X%02X%02X" % tuple(int(x) for x in m.groups())
+    return None
+
+
+def page_css(mid, raw, drop):
+    """The page's own stylesheet, limited to this map's boxes (build_boxes.scope_css),
+    without the rules for the page around its map (its panels, its tiles)."""
+    from build_boxes import scope_css
+    raw = re.sub(r"/\*.*?\*/", "", raw, flags=re.S)
+    kept, i, n = [], 0, len(raw)
+    while i < n:
+        b = raw.find("{", i)
+        if b == -1:
+            break
+        depth, j = 1, b + 1
+        while j < n and depth:
+            depth += {"{": 1, "}": -1}.get(raw[j], 0)
+            j += 1
+        head = raw[i:b].strip()
+        if not head.startswith("@") and all(re.search(d, sel.strip()) is None for sel in head.split(",") for d in drop):
+            kept.append(raw[i:j])
+        elif head.startswith("@media"):
+            pass                                # the page's layout for small screens: not the boxes
+        elif not head.startswith("@"):
+            sels = [sel for sel in head.split(",") if all(re.search(d, sel.strip()) is None for d in drop)]
+            if sels:
+                kept.append(",".join(sels) + raw[b:j])
+        i = j
+    css, _ = scope_css("\n".join(kept), f".wtyg-map-{mid}")
+    return css
+
+
+def page_fonts(html_text):
+    """The page's own web fonts (Google Fonts only), so its boxes read as on the page."""
+    return [h for h in re.findall(r'<link[^>]+href="(https://fonts\.googleapis\.com/css2\?[^"]+)"', html_text)]
+
+
+def strip_ids(h, keep=r"ref-\d+"):
+    """Ids inside a box become data attributes, so nothing in a box can take an
+    id the Culprits map uses; the citation anchors (ref-N) keep theirs."""
+    return re.sub(r'\sid="(?!' + keep + r'")([^"]+)"', r' data-wtyg-id="\1"', h)
+
+
+LAW_STEPS6 = ["#D6EEF6", "#8FD6E8", "#3FA9C2", "#2275A8", "#13447A", "#0C2E5E"]
+LAW_STEPS5 = ["#C6E7F0", "#6FC2DA", "#2E8FBA", "#1A5C92", "#0C2E5E"]
+LAW_ONE_STEPS = {2: ["#6FC2DA", "#1A5C92"], 3: ["#6FC2DA", "#2E8FBA", "#0C2E5E"]}
+# The page's eleven areas of law, each its own colour here (the page's own
+# include greens; the owner's map takes none: teal, cobalt, rose, plum, bone).
+LAW_CATS = {"security": "#1E6FA8", "tax": "#7A1F3D", "fin": "#4F8BFF", "env": "#14A8A0", "health": "#8FD6E8",
+            "polfin": "#E0304A", "contracts": "#9C6B5A", "labor": "#F28FB0", "data": "#C9B8A6", "econ": "#6A5A5E",
+            "general": "#D6CFC2"}
+# The page's own scales, in order from least to most (its SRAMP and RAMP).
+LAW_SRAMP = ["#5D7671", "#8B9C92", "#BDBAA8", "#A78784", "#80525B", "#542838"]
+LAW_RAMP = ["#CDC7BB", "#AE9893", "#8D676C", "#663E4A", "#432231"]
+# The page's ALEC statuses (its ALEC_ST), and the colour each takes here.
+LAW_ALEC = [("none", "No change recorded", "#A3586A", "#B83B5E"), ("left", "Left, stopped funding or closed", "#8FA59A", "#3FA9C2"),
+            ("rejoined", "Left, then rejoined", "#B49AA6", "#F28FB0"), ("dispute", "Says it was never, or is no longer, a member", "#7D8FA3", "#8A8F98")]
+LAW_PEOPLE = {"person": ("Named people", "#8FD6E8"), "firm": ("Named companies and groups", "#F4F1EA")}
+# The page's kinds of evidence (its COL), as its findings' swatches show them.
+LAW_KINDS = {"#5F7F8C": "#1E6FA8", "#7B5C4A": "#9C6B5A", "#6B6487": "#4F8BFF", "#9A6A95": "#F28FB0", "#7193AD": "#6FB7D9",
+             "#9A5458": "#E0304A", "#5B8A84": "#8FD6E8", "#8F877B": "#6A5A5E", "#8A9870": "#C9B8A6"}
+# The page's areas of law (its CATS), by the colour it gives each.
+LAW_CAT_HEX = {"#5F7F8C": "security", "#8A6F9E": "tax", "#6F7FA8": "fin", "#6E8A6A": "env", "#5B8A84": "health", "#9A5458": "polfin",
+               "#A07F72": "contracts", "#7C9BB0": "labor", "#9592AB": "data", "#8F877B": "econ", "#BDB5A9": "general"}
+
+
+def law_recolour(h):
+    """The colours the page writes into its boxes (score bars, swatches, ALEC
+    and people dots, areas of law, kinds of evidence) as the same steps and
+    kinds are drawn on this map, so a box and the map agree."""
+    table = {}
+    for i, c in enumerate(LAW_SRAMP):
+        table[c] = LAW_STEPS6[i]
+    for i, c in enumerate(LAW_RAMP):
+        table[c] = LAW_STEPS5[i]
+    for c, k in LAW_CAT_HEX.items():
+        table[c] = LAW_CATS[k]
+    for c, t in LAW_KINDS.items():
+        table.setdefault(c, t)
+    for a in LAW_ALEC:
+        table[a[2]] = a[3]
+    table["#9FB3A6"], table["#C9C1B0"] = LAW_PEOPLE["person"][1], LAW_PEOPLE["firm"][1]
+    return re.sub(r"#[0-9a-fA-F]{6}\b", lambda m: table.get(m.group(0).upper(), m.group(0)), h)
+
+
+def law_number(x):
+    x = float(x)
+    return str(int(round(x))) if abs(x - round(x)) < 1e-9 or abs(x) >= 10 else f"{x:.1f}"
+
+
+# The page's fill for one colour drawn stronger with more evidence (its
+# styleCountry): counts of cases .55 for one, .72 for two or more; one area's
+# cases .5, .7 and .85 for one, two, three or more.
+LAW_ONE_LEVELS = {0.55: ("One", "#6FC2DA"), 0.72: ("Two or more", "#1A5C92"),
+                  0.5: ("One", "#6FC2DA"), 0.7: ("Two", "#2E8FBA"), 0.85: ("Three or more", "#0C2E5E")}
+
+
+def law_steps(view_id, rows, ends, cats=None, by_rank=False):
+    """Which step of its scale the page puts each country (or state) in for one
+    view, read from the colour and fill the page's own code gives it, and the
+    words for each step. Returns ({key: step}, scores, colours, labels)."""
+    got = {r["_key"]: (r["v"].get(view_id), colour_hex(r["c"].get(view_id)), r["o"].get(view_id)) for r in rows if r["v"].get(view_id) is not None}
+    if not got:
+        return {}, [], [], []
+    seen = {c for _, c, _ in got.values()}
+    step, words = {}, []
+    # End words are kept only where they say something the numbers do not
+    # ("less captured", "Stronger laws"), not "1 measure" or "45% of income".
+    ends = ends if ends and all(e for e in ends) and (by_rank or not any(re.search(r"\d", e) for e in ends)) else None
+    if cats:                                   # the area of law with the most evidence
+        order = [k for k in cats if any(v == k for v, _, _ in got.values())]
+        for key, (v, _, _) in got.items():
+            step[key] = order.index(v)
+        return step, list(range(len(order))), [LAW_CATS[k] for k in order], [cats[k]["l"] for k in order]
+    if seen <= set(LAW_SRAMP) or seen <= set(LAW_RAMP):
+        scale = LAW_SRAMP if seen <= set(LAW_SRAMP) else LAW_RAMP
+        here = LAW_STEPS6 if scale is LAW_SRAMP else LAW_STEPS5
+        for key, (v, c, _) in got.items():
+            step[key] = scale.index(c)
+        idx = sorted(set(step.values()))
+        for i in idx:
+            if by_rank:                        # coloured by rank, not by the score shown: the page's own ramp words only
+                words.append("")
+                continue
+            vals = [got[k][0] for k, s in step.items() if s == i]
+            lo, hi = min(vals), max(vals)
+            words.append(law_number(lo) if lo == hi else f"{law_number(lo)} to {law_number(hi)}")
+        if ends and words:
+            words[0] = (words[0] + f" ({ends[0]})").strip() if words[0] else ends[0]
+            if len(words) > 1:
+                words[-1] = (words[-1] + f" ({ends[1]})").strip() if words[-1] else ends[1]
+        return step, idx, [here[i] for i in idx], words
+    # One colour, drawn stronger with more evidence (the page's fill).
+    levels = sorted({round(float(o), 2) for _, _, o in got.values() if o is not None})
+    for key, (_, _, o) in got.items():
+        step[key] = levels.index(round(float(o), 2))
+    idx = list(range(len(levels)))
+    words = [LAW_ONE_LEVELS.get(l, (str(l), None))[0] for l in levels]
+    colours = [LAW_ONE_LEVELS.get(l, (None, LAW_STEPS6[i]))[1] or LAW_STEPS6[i] for i, l in enumerate(levels)]
+    return step, idx, colours, words
+
+
+def law_box(name, sub, body):
+    body = body.replace('data-mlens="', 'data-wtyg-colour="m_').replace('data-sview="', 'data-wtyg-colour="s_')
+    # The ALEC list's and the electoral bonds list's own filters, worked by the
+    # Culprits map (they called the page's filterALEC and filterEB).
+    body = re.sub(r'\s(?:onchange|oninput)="filterALEC\(\)"', "", body)
+    body = re.sub(r'class="(atf|akd|aq)"', lambda m: f'class="{m.group(1)}" data-wtyg-filter="{ {"atf": "tf", "akd": "kd", "aq": "n"}[m.group(1)] }"', body)
+    body = body.replace('class="acount"', 'class="acount" data-wtyg-count')
+    body = body.replace('id="alecBox"', 'id="alecBox" data-wtyg-filterbox')
+    body = body.replace(' oninput="filterEB(this)"', ' data-wtyg-filter="n"')
+    return law_recolour(strip_ids(f'<div class="lw-dossier"><header><h2>{esc(name)}</h2><div class="sub">{esc(sub)}</div></header><div class="dbody">{body}</div></div>'))
+
+
+LAW_DROP = [r"^(html|body|#map|#mast|#legend|#crumbs|#tools|#rank|#rlist|#dossier|#dbody|\.overlay|\.sheet|\.basesw|\.tbtn|\.lens|\.lenses|\.why|\.weights|\.wrow|\.areabox|\.fold|\.mhead|\.subhead|\.gbody)\b",
+            r"^\.leaflet-(tile|control|bottom|bar)", r"^#", r"^\.leaflet-container\s"]
+
+
+def law(m):
+    mid, D = m["id"], read_page("law", m["url"])
+    OUT.mkdir(parents=True, exist_ok=True)
+    for n in D.get("notes", []):
+        print(f"  {mid}: note: {n}")
+    cats = D["cats"]
+    # Every view the page offers, in its order: its lenses, which laws are
+    # affected (by documented cases and by sector indices), each of the
+    # measures behind the score, and the US states' views.
+    views = [(l["id"], l["name"], l["ds"], "c", l) for l in D["lenses"]]
+    views += [(a["id"], "Which laws: " + a["name"], a["ds"], "c", a) for a in D["areas"]]
+    views += [("m_" + c["k"], "Measure: " + c["name"], c["ds"], "c", c) for c in D["measures"]]
+    views += [("s_" + s["k"], "US states: " + s["name"], f'{s["name"]} ({s["src"]})', "s", s) for s in D["svViews"]]
+    countries = [dict(r, _key="c:" + r["iso"]) for r in D["countries"]]
+    states = [dict(r, _key="s:" + r["code"]) for r in D["states"]]
+    ends_for = {"score": ("less captured", "more captured")}
+    colourings, step_of = [], {}
+    for vid, label, note, scope, spec in views:
+        rows = countries if scope == "c" else states
+        if vid.startswith("m_") or vid.startswith("area_idx_") and not vid.endswith("_all"):
+            ends = ("least captured", "most captured")
+        elif scope == "s":
+            ends = (spec.get("lo"), spec.get("hi")) if spec.get("lo") else None
+        else:
+            ends = ends_for.get(spec.get("kind")) or ((spec.get("lo"), spec.get("hi")) if spec.get("lo") else None)
+        is_cats = vid.endswith("_all") and vid.startswith("area_")
+        if scope == "s" and spec.get("cat"):
+            ends = None                         # the page lists these as steps, not as a ramp
+        step, scores, colours, labels = law_steps(vid, rows, ends, cats if is_cats else None, by_rank=vid.startswith("s_sii"))
+        if not step:
+            continue
+        step_of[vid] = step
+        c = {"k": vid, "prop": "l_" + vid, "label": label, "note": note, "scores": scores, "colours": colours, "labels": labels}
+        if vid == "overall":
+            c["opacityProp"] = "o_overall"       # the page's own fading: less data, fainter
+        colourings.append(c)
+    css = page_css(mid, D["css"], LAW_DROP) + (
+        f":where(.wtyg-map-{mid}) .lw-dossier{{font-family:var(--serif);color:var(--bone);max-height:520px;overflow:auto}}"
+        f":where(.wtyg-map-{mid}) .lw-dossier header{{padding:6px 2px 10px;border-bottom:1px solid var(--line)}}"
+        f":where(.wtyg-map-{mid}) .lw-dossier h2{{font-weight:500;font-size:28px;line-height:1.05;margin:0 0 6px;letter-spacing:-.02em}}"
+        f":where(.wtyg-map-{mid}) .lw-dossier .sub{{font-family:var(--cond);font-size:13px;color:var(--ash)}}"
+        f":where(.wtyg-map-{mid}) .lw-dossier .dbody{{padding:0 2px 6px}}"
+        f":where(.wtyg-map-{mid}) .lw-entry{{font-family:var(--serif);color:var(--bone)}}"
+        f":where(.wtyg-map-{mid}) .lw-entry ol.lw-rank{{list-style:none;margin:0;padding:0;font-family:var(--cond)}}"
+        f":where(.wtyg-map-{mid}) .lw-entry ol.lw-rank button{{display:grid;grid-template-columns:34px 1fr 40px;gap:4px 8px;align-items:center;width:100%;background:none;border:0;padding:5px 0;text-align:left}}")
+    features, boxes, count = [], {}, {}
+    usa = next((r for r in countries if r["iso"] == "USA"), None)
+    wbox = {"maxWidth": 470, "minWidth": 300, "className": "ppop"}
+    def colour_props(r):
+        p = {}
+        for vid, step in step_of.items():
+            if r["_key"] in step:
+                p["l_" + vid] = step[r["_key"]]
+        return p
+    for r in countries:
+        k = key(mid, "country", r["iso"])
+        p = {"k": k, "n": r["name"], "t": 1, "p": 1, "f": "|show:countries|"}
+        p.update(colour_props(r))
+        if r.get("o", {}).get("overall") is not None:
+            p["o_overall"] = round(float(r["o"]["overall"]), 3)
+        if r["iso"] == "USA":
+            p["fo"] = 0                           # drawn by its states, which carry its colour
+        features.append({"type": "Feature", "geometry": r["geometry"], "properties": p})
+        b = r.get("box") or {}
+        boxes[k] = {"h": law_box(b.get("name") or r["name"], b.get("sub", ""), b.get("body", "")), "o": wbox,
+                    "t": f"<b>{esc(r['name'])}</b><br>" + (esc(r["t"]["overall"]) + (f", rank {r['rank']} of {D['scored']}" if r.get("rank") else "") if r["t"].get("overall") else "No overall score: no measure covers it"),
+                    "to": {"className": "tt"}}
+        count["show:countries"] = count.get("show:countries", 0) + 1
+    usa_props = colour_props(usa) if usa else {}
+    if usa and usa.get("o", {}).get("overall") is not None:
+        usa_props["o_overall"] = round(float(usa["o"]["overall"]), 3)
+    for r in states:
+        k = key(mid, "state", r["code"])
+        p = {"k": k, "n": r["name"], "t": 1, "p": 1, "f": "|show:states|"}
+        p.update(usa_props)                       # under a world view, the United States' own colour
+        p.update(colour_props(r))
+        features.append({"type": "Feature", "geometry": r["geometry"], "properties": p})
+        b = r.get("box") or {}
+        first = next((r["t"][v] for v in r["t"]), "")
+        boxes[k] = {"h": law_box(b.get("name") or r["name"], b.get("sub", ""), b.get("body", "")), "o": wbox,
+                    "t": f"<b>{esc(r['name'])}</b>" + (f"<br>{esc(first)}" if first else ""), "to": {"className": "tt"}}
+        count["show:states"] = count.get("show:states", 0) + 1
+    alec_by_fill = {a[2]: a for a in LAW_ALEC}
+    for i, mk in enumerate(D["marks"]):
+        fill = colour_hex(mk.get("fill"))
+        if mk.get("k"):                           # a named person or company (the page's people layer)
+            kind = "person" if mk["k"] == "person" else "firm"
+            c, f = LAW_PEOPLE[kind][1], f"|show:{kind}|"
+            count[f"show:{kind}"] = count.get(f"show:{kind}", 0) + 1
+        elif fill in alec_by_fill:                # a company listed as involved with ALEC
+            st = alec_by_fill[fill]
+            c, f = st[3], f"|show:alec|al:{st[0]}|"
+            count["show:alec"] = count.get("show:alec", 0) + 1
+            count[f"al:{st[0]}"] = count.get(f"al:{st[0]}", 0) + 1
+        else:
+            print(f"  {mid}: note: a mark with fill {mk.get('fill')} is of no kind the page names; drawn plain")
+            c, f = fill or "#8A8F98", "|show:other|"
+        name = re.sub(r"<[^>]+>", "", html.unescape(mk.get("tooltip") or "")).strip()
+        k = key(mid, "mark", i, mk["ll"][0], mk["ll"][1], name)
+        features.append({"type": "Feature", "geometry": {"type": "Point", "coordinates": [mk["ll"][1], mk["ll"][0]]},
+                         "properties": {"k": k, "n": name, "c": c, "r": mk.get("radius") or 4, "s": "#1C2023", "w": 1, "o": 0.92, "t": 1, "p": 1, "f": f}})
+        boxes[k] = {"h": law_recolour(strip_ids(mk.get("popup") or "")), "o": mk.get("popupOpts") or {"maxWidth": 330, "className": "ppop"},
+                    "t": mk.get("tooltip") or esc(name), "to": {"className": "tt"}}
+    filters = [
+        {"label": "Show", "values": [{"k": k, "label": lab, "n": count.get(k, 0)} for k, lab in [
+            ("show:countries", "Countries, shaded"), ("show:states", "US states, shaded"), ("show:person", LAW_PEOPLE["person"][0]),
+            ("show:firm", LAW_PEOPLE["firm"][0]), ("show:alec", "Companies listed as involved with ALEC")] if count.get(k)]},
+        {"label": "ALEC", "values": [{"k": f"al:{a[0]}", "label": a[1], "n": count.get(f"al:{a[0]}", 0)} for a in LAW_ALEC if count.get(f"al:{a[0]}")]},
+    ]
+    entries = [
+        {"title": "Cross-border studies", "kind": f"{D.get('globalCount', 0)} findings that cover many countries at once",
+         "html": law_recolour(f'<div class="lw-entry">{strip_ids(D["findings"])}</div>')},
+        {"title": "Ranking", "kind": f"{D['scored']} countries by overall capture score, most captured first",
+         "html": law_recolour(f'<div class="lw-entry"><ol class="lw-rank">{strip_ids(D["ranking"])}</ol></div>')},
+        {"title": "Compare countries", "kind": "every country's score, rank and each measure",
+         "html": law_recolour(f'<div class="lw-entry"><div class="tablewrap"><table class="cmp">{strip_ids(D["compare"])}</table></div></div>')},
+        {"title": "How it's ranked", "kind": "the atlas's method", "html": f'<div class="lw-entry">{strip_ids(D["method"])}</div>'},
+    ]
+    write(mid, m["name"], m["url"], css, features, filters, boxes, colourings,
+          [f"{len(colourings)} views to colour by", "the boxes are the atlas's own, written by its renderCountry and renderState"],
+          entries={"title": D.get("title") or m["name"], "entries": entries}, stylesheets=D.get("fonts") or [])
+    return m["name"]
+
+
+HOL_DROP = [r"^(html|body|#map|#wrap|#panel|#head|#desc|#hint|#key|#body|#list|#foot|#back|h1)\b", r"^#", r"^\.leaflet-(tile|control|bottom|bar)", r"^\.leaflet-container\b"]
+
+
+def holidays(m):
+    mid, D = m["id"], read_page("holidays", m["url"])
+    OUT.mkdir(parents=True, exist_ok=True)
+    for n in D.get("notes", []):
+        print(f"  {mid}: note: {n}")
+    css = page_css(mid, D["css"], HOL_DROP) + (
+        f":where(.wtyg-map-{mid}) .hol-pop .leaflet-popup-content-wrapper,:where(.wtyg-map-{mid}) .hol-pop .leaflet-popup-tip{{background:var(--panel);color:var(--bone);border:1px solid var(--line)}}"
+        f":where(.wtyg-map-{mid}) .hol-story{{font-family:Figtree,system-ui,-apple-system,\"Segoe UI\",sans-serif;font-size:15px;line-height:1.45;color:var(--bone)}}"
+        f":where(.wtyg-map-{mid}) .hol-story .s-hol{{margin-top:2px}}")
+    features, boxes, entries = [], {}, []
+    for i, e in enumerate(D["entries"]):
+        p = e["p"]
+        story = re.sub(r'<button id="back"[^>]*>.*?</button>', "", e["story"], flags=re.S).strip()
+        box = f'<div class="hol-story">{strip_ids(story)}</div>'
+        k = key(mid, i, p.get("name"), p.get("holiday"))
+        features.append({"type": "Feature", "geometry": {"type": "Point", "coordinates": [e["ll"][1], e["ll"][0]]},
+                         "properties": {"k": k, "n": p.get("name"), "c": colour_hex(e["colour"]), "r": 6.5, "s": "#081018", "w": 1.5, "o": 0.95,
+                                        "t": 1, "p": 1, "f": "|"}})
+        tip = next((mk["tooltip"] for mk in D["marks"] if mk["ll"] == e["ll"]), None) or esc(f'{p.get("holiday")}: {p.get("name")}')
+        boxes[k] = {"h": box, "o": {"maxWidth": 400, "minWidth": 280, "maxHeight": 520, "className": "hol-pop"}, "t": tip, "to": {"className": "tip"}}
+        entries.append({"title": f'{p.get("_year", "")} · {p.get("holiday", "")}', "kind": p.get("name", ""), "html": f'<div class="hol-story">{strip_ids(story)}</div>'})
+    write(mid, m["name"], m["url"], css, features, [], boxes, None, [f"{len(entries)} entries, {D['y0']} to {D['y1']}"],
+          entries={"title": "Who corporatized holidays, by year",
+                   "note": " ".join(html.unescape(re.sub(r"<[^>]+>", "", D.get(x) or "")).strip() for x in ("desc", "hint", "foot") if D.get(x)),
+                   "entries": entries}, stylesheets=D.get("fonts") or [])
+    return m["name"]
+
+
+BUILDERS = {"eyes": eyes, "capture": capture, "law": law, "holidays": holidays}
 
 
 def build(m):

@@ -4493,10 +4493,47 @@ function applySitemapColouring(id) {
   const c = state.list[state.pick];
   const year = state.year[c.k] != null ? state.year[c.k] : c.year;
   map.setPaintProperty(`${id}-fill`, "fill-color", colouringExpression(c, year));
-  map.setPaintProperty(`${id}-fill`, "fill-opacity", 0.6);
+  // Round 188o: an area may carry its own fill ("fo": the Who Writes the Law
+  // atlas draws the United States by its states), and a colouring its own
+  // fading (its overall score, fainter where fewer measures cover a country).
+  map.setPaintProperty(`${id}-fill`, "fill-opacity", ["*", ["coalesce", ["get", "fo"], 1],
+    c.opacityProp ? ["coalesce", ["get", c.opacityProp], 0.6] : 0.6]);
   map.setPaintProperty(`${id}-fill`, "fill-outline-color", state.edge || "#1D1B17");
   // Round 118b: each area as tall as its step of the measure chosen.
   try { rowLift(id, `${id}-fill`, colouringHeight(c, year)); } catch (e) { /* stays flat */ }
+}
+
+function sitemapPickColouring(id, k) {
+  const state = sitemapColourings.get(id);
+  if (!state) return;
+  const i = state.list.findIndex((c) => c.k === k);
+  if (i < 0) return;
+  state.pick = i;
+  renderColourRow(id);
+  applySitemapColouring(id);
+}
+
+// The rows of a box's table kept to those its search and lists allow: a
+// search matches inside the row's data-n, a list's choice one of the words in
+// the row's own data field ("all" for any), as the map's own filters do.
+function sitemapRowFilter(target) {
+  const box = target.closest("[data-wtyg-filterbox]") || target.closest("details") || target.closest(".leaflet-popup-content");
+  if (!box) return;
+  const filters = [...box.querySelectorAll("[data-wtyg-filter]")];
+  let shown = 0, all = 0;
+  box.querySelectorAll("tbody tr").forEach((tr) => {
+    all++;
+    const ok = filters.every((f) => {
+      const want = String(f.value || "").trim().toLowerCase();
+      if (!want || want === "all") return true;
+      const have = String(tr.dataset[f.dataset.wtygFilter] || "").toLowerCase();
+      return f.tagName === "SELECT" ? have.split(" ").includes(want) : have.includes(want);
+    });
+    tr.style.display = ok ? "" : "none";
+    if (ok) shown++;
+  });
+  const count = box.querySelector("[data-wtyg-count]");
+  if (count) count.textContent = `Showing ${shown.toLocaleString()} of ${all.toLocaleString()}`;
 }
 
 function sitemapColourClicked(btn) {
@@ -18438,7 +18475,7 @@ async function addSitemapLayer(cfg, given) {
   try { sitemapAutoKey(cfg, data); } catch (e) { /* no key */ }
   const n = data.features.length;
   setLayerState(cfg.id, `${n.toLocaleString()} ${cfg.unit}` + (cfg.subtitle ? ` \u00b7 ${cfg.subtitle}` : ""));
-  if (cfg.entriesUrl) sitemapEntriesButton(cfg).catch((e) => console.warn(`[culprits] ${cfg.id} entries: ${e.message}`));
+  if (cfg.entriesUrl || cfg.entriesInBoxes) sitemapEntriesButton(cfg).catch((e) => console.warn(`[culprits] ${cfg.id} entries: ${e.message}`));
   applyVisibility(cfg.id);
   buildLegend();
 }
@@ -18447,7 +18484,9 @@ async function addSitemapLayer(cfg, given) {
 // network's, Bacon, Hume and Bernays among them), each with its whole
 // write-up, in a window from a button under the row.
 async function sitemapEntriesButton(cfg) {
-  const got = await getJson(cfg.entriesUrl, 30000);
+  // Round 188o: entries may be kept with the row's boxes (copied daily), and
+  // are then shown with the map's own styles.
+  const got = cfg.entriesInBoxes ? ((await loadSitemapBoxes(cfg)) || {}).entries || {} : await getJson(cfg.entriesUrl, 30000);
   const list = (got && got.entries) || [];
   const row = document.querySelector(`[data-layer="${cfg.id}"]`);
   const anchor = row && row.closest ? row.closest("label") : null;
@@ -18455,7 +18494,7 @@ async function sitemapEntriesButton(cfg) {
   const el = document.createElement("div");
   el.className = "facet";
   el.dataset.entriesFor = cfg.id;
-  el.innerHTML = `<button type="button" class="chip">${list.length} entries with no place on the map: read them</button>`;
+  el.innerHTML = `<button type="button" class="chip">${escapeHtml(cfg.entriesLabel || `${list.length} entries with no place on the map: read them`)}</button>`;
   anchor.after(el);
   el.querySelector("button").addEventListener("click", (e) => {
     e.preventDefault(); e.stopPropagation();
@@ -18467,7 +18506,7 @@ async function sitemapEntriesButton(cfg) {
       "background:var(--peat,#17150F);color:var(--bone,#DCD6C6);border:1px solid var(--rule,#322E27);border-radius:6px;box-shadow:0 10px 30px rgba(0,0,0,.5)";
     w.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--rule,#322E27)">` +
       `<b style="flex:1">${escapeHtml(got.title || cfg.name)}</b><button type="button" class="chip" data-x>close</button></div>` +
-      `<div style="overflow:auto;padding:8px 12px;font-size:12.5px;line-height:1.45">` +
+      `<div class="${cfg.entriesInBoxes ? `wtyg-map-${escapeHtml(cfg.id)}` : ""}" style="overflow:auto;padding:8px 12px;font-size:12.5px;line-height:1.45">` +
       (got.note ? `<div class="meta" style="margin-bottom:6px">${escapeHtml(got.note)}</div>` : "") +
       list.map((it) => `<details style="margin:0 0 6px"><summary style="cursor:pointer"><b>${escapeHtml(it.title)}</b>` +
         (it.kind ? ` <span class="meta">${escapeHtml(it.kind)}</span>` : "") + `</summary><div class="entry-body">${it.html}</div></details>`).join("") + `</div>`;
@@ -20201,6 +20240,14 @@ async function openSitemapBox(hit, at) {
       if (x) { ev.preventDefault(); popup.remove(); }
       const a = ev.target.closest && ev.target.closest(".atlas-show");
       if (a) { ev.preventDefault(); atlasFrom(a, geometryBounds(hit.geometry), hit.cfg.id); }
+      // Round 188o: a box's own "Show on map" button colours the row by that view.
+      const sc = ev.target.closest && ev.target.closest("[data-wtyg-colour]");
+      if (sc) { ev.preventDefault(); sitemapPickColouring(hit.cfg.id, sc.dataset.wtygColour); }
+    });
+    // Round 188o: a box's own search and lists (the atlas's ALEC companies and
+    // India's electoral bond buyers) filter its table's rows as on the map.
+    for (const ev of ["input", "change"]) el.addEventListener(ev, (e) => {
+      if (e.target && e.target.closest && e.target.closest("[data-wtyg-filter]")) sitemapRowFilter(e.target);
     });
     // An Atlas hotspot or city shows its own map or page as soon as it is opened.
     const auto = el.querySelector && el.querySelector("[data-atlas-auto]");
@@ -22315,6 +22362,18 @@ const SITE_MAPS = {
       keyHint: "Groups by kind; public-office cases by office; companies by sector (the page's own kinds)",
       dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/capture_map.places.geojson",
       note: "Everything the map holds: its organised-crime groups by type, public-office cases, companies, trafficking corridors, and every country shaded by any of its six measures (GI-TOC Organized Crime Index 2025 and the map's own composites). Choose what to show and what to colour by under the row." },
+    // Round 188o (asked 8 October): the owner's Who Writes the Law atlas (maps
+    // repo), read by running its own code (pipeline/sitemaps/rich_maps.py,
+    // page_reader.mjs). Its boxes are its own records, written by its
+    // renderCountry and renderState; its views keep the steps it draws.
+    { id: "law_atlas", name: "Who writes the law: how far lawmaking is captured, each country and US state, with the people and companies named (Who Writes the Law atlas, from published measures and documented cases)",
+      unit: "countries, states, people and companies", colour: "#2275A8", route: "sitemap", ready: true, lazy: true, noAreaDots: true, keepColour: true,
+      dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/law_atlas.places.geojson",
+      colouringEdge: "#08203F", entriesInBoxes: true, entriesLabel: "Its cross-border studies, ranking, comparison table and method: read them",
+      key: [["#8FD6E8", "Named people"], ["#F4F1EA", "Named companies and groups"], ["#B83B5E", "ALEC: no change recorded"], ["#3FA9C2", "ALEC: left, stopped funding or closed"],
+        ["#F28FB0", "ALEC: left, then rejoined"], ["#8A8F98", "ALEC: says it was never, or is no longer, a member"]],
+      keyHint: "People and companies as the atlas marks them; countries and states by the view chosen under the row",
+      note: "The owner's Who Writes the Law atlas (WelcomeToYourGalaxy/maps, who-writes-the-law.html), read each day from the atlas itself. Every country is shaded by any of its views: its overall capture score (a weighted combination of thirty-one published country-by-country measures, faded where fewer measures cover the country), how much data and evidence it has, the kinds of capture documented, which areas of law the evidence concerns, and each of the thirty-one measures on its own; the US states by their own views. Each country and state opens the atlas's own record, and each named person, company and company listed as involved with ALEC (the American Legislative Exchange Council, where companies and state legislators vote on model bills) opens its own box. Seven of the thirty-one measures are V-Dem expert ratings, as the atlas's method says. The atlas's cross-border studies, ranking, comparison table and method open from the button under the row. The documented cases and named people are a small, uneven sample, not a count, as the atlas says." },
   ],
 };
 
@@ -23117,9 +23176,17 @@ const OTHER_MAPS = {
     // governments and bodies that made holidays to take the place of others are
     // out, and so are companies there only for selling a lot around one (JD.com,
     // Hallmark's and American Greetings' card counts).
-    { id: "holiday_culprits", name: "Who corporatized holidays: made a holiday a company's own custom, or invented one to sell (compiled from Wikipedia, histories and reporting)", unit: "companies and trade bodies", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Holiday culprits", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/holidays/culprits.geojson" }], nameFrom: ["name"],
-      note: "Compiled for this map from the sources each box links to (Wikipedia articles, and for the round 185o additions also histories and news reporting), and cut down on 29 September to those who corporatized a holiday, not sales events alone: Coca-Cola's Santa, Macy's parade, Montgomery Ward's Rudolph, Alibaba's Singles' Day, Amazon's Prime Day, the National Retail Federation's Cyber Monday, the men's wear retailers' Father's Day Council, the confectioners behind White Day and Sweetest Day, Lotte's Pepero Day and KFC's Christmas in Japan; added 5 October: Federated Department Stores, which had Thanksgiving moved for Christmas shopping (1939), Morozoff and Mary's Chocolate, who made Valentine's Day a chocolate day in Japan, Edgar's, the first department store Santa (1890), Dictaphone and Young & Rubicam, who devised Secretaries Day (1952), the Gambrinus Company and Grupo Modelo, who made Cinco de Mayo a beer day in the United States, and the Florists' Telegraph Delivery association, which made Mother's Day a flower day. Each is placed at its head office or its city, as the box says. A short list, not every case." },
+    // Round 188o (asked 8 October): the owner's revised Who corporatized
+    // holidays map (maps repo), read by running its own code
+    // (pipeline/sitemaps/rich_maps.py, page_reader.mjs): each entry's story and
+    // record as its box, coloured by year as the map colours it, and its list
+    // by year in a window under the row.
+    { id: "holiday_culprits", name: "Who corporatized holidays: made a holiday a company's own custom, or invented one to sell (compiled from Wikipedia, histories and reporting)", unit: "companies and trade bodies", colour: "#3FA9C2", route: "sitemap", ready: true, lazy: true,
+      dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/holiday_culprits.places.geojson",
+      keepColour: true, standout: { keep: true, rim: "#081018" }, entriesInBoxes: true, entriesLabel: "Every entry, by the year it began: read them",
+      key: [["#59CFBF", "The earliest year on the map"], ["#597CCF", "The latest year on the map"]], keyHint: "Coloured by the year each began, teal to blue, as on the map",
+      note: "The owner's map of who corporatized holidays (WelcomeToYourGalaxy/maps, holiday_culprits.html), read each day from the map itself: every entry in it, each opening its own story and record (the holiday, when, who, what they did, where it is placed and its sources), each coloured by the year it began, as the map colours it. The map's list of every entry by year opens from the button under the row. Compiled from the sources in each story (Wikipedia, histories and reporting). A short list, not every case." },
+
     // ---- round 116b (asked 29 September): gangs inside law enforcement, worldwide ----
     { id: "gang_infiltration", name: "Gangs inside law enforcement worldwide: police, sheriffs, federal agents and prison officers working for crime groups, or running their own (compiled from court records, inquiries and reporting)", unit: "cases", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Gangs inside law enforcement", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/lawenforcement/gang_infiltration.geojson" }], nameFrom: ["name"],
@@ -25159,7 +25226,7 @@ const LAYER_KIND = {
   site_enslaved_microbes: ["microorganism", "downstream"],
   site_insentient: ["insentient", "downstream"],
   gov_official_map: ["human", "upstream"],
-  capture_map: ["human", "upstream"],
+  capture_map: ["human", "upstream"], law_atlas: ["human", "upstream"],
   gmo_cultivation: ["plant", "downstream"],
   gmo_trials: ["plant", "downstream"],
   gmo_bodies: ["plant", "downstream"],
@@ -25765,7 +25832,7 @@ const LAYER_SITE = {
   biosignature: "https://github.com/WelcomeToYourGalaxy/maps",
   building_types: "https://github.com/WelcomeToYourGalaxy",
   bld_police: "https://github.com/WelcomeToYourGalaxy", bld_courts: "https://github.com/WelcomeToYourGalaxy", bld_prisons: "https://github.com/WelcomeToYourGalaxy",
-  capture_map: "https://github.com/WelcomeToYourGalaxy/maps",
+  capture_map: "https://github.com/WelcomeToYourGalaxy/maps", law_atlas: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/who-writes-the-law.html",
   dff: "https://deforestationfreefunds.org",
   esa_risk: "https://neo.ssa.esa.int/risk-list-plots",
   ufo_sightings: "https://ufosint.com/",
@@ -25947,7 +26014,7 @@ const LAYER_SITE = {
   research_makers: "https://www.welcometoyourgalaxy.com/suppression.html",
   fertility_policy: "https://www.un.org/development/desa/pd/data/world-population-policies",
   forestatrisk: "https://forestatrisk.cirad.fr/rasters.html",
-  holiday_culprits: "https://en.wikipedia.org/wiki/Santa_Claus",
+  holiday_culprits: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/holiday_culprits.html",
   medical_culprits: "https://en.wikipedia.org/wiki/List_of_largest_pharmaceutical_settlements",
   open_payments: "https://openpaymentsdata.cms.gov/",
   sports_facilities: "https://docs.overturemaps.org/", sports_betting: "https://www.wikidata.org/", sports_fixing: "https://en.wikipedia.org/wiki/Match_fixing",
@@ -26160,7 +26227,7 @@ const NOT_LIVE = {
   research_makers: "Read weekly from the site's own map by culprits-tiles-more",
   fertility_policy: "Copied weekly from the UN Population Division by culprits-tiles-more",
   forestatrisk: "Copied once from ForestAtRisk's own files by culprits-tiles-more",
-  holiday_culprits: "Compiled for this map from the sources in each box",
+  holiday_culprits: "Read each day from the owner's map in the maps repo", law_atlas: "Read each day from the owner's atlas in the maps repo",
   gang_infiltration: "Compiled for this map from the sources in each box",
   medical_culprits: "Built weekly by culprits-tiles-more from Wikipedia and Wikidata",
   open_payments: "Added up weekly from CMS Open Payments by culprits-tiles-more",
@@ -26806,7 +26873,7 @@ const PANEL_ORDER = [
   // Round 105b (asked 28 September): V-Dem's democracy scores.
   { h: 5, t: "Voter suppression" },
   { h: 5, t: "Representation as presentation" },
-  { h: 5, t: "For money-written-law" },
+  { h: 5, t: "For money-written-law" }, "law_atlas",
   { h: 4, t: "The food and drink industries" }, "site_food_system",
   { h: 4, t: "The medical industry" }, "medical_culprits", "open_payments",
   { h: 3, t: "Suppression by information" },

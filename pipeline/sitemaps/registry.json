@@ -267,6 +267,24 @@
    "note": "The Drug underworld and capture map's own data: groups, cases, companies, corridors and country scores.",
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/capture/main/index.html",
    "rich": "capture"
+  },
+  {
+   "id": "law_atlas",
+   "name": "Who writes the law: how far lawmaking is captured, each country and US state, with the people and companies named (Who Writes the Law atlas, from published measures and documented cases)",
+   "unit": "countries, states, people and companies",
+   "colour": "#2275A8",
+   "note": "The owner's Who Writes the Law atlas (maps repo), read by running its own code: every view, every country's and state's record, every person, company and ALEC member.",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/who-writes-the-law.html",
+   "rich": "law"
+  },
+  {
+   "id": "holiday_culprits",
+   "name": "Who corporatized holidays: made a holiday a company's own custom, or invented one to sell (compiled from Wikipedia, histories and reporting)",
+   "unit": "companies and trade bodies",
+   "colour": "#3FA9C2",
+   "note": "The owner's Who corporatized holidays map (maps repo), read by running its own code: each entry's story and record, coloured by year.",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/holiday_culprits.html",
+   "rich": "holidays"
   }
  ]
 }

@@ -7011,12 +7011,12 @@ console.log("\nround 185o (5 October): sharks and rays caught (FAO)");
         /No open source maps shark finning itself/.test(src));
 }
 
-console.log("\nround 186o (5 October): more holiday corporatizers");
+console.log("\nround 186o (5 October): more holiday corporatizers (read from the owner's map since round 188o)");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("the holidays row says where its entries come from and names the 5 October additions",
+  check("the holidays row says where its entries come from",
         /Who corporatized holidays[^"]*\(compiled from Wikipedia, histories and reporting\)/.test(src) &&
-        /added 5 October: Federated Department Stores/.test(src) && /Florists' Telegraph Delivery association/.test(src));
+        /Compiled from the sources in each story \(Wikipedia, histories and reporting\)/.test(src));
 }
 
 console.log("\nround 187o (5 October): the Glass Garden basemap taken out");
@@ -7025,6 +7025,36 @@ console.log("\nround 187o (5 October): the Glass Garden basemap taken out");
   const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   check("no Glass Garden left: no layers, painter, aura, sky, names, menu line or checks",
         !/lumen|Glass Garden/i.test(src) && !/lumen/i.test(html));
+}
+
+console.log("\nround 188o (8 October): the Who Writes the Law atlas, and the revised holidays map, read from the owner's maps");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const reg = JSON.parse(fs.readFileSync(path.join(HERE, "..", "pipeline", "sitemaps", "registry.json"), "utf8")).maps;
+  const rich = fs.readFileSync(path.join(HERE, "..", "pipeline", "sitemaps", "rich_maps.py"), "utf8");
+  const reader = fs.readFileSync(path.join(HERE, "..", "pipeline", "sitemaps", "page_reader.mjs"), "utf8");
+  check("both maps are read daily from the maps repo by running their own code",
+        reg.some((m) => m.id === "law_atlas" && m.rich === "law" && /maps\/main\/who-writes-the-law\.html$/.test(m.url)) &&
+        reg.some((m) => m.id === "holiday_culprits" && m.rich === "holidays" && /maps\/main\/holiday_culprits\.html$/.test(m.url)) &&
+        /BUILDERS = \{"eyes": eyes, "capture": capture, "law": law, "holidays": holidays\}/.test(rich) &&
+        /renderCountry\(iso\)/.test(reader) && /renderState\(code, f\.properties\.name\)/.test(reader) && /show\(e\);/.test(reader));
+  check("the atlas is one row, its boxes and its list of findings read from the copy, filed under For money-written-law",
+        /id: "law_atlas"[^\n]*\n[^\n]*route: "sitemap"/.test(src) && src.includes("sitemaps/law_atlas.places.geojson") &&
+        /\{ h: 5, t: "For money-written-law" \}, "law_atlas",/.test(src) && /\blaw_atlas: \["human", "upstream"\]/.test(src) &&
+        /\blaw_atlas: "https:\/\/github\.com\/WelcomeToYourGalaxy\/maps/.test(src) && /\blaw_atlas: "Read each day/.test(src));
+  check("the holidays row is the owner's map now, its dots glowing in their year colours, its list by year under the row",
+        /id: "holiday_culprits"[^\n]*route: "sitemap"/.test(src) && src.includes("sitemaps/holiday_culprits.places.geojson") &&
+        /standout: \{ keep: true, rim: "#081018" \}, entriesInBoxes: true/.test(src) && !src.includes("holidays/culprits.geojson"));
+  check("an area may carry its own fill, and a view its own fading",
+        /"fill-opacity", \["\*", \["coalesce", \["get", "fo"\], 1\],\s*c\.opacityProp \? \["coalesce", \["get", c\.opacityProp\], 0\.6\] : 0\.6\]\)/.test(src));
+  check("a box's Show on map buttons pick the row's view, and its searches and lists filter its table",
+        /closest\("\[data-wtyg-colour\]"\)/.test(src) && /sitemapPickColouring\(hit\.cfg\.id, sc\.dataset\.wtygColour\)/.test(src) &&
+        /function sitemapRowFilter\(target\)/.test(src) && /Showing \$\{shown\.toLocaleString\(\)\} of \$\{all\.toLocaleString\(\)\}/.test(src));
+  check("entries may be kept with the boxes, under the row's own words, in the map's own styles",
+        /cfg\.entriesInBoxes \? \(\(await loadSitemapBoxes\(cfg\)\) \|\| \{\}\)\.entries/.test(src) && /cfg\.entriesLabel \|\|/.test(src) &&
+        /if \(cfg\.entriesUrl \|\| cfg\.entriesInBoxes\) sitemapEntriesButton/.test(src));
+  check("its colours are the map's own teal to cobalt, with no green, orange or yellow",
+        /LAW_STEPS6 = \["#D6EEF6", "#8FD6E8", "#3FA9C2", "#2275A8", "#13447A", "#0C2E5E"\]/.test(rich) && !/#6e8a6a|#8a9870/i.test(rich.slice(rich.indexOf("LAW_CATS"), rich.indexOf("LAW_SRAMP"))));
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");

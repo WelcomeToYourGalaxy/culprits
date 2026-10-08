@@ -5,6 +5,54 @@ touches.
 
 ---
 
+## Round 188o (8 October)
+
+Needs round 187o (guards on its heading). Tiles patch round188o_tiles.py
+beside it (it also carries the first copies of the two maps below, so they
+draw before the next full refresh). No app.js?v= bump.
+
+- Owner, 8 October: integrate two maps from WelcomeToYourGalaxy/maps, one new
+  (who-writes-the-law.html), one revised (holiday_culprits.html). Both write
+  their boxes in their own code when a place is clicked, so the new
+  pipeline/sitemaps/page_reader.mjs runs each page's own script in Node
+  against stand-ins for Leaflet and the page and asks its own functions what
+  they write; rich_maps.py builders "law" and "holidays" turn that into the
+  sitemap route's places and boxes. Both are in registry.json, so the tiles
+  refresh's sitemaps job rebuilds them each full run from the maps repo.
+- law_atlas, one row under Suppression by representation > Politics as a
+  front > For money-written-law. 242 countries, 51 US states, 240 named
+  people and companies, 554 ALEC members (filters: Show, ALEC status). Every
+  view the atlas offers is a Colour by choice (75): its ten lenses, which laws
+  are affected (cases and sector indices, overall and per area), each of the
+  31 measures, and the US states' views. Each country's and state's step is
+  read from the colour and fill the atlas's own colorFor / styleCountry /
+  SVIEWS.col give it, drawn in teal to cobalt (6 or 5 steps; areas of law in
+  their own colours, none green). The overall score fades with less data as
+  on the atlas (colouring opacityProp o_overall). The United States is drawn
+  by its states (fo 0 on the country; its states carry its world-view steps).
+  Boxes are the atlas's renderCountry / renderState output and its own popups,
+  in its own styles (page CSS scoped) and fonts, its colours mapped to the
+  map's. Its "Show on map" buttons pick that view; the ALEC list's and India's
+  electoral bond list's own search and lists filter their tables.
+  Cross-border studies, ranking, comparison table and method are entries kept
+  in its boxes file (entriesInBoxes), under the row's own button.
+- holiday_culprits now reads the owner's map (31 entries): each entry's story
+  and record as its box (the map's back button left out), each dot in its year
+  colour (the map's tone()), glowing (standout keep), and the map's list by
+  year as entries. The old tiles holidays/culprits.geojson is no longer read.
+- app.js: applySitemapColouring's fill is fo times the colouring's own
+  opacityProp (or 0.6); sitemapPickColouring, sitemapRowFilter; entries may
+  live in the boxes file, with entriesLabel, shown inside the row's scope.
+- Seven of the atlas's 31 measures are V-Dem expert ratings (its method says
+  so). V-Dem was dropped from the map on 28 September; these come inside the
+  owner's own atlas and are kept as it has them. Flagged to the owner.
+- Tiles: open_payments.py keeps the years it has read and goes on within a
+  time budget (the 5 October run stopped at 160 minutes after three of seven
+  years and drew nothing); fertiliser_by_crop.py reads a copy uploaded to
+  fertiliser/download/ (Dryad answered 401 to the download) and records a
+  refusal instead of failing; isds_unctad.py matches UNCTAD's spellings of
+  the DR Congo, Hong Kong and Macao.
+
 ## Round 187o (5 October)
 
 Needs round 186o (guards on its heading). No tiles patch. No app.js?v= bump.
