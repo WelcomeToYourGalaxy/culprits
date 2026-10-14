@@ -5532,7 +5532,7 @@ console.log("\nround 104b (28 September): schools, taxes, stock market, spheres,
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("School under Suppression by representation, with every school Giga maps and who made schooling a machine",
-        /\{ h: 3, t: "Suppression by “representation” within it" \},\n[^\n]*\n[^\n]*\n  \{ h: 4, t: "School" \}, "school_culprits", "giga_school_points", "giga_countries",/.test(src) &&
+        /\{ h: 3, t: "Suppression by “representation” within it" \},\n[^\n]*\n[^\n]*\n  \{ h: 4, t: "School" \}, "school_culprits", "giga_school_points", ("giga_school_names", )?"giga_countries",/.test(src) &&   // round 192o: Giga's schools by name beside it
         /id: "giga_school_points"[^\n]*route: "mvtlive"/.test(src) && /cfg\.route === "mvtlive" \? addMvtLiveLayer\(cfg\)/.test(src));
   check("taxes, interest and aid each a heading, out of Economic inequality, which keeps wealth and the stock market",
         /\{ h: 5, t: "Taxes" \}, "owid_corptax",\n  \{ h: 5, t: "Interest" \}, "owid_interest",\n  \{ h: 5, t: "Aid" \}, "owid_aid",\n  \{ h: 4, t: "Economic inequality within it" \},\n  \{ h: 5, t: "Wealth concentration" \}[^\n]*\n  \{ h: 5, t: "The stock market" \}, "stock_exchanges",/.test(src));
@@ -7092,6 +7092,20 @@ console.log("\nround 191o (8 October): tipping points (Global Tipping Points Rep
         /"ocean_impacts",\n  \{ h: 4, t: "Tipping points" \}, "tipping_points",/.test(src) && /\btipping_points: \[/.test(src));
   check("its note says the colours are redrawn and the marks are placed by this map",
         /redrawn in this map's blues; the table uses one red its legend does not list/.test(src) && /they are not boundaries/.test(src));
+}
+
+console.log("\nround 192o (12 October): Climate TRACE's full ownership chains; Giga's schools by name");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the two ownership rows read the tiles build and sit under Climate",
+        /\{ id: "ct_top_owners"[^\n]*buildScript: "ct_ownership"/.test(src) && /ct_ownership\/top_owners\.geojson/.test(src) &&
+        /\{ id: "ct_owned_sites"[^\n]*buildScript: "ct_ownership"/.test(src) && /ct_ownership\/sites\.geojson/.test(src) &&
+        /\{ h: 4, t: "Who owns the emissions" \}, "ct_top_owners", "ct_owned_sites",/.test(src) && /\bct_top_owners: \[/.test(src));
+  check("the owners' note says how shares are counted and what is not divided",
+        /the site counts whole at that step/.test(src) && /counts once, at the largest share/.test(src) && /not divided and are shown apart/.test(src));
+  check("Giga's schools by name are a row under School, and Giga is credited share-alike",
+        /\{ id: "giga_school_names"[^\n]*route: "pmtiles"/.test(src) && /tiles\/giga_named\.pmtiles/.test(src) &&
+        /"giga_school_points", "giga_school_names", "giga_countries",/.test(src) && !/attribution: "Giga \(UNICEF and ITU\)",/.test(src));
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");

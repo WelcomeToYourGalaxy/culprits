@@ -5,6 +5,41 @@ touches.
 
 ---
 
+## Round 192o (12 October)
+
+Needs round 191o (guards on its heading). Tiles patch round192o_tiles.py
+beside it. No app.js?v= bump.
+
+- Climate TRACE's full ownership chains (the Coalition, Lekha, 12 October:
+  storage.googleapis.com/climate_trace/ownership/ownership_all_*_071026.csv,
+  copies in tiles ct_ownership/). Tiles ct_ownership.py: each owned site's
+  latest full year of CO2e (100-year) from latest/sector_packages/co2e_100yr/
+  <sector>.zip (power, fossil_fuel_operations, agriculture, manufacturing,
+  mineral_extraction; one or more a run, cached monthly in
+  ct_ownership/emissions_<sector>.json), chains walked to the owners no one
+  is listed as owning. Site -> named owner has no share (counted whole);
+  owner -> owner percentages multiplied; largest share per top owner per
+  site; any missing percentage -> "unknown share, not divided"; plus every
+  site not divided. Rows ct_top_owners (capital of HQ country, spread) and
+  ct_owned_sites, under Climate > Who owns the emissions. Tested on the real
+  tables with stub emissions (9,142 owners at the top, 6,238 placed) and on a
+  synthetic package; the real packages were not reachable from the sandbox.
+- giga_school_names (route pmtiles, tiles tiles/giga_named.pmtiles, made by
+  tiles giga_api.py from Giga's School Location API with the GIGA_API_KEY
+  secret: /api/locations/schools-download/?country_id=..., header Api-Key,
+  per unicef/giga-maps-backend). Giga said weekly is enough and asked for
+  credit under a share-alike licence: every Giga attribution now says so.
+- Tiles fixes: open_payments keeps a year's pages read so far
+  (years/<year>.partial.json) and starts no page after 120 minutes (2023
+  alone took about two hours, so the 12 October run was stopped at 160);
+  animal_places_osm asks for breeding places in eight longitude bands (the
+  world query timed out at every Overpass server) and keeps the last copy
+  with a warning, trying again the next day; meat_dairy_methane tries other
+  article titles for Danish Crown and DMK and its headquarters' country.
+- Not fixable by patch: the culprits refresh's tippecanoe cache keeps only
+  /usr/local/bin/tippecanoe, so split_archive.py's tile-join is missing
+  (abattoir_facilities, 101 MB, 12 October). The owner edits refresh.yml.
+
 ## Round 191o (8 October)
 
 Needs round 190o (guards on its heading). Tiles patch round191o_tiles.py
