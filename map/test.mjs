@@ -7089,7 +7089,7 @@ console.log("\nround 191o (8 October): tipping points (Global Tipping Points Rep
   check("the tipping points row reads its tiles copy and is filed under Climate and Oceans",
         /\{ id: "tipping_points"[^\n]*route: "sitemap"/.test(src) && /tipping\/tipping_points\.places\.geojson/.test(src) &&
         /\{ h: 3, t: "Climate" \},\n  \{ h: 4, t: "Tipping points" \}, "tipping_points",/.test(src) &&
-        /"ocean_impacts",\n  \{ h: 4, t: "Tipping points" \}, "tipping_points",/.test(src) && /\btipping_points: \[/.test(src));
+        /"ocean_bleaching",\n  \{ h: 4, t: "Tipping points" \}, "tipping_points",/.test(src) && /\btipping_points: \[/.test(src));
   check("its note says the colours are redrawn and the marks are placed by this map",
         /redrawn in this map's blues; the table uses one red its legend does not list/.test(src) && /they are not boundaries/.test(src));
 }
@@ -7115,6 +7115,20 @@ console.log("\nround 193o (13 October): surveillance companies (Surveillance Wat
         /\{ id: "surveillance_entities"[^\n]*buildScript: "surveillance_watch"/.test(src) && /surveillance\/entities\.geojson/.test(src) &&
         /\{ id: "surveillance_links"[^\n]*buildScript: "surveillance_watch"/.test(src) && /surveillance\/links\.geojson/.test(src) &&
         /\{ h: 4, t: "Surveillance" \}, "surveillance_entities", "surveillance_links",/.test(src) && /\bsurveillance_entities: \[/.test(src));
+}
+
+console.log("\nround 194o (14 October): every WBA benchmark but Urban, filed by subject");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const ids = ["wba_ocean", "wba_act", "wba_human_rights", "wba_social", "wba_just_transition", "wba_gender_assessment", "wba_gender", "wba_food", "wba_digital_inclusion", "wba_digital_rights"];
+  check("each benchmark is a row reading its own WBA file, kinded and registered",
+        ids.every((i) => new RegExp(`\\{ id: "${i}"[^\\n]*buildScript: "wba_nature"`).test(src) && new RegExp(`\\b${i}: \\[`).test(src)) && !/urban_benchmark/.test(src));
+  check("Ocean and ACT under Destruction (Oceans, Climate); the rest under Suppression",
+        /\{ h: 4, t: "Companies scored on their effect on the sea" \}, "wba_ocean",/.test(src) && /\{ h: 4, t: "Companies scored on their climate plans" \}, "wba_act",/.test(src) &&
+        /"wba_gender_assessment", "wba_gender",\n  \{ h: 4, t: "Human rights and work: companies scored" \}, "wba_human_rights", "wba_social", "wba_just_transition",/.test(src) &&
+        /"site_food_system", "wba_food",/.test(src) && /\{ h: 4, t: "Digital rights and access: companies scored" \}, "wba_digital_rights", "wba_digital_inclusion",/.test(src));
+  check("the ocean harms stay under Every human impact together (tipping points moved to the end of Oceans)",
+        /\{ h: 4, t: "Every human impact together" \}, "ocean_impacts",\n  \{ h: 5, t: "Fishing"/.test(src));
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");

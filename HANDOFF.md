@@ -5,6 +5,27 @@ touches.
 
 ---
 
+## Round 194o (14 October)
+
+Needs round 193o (guards on its heading). Tiles patch round194o_tiles.py
+beside it. No app.js?v= bump.
+
+- WBA: the key works (wba_nature placed all 750 Nature Benchmark companies).
+  Tiles wba_nature.py now writes every benchmark in WBA's benchmarks dataset
+  the same way, wba/<benchmark>.geojson (Nature keeps nature_companies),
+  except the Urban Benchmark, which the owner left out. Ten new rows, filed
+  as the owner asked: Destruction: wba_ocean (Oceans > Companies scored on
+  their effect on the sea), wba_act (Climate > Companies scored on their
+  climate plans), with Nature where it was; Suppression: wba_gender_assessment
+  and wba_gender (Discrimination), wba_human_rights, wba_social,
+  wba_just_transition (new Physical suppression > Human rights and work:
+  companies scored), wba_food (The food and drink industries),
+  wba_digital_rights and wba_digital_inclusion (new Suppression by
+  information > Digital rights and access: companies scored).
+- Fix: 191o's Oceans > Tipping points heading had been put just after Every
+  human impact together, so the kinds of ocean harm fell under it; it now
+  sits at the end of Oceans.
+
 ## Round 193o (13 October)
 
 Needs round 192o (guards on its heading). Tiles patch round193o_tiles.py
