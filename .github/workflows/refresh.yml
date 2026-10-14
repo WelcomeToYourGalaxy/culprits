@@ -37,8 +37,10 @@ jobs:
         id: tippecanoe-cache
         uses: actions/cache@v4
         with:
-          path: /usr/local/bin/tippecanoe
-          key: tippecanoe-2.68.0-${{ runner.os }}
+          path: |
+            /usr/local/bin/tippecanoe
+            /usr/local/bin/tile-join
+          key: tippecanoe-2.68.0-tile-join-${{ runner.os }}
 
       - name: Build tippecanoe
         if: steps.tippecanoe-cache.outputs.cache-hit != 'true'
