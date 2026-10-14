@@ -7108,6 +7108,15 @@ console.log("\nround 192o (12 October): Climate TRACE's full ownership chains; G
         /"giga_school_points", "giga_school_names", "giga_countries",/.test(src) && !/attribution: "Giga \(UNICEF and ITU\)",/.test(src));
 }
 
+console.log("\nround 193o (13 October): surveillance companies (Surveillance Watch)");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("the two Surveillance Watch rows read the tiles build and sit under Suppression by information",
+        /\{ id: "surveillance_entities"[^\n]*buildScript: "surveillance_watch"/.test(src) && /surveillance\/entities\.geojson/.test(src) &&
+        /\{ id: "surveillance_links"[^\n]*buildScript: "surveillance_watch"/.test(src) && /surveillance\/links\.geojson/.test(src) &&
+        /\{ h: 4, t: "Surveillance" \}, "surveillance_entities", "surveillance_links",/.test(src) && /\bsurveillance_entities: \[/.test(src));
+}
+
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");

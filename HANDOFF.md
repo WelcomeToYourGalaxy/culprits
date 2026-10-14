@@ -5,6 +5,25 @@ touches.
 
 ---
 
+## Round 193o (13 October)
+
+Needs round 192o (guards on its heading). Tiles patch round193o_tiles.py
+beside it. No app.js?v= bump.
+
+- surveillance_entities and surveillance_links (geojsonlive; tiles
+  surveillance/entities.geojson and links.geojson, made weekly by tiles
+  surveillance_watch.py from surveillancewatch.io/api/v1/: entities,
+  entity-types, countries, cities, funders, financial-markets, each kept
+  whole in surveillance/raw/). The owner read the docs page as permission
+  ("This API enables you to integrate our data with your own endpoints");
+  no licence is stated. Entities at their headquarters city, else the
+  point the API gives for the headquarters country; lines to every country
+  or entity in surveilling and providingTo. The response shape was taken
+  from the docs (items arrays, ids or records); tested only on stand-in
+  data, as the site is blocked from the sandbox: build.json lists the
+  fields seen and the first entity's surveilling as given.
+  Filed under Suppression by information > Surveillance.
+
 ## Round 192o (12 October)
 
 Needs round 191o (guards on its heading). Tiles patch round192o_tiles.py
