@@ -749,8 +749,8 @@ console.log("\nbasemaps");
   check("the plate fade reads zoom at the top level of its expression",
         Array.isArray(op) && op[0] === "interpolate" && JSON.stringify(op[2]) === '["zoom"]',
         JSON.stringify(op));
-  check("the painted atlas is the opening basemap",
-        (els.get("basemaps")?.innerHTML || "").includes('value="atlas" checked'));
+  check("Bioluminescent is the opening basemap (round 208o)",
+        (els.get("basemaps")?.innerHTML || "").includes('value="night" checked'));
 
   // Outlines: switch there, and the country layer that loaded on the same
   // source must not have been re-added.
@@ -5880,7 +5880,7 @@ console.log("\nround 119b (30 September): attacks in plain English and as like l
   check("a year is written as a year in the colour keys", /yearly \? String\(x\) : x\.toLocaleString\(\)/.test(src));
   check("24 colours for kinds, and the rest said in the key", /const AUTO_GROUP_COLOURS = \[[^\]]*"#7E5E8C"\];/.test(src) && /the other \$\{cls\.length - most\} kinds, or not given/.test(src));
   check("the colour menu says its own colours, not how the row draws them", !/as the row draws them/.test(src) && /its own colours: \$\{/.test(src));
-  check("a raised row's shading is lighter and gone close in; dots are sharp", /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 0, 0\.5, 5, 0\.35, 7\.5, 0\]/.test(src) && /"circle-blur": 0\.6,/.test(src));   // round 134b: glowing orbs again (asked 2 October)
+  check("a raised row's shading is lighter and gone close in; dots are sharp", /"hillshade-exaggeration": \["interpolate", \["linear"\], \["zoom"\], 0, 0\.5, 5, 0\.35, 7\.5, 0\]/.test(src) && /"circle-blur": 0\.35,/.test(src));   // round 208o: firmer cores (134b: 0.6): glowing orbs again (asked 2 October)
   check("EJAtlas's categories by name", /const EJ_CATEGORIES = \{ 1: "Nuclear", 2: "Mineral ores and building materials extraction"/.test(src) && /group: cat, h: box\(ejPlain\(r\)\)/.test(src));
   check("Wreckers of the Earth is one layer, London and worldwide, by Corporate Watch's sections, with why each is on it",
         o[at("wreckers") + 1] === "wreckers_umap" && o[at("wreckers") + 2] === "wreckers_world" && !/"Tobacco":/.test(src) &&
@@ -6037,7 +6037,7 @@ console.log("\nround 133b (2 October): combining the ticked layers cuts them to 
 console.log("\nround 134b (2 October): glowing orbs, all farm animals, slaughterhouse sizes, one slaughterhouse row");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  check("the points' cores are soft glowing orbs again", /"circle-blur": 0\.6,/.test(src) && /paint\(layer\.id, "circle-blur", 0\.8\);/.test(src));
+  check("the points' cores are glowing orbs, firmer since round 208o", /"circle-blur": 0\.35,/.test(src) && /paint\(layer\.id, "circle-blur", 0\.8\);/.test(src));
   check("farm animals: All first, falling back to the first animal built", /species: \[\["all", "All animals", 40000\], \["ctl", "Cattle", 400\],/.test(src) &&
         /!archive && i < cfg\.species\.length && pick\[0\] === "all"/.test(src));
   const sizes = new Function(src.slice(src.indexOf("const ABATTOIR_SIZES"), src.indexOf("const LAYERS = [")) + "; return ABATTOIR_SIZES;")();
@@ -7393,6 +7393,32 @@ console.log("\nround 207o (14 October): a height slider, crowd shading off by de
         /function comboFadeApply\(\)/.test(src) && /d\[\(j \* S \+ i\) \* 4 \+ 3\] = fade \? Math\.round\(d\[\(j \* S \+ i\) \* 4 \+ 3\] \* fade\) : 0;/.test(src) &&
         /if \(COMBO\.fade > 0\) \{ map\.setFilter\(lid, COMBO_OWN\.has\(lid\) \? COMBO_OWN\.get\(lid\) : null\); comboFadeLayer\(lid, COMBO\.fade\); \}/.test(src));
   check("the painted world chart's cartouche reads Compilation Map (the picture asked afresh)", /abs\("\.\/atlas-plate\.webp\?v=207"\)/.test(src));
+}
+
+console.log("\nround 208o (14 October): Bioluminescent first; points in the basemap's own colours, as firmer glow orbs");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("Bioluminescent is the opening basemap", /let BASEMAP = "night";/.test(src));
+  check("Suit basemap is the default, put in place once over a kept setting", /localStorage\.setItem\("culprits-theme-208o", "1"\); localStorage\.setItem\("culprits-theme", "auto"\);/.test(src) &&
+        /LAYER_THEMES\.auto = \{ nm: "Suited to the basemap \(default\)", palette: true,/.test(src));
+  check("the owner's colour for each basemap", /const PALETTE_BASE = \{ night: \[61, 194, 172\], wood: \[61, 178, 194\], atlas: \[255, 255, 255\], satellite: \[117, 165, 189\],\n  holo: \[71, 175, 255\], hell: \[255, 0, 0\], outlines: \[255, 255, 255\] \};/.test(src));
+  const P = new Function("parseCssColour", src.slice(src.indexOf("const PALETTE_BASE = {"), src.indexOf("const paletteKey = (c) =>")) + "; return { paletteFor, paletteShades, paletteSwap, paletteOutputs, rgbHsl, paletteHueOk };")(
+    new Function(src.slice(src.indexOf("function parseCssColour(c) {"), src.indexOf("\n}\n", src.indexOf("function parseCssColour(c) {")) + 3) + "; return parseCssColour;")());
+  const hsl = (h) => P.rgbHsl([1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)));
+  const night = P.paletteFor("night"), hell = P.paletteFor("hell");
+  check("one layer takes the basemap's colour; more take neighbours, none orange, yellow or green, none repeated",
+        night[0] === "#3DC2AC" && hell[0] === "#FF0000" && night.length >= 6 && new Set(night).size === night.length &&
+        night.concat(hell).slice(1).every((c) => P.paletteHueOk(hsl(c)[0]) || hsl(c)[1] < 0.08) && P.paletteFor("atlas")[0] === "#FFFFFF");
+  const sh = P.paletteShades("#3DC2AC", 4);
+  check("a layer's several kinds of point take shades of its colour, darkest to lightest", sh.length === 4 && hsl(sh[0])[2] < hsl(sh[3])[2]);
+  const seen = [];
+  P.paletteOutputs(["match", ["get", "k"], "red", "#112233", "b", "#445566", "#778899"], (c) => seen.push(c));
+  check("only the colours an expression gives out are changed, not the values it tests", seen.join() === "#112233,#445566,#778899" &&
+        JSON.stringify(P.paletteSwap(["match", ["get", "k"], "red", "#112233", "#778899"], () => "#000000")) === JSON.stringify(["match", ["get", "k"], "red", "#000000", "#000000"]) &&
+        P.paletteSwap(["get", "colour"], () => "#000000") === null);
+  check("colours read from the data are tinted whole; the light rim of a dot is kept", /return out === null \? themeExpr\(v, paletteTint\(base\)\) : out;/.test(src) && /if \(\/stroke-color\$\/\.test\(prop\)/.test(src));
+  check("the keys under each row and in the legend follow", /try \{ paletteKeys\(!!t\.palette\); \}/.test(src) && /el\.dataset\.palBg = bg;/.test(src));
+  check("the colours follow the rows turned on, the basemap and the Hologram", /if \(was !== \(vis === "visible"\)\) paletteSoon\(\);/.test(src) && /observe\(document\.body, \{ attributes: true, attributeFilter: \["class"\] \}\)/.test(src));
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");

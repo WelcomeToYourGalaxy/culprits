@@ -1817,7 +1817,8 @@ const BASE_GRADE = {
                "raster-saturation": 0.12, "raster-contrast": 0.06,
                "raster-hue-rotate": 0 },
 };
-let BASEMAP = "atlas";
+// Round 208o (asked 14 October): Bioluminescent opens the map.
+let BASEMAP = "night";
 
 // The Satellite basemap's relief (23 September, after the owner's paleo-map
 // plates: Swiss-style shaded relief over natural ground colour). What the
@@ -2489,7 +2490,7 @@ const GLOW = {
   cyan: "#14B8C4", amber: "#1E9AB0",
   haze: ["interpolate", ["linear"], ["heatmap-density"],
     0, "rgba(10,80,160,0)", 0.3, "rgba(0,120,220,0.16)", 0.7, "rgba(0,200,230,0.44)", 1, "rgba(120,215,235,0.64)"],
-  hazeOpacity: 0.3,                            // very faint: the soft spread only
+  hazeOpacity: 0.22,                           // very faint: the soft spread only (round 208o: 0.3 before)
   core: (w) => ["interpolate", ["linear"], ["sqrt", w], 0, "#0B4F9C", 0.45, "#00A8E8", 0.8, "#1FB5C8", 1, "#D6EEF6"],
   grainSatellite: 0,                           // the grain over the Satellite basemap, where there is no glow
   grain: 0,                                    // no grain: it textured the whole map, not the dots (taken out 23 September)
@@ -2569,8 +2570,10 @@ function addHud(layer, rawAddLayer) {
       // orbs of round 116b again, soft-edged cores (round 119b had made them
       // sharp specks), a little larger at every zoom so they stay easy to find.
       "circle-radius": z(0, ["max", 1.6, ["*", 0.9, lift]], 4, ["max", 2, ["*", 1.2, lift]], 8, ["max", 2.4, ["*", 1.7, lift]], 11, ["*", 2.2, lift]),
-      "circle-blur": 0.6,
-      "circle-opacity": z(GLOW.fadeOut, ["+", 0.3, ["*", 0.7, ["sqrt", w]]], GLOW.gone, 0),
+      // Round 208o (asked 14 October: the orbs looked "childish or cheesy"): a
+      // firmer core with a shorter soft edge, so each reads as a point.
+      "circle-blur": 0.35,
+      "circle-opacity": z(GLOW.fadeOut, ["+", 0.45, ["*", 0.55, ["sqrt", w]]], GLOW.gone, 0),
       "circle-stroke-width": 0,
     } }, wide, base);
   const softSpec = Object.assign({ id: soft, type: "circle", layout: { visibility: vis }, paint: {
@@ -16528,8 +16531,11 @@ try {
   // Round 199o: the muted theme is the default, put in place once over a
   // setting kept from before (which was the old default, As drawn, unless changed).
   if (!localStorage.getItem("culprits-theme-199o")) { localStorage.setItem("culprits-theme-199o", "1"); localStorage.setItem("culprits-theme", "muted"); }
-  LAYER_THEME = localStorage.getItem("culprits-theme") || "muted";
-} catch (e) { /* storage refused: muted */ }
+  // Round 208o (asked 14 October): the points take the basemap's own colours
+  // by default ("Suit basemap"); put in place once over a kept setting.
+  if (!localStorage.getItem("culprits-theme-208o")) { localStorage.setItem("culprits-theme-208o", "1"); localStorage.setItem("culprits-theme", "auto"); }
+  LAYER_THEME = localStorage.getItem("culprits-theme") || "auto";
+} catch (e) { LAYER_THEME = "auto"; }
 var LAYER_THEMES = {
   drawn: { nm: "As drawn" },
   auto: { nm: "Suited to the basemap" },
@@ -16591,6 +16597,185 @@ THEME_PRESETS.muted = { nm: "Muted (default)", k: { points: { h: 200, r: 0.25, b
   kinds: { points: [["saturate", 0.5], ["brightness", 1.12]], shapes: [["saturate", 0.42], ["brightness", 0.95]], highlights: [["saturate", 0.38], ["brightness", 0.88]] },
   raster: { "raster-saturation": -0.55 } };
 Object.assign(LAYER_THEMES, THEME_PRESETS);
+// Round 208o (asked 14 October): "Suit basemap" (the default) gives the points
+// the colour the owner chose for each basemap; with more than one point layer
+// on, each takes a neighbouring colour of the same family (no orange, yellow
+// or green), told apart by hue and lightness; a layer with several kinds of
+// point (or a ramp) takes shades of its colour, darkest to lightest in the
+// order its own colours run. Shapes and national highlights stay muted.
+LAYER_THEMES.auto = { nm: "Suited to the basemap (default)", palette: true,
+  kinds: { points: null, shapes: THEME_PRESETS.muted.kinds.shapes, highlights: THEME_PRESETS.muted.kinds.highlights },
+  raster: THEME_PRESETS.muted.raster };
+const PALETTE_BASE = { night: [61, 194, 172], wood: [61, 178, 194], atlas: [255, 255, 255], satellite: [117, 165, 189],
+  holo: [71, 175, 255], hell: [255, 0, 0], outlines: [255, 255, 255] };
+const PALETTE_WHITE = ["#FFFFFF", "#A9C8DC", "#8FA3B8", "#C9D6E3", "#D3C6DC", "#7FA7C4", "#B9BDC4", "#AFC0D6"];
+function paletteLook() { return typeof themedHolo === "function" && themedHolo() ? "holo" : (typeof BASEMAP === "string" ? BASEMAP : "atlas"); }
+function rgbHsl([r, g, b]) {
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+  if (!d) return [0, 0, l];
+  const s = d / (1 - Math.abs(2 * l - 1));
+  const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [(h * 60 + 360) % 360, s, l];
+}
+function hslHex(h, s, l) {
+  const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2;
+  const [r, g, b] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+  return "#" + [r, g, b].map((v) => Math.round(Math.max(0, Math.min(1, v + m)) * 255).toString(16).padStart(2, "0")).join("").toUpperCase();
+}
+// No orange, yellow or green: hues from 15 to 170 degrees are skipped.
+const paletteHueOk = (h) => { const x = ((h % 360) + 360) % 360; return x < 15 || x > 170; };
+const PALETTE_CACHE = new Map();
+function paletteFor(look) {
+  if (PALETTE_CACHE.has(look)) return PALETTE_CACHE.get(look);
+  const base = PALETTE_BASE[look] || PALETTE_BASE.atlas;
+  let out;
+  if (base[0] === 255 && base[1] === 255 && base[2] === 255) out = PALETTE_WHITE.slice();
+  else {
+    const [h, s, l] = rgbHsl(base);
+    out = [hslHex(h, s, l)];
+    const steps = [[30, 0.08], [-30, -0.08], [60, -0.06], [-60, 0.1], [90, 0.04], [-90, -0.1], [0, 0.2], [0, -0.18], [120, 0], [-120, 0.06], [150, -0.04], [-150, 0.12]];
+    for (const [dh, dl] of steps) {
+      if (out.length >= 8) break;
+      if (!paletteHueOk(h + dh)) continue;
+      const c = hslHex(((h + dh) % 360 + 360) % 360, Math.min(1, s * (dh ? 0.9 : 1)), Math.max(0.25, Math.min(0.85, l + dl)));
+      if (!out.includes(c)) out.push(c);
+    }
+  }
+  PALETTE_CACHE.set(look, out);
+  return out;
+}
+// The row a map layer belongs to: the longest row id it starts with.
+function paletteRowOf(layerId) {
+  let best = typeof rowOfLayer === "function" ? rowOfLayer(layerId) : null;
+  if (best) return best;
+  for (const id of visibility.keys()) if ((layerId === id || layerId.startsWith(id + "-") || layerId.startsWith(id + "__")) && (!best || id.length > best.length)) best = id;
+  return best;
+}
+// Point rows in the order they were turned on: the first takes the basemap's colour.
+const PALETTE_ORDER = new Map();
+let paletteSeq = 0;
+function paletteRows() {
+  const st = map.getStyle && map.getStyle();
+  const rows = new Set();
+  for (const l of (st && st.layers) || []) {
+    if (l.type !== "circle" || /-(haze|core|soft)$/.test(l.id) || /^(wire-|ct-)/.test(l.id)) continue;
+    if (map.getLayoutProperty(l.id, "visibility") === "none") continue;
+    const r = paletteRowOf(l.id);
+    if (r && (visibility.get(r) || "none") === "visible") rows.add(r);
+  }
+  return [...rows].sort((a, b) => (PALETTE_ORDER.get(a) || 1e9) - (PALETTE_ORDER.get(b) || 1e9));
+}
+function paletteBaseOf(row, rows) {
+  const pal = paletteFor(paletteLook());
+  const i = Math.max(0, (rows || paletteRows()).indexOf(row));
+  return pal[i % pal.length];
+}
+// Shades of one colour for n colours of a layer, darkest first.
+function paletteShades(hex, n) {
+  if (n <= 1) return [hex];
+  const p = parseCssColour(hex), [h, s, l] = rgbHsl(p);
+  const lo = s < 0.08 ? 0.5 : Math.max(0.22, l - 0.24), hi = s < 0.08 ? 1 : Math.min(0.88, l + 0.2);
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const t = i / (n - 1), dh = n > 3 ? [0, 10, -10][i % 3] : 0;
+    out.push(hslHex(paletteHueOk(h + dh) ? ((h + dh) % 360 + 360) % 360 : h, s, lo + t * (hi - lo)));
+  }
+  return out;
+}
+// The colours an expression gives out (not the values it tests), walked to the end.
+function paletteOutputs(v, at) {
+  if (typeof v === "string") { if (parseCssColour(v)) at(v); return; }
+  if (!Array.isArray(v) || !v.length) return;
+  const op = v[0];
+  if (op === "match") { for (let i = 3; i < v.length; i += 2) paletteOutputs(v[i], at); paletteOutputs(v[v.length - 1], at); return; }
+  if (op === "case") { for (let i = 2; i < v.length; i += 2) paletteOutputs(v[i], at); paletteOutputs(v[v.length - 1], at); return; }
+  if (/^interpolate/.test(String(op))) { for (let i = 4; i < v.length; i += 2) paletteOutputs(v[i], at); return; }
+  if (op === "step") { paletteOutputs(v[2], at); for (let i = 4; i < v.length; i += 2) paletteOutputs(v[i], at); return; }
+  if (op === "coalesce") { for (let i = 1; i < v.length; i++) paletteOutputs(v[i], at); return; }
+  if (op === "let") { paletteOutputs(v[v.length - 1], at); return; }
+}
+function paletteSwap(v, f) {
+  if (typeof v === "string") return parseCssColour(v) ? f(v) : v;
+  if (!Array.isArray(v) || !v.length) return v;
+  const op = v[0], o = v.slice();
+  const idx = op === "match" ? (i) => i >= 3 && ((i - 3) % 2 === 0 || i === v.length - 1)
+    : op === "case" ? (i) => i >= 2 && ((i - 2) % 2 === 0 || i === v.length - 1)
+    : /^interpolate/.test(String(op)) ? (i) => i >= 4 && (i - 4) % 2 === 0
+    : op === "step" ? (i) => i === 2 || (i >= 4 && (i - 4) % 2 === 0)
+    : op === "coalesce" ? (i) => i >= 1 : op === "let" ? (i) => i === v.length - 1 : null;
+  if (!idx) return null;                       // read from the data: tinted whole (paletteValue)
+  for (let i = 1; i < o.length; i++) if (idx(i)) { const r = paletteSwap(o[i], f); if (r === null) return null; o[i] = r; }
+  return o;
+}
+const paletteKey = (c) => { const p = parseCssColour(c); return p ? p.slice(0, 3).join(",") : null; };
+const PALETTE_MAPS = new Map();      // row -> Map(original "r,g,b" -> new colour), for its keys
+// A colour that stays in the layer's colour, keeping how light or dark it is.
+function paletteTint(hex) {
+  const [r, g, b] = parseCssColour(hex), k = [r, g, b].map((x) => (x / 255) * 1.35);
+  return [0, 1, 2].map((i) => [0.2126 * k[i], 0.7152 * k[i], 0.0722 * k[i]]);
+}
+function paletteValue(id, prop, v) {
+  if (/stroke-color$/.test(prop) || /^(wire-|ct-)/.test(id)) return v;
+  const row = paletteRowOf(id);
+  if (!row) return v;
+  const base = paletteBaseOf(row);
+  const lits = [];
+  paletteOutputs(v, (c) => { const k = paletteKey(c); if (k && !lits.some((x) => x.k === k)) lits.push({ k, c }); });
+  const lum = (c) => { const p = parseCssColour(c); return 0.2126 * p[0] + 0.7152 * p[1] + 0.0722 * p[2]; };
+  lits.sort((a, b) => lum(a.c) - lum(b.c));
+  const shades = paletteShades(base, lits.length);
+  // The keys follow the row's own dots (not their glow), whose colours are kept by colour.
+  const m = new Map();
+  lits.forEach((x, i) => m.set(x.k, shades[i]));
+  m.base = base;
+  if (prop === "circle-color" && !/-(haze|core|soft)$/.test(id)) {
+    const had = PALETTE_MAPS.get(row);
+    if (had && had.base === base) for (const [k, c] of had) if (!m.has(k)) m.set(k, c);
+    PALETTE_MAPS.set(row, m);
+  }
+  const swap = (c) => {
+    const p = parseCssColour(c), n = m.get(paletteKey(c)) || base, q = parseCssColour(n);
+    return p[3] < 1 ? `rgba(${q[0]},${q[1]},${q[2]},${p[3]})` : n;
+  };
+  const out = paletteSwap(v, swap);
+  return out === null ? themeExpr(v, paletteTint(base)) : out;
+}
+// The keys under each point row and in the legend, in the same colours.
+function paletteKeys(on) {
+  if (typeof document === "undefined" || !document.querySelectorAll) return;
+  for (const el of document.querySelectorAll("[data-pal-bg]")) { el.style.background = el.dataset.palBg; delete el.dataset.palBg; }
+  if (!on) return;
+  for (const [row, m] of PALETTE_MAPS) {
+    if ((visibility.get(row) || "none") !== "visible") continue;
+    const els = [];
+    const cb = document.querySelector(`#layers [data-layer="${row}"]`), lab = cb && cb.closest ? cb.closest("label") : null;
+    if (lab) { const sw = lab.querySelector(".swatch"); if (sw) els.push(sw); let n = lab.nextElementSibling; while (n && n.classList && (n.classList.contains("facet") || n.classList.contains("key-filters"))) { els.push(...n.querySelectorAll('[style*="background"]')); n = n.nextElementSibling; } }
+    const lg = document.querySelector(`#legend .lg-on[data-lg="${row}"]`), lr = lg && lg.closest ? lg.closest(".lg-row") : null;
+    if (lr) { els.push(...lr.querySelectorAll('[style*="background"]')); let n = lr.nextElementSibling; while (n && n.classList && n.classList.contains("lg-sub")) { els.push(...n.querySelectorAll('[style*="background"]')); n = n.nextElementSibling; } }
+    for (const el of els) {
+      const bg = el.style.background || el.style.backgroundColor;
+      if (!bg || /gradient|url\(/.test(bg)) continue;
+      const k = paletteKey(bg);
+      if (!k) continue;
+      let to = m.get(k);
+      if (!to) { const p = parseCssColour(bg); to = "#" + themeRgb(p[0], p[1], p[2], paletteTint(m.base)).map((x) => x.toString(16).padStart(2, "0")).join(""); }
+      el.dataset.palBg = bg;
+      el.style.background = to;
+    }
+  }
+}
+var paletteTimer = null;
+function paletteSoon() {
+  if (themeNow() !== "auto") return;
+  clearTimeout(paletteTimer);
+  paletteTimer = setTimeout(() => { try { themeApply(); } catch (e) { console.warn("[culprits] palette:", e.message || e); } }, 150);
+}
+// The Hologram is a switch on the page, not a basemap: its colour follows it.
+if (typeof MutationObserver === "function" && typeof document !== "undefined" && document.body) {
+  let holoWas = typeof themedHolo === "function" ? themedHolo() : false;
+  new MutationObserver(() => { const h = themedHolo(); if (h !== holoWas) { holoWas = h; paletteSoon(); } }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+}
 // The wheel's own theme: one point per kind; which kind the wheel turns.
 var THEME_WHEEL = { points: Object.assign({}, THEME_CUSTOM), shapes: Object.assign({}, THEME_CUSTOM), highlights: Object.assign({}, THEME_CUSTOM) };
 var THEME_TARGET = "all";
@@ -16697,8 +16882,7 @@ var THEME_ORIG = new Map();            // "layer|property" -> its value before t
 var THEME_OUT = new Set();             // what the theme wrote, so it is never themed twice
 var THEME_RASTER = ["raster-brightness-min", "raster-brightness-max", "raster-saturation", "raster-hue-rotate", "raster-contrast"];
 function themeNow() {
-  if (LAYER_THEME !== "auto") return LAYER_THEMES[LAYER_THEME] ? LAYER_THEME : "drawn";
-  return THEME_BY_BASEMAP[typeof BASEMAP === "string" ? BASEMAP : "atlas"] || "drawn";
+  return LAYER_THEMES[LAYER_THEME] ? LAYER_THEME : "drawn";
 }
 // The CSS filter steps as one 3 x 3 matrix on r, g, b (Filter Effects 1).
 function themeMatrix(steps) {
@@ -16772,6 +16956,11 @@ function themeWrap(id, prop, v) {
   if (/-color$/.test(prop) && !/^text-(halo-)?color$/.test(prop)) {
     if (THEME_OUT.has(JSON.stringify(v))) return v;
     THEME_ORIG.set(`${id}|${prop}`, v);
+    if (t.palette && themeKindOf(id, type, layer.source) === "points") {
+      const out = paletteValue(id, prop, v);
+      THEME_OUT.add(JSON.stringify(out));
+      return out;
+    }
     const steps = themeStepsFor(t, themeKindOf(id, type, layer.source));
     if (!steps) return v;
     const out = themeValue(v, themeMatrix(steps));
@@ -16791,6 +16980,7 @@ function themeForget(id) {
 function themeApply() {
   const st = map.getStyle && map.getStyle();
   if (!st) return;
+  if (typeof PALETTE_MAPS !== "undefined") PALETTE_MAPS.clear();
   const t = LAYER_THEMES[themeNow()] || {};
   const Ms = {};
   for (const k of THEME_KINDS) { const steps = themeStepsFor(t, k); Ms[k] = steps ? themeMatrix(steps) : null; }
@@ -16812,12 +17002,14 @@ function themeApply() {
       const k = `${l.id}|${prop}`;
       if (!THEME_ORIG.has(k)) THEME_ORIG.set(k, l.paint[prop]);
       const base = THEME_ORIG.get(k);
-      const want = M ? themeValue(base, M) : base;
-      if (M) THEME_OUT.add(JSON.stringify(want));
+      const pal = t.palette && themeKindOf(l.id, l.type, l.source) === "points";
+      const want = pal ? paletteValue(l.id, prop, base) : M ? themeValue(base, M) : base;
+      if (M || pal) THEME_OUT.add(JSON.stringify(want));
       try { set(l.id, prop, want); } catch (e) { /* an expression the theme cannot take keeps its colour */ }
     }
   }
   themeKeys(t);
+  try { paletteKeys(!!t.palette); } catch (e) { /* the keys keep their colours */ }
 }
 // The keys under the rows and in the legend: the same steps, as a CSS filter.
 function themeKeys(t) {
@@ -22623,6 +22815,13 @@ const visibility = new Map(LAYERS.filter((c) => c.off).map((c) => [c.id, "none"]
 
 function applyVisibility(id) {
   const vis = visibility.get(id) || "visible";
+  // Round 208o: the point colours follow which rows are on, in the order turned on.
+  if (typeof PALETTE_ORDER !== "undefined") {
+    const was = PALETTE_ORDER.has(id);
+    if (vis === "visible" && !was) PALETTE_ORDER.set(id, ++paletteSeq);
+    else if (vis !== "visible" && was) PALETTE_ORDER.delete(id);
+    if (was !== (vis === "visible")) paletteSoon();
+  }
   // An Atlas row unticked takes its map and its panel with it.
   if (vis !== "visible" && typeof atlasOwner !== "undefined" && atlasOwner === id) atlasPlateOff();
   [`${id}-agg`, `${id}-cl`, `${id}-pt`, `${id}-fill`, `${id}-line`, `${id}-edge`, `${id}-areapt`, `${id}-raster`, `${id}-world`, `${id}-cap`].forEach((l) => {

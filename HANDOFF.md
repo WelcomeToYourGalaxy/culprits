@@ -5,6 +5,24 @@ touches.
 
 ---
 
+## Round 208o (14 October)
+
+Needs round 207o (guards on its heading). No tiles patch. No app.js?v= bump.
+
+- Bioluminescent is the opening basemap.
+- Points keep their glow orbs, firmer (core blur 0.35, haze 0.22), in the
+  owner's colour for each basemap by default ("Suit basemap", now the
+  default theme, LAYER_THEMES.auto with palette: true):
+  Bioluminescent 61,194,172; Woodlands 61,178,194; Atlas 255,255,255;
+  Jurassic 117,165,189; Hologram 71,175,255; Hell 255,0,0; Standard
+  255,255,255. One point layer on: that colour. More: each takes a
+  neighbouring colour of the family (paletteFor; no orange, yellow or
+  green), in the order turned on. A layer with several kinds of point, or a
+  ramp, takes shades of its colour (paletteShades). Keys under the rows and
+  in the legend follow (paletteKeys). Shapes and national highlights stay
+  muted. Colour the points by, the colour squares and Layer colours work as
+  before; picking any other theme leaves the palette.
+
 ## Round 207o (14 October)
 
 Needs round 206o (guards on its heading). No tiles patch. No app.js?v= bump.
