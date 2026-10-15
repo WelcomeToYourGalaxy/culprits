@@ -4925,7 +4925,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("a picture's colour is read back into its amount along the layer's own key",
         Math.abs(amt(85, 15, 109) - 10) < 0.01 && Math.abs(amt(249, 140, 9) - 100) < 0.5 && amt(252, 254, 164) >= 299);
   check("the relief holds the ground while shown and gives it back after", /map\.setTerrain\(\{ source: `\$\{top\}-dem`, exaggeration: reliefLift\(\) \}\)/.test(src) &&
-        /cfg\.afterVisibility = \(\) => reliefSync\(cfg\.id\);/.test(src) && /const raise = shown && LIFT_ON;\n  reliefGround\(id, raise\);/.test(src)   /* round 205o: only under Raise */ && /if \(no2Relief\.on\) return;/.test(src));
+        /cfg\.afterVisibility = \(\) => reliefSync\(cfg\.id\);/.test(src) && /const raise = shown && LIFT_ON && bands;\n  reliefGround\(id, raise\);/.test(src)   /* round 207o: only under Raise and Shading */ && /if \(no2Relief\.on\) return;/.test(src));
   check("the active fire row asks NASA's map service for pictures of all three VIIRS satellites", /VIIRS_SNPP_Thermal_Anomalies_375m_All,VIIRS_NOAA20_Thermal_Anomalies_375m_All,VIIRS_NOAA21_Thermal_Anomalies_375m_All/.test(src) &&
         /wms\/epsg(3857|4326)\/best\/wms\.cgi/.test(src));
   const lib = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return { cataloguePlaces, CATALOGUE_TAKEN_OUT };")();
@@ -5716,7 +5716,7 @@ console.log("\nround 113b (29 September): crowded points as banded, raised groun
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("a point row of 300 or more is banded whenever shown, fading close in, and raised under the switch",
         /const DENSITY_MIN = 300;/.test(src) && /function densityBandsShow\(id, pr, on\)/.test(src) && /"raster-opacity": \["interpolate", \["linear"\], \["zoom"\], \.\.\.DENSITY_FADE\.flat\(\)\]/.test(src) &&
-        /densityBandsShow\(id, pr, true\);\n  \/\/ Round 205o[^\n]*\n[^\n]*\n  if \(!LIFT_ON \|\| \(typeof DENSITY_ON !== "undefined" && !DENSITY_ON\)\) \{/.test(src) && /else if \(vis === "visible" && !LIFT_ON && typeof pointReliefSet === "function"/.test(src));
+        /densityBandsShow\(id, pr, true\);\n  \/\/ Round 205o[^\n]*\n[^\n]*\n  if \(!LIFT_ON \|\| \(typeof DENSITY_ON !== "undefined" && !DENSITY_ON\)\) \{/.test(src) && /else if \(vis === "visible" && !LIFT_ON && DENSITY_ON && typeof pointReliefSet === "function"/.test(src));
   {
     const R = new Function("const DENSITY_WEIGHT = [\"_count\", \"point_count\", \"n\", \"schools\", \"count\"];" +
       src.slice(src.indexOf("function reliefPoints(features)"), src.indexOf("function pointReliefValues(pr)")) + "; return reliefPoints;")();
@@ -5904,7 +5904,7 @@ console.log("\nround 120b (1 October): news box titles, no automatic tilt, NASA 
   check("a click on another region opens it in place of the one open", /map\.queryRenderedFeatures\(e\.point, \{ layers: own \}\)\.length\) return;/.test(src));
   check("the numbered cities' tips have a solid box", /background:rgba\(16,20,26,0\.96\)/.test(src));
   check("the combined surface (under the layer list since round 198o) hides the layers it combines, and says what the weights do",
-        /comboBox\(box\);\n  layerSearch\(box\);/.test(src) && /function comboHideRows\(hide\)/.test(src) && /Left out: shown whole, uncut\./.test(src)   /* round 133b: cut, not hidden */ && !/data-sect="combo"/.test(src));
+        /comboBox\(box\);\n  layerSearch\(box\);/.test(src) && /function comboHideRows\(hide\)/.test(src) && /A layer set to "not combined" is shown in full, as if Combine were off\./.test(src)   /* round 207o wording */ && !/data-sect="combo"/.test(src));
   const o = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("];", src.indexOf("const PANEL_ORDER = [")) + 2) + "; return PANEL_ORDER;")();
   const at = (t, from = 0) => o.findIndex((x, i) => i >= from && x && x.t === t);
   const ch4 = at("Methane"), n2o = at("Nitrous oxide"), fg = at("F-gases");
@@ -6115,7 +6115,7 @@ console.log("\nround 140b-142b (2 October): combine in any order; base map kept,
   check("the outline goes when nothing is kept", fake._l.get("combo-mask-edge").vis === "none" && /if \(!hide\) \{ COMBO\.lastKey = null; COMBO\.keepGrid = null; comboCut\(null\); comboMaskSet\(null\); \}/.test(src));
   check("no squares past 85 degrees (they drew lines round the world)", /if \(Math\.abs\(90 - \(y \+ 0\.5\) \* POINT_RELIEF_RES\) > 85\) count\.fill\(0, y \* W, \(y \+ 1\) \* W\);/.test(src));
   check("an older run is dropped when a newer one starts", /const gen = \+\+COMBO\.gen;/.test(src) && /if \(COMBO\.mode === "off" \|\| gen !== COMBO\.gen\) return;/.test(src) && /const stale = \(\) =>/.test(src));
-  check("pictures are clipped pixel by pixel, and put back after", /maplibregl\.addProtocol\("combocut"/.test(src) && /own\.map\(\(t\) => `combocut:\/\/\$\{COMBO\.cutHash \|\| 0\}\/\{z\}\/\{x\}\/\{y\}\/\$\{t\}`\)/.test(src) &&
+  check("pictures are clipped pixel by pixel, and put back after", /maplibregl\.addProtocol\("combocut"/.test(src) && /own\.map\(\(t\) => `combocut:\/\/\$\{COMBO\.cutHash \|\| 0\}f\$\{Math\.round\(COMBO\.fade \* 100\)\}\/\{z\}\/\{x\}\/\{y\}\/\$\{t\}`\)/.test(src) &&
         /if \(cur && \/\^combocut:\/\.test\(cur\[0\]\) && typeof s\.setTiles === "function"\) s\.setTiles\(tiles\);/.test(src));
   check("the same crossings leave the map untouched", /if \(key !== COMBO\.lastKey\) \{/.test(src) && /ms == null \? 400 : ms/.test(src));
 }
@@ -6222,7 +6222,7 @@ console.log("\nround 143b (2 October): layers grouped, so alike layers do not cr
   check("a layer moved by the reader keeps its group; the others take letters not chosen", g2.get("mine_features") === "B" && g2.get("mine_sites") === "A" && g2.get("wdpa") === "C");
   check("a square counts the groups present, not the layers", /here\[i\] = 1;/.test(src) && /for \(const here of present\.values\(\)\) for \(let i = 0; i < count\.length; i\+\+\) count\[i\] \+= here\[i\];/.test(src) &&
         /if \(groups < 2\) return \{ keep: null, best: 1, used, groups, oneGroup: true \};/.test(src));
-  check("each row's menu: group A to H or left out", /\[\.\.\.COMBO_LETTERS\]\.map\(\(l\) => \[l, `group \$\{l\}`\]\)\.concat\(\[\["0", "left out"\]\]\)/.test(src) && /else \{ COMBO\.weights\.set\(id, 1\); COMBO\.groups\.set\(id, v\); \}/.test(src));
+  check("each row's menu: group A to H or not combined", /\[\.\.\.COMBO_LETTERS\]\.map\(\(l\) => \[l, `group \$\{l\}`\]\)\.concat\(\[\["0", "not combined"\]\]\)/.test(src) && /else \{ COMBO\.weights\.set\(id, 1\); COMBO\.groups\.set\(id, v\); \}/.test(src));
 }
 
 console.log("\nround 144b (2 October): how much of each layer is crossed, worldwide and in view");
@@ -7249,7 +7249,7 @@ console.log("\nround 198o (14 October): the Layers box rearranged; the combine r
         /const whole = got\.vector \? await comboWorld\(id\) : null;/.test(src) && /COMBO\.partial\.add\(id\);/.test(src) && /Too large to read worldwide at once/.test(src) &&
         !/Tiled layers are read as you look round/.test(src));
   check("the combine speaks of layers when each is in a group of its own", /const who = solo \? `two or more of the \$\{r\.groups\} ticked layers`/.test(src) &&
-        /<div class="combo-h">Which layers count together<\/div>/.test(src) && !/Worldwide means everything the map has read of a layer/.test(src) &&
+        /<div class="combo-h">Place layer into group:<\/div>/.test(src) && !/Worldwide means everything the map has read of a layer/.test(src) &&
         !/Layers start grouped by their heading/.test(src) && !/the base map shows everywhere/.test(src));
 }
 
@@ -7279,7 +7279,7 @@ console.log("\nround 200o (14 October): shorter titles; population and country r
   check("country rows take part through the countries they have a figure for", /cfg\._countryTotals = totals;/.test(src) && /async function comboCountryFeatures\(cfg\)/.test(src));
   check("every row's reads start at once; one whole-archive read per row; the time taken is said",
         /const ahead = new Map\(\);/.test(src) && /COMBO\.worldP = new Map\(\);/.test(src) && /Worked out in /.test(src));
-  check("the groups list sits under the combine's title", /show only where they meet<\/div>` \+\n    `<div id="combo-rows"/.test(src));
+  check("the groups list sits under the combine's title", /Combine the ticked layers<\/div>` \+\n    `<div id="combo-rows"/.test(src));
 }
 
 console.log("\nround 201o (14 October): Official buildings and Land use under Place names; land use from the map's own tiles; the top right box rolls up");
@@ -7338,7 +7338,7 @@ console.log("\nround 205o (14 October): flat unless Raise figures as heights is 
         /function reliefSync\(id\)/.test(src) && /map\.setLayoutProperty\(`\$\{id\}-hill`, "visibility", raise \? "visible" : "none"\);/.test(src) &&
         /for \(const \[id\] of RELIEFS\) if \(!\/__\/\.test\(id\) && typeof reliefSync === "function"\) reliefSync\(id\);/.test(src));
   check("point crowds: flat bands with Shading alone, raised only with both", /if \(!LIFT_ON \|\| \(typeof DENSITY_ON !== "undefined" && !DENSITY_ON\)\) \{/.test(src) &&
-        /if \(shown && typeof pointReliefSet === "function"\) pointReliefSet\(id, true\)\.catch/.test(src));
+        /if \(shown && typeof pointReliefSet === "function"\) pointReliefSet\(id, DENSITY_ON\)\.catch/.test(src));
 }
 
 console.log("\nround 206o (14 October): Moon and Mars as globes first, with looks, a timeline and grouped marks; 3D terrain under Standard");
@@ -7361,13 +7361,38 @@ console.log("\nround 206o (14 October): Moon and Mars as globes first, with look
   check("a timeline of years: what was there by the end of the year chosen, plans only at its far end",
         /<input type="range" id="time-range"/.test(bodies) && /if \(m\.planned\) return YEAR > YMAX;/.test(bodies) && /"What was there by the end of " \+ YEAR/.test(bodies) &&
         /p\.sol != null \? new Date\(LANDED\[row\.rover\] \+ p\.sol \* SOL\)\.getUTCFullYear\(\)/.test(bodies));
-  const g = new Function(bodies.slice(bodies.indexOf("  function gather("), bodies.indexOf("  function listHtml(")) + "; return gather;")();
-  const near = g([{ r: 3, id: 1 }, { r: 3, id: 2 }, { r: 3, id: 3 }], 14, (m) => [m.id === 3 ? 100 : m.id * 5, 0], 2);
-  check("marks that would sit on each other are one mark listing them all; marks apart stay apart", near.length === 2 && near.some((x) => x.items.length === 2));
+  const u = new Function(bodies.slice(bodies.indexOf("  function under("), bodies.indexOf("  function listHtml(")) + "; return under;")();
+  const hit = u([{ id: 1 }, { id: 2 }, { id: 3 }], (m) => [m.id === 3 ? 100 : m.id * 2, 0], () => 5);
+  check("every mark is drawn on its own; a click lists every mark under it, nearest first", hit.length === 2 && hit[0].id === 1 &&
+        !/function gather\(/.test(bodies) && /marks\.slice\(\)\.sort\(function \(a, b\) \{ return b\.r - a\.r; \}\)\.forEach\(function \(m\) \{/.test(bodies));
   check("a group's box lists every mark there, each opening to its own box, with a way to zoom in to part them",
         /'<p class="zin"><a href="#" data-zoomin="1">Zoom in to part them<\/a><\/p>'/.test(bodies) && /<details><summary><i class="dot"/.test(bodies) &&
-        /L\.DomEvent\.stop\(e\); L\.popup\(/.test(bodies));
+        /L\.DomEvent\.stop\(e\);/.test(bodies) && /\.setContent\(listHtml\(list, zoomable && list\.length > 1\)\)\.openOn\(map\)/.test(bodies));
   check("the globe stops drawing while the flat map is shown", /if \(globe\) globe\.pauseAnimation\(\);/.test(bodies) && /globe\.resumeAnimation\(\);/.test(bodies));
+}
+
+console.log("\nround 207o (14 October): a height slider, crowd shading off by default, plain combine wording and a slider for what does not cross");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("a Height slider under Raise figures as heights, a quarter to three times as tall, kept between visits",
+        /<input type="range" id="lift-scale" min="0\.25" max="3" step="0\.25"/.test(src) && /function liftScaleSet\(v\)/.test(src) &&
+        /function liftTop\(\) \{ return LIFT_TOP \* LIFT_SCALE; \}/.test(src) && !/\["\*", LIFT_TOP, at\]/.test(src) && /\* \(typeof LIFT_SCALE === "number" \? LIFT_SCALE : 1\);/.test(src));
+  const mo = new Function("const hasZoom = (v) => JSON.stringify(v).includes('\"zoom\"'); const boostOne = null;" + src.slice(src.indexOf("function mapOutputs(v, fn)"), src.indexOf("function boostOne(n)")) + "; return mapOutputs;")();
+  check("scaling a height keeps its zoom curve", JSON.stringify(mo(["interpolate", ["linear"], ["zoom"], 0, 100, 4, 25], (n) => n * 2)) === JSON.stringify(["interpolate", ["linear"], ["zoom"], 0, 200, 4, 50]));
+  check("Shading where points crowd is off until turned on, and nothing is counted for it while off",
+        /let DENSITY_ON = false;\ntry \{ DENSITY_ON = localStorage\.getItem\("culprits-density"\) === "on"; \}/.test(src) &&
+        /!LIFT_ON && DENSITY_ON && typeof pointReliefSet === "function"/.test(src));
+  check("population, livestock and NO2: one flat colour without the switch, bands with it, raised only with both",
+        /const url = `relief:\/\/\$\{id\}\/col\/\{z\}\/\{x\}\/\{y\}\$\{bands \? "" : "\?flat=1"\}`;/.test(src) && /const raise = shown && LIFT_ON && bands;/.test(src) &&
+        /if \(flat\) \{ d\[i \* 4\] = RELIEF_FLAT\[0\];/.test(src) && /for \(const \[id\] of RELIEFS\) if \(!\/__\/\.test\(id\) && typeof reliefSync === "function"\) reliefSync\(id\);\n\}/.test(src));
+  check("the combine's wording: its title, the groups list headed, no 'Which layers count together' or 'Choose a way here'",
+        /<div style="font-size:11\.5px">Combine the ticked layers<\/div>/.test(src) && /<div class="combo-h">Place layer into group:<\/div>/.test(src) &&
+        /<div class="combo-h">Choose how to combine the layers:<\/div>/.test(src) && !/Which layers count together/.test(src) && !/Choose a way here/.test(src) && !/shown whole, uncut/.test(src));
+  check("a slider shows the parts that do not cross, from hidden to as drawn, above the figures",
+        /<div class="combo-h">Show the parts that don't cross<\/div>/.test(src) && src.indexOf('id="combo-fade-row"') < src.indexOf('<div id="combo-stats"') &&
+        /function comboFadeApply\(\)/.test(src) && /d\[\(j \* S \+ i\) \* 4 \+ 3\] = fade \? Math\.round\(d\[\(j \* S \+ i\) \* 4 \+ 3\] \* fade\) : 0;/.test(src) &&
+        /if \(COMBO\.fade > 0\) \{ map\.setFilter\(lid, COMBO_OWN\.has\(lid\) \? COMBO_OWN\.get\(lid\) : null\); comboFadeLayer\(lid, COMBO\.fade\); \}/.test(src));
+  check("the painted world chart's cartouche reads Compilation Map (the picture asked afresh)", /abs\("\.\/atlas-plate\.webp\?v=207"\)/.test(src));
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");

@@ -84,6 +84,7 @@
   /* The looks and views, set out like the Earth map's box: two columns. */
   #setbox{right:16px;top:16px;width:300px;padding:9px 12px 10px}
   body.in-frame #setbox{top:118px}
+  #setbox.behind{z-index:300}
   #setbox .cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
   #setbox .cols > div + div{padding-left:11px;border-left:1px solid var(--rule)}
   #setbox h1{margin:0 0 5px}
@@ -99,8 +100,6 @@
   #time-range{width:100%;accent-color:#4E8FA6;margin:2px 0}
   #time .ends{display:flex;justify-content:space-between;font-size:11px;color:var(--dim)}
   /* Marks that sit together: how many, and the list. */
-  .count-label{background:none;border:0;box-shadow:none;color:#17150F;font-size:10.5px;font-weight:700;padding:0}
-  .count-label::before{display:none}
   .leaflet-popup-content details,#gpop details{margin-top:4px;padding-top:4px}
   .leaflet-popup-content details > :not(summary),#gpop details > :not(summary){margin-left:14px}
   .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
@@ -343,26 +342,16 @@
   // Round 204o (asked 14 October): marks closer than a few pixels are drawn
   // as one, with how many; a click lists every one of them, each opening to
   // its full box, until the map is close enough to part them.
-  // Two marks are drawn as one when their glows would touch (scale turns a
-  // mark's size into the distance used: pixels on the flat map, none on the globe).
-  function gather(marks, near, pos, scale) {
-    var groups = [], cells = {};
-    scale = scale || 0;
-    marks.slice().sort(function (a, b) { return b.r - a.r; }).forEach(function (m) {
-      var p = pos(m), cx = Math.floor(p[0] / (near * 2)), cy = Math.floor(p[1] / (near * 2)), hit = null;
-      for (var dx = -1; dx <= 1 && !hit; dx++) for (var dy = -1; dy <= 1 && !hit; dy++) {
-        (cells[(cx + dx) + "," + (cy + dy)] || []).some(function (g) { var d = Math.hypot(g.p[0] - p[0], g.p[1] - p[1]); if (d < Math.min(near * 2, Math.max(near, (g.r + (m.r || 0)) * scale))) { hit = g; return true; } return false; });
-      }
-      if (hit) { hit.items.push(m); return; }
-      var g = { p: p, r: m.r || 0, items: [m] };
-      groups.push(g);
-      (cells[cx + "," + cy] = cells[cx + "," + cy] || []).push(g);
-    });
-    return groups;
+  // Round 207o (asked 14 October): every mark is drawn on its own. A click
+  // lists every mark under the pointer (each opening to its full box), so a
+  // mark hidden under another is still found; zoom in and they part.
+  function under(marks, at, reach) {
+    return marks.filter(function (m) { var p = at(m); return p && Math.hypot(p[0], p[1]) <= reach(m); })
+      .sort(function (a, b) { var p = at(a), q = at(b); return Math.hypot(p[0], p[1]) - Math.hypot(q[0], q[1]); });
   }
   function listHtml(items, zoomable) {
     if (items.length === 1) return items[0].html;
-    var h = "<h3>" + items.length + " here</h3>" + (zoomable ? '<p class="zin"><a href="#" data-zoomin="1">Zoom in to part them</a></p>' : "");
+    var h = "<h3>" + items.length + " marks here</h3>" + (zoomable ? '<p class="zin"><a href="#" data-zoomin="1">Zoom in to part them</a></p>' : "");
     return h + items.map(function (m) {
       return '<details><summary><i class="dot" style="background:' + C(STYLE[m.kind][0]) + '"></i>' + esc(m.title || "") + ' <span class="from">' + esc(m.row.title.replace(/ \(.*\)$/, "")) + "</span></summary>" + m.html + "</details>";
     }).join("");
@@ -376,8 +365,13 @@
   }
   // Boxes open on their own, not tied to a mark, so a redraw (a row still
   // loading, the timeline moved) leaves an open box where it is.
+  // Popups are kept clear of the two boxes: left of the panel, under the looks box.
+  function padTL() {
+    var sb = document.getElementById("setbox").getBoundingClientRect(), mp = document.getElementById("map").getBoundingClientRect();
+    return innerWidth > 700 ? [340, Math.max(20, sb.bottom - mp.top + 10)] : [20, 20];
+  }
   function opens(layer, html) {
-    return layer.on("click", function (e) { L.DomEvent.stop(e); L.popup({ maxWidth: 380, autoPanPaddingTopLeft: [inFrame || innerWidth > 700 ? 340 : 20, 20], autoPanPaddingBottomRight: [20, 20] }).setLatLng(e.latlng).setContent(html).openOn(map); });
+    return layer.on("click", function (e) { L.DomEvent.stop(e); L.popup({ maxWidth: 380, autoPanPaddingTopLeft: padTL(), autoPanPaddingBottomRight: [20, 20] }).setLatLng(e.latlng).setContent(html).openOn(map); });
   }
   function drawFlat() {
     if (VIEW !== "flat") return;
@@ -399,23 +393,42 @@
         if (lat.length > 1) L.polyline(lat, { renderer: canvas, color: C("--rover"), weight: 1.6, opacity: 0.95, interactive: false }).addTo(routeLayer);
       }
     });
-    gather(shownStops(), 8, pos).forEach(function (g) {
-      var m = g.items[0];
-      L.circleMarker([m.lat, m.lng], { renderer: canvas, radius: g.items.length > 1 ? 2.6 : 1.8, stroke: false, fillColor: C("--rover"), fillOpacity: 0.85 })
-.addTo(stopLayer);
-      opens(stopLayer.getLayers().slice(-1)[0], listHtml(g.items, zoomable));
+    var stops = shownStops(), marks = shownMarks();
+    // What lies under a click: marks within their own size of it, stops within a few pixels.
+    var clickList = function (e) {
+      var c = map.latLngToLayerPoint(e.latlng);
+      var at = function (m) { var p = pos(m); return [p[0] - c.x, p[1] - c.y]; };
+      return under(marks, at, function (m) { return Math.max(m.r, 5) + 3; }).concat(under(stops, at, function () { return 5; }));
+    };
+    var opensHere = function (layer) {
+      layer.on("click", function (e) {
+        L.DomEvent.stop(e);
+        var list = clickList(e);
+        if (!list.length) return;
+        L.popup({ maxWidth: 380, autoPanPaddingTopLeft: padTL(), autoPanPaddingBottomRight: [20, 20] })
+          .setLatLng(e.latlng).setContent(listHtml(list, zoomable && list.length > 1)).openOn(map);
+      });
+    };
+    stops.forEach(function (m) {
+      opensHere(L.circleMarker([m.lat, m.lng], { renderer: canvas, radius: 1.8, stroke: false, fillColor: C("--rover"), fillOpacity: 0.85 }).addTo(stopLayer));
     });
-    gather(shownMarks(), 14, pos, 2).forEach(function (g) {
-      var m = g.items[0], s = STYLE[m.kind], n = g.items.length;
-      var o = orb([m.lat, m.lng], n > 1 ? Math.max(m.r, 6 + Math.min(4, Math.log2(n))) : m.r, C(n > 1 ? "--obj" : s[0]), C(s[1]));
-      opens(o.hit, listHtml(g.items, zoomable));
-      if (n > 1) o.hit.bindTooltip(String(n), { permanent: true, direction: "center", className: "count-label" });
-      else if (m.kind === "now") o.hit.bindTooltip(esc(m.title), { permanent: true, direction: "right", className: "nm-label", offset: [8, 0] });
+    marks.slice().sort(function (a, b) { return b.r - a.r; }).forEach(function (m) {
+      var s = STYLE[m.kind], o = orb([m.lat, m.lng], m.r, C(s[0]), C(s[1]));
+      opensHere(o.hit);
+      if (m.kind === "now") o.hit.bindTooltip(esc(m.title), { permanent: true, direction: "right", className: "nm-label", offset: [8, 0] });
       else if (m.kind === "plan" && map.getZoom() >= 4) o.hit.bindTooltip(esc(m.title), { permanent: true, direction: "right", className: "nm-label plan-label", offset: [8, 0] });
       o.group.addTo(markLayer);
     });
     drawNames();
   }
+  // An open box that would sit under the looks box is put in front of it.
+  map.on("popupopen", function () {
+    var sb = document.getElementById("setbox"), el = document.querySelector(".leaflet-popup");
+    if (!el) return;
+    var a = sb.getBoundingClientRect(), b = el.getBoundingClientRect();
+    sb.classList.toggle("behind", !(b.right < a.left || b.left > a.right || b.bottom < a.top || b.top > a.bottom));
+  });
+  map.on("popupclose", function () { document.getElementById("setbox").classList.remove("behind"); });
   map.on("popupopen", function (e) {
     var a = e.popup.getElement() && e.popup.getElement().querySelector("[data-zoomin]");
     if (a) a.addEventListener("click", function (ev) { ev.preventDefault(); map.closePopup(); map.setView(e.popup.getLatLng(), Math.min(map.getMaxZoom(), map.getZoom() + 3)); });
@@ -449,15 +462,19 @@
   function globeAlt() { try { return globe.pointOfView().altitude || 2.3; } catch (e) { return 2.3; } }
   function drawGlobe() {
     if (!globe || VIEW !== "globe") return;
-    var near = Math.max(0.15, globeAlt() * 2.2);   // degrees: closer in, marks part sooner
-    var pos = function (m) { return [m.lng * Math.cos(m.lat * Math.PI / 180), m.lat]; };
-    var pts = gather(shownMarks(), near, pos).map(function (g) {
-      var m = g.items[0], n = g.items.length, s = STYLE[m.kind];
-      return { lat: m.lat, lng: m.lng, r: n > 1 ? 0.9 : Math.max(0.3, m.r / 9), color: C(n > 1 ? "--obj" : s[0]),
-        label: n > 1 ? n + " here" : esc(m.title), html: listHtml(g.items, false) };
+    var near = Math.max(0.05, globeAlt() * 0.6);   // degrees: what lies under a click
+    var marks = shownMarks(), stops = shownStops(), all = marks.concat(stops);
+    var deg = function (a, b) {
+      var r = Math.PI / 180, x = Math.sin(a.lat * r) * Math.sin(b.lat * r) + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.cos((a.lng - b.lng) * r);
+      return Math.acos(Math.max(-1, Math.min(1, x))) / r;
+    };
+    var pts = marks.map(function (m) {
+      var s = STYLE[m.kind];
+      return { lat: m.lat, lng: m.lng, r: Math.max(0.3, m.r / 9), color: C(s[0]), label: esc(m.title), m: m };
     });
-    gather(shownStops(), near / 2, pos).forEach(function (g) {
-      pts.push({ lat: g.items[0].lat, lng: g.items[0].lng, r: 0.12, color: C("--rover"), label: g.items.length + " rover stop" + (g.items.length > 1 ? "s" : ""), html: listHtml(g.items, false) });
+    stops.forEach(function (m) { pts.push({ lat: m.lat, lng: m.lng, r: 0.12, color: C("--rover"), label: esc(m.title), m: m }); });
+    pts.forEach(function (p) {
+      p.html = function () { return listHtml(under(all, function (q) { return [deg(q, p.m), 0]; }, function (q) { return near + (q.kind === "stop" ? 0 : q.r / 9 * 0.5); }), false); };
     });
     var paths = [];
     onRows().forEach(function (row) {
@@ -514,7 +531,7 @@
       globe = Globe()(g).backgroundColor("#05070B").width(window.innerWidth).height(window.innerHeight)
         .showAtmosphere(true).atmosphereColor("#4E8FA6").atmosphereAltitude(0.1)
         .pointLat("lat").pointLng("lng").pointColor("color").pointRadius("r").pointAltitude(0.004).pointsMerge(false).pointLabel("label")
-        .onPointClick(function (p) { var b = document.getElementById("gpop"); b.querySelector(".gp-body").innerHTML = p.html; b.hidden = false; })
+        .onPointClick(function (p) { var b = document.getElementById("gpop"); b.querySelector(".gp-body").innerHTML = typeof p.html === "function" ? p.html() : p.html; b.hidden = false; })
         .pathPoints("pts").pathPointLat(function (q) { return q[1]; }).pathPointLng(function (q) { return lon180(q[0]); }).pathColor("color").pathStroke(1.4)
         .labelLat("lat").labelLng("lng").labelText("text").labelSize("size").labelDotRadius(0).labelResolution(2)
         .labelColor(function () { return "rgba(214,220,228,0.85)"; })

@@ -5,6 +5,30 @@ touches.
 
 ---
 
+## Round 207o (14 October)
+
+Needs round 206o (guards on its heading). No tiles patch. No app.js?v= bump.
+
+- Raise figures as heights has a Height slider under it (a quarter to three
+  times as tall; kept between visits): country and shape blocks
+  (liftTop, liftScaleSet) and every raised ground (reliefLift).
+- Shading where points crowd is off until turned on (it was on by default),
+  and nothing is counted for it while off: before, every ticked point layer
+  was counted square by square, and again after each move of the map.
+- Population density, livestock and NO2 are one flat colour with Shading
+  off, their bands with it on, and raised only with both on (reliefSync,
+  relief://...?flat=1).
+- Combine: titled "Combine the ticked layers"; the groups list headed
+  "Place layer into group:"; "Choose how to combine the layers:" over the
+  menu; "left out" is now "not combined" (shown in full). A slider "Show the
+  parts that don't cross" (0 to 100%): pictures keep that share outside the
+  crossings; rows drawn from data show their whole original under the cut
+  copy at that share (comboFadeApply).
+- The painted world chart's blank cartouche reads COMPILATION MAP
+  (map/atlas-plate.webp, asked as ?v=207).
+- Moon and Mars: every mark drawn on its own again; a click lists every mark
+  under the pointer, nearest first, each opening to its full box.
+
 ## Round 206o (14 October)
 
 Needs round 205o (guards on its heading). No tiles patch. No app.js?v= bump.

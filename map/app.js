@@ -1786,7 +1786,7 @@ maplibregl.addProtocol("cerulean", async (params, abortController) => {
 // hillshade are Esri's again, exactly as before round 123b, at the owner's
 // word (the looks were tuned on them).
 const PLATE = {
-  url: abs("./atlas-plate.webp"),
+  url: abs("./atlas-plate.webp?v=207"),
   coordinates: [[-180, 85.05112877980659], [180, 85.05112877980659],
                 [180, -80.55], [-180, -80.55]],
   fadeIn: 3, fadeOut: 5,          // zoom: full plate -> full imagery
@@ -13247,7 +13247,9 @@ function reliefValuesOnce(r, z, x, y) {
   }
   return c.get(k);
 }
-async function reliefTile(r, kind, z, x, y) {
+// Round 207o: "flat" draws every place the row covers in one colour, no bands.
+const RELIEF_FLAT = [75, 140, 163, 190];
+async function reliefTile(r, kind, z, x, y, flat) {
   const vals = await reliefValuesOnce(r, z, x, y);
   const d = new Uint8ClampedArray(256 * 256 * 4);
   let band = null;
@@ -13263,6 +13265,7 @@ async function reliefTile(r, kind, z, x, y) {
     if (kind === "col") {
       const b = band[i];
       if (b < 0) continue;
+      if (flat) { d[i * 4] = RELIEF_FLAT[0]; d[i * 4 + 1] = RELIEF_FLAT[1]; d[i * 4 + 2] = RELIEF_FLAT[2]; d[i * 4 + 3] = RELIEF_FLAT[3]; continue; }
       const c = RELIEF_BANDS[b];
       const rt = (i & 255) < 255 ? band[i + 1] : b, dn = i < 255 * 256 ? band[i + 256] : b;
       const edge = rt !== b || dn !== b;
@@ -13280,7 +13283,7 @@ maplibregl.addProtocol("relief", async (params) => {
   const m = params.url.match(/^relief:\/\/([^/]+)\/(col|dem)\/(\d+)\/(\d+)\/(\d+)/);   // a ?query after it only makes a new address
   const r = m && RELIEFS.get(m[1]);
   if (!r) throw new Error("no relief row");
-  return { data: await reliefTile(r, m[2], Number(m[3]), Number(m[4]), Number(m[5])) };
+  return { data: await reliefTile(r, m[2], Number(m[3]), Number(m[4]), Number(m[5]), /[?&]flat=1/.test(params.url)) };
 });
 // How tall the relief stands at this zoom: tall enough to read from space,
 // low enough close in not to wall off the view.
@@ -13291,7 +13294,7 @@ const RELIEF_BOOST = 3;
 function reliefLift() {
   const z = map.getZoom();
   const boost = 1 + (RELIEF_BOOST - 1) * Math.max(0, Math.min(1, (5 - z) / 3));
-  return Math.max(0.03, Math.min(RELIEF_BOOST, Math.pow(2, 3 - z) * boost));
+  return Math.max(0.03, Math.min(RELIEF_BOOST, Math.pow(2, 3 - z) * boost)) * (typeof LIFT_SCALE === "number" ? LIFT_SCALE : 1);
 }
 const no2Relief = { get on() { return reliefStack.length > 0; } };
 function reliefGround(id, on, noTilt) {
@@ -13325,7 +13328,7 @@ const hexOf = (c) => "#" + c.slice(0, 3).map((x) => x.toString(16).padStart(2, "
 function addReliefLayers(cfg, r, key, hint) {
   RELIEFS.set(cfg.id, r);
   const vis = visibility.get(cfg.id) || "visible";
-  map.addSource(`${cfg.id}-col`, { type: "raster", tiles: [`relief://${cfg.id}/col/{z}/{x}/{y}`], tileSize: 256, maxzoom: r.maxzoom, attribution: cfg.attribution });
+  map.addSource(`${cfg.id}-col`, { type: "raster", tiles: [`relief://${cfg.id}/col/{z}/{x}/{y}${typeof DENSITY_ON !== "undefined" && !DENSITY_ON ? "?flat=1" : ""}`], tileSize: 256, maxzoom: r.maxzoom, attribution: cfg.attribution });
   map.addSource(`${cfg.id}-dem`, { type: "raster-dem", tiles: [`relief://${cfg.id}/dem/{z}/{x}/{y}`], tileSize: 256, maxzoom: r.maxzoom, encoding: "mapbox" });
   map.addSource(`${cfg.id}-shade`, { type: "raster-dem", tiles: [`relief://${cfg.id}/dem/{z}/{x}/{y}`], tileSize: 256, maxzoom: r.maxzoom, encoding: "mapbox" });
   // Round 108b: the shading over the tints, as a printed atlas has it.
@@ -13345,7 +13348,13 @@ function addReliefLayers(cfg, r, key, hint) {
 }
 function reliefSync(id) {
   const shown = (visibility.get(id) || "visible") === "visible";
-  const raise = shown && LIFT_ON;
+  // Round 207o (asked 14 October): the density's bands only with Shading where
+  // points crowd on (one flat colour otherwise), raised only with both on.
+  const bands = typeof DENSITY_ON === "undefined" || DENSITY_ON;
+  const s = map.getSource && map.getSource(`${id}-col`);
+  const url = `relief://${id}/col/{z}/{x}/{y}${bands ? "" : "?flat=1"}`;
+  if (s && typeof s.setTiles === "function" && (comboTilesOf(s) || [])[0] !== url) s.setTiles([url]);
+  const raise = shown && LIFT_ON && bands;
   reliefGround(id, raise);
   if (map.getLayer(`${id}-hill`)) map.setLayoutProperty(`${id}-hill`, "visibility", raise ? "visible" : "none");
 }
@@ -16475,6 +16484,33 @@ async function countryTotalsFrom(cfg) {
 // Round 123b: off until ticked (asked 2 October).
 var LIFT_ON = false;
 const LIFT_TOP = 800000;     // metres at the top of the scale, from the world view
+// Round 207o (asked 14 October): a slider under Raise figures as heights sets
+// how tall everything raised stands, from a quarter to three times as tall.
+let LIFT_SCALE = 1;
+try { const v = Number(localStorage.getItem("culprits-lift-scale")); if (v >= 0.25 && v <= 3) LIFT_SCALE = v; } catch (e) { /* as made */ }
+function liftTop() { return LIFT_TOP * LIFT_SCALE; }
+const LIFT_SEEN = new Map();   // raised layer -> { json, base, s0 }: its height as last set here
+function liftScaleSet(v) {
+  const before = LIFT_SCALE;
+  LIFT_SCALE = Math.max(0.25, Math.min(3, Number(v) || 1));
+  try { localStorage.setItem("culprits-lift-scale", String(LIFT_SCALE)); } catch (e) { /* not kept */ }
+  // Countries and shapes standing as blocks.
+  const raw = (hudRaw && hudRaw.setPaintProperty) || map.setPaintProperty.bind(map);
+  for (const l of ((map.getStyle && map.getStyle()) || {}).layers || []) {
+    if (l.type !== "fill-extrusion" || !/-lift$/.test(l.id)) continue;
+    const cur = map.getPaintProperty(l.id, "fill-extrusion-height");
+    const seen = LIFT_SEEN.get(l.id);
+    const base = seen && seen.json === JSON.stringify(cur) ? seen.base : cur, s0 = seen && seen.json === JSON.stringify(cur) ? seen.s0 : before;
+    if (base == null) continue;
+    try {
+      raw(l.id, "fill-extrusion-height", mapOutputs(base, (n) => n * LIFT_SCALE / s0));
+      LIFT_SEEN.set(l.id, { json: JSON.stringify(map.getPaintProperty(l.id, "fill-extrusion-height")), base, s0 });
+    } catch (e) { /* stays */ }
+  }
+  // Ground raised as relief (densities, crowds, pictures).
+  const top = typeof reliefStack !== "undefined" ? reliefStack[reliefStack.length - 1] : null;
+  if (top && map.getSource(`${top}-dem`)) map.setTerrain({ source: `${top}-dem`, exaggeration: reliefLift() });
+}
 const LIFTED = new Set();
 // ---- Round 101b (asked 28 September): layer colour themes ----------------
 // "Some layer colours are hard to see on some basemaps and easy on others":
@@ -16828,7 +16864,7 @@ function setLift(on) {
   // Rounds 108b and 109b: every picture, point and shape row that is showing rises, or lies flat again.
   for (const [id, vis] of visibility) {
     if (LIFT_ON && vis === "visible") riseRow(id, true);
-    else if (vis === "visible" && POINT_RELIEFS.has(id)) { rasterRiseSet(id, false); pointReliefSet(id, true); }    // bands stay, flat
+    else if (vis === "visible" && POINT_RELIEFS.has(id)) { rasterRiseSet(id, false); pointReliefSet(id, DENSITY_ON); }    // bands stay, flat
     else if (RASTER_RISE.has(id) || POINT_RELIEFS.has(id)) riseRow(id, false);
   }
   if (typeof COMBO !== "undefined" && COMBO.mode !== "off") comboSoon(50);
@@ -16920,7 +16956,7 @@ async function addCountryLayer(cfg) {
     layout: { visibility: LIFT_ON ? (visibility.get(cfg.id) || "visible") : "none" },
     paint: {
       "fill-extrusion-color": ["interpolate", ["linear"], at, 0, STEPS[0], 0.25, STEPS[1], 0.5, STEPS[2], 0.75, STEPS[3], 1, STEPS[4]],
-      "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 0, ["*", LIFT_TOP, at], 4, ["*", LIFT_TOP / 4, at], 8, ["*", LIFT_TOP / 64, at]],
+      "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 0, ["*", liftTop(), at], 4, ["*", liftTop() / 4, at], 8, ["*", liftTop() / 64, at]],
       "fill-extrusion-opacity": 0.82,
       "fill-extrusion-vertical-gradient": true,
     },
@@ -18170,7 +18206,7 @@ async function addShapesLayer(cfg) {
   buildLegend();
 }
 
-const shapeLiftHeight = (at) => ["interpolate", ["linear"], ["zoom"], 0, ["*", LIFT_TOP, at], 4, ["*", LIFT_TOP / 4, at], 8, ["*", LIFT_TOP / 64, at]];
+const shapeLiftHeight = (at) => ["interpolate", ["linear"], ["zoom"], 0, ["*", liftTop(), at], 4, ["*", liftTop() / 4, at], 8, ["*", liftTop() / 64, at]];
 // Round 118b (asked 30 September: "countries aren't what are raised; rather
 // continents. I'm looking for height according to country score"): a row
 // whose areas are countries stands each country as tall as its own rating
@@ -19720,7 +19756,7 @@ async function comboCountryFeatures(cfg) {
 }
 // A picture's own address, without the combine's clipping in front.
 function comboPlainTile(t) {
-  return String(t).replace(/^combocut:\/\/\d+\/\{z\}\/\{x\}\/\{y\}\//, "");
+  return String(t).replace(/^combocut:\/\/\d+(?:f\d+)?\/\{z\}\/\{x\}\/\{y\}\//, "");
 }
 // Where a row's picture paints, on the combine's grid, from its squares at a
 // low zoom (16 squares at zoom 2), read once per picture address.
@@ -19915,12 +19951,53 @@ function comboHash(t) {
   for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 16777619);
   return (h >>> 0).toString(36);
 }
+// Round 207o (asked 14 October): a slider for how much of the ticked layers'
+// parts that do not cross still shows: 0 hides them (as before), up to 100%
+// shows them as drawn. Pictures are cleared to that share outside the
+// crossings (combocut://); a row drawn from its own data keeps its cut copy
+// at full strength and its original shown under it at that share.
+COMBO.fade = 0;
+try { const f = Number(localStorage.getItem("culprits-combo-fade")); if (f >= 0 && f <= 1) COMBO.fade = f; } catch (e) { /* hidden */ }
+function comboFadeSay() { return `${Math.round(COMBO.fade * 100)}%`; }
+const COMBO_FADE_PROPS = { circle: ["circle-opacity", "circle-stroke-opacity"], fill: ["fill-opacity"], line: ["line-opacity"],
+  symbol: ["icon-opacity", "text-opacity"], heatmap: ["heatmap-opacity"], "fill-extrusion": ["fill-extrusion-opacity"], raster: ["raster-opacity"] };
+const COMBO_FADE_OWN = new Map();   // "layer|prop" -> its own value
+function comboFadeLayer(lid, f) {
+  if (f == null && !COMBO_FADE_OWN.size) return;
+  const raw = (hudRaw && hudRaw.setPaintProperty) || map.setPaintProperty.bind(map);
+  for (const id of [lid, ...hudMates(lid)]) {
+    const l = map.getLayer(id);
+    if (!l) continue;
+    for (const prop of COMBO_FADE_PROPS[l.type] || []) {
+      const k = `${id}|${prop}`;
+      if (f == null) {
+        if (COMBO_FADE_OWN.has(k)) { try { raw(id, prop, COMBO_FADE_OWN.get(k)); } catch (e) { /* kept */ } COMBO_FADE_OWN.delete(k); }
+        continue;
+      }
+      if (!COMBO_FADE_OWN.has(k)) COMBO_FADE_OWN.set(k, map.getPaintProperty(id, prop));
+      const own = COMBO_FADE_OWN.get(k);
+      try { raw(id, prop, mapOutputs(own == null ? 1 : own, (n) => n * f)); } catch (e) { /* kept */ }
+    }
+  }
+}
+function comboFadeApply() {
+  COMBO_BYPASS = true;
+  try {
+    for (const lid of COMBO_COPY.keys()) {
+      if (!map.getLayer(lid)) continue;
+      if (COMBO.fade > 0) { map.setFilter(lid, COMBO_OWN.has(lid) ? COMBO_OWN.get(lid) : null); comboFadeLayer(lid, COMBO.fade); }
+      else { comboFadeLayer(lid, null); map.setFilter(lid, COMBO_HIDE); }
+    }
+  } finally { COMBO_BYPASS = false; }
+  if (typeof comboPictures === "function" && COMBO_PIC_ORIG.size) comboPictures(new Set(COMBO_PIC_ORIG.keys()));
+}
 function comboCopies(copies) {
   COMBO_BYPASS = true;
   try {
     for (const lid of [...COMBO_COPY.keys()]) {
       if (copies.has(lid)) continue;
       if (map.getLayer(`${lid}__cut`)) map.removeLayer(`${lid}__cut`);      // its glow goes with it
+      comboFadeLayer(lid, null);
       if (map.getLayer(lid)) map.setFilter(lid, COMBO_OWN.has(lid) ? COMBO_OWN.get(lid) : null);
       COMBO_OWN.delete(lid);
       COMBO_COPY.delete(lid);
@@ -19993,7 +20070,8 @@ function comboCopies(copies) {
         if (mates.length) hudOf.set(`${lid}__cut`, mates);
       }
       COMBO_COPY.set(lid, copies.get(lid));
-      map.setFilter(lid, COMBO_HIDE);                  // its glow follows (the hud's own wrapper)
+      if (COMBO.fade > 0) { map.setFilter(lid, COMBO_OWN.has(lid) ? COMBO_OWN.get(lid) : null); comboFadeLayer(lid, COMBO.fade); }
+      else map.setFilter(lid, COMBO_HIDE);             // its glow follows (the hud's own wrapper)
     }
   } finally { COMBO_BYPASS = false; }
 }
@@ -20021,16 +20099,17 @@ function comboPictures(want) {
     const own = COMBO_PIC_ORIG.get(src);
     // Round 147b: the address carries the crossings' own number, so a picture
     // is asked again only when the crossings have changed (was every run).
-    const want = own ? own.map((t) => `combocut://${COMBO.cutHash || 0}/{z}/{x}/{y}/${t}`) : null;
+    const want = own ? own.map((t) => `combocut://${COMBO.cutHash || 0}f${Math.round(COMBO.fade * 100)}/{z}/{x}/{y}/${t}`) : null;
     if (want && want.join("\n") !== cur.join("\n")) s.setTiles(want);
   }
 }
 maplibregl.addProtocol("combocut", async (params) => {
-  const m = String(params.url).match(/^combocut:\/\/\d+\/(\d+)\/(\d+)\/(\d+)\/(.*)$/);
+  const m = String(params.url).match(/^combocut:\/\/\d+(?:f(\d+))?\/(\d+)\/(\d+)\/(\d+)\/(.*)$/);
   const empty = () => ({ data: rawPng(new Uint8Array(4), 1, 1).buffer });
   if (!m) return empty();
-  const z = +m[1], x = +m[2], y = +m[3];
-  const buf = await riseBytes(m[4]);
+  const fade = m[1] ? Math.max(0, Math.min(1, +m[1] / 100)) : 0;
+  const z = +m[2], x = +m[3], y = +m[4];
+  const buf = await riseBytes(m[5]);
   if (!buf) return empty();
   const G = COMBO.keepGrid;
   if (!G) return { data: buf };
@@ -20047,7 +20126,7 @@ maplibregl.addProtocol("combocut", async (params) => {
   for (let j = 0; j < T; j++) {
     const lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + (j + 0.5) / T) / n))) * 180 / Math.PI;
     const gy = Math.min(H - 1, Math.max(0, Math.floor((90 - lat) / POINT_RELIEF_RES)));
-    for (let i = 0; i < S; i++) if (!G[gy * W + cols[i]]) d[(j * S + i) * 4 + 3] = 0;
+    for (let i = 0; i < S; i++) if (!G[gy * W + cols[i]]) d[(j * S + i) * 4 + 3] = fade ? Math.round(d[(j * S + i) * 4 + 3] * fade) : 0;
   }
   return { data: rawPng(d, S, T).buffer };
 });
@@ -20101,6 +20180,8 @@ function comboHideRows(hide) {
 }
 function comboMode(mode) {
   COMBO.mode = mode;
+  const fr = typeof document !== "undefined" && document.getElementById ? document.getElementById("combo-fade-row") : null;
+  if (fr) fr.hidden = mode === "off";
   COMBO.seen = new Map();
   COMBO.retries = 0;
   COMBO.gen++;
@@ -20160,12 +20241,14 @@ function comboList() {
   const ids = COMBO.rows.length ? COMBO.rows : comboRowsNow();
   const nameOf = (id) => { const c = LAYERS.find((x) => x.id === id) || (typeof childById === "function" ? childById(id) : null); return String((c && c.name) || id); };
   const grp = comboGroups(ids);
-  el.innerHTML = ids.length ? `<div class="combo-h">Which layers count together</div>` +
-    `<div style="margin:0 0 2px">Layers in the same group count as one, so only crossings between different groups are shown. Left out: shown whole, uncut.</div>` + ids.map((id) => {
+  // Round 207o (asked 14 October): the old heading over the groups gone; the
+  // list headed "Place layer into group:"; "left out" said plainly.
+  el.innerHTML = ids.length ? `<div style="margin:4px 0 2px">Layers in the same group count as one, so only crossings between different groups are shown. A layer set to "not combined" is shown in full, as if Combine were off.</div>` +
+    `<div class="combo-h">Place layer into group:</div>` + ids.map((id) => {
       const out = (COMBO.weights.has(id) ? COMBO.weights.get(id) : 1) > 0 ? null : "0";
       const now = out || grp.get(id);
       return `<div style="display:flex;gap:6px;align-items:center;margin:2px 0"><select data-combo-weight="${escapeHtml(id)}" style="font:inherit;font-size:10.5px">` +
-        [...COMBO_LETTERS].map((l) => [l, `group ${l}`]).concat([["0", "left out"]]).map(([v, t]) =>
+        [...COMBO_LETTERS].map((l) => [l, `group ${l}`]).concat([["0", "not combined"]]).map(([v, t]) =>
           `<option value="${v}"${now === v ? " selected" : ""}>${t}</option>`).join("") +
         `</select>`;
     }).map((head, i) => head + `<span title="${escapeHtml(nameOf(ids[i]))}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(nameOf(ids[i]))}</span></div>`).join("") : "";
@@ -22579,7 +22662,7 @@ function applyVisibility(id) {
   // Rounds 108b and 109b: a picture, point or shape row rises where it covers or crowds the ground.
   if (typeof riseRow === "function" && (vis === "visible" ? LIFT_ON : RASTER_RISE.has(id) || POINT_RELIEFS.has(id))) riseRow(id, vis === "visible");
   // Round 113b: a crowded point row's bands show with the switch off too (flat).
-  else if (vis === "visible" && !LIFT_ON && typeof pointReliefSet === "function" && !RELIEFS.has(id) && rowVectorLayers(id).length) pointReliefSet(id, true);
+  else if (vis === "visible" && !LIFT_ON && DENSITY_ON && typeof pointReliefSet === "function" && !RELIEFS.has(id) && rowVectorLayers(id).length) pointReliefSet(id, true);
   // A row that carries another source inside it switches that one with it.
   // (Rows inside a group, such as Buildings, are found by childById.)
   const rc = cfg || (typeof childById === "function" ? childById(id) : null);
@@ -28961,8 +29044,11 @@ function applyLayerSearch(box, query) {
 // All Shapes, All National Highlights), then Pull all layers up and the
 // shading where points crowd, on and off. Then the list; then Search and
 // Combine the ticked layers under it, and Layer colours at the foot.
-let DENSITY_ON = true;
-try { DENSITY_ON = localStorage.getItem("culprits-density") !== "off"; } catch (e) { /* storage refused: on */ }
+// Round 207o (asked 14 October): off unless the reader turns it on, so every
+// layer opens as drawn, and a ticked layer is not counted square by square
+// (and again after every move of the map) for bands nobody asked for.
+let DENSITY_ON = false;
+try { DENSITY_ON = localStorage.getItem("culprits-density") === "on"; } catch (e) { /* storage refused: off */ }
 // Every ticked layer's dropdown (its sources, kinds and settings) and every
 // layer group's list, pulled up. Headings stay as they are.
 function pullAllUp(box) {
@@ -28991,8 +29077,16 @@ function densitySet(on) {
     const shown = (visibility.get(id) || "visible") === "visible";
     try { densityBandsShow(id, pr, DENSITY_ON && shown); } catch (e) { /* that row stays as it was */ }
     // Round 205o: their rising follows both switches.
-    if (shown && typeof pointReliefSet === "function") pointReliefSet(id, true).catch(() => {});
+    if (shown && typeof pointReliefSet === "function") pointReliefSet(id, DENSITY_ON).catch(() => {});
   }
+  // Round 207o: rows ticked while the switch was off are counted now.
+  if (DENSITY_ON && typeof riseRow === "function") for (const [id, vis] of visibility) {
+    if (vis !== "visible" || POINT_RELIEFS.has(id) || RELIEFS.has(id) || LIFTED.has(id) || !rowVectorLayers(id).length) continue;
+    if (LIFT_ON) riseRow(id, true); else pointReliefSet(id, true).catch(() => {});
+  }
+  // Round 207o: rows that are densities themselves (population, livestock,
+  // NO2) are one flat colour with the switch off, their bands with it on.
+  for (const [id] of RELIEFS) if (!/__/.test(id) && typeof reliefSync === "function") reliefSync(id);
 }
 // A question in the map's own style; resolves true for yes.
 function askFirst(text, yes) {
@@ -29067,9 +29161,23 @@ function liftIntoTools() {
     `<p class="lt-note" hidden>${escapeHtml(text)}</p>`;
   row.remove();
   (tools.querySelector(".lt-col") || tools).appendChild(line);
-  line.querySelector("#lift-toggle").addEventListener("change", (e) => setLift(e.target.checked));
+  line.querySelector("#lift-toggle").addEventListener("change", (e) => { setLift(e.target.checked); scale.querySelector("input").disabled = !e.target.checked; });
   const info = line.querySelector(".lt-info"), p = line.querySelector(".lt-note");
   info.addEventListener("click", (e) => { e.preventDefault(); p.hidden = !p.hidden; info.setAttribute("aria-expanded", String(!p.hidden)); });
+  // Round 207o (asked 14 October): how tall, under the switch.
+  const scale = document.createElement("div");
+  scale.className = "lt-line lift-line lift-scale";
+  scale.innerHTML = `<span class="ls-say">Height</span><input type="range" id="lift-scale" min="0.25" max="3" step="0.25" value="${LIFT_SCALE}"${input.checked ? "" : " disabled"} aria-label="How tall raised figures stand" title="How tall raised figures stand">` +
+    `<span class="ls-x" id="lift-scale-say">\u00d7${LIFT_SCALE}</span>`;
+  line.after(scale);
+  let t = null;
+  scale.querySelector("input").addEventListener("input", (e) => {
+    document.getElementById("lift-scale-say").textContent = `\u00d7${e.target.value}`;
+    clearTimeout(t);
+    t = setTimeout(() => liftScaleSet(e.target.value), 80);
+  });
+  addStyle(".layers-tools .lift-scale{font-size:10px;gap:4px;padding-left:16px}.layers-tools .lift-scale input{flex:1;min-width:0;height:12px;margin:0;accent-color:#4E8FA6}" +
+    ".layers-tools .lift-scale input:disabled{opacity:.4}.layers-tools .lift-scale .ls-x{min-width:26px;text-align:right}", "lift-scale");
 }
 // The order of the box, kept as parts arrive (several are added later).
 function layersBoxOrder(panel) {
@@ -29514,14 +29622,27 @@ function comboBox(box) {
   wrap.id = "combo-box";
   wrap.className = "combo-box";
   // Round 200o (asked 14 October): the groups list right under the title.
-  wrap.innerHTML = `<div style="font-size:11.5px">Combine the ticked layers: show only where they meet</div>` +
+  wrap.innerHTML = `<div style="font-size:11.5px">Combine the ticked layers</div>` +
     `<div id="combo-rows" style="font-size:10.5px"></div>` +
-    `<div style="font-size:10.5px;color:var(--dim)">Choose a way here and tick layers in any order; it follows each tick.</div>` +
+    `<div class="combo-h">Choose how to combine the layers:</div>` +
     `<select id="combo-mode" aria-label="Combine the ticked layers" style="font:inherit;font-size:11.5px;max-width:100%;margin:3px 0">` +
     COMBO_MODES.map(([k, t]) => `<option value="${k}">${t}</option>`).join("") + `</select>` +
     `<div id="combo-say" style="font-size:10.5px;color:var(--dim)"></div>` +
+    // Round 207o (asked 14 October): how much of what does not cross still shows.
+    `<div id="combo-fade-row" class="combo-fade" hidden><div class="combo-h">Show the parts that don't cross</div>` +
+    `<div style="display:flex;align-items:center;gap:6px"><span>hidden</span><input type="range" id="combo-fade" min="0" max="100" step="5" value="${Math.round(COMBO.fade * 100)}" aria-label="How much of the parts that do not cross is shown" style="flex:1;min-width:0">` +
+    `<span id="combo-fade-say" style="min-width:30px;text-align:right">${comboFadeSay()}</span></div></div>` +
     `<div id="combo-stats" style="font-size:10.5px"></div>`;
   box.parentElement.insertBefore(wrap, box);
+  wrap.addEventListener("input", (e) => {
+    if (!e.target || e.target.id !== "combo-fade") return;
+    COMBO.fade = Math.max(0, Math.min(1, Number(e.target.value) / 100));
+    try { localStorage.setItem("culprits-combo-fade", String(COMBO.fade)); } catch (er) { /* not kept */ }
+    const say = document.getElementById("combo-fade-say");
+    if (say) say.textContent = comboFadeSay();
+    clearTimeout(COMBO.fadeTimer);
+    COMBO.fadeTimer = setTimeout(comboFadeApply, 120);
+  });
   wrap.addEventListener("change", (e) => {
     if (e.target && e.target.id === "combo-mode") comboMode(e.target.value);
     if (e.target && e.target.id === "combo-by") { COMBO.statsBy = e.target.value; comboStatsRender(); return; }
