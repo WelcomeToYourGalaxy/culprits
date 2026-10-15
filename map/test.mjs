@@ -7308,6 +7308,21 @@ console.log("\nround 202o (14 October): the Moon and Mars as rows under Off-plan
         />Pull up every layer's dropdown<\/button>/.test(src) && /\.layers-tools \.lt-col\{/.test(src) && /tools\.querySelector\("\.lt-col"\) \|\| tools\)\.appendChild\(line\)/.test(src));
 }
 
+console.log("\nround 203o (14 October): Moon and Mars on a globe; clearer rows; every mark can be clicked");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const bodies = fs.readFileSync(path.join(HERE, "bodies.html"), "utf8");
+  check("a Flat map / Globe choice, the globe from globe.gl wrapped in the stitched Trek picture",
+        /data-view="globe"/.test(bodies) && /unpkg\.com\/globe\.gl@2\.46\.2\/dist\/globe\.gl\.min\.js/.test(bodies) && /DATA \+ body \+ "_globe\.jpg"/.test(bodies));
+  check("the rover routes are on the marks' own canvas, so a second canvas cannot take the clicks",
+        (bodies.match(/renderer: glow/g) || []).length >= 4 && /interactive: false, renderer: glow/.test(bodies));
+  check("longitudes past 180 are brought back round (Wikipedia gives some in degrees west)", /function lon180\(x\) \{ return \(\(x \+ 180\) % 360 \+ 360\) % 360 - 180; \}/.test(bodies));
+  check("the rows say how they differ: hardware in photos (LROC) against every mission's craft by weight (Wikipedia)",
+        /Hardware spotted in orbital photos \(LROC\)/.test(bodies) && /Every mission's spacecraft, by weight \(Wikipedia\)/.test(bodies) &&
+        /"Moon hardware spotted in orbital photos \(LROC\)"/.test(src) && /How it differs from the LROC row/.test(src));
+  check("names placed biggest first, none on top of another", /placed\.some\(function \(q\)/.test(bodies));
+}
+
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");

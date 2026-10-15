@@ -5,6 +5,33 @@ touches.
 
 ---
 
+## Round 203o (14 October)
+
+Needs round 202o (guards on its heading). Tiles patch round203o_tiles.py
+beside it (bodies.py: globe pictures, the Moon list's key and totals). No
+app.js?v= bump.
+
+- Moon and Mars (asked 14 October): a Flat map / Globe choice. The globe is
+  globe.gl 2.46.2 (MIT, from unpkg), wrapped in bodies/<body>_globe.jpg,
+  which bodies.py stitches from the same Trek tiles at zoom 3 (4096 x 2048);
+  until it is built the globe shows the marks on a plain sphere and says so.
+  On it: the ticked rows' marks (a click opens the same box), the rover
+  routes, and the 90 largest features' names.
+- Mars "froze" (no mark could be clicked): the rover routes were drawn on a
+  second canvas over the marks' canvas, which took every click; they now
+  share one canvas (renderer: glow).
+- Longitudes are brought into -180 to 180 (Wikipedia gives Mars 2 at
+  313 W, drawn off the map before).
+- Names: biggest first, none over another (the rest come as you zoom in).
+- Rows renamed to say how they differ: LROC "hardware spotted in orbital
+  photos" (exact places, no masses) against Wikipedia "every mission's
+  spacecraft, by weight" (masses, approximate places, small items out);
+  the map's eight rows likewise, with the difference in their notes.
+- Rover boxes are titled with the rover and sol.
+- Tiles: bodies.py keeps the Moon list's colour key and its total-mass line
+  in the file's "keys" and "totals" instead of taking them as rows and
+  column names.
+
 ## Round 202o (14 October)
 
 Needs round 201o (guards on its heading). No tiles patch. No app.js?v= bump.
