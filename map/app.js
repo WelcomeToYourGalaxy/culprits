@@ -13871,6 +13871,7 @@ function settingsLayout(box) {
   if (go) col.appendChild(go);
   if (row) row.replaceWith(col); else if (body) body.appendChild(col);
   setTimeout(() => { try { liftIntoTools(); } catch (e) { /* stays in 3D terrain */ } }, 0);
+  try { terrainUnderBasemaps(box, base, cols); } catch (e) { /* stays in its own box */ }
   try { settingsMirrors(box); settingsRoll(box); } catch (e) { /* kept */ }
   // Layer colours, into the Layers box.
   const pick = box.querySelector("#theme-pick");
@@ -13883,6 +13884,41 @@ function settingsLayout(box) {
     // At the foot of the Layers box, under the list and its buttons.
     panel.appendChild(holder);
   }
+}
+// Round 206o (asked 14 October): the 3D terrain tick goes up into the
+// Basemap column, under Standard, where it is seen without scrolling. The
+// notes on moving the map in 3D stay, behind a line under the tick that
+// opens them the box's whole width. Its old box is put away once Raise
+// figures as heights has moved out of it to the Layers box.
+function terrainUnderBasemaps(box, base, cols) {
+  const terr = box.querySelector('.sect[data-sect="terrain"]');
+  const tick = box.querySelector("#terrain-toggle");
+  const label = tick && tick.closest ? tick.closest("label") : null;
+  const bbody = base && base.querySelector(".sect-body");
+  if (!terr || !label || !bbody || box.querySelector("#terrain-col")) return;
+  const col = document.createElement("div");
+  col.id = "terrain-col";
+  col.className = "terrain-col";
+  label.classList.add("terrain-in");
+  col.appendChild(label);
+  const how = terr.querySelector(".how-3d");
+  if (how) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.id = "how-3d-btn";
+    b.className = "how-3d-btn";
+    b.setAttribute("aria-expanded", "false");
+    b.title = "How to tilt, turn and roll the map";
+    b.innerHTML = `Moving the map in 3D <span class="how-car">&#9662;</span>`;
+    col.appendChild(b);
+    how.id = "how-3d";
+    how.hidden = true;
+    cols.after(how);
+    b.addEventListener("click", () => { how.hidden = !how.hidden; b.setAttribute("aria-expanded", String(!how.hidden)); });
+  }
+  bbody.appendChild(col);
+  const hide = () => { if (!terr.querySelector(".lift-row")) terr.style.display = "none"; else setTimeout(hide, 50); };
+  hide();
 }
 // Round 201o: Official buildings and Land use, ticked from the View column,
 // tick their rows in the layers box (whose Buildings heading is hidden), and
@@ -27993,8 +28029,8 @@ const PANEL_ORDER = [
   { h: 3, t: "Space launches" }, "ll2_pads", "ll2_upcoming",
   { h: 3, t: "Craft in space" }, "eyes_craft",
   // Round 202o: the Moon and Mars, each a heading of its own.
-  { h: 3, t: "The Moon" }, "moon_objects", "moon_list", "moon_artemis", "moon_names",
-  { h: 3, t: "Mars" }, "mars_list", "mars_m20", "mars_msl", "mars_names",
+  { h: 3, t: "To the Moon" }, "moon_objects", "moon_list", "moon_artemis", "moon_names",
+  { h: 3, t: "To Mars" }, "mars_list", "mars_m20", "mars_msl", "mars_names",
   { h: 3, t: "Extraterrestrial life" }, "biosignature",
   // Base and reference (empty since 25 September) taken out; Buildings was
   // taken out with it (26 September, round 56) and put back at the owner's

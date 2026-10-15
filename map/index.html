@@ -151,7 +151,7 @@
   #lite-note{font-size:11px;line-height:1.35;color:var(--dim)}
   html.lite #lite-box{background:rgba(30,111,168,.16);border:1px solid #2A86B4;border-radius:4px;padding:6px}
   html.lite #lite-note{color:var(--bone,#DCD6C6)}
-  html.lite .sect[data-sect="terrain"],html.lite #combo-box,html.lite #leave-earth,html.lite #lift-toggle{display:none!important}
+  html.lite .sect[data-sect="terrain"],html.lite #terrain-col,html.lite #how-3d,html.lite #combo-box,html.lite #leave-earth,html.lite #lift-toggle{display:none!important}
   /* Round 196o: Faster map on the Stuck? line, to its right, white like the
      reload button; its sentence behind a small i. */
   .reload-wrap{flex-wrap:nowrap;position:relative;z-index:5}
@@ -500,6 +500,17 @@
   .view-row .view-go{flex:1 1 auto;min-width:78px}
   .view-choices .terrain-under{border-top:1px solid var(--rule)}
   .how-3d{margin-top:7px;display:flex;flex-direction:column;gap:3px}
+  /* Round 206o: 3D terrain under Standard, and the line that opens the notes. */
+  .terrain-col{margin-top:6px;padding-top:5px;border-top:1px solid var(--rule)}
+  .terrain-col .terrain-in{padding:2px 0;border-top:0}
+  .how-3d-btn{display:flex;align-items:center;gap:4px;margin:3px 0 0 2px;white-space:nowrap;padding:0;font:inherit;font-size:11px;color:var(--dim);
+    background:none;border:0;cursor:pointer;text-align:left;text-decoration:underline dotted;text-underline-offset:2px}
+  .how-3d-btn:hover{color:var(--bone)}
+  .how-3d-btn .how-car{text-decoration:none;font-size:9px;transition:transform .15s}
+  .how-3d-btn[aria-expanded="true"] .how-car{transform:rotate(180deg)}
+  #how-3d{margin-top:7px;padding-top:6px;border-top:1px solid var(--rule)}
+  #how-3d[hidden]{display:none}
+  #how-3d .how-h{display:none}
   /* Round 106b: Layer colours under Flat map, its menu under its name, narrow;
      the 3D terrain box's own rows; the loading mark on the map. */
   .view-choices .theme-pick{flex-direction:column;gap:3px}
@@ -594,7 +605,7 @@
 <div class="space-edge" id="spaceEdge" hidden aria-hidden="true">
   <div class="se t"></div><div class="se b"></div><div class="se l"></div><div class="se r"></div>
 </div>
-<button class="space-back" id="spaceBack" hidden>&#8592; Back to the map</button>
+<button class="space-back" id="spaceBack" hidden>&#8592; Back to Earth</button>
 <!-- Round 197o (asked 14 October): from NASA's Eyes, into a map of what people
      have put on the Moon and Mars (bodies.html, its own page, in a frame). -->
 <div class="space-bodies" id="spaceBodies" hidden>

@@ -5,6 +5,28 @@ touches.
 
 ---
 
+## Round 206o (14 October)
+
+Needs round 205o (guards on its heading). No tiles patch. No app.js?v= bump.
+
+- 3D terrain: its tick now sits under Standard in the Basemap column;
+  "Moving the map in 3D" is a line under it that opens the notes the box's
+  whole width (terrainUnderBasemaps). Its old box is put away.
+- Headings "To the Moon" and "To Mars"; "Back to the map" is "Back to Earth".
+- map/bodies.html rewritten:
+  - opens on the globe; no Moon/Mars buttons on the page (the main map's
+    top right has them);
+  - a top right box like Earth's: Basemap (Satellite, plus Earth's seven
+    looks, made by recolouring NASA's picture, with a grid for Hologram and
+    Standard), View (Globe, Flat map) and Snap back to global scale;
+  - a timeline of years under the rows (rover stops dated from their sol;
+    Artemis III plans shown only at the far end, "today");
+  - marks that would sit on each other are drawn as one with a count; a
+    click lists every one, each opening to its own box, with "Zoom in to
+    part them";
+  - the globe picture is loaded before use and a failure is said in the
+    panel; the globe stops drawing while the flat map is shown.
+
 ## Round 205o (14 October)
 
 Needs round 204o (guards on its heading). No tiles patch. No app.js?v= bump.

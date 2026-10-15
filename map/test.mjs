@@ -6842,7 +6842,7 @@ console.log("\nround 171b (4 October): a lighter map for slower computers");
   check("the page notes the choice before app.js runs", html.indexOf("window.__culpritsLite = on") > 0 && html.indexOf("window.__culpritsLite = on") < html.indexOf("./app.js?v="));
   check("a button beside Reload switches it and reloads", /id="lite-map"[\s\S]{0,400}localStorage\.setItem\('culprits-lite'/.test(html) && html.indexOf('id="lite-map"') > html.indexOf('id="reload-map"'));
   check("?lite=1 and ?lite=0 in the address work too", /get\("lite"\)/.test(html));
-  check("the lighter map puts away 3D terrain, Combine and Leave Earth", /html\.lite \.sect\[data-sect="terrain"\],html\.lite #combo-box,html\.lite #leave-earth/.test(html));
+  check("the lighter map puts away 3D terrain, Combine and Leave Earth", /html\.lite \.sect\[data-sect="terrain"\],html\.lite #terrain-col,html\.lite #how-3d,html\.lite #combo-box,html\.lite #leave-earth/.test(html));
   check("it draws one pixel per screen pixel", /pixelRatio: liteOn\(\) \? 1 :/.test(src));
   check("no density bands, no Eyes on zoom-out", /if \(on && liteOn\(\)\) on = false;/.test(src) && (src.match(/AWAY \|\| leaving \|\| liteOn\(\)\) return;/g) || []).length === 2);
   const full = run();
@@ -7299,7 +7299,7 @@ console.log("\nround 202o (14 October): the Moon and Mars as rows under Off-plan
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const bodies = fs.readFileSync(path.join(HERE, "bodies.html"), "utf8");
   check("The Moon and Mars are headings under From Earth, each with its rows",
-        /\{ h: 3, t: "The Moon" \}, "moon_objects", "moon_list", "moon_artemis", "moon_names",/.test(src) && /\{ h: 3, t: "Mars" \}, "mars_list", "mars_m20", "mars_msl", "mars_names",/.test(src));
+        /\{ h: 3, t: "To the Moon" \}, "moon_objects", "moon_list", "moon_artemis", "moon_names",/.test(src) && /\{ h: 3, t: "To Mars" \}, "mars_list", "mars_m20", "mars_msl", "mars_names",/.test(src));
   check("a ticked row leaves Earth and opens that body with the ticked rows shown", /function bodyRowChanged\(row, on\)/.test(src) &&
         /if \(leaveRow && leaveRow\.route === "leave" && leaveRow\.body\) bodyRowChanged/.test(src) && /e\.data\.culpritsLayers/.test(bodies));
   check("the pull button says what it does, two lines tall, the two switches stacked beside it",
@@ -7311,9 +7311,9 @@ console.log("\nround 203o (14 October): Moon and Mars on a globe; clearer rows; 
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const bodies = fs.readFileSync(path.join(HERE, "bodies.html"), "utf8");
   check("a Flat map / Globe choice, the globe from globe.gl wrapped in the stitched Trek picture",
-        /data-view="globe"/.test(bodies) && /unpkg\.com\/globe\.gl@2\.46\.2\/dist\/globe\.gl\.min\.js/.test(bodies) && /DATA \+ body \+ "_globe\.jpg"/.test(bodies));
+        /name="view" value="globe" checked/.test(bodies) && /unpkg\.com\/globe\.gl@2\.46\.2\/dist\/globe\.gl\.min\.js/.test(bodies) && /DATA \+ body \+ "_globe\.jpg"/.test(bodies));
   check("the rover routes are on the marks' own canvas, so a second canvas cannot take the clicks",
-        (bodies.match(/renderer: glow/g) || []).length >= 4 && /interactive: false, renderer: glow/.test(bodies));
+        (bodies.match(/renderer: canvas/g) || []).length >= 8 && !/L\.geoJSON\(/.test(bodies));
   check("longitudes past 180 are brought back round (Wikipedia gives some in degrees west)", /function lon180\(x\) \{ return \(\(x \+ 180\) % 360 \+ 360\) % 360 - 180; \}/.test(bodies));
   check("the rows say how they differ: hardware in photos (LROC) against every mission's craft by weight (Wikipedia)",
         /Hardware spotted in orbital photos \(LROC\)/.test(bodies) && /Every mission's spacecraft, by weight \(Wikipedia\)/.test(bodies) &&
@@ -7339,6 +7339,35 @@ console.log("\nround 205o (14 October): flat unless Raise figures as heights is 
         /for \(const \[id\] of RELIEFS\) if \(!\/__\/\.test\(id\) && typeof reliefSync === "function"\) reliefSync\(id\);/.test(src));
   check("point crowds: flat bands with Shading alone, raised only with both", /if \(!LIFT_ON \|\| \(typeof DENSITY_ON !== "undefined" && !DENSITY_ON\)\) \{/.test(src) &&
         /if \(shown && typeof pointReliefSet === "function"\) pointReliefSet\(id, true\)\.catch/.test(src));
+}
+
+console.log("\nround 206o (14 October): Moon and Mars as globes first, with looks, a timeline and grouped marks; 3D terrain under Standard");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const bodies = fs.readFileSync(path.join(HERE, "bodies.html"), "utf8");
+  check("the headings read To the Moon and To Mars", /\{ h: 3, t: "To the Moon" \}/.test(src) && /\{ h: 3, t: "To Mars" \}/.test(src) && !/t: "The Moon" \}/.test(src));
+  check("the way back from the Moon, Mars and the solar system says Back to Earth", />&#8592; Back to Earth<\/button>/.test(html) && !/Back to the map<\/button>/.test(html));
+  check("3D terrain sits under Standard in the Basemap column, its notes behind a line that opens them",
+        /function terrainUnderBasemaps\(box, base, cols\)/.test(src) && /terrainUnderBasemaps\(box, base, cols\);/.test(src) &&
+        /b\.innerHTML = `Moving the map in 3D <span class="how-car">&#9662;<\/span>`;/.test(src) && /how\.hidden = true;\n    cols\.after\(how\);/.test(src));
+  check("the Moon and Mars page opens on the globe, with no Moon or Mars buttons of its own",
+        /var LOOK = "satellite", VIEW = "globe";/.test(bodies) && /\n  setView\("globe"\);\n\}\)\(\);/.test(bodies) && !/data-body="moon"/.test(bodies));
+  check("a looks and views box like the Earth map's: the satellite picture and Earth's seven looks, Globe and Flat map, and Snap back",
+        ["Satellite", "Jurassic", "Atlas", "Woodlands", "Bioluminescent", "Hologram", "Hell", "Standard"].every((n) => bodies.includes(`"${n}"`)) &&
+        /<h1>Basemap<\/h1><div class="looks"><\/div>/.test(bodies) && /<input type="radio" name="view" value="flat"> Flat map/.test(bodies) &&
+        /<button type="button" id="snap">Snap back to global scale<\/button>/.test(bodies) && /function snapBack\(\)/.test(bodies));
+  check("the globe's picture is loaded first and a failure is said on the page", /img\.crossOrigin = "anonymous";/.test(bodies) && /did not load \(culprits-tiles-more makes it\)/.test(bodies));
+  check("a timeline of years: what was there by the end of the year chosen, plans only at its far end",
+        /<input type="range" id="time-range"/.test(bodies) && /if \(m\.planned\) return YEAR > YMAX;/.test(bodies) && /"What was there by the end of " \+ YEAR/.test(bodies) &&
+        /p\.sol != null \? new Date\(LANDED\[row\.rover\] \+ p\.sol \* SOL\)\.getUTCFullYear\(\)/.test(bodies));
+  const g = new Function(bodies.slice(bodies.indexOf("  function gather("), bodies.indexOf("  function listHtml(")) + "; return gather;")();
+  const near = g([{ r: 3, id: 1 }, { r: 3, id: 2 }, { r: 3, id: 3 }], 14, (m) => [m.id === 3 ? 100 : m.id * 5, 0], 2);
+  check("marks that would sit on each other are one mark listing them all; marks apart stay apart", near.length === 2 && near.some((x) => x.items.length === 2));
+  check("a group's box lists every mark there, each opening to its own box, with a way to zoom in to part them",
+        /'<p class="zin"><a href="#" data-zoomin="1">Zoom in to part them<\/a><\/p>'/.test(bodies) && /<details><summary><i class="dot"/.test(bodies) &&
+        /L\.DomEvent\.stop\(e\); L\.popup\(/.test(bodies));
+  check("the globe stops drawing while the flat map is shown", /if \(globe\) globe\.pauseAnimation\(\);/.test(bodies) && /globe\.resumeAnimation\(\);/.test(bodies));
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");

@@ -8,8 +8,10 @@
 <!--
   The Moon and Mars views of the Culprits map (round 197o, asked 14 October).
   Opened from the map while NASA's Eyes on the Solar System is showing (the
-  Moon and Mars buttons beside "Back to the map"), or on its own as
-  bodies.html#moon / bodies.html#mars.
+  Moon and Mars buttons beside "Back to Earth"), or on its own as
+  bodies.html#moon / bodies.html#mars. Round 206o: a globe first, with a
+  box of looks and views like the Earth map's (top right), a timeline of
+  years, and marks that sit together drawn as one that lists them all.
 
   Ground: NASA's Moon Trek and Mars Trek tiles, read live from Trek's own
   tile service (equirectangular, so the map uses Leaflet's plate carrée).
@@ -37,10 +39,6 @@
   .box{position:absolute;z-index:500;background:rgba(23,21,15,.94);border:1px solid var(--rule);border-radius:3px;
     font-size:13px;line-height:1.35}
   #panel{left:16px;top:16px;width:300px;max-height:calc(100% - 32px);overflow:auto;padding:10px 12px}
-  .tabs{display:flex;gap:6px;margin-bottom:8px}
-  .tabs button{flex:1;font:inherit;font-size:14px;font-weight:600;letter-spacing:.04em;color:var(--dim);
-    background:none;border:1px solid var(--rule);border-radius:3px;padding:6px 8px;cursor:pointer}
-  .tabs button.on{color:var(--bone);border-color:#4E8FA6;background:rgba(46,127,150,.18)}
   h1{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);font-weight:500;margin:10px 0 4px}
   .row{display:flex;align-items:flex-start;gap:7px;padding:4px 0;border-top:1px solid var(--rule)}
   .row:first-of-type{border-top:0}
@@ -68,7 +66,7 @@
   .leaflet-bar a{background:rgba(23,21,15,.94);color:var(--bone);border-color:var(--rule)}
   .leaflet-bar a:hover{background:#2A271F}
   .nm-label{background:none;border:0;box-shadow:none;color:#D6DCE4;font-size:11px;letter-spacing:.04em;
-    text-shadow:0 0 3px #000,0 0 6px #000;padding:0}
+    text-shadow:0 0 4px #000;padding:0}
   .nm-label::before{display:none}
   .plan-label{color:#B9C8F0;font-size:11.5px}
   /* Zoomed right out, the nine regions sit too close to name; their names
@@ -76,41 +74,72 @@
   .far .plan-label{display:none}
   #globe{position:absolute;inset:0;z-index:400;background:#05070B}
   #globe[hidden]{display:none}
-  .tabs.views button{font-size:12px;font-weight:500;padding:4px 8px}
   #gpop{right:16px;bottom:16px;width:340px;max-height:60%;overflow:auto;padding:12px 14px;z-index:600;font-size:12.5px}
   #gpop[hidden]{display:none}
   #gpop .gp-x{position:absolute;top:4px;right:8px;background:none;border:0;color:var(--dim);font-size:16px;cursor:pointer}
   #gpop h3{margin:0 0 6px;font-size:14px}#gpop table{border-collapse:collapse;width:100%}
   #gpop td{vertical-align:top;padding:2px 0;border-top:1px solid var(--rule)}#gpop td:first-child{color:var(--dim);padding-right:8px;white-space:nowrap}
   #gpop .src{margin-top:6px;font-size:11px;color:var(--dim)}#gpop a{color:#9FC3DE}
-  #wait{left:50%;top:16px;transform:translateX(-50%);padding:5px 11px;border-radius:14px;font-size:12px}
-  #wait[hidden]{display:none}
-  @media (max-width:600px){#panel{width:calc(100% - 32px);max-height:45%}}
+  #body-name{font-size:17px;font-weight:600;letter-spacing:.03em;margin:0 0 2px}
+  /* The looks and views, set out like the Earth map's box: two columns. */
+  #setbox{right:16px;top:16px;width:300px;padding:9px 12px 10px}
+  body.in-frame #setbox{top:118px}
+  #setbox .cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+  #setbox .cols > div + div{padding-left:11px;border-left:1px solid var(--rule)}
+  #setbox h1{margin:0 0 5px}
+  #setbox label{display:flex;align-items:center;gap:6px;padding:2px 0;cursor:pointer;white-space:nowrap}
+  #setbox input{margin:0;accent-color:#4E8FA6}
+  #snap{margin-top:8px;width:100%;font:inherit;font-size:12px;color:var(--bone);background:none;border:1px solid var(--rule);
+    border-radius:3px;padding:5px 6px;cursor:pointer;line-height:1.25}
+  #snap:hover{border-color:var(--bone)}
+  /* The timeline: which years to show. */
+  #time{margin:8px 0 2px;padding-top:7px;border-top:1px solid var(--rule)}
+  #time[hidden]{display:none}
+  #time-say{font-size:12px;margin-bottom:3px}
+  #time-range{width:100%;accent-color:#4E8FA6;margin:2px 0}
+  #time .ends{display:flex;justify-content:space-between;font-size:11px;color:var(--dim)}
+  /* Marks that sit together: how many, and the list. */
+  .count-label{background:none;border:0;box-shadow:none;color:#17150F;font-size:10.5px;font-weight:700;padding:0}
+  .count-label::before{display:none}
+  .leaflet-popup-content details,#gpop details{margin-top:4px;padding-top:4px}
+  .leaflet-popup-content details > :not(summary),#gpop details > :not(summary){margin-left:14px}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+  .from{color:var(--dim);font-size:11px}
+  .zin{margin:0 0 4px;font-size:11.5px}
+  @media (max-width:700px){#panel{width:calc(100% - 32px);max-height:40%}#setbox{top:auto;bottom:16px;left:16px;right:16px;width:auto}
+    body.in-frame #setbox{top:auto}}
 </style>
 </head>
 <body>
 <div id="map"></div>
 <div class="box" id="panel">
-  <div class="tabs"><button type="button" data-body="moon">Moon</button><button type="button" data-body="mars">Mars</button></div>
-  <div class="tabs views"><button type="button" data-view="flat" class="on">Flat map</button><button type="button" data-view="globe">Globe</button></div>
+  <div id="body-name"></div>
   <p class="note" id="globe-note"></p>
   <div id="rows"></div>
+  <div id="time" hidden>
+    <div id="time-say"></div>
+    <input type="range" id="time-range" step="1" aria-label="Show what was there by this year">
+    <div class="ends"><span id="time-lo"></span><span id="time-hi"></span></div>
+  </div>
   <p class="note" id="body-note"></p>
   <details id="unplaced-box" hidden><summary id="unplaced-sum"></summary><ul id="unplaced"></ul></details>
 </div>
-<div class="box" id="wait" hidden></div>
+<div class="box" id="setbox">
+  <div class="cols">
+    <div><h1>Basemap</h1><div class="looks"></div></div>
+    <div><h1>View</h1>
+      <label><input type="radio" name="view" value="globe" checked> Globe</label>
+      <label><input type="radio" name="view" value="flat"> Flat map</label>
+      <button type="button" id="snap">Snap back to global scale</button>
+    </div>
+  </div>
+</div>
 <div id="globe" hidden></div>
 <div class="box" id="gpop" hidden><button type="button" class="gp-x" aria-label="Close">&#215;</button><div class="gp-body"></div></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 (function () {
   "use strict";
-  var DATA = "https://welcometoyourgalaxy.github.io/culprits-tiles-more/bodies/";
-  var NASA_ROVERS = "https://mars.nasa.gov/mmgis-maps/";
-  var css = getComputedStyle(document.documentElement);
-  var C = function (n) { return css.getPropertyValue(n).trim(); };
-
-  // ---------- the two bodies ----------
   var BODIES = {
     moon: {
       name: "Moon", heading: "what people have put there, and plan to",
@@ -153,21 +182,38 @@
     }
   };
 
+  var inFrame = window.parent !== window;
+  var css = getComputedStyle(document.documentElement);
+  var C = function (n) { return css.getPropertyValue(n).trim(); };
+  var DATA = "https://welcometoyourgalaxy.github.io/culprits-tiles-more/bodies/";
+  var NASA_ROVERS = "https://mars.nasa.gov/mmgis-maps/";
+  var LANDED = { M20: Date.UTC(2021, 1, 18), MSL: Date.UTC(2012, 7, 6) };   // sol 0 of each rover
+  var SOL = 88775244;                                                         // one Mars day, in milliseconds
+
+  // Round 204o (asked 14 October): Earth's basemap looks, made over NASA's own
+  // picture of the body by recolouring it (CSS filters), with a grid where
+  // Earth's look has one. Satellite is the picture as NASA gives it.
+  var LOOKS = [
+    ["satellite", "Satellite", "", false],
+    ["jurassic", "Jurassic", "grayscale(.45) contrast(1.15) brightness(.9) sepia(.25) hue-rotate(150deg) saturate(.9)", false],
+    ["atlas", "Atlas", "grayscale(1) sepia(.3) contrast(.95) brightness(1.05)", false],
+    ["wood", "Woodlands", "grayscale(1) sepia(.5) hue-rotate(240deg) saturate(.8) brightness(.55) contrast(1.2)", false],
+    ["night", "Bioluminescent", "grayscale(1) brightness(.35) contrast(1.5) sepia(1) hue-rotate(175deg) saturate(2.2)", false],
+    ["holo", "Hologram", "grayscale(1) invert(1) brightness(.5) contrast(1.7) sepia(1) hue-rotate(160deg) saturate(2.5)", "rgba(127,184,217,0.35)"],
+    ["hell", "Hell", "grayscale(1) brightness(.5) contrast(1.35) sepia(1) hue-rotate(-35deg) saturate(3)", false],
+    ["standard", "Standard", "grayscale(1) contrast(.75) brightness(1.15)", "rgba(200,200,200,0.25)"]
+  ];
+  var LOOK = "satellite", VIEW = "globe";
+
   var map = L.map("map", { crs: L.CRS.EPSG4326, center: [0, 0], zoom: 2, minZoom: 1, maxZoom: 11,
-    worldCopyJump: false, maxBounds: [[-95, -200], [95, 200]], preferCanvas: true, zoomControl: true });
-  // In the map's frame the top right corner holds its Back and Moon/Mars
-  // buttons, so the zoom buttons go to the bottom right.
-  map.zoomControl.setPosition(window.parent !== window ? "bottomright" : "topright");
+    worldCopyJump: false, maxBounds: [[-140, -240], [140, 240]], zoomControl: true });
+  map.zoomControl.setPosition("bottomright");
   map.attributionControl.setPrefix(false);
   window.__bodiesMap = map;     // for checks from the page's tests
-  var glow = L.canvas({ padding: 0.3 });
-  var farness = function () { map.getContainer().classList.toggle("far", map.getZoom() < 4); };
-  map.on("zoomend", farness);
-  farness();
-  var ground = null, layers = {}, body = null, cache = {};
-  // Round 202o: the rows ticked in the Culprits map's layers box, per body
-  // ({ moon: { objects: true, ... } }); a body with nothing chosen there shows
-  // every layer, as when opened from its button.
+  var canvas = L.canvas({ padding: 0.3 });
+  var ground = null, grid = null, markLayer = L.layerGroup().addTo(map), stopLayer = L.layerGroup().addTo(map),
+    routeLayer = L.layerGroup().addTo(map), nameLayer = L.layerGroup().addTo(map);
+  var layers = {}, body = null, cache = {}, YEAR = null, YMIN = null, YMAX = null;
   var PICK = { moon: {}, mars: {} };
   function picked(key, row) {
     var p = PICK[key] || {};
@@ -180,17 +226,15 @@
     if (typeof v === "object") return Array.isArray(v) ? v.map(flat).join(", ") : Object.keys(v).map(function (k) { return k + ": " + flat(v[k]); }).join("; ");
     return String(v);
   }
-  // Every field the source gives, in its own order.
-  function firstText(row, p) {
+  function titleOf(row, p) {
+    if (row.rover) return (row.rover === "M20" ? "Perseverance" : "Curiosity") + (p.sol != null ? ", sol " + p.sol : p.fromRMC ? ", drive" : "");
     for (var i = 0; row.name && i < row.name.length; i++) if (flat(p[row.name[i]])) return flat(p[row.name[i]]);
     for (var k in p) if (k !== "table" && p[k] !== "" && p[k] != null) return flat(p[k]);
     return "";
   }
+  // Every field the source gives, in its own order.
   function popup(row, p) {
-    var title = row.rover ? (row.rover === "M20" ? "Perseverance" : "Curiosity") + (p.sol != null ? ", sol " + p.sol : p.fromRMC ? ", drive" : "") : "";
-    for (var i = 0; !title && row.name && i < row.name.length && !title; i++) title = flat(p[row.name[i]]);
-    if (!title) for (var k in p) { if (k !== "table" && p[k] !== "" && p[k] != null) { title = flat(p[k]); break; } }
-    var html = "<h3>" + esc(title) + "</h3><table>";
+    var html = "<h3>" + esc(titleOf(row, p)) + "</h3><table>";
     Object.keys(p).forEach(function (k) {
       var v = flat(p[k]);
       if (v === "") return;
@@ -205,8 +249,6 @@
     cache[url].catch(function () { delete cache[url]; });
     return cache[url];
   }
-  // A mass in kilograms from a row's columns, for sizing only (the row keeps
-  // every column as written).
   function kg(p) {
     for (var k in p) {
       if (!/kg/i.test(k)) continue;
@@ -215,13 +257,10 @@
     }
     return null;
   }
-  // A glow orb: a soft halo and a bright core, on the canvas.
-  function orb(ll, r, core, halo) {
-    var g = L.layerGroup();
-    L.circleMarker(ll, { renderer: glow, radius: r * 2.6, stroke: false, fillColor: halo, fillOpacity: 0.16, interactive: false }).addTo(g);
-    L.circleMarker(ll, { renderer: glow, radius: r * 1.6, stroke: false, fillColor: halo, fillOpacity: 0.28, interactive: false }).addTo(g);
-    var c = L.circleMarker(ll, { renderer: glow, radius: r, stroke: true, weight: 1, color: halo, opacity: 0.7, fillColor: core, fillOpacity: 0.95 }).addTo(g);
-    return { group: g, hit: c };
+  function yearOf(p) {
+    var cands = [p.DATE, p.Year, p.year, p.date];
+    for (var i = 0; i < cands.length; i++) { var m = String(cands[i] == null ? "" : cands[i]).match(/\b(19[5-9]\d|20\d\d)\b/); if (m) return +m[1]; }
+    return null;
   }
   function lon180(x) { return ((x + 180) % 360 + 360) % 360 - 180; }
   function ll(f) {
@@ -229,144 +268,338 @@
     var c = f.geometry.coordinates;
     return [c[1], lon180(c[0])];
   }
+  var STYLE = {
+    obj: ["--obj", "--obj-glow", 3.5], mass: ["--mass", "--mass-glow", 3], plan: ["--plan", "--plan-glow", 6], now: ["--obj", "--rover-glow", 6],
+    stop: ["--rover", "--rover-glow", 1.8]
+  };
 
-  function buildPoints(row, fc) {
-    var g = L.layerGroup(), unplaced = [], gp = [];
-    var feats = fc.features || [];
-    var maxKg = 0;
+  // ---------- each row read into marks, routes or names ----------
+  // A mark: { lat, lng, year, planned, kind, r, title, html, row }.
+  function readPoints(row, fc) {
+    var feats = fc.features || [], out = [], unplaced = [], maxKg = 0;
     if (row.kind === "mass") feats.forEach(function (f) { var m = kg(f.properties || {}); if (m && m > maxKg) maxKg = m; });
-    // Regions placed at the same feature (Nobile Rim 1 and 2, Mons Mouton and
-    // its plateau) share one mark, named for both.
-    var same = {};
-    if (row.kind === "plan") feats.forEach(function (f) { var at = ll(f); if (at) { var k = at.join(); (same[k] = same[k] || []).push(f.properties || {}); } });
     feats.forEach(function (f) {
       var p = f.properties || {}, at = ll(f);
       if (!at) { unplaced.push(p); return; }
-      var o;
-      if (row.kind === "plan") {
-        var all = same[at.join()];
-        if (!all || all[0] !== p) return;
-        o = orb(at, 6, C("--plan"), C("--plan-glow"));
-        o.hit.bindTooltip(esc(all.map(function (q) { return q.region || ""; }).join(" · ")), { permanent: true, direction: "right", className: "nm-label plan-label", offset: [8, 0] });
-        o.hit.bindPopup(all.map(function (q) { return popup(row, q); }).join("<hr>"), { maxWidth: 360 });
-        o.group.addTo(g);
-        gp.push({ lat: at[0], lng: at[1], r: 0.7, color: C("--plan"), label: esc(all.map(function (q) { return q.region || ""; }).join(" · ")),
-          html: all.map(function (q) { return popup(row, q); }).join("<hr>") });
-        return;
-      }
-      if (row.kind === "mass") {
-        var m = kg(p);
-        // Area in proportion to mass.
-        var r = m && maxKg ? 2.5 + 13 * Math.sqrt(m / maxKg) : 3;
-        o = orb(at, r, C("--mass"), C("--mass-glow"));
-        gp.push({ lat: at[0], lng: at[1], r: 0.25 + 1.3 * (m && maxKg ? Math.sqrt(m / maxKg) : 0.05), color: C("--mass"), label: esc(firstText(row, p)), html: popup(row, p) });
-      } else {
-        o = orb(at, 3.5, C("--obj"), C("--obj-glow"));
-        gp.push({ lat: at[0], lng: at[1], r: 0.35, color: C("--obj"), label: esc(firstText(row, p)), html: popup(row, p) });
-      }
-      o.hit.bindPopup(popup(row, p), { maxWidth: 360 });
-      o.group.addTo(g);
+      var m = row.kind === "mass" ? kg(p) : null;
+      out.push({ lat: at[0], lng: at[1], year: row.kind === "plan" ? null : yearOf(p), planned: row.kind === "plan", kind: row.kind,
+        r: row.kind === "mass" ? (m && maxKg ? 2.5 + 8 * Math.sqrt(m / maxKg) : 3) : STYLE[row.kind][2],
+        title: row.kind === "plan" ? (p.region || "") : titleOf(row, p), html: popup(row, p), row: row });
     });
-    return { layer: g, count: feats.length, unplaced: unplaced, globe: { points: gp } };
+    return { marks: out, count: feats.length, unplaced: unplaced };
   }
-
-  // Names: every feature, shown once the map is close enough for its size
-  // (a bigger feature's name shows from further out).
-  // Round 203o: the biggest features first, and a name is left out of this
-  // view only where it would sit on top of one already placed (zoom in and it
-  // comes); every name stays in the file.
-  function buildNames(row, fc) {
+  function readNames(row, fc) {
     var dia = function (p) { var d = parseFloat(p.diameter != null ? p.diameter : p.DIAMETER); return isFinite(d) ? d : 0; };
-    var label = function (p) { return p.clean_name || p.name || p.NAME || ""; };
     var feats = (fc.features || []).filter(function (f) { return f.geometry; })
       .sort(function (a, b) { return dia(b.properties || {}) - dia(a.properties || {}); });
-    var g = L.layerGroup();
-    function draw() {
-      g.clearLayers();
-      var z = map.getZoom(), b = map.getBounds().pad(0.05);
-      var min = z >= 8 ? 0 : 2400 / Math.pow(2, z);
-      var placed = [];
-      for (var i = 0; i < feats.length && placed.length < 300; i++) {
-        var f = feats[i], p = f.properties || {}, at = ll(f);
-        if (dia(p) < min) break;
-        if (!b.contains(at)) continue;
-        var t = label(p), pt = map.latLngToContainerPoint(at);
-        var box = [pt.x - t.length * 3.4 - 4, pt.y - 9, pt.x + t.length * 3.4 + 4, pt.y + 9];
-        if (placed.some(function (q) { return box[0] < q[2] && box[2] > q[0] && box[1] < q[3] && box[3] > q[1]; })) continue;
-        placed.push(box);
-        L.marker(at, { icon: L.divIcon({ className: "nm-label", html: esc(t), iconSize: null, iconAnchor: [t.length * 3.4, 7] }), interactive: false, keyboard: false }).addTo(g);
-      }
-    }
-    g.on("add", function () { draw(); map.on("moveend", draw); });
-    g.on("remove", function () { map.off("moveend", draw); });
-    return { layer: g, count: feats.length, unplaced: [], names: feats, dia: dia, label: label };
+    return { names: feats, dia: dia, label: function (p) { return p.clean_name || p.name || p.NAME || ""; }, count: feats.length, unplaced: [] };
   }
-
-  function buildRover(row) {
+  function readRover(row) {
     var base = row.rover + "/Layers/json/" + row.rover;
     var pick = function (name) {
       return get(NASA_ROVERS + base + "_" + name + ".json").catch(function () { return get(DATA + "rovers/" + row.rover + "_" + name + ".json"); });
     };
     return Promise.all([pick("traverse"), pick("waypoints")]).then(function (both) {
-      var g = L.layerGroup();
-      // Round 203o: drawn on the same canvas as the marks (a second canvas over
-      // it took every click, so nothing on Mars could be opened).
-      L.geoJSON(both[0], { style: { color: C("--rover-glow"), weight: 6, opacity: 0.35 }, interactive: false, renderer: glow }).addTo(g);
-      L.geoJSON(both[0], { style: { color: C("--rover"), weight: 1.6, opacity: 0.95 }, renderer: glow,
-        onEachFeature: function (f, l) { l.bindPopup(popup(row, f.properties || {}), { maxWidth: 360 }); } }).addTo(g);
-      var pts = (both[1].features || []).filter(function (f) { return f.geometry; });
-      pts.forEach(function (f, i) {
-        var last = i === pts.length - 1;
-        // Every stop a small point (thousands of them); where it is now a glow orb.
-        var o = last ? orb(ll(f), 6, C("--obj"), C("--rover-glow"))
-          : { group: L.layerGroup(), hit: L.circleMarker(ll(f), { renderer: glow, radius: 1.8, stroke: false, fillColor: C("--rover"), fillOpacity: 0.85 }) };
-        if (!last) o.hit.addTo(o.group);
-        o.hit.bindPopup(popup(row, f.properties || {}), { maxWidth: 360 });
-        if (last) o.hit.bindTooltip((row.rover === "M20" ? "Perseverance" : "Curiosity") + (f.properties && f.properties.sol != null ? ", sol " + f.properties.sol : ""),
-          { permanent: true, direction: "right", className: "nm-label", offset: [8, 0] });
-        o.group.addTo(g);
-      });
-      var paths = [];
+      var lines = [];
       (both[0].features || []).forEach(function (f) {
-        var gm = f.geometry; if (!gm) return;
-        (gm.type === "LineString" ? [gm.coordinates] : gm.type === "MultiLineString" ? gm.coordinates : []).forEach(function (line) { paths.push({ pts: line, color: C("--rover") }); });
+        var g = f.geometry; if (!g) return;
+        (g.type === "LineString" ? [g.coordinates] : g.type === "MultiLineString" ? g.coordinates : []).forEach(function (l) { lines.push({ pts: l, html: popup(row, f.properties || {}) }); });
       });
-      var last = pts[pts.length - 1];
-      var gp = last ? [{ lat: ll(last)[0], lng: ll(last)[1], r: 0.6, color: C("--obj"),
-        label: (row.rover === "M20" ? "Perseverance" : "Curiosity") + (last.properties && last.properties.sol != null ? ", sol " + last.properties.sol : ""), html: popup(row, last.properties || {}) }] : [];
-      return { layer: g, count: pts.length, unplaced: [], globe: { points: gp, paths: paths } };
+      var pts = (both[1].features || []).filter(function (f) { return f.geometry; });
+      var stops = pts.map(function (f, i) {
+        var p = f.properties || {}, at = ll(f), y = p.sol != null ? new Date(LANDED[row.rover] + p.sol * SOL).getUTCFullYear() : null;
+        return { lat: at[0], lng: at[1], year: y, kind: i === pts.length - 1 ? "now" : "stop", r: i === pts.length - 1 ? 6 : 1.8,
+          title: titleOf(row, p), html: popup(row, p), row: row };
+      });
+      return { stops: stops, lines: lines, count: pts.length, unplaced: [] };
+    });
+  }
+  function load(row) {
+    if (row.rover) return readRover(row);
+    return get(DATA + row.file).then(function (fc) { return row.kind === "names" ? readNames(row, fc) : readPoints(row, fc); });
+  }
+
+  // ---------- what the timeline lets through ----------
+  function inTime(m) {
+    if (YEAR == null || YMAX == null) return true;
+    if (m.planned) return YEAR > YMAX;
+    return m.year == null || m.year <= YEAR;
+  }
+  function onRows() {
+    return (BODIES[body] ? BODIES[body].rows : []).filter(function (row) { var e = layers[row.id]; return e && e.r && e.box && e.box.checked; });
+  }
+  function shownMarks() {
+    var out = [];
+    onRows().forEach(function (row) { var r = layers[row.id].r; (r.marks || []).forEach(function (m) { if (inTime(m)) out.push(m); }); (r.stops || []).forEach(function (m) { if (m.kind === "now" && inTime(m)) out.push(m); }); });
+    return out;
+  }
+  function shownStops() {
+    var out = [];
+    onRows().forEach(function (row) { (layers[row.id].r.stops || []).forEach(function (m) { if (m.kind === "stop" && inTime(m)) out.push(m); }); });
+    return out;
+  }
+
+  // ---------- marks that sit on top of each other share one, listing them all ----------
+  // Round 204o (asked 14 October): marks closer than a few pixels are drawn
+  // as one, with how many; a click lists every one of them, each opening to
+  // its full box, until the map is close enough to part them.
+  // Two marks are drawn as one when their glows would touch (scale turns a
+  // mark's size into the distance used: pixels on the flat map, none on the globe).
+  function gather(marks, near, pos, scale) {
+    var groups = [], cells = {};
+    scale = scale || 0;
+    marks.slice().sort(function (a, b) { return b.r - a.r; }).forEach(function (m) {
+      var p = pos(m), cx = Math.floor(p[0] / (near * 2)), cy = Math.floor(p[1] / (near * 2)), hit = null;
+      for (var dx = -1; dx <= 1 && !hit; dx++) for (var dy = -1; dy <= 1 && !hit; dy++) {
+        (cells[(cx + dx) + "," + (cy + dy)] || []).some(function (g) { var d = Math.hypot(g.p[0] - p[0], g.p[1] - p[1]); if (d < Math.min(near * 2, Math.max(near, (g.r + (m.r || 0)) * scale))) { hit = g; return true; } return false; });
+      }
+      if (hit) { hit.items.push(m); return; }
+      var g = { p: p, r: m.r || 0, items: [m] };
+      groups.push(g);
+      (cells[cx + "," + cy] = cells[cx + "," + cy] || []).push(g);
+    });
+    return groups;
+  }
+  function listHtml(items, zoomable) {
+    if (items.length === 1) return items[0].html;
+    var h = "<h3>" + items.length + " here</h3>" + (zoomable ? '<p class="zin"><a href="#" data-zoomin="1">Zoom in to part them</a></p>' : "");
+    return h + items.map(function (m) {
+      return '<details><summary><i class="dot" style="background:' + C(STYLE[m.kind][0]) + '"></i>' + esc(m.title || "") + ' <span class="from">' + esc(m.row.title.replace(/ \(.*\)$/, "")) + "</span></summary>" + m.html + "</details>";
+    }).join("");
+  }
+  function orb(at, r, core, halo, interactive) {
+    var g = L.layerGroup();
+    L.circleMarker(at, { renderer: canvas, radius: r * 2, stroke: false, fillColor: halo, fillOpacity: 0.16, interactive: false }).addTo(g);
+    L.circleMarker(at, { renderer: canvas, radius: r * 1.45, stroke: false, fillColor: halo, fillOpacity: 0.28, interactive: false }).addTo(g);
+    var c = L.circleMarker(at, { renderer: canvas, radius: r, stroke: true, weight: 1, color: halo, opacity: 0.7, fillColor: core, fillOpacity: 0.95, interactive: interactive !== false }).addTo(g);
+    return { group: g, hit: c };
+  }
+  // Boxes open on their own, not tied to a mark, so a redraw (a row still
+  // loading, the timeline moved) leaves an open box where it is.
+  function opens(layer, html) {
+    return layer.on("click", function (e) { L.DomEvent.stop(e); L.popup({ maxWidth: 380, autoPanPaddingTopLeft: [inFrame || innerWidth > 700 ? 340 : 20, 20], autoPanPaddingBottomRight: [20, 20] }).setLatLng(e.latlng).setContent(html).openOn(map); });
+  }
+  function drawFlat() {
+    if (VIEW !== "flat") return;
+    markLayer.clearLayers(); stopLayer.clearLayers(); routeLayer.clearLayers();
+    var pos = function (m) { var p = map.latLngToLayerPoint([m.lat, m.lng]); return [p.x, p.y]; };
+    var zoomable = map.getZoom() < map.getMaxZoom();
+    // Routes: the full drives once the timeline is at its end; otherwise the
+    // line through the stops made by the year chosen.
+    onRows().forEach(function (row) {
+      var r = layers[row.id].r;
+      if (!r.lines) return;
+      if (YEAR == null || YEAR >= YMAX) r.lines.forEach(function (l) {
+        var lat = l.pts.map(function (q) { return [q[1], lon180(q[0])]; });
+        L.polyline(lat, { renderer: canvas, color: C("--rover-glow"), weight: 6, opacity: 0.35, interactive: false }).addTo(routeLayer);
+        L.polyline(lat, { renderer: canvas, color: C("--rover"), weight: 1.6, opacity: 0.95 }).addTo(routeLayer); opens(routeLayer.getLayers().slice(-1)[0], l.html);
+      });
+      else {
+        var lat = r.stops.filter(inTime).map(function (m) { return [m.lat, m.lng]; });
+        if (lat.length > 1) L.polyline(lat, { renderer: canvas, color: C("--rover"), weight: 1.6, opacity: 0.95, interactive: false }).addTo(routeLayer);
+      }
+    });
+    gather(shownStops(), 8, pos).forEach(function (g) {
+      var m = g.items[0];
+      L.circleMarker([m.lat, m.lng], { renderer: canvas, radius: g.items.length > 1 ? 2.6 : 1.8, stroke: false, fillColor: C("--rover"), fillOpacity: 0.85 })
+.addTo(stopLayer);
+      opens(stopLayer.getLayers().slice(-1)[0], listHtml(g.items, zoomable));
+    });
+    gather(shownMarks(), 14, pos, 2).forEach(function (g) {
+      var m = g.items[0], s = STYLE[m.kind], n = g.items.length;
+      var o = orb([m.lat, m.lng], n > 1 ? Math.max(m.r, 6 + Math.min(4, Math.log2(n))) : m.r, C(n > 1 ? "--obj" : s[0]), C(s[1]));
+      opens(o.hit, listHtml(g.items, zoomable));
+      if (n > 1) o.hit.bindTooltip(String(n), { permanent: true, direction: "center", className: "count-label" });
+      else if (m.kind === "now") o.hit.bindTooltip(esc(m.title), { permanent: true, direction: "right", className: "nm-label", offset: [8, 0] });
+      else if (m.kind === "plan" && map.getZoom() >= 4) o.hit.bindTooltip(esc(m.title), { permanent: true, direction: "right", className: "nm-label plan-label", offset: [8, 0] });
+      o.group.addTo(markLayer);
+    });
+    drawNames();
+  }
+  map.on("popupopen", function (e) {
+    var a = e.popup.getElement() && e.popup.getElement().querySelector("[data-zoomin]");
+    if (a) a.addEventListener("click", function (ev) { ev.preventDefault(); map.closePopup(); map.setView(e.popup.getLatLng(), Math.min(map.getMaxZoom(), map.getZoom() + 3)); });
+  });
+  map.on("zoomend", drawFlat);
+  // Names: the biggest features first, none over another.
+  function drawNames() {
+    nameLayer.clearLayers();
+    var rows = onRows().filter(function (row) { return row.kind === "names"; });
+    if (!rows.length || VIEW !== "flat") return;
+    var r = layers[rows[0].id].r, z = map.getZoom(), b = map.getBounds().pad(0.05);
+    var min = z >= 8 ? 0 : 2400 / Math.pow(2, z), placed = [];
+    for (var i = 0; i < r.names.length && placed.length < 200; i++) {
+      var f = r.names[i], p = f.properties || {}, at = ll(f);
+      if (r.dia(p) < min) break;
+      if (!b.contains(at)) continue;
+      var t = r.label(p), pt = map.latLngToContainerPoint(at);
+      var box = [pt.x - t.length * 3.4 - 4, pt.y - 9, pt.x + t.length * 3.4 + 4, pt.y + 9];
+      if (placed.some(function (q) { return box[0] < q[2] && box[2] > q[0] && box[1] < q[3] && box[3] > q[1]; })) continue;
+      placed.push(box);
+      L.marker(at, { icon: L.divIcon({ className: "nm-label", html: esc(t), iconSize: null, iconAnchor: [t.length * 3.4, 7] }), interactive: false, keyboard: false }).addTo(nameLayer);
+    }
+  }
+  map.on("moveend", drawNames);
+
+  // ---------- the globe ----------
+  var globe = null, globeTex = {};
+  function loadScript(src) {
+    return new Promise(function (ok, no) { var t = document.createElement("script"); t.src = src; t.onload = ok; t.onerror = no; document.head.appendChild(t); });
+  }
+  function globeAlt() { try { return globe.pointOfView().altitude || 2.3; } catch (e) { return 2.3; } }
+  function drawGlobe() {
+    if (!globe || VIEW !== "globe") return;
+    var near = Math.max(0.15, globeAlt() * 2.2);   // degrees: closer in, marks part sooner
+    var pos = function (m) { return [m.lng * Math.cos(m.lat * Math.PI / 180), m.lat]; };
+    var pts = gather(shownMarks(), near, pos).map(function (g) {
+      var m = g.items[0], n = g.items.length, s = STYLE[m.kind];
+      return { lat: m.lat, lng: m.lng, r: n > 1 ? 0.9 : Math.max(0.3, m.r / 9), color: C(n > 1 ? "--obj" : s[0]),
+        label: n > 1 ? n + " here" : esc(m.title), html: listHtml(g.items, false) };
+    });
+    gather(shownStops(), near / 2, pos).forEach(function (g) {
+      pts.push({ lat: g.items[0].lat, lng: g.items[0].lng, r: 0.12, color: C("--rover"), label: g.items.length + " rover stop" + (g.items.length > 1 ? "s" : ""), html: listHtml(g.items, false) });
+    });
+    var paths = [];
+    onRows().forEach(function (row) {
+      var r = layers[row.id].r;
+      if (!r.lines) return;
+      if (YEAR == null || YEAR >= YMAX) r.lines.forEach(function (l) { paths.push({ pts: l.pts, color: C("--rover") }); });
+      else { var s2 = r.stops.filter(inTime).map(function (m) { return [m.lng, m.lat]; }); if (s2.length > 1) paths.push({ pts: s2, color: C("--rover") }); }
+    });
+    var labels = [];
+    onRows().filter(function (row) { return row.kind === "names"; }).forEach(function (row) {
+      var r = layers[row.id].r;
+      r.names.slice(0, 90).forEach(function (f) {
+        var at = ll(f), d = r.dia(f.properties || {});
+        labels.push({ lat: at[0], lng: at[1], text: r.label(f.properties || {}), size: Math.max(0.5, Math.min(2.2, Math.sqrt(d) / 15)) });
+      });
+    });
+    globe.pointsData(pts).pathsData(paths).labelsData(labels);
+  }
+  // The body's picture, in the look chosen: recoloured on a canvas (the same
+  // filters as the flat map), with the grid drawn on where the look has one.
+  function globePicture() {
+    var key = body + "|" + LOOK, url = DATA + body + "_globe.jpg", look = LOOKS.filter(function (l) { return l[0] === LOOK; })[0];
+    var note = document.getElementById("globe-note");
+    if (globeTex[key]) { globe.globeImageUrl(globeTex[key]); return; }
+    var img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = function () {
+      note.textContent = "";
+      if (!look[2] && !look[3]) { globeTex[key] = url; if (globe) globe.globeImageUrl(url); return; }
+      var cv = document.createElement("canvas"); cv.width = 2048; cv.height = 1024;
+      var ctx = cv.getContext("2d");
+      if ("filter" in ctx) ctx.filter = look[2] || "none";
+      ctx.drawImage(img, 0, 0, 2048, 1024);
+      ctx.filter = "none";
+      if (look[3]) {
+        ctx.strokeStyle = look[3]; ctx.lineWidth = 1.2;
+        for (var x = 0; x <= 360; x += 15) { ctx.beginPath(); ctx.moveTo(x / 360 * 2048, 0); ctx.lineTo(x / 360 * 2048, 1024); ctx.stroke(); }
+        for (var y = 0; y <= 180; y += 15) { ctx.beginPath(); ctx.moveTo(0, y / 180 * 1024); ctx.lineTo(2048, y / 180 * 1024); ctx.stroke(); }
+      }
+      try { globeTex[key] = cv.toDataURL("image/jpeg", 0.9); } catch (e) { globeTex[key] = url; }
+      if (globe && body + "|" + LOOK === key) globe.globeImageUrl(globeTex[key]);
+    };
+    img.onerror = function () {
+      if (globe) globe.globeImageUrl(null);
+      note.textContent = "The globe's picture of " + BODIES[body].name + " did not load (culprits-tiles-more makes it); the marks are placed.";
+    };
+    img.src = url;
+  }
+  var globeTimer = null;
+  function makeGlobe() {
+    var g = document.getElementById("globe");
+    return (typeof Globe === "undefined" ? loadScript("https://unpkg.com/globe.gl@2.46.2/dist/globe.gl.min.js") : Promise.resolve()).then(function () {
+      if (globe) return;
+      globe = Globe()(g).backgroundColor("#05070B").width(window.innerWidth).height(window.innerHeight)
+        .showAtmosphere(true).atmosphereColor("#4E8FA6").atmosphereAltitude(0.1)
+        .pointLat("lat").pointLng("lng").pointColor("color").pointRadius("r").pointAltitude(0.004).pointsMerge(false).pointLabel("label")
+        .onPointClick(function (p) { var b = document.getElementById("gpop"); b.querySelector(".gp-body").innerHTML = p.html; b.hidden = false; })
+        .pathPoints("pts").pathPointLat(function (q) { return q[1]; }).pathPointLng(function (q) { return lon180(q[0]); }).pathColor("color").pathStroke(1.4)
+        .labelLat("lat").labelLng("lng").labelText("text").labelSize("size").labelDotRadius(0).labelResolution(2)
+        .labelColor(function () { return "rgba(214,220,228,0.85)"; })
+        .onZoom(function () { clearTimeout(globeTimer); globeTimer = setTimeout(drawGlobe, 250); });
+      window.addEventListener("resize", function () { if (globe) globe.width(window.innerWidth).height(window.innerHeight); });
     });
   }
 
-  function load(row) {
-    if (row.rover) return buildRover(row);
-    return get(DATA + row.file).then(function (fc) { return row.kind === "names" ? buildNames(row, fc) : buildPoints(row, fc); });
+  // ---------- switches ----------
+  function setLook(k) {
+    LOOK = k;
+    var look = LOOKS.filter(function (l) { return l[0] === k; })[0];
+    document.querySelectorAll('#setbox input[name="look"]').forEach(function (i) { i.checked = i.value === k; });
+    if (ground) ground.getContainer().style.filter = look[2] || "";
+    if (grid) { map.removeLayer(grid); grid = null; }
+    if (look[3]) {
+      grid = L.layerGroup();
+      for (var x = -180; x <= 180; x += 15) L.polyline([[-90, x], [90, x]], { renderer: canvas, color: look[3], weight: 1, interactive: false }).addTo(grid);
+      for (var y = -90; y <= 90; y += 15) L.polyline([[y, -180], [y, 180]], { renderer: canvas, color: look[3], weight: 1, interactive: false }).addTo(grid);
+      grid.addTo(map);
+    }
+    if (globe) globePicture();
   }
+  function setView(v) {
+    VIEW = v;
+    document.querySelectorAll('#setbox input[name="view"]').forEach(function (i) { i.checked = i.value === v; });
+    var g = document.getElementById("globe");
+    document.getElementById("map").style.visibility = v === "globe" ? "hidden" : "";
+    g.hidden = v !== "globe";
+    document.getElementById("gpop").hidden = true;
+    // The globe stops drawing while the flat map is shown, so it costs nothing.
+    if (v === "flat") { if (globe) globe.pauseAnimation(); map.invalidateSize(); drawFlat(); return; }
+    makeGlobe().then(function () { globe.resumeAnimation(); globePicture(); drawGlobe(); })
+      .catch(function () { document.getElementById("globe-note").textContent = "The globe could not be loaded here, so the flat map is shown."; setView("flat"); });
+  }
+  function snapBack() {
+    if (VIEW === "globe" && globe) globe.pointOfView({ lat: 0, lng: 0, altitude: 2.3 }, 800);
+    else map.fitBounds([[-90, -180], [90, 180]]);
+  }
+  function redraw() { if (VIEW === "globe") drawGlobe(); else drawFlat(); }
+
+  // ---------- the timeline ----------
+  function timeline() {
+    var ys = [];
+    onRows().forEach(function (row) { var r = layers[row.id].r; (r.marks || []).concat(r.stops || []).forEach(function (m) { if (m.year != null) ys.push(m.year); }); });
+    var box = document.getElementById("time"), s = document.getElementById("time-range"), t = document.getElementById("time-say");
+    if (!ys.length) { box.hidden = true; YEAR = null; return; }
+    var lo = Math.min.apply(null, ys), hi = Math.max.apply(null, ys);
+    var atEnd = YEAR == null || YEAR > YMAX;
+    YMIN = lo; YMAX = hi;
+    s.min = lo; s.max = hi + 1;
+    if (atEnd) YEAR = hi + 1;
+    YEAR = Math.max(lo, Math.min(hi + 1, YEAR));
+    s.value = YEAR;
+    box.hidden = false;
+    t.textContent = YEAR > hi ? "Everything, up to today, and what is planned" : "What was there by the end of " + YEAR;
+    document.getElementById("time-lo").textContent = lo;
+    document.getElementById("time-hi").textContent = "today";
+  }
+  document.getElementById("time-range").addEventListener("input", function (e) { YEAR = +e.target.value; timeline(); redraw(); });
 
   function swatch(kind) {
     var m = { obj: ["--obj", "--obj-glow"], mass: ["--mass", "--mass-glow"], plan: ["--plan", "--plan-glow"], rover: ["--rover", "--rover-glow"], names: ["--bone", "--rule"] }[kind];
     return "background:" + C(m[0]) + ";box-shadow:0 0 0 2px " + C(m[1]) + "66,0 0 6px " + C(m[1]);
   }
-
   function show(key) {
     if (!BODIES[key]) key = "moon";
     if (body === key) return;
     body = key;
     var b = BODIES[key];
     document.title = b.name + ": human impact";
+    document.getElementById("body-name").textContent = key === "moon" ? "The Moon" : "Mars";
     try { history.replaceState(null, "", "#" + key); } catch (e) { /* kept */ }
-    document.querySelectorAll(".tabs button[data-body]").forEach(function (el) { el.classList.toggle("on", el.dataset.body === key); });
-    if (typeof VIEW !== "undefined" && VIEW === "globe" && globe) { globePicture(); globe.pointsData([]).pathsData([]).labelsData([]); }
-    Object.keys(layers).forEach(function (id) { if (layers[id].layer) map.removeLayer(layers[id].layer); });
-    layers = {};
+    layers = {}; YEAR = null; YMAX = null;
+    markLayer.clearLayers(); stopLayer.clearLayers(); routeLayer.clearLayers(); nameLayer.clearLayers();
     if (ground) map.removeLayer(ground);
     ground = L.tileLayer(b.tiles, { tileSize: 256, maxNativeZoom: b.native, maxZoom: 11, noWrap: true, bounds: [[-90, -180], [90, 180]], attribution: b.ground }).addTo(map);
+    ground.bringToBack();
+    setLook(LOOK);
     map.fitBounds([[-90, -180], [90, 180]], { animate: false });
+    if (globe) { globePicture(); globe.pointsData([]).pathsData([]).labelsData([]); globe.pointOfView({ lat: 0, lng: 0, altitude: 2.3 }); }
     document.getElementById("body-note").textContent = b.note;
     var rows = document.getElementById("rows");
-    rows.innerHTML = "<h1>" + esc(b.name) + ": " + esc(b.heading) + "</h1>";
-    var unplacedAll = [];
-    var unBox = document.getElementById("unplaced-box");
+    rows.innerHTML = "<h1>" + esc(b.heading) + "</h1>";
+    var unplacedAll = [], unBox = document.getElementById("unplaced-box");
     unBox.hidden = true;
     b.rows.forEach(function (row) {
       var el = document.createElement("label");
@@ -375,121 +608,53 @@
         '<span class="t">' + esc(row.title) + (row.live ? '<span class="live">LIVE</span>' : "") + '<span class="n">' + esc(row.sub) + "</span></span>";
       rows.appendChild(el);
       var box = el.querySelector("input"), n = el.querySelector(".n");
-      var entry = layers[row.id] = { layer: null, box: box };
-      var mine = key;
+      var entry = layers[row.id] = { r: null, box: box }, mine = key;
       load(row).then(function (r) {
         if (body !== mine) return;
-        entry.layer = r.layer;
         entry.r = r;
-        if (VIEW === "globe") globeRefresh();
         n.textContent = row.sub + " · " + r.count.toLocaleString() + (row.kind === "names" ? " names" : row.rover ? " stops" : " entries");
-        if (box.checked) r.layer.addTo(map);
         if (r.unplaced.length) {
-          r.unplaced.forEach(function (p) {
-            var t = ""; for (var k in p) { if (k !== "table" && p[k]) { t = flat(p[k]); break; } }
-            unplacedAll.push(t + " (" + row.title.replace(/ \(.*\)$/, "") + ")");
-          });
+          r.unplaced.forEach(function (p) { var t = titleOf(row, p); unplacedAll.push(t + " (" + row.title.replace(/ \(.*\)$/, "") + ")"); });
           document.getElementById("unplaced-sum").textContent = unplacedAll.length + (unplacedAll.length === 1 ? " entry" : " entries") + " the sources give no position for";
           document.getElementById("unplaced").innerHTML = unplacedAll.map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("");
           unBox.hidden = false;
         }
+        timeline(); redraw();
       }).catch(function () {
         if (body !== mine) return;
         n.textContent = row.sub + " · not built yet: culprits-tiles-more builds it on its next run";
       });
-      box.addEventListener("change", function () {
-        if (!entry.layer) return;
-        if (box.checked) entry.layer.addTo(map); else map.removeLayer(entry.layer);
-        if (VIEW === "globe") globeRefresh();
-      });
+      box.addEventListener("change", function () { timeline(); redraw(); });
     });
   }
 
-  document.querySelectorAll(".tabs button[data-body]").forEach(function (el) {
-    el.addEventListener("click", function () { show(el.dataset.body); });
+  // The box of looks and views, built like the Earth map's.
+  var setbox = document.getElementById("setbox");
+  setbox.querySelector(".looks").innerHTML = LOOKS.map(function (l) {
+    return '<label><input type="radio" name="look" value="' + l[0] + '"' + (l[0] === LOOK ? " checked" : "") + "> " + esc(l[1]) + "</label>";
+  }).join("");
+  setbox.addEventListener("change", function (e) {
+    if (e.target.name === "look") setLook(e.target.value);
+    if (e.target.name === "view") setView(e.target.value);
   });
-
-  // ---------- Round 203o (asked 14 October): a globe as well as the flat map ----------
-  // globe.gl (MIT) draws the body as a sphere wrapped in one picture of it,
-  // stitched from the same Trek tiles by culprits-tiles-more (bodies/<body>_globe.jpg,
-  // scripts/bodies.py). The ticked layers' marks, the rovers' routes and the
-  // largest features' names go on it; a click on a mark opens its box.
-  var VIEW = "flat", globe = null, globeNames = 90;
-  function loadScript(src) {
-    return new Promise(function (ok, no) { var t = document.createElement("script"); t.src = src; t.onload = ok; t.onerror = no; document.head.appendChild(t); });
-  }
-  function globeRefresh() {
-    if (!globe) return;
-    var pts = [], paths = [], labels = [];
-    (BODIES[body] ? BODIES[body].rows : []).forEach(function (row) {
-      var en = layers[row.id];
-      if (!en || !en.r || !en.box || !en.box.checked) return;
-      var gd = en.r.globe;
-      if (gd && gd.points) pts = pts.concat(gd.points);
-      if (gd && gd.paths) paths = paths.concat(gd.paths);
-      if (en.r.names) en.r.names.slice(0, globeNames).forEach(function (f) {
-        var at = ll(f), d = en.r.dia(f.properties || {});
-        labels.push({ lat: at[0], lng: at[1], text: en.r.label(f.properties || {}), size: Math.max(0.5, Math.min(2.4, Math.sqrt(d) / 14)) });
-      });
-    });
-    globe.pointsData(pts).pathsData(paths).labelsData(labels);
-  }
-  function globePicture() {
-    var url = DATA + body + "_globe.jpg";
-    fetch(url, { method: "HEAD" }).then(function (r) {
-      if (!r.ok) throw new Error(r.status);
-      globe.globeImageUrl(url);
-      document.getElementById("globe-note").textContent = "";
-    }).catch(function () {
-      globe.globeImageUrl(null);
-      document.getElementById("globe-note").textContent = "The globe's picture of " + BODIES[body].name + " is not built yet (culprits-tiles-more makes it on its next run); the marks are placed.";
-    });
-  }
-  function setView(v) {
-    VIEW = v;
-    document.querySelectorAll(".tabs button[data-view]").forEach(function (el) { el.classList.toggle("on", el.dataset.view === v); });
-    var g = document.getElementById("globe");
-    document.getElementById("map").style.visibility = v === "globe" ? "hidden" : "";
-    g.hidden = v !== "globe";
-    if (v !== "globe") { document.getElementById("gpop").hidden = true; return; }
-    (typeof Globe === "undefined" ? loadScript("https://unpkg.com/globe.gl@2.46.2/dist/globe.gl.min.js") : Promise.resolve()).then(function () {
-      if (!globe) {
-        globe = Globe()(g).backgroundColor("#05070B").width(window.innerWidth).height(window.innerHeight)
-          .showAtmosphere(true).atmosphereColor("#4E8FA6").atmosphereAltitude(0.1)
-          .pointLat("lat").pointLng("lng").pointColor("color").pointRadius("r").pointAltitude(0.004).pointsMerge(false).pointLabel("label")
-          .onPointClick(function (p) { var b = document.getElementById("gpop"); b.querySelector(".gp-body").innerHTML = p.html; b.hidden = false; })
-          .pathPoints("pts").pathPointLat(function (q) { return q[1]; }).pathPointLng(function (q) { return lon180(q[0]); }).pathColor("color").pathStroke(1.4)
-          .labelLat("lat").labelLng("lng").labelText("text").labelSize("size").labelDotRadius(0).labelResolution(2)
-          .labelColor(function () { return "rgba(214,220,228,0.85)"; });
-        window.addEventListener("resize", function () { if (globe) globe.width(window.innerWidth).height(window.innerHeight); });
-      }
-      globePicture();
-      globeRefresh();
-    }).catch(function () { document.getElementById("globe-note").textContent = "The globe could not be loaded."; });
-  }
-  document.querySelectorAll(".tabs button[data-view]").forEach(function (el) {
-    el.addEventListener("click", function () { setView(el.dataset.view); });
-  });
+  document.getElementById("snap").addEventListener("click", snapBack);
+  if (inFrame) document.body.classList.add("in-frame");
   document.querySelector("#gpop .gp-x").addEventListener("click", function () { document.getElementById("gpop").hidden = true; });
-  // The map that opened this view can ask for a body.
+  document.getElementById("gpop").addEventListener("toggle", function () { /* details open and close in place */ }, true);
+
+  // The map that opened this view can ask for a body and for the rows ticked there.
   window.addEventListener("message", function (e) {
     if (e.data && e.data.culpritsBody) show(e.data.culpritsBody);
     if (e.data && e.data.culpritsLayers) {
       PICK = e.data.culpritsLayers;
-      // The body shown now follows the new choice at once.
-      (BODIES[body] ? BODIES[body].rows : []).forEach(function (row) {
-        var en = layers[row.id];
-        if (!en || !en.box) return;
-        var on = picked(body, row);
-        if (en.box.checked === on) return;
-        en.box.checked = on;
-        if (en.layer) { if (on) en.layer.addTo(map); else map.removeLayer(en.layer); }
-      });
+      (BODIES[body] ? BODIES[body].rows : []).forEach(function (row) { var en = layers[row.id]; if (en && en.box) en.box.checked = picked(body, row); });
+      timeline(); redraw();
     }
   });
   window.addEventListener("hashchange", function () { show(location.hash.slice(1)); });
   var q = new URLSearchParams(location.search).get("body");
   show(q || location.hash.slice(1) || "moon");
+  setView("globe");
 })();
 </script>
 </body>
