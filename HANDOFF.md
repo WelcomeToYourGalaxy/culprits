@@ -5,6 +5,19 @@ touches.
 
 ---
 
+## Round 205o (14 October)
+
+Needs round 204o (guards on its heading). No tiles patch. No app.js?v= bump.
+
+- Asked 14 October: every layer is drawn normally with both switches off;
+  Shading where points crowd alone gives flat density bands; both on, the
+  densities are raised.
+  - Rows drawn as relief (population density, livestock, NO2) swapped the
+    ground and showed their shading whenever shown; now flat colour unless
+    Raise figures as heights is on (reliefSync, run on show and by setLift).
+  - Point crowds rose with Raise alone; now only when Shading is on too
+    (pointReliefSet), and turning Shading on or off re-runs them.
+
 ## Round 204o (14 October)
 
 Needs round 203o (guards on its heading). No tiles patch. No app.js?v= bump.

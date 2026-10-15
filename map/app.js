@@ -13334,12 +13334,20 @@ function addReliefLayers(cfg, r, key, hint) {
   map.addLayer({ id: `${cfg.id}-hill`, type: "hillshade", source: `${cfg.id}-shade`, layout: { visibility: vis },
     paint: Object.assign({}, RELIEF_SHADE) }, pointLayerAbove());
   cfg._layerIds = [`${cfg.id}-hill`, `${cfg.id}-fill`];
-  cfg.afterVisibility = (v) => reliefGround(cfg.id, v === "visible");
+  // Round 205o (asked 14 October): flat unless Raise figures as heights is on;
+  // the ground is swapped and the shading shown only then.
+  cfg.afterVisibility = () => reliefSync(cfg.id);
   key.forEach(([c]) => GLAD_OUT.add(c));
   for (const c of RELIEF_BANDS) GLAD_OUT.add(hexOf(c));
   rowKey(cfg.id, key, hint);
   applyVisibility(cfg.id);
   buildLegend();
+}
+function reliefSync(id) {
+  const shown = (visibility.get(id) || "visible") === "visible";
+  const raise = shown && LIFT_ON;
+  reliefGround(id, raise);
+  if (map.getLayer(`${id}-hill`)) map.setLayoutProperty(`${id}-hill`, "visibility", raise ? "visible" : "none");
 }
 function addNo2Relief(cfg) {
   no2Relief.cfg = cfg;
@@ -16779,6 +16787,8 @@ function setLift(on) {
     const l = `${id}-lift`;
     if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", LIFT_ON && (visibility.get(id) || "visible") === "visible" ? "visible" : "none");
   }
+  // Round 205o: rows drawn as relief (population, livestock, NO2) rise only with this on.
+  for (const [id] of RELIEFS) if (!/__/.test(id) && typeof reliefSync === "function") reliefSync(id);
   // Rounds 108b and 109b: every picture, point and shape row that is showing rises, or lies flat again.
   for (const [id, vis] of visibility) {
     if (LIFT_ON && vis === "visible") riseRow(id, true);
@@ -19166,7 +19176,9 @@ async function pointReliefSet(id, on, tries) {
   if (!pr.grid || !(pr.grid.max > 0) || (visibility.get(id) || "visible") !== "visible") return;
   if (!RELIEFS.has(rid)) RELIEFS.set(rid, { values: pointReliefValues(pr), colour: (v) => (v > 0.04 ? [0, 0, 0, 255] : [0, 0, 0, 0]), height: (v) => v, top: 150000, maxzoom: 8 });
   densityBandsShow(id, pr, true);
-  if (!LIFT_ON) {
+  // Round 205o: crowds rise only when both Shading where points crowd and
+  // Raise figures as heights are on; with shading alone they lie flat.
+  if (!LIFT_ON || (typeof DENSITY_ON !== "undefined" && !DENSITY_ON)) {
     if (map.getLayer(`${rid}-hill`)) map.setLayoutProperty(`${rid}-hill`, "visibility", "none");
     reliefGround(rid, false);
     return;
@@ -28942,6 +28954,8 @@ function densitySet(on) {
   for (const [id, pr] of POINT_RELIEFS) {
     const shown = (visibility.get(id) || "visible") === "visible";
     try { densityBandsShow(id, pr, DENSITY_ON && shown); } catch (e) { /* that row stays as it was */ }
+    // Round 205o: their rising follows both switches.
+    if (shown && typeof pointReliefSet === "function") pointReliefSet(id, true).catch(() => {});
   }
 }
 // A question in the map's own style; resolves true for yes.

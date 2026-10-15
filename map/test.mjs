@@ -4925,7 +4925,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   check("a picture's colour is read back into its amount along the layer's own key",
         Math.abs(amt(85, 15, 109) - 10) < 0.01 && Math.abs(amt(249, 140, 9) - 100) < 0.5 && amt(252, 254, 164) >= 299);
   check("the relief holds the ground while shown and gives it back after", /map\.setTerrain\(\{ source: `\$\{top\}-dem`, exaggeration: reliefLift\(\) \}\)/.test(src) &&
-        /cfg\.afterVisibility = \(v\) => reliefGround\(cfg\.id, v === "visible"\);/.test(src) && /if \(no2Relief\.on\) return;/.test(src));
+        /cfg\.afterVisibility = \(\) => reliefSync\(cfg\.id\);/.test(src) && /const raise = shown && LIFT_ON;\n  reliefGround\(id, raise\);/.test(src)   /* round 205o: only under Raise */ && /if \(no2Relief\.on\) return;/.test(src));
   check("the active fire row asks NASA's map service for pictures of all three VIIRS satellites", /VIIRS_SNPP_Thermal_Anomalies_375m_All,VIIRS_NOAA20_Thermal_Anomalies_375m_All,VIIRS_NOAA21_Thermal_Anomalies_375m_All/.test(src) &&
         /wms\/epsg(3857|4326)\/best\/wms\.cgi/.test(src));
   const lib = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return { cataloguePlaces, CATALOGUE_TAKEN_OUT };")();
@@ -5716,7 +5716,7 @@ console.log("\nround 113b (29 September): crowded points as banded, raised groun
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("a point row of 300 or more is banded whenever shown, fading close in, and raised under the switch",
         /const DENSITY_MIN = 300;/.test(src) && /function densityBandsShow\(id, pr, on\)/.test(src) && /"raster-opacity": \["interpolate", \["linear"\], \["zoom"\], \.\.\.DENSITY_FADE\.flat\(\)\]/.test(src) &&
-        /densityBandsShow\(id, pr, true\);\n  if \(!LIFT_ON\) \{/.test(src) && /else if \(vis === "visible" && !LIFT_ON && typeof pointReliefSet === "function"/.test(src));
+        /densityBandsShow\(id, pr, true\);\n  \/\/ Round 205o[^\n]*\n[^\n]*\n  if \(!LIFT_ON \|\| \(typeof DENSITY_ON !== "undefined" && !DENSITY_ON\)\) \{/.test(src) && /else if \(vis === "visible" && !LIFT_ON && typeof pointReliefSet === "function"/.test(src));
   {
     const R = new Function("const DENSITY_WEIGHT = [\"_count\", \"point_count\", \"n\", \"schools\", \"count\"];" +
       src.slice(src.indexOf("function reliefPoints(features)"), src.indexOf("function pointReliefValues(pr)")) + "; return reliefPoints;")();
@@ -7329,6 +7329,16 @@ console.log("\nround 204o (14 October): tagged headings found; Pull up closes he
   check("Pull up every layer's dropdown also closes every open heading", /Round 204o \(asked 14 October\): every open heading and sub-heading too\./.test(src));
   check("Official buildings and Land use indented and smaller under Place names", /names-under sub-under/.test(src) && /\.view-col \.names-under\.sub-under\{padding-left:18px\}/.test(html));
   check("the i stays on Raise figures as heights' line", /\.layers-tools \.lt-line\{display:flex;align-items:center;gap:5px;flex-wrap:nowrap\}/.test(src));
+}
+
+console.log("\nround 205o (14 October): flat unless Raise figures as heights is on; crowds rise only with both switches");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("relief rows (population, livestock, NO2) are flat colour unless Raise is on: no ground swap, no shading",
+        /function reliefSync\(id\)/.test(src) && /map\.setLayoutProperty\(`\$\{id\}-hill`, "visibility", raise \? "visible" : "none"\);/.test(src) &&
+        /for \(const \[id\] of RELIEFS\) if \(!\/__\/\.test\(id\) && typeof reliefSync === "function"\) reliefSync\(id\);/.test(src));
+  check("point crowds: flat bands with Shading alone, raised only with both", /if \(!LIFT_ON \|\| \(typeof DENSITY_ON !== "undefined" && !DENSITY_ON\)\) \{/.test(src) &&
+        /if \(shown && typeof pointReliefSet === "function"\) pointReliefSet\(id, true\)\.catch/.test(src));
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
