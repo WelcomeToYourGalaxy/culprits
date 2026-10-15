@@ -447,6 +447,18 @@
     padding:6px 8px;font-size:11px;line-height:1.35;color:var(--dim);
     max-height:42vh;overflow-y:auto}
   #legend[hidden]{display:none}
+  /* Round 199o: widened by its right edge; layers dragged in it; kinds turned off at once. */
+  #legend-widen{position:fixed;z-index:3;width:8px;cursor:ew-resize;border-radius:3px}
+  #legend-widen::after{content:"";position:absolute;left:2px;top:50%;width:4px;height:40px;margin-top:-20px;border-radius:2px;background:var(--dim);opacity:.8}
+  #legend-widen:hover::after{background:var(--bone);opacity:1}
+  #legend-widen[hidden]{display:none}
+  #legend .lg-off{display:flex;flex-wrap:nowrap;white-space:nowrap;align-items:center;gap:3px;margin:2px 0 5px;font-size:10.5px;color:var(--dim)}
+  #legend .lg-off .chip{font:inherit;font-size:10.5px;padding:1px 6px;border-radius:9px;border:1px solid rgba(255,255,255,.18);background:none;color:var(--bone);cursor:pointer}
+  #legend .lg-off .chip:hover{border-color:#4E8FA6}
+  #legend .lg-row .lg-nm{cursor:grab}
+  #legend .lg-dragging{opacity:.45}
+  #legend .lg-above{box-shadow:0 -2px 0 rgba(30,160,200,.8)}
+  #legend .lg-below{box-shadow:0 2px 0 rgba(30,160,200,.8)}
   /* A layer's colour key under it in the Showing box (25 September). */
   #legend .lg-sub .lg-nm{font-size:11px;color:var(--dim)}
   #legend .lg-sub .lg-sw{width:9px;height:9px}
@@ -630,10 +642,10 @@
       "the Combine ticked layers box, and zooming out into space";
     if (window.__culpritsLite) {
       b.textContent = "Back to the full map";
-      if (n) n.textContent = "Faster map is on. Every layer and basemap is still here. Turned off: " + gone + ".";
+      if (n) n.textContent = "Faster map is on. Turned off: " + gone + ".";
     } else {
       b.textContent = "Faster map";
-      if (n) n.textContent = "Slow or freezing? Every layer and basemap stays. Turns off " + gone + ".";
+      if (n) n.textContent = "Slow or freezing? Turns off " + gone + ".";
     }
     b.title = n ? n.textContent : "";
     info.title = b.title;

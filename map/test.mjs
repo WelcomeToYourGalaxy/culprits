@@ -5729,10 +5729,10 @@ console.log("\nround 113b (29 September): crowded points as banded, raised groun
   check("themes are made kind by kind: points, shapes, highlights", /var THEME_KINDS = \["points", "shapes", "highlights"\];/.test(src) &&
         /function themeKindOf\(id, type, source\)/.test(src) && /const steps = themeStepsFor\(t, themeKindOf\(id, type, layer\.source\)\);/.test(src) &&
         /const M = Ms\[themeKindOf\(l\.id, l\.type, l\.source\)\];/.test(src));
-  check("eight ready-made themes in a ring round the wheel, none green, orange or yellow for points", /var THEME_PRESETS = \{/.test(src) && /class="tw-ring"/.test(src) &&
+  check("nine ready-made themes (Muted added in round 199o) in a ring round the wheel, none green, orange or yellow for points", /var THEME_PRESETS = \{/.test(src) && /class="tw-ring"/.test(src) &&
         /data-theme-preset="\$\{key\}"/.test(src) && /data-theme-target="\$\{k\}"/.test(src) &&
         (() => { const hs = [...src.slice(src.indexOf("var THEME_PRESETS = {"), src.indexOf("Object.assign(LAYER_THEMES, THEME_PRESETS);")).matchAll(/h: (\d+), r: ([\d.]+)/g)].map((m) => [Number(m[1]), Number(m[2])]);
-          return hs.length === 24 && hs.every(([h, r]) => r < 0.1 || !(h > 20 && h < 160)); })());
+          return hs.length === 27 && hs.every(([h, r]) => r < 0.1 || !(h > 20 && h < 160)); })());   /* round 199o: nine with Muted */
 }
 console.log("\nround 114b (29 September): holidays cut to corporatizers; sports facilities, betting and rigged games; the animal rows made worldwide");
 {
@@ -6995,7 +6995,7 @@ console.log("\nround 184o (5 October): the faster map switch, plain and easy to 
   check("the switch is called Faster map, a filled button on its own line with a sentence saying what it leaves out",
         />Faster map<\/button>/.test(html) && /id="lite-note"/.test(html) && /box\.id = "lite-box"/.test(html) &&
         /#lite-map\{[^}]*background:#1E6FA8/.test(html) && /the Combine ticked layers box/.test(html) && /3D terrain/.test(html) &&
-        /Every layer and basemap is still here/.test(html) && /Every layer and basemap stays/.test(html) && !/"Lighter map"|"Full map"/.test(html));
+        !/Every layer and basemap is still here/.test(html) && !/Every layer and basemap stays/.test(html) && !/"Lighter map"|"Full map"/.test(html));   /* those words out, round 199o */
   check("while it is on, the line is marked and the button says Back to the full map",
         /html\.lite #lite-box\{/.test(html) && /"Back to the full map"/.test(html) && /Or try the Faster map button, under Reload\./.test(src));
 }
@@ -7145,9 +7145,10 @@ console.log("\nround 195o (14 October): Deep space taken out; its glowing waters
           .every((id) => at(id) > at("outline-night-sheet") && at(id) < at("outline-night-lights")));
   const glow = lib.nightLayers().find((l) => l.id === "outline-night-sea-glow");
   check("the sea glow reads the depths (sea-dem) and is clear on land and in the open deep",
-        glow.source === "sea-dem" && lib.NIGHT.seaGlow.slice(-4).join() === "0,rgba(74,154,182,0),9000,rgba(74,154,182,0)" && lib.NIGHT.seaGlow[4] === "rgba(38,64,127,0)");
-  check("the rings sit at 200, 1,000 and 2,000 m deep, as Deep space's did",
-        [-2000, -1000, -200].every((d) => /0\.85\)$/.test(lib.NIGHT.seaGlow[lib.NIGHT.seaGlow.indexOf(d) + 1])));
+        glow.source === "sea-dem" && lib.NIGHT.seaGlow.slice(-4).join() === "0,rgba(70,120,206,0),9000,rgba(70,120,206,0)" && lib.NIGHT.seaGlow[4] === "rgba(52,96,184,0)");
+  check("round 199o: only a thin blue glow along the shore; no depth rings, no wash over the shallows",
+        ![-2000, -1000, -200].some((d) => lib.NIGHT.seaGlow.includes(d)) && lib.NIGHT.seaGlow.indexOf(-40) > 0 &&
+        lib.NIGHT.seaGlow.filter((v) => typeof v === "string" && v.startsWith("rgba")).every((c) => { const [r, g, b] = c.match(/\d+/g).map(Number); return b > g + 60 && b > r + 100; }));
   const t = lib.nightTable();
   const px = Uint8ClampedArray.from([4, 6, 22, 255, 255, 190, 80, 255]);   // the dark sea, a sodium-lit city
   lib.nightRecolour(px, t);
@@ -7253,6 +7254,20 @@ console.log("\nround 198o (14 October): the Layers box rearranged; the combine r
   check("the combine speaks of layers when each is in a group of its own", /const who = solo \? `two or more of the \$\{r\.groups\} ticked layers`/.test(src) &&
         /<div class="combo-h">Which layers count together<\/div>/.test(src) && !/Worldwide means everything the map has read of a layer/.test(src) &&
         !/Layers start grouped by their heading/.test(src) && !/the base map shows everywhere/.test(src));
+}
+
+console.log("\nround 199o (14 October): Showing widens, reorders and turns kinds off; Raise figures in the Layers box; a muted default");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("Showing: a handle on its right edge widens it", /g\.id = "legend-widen";/.test(src) && /box\.style\.width = Math\.max\(220/.test(src) && /#legend-widen\{position:fixed/.test(html));
+  check("Showing: a line dragged above or below another moves that layer on the map, and the box lists the top one first",
+        /function legendDrag\(box\)/.test(src) && /moveRow\(a, d\.where, b\); buildLegend\(\);/.test(src) && /shown\.sort\(\(a, b\) => rank\.get\(b\.id\) - rank\.get\(a\.id\)\);/.test(src));
+  check("Showing: every Point, Shape or National highlight layer that is on, off at once", /data-lg-off="point">Points/.test(src) && /data-lg-off="national"/.test(src) && /function kindAllOff\(k\)/.test(src));
+  check("Raise figures as heights sits in the Layers box under the crowd shading, its words behind an i",
+        /function liftIntoTools\(\)/.test(src) && /Raise figures as heights<\/label>/.test(src) && /class="lt-info"/.test(src) && /setLift\(e\.target\.checked\)/.test(src));
+  check("a muted theme is the default, put in once over the old setting", /var LAYER_THEME = "muted";/.test(src) && /culprits-theme-199o/.test(src) &&
+        /THEME_PRESETS\.muted = \{ nm: "Muted \(default\)"/.test(src));
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");

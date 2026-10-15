@@ -5,6 +5,26 @@ touches.
 
 ---
 
+## Round 199o (14 October)
+
+Needs round 198o (guards on its heading). No tiles patch. No app.js?v= bump.
+
+- Showing box (asked 14 October): widened or narrowed by a handle on its
+  right edge (#legend-widen, kept on the page body since the box rewrites
+  itself; double-click puts it back); its layers listed in drawing order,
+  top first, and dragged above or below each other (legendDrag, which calls
+  moveRow as the layers box does); "Turn off all Points / Shapes / National
+  highlights" turns off every layer of that kind that is on (kindAllOff).
+- Raise figures as heights moved from 3D terrain to the Layers box, under
+  Shading where points crowd, its description behind an i (liftIntoTools).
+- Bioluminescent: the depth rings and the wash over the shallows are gone
+  (they read as green over the oceans); only a thin blue glow along shores
+  stays, with lake edges and rivers in blue.
+- Faster map: "Every layer and basemap stays/is still here" taken out.
+- Layer colours: a Muted theme (each layer's hue kept, greyed toward slate
+  and steel) is the default, set once over the old saved setting
+  (culprits-theme-199o); As drawn and the others stay in Layer colours.
+
 ## Round 198o (14 October)
 
 Needs round 197o (guards on its heading). No tiles patch. No app.js?v= bump.

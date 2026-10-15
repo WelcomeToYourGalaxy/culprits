@@ -13835,6 +13835,7 @@ function settingsLayout(box) {
   col.appendChild(tools);
   if (go) col.appendChild(go);
   if (row) row.replaceWith(col); else if (body) body.appendChild(col);
+  setTimeout(() => { try { liftIntoTools(); } catch (e) { /* stays in 3D terrain */ } }, 0);
   // Layer colours, into the Layers box.
   const pick = box.querySelector("#theme-pick");
   const panel = document.querySelector(".left-col .panel");
@@ -15725,15 +15726,15 @@ var NIGHT = {
   // rings at 200, 1,000 and 2,000 m deep, a teal shine along the shallows and
   // every coast, and nothing on land or in the open deep, where the night
   // stays black. Deep space's own colours, as see-through light.
+  // Round 199o (asked 14 October: the oceans had turned greenish): only a
+  // thin blue glow along the shore is kept, no depth rings and no wash over
+  // the shallows; the open sea stays black.
   seaGlow: ["interpolate", ["linear"], ["elevation"],
-    -9000, "rgba(38,64,127,0)", -2030, "rgba(38,64,127,0)", -2000, "rgba(38,64,127,0.85)", -1970, "rgba(38,64,127,0)",
-    -1030, "rgba(47,94,150,0)", -1000, "rgba(47,94,150,0.85)", -970, "rgba(47,94,150,0)",
-    -230, "rgba(65,137,172,0)", -200, "rgba(65,137,172,0.85)", -170, "rgba(65,137,172,0)",
-    -60, "rgba(31,79,126,0.12)", -15, "rgba(31,79,126,0.45)", -1, "rgba(74,154,182,0.75)",
-    0, "rgba(74,154,182,0)", 9000, "rgba(74,154,182,0)"],
+    -9000, "rgba(52,96,184,0)", -40, "rgba(52,96,184,0)", -12, "rgba(52,96,184,0.22)", -2, "rgba(70,120,206,0.6)",
+    0, "rgba(70,120,206,0)", 9000, "rgba(70,120,206,0)"],
   coast: "#02040C",                  // the open sea close in, where the depth tiles' coast is too rough
-  lake: "rgba(10,15,51,0.6)", lakeEdge: "#3F7FA8",
-  river: "#86AEDD", riverGlow: "#3C5EA2",
+  lake: "rgba(10,15,51,0.6)", lakeEdge: "#4A78C6",
+  river: "#86A8E0", riverGlow: "#3858A8",
   // Below this brightness a square of the picture is clear, so the glowing
   // water shows through the dark sea; above the second number it is solid.
   clear: [18, 48],
@@ -16386,8 +16387,13 @@ const LIFTED = new Set();
 // filter, so a key and its layer still match. The basemaps, the hologram,
 // and the words of labels are left alone. "Suited to the basemap" picks the
 // theme by the basemap chosen.
-var LAYER_THEME = "drawn";
-try { LAYER_THEME = localStorage.getItem("culprits-theme") || "drawn"; } catch (e) { /* storage refused: as drawn */ }
+var LAYER_THEME = "muted";
+try {
+  // Round 199o: the muted theme is the default, put in place once over a
+  // setting kept from before (which was the old default, As drawn, unless changed).
+  if (!localStorage.getItem("culprits-theme-199o")) { localStorage.setItem("culprits-theme-199o", "1"); localStorage.setItem("culprits-theme", "muted"); }
+  LAYER_THEME = localStorage.getItem("culprits-theme") || "muted";
+} catch (e) { /* storage refused: muted */ }
 var LAYER_THEMES = {
   drawn: { nm: "As drawn" },
   auto: { nm: "Suited to the basemap" },
@@ -16441,6 +16447,13 @@ var THEME_PRESETS = {
   signal: kindTheme("Signal, for satellite imagery", { points: { h: 345, r: 0.8, b: 1.3 }, shapes: { h: 200, r: 0.8, b: 1.3 }, highlights: { h: 230, r: 0.6, b: 1.0 } }),
   ink: kindTheme("Ink, for the painted atlas", { points: { h: 215, r: 0.8, b: 0.7 }, shapes: { h: 190, r: 0.6, b: 0.75 }, highlights: { h: 232, r: 0.5, b: 0.7 } }),
 };
+// Round 199o (asked 14 October: the default colours read as a rainbow): a
+// muted theme, every layer's colours greyed toward slate and steel with its
+// hue kept, so layers stay told apart. It is the default; As drawn and the
+// rest stay in Layer colours.
+THEME_PRESETS.muted = { nm: "Muted (default)", k: { points: { h: 200, r: 0.25, b: 1.2 }, shapes: { h: 210, r: 0.2, b: 0.95 }, highlights: { h: 215, r: 0.18, b: 0.85 } },
+  kinds: { points: [["saturate", 0.5], ["brightness", 1.12]], shapes: [["saturate", 0.42], ["brightness", 0.95]], highlights: [["saturate", 0.38], ["brightness", 0.88]] },
+  raster: { "raster-saturation": -0.55 } };
 Object.assign(LAYER_THEMES, THEME_PRESETS);
 // The wheel's own theme: one point per kind; which kind the wheel turns.
 var THEME_WHEEL = { points: Object.assign({}, THEME_CUSTOM), shapes: Object.assign({}, THEME_CUSTOM), highlights: Object.assign({}, THEME_CUSTOM) };
@@ -20862,8 +20875,21 @@ function buildLegend() {
     }
   }
 
-  if (!shown.length && !(typeof CATALOGUE_KEYS !== "undefined" && CATALOGUE_KEYS.size)) { box.hidden = true; return; }
+  if (!shown.length && !(typeof CATALOGUE_KEYS !== "undefined" && CATALOGUE_KEYS.size)) { box.hidden = true; legendWidthGrip(box); return; }
   box.hidden = false;
+  // Round 199o: listed in the order they are drawn, the top one first, so a
+  // drag in this box (legendDrag) shows where the layer now sits.
+  try {
+    const order = typeof map.getStyle === "function" ? (map.getStyle().layers || []).map((l) => l.id) : [];
+    const rank = new Map();
+    for (const c of shown) {
+      const i = document.querySelector && document.querySelector(`[data-layer="${c.id}"]`);
+      const lead = i && i.closest ? i.closest("label.layer, .group > .layer.parent") : null;
+      const ids = lead && typeof rowLayerIds === "function" ? rowLayerIds(lead) : [];
+      rank.set(c.id, ids.length ? Math.max(...ids.map((id) => order.indexOf(id))) : -1);
+    }
+    shown.sort((a, b) => rank.get(b.id) - rank.get(a.id));
+  } catch (e) { /* as listed */ }
 
   // Each line takes a tick of its own, left of its colour, so a layer can be
   // put away from the box that says it is showing rather than by finding its
@@ -20883,16 +20909,25 @@ function buildLegend() {
     `<div class="lg-row"><input type="checkbox" class="lg-on" data-lg-cat="${escapeHtml(key)}" checked aria-label="Hide ${escapeHtml(title)}" title="Hide this layer">` +
     `<span class="lg-sw" style="background:none"></span><span class="lg-nm">${escapeHtml(title)}</span></div>` +
     catalogueKeyHtml(k)).join("");
+  // Round 199o (asked 14 October): every layer of one kind that is on, off at once.
+  const kinds = `<div class="lg-off" title="Turns off every layer of that kind that is on">Turn off all <button type="button" class="chip" data-lg-off="point">Points</button>` +
+    `<button type="button" class="chip" data-lg-off="shape">Shapes</button><button type="button" class="chip" data-lg-off="national">National highlights</button></div>`;
   box.innerHTML =
-    `<div class="lg-hd">Showing</div>${rows}${keyed}` +
+    `<div class="lg-hd">Showing</div>${kinds}${rows}${keyed}` +
     `<div class="lg-rule"></div>` +
     `<div class="lg-row"><span class="lg-sw lg-hollow"></span>` +
     `<span class="lg-nm">hollow</span>` +
     `<span class="lg-un">no site coordinate published</span></div>`;
   // The layers box holds the truth; unticking here unticks the row there, and
   // everything that follows from that happens as it always did.
+  legendWidthGrip(box);
   if (!box.dataset.wired) {
     box.dataset.wired = "1";
+    legendDrag(box);
+    box.addEventListener("click", (e) => {
+      const b = e.target && e.target.closest && e.target.closest("[data-lg-off]");
+      if (b) kindAllOff(b.dataset.lgOff);
+    });
     box.addEventListener("change", (e) => {
       // A keyed catalogue row: unticked here, unticked in the layers box.
       const c = e.target && e.target.closest && e.target.closest("[data-lg-cat]");
@@ -20909,6 +20944,112 @@ function buildLegend() {
       row.dispatchEvent(new Event("change", { bubbles: true }));
     });
   }
+}
+
+// Round 199o (asked 14 October): every ticked layer of one kind (points,
+// shapes, national highlights) turned off at once, ticked or not by a switch.
+function rowKindOf(el) {
+  const id = el.dataset.layer;
+  if (!id) return el.dataset.kind || "";
+  if (typeof PANEL_REMOVED !== "undefined" && PANEL_REMOVED.has(id)) return "";
+  const cfg = LAYERS.find((c) => c.id === id) || (typeof childById === "function" ? childById(id) : null);
+  return (typeof KIND_SEEN !== "undefined" && KIND_SEEN.get(id)) || (typeof layerKind === "function" ? layerKind(cfg) : "");
+}
+function kindAllOff(k) {
+  const box = document.getElementById("layers");
+  if (!box || !box.querySelectorAll) return;
+  const els = [...box.querySelectorAll("input[data-layer]:checked, input[data-cat]:checked")].filter((el) => rowKindOf(el) === k);
+  legendHold = true;
+  try {
+    for (const el of els) { el.checked = false; el.dispatchEvent(new Event("change", { bubbles: true })); }
+  } finally {
+    legendHold = false;
+    if (legendHeld) { legendHeld = false; buildLegend(); } else buildLegend();
+  }
+  const sw = document.querySelector(`[data-kind-all="${k}"]`);
+  if (sw && sw.classList) { sw.classList.remove("on"); sw.setAttribute("aria-pressed", "false"); }
+}
+// Round 199o: a layer's line in Showing dragged above or below another moves
+// it on the map the same way a drag in the layers box does (moveRow).
+function legendDrag(box) {
+  if (typeof window === "undefined" || typeof window.addEventListener !== "function" || !box || typeof box.addEventListener !== "function") return;
+  let drag = null;
+  const leadOf = (id) => {
+    const i = document.querySelector(`#layers [data-layer="${id}"]`);
+    return i && i.closest ? i.closest("label.layer, .group > .layer.parent") : null;
+  };
+  const clear = () => box.querySelectorAll(".lg-above, .lg-below").forEach((n) => n.classList.remove("lg-above", "lg-below"));
+  box.addEventListener("pointerdown", (e) => {
+    if (e.button && e.button !== 0) return;
+    const row = e.target.closest && e.target.closest(".lg-row");
+    if (!row || (e.target.closest && e.target.closest("input, button, a"))) return;
+    const i = row.querySelector("[data-lg]");
+    if (!i) return;
+    drag = { row, id: i.dataset.lg, y: e.clientY, on: false, target: null, where: null };
+  });
+  window.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    if (!drag.on) { if (Math.abs(e.clientY - drag.y) < 5) return; drag.on = true; drag.row.classList.add("lg-dragging"); }
+    e.preventDefault();
+    clear();
+    drag.target = null;
+    const at = document.elementFromPoint(e.clientX, e.clientY);
+    const over = at && at.closest ? at.closest("#legend .lg-row") : null;
+    const oi = over && over.querySelector("[data-lg]");
+    if (!over || over === drag.row || !oi) return;
+    const r = over.getBoundingClientRect();
+    drag.where = e.clientY < r.top + r.height / 2 ? "up" : "down";
+    drag.target = oi.dataset.lg;
+    over.classList.add(drag.where === "up" ? "lg-above" : "lg-below");
+  }, { passive: false });
+  const end = () => {
+    if (!drag) return;
+    const d = drag;
+    drag = null;
+    clear();
+    d.row.classList.remove("lg-dragging");
+    if (!d.on || !d.target) return;
+    const a = leadOf(d.id), b = leadOf(d.target);
+    if (a && b && a !== b && typeof moveRow === "function") { moveRow(a, d.where, b); buildLegend(); }
+  };
+  window.addEventListener("pointerup", end);
+  window.addEventListener("pointercancel", end);
+}
+// Round 199o (asked 14 October): Showing widens to the right, pulled by a
+// handle on its right edge (kept on the page, since the box rewrites itself).
+function legendWidthGrip(box) {
+  if (typeof document === "undefined" || !document.body || typeof document.createElement !== "function" || typeof window === "undefined" ||
+      typeof window.addEventListener !== "function" || !box || typeof box.getBoundingClientRect !== "function") return;
+  let g = document.getElementById("legend-widen");
+  if (!g) {
+    g = document.createElement("div");
+    g.id = "legend-widen";
+    g.title = "Drag to widen or narrow the Showing box. Double-click to put it back.";
+    document.body.appendChild(g);
+    let from = null;
+    g.addEventListener("pointerdown", (e) => {
+      from = { x: e.clientX, w: box.getBoundingClientRect().width };
+      try { g.setPointerCapture(e.pointerId); } catch (er) { /* kept */ }
+      e.preventDefault();
+    });
+    g.addEventListener("pointermove", (e) => {
+      if (!from) return;
+      const max = (window.innerWidth || 1200) - 40;
+      box.style.width = Math.max(220, Math.min(max, from.w + e.clientX - from.x)) + "px";
+      legendWidthGrip(box);
+    });
+    const stop = () => { from = null; };
+    g.addEventListener("pointerup", stop);
+    g.addEventListener("pointercancel", stop);
+    g.addEventListener("dblclick", () => { box.style.width = ""; legendWidthGrip(box); });
+    if (typeof ResizeObserver === "function") new ResizeObserver(() => legendWidthGrip(box)).observe(box);
+    if (window.addEventListener) window.addEventListener("resize", () => legendWidthGrip(box));
+  }
+  const r = box.getBoundingClientRect ? box.getBoundingClientRect() : null;
+  const away = box.hidden || !r || !r.width || (box.classList && box.classList.contains("away"));
+  g.hidden = !!away;
+  if (away) return;
+  Object.assign(g.style, { left: (r.right - 4) + "px", top: (r.top + 6) + "px", height: Math.max(20, r.height - 12) + "px" });
 }
 
 /* ---------- shared ---------- */
@@ -28422,13 +28563,17 @@ function layersBoxTools(box) {
   const t = document.createElement("div");
   t.id = "layers-tools";
   t.className = "layers-tools";
-  t.innerHTML = `<button type="button" class="chip" id="layers-pull" title="Pull up every layer's dropdown, without turning anything off">Pull all layers up</button>` +
-    `<label class="lt-tick" title="Points shaded in bands of colour where they crowd together, wide out"><input type="checkbox" id="density-toggle"${DENSITY_ON ? " checked" : ""}> Shading where points crowd</label>`;
+  t.innerHTML = `<div class="lt-line lt-first"><button type="button" class="chip" id="layers-pull" title="Pull up every layer's dropdown, without turning anything off">Pull all layers up</button>` +
+    `<label class="lt-tick" title="Points shaded in bands of colour where they crowd together, wide out"><input type="checkbox" id="density-toggle"${DENSITY_ON ? " checked" : ""}> Shading where points crowd</label></div>`;
   t.querySelector("#layers-pull").addEventListener("click", () => pullAllUp(box));
   t.querySelector("#density-toggle").addEventListener("change", (e) => densitySet(e.target.checked));
   panel.insertBefore(t, box);
+  liftIntoTools();
   if (!DENSITY_ON && document.documentElement && document.documentElement.classList) document.documentElement.classList.add("no-density");
-  addStyle(".layers-tools{display:flex;align-items:center;justify-content:space-between;gap:6px;margin:0 0 6px;font-size:11px;color:var(--dim)}" +
+  addStyle(".layers-tools{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 6px;margin:0 0 6px;font-size:11px;color:var(--dim)}" +
+    ".layers-tools .lt-line{flex-basis:100%;display:flex;align-items:center;gap:6px;flex-wrap:wrap}.layers-tools .lt-first{flex-wrap:nowrap;justify-content:space-between}" +
+    ".layers-tools .lt-info{width:15px;height:15px;padding:0;border-radius:50%;border:1px solid rgba(214,204,186,.65);background:rgba(40,44,50,.6);color:#EAE2D0;font:italic 600 10px/1 Georgia,serif;cursor:pointer}" +
+    ".layers-tools .lt-note{flex-basis:100%;margin:2px 0 0;font-size:10.5px;line-height:1.35}html.lite .lift-line{display:none!important}" +
     ".layers-tools .chip{font:inherit;font-size:10.5px;padding:2px 7px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:none;color:var(--ink,#e8e2d6);cursor:pointer;white-space:nowrap}" +
     ".layers-tools .lt-tick{display:flex;align-items:center;gap:4px;white-space:nowrap;cursor:pointer}.layers-tools .lt-tick input{margin:0}" +
     "html.no-density .density-key{display:none!important}" +
@@ -28439,6 +28584,27 @@ function layersBoxTools(box) {
     "#ask-first .af-yes{border-color:#4E8FA6;background:rgba(46,127,150,.3)}", "layers-tools");
   layersBoxOrder(panel);
   if (typeof MutationObserver === "function") new MutationObserver(() => layersBoxOrder(panel)).observe(panel, { childList: true });
+}
+// Round 199o (asked 14 October): Raise figures as heights moves from the 3D
+// terrain box to the Layers box, under the crowd shading, its description
+// behind an i. Whichever box is built second moves it.
+function liftIntoTools() {
+  const tools = document.getElementById("layers-tools");
+  const input = document.getElementById("lift-toggle");
+  const row = input && input.closest ? input.closest(".lift-row") : null;
+  if (!tools || !row || tools.contains(row)) return;
+  const note = row.querySelector(".lift-note");
+  const text = note ? note.textContent : "";
+  const line = document.createElement("div");
+  line.className = "lt-line lift-line";
+  line.innerHTML = `<label class="lt-tick"><input type="checkbox" id="lift-toggle"${input.checked ? " checked" : ""}> Raise figures as heights</label>` +
+    `<button type="button" class="lt-info" aria-label="What Raise figures as heights does" aria-expanded="false" title="${escapeHtml(text)}">i</button>` +
+    `<p class="lt-note" hidden>${escapeHtml(text)}</p>`;
+  row.remove();
+  tools.appendChild(line);
+  line.querySelector("#lift-toggle").addEventListener("change", (e) => setLift(e.target.checked));
+  const info = line.querySelector(".lt-info"), p = line.querySelector(".lt-note");
+  info.addEventListener("click", (e) => { e.preventDefault(); p.hidden = !p.hidden; info.setAttribute("aria-expanded", String(!p.hidden)); });
 }
 // The order of the box, kept as parts arrive (several are added later).
 function layersBoxOrder(panel) {
