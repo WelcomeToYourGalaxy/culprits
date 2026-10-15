@@ -6736,7 +6736,7 @@ console.log("\nround 166p (4 October): Streets and places on and off, like Place
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const block = src.slice(src.indexOf("/* ---------- Streets and places (round 166p)"), src.indexOf("/* ---------- end of Streets and places ---------- */"));
-  check("a Streets and places box beside Place names, wired to setDetails", /id="details-toggle"/.test(src) && /"details-toggle"\) setDetails\(e\.target\.checked\)/.test(src));
+  check("the Streets box is gone (round 201o); OpenStreetMap's details stay on", !/id="details-toggle"/.test(src) && /var DETAILS_ON = true;     \/\/ round 201o/.test(src));
   check("OpenStreetMap's points of interest are added from zoom 14, every kind (no filter)",
         /id: "outline-places-dot", type: "circle", source: "osm", "source-layer": "poi", minzoom: 14,\n      paint/.test(block));
   const colours = [...block.matchAll(/"#([0-9A-F]{6})"/g)].map((m) => m[1]);
@@ -7183,7 +7183,7 @@ console.log("\nround 196o (14 October): the settings box in two columns; Faster 
         /col\.appendChild\(choices\)/.test(lay) && /\.names-under/.test(lay) && /tools\.appendChild\(compass\);\n  if \(zoom\) tools\.appendChild\(zoom\);/.test(lay) &&
         /if \(go\) col\.appendChild\(go\);/.test(lay) && /\.view-col \.view-go\{flex:none;margin-top:auto/.test(page));
   check("the two columns end level", /\.set-cols\{[^}]*align-items:stretch/.test(page) && /\.set-cols \.bm-choices\{flex:1 1 auto;display:flex;flex-direction:column;justify-content:space-between\}/.test(page));
-  check("Streets, not Streets and places", /<span class="nm">Streets<\/span><\/label>/.test(src) && !/<span class="nm">Streets and places<\/span>/.test(src));
+  check("no Streets box (round 201o)", !/<span class="nm">Streets<\/span><\/label>/.test(src) && !/<span class="nm">Streets and places<\/span>/.test(src));
   check("Layer colours go to the foot of the Layers box and are wired there",
         /holder\.id = "layer-colours";/.test(lay) && /panel\.appendChild\(holder\);/.test(lay) && /\.layer-colours \.theme-pick\{display:grid/.test(page));
   const sub = page.slice(page.indexOf('`<div class="holo-sub"'), page.indexOf('tick("holo-grat"'));
@@ -7283,6 +7283,18 @@ console.log("\nround 200o (14 October): shorter titles; population and country r
   check("every row's reads start at once; one whole-archive read per row; the time taken is said",
         /const ahead = new Map\(\);/.test(src) && /COMBO\.worldP = new Map\(\);/.test(src) && /Worked out in /.test(src));
   check("the groups list sits under the combine's title", /show only where they meet<\/div>` \+\n    `<div id="combo-rows"/.test(src));
+}
+
+console.log("\nround 201o (14 October): Official buildings and Land use under Place names; land use from the map's own tiles; the top right box rolls up");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("Official buildings and Land use sit under Place names and tick their rows", /data-mirror="building_types"/.test(src) && /data-mirror="osm_landuse"/.test(src) &&
+        /function settingsMirrors\(box\)/.test(src) && /building_types: "Government and official buildings"/.test(src));
+  check("the Buildings heading is hidden from the layers box", /const sec = document\.querySelector\("#layers \.toc-sec\.toc-pinned"\);/.test(src));
+  check("land use reads the map's own OpenStreetMap tiles, from zoom 5", /const src = "osm";\n  if \(map\.getLayer\(`\$\{cfg\.id\}-fill`\)\) return;/.test(src) &&
+        /"source-layer": "landuse", minzoom: 5,/.test(src));
+  check("an arrow at the end of the Stuck? line rolls the top right box", /b\.id = "settings-roll";/.test(src) && /#settings-roll\{/.test(html));
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");

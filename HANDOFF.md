@@ -5,6 +5,22 @@ touches.
 
 ---
 
+## Round 201o (14 October)
+
+Needs round 200o (guards on its heading). No tiles patch. No app.js?v= bump.
+
+- Top right box: an arrow at the end of the Stuck? line pulls the whole
+  basemap and view box up and down (settingsRoll).
+- The Streets box is gone (on the picture basemaps the streets the owner saw
+  were in the place-name picture, so they went with Place names);
+  OpenStreetMap's details stay on (DETAILS_ON fixed true).
+- Under Place names: Official buildings (the Buildings row, now named
+  Government and official buildings) and Land use, ticking their rows in the
+  layers box, whose Buildings heading is hidden (settingsMirrors).
+- Land use was slow: it fetched and read a second copy of the same
+  OpenStreetMap tiles; it now draws from the map's own "osm" source, from
+  zoom 5 (edges from zoom 8).
+
 ## Round 200o (14 October)
 
 Needs round 199o (guards on its heading). No tiles patch. No app.js?v= bump.

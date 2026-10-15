@@ -6753,22 +6753,26 @@ const OSM_LANDUSE_KEY = [
   ["#8A7E6A", "Farmland"], ["#7A7560", "Orchards"], ["#7A6A7A", "Vineyards"],
 ];
 function addOsmLanduseLayer(cfg) {
-  const src = `${cfg.id}-src`;
-  if (map.getSource(src)) return;
-  map.addSource(src, Object.assign({}, OSM_SOURCE));
+  // Round 201o (asked 14 October: far too slow): drawn from the map's own
+  // OpenStreetMap tiles (source "osm"), which the basemaps and places have
+  // already fetched, instead of a second copy of the same tiles fetched and
+  // read again; and only from zoom 5, where the plots begin to show.
+  const src = "osm";
+  if (map.getLayer(`${cfg.id}-fill`)) return;
+  if (!map.getSource(src)) map.addSource(src, Object.assign({}, OSM_SOURCE));
   const colour = (field) => ["match", ["get", field], ...Object.entries(OSM_LANDUSE_COLOURS).flat(), "#7E7268"];
-  map.addLayer({ id: `${cfg.id}-farm`, type: "fill", source: src, "source-layer": "landcover", filter: ["==", ["get", "class"], "farmland"],
+  map.addLayer({ id: `${cfg.id}-farm`, type: "fill", source: src, "source-layer": "landcover", minzoom: 5, filter: ["==", ["get", "class"], "farmland"],
     layout: { visibility: "none" }, paint: { "fill-color": colour("subclass"), "fill-opacity": 0.55 } });
-  map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source: src, "source-layer": "landuse",
+  map.addLayer({ id: `${cfg.id}-fill`, type: "fill", source: src, "source-layer": "landuse", minzoom: 5,
     layout: { visibility: "none" }, paint: { "fill-color": colour("class"), "fill-opacity": 0.62 } });
-  map.addLayer({ id: `${cfg.id}-edge`, type: "line", source: src, "source-layer": "landuse",
+  map.addLayer({ id: `${cfg.id}-edge`, type: "line", source: src, "source-layer": "landuse", minzoom: 8,
     layout: { visibility: "none" }, paint: { "line-color": "#D6CCBC", "line-opacity": 0.35, "line-width": 0.5 } });
   const box = (p) => `<b>${escapeHtml(String(p.subclass || p.class || "land use").replace(/_/g, " "))}</b>` +
     `<table class="meta">${fieldRows(p)}</table><div class="meta">As mapped in OpenStreetMap; served by OpenFreeMap</div>`;
   bindHtmlPopup(`${cfg.id}-fill`, box);
   bindHtmlPopup(`${cfg.id}-farm`, box);
   rasterChoiceRow(Object.assign(cfg, { choices: cfg.choices || [{ label: "Land use" }], _pick: 0 }));
-  setLayerState(cfg.id, "OpenStreetMap's land use, plot by plot; towns show first, most plots as you zoom in");
+  setLayerState(cfg.id, "OpenStreetMap's land use, plot by plot, from zoom 5; most plots as you zoom in");
   applyVisibility(cfg.id);
 }
 function addGlwLayer(cfg) {
@@ -13772,11 +13776,13 @@ function viewPanelHtml() {
     `<label class="layer names-under"><input type="checkbox" id="names-toggle"${NAMES_ON ? " checked" : ""}` +
     ` title="Every place name on the map: the basemap's and the layers' own.">` +
     `<span class="nm">Place names</span></label>` +
-    // Round 166p (asked 4 October): everything else an OpenStreetMap map shows,
-    // on and off together, like the names.
-    `<label class="layer names-under"><input type="checkbox" id="details-toggle"${DETAILS_ON ? " checked" : ""}` +
-    ` title="Everything OpenStreetMap draws besides the land and sea: roads, railways, rivers, buildings, towns, land use, and shops, schools, hospitals and other places close in.">` +
-    `<span class="nm">Streets</span></label></div>` +
+    // Round 201o (asked 14 October): the Streets box is gone (on the picture
+    // basemaps the streets the owner saw went with Place names); in its place,
+    // Government and official buildings and Land use, ticked here as layers.
+    `<label class="layer names-under"><input type="checkbox" data-mirror="building_types" title="Government, legal, financial and rights buildings from the site's maps">` +
+    `<span class="nm">Official buildings</span></label>` +
+    `<label class="layer names-under"><input type="checkbox" data-mirror="osm_landuse" title="Land use plot by plot, as OpenStreetMap records it">` +
+    `<span class="nm">Land use</span></label></div>` +
     `<div class="view-go">` +
     `<button type="button" id="to-globe" class="snap" title="Out to the whole world, in the view you are in">` +
     `Snap back to global scale</button>` +
@@ -13836,6 +13842,7 @@ function settingsLayout(box) {
   if (go) col.appendChild(go);
   if (row) row.replaceWith(col); else if (body) body.appendChild(col);
   setTimeout(() => { try { liftIntoTools(); } catch (e) { /* stays in 3D terrain */ } }, 0);
+  try { settingsMirrors(box); settingsRoll(box); } catch (e) { /* kept */ }
   // Layer colours, into the Layers box.
   const pick = box.querySelector("#theme-pick");
   const panel = document.querySelector(".left-col .panel");
@@ -13847,6 +13854,50 @@ function settingsLayout(box) {
     // At the foot of the Layers box, under the list and its buttons.
     panel.appendChild(holder);
   }
+}
+// Round 201o: Official buildings and Land use, ticked from the View column,
+// tick their rows in the layers box (whose Buildings heading is hidden), and
+// follow them when those rows change any other way (All on, All off).
+const MIRROR_NAMES = { building_types: "Government and official buildings" };
+function settingsMirrors(box) {
+  if (!box.querySelectorAll || box.dataset.mirrors) return;
+  box.dataset.mirrors = "1";
+  for (const [id, nm] of Object.entries(MIRROR_NAMES)) { const c = LAYERS.find((x) => x.id === id); if (c) c.name = nm; }
+  const rowOf = (id) => document.querySelector(`#layers input[data-layer="${id}"]`);
+  const sync = () => {
+    for (const m of box.querySelectorAll("[data-mirror]")) { const r = rowOf(m.dataset.mirror); if (r) m.checked = r.checked; }
+    const sec = document.querySelector("#layers .toc-sec.toc-pinned");
+    if (sec && sec.style) sec.style.display = "none";
+  };
+  box.addEventListener("change", (e) => {
+    const m = e.target && e.target.dataset && e.target.dataset.mirror;
+    if (!m) return;
+    const r = rowOf(m);
+    if (r && r.checked !== e.target.checked) { r.checked = e.target.checked; r.dispatchEvent(new Event("change", { bubbles: true })); }
+  });
+  document.addEventListener("change", (e) => { if (e.target && e.target.closest && e.target.closest("#layers")) setTimeout(sync, 0); });
+  sync();
+  setTimeout(sync, 1500);
+}
+// Round 201o (asked 14 October): the whole top right box pulled up and down
+// from an arrow at the end of the Stuck? line.
+function settingsRoll(box) {
+  const wrap = document.getElementById("reload-wrap");
+  if (!wrap || document.getElementById("settings-roll")) return;
+  const b = document.createElement("button");
+  b.type = "button";
+  b.id = "settings-roll";
+  b.className = "p-roll";
+  b.title = "Pull the basemap and view box up or down";
+  b.setAttribute("aria-expanded", "true");
+  b.textContent = "\u25BE";
+  b.addEventListener("click", () => {
+    const shut = !box.hidden;
+    box.hidden = shut;
+    b.textContent = shut ? "\u25B4" : "\u25BE";
+    b.setAttribute("aria-expanded", shut ? "false" : "true");
+  });
+  wrap.appendChild(b);
 }
 function buildBasemapPanel() {
   const box = document.getElementById("basemaps");
@@ -13877,7 +13928,6 @@ function buildBasemapPanel() {
     if (e.target && e.target.name === "view") setView(e.target.value);
     if (e.target && e.target.id === "terrain-toggle") setTerrain(e.target.checked);
     if (e.target && e.target.id === "names-toggle") setNames(e.target.checked);
-    if (e.target && e.target.id === "details-toggle") setDetails(e.target.checked);
     if (e.target && e.target.id === "lift-toggle") setLift(e.target.checked);
     if (e.target && e.target.id === "theme-pick") setTheme(e.target.value);
   });
@@ -15989,8 +16039,7 @@ map.on("styledata", () => { if (!NAMES_ON) namesApply(); });
 // stay with the Place names box; road and river names go with their roads and
 // rivers. A layer is hidden by narrowing its zooms to none (24 to 24) and put
 // back to its own, so the basemaps' own showing and hiding is left alone.
-var DETAILS_ON = true;
-try { DETAILS_ON = localStorage.getItem("culprits-details") !== "off"; } catch (e) { /* storage refused: shown */ }
+var DETAILS_ON = true;     // round 201o: always on (its box is gone)
 const DETAIL_PARTS = new Set(["transportation", "transportation_name", "building", "landuse", "waterway", "aeroway",
   "park", "poi", "housenumber", "aerodrome_label", "place"]);
 // Names that stay with the Place names box even when their part is a detail.
