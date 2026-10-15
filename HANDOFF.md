@@ -5,6 +5,26 @@ touches.
 
 ---
 
+## Round 200o (14 October)
+
+Needs round 199o (guards on its heading). No tiles patch. No app.js?v= bump.
+
+- Titles (asked 14 October): 260 rows over 70 characters get shorter titles
+  (SHORT_NAMES, applied at load), each still saying what sets it apart and
+  its source in brackets; the full title is kept (cfg.fullName) and opens the
+  row's i note ("Full title: ..."). Catalogue titles (GFW_TITLES) not yet done.
+- Combine: rows drawn as relief (population density, livestock, NO2) took no
+  part (rowRasterSource leaves relief sources out): they are now read from
+  their coloured picture (<id>-col). Country-shading rows on the shared
+  boundaries source were left out too: they now take part through the
+  countries they have a figure for (cfg._countryTotals), shown whole.
+- Combine speed: every row's file, picture and whole-archive read starts at
+  once, so waits overlap; one archive read per row is shared (COMBO.worldP);
+  12 squares read at a time (was 6). The run's time is said at the end of
+  the message, to find what is slow next.
+- The groups list ("Which layers count together") moved under the combine's
+  title, above "Choose a way here".
+
 ## Round 199o (14 October)
 
 Needs round 198o (guards on its heading). No tiles patch. No app.js?v= bump.

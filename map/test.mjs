@@ -6084,7 +6084,7 @@ console.log("\nround 140b-142b (2 October): combine in any order; base map kept,
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   check("each tick reaches the combine, whichever came first", /Round 140b: the combine follows every tick[^\n]*\n  if \(typeof COMBO !== "undefined" && COMBO\.mode !== "off"\) comboSoon\(600\);/.test(src) &&
         /map\.on\("idle", \(\) => \{\n  if \(COMBO\.mode === "off"\) return;\n  const sig = comboSig\(\);/.test(src));
-  check("pictures take part, counted where they paint", /if \(!rowVectorLayers\(id\)\.length && !comboPictureSource\(id\)\) continue;/.test(src) && /const pic = await comboPictureGrid\(id\);/.test(src));
+  check("pictures take part, counted where they paint", /if \(!rowVectorLayers\(id\)\.length && !comboPictureSource\(id\) && !comboCountryRow\(id\)\) continue;/.test(src) && /const pic = await comboPictureGrid\(id\);/.test(src));
   check("the veil is kept out of the colour mapping", /const GLAD_BASE_LAYERS = \/\^\(bg\|combo-mask\.\*\|/.test(src));
   // Round 142b: no veil; lines and areas clipped, crossings outlined, polar rows out.
   const added = [];
@@ -7268,6 +7268,21 @@ console.log("\nround 199o (14 October): Showing widens, reorders and turns kinds
         /function liftIntoTools\(\)/.test(src) && /Raise figures as heights<\/label>/.test(src) && /class="lt-info"/.test(src) && /setLift\(e\.target\.checked\)/.test(src));
   check("a muted theme is the default, put in once over the old setting", /var LAYER_THEME = "muted";/.test(src) && /culprits-theme-199o/.test(src) &&
         /THEME_PRESETS\.muted = \{ nm: "Muted \(default\)"/.test(src));
+}
+
+console.log("\nround 200o (14 October): shorter titles; population and country rows take part in the combine; its reads overlap");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const sh = new Function(src.slice(src.indexOf("const SHORT_NAMES = {"), src.indexOf("(function shortNames()")) + "; return SHORT_NAMES;")();
+  check("short titles: none over 72 characters, each still naming its source", Object.values(sh).every((t) => t.length <= 72) &&
+        Object.keys(sh).length > 200 && sh.ifl_2000 !== sh.ifl_2013);
+  check("the full title opens the row's note", /const lead = `Full title: \$\{c\.fullName\}\.`;/.test(src) && /c\.fullName = c\.name;/.test(src));
+  check("relief rows (population, livestock, NO2) are read from their coloured picture",
+        /if \(typeof RELIEFS !== "undefined" && RELIEFS\.has\(id\) && map\.getSource\(`\$\{id\}-col`\)\) return `\$\{id\}-col`;/.test(src));
+  check("country rows take part through the countries they have a figure for", /cfg\._countryTotals = totals;/.test(src) && /async function comboCountryFeatures\(cfg\)/.test(src));
+  check("every row's reads start at once; one whole-archive read per row; the time taken is said",
+        /const ahead = new Map\(\);/.test(src) && /COMBO\.worldP = new Map\(\);/.test(src) && /Worked out in /.test(src));
+  check("the groups list sits under the combine's title", /show only where they meet<\/div>` \+\n    `<div id="combo-rows"/.test(src));
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");

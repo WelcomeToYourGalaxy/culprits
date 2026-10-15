@@ -16750,6 +16750,7 @@ async function addCountryLayer(cfg) {
     return;
   }
 
+  cfg._countryTotals = totals;      // round 200o: the combine reads which countries have a figure
   const values = Object.values(totals).map((t) => t.value).filter((v) => v > 0);
   const max = Math.max(...values, 1);
   const min = Math.min(...values);
@@ -18999,6 +19000,8 @@ function rowJson(url) {
 // features are also kept apart by source and source-layer (parts), which the
 // combine's copies need.
 async function rowFeatures(id) {
+  const cc = typeof comboCountryRow === "function" && !rowVectorLayers(id).length ? comboCountryRow(id) : null;
+  if (cc) { const f = await comboCountryFeatures(cc); return { features: f, vector: false, parts: new Map([["boundaries|", f]]) }; }
   const out = [], seen = new Set(), parts = new Map();
   let vector = false;
   for (const l of rowVectorLayers(id)) {
@@ -19176,7 +19179,7 @@ function comboRowsNow() {
   const out = [];
   for (const [id, vis] of visibility) {
     if (vis !== "visible" || id === COMBO.pr.rid) continue;
-    if (!rowVectorLayers(id).length && !comboPictureSource(id)) continue;
+    if (!rowVectorLayers(id).length && !comboPictureSource(id) && !comboCountryRow(id)) continue;
     out.push(id);
     if (out.length >= COMBO_MAX_ROWS) break;
   }
@@ -19367,6 +19370,20 @@ async function comboBuild(gen) {
   const statRows = [], cosLat = new Float32Array(H);
   for (let y = 0; y < H; y++) cosLat[y] = Math.cos((90 - (y + 0.5) * POINT_RELIEF_RES) * Math.PI / 180);
   COMBO.seen = COMBO.seen || new Map();
+  // Round 200o (asked 14 October: too slow): every row's files, pictures and
+  // whole-archive reads are asked for at once, so their waits overlap instead
+  // of following one another; the working out below then goes row by row.
+  const t0 = typeof performance !== "undefined" ? performance.now() : Date.now();
+  const ahead = new Map();
+  for (const id of ids) {
+    const wt = COMBO.weights.has(id) ? COMBO.weights.get(id) : 1;
+    if (!(wt > 0)) continue;
+    const f = rowFeatures(id);
+    f.then((g) => { if (g && g.vector) comboWorld(id); }, () => {});
+    comboPictureGrid(id).catch(() => null);
+    ahead.set(id, f);
+  }
+  COMBO.timing = { started: t0 };
   for (const id of ids) {
     const wt = COMBO.weights.has(id) ? COMBO.weights.get(id) : 1;
     if (!(wt > 0)) continue;
@@ -19374,7 +19391,7 @@ async function comboBuild(gen) {
     // menus stay usable while a run goes on.
     await comboYield();
     if (stale()) return null;
-    const got = await rowFeatures(id);
+    const got = await (ahead.get(id) || rowFeatures(id));
     if (stale()) return null;                       // changed meanwhile
     let features = got.features, parts = got.parts || new Map();
     const whole = got.vector ? await comboWorld(id) : null;
@@ -19522,10 +19539,12 @@ async function comboDraw() {
   const most = r.best > 2 ? ` The brighter, thicker edge marks where the most ${solo ? "layers" : "groups"} (${r.best} of ${r.groups}) cross.` : "";
   const part = [...COMBO.partial].filter((id) => (r.used || []).includes(id)).map(nameOf);
   const partSay = part.length ? ` Too large to read worldwide at once, so counted only where the map has shown them so far: ${part.join("; ")}.` : "";
+  const took = COMBO.timing && COMBO.timing.started != null ? ((typeof performance !== "undefined" ? performance.now() : Date.now()) - COMBO.timing.started) / 1000 : null;
+  const tookSay = took != null && took >= 1 ? ` Worked out in ${took < 10 ? took.toFixed(1) : Math.round(took)} seconds.` : "";
   if (say) say.textContent = (COMBO.mode === "overlap"
     ? `Showing only the places where ${who} cross (each within about 50 km), edged in pale blue.`
     : `Showing only the places where ${who} are each in the top fifth of their own values (within about 50 km), edged in pale blue.`)
-    + most + partSay + tail;
+    + most + partSay + tail + tookSay;
 }
 // Rounds 140b-142b (asked 2 October): the combine follows every tick in either
 // order (the hook in applyVisibility; comboSig checked when the map is idle);
@@ -19568,7 +19587,32 @@ function comboGrid(pts, cover) {
   return { g: v, W, H, max };
 }
 function comboPictureSource(id) {
-  return typeof rowRasterSource === "function" ? rowRasterSource(id) : null;
+  const own = typeof rowRasterSource === "function" ? rowRasterSource(id) : null;
+  if (own) return own;
+  // Round 200o (asked 14 October: population density took no part): a row
+  // drawn as relief (population, livestock, NO2) is read from its own
+  // coloured picture, which paints where the row has a figure.
+  if (typeof RELIEFS !== "undefined" && RELIEFS.has(id) && map.getSource(`${id}-col`)) return `${id}-col`;
+  return null;
+}
+// Round 200o: a row that shades countries takes part through the countries
+// it has a figure for (they are shown whole: the shading is not cut).
+function comboCountryRow(id) {
+  const cfg = LAYERS.find((c) => c.id === id) || (typeof childById === "function" ? childById(id) : null);
+  return cfg && cfg._countryTotals && map.getLayer(`${id}-fill`) ? cfg : null;
+}
+async function comboCountryFeatures(cfg) {
+  const s = map.getSource("boundaries");
+  let d = null;
+  try {
+    if (s && s._data && s._data.geojson && typeof s._data.geojson === "object") d = s._data.geojson;
+    else if (s && s._data && typeof s._data.url === "string") d = await rowJson(s._data.url);
+    else if (s && typeof s.getData === "function") d = await s.getData();
+    if (!d) d = await rowJson(`${DATA_BASE}/boundaries.geojson`);
+  } catch (e) { d = null; }
+  const t = cfg._countryTotals || {};
+  return ((d && d.features) || []).filter((f) => { const k = f.properties && f.properties.iso3; return k && t[k] && t[k].value != null; })
+    .map((f) => ({ type: "Feature", geometry: f.geometry, properties: Object.assign({}, f.properties, { value: t[f.properties.iso3].value }) }));
 }
 // A picture's own address, without the combine's clipping in front.
 function comboPlainTile(t) {
@@ -20133,10 +20177,19 @@ function mvtDecode(buf, z, x, y, want) {
   return out;
 }
 COMBO.world = new Map();          // row -> Map(part -> features), or "reading" / "no"
-async function comboWorld(id) {
+// Round 200o: one read per row, shared by every caller (the read ahead and the run).
+COMBO.worldP = new Map();
+function comboWorld(id) {
+  if (!COMBO.worldP.has(id)) {
+    const p = comboWorldRead(id);
+    COMBO.worldP.set(id, p);
+    p.then((v) => { if (!v && COMBO.world.get(id) !== "no") COMBO.worldP.delete(id); });
+  }
+  return COMBO.worldP.get(id);
+}
+async function comboWorldRead(id) {
   const had = COMBO.world.get(id);
   if (had && had !== "reading") return had === "no" ? null : had;
-  if (had === "reading") return null;
   if (typeof pmtiles === "undefined" || !pmtiles.PMTiles) return null;
   const parts = [];
   const seen = new Set();
@@ -20176,7 +20229,7 @@ async function comboWorld(id) {
           for (const f of mvtDecode(r.data, z, x, y, p.layer)) { delete f._layer; list.push(f); total++; }
         }
       };
-      await Promise.all(Array.from({ length: 6 }, worker));
+      await Promise.all(Array.from({ length: 12 }, worker));
       if (total > COMBO_WORLD_MAX) { COMBO.world.set(id, "no"); return null; }
     }
   } catch (e) {
@@ -25219,6 +25272,275 @@ const MILITARY = {
   ],
 };
 const GROUPS = [CT_SECTORS, CT_AGRICULTURE, CT_FORESTRY, CT_HISTORY, SITE_MAPS, EXEC_MAP, MONEY_MAP, LEGAL_MAP, LEG_MAP, JUD_MAP, MORE_MAPS, GMO_MAP, OTHER_MAPS, FOREST_ALERTS, TRASE_DATA, MILITARY];
+// Round 200o (asked 14 October: titles too long): shorter titles that still
+// say what sets a row apart from its neighbours, the source kept in brackets.
+// The full title is kept (cfg.fullName) and opens the row's i note.
+const SHORT_NAMES = {
+  site_carbon_mapper_waste: "Methane plumes from waste sites (Carbon Mapper)",
+  soy_traders_money: "Soy traders' offices, by revenue (Wikidata)",
+  forest500_companies: "Companies driving tropical deforestation, scored (Forest 500)",
+  forest500_institutions: "Banks and investors behind tropical deforestation, scored (Forest 500)",
+  forest500_producer_countries: "Forest loss in producer countries, 2010–2018 (Forest 500)",
+  forest500_trading_countries: "Top importers of forest-risk goods, 2019–2021 (Forest 500)",
+  site_environment_law: "Environmental laws, by country, state and province (FAOLEX)",
+  enviro_law_by_country: "Number of environmental laws, by country (FAOLEX)",
+  site_earmarked_funding: "Money given to global bodies for set purposes",
+  other_invaded: "How each country is invaded (the site's map)",
+  law_atlas: "Who writes the law, by country and US state (Who Writes the Law)",
+  slavery_determinations: "Forced labour rulings on places and companies (anti-slavery map)",
+  slavery_enforcement: "Brazil employers caught using slave-like labour (Brazil's register)",
+  remains_findings: "Grave looting and burial site studies (Unearthings)",
+  remains_units: "Unearthings records, by country (Unearthings)",
+  remains_help: "Guides and resources, by place (Unearthings)",
+  gmo_gmofree: "GMO-free zones (Genetic engineering map)",
+  gmo_incidents: "Crops contaminated by GMOs (Genetic engineering map)",
+  gmo_regime: "GMO rules, by country (Genetic engineering map)",
+  gmo_bodies: "Bodies that rule on GMOs (Genetic engineering map)",
+  gmo_act: "Consultations and how-to guides (Genetic engineering map)",
+  palmwatch: "Palm oil mills and the forest lost around them (PalmWatch)",
+  usda_soybean: "Soybean growing, by country and region (USDA)",
+  usda_corn: "Corn growing, by country and region (USDA)",
+  mine_features: "Mine pits, dumps and tailings dams (Tang and Werner 2023)",
+  water_culprits: "Share of each country's water taken by farming (FAO AQUASTAT)",
+  water_cases: "Companies found to have drained water, case by case",
+  ejatlas_water: "Water conflicts: dams, grabs, pollution (EJAtlas)",
+  seas_of_plastic: "Plastic sampled in the oceans (Seas of Plastic)",
+  nusantara: "Forests and plantations, Indonesia and Malaysia (Nusantara Atlas)",
+  wasteatlas_landfills: "Landfills, by waste disposed (Waste Atlas)",
+  wasteatlas_wte: "Waste incinerators that make power (Waste Atlas)",
+  wasteatlas_mbt: "Plants that sort and compost mixed rubbish (Waste Atlas)",
+  wasteatlas_bt: "Composting and biogas plants (Waste Atlas)",
+  wasteatlas_cities: "Cities, by rubbish made a year (Waste Atlas)",
+  wasteatlas_nat_stress: "Rubbish per square km, by country (Waste Atlas)",
+  wasteatlas_nat_percap: "Rubbish per person a year, by country (Waste Atlas)",
+  wasteatlas_nat_gni: "Average income per person, by country (Waste Atlas)",
+  wasteatlas_nat_intensity: "Rubbish per dollar spent, by country (Waste Atlas)",
+  atlas_hotspots: "Biodiversity hotspots (Atlas for the End of the World)",
+  gsn: "Land needing protection for nature and climate (Global Safety Net)",
+  gsn_countries: "Nature's key land protected, by country, 0–10 (Global Safety Net)",
+  own_mangroves: "Mangroves, 2020 (Global Mangrove Watch)",
+  own_critical_habitat: "Critical habitat, land and sea (the map's own copy)",
+  own_bii: "How intact wildlife is, 0–100 (Biodiversity Intactness Index)",
+  ecoregions_2017: "Ecoregions, by biome, 2017 (RESOLVE)",
+  ifl_2000: "Intact forests, 2000 (Intact Forest Landscapes)",
+  ifl_2013: "Intact forests, 2013 (Intact Forest Landscapes)",
+  ifl_2016: "Intact forests, 2016 (Intact Forest Landscapes)",
+  ifl_2020: "Intact forests, 2020 (Intact Forest Landscapes)",
+  ifl_2025: "Intact forests, 2025 (Intact Forest Landscapes)",
+  wb_harm_projects: "World Bank's most harmful projects (World Bank)",
+  imf_fossil_subsidies: "Fossil fuel subsidies, share of economy, by country (IMF)",
+  fish_rivers: "Free-flowing and dammed rivers (Grill et al. 2019)",
+  fish_basins: "Freshwater fish species, by river basin (Tedesco et al. 2017)",
+  ftw_fields: "Every farm field's boundary, 2025 (Fields of The World)",
+  crop_coffee: "Coffee growing, arabica and robusta, 2020 (SPAM)",
+  spam_coff: "Coffee growing, SPAM's general entry, 2020 (SPAM)",
+  fish_stocks: "Overfished stocks, share by country (RAM Legacy)",
+  lpi_populations: "Animal populations rising or falling, 1950–2020 (Living Planet)",
+  fao_capture: "Fish caught, tonnes, by country (FAO)",
+  shark_catch: "Sharks and rays caught, tonnes, by country (FAO)",
+  fao_aquaculture: "Fish farmed, tonnes, by country (FAO)",
+  iuu_vessels: "Illegal fishing vessels, by flag (IUU Vessel List)",
+  iuu_positions: "Illegal fishing vessels, last seen (IUU Vessel List)",
+  research_makers: "Who makes fake science (World Research Integrity 2026)",
+  fertility_policy: "Government birth rate policies (UN)",
+  holiday_culprits: "Who corporatized holidays (compiled)",
+  gang_infiltration: "Gangs inside law enforcement (compiled)",
+  open_payments: "Drug company payments to US doctors, by state (CMS)",
+  medical_culprits: "Who profits from sickness (compiled from Wikipedia)",
+  sports_facilities: "Sports facilities (Overture Maps and OpenStreetMap)",
+  sports_betting: "Sports betting industry (Wikidata)",
+  sports_fixing: "Match fixing in sport (Wikidata)",
+  pet_food_world: "Pet food companies, makers and brands (Wikidata)",
+  animal_breeding_osm: "Animal breeding places (OpenStreetMap)",
+  zoos_aquariums_osm: "Zoos, aquariums and wildlife parks (OpenStreetMap)",
+  wjp_discrimination: "Discrimination, by country, latest year (World Justice Project)",
+  wjp_discrimination_change: "Discrimination worse or better since 2015 (World Justice Project)",
+  wjp_discrimination_2022: "Discrimination, 2022, WJP's own map (World Justice Project)",
+  slavery_convicted_world: "People convicted of trafficking, by country (UNODC)",
+  slavery_detected_world: "Trafficking victims detected, by country (UNODC)",
+  slavery_cbp_world: "Goods banned by US customs for forced labour (US CBP)",
+  school_culprits: "Who made schooling a machine for obedience",
+  giga_school_names: "Schools by name and level (Giga)",
+  giga_school_points: "Schools mapped, and whether online (Giga)",
+  stock_exchanges: "Major stock exchanges, by value (Wikipedia)",
+  capture_all: "Captured officials and companies, all views",
+  capture_cases: "Captured officials and companies, case by case",
+  capture_share: "Captured lawmakers per 100 seats",
+  troutwood_companies: "Listed companies at their head offices (Troutwood)",
+  wreckers_world: "Companies in Corporate Watch's industries, worldwide (Troutwood)",
+  attacks_cpt_areas: "Land conflict areas, Brazil, by town and year (CPT)",
+  attacks_cpt_overexploitation: "Worker overexploitation, Brazil, 2005–2015 (CPT)",
+  homicide_rates: "Homicides per 100,000, by country (UNODC)",
+  homicide_cases: "Homicides case by case, US cities (police, Washington Post)",
+  homicide_colombia: "Homicides in Colombia since 2010, by town (Ministry of Defence)",
+  homicide_wikidata: "Notable murders with a place (Wikidata)",
+  attacks_gw_killings: "Defenders killed, 2012–2022, one by one (Global Witness)",
+  attacks_land_resistance: "Attacks on land defenders, Latin America (Land of Resistance)",
+  attacks_frontline: "Human rights defenders at risk (Front Line Defenders)",
+  attacks_cimi: "Violence against Indigenous peoples, Brazil, 2003–2021 (CIMI)",
+  attacks_cpt_violence: "Threats and murders in land conflicts, Brazil, 2013–2022 (CPT)",
+  attacks_cpt_threatened: "People threatened or killed in land conflicts, Brazil, 2000–2011 (CPT)",
+  attacks_public_agencies: "Land conflicts in Brazil by town, 2020 (Public Agencies Map)",
+  attacks_slave_labour_states: "Workers freed from slave labour, Brazil, by state (CPT)",
+  police_stations_latam: "Police stations, Mexico to northern South America (OpenStreetMap)",
+  bld_police: "Police stations (the site's maps)",
+  owid_interest: "Government spending on interest (Our World in Data)",
+  rte_trade: "Trade in natural resources (Chatham House)",
+  ct_air_pm2_5: "Fine particles (PM2.5) from cities (Climate TRACE)",
+  ct_air_vocs: "Chemical vapours (VOCs) from cities (Climate TRACE)",
+  ct_pop: "Population density, 2020, raised (GHSL)",
+  gta_acts: "Government trade measures, by country (Global Trade Alert)",
+  policy_rates: "Central bank interest rates, monthly (BIS)",
+  imbalances: "Trade surpluses and deficits, by year (IMF)",
+  cfr_tracker: "Central bank rate moves (CFR tracker)",
+  marine_sand_watch: "Sand dredged from the sea (Marine Sand Watch)",
+  tableau_zsf: "Trade and money imbalances (CFR tracker)",
+  ect_secrets: "Governments sued under the Energy Charter Treaty (UNCTAD)",
+  isds_tracker: "Governments sued by companies in private tribunals (UNCTAD)",
+  epa_widget: "Every US site with an EPA record (EPA Envirofacts)",
+  bocc: "Largest banks' fossil fuel financing, 2026 (Banking on Climate Chaos)",
+  forest_management: "How forests are managed, 2020 (VITO, IIASA, WRI)",
+  forestatrisk: "Tropical forest most likely to be cleared, 2020 (ForestAtRisk)",
+  dff: "Investment funds linked to deforestation (Deforestation Free Funds)",
+  largest_banks: "250 largest banks, by assets (Wikidata)",
+  development_banks: "Development banks, by assets (Wikidata)",
+  boards_interlocks: "Who sits on the largest companies' boards (Wikidata)",
+  pe_bankrolling: "Banks funding nature's destruction (Portfolio Earth)",
+  pe_banks: "50 largest banks' biodiversity-harming finance, 2019 (Portfolio Earth)",
+  pe_subsidising: "Subsidies that destroy nature (Portfolio Earth)",
+  skytruth_voc: "Sunken and disabled ships that could leak oil (SkyTruth)",
+  skytruth_nrc: "Spills reported to the US National Response Center (SkyTruth)",
+  skytruth_posts: "Spills and derailments written up by SkyTruth (SkyTruth)",
+  skytruth_posts_sea: "Slicks and spills at sea (SkyTruth)",
+  skytruth_posts_land: "Spills, explosions and derailments on land (SkyTruth)",
+  skytruth_marine_incidents: "Sinkings, groundings and mystery slicks (SkyTruth)",
+  skytruth_pa_spud: "Oil and gas wells started, Pennsylvania (SkyTruth)",
+  skytruth_pa_violations: "Oil and gas violations, Pennsylvania (SkyTruth)",
+  skytruth_fracfocus: "Fracked wells, United States (SkyTruth, FracFocus)",
+  skytruth_tests: "SkyTruth's developer test entries (SkyTruth)",
+  skytruth_quakes: "Earthquakes flagged, 2011–2015 (SkyTruth)",
+  ufo_sightings: "UAP sightings reported (UFOSINT)",
+  esa_risk: "Asteroids that could hit Earth in 100 years (ESA)",
+  wreckers_umap: "London companies Corporate Watch lists (Corporate Watch)",
+  plastics_plants: "Plastic-making plants (EPA, EU, Climate TRACE, OSM, Wikidata)",
+  vinyl_chloride_plants: "Vinyl chloride (PVC gas) plants (EPA, EU, OSM, Wikidata)",
+  ibama_embargos: "Areas shut down for environmental crimes, Brazil (IBAMA)",
+  ibama_infractions: "Environmental crime notices, Brazil (IBAMA)",
+  ea_enforcement: "Environmental enforcement, England (Environment Agency)",
+  canada_offenders: "Companies convicted of environmental offences, Canada",
+  epa_cases: "Environmental enforcement cases, United States (EPA)",
+  goc_flora: "Crimes against wild plants and timber, 1–10 (Organized Crime Index)",
+  goc_fauna: "Crimes against wild animals, 1–10 (Organized Crime Index)",
+  goc_resources: "Crimes in oil, gas and minerals, 1–10 (Organized Crime Index)",
+  agri_linked: "Forest cleared for seven crops and animals, 2001–2015 (WRI)",
+  gw_defenders: "Defenders killed or disappeared since 2012, by country (Global Witness)",
+  xmas_trees: "Christmas tree farms and sellers (OpenStreetMap)",
+  arcgis_materialresearch: "Toxic manufacturing plants (Material Research)",
+  glad_loss: "Tree cover loss, yearly 2001–2024 (UMD GLAD)",
+  nus_itp: "Industrial timber plantations, 2024–2025 (Nusantara Atlas)",
+  esdac_soil_biodiversity: "Soil life potential, five steps (Soil Biodiversity Atlas)",
+  esdac_soil_threats: "Threats to soil life, five steps (Soil Biodiversity Atlas)",
+  wba_ocean: "Ocean companies scored on harm to the sea (WBA)",
+  wba_act: "High emitters' climate plans scored (WBA)",
+  wba_human_rights: "Companies scored on human rights (WBA)",
+  wba_social: "Companies scored on rights and decent work (WBA)",
+  wba_just_transition: "High emitters scored on workers' transition (WBA)",
+  wba_gender_assessment: "Companies scored on gender equality (WBA)",
+  wba_gender: "Companies scored on gender, earlier study (WBA)",
+  wba_food: "Food companies scored on nature, nutrition and workers (WBA)",
+  wba_digital_inclusion: "Tech companies scored on digital inclusion (WBA)",
+  wba_digital_rights: "Tech companies scored on privacy and speech (WBA)",
+  wba_nature_companies: "Companies scored on harming nature (WBA)",
+  soil_spun: "Root fungi hotspots (SPUN Underground Atlas)",
+  soil_nematodes: "Soil nematodes, sample by sample (van den Hoogen et al.)",
+  soilgrids: "What soil is made of, 250 m (SoilGrids)",
+  food_soy: "Harm from soy farming, 2017 (Halpern et al.)",
+  food_maize: "Harm from maize farming, 2017 (Halpern et al.)",
+  methane_imeo_plumes: "Methane super-emitters seen from space (UNEP IMEO)",
+  methane_imeo_top50: "50 largest methane sites this month (UNEP IMEO)",
+  methane_ct_owners: "Methane sites by owner, top 20 in colour (Climate TRACE)",
+  gem_coal_mines: "Coal mines, methane and owners (Global Energy Monitor)",
+  gem_coal_parents: "Coal mine owners, by methane (Global Energy Monitor)",
+  surveillance_entities: "Surveillance companies and their targets (Surveillance Watch)",
+  surveillance_links: "Who surveils whom, lines (Surveillance Watch)",
+  ct_top_owners: "Top owners of emissions (Climate TRACE)",
+  ct_owned_sites: "Emitting sites with their owners (Climate TRACE)",
+  tipping_points: "Earth's tipping points (Global Tipping Points Report 2025)",
+  iea_oilgas_methane: "Oil and gas methane, by country, 2025 (IEA)",
+  methane_meat_dairy: "Methane from 15 big meat and dairy companies, 2021 (IATP)",
+  gem_coal_boundaries: "Coal mine boundaries and methane sources (Global Energy Monitor)",
+  n2o_crop_fertiliser: "Crop getting the most nitrogen, by country (IFA)",
+  edgar_fgases_all: "All fluorinated gases, raised (EDGAR)",
+  edgar_fgases: "Fluorinated gases, gas by gas (EDGAR)",
+  wastewater_watersheds: "Sewage nitrogen, by watershed (Tuholske et al.)",
+  wastewater_plumes: "Sewage nitrogen in coastal waters, 2015 (Tuholske et al.)",
+  plastic_polluters: "World's worst plastic polluters, 2023 (Break Free From Plastic)",
+  skin_farms: "Farms raising animals for skins (Farm Transparency, OSM)",
+  ocean_acid: "Sea surface acidity, 1750 to 2100 (Jiang et al., NOAA)",
+  ocean_heat: "Marine heatwaves, newest day (NOAA Coral Reef Watch)",
+  ocean_bleaching: "Coral bleaching alerts, newest day (NOAA Coral Reef Watch)",
+  ocean_shipping: "Ship traffic, 2015–2021 (World Bank and IMF)",
+  own_salt_marsh: "Salt marsh lost and gained, 2000–2019 (NASA)",
+  own_burned: "Burned area, yearly since 2001 (NASA MODIS)",
+  ocean_slr: "Sea level rise pressure, 2003 and 2013 (Halpern et al.)",
+  ocean_light: "Light at night on the sea, 2003 and 2013 (Halpern et al.)",
+  ocean_bycatch: "Bycatch from fishing, 2003 and 2013 (Halpern et al.)",
+  ocean_runoff: "Farm runoff into the sea, 2003 and 2013 (Halpern et al.)",
+  offshore_platforms: "Offshore platforms (OpenStreetMap)",
+  ocean_impacts: "Every human impact on the ocean, 2013 (Halpern et al.)",
+  ocean_noise: "Ship noise underwater, 2014–2020 (Jalkanen et al.)",
+  whaling_logbooks: "Whaling logbooks, 1784–1920 (WhalingHistory.org)",
+  fur_world: "Fur farms (Farm Transparency, Final Nail, OSM)",
+  fur_bans: "Fur farming bans, by country (Fur Free Alliance)",
+  haz_eonet: "Natural events tracked from space, since 2000 (NASA EONET)",
+  haz_gdacs: "Disaster alerts, since 2000 (GDACS)",
+  usgs_quakes: "Strong earthquakes, magnitude 5+, since 1900 (USGS)",
+  haz_ncei_quakes: "Deadly or damaging earthquakes in history (NOAA)",
+  haz_volcanoes: "Volcanoes active in the last 12,000 years (Smithsonian)",
+  haz_eruptions: "Deadly or damaging eruptions in history (NOAA)",
+  haz_cyclones: "Tropical cyclone tracks since 1980 (IBTrACS)",
+  haz_landslides: "Landslides reported (NASA)",
+  berkeley_warming: "Warming since 1951–1980, yearly from 2000 (Berkeley Earth)",
+  ocean_dead_zones: "Coastal dead zones (WRI)",
+  ocean_seabed_mining: "Deep-sea mining contracts and areas (Seabed Authority)",
+  aqueduct_proj: "Water stress forecast for 2020–2040 (WRI Aqueduct)",
+  aqueduct_crop: "Water stress on farmland, by crop, 2020 (WRI Aqueduct)",
+  jrc_water: "Surface water and its change, 1984–2024 (EC JRC)",
+  osm_landuse: "Land use, plot by plot (OpenStreetMap)",
+  aquaculture_ponds: "Fish and shrimp farm ponds, 2020 (LCAP)",
+  trase_measures: "Forest cleared by each crop and animal (Trase)",
+  mil_news: "Fighting in the news, last seven days (GDELT)",
+  mil_aircraft: "Military aircraft in the air now (ADS-B)",
+  mil_news_archive: "Fighting in the news, by month (GDELT)",
+  mil_nuclear_storage: "Nuclear weapons storage sites (FAS)",
+  mil_russia_storage: "Russia's nuclear weapons storage sites",
+  mil_usni_fleet: "US Navy ships at sea, weekly (USNI News)",
+  mil_missile_ranges: "Missile ranges from any launch site (MISSILEMAP)",
+  mil_osm: "Military sites, in use and former (OpenStreetMap)",
+  mil_mirta: "US military bases and ranges (US Defense Department)",
+  mil_sites: "Military bases, in use and closed (Wikidata)",
+  mil_k_air: "Air bases and military airfields (Wikidata, OSM, DoD)",
+  mil_k_naval: "Naval bases and stations (Wikidata, OSM, DoD)",
+  mil_k_bases: "Army bases, barracks and depots (Wikidata, OSM, DoD)",
+  mil_k_ranges: "Firing ranges and training areas (OSM, Wikidata, DoD)",
+  mil_k_nuclear: "Nuclear test and missile launch sites (OSM, Wikidata)",
+  mil_alliances: "Military alliances, now and past (Wikidata)",
+  mil_spend_gov: "Military spending, share of government (SIPRI)",
+  mil_warheads: "Nuclear warheads by state (FAS)",
+  mil_tests: "Nuclear weapons tests by state, by year (Our World in Data)"
+};
+(function shortNames() {
+  const all = LAYERS.concat(...GROUPS.map((g) => g.children || []));
+  for (const c of all) {
+    const short = c && SHORT_NAMES[c.id];
+    if (!short || c.fullName) continue;
+    c.fullName = c.name;
+    c.name = short;
+    const lead = `Full title: ${c.fullName}.`;
+    if (c.about) c.about = `${lead}\n\n${c.about}`;
+    else c.note = c.note ? `${lead}\n\n${c.note}` : lead;
+  }
+})();
 // Round 95b (asked 27 September): every row named in everyday words. The
 // names set above are kept for their history; these are what the box shows,
 // and a row read from another map keeps this name rather than the map's own.
@@ -29048,13 +29370,14 @@ function comboBox(box) {
   const wrap = document.createElement("div");
   wrap.id = "combo-box";
   wrap.className = "combo-box";
+  // Round 200o (asked 14 October): the groups list right under the title.
   wrap.innerHTML = `<div style="font-size:11.5px">Combine the ticked layers: show only where they meet</div>` +
+    `<div id="combo-rows" style="font-size:10.5px"></div>` +
     `<div style="font-size:10.5px;color:var(--dim)">Choose a way here and tick layers in any order; it follows each tick.</div>` +
     `<select id="combo-mode" aria-label="Combine the ticked layers" style="font:inherit;font-size:11.5px;max-width:100%;margin:3px 0">` +
     COMBO_MODES.map(([k, t]) => `<option value="${k}">${t}</option>`).join("") + `</select>` +
     `<div id="combo-say" style="font-size:10.5px;color:var(--dim)"></div>` +
-    `<div id="combo-stats" style="font-size:10.5px"></div>` +
-    `<div id="combo-rows" style="font-size:10.5px"></div>`;
+    `<div id="combo-stats" style="font-size:10.5px"></div>`;
   box.parentElement.insertBefore(wrap, box);
   wrap.addEventListener("change", (e) => {
     if (e.target && e.target.id === "combo-mode") comboMode(e.target.value);
