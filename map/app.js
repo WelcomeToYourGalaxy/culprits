@@ -9881,7 +9881,12 @@ function sectionBody(box, path) {
     // A heading directly under this one first: two headings of the same name
     // at different depths (Agriculture's Plantations and Palm oil's) are told
     // apart by where they sit. Any depth after that, as before.
-    const named = (sec) => { const t = sec.querySelector(".toc-t"); return t && t.textContent.trim().toLowerCase() === name.trim().toLowerCase(); };
+    // Round 204o: a heading's own title, without its small tag (Fishing carries
+    // one), so rows filed under a tagged heading find it. Before this the
+    // Clark Labs pond maps' Fishing copies never did, and sat outside every
+    // heading.
+    const own_ = (t) => { let x = ""; for (const n of t.childNodes) if (!(n.classList && n.classList.contains("toc-tag"))) x += n.textContent; return x; };
+    const named = (sec) => { const t = sec.querySelector(".toc-t"); return t && own_(t).trim().toLowerCase() === name.trim().toLowerCase(); };
     const own = where.children ? [...where.children].filter((c) => c.classList && c.classList.contains("toc-sec")) : [];
     found = own.find(named) || null;
     if (!found) for (const sec of where.querySelectorAll(".toc-sec")) if (named(sec)) { found = sec; break; }
@@ -13795,9 +13800,9 @@ function viewPanelHtml() {
     // Round 201o (asked 14 October): the Streets box is gone (on the picture
     // basemaps the streets the owner saw went with Place names); in its place,
     // Government and official buildings and Land use, ticked here as layers.
-    `<label class="layer names-under"><input type="checkbox" data-mirror="building_types" title="Government, legal, financial and rights buildings from the site's maps">` +
+    `<label class="layer names-under sub-under"><input type="checkbox" data-mirror="building_types" title="Government, legal, financial and rights buildings from the site's maps">` +
     `<span class="nm">Official buildings</span></label>` +
-    `<label class="layer names-under"><input type="checkbox" data-mirror="osm_landuse" title="Land use plot by plot, as OpenStreetMap records it">` +
+    `<label class="layer names-under sub-under"><input type="checkbox" data-mirror="osm_landuse" title="Land use plot by plot, as OpenStreetMap records it">` +
     `<span class="nm">Land use</span></label></div>` +
     `<div class="view-go">` +
     `<button type="button" id="to-globe" class="snap" title="Out to the whole world, in the view you are in">` +
@@ -15795,9 +15800,13 @@ var NIGHT = {
   // Round 199o (asked 14 October: the oceans had turned greenish): only a
   // thin blue glow along the shore is kept, no depth rings and no wash over
   // the shallows; the open sea stays black.
+  // Round 204o (asked 14 October): the lagoon-blue glow Deep space had along
+  // its coasts (its colours, #1F4F7E to #4A9AB6, as light), wide and soft:
+  // brightest at the shore, fading out by about 150 m deep, so it shows
+  // from the world view; no lines round rivers or lakes.
   seaGlow: ["interpolate", ["linear"], ["elevation"],
-    -9000, "rgba(52,96,184,0)", -40, "rgba(52,96,184,0)", -12, "rgba(52,96,184,0.22)", -2, "rgba(70,120,206,0.6)",
-    0, "rgba(70,120,206,0)", 9000, "rgba(70,120,206,0)"],
+    -9000, "rgba(31,79,126,0)", -150, "rgba(31,79,126,0)", -60, "rgba(31,79,126,0.28)", -15, "rgba(31,79,126,0.55)",
+    -3, "rgba(74,154,182,0.85)", 0, "rgba(74,154,182,0)", 9000, "rgba(74,154,182,0)"],
   coast: "#02040C",                  // the open sea close in, where the depth tiles' coast is too rough
   lake: "rgba(0,0,0,0)", lakeEdge: "#4A78C6",
   river: "#86A8E0", riverGlow: "#3858A8",
@@ -15809,8 +15818,7 @@ var NIGHT = {
          "fog-ground-blend": 0.9, "horizon-fog-blend": 0.3, "sky-horizon-blend": 0.6,
          "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.55, 4, 0.3, 7, 0] },
 };
-var NIGHT_IDS = ["outline-night-sheet", "outline-night-lights", "outline-night-shade", "outline-night-sea-glow", "outline-night-lake",
-  "outline-night-river-glow", "outline-night-river", "outline-night-road-glow",
+var NIGHT_IDS = ["outline-night-sheet", "outline-night-lights", "outline-night-shade", "outline-night-sea-glow", "outline-night-road-glow",
   "outline-night-road-minor", "outline-night-road", "outline-night-road-major", "outline-night-border"];
 // The ramp as a table of 256 colours, blended between its stops.
 function nightTable() {
@@ -15871,21 +15879,6 @@ function nightLayers() {
     // lights, which are solid again, so nothing else of the picture changes.
     { id: "outline-night-sea-glow", type: "color-relief", source: "sea-dem",
       paint: { "color-relief-color": NIGHT.seaGlow, "color-relief-opacity": 1 } },
-    { id: "outline-night-lake", type: "fill", source: "osm", "source-layer": "water",
-      filter: ["!=", ["get", "class"], "ocean"],
-      paint: { "fill-color": NIGHT.lake, "fill-outline-color": NIGHT.lakeEdge } },
-    { id: "outline-night-river-glow", type: "line", source: "osm", "source-layer": "waterway", minzoom: 3,
-      filter: ["==", ["get", "class"], "river"],
-      layout: { "line-cap": "round", "line-join": "round" },
-      paint: { "line-color": NIGHT.riverGlow, "line-width": road(4), "line-blur": road(3), "line-opacity": .4 } },
-    { id: "outline-night-river", type: "line", source: "osm", "source-layer": "waterway", minzoom: 3,
-      layout: { "line-cap": "round", "line-join": "round" },
-      paint: { "line-color": NIGHT.river,
-               "line-width": ["interpolate", ["exponential", 1.4], ["zoom"],
-                 4, ["match", ["get", "class"], "river", .22, .1], 10, ["match", ["get", "class"], "river", .9, .4],
-                 16, ["match", ["get", "class"], "river", 5, 2.4]],
-               "line-opacity": ["interpolate", ["linear"], ["zoom"],
-                 8, ["match", ["get", "class"], "river", .85, 0], 11, ["match", ["get", "class"], "river", .85, .65]] } },
     { id: "outline-night-road-glow", type: "line", source: "osm", "source-layer": "transportation", minzoom: 7,
       filter: kind(["motorway", "trunk", "primary"]),
       layout: { "line-cap": "round", "line-join": "round" },
@@ -28934,6 +28927,13 @@ function pullAllUp(box) {
     if (open) f.click();
   }
   for (const k of box.querySelectorAll("[data-kids]")) if (!k.hidden && typeof toggleGroup === "function") toggleGroup(box, k.dataset.kids);
+  // Round 204o (asked 14 October): every open heading and sub-heading too.
+  for (const b of box.querySelectorAll(".toc-body")) {
+    if (b.hidden) continue;
+    b.hidden = true;
+    const head = b.previousElementSibling && b.previousElementSibling.querySelector ? b.previousElementSibling.querySelector(".toc-head") : null;
+    if (head) head.setAttribute("aria-expanded", "false");
+  }
 }
 function densitySet(on) {
   DENSITY_ON = !!on;
@@ -28986,9 +28986,9 @@ function layersBoxTools(box) {
   addStyle(".layers-tools{display:flex;flex-wrap:nowrap;align-items:stretch;gap:8px;margin:0 0 6px;font-size:11px;color:var(--dim)}" +
     ".layers-tools #layers-pull{flex:0 0 106px;font-size:10.5px;white-space:normal!important;line-height:1.25;padding:3px 4px!important;border-radius:8px;text-align:center}" +
     ".layers-tools .lt-col{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:4px}" +
-    ".layers-tools .lt-line{display:flex;align-items:center;gap:5px;flex-wrap:wrap}.layers-tools .lt-col .lt-tick{font-size:10px;gap:3px}.layers-tools{gap:6px!important}" +
-    ".layers-tools .lt-info{width:15px;height:15px;padding:0;border-radius:50%;border:1px solid rgba(214,204,186,.65);background:rgba(40,44,50,.6);color:#EAE2D0;font:italic 600 10px/1 Georgia,serif;cursor:pointer}" +
-    ".layers-tools .lt-note{flex-basis:100%;margin:2px 0 0;font-size:10.5px;line-height:1.35}html.lite .lift-line{display:none!important}" +
+    ".layers-tools .lt-line{display:flex;align-items:center;gap:5px;flex-wrap:nowrap}.layers-tools .lt-line .lt-note{position:absolute;left:0;right:0;top:100%;z-index:5;margin-top:3px;padding:6px 8px;background:rgba(23,21,15,.97);border:1px solid var(--rule,#322e27);border-radius:4px}.layers-tools{position:relative}.layers-tools .lt-line{position:static}.layers-tools .lt-col .lt-tick{font-size:10px;gap:3px}.layers-tools{gap:6px!important}" +
+    ".layers-tools .lt-info{flex:none;width:15px;height:15px;padding:0;border-radius:50%;border:1px solid rgba(214,204,186,.65);background:rgba(40,44,50,.6);color:#EAE2D0;font:italic 600 10px/1 Georgia,serif;cursor:pointer}" +
+    ".layers-tools .lt-note{margin:0;font-size:10.5px;line-height:1.35}html.lite .lift-line{display:none!important}" +
     ".layers-tools .chip{font:inherit;font-size:10.5px;padding:2px 7px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:none;color:var(--ink,#e8e2d6);cursor:pointer;white-space:nowrap}" +
     ".layers-tools .lt-tick{display:flex;align-items:center;gap:4px;white-space:nowrap;cursor:pointer}.layers-tools .lt-tick input{margin:0}" +
     "html.no-density .density-key{display:none!important}" +

@@ -5,6 +5,22 @@ touches.
 
 ---
 
+## Round 204o (14 October)
+
+Needs round 203o (guards on its heading). No tiles patch. No app.js?v= bump.
+
+- The four Clark Labs pond maps sat outside every heading: sectionBody read
+  a heading's title with its small tag (Fishing has one), so no path ever
+  matched a tagged heading and the rows went to the spare place. Titles are
+  now read without the tag; every row filed under a tagged heading moves in.
+- Pull up every layer's dropdown also closes every open heading.
+- Official buildings and Land use indented and smaller under Place names.
+- Raise figures as heights keeps its i on its own line (its note opens
+  over the box); the pull button is as tall as the two switches.
+- Bioluminescent: the river and lake lines are gone; the shore glow is
+  Deep space's lagoon blue (#1F4F7E to #4A9AB6), wide and soft, brightest at
+  the shore and fading out by about 150 m deep.
+
 ## Round 203o (14 October)
 
 Needs round 202o (guards on its heading). Tiles patch round203o_tiles.py

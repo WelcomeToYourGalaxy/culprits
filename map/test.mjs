@@ -7140,14 +7140,13 @@ console.log("\nround 195o (14 October): Deep space taken out; its glowing waters
     "; return { NIGHT, NIGHT_IDS, nightTable, nightRecolour, nightLayers };")(() => null);
   const ids = lib.nightLayers().map((l) => l.id);
   const at = (id) => ids.indexOf(id);
-  check("round 202o: the glow, lakes and rivers are drawn over the lights, which are solid again; no sea cover",
-        ["outline-night-sea-glow", "outline-night-lake", "outline-night-river-glow", "outline-night-river"].every((id) => at(id) > at("outline-night-lights")) && at("outline-night-coast") === -1);
+  check("round 204o: only the shore glow is drawn over the lights, which are solid; no lake or river lines, no sea cover",
+        at("outline-night-sea-glow") > at("outline-night-lights") && ["outline-night-lake", "outline-night-river", "outline-night-river-glow", "outline-night-coast"].every((id) => at(id) === -1));
   const glow = lib.nightLayers().find((l) => l.id === "outline-night-sea-glow");
   check("the sea glow reads the depths (sea-dem) and is clear on land and in the open deep",
-        glow.source === "sea-dem" && lib.NIGHT.seaGlow.slice(-4).join() === "0,rgba(70,120,206,0),9000,rgba(70,120,206,0)" && lib.NIGHT.seaGlow[4] === "rgba(52,96,184,0)");
-  check("round 199o: only a thin blue glow along the shore; no depth rings, no wash over the shallows",
-        ![-2000, -1000, -200].some((d) => lib.NIGHT.seaGlow.includes(d)) && lib.NIGHT.seaGlow.indexOf(-40) > 0 &&
-        lib.NIGHT.seaGlow.filter((v) => typeof v === "string" && v.startsWith("rgba")).every((c) => { const [r, g, b] = c.match(/\d+/g).map(Number); return b > g + 60 && b > r + 100; }));
+        glow.source === "sea-dem" && lib.NIGHT.seaGlow.slice(-4).join() === "0,rgba(74,154,182,0),9000,rgba(74,154,182,0)" && lib.NIGHT.seaGlow[4] === "rgba(31,79,126,0)");
+  check("round 204o: Deep space's lagoon-blue coast glow, fading out by 150 m deep; no depth rings",
+        ![-2000, -1000, -200].some((d) => lib.NIGHT.seaGlow.includes(d)) && lib.NIGHT.seaGlow.indexOf(-150) > 0 && lib.NIGHT.seaGlow.includes("rgba(74,154,182,0.85)"));
   const t = lib.nightTable();
   const px = Uint8ClampedArray.from([4, 6, 22, 255, 255, 190, 80, 255]);   // the dark sea, a sodium-lit city
   lib.nightRecolour(px, t);
@@ -7164,8 +7163,7 @@ console.log("\nround 195o (14 October): Deep space taken out; its glowing waters
   check("no Deep space in the menu; Earth at Night is listed as Bioluminescent",
         !/value="space"/.test(html) && /value="night"[^>]*><span class="nm">Bioluminescent<\/span>/.test(html));
   els.get("basemaps").fire("change", { target: { name: "basemap", value: "night" } });
-  check("choosing Bioluminescent shows the glowing waters", map.getLayer("outline-night-sea-glow")?.layout?.visibility === "visible" &&
-        map.getLayer("outline-night-river")?.layout?.visibility === "visible");
+  check("choosing Bioluminescent shows the glowing waters", map.getLayer("outline-night-sea-glow")?.layout?.visibility === "visible" && !map.getLayer("outline-night-river"));
   els.get("basemaps").fire("change", { target: { name: "basemap", value: "atlas" } });
   check("choosing another basemap hides them", map.getLayer("outline-night-sea-glow")?.layout?.visibility === "none");
 }
@@ -7321,6 +7319,16 @@ console.log("\nround 203o (14 October): Moon and Mars on a globe; clearer rows; 
         /Hardware spotted in orbital photos \(LROC\)/.test(bodies) && /Every mission's spacecraft, by weight \(Wikipedia\)/.test(bodies) &&
         /"Moon hardware spotted in orbital photos \(LROC\)"/.test(src) && /How it differs from the LROC row/.test(src));
   check("names placed biggest first, none on top of another", /placed\.some\(function \(q\)/.test(bodies));
+}
+
+console.log("\nround 204o (14 October): tagged headings found; Pull up closes headings too; sublayers under Place names");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  check("a path finds a heading by its title without its tag (Fishing)", /const own_ = \(t\) => \{/.test(src) && /own_\(t\)\.trim\(\)\.toLowerCase\(\) === name/.test(src));
+  check("Pull up every layer's dropdown also closes every open heading", /Round 204o \(asked 14 October\): every open heading and sub-heading too\./.test(src));
+  check("Official buildings and Land use indented and smaller under Place names", /names-under sub-under/.test(src) && /\.view-col \.names-under\.sub-under\{padding-left:18px\}/.test(html));
+  check("the i stays on Raise figures as heights' line", /\.layers-tools \.lt-line\{display:flex;align-items:center;gap:5px;flex-wrap:nowrap\}/.test(src));
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
