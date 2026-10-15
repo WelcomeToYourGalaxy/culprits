@@ -152,6 +152,51 @@
   html.lite #lite-box{background:rgba(30,111,168,.16);border:1px solid #2A86B4;border-radius:4px;padding:6px}
   html.lite #lite-note{color:var(--bone,#DCD6C6)}
   html.lite .sect[data-sect="terrain"],html.lite #combo-box,html.lite #leave-earth,html.lite #lift-toggle{display:none!important}
+  /* Round 196o: Faster map on the Stuck? line, to its right, white like the
+     reload button; its sentence behind a small i. */
+  .reload-wrap{flex-wrap:nowrap;position:relative;z-index:5}
+  #lite-box{flex:none;margin:0;padding:0;border:0;align-items:center;gap:4px;position:static}
+  #lite-map{background:#fff;color:#333;border:0;box-shadow:0 0 0 2px rgba(0,0,0,.1);padding:4px 9px}
+  #lite-map:hover{background:#E9EEF2}
+  #lite-info{flex:none;width:16px;height:16px;padding:0;border-radius:50%;border:1px solid rgba(214,204,186,.65);
+    background:rgba(40,44,50,.6);color:#EAE2D0;font:italic 600 10px/1 Georgia,serif;cursor:pointer}
+  #lite-info:hover,#lite-info[aria-expanded="true"]{background:rgba(120,112,98,.55)}
+  #lite-note{position:absolute;right:0;top:100%;margin-top:4px;z-index:6;width:260px;padding:8px 10px;
+    background:rgba(23,21,15,.97);border:1px solid var(--rule);border-radius:4px;box-shadow:0 6px 20px rgba(6,8,12,.5)}
+  #lite-note[hidden]{display:none}
+  html.lite #lite-box{background:none;border:0;padding:0}
+  html.lite #lite-map{box-shadow:0 0 0 2px #2A86B4}
+  /* Round 196o: the settings box in two columns of even length, Basemap left
+     and View right, 3D terrain the whole width under them. */
+  .set-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:stretch}
+  .set-cols > .sect{display:flex;flex-direction:column;min-width:0}
+  .set-cols > .sect + .sect{margin-top:0;padding-top:0;border-top:0;padding-left:11px;border-left:1px solid var(--rule)}
+  .set-cols > .sect > .sect-body{flex:1 1 auto;display:flex;flex-direction:column}
+  .set-cols + .sect{margin-top:7px;padding-top:6px;border-top:1px solid var(--rule)}
+  .set-cols .bm-row{display:block}
+  .set-cols .bm-choices .nm{white-space:nowrap}
+  .view-col{flex:1 1 auto;display:flex;flex-direction:column;gap:2px}
+  .view-col .view-choices{flex:none;max-width:none}
+  .view-col .names-under{display:flex;align-items:center;gap:4px;margin:0;border-top:0;padding:2px 0}
+  .view-col .names-under .nm{font-size:inherit}
+  .view-tools{display:flex;align-items:flex-start;gap:8px;margin:6px 0 4px}
+  .view-tools .compass-holder.in-view{margin:0;flex:none}
+  .view-tools .compass-cap{display:none}
+  .set-cols .bm-choices{flex:1 1 auto;display:flex;flex-direction:column;justify-content:space-between}
+  .reload-wrap .reload-cap{font-size:12px}
+  .view-tools .view-zoom{flex:none;align-self:flex-start;justify-content:flex-start}
+  .view-tools .view-zoom .maplibregl-ctrl-group{grid-template-columns:30px 30px}
+  .view-tools .view-zoom .maplibregl-ctrl-group button{width:30px;height:30px}
+  .view-tools .view-zoom .maplibregl-ctrl-group button + button{border-top:0!important;border-left:1px solid var(--rule)!important}
+  .view-col .view-go{flex:none;margin-top:auto;min-width:0}
+  .view-col .view-go .leave{font-size:13.5px!important;padding:5px 6px!important}
+  /* Layer colours in the Layers box: the wheel left, its buttons right. */
+  .layer-colours{margin:8px 0 2px;padding:7px 8px;border:1px solid var(--rule);border-radius:3px}
+  .layer-colours .theme-pick{display:grid;grid-template-columns:auto 1fr;column-gap:10px;align-items:center;border-top:0;padding:0;margin:0}
+  .layer-colours .theme-pick > .nm{grid-column:1 / -1;margin-bottom:2px}
+  .layer-colours .theme-pick .tw-ring{grid-row:2 / span 3}
+  .layer-colours .theme-pick .tw-kind{flex-wrap:wrap}
+  html.lite .layer-colours{display:block!important}
   /* Layer rows in the layers box, laid out like Global Safety Net's own list:
      a small square of the layer's colour, the name, little space between. A
      row's line of detail (its count, or why it is empty) shows once it is ticked. */
@@ -224,6 +269,16 @@
   .space-earth:hover{border-color:rgba(220,214,198,.45)}
   .space-earth:hover span{opacity:1}
   .space-edge{position:fixed;inset:0;z-index:59;pointer-events:none}
+  /* Round 197o: the Moon and Mars buttons under Back to the map, and their map. */
+  .space-bodies{position:fixed;right:14px;top:66px;z-index:61;display:flex;gap:6px}
+  .space-bodies[hidden]{display:none}
+  .space-bodies .space-back{position:static;padding:8px 14px}
+  .space-bodies .space-back.on{border-color:#4E8FA6;background:rgba(46,127,150,.3)}
+  .space-bodies .space-back[hidden]{display:none}
+  .body-frame{position:fixed;inset:0;width:100%;height:100%;border:0;z-index:60;background:#05070B}
+  .body-frame[hidden]{display:none}
+  html.body-open .space-earth,html.body-open .space-edge{display:none!important}
+  html.body-open .space-back{z-index:62}
   .space-edge[hidden]{display:none}
   .space-edge .se{position:absolute;pointer-events:auto}
   .space-edge .t{left:0;right:0;top:0;height:46px}
@@ -521,6 +576,14 @@
   <div class="se t"></div><div class="se b"></div><div class="se l"></div><div class="se r"></div>
 </div>
 <button class="space-back" id="spaceBack" hidden>&#8592; Back to the map</button>
+<!-- Round 197o (asked 14 October): from NASA's Eyes, into a map of what people
+     have put on the Moon and Mars (bodies.html, its own page, in a frame). -->
+<div class="space-bodies" id="spaceBodies" hidden>
+  <button type="button" class="space-back" data-body="moon" title="A map of everything people have put on the Moon, and plan to">Moon</button>
+  <button type="button" class="space-back" data-body="mars" title="A map of everything people have put on Mars, with the rovers' routes">Mars</button>
+  <button type="button" class="space-back" id="spaceEyes" hidden title="Back to NASA's Eyes on the Solar System">&#8592; Solar system</button>
+</div>
+<iframe id="bodyFrame" class="body-frame" title="The Moon and Mars: what people have put there" hidden></iframe>
 <div id="map"></div>
 
 <!-- The reload button is plain page markup with its own handler, so it is
@@ -543,7 +606,26 @@
     box.id = "lite-box";
     b.parentNode.insertBefore(box, b);
     box.appendChild(b);
-    if (n) box.appendChild(n);
+    // Round 196o (asked 14 October): Faster map sits right of Stuck?, white
+    // like the reload button, and what it does is behind a small i beside
+    // it (on hover, or open on a click) rather than printed out.
+    var info = document.createElement("button");
+    info.type = "button";
+    info.id = "lite-info";
+    info.textContent = "i";
+    info.setAttribute("aria-label", "What Faster map does");
+    info.setAttribute("aria-expanded", "false");
+    box.appendChild(info);
+    if (n) { n.hidden = true; n.setAttribute("role", "note"); box.appendChild(n); }
+    info.addEventListener("click", function (e) {
+      e.preventDefault(); e.stopPropagation();
+      if (!n) return;
+      n.hidden = !n.hidden;
+      info.setAttribute("aria-expanded", n.hidden ? "false" : "true");
+    });
+    document.addEventListener("click", function (e) {
+      if (n && !n.hidden && e.target !== info && !(n.contains && n.contains(e.target))) { n.hidden = true; info.setAttribute("aria-expanded", "false"); }
+    });
     var gone = "the glow around points, the shaded bands where points crowd, 3D terrain, raised heights, " +
       "the Combine ticked layers box, and zooming out into space";
     if (window.__culpritsLite) {
@@ -554,6 +636,7 @@
       if (n) n.textContent = "Slow or freezing? Every layer and basemap stays. Turns off " + gone + ".";
     }
     b.title = n ? n.textContent : "";
+    info.title = b.title;
   })();
   </script>
 </div>
@@ -1179,11 +1262,14 @@
       // clears the basemap it came from, unless Basemap underneath is ticked.
       `<label class="layer" title="A wireframe screen: country outlines, no imagery. Your layers stay on.">` +
       `<input type="radio" id="holo-toggle"${on ? " checked" : ""}><span class="nm">Hologram</span></label>` +
-      tick("holo-under", "under", "Basemap underneath", "The basemap ticked above, under the hologram, dimmed by a navy wash") +
       `<button type="button" class="holo-fold" id="holo-fold" title="Roll the hologram's options up or down"` +
       ` aria-expanded="${opt.fold ? "false" : "true"}"${on ? "" : " hidden"}>${opt.fold ? "&#9656;" : "&#9662;"}</button></div>` +
       `<p class="holo-note" id="holo-note"></p>` +
       `<div class="holo-sub"${on && !opt.fold ? "" : " hidden"}>` +
+      // Round 196o (asked 14 October): Basemap underneath is one of the
+      // hologram's options, shown with them when it is picked, not a line of
+      // its own under it.
+      tick("holo-under", "under", "Basemap underneath", "The basemap ticked above, under the hologram, dimmed by a navy wash") +
       tick("holo-grat", "grat", `${HOLO.gridStep}° grid lines`) +
       tick("holo-floorbox", "floor", "Grid floor") +
       tick("holo-stars", "stars", "Stars") +

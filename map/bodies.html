@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Moon and Mars: human impact</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<!--
+  The Moon and Mars views of the Culprits map (round 197o, asked 14 October).
+  Opened from the map while NASA's Eyes on the Solar System is showing (the
+  Moon and Mars buttons beside "Back to the map"), or on its own as
+  bodies.html#moon / bodies.html#mars.
+
+  Ground: NASA's Moon Trek and Mars Trek tiles, read live from Trek's own
+  tile service (equirectangular, so the map uses Leaflet's plate carrée).
+  The Moon is LRO's wide-angle camera mosaic; Mars is the Viking colour
+  mosaic, in its real colour, as the owner asked.
+
+  Layers, built by culprits-tiles-more (scripts/bodies.py), each kept as its
+  source gives it, nothing filtered:
+    everything humans put on the Moon        LROC (NASA/GSFC/ASU), PDS
+    objects left on the Moon / Mars, mass    Wikipedia's two lists
+    NASA's nine Artemis III regions          NASA, at the named feature's IAU centre
+    Perseverance and Curiosity, live         NASA/JPL's own rover maps
+    place names                              USGS / IAU gazetteer
+  Colours: bone, teal, cobalt, plum and rose glows; no orange, yellow or green.
+-->
+<style>
+  :root{--peat:#17150F;--bone:#DCD6C6;--dim:#948D7C;--rule:#322E27;
+    --sans:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
+    --obj:#E8E2D4;--obj-glow:#4FA3B8;--mass:#C98BA0;--mass-glow:#7A4E78;--plan:#7F9BE0;--plan-glow:#2F4E9A;
+    --rover:#9FD0DC;--rover-glow:#2E7F96}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#05070B;color:var(--bone);font-family:var(--sans);overflow:hidden}
+  #map{position:absolute;inset:0;background:#05070B}
+  .leaflet-container{background:#05070B;font-family:var(--sans)}
+  .box{position:absolute;z-index:500;background:rgba(23,21,15,.94);border:1px solid var(--rule);border-radius:3px;
+    font-size:13px;line-height:1.35}
+  #panel{left:16px;top:16px;width:300px;max-height:calc(100% - 32px);overflow:auto;padding:10px 12px}
+  .tabs{display:flex;gap:6px;margin-bottom:8px}
+  .tabs button{flex:1;font:inherit;font-size:14px;font-weight:600;letter-spacing:.04em;color:var(--dim);
+    background:none;border:1px solid var(--rule);border-radius:3px;padding:6px 8px;cursor:pointer}
+  .tabs button.on{color:var(--bone);border-color:#4E8FA6;background:rgba(46,127,150,.18)}
+  h1{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);font-weight:500;margin:10px 0 4px}
+  .row{display:flex;align-items:flex-start;gap:7px;padding:4px 0;border-top:1px solid var(--rule)}
+  .row:first-of-type{border-top:0}
+  .row input{margin:2px 0 0}
+  .sw{flex:none;width:11px;height:11px;border-radius:50%;margin-top:2px}
+  .row .t{flex:1}
+  .row .n{color:var(--dim);font-size:11.5px;display:block}
+  .live{font-size:9.5px;letter-spacing:.06em;color:#9FD0DC;border:1px solid #2E7F96;border-radius:2px;padding:0 3px;margin-left:4px}
+  .note{font-size:11.5px;color:var(--dim);margin:6px 0 0}
+  .note b{color:var(--bone);font-weight:500}
+  details{margin-top:8px;border-top:1px solid var(--rule);padding-top:6px}
+  summary{cursor:pointer;color:var(--bone);font-size:12px}
+  details ul{margin:4px 0 0;padding-left:16px;font-size:11.5px;color:var(--dim)}
+  .leaflet-popup-content-wrapper,.leaflet-popup-tip{background:rgba(23,21,15,.97);color:var(--bone);border:1px solid var(--rule);box-shadow:0 6px 20px rgba(0,0,0,.5)}
+  .leaflet-popup-content{margin:10px 12px;font-size:12.5px;max-height:320px;overflow:auto;min-width:220px}
+  .leaflet-popup-content h3{margin:0 0 6px;font-size:14px}
+  .leaflet-popup-content table{border-collapse:collapse;width:100%}
+  .leaflet-popup-content td{vertical-align:top;padding:2px 0;border-top:1px solid var(--rule)}
+  .leaflet-popup-content td:first-child{color:var(--dim);padding-right:8px;white-space:nowrap}
+  .leaflet-popup-content hr{border:0;border-top:1px solid #4E8FA6;margin:10px 0}
+  .leaflet-popup-content .src{margin-top:6px;font-size:11px;color:var(--dim)}
+  .leaflet-container a{color:#9FC3DE}
+  .leaflet-popup-close-button{color:var(--dim)!important}
+  .leaflet-control-attribution{background:rgba(23,21,15,.85)!important;color:var(--dim)!important;font-size:10.5px}
+  .leaflet-bar a{background:rgba(23,21,15,.94);color:var(--bone);border-color:var(--rule)}
+  .leaflet-bar a:hover{background:#2A271F}
+  .nm-label{background:none;border:0;box-shadow:none;color:#D6DCE4;font-size:11px;letter-spacing:.04em;
+    text-shadow:0 0 3px #000,0 0 6px #000;padding:0}
+  .nm-label::before{display:none}
+  .plan-label{color:#B9C8F0;font-size:11.5px}
+  /* Zoomed right out, the nine regions sit too close to name; their names
+     come in from zoom 4 (each still opens on a click). */
+  .far .plan-label{display:none}
+  #wait{left:50%;top:16px;transform:translateX(-50%);padding:5px 11px;border-radius:14px;font-size:12px}
+  #wait[hidden]{display:none}
+  @media (max-width:600px){#panel{width:calc(100% - 32px);max-height:45%}}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="box" id="panel">
+  <div class="tabs"><button type="button" data-body="moon">Moon</button><button type="button" data-body="mars">Mars</button></div>
+  <div id="rows"></div>
+  <p class="note" id="body-note"></p>
+  <details id="unplaced-box" hidden><summary id="unplaced-sum"></summary><ul id="unplaced"></ul></details>
+</div>
+<div class="box" id="wait" hidden></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function () {
+  "use strict";
+  var DATA = "https://welcometoyourgalaxy.github.io/culprits-tiles-more/bodies/";
+  var NASA_ROVERS = "https://mars.nasa.gov/mmgis-maps/";
+  var css = getComputedStyle(document.documentElement);
+  var C = function (n) { return css.getPropertyValue(n).trim(); };
+
+  // ---------- the two bodies ----------
+  var BODIES = {
+    moon: {
+      name: "Moon", heading: "what people have put there, and plan to",
+      tiles: "https://trek.nasa.gov/tiles/Moon/EQ/LRO_WAC_Mosaic_Global_303ppd_v02/1.0.0/default/default028mm/{z}/{y}/{x}.jpg",
+      native: 8,
+      ground: '<a href="https://trek.nasa.gov/moon/" target="_blank" rel="noopener">NASA Moon Trek</a>: LRO wide-angle camera mosaic (NASA/GSFC/Arizona State University)',
+      note: "No one keeps a full count of the smaller things left on the Moon (tools, bags, flags, cameras). The Wikipedia list leaves them out and says so; LROC places only what its camera has found. " +
+            "The Artemis III marks are at the centre of the feature each region is named after, because NASA has published the regions only as a picture. " +
+            "The south pole, where all nine lie, is stretched sideways on this flat map.",
+      rows: [
+        { id: "objects", file: "moon_objects.geojson", kind: "obj", title: "Everything humans have put on the Moon, found from orbit (LROC)",
+          sub: "Landers, rovers, experiments left behind, impact craters, retroreflectors", name: ["SHORT_NAME", "VEHCL_NAME", "OBJECT", "MISSION"],
+          credit: 'LROC, <a href="https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS" target="_blank" rel="noopener">Coordinates of anthropogenic features on the Moon</a>, NASA/GSFC/Arizona State University (public domain); Wagner et al. 2017, Icarus 283:92–103', on: true },
+        { id: "list", file: "moon_list.geojson", kind: "mass", title: "Objects left on the Moon, sized by mass (Wikipedia)",
+          sub: "Spacecraft, stages, rovers and crashes, with their masses", credit: 'Wikipedia, <a href="https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon" target="_blank" rel="noopener">List of artificial objects on the Moon</a> (CC BY-SA 4.0)', on: true },
+        { id: "artemis", file: "artemis3.geojson", kind: "plan", title: "Planned: NASA's nine Artemis III landing regions (NASA)",
+          sub: "Candidate regions for the next crewed landing, near the south pole", name: ["region"],
+          credit: 'NASA, <a href="https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/" target="_blank" rel="noopener">28 October 2024</a>; placed at IAU feature centres from the USGS Gazetteer of Planetary Nomenclature', on: true },
+        { id: "names", file: "moon_names.geojson", kind: "names", title: "Place names (IAU)", sub: "More appear as you zoom in",
+          credit: 'IAU names from the <a href="https://planetarynames.wr.usgs.gov/" target="_blank" rel="noopener">USGS Gazetteer of Planetary Nomenclature</a>', on: true }
+      ]
+    },
+    mars: {
+      name: "Mars", heading: "what people have put there",
+      tiles: "https://trek.nasa.gov/tiles/Mars/EQ/Mars_Viking_MDIM21_ClrMosaic_global_232m/1.0.0/default/default028mm/{z}/{y}/{x}.jpg",
+      native: 7,
+      ground: '<a href="https://trek.nasa.gov/mars/" target="_blank" rel="noopener">NASA Mars Trek</a>: Viking colour mosaic (NASA/JPL/USGS), in its real colour',
+      note: "No one keeps a count of the parachutes, heat shields, back shells and fragments spread across Mars; the Wikipedia list leaves them out and says so. " +
+            "The rover routes come from NASA/JPL's own rover maps, read live each time this view opens.",
+      rows: [
+        { id: "list", file: "mars_list.geojson", kind: "mass", title: "Objects left on Mars, sized by mass (Wikipedia)",
+          sub: "Landers, rovers, the helicopter and crashes, with their masses", credit: 'Wikipedia, <a href="https://en.wikipedia.org/wiki/List_of_artificial_objects_on_Mars" target="_blank" rel="noopener">List of artificial objects on Mars</a> (CC BY-SA 4.0)', on: true },
+        { id: "m20", rover: "M20", kind: "rover", title: "Perseverance's route and where it is now (NASA/JPL)", live: true,
+          sub: "Every stop and drive since landing in Jezero crater, 2021", credit: 'NASA/JPL-Caltech, <a href="https://science.nasa.gov/mission/mars-2020-perseverance/location-map/" target="_blank" rel="noopener">Perseverance location map</a>', on: true },
+        { id: "msl", rover: "MSL", kind: "rover", title: "Curiosity's route and where it is now (NASA/JPL)", live: true,
+          sub: "Every stop and drive since landing in Gale crater, 2012", credit: 'NASA/JPL-Caltech, <a href="https://science.nasa.gov/mission/msl-curiosity/location-map/" target="_blank" rel="noopener">Curiosity location map</a>', on: true },
+        { id: "names", file: "mars_names.geojson", kind: "names", title: "Place names (IAU)", sub: "More appear as you zoom in",
+          credit: 'IAU names from the <a href="https://planetarynames.wr.usgs.gov/" target="_blank" rel="noopener">USGS Gazetteer of Planetary Nomenclature</a>', on: true }
+      ]
+    }
+  };
+
+  var map = L.map("map", { crs: L.CRS.EPSG4326, center: [0, 0], zoom: 2, minZoom: 1, maxZoom: 11,
+    worldCopyJump: false, maxBounds: [[-95, -200], [95, 200]], preferCanvas: true, zoomControl: true });
+  // In the map's frame the top right corner holds its Back and Moon/Mars
+  // buttons, so the zoom buttons go to the bottom right.
+  map.zoomControl.setPosition(window.parent !== window ? "bottomright" : "topright");
+  map.attributionControl.setPrefix(false);
+  var glow = L.canvas({ padding: 0.3 });
+  var farness = function () { map.getContainer().classList.toggle("far", map.getZoom() < 4); };
+  map.on("zoomend", farness);
+  farness();
+  var ground = null, layers = {}, body = null, cache = {};
+
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function flat(v) {
+    if (v == null || v === "") return "";
+    if (typeof v === "object") return Array.isArray(v) ? v.map(flat).join(", ") : Object.keys(v).map(function (k) { return k + ": " + flat(v[k]); }).join("; ");
+    return String(v);
+  }
+  // Every field the source gives, in its own order.
+  function popup(row, p) {
+    var title = "";
+    for (var i = 0; row.name && i < row.name.length && !title; i++) title = flat(p[row.name[i]]);
+    if (!title) for (var k in p) { if (k !== "table" && p[k] !== "" && p[k] != null) { title = flat(p[k]); break; } }
+    var html = "<h3>" + esc(title) + "</h3><table>";
+    Object.keys(p).forEach(function (k) {
+      var v = flat(p[k]);
+      if (v === "") return;
+      if (/^https?:\/\//.test(v)) v = '<a href="' + esc(v) + '" target="_blank" rel="noopener">' + esc(v) + "</a>"; else v = esc(v);
+      html += "<tr><td>" + esc(k) + "</td><td>" + v + "</td></tr>";
+    });
+    return html + '</table><div class="src">' + row.credit + "</div>";
+  }
+  function get(url) {
+    if (cache[url]) return cache[url];
+    cache[url] = fetch(url, { cache: "no-cache" }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); });
+    cache[url].catch(function () { delete cache[url]; });
+    return cache[url];
+  }
+  // A mass in kilograms from a row's columns, for sizing only (the row keeps
+  // every column as written).
+  function kg(p) {
+    for (var k in p) {
+      if (!/kg/i.test(k)) continue;
+      var m = String(p[k]).replace(/[,  ]/g, "").match(/(\d+(?:\.\d+)?)/);
+      if (m) return parseFloat(m[1]);
+    }
+    return null;
+  }
+  // A glow orb: a soft halo and a bright core, on the canvas.
+  function orb(ll, r, core, halo) {
+    var g = L.layerGroup();
+    L.circleMarker(ll, { renderer: glow, radius: r * 2.6, stroke: false, fillColor: halo, fillOpacity: 0.16, interactive: false }).addTo(g);
+    L.circleMarker(ll, { renderer: glow, radius: r * 1.6, stroke: false, fillColor: halo, fillOpacity: 0.28, interactive: false }).addTo(g);
+    var c = L.circleMarker(ll, { renderer: glow, radius: r, stroke: true, weight: 1, color: halo, opacity: 0.7, fillColor: core, fillOpacity: 0.95 }).addTo(g);
+    return { group: g, hit: c };
+  }
+  function ll(f) {
+    if (!f.geometry || !f.geometry.coordinates) return null;
+    var c = f.geometry.coordinates;
+    return [c[1], c[0]];
+  }
+
+  function buildPoints(row, fc) {
+    var g = L.layerGroup(), unplaced = [];
+    var feats = fc.features || [];
+    var maxKg = 0;
+    if (row.kind === "mass") feats.forEach(function (f) { var m = kg(f.properties || {}); if (m && m > maxKg) maxKg = m; });
+    // Regions placed at the same feature (Nobile Rim 1 and 2, Mons Mouton and
+    // its plateau) share one mark, named for both.
+    var same = {};
+    if (row.kind === "plan") feats.forEach(function (f) { var at = ll(f); if (at) { var k = at.join(); (same[k] = same[k] || []).push(f.properties || {}); } });
+    feats.forEach(function (f) {
+      var p = f.properties || {}, at = ll(f);
+      if (!at) { unplaced.push(p); return; }
+      var o;
+      if (row.kind === "plan") {
+        var all = same[at.join()];
+        if (!all || all[0] !== p) return;
+        o = orb(at, 6, C("--plan"), C("--plan-glow"));
+        o.hit.bindTooltip(esc(all.map(function (q) { return q.region || ""; }).join(" · ")), { permanent: true, direction: "right", className: "nm-label plan-label", offset: [8, 0] });
+        o.hit.bindPopup(all.map(function (q) { return popup(row, q); }).join("<hr>"), { maxWidth: 360 });
+        o.group.addTo(g);
+        return;
+      }
+      if (row.kind === "mass") {
+        var m = kg(p);
+        // Area in proportion to mass.
+        var r = m && maxKg ? 2.5 + 13 * Math.sqrt(m / maxKg) : 3;
+        o = orb(at, r, C("--mass"), C("--mass-glow"));
+      } else {
+        o = orb(at, 3.5, C("--obj"), C("--obj-glow"));
+      }
+      o.hit.bindPopup(popup(row, p), { maxWidth: 360 });
+      o.group.addTo(g);
+    });
+    return { layer: g, count: feats.length, unplaced: unplaced };
+  }
+
+  // Names: every feature, shown once the map is close enough for its size
+  // (a bigger feature's name shows from further out).
+  function buildNames(row, fc) {
+    var feats = (fc.features || []).filter(function (f) { return f.geometry; });
+    var g = L.layerGroup();
+    var dia = function (p) { var d = parseFloat(p.diameter != null ? p.diameter : p.DIAMETER); return isFinite(d) ? d : 0; };
+    var label = function (p) { return p.clean_name || p.name || p.NAME || ""; };
+    function draw() {
+      g.clearLayers();
+      var z = map.getZoom(), b = map.getBounds().pad(0.1);
+      var min = z >= 9 ? 0 : 1600 / Math.pow(2, z + 1);
+      feats.forEach(function (f) {
+        var p = f.properties || {}, at = ll(f);
+        if (dia(p) < min || !b.contains(at)) return;
+        L.marker(at, { icon: L.divIcon({ className: "nm-label", html: esc(label(p)), iconSize: null }), interactive: false, keyboard: false }).addTo(g);
+      });
+    }
+    g.on("add", function () { draw(); map.on("moveend", draw); });
+    g.on("remove", function () { map.off("moveend", draw); });
+    return { layer: g, count: feats.length, unplaced: [] };
+  }
+
+  function buildRover(row) {
+    var base = row.rover + "/Layers/json/" + row.rover;
+    var pick = function (name) {
+      return get(NASA_ROVERS + base + "_" + name + ".json").catch(function () { return get(DATA + "rovers/" + row.rover + "_" + name + ".json"); });
+    };
+    return Promise.all([pick("traverse"), pick("waypoints")]).then(function (both) {
+      var g = L.layerGroup();
+      L.geoJSON(both[0], { style: { color: C("--rover-glow"), weight: 6, opacity: 0.35 }, interactive: false }).addTo(g);
+      L.geoJSON(both[0], { style: { color: C("--rover"), weight: 1.6, opacity: 0.95 },
+        onEachFeature: function (f, l) { l.bindPopup(popup(row, f.properties || {}), { maxWidth: 360 }); } }).addTo(g);
+      var pts = (both[1].features || []).filter(function (f) { return f.geometry; });
+      pts.forEach(function (f, i) {
+        var last = i === pts.length - 1;
+        // Every stop a small point (thousands of them); where it is now a glow orb.
+        var o = last ? orb(ll(f), 6, C("--obj"), C("--rover-glow"))
+          : { group: L.layerGroup(), hit: L.circleMarker(ll(f), { renderer: glow, radius: 1.8, stroke: false, fillColor: C("--rover"), fillOpacity: 0.85 }) };
+        if (!last) o.hit.addTo(o.group);
+        o.hit.bindPopup(popup(row, f.properties || {}), { maxWidth: 360 });
+        if (last) o.hit.bindTooltip((row.rover === "M20" ? "Perseverance" : "Curiosity") + (f.properties && f.properties.sol != null ? ", sol " + f.properties.sol : ""),
+          { permanent: true, direction: "right", className: "nm-label", offset: [8, 0] });
+        o.group.addTo(g);
+      });
+      return { layer: g, count: pts.length, unplaced: [] };
+    });
+  }
+
+  function load(row) {
+    if (row.rover) return buildRover(row);
+    return get(DATA + row.file).then(function (fc) { return row.kind === "names" ? buildNames(row, fc) : buildPoints(row, fc); });
+  }
+
+  function swatch(kind) {
+    var m = { obj: ["--obj", "--obj-glow"], mass: ["--mass", "--mass-glow"], plan: ["--plan", "--plan-glow"], rover: ["--rover", "--rover-glow"], names: ["--bone", "--rule"] }[kind];
+    return "background:" + C(m[0]) + ";box-shadow:0 0 0 2px " + C(m[1]) + "66,0 0 6px " + C(m[1]);
+  }
+
+  function show(key) {
+    if (!BODIES[key]) key = "moon";
+    if (body === key) return;
+    body = key;
+    var b = BODIES[key];
+    document.title = b.name + ": human impact";
+    try { history.replaceState(null, "", "#" + key); } catch (e) { /* kept */ }
+    document.querySelectorAll(".tabs button").forEach(function (el) { el.classList.toggle("on", el.dataset.body === key); });
+    Object.keys(layers).forEach(function (id) { if (layers[id].layer) map.removeLayer(layers[id].layer); });
+    layers = {};
+    if (ground) map.removeLayer(ground);
+    ground = L.tileLayer(b.tiles, { tileSize: 256, maxNativeZoom: b.native, maxZoom: 11, noWrap: true, bounds: [[-90, -180], [90, 180]], attribution: b.ground }).addTo(map);
+    map.fitBounds([[-90, -180], [90, 180]], { animate: false });
+    document.getElementById("body-note").textContent = b.note;
+    var rows = document.getElementById("rows");
+    rows.innerHTML = "<h1>" + esc(b.name) + ": " + esc(b.heading) + "</h1>";
+    var unplacedAll = [];
+    var unBox = document.getElementById("unplaced-box");
+    unBox.hidden = true;
+    b.rows.forEach(function (row) {
+      var el = document.createElement("label");
+      el.className = "row";
+      el.innerHTML = '<input type="checkbox"' + (row.on ? " checked" : "") + '><span class="sw" style="' + swatch(row.kind) + '"></span>' +
+        '<span class="t">' + esc(row.title) + (row.live ? '<span class="live">LIVE</span>' : "") + '<span class="n">' + esc(row.sub) + "</span></span>";
+      rows.appendChild(el);
+      var box = el.querySelector("input"), n = el.querySelector(".n");
+      var entry = layers[row.id] = { layer: null };
+      var mine = key;
+      load(row).then(function (r) {
+        if (body !== mine) return;
+        entry.layer = r.layer;
+        n.textContent = row.sub + " · " + r.count.toLocaleString() + (row.kind === "names" ? " names" : row.rover ? " stops" : " entries");
+        if (box.checked) r.layer.addTo(map);
+        if (r.unplaced.length) {
+          r.unplaced.forEach(function (p) {
+            var t = ""; for (var k in p) { if (k !== "table" && p[k]) { t = flat(p[k]); break; } }
+            unplacedAll.push(t + " (" + row.title.replace(/ \(.*\)$/, "") + ")");
+          });
+          document.getElementById("unplaced-sum").textContent = unplacedAll.length + (unplacedAll.length === 1 ? " entry" : " entries") + " the sources give no position for";
+          document.getElementById("unplaced").innerHTML = unplacedAll.map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("");
+          unBox.hidden = false;
+        }
+      }).catch(function () {
+        if (body !== mine) return;
+        n.textContent = row.sub + " · not built yet: culprits-tiles-more builds it on its next run";
+      });
+      box.addEventListener("change", function () {
+        if (!entry.layer) return;
+        if (box.checked) entry.layer.addTo(map); else map.removeLayer(entry.layer);
+      });
+    });
+  }
+
+  document.querySelectorAll(".tabs button").forEach(function (el) {
+    el.addEventListener("click", function () { show(el.dataset.body); });
+  });
+  // The map that opened this view can ask for a body.
+  window.addEventListener("message", function (e) {
+    if (e.data && e.data.culpritsBody) show(e.data.culpritsBody);
+  });
+  window.addEventListener("hashchange", function () { show(location.hash.slice(1)); });
+  var q = new URLSearchParams(location.search).get("body");
+  show(q || location.hash.slice(1) || "moon");
+})();
+</script>
+</body>
+</html>

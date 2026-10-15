@@ -3732,6 +3732,9 @@ function spaceFrame() { return document.getElementById("space"); }
 function showBack(on) {
   const back = document.getElementById("spaceBack");
   if (back) back.hidden = !on;
+  const bodies = document.getElementById("spaceBodies");
+  if (bodies) bodies.hidden = !on;
+  if (!on) closeBody();
   const earth = document.getElementById("spaceEarth");
   if (!earth) return;
   if (on && earth.style) {
@@ -3740,6 +3743,35 @@ function showBack(on) {
     earth.style.height = d + "px";
   }
   earth.hidden = !on;
+}
+
+// Round 197o (asked 14 October): the Moon and Mars, from Eyes. Their map is
+// its own page (bodies.html), opened in a frame over Eyes; the buttons switch
+// between the two bodies, and Solar system closes it back to Eyes.
+let BODY_OPEN = null;
+function openBody(key) {
+  const f = document.getElementById("bodyFrame");
+  if (!f) return;
+  if (!f.src) f.src = new URL("bodies.html#" + key, document.baseURI).href;
+  else if (f.contentWindow && typeof f.contentWindow.postMessage === "function") f.contentWindow.postMessage({ culpritsBody: key }, "*");
+  f.hidden = false;
+  BODY_OPEN = key;
+  bodyButtons();
+}
+function closeBody() {
+  const f = document.getElementById("bodyFrame");
+  if (f) f.hidden = true;
+  BODY_OPEN = null;
+  bodyButtons();
+}
+function bodyButtons() {
+  if (typeof document === "undefined") return;
+  if (document.documentElement && document.documentElement.classList) document.documentElement.classList.toggle("body-open", !!BODY_OPEN);
+  const box = document.getElementById("spaceBodies");
+  if (!box || !box.querySelectorAll) return;
+  for (const b of box.querySelectorAll("[data-body]")) if (b.classList) b.classList.toggle("on", b.getAttribute("data-body") === BODY_OPEN);
+  const eyes = document.getElementById("spaceEyes");
+  if (eyes) eyes.hidden = !BODY_OPEN;
 }
 
 // Loaded before it is needed: Eyes is a whole application, and a cold start in
@@ -7966,13 +7998,16 @@ function atlasCityPanel() {
   el = document.createElement("div");
   el.id = "atlas-city";
   el.hidden = true;
-  el.style.cssText = "position:fixed;right:14px;bottom:14px;width:min(460px,46vw);max-height:78vh;z-index:46;display:flex;flex-direction:column;" +
+  // Round 198o (asked 14 October): opens at the large size, in the middle of
+  // the screen; the button makes it small in the corner, and large again.
+  el.dataset.big = "1";
+  el.style.cssText = "position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(1100px,94vw);max-height:92vh;z-index:46;display:flex;flex-direction:column;" +
     "background:var(--peat,#17150F);border:1px solid var(--rule,#322E27);border-radius:3px;box-shadow:0 8px 30px rgba(0,0,0,.5);" +
     "font-size:12px;color:var(--dim)";
   // Round 109b (asked 28 September): a button in the top left corner makes the
   // panel large, and again small; the key sits under the picture.
   el.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--rule,#322E27)">` +
-      `<button type="button" class="ac-grow" aria-label="Make the city's map larger" title="Larger" style="background:none;border:1px solid var(--rule,#322E27);border-radius:2px;color:inherit;font-size:13px;line-height:1;padding:2px 5px;cursor:pointer">\u2922</button>` +
+      `<button type="button" class="ac-grow" aria-label="Make the city's map smaller" title="Smaller" style="background:none;border:1px solid var(--rule,#322E27);border-radius:2px;color:inherit;font-size:13px;line-height:1;padding:2px 5px;cursor:pointer">\u2921</button>` +
       `<b class="ac-title" style="flex:1;color:var(--ink,#E8E2D6)"></b>` +
       `<button type="button" class="ac-close" aria-label="Close the city's map" style="background:none;border:0;color:inherit;font-size:16px;cursor:pointer">\u00d7</button></div>` +
     `<div class="ac-pic" style="overflow:auto;flex:1;min-height:0;cursor:zoom-in"><img alt="" style="display:block;width:100%"></div>` +
@@ -7987,18 +8022,64 @@ function atlasCityPanel() {
     el.dataset.big = big ? "1" : "0";
     el.style.width = big ? "min(1100px,94vw)" : "min(460px,46vw)";
     el.style.maxHeight = big ? "92vh" : "78vh";
+    // Large in the middle, small in the bottom right corner, wherever it was dragged.
+    Object.assign(el.style, big ? { left: "50%", top: "50%", right: "auto", bottom: "auto", transform: "translate(-50%,-50%)" }
+      : { left: "auto", top: "auto", right: "14px", bottom: "14px", transform: "none" });
     ev.currentTarget.innerHTML = big ? "\u2921" : "\u2922";
     ev.currentTarget.title = big ? "Smaller" : "Larger";
     ev.currentTarget.setAttribute("aria-label", big ? "Make the city's map smaller" : "Make the city's map larger");
   });
-  // A click on the picture shows it at its full size, to be scrolled; another
-  // fits it to the panel again.
-  el.querySelector(".ac-pic").addEventListener("click", (ev) => {
-    const box = ev.currentTarget, img = box.querySelector("img");
+  // A click on the picture shows it at its full size; another fits it to the
+  // panel again. Round 198o (asked 14 October): the picture is dragged to move
+  // round it (a drag is not a click), and the panel is dragged by its top bar.
+  const pic = el.querySelector(".ac-pic");
+  let pan = null;
+  pic.addEventListener("pointerdown", (ev) => {
+    if (ev.button !== 0) return;
+    pan = { x: ev.clientX, y: ev.clientY, l: pic.scrollLeft, t: pic.scrollTop, moved: false };
+    try { pic.setPointerCapture(ev.pointerId); } catch (e) { /* kept */ }
+    ev.preventDefault();
+  });
+  pic.addEventListener("pointermove", (ev) => {
+    if (!pan) return;
+    const dx = ev.clientX - pan.x, dy = ev.clientY - pan.y;
+    if (!pan.moved && Math.abs(dx) + Math.abs(dy) < 5) return;
+    pan.moved = true;
+    pic.style.cursor = "grabbing";
+    pic.scrollLeft = pan.l - dx;
+    pic.scrollTop = pan.t - dy;
+  });
+  const panEnd = () => {
+    if (!pan) return;
+    const was = pan;
+    pan = null;
+    const img = pic.querySelector("img");
+    if (was.moved) { pic.style.cursor = img.style.width !== "100%" ? "grab" : "zoom-in"; return; }
     const big = img.style.width !== "100%";
     img.style.width = big ? "100%" : `${img.naturalWidth || 2160}px`;
-    box.style.cursor = big ? "zoom-in" : "zoom-out";
+    pic.style.cursor = big ? "zoom-in" : "grab";
+  };
+  pic.addEventListener("pointerup", panEnd);
+  pic.addEventListener("pointercancel", () => { pan = null; });
+  const bar = el.firstElementChild;
+  let move = null;
+  bar.style.cursor = "move";
+  bar.addEventListener("pointerdown", (ev) => {
+    if (ev.button !== 0 || (ev.target.closest && ev.target.closest("button"))) return;
+    const r = el.getBoundingClientRect();
+    move = { x: ev.clientX - r.left, y: ev.clientY - r.top };
+    Object.assign(el.style, { left: r.left + "px", top: r.top + "px", right: "auto", bottom: "auto", transform: "none" });
+    try { bar.setPointerCapture(ev.pointerId); } catch (e) { /* kept */ }
+    ev.preventDefault();
   });
+  bar.addEventListener("pointermove", (ev) => {
+    if (!move) return;
+    const w = window.innerWidth || 800, h = window.innerHeight || 600;
+    el.style.left = Math.max(-el.offsetWidth + 60, Math.min(w - 60, ev.clientX - move.x)) + "px";
+    el.style.top = Math.max(0, Math.min(h - 40, ev.clientY - move.y)) + "px";
+  });
+  bar.addEventListener("pointerup", () => { move = null; });
+  bar.addEventListener("pointercancel", () => { move = null; });
   return el;
 }
 function atlasCityShow(what) {
@@ -8009,7 +8090,7 @@ function atlasCityShow(what) {
   const img = el.querySelector(".ac-pic img");
   img.style.width = "100%";
   el.querySelector(".ac-pic").style.cursor = "zoom-in";
-  el.querySelector(".ac-note").textContent = "The Atlas's map of the city. Click it to see it at full size.";
+  el.querySelector(".ac-note").textContent = "The Atlas's map of the city. Click it to see it at full size, and drag it to move round it; drag the top bar to move the box.";
   img.onerror = () => { el.querySelector(".ac-note").textContent = "The Atlas's picture did not load; its page has it."; };
   img.src = ATLAS_CITY_IMG + (ATLAS_CITY_IMG_NAME[slug] || slug) + ".png";
   el.hidden = false;
@@ -9065,7 +9146,9 @@ const CATALOGUE_BY_TITLE = [
   [/\bECJRCV2\b|\bFCHS_2020_ECJRCV2\b|\bREGBRNMYSIDN_FC(HS)?_2020_ECJRC\b|\bREGBRNMYSIDN_FCLandArea_2020_ECJRC\b/, null],
   [/\bGlobal_FC-FNF(-HS_Latest|_2024|_2025)_TTM\b|\bREGBRNIDNMYS_FC-FNF-HS_Latest_TTM\b|\bIDNMYSBorneo_LCIndustrial_1970\b/, null],
   // Layers with sublayers.
-  [/\bclark_labs_tropical_pond_aquaculture_(1999|2014|2018|change_1999_2018)\b/, [IN(P + " > Oceans > Fishing", "ponds")]],
+  // Round 198o (asked 14 October): also under Meat > Marine meats > Fish and
+  // shrimp farms, where their bundle had sat empty.
+  [/\bclark_labs_tropical_pond_aquaculture_(1999|2014|2018|change_1999_2018)\b/, [IN(P + " > Meat and agriculture > Meat > Marine meats > Fish and shrimp farms", "ponds"), IN(P + " > Oceans > Fishing", "ponds")]],
   [/\bpangaea_global_mining\b|\bgfw_mining_concessions\b|\bIDN_Mining_2023\b|\bconcessionmining_spv\b/, [P + " > Mining"]],
   // Round 94b: the mangroves of 1996, 2016 and 2020 under Deforestation > Mangroves.
   [/\bgmw_global_mangrove_extent(_1996|_2016)?\b/, [IN(P + " > Deforestation > Mangroves", "mangroves")]],
@@ -13693,7 +13776,7 @@ function viewPanelHtml() {
     // on and off together, like the names.
     `<label class="layer names-under"><input type="checkbox" id="details-toggle"${DETAILS_ON ? " checked" : ""}` +
     ` title="Everything OpenStreetMap draws besides the land and sea: roads, railways, rivers, buildings, towns, land use, and shops, schools, hospitals and other places close in.">` +
-    `<span class="nm">Streets and places</span></label></div>` +
+    `<span class="nm">Streets</span></label></div>` +
     `<div class="view-go">` +
     `<button type="button" id="to-globe" class="snap" title="Out to the whole world, in the view you are in">` +
     `Snap back to global scale</button>` +
@@ -13721,11 +13804,55 @@ function viewPanelHtml() {
 }
 
 if (typeof map.once === "function") map.once("idle", () => { try { if (themeNow() !== "drawn") themeApply(); } catch (e) { /* as drawn */ } });
+// Round 196o (asked 14 October): the settings box in two columns. Basemap
+// on the left; View on the right, in one column: Globe and Flat map, Place
+// names and Streets, then North up and the zoom buttons in a row, then
+// Snap back and Leave Earth at the foot, so the two columns end level. 3D
+// terrain runs the whole width under them. Layer colours leave the box for
+// the Layers box on the left, at its foot. The pieces
+// are moved after the box is written, so the code that writes and wraps
+// each part is left as it is.
+function settingsLayout(box) {
+  if (!box || typeof document === "undefined" || !box.querySelector) return;
+  const base = box.querySelector('.sect[data-sect="basemap"]'), view = box.querySelector('.sect[data-sect="view"]');
+  if (!base || !view || box.querySelector(".set-cols")) return;
+  const cols = document.createElement("div");
+  cols.className = "set-cols";
+  box.insertBefore(cols, base);
+  cols.appendChild(base);
+  cols.appendChild(view);
+  const body = view.querySelector(".sect-body"), row = view.querySelector(".view-row");
+  const choices = view.querySelector(".view-choices"), compass = view.querySelector("#compass-holder");
+  const zoom = box.querySelector("#view-zoom"), go = view.querySelector(".view-go");
+  const col = document.createElement("div");
+  col.className = "view-col";
+  if (choices) col.appendChild(choices);
+  if (compass) for (const l of [...compass.querySelectorAll(".names-under")]) col.appendChild(l);
+  const tools = document.createElement("div");
+  tools.className = "view-tools";
+  if (compass) tools.appendChild(compass);
+  if (zoom) tools.appendChild(zoom);
+  col.appendChild(tools);
+  if (go) col.appendChild(go);
+  if (row) row.replaceWith(col); else if (body) body.appendChild(col);
+  // Layer colours, into the Layers box.
+  const pick = box.querySelector("#theme-pick");
+  const panel = document.querySelector(".left-col .panel");
+  if (pick && panel) {
+    const holder = document.createElement("div");
+    holder.id = "layer-colours";
+    holder.className = "layer-colours";
+    holder.appendChild(pick);
+    // At the foot of the Layers box, under the list and its buttons.
+    panel.appendChild(holder);
+  }
+}
 function buildBasemapPanel() {
   const box = document.getElementById("basemaps");
   if (!box) return;
   const opts = [["atlas", "Painted atlas"], ["satellite", "Satellite imagery"], ["outlines", "Country outlines"]];
   box.innerHTML = basemapPanelHtml(opts) + viewPanelHtml();
+  settingsLayout(box);
   box.addEventListener("click", (e) => {
     const roll = e.target && e.target.closest ? e.target.closest("[data-roll]") : null;
     if (roll) {
@@ -13740,7 +13867,7 @@ function buildBasemapPanel() {
     if (e.target && e.target.id === "to-globe") outToTheGlobe();
   });
   moveZoomButtons();
-  themeWheelWire(box);
+  themeWheelWire(document.getElementById("layer-colours") || box);
   // Round 102b: Eyes warmed while the pointer is on its button.
   const leave = box.querySelector ? box.querySelector("#leave-earth") : null;
   if (leave && leave.addEventListener) for (const ev of ["pointerenter", "focus", "touchstart"]) leave.addEventListener(ev, () => { try { warmSpace(); } catch (e) { /* kept */ } }, { passive: true });
@@ -15593,12 +15720,30 @@ var NIGHT = {
   },
   road: ["rgba(150,186,222,0.30)", "rgba(170,202,232,0.45)", "rgba(206,226,240,0.70)"],   // minor, middle, major
   roadGlow: "#2D5C96",
+  // Round 195o: the waters glow as Deep space's did (that basemap is taken
+  // out of the menu and its glow moved here). Only the light is drawn: thin
+  // rings at 200, 1,000 and 2,000 m deep, a teal shine along the shallows and
+  // every coast, and nothing on land or in the open deep, where the night
+  // stays black. Deep space's own colours, as see-through light.
+  seaGlow: ["interpolate", ["linear"], ["elevation"],
+    -9000, "rgba(38,64,127,0)", -2030, "rgba(38,64,127,0)", -2000, "rgba(38,64,127,0.85)", -1970, "rgba(38,64,127,0)",
+    -1030, "rgba(47,94,150,0)", -1000, "rgba(47,94,150,0.85)", -970, "rgba(47,94,150,0)",
+    -230, "rgba(65,137,172,0)", -200, "rgba(65,137,172,0.85)", -170, "rgba(65,137,172,0)",
+    -60, "rgba(31,79,126,0.12)", -15, "rgba(31,79,126,0.45)", -1, "rgba(74,154,182,0.75)",
+    0, "rgba(74,154,182,0)", 9000, "rgba(74,154,182,0)"],
+  coast: "#02040C",                  // the open sea close in, where the depth tiles' coast is too rough
+  lake: "rgba(10,15,51,0.6)", lakeEdge: "#3F7FA8",
+  river: "#86AEDD", riverGlow: "#3C5EA2",
+  // Below this brightness a square of the picture is clear, so the glowing
+  // water shows through the dark sea; above the second number it is solid.
+  clear: [18, 48],
   border: "rgba(120,140,196,0.32)",
   sky: { "sky-color": "#02030A", "horizon-color": "#1C3566", "fog-color": "#0B1630",
          "fog-ground-blend": 0.9, "horizon-fog-blend": 0.3, "sky-horizon-blend": 0.6,
          "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.55, 4, 0.3, 7, 0] },
 };
-var NIGHT_IDS = ["outline-night-sheet", "outline-night-lights", "outline-night-shade", "outline-night-road-glow",
+var NIGHT_IDS = ["outline-night-sheet", "outline-night-sea-glow", "outline-night-coast", "outline-night-lake",
+  "outline-night-river-glow", "outline-night-river", "outline-night-lights", "outline-night-shade", "outline-night-road-glow",
   "outline-night-road-minor", "outline-night-road", "outline-night-road-major", "outline-night-border"];
 // The ramp as a table of 256 colours, blended between its stops.
 function nightTable() {
@@ -15614,11 +15759,15 @@ function nightTable() {
 }
 // Each pixel by its brightness. Lights are judged by their brightest channel
 // (sodium light is red and green, little blue), so a city keeps its full glow.
+// Round 195o: dark squares are made clear (NIGHT.clear), so the glowing
+// water under the picture shows; lit ground stays solid over it.
 function nightRecolour(px, table) {
+  const [c0, c1] = NIGHT.clear;
   for (let i = 0; i < px.length; i += 4) {
     const r = px[i], g = px[i + 1], b = px[i + 2];
     const v = Math.round(0.5 * Math.max(r, g, b) + 0.5 * (0.3 * r + 0.59 * g + 0.11 * b));
-    px[i] = table[v * 3]; px[i + 1] = table[v * 3 + 1]; px[i + 2] = table[v * 3 + 2]; px[i + 3] = 255;
+    px[i] = table[v * 3]; px[i + 1] = table[v * 3 + 1]; px[i + 2] = table[v * 3 + 2];
+    px[i + 3] = v <= c0 ? 0 : v >= c1 ? 255 : Math.round((v - c0) / (c1 - c0) * 255);
   }
   return px;
 }
@@ -15648,6 +15797,27 @@ function nightLayers() {
   return [
     { id: "outline-night-sheet", type: "fill", source: "outline-night-sheet",
       paint: { "fill-color": NIGHT.sheet, "fill-antialias": false } },
+    // The waters' glow, under the lights (round 195o, from Deep space).
+    { id: "outline-night-sea-glow", type: "color-relief", source: "sea-dem",
+      paint: { "color-relief-color": NIGHT.seaGlow, "color-relief-opacity": 1 } },
+    { id: "outline-night-coast", type: "fill", source: "osm", "source-layer": "water", minzoom: 8,
+      filter: ["==", ["get", "class"], "ocean"],
+      paint: { "fill-color": NIGHT.coast, "fill-opacity": fade(8, 10, .85) } },
+    { id: "outline-night-lake", type: "fill", source: "osm", "source-layer": "water",
+      filter: ["!=", ["get", "class"], "ocean"],
+      paint: { "fill-color": NIGHT.lake, "fill-outline-color": NIGHT.lakeEdge } },
+    { id: "outline-night-river-glow", type: "line", source: "osm", "source-layer": "waterway", minzoom: 3,
+      filter: ["==", ["get", "class"], "river"],
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": NIGHT.riverGlow, "line-width": road(4), "line-blur": road(3), "line-opacity": .4 } },
+    { id: "outline-night-river", type: "line", source: "osm", "source-layer": "waterway", minzoom: 3,
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": NIGHT.river,
+               "line-width": ["interpolate", ["exponential", 1.4], ["zoom"],
+                 4, ["match", ["get", "class"], "river", .22, .1], 10, ["match", ["get", "class"], "river", .9, .4],
+                 16, ["match", ["get", "class"], "river", 5, 2.4]],
+               "line-opacity": ["interpolate", ["linear"], ["zoom"],
+                 8, ["match", ["get", "class"], "river", .85, 0], 11, ["match", ["get", "class"], "river", .85, .65]] } },
     { id: "outline-night-lights", type: "raster", source: "outline-night-lights",
       paint: { "raster-fade-duration": 200, "raster-resampling": "linear" } },
     { id: "outline-night-shade", type: "hillshade", source: "outline-dem", paint: NIGHT.shade },
@@ -15678,6 +15848,7 @@ function addNightLayers() {
     const share = (id, spec) => { if (!map.getSource(id)) map.addSource(id, Object.assign({}, spec)); };
     share("osm", OSM_SOURCE);
     share("outline-dem", RELIEF_SOURCE);
+    share("sea-dem", TERRAIN_SOURCE);
     if (!map.getSource("outline-night-sheet")) {
       map.addSource("outline-night-sheet", { type: "geojson", data: { type: "Feature", properties: {},
         geometry: { type: "Polygon", coordinates: [[[-180, -85.06], [180, -85.06], [180, 85.06], [-180, 85.06], [-180, -85.06]]] } } });
@@ -15740,12 +15911,17 @@ if (typeof MutationObserver === "function" && typeof document !== "undefined" &&
 // above adds its basemap only when the list lacks it, so the full list
 // passed here keeps this order; Old fantasy painting's line, added by its
 // own wrapper, is taken out of the finished menu.
-var BASEMAP_MENU = [["satellite", "Jurassic"], ["atlas", "Atlas"], ["wood", "Woodlands"], ["space", "Bioluminescent"],
-  ["night", "Earth at Night"], ["hell", "Hell"], ["outlines", "Standard"]];
+// Round 195o (asked 14 October): the old Bioluminescent (Deep space) leaves
+// the menu, its glow on the waters moved into Earth at Night, which now
+// takes the name Bioluminescent. Deep space's code stays, unused, as Old
+// fantasy painting's does; its line, added by its own wrapper, is taken out.
+var BASEMAP_MENU = [["satellite", "Jurassic"], ["atlas", "Atlas"], ["wood", "Woodlands"],
+  ["night", "Bioluminescent"], ["hell", "Hell"], ["outlines", "Standard"]];
 const basemapPanelHtmlBeforeMenu = basemapPanelHtml;
 basemapPanelHtml = function () {
   return basemapPanelHtmlBeforeMenu(BASEMAP_MENU.slice())
-    .replace(/<label class="layer"><input type="radio" name="basemap" value="dusk"[^]*?<\/label>/, "");
+    .replace(/<label class="layer"><input type="radio" name="basemap" value="dusk"[^]*?<\/label>/, "")
+    .replace(/<label class="layer"><input type="radio" name="basemap" value="space"[^]*?<\/label>/, "");
 };
 /* ---------- end of the basemap menu ---------- */
 
@@ -15974,7 +16150,9 @@ if (typeof MutationObserver === "function" && typeof document !== "undefined" &&
 (function themedNotes() {
   try {
     if (typeof BM_NOTES === "object" && BM_NOTES) {
-      if (BM_NOTES.wood) BM_NOTES.wood.html = '<p class="bn-flavour">In the spirit of Robert Griffing, who paints the forests of eastern North America in the 1700s and the Native peoples who live in them.</p>';
+      // Round 196o (asked 14 October): the Woodlands note taken out, and
+      // with nothing left to say, its i button with it.
+      delete BM_NOTES.wood;
       if (BM_NOTES.dusk) BM_NOTES.dusk.html = '<p class="bn-flavour">In the spirit of the card art and flavour text of Magic: The Gathering.</p>';
     }
   } catch (e) { /* the notes stay as they were */ }
@@ -18866,6 +19044,7 @@ function densityBandsShow(id, pr, on) {
   const own = LAYERS.find((c) => c.id === id) || (typeof childById === "function" ? childById(id) : null);
   if (own && (own.noBands || own.centroids)) on = false;
   if (typeof COMBO !== "undefined" && COMBO.mode !== "off") on = false;
+  if (typeof DENSITY_ON !== "undefined" && !DENSITY_ON) on = false;     // round 198o: the box's switch
   if (!on || !pr.dense || !pr.grid || !(pr.grid.max > 0)) { if (map.getLayer(tint)) map.setLayoutProperty(tint, "visibility", "none"); return; }
   if (!map.getSource(`${pr.rid}-col`)) {
     map.addSource(`${pr.rid}-col`, { type: "raster", tiles: [`relief://${pr.rid}/col/{z}/{x}/{y}`], tileSize: 256, maxzoom: 8 });
@@ -19185,7 +19364,16 @@ async function comboBuild(gen) {
     const got = await rowFeatures(id);
     if (stale()) return null;                       // changed meanwhile
     let features = got.features, parts = got.parts || new Map();
-    if (got.vector) {
+    const whole = got.vector ? await comboWorld(id) : null;
+    if (stale()) return null;
+    if (whole) {
+      // Round 198o: the whole archive, read once at one zoom.
+      parts = new Map(whole);
+      features = [];
+      for (const list of parts.values()) for (const f of list) features.push(f);
+      COMBO.partial.delete(id);
+    } else if (got.vector) {
+      COMBO.partial.add(id);
       // A tiled layer: everything the map has shown of it so far, once each,
       // kept by source and source-layer.
       const mine = COMBO.seen.get(id) || new Map();
@@ -19312,11 +19500,19 @@ async function comboDraw() {
     comboCut(r.keep);
     comboMaskSet(r);
   }
-  const most = r.best > 2 ? ` The brighter, thicker edge marks where the most groups (${r.best} of ${r.groups}) cross.` : "";
+  // Round 198o (asked 14 October): with every layer in a group of its own,
+  // the text speaks of layers, not groups.
+  const grpNow = COMBO.groupNow || new Map(), sizes = new Map();
+  for (const id of r.used || []) { const g = grpNow.get(id); sizes.set(g, (sizes.get(g) || 0) + 1); }
+  const solo = [...sizes.values()].every((n) => n === 1);
+  const who = solo ? `two or more of the ${r.groups} ticked layers` : `layers from two or more of the ${r.groups} groups below`;
+  const most = r.best > 2 ? ` The brighter, thicker edge marks where the most ${solo ? "layers" : "groups"} (${r.best} of ${r.groups}) cross.` : "";
+  const part = [...COMBO.partial].filter((id) => (r.used || []).includes(id)).map(nameOf);
+  const partSay = part.length ? ` Too large to read worldwide at once, so counted only where the map has shown them so far: ${part.join("; ")}.` : "";
   if (say) say.textContent = (COMBO.mode === "overlap"
-    ? `Showing only the places where layers of two or more of the ${r.groups} groups cross (each within about 50 km), edged in pale blue; the base map shows everywhere.`
-    : `Showing only the places where layers of two or more of the ${r.groups} groups are each in the top fifth of their own values (within about 50 km), edged in pale blue; the base map shows everywhere.`)
-    + most + " Tiled layers are read as you look round, so moving the map can widen what is found." + tail;
+    ? `Showing only the places where ${who} cross (each within about 50 km), edged in pale blue.`
+    : `Showing only the places where ${who} are each in the top fifth of their own values (within about 50 km), edged in pale blue.`)
+    + most + partSay + tail;
 }
 // Rounds 140b-142b (asked 2 October): the combine follows every tick in either
 // order (the hook in applyVisibility; comboSig checked when the map is idle);
@@ -19331,6 +19527,7 @@ const COMBO_MASK = "combo-mask";
 const COMBO_PIC_ZOOM = 2;
 const COMBO_EDGE = "#CFEAF4", COMBO_EDGE_MOST = "#9FD8EA";
 COMBO.pics = new Map();
+COMBO.partial = new Set();       // tiled rows read only as far as the map has shown them
 COMBO.feats = new Map();
 COMBO.parts = new Map();          // round 147b: a row's features by source and source-layer
 COMBO.calc = new Map();           // round 147b: each row's last grid, reused while it is unchanged
@@ -19802,9 +19999,8 @@ function comboList() {
   const ids = COMBO.rows.length ? COMBO.rows : comboRowsNow();
   const nameOf = (id) => { const c = LAYERS.find((x) => x.id === id) || (typeof childById === "function" ? childById(id) : null); return String((c && c.name) || id); };
   const grp = comboGroups(ids);
-  el.innerHTML = ids.length ? `<div style="margin:4px 0 2px">Every ticked layer takes part unless you leave it out here (it then shows whole, uncut). ` +
-    `Layers in the same group count as one, so their crossings with each other are not shown: only crossings between different groups. ` +
-    `Layers start grouped by their heading; change any of them.</div>` + ids.map((id) => {
+  el.innerHTML = ids.length ? `<div class="combo-h">Which layers count together</div>` +
+    `<div style="margin:0 0 2px">Layers in the same group count as one, so only crossings between different groups are shown. Left out: shown whole, uncut.</div>` + ids.map((id) => {
       const out = (COMBO.weights.has(id) ? COMBO.weights.get(id) : 1) > 0 ? null : "0";
       const now = out || grp.get(id);
       return `<div style="display:flex;gap:6px;align-items:center;margin:2px 0"><select data-combo-weight="${escapeHtml(id)}" style="font:inherit;font-size:10.5px">` +
@@ -19812,6 +20008,170 @@ function comboList() {
           `<option value="${v}"${now === v ? " selected" : ""}>${t}</option>`).join("") +
         `</select>`;
     }).map((head, i) => head + `<span title="${escapeHtml(nameOf(ids[i]))}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(nameOf(ids[i]))}</span></div>`).join("") : "";
+}
+// Round 198o (asked 14 October): a tiled layer counts in the combine
+// everywhere at once, not only where the map has been looked at. Its archive
+// is read whole at one middle zoom (comboWorldZoom: zoom 4 where the archive
+// has it, squares about 2,500 km a side, held to about 600 m), each square
+// once, and decoded here (mvtDecode: the Mapbox vector tile format, read
+// without a library). What is read stands in for what the view has shown, so
+// nothing is counted twice. A row with more than COMBO_WORLD_MAX features at
+// that zoom, or not read from an archive, is read as before, as the map shows it.
+const COMBO_WORLD_MAX = 400000;
+function comboWorldZoom(minZ, maxZ) { return Math.max(minZ || 0, Math.min(maxZ == null ? 4 : maxZ, 4)); }
+function mvtDecode(buf, z, x, y, want) {
+  const b = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+  let pos = 0;
+  const varint = () => {
+    let v = 0, s = 0, c;
+    do { c = b[pos++]; if (s < 28) v |= (c & 0x7f) << s; else v += (c & 0x7f) * Math.pow(2, s); s += 7; } while (c & 0x80);
+    return v >>> 0 === v ? v : v;
+  };
+  const zz = (n) => (n % 2 ? -(n + 1) / 2 : n / 2);
+  const skip = (t) => { if (t === 0) varint(); else if (t === 1) pos += 8; else if (t === 2) pos += varint(); else if (t === 5) pos += 4; };
+  const str = (end) => new TextDecoder().decode(b.subarray(pos, end));
+  const n = Math.pow(2, z), out = [];
+  const lon = (px, ext) => ((x + px / ext) / n) * 360 - 180;
+  const lat = (py, ext) => { const t = Math.PI * (1 - 2 * (y + py / ext) / n); return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(t) - Math.exp(-t))); };
+  while (pos < b.length) {
+    const tag = varint();
+    if (tag >> 3 !== 3 || (tag & 7) !== 2) { skip(tag & 7); continue; }
+    const end = varint() + pos;
+    let name = "", ext = 4096;
+    const keys = [], vals = [], feats = [];
+    while (pos < end) {
+      const t = varint(), f = t >> 3, w = t & 7;
+      if (f === 1 && w === 2) { const e = varint() + pos; name = str(e); pos = e; }
+      else if (f === 3 && w === 2) { const e = varint() + pos; keys.push(str(e)); pos = e; }
+      else if (f === 5 && w === 0) ext = varint();
+      else if (f === 2 && w === 2) { const e = varint() + pos; feats.push([pos, e]); pos = e; }
+      else if (f === 4 && w === 2) {
+        const e = varint() + pos;
+        let v = null;
+        while (pos < e) {
+          const vt = varint(), vf = vt >> 3;
+          if (vf === 1) { const se = varint() + pos; v = str(se); pos = se; }
+          else if (vf === 2) { v = new DataView(b.buffer, b.byteOffset + pos, 4).getFloat32(0, true); pos += 4; }
+          else if (vf === 3) { v = new DataView(b.buffer, b.byteOffset + pos, 8).getFloat64(0, true); pos += 8; }
+          else if (vf === 4 || vf === 5) v = varint();
+          else if (vf === 6) v = zz(varint());
+          else if (vf === 7) v = !!varint();
+          else skip(vt & 7);
+        }
+        vals.push(v);
+        pos = e;
+      } else skip(w);
+    }
+    pos = end;
+    if (want && name !== want) continue;
+    const save = pos;
+    for (const [fs, fe] of feats) {
+      pos = fs;
+      let id = null, type = 0, tags = [], geom = [];
+      while (pos < fe) {
+        const t = varint(), f = t >> 3, w = t & 7;
+        if (f === 1 && w === 0) id = varint();
+        else if (f === 3 && w === 0) type = varint();
+        else if ((f === 2 || f === 4) && w === 2) {
+          const e = varint() + pos, arr = [];
+          while (pos < e) arr.push(varint());
+          if (f === 2) tags = arr; else geom = arr;
+        } else skip(w);
+      }
+      const props = {};
+      for (let i = 0; i + 1 < tags.length; i += 2) props[keys[tags[i]]] = vals[tags[i + 1]];
+      const lines = [];
+      let cx = 0, cy = 0, cur = null;
+      for (let i = 0; i < geom.length;) {
+        const cmd = geom[i] & 7, cnt = geom[i] >> 3;
+        i++;
+        if (cmd === 7) { if (cur && cur.length) cur.push(cur[0].slice()); continue; }
+        for (let k = 0; k < cnt; k++) {
+          cx += zz(geom[i++]); cy += zz(geom[i++]);
+          if (cmd === 1) { cur = []; lines.push(cur); }
+          cur.push([lon(cx, ext), lat(cy, ext)]);
+        }
+      }
+      let geometry = null;
+      if (type === 1) {
+        const pts = lines.map((l) => l[0]);
+        geometry = pts.length === 1 ? { type: "Point", coordinates: pts[0] } : { type: "MultiPoint", coordinates: pts };
+      } else if (type === 2) {
+        geometry = lines.length === 1 ? { type: "LineString", coordinates: lines[0] } : { type: "MultiLineString", coordinates: lines };
+      } else if (type === 3) {
+        // Outer rings run one way, holes the other (by their signed area in the
+        // square's own grid, where y runs down: outer rings come out negative here
+        // because y is turned to latitude, so the sign is taken from the first ring).
+        const area = (r) => { let a = 0; for (let i = 0, j = r.length - 1; i < r.length; j = i++) a += (r[j][0] - r[i][0]) * (r[j][1] + r[i][1]); return a; };
+        const polys = [];
+        let outer = null;
+        for (const r of lines) {
+          if (r.length < 4) continue;
+          const s = Math.sign(area(r));
+          if (outer === null) outer = s;
+          if (s === outer || !polys.length) polys.push([r]); else polys[polys.length - 1].push(r);
+        }
+        if (polys.length) geometry = polys.length === 1 ? { type: "Polygon", coordinates: polys[0] } : { type: "MultiPolygon", coordinates: polys };
+      }
+      if (geometry) out.push({ type: "Feature", id: id == null ? undefined : id, properties: props, geometry, _layer: name });
+    }
+    pos = save;
+  }
+  return out;
+}
+COMBO.world = new Map();          // row -> Map(part -> features), or "reading" / "no"
+async function comboWorld(id) {
+  const had = COMBO.world.get(id);
+  if (had && had !== "reading") return had === "no" ? null : had;
+  if (had === "reading") return null;
+  if (typeof pmtiles === "undefined" || !pmtiles.PMTiles) return null;
+  const parts = [];
+  const seen = new Set();
+  for (const l of rowVectorLayers(id)) {
+    const s = map.getSource(l.source);
+    const url = s && (s.url || (s._options && s._options.url) || (s.serialize && s.serialize().url));
+    if (!s || s.type !== "vector" || typeof url !== "string" || !url.startsWith("pmtiles://")) { COMBO.world.set(id, "no"); return null; }
+    const key = `${l.source}|${l["source-layer"] || ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    parts.push({ key, url: url.slice("pmtiles://".length), layer: l["source-layer"] || null });
+  }
+  if (!parts.length) { COMBO.world.set(id, "no"); return null; }
+  COMBO.world.set(id, "reading");
+  const out = new Map();
+  let total = 0;
+  try {
+    for (const p of parts) {
+      const arc = new pmtiles.PMTiles(p.url);
+      const h = await arc.getHeader();
+      const z = comboWorldZoom(h.minZoom, h.maxZoom), n = Math.pow(2, z);
+      const tx = (lo) => Math.max(0, Math.min(n - 1, Math.floor((lo + 180) / 360 * n)));
+      const ty = (la) => { const r = Math.max(-85.05, Math.min(85.05, la)) * Math.PI / 180; return Math.max(0, Math.min(n - 1, Math.floor((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n))); };
+      const x0 = tx(h.minLon != null ? h.minLon : -180), x1 = tx(h.maxLon != null ? h.maxLon : 180);
+      const y0 = ty(h.maxLat != null ? h.maxLat : 85), y1 = ty(h.minLat != null ? h.minLat : -85);
+      const list = out.get(p.key) || [];
+      out.set(p.key, list);
+      const jobs = [];
+      for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) jobs.push([x, y]);
+      let next = 0;
+      const worker = async () => {
+        while (next < jobs.length && total <= COMBO_WORLD_MAX) {
+          const [x, y] = jobs[next++];
+          let r = null;
+          try { r = await arc.getZxy(z, x, y); } catch (e) { r = null; }
+          if (!r || !r.data) continue;
+          for (const f of mvtDecode(r.data, z, x, y, p.layer)) { delete f._layer; list.push(f); total++; }
+        }
+      };
+      await Promise.all(Array.from({ length: 6 }, worker));
+      if (total > COMBO_WORLD_MAX) { COMBO.world.set(id, "no"); return null; }
+    }
+  } catch (e) {
+    COMBO.world.set(id, "no");
+    return null;
+  }
+  COMBO.world.set(id, out);
+  return out;
 }
 if (typeof map.on === "function") map.on("moveend", () => { if (COMBO.mode !== "off" && (COMBO.rows || []).some((id) => rowVectorLayers(id).some((l) => l.source && map.getSource(l.source) && map.getSource(l.source).type === "vector"))) comboSoon(2500); });
 // Round 144b (asked 2 October): for each layer taking part, the share of it
@@ -19866,15 +20226,22 @@ function comboStatsRender() {
   const nameOf = (id) => { const c = LAYERS.find((x) => x.id === id) || (typeof childById === "function" ? childById(id) : null); return String((c && c.name) || id); };
   const members = (g) => st.rows.filter((r) => r.grp === g).map((r) => nameOf(r.id));
   const pct = (v) => v == null ? "nothing there" : v > 0 && v < 0.005 ? "under 1%" : `${Math.round(v * 100)}%`;
+  // Round 198o (asked 14 October: the lines were too short to follow): each
+  // line says in full what its figures measure.
   const what = (k) => k === "points" ? "of its places" : k === "area" ? "of the ground it covers" : "of what it holds";
+  const solo = groups.every((g) => members(g).length === 1);
   const rows = comboShares(st, by, comboViewCells(st.W, st.H));
-  el.innerHTML = `<div style="margin:6px 0 2px">How much of each layer is crossed by ` +
-    `<select id="combo-by" style="font:inherit;font-size:10.5px;max-width:100%"><option value="any"${by === "any" ? " selected" : ""}>any other group</option>` +
-    groups.map((g) => { const m = members(g); return `<option value="${escapeHtml(g)}"${by === g ? " selected" : ""}>group ${escapeHtml(g)}: ${escapeHtml(m[0] || "")}${m.length > 1 ? ` and ${m.length - 1} more` : ""}</option>`; }).join("") +
+  const other = by === "any" ? (solo ? "another ticked layer" : "a layer in another group")
+    : (solo ? escapeHtml(members(by)[0] || "") : `a layer in group ${escapeHtml(by)}`);
+  const test = COMBO.mode === "overlap" ? `lies within about 50 km of ${other}`
+    : `is in its own top fifth within about 50 km of ${other} in its own top fifth`;
+  el.innerHTML = `<div class="combo-h" style="margin-top:6px">How much of each layer meets the others</div>` +
+    `<div style="margin:0 0 2px">Measured against <select id="combo-by" style="font:inherit;font-size:10.5px;max-width:100%"><option value="any"${by === "any" ? " selected" : ""}>${solo ? "every other ticked layer" : "every other group"}</option>` +
+    groups.map((g) => { const m = members(g); return `<option value="${escapeHtml(g)}"${by === g ? " selected" : ""}>${solo ? "" : `group ${escapeHtml(g)}: `}${escapeHtml(m[0] || "")}${m.length > 1 ? ` and ${m.length - 1} more` : ""}</option>`; }).join("") +
     `</select></div>` +
-    rows.map((r) => `<div style="margin:2px 0">${escapeHtml(nameOf(r.id))} (group ${escapeHtml(r.grp)}): ` +
-      (r.same ? "in that group itself" : `${pct(r.world)} ${what(r.kind)} worldwide, ${pct(r.view)} in the part of the map in view`) + `</div>`).join("") +
-    `<div style="margin:3px 0 0">Worldwide means everything the map has read of a layer: layers read in tiles grow as you look round. Crossed means a layer of the other group lies within about 50 km.</div>`;
+    rows.map((r) => `<div style="margin:3px 0">${escapeHtml(nameOf(r.id))}${solo ? "" : ` (group ${escapeHtml(r.grp)})`}: ` +
+      (r.same ? (solo ? "the layer measured against" : "in that group itself")
+        : `${pct(r.world)} ${what(r.kind)} worldwide ${test}; in the part of the map in view, ${pct(r.view)}.`) + `</div>`).join("");
 }
 if (typeof map.on === "function") map.on("moveend", () => { if (COMBO.mode !== "off" && COMBO.stats) comboStatsRender(); });
 // Which kind of rising a row gets, when it is shown or the switch changes.
@@ -25599,6 +25966,12 @@ map.on("load", () => {
     const b = document.getElementById(id);
     if (b && b.addEventListener) b.addEventListener("click", backToMap);
   }
+  const bodies = document.getElementById("spaceBodies");
+  if (bodies && bodies.addEventListener) bodies.addEventListener("click", (e) => {
+    const t = e.target && e.target.closest ? e.target.closest("button") : null;
+    if (!t) return;
+    if (t.id === "spaceEyes") closeBody(); else if (t.getAttribute("data-body")) openBody(t.getAttribute("data-body"));
+  });
   watchSpaceEdge();
   // All on / All off: each row ticked or unticked as if clicked, so every
   // layer loads, or puts itself away, the ordinary way.
@@ -25612,9 +25985,18 @@ map.on("load", () => {
     });
     box.querySelectorAll("input[data-group]").forEach((el) => { el.checked = on; el.indeterminate = false; });
   };
+  // Round 198o (asked 14 October): each asks first; All off also pulls up
+  // the dropdowns the layers had open.
   for (const [id, on] of [["layersAllOn", true], ["layersAllOff", false]]) {
     const b = document.getElementById(id);
-    if (b && b.addEventListener) b.addEventListener("click", () => setAll(on));
+    if (b && b.addEventListener) b.addEventListener("click", async () => {
+      const n = document.querySelectorAll ? document.querySelectorAll("#layers input[data-layer]").length : 0;
+      const ok = await askFirst(on ? `Turn on all ${n} layers? Loading every layer at once can slow the map or stop it for a while.` : "Turn off every layer?",
+        on ? "Turn all on" : "Turn all off");
+      if (!ok) return;
+      setAll(on);
+      if (!on) pullAllUp(document.getElementById("layers"));
+    });
   }
   const roll = document.getElementById("panelRoll");
   if (roll) roll.addEventListener("click", () => {
@@ -27833,6 +28215,7 @@ function arrangePanel() {
   layerSearch(box);
   layerKindSwitch(box);
   layerMenuHelp(box);
+  layersBoxTools(box);
   watchCuts(box);
   if (!document.getElementById("panel-h-style")) {
     const st = document.createElement("style");
@@ -27980,29 +28363,133 @@ function applyLayerSearch(box, query) {
   for (const note of box.querySelectorAll(".toc-note")) note.classList.toggle("search-hide", true);
   return n;
 }
+/* ---------- the Layers box's own tools and order (round 198o) ---------- */
+// Asked 14 October. Under All on and All off: the three switches (All Points,
+// All Shapes, All National Highlights), then Pull all layers up and the
+// shading where points crowd, on and off. Then the list; then Search and
+// Combine the ticked layers under it, and Layer colours at the foot.
+let DENSITY_ON = true;
+try { DENSITY_ON = localStorage.getItem("culprits-density") !== "off"; } catch (e) { /* storage refused: on */ }
+// Every ticked layer's dropdown (its sources, kinds and settings) and every
+// layer group's list, pulled up. Headings stay as they are.
+function pullAllUp(box) {
+  if (!box || !box.querySelectorAll) return;
+  for (const f of box.querySelectorAll(".fold")) {
+    const lead = f.parentElement;
+    const group = lead && lead.classList && lead.classList.contains("parent");
+    const kids = group ? lead.parentElement.querySelector("[data-kids]") : null;
+    const open = group ? kids && !kids.hidden : lead && !lead.classList.contains("folded");
+    if (open) f.click();
+  }
+  for (const k of box.querySelectorAll("[data-kids]")) if (!k.hidden && typeof toggleGroup === "function") toggleGroup(box, k.dataset.kids);
+}
+function densitySet(on) {
+  DENSITY_ON = !!on;
+  try { localStorage.setItem("culprits-density", DENSITY_ON ? "on" : "off"); } catch (e) { /* not kept */ }
+  if (document.documentElement && document.documentElement.classList) document.documentElement.classList.toggle("no-density", !DENSITY_ON);
+  for (const [id, pr] of POINT_RELIEFS) {
+    const shown = (visibility.get(id) || "visible") === "visible";
+    try { densityBandsShow(id, pr, DENSITY_ON && shown); } catch (e) { /* that row stays as it was */ }
+  }
+}
+// A question in the map's own style; resolves true for yes.
+function askFirst(text, yes) {
+  return new Promise((done) => {
+    if (typeof document === "undefined" || !document.body || typeof document.createElement !== "function") { done(true); return; }
+    const old = document.getElementById("ask-first");
+    if (old && old.remove) old.remove();
+    const d = document.createElement("div");
+    d.id = "ask-first";
+    d.setAttribute("role", "dialog");
+    d.innerHTML = `<div class="af-box"><p>${escapeHtml(text)}</p><div class="af-btns">` +
+      `<button type="button" class="chip" data-af="no">Cancel</button><button type="button" class="chip af-yes" data-af="yes">${escapeHtml(yes)}</button></div></div>`;
+    const end = (v) => { if (d.remove) d.remove(); document.removeEventListener("keydown", key); done(v); };
+    const key = (e) => { if (e.key === "Escape") end(false); if (e.key === "Enter") end(true); };
+    d.addEventListener("click", (e) => {
+      const b = e.target && e.target.closest ? e.target.closest("[data-af]") : null;
+      if (b) end(b.dataset.af === "yes"); else if (e.target === d) end(false);
+    });
+    document.addEventListener("keydown", key);
+    document.body.appendChild(d);
+    const y = d.querySelector(".af-yes");
+    if (y && y.focus) y.focus();
+  });
+}
+function layersBoxTools(box) {
+  if (!box || typeof document.createElement !== "function" || document.getElementById("layers-tools")) return;
+  const panel = box.closest ? box.closest(".panel") : null;
+  if (!panel) return;
+  const t = document.createElement("div");
+  t.id = "layers-tools";
+  t.className = "layers-tools";
+  t.innerHTML = `<button type="button" class="chip" id="layers-pull" title="Pull up every layer's dropdown, without turning anything off">Pull all layers up</button>` +
+    `<label class="lt-tick" title="Points shaded in bands of colour where they crowd together, wide out"><input type="checkbox" id="density-toggle"${DENSITY_ON ? " checked" : ""}> Shading where points crowd</label>`;
+  t.querySelector("#layers-pull").addEventListener("click", () => pullAllUp(box));
+  t.querySelector("#density-toggle").addEventListener("change", (e) => densitySet(e.target.checked));
+  panel.insertBefore(t, box);
+  if (!DENSITY_ON && document.documentElement && document.documentElement.classList) document.documentElement.classList.add("no-density");
+  addStyle(".layers-tools{display:flex;align-items:center;justify-content:space-between;gap:6px;margin:0 0 6px;font-size:11px;color:var(--dim)}" +
+    ".layers-tools .chip{font:inherit;font-size:10.5px;padding:2px 7px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:none;color:var(--ink,#e8e2d6);cursor:pointer;white-space:nowrap}" +
+    ".layers-tools .lt-tick{display:flex;align-items:center;gap:4px;white-space:nowrap;cursor:pointer}.layers-tools .lt-tick input{margin:0}" +
+    "html.no-density .density-key{display:none!important}" +
+    "#ask-first{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;background:rgba(4,6,10,.45)}" +
+    "#ask-first .af-box{max-width:330px;padding:14px 16px;background:rgba(23,21,15,.98);border:1px solid var(--rule,#322e27);border-radius:5px;box-shadow:0 10px 30px rgba(0,0,0,.6);color:var(--bone,#dcd6c6);font-size:13px;line-height:1.4}" +
+    "#ask-first p{margin:0 0 12px}#ask-first .af-btns{display:flex;justify-content:flex-end;gap:8px}" +
+    "#ask-first .chip{font:inherit;font-size:12px;padding:4px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.2);background:none;color:inherit;cursor:pointer}" +
+    "#ask-first .af-yes{border-color:#4E8FA6;background:rgba(46,127,150,.3)}", "layers-tools");
+  layersBoxOrder(panel);
+  if (typeof MutationObserver === "function") new MutationObserver(() => layersBoxOrder(panel)).observe(panel, { childList: true });
+}
+// The order of the box, kept as parts arrive (several are added later).
+function layersBoxOrder(panel) {
+  if (!panel || !panel.children) return;
+  const pick = (sel) => [...panel.children].find((c) => c.matches && c.matches(sel));
+  const want = [".panel-head", "#layer-help", "#kind-switch", "#layers-tools", "#live-share", "#layers", ".layer-search", "#combo-box", "#layer-colours", "#note"]
+    .map(pick).filter(Boolean);
+  const rest = [...panel.children].filter((c) => !want.includes(c));
+  const now = [...panel.children];
+  const order = want.concat(rest);
+  if (order.every((c, i) => now[i] === c)) return;
+  for (const c of order) panel.appendChild(c);
+}
 /* ---------- how to use the box, and putting it back (round 84b) ---------- */
 function layerMenuHelp(box) {
   if (!box || typeof document.createElement !== "function" || document.getElementById("layer-help")) return;
   const at = document.getElementById("kind-switch") || (document.getElementById("layer-search") || {}).parentElement;
+  // Round 198o (asked 14 October): Reset layers menu taken out (All off does
+  // what was wanted of it), and the notes on using the box moved into a How
+  // to Use box opened from the Layers heading, in the owner's words.
   const el = document.createElement("div");
   el.id = "layer-help";
   el.className = "layer-help";
-  el.innerHTML = `<button type="button" class="chip" data-reset-rows title="Put every layer back where it started in this list">Reset layers menu</button>`;
-  el.querySelector("[data-reset-rows]").addEventListener("click", () => resetRows(box));
-  if (at && at.after) at.after(el); else if (box.parentElement) box.parentElement.insertBefore(el, box);
-  // Round 108b (asked 28 September): how to drag rows sits just above the
-  // Selected Layers heading, the top of the box, rather than under it all.
-  const hint = document.createElement("div");
-  hint.id = "layer-drag-hint";
-  hint.className = "layer-help";
-  hint.innerHTML = `<span class="lh-t">Drag a layer by its \u2807 grip above or below another to draw it above or below that layer on the map. ` +
-    `Drag it anywhere, even out of its heading or onto the Selected Layers heading, to gather your own selection.</span>` +
-    // Round 177b (asked 5 October): what the boxes on each line do.
+  el.hidden = true;
+  el.setAttribute("role", "note");
+  el.innerHTML = `<button type="button" class="lh-x" aria-label="Close">\u00d7</button>` +
+    `<span class="lh-t">Click and drag a layer above or below other layers, including above or below other categories or into the Selected Layers heading to compile your own selection. ` +
+    `This will change their orders in the list and on the map.</span>` +
     `<span class="lh-t lh-boxes">The tick box on a layer turns that layer on and off; the tick box on a heading turns on or off every layer under it. ` +
     `The small colour square on a heading, or on a ticked layer, paints it in one colour of your choosing; a heading's square paints every ticked layer under it. ` +
-    `Once a colour is chosen, an As drawn button appears beside the square: it puts the layer's own colours back.</span>`;
-  if (box.parentElement && box.parentElement.insertBefore) box.parentElement.insertBefore(hint, box);
+    `Once a colour is chosen, an As drawn button appears beside the square, which puts the layer's own colours back.</span>`;
+  const head = document.querySelector(".panel .panel-head");
+  const btns = head && head.querySelector(".all-btns");
+  if (head && btns) {
+    const how = document.createElement("button");
+    how.type = "button";
+    how.id = "layers-how";
+    how.className = "chip";
+    how.textContent = "How to Use";
+    how.setAttribute("aria-expanded", "false");
+    head.insertBefore(how, btns);
+    head.after(el);
+    const shut = (v) => { el.hidden = v; how.setAttribute("aria-expanded", v ? "false" : "true"); };
+    how.addEventListener("click", (e) => { e.preventDefault(); shut(!el.hidden); });
+    el.querySelector(".lh-x").addEventListener("click", () => shut(true));
+  } else if (box.parentElement && box.parentElement.insertBefore) { el.hidden = false; box.parentElement.insertBefore(el, box); }
   addStyle(".layer-help{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 6px;font-size:10.5px;color:var(--dim)}" +
+    ".layer-help[hidden]{display:none}#layer-help{position:relative;margin:4px 0 8px;padding:8px 22px 8px 9px;border:1px solid rgba(30,160,200,.45);border-radius:4px;background:rgba(0,0,0,.25);font-size:11.5px;line-height:1.4;color:var(--bone,#dcd6c6)}" +
+    "#layer-help .lh-x{position:absolute;top:3px;right:5px;border:0;background:none;color:var(--dim);font-size:15px;cursor:pointer}" +
+    "#layers-how{margin:0 auto 0 8px;font:inherit;font-size:10.5px;padding:1px 7px;border-radius:10px;border:1px solid rgba(30,160,200,.45);background:none;color:var(--ink,#e8e2d6);cursor:pointer;white-space:nowrap}" +
+    "#layers-how[aria-expanded=true]{background:rgba(46,127,150,.3)}" +
     ".layer-help .chip{font:inherit;font-size:11px;padding:2px 8px;border-radius:10px;border:1px solid rgba(30,160,200,.45);background:none;color:var(--ink,#e8e2d6);cursor:pointer}" +
     ".layer-help .lh-t{flex:1 1 200px}.tint-off[hidden]{display:none!important}#layers .toc-line.drop-below{outline:1px dashed rgba(30,160,200,.8);outline-offset:2px}", "layer-help");
 }
@@ -28286,7 +28773,9 @@ function layerKindSwitch(box) {
   // Round 89b (asked 27 September: squeezed onto one line with the label they
   // could not be read): the label above, the three switches on one line below
   // it at full size.
-  wrap.innerHTML = `<span class="ks-l">Turn on every</span><span class="ks-row">` + [["point", "Points"], ["shape", "Shapes"], ["national", "National highlights"]]
+  // Round 198o (asked 14 October): no "Turn on every" line; the switches
+  // named in full and set under All on and All off, on one line.
+  wrap.innerHTML = `<span class="ks-row">` + [["point", "All Points"], ["shape", "All Shapes"], ["national", "All National Highlights"]]
     .map(([k, t]) => `<button type="button" class="chip" data-kind-all="${k}" aria-pressed="false">${t}</button>`).join("") + `</span>` +
     `<span class="ks-busy" role="status" aria-live="polite" hidden><i class="ks-spin" aria-hidden="true"></i><span class="ks-t"></span></span>`;
   // Round 106b (asked 28 September): at the bottom of the layers menu.
@@ -28377,6 +28866,7 @@ function layerKindSwitch(box) {
     ".kind-switch .ks-l{flex-basis:100%}" +
     ".kind-switch .ks-row{display:flex;flex-wrap:nowrap;align-items:center;gap:5px;flex-basis:100%;min-width:0}" +
     ".kind-switch .ks-row>.chip{flex:1 1 auto;white-space:nowrap;text-align:center}" +
+    ".panel .kind-switch{margin:5px 0 4px}.panel .kind-switch .ks-row{gap:3px}.panel .kind-switch .ks-row>.chip{font-size:10.5px;padding:2px 5px;flex:0 1 auto}" +
     ".kind-switch .chip{font:inherit;font-size:11px;padding:3px 8px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:none;color:var(--ink,#e8e2d6);cursor:pointer}" +
     ".kind-switch .chip.on{background:rgba(120,160,220,.28);border-color:rgba(150,180,230,.6)}" +
     ".kind-switch .ks-busy{display:inline-flex;align-items:center;gap:5px;flex-basis:100%}" +
@@ -28412,7 +28902,8 @@ function comboBox(box) {
       comboSoon(50);
     }
   });
-  addStyle(".combo-box{margin:2px 0 8px;padding:6px 8px;border:1px solid rgba(255,255,255,.14);border-radius:5px;background:rgba(0,0,0,.18)}", "combo-box");
+  addStyle(".combo-box{margin:2px 0 8px;padding:6px 8px;border:1px solid rgba(255,255,255,.14);border-radius:5px;background:rgba(0,0,0,.18)}" +
+    ".combo-box .combo-h{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--bone);margin:6px 0 2px}", "combo-box");
 }
 function layerSearch(box) {
   if (!box || !box.parentElement || typeof document.createElement !== "function" || document.getElementById("layer-search")) return;

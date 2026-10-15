@@ -3608,8 +3608,8 @@ console.log("\nround of 23 September (23): the owner's thirty notes on the layer
         ["skytruth_pa_permits", "skytruth_pa_spud", "skytruth_pa_violations", "skytruth_well_permits"].every((i) => order.indexOf(i) === -1) &&
         f("Oil and gas concessions — Argentina", "gfw_oil_gas") === `${P} > Climate > Methane > Culprits | ${P} > Pollution > Land pollution > Where oil and gas is drilled`);
   check("3: Trase's shrimp production is out", f("Production of shrimp (t) — Ecuador, Indonesia (Trase)", "SHRIMP_TN") === "(taken out)");
-  check("4, 6, 19: the Clark Labs maps of 1999, 2014, 2018 and the 1999 to 2018 change are one row under Fishing only; the other changes are out",
-        ["1999", "2014", "2018", "change_1999_2018"].every((y) => f("Aquaculture ponds", `clark_labs_tropical_pond_aquaculture_${y}`) === `${P} > Oceans > Fishing > ${B.ponds}`) &&
+  check("4, 6, 19: the Clark Labs maps of 1999, 2014, 2018 and the 1999 to 2018 change are one row, under Fish and shrimp farms in Meat and under Fishing (round 198o); the other changes are out",
+        ["1999", "2014", "2018", "change_1999_2018"].every((y) => f("Aquaculture ponds", `clark_labs_tropical_pond_aquaculture_${y}`) === `${P} > Meat and agriculture > Meat > Marine meats > Fish and shrimp farms > ${B.ponds} | ${P} > Oceans > Fishing > ${B.ponds}`) &&
         ["change_1999_2014", "change_2014_2018"].every((y) => f("Clark Labs Tropical Pond Aquaculture Change", `clark_labs_tropical_pond_aquaculture_${y}`) === "(taken out)") &&
         /clark_labs_tropical_pond_aquaculture_2014: "Aquaculture ponds in 2014/.test(src) && /clark_labs_tropical_pond_aquaculture_2018: "Aquaculture ponds in 2018/.test(src));
   check("5: a worldwide aquaculture pond row under Fishing, built by culprits-tiles-more, saying so until built",
@@ -4314,7 +4314,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         kind.catalogueKind({ route: "wmsmenu" }, { title: "Logging concessions" }) === "shape" && kind.catalogueKind({ route: "gfwmenu" }, { title: "x", kind: "shape" }) === "shape" &&
         /data-kind="\$\{escapeHtml\(catalogueKind\(cfg, item\)\)\}"/.test(src));
   check("three switches, any of them together, ticking a few rows at a time",
-        /\["point", "Points"\], \["shape", "Shapes"\], \["national", "National highlights"\]/.test(src) && /queue\.splice\(0, 8\)/.test(src) && /  layerKindSwitch\(box\);/.test(src));
+        /\["point", "All Points"\], \["shape", "All Shapes"\], \["national", "All National Highlights"\]/.test(src) && /queue\.splice\(0, 8\)/.test(src) && /  layerKindSwitch\(box\);/.test(src));
   check("Selected Layers is one layer above everything (round 60)", /const PANEL_ORDER = \[\n[^\n]*\n[^\n]*\n  \{ h: 1, bundle: "selected", colour: "#5E6470" \},\n(?:  \/\/[^\n]*\n)*(?:  \{ h: 1, t: "Where the threat is greatest" \}[^\n]*\n(?:  "ai_threat[^\n]*\n)?)?  \{ h: 1, t: "On-planet invasion" \},/.test(src));
 }
 {
@@ -4988,7 +4988,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         /const CUT_BETWEEN = \[\{ from: '\[data-group="forest_alerts"\]'/.test(src) && /watchCuts\(box\);/.test(src));
   check("a row can be dragged into another heading or onto a heading's line, and the menu reset puts every row back",
         /function moveRowInto\(lead, body\)/.test(src) && /function resetRows\(box\)/.test(src) && /Reset layers menu/.test(src) && /drag\.where = "into";/.test(src));
-  check("the box says how to use it with the map", /Drag a layer by its \\u2807 grip above or below another to draw it above or below that layer on the map/.test(src));
+  check("the box says how to use it with the map (round 198o: in the owner's words, in How to Use)", /Click and drag a layer above or below other layers, including above or below other categories or into the Selected Layers heading to compile your own selection\./.test(src));
   check("MISSILEMAP's panel is out", o.PANEL_REMOVED.has("mil_missile_ranges") && !o.PANEL_ORDER.includes("mil_missile_ranges"));
   check("environmental crime has its heading: IBAMA's embargoes and notices and RAISG's illegal mining; RAISG under Mining too",
         at("Environmental crime") > at("Of the planet") && ["ibama_embargos", "ibama_infractions", "raisg_illegal_mining"].every((i) => o.PANEL_ORDER.indexOf(i, at("Environmental crime")) > at("Environmental crime")) &&
@@ -5067,7 +5067,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   const places = new Function(src.slice(src.indexOf("const P = \"Destruction > Of the planet\";"), src.indexOf("// The body of the heading a path names")) + "; return cataloguePlaces;")();
   const f = (t, id) => places(`${t} ${id}`, `${t} ${id}`).join(" | ");
-  check("Points, Shapes and National highlights sit on one line", /<span class="ks-l">Turn on every<\/span><span class="ks-row">/.test(src) && /\.kind-switch \.ks-row\{display:flex;flex-wrap:nowrap/.test(src) && !/text-overflow:ellipsis/.test(src.slice(src.indexOf(".kind-switch .chip{"), src.indexOf(".kind-switch .chip{") + 200)));
+  check("All Points, All Shapes and All National Highlights sit on one line (no Turn on every since round 198o)", /wrap\.innerHTML = `<span class="ks-row">`/.test(src) && !/Turn on every<\/span>/.test(src) && /\.kind-switch \.ks-row\{display:flex;flex-wrap:nowrap/.test(src) && !/text-overflow:ellipsis/.test(src.slice(src.indexOf(".kind-switch .chip{"), src.indexOf(".kind-switch .chip{") + 200)));
   check("the Global Forest Change row says its years and moves to version 1.13 when it answers",
         /id: "glad_loss", name: "Tree cover loss, each year 2001 to 2024 \(Global Forest Change v1\.12, UMD GLAD\)"/.test(src) && /gfc_v1\.13\/loss_alpha/.test(src) && /if \(cfg\.newer && !cfg\._newerTried\)/.test(src));
   check("the loss due to fire is not under Loss year by year, and is not titled 2000 to 2012",
@@ -5173,7 +5173,7 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
         f("Concession area (ha) \u2014 Indonesia (Trase)", "CONCESSION_AREA") === "(taken out)" &&
         f("Peatland deforestation for planted pulpwood (ha) \u2014 Indonesia (Trase)", "DEFORESTATION_ON_PEAT") === P + " > Biodiversity loss > Land Use and Ecoregions > Peatland" &&
         f("x", "sbtn_natural_lands_classification") === P + " > Biodiversity loss > Land Use and Ecoregions");   // round 99b: there instead
-  check("the switches' label sits above them so each reads whole", /<span class="ks-l">Turn on every<\/span><span class="ks-row">/.test(src) && /\.kind-switch \.ks-l\{flex-basis:100%\}/.test(src));
+  check("the switches have no label line (round 198o), each reading whole", !/<span class="ks-l">Turn on every/.test(src) && /\.ks-row>\.chip\{flex:1 1 auto;white-space:nowrap/.test(src));
   check("the page asks for this round's script", appVersion(html) >= 89);
 }
 
@@ -5617,7 +5617,7 @@ console.log("\nround 108b (28 September): the drag note above Selected Layers, a
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
-  check("the note on dragging rows sits just above the Selected Layers heading", /hint\.id = "layer-drag-hint";/.test(src) && /box\.parentElement\.insertBefore\(hint, box\)/.test(src));
+  check("the note on dragging rows is in the How to Use box under the Layers heading (round 198o)", /how\.textContent = "How to Use";/.test(src) && /head\.insertBefore\(how, btns\);\n    head\.after\(el\);/.test(src));
   const R = new Function("hexOf", src.slice(src.indexOf("const RELIEF_BANDS = "), src.indexOf("async function reliefTile(")) + "; return { RELIEF_BANDS, reliefBand, RELIEF_SHADE };")((c) => c);
   const light = (c) => (Math.max(c[0], c[1], c[2]) + Math.min(c[0], c[1], c[2])) / 510;
   check("the relief comes in eight steps, teal to cobalt, none of them white or green",
@@ -5653,7 +5653,7 @@ console.log("\nround 109b (28 September): shapes raised, the alerts by grade, a 
   const same = C({ h: 200, r: 0.6, b: 1 }), turned = C({ h: 20, r: 1, b: 1.4 });
   check("the colour wheel: the dot at the map's own teal leaves colours as they are; elsewhere it turns them",
         same.f[0][1] === 0 && same.f[1][1] === 1 && same.f[2][1] === 1 && turned.f[0][1] === -180 && turned.f[1][1] === 1.6 && Math.abs(turned.raster["raster-brightness-min"] - 0.2) < 1e-9 &&
-        /id="theme-wheel"/.test(src) && /data-theme-set="drawn"/.test(src) && /themeWheelWire\(box\);/.test(src));
+        /id="theme-wheel"/.test(src) && /data-theme-set="drawn"/.test(src) && /themeWheelWire\(document\.getElementById\("layer-colours"\) \|\| box\);/.test(src));
   check("an Atlas city opens in the corner panel only; closed panels are hidden; a larger view; its key",
         /if \(hit\.cfg\.route === "atlascities" && typeof document\.createElement === "function"\)/.test(src) &&
         /#atlas-panel\[hidden\],#atlas-city\[hidden\]\{display:none !important\}/.test(html) && /class="ac-grow"/.test(src) && /async function atlasCityKey\(el\)/.test(src));
@@ -5903,8 +5903,8 @@ console.log("\nround 120b (1 October): news box titles, no automatic tilt, NASA 
   check("the Atlas's maps are cut into map squares, so the raised globe still draws them", /maplibregl\.addProtocol\("pic"/.test(src) && /addPictureSource\("atlas-plate", plateUrl\(p\.image\), p\.corners\)/.test(src) && /addPictureSource\(id, plateUrl\(d\.image\), d\.corners\)/.test(src));
   check("a click on another region opens it in place of the one open", /map\.queryRenderedFeatures\(e\.point, \{ layers: own \}\)\.length\) return;/.test(src));
   check("the numbered cities' tips have a solid box", /background:rgba\(16,20,26,0\.96\)/.test(src));
-  check("the combined surface sits at the top of the layers menu, hides the layers it combines, and says what the weights do",
-        /comboBox\(box\);\n  layerSearch\(box\);/.test(src) && /function comboHideRows\(hide\)/.test(src) && /Every ticked layer takes part unless you leave it out/.test(src)   /* round 133b: cut, not hidden */ && !/data-sect="combo"/.test(src));
+  check("the combined surface (under the layer list since round 198o) hides the layers it combines, and says what the weights do",
+        /comboBox\(box\);\n  layerSearch\(box\);/.test(src) && /function comboHideRows\(hide\)/.test(src) && /Left out: shown whole, uncut\./.test(src)   /* round 133b: cut, not hidden */ && !/data-sect="combo"/.test(src));
   const o = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("];", src.indexOf("const PANEL_ORDER = [")) + 2) + "; return PANEL_ORDER;")();
   const at = (t, from = 0) => o.findIndex((x, i) => i >= from && x && x.t === t);
   const ch4 = at("Methane"), n2o = at("Nitrous oxide"), fg = at("F-gases");
@@ -6195,9 +6195,8 @@ console.log("\nround 163h (4 October): Hell's names in its own theme; notes besi
   const { map, els } = run();
   map.fire("load"); await new Promise((r) => setTimeout(r, 5));
   const html = els.get("basemaps")?.innerHTML || "";
-  check("an (i) beside Woodlands (Mother Earth removed in round 168p, Old fantasy painting out of the menu in 170b)",
-        /<span class="nm">Woodlands<\/span><button type="button" class="bn-btn" data-bm-note="wood"/.test(html) &&
-        !/data-bm-info="mother"/.test(html) && (html.match(/data-bm-note=/g) || []).length === 1);
+  check("no (i) beside Woodlands any more (Mother Earth removed in round 168p, Old fantasy painting out of the menu in 170b, Woodlands' note taken out in 196o)",
+        !/data-bm-note="wood"/.test(html) && !/data-bm-info="mother"/.test(html) && (html.match(/data-bm-note=/g) || []).length === 0);
   const b = src.slice(src.indexOf("var BM_NOTES = {"), src.indexOf("function bmNoteCss()"));
   check("the notes name their spirit and say nothing is copied", /Magic: The Gathering/.test(b) && /Robert Griffing/.test(b) && (b.match(/nothing is copied/g) || []).length === 2);
   const h = src.slice(src.indexOf("var HELL_NAME = {"), src.indexOf("var HELL_NAME_IDS"));
@@ -6754,8 +6753,9 @@ console.log("\nround 167p (4 October): one-line basemap notes; atlas, satellite 
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const block = src.slice(src.indexOf("/* ---------- Names and notes in each basemap's own theme (round 167p)"), src.indexOf("/* ---------- end of names and notes in each basemap's own theme ---------- */"));
-  check("the notes are just the owner's sentences",
-        block.includes("In the spirit of Robert Griffing, who paints the forests of eastern North America in the 1700s and the Native peoples who live in them.</p>';") &&
+  check("the notes are just the owner's sentences (Woodlands' taken out, round 196o)",
+        !block.includes("In the spirit of Robert Griffing, who paints the forests of eastern North America in the 1700s and the Native peoples who live in them.</p>';") &&
+        block.includes("delete BM_NOTES.wood;") &&
         block.includes("'<p class=\"bn-flavour\">In the spirit of the card art and flavour text of Magic: The Gathering.</p>';"));
   const fonts = ["IMFellEnglish-Regular", "IMFellEnglish-Italic", "IMFellEnglishSC-Regular", "BarlowSemiCondensed-Regular", "BarlowSemiCondensed-Medium",
                  "BarlowSemiCondensed-Italic", "IBMPlexMono-Regular", "IBMPlexMono-Medium", "IBMPlexMono-Italic"];
@@ -6826,11 +6826,11 @@ console.log("\nround 170b (4 October): basemaps renamed and reordered; one note 
   map.fire("load"); await new Promise((r) => setTimeout(r, 5));
   const html = els.get("basemaps")?.innerHTML || "";
   const names = [...html.matchAll(/name="basemap" value="([a-z]+)"[^>]*><span class="nm">([^<]+)<\/span>/g)].map((m) => m[1] + ":" + m[2]);
-  check("the menu reads Jurassic, Atlas, Woodlands, Bioluminescent, Earth at Night, Hell, Standard (Glass Garden taken out, round 187o)",
-        names.join(",") === "satellite:Jurassic,atlas:Atlas,wood:Woodlands,space:Bioluminescent,night:Earth at Night,hell:Hell,outlines:Standard", names.join(","));
+  check("the menu reads Jurassic, Atlas, Woodlands, Bioluminescent, Hell, Standard (Glass Garden taken out, round 187o; Deep space taken out and Earth at Night named Bioluminescent, round 195o)",
+        names.join(",") === "satellite:Jurassic,atlas:Atlas,wood:Woodlands,night:Bioluminescent,hell:Hell,outlines:Standard", names.join(","));
   check("no Old fantasy painting or Mother Earth in the menu", !/value="dusk"/.test(html) && !/Mother Earth/.test(html));
   check("Hologram named so and put before Hell", /<span class="nm">Hologram<\/span><\/label>/.test(page) && /body\.insertBefore\(d, hellAt\)/.test(page));
-  check("Woodlands says the Native peoples who live in them", !/peoples who lived in them/.test(src) && /peoples who live in them\./.test(src));
+  check("Woodlands never said the Native peoples who lived in them (its note taken out, round 196o)", !/peoples who lived in them/.test(src));
   const css = src.slice(src.indexOf("function bmNoteCss()"), src.indexOf("function bmNoteToggle"));
   check("every note box takes the Woodlands look", /'#bm-note\{background:linear-gradient\(165deg/.test(css) && !/bn-dusk/.test(css));
 }
@@ -6931,7 +6931,7 @@ console.log("\nround 176b (5 October): coal mine parent companies ranked by meth
 console.log("\nround 177b (5 October): a note on the boxes; As drawn only once a colour is chosen");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
-  const hint = src.slice(src.indexOf('hint.id = "layer-drag-hint";'), src.indexOf("if (box.parentElement && box.parentElement.insertBefore) box.parentElement.insertBefore(hint, box);"));
+  const hint = src.slice(src.indexOf('el.id = "layer-help";'), src.indexOf('const head = document.querySelector(".panel .panel-head");'));
   check("the note under the drag note explains the tick boxes, the colour squares and As drawn",
         /tick box on a layer/.test(hint) && /tick box on a heading/.test(hint) && /colour square/.test(hint) && /As drawn button appears/.test(hint));
   check("As drawn starts hidden and shows once a colour is chosen", /class="chip tint-off" hidden/.test(src) && /rowTint\(row, t\.value\);/.test(src) &&
@@ -7129,6 +7129,130 @@ console.log("\nround 194o (14 October): every WBA benchmark but Urban, filed by 
         /"site_food_system", "wba_food",/.test(src) && /\{ h: 4, t: "Digital rights and access: companies scored" \}, "wba_digital_rights", "wba_digital_inclusion",/.test(src));
   check("the ocean harms stay under Every human impact together (tipping points moved to the end of Oceans)",
         /\{ h: 4, t: "Every human impact together" \}, "ocean_impacts",\n  \{ h: 5, t: "Fishing"/.test(src));
+}
+
+console.log("\nround 195o (14 October): Deep space taken out; its glowing waters moved into Earth at Night, now named Bioluminescent");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const block = src.slice(src.indexOf("/* ---------- Earth at night, a second space basemap"), src.indexOf("/* ---------- end of Earth at night ---------- */"));
+  const lib = new Function("rawPng", block.slice(block.indexOf("var NIGHT = {"), block.indexOf("var NIGHT_TABLE = null;")) +
+    block.slice(block.indexOf("function nightLayers()"), block.indexOf("// Added the first time it is chosen")) +
+    "; return { NIGHT, NIGHT_IDS, nightTable, nightRecolour, nightLayers };")(() => null);
+  const ids = lib.nightLayers().map((l) => l.id);
+  const at = (id) => ids.indexOf(id);
+  check("the sea glow, coast, lakes and rivers are all under the lights",
+        ["outline-night-sea-glow", "outline-night-coast", "outline-night-lake", "outline-night-river-glow", "outline-night-river"]
+          .every((id) => at(id) > at("outline-night-sheet") && at(id) < at("outline-night-lights")));
+  const glow = lib.nightLayers().find((l) => l.id === "outline-night-sea-glow");
+  check("the sea glow reads the depths (sea-dem) and is clear on land and in the open deep",
+        glow.source === "sea-dem" && lib.NIGHT.seaGlow.slice(-4).join() === "0,rgba(74,154,182,0),9000,rgba(74,154,182,0)" && lib.NIGHT.seaGlow[4] === "rgba(38,64,127,0)");
+  check("the rings sit at 200, 1,000 and 2,000 m deep, as Deep space's did",
+        [-2000, -1000, -200].every((d) => /0\.85\)$/.test(lib.NIGHT.seaGlow[lib.NIGHT.seaGlow.indexOf(d) + 1])));
+  const t = lib.nightTable();
+  const px = Uint8ClampedArray.from([4, 6, 22, 255, 255, 190, 80, 255]);   // the dark sea, a sodium-lit city
+  lib.nightRecolour(px, t);
+  check("the dark sea in the picture is clear, so the glow shows; a lit city stays solid", px[3] === 0 && px[7] === 255);
+  const hsl = (h) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, l = (mx + mn) / 510;
+    if (!d) return [0, 0, l]; const s = d / (255 * (1 - Math.abs(2 * l - 1))); let hh = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4); return [(hh + 360) % 360, s, l]; };
+  const rgbs = [...block.matchAll(/rgba\((\d+),\s*(\d+),\s*(\d+)/g)].map((m) => "#" + [m[1], m[2], m[3]].map((v) => (+v).toString(16).padStart(2, "0")).join(""));
+  check("the glow's colours have no orange, yellow or green", rgbs.length > 10 && rgbs.every((h) => { const [hh, s] = hsl(h); return !(hh >= 20 && hh <= 165 && s > 0.2); }));
+  check("Deep space's code stays, unused, and its menu line is taken out",
+        /\.replace\(\/<label class="layer"><input type="radio" name="basemap" value="space"/.test(src) && /function addSpaceLayers\(\)/.test(src));
+  const { map, els } = run();
+  map.fire("load"); await new Promise((r) => setTimeout(r, 5));
+  const html = els.get("basemaps")?.innerHTML || "";
+  check("no Deep space in the menu; Earth at Night is listed as Bioluminescent",
+        !/value="space"/.test(html) && /value="night"[^>]*><span class="nm">Bioluminescent<\/span>/.test(html));
+  els.get("basemaps").fire("change", { target: { name: "basemap", value: "night" } });
+  check("choosing Bioluminescent shows the glowing waters", map.getLayer("outline-night-sea-glow")?.layout?.visibility === "visible" &&
+        map.getLayer("outline-night-river")?.layout?.visibility === "visible");
+  els.get("basemaps").fire("change", { target: { name: "basemap", value: "atlas" } });
+  check("choosing another basemap hides them", map.getLayer("outline-night-sea-glow")?.layout?.visibility === "none");
+}
+
+console.log("\nround 196o (14 October): the settings box in two columns; Faster map beside Stuck?; Layer colours in the Layers box");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const page = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const lay = src.slice(src.indexOf("function settingsLayout(box)"), src.indexOf("function buildBasemapPanel()"));
+  check("the box is laid out after it is written: Basemap and View side by side, 3D terrain under them",
+        /settingsLayout\(box\);\n  box\.addEventListener/.test(src) && /cols\.appendChild\(base\);\n  cols\.appendChild\(view\);/.test(lay) &&
+        /\.set-cols\{display:grid;grid-template-columns:minmax\(0,1fr\) minmax\(0,1fr\)/.test(page) && /\.set-cols \+ \.sect\{/.test(page));
+  check("View in one column: views, Place names and Streets, North up with the zoom buttons, then Snap back and Leave Earth",
+        /col\.appendChild\(choices\)/.test(lay) && /\.names-under/.test(lay) && /tools\.appendChild\(compass\);\n  if \(zoom\) tools\.appendChild\(zoom\);/.test(lay) &&
+        /if \(go\) col\.appendChild\(go\);/.test(lay) && /\.view-col \.view-go\{flex:none;margin-top:auto/.test(page));
+  check("the two columns end level", /\.set-cols\{[^}]*align-items:stretch/.test(page) && /\.set-cols \.bm-choices\{flex:1 1 auto;display:flex;flex-direction:column;justify-content:space-between\}/.test(page));
+  check("Streets, not Streets and places", /<span class="nm">Streets<\/span><\/label>/.test(src) && !/<span class="nm">Streets and places<\/span>/.test(src));
+  check("Layer colours go to the foot of the Layers box and are wired there",
+        /holder\.id = "layer-colours";/.test(lay) && /panel\.appendChild\(holder\);/.test(lay) && /\.layer-colours \.theme-pick\{display:grid/.test(page));
+  const sub = page.slice(page.indexOf('`<div class="holo-sub"'), page.indexOf('tick("holo-grat"'));
+  check("Basemap underneath is among the hologram's options, not a line under it",
+        /tick\("holo-under"/.test(sub) && (page.match(/tick\("holo-under"/g) || []).length === 1);
+  check("Faster map is on the Stuck? line, white, its sentence behind an i",
+        /info\.id = "lite-info";/.test(page) && /n\.hidden = true;/.test(page) && /#lite-map\{background:#fff;color:#333/.test(page) &&
+        /\.reload-wrap\{flex-wrap:nowrap;position:relative;z-index:5\}/.test(page) && /#lite-note\[hidden\]\{display:none\}/.test(page));
+  const { map, els } = run();
+  map.fire("load"); await new Promise((r) => setTimeout(r, 5));
+  check("the box is still written and the views offered", /value="globe" checked/.test(els.get("basemaps")?.innerHTML || ""));
+}
+
+console.log("\nround 197o (14 October): the Moon and Mars, from NASA's Eyes");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const page = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const bodies = fs.readFileSync(path.join(HERE, "bodies.html"), "utf8");
+  check("Moon and Mars buttons under Back to the map, with Solar system to return to Eyes, and the frame for their map",
+        /id="spaceBodies" hidden>/.test(page) && /data-body="moon"/.test(page) && /data-body="mars"/.test(page) && /id="spaceEyes" hidden/.test(page) &&
+        /<iframe id="bodyFrame" class="body-frame"/.test(page));
+  check("they show with Back to the map, and leaving Eyes closes the Moon or Mars too",
+        /if \(bodies\) bodies\.hidden = !on;\n  if \(!on\) closeBody\(\);/.test(src) && /f\.src = new URL\("bodies\.html#" \+ key, document\.baseURI\)\.href;/.test(src));
+  check("the ground is NASA's Moon Trek and Mars Trek tiles, read live; Mars in its real colour",
+        /trek\.nasa\.gov\/tiles\/Moon\/EQ\/LRO_WAC_Mosaic_Global_303ppd_v02\/1\.0\.0\/default\/default028mm\/\{z\}\/\{y\}\/\{x\}\.jpg/.test(bodies) &&
+        /trek\.nasa\.gov\/tiles\/Mars\/EQ\/Mars_Viking_MDIM21_ClrMosaic_global_232m\/1\.0\.0\/default\/default028mm\/\{z\}\/\{y\}\/\{x\}\.jpg/.test(bodies) &&
+        /crs: L\.CRS\.EPSG4326/.test(bodies));
+  check("the layers: LROC's objects, both Wikipedia lists, Artemis III, both rovers live, IAU names",
+        ["moon_objects.geojson", "moon_list.geojson", "artemis3.geojson", "moon_names.geojson", "mars_list.geojson", "mars_names.geojson"].every((f) => bodies.includes('"' + f + '"')) &&
+        /rover: "M20"/.test(bodies) && /rover: "MSL"/.test(bodies) && /mars\.nasa\.gov\/mmgis-maps\//.test(bodies));
+  check("every field a source gives goes in the box; nothing is filtered out", /Object\.keys\(p\)\.forEach/.test(bodies) && !/\.filter\(function \(f\) \{ return f\.properties/.test(bodies));
+  const hsl = (h) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, l = (mx + mn) / 510;
+    if (!d) return [0, 0, l]; const s = d / (255 * (1 - Math.abs(2 * l - 1))); let hh = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4); return [(hh + 360) % 360, s, l]; };
+  const warm = [...bodies.matchAll(/#[0-9A-Fa-f]{6}\b/g)].map((m) => m[0]).filter((h) => { const [hh, s, l] = hsl(h); return hh >= 20 && hh <= 165 && s > 0.2 && l > 0.15 && l < 0.8; });
+  check("no orange, yellow or green in the page's own colours (pale bone and the near-black ground aside)", warm.length === 0, warm.join(" "));
+}
+
+console.log("\nround 198o (14 October): the Layers box rearranged; the combine reads tiled layers worldwide and says it plainly");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  check("How to Use sits between Layers and All on, holding the owner's words",
+        /how\.textContent = "How to Use";/.test(src) && /Once a colour is chosen, an As drawn button appears beside the square, which puts the layer's own colours back\./.test(src) &&
+        /This will change their orders in the list and on the map\./.test(src));
+  check("no Reset layers menu button", !/>Reset layers menu<\/button>/.test(src));
+  check("the box's order: head, How to Use, the three switches, the tools, the list, then Search, Combine and Layer colours",
+        /\[".panel-head", "#layer-help", "#kind-switch", "#layers-tools", "#live-share", "#layers", ".layer-search", "#combo-box", "#layer-colours", "#note"\]/.test(src));
+  check("Pull all layers up and the crowd shading switch", /id="layers-pull"/.test(src) && /id="density-toggle"/.test(src) &&
+        /if \(typeof DENSITY_ON !== "undefined" && !DENSITY_ON\) on = false;/.test(src) && /html\.no-density \.density-key\{display:none!important\}/.test(src));
+  check("All on and All off ask first; All off pulls the dropdowns up",
+        /await askFirst\(on \?/.test(src) && /if \(!on\) pullAllUp\(document\.getElementById\("layers"\)\);/.test(src));
+  const lib = new Function("COMBO", "map", "rowVectorLayers", "pmtiles", src.slice(src.indexOf("const COMBO_WORLD_MAX"), src.indexOf("COMBO.world = new Map();")) + "; return { mvtDecode, comboWorldZoom };")({}, {}, () => [], undefined);
+  // A hand-made tile: one layer "a", one point feature at the tile's middle with name "x".
+  const v = (n) => { const o = []; while (n > 127) { o.push((n & 127) | 128); n >>>= 7; } o.push(n); return o; };
+  const lenD = (field, bytes) => [...v((field << 3) | 2), ...v(bytes.length), ...bytes];
+  const str = (t) => [...Buffer.from(t)];
+  const zz = (n) => (n << 1) ^ (n >> 31);
+  const feat = [...lenD(2, [0, 0]), 3 << 3, 1, ...lenD(4, [...v((1 << 3) | 1), ...v(zz(2048)), ...v(zz(2048))])];
+  const val = lenD(1, str("x"));
+  const layer = [...lenD(1, str("a")), ...lenD(2, feat), ...lenD(3, str("name")), ...lenD(4, val), (5 << 3), ...v(4096), (15 << 3), 2];
+  const tile = Uint8Array.from(lenD(3, layer));
+  const got = lib.mvtDecode(tile, 1, 1, 0, "a");
+  check("the tile reader reads a point, its place and its fields", got.length === 1 && got[0].geometry.type === "Point" &&
+        Math.abs(got[0].geometry.coordinates[0] - 90) < 1e-9 && Math.abs(got[0].geometry.coordinates[1] - 66.51326) < 1e-4 && got[0].properties.name === "x");
+  check("archives are read whole at zoom 4, within what each holds", lib.comboWorldZoom(0, 14) === 4 && lib.comboWorldZoom(6, 14) === 6 && lib.comboWorldZoom(0, 2) === 2);
+  check("the combine uses the whole read in place of what the view showed, and names what it could not read whole",
+        /const whole = got\.vector \? await comboWorld\(id\) : null;/.test(src) && /COMBO\.partial\.add\(id\);/.test(src) && /Too large to read worldwide at once/.test(src) &&
+        !/Tiled layers are read as you look round/.test(src));
+  check("the combine speaks of layers when each is in a group of its own", /const who = solo \? `two or more of the \$\{r\.groups\} ticked layers`/.test(src) &&
+        /<div class="combo-h">Which layers count together<\/div>/.test(src) && !/Worldwide means everything the map has read of a layer/.test(src) &&
+        !/Layers start grouped by their heading/.test(src) && !/the base map shows everywhere/.test(src));
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");

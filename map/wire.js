@@ -1056,7 +1056,9 @@ async function load(id, force) {
 
   const urls = [
     'https://raw.githubusercontent.com/' + ORG + '/' + s.repo + '/main/' + s.file,
-    'https://cdn.jsdelivr.net/gh/' + ORG + '/' + s.repo + '@main/' + s.file
+    'https://cdn.jsdelivr.net/gh/' + ORG + '/' + s.repo + '@main/' + s.file,
+    // Round 198o: the repository's own Pages copy, where it has one, as a third way in.
+    'https://' + ORG.toLowerCase() + '.github.io/' + s.repo + '/' + s.file
   ];
   let data = null, err = null;
   for (const u of urls) {

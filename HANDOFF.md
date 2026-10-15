@@ -5,6 +5,113 @@ touches.
 
 ---
 
+## Round 198o (14 October)
+
+Needs round 197o (guards on its heading). No tiles patch. No app.js?v= bump.
+
+- Layers box (asked 14 October), kept in order by layersBoxOrder (a
+  MutationObserver, since parts arrive at different times): the head
+  (Layers, How to Use, All on, All off), the How to Use box (closed until
+  clicked; the owner's own wording), All Points / All Shapes / All National
+  Highlights on one line (no "Turn on every"), then Pull all layers up and
+  "Shading where points crowd" (DENSITY_ON, kept in localStorage
+  culprits-density; densityBandsShow obeys it), the list, then Search,
+  Combine the ticked layers and Layer colours. Reset layers menu is gone
+  (resetRows stays, unused). All on and All off ask first (askFirst); All
+  off also pulls up every dropdown (pullAllUp, which Pull all layers up runs
+  alone).
+- The four Clark Labs pond maps are filed under Meat > Marine meats > Fish
+  and shrimp farms as well as Oceans > Fishing (their "ponds" bundle had sat
+  empty under Meat).
+- Atlas city maps open large in the middle of the screen; the button makes
+  them small in the corner. The picture is dragged to move round it (a
+  click still zooms), and the box is dragged by its top bar.
+- Combine: tiled layers are now read worldwide (comboWorld): each PMTiles
+  archive read whole at zoom 4 (or the archive's own nearest), decoded by
+  mvtDecode (checked against @mapbox/vector-tile in the sandbox), and used
+  in place of what the view had shown, so nothing counts twice. Rows over
+  400,000 features at that zoom, or not from an archive, are read as before
+  and named in the message. At zoom 4 features are held to about 600 m, and
+  archives that draw squares of counts at that zoom are counted as squares.
+  Wording: with each layer in its own group the text speaks of layers, not
+  groups; the group list has a heading ("Which layers count together"); the
+  shares say in full what they measure; the repeated sentences are gone.
+- News wires: work in the sandbox with every feed file (all 34 read and
+  shown); a third address (each feed repo's Pages copy) added to try.
+
+## Round 197o (14 October)
+
+Needs round 196o (guards on its heading). Tiles patch round197o_tiles.py
+beside it (scripts/bodies.py). No app.js?v= bump.
+
+- The Moon and Mars (asked 14 October): while NASA's Eyes is showing, Moon
+  and Mars buttons sit under Back to the map. Each opens map/bodies.html in
+  a frame over Eyes (#bodyFrame); "Solar system" closes it back to Eyes, and
+  Back to the map closes both. The page also works on its own
+  (bodies.html#moon, #mars).
+- bodies.html: Leaflet in plate carree (L.CRS.EPSG4326) over NASA Moon Trek
+  (LRO WAC mosaic, zooms 0-8) and Mars Trek (Viking MDIM 2.1 colour, 0-7,
+  real colour as the owner asked) tiles, read live from trek.nasa.gov. Tile
+  URLs are from each layer's WMTSCapabilities.xml (.jpg, default028mm);
+  not seen loading from the sandbox (trek.nasa.gov is blocked there).
+- Layers, from culprits-tiles-more bodies/ (scripts/bodies.py), every field
+  as given, nothing filtered:
+  Moon: LROC anthropogenic objects (PDS, public domain under LROC's terms;
+  credit NASA/GSFC/ASU, Wagner et al. 2017); Wikipedia's list of artificial
+  objects on the Moon (orbs sized by the kg column, area to mass; CC BY-SA);
+  NASA's nine Artemis III regions, at the IAU centre of the feature each is
+  named after (NASA published only a picture; the box says so; regions at
+  the same feature share a mark); IAU names (USGS gazetteer), more as you
+  zoom in.
+  Mars: Wikipedia's list; Perseverance and Curiosity routes and stops, LIVE
+  from NASA/JPL's MMGIS JSON (mars.nasa.gov/mmgis-maps/), falling back to
+  the daily copy in bodies/rovers/ if the browser is refused; IAU names.
+  Rows with no position are listed under the notes.
+- Not on the map yet: Mars's 47 candidate human landing zones (the only
+  copy with coordinates, OpenPlanetary's on CARTO, states no licence: asked
+  the owner); spacecraft orbiting the Moon; a south-pole view (Trek's polar
+  layer names not found).
+
+## Round 196o (14 October)
+
+Needs round 195o (guards on its heading). No tiles patch. No app.js?v= bump.
+
+- The Woodlands note ("In the spirit of Robert Griffing...") is taken out,
+  and with nothing left in it, Woodlands' i button too (themedNotes deletes
+  BM_NOTES.wood).
+- Faster map sits on the Stuck? line, to the right of it, white like the
+  reload button. Its sentence is behind a small i (#lite-info): on hover,
+  or opened on a click, closed by a click elsewhere.
+- Hologram: Basemap underneath is now the first of the hologram's options,
+  shown with them when the hologram is picked (index.html addSwitch).
+- The settings box in two columns (settingsLayout, run after the box is
+  written, so the code writing and wrapping each part is left as it was):
+  Basemap left; View right in one column (Globe, Flat map, Place names,
+  Streets, then North up beside the zoom buttons, then Snap back and Leave
+  Earth at the foot). The columns stretch to the same height; the basemap
+  list spreads to fill. 3D terrain runs the whole width under them.
+  "Streets and places" is now "Streets". The North up caption is hidden
+  (its title says it).
+- Layer colours (the wheel) move to the foot of the Layers box
+  (#layer-colours), wired there.
+- Checked in a headless browser in the sandbox (stand-in libraries, no
+  map tiles), not yet in a live browser.
+
+## Round 195o (14 October)
+
+Needs round 194o (guards on its heading). No tiles patch. No app.js?v= bump.
+
+- Basemaps (asked 14 October): Deep space, listed as Bioluminescent, leaves
+  the menu (its code stays, unused, as Old fantasy painting's does). Its glow
+  on the waters moves into Earth at Night, which is now listed as
+  Bioluminescent: the rings of light at 200, 1,000 and 2,000 m deep, the teal
+  shine along the shallows and coasts, the glowing rivers and lake edges.
+  They are drawn under the Black Marble lights; the recoloured picture is now
+  clear where it is dark (NIGHT.clear, 18 to 48), so the glow shows through
+  the dark sea while lit ground stays solid over it. Land just below sea
+  level (the Netherlands, the Dead Sea) can catch the coast glow, as it did
+  in Deep space.
+
 ## Round 194o (14 October)
 
 Needs round 193o (guards on its heading). Tiles patch round194o_tiles.py
