@@ -3749,10 +3749,25 @@ function showBack(on) {
 // its own page (bodies.html), opened in a frame over Eyes; the buttons switch
 // between the two bodies, and Solar system closes it back to Eyes.
 let BODY_OPEN = null;
+// Round 202o: which Moon and Mars rows are ticked in the layers box, sent to
+// the body map so it shows those (a body with none ticked shows all its own).
+const BODY_PICK = { moon: {}, mars: {} };
+function bodyPost() {
+  const f = document.getElementById("bodyFrame");
+  if (f && f.src && f.contentWindow && typeof f.contentWindow.postMessage === "function") f.contentWindow.postMessage({ culpritsLayers: BODY_PICK }, "*");
+}
+let bodyOpenTimer = null;
+function bodyRowChanged(row, on) {
+  BODY_PICK[row.body][row.bodyLayer] = !!on;
+  if (!on) { bodyPost(); return; }
+  const go = () => { openBody(row.body); bodyPost(); };
+  clearTimeout(bodyOpenTimer);
+  if (!AWAY) { leaveEarth(); bodyOpenTimer = setTimeout(go, 1300); } else go();
+}
 function openBody(key) {
   const f = document.getElementById("bodyFrame");
   if (!f) return;
-  if (!f.src) f.src = new URL("bodies.html#" + key, document.baseURI).href;
+  if (!f.src) { f.addEventListener("load", bodyPost); f.src = new URL("bodies.html#" + key, document.baseURI).href; }
   else if (f.contentWindow && typeof f.contentWindow.postMessage === "function") f.contentWindow.postMessage({ culpritsBody: key }, "*");
   f.hidden = false;
   BODY_OPEN = key;
@@ -3761,6 +3776,7 @@ function openBody(key) {
 function closeBody() {
   const f = document.getElementById("bodyFrame");
   if (f) f.hidden = true;
+  if (!AWAY) { BODY_PICK.moon = {}; BODY_PICK.mars = {}; }
   BODY_OPEN = null;
   bodyButtons();
 }
@@ -15783,7 +15799,7 @@ var NIGHT = {
     -9000, "rgba(52,96,184,0)", -40, "rgba(52,96,184,0)", -12, "rgba(52,96,184,0.22)", -2, "rgba(70,120,206,0.6)",
     0, "rgba(70,120,206,0)", 9000, "rgba(70,120,206,0)"],
   coast: "#02040C",                  // the open sea close in, where the depth tiles' coast is too rough
-  lake: "rgba(10,15,51,0.6)", lakeEdge: "#4A78C6",
+  lake: "rgba(0,0,0,0)", lakeEdge: "#4A78C6",
   river: "#86A8E0", riverGlow: "#3858A8",
   // Below this brightness a square of the picture is clear, so the glowing
   // water shows through the dark sea; above the second number it is solid.
@@ -15793,8 +15809,8 @@ var NIGHT = {
          "fog-ground-blend": 0.9, "horizon-fog-blend": 0.3, "sky-horizon-blend": 0.6,
          "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.55, 4, 0.3, 7, 0] },
 };
-var NIGHT_IDS = ["outline-night-sheet", "outline-night-sea-glow", "outline-night-coast", "outline-night-lake",
-  "outline-night-river-glow", "outline-night-river", "outline-night-lights", "outline-night-shade", "outline-night-road-glow",
+var NIGHT_IDS = ["outline-night-sheet", "outline-night-lights", "outline-night-shade", "outline-night-sea-glow", "outline-night-lake",
+  "outline-night-river-glow", "outline-night-river", "outline-night-road-glow",
   "outline-night-road-minor", "outline-night-road", "outline-night-road-major", "outline-night-border"];
 // The ramp as a table of 256 colours, blended between its stops.
 function nightTable() {
@@ -15813,12 +15829,11 @@ function nightTable() {
 // Round 195o: dark squares are made clear (NIGHT.clear), so the glowing
 // water under the picture shows; lit ground stays solid over it.
 function nightRecolour(px, table) {
-  const [c0, c1] = NIGHT.clear;
   for (let i = 0; i < px.length; i += 4) {
     const r = px[i], g = px[i + 1], b = px[i + 2];
     const v = Math.round(0.5 * Math.max(r, g, b) + 0.5 * (0.3 * r + 0.59 * g + 0.11 * b));
     px[i] = table[v * 3]; px[i + 1] = table[v * 3 + 1]; px[i + 2] = table[v * 3 + 2];
-    px[i + 3] = v <= c0 ? 0 : v >= c1 ? 255 : Math.round((v - c0) / (c1 - c0) * 255);
+    px[i + 3] = 255;     // round 202o: solid again, exactly as Earth at Night was
   }
   return px;
 }
@@ -15848,12 +15863,14 @@ function nightLayers() {
   return [
     { id: "outline-night-sheet", type: "fill", source: "outline-night-sheet",
       paint: { "fill-color": NIGHT.sheet, "fill-antialias": false } },
-    // The waters' glow, under the lights (round 195o, from Deep space).
+    { id: "outline-night-lights", type: "raster", source: "outline-night-lights",
+      paint: { "raster-fade-duration": 200, "raster-resampling": "linear" } },
+    { id: "outline-night-shade", type: "hillshade", source: "outline-dem", paint: NIGHT.shade },
+    // Round 202o (asked 14 October: exactly Earth at Night, with only the blue
+    // glow along shores and other waters added): the glow is drawn over the
+    // lights, which are solid again, so nothing else of the picture changes.
     { id: "outline-night-sea-glow", type: "color-relief", source: "sea-dem",
       paint: { "color-relief-color": NIGHT.seaGlow, "color-relief-opacity": 1 } },
-    { id: "outline-night-coast", type: "fill", source: "osm", "source-layer": "water", minzoom: 8,
-      filter: ["==", ["get", "class"], "ocean"],
-      paint: { "fill-color": NIGHT.coast, "fill-opacity": fade(8, 10, .85) } },
     { id: "outline-night-lake", type: "fill", source: "osm", "source-layer": "water",
       filter: ["!=", ["get", "class"], "ocean"],
       paint: { "fill-color": NIGHT.lake, "fill-outline-color": NIGHT.lakeEdge } },
@@ -15869,9 +15886,6 @@ function nightLayers() {
                  16, ["match", ["get", "class"], "river", 5, 2.4]],
                "line-opacity": ["interpolate", ["linear"], ["zoom"],
                  8, ["match", ["get", "class"], "river", .85, 0], 11, ["match", ["get", "class"], "river", .85, .65]] } },
-    { id: "outline-night-lights", type: "raster", source: "outline-night-lights",
-      paint: { "raster-fade-duration": 200, "raster-resampling": "linear" } },
-    { id: "outline-night-shade", type: "hillshade", source: "outline-dem", paint: NIGHT.shade },
     { id: "outline-night-road-glow", type: "line", source: "osm", "source-layer": "transportation", minzoom: 7,
       filter: kind(["motorway", "trunk", "primary"]),
       layout: { "line-cap": "round", "line-join": "round" },
@@ -22500,7 +22514,8 @@ function applyVisibility(id) {
   // A row that leaves Earth: ticked, the map hands over to Eyes as the Leave
   // Earth button does; unticked while away, it comes back.
   const leaveRow = cfg || (typeof childById === "function" ? childById(id) : null);
-  if (leaveRow && leaveRow.route === "leave") {
+  if (leaveRow && leaveRow.route === "leave" && leaveRow.body) bodyRowChanged(leaveRow, vis === "visible");
+  else if (leaveRow && leaveRow.route === "leave") {
     if (vis === "visible" && !AWAY) leaveEarth();
     else if (vis !== "visible" && AWAY) backToMap();
   }
@@ -24421,6 +24436,26 @@ const OTHER_MAPS = {
     { id: "giga_countries", name: "School mapping by country (Giga)", unit: "countries", colour: "#627A86", route: "giga", ready: true, lazy: true,
       data: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/giga/countries.json",
       note: "Giga's own figures for every country on its map, copied daily (its service does not let other sites read it)." },
+    // Round 202o (asked 14 October): the Moon and Mars views' layers as rows of
+    // their own. Ticked, the map leaves Earth through Eyes and opens that
+    // body's map (bodies.html) with the ticked rows shown; unticked, the row
+    // goes off there. Back to the map unticks them all.
+    { id: "moon_objects", name: "Everything humans have put on the Moon (LROC)", unit: "opens the Moon view, objects", colour: "#E8E2D4", route: "leave", body: "moon", bodyLayer: "objects", ready: true, lazy: true,
+      note: "LROC's coordinates of human-made objects on the Moon: landers, rovers, experiments left behind, impact craters and retroreflectors, each placed from orbital photos (NASA/GSFC/Arizona State University, public domain; Wagner et al. 2017). Ticked, the map leaves Earth and opens the Moon view with this layer on." },
+    { id: "moon_list", name: "Objects left on the Moon, by mass (Wikipedia)", unit: "opens the Moon view, objects", colour: "#C98BA0", route: "leave", body: "moon", bodyLayer: "list", ready: true, lazy: true,
+      note: "Wikipedia's List of artificial objects on the Moon, every row and column, sized by mass (CC BY-SA 4.0). Ticked, the map leaves Earth and opens the Moon view with this layer on." },
+    { id: "moon_artemis", name: "Planned Artemis III landing regions (NASA)", unit: "opens the Moon view, regions", colour: "#7F9BE0", route: "leave", body: "moon", bodyLayer: "artemis", ready: true, lazy: true,
+      note: "NASA's nine candidate regions for the next crewed landing (28 October 2024), each placed at the IAU centre of the feature it is named after, since NASA published them only as a picture. Ticked, the map leaves Earth and opens the Moon view with this layer on." },
+    { id: "moon_names", name: "Moon place names (IAU)", unit: "opens the Moon view, names", colour: "#DCD6C6", route: "leave", body: "moon", bodyLayer: "names", ready: true, lazy: true,
+      note: "Every IAU name on the Moon (USGS Gazetteer of Planetary Nomenclature); more appear as you zoom in. Ticked, the map leaves Earth and opens the Moon view with this layer on." },
+    { id: "mars_list", name: "Objects left on Mars, by mass (Wikipedia)", unit: "opens the Mars view, objects", colour: "#C98BA0", route: "leave", body: "mars", bodyLayer: "list", ready: true, lazy: true,
+      note: "Wikipedia's List of artificial objects on Mars, every row and column, sized by mass (CC BY-SA 4.0). Ticked, the map leaves Earth and opens the Mars view with this layer on." },
+    { id: "mars_m20", name: "Perseverance's route, live (NASA/JPL)", unit: "opens the Mars view, stops", colour: "#9FD0DC", route: "leave", body: "mars", bodyLayer: "m20", ready: true, lazy: true,
+      note: "Every stop and drive of the Perseverance rover since it landed in Jezero crater in 2021, read live from NASA/JPL's own rover map. Ticked, the map leaves Earth and opens the Mars view with this layer on." },
+    { id: "mars_msl", name: "Curiosity's route, live (NASA/JPL)", unit: "opens the Mars view, stops", colour: "#9FD0DC", route: "leave", body: "mars", bodyLayer: "msl", ready: true, lazy: true,
+      note: "Every stop and drive of the Curiosity rover since it landed in Gale crater in 2012, read live from NASA/JPL's own rover map. Ticked, the map leaves Earth and opens the Mars view with this layer on." },
+    { id: "mars_names", name: "Mars place names (IAU)", unit: "opens the Mars view, names", colour: "#DCD6C6", route: "leave", body: "mars", bodyLayer: "names", ready: true, lazy: true,
+      note: "Every IAU name on Mars (USGS Gazetteer of Planetary Nomenclature); more appear as you zoom in. Ticked, the map leaves Earth and opens the Mars view with this layer on." },
     { id: "eyes_craft", name: "Spacecraft in space, going galactic (NASA's Eyes on the Solar System)", unit: "leaves Earth for Eyes, as the Leave Earth button does", colour: "#5E6070", route: "leave", ready: true, lazy: true,
       page: "https://eyes.nasa.gov/apps/solar-system/#/home?featured=false&logo=false&shareButton=false&hd=true",
       note: "Ticked, the map turns to Earth's face and size in NASA/JPL's Eyes on the Solar System and hands the screen over, exactly as the Leave Earth button and zooming out past the globe do (asked for 25 September, in place of the panel along the bottom). In Eyes, every spacecraft it follows is placed where it is now, with its mission. The box in the corner, or unticking, brings the map back." },
@@ -26079,6 +26114,8 @@ const LAYER_KIND = {
   trase_meat_brazil: ["animal", "upstream"],
   biosignature: ["insentient", "downstream"],
   eyes_craft: ["insentient", "downstream"],
+  moon_objects: ["insentient", "downstream"], moon_list: ["insentient", "downstream"], moon_artemis: ["insentient", "downstream"], moon_names: ["insentient", "downstream"],
+  mars_list: ["insentient", "downstream"], mars_m20: ["insentient", "downstream"], mars_msl: ["insentient", "downstream"], mars_names: ["insentient", "downstream"],
   leverage_chart: ["human", "upstream"],
   cfr_tracker: ["human", "upstream"],
   site_banking_dynasties_charts: ["human", "upstream"],
@@ -27950,6 +27987,9 @@ const PANEL_ORDER = [
   { h: 3, t: "The space industry" }, "space_industry",
   { h: 3, t: "Space launches" }, "ll2_pads", "ll2_upcoming",
   { h: 3, t: "Craft in space" }, "eyes_craft",
+  // Round 202o: the Moon and Mars, each a heading of its own.
+  { h: 3, t: "The Moon" }, "moon_objects", "moon_list", "moon_artemis", "moon_names",
+  { h: 3, t: "Mars" }, "mars_list", "mars_m20", "mars_msl", "mars_names",
   { h: 3, t: "Extraterrestrial life" }, "biosignature",
   // Base and reference (empty since 25 September) taken out; Buildings was
   // taken out with it (26 September, round 56) and put back at the owner's
@@ -28934,15 +28974,19 @@ function layersBoxTools(box) {
   const t = document.createElement("div");
   t.id = "layers-tools";
   t.className = "layers-tools";
-  t.innerHTML = `<div class="lt-line lt-first"><button type="button" class="chip" id="layers-pull" title="Pull up every layer's dropdown, without turning anything off">Pull all layers up</button>` +
-    `<label class="lt-tick" title="Points shaded in bands of colour where they crowd together, wide out"><input type="checkbox" id="density-toggle"${DENSITY_ON ? " checked" : ""}> Shading where points crowd</label></div>`;
+  // Round 202o (asked 14 October): the pull button two lines tall on the left,
+  // the crowd shading and Raise figures as heights one above the other on the right.
+  t.innerHTML = `<button type="button" class="chip" id="layers-pull" title="Pull up every layer's dropdown, without turning anything off">Pull up every layer's dropdown</button>` +
+    `<div class="lt-col"><label class="lt-tick" title="Points shaded in bands of colour where they crowd together, wide out"><input type="checkbox" id="density-toggle"${DENSITY_ON ? " checked" : ""}> Shading where points crowd</label></div>`;
   t.querySelector("#layers-pull").addEventListener("click", () => pullAllUp(box));
   t.querySelector("#density-toggle").addEventListener("change", (e) => densitySet(e.target.checked));
   panel.insertBefore(t, box);
   liftIntoTools();
   if (!DENSITY_ON && document.documentElement && document.documentElement.classList) document.documentElement.classList.add("no-density");
-  addStyle(".layers-tools{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 6px;margin:0 0 6px;font-size:11px;color:var(--dim)}" +
-    ".layers-tools .lt-line{flex-basis:100%;display:flex;align-items:center;gap:6px;flex-wrap:wrap}.layers-tools .lt-first{flex-wrap:nowrap;justify-content:space-between}" +
+  addStyle(".layers-tools{display:flex;flex-wrap:nowrap;align-items:stretch;gap:8px;margin:0 0 6px;font-size:11px;color:var(--dim)}" +
+    ".layers-tools #layers-pull{flex:0 0 106px;font-size:10.5px;white-space:normal!important;line-height:1.25;padding:3px 4px!important;border-radius:8px;text-align:center}" +
+    ".layers-tools .lt-col{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:4px}" +
+    ".layers-tools .lt-line{display:flex;align-items:center;gap:5px;flex-wrap:wrap}.layers-tools .lt-col .lt-tick{font-size:10px;gap:3px}.layers-tools{gap:6px!important}" +
     ".layers-tools .lt-info{width:15px;height:15px;padding:0;border-radius:50%;border:1px solid rgba(214,204,186,.65);background:rgba(40,44,50,.6);color:#EAE2D0;font:italic 600 10px/1 Georgia,serif;cursor:pointer}" +
     ".layers-tools .lt-note{flex-basis:100%;margin:2px 0 0;font-size:10.5px;line-height:1.35}html.lite .lift-line{display:none!important}" +
     ".layers-tools .chip{font:inherit;font-size:10.5px;padding:2px 7px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:none;color:var(--ink,#e8e2d6);cursor:pointer;white-space:nowrap}" +
@@ -28972,7 +29016,7 @@ function liftIntoTools() {
     `<button type="button" class="lt-info" aria-label="What Raise figures as heights does" aria-expanded="false" title="${escapeHtml(text)}">i</button>` +
     `<p class="lt-note" hidden>${escapeHtml(text)}</p>`;
   row.remove();
-  tools.appendChild(line);
+  (tools.querySelector(".lt-col") || tools).appendChild(line);
   line.querySelector("#lift-toggle").addEventListener("change", (e) => setLift(e.target.checked));
   const info = line.querySelector(".lt-info"), p = line.querySelector(".lt-note");
   info.addEventListener("click", (e) => { e.preventDefault(); p.hidden = !p.hidden; info.setAttribute("aria-expanded", String(!p.hidden)); });

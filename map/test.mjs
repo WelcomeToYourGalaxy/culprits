@@ -7140,9 +7140,8 @@ console.log("\nround 195o (14 October): Deep space taken out; its glowing waters
     "; return { NIGHT, NIGHT_IDS, nightTable, nightRecolour, nightLayers };")(() => null);
   const ids = lib.nightLayers().map((l) => l.id);
   const at = (id) => ids.indexOf(id);
-  check("the sea glow, coast, lakes and rivers are all under the lights",
-        ["outline-night-sea-glow", "outline-night-coast", "outline-night-lake", "outline-night-river-glow", "outline-night-river"]
-          .every((id) => at(id) > at("outline-night-sheet") && at(id) < at("outline-night-lights")));
+  check("round 202o: the glow, lakes and rivers are drawn over the lights, which are solid again; no sea cover",
+        ["outline-night-sea-glow", "outline-night-lake", "outline-night-river-glow", "outline-night-river"].every((id) => at(id) > at("outline-night-lights")) && at("outline-night-coast") === -1);
   const glow = lib.nightLayers().find((l) => l.id === "outline-night-sea-glow");
   check("the sea glow reads the depths (sea-dem) and is clear on land and in the open deep",
         glow.source === "sea-dem" && lib.NIGHT.seaGlow.slice(-4).join() === "0,rgba(70,120,206,0),9000,rgba(70,120,206,0)" && lib.NIGHT.seaGlow[4] === "rgba(52,96,184,0)");
@@ -7152,7 +7151,7 @@ console.log("\nround 195o (14 October): Deep space taken out; its glowing waters
   const t = lib.nightTable();
   const px = Uint8ClampedArray.from([4, 6, 22, 255, 255, 190, 80, 255]);   // the dark sea, a sodium-lit city
   lib.nightRecolour(px, t);
-  check("the dark sea in the picture is clear, so the glow shows; a lit city stays solid", px[3] === 0 && px[7] === 255);
+  check("round 202o: the picture is solid everywhere again, exactly as Earth at Night was", px[3] === 255 && px[7] === 255);
   const hsl = (h) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, l = (mx + mn) / 510;
     if (!d) return [0, 0, l]; const s = d / (255 * (1 - Math.abs(2 * l - 1))); let hh = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4); return [(hh + 360) % 360, s, l]; };
   const rgbs = [...block.matchAll(/rgba\((\d+),\s*(\d+),\s*(\d+)/g)].map((m) => "#" + [m[1], m[2], m[3]].map((v) => (+v).toString(16).padStart(2, "0")).join(""));
@@ -7295,6 +7294,18 @@ console.log("\nround 201o (14 October): Official buildings and Land use under Pl
   check("land use reads the map's own OpenStreetMap tiles, from zoom 5", /const src = "osm";\n  if \(map\.getLayer\(`\$\{cfg\.id\}-fill`\)\) return;/.test(src) &&
         /"source-layer": "landuse", minzoom: 5,/.test(src));
   check("an arrow at the end of the Stuck? line rolls the top right box", /b\.id = "settings-roll";/.test(src) && /#settings-roll\{/.test(html));
+}
+
+console.log("\nround 202o (14 October): the Moon and Mars as rows under Off-planet invasion; the pull button two lines tall");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const bodies = fs.readFileSync(path.join(HERE, "bodies.html"), "utf8");
+  check("The Moon and Mars are headings under From Earth, each with its rows",
+        /\{ h: 3, t: "The Moon" \}, "moon_objects", "moon_list", "moon_artemis", "moon_names",/.test(src) && /\{ h: 3, t: "Mars" \}, "mars_list", "mars_m20", "mars_msl", "mars_names",/.test(src));
+  check("a ticked row leaves Earth and opens that body with the ticked rows shown", /function bodyRowChanged\(row, on\)/.test(src) &&
+        /if \(leaveRow && leaveRow\.route === "leave" && leaveRow\.body\) bodyRowChanged/.test(src) && /e\.data\.culpritsLayers/.test(bodies));
+  check("the pull button says what it does, two lines tall, the two switches stacked beside it",
+        />Pull up every layer's dropdown<\/button>/.test(src) && /\.layers-tools \.lt-col\{/.test(src) && /tools\.querySelector\("\.lt-col"\) \|\| tools\)\.appendChild\(line\)/.test(src));
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");

@@ -5,6 +5,25 @@ touches.
 
 ---
 
+## Round 202o (14 October)
+
+Needs round 201o (guards on its heading). No tiles patch. No app.js?v= bump.
+
+- Bioluminescent (asked 14 October: still green; wanted exactly Earth at
+  Night plus the blue glow along shores and other waters): the Black Marble
+  picture is solid again (no clear dark squares), the sea cover is gone, and
+  the shore glow, lake edges and rivers are drawn over the lights. Everything
+  else is Earth at Night as it was. Hard refresh needed (no app.js?v= bump).
+- Layers box tools: "Pull up every layer's dropdown", two lines tall, on the
+  left; Shading where points crowd and Raise figures as heights stacked
+  beside it, level with each other.
+- Off-planet invasion > From Earth > The Moon and Mars: eight rows
+  (moon_objects, moon_list, moon_artemis, moon_names, mars_list, mars_m20,
+  mars_msl, mars_names), route "leave" with body/bodyLayer. Ticked, the map
+  leaves Earth through Eyes and opens that body (bodies.html) with the
+  ticked rows on (BODY_PICK, posted as culpritsLayers); a body with nothing
+  ticked shows all its layers. Back to the map unticks them all.
+
 ## Round 201o (14 October)
 
 Needs round 200o (guards on its heading). No tiles patch. No app.js?v= bump.

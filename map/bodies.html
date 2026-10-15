@@ -151,6 +151,14 @@
   map.on("zoomend", farness);
   farness();
   var ground = null, layers = {}, body = null, cache = {};
+  // Round 202o: the rows ticked in the Culprits map's layers box, per body
+  // ({ moon: { objects: true, ... } }); a body with nothing chosen there shows
+  // every layer, as when opened from its button.
+  var PICK = { moon: {}, mars: {} };
+  function picked(key, row) {
+    var p = PICK[key] || {};
+    return Object.keys(p).length ? !!p[row.id] : row.on;
+  }
 
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   function flat(v) {
@@ -318,11 +326,11 @@
     b.rows.forEach(function (row) {
       var el = document.createElement("label");
       el.className = "row";
-      el.innerHTML = '<input type="checkbox"' + (row.on ? " checked" : "") + '><span class="sw" style="' + swatch(row.kind) + '"></span>' +
+      el.innerHTML = '<input type="checkbox"' + (picked(key, row) ? " checked" : "") + '><span class="sw" style="' + swatch(row.kind) + '"></span>' +
         '<span class="t">' + esc(row.title) + (row.live ? '<span class="live">LIVE</span>' : "") + '<span class="n">' + esc(row.sub) + "</span></span>";
       rows.appendChild(el);
       var box = el.querySelector("input"), n = el.querySelector(".n");
-      var entry = layers[row.id] = { layer: null };
+      var entry = layers[row.id] = { layer: null, box: box };
       var mine = key;
       load(row).then(function (r) {
         if (body !== mine) return;
@@ -355,6 +363,18 @@
   // The map that opened this view can ask for a body.
   window.addEventListener("message", function (e) {
     if (e.data && e.data.culpritsBody) show(e.data.culpritsBody);
+    if (e.data && e.data.culpritsLayers) {
+      PICK = e.data.culpritsLayers;
+      // The body shown now follows the new choice at once.
+      (BODIES[body] ? BODIES[body].rows : []).forEach(function (row) {
+        var en = layers[row.id];
+        if (!en || !en.box) return;
+        var on = picked(body, row);
+        if (en.box.checked === on) return;
+        en.box.checked = on;
+        if (en.layer) { if (on) en.layer.addTo(map); else map.removeLayer(en.layer); }
+      });
+    }
   });
   window.addEventListener("hashchange", function () { show(location.hash.slice(1)); });
   var q = new URLSearchParams(location.search).get("body");
