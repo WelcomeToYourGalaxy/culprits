@@ -24188,6 +24188,18 @@ const OTHER_MAPS = {
       key: [["#59CFBF", "The earliest year on the map"], ["#597CCF", "The latest year on the map"]], keyHint: "Coloured by the year each began, teal to blue, as on the map",
       note: "The owner's map of who corporatized holidays (WelcomeToYourGalaxy/maps, holiday_culprits.html), read each day from the map itself: every entry in it, each opening its own story and record (the holiday, when, who, what they did, where it is placed and its sources), each coloured by the year it began, as the map colours it. The map's list of every entry by year opens from the button under the row. Compiled from the sources in each story (Wikipedia, histories and reporting). A short list, not every case." },
 
+    // Round 214r (asked 15 October 2026): the owner's Reproduction capture map
+    // (maps repo, reproduction_capture.html), from the On-Planet Invasion
+    // page's section of that name: governments pushing births up or down by
+    // force, money and advertising, and the funding, funding cuts, networks and
+    // fertility companies that carry it to other countries. Read each day from
+    // the map itself by the generic site-map reader; its own layers are the
+    // chips under the row and its boxes are its own.
+    { id: "reproduction_capture", name: "Reproduction capture worldwide, by force, money, advertising and influence abroad (compiled from rulings, inquiries, the UN and reporting)", unit: "entries", colour: "#5D80C2", route: "sitemap", ready: true, lazy: true,
+      dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/reproduction_capture.places.geojson",
+      keepColour: true,
+      note: "The owner's map of reproduction capture (WelcomeToYourGalaxy/maps, reproduction_capture.html), read each day from the map itself: forced and coerced sterilization, forced contraception and forced births; cash, tax and housing incentives to raise or lower births; advertising and propaganda; and influence carried abroad (donor funding, funding cuts such as the Mexico City Policy, international networks, surrogacy and egg markets, fertility companies), with a line to each country an entry is aimed at where its sources name one, and a box for each country listing everything recorded for it. Each entry's box gives what happened, the figures as its sources give them, accountability, and its sources. Coloured as the map colours them: rose for coercion, teal for incentives, lavender for advertising, blue for influence abroad. A compiled list, not every case." },
+
     // ---- round 116b (asked 29 September): gangs inside law enforcement, worldwide ----
     { id: "gang_infiltration", name: "Gangs inside law enforcement worldwide: police, sheriffs, federal agents and prison officers working for crime groups, or running their own (compiled from court records, inquiries and reporting)", unit: "cases", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Gangs inside law enforcement", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/lawenforcement/gang_infiltration.geojson" }], nameFrom: ["name"],
@@ -25840,6 +25852,7 @@ const SHORT_NAMES = {
   research_makers: "Who makes fake science (World Research Integrity 2026)",
   fertility_policy: "Government birth rate policies (UN)",
   holiday_culprits: "Who corporatized holidays (compiled)",
+  reproduction_capture: "Reproduction capture (compiled)",
   gang_infiltration: "Gangs inside law enforcement (compiled)",
   open_payments: "Drug company payments to US doctors, by state (CMS)",
   medical_culprits: "Who profits from sickness (compiled from Wikipedia)",
@@ -26499,6 +26512,7 @@ const LAYER_KIND = {
   site_world_entertainment: ["human", "upstream"],
   site_research_integrity: ["human", "upstream"], troutwood_companies: ["human", "upstream"], wreckers_world: ["insentient", "upstream"], threat_overall: ["human", "upstream"], threat_destruction: ["human", "upstream"], threat_suppression: ["human", "upstream"], threat_crime: ["human", "upstream"], vdem_liberal: ["human", "upstream"], vdem_electoral: ["human", "upstream"], vdem_participatory: ["human", "upstream"], vdem_deliberative: ["human", "upstream"], vdem_egalitarian: ["human", "upstream"], vdem_expression: ["human", "upstream"], vdem_rights: ["human", "upstream"], vdem_civil: ["human", "upstream"], vdem_regime: ["human", "upstream"], school_culprits: ["human", "upstream"], giga_school_points: ["human", "downstream"], stock_exchanges: ["human", "upstream"], research_makers: ["human", "upstream"], fertility_policy: ["human", "upstream"],
   bld_police: ["human", "downstream"], bld_courts: ["human", "downstream"], bld_prisons: ["human", "downstream"], gang_infiltration: ["human", "upstream"],
+  reproduction_capture: ["human", "upstream"],
   holiday_culprits: ["human", "upstream"], medical_culprits: ["human", "upstream"], open_payments: ["human", "upstream"], sports_facilities: ["human", "upstream"], sports_betting: ["human", "upstream"], sports_fixing: ["human", "upstream"],
   pet_food_world: ["animal", "upstream"], animal_breeding_osm: ["animal", "upstream"], zoos_aquariums_osm: ["animal", "upstream"], wjp_discrimination: ["human", "downstream"], wjp_discrimination_change: ["human", "downstream"], slavery_convicted_world: ["human", "downstream"], slavery_detected_world: ["human", "downstream"], slavery_cbp_world: ["human", "upstream"],
   site_eyes_network: ["human", "upstream"],
@@ -27485,6 +27499,7 @@ const LAYER_SITE = {
   fertility_policy: "https://www.un.org/development/desa/pd/data/world-population-policies",
   forestatrisk: "https://forestatrisk.cirad.fr/rasters.html",
   holiday_culprits: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/holiday_culprits.html",
+  reproduction_capture: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/reproduction_capture.html",
   medical_culprits: "https://en.wikipedia.org/wiki/List_of_largest_pharmaceutical_settlements",
   open_payments: "https://openpaymentsdata.cms.gov/",
   sports_facilities: "https://docs.overturemaps.org/", sports_betting: "https://www.wikidata.org/", sports_fixing: "https://en.wikipedia.org/wiki/Match_fixing",
@@ -27713,6 +27728,7 @@ const NOT_LIVE = {
   research_makers: "Read weekly from the site's own map by culprits-tiles-more",
   fertility_policy: "Copied weekly from the UN Population Division by culprits-tiles-more",
   forestatrisk: "Copied once from ForestAtRisk's own files by culprits-tiles-more",
+  reproduction_capture: "Read each day from the owner's map in the maps repo",
   holiday_culprits: "Read each day from the owner's map in the maps repo", law_atlas: "Read each day from the owner's atlas in the maps repo",
   gang_infiltration: "Compiled for this map from the sources in each box",
   medical_culprits: "Built weekly by culprits-tiles-more from Wikipedia and Wikidata",
@@ -27886,6 +27902,9 @@ const PANEL_ORDER = [
   // map's own country figures, rebuilt daily.
   { h: 1, t: "On-planet invasion" },
   { h: 2, t: "Pre-birth frontlines" },
+  // Round 214r (asked 15 October): the On-Planet Invasion page's order,
+  // (i) reproduction capture, then (ii) engineering.
+  { h: 3, t: "Reproduction capture" }, "reproduction_capture",
   { h: 3, t: "Genetic engineering" }, "gmo_env", "gmo_decisions", "gmo_ogtr", "gmo_industry", "gmo_escapes", "gmo_cultivation", "gmo_gmofree", "gmo_incidents", "gmo_regime", "gmo_treaties", "gmo_trials", "gmo_bodies",
   { h: 3, t: "Human reproduction and gene therapy" }, "gmo_therapy", "gmo_fertility",
   // Renamed 26 September (round 60): the living, from birth to death, and

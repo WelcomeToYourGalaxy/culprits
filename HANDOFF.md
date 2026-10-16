@@ -5,6 +5,41 @@ touches.
 
 ---
 
+## Round 214r (16 October)
+
+From a separate chat (the "r" round; the "o" rounds go on in their own chat).
+Needs round 213o (guards on its heading). Tiles patch round214r_tiles.py beside
+it. Its own file in the maps repo: reproduction_capture.html. No app.js?v= bump.
+It inserts by anchors rather than a fixed diff, so it applies before or after
+other rounds.
+
+- Owner, 15 October: a global map of the On-Planet Invasion page's
+  Reproduction capture section, as its own map in WelcomeToYourGalaxy/maps,
+  and a layer under Invasion of the pre-birth (the box's heading is
+  "Pre-birth frontlines"). New heading "Reproduction capture" there, before
+  Genetic engineering (the page's order: (i) reproduction capture, (ii)
+  engineering), with one row, reproduction_capture.
+- The map: 197 entries with sources in every box. 53 coercion cases (forced
+  or coerced sterilization, forced contraception, forced births, birth quotas
+  and fines, Lebensborn, child removal), 40 incentive programmes, 30
+  advertising and propaganda campaigns, 74 entries of influence abroad (KFF
+  and UNFPA donor funding, the Mexico City Policy's on and off years, USAID
+  and Population Council history, Bucharest and Cairo conferences, Budapest
+  Demographic Summit, World Congress of Families, FP2030, surrogacy and egg
+  markets, fertility companies), 52 lines to the countries an entry's sources
+  name, and a box per country (80) listing everything recorded for it.
+- Read by the generic site-map reader (registry.json, no "rich" builder): its
+  five overlays are the chips under the row; boxes are its own popups.
+  keepColour: rose, teal, lavender and blue as the map has them (no green,
+  orange or yellow).
+- Not yet in: the UN's per-country policy on the level of fertility
+  (World Population Policies, 2019 data). Its only sources are an Excel file
+  and a PDF annex on un.org, which the sandbox could not read. The map adds a
+  sixth overlay, "Government policy on birth levels (UN, 2019)", by itself
+  once its rows are filled in (build_map.py reads research/un_policies.json).
+- Tests: one block before "Our World in Data shading; the genetic engineering
+  map moved" in map/test.mjs (not at the round 110c line the "o" rounds use).
+
 ## Round 214o (15 October)
 
 Needs round 213o (guards on its heading). Tiles patch round214o_tiles.py

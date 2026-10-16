@@ -66,6 +66,14 @@
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_secret_societies.html"
   },
   {
+   "id": "reproduction_capture",
+   "name": "Reproduction capture worldwide, by force, money, advertising and influence abroad (compiled from rulings, inquiries, the UN and reporting)",
+   "unit": "entries",
+   "colour": "#5D80C2",
+   "note": "The owner's Reproduction capture map (maps repo), from the On-Planet Invasion page's section of that name.",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/reproduction_capture.html"
+  },
+  {
    "id": "site_ufo_pre1900",
    "name": "Pre-1900 UFO and USO sightings",
    "unit": "recorded sightings",

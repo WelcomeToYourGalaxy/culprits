@@ -2095,6 +2095,30 @@ console.log("\nbuilding types, one layer");
   check("no type is coloured yellow or orange", Object.values(cols(Array.from({ length: 40 }, (_, i) => "t" + i))).every((v) => { const h = Number(/hsl\((\d+)/.exec(v)[1]); return !(h > 20 && h < 90); }));
 }
 
+console.log("\nround 214r (16 October): reproduction capture under Pre-birth frontlines");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const order = new Function(body + "; return PANEL_ORDER;")();
+  const at = (t) => order.findIndex((x) => x && x.t === t);
+  const pre = at("Pre-birth frontlines"), h = at("Reproduction capture"), gen = at("Genetic engineering"), post = at("Invasion of the living");
+  const r = order.indexOf("reproduction_capture");
+  check("Reproduction capture is a heading under Pre-birth frontlines, before Genetic engineering, holding its row", pre >= 0 && pre < h && h < r && r < gen && gen < post);
+  check("the row appears once in the layers box", order.filter((x) => x === "reproduction_capture").length === 1);
+  const reg = JSON.parse(fs.readFileSync(path.join(HERE, "..", "pipeline", "sitemaps", "registry.json"), "utf8")).maps;
+  const m = reg.find((x) => x.id === "reproduction_capture");
+  check("the registry reads it from the owner's maps repo with the generic reader", !!m && m.url === "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/reproduction_capture.html" && !m.rich);
+  check("its row is a site-map row reading the tiles copy, in the map's own colours",
+    /\{ id: "reproduction_capture", name: "Reproduction capture worldwide[^"]+\(compiled from [^"]+\)", [^\n]*route: "sitemap"/.test(src) &&
+    /sitemaps\/reproduction_capture\.places\.geojson",\n\s*keepColour: true,/.test(src));
+  const nm = (src.match(/\{ id: "reproduction_capture", name: "([^"]+)"/) || [])[1] || "";
+  check("its title has no code names, underscores or colons", !!nm && !/[_:]/.test(nm));
+  check("it links to the map in the maps repo, is marked as read each day, and is filed as a human, upstream layer",
+    /\n  reproduction_capture: "https:\/\/github\.com\/WelcomeToYourGalaxy\/maps\/blob\/main\/reproduction_capture\.html",/.test(src) &&
+    /\n  reproduction_capture: "Read each day from the owner's map in the maps repo",/.test(src) &&
+    /\n  reproduction_capture: \["human", "upstream"\],/.test(src) && /\n  reproduction_capture: "Reproduction capture \(compiled\)",/.test(src));
+}
+
 console.log("\nOur World in Data shading; the genetic engineering map moved");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
