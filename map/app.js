@@ -23197,6 +23197,12 @@ const SITE_MAPS = {
   children: [
     { id: "site_animal_sacrifice", name: "Animal Sacrifice Map", unit: "sites", colour: "#7A4F4A", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_animal_sacrifice.places.geojson",
       note: "From the Destruction page's animal sacrifice map." },
+    // Child harvesting (asked 16 October, from a separate chat): the owner's
+    // Child Harvesting map (maps repo), read the usual way by build_boxes.py
+    // (extract.mjs): its own boxes, and each of its parts a facet under the row.
+    { id: "child_harvesting", name: "Baby factories, child sellers and breeders of the young, human and nonhuman, worldwide, past and present (Child Harvesting map, compiled from reporting, court and inquiry records, and the USDA)", unit: "records", colour: "#3A78A8", route: "sitemap", ready: true, lazy: true,
+      dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/child_harvesting.places.geojson",
+      note: "The owner's Child Harvesting map (WelcomeToYourGalaxy/maps, child_harvesting.html), read each day from the map itself; every mark opens the map's own box with its sources, and where a source only alleges something the box says so. Humans: baby factories; baby-selling rings and sale points, online sales included; illegal surrogacy and egg-harvesting operations; orphanages filled with children taken from families; children killed for ritual body parts; John of God's alleged baby farms in Brazil (alleged by Sabrina Bittencourt in 2018, not proven in court); homes and agencies that took and sold children; baby farming, 1860s to 1920s; the Nazi Lebensborn homes and the camps where kidnapped children were Germanized; the breeding and sale of enslaved children; children taken by states and placed with other families (Russia's taking of Ukrainian children, Australia's Stolen Generations, the US Indian Adoption Project, child migrant schemes); and lines to where children were sent. Nonhumans: puppy mills and puppy farms (the Horrible Hundred reports, 2013 to 2026, and farms, raids and hubs abroad); every USDA-licensed breeder and dealer inspected since 2014, with its inspection record, placed at the middle of its postcode (the Data Liberation Project's copy of the USDA inspection search); Petland's shops and other puppy shops and brokers; foal and yearling auctions, dog auctions and online puppy sellers; puppy trade routes; breeding of other pets; lion and tiger breeding farms; breeders of dogs and monkeys sold to laboratories; mares made pregnant for hormones and blood; hatcheries where male chicks are killed at birth and those sexing eggs instead; young killed or sent away at birth (male chicks, dairy calves and goat kids, foie gras ducklings); the law on killing male chicks in each country; farm animal breeding companies; about 1,100 seed companies worldwide from company histories and national directories, and the regions where seed is multiplied; plant breeders' rights (UPOV) by country; ornamental plant and lawn-grass breeders. Each part can be shown on its own under the row. Dots ringed rather than filled are placed at the middle of a state or country because the source names no town." },
     { id: "site_animal_fighting", name: "Animal Fighting Locations", unit: "venues", colour: "#84594F", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_animal_fighting.places.geojson",
       note: "From the Destruction page's animal fighting map (maps repo)." },
     // Round 75: one row per gas, methane under Methane and carbon dioxide under
@@ -25460,6 +25466,13 @@ const OTHER_MAPS = {
       note: "Every entry with a position in WhalingHistory.org's consolidated logbook data: positions and whale encounters copied from about 1,400 logbooks of American offshore whaling voyages, 1784 to 1920, by Matthew Fontaine Maury in the 1850s, Charles Haskins Townsend in the 1930s and the Census of Marine Life (2000 to 2010), with later additions for British Southern Whale Fishery voyages and Indian Ocean right whale voyages. Each box has the entry's species, how many whales were struck and how many processed for oil, and its voyage from the American Offshore Whaling Voyages database (vessel, master, home port, dates, oil and bone brought back). Colours are the logbook's own Encounter column. These logbooks are a sample of the voyages, not all of them. Entries with no position cannot be placed and are counted in culprits-tiles-more whaling/build.json. Wide out, one mark per square with how many it holds; from zoom 8, each entry. Built weekly by culprits-tiles-more (scripts/whaling_logbooks.py)." },
     // Round 94b (asked 27 September): fur farms worldwide from every public
     // source found, and each country's fur farming status.
+    // Fur trade (asked 16 October, from the child harvesting chat): the fur
+    // records that are about the trade rather than breeding the young, kept here.
+    { id: "fur_trade", name: "Fur auction houses, markets and fairs, fur sales bans, mink culls and fur-farming regions, past and present (compiled from reporting, the Fur Free Alliance and USDA)", unit: "places", colour: "#1E6FA8", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Fur trade", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/furtrade/trade.geojson" }], nameFrom: ["name"],
+      groupColours: { "Fur auctions, markets and fairs": "#0E2F66", "Fur sales and import bans": "#3FA9C2", "Mink culls": "#8C6A72", "Regional fur farming laws": "#8FD6E8", "Fur-farming regions and farm counts": "#1E6FA8" },
+      groupHint: "Coloured by kind of place",
+      note: "Compiled for this map on 16 October 2026 (moved here from the Child Harvesting map, whose subject is the young): fur auction houses, fur markets and fairs past and present (Saga Furs, Kopenhagen Fur, NAFA, Fur Harvesters, American Legend, Sojuzpushnina, the Hudson's Bay Company's London sales, Leipzig's Brühl, Kastoria and Siatista, Hong Kong, Shangcun, Chongfu, Haining); fur sales and import bans (California, Los Angeles, San Francisco, Berkeley, West Hollywood, Israel, India); the 2020 mink culls (Denmark, the Netherlands, Spain, Greece); regional fur farming laws (British Columbia, São Paulo); and fur-farming regions with their farm and animal counts (US mink states from USDA, Kastoria and Siatista, Hebei and Liaoning, Poland's provinces, Ostrobothnia). Each box gives the source; places are the town or, where no town is named, the middle of the region or country." },
     { id: "fur_world", name: "Fur farms worldwide, from every public source found (Farm Transparency Project, Final Nail, OpenStreetMap and more)", unit: "farms", colour: "#8FD6E8", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Fur farms", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/fur/farms.geojson" }],
       groupColours: { "Farm Transparency Project": "#8FD6E8", "Final Nail": "#3FA9C2", "OpenStreetMap": "#D6EEF6", "antyfutro (Poland)": "#1E6FA8" },
@@ -26074,6 +26087,7 @@ const SHORT_NAMES = {
   ocean_noise: "Ship noise underwater, 2014–2020 (Jalkanen et al.)",
   whaling_logbooks: "Whaling logbooks, 1784–1920 (WhalingHistory.org)",
   fur_world: "Fur farms (Farm Transparency, Final Nail, OSM)",
+  fur_trade: "Fur auctions, markets, sales bans and culls (compiled)",
   fur_bans: "Fur farming bans, by country (Fur Free Alliance)",
   haz_eonet: "Natural events tracked from space, since 2000 (NASA EONET)",
   haz_gdacs: "Disaster alerts, since 2000 (GDACS)",
@@ -26154,6 +26168,7 @@ const PLAIN_NAMES = {
   cerulean_sources: "Ships and oil platforms that likely caused the slicks (Cerulean)",
   allen_coral: "Warm-water coral reefs (Allen Coral Atlas and UNEP-WCMC)",
   site_animal_sacrifice: "Where animals are sacrificed (Animal Sacrifice Map)",
+  child_harvesting: "Baby factories, child sellers and breeders worldwide (compiled)",
   site_animal_fighting: "Where animals are made to fight (Animal Fighting Locations)",
   site_forest500_soy: "Banks and investors with the weakest policies on soy-driven deforestation, 2024: each scored under 2 out of 94 (Forest 500)",
   site_soybean_companies: "Companies trading and processing soybeans",
@@ -26488,6 +26503,7 @@ const LAYER_KIND = {
   ocean_noise: ["animal", "downstream"], whaling_logbooks: ["animal", "upstream"], shark_catch: ["animal", "upstream"],
   ocean_slr: ["insentient", "downstream"], own_salt_marsh: ["plant", "downstream"], own_burned: ["plant", "downstream"], ocean_light: ["insentient", "downstream"], ocean_trawling: ["insentient", "downstream"], ocean_bycatch: ["insentient", "downstream"], ocean_coastal_people: ["insentient", "downstream"], ocean_runoff: ["insentient", "downstream"], offshore_platforms: ["insentient", "downstream"],
   fur_world: ["animal", "downstream"],
+  fur_trade: ["animal", "upstream"],
   fur_bans: ["animal", "downstream"],
   haz_eonet: ["insentient", "downstream"],
   haz_gdacs: ["insentient", "downstream"],
@@ -26560,6 +26576,7 @@ const LAYER_KIND = {
   cerulean_sources: ["insentient", "upstream"],
   allen_coral: ["animal", "downstream"],
   site_animal_sacrifice: ["animal", "downstream"],
+  child_harvesting: ["human", "downstream"],
   site_animal_fighting: ["animal", "downstream"],
   site_animal_tourism: ["animal", "downstream"],
   site_circus: ["animal", "downstream"],
@@ -27519,6 +27536,7 @@ const LAYER_SITE = {
   site_animal_fighting: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/destruction_embed_1_leaflet-map.html",
   site_animal_racing: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/racing-map-embed.html",
   site_animal_sacrifice: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/sacrifice_map.html",
+  child_harvesting: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/child_harvesting.html",
   site_animal_tourism: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/suppression_embed_25_leaflet-map.html",
   site_banking_dynasties: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/suppression_embed_29_leaflet-map.html",
   site_central_banks: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/suppression_embed_18_leaflet-map.html",
@@ -27745,6 +27763,7 @@ const NOT_LIVE = {
   ocean_runoff: "Made from its publisher's data by culprits-tiles-more",
   offshore_platforms: "Copied weekly from OpenStreetMap by culprits-tiles-more",
   fur_world: "Copied weekly from its publisher by culprits-tiles-more",
+  fur_trade: "Compiled for this map from the sources in each box",
   haz_eonet: "Copied weekly from its publisher by culprits-tiles-more",
   haz_gdacs: "Copied weekly from its publisher by culprits-tiles-more",
   usgs_quakes: "Copied weekly from its publisher by culprits-tiles-more",
@@ -27809,6 +27828,7 @@ const NOT_LIVE = {
   fertility_policy: "Copied weekly from the UN Population Division by culprits-tiles-more",
   forestatrisk: "Copied once from ForestAtRisk's own files by culprits-tiles-more",
   reproduction_capture: "Read each day from the owner's map in the maps repo",
+  child_harvesting: "Read each day from the owner's map in the maps repo",
   holiday_culprits: "Read each day from the owner's map in the maps repo", law_atlas: "Read each day from the owner's atlas in the maps repo",
   gang_infiltration: "Compiled for this map from the sources in each box",
   medical_culprits: "Built weekly by culprits-tiles-more from Wikipedia and Wikidata",
@@ -27983,6 +28003,9 @@ const PANEL_ORDER = [
   // map's own country figures, rebuilt daily.
   { h: 1, t: "On-planet invasion" },
   { h: 2, t: "Pre-birth frontlines" },
+  // Child harvesting (asked 16 October): the page's (a) Unnecessary Harvesting,
+  // first under the pre-birth as on the page.
+  { h: 3, t: "Child harvesting" }, "child_harvesting",
   // Round 214r (asked 15 October): the On-Planet Invasion page's order,
   // (i) reproduction capture, then (ii) engineering.
   { h: 3, t: "Reproduction capture" }, "reproduction_capture",
@@ -28363,6 +28386,7 @@ const PANEL_ORDER = [
   { h: 3, t: "Animal skin and fur farms" },
   // Round 112b: Final Nail's own row out; its 270 farms are in fur_world.
   { h: 4, t: "Fur farms" }, "fur_world", "fur_bans",
+  "fur_trade",
   { h: 4, t: "Skin farms" }, "skin_farms",
   // Item 11: Fishing above Reefs and mangroves. Items 4, 5, 6: the pond maps
   // as one row, and the worldwide pond map beside them.

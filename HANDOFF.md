@@ -7472,3 +7472,55 @@ checkbox.
    which are ODbL and share-alike. `local_projects` is marked `isolate:true`;
    `remains_records` is not, because its OSM share is not separable by its
    `register` field yet. Both are recorded in `_publish_blockers`.
+
+
+---
+
+## Child harvesting layer (16 October, from a separate chat)
+
+Not a numbered round: made in its own chat beside the o, r and nh rounds, so it
+needs no round before it. It inserts by anchors (each insertion skipped if it
+is already there; the patch stops, changing nothing, if an anchor is missing),
+so it applies before or after those rounds, and this note goes at the end of
+this file rather than the top. Its map file goes into the maps repo by hand.
+
+- New map in WelcomeToYourGalaxy/maps: child_harvesting.html (Leaflet, every
+  mark a circleMarker or polygon with its popup bound when made, each part an
+  overlay in L.control.layers, so extract.mjs reads it the usual way; no
+  "rich" builder). 31 parts. Humans: baby factories, selling rings and sale
+  points, illegal surrogacy and egg farms, orphanage trafficking, ritual
+  killings, John of God's alleged farms, homes and agencies that sold
+  children, baby farming 1860s-1920s, Lebensborn and Germanization sites,
+  slave breeding and markets, routes. Nonhumans: puppy mills (Horrible Hundred
+  2013-2026 and farms abroad), every USDA Class A breeder and Class B dealer
+  inspected since 2014 (Data Liberation Project's copy of the APHIS
+  inspection search; dogs and other animals), Petland and other puppy shops
+  and brokers, puppy trade routes, other pet breeding, lion and tiger farms,
+  laboratory dog and monkey breeders, PMU and PMSG mare farms, hatcheries,
+  young killed at birth, male chick killing law, farm animal genetics, seed
+  companies (about 1,100) and seed production regions, UPOV membership,
+  ornamental and lawn-grass breeders, foal/yearling and dog auctions, state
+  taking of children, company links. Owner, 16 October: subjects mainly about
+  something else (pet cloning, fur, the flower trade, animal testing) stay
+  off; fur went to fur_trade below, flower auctions and regions to the
+  plants map (site_enslaved_plants.html, floriculture).
+- registry.json: child_harvesting (url = maps/main/child_harvesting.html), so
+  the tiles refresh's sitemaps job builds
+  sitemaps/child_harvesting.places.geojson and .boxes.json each full run. The
+  row draws nothing until the first refresh after the map is in the maps repo.
+- app.js: the row in SITE_MAPS (route sitemap), SHORT_NAMES, LAYER_KIND
+  (human, downstream), LAYER_SITE, NOT_LIVE; PANEL_ORDER: a "Child harvesting"
+  h3 straight after Pre-birth frontlines (the page's (a) Unnecessary
+  Harvesting comes before reproduction capture and engineering). The map's
+  overlays are the row's facet.
+- Second row, fur_trade (geojsonlive, furtrade/trade.geojson in
+  culprits-tiles-more, written by childharvest_tiles.py), under Animal skin
+  and fur farms > Fur farms after fur_bans: the fur records the owner moved
+  off the Child Harvesting map (16 October: fur is its own subject) -
+  auctions, markets and fairs, sales and import bans, the 2020 mink culls,
+  regional fur farming laws and fur-farming regions with counts, 45 places,
+  coloured by kind. Country fur farming bans stay with fur_bans.
+- test.mjs: one block, "child harvesting (16 October)", placed just before the
+  final pass/fail line; it checks order loosely (after Pre-birth frontlines,
+  before Reproduction capture if present and Genetic engineering) so headings
+  other chats add do not break it.

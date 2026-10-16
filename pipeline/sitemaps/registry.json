@@ -10,6 +10,14 @@
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/sacrifice_map.html"
   },
   {
+   "id": "child_harvesting",
+   "name": "Baby factories, child sellers and breeders of the young, human and nonhuman, worldwide, past and present (Child Harvesting map, compiled from reporting, court and inquiry records, and the USDA)",
+   "unit": "records",
+   "colour": "#3A78A8",
+   "note": "The owner's Child Harvesting map (maps repo): baby factories, child sellers and breeders of the young, human and nonhuman, past and present.",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/child_harvesting.html"
+  },
+  {
    "id": "site_animal_fighting",
    "name": "Animal fighting venues",
    "unit": "venues",

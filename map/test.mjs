@@ -7674,5 +7674,26 @@ console.log("\nround 116b (29 September): glow orbs back, blue underworld countr
         /"Officers running a gang or crime ring of their own": "#4F8BFF"/.test(src));
   check("a few-point layer's glow dots are seen at every zoom", /if \(hudOf\.has\(layer\.id\) && !\(layer\.paint && layer\.paint\["circle-opacity"\] !== undefined\)\) map\.setPaintProperty\(layer\.id, "circle-opacity", 0\.9\);/.test(src));
 }
+console.log("\nchild harvesting (16 October): the owner's Child Harvesting map, one row under the pre-birth");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const reg = JSON.parse(fs.readFileSync(path.join(HERE, "..", "pipeline", "sitemaps", "registry.json"), "utf8")).maps;
+  const o = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes(")) + "; return PANEL_ORDER;")();
+  const at = (t) => o.findIndex((x) => x && x.t === t);
+  const rc = at("Reproduction capture");
+  check("the map is read daily from the maps repo the usual way",
+        reg.some((m) => m.id === "child_harvesting" && !m.rich && /maps\/main\/child_harvesting\.html$/.test(m.url)));
+  check("one row, its places and boxes from the copy",
+        /id: "child_harvesting"[^\n]*route: "sitemap"/.test(src) && src.includes("sitemaps/child_harvesting.places.geojson"));
+  check("filed under Pre-birth frontlines under its own heading, before reproduction capture and genetic engineering as on the page",
+        at("Child harvesting") > at("Pre-birth frontlines") && o.indexOf("child_harvesting") === at("Child harvesting") + 1 &&
+        at("Child harvesting") < at("Genetic engineering") && (rc < 0 || at("Child harvesting") < rc) && at("Genetic engineering") < at("Invasion of the living"));
+  check("labelled, linked, short-named and marked as read daily",
+        /\bchild_harvesting: \["human", "downstream"\]/.test(src) && /\bchild_harvesting: "https:\/\/github\.com\/WelcomeToYourGalaxy\/maps\/blob\/main\/child_harvesting\.html"/.test(src) &&
+        /\bchild_harvesting: "Baby factories, child sellers and breeders worldwide \(compiled\)"/.test(src) && /\bchild_harvesting: "Read each day/.test(src));
+  check("the fur trade records moved here from that map are a row beside the fur farms",
+        /id: "fur_trade"[^\n]*route: "geojsonlive"/.test(src) && src.includes("furtrade/trade.geojson") &&
+        o.indexOf("fur_trade") > o.indexOf("fur_bans") && o.indexOf("fur_trade") < at("Skin farms") && /\bfur_trade: \["animal", "upstream"\]/.test(src));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
