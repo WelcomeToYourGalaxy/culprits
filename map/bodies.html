@@ -79,6 +79,9 @@
   .plan-label{color:#B9C8F0;font-size:11.5px}
   .planet-label{color:#C9D6E3;font-size:11.5px;letter-spacing:.05em}
   .ring-label{white-space:nowrap;font-size:10.5px;color:#AEB8C4}
+  .fab-legend{display:inline-block;margin-top:3px;color:var(--bone);font-size:11px}
+  .fab-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 3px 0 7px;vertical-align:-1px}
+  .fab-legend i:first-child{margin-left:0}
   #globe{position:absolute;inset:0;z-index:2}
   #globe[hidden]{display:none}
   /* The box a click opens: in the free space on the right, under the looks
@@ -236,12 +239,11 @@
       note: "Each object is placed where NASA/JPL's Horizons follows it today, in the plane of Earth's orbit, in astronomical units (1 AU is Earth's distance from the Sun). Where Horizons' record ends earlier, the object is drawn as a ring at the last place it gives, and its box says when. " +
             "Objects Horizons does not follow, most spent rocket stages among them, have no published place; they are listed below the rows. Sizes of the marks are not to scale.",
       rows: [
-        { id: "objects", file: "sun_objects.json", kind: "probe", title: "Human-made objects orbiting the Sun (GCAT)",
-          sub: "Every probe, spent rocket stage and part in the Heliocentric Register, each column as GCAT gives it. These do not fall back and burn up as much of what circles Earth does: out of reach of any air, they keep circling the Sun for many years, unless a pass by a planet throws them onto another path",
+        // Round 213o (asked 15 October): named for what it holds, dead and spent
+        // things, and the craft still working left out (NASA's Eyes shows them).
+        { id: "objects", file: "sun_objects.json", kind: "probe", title: "Dead probes, spent rocket stages and parts orbiting the Sun (GCAT)",
+          sub: "Every row of GCAT's Heliocentric Register, each column as GCAT gives it, except the craft still working (Wikipedia's List of active Solar System probes; NASA's Eyes on the Solar System shows those). These do not fall back and burn up as much of what circles Earth does: out of reach of any air, they keep circling the Sun for many years, unless a pass by a planet throws them onto another path",
           credit: 'J. McDowell, <a href="https://planet4589.org/space/gcat/" target="_blank" rel="noopener">General Catalog of Artificial Space Objects</a>, Heliocentric Register (CC BY); places from <a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noopener">NASA/JPL Horizons</a>', on: true },
-        { id: "flybys", file: "reach/flybys.json", kind: "flybys", title: "Gravity assists: spacecraft that used a planet's pull (Wikipedia)",
-          sub: "Every flyby in Wikipedia's tables, drawn where the planet was that day; most were gravity assists, swinging past a planet to steal speed or turn",
-          credit: 'Wikipedia, <a href="https://en.wikipedia.org/wiki/Planetary_flyby" target="_blank" rel="noopener">Planetary flyby</a> and <a href="https://en.wikipedia.org/wiki/List_of_Earth_flybys" target="_blank" rel="noopener">List of Earth flybys</a> (CC BY-SA 4.0); places from NASA/JPL Horizons', on: true },
         { id: "planets", file: "sun_planets.json", kind: "planets", title: "The planets today, and their paths (NASA/JPL Horizons)",
           sub: "Only for finding your way, off unless ticked: where each planet is today, and the path it takes round the Sun",
           credit: '<a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noopener">NASA/JPL Horizons</a>', on: false }
@@ -270,17 +272,18 @@
           credit: "NASA/JPL Horizons; Wikipedia's List of nearest stars and List of nearest galaxies (CC BY-SA 4.0); Wikidata (CC0); published figures, each named in its box", on: true }
       ]
     },
+    // Round 213o (asked 15 October): the Sun's gravity layer taken out; this
+    // view is the Sun's light going out, and every body it lands on.
     sunreach: {
-      name: "From the Sun", title: "From the Sun, at every scale", kind: "reach", centre: "sun", heading: "what the Sun's light and pull reach",
+      name: "Sunlight's reach", title: "Sunlight's reach, at every scale", kind: "reach", centre: "sun", heading: "how far the Sun's light goes, and every body it lands on",
       ground: 'NASA/JPL Horizons; HYG (CC BY-SA); Wikipedia (CC BY-SA); Wikidata (CC0)',
-      note: "Each ring is ten times farther from the Sun than the one inside it, so the planets and the farthest galaxies fit on one map; the direction is each object's galactic longitude, the galaxy's centre straight up, seen from above the galaxy's plane. Light has no edge: it keeps going, a quarter as bright at twice the distance. The Sun's light reaches every star and galaxy here; a click says how much arrives.",
+      note: "This view looks outward from the Sun: how much of its light arrives at each distance and at each body. (Light reaching Earth looks the other way: what arrives here from the Sun and every star and galaxy.) Each ring is ten times farther from the Sun than the one inside it, so the planets and the farthest galaxies fit on one map; the direction is each object's galactic longitude, the galaxy's centre straight up, seen from above the galaxy's plane. Light has no edge: it keeps going, a quarter as bright at twice the distance. The Sun's light reaches every star and galaxy here; a click says how much arrives.",
       rows: [
         { id: "light", kind: "rings", what: "light", title: "Sunlight at every distance", sub: "Rings every tenfold distance: the sunlight arriving there (W/m\u00b2) and how long it takes", credit: "1,361 W/m\u00b2 at 1 AU, falling with the square of the distance", on: true },
-        { id: "pull", kind: "rings", what: "pull", title: "The Sun's pull at every distance, and where its hold ends", sub: "Its pull at each ring (m/s\u00b2); the inner and outer Oort Cloud; the edge where the galaxy's pull takes its objects", credit: "Newton: GM \u00f7 distance\u00b2; Oort Cloud figures from Wikipedia (CC BY-SA 4.0)", on: true },
-        { id: "solar", file: "reach/solar.json", kind: "solarreach", title: "The planets and dwarf planets today", sub: "Where each is today, the sunlight it gets, and how far its own pull holds sway", credit: '<a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noopener">NASA/JPL Horizons</a>', on: true },
-        { id: "stars", file: "reach/stars.json", kind: "starsreach", title: "Every star with a known distance (HYG)", sub: "The Sun's light and pull at each, and how long its light takes to get there", credit: "HYG star database v4.1 (CC BY-SA 4.0)", on: true },
-        { id: "galaxies", file: "reach/galaxies.json", kind: "galreach", title: "The nearest galaxies", sub: "Every row of Wikipedia's list, placed by Wikidata", credit: "Wikipedia, List of nearest galaxies (CC BY-SA 4.0); Wikidata (CC0)", on: true },
-        { id: "anchors", file: "reach/anchors.json", kind: "anchors", title: "The Milky Way's centre, Andromeda, the Great Attractor and Laniakea", sub: "The largest pulls the Sun is caught in", credit: "Published figures, each named in its box", on: true }
+        { id: "solar", file: "reach/solar.json", kind: "solarreach", title: "The planets and dwarf planets today", sub: "Where each is today, and the sunlight that reaches it", credit: '<a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noopener">NASA/JPL Horizons</a>', on: true },
+        { id: "stars", file: "reach/stars.json", kind: "starsreach", title: "Every star with a known distance (HYG)", sub: "The Sun's light at each, and how long it takes to get there", credit: "HYG star database v4.1 (CC BY-SA 4.0)", on: true },
+        { id: "galaxies", file: "reach/galaxies.json", kind: "galreach", title: "The nearest galaxies", sub: "Every row of Wikipedia's list, placed by Wikidata, with the Sun's light there", credit: "Wikipedia, List of nearest galaxies (CC BY-SA 4.0); Wikidata (CC0)", on: true },
+        { id: "anchors", file: "reach/anchors.json", kind: "anchors", title: "The Milky Way's centre, Andromeda, the Great Attractor and Laniakea", sub: "The farthest bodies here, and the Sun's light that reaches them", credit: "Published figures, each named in its box", on: true }
       ]
     },
     earthreach: {
@@ -289,6 +292,12 @@
       note: "Each ring is ten times farther from Earth than the one inside it; the direction is galactic longitude, seen from above the galaxy's plane. Earth's pull reaches everything here, weaker with the square of the distance; inside its Hill sphere it is stronger than the Sun's, so things there can orbit Earth. Stars and galaxies are placed by their distance from the Sun; from Earth it differs by less than a thousandth.",
       rows: [
         { id: "pull", kind: "rings", what: "pull", title: "Earth's pull at every distance, and its Hill sphere", sub: "Its pull at each ring (m/s\u00b2), and the edge inside which it holds sway", credit: "Newton: GM \u00f7 distance\u00b2", on: true },
+        // Round 213o (asked 15 October): every body's field of pull, and how many
+        // cross at each point, as a coloured fabric rather than rings.
+        { id: "fabric", kind: "fabric", files: ["reach/solar.json", "reach/nearest.json", "reach/galaxies.json", "reach/anchors.json"],
+          title: "Gravity's fabric: how many fields of pull cross at each point",
+          sub: "Every body with a published mass and place, its field drawn round it: the space where its own pull outweighs the pull of the larger body it moves with (its Hill sphere). The colour is how many fields cross there; the shading is the pull of them all added together, deepest at each body",
+          credit: "Masses: NASA/JPL Horizons (GM); Wikipedia's List of nearest stars (CC BY-SA 4.0); Wikidata (CC0); published figures named in each box. Fields worked out here: distance to the larger body \u00d7 the cube root of (its mass \u00f7 three times the larger body's)", on: false },
         { id: "orbit", file: "reach/earth_orbit.json", kind: "shells", title: "Satellites, spent stages and debris in Earth orbit (GCAT)", sub: "Every object still in orbit, counted by height", credit: '<a href="https://planet4589.org/space/gcat/" target="_blank" rel="noopener">GCAT</a> (J. McDowell, CC BY)', on: true },
         { id: "companions", file: "reach/companions.json", kind: "companions", title: "Earth's companions: the Moon, quasi-satellites, minimoons and trojans", sub: "Every row of Wikipedia's Claimed moons of Earth, placed where Horizons has it today", credit: "Wikipedia, Claimed moons of Earth (CC BY-SA 4.0); NASA/JPL Horizons", on: true },
         { id: "lagrange", file: "reach/lagrange.json", kind: "lagrange", title: "Spacecraft at the Lagrange points", sub: "Every row of Wikipedia's list, placed where Horizons has it today", credit: "Wikipedia, List of objects at Lagrange points (CC BY-SA 4.0); NASA/JPL Horizons", on: true },
@@ -427,6 +436,7 @@
   map.attributionControl.setPrefix(false);
   window.__bodiesMap = map;     // for checks from the page's tests
   var canvas = L.canvas({ padding: 0.3 });
+  map.createPane("fabric").style.zIndex = 300;     // under the marks and rings
   var ground = null, grid = null, markLayer = L.layerGroup().addTo(map), stopLayer = L.layerGroup().addTo(map),
     routeLayer = L.layerGroup().addTo(map), nameLayer = L.layerGroup().addTo(map);
   var layers = {}, body = null, cache = {};
@@ -495,7 +505,7 @@
     obj: ["--obj", "--obj-glow", 2.2], mass: ["--mass", "--mass-glow", 2.2], plan: ["--plan", "--plan-glow", 3.5], now: ["--obj", "--rover-glow", 3.5],
     stop: ["--rover", "--rover-glow", 1.4], probe: ["--probe", "--probe-glow", 2.5],
     body: ["--obj", "--obj-glow", 4], pull: ["--plan", "--plan-glow", 3], galaxy: ["--gal", "--gal-glow", 3], anchor: ["--mass", "--mass-glow", 5],
-    comp: ["--obj", "--rover-glow", 3], lag: ["--probe", "--probe-glow", 3], flyby: ["--plan", "--plan-glow", 2.5]
+    comp: ["--obj", "--rover-glow", 3], lag: ["--probe", "--probe-glow", 3]
   };
 
   // ---------- each row read into marks, routes or names ----------
@@ -541,9 +551,12 @@
   }
   // The Sun's objects: GCAT's columns as given, placed where Horizons has them.
   function readSun(row, d) {
-    var out = [], unplaced = [];
+    var out = [], unplaced = [], working = {}, nWorking = 0;
     (d.objects || []).forEach(function (o) {
       var g = o.gcat || {}, name = g.Name || g.PLName || g.JCAT || "";
+      // Round 213o: a craft still working (named on Wikipedia's List of active
+      // Solar System probes) is left out here and named in the row.
+      if (o.active) { nWorking++; working[o.active] = 1; return; }
       if (!o.pos) { unplaced.push(name + (g.LDate ? " (launched " + g.LDate + ")" : "")); return; }
       var extra = '<p class="from" style="margin:0 0 6px">' + (o.pos.last
         ? "Drawn as a ring: the last place NASA/JPL Horizons gives, " + esc(o.pos.date) + "."
@@ -553,7 +566,9 @@
       out.push({ x: o.pos.x, y: o.pos.y, z: o.pos.z, ring: !!o.pos.last, year: yearOf(g), kind: "probe", r: STYLE.probe[2],
         title: name, html: popup(row, g, name, extra), row: row });
     });
-    return { marks: out, count: (d.objects || []).length, unplaced: unplaced };
+    var names = Object.keys(working).sort();
+    return { marks: out, count: (d.objects || []).length - nWorking, unplaced: unplaced,
+      note: d.active ? nWorking + " rows of craft still working left out: " + (names.join(", ") || "none") : "the craft still working are left out once culprits-tiles-more's sun run marks them" };
   }
   function readPlanets(row, d) {
     return { planets: d.planets || [], count: (d.planets || []).length, unplaced: [], date: d.date };
@@ -835,16 +850,6 @@
   function readShells(row, d) {
     return { shells: d.shells || [], total: d.total, how: d.how, count: d.total || 0, unplaced: [] };
   }
-  function readFlybys(row, d) {
-    var out = [], un = [];
-    (d.rows || []).forEach(function (f) {
-      var nm = (f.row.Spacecraft || Object.values(f.row)[3] || "") + (f.body ? " at " + f.body.charAt(0).toUpperCase() + f.body.slice(1) : "");
-      if (!f.helio_au) { un.push(nm + (f.date ? ", " + f.date : "")); return; }
-      out.push({ x: f.helio_au[0], y: f.helio_au[1], z: f.helio_au[2], year: f.date ? +f.date.slice(0, 4) : null, kind: "flyby", r: STYLE.flyby[2],
-        title: nm, html: popup(row, f.row, nm, '<p class="from" style="margin:0 0 6px">Drawn where ' + esc(f.body || "") + " was on " + esc(f.date || "") + " (NASA/JPL Horizons). From " + esc(f.page) + ".</p>"), row: row });
-    });
-    return { marks: out, count: (d.rows || []).length, unplaced: un };
-  }
   // The rings: every tenfold distance, with what arrives there.
   function drawReachFrame(look) {
     var rings = onRows().filter(function (r) { return r.kind === "rings"; });
@@ -898,18 +903,200 @@
       });
     });
   }
+  // Round 213o (asked 15 October: the Sunlight's reach view opened too far in
+  // to see the rings beyond): the view opens on the outermost ring, and a
+  // view laid out while its frame had no size yet is laid out again once it has.
+  var FIT_LATER = false;
+  var sized = function () { var z = map.getSize(); return z.x > 40 && z.y > 40; };
+  window.addEventListener("resize", function () {
+    if (!FIT_LATER || !sized()) return;
+    FIT_LATER = false; map.invalidateSize(); snapBack();
+  });
   function fitReach() {
+    if (!sized()) { FIT_LATER = true; drawFlat(); return; }
     var pts = [[0, 0]];
     onRows().forEach(function (row) { var r = layers[row.id].r; (r.marks || []).forEach(function (m) { pts.push(m.at); }); });
-    if (onRows().some(function (r) { return r.kind === "rings"; })) pts.push([ringR(1e13), 0], [-ringR(1e13), 0], [0, ringR(1e13)], [0, -ringR(1e13)]);
+    var out = ringR(1e14) + 6;
+    pts.push([out, 0], [-out, 0], [0, out], [0, -out]);
     map.fitBounds(L.latLngBounds(pts).pad(0.04), { animate: false, paddingTopLeft: [innerWidth > 720 ? 330 : 10, 10], paddingBottomRight: [innerWidth > 720 ? 330 : 10, 10] });
     drawFlat();
+  }
+
+  // ---------- gravity's fabric (round 213o) ----------
+  // Asked 15 October: "all gravitational fields ... not flat orbits/circles but
+  // a color coded fabric, hypsometric, according to number of gravitational
+  // fields crossing at one point, covering the fields of any and all objects
+  // whose gravities reach the Earth". Every pull reaches everywhere, so a
+  // body's field is taken as its Hill sphere: the space round it where its own
+  // pull outweighs the pull of the larger body it moves with, worked out as the
+  // distance between the two times the cube root of (its mass over three times
+  // the larger body's). The larger body is the smallest field already worked
+  // out that holds it (the Moon in Earth's, Earth in the Sun's, the Sun in the
+  // galaxy's); failing that, the larger body pulling on it hardest. Each field
+  // is drawn round the body's mark on this map; the colour counts the fields
+  // crossing at each point, and the shading is the pull of every body there
+  // added together, deepest at each body.
+  // One field to eight and more: deep teal, through cobalt, to plum and rose.
+  var FABRIC_COLS = [[30, 63, 72], [42, 100, 112], [58, 138, 150], [63, 112, 176], [84, 88, 184], [122, 85, 168], [160, 90, 150], [184, 108, 136]];
+  var fabricCol = function (n) { return FABRIC_COLS[Math.min(n, FABRIC_COLS.length) - 1]; };
+  var gal3 = function (l, b, d) {
+    var lr = l * Math.PI / 180, br = (b || 0) * Math.PI / 180;
+    return [d * Math.cos(br) * Math.cos(lr), d * Math.cos(br) * Math.sin(lr), d * Math.sin(br)];
+  };
+  var dist3 = function (a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]); };
+  function readFabric(row) {
+    return Promise.all(row.files.map(function (f) { return get(DATA + f).catch(function () { return null; }); })).then(function (all) {
+      var solar = all[0], nearest = all[1], gal = all[2], anch = all[3];
+      var bodies = [], un = [], same = [], count = 0;
+      var add = function (name, gm, l, b, d, how, dedupe) {
+        count++;
+        if (!gm || !(gm > 0)) { un.push(name + " (no published mass)"); return; }
+        if (d == null || (d > 0 && l == null)) { un.push(name + " (no published place)"); return; }
+        var p = d > 0 ? gal3(l, b, d) : [0, 0, 0];
+        // The far anchors repeat a few bodies the lists already give (Andromeda;
+        // the black hole at the galaxy's centre): those are drawn once.
+        var twin = dedupe ? bodies.filter(function (q) { return dist3(q.p, p) < 0.05 * d; }).sort(function (a, b) { return dist3(a.p, p) - dist3(b.p, p); })[0] : null;
+        if (twin) { same.push(name + " (in the same place as " + twin.name + ", which is drawn)"); return; }
+        bodies.push({ name: name, gm: gm, p: p, d: d, l: l || 0, how: how });
+      };
+      add("Earth", GM_EARTH, 0, 0, 0, "GM from NASA/JPL Horizons");
+      ((solar && solar.bodies) || []).forEach(function (s) {
+        if (s.name === "Earth") return;
+        var lb = s.l_b_from_earth, d = s.geo_au ? Math.hypot.apply(null, s.geo_au) : null;
+        add(s.name, s.gm_km3_s2 ? s.gm_km3_s2 * 1e9 : null, lb && lb[0], lb && lb[1], d, "GM " + (s.gm_km3_s2 != null ? sci(s.gm_km3_s2, "km³/s²") : "") + " from NASA/JPL Horizons; where it is today, " + (solar.date || ""));
+      });
+      // The galaxy: its mass as Wikidata gives it in the nearest-galaxies list,
+      // its place at the galaxy's centre, as the anchors give it.
+      var gRows = (gal && gal.rows) || [], mwRow = gRows.filter(function (g) { return g.link === "Milky_Way" || /^Milky Way$/.test(g.row.Galaxy || ""); })[0];
+      var mwAnch = ((anch && anch.rows) || []).filter(function (a) { return /^The Milky Way/.test(a.name); })[0];
+      if (mwRow || mwAnch) add("The Milky Way", mwRow && mwRow.mass_msun ? mwRow.mass_msun * MSUN_KG * G : null, mwAnch && mwAnch.l, mwAnch && mwAnch.b, mwAnch && mwAnch.d_au,
+        "mass " + (mwRow && mwRow.mass_msun ? sci(mwRow.mass_msun) + " solar masses (Wikidata)" : "not given") + "; drawn at its centre");
+      gRows.forEach(function (g) {
+        if (g === mwRow) return;
+        add(g.row.Galaxy || g.link || "", g.mass_msun ? g.mass_msun * MSUN_KG * G : null, g.l, g.b, g.d_au, "mass " + (g.mass_as_given || "not given") + " (Wikidata); distance from Wikipedia's List of nearest galaxies");
+      });
+      ((nearest && nearest.rows) || []).forEach(function (s) {
+        var sys = s.row["Designation / System"] || "", one = s.row["Designation / Name"] || "";
+        // A star given only as its letter in the system (B, C) is named with its system.
+        var nm = !one ? sys : sys && one.replace(/[^A-Za-z0-9]/g, "").length <= 2 ? sys + " " + one : one;
+        if (/^Sun\b/.test(nm)) return;          // the Sun is drawn from Horizons
+        add(nm, s.mass_msun ? s.mass_msun * MSUN_KG * G : null, s.l, s.b, s.d_au, "mass " + (s.mass_msun || "") + " solar masses, Wikipedia's List of nearest stars");
+      });
+      ((anch && anch.rows) || []).forEach(function (a) {
+        if (a === mwAnch) return;
+        add(a.name, a.mass_msun ? a.mass_msun * MSUN_KG * G : null, a.l, a.b, a.d_au, "mass " + (a.mass_msun ? sci(a.mass_msun) + " solar masses" : "not given") + "; " + (a.source || ""), true);
+      });
+      // Fields, the heaviest first.
+      bodies.sort(function (a, b) { return b.gm - a.gm; });
+      var done = [];
+      bodies.forEach(function (B) {
+        var holds = done.filter(function (P) { return P.h && dist3(P.p, B.p) < P.h; }).sort(function (a, b) { return a.h - b.h; });
+        var P = holds[0];
+        if (!P) P = done.slice().sort(function (a, b) { return b.gm / Math.pow(dist3(b.p, B.p), 2) - a.gm / Math.pow(dist3(a.p, B.p), 2); })[0];
+        if (P) {
+          var dd = dist3(P.p, B.p);
+          B.parent = P; B.held = !!holds[0];
+          // Two stars of one system given the same place: no distance between them to measure by.
+          if (dd > 0) B.h = dd * Math.cbrt(B.gm / (3 * P.gm)); else B.why = "given the same place as " + P.name + ", so its field cannot be worked out";
+        }
+        done.push(B);
+      });
+      var top = bodies.filter(function (B) { return !B.parent; }), noField = bodies.filter(function (B) { return B.why; });
+      bodies.forEach(function (B) {
+        // Where it sits on this map (as its mark), and the box round its field.
+        B.c = [B.d * Math.cos(B.l * Math.PI / 180), B.d * Math.sin(B.l * Math.PI / 180)];
+        if (!B.h) return;
+        var R2 = ringR(B.d + B.h), box;
+        if (B.h >= B.d) box = [-R2, -R2, R2, R2];
+        else {
+          var R1 = ringR(Math.max(B.d - B.h, Math.pow(10, LOG0.earth))), da = Math.asin(B.h / B.d), xs = [], ys = [];
+          for (var i = 0; i <= 12; i++) {
+            var a = (B.l * Math.PI / 180) - da + 2 * da * i / 12;
+            [R1, R2].forEach(function (R) { xs.push(R * Math.cos(a)); ys.push(-R * Math.sin(a)); });
+          }
+          box = [Math.min.apply(null, xs) - 2, Math.min.apply(null, ys) - 2, Math.max.apply(null, xs) + 2, Math.max.apply(null, ys) + 2];
+        }
+        B.box = box;     // [lat0, lng0, lat1, lng1] in map units
+      });
+      var max = 0;
+      // The most fields that cross anywhere: tried at each field's own centre.
+      bodies.forEach(function (B) { var n = bodies.filter(function (P) { return P.h && Math.hypot(B.c[0] - P.c[0], B.c[1] - P.c[1]) < P.h; }).length; if (n > max) max = n; });
+      var legend = '<span class="fab-legend">' + Array.apply(null, Array(Math.max(1, max))).map(function (_, i) {
+        var c = fabricCol(i + 1); return '<i style="background:rgb(' + c.join(",") + ')"></i>' + (i + 1);
+      }).join("") + " fields</span>";
+      un = un.concat(same).concat(noField.map(function (B) { return B.name + " (" + B.why + ")"; }));
+      return { fabric: bodies.filter(function (B) { return B.h; }), all: bodies, top: top, same: same, count: count, unplaced: un, legend: legend,
+        note: [top.length ? top.map(function (B) { return B.name; }).join(", ") + ": the heaviest here, with no larger body to measure a field against, so no field is drawn" : "",
+          same.length ? same.length + " drawn once, being in the same place as another (listed below)" : "",
+          noField.length ? noField.length + " stars given the same place as another star of their system, so no field of their own (listed below)" : ""].filter(Boolean).join("; ") || null };
+    });
+  }
+  // Which fields hold a point of the map, and the pull of every body there.
+  function fabricAt(r, lat, lng) {
+    var R = Math.hypot(lat, lng), a = Math.atan2(-lng, lat), D = Math.pow(10, Math.max(0, R) / 10 + LOG0.earth);
+    var x = D * Math.cos(a), y = D * Math.sin(a);
+    return { x: x, y: y, D: D, inside: r.fabric.filter(function (B) { return Math.hypot(x - B.c[0], y - B.c[1]) < B.h; }) };
+  }
+  var Fabric = L.GridLayer.extend({
+    initialize: function (r, opts) { this.r = r; L.setOptions(this, opts); },
+    createTile: function (c) {
+      var t = L.DomUtil.create("canvas", "leaflet-tile"), S = 256, s = Math.pow(2, c.z);
+      t.width = S; t.height = S;
+      var g = t.getContext("2d"), img = g.createImageData(S, S), px = img.data, r = this.r;
+      var x0 = c.x * S, y0 = c.y * S;
+      // The tile in map units (L.CRS.Simple: lng = x / 2^z, lat = -y / 2^z).
+      var lng0 = x0 / s, lng1 = (x0 + S) / s, lat1 = -y0 / s, lat0 = -(y0 + S) / s;
+      var cand = r.fabric.filter(function (B) { return B.box[0] <= lat1 && B.box[2] >= lat0 && B.box[1] <= lng1 && B.box[3] >= lng0; });
+      if (!cand.length) return t;
+      // The summed pull, on a grid of every second pixel, for the shading.
+      var Q = 4, N = S / Q + 2, H = new Float32Array(N * N);
+      var linear = function (X, Y) {
+        var lat = -Y / s, lng = X / s, R = Math.hypot(lat, lng), a = Math.atan2(-lng, lat), D = Math.pow(10, Math.max(0, R) / 10 + LOG0.earth);
+        return [D * Math.cos(a), D * Math.sin(a)];
+      };
+      for (var j = 0; j < N; j++) for (var i = 0; i < N; i++) {
+        var q = linear(x0 + (i - 1) * Q, y0 + (j - 1) * Q), sum = 0;
+        for (var k = 0; k < r.all.length; k++) {
+          var B = r.all[k], dd = Math.hypot(q[0] - B.c[0], q[1] - B.c[1]), m = Math.max(dd, (B.h || B.d * 1e-3 || 1e-6) * 0.03);
+          sum += B.gm / (m * m);
+        }
+        H[j * N + i] = Math.log(sum) / Math.LN10;
+      }
+      // The summed pull between the grid's points, read smoothly (bilinear).
+      var hAt = function (X, Y) {
+        var gx = Math.max(0, Math.min(N - 1.001, X / Q + 1)), gy = Math.max(0, Math.min(N - 1.001, Y / Q + 1)), i0 = gx | 0, j0 = gy | 0, fx = gx - i0, fy = gy - j0;
+        return (H[j0 * N + i0] * (1 - fx) + H[j0 * N + i0 + 1] * fx) * (1 - fy) + (H[(j0 + 1) * N + i0] * (1 - fx) + H[(j0 + 1) * N + i0 + 1] * fx) * fy;
+      };
+      for (var y = 0; y < S; y++) for (var x = 0; x < S; x++) {
+        var p = linear(x0 + x, y0 + y), n = 0;
+        for (var b = 0; b < cand.length; b++) { var C = cand[b]; var dx = p[0] - C.c[0], dy = p[1] - C.c[1]; if (dx * dx + dy * dy < C.h * C.h) n++; }
+        if (!n) continue;
+        var sx = hAt(x + Q, y) - hAt(x - Q, y), sy = hAt(x, y + Q) - hAt(x, y - Q);
+        var shade = Math.max(0.5, Math.min(1.45, 1 + 0.9 * (sx * 0.7 - sy * 0.7) / Q));
+        var col = fabricCol(n), o = (y * S + x) * 4;
+        px[o] = Math.min(255, col[0] * shade); px[o + 1] = Math.min(255, col[1] * shade); px[o + 2] = Math.min(255, col[2] * shade); px[o + 3] = 255;
+      }
+      g.putImageData(img, 0, 0);
+      return t;
+    }
+  });
+  function fabricHtml(row, r, latlng) {
+    var at = fabricAt(r, latlng.lat, latlng.lng), sum = 0;
+    r.all.forEach(function (B) { var dd = Math.hypot(at.x - B.c[0], at.y - B.c[1]); if (dd > 0) sum += B.gm / Math.pow(dd * AU_M, 2); });
+    var h = "<h3>" + at.inside.length + (at.inside.length === 1 ? " field" : " fields") + " of pull cross here</h3><p class=\"from\" style=\"margin:0 0 6px\">" +
+      far(at.D) + " from Earth on this map. The pull of every body here, added up: " + sci(sum, "m/s²") + ".</p><table>";
+    at.inside.slice().sort(function (a, b) { return a.h - b.h; }).forEach(function (B) {
+      h += "<tr><td>" + esc(B.name) + "</td><td>its field reaches " + far(B.h) + " round it" + (B.parent ? ", measured against " + esc(/^(Sun|Moon)$/.test(B.parent.name) ? "the " + B.parent.name : B.parent.name) + (B.held ? ", whose field holds it" : ", the larger body pulling on it hardest") : "") +
+        ' <span class="from">(' + esc(B.how) + ")</span></td></tr>";
+    });
+    return h + "</table>" + (r.top.length ? '<p class="from">' + esc(r.note || "") + "</p>" : "") + '<div class="src">' + row.credit + "</div>";
   }
 
   function load(row) {
     if (row.rover) return readRover(row);
     if (row.kind === "rings") return Promise.resolve({ count: 0, unplaced: [] });
     if (row.kind === "pull") return readPull(row);
+    if (row.kind === "fabric") return readFabric(row);
     return get(DATA + row.file).then(function (d) {
       switch (row.kind) {
         case "names": return readNames(row, d);
@@ -923,7 +1110,6 @@
         case "companions": return readNear(row, d, "comp");
         case "lagrange": return readNear(row, d, "lag");
         case "shells": return readShells(row, d);
-        case "flybys": return readFlybys(row, d);
         default: return readPoints(row, d);
       }
     });
@@ -1053,9 +1239,10 @@
   function syncDots() {
     (BODIES[body] ? BODIES[body].rows : []).forEach(function (row) {
       var e = layers[row.id];
-      if (!e || !e.r || !e.r.dots) return;
+      if (!e || !e.r || !(e.r.dots || e.r.fabric)) return;
       var want = e.box.checked && VIEW !== "globe";
-      if (!e.r.layer) e.r.layer = new Dots(e.r.dots, { pane: "overlayPane", tileSize: 256, updateWhenZooming: false });
+      if (!e.r.layer) e.r.layer = e.r.fabric ? new Fabric(e.r, { pane: "fabric", tileSize: 256, minZoom: -6, maxZoom: 14, opacity: 0.8, updateWhenZooming: false })
+        : new Dots(e.r.dots, { pane: "overlayPane", tileSize: 256, updateWhenZooming: false });
       if (want && !map.hasLayer(e.r.layer)) e.r.layer.addTo(map);
       if (!want && map.hasLayer(e.r.layer)) map.removeLayer(e.r.layer);
     });
@@ -1086,9 +1273,12 @@
     var list = [];
     (BODIES[body] ? BODIES[body].rows : []).forEach(function (row) {
       var en = layers[row.id];
-      if (en && en.r && en.r.layer && map.hasLayer(en.r.layer)) list = list.concat(en.r.layer.under(e.latlng, 3));
+      if (en && en.r && en.r.layer && en.r.dots && map.hasLayer(en.r.layer)) list = list.concat(en.r.layer.under(e.latlng, 3));
     });
-    openDots(list, e.latlng);
+    if (list.length) { openDots(list, e.latlng); return; }
+    // Round 213o: on gravity's fabric, a click names the fields crossing there.
+    var fab = (BODIES[body] ? BODIES[body].rows : []).filter(function (row) { var en = layers[row.id]; return en && en.r && en.r.fabric && en.r.layer && map.hasLayer(en.r.layer); })[0];
+    if (fab) info(fabricHtml(fab, layers[fab.id].r, e.latlng), e.latlng);
   });
   // The Sun and the planets, in the Sun view.
   function drawSunFrame(look) {
@@ -1137,7 +1327,7 @@
   map.on("moveend", drawNames);
 
   // ---------- the globe (Moon and Mars) ----------
-  var globe = null, globeTex = {};
+  var globe = null, globeTex = {}, STAR_URL = null;
   function loadScript(src) {
     return new Promise(function (ok, no) { var t = document.createElement("script"); t.src = src; t.onload = ok; t.onerror = no; document.head.appendChild(t); });
   }
@@ -1226,8 +1416,8 @@
       if (globe) return;
       // The globe's sky is wrapped round a sphere far off, so it is drawn
       // larger and finer, or its stars come out as blurred blobs.
-      var starUrl = starfield(8192, 4096, 9000, 1.1).toDataURL("image/jpeg", 0.9);
-      globe = Globe()(g).backgroundColor("#03050A").backgroundImageUrl(starUrl).width(window.innerWidth).height(window.innerHeight)
+      STAR_URL = STAR_URL || starfield(8192, 4096, 9000, 1.1).toDataURL("image/jpeg", 0.9);
+      globe = Globe()(g).backgroundColor("#03050A").backgroundImageUrl(isSky() ? null : STAR_URL).width(window.innerWidth).height(window.innerHeight)
         .showAtmosphere(true).atmosphereColor("#4E8FA6").atmosphereAltitude(0.1)
         .pointLat("lat").pointLng("lng").pointColor("color").pointRadius("r").pointAltitude(0.003).pointsMerge(false).pointLabel("label")
         .onPointClick(function (p) { info(typeof p.html === "function" ? p.html() : p.html, { lat: p.lat, lng: p.lng }); })
@@ -1289,6 +1479,7 @@
       .catch(function () { document.getElementById("globe-note").textContent = "The globe could not be loaded here, so the flat map is shown."; setView("flat"); });
   }
   function fitSun() {
+    if (!sized()) { FIT_LATER = true; drawFlat(); return; }
     var pts = [[0, 0]];
     onRows().forEach(function (row) {
       var r = layers[row.id].r;
@@ -1335,7 +1526,7 @@
     var m = { obj: ["--obj", "--obj-glow"], mass: ["--mass", "--mass-glow"], plan: ["--plan", "--plan-glow"], rover: ["--rover", "--rover-glow"], names: ["--bone", "--rule"],
       probe: ["--probe", "--probe-glow"], planets: ["--bone", "--rule"], stars: ["--obj", "--obj-glow"], starsreach: ["--obj", "--obj-glow"], dso: ["--gal", "--gal-glow"],
       solarsky: ["--obj", "--obj-glow"], solarreach: ["--obj", "--obj-glow"], pull: ["--plan", "--plan-glow"], galreach: ["--gal", "--gal-glow"], anchors: ["--mass", "--mass-glow"],
-      companions: ["--obj", "--rover-glow"], lagrange: ["--probe", "--probe-glow"], shells: ["--probe", "--probe-glow"], rings: ["--bone", "--rule"], flybys: ["--plan", "--plan-glow"] }[kind] || ["--bone", "--rule"];
+      companions: ["--obj", "--rover-glow"], lagrange: ["--probe", "--probe-glow"], shells: ["--probe", "--probe-glow"], rings: ["--bone", "--rule"], fabric: ["--plan", "--gal-glow"] }[kind] || ["--bone", "--rule"];
     return "background:" + C(m[0]) + ";box-shadow:0 0 0 2px " + C(m[1]) + "66,0 0 6px " + C(m[1]);
   }
   function show(key) {
@@ -1355,6 +1546,7 @@
     // plane (in AU for the Sun view; on rings for the reach views).
     var k = kindOf(key), simple = k === "sun" || k === "reach";
     map.options.crs = simple ? L.CRS.Simple : L.CRS.EPSG4326;
+    map.options.zoomSnap = simple ? 0.25 : 1;     // round 213o: the rings fill the screen
     map.setMinZoom(k === "sun" ? -3 : k === "reach" ? -1 : 1); map.setMaxZoom(k === "sun" ? 10 : k === "reach" ? 9 : k === "sky" ? 12 : 11);
     map.setMaxBounds(simple ? null : k === "sky" ? [[-100, -200], [100, 200]] : [[-140, -240], [140, 240]]);
     map.attributionControl._attributions = {};
@@ -1373,7 +1565,11 @@
     setbox.classList.toggle("no-looks", k === "sun");
     setbox.classList.toggle("one-view", viewsFor(key).length < 2);
     setLook(LOOK);
-    if (k === "ground" || k === "sky") map.fitBounds([[-90, -180], [90, 180]], { animate: false });
+    if (k === "ground" || k === "sky") { if (sized()) map.fitBounds([[-90, -180], [90, 180]], { animate: false }); else FIT_LATER = true; }
+    // Round 213o (asked 15 October): no painted stars behind the sky, which is
+    // itself a map of starlight; the other views keep them.
+    document.getElementById("stars").style.display = k === "sky" ? "none" : "";
+    if (globe) globe.backgroundImageUrl(k === "sky" ? null : STAR_URL);
     if (globe && (k === "ground" || k === "sky")) { globePicture(); globe.pointsData([]).pathsData([]).labelsData([]); globe.pointOfView({ lat: 0, lng: 0, altitude: 2.3 }); }
     document.getElementById("body-note").textContent = b.note;
     var rows = document.getElementById("rows");
@@ -1391,7 +1587,8 @@
       load(row).then(function (r) {
         if (body !== mine) return;
         entry.r = r;
-        if (row.kind !== "rings") n.textContent = row.sub + " · " + r.count.toLocaleString() + (row.kind === "names" ? " names" : row.rover ? " stops" : row.kind === "planets" ? " planets" : row.kind === "shells" ? " objects in orbit" : " entries") + (r.note ? " \u00b7 " + r.note : "");
+        if (row.kind !== "rings") n.textContent = row.sub + " · " + r.count.toLocaleString() + (row.kind === "names" ? " names" : row.rover ? " stops" : row.kind === "planets" ? " planets" : row.kind === "shells" ? " objects in orbit" : row.kind === "fabric" ? " bodies, " + r.fabric.length + " fields drawn" : " entries") + (r.note ? " \u00b7 " + r.note : "");
+        if (r.legend) n.insertAdjacentHTML("beforeend", "<br>" + r.legend);
         if (r.unplaced.length) {
           r.unplaced.forEach(function (t) { unplacedAll.push(t + " (" + row.title.replace(/ \(.*\)$/, "") + ")"); });
           document.getElementById("unplaced-sum").textContent = unplacedAll.length + (unplacedAll.length === 1 ? " entry" : " entries") + " with no published place";

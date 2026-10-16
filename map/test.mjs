@@ -7203,7 +7203,7 @@ console.log("\nround 197o (14 October): the Moon and Mars, from NASA's Eyes");
         /id="spaceBodies" hidden>/.test(page) && /data-body="moon"/.test(page) && /data-body="mars"/.test(page) && /id="spaceEyes" hidden/.test(page) &&
         /<iframe id="bodyFrame" class="body-frame"/.test(page));
   check("they show with Back to the map, and leaving Eyes closes the Moon or Mars too",
-        /if \(bodies\) bodies\.hidden = !on;\n  if \(!on\) closeBody\(\);/.test(src) && /f\.src = new URL\("bodies\.html\?v=210#" \+ key, document\.baseURI\)\.href;/.test(src));
+        /if \(bodies\) bodies\.hidden = !on;\n  if \(!on\) closeBody\(\);/.test(src) && /f\.src = new URL\("bodies\.html\?v=21[03]#" \+ key, document\.baseURI\)\.href;/.test(src));
   check("the ground is NASA's Moon Trek and Mars Trek tiles, read live; Mars in its real colour",
         /trek\.nasa\.gov\/tiles\/Moon\/EQ\/LRO_WAC_Mosaic_Global_303ppd_v02\/1\.0\.0\/default\/default028mm\/\{z\}\/\{y\}\/\{x\}\.jpg/.test(bodies) &&
         /trek\.nasa\.gov\/tiles\/Mars\/EQ\/Mars_Viking_MDIM21_ClrMosaic_global_232m\/1\.0\.0\/default\/default028mm\/\{z\}\/\{y\}\/\{x\}\.jpg/.test(bodies) &&
@@ -7429,8 +7429,9 @@ console.log("\nround 209o (15 October): To the Sun; the Moon, Mars and Sun views
   const bodies = fs.readFileSync(path.join(HERE, "bodies.html"), "utf8");
   const o = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("];", src.indexOf("const PANEL_ORDER = [")) + 2) + "; return PANEL_ORDER;")();
   const at = (t) => o.findIndex((x) => x && x.t === t);
-  check("To the Sun under From Earth: solar farms, solar companies, and objects orbiting the Sun", at("To the Sun") > at("To Mars") && o[at("To the Sun") + 1] === "solar_gem" &&
-        o[at("To the Sun") + 2] === "solar_companies" && o[at("To the Sun") + 3] === "sun_objects" &&
+  // Round 213o: the objects first, then Solar Tech with the farms and makers.
+  check("To the Sun under From Earth: solar farms, solar companies, and objects orbiting the Sun", at("To the Sun") > at("To Mars") && o[at("To the Sun") + 1] === "sun_objects" &&
+        o[at("Solar Tech") + 1] === "solar_gem" && o[at("Solar Tech") + 2] === "solar_companies" &&
         /id: "sun_objects"[^\n]*route: "leave", body: "sun", bodyLayer: "objects"/.test(src) && /solar_gem\.pmtiles", buildScript: "gem_solar"/.test(src));
   check("a Sun button beside Moon and Mars, and the Sun's rows picked like theirs", /data-body="sun"/.test(html) && /const BODY_PICK = \{ moon: \{\}, mars: \{\}, sun: \{\}, sky: \{\}, sunreach: \{\}, earthreach: \{\} \};/.test(src));
   check("the 3D notes open as a box of their own, closed by its x or a click elsewhere", /document\.body\.appendChild\(how\);/.test(src) && /how-x/.test(src) && /#how-3d\{position:fixed;/.test(html));
@@ -7439,7 +7440,7 @@ console.log("\nround 209o (15 October): To the Sun; the Moon, Mars and Sun views
         /sun: \{\n      name: "Sun", plane: true,/.test(bodies) && /map\.options\.crs = simple \? L\.CRS\.Simple : L\.CRS\.EPSG4326;/.test(bodies) &&
         /function where\(m\) \{ return m\.at \? m\.at : isSun\(\) \? \[\(VIEW === "side" \? m\.z : m\.y\) \* AU, m\.x \* AU\] : \[m\.lat, m\.lng\]; \}/.test(bodies) &&
         /if \(!o\.pos\) \{ unplaced\.push\(/.test(bodies) && /ring: !!o\.pos\.last/.test(bodies));
-  check("stars behind every view", /<canvas id="stars"><\/canvas>/.test(bodies) && /\.backgroundImageUrl\(starUrl\)/.test(bodies) && /function starfield\(w, h, n, k\)/.test(bodies));
+  check("stars behind every view (but the sky's own, round 213o)", /<canvas id="stars"><\/canvas>/.test(bodies) && /\.backgroundImageUrl\(isSky\(\) \? null : STAR_URL\)/.test(bodies) && /function starfield\(w, h, n, k\)/.test(bodies));
   check("the left box rolls up", /<button type="button" id="roll"/.test(bodies) && /#panel\.shut \.pb\{display:none\}/.test(bodies));
   check("boxes open under the looks box, never over another, and wrap their text", /function placeInfo\(\)/.test(bodies) && /sb\.bottom \+ 12/.test(bodies) &&
         /#info td\{[^}]*overflow-wrap:anywhere/.test(bodies) && /overflow-x:hidden/.test(bodies) && !/L\.popup\(/.test(bodies));
@@ -7447,7 +7448,7 @@ console.log("\nround 209o (15 October): To the Sun; the Moon, Mars and Sun views
         /\["Deep ocean", \{ h: 190, r: 0\.7, b: 1\.25 \}\]/.test(bodies));
   check("Bioluminescent glows instead of going black; Hell crimson, not orange", /\["night", "Bioluminescent", "grayscale\(1\) contrast\(1\.8\) brightness\(\.72\) sepia\(1\) hue-rotate\(130deg\) saturate\(1\.9\)"/.test(bodies) &&
         /hue-rotate\(-55deg\)/.test(bodies));
-  check("the page is asked afresh when it changes", /bodies\.html\?v=210#/.test(src));
+  check("the page is asked afresh when it changes", /bodies\.html\?v=21[03]#/.test(src));
 }
 
 console.log("\nround 210o (15 October): how far light and gravity reach; anti-gravity's players; gravity assists");
@@ -7457,10 +7458,10 @@ console.log("\nround 210o (15 October): how far light and gravity reach; anti-gr
   const ag = JSON.parse(fs.readFileSync(path.join(HERE, "data", "antigravity.geojson"), "utf8"));
   const o = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("];", src.indexOf("const PANEL_ORDER = [")) + 2) + "; return PANEL_ORDER;")();
   const at = (t) => o.findIndex((x) => x && x.t === t);
-  check("Gravity reaching Earth under To Earth; light, anti-gravity and gravity assists under From Earth (round 211o); Sunlight's and the Sun's gravity reach under To the Sun",
+  // Round 213o moved light reaching Earth to Solar Tech and anti-gravity under the space industry, and took out gravity assists and the Sun's gravity reach.
+  check("Gravity reaching Earth under To Earth; anti-gravity under From Earth; Sunlight's reach under To the Sun",
         at("Gravity reaching Earth") === at("To Earth") + 1 && o.slice(at("Gravity reaching Earth") + 1, at("Gravity reaching Earth") + 3).join() === "earth_pull_in,earth_pull_out" &&
-        at("Light, anti-gravity and gravity assists") > at("From Earth") && o.slice(at("Light, anti-gravity and gravity assists") + 1, at("Light, anti-gravity and gravity assists") + 4).join() === "earth_light_in,antigravity,gravity_assists" &&
-        o.indexOf("sun_light") > at("To the Sun") && o.indexOf("sun_pull") > at("To the Sun"));
+        o.indexOf("antigravity") > at("From Earth") && o.indexOf("sun_light") > at("To the Sun") && !o.includes("sun_pull") && !o.includes("gravity_assists"));
   check("the Moon, Mars and other views carry the way back under Snap back: solar system, Earth, then the other body; the map's own floating buttons step aside",
         /if \(inFrame\) on\.push\(\["eyes", "\\u2190 Back to the solar system"\], \["earth", "\\u2190 Back to Earth"\]\);/.test(bodies) && /if \(key === "moon"\) on\.push\(\["mars", "To Mars \\u2192"\]\);/.test(bodies) &&
         /window\.parent\.postMessage\(\{ culpritsNav: to \}, "\*"\)/.test(bodies) && /const nav = e && e\.data && e\.data\.culpritsNav;/.test(src) &&
@@ -7474,13 +7475,13 @@ console.log("\nround 210o (15 October): how far light and gravity reach; anti-gr
         Math.abs(F.lightFromMag(-26.74) - 1361) < 0.01 && F.sunLightAt(1) === 1361 && Math.abs(F.sunLightAt(30) - 1361 / 900) < 1e-9 &&
         Math.abs(F.pullAt(F.GM_EARTH, 6371000 / F.AU_M) - 9.82) < 0.02 && /× 10⁻¹²/.test(F.sci(1.5e-12)));
   check("three new views: the sky (light and pull reaching Earth), From the Sun and From Earth, each ring ten times farther",
-        /sky: \{\n      name: "Sky", title: "The sky from Earth", kind: "sky"/.test(bodies) && /sunreach: \{\n      name: "From the Sun"[^\n]*kind: "reach", centre: "sun"/.test(bodies) &&
+        /sky: \{\n      name: "Sky", title: "The sky from Earth", kind: "sky"/.test(bodies) && /sunreach: \{\n      name: "Sunlight's reach"[^\n]*kind: "reach", centre: "sun"/.test(bodies) &&
         /earthreach: \{\n      name: "From Earth"[^\n]*kind: "reach", centre: "earth"/.test(bodies) && /var LOG0 = \{ sun: -2, earth: -5 \};/.test(bodies));
   check("every star and deep-sky object drawn, on canvas squares, each read in full on a click", /var Dots = L\.GridLayer\.extend\(/.test(bodies) && /function record\(row, file, id, chunk\)/.test(bodies) &&
         /Every column the catalogue gives/.test(bodies));
   check("the Oort Cloud and the edge of the Sun's hold, and Earth's Hill sphere, with their sources", /2,000 to 20,000 AU/.test(bodies) && /100,000 to 200,000 AU/.test(bodies) && /Levison and Dones \(2007\)/.test(bodies) &&
         /var hill = 0\.98329 \* Math\.cbrt\(GM_EARTH \/ \(3 \* GM_SUN\)\);/.test(bodies));
-  check("gravity assists in the Sun view, where the planet was that day", /id: "flybys", file: "reach\/flybys\.json", kind: "flybys"/.test(bodies) && /function readFlybys\(row, d\)/.test(bodies));
+  check("gravity assists taken out of the Sun view (round 213o)", !/id: "flybys"/.test(bodies) && !/function readFlybys\(row, d\)/.test(bodies));
 }
 
 console.log("\nround 212o (15 October): small marks on the Moon and Mars; Red; the Sun view simpler; combine: note, Clear, roll-up");
@@ -7494,6 +7495,46 @@ console.log("\nround 212o (15 October): small marks on the Moon and Mars; Red; t
   check("combine: a short note under Place layer into group, no choice to measure against with two groups or fewer, a Clear button and a roll-up arrow",
         /Layers in one group count as one; only crossings between groups show\./.test(src) && /if \(groups\.length <= 2\) by = "any";/.test(src) &&
         /id="combo-clear"/.test(src) && /id="combo-roll"/.test(src) && /COMBO\.groups\.clear\(\);\n    COMBO\.weights\.clear\(\);/.test(src));
+}
+
+console.log("\nround 213o (15 October): the sky without painted stars; dead things round the Sun; Solar Tech; Antigravity; gravity's fabric");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const bodies = fs.readFileSync(path.join(HERE, "bodies.html"), "utf8");
+  const o = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("];", src.indexOf("const PANEL_ORDER = [")) + 2) + "; return PANEL_ORDER;")();
+  const at = (t) => o.findIndex((x) => x && x.t === t);
+  check("no painted stars behind the sky chart or the sky globe", /document\.getElementById\("stars"\)\.style\.display = k === "sky" \? "none" : "";/.test(bodies) &&
+        /if \(globe\) globe\.backgroundImageUrl\(k === "sky" \? null : STAR_URL\);/.test(bodies));
+  check("the Sun's objects named as dead and spent, the craft still working left out and named", /title: "Dead probes, spent rocket stages and parts orbiting the Sun \(GCAT\)"/.test(bodies) &&
+        /if \(o\.active\) \{ nWorking\+\+; working\[o\.active\] = 1; return; \}/.test(bodies) && /name: "Dead probes, spent rocket stages and parts orbiting the Sun \(GCAT\)"/.test(src));
+  check("Solar Tech under To the Sun: farms, makers, sunlight's reach, light reaching Earth", at("Solar Tech") > at("To the Sun") &&
+        o.slice(at("Solar Tech") + 1, at("Solar Tech") + 5).join() === "solar_gem,solar_companies,sun_light,earth_light_in" && o[at("Solar Tech")].h === 4);
+  check("Antigravity, its own sub-heading under the space industry, with gravity's fabric", o[at("Antigravity")].h === 4 && at("Antigravity") > at("The space industry") &&
+        o.slice(at("Antigravity") + 1, at("Antigravity") + 3).join() === "antigravity,gravity_fields" && !/Light, anti-gravity and gravity assists/.test(src.slice(src.indexOf("const PANEL_ORDER"))));
+  check("the Sun's gravity reach and gravity assists taken out", !/id: "sun_pull"/.test(src) && !/id: "gravity_assists"/.test(src) && !/what: "pull", title: "The Sun's pull/.test(bodies));
+  check("sunlight's reach and light reaching Earth each say how they differ", /Outward from the Sun/.test(src) && /Inward, to Earth/.test(src) && /This view looks outward from the Sun/.test(bodies));
+  check("the reach views open on the outermost ring, and wait for their frame to have a size", /var out = ringR\(1e14\) \+ 6;/.test(bodies) && /if \(!sized\(\)\) \{ FIT_LATER = true; drawFlat\(\); return; \}/.test(bodies));
+  // Gravity's fabric: the fields, worked out on a small made-up set.
+  const pre = bodies.slice(bodies.indexOf("  var S0 = 1361"), bodies.indexOf("  // The full record of a star"));
+  const fab = bodies.slice(bodies.indexOf("  var FABRIC_COLS"), bodies.indexOf("  var Fabric = L.GridLayer"));
+  const make = new Function("DATA", "get", "BODIES", "body", pre + fab + "; return { readFabric, fabricAt, GM_SUN, GM_EARTH };");
+  const files = {
+    "reach/solar.json": { date: "2026-10-16", bodies: [{ name: "Sun", gm_km3_s2: 132712440041.94, geo_au: [1, 0, 0], l_b_from_earth: [0, 0] }, { name: "Earth", gm_km3_s2: 398600.4 },
+      { name: "Moon", gm_km3_s2: 4902.8, geo_au: [0.00257, 0, 0], l_b_from_earth: [90, 0] }] },
+    "reach/nearest.json": { rows: [] }, "reach/galaxies.json": { rows: [{ row: { Galaxy: "Milky Way" }, link: "Milky_Way", mass_msun: 1.2e12 }] },
+    "reach/anchors.json": { rows: [{ name: "The Milky Way, the galaxy as a whole", l: 0, b: 0, d_au: 1.716e9 }] }
+  };
+  const Fz = make("", (f) => Promise.resolve(files[f]), { earthreach: { centre: "earth" } }, "earthreach");
+  {
+    const r = await Fz.readFabric({ files: Object.keys(files) });
+    const by = Object.fromEntries(r.all.map((B) => [B.name, B]));
+    check("gravity's fabric: the Moon's field measured against Earth, Earth's against the Sun, the Sun's against the galaxy; the heaviest has none",
+      by.Moon.parent === by.Earth && Math.abs(by.Moon.h * 1.495978707e8 - 0.00257 * 1.495978707e8 * Math.cbrt(4902.8 / (3 * 398600.4))) < 1 &&
+      by.Earth.parent === by.Sun && Math.abs(by.Earth.h - Math.cbrt(398600.4 / (3 * 132712440041.94))) < 1e-9 && by.Sun.parent === by["The Milky Way"] &&
+      !by["The Milky Way"].h && /no larger body to measure a field against/.test(r.note));
+    const near = Fz.fabricAt(r, 0, 0);
+    check("gravity's fabric: next to Earth, its own field and the Sun's cross", near.inside.map((B) => B.name).sort().join() === "Earth,Sun");
+  }
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");

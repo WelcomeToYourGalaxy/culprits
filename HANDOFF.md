@@ -5,6 +5,32 @@ touches.
 
 ---
 
+## Round 213o (15 October)
+
+Needs round 212o (guards on its heading). Tiles patch round213o_tiles.py
+(culprits-tiles-more), then refresh reach and sun. No app.js?v= bump;
+bodies.html is asked for as ?v=213.
+
+- Sky chart and sky globe: no painted stars behind them (the sky is itself a
+  map of starlight); the other views keep theirs.
+- Sun view: the objects row is "Dead probes, spent rocket stages and parts
+  orbiting the Sun"; craft still working (named on Wikipedia's List of active
+  Solar System probes, marked by scripts/sun.py) are left out and named in
+  the row. Gravity assists taken out (row, layer and code).
+- Sunlight's reach (was From the Sun): the Sun's pull rings and Oort bands
+  taken out with the Sun's gravity reach layer; says it looks outward, and
+  Light reaching Earth inward. Opens on the outermost ring (quarter-step
+  zoom), and a view laid out before its frame had a size is laid out again.
+- From Earth: Gravity's fabric (row fabric; layer gravity_fields): every body
+  with a published mass and place, its Hill sphere drawn round its mark
+  (measured against the smallest larger field holding it, else the larger
+  body pulling hardest); colour = how many fields cross (teal to cobalt to
+  plum), shading = all pulls summed; a click names the fields there.
+- Panel: To the Sun = objects, then Solar Tech (solar farms, solar panel
+  makers, Sunlight's reach, Light reaching Earth). The space industry gains
+  an Antigravity sub-heading (anti-gravity, gravity's fabric). The "Light,
+  anti-gravity and gravity assists" heading is gone.
+
 ## Round 212o (15 October)
 
 Rounds 210o, 211o and 212o in one file (210o was not uploaded, so 211o could
