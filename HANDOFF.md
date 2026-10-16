@@ -5,6 +5,19 @@ touches.
 
 ---
 
+## Round nh3 (16 October, the Invasion of non-humans chat)
+
+Needs round nh2 (guards on its heading).
+
+- ct_pop (population density, GHSL) is filed a second time, under On-planet invasion > Invasion of
+  the living > Invasion of nonhumans, after nonhuman_atlas (asked 16 October); it stays under
+  Overpopulation too.
+- nonhuman_atlas's note lists the map's new parts: projected urban spread to 2100 under five SSPs
+  (Chen et al. 2020, PANGAEA, CC BY-NC-SA 4.0), development potential by sector (Oakleaf et al.
+  2019) and the Development Threat Index (SEDAC). Tiles nonhuman_urban2100.py and
+  nonhuman_devpotential.py. PADDD outlines now keep small shapes at every zoom (tippecanoe
+  --no-tiny-polygon-reduction) and the map rings them with a glow wider out.
+
 ## Round nh2 (16 October, the Invasion of non-humans chat)
 
 Needs round nh1 (guards on its heading).

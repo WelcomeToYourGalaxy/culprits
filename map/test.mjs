@@ -3528,6 +3528,16 @@ console.log("\nround nh2: trawling inside marine protected areas, and how the co
         /nonhuman\/trawl_mpas\.geojson/.test(src) && /nonhuman\/wgi\.json", field: "va_rank" \}, linear: \[0, 100\], reverse: true/.test(src) &&
         /  trawl_mpas: "Worked out monthly by culprits-tiles-more/.test(src) && /trawl_mpas: \["animal", "downstream"\]/.test(src) && /wgi_cc: \["human", "upstream"\]/.test(src));
 }
+console.log("\nround nh3: population density under Invasion of nonhumans too");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const order = new Function(body + "; return { PANEL_ORDER };")().PANEL_ORDER;
+  const at = (t) => order.findIndex((x) => x && x.t === t);
+  check("population density sits under Overpopulation and under Invasion of nonhumans",
+        order.indexOf("ct_pop", at("Invasion of nonhumans")) === at("Invasion of nonhumans") + 2 && order.indexOf("ct_pop") > -1 &&
+        order.lastIndexOf("ct_pop") === at("Overpopulation") + 1);
+}
 console.log("\nround of 23 September (9): refresh notes, where each dot is, place names, the green cast");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
