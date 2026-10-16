@@ -2095,6 +2095,14 @@ console.log("\nbuilding types, one layer");
   check("no type is coloured yellow or orange", Object.values(cols(Array.from({ length: 40 }, (_, i) => "t" + i))).every((v) => { const h = Number(/hsl\((\d+)/.exec(v)[1]); return !(h > 20 && h < 90); }));
 }
 
+console.log("\nround 215r (16 October): the UN's 2019 answers in the Reproduction capture row");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const row = (src.match(/\{ id: "reproduction_capture",[\s\S]*?note: "([^"]*)" \}/) || [])[1] || "";
+  check("the row's note names the UN's 2019 questionnaire, its licence and its 107 answering governments",
+    /World Population Policies 2019/.test(row) && /CC BY 3\.0 IGO/.test(row) && /107 of which answered/.test(row) && /all 161 answers/.test(row));
+}
+
 console.log("\nround 214r (16 October): reproduction capture under Pre-birth frontlines");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");

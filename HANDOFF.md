@@ -5,6 +5,32 @@ touches.
 
 ---
 
+## Round 215r (16 October)
+
+From the separate "r" chat. Needs round 214r. Tiles patch round215r_tiles.py
+beside it, and a new reproduction_capture.html for the maps repo. No
+app.js?v= bump.
+
+- Owner, 16 October: added the UN's country file they downloaded
+  (desa_pd_2019_fertility_family_planning_reproductive_health_country_data.xlsx,
+  World Population Policies 2019, CC BY 3.0 IGO). Its Table 1 holds every
+  question of Tables 2 to 6: 161 answer columns plus footnote columns, for
+  197 countries. 107 governments answered (the UN's page for the data says
+  107 responses to this module of its Twelfth Inquiry, 2018-2019); the other
+  90 rows are all "—" in the table and are drawn as "no answer".
+- The map gains a sixth overlay, "What each government told the UN about
+  births, family planning and abortion (2019)": every country, shaded by
+  question 2.1 (policy on the present level of fertility: Raise 23, Lower
+  35, Maintain at Current Levels 7, No Official Policy 38, ".." 4, no answer
+  90). The standalone map can shade by any of the 161 questions; the Culprits
+  row (generic site-map reader) carries the 2.1 shading. Each box gives all
+  161 answers by section with the UN's notes; ".." is shown as the table
+  gives it (the table does not define it).
+- Country shapes are now drawn with L.polygon and their colours set when
+  made, so extract.mjs keeps each country's colour (through L.geoJSON the
+  colours were lost and every country took the row colour).
+- Only the row's note changes here.
+
 ## Round nh1 (16 October, the Invasion of non-humans chat)
 
 Needs round 214o only as a guard (it changes nothing 214o touched). A separate
