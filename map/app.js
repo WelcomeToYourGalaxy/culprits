@@ -24920,20 +24920,8 @@ const OTHER_MAPS = {
     // Round 214o (asked 15 October): retitled.
     { id: "sun_light", name: "Sunlight's reach \u2013 where else the Sun could be parasitized, now or then", unit: "opens the Sunlight's reach view", colour: "#E8E2D4", route: "leave", body: "sunreach", bodyLayer: "light", bodyLayers: ["light", "solar", "stars", "galaxies", "anchors", "life"], ready: true, lazy: true,
       note: "Outward from the Sun: how much of its light arrives at each distance and at each body, and so where else its light could be used. A search box finds any planet, star or galaxy by name, and a choice in the view shows only the worlds that could hold life, as Wikipedia's List of potentially habitable exoplanets and List of ocean worlds give them (nothing judged by this map). (Light reaching Earth is the other way round: what arrives here, from the Sun and from every star and galaxy.) Sunlight has no edge: it keeps travelling and grows dimmer with the square of the distance (twice as far, a quarter of the light). Rings every tenfold distance give the sunlight arriving there in W/m\u00b2 (1,361 W/m\u00b2 at Earth) and how long it takes; every planet and dwarf planet, every star with a known distance in the HYG catalogue, the nearest galaxies and the farthest bodies are placed, each with the Sun's light there. Ticked, the map leaves Earth and opens that view." },
-    // Round 214o (asked 15 October): out of the Sky view, into the From Earth view, under Antigravity.
-    { id: "earth_pull_in", name: "Gravity reaching Earth: every body with a published mass, and its pull on us", unit: "opens the From Earth view", colour: "#7F9BE0", route: "leave", body: "earthreach", bodyLayer: "pullin", bodyLayers: ["pullin", "pull"], ready: true, lazy: true,
-      note: "Placed by direction and distance from Earth, on rings every tenfold distance, and sized by its pull on Earth (its mass times the gravitational constant over its distance squared): the Sun, Moon and planets (NASA/JPL Horizons), the nearest stars (Wikipedia's List of nearest stars), the nearest galaxies with a mass on Wikidata, every other body on Wikidata with a mass and a place, the Milky Way's black hole, the galaxy itself, Andromeda, the Great Attractor and Laniakea, each with its source. Ticked, the map leaves Earth and opens that view." },
     { id: "earth_light_in", name: "Light reaching Earth: what arrives here from the Sun and every star, galaxy, cluster and nebula", unit: "opens the Sky view", colour: "#E8E2D4", route: "leave", body: "sky", bodyLayer: "stars", bodyLayers: ["stars", "dso", "solar"], ready: true, lazy: true,
       note: "Inward, to Earth: the light arriving here, laid out as the sky. (Sunlight's reach is the other way round: the Sun's light going out to every distance.) The Sun, Moon and planets today (NASA/JPL Horizons), every star in the HYG catalogue (119,626) and every object in its deep-sky catalogue (about 227,000, mostly galaxies), placed where each is in the sky and sized by the light it sends us, worked out in W/m\u00b2 from its brightness; a click gives its distance, how long its light took, and every column the catalogue gives. Ticked, the map leaves Earth and opens that view." },
-    { id: "earth_pull_out", name: "Earth's gravity reach: what lies within its pull, from satellites to galaxies", unit: "opens the From Earth view", colour: "#8FC3DE", route: "leave", body: "earthreach", bodyLayer: "pull", bodyLayers: ["pull", "orbit", "companions", "lagrange", "solar", "anchors"], ready: true, lazy: true,
-      note: "Earth's pull on every ring out to the farthest galaxies; its Hill sphere (about 1.5 million km), inside which things can orbit it; every satellite, spent stage and piece of debris still in orbit, counted by height (GCAT); the Moon, quasi-satellites, minimoons and trojans (Wikipedia's Claimed moons of Earth) and the spacecraft at the Lagrange points, placed where NASA/JPL Horizons has them today. Ticked, the map leaves Earth and opens that view." },
-    { id: "antigravity", name: "Anti-gravity: everyone who has claimed, funded or tested it", unit: "players", colour: "#9C8CC8", route: "geojsonlive", ready: true, lazy: true,
-      files: [{ label: "Anti-gravity", url: DATA_BASE + "/antigravity.geojson" }], nameFrom: ["name"],
-      note: "No working anti-gravity exists: no claim has been reproduced, and tests at NASA, the US Air Force, TU Dresden and CERN found nothing. Every person, company, lab and programme named in Wikipedia's Anti-gravity article and in Freethink's survey of the search, each with what was claimed, what came of it, and its source, placed at the institution or town its source names. Those whose source names no place are listed in the file without a position: the US Air Force's 1990 study, Henry Wallace's patents, Hayasaka and Takeuchi, Nitschke and Wilmath, Jonathan Campbell, the Göde foundation's institute, Frederick Alzofon, Hoverr Inc (California), AGES Tech (Australia), and Lindgren, Kovacs and Liukkonen. Compiled for this map." },
-    // Round 213o (asked 15 October): every body's field of pull, as a fabric
-    // coloured by how many cross at each point; with Anti-gravity.
-    { id: "gravity_fields", name: "Gravity's fabric: every field of pull reaching Earth, and how many cross at each point", unit: "opens the From Earth view", colour: "#5458B8", route: "leave", body: "earthreach", bodyLayer: "fabric", bodyLayers: ["fabric", "pull", "solar", "anchors"], ready: true, lazy: true,
-      note: "Every pull reaches everywhere, so a body's field is drawn as the space round it where its own pull outweighs the pull of the larger body it moves with (its Hill sphere: the distance between them times the cube root of its mass over three times the larger body's): the Moon's inside Earth's, Earth's inside the Sun's, the Sun's and the nearest stars' inside the galaxy's. Every body with a published mass and place: the Sun, Moon, planets and dwarf planets (NASA/JPL Horizons), the nearest stars (Wikipedia), the nearest galaxies, and every other body on Wikidata with a mass and a place, stars, black holes, galaxies and clusters far beyond the Milky Way among them, the Great Attractor and Laniakea. The colour is how many fields cross at each point, and the surface rises a step for each, lit from the side so the steps stand out; the pull of all of them added together lifts it further round each body. Earth's own field is the one anti-gravity claims set out to beat. Ticked, the map leaves Earth and opens the From Earth view." },
     { id: "eyes_craft", name: "Spacecraft in space, going galactic (NASA's Eyes on the Solar System)", unit: "leaves Earth for Eyes, as the Leave Earth button does", colour: "#5E6070", route: "leave", ready: true, lazy: true,
       page: "https://eyes.nasa.gov/apps/solar-system/#/home?featured=false&logo=false&shareButton=false&hd=true",
       note: "Ticked, the map turns to Earth's face and size in NASA/JPL's Eyes on the Solar System and hands the screen over, exactly as the Leave Earth button and zooming out past the globe do (asked for 25 September, in place of the panel along the bottom). In Eyes, every spacecraft it follows is placed where it is now, with its mission. The box in the corner, or unticking, brings the map back." },
@@ -26599,8 +26587,7 @@ const LAYER_KIND = {
   moon_objects: ["insentient", "downstream"], moon_list: ["insentient", "downstream"], moon_artemis: ["insentient", "downstream"], moon_names: ["insentient", "downstream"],
   mars_list: ["insentient", "downstream"], mars_m20: ["insentient", "downstream"], mars_msl: ["insentient", "downstream"], mars_names: ["insentient", "downstream"],
   solar_gem: ["insentient", "upstream"], solar_companies: ["insentient", "upstream"], sun_objects: ["insentient", "downstream"],
-  sun_light: ["insentient", "downstream"], earth_pull_in: ["insentient", "downstream"], earth_light_in: ["insentient", "downstream"],
-  earth_pull_out: ["insentient", "downstream"], antigravity: ["insentient", "upstream"], gravity_fields: ["insentient", "downstream"],
+  sun_light: ["insentient", "downstream"], earth_light_in: ["insentient", "downstream"],
   leverage_chart: ["human", "upstream"],
   cfr_tracker: ["human", "upstream"],
   site_banking_dynasties_charts: ["human", "upstream"],
@@ -28474,17 +28461,11 @@ const PANEL_ORDER = [
   // above Off-planet invasion; empty until they name its layers.
   { h: 1, t: "Off-planet invasion" },
   { h: 2, t: "To Earth" },
-  // Round 210o: the light and pull reaching Earth, Earth's own reach, and anti-gravity.
-  // Round 214o: gravity reaching Earth moved under Antigravity; Earth's own reach stays.
-  { h: 3, t: "Earth's gravity reach" }, "earth_pull_out",
+  // Round 215o (asked 16 October): every gravity and anti-gravity heading and layer taken out.
   { h: 3, t: "Near-Earth object impacts" }, "esa_risk",
   { h: 3, t: "Unidentified anomalous phenomena" }, "ufo_sightings", "site_ufo_pre1900",
   { h: 2, t: "From Earth" },
-  // Round 213o (asked 15 October): Antigravity, its own sub-heading in the
-  // space industry, with gravity's fabric.
   { h: 3, t: "The space industry" }, "space_industry",
-  // Round 214o (asked 15 October): gravity's fabric first, then anti-gravity, then gravity reaching Earth.
-  { h: 4, t: "Antigravity" }, "gravity_fields", "antigravity", "earth_pull_in",
   { h: 3, t: "Space launches" }, "ll2_pads", "ll2_upcoming",
   { h: 3, t: "Craft in space" }, "eyes_craft",
   // Round 202o: the Moon and Mars, each a heading of its own.

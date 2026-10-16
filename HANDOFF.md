@@ -5,6 +5,23 @@ touches.
 
 ---
 
+## Round 215o (16 October)
+
+Needs round 214o (guards on its heading). No tiles patch. No app.js?v= bump.
+
+- Every gravity and anti-gravity heading and layer taken out (asked 16
+  October): earth_pull_in, earth_pull_out, antigravity, gravity_fields; the
+  To Earth heading "Earth's gravity reach" and the Antigravity sub-heading
+  under the space industry; map/data/antigravity.geojson deleted.
+- bodies.html: the From Earth view (earthreach) and its code (gravity's
+  fabric, gravity reaching Earth) taken out. Sunlight's reach, the Sky, Sun,
+  Moon and Mars views are unchanged. The tiles repo's reach/masses.json is no
+  longer read by the map (reach.py still writes it; harmless).
+- Not done: the South America "homicides against tribes" picture. It has no
+  source, legend or licence, and its dark marks cannot be told apart from
+  dark forest; the link it came with was an INPE fires download. Waiting on
+  the data file or its source.
+
 ## Round 215r (16 October)
 
 From the separate "r" chat. Needs round 214r. Tiles patch round215r_tiles.py
