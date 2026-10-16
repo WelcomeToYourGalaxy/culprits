@@ -43,7 +43,7 @@
   :root{--peat:#17150F;--bone:#DCD6C6;--dim:#948D7C;--rule:#322E27;
     --sans:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
     --obj:#E8E2D4;--obj-glow:#4FA3B8;--mass:#C98BA0;--mass-glow:#7A4E78;--plan:#7F9BE0;--plan-glow:#2F4E9A;
-    --rover:#9FD0DC;--rover-glow:#2E7F96;--probe:#B9D7E6;--probe-glow:#3F7FA6}
+    --rover:#9FD0DC;--rover-glow:#2E7F96;--probe:#B9D7E6;--probe-glow:#3F7FA6;--gal:#A69AD0;--gal-glow:#5B4E8C}
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;background:#03050A;color:var(--bone);font-family:var(--sans);overflow:hidden}
   #stars{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
@@ -78,6 +78,7 @@
   .nm-label::before{display:none}
   .plan-label{color:#B9C8F0;font-size:11.5px}
   .planet-label{color:#C9D6E3;font-size:11.5px;letter-spacing:.05em}
+  .ring-label{white-space:nowrap;font-size:10.5px;color:#AEB8C4}
   #globe{position:absolute;inset:0;z-index:2}
   #globe[hidden]{display:none}
   /* The box a click opens: in the free space on the right, under the looks
@@ -99,7 +100,15 @@
   #body-name{font-size:17px;font-weight:600;letter-spacing:.03em;margin:0}
   /* The looks and views, set out like the Earth map's box: two columns. */
   #setbox{right:16px;top:16px;width:300px;padding:9px 12px 10px}
-  body.in-frame #setbox{top:118px}
+  /* Round 211o: the way back sits in this box now, so it starts at the top. */
+  #setbox.no-looks .cols{grid-template-columns:minmax(0,1fr)}
+  #setbox.no-looks .cols > div:first-child{display:none}
+  #setbox.no-looks .cols > div + div{padding-left:0;border-left:0}
+  #setbox.no-looks{width:200px}
+  #setbox.one-view .views{display:none}
+  #nav{display:flex;flex-direction:column;gap:5px;margin-top:5px}
+  #nav button{width:100%;font:inherit;font-size:12px;color:var(--bone);background:none;border:1px solid var(--rule);border-radius:3px;padding:5px 6px;cursor:pointer;line-height:1.25;text-align:center}
+  #nav button:hover{border-color:var(--bone)}
   #setbox .cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
   #setbox .cols > div + div{padding-left:11px;border-left:1px solid var(--rule)}
   #setbox h1{margin:0 0 5px}
@@ -136,7 +145,7 @@
   #colours .side input{width:100%;accent-color:#4E8FA6}
   #colours .chip{font:inherit;font-size:11px;padding:2px 8px;border-radius:10px;border:1px solid rgba(78,143,166,.5);background:none;color:var(--bone);cursor:pointer;align-self:flex-start}
   @media (max-width:720px){#panel{width:calc(100% - 32px);max-height:40%}#setbox{top:auto;bottom:16px;left:16px;right:16px;width:auto}
-    body.in-frame #setbox{top:auto}#info{left:16px;right:16px;width:auto}}
+#info{left:16px;right:16px;width:auto}}
 </style>
 </head>
 <body>
@@ -169,6 +178,7 @@
     <div><h1>Basemap</h1><div class="looks"></div></div>
     <div><h1>View</h1><div class="views"></div>
       <button type="button" id="snap">Snap back to global scale</button>
+      <div id="nav"></div>
     </div>
   </div>
 </div>
@@ -191,7 +201,7 @@
           sub: "Each lander, rover, experiment, crash crater and laser reflector pinned exactly where LROC's camera sees it; no masses", name: ["SHORT_NAME", "VEHCL_NAME", "OBJECT", "MISSION"],
           credit: 'LROC, <a href="https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS" target="_blank" rel="noopener">Coordinates of anthropogenic features on the Moon</a>, NASA/GSFC/Arizona State University (public domain); Wagner et al. 2017, Icarus 283:92–103', on: true },
         { id: "list", file: "moon_list.geojson", kind: "mass", title: "Every mission's spacecraft, by weight (Wikipedia)",
-          sub: "One mark per craft or rocket stage, sized by its mass, crashes included; places are approximate and small items are left out", credit: 'Wikipedia, <a href="https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon" target="_blank" rel="noopener">List of artificial objects on the Moon</a> (CC BY-SA 4.0)', on: true },
+          sub: "One mark per craft or rocket stage, crashes included, its mass in its box; places are approximate and small items are left out", credit: 'Wikipedia, <a href="https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon" target="_blank" rel="noopener">List of artificial objects on the Moon</a> (CC BY-SA 4.0)', on: true },
         { id: "artemis", file: "artemis3.geojson", kind: "plan", title: "Planned crewed landing regions (NASA Artemis III)",
           sub: "Not yet built or landed on: the nine regions NASA is considering, all near the south pole", name: ["region"],
           credit: 'NASA, <a href="https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/" target="_blank" rel="noopener">28 October 2024</a>; placed at IAU feature centres from the USGS Gazetteer of Planetary Nomenclature', on: true },
@@ -208,7 +218,7 @@
             "The rover routes come from NASA/JPL's own rover maps, read live each time this view opens.",
       rows: [
         { id: "list", file: "mars_list.geojson", kind: "mass", title: "Every mission's spacecraft, by weight (Wikipedia)",
-          sub: "One mark per lander, rover, the helicopter or crash, sized by its mass", credit: 'Wikipedia, <a href="https://en.wikipedia.org/wiki/List_of_artificial_objects_on_Mars" target="_blank" rel="noopener">List of artificial objects on Mars</a> (CC BY-SA 4.0)', on: true },
+          sub: "One mark per lander, rover, the helicopter or crash, its mass in its box", credit: 'Wikipedia, <a href="https://en.wikipedia.org/wiki/List_of_artificial_objects_on_Mars" target="_blank" rel="noopener">List of artificial objects on Mars</a> (CC BY-SA 4.0)', on: true },
         { id: "m20", rover: "M20", kind: "rover", title: "Perseverance rover: its route and where it is now (NASA/JPL)", live: true,
           sub: "Every stop and drive since landing in Jezero crater, 2021", credit: 'NASA/JPL-Caltech, <a href="https://science.nasa.gov/mission/mars-2020-perseverance/location-map/" target="_blank" rel="noopener">Perseverance location map</a>', on: true },
         { id: "msl", rover: "MSL", kind: "rover", title: "Curiosity rover: its route and where it is now (NASA/JPL)", live: true,
@@ -227,14 +237,69 @@
             "Objects Horizons does not follow, most spent rocket stages among them, have no published place; they are listed below the rows. Sizes of the marks are not to scale.",
       rows: [
         { id: "objects", file: "sun_objects.json", kind: "probe", title: "Human-made objects orbiting the Sun (GCAT)",
-          sub: "Every probe, spent rocket stage and part in the Heliocentric Register, each column as GCAT gives it",
+          sub: "Every probe, spent rocket stage and part in the Heliocentric Register, each column as GCAT gives it. These do not fall back and burn up as much of what circles Earth does: out of reach of any air, they keep circling the Sun for many years, unless a pass by a planet throws them onto another path",
           credit: 'J. McDowell, <a href="https://planet4589.org/space/gcat/" target="_blank" rel="noopener">General Catalog of Artificial Space Objects</a>, Heliocentric Register (CC BY); places from <a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noopener">NASA/JPL Horizons</a>', on: true },
+        { id: "flybys", file: "reach/flybys.json", kind: "flybys", title: "Gravity assists: spacecraft that used a planet's pull (Wikipedia)",
+          sub: "Every flyby in Wikipedia's tables, drawn where the planet was that day; most were gravity assists, swinging past a planet to steal speed or turn",
+          credit: 'Wikipedia, <a href="https://en.wikipedia.org/wiki/Planetary_flyby" target="_blank" rel="noopener">Planetary flyby</a> and <a href="https://en.wikipedia.org/wiki/List_of_Earth_flybys" target="_blank" rel="noopener">List of Earth flybys</a> (CC BY-SA 4.0); places from NASA/JPL Horizons', on: true },
         { id: "planets", file: "sun_planets.json", kind: "planets", title: "The planets today, and their paths (NASA/JPL Horizons)",
-          sub: "For finding your way: where each planet is today, and the path it takes round the Sun",
-          credit: '<a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noopener">NASA/JPL Horizons</a>', on: true }
+          sub: "Only for finding your way, off unless ticked: where each planet is today, and the path it takes round the Sun",
+          credit: '<a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noopener">NASA/JPL Horizons</a>', on: false }
+      ]
+    },
+    // Round 210o (asked 15 October): how far light and gravity reach. The Sky
+    // (all the light and pull reaching Earth), From the Sun (what the Sun's
+    // light and pull reach) and From Earth (what lies in reach of Earth's pull).
+    sky: {
+      name: "Sky", title: "The sky from Earth", kind: "sky", heading: "light and pull reaching Earth from everything with a published brightness or mass",
+      ground: 'Stars and deep-sky objects: <a href="https://astronexus.com/hyg" target="_blank" rel="noopener">HYG</a> (CC BY-SA); Sun, Moon and planets: <a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noopener">NASA/JPL Horizons</a>',
+      note: "Each object is placed where it is in the sky (right ascension and declination), east to the left as the sky looks from below; the globe shows the sky's sphere from outside, so it is mirrored. The light reaching Earth is worked out from each object's brightness as seen from here (its magnitude), as if its light were coloured like the Sun's: 1,361 W/m\u00b2 \u00d7 10^(\u22120.4 \u00d7 (magnitude + 26.74)). " +
+            "The pull reaching Earth is the body's mass times the gravitational constant over its distance squared (Newton), for every body whose mass is published.",
+      rows: [
+        { id: "stars", file: "reach/stars.json", kind: "stars", title: "Starlight reaching Earth: every star in the HYG catalogue",
+          sub: "Each star sized by the light it sends us; a click gives that light in W/m\u00b2, its distance, how long its light took, and the Sun's light and pull there",
+          credit: '<a href="https://astronexus.com/hyg" target="_blank" rel="noopener">HYG star database</a> v4.1 (D. Nash, astronexus.com), CC BY-SA 4.0', on: true },
+        { id: "dso", file: "reach/dso.json", kind: "dso", title: "Light from galaxies, star clusters and nebulae (HYG deep-sky catalogue)",
+          sub: "Every object, mostly galaxies, each sized by the light it sends us",
+          credit: '<a href="https://github.com/astronexus/HYG-Database" target="_blank" rel="noopener">HYG deep-sky catalogue</a> (dso.csv), CC BY-SA 2.5', on: true },
+        { id: "solar", file: "reach/solar.json", kind: "solarsky", title: "The Sun, Moon and planets today: their light and their pull",
+          sub: "Where each is in the sky today, the light it sends (its own, or sunlight it reflects) and its pull on Earth",
+          credit: '<a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noopener">NASA/JPL Horizons</a>', on: true },
+        { id: "pull", kind: "pull", files: ["reach/solar.json", "reach/nearest.json", "reach/galaxies.json", "reach/anchors.json"], title: "Gravity reaching Earth: every body with a published mass",
+          sub: "The Sun, Moon and planets, the nearest stars, the nearest galaxies, the Milky Way's black hole and the galaxy itself, Andromeda, the Great Attractor and Laniakea, each sized by its pull on Earth",
+          credit: "NASA/JPL Horizons; Wikipedia's List of nearest stars and List of nearest galaxies (CC BY-SA 4.0); Wikidata (CC0); published figures, each named in its box", on: true }
+      ]
+    },
+    sunreach: {
+      name: "From the Sun", title: "From the Sun, at every scale", kind: "reach", centre: "sun", heading: "what the Sun's light and pull reach",
+      ground: 'NASA/JPL Horizons; HYG (CC BY-SA); Wikipedia (CC BY-SA); Wikidata (CC0)',
+      note: "Each ring is ten times farther from the Sun than the one inside it, so the planets and the farthest galaxies fit on one map; the direction is each object's galactic longitude, the galaxy's centre straight up, seen from above the galaxy's plane. Light has no edge: it keeps going, a quarter as bright at twice the distance. The Sun's light reaches every star and galaxy here; a click says how much arrives.",
+      rows: [
+        { id: "light", kind: "rings", what: "light", title: "Sunlight at every distance", sub: "Rings every tenfold distance: the sunlight arriving there (W/m\u00b2) and how long it takes", credit: "1,361 W/m\u00b2 at 1 AU, falling with the square of the distance", on: true },
+        { id: "pull", kind: "rings", what: "pull", title: "The Sun's pull at every distance, and where its hold ends", sub: "Its pull at each ring (m/s\u00b2); the inner and outer Oort Cloud; the edge where the galaxy's pull takes its objects", credit: "Newton: GM \u00f7 distance\u00b2; Oort Cloud figures from Wikipedia (CC BY-SA 4.0)", on: true },
+        { id: "solar", file: "reach/solar.json", kind: "solarreach", title: "The planets and dwarf planets today", sub: "Where each is today, the sunlight it gets, and how far its own pull holds sway", credit: '<a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noopener">NASA/JPL Horizons</a>', on: true },
+        { id: "stars", file: "reach/stars.json", kind: "starsreach", title: "Every star with a known distance (HYG)", sub: "The Sun's light and pull at each, and how long its light takes to get there", credit: "HYG star database v4.1 (CC BY-SA 4.0)", on: true },
+        { id: "galaxies", file: "reach/galaxies.json", kind: "galreach", title: "The nearest galaxies", sub: "Every row of Wikipedia's list, placed by Wikidata", credit: "Wikipedia, List of nearest galaxies (CC BY-SA 4.0); Wikidata (CC0)", on: true },
+        { id: "anchors", file: "reach/anchors.json", kind: "anchors", title: "The Milky Way's centre, Andromeda, the Great Attractor and Laniakea", sub: "The largest pulls the Sun is caught in", credit: "Published figures, each named in its box", on: true }
+      ]
+    },
+    earthreach: {
+      name: "From Earth", title: "From Earth, at every scale", kind: "reach", centre: "earth", heading: "what lies within reach of Earth's pull",
+      ground: 'GCAT (CC BY); NASA/JPL Horizons; Wikipedia (CC BY-SA); HYG (CC BY-SA)',
+      note: "Each ring is ten times farther from Earth than the one inside it; the direction is galactic longitude, seen from above the galaxy's plane. Earth's pull reaches everything here, weaker with the square of the distance; inside its Hill sphere it is stronger than the Sun's, so things there can orbit Earth. Stars and galaxies are placed by their distance from the Sun; from Earth it differs by less than a thousandth.",
+      rows: [
+        { id: "pull", kind: "rings", what: "pull", title: "Earth's pull at every distance, and its Hill sphere", sub: "Its pull at each ring (m/s\u00b2), and the edge inside which it holds sway", credit: "Newton: GM \u00f7 distance\u00b2", on: true },
+        { id: "orbit", file: "reach/earth_orbit.json", kind: "shells", title: "Satellites, spent stages and debris in Earth orbit (GCAT)", sub: "Every object still in orbit, counted by height", credit: '<a href="https://planet4589.org/space/gcat/" target="_blank" rel="noopener">GCAT</a> (J. McDowell, CC BY)', on: true },
+        { id: "companions", file: "reach/companions.json", kind: "companions", title: "Earth's companions: the Moon, quasi-satellites, minimoons and trojans", sub: "Every row of Wikipedia's Claimed moons of Earth, placed where Horizons has it today", credit: "Wikipedia, Claimed moons of Earth (CC BY-SA 4.0); NASA/JPL Horizons", on: true },
+        { id: "lagrange", file: "reach/lagrange.json", kind: "lagrange", title: "Spacecraft at the Lagrange points", sub: "Every row of Wikipedia's list, placed where Horizons has it today", credit: "Wikipedia, List of objects at Lagrange points (CC BY-SA 4.0); NASA/JPL Horizons", on: true },
+        { id: "solar", file: "reach/solar.json", kind: "solarreach", title: "The Sun, Moon and planets today", sub: "Earth's pull at each, and theirs on Earth", credit: '<a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noopener">NASA/JPL Horizons</a>', on: true },
+        { id: "stars", file: "reach/stars.json", kind: "starsreach", title: "Every star with a known distance (HYG)", sub: "Earth's pull at each", credit: "HYG star database v4.1 (CC BY-SA 4.0)", on: false },
+        { id: "galaxies", file: "reach/galaxies.json", kind: "galreach", title: "The nearest galaxies", sub: "Earth's pull at each", credit: "Wikipedia (CC BY-SA 4.0); Wikidata (CC0)", on: false },
+        { id: "anchors", file: "reach/anchors.json", kind: "anchors", title: "The Milky Way's centre, Andromeda, the Great Attractor and Laniakea", sub: "", credit: "Published figures, each named in its box", on: true }
       ]
     }
   };
+
 
   var inFrame = window.parent !== window;
   var css = getComputedStyle(document.documentElement);
@@ -351,7 +416,7 @@
     ["twilight", "Twilight", "grayscale(1) sepia(.5) hue-rotate(240deg) saturate(.8) brightness(.55) contrast(1.2)", false, { sun: ["#E6DDEB", "#7B6A93"], path: "rgba(170,150,200,0.45)" }],
     ["night", "Bioluminescent", "grayscale(1) contrast(1.8) brightness(.72) sepia(1) hue-rotate(130deg) saturate(1.9)", false, { sun: ["#D6F4EE", "#3DC2AC"], path: "rgba(61,194,172,0.5)" }],
     ["holo", "Hologram", "grayscale(1) invert(1) brightness(.5) contrast(1.7) sepia(1) hue-rotate(160deg) saturate(2.5)", "rgba(127,184,217,0.35)", { sun: ["#DCEFFF", "#47AFFF"], path: "rgba(71,175,255,0.5)" }],
-    ["hell", "Hell", "grayscale(1) brightness(.5) contrast(1.4) sepia(1) hue-rotate(-55deg) saturate(2.6)", false, { sun: ["#F4DADF", "#B0283F"], path: "rgba(200,60,80,0.5)" }]
+    ["hell", "Red", "grayscale(1) brightness(.5) contrast(1.4) sepia(1) hue-rotate(-55deg) saturate(2.6)", false, { sun: ["#F4DADF", "#B0283F"], path: "rgba(200,60,80,0.5)" }]
   ];
   var LOOK = "satellite", VIEW = "globe";
   var lookOf = function (k) { return LOOKS.filter(function (l) { return l[0] === k; })[0] || LOOKS[0]; };
@@ -424,8 +489,13 @@
   // Round 209o (asked 15 October: marks were crowding one another): smaller
   // marks, each drawn where it is; the glow is kept, close round each one.
   var STYLE = {
-    obj: ["--obj", "--obj-glow", 3], mass: ["--mass", "--mass-glow", 2.5], plan: ["--plan", "--plan-glow", 4.5], now: ["--obj", "--rover-glow", 4.5],
-    stop: ["--rover", "--rover-glow", 1.6], probe: ["--probe", "--probe-glow", 3]
+    // Round 212o (asked 15 October: the Moon's marks still crowded, "and not
+    // even to size"): every mark one small size, a point where the thing is,
+    // not swollen by its mass (the mass is in its box).
+    obj: ["--obj", "--obj-glow", 2.2], mass: ["--mass", "--mass-glow", 2.2], plan: ["--plan", "--plan-glow", 3.5], now: ["--obj", "--rover-glow", 3.5],
+    stop: ["--rover", "--rover-glow", 1.4], probe: ["--probe", "--probe-glow", 2.5],
+    body: ["--obj", "--obj-glow", 4], pull: ["--plan", "--plan-glow", 3], galaxy: ["--gal", "--gal-glow", 3], anchor: ["--mass", "--mass-glow", 5],
+    comp: ["--obj", "--rover-glow", 3], lag: ["--probe", "--probe-glow", 3], flyby: ["--plan", "--plan-glow", 2.5]
   };
 
   // ---------- each row read into marks, routes or names ----------
@@ -438,7 +508,7 @@
       if (!at) { unplaced.push(titleOf(row, p)); return; }
       var m = row.kind === "mass" ? kg(p) : null;
       out.push({ lat: at[0], lng: at[1], year: row.kind === "plan" ? null : yearOf(p), planned: row.kind === "plan", kind: row.kind,
-        r: row.kind === "mass" ? (m && maxKg ? 2.2 + 4.8 * Math.sqrt(m / maxKg) : 2.5) : STYLE[row.kind][2],
+        r: STYLE[row.kind][2],
         title: row.kind === "plan" ? (p.region || "") : titleOf(row, p), html: popup(row, p), row: row });
     });
     return { marks: out, count: feats.length, unplaced: unplaced };
@@ -488,10 +558,374 @@
   function readPlanets(row, d) {
     return { planets: d.planets || [], count: (d.planets || []).length, unplaced: [], date: d.date };
   }
+  // ---------- light and pull: the Sky, From the Sun and From Earth views (round 210o) ----------
+  // Asked 15 October: how far light and gravity reach, at every scale, worked
+  // out from published figures. Light arriving from an object is worked out
+  // from its brightness as seen from Earth (its magnitude), taking its light
+  // to be coloured like the Sun's: 1,361 W/m^2 (the Sun's light at Earth) x
+  // 10^(-0.4 x (magnitude + 26.74)). The Sun's light at a distance d is 1,361
+  // W/m^2 over d squared, d in AU. A body's pull at a distance d is its GM over
+  // d squared (Newton). Every figure says how it was worked out.
+  var S0 = 1361, MSUN = -26.74, AU_M = 1.495978707e11, LY_AU = 63241.077, PC_AU = 206264.806;
+  var GM_SUN = 1.32712440018e20, GM_EARTH = 3.986004418e14, G = 6.6743e-11, MSUN_KG = 1.98847e30;
+  var kindOf = function (k) { var b = BODIES[k || body]; return b ? (b.kind || (b.plane ? "sun" : "ground")) : "ground"; };
+  var isReach = function () { return kindOf() === "reach"; };
+  var isSky = function () { return kindOf() === "sky"; };
+  var centre = function () { return (BODIES[body] || {}).centre || "sun"; };
+  var SUP = { "-": "⁻", 0: "⁰", 1: "¹", 2: "²", 3: "³", 4: "⁴", 5: "⁵", 6: "⁶", 7: "⁷", 8: "⁸", 9: "⁹" };
+  function sci(v, unit) {
+    if (v == null || !isFinite(v)) return "not known";
+    if (v === 0) return "0 " + (unit || "");
+    var e = Math.floor(Math.log10(Math.abs(v)));
+    var s = e >= -2 && e <= 4 ? Number(v.toPrecision(3)).toLocaleString() : (v / Math.pow(10, e)).toFixed(2) + " × 10" + String(e).split("").map(function (c) { return SUP[c]; }).join("");
+    return s + (unit ? " " + unit : "");
+  }
+  var lightFromMag = function (m) { return S0 * Math.pow(10, -0.4 * (m - MSUN)); };
+  var sunLightAt = function (dau) { return S0 / (dau * dau); };
+  var pullAt = function (gm, dau) { return gm / Math.pow(dau * AU_M, 2); };
+  function far(dau) {
+    if (dau == null) return "distance not known";
+    if (dau < 0.01) return sci(dau * AU_M / 1000, "km");
+    if (dau < 2000) return sci(dau, "AU");
+    return sci(dau / LY_AU, "light-years");
+  }
+  function travel(dau) {
+    var s = dau * AU_M / 299792458;
+    if (s < 120) return sci(s, "seconds");
+    if (s < 7200) return sci(s / 60, "minutes");
+    if (s < 172800) return sci(s / 3600, "hours");
+    if (s < 3.156e7 * 2) return sci(s / 86400, "days");
+    return sci(s / 3.15576e7, "years");
+  }
+  // Placing in the plane, From the Sun or From Earth: the direction is the
+  // object's galactic longitude (the galaxy's centre straight up), seen from
+  // above the galaxy's plane; the distance is drawn on a scale where each ring
+  // is ten times farther than the one inside it, so the planets and the
+  // farthest galaxies fit on one map.
+  var LOG0 = { sun: -2, earth: -5 };
+  function polar(lDeg, dau) {
+    var R = Math.max(0, (Math.log10(dau) - LOG0[centre()]) * 10), a = lDeg * Math.PI / 180;
+    return [R * Math.cos(a), -R * Math.sin(a)];
+  }
+  var ringR = function (dau) { return Math.max(0, (Math.log10(dau) - LOG0[centre()]) * 10); };
+  function circle(dau, n) {
+    var R = ringR(dau), out = [];
+    for (var i = 0; i <= (n || 180); i++) { var a = i / (n || 180) * 2 * Math.PI; out.push([R * Math.cos(a), R * Math.sin(a)]); }
+    return out;
+  }
+  var STAR_COL = { O: "#9FC3E8", B: "#AFCDEB", A: "#CFDDEA", F: "#E6E8E6", G: "#E8E0D2", K: "#D9BCC4", M: "#C98BA0", D: "#DDE6F0", C: "#C98BA0", S: "#C98BA0", W: "#9FC3E8" };
+  var starCol = function (spect) { return STAR_COL[(spect || "G").trim().charAt(0).toUpperCase()] || "#DCD6C6"; };
+  var magR = function (m) { return Math.max(0.55, Math.min(4.2, 3.0 - 0.3 * (m == null ? 12 : m))); };
+
+  // The full record of a star or deep-sky object, read on a click.
+  function record(row, file, id, chunk) {
+    return get(DATA + file.replace(/\.json$/, "") + "/" + Math.floor(id / chunk) + ".json").then(function (d) {
+      var r = d.rows[String(id)];
+      if (!r) return {};
+      var o = {};
+      d.cols.forEach(function (c, i) { if (r[i] !== "" && r[i] != null) o[c] = r[i]; });
+      return o;
+    });
+  }
+  function starFigures(s, mode) {
+    var t = "<table>";
+    var add = function (k, v) { t += "<tr><td>" + esc(k) + "</td><td>" + v + "</td></tr>"; };
+    if (s.mag != null) add("Its light reaching Earth", sci(lightFromMag(s.mag), "W/m²") + ' <span class="from">(from magnitude ' + s.mag + ", as if coloured like the Sun's light)</span>");
+    if (s.d != null) {
+      add("Distance", far(s.d) + " (" + sci(s.d, "AU") + ")");
+      add("Its light has travelled", travel(s.d) + " to reach us");
+      add("The Sun's light there", sci(sunLightAt(s.d), "W/m²") + ' <span class="from">(1,361 W/m² ÷ distance² in AU)</span>');
+      add("The Sun's light takes", travel(s.d) + " to get there");
+      add("The Sun's pull there", sci(pullAt(GM_SUN, s.d), "m/s²"));
+      add("Earth's pull there", sci(pullAt(GM_EARTH, s.d), "m/s²"));
+    }
+    return t + "</table>";
+  }
+  // Big sets (stars, deep-sky objects) are drawn as dots on canvas squares,
+  // each square drawing only its own dots; a click finds the dots under it.
+  var Dots = L.GridLayer.extend({
+    initialize: function (pts, opts) { this.pts = pts; this.cache = {}; L.setOptions(this, opts); },
+    proj: function (z) {
+      if (this.cache[z]) return this.cache[z];
+      var map = this._map, pts = this.pts, n = pts.length, px = new Float64Array(n), py = new Float64Array(n), cells = {};
+      for (var i = 0; i < n; i++) {
+        var p = map.project(pts[i].at, z); px[i] = p.x; py[i] = p.y;
+        var k = Math.floor(p.x / 256) + ":" + Math.floor(p.y / 256);
+        (cells[k] = cells[k] || []).push(i);
+      }
+      this.cache = {}; this.cache[z] = { px: px, py: py, cells: cells };
+      return this.cache[z];
+    },
+    createTile: function (c) {
+      var t = L.DomUtil.create("canvas", "leaflet-tile"), size = this.getTileSize();
+      t.width = size.x; t.height = size.y;
+      var g = t.getContext("2d"), P = this.proj(c.z), pts = this.pts, x0 = c.x * 256, y0 = c.y * 256;
+      for (var dx = -1; dx <= 1; dx++) for (var dy = -1; dy <= 1; dy++) {
+        (P.cells[(c.x + dx) + ":" + (c.y + dy)] || []).forEach(function (i) {
+          var x = P.px[i] - x0, y = P.py[i] - y0, r = pts[i].r;
+          if (x < -r || y < -r || x > 256 + r || y > 256 + r) return;
+          g.globalAlpha = pts[i].a || 0.9; g.fillStyle = pts[i].c;
+          g.beginPath(); g.arc(x, y, r, 0, 6.2832); g.fill();
+        });
+      }
+      return t;
+    },
+    under: function (latlng, extra) {
+      var z = this._map.getZoom(), P = this.proj(z), p = this._map.project(latlng, z), out = [], pts = this.pts;
+      var cx = Math.floor(p.x / 256), cy = Math.floor(p.y / 256);
+      for (var dx = -1; dx <= 1; dx++) for (var dy = -1; dy <= 1; dy++) {
+        (P.cells[(cx + dx) + ":" + (cy + dy)] || []).forEach(function (i) {
+          var d = Math.hypot(P.px[i] - p.x, P.py[i] - p.y);
+          if (d <= pts[i].r + (extra || 4)) out.push({ i: i, d: d });
+        });
+      }
+      return out.sort(function (a, b) { return a.d - b.d; }).map(function (o) { return pts[o.i]; });
+    }
+  });
+  var dotLayers = [];
+  function readStarsFile(row, d) {
+    var cols = d.cols, ix = {}; cols.forEach(function (c, i) { ix[c] = i; });
+    var dots = [], sky = isSky();
+    d.rows.forEach(function (q) {
+      var dau = q[ix.d_au], at;
+      // HYG's own row for the Sun (id 0) has no place in the sky; the Sun is drawn from Horizons.
+      if (q[ix.id] === 0) return;
+      if (sky) { if (q[ix.ra] == null) return; at = [q[ix.dec], 180 - q[ix.ra]]; }
+      else { if (dau == null || q[ix.l] == null) return; at = polar(q[ix.l], dau); }
+      dots.push({ at: at, r: sky ? magR(q[ix.mag]) : Math.max(0.6, magR(q[ix.mag]) * 0.7), c: starCol(q[ix.spect]), id: q[ix.id], name: q[ix.name],
+        mag: q[ix.mag], d: dau, ra: q[ix.ra], dec: q[ix.dec], row: row, star: true });
+    });
+    return { dots: dots, count: d.rows.length, unplaced: [], chunk: d.chunk, file: row.file,
+      note: sky ? null : (d.rows.length - dots.length).toLocaleString() + " stars have no known distance and are shown only in the Sky view" };
+  }
+  function readDsoFile(row, d) {
+    var cols = d.cols, ix = {}; cols.forEach(function (c, i) { ix[c] = i; });
+    var dots = [];
+    d.rows.forEach(function (q) {
+      if (q[ix.ra] == null) return;
+      dots.push({ at: [q[ix.dec], 180 - q[ix.ra]], r: Math.max(0.55, magR(q[ix.mag]) * 0.85), c: q[ix.type] === "Gxy" ? "#A69AD0" : "#8FB8C8", a: 0.75,
+        id: q[ix.id], name: q[ix.name], type: q[ix.type], mag: q[ix.mag], ra: q[ix.ra], dec: q[ix.dec], row: row, dso: true });
+    });
+    return { dots: dots, count: d.rows.length, unplaced: [], chunk: d.chunk, file: row.file };
+  }
+  function dotHtml(p) {
+    var head = "<h3>" + esc(p.name) + "</h3>";
+    var fig = p.star ? starFigures(p) : "<table><tr><td>Its light reaching Earth</td><td>" + (p.mag != null ? sci(lightFromMag(p.mag), "W/m²") +
+      ' <span class="from">(from magnitude ' + p.mag + ", as if coloured like the Sun's light)</span>" : "its magnitude is not given") + "</td></tr></table>";
+    return record(p.row, p.row.file, p.id, layers[p.row.id].r.chunk).then(function (rec) {
+      return head + fig + popup(p.row, rec, "", "").replace(/^<h3><\/h3>/, "<h1 style=\"margin-top:8px\">Every column the catalogue gives</h1>");
+    });
+  }
+  // Small sets: the Sun, Moon and planets; the bodies with a published mass;
+  // galaxies; the far anchors; Earth's companions and Lagrange-point craft.
+  function mk(row, kind, at, title, html, r, ll) {
+    var m = { at: at, kind: kind, title: title, html: html, row: row, r: r || STYLE[kind][2] };
+    if (ll) { m.lat = ll[0]; m.lng = ll[1]; }
+    return m;
+  }
+  var skyLL = function (ra, dec) { return [dec, 180 - ra]; };
+  function readSolar(row, d) {
+    var out = [], un = [], sky = isSky(), c = centre();
+    (d.bodies || []).forEach(function (b) {
+      var gm = b.gm_km3_s2 != null ? b.gm_km3_s2 * 1e9 : null;
+      var geo = b.geo_au ? Math.hypot.apply(null, b.geo_au) : null, hel = b.helio_au ? Math.hypot.apply(null, b.helio_au) : null;
+      var t = "<table>", add = function (k, v) { t += "<tr><td>" + esc(k) + "</td><td>" + v + "</td></tr>"; };
+      if (b.mag != null) add("Its light reaching Earth", sci(lightFromMag(b.mag), "W/m²") + ' <span class="from">(magnitude ' + b.mag + " today; " + (b.name === "Sun" ? "its own light" : "sunlight it reflects") + ")</span>");
+      if (geo != null) add("From Earth today", far(geo) + "; light takes " + travel(geo));
+      if (gm && geo) add("Its pull on Earth", sci(pullAt(gm, geo), "m/s²") + ' <span class="from">(GM ÷ distance²; GM ' + sci(gm, "m³/s²") + " from Horizons)</span>");
+      if (hel != null && b.name !== "Sun") add("From the Sun today", far(hel) + "; sunlight there " + sci(sunLightAt(hel), "W/m²") + "; the Sun's pull " + sci(pullAt(GM_SUN, hel), "m/s²"));
+      if (geo != null && b.name !== "Earth") add("Earth's pull on it", sci(pullAt(GM_EARTH, geo), "m/s²"));
+      if (gm && hel && b.name !== "Sun" && b.name !== "Moon") add("How far its own pull holds sway (Hill sphere)", far(hel * Math.cbrt(gm / (3 * GM_SUN))) + ' <span class="from">(distance from the Sun × cube root of its mass over three times the Sun’s)</span>');
+      var html = "<h3>" + esc(b.name) + "</h3>" + t + "</table><div class=\"src\">" + row.credit + " · " + esc(d.date || "") + "</div>";
+      if (sky) {
+        if (b.ra == null || b.name === "Earth") { if (b.name !== "Earth") un.push(b.name); return; }
+        out.push(mk(row, "body", skyLL(b.ra, b.dec), b.name, html, b.name === "Sun" ? 7 : b.name === "Moon" ? 6 : 4, skyLL(b.ra, b.dec)));
+      } else {
+        var lb = c === "earth" ? b.l_b_from_earth : b.l_b_from_sun, dd = c === "earth" ? geo : hel;
+        if (c === "sun" && b.name === "Sun") return;
+        if (c === "earth" && b.name === "Earth") return;
+        if (!lb || dd == null) { un.push(b.name); return; }
+        out.push(mk(row, "body", polar(lb[0], dd), b.name, html, b.name === "Sun" ? 6 : 4));
+      }
+    });
+    return { marks: out, count: (d.bodies || []).length, unplaced: un, date: d.date };
+  }
+  // The pull reaching Earth from everything with a published mass.
+  function readPull(row) {
+    return Promise.all(row.files.map(function (f) { return get(DATA + f).catch(function () { return null; }); })).then(function (all) {
+      var out = [], un = [], count = 0;
+      var place = function (title, ra, dec, dau, gm, how, src, extra) {
+        count++;
+        if (ra == null || dec == null || dau == null || !gm) { un.push(title); return; }
+        var a = pullAt(gm, dau);
+        var html = "<h3>" + esc(title) + "</h3><table><tr><td>Its pull on Earth</td><td>" + sci(a, "m/s²") + ' <span class="from">(' + esc(how) + ")</span></td></tr>" +
+          "<tr><td>Next to Earth's own pull at the surface</td><td>" + sci(a / 9.80665) + " of it</td></tr><tr><td>Distance</td><td>" + far(dau) + "</td></tr>" + (extra || "") +
+          "</table><div class=\"src\">" + src + "</div>";
+        var r = Math.max(1.4, Math.min(7, 7 + 0.45 * (Math.log10(a) + 3)));
+        out.push(mk(row, "pull", skyLL(ra, dec), title, html, r, skyLL(ra, dec)));
+      };
+      var solar = all[0], nearest = all[1], gal = all[2], anch = all[3];
+      ((solar && solar.bodies) || []).forEach(function (b) {
+        if (b.name === "Earth") return;
+        place(b.name, b.ra, b.dec, b.geo_au ? Math.hypot.apply(null, b.geo_au) : null, b.gm_km3_s2 ? b.gm_km3_s2 * 1e9 : null,
+          "GM from NASA/JPL Horizons over its distance today, squared", "NASA/JPL Horizons, " + esc(solar.date || ""));
+      });
+      ((nearest && nearest.rows) || []).forEach(function (s) {
+        var nm = s.row["Designation / System"] || s.row["Designation / Name"] || Object.values(s.row)[1] || "";
+        place(nm + (s.row["Designation / Name"] && s.row["Designation / Name"] !== nm ? " (" + s.row["Designation / Name"] + ")" : ""), s.ra, s.dec, s.d_au,
+          s.mass_msun ? s.mass_msun * MSUN_KG * G : null, "its mass in Wikipedia's List of nearest stars, " + (s.mass_msun || "") + " solar masses, over its distance squared", "Wikipedia, List of nearest stars (CC BY-SA 4.0)");
+      });
+      ((gal && gal.rows) || []).forEach(function (g) {
+        var nm = g.row.Galaxy || g.link || "";
+        place(nm, g.ra, g.dec, g.d_au, g.mass_msun ? g.mass_msun * MSUN_KG * G : null, "its mass on Wikidata (" + (g.mass_as_given || "none") + ") over its distance in Wikipedia's List of nearest galaxies, squared",
+          "Wikipedia, List of nearest galaxies (CC BY-SA 4.0); Wikidata (CC0)");
+      });
+      ((anch && anch.rows) || []).forEach(function (a) {
+        var ra = a.ra, dec = a.dec;
+        if (ra == null && a.l != null) { var e = lbToRadec(a.l, a.b); ra = e[0]; dec = e[1]; }
+        if (a.orbit_speed_km_s) {
+          var acc = Math.pow(a.orbit_speed_km_s * 1000, 2) / (a.orbit_radius_pc * PC_AU * AU_M);
+          place(a.name, ra, dec, a.d_au, acc * Math.pow(a.d_au * AU_M, 2), "the pull that keeps the Sun, and Earth with it, on its orbit round the galaxy: " + a.orbit_speed_km_s + " km/s squared over " + a.orbit_radius_pc + " pc",
+            esc(a.source), "<tr><td>Published masses</td><td>" + a.mass_msun_published.map(function (m) { return esc(m[0]) + " solar masses (" + esc(m[1]) + ")"; }).join("; ") + "</td></tr>");
+        } else place(a.name, ra, dec, a.d_au, a.mass_msun * MSUN_KG * G, (a.mass_msun ? sci(a.mass_msun) + " solar masses" : "") + " over its distance squared", esc(a.source));
+      });
+      return { marks: out, count: count, unplaced: un };
+    });
+  }
+  // Galactic longitude and latitude back to right ascension and declination.
+  function lbToRadec(l, b) {
+    var M = [[-0.0548755604, 0.4941094279, -0.8676661490], [-0.8734370902, -0.4448296300, -0.1980763734], [-0.4838350155, 0.7469822445, 0.4559837762]];
+    var lr = l * Math.PI / 180, br = b * Math.PI / 180, v = [Math.cos(br) * Math.cos(lr), Math.cos(br) * Math.sin(lr), Math.sin(br)];
+    var e = M.map(function (r) { return r[0] * v[0] + r[1] * v[1] + r[2] * v[2]; });
+    return [(Math.atan2(e[1], e[0]) * 180 / Math.PI + 360) % 360, Math.asin(e[2]) * 180 / Math.PI];
+  }
+  function readGalReach(row, d) {
+    var out = [], un = [];
+    (d.rows || []).forEach(function (g) {
+      var nm = g.row.Galaxy || g.link || "";
+      if (g.l == null || g.d_au == null) { un.push(nm); return; }
+      var t = "<table><tr><td>Distance</td><td>" + far(g.d_au) + "</td></tr><tr><td>Sunlight there</td><td>" + sci(sunLightAt(g.d_au), "W/m²") + "</td></tr><tr><td>The Sun's pull there</td><td>" +
+        sci(pullAt(GM_SUN, g.d_au), "m/s²") + "</td></tr><tr><td>Earth's pull there</td><td>" + sci(pullAt(GM_EARTH, g.d_au), "m/s²") + "</td></tr>" +
+        (g.mass_msun ? "<tr><td>Its own pull on Earth</td><td>" + sci(pullAt(g.mass_msun * MSUN_KG * G, g.d_au), "m/s²") + "</td></tr>" : "") + "</table>";
+      out.push(mk(row, "galaxy", polar(g.l, g.d_au), nm, "<h3>" + esc(nm) + "</h3>" + t + popup(row, g.row, "", "").replace(/^<h3><\/h3>/, "")));
+    });
+    return { marks: out, count: (d.rows || []).length, unplaced: un };
+  }
+  function readAnchors(row, d) {
+    var out = [];
+    (d.rows || []).forEach(function (a) {
+      var t = "<table><tr><td>Distance</td><td>" + far(a.d_au) + "</td></tr><tr><td>Sunlight there</td><td>" + sci(sunLightAt(a.d_au), "W/m²") +
+        "</td></tr><tr><td>The Sun's pull there</td><td>" + sci(pullAt(GM_SUN, a.d_au), "m/s²") + "</td></tr><tr><td>Earth's pull there</td><td>" + sci(pullAt(GM_EARTH, a.d_au), "m/s²") + "</td></tr></table>";
+      out.push(mk(row, "anchor", polar(a.l, a.d_au), a.name, "<h3>" + esc(a.name) + "</h3>" + t + '<div class="src">' + esc(a.source) + "</div>", 5));
+    });
+    return { marks: out, count: (d.rows || []).length, unplaced: [] };
+  }
+  function readNear(row, d, kind) {
+    var out = [], un = [];
+    (d.rows || []).forEach(function (x) {
+      var nm = Object.values(x.row)[1] || Object.values(x.row)[0] || "";
+      if (!x.geo_au || !x.l_b_from_earth) { un.push(nm); return; }
+      var dd = Math.hypot.apply(null, x.geo_au);
+      var extra = '<p class="from" style="margin:0 0 6px">' + far(dd) + " from Earth today (NASA/JPL Horizons, " + esc(d.date || "") + "); Earth's pull there " + sci(pullAt(GM_EARTH, dd), "m/s²") +
+        "; the Sun's pull on it " + sci(pullAt(GM_SUN, 1), "m/s²") + " (at about 1 AU)</p>";
+      out.push(mk(row, kind, polar(x.l_b_from_earth[0], dd), nm, popup(row, x.row, nm, extra)));
+    });
+    return { marks: out, count: (d.rows || []).length, unplaced: un };
+  }
+  function readShells(row, d) {
+    return { shells: d.shells || [], total: d.total, how: d.how, count: d.total || 0, unplaced: [] };
+  }
+  function readFlybys(row, d) {
+    var out = [], un = [];
+    (d.rows || []).forEach(function (f) {
+      var nm = (f.row.Spacecraft || Object.values(f.row)[3] || "") + (f.body ? " at " + f.body.charAt(0).toUpperCase() + f.body.slice(1) : "");
+      if (!f.helio_au) { un.push(nm + (f.date ? ", " + f.date : "")); return; }
+      out.push({ x: f.helio_au[0], y: f.helio_au[1], z: f.helio_au[2], year: f.date ? +f.date.slice(0, 4) : null, kind: "flyby", r: STYLE.flyby[2],
+        title: nm, html: popup(row, f.row, nm, '<p class="from" style="margin:0 0 6px">Drawn where ' + esc(f.body || "") + " was on " + esc(f.date || "") + " (NASA/JPL Horizons). From " + esc(f.page) + ".</p>"), row: row });
+    });
+    return { marks: out, count: (d.rows || []).length, unplaced: un };
+  }
+  // The rings: every tenfold distance, with what arrives there.
+  function drawReachFrame(look) {
+    var rings = onRows().filter(function (r) { return r.kind === "rings"; });
+    var light = rings.some(function (r) { return r.what === "light"; }), pull = rings.some(function (r) { return r.what === "pull"; });
+    var cols = look[4], c = centre(), GM = c === "earth" ? GM_EARTH : GM_SUN;
+    L.circleMarker([0, 0], { renderer: canvas, radius: 9, stroke: false, fillColor: cols.sun[1], fillOpacity: 0.3, interactive: false }).addTo(routeLayer);
+    L.circleMarker([0, 0], { renderer: canvas, radius: 5, stroke: false, fillColor: c === "earth" ? "#8FC3DE" : cols.sun[0], fillOpacity: 1, interactive: false })
+      .bindTooltip(c === "earth" ? "Earth" : "Sun", { permanent: true, direction: "right", className: "nm-label planet-label", offset: [8, 0] }).addTo(routeLayer);
+    if (!light && !pull) return;
+    // Labels on every ring that has room for one (each ring is 10 map units out).
+    var gap = map.latLngToContainerPoint([10, 0]).y - map.latLngToContainerPoint([0, 0]).y, every = Math.max(1, Math.ceil(18 / Math.max(1, Math.abs(gap))));
+    for (var k = LOG0[c] + 1; k <= 14; k++) {
+      var d = Math.pow(10, k), lines = ["<h3>" + far(d) + " from " + (c === "earth" ? "Earth" : "the Sun") + "</h3><table>"];
+      if (light && c === "sun") lines.push("<tr><td>Sunlight arriving there</td><td>" + sci(sunLightAt(d), "W/m²") + " (" + sci(1 / (d * d)) + " of what reaches Earth)</td></tr><tr><td>It takes</td><td>" + travel(d) + "</td></tr>");
+      if (pull) lines.push("<tr><td>" + (c === "earth" ? "Earth's" : "The Sun's") + " pull there</td><td>" + sci(pullAt(GM, d), "m/s²") + "</td></tr>");
+      var html = lines.join("") + "</table><p class=\"from\">Light: 1,361 W/m² at 1 AU, falling with the square of the distance. Pull: GM ÷ distance² (Newton).</p>";
+      var line = L.polyline(circle(d), { renderer: canvas, color: cols.path, weight: 1, opacity: 0.8 }).addTo(routeLayer);
+      (function (h) { line.on("click", function (e) { L.DomEvent.stop(e); info(h, e.latlng); }); })(html);
+      if ((k - LOG0[c] - 1) % every === 0) L.marker([ringR(d), 0], { icon: L.divIcon({ className: "nm-label ring-label", html: esc(far(d)) + (light && c === "sun" ? " · " + esc(sci(sunLightAt(d), "W/m²")) : pull ? " · " + esc(sci(pullAt(GM, d), "m/s²")) : ""), iconSize: null, iconAnchor: [-4, 8] }), interactive: false }).addTo(routeLayer);
+    }
+    // Bands: the Oort Cloud and the edge of the Sun's hold; Earth's Hill sphere.
+    var band = function (a, b, colr, title, text) {
+      var pts = circle(a).concat(circle(b).reverse());
+      var pg = L.polygon(pts, { renderer: canvas, stroke: false, fillColor: colr, fillOpacity: 0.14 }).addTo(routeLayer);
+      pg.on("click", function (e) { L.DomEvent.stop(e); info("<h3>" + esc(title) + "</h3><p>" + text + "</p>", e.latlng); });
+    };
+    if (c === "sun" && pull) {
+      band(2000, 20000, "#7F9BE0", "The inner Oort Cloud (Hills cloud)", "2,000 to 20,000 AU (0.03 to 0.32 light-years). Wikipedia, Oort cloud (CC BY-SA 4.0).");
+      band(20000, 50000, "#9C8CC8", "The outer Oort Cloud", "20,000 to 50,000 AU (0.32 to 0.79 light-years). Wikipedia, Oort cloud.");
+      band(100000, 200000, "#C98BA0", "Where the Sun's hold ends", "The Oort Cloud's outer boundary, where the galaxy's pull strips objects from the Sun: 100,000 to 200,000 AU (1.58 to 3.16 light-years). Levison and Dones (2007), Encyclopedia of the Solar System; Morbidelli (2006); as given on Wikipedia's Oort cloud page. The Sun's pull there: " +
+        sci(pullAt(GM_SUN, 100000), "m/s²") + " to " + sci(pullAt(GM_SUN, 200000), "m/s²") + ".");
+    }
+    if (c === "earth" && pull) {
+      var hill = 0.98329 * Math.cbrt(GM_EARTH / (3 * GM_SUN));
+      band(hill * 0.98, hill, "#C98BA0", "Earth's Hill sphere: where its pull holds sway", far(hill) + ", worked out as Earth's least distance from the Sun (0.98329 AU) × the cube root of Earth's mass over three times the Sun's. Inside it, a body can orbit Earth; beyond it, the Sun's pull takes over. Earth's pull at its edge: " + sci(pullAt(GM_EARTH, hill), "m/s²") + ".");
+    }
+  }
+  function drawShells() {
+    onRows().filter(function (r) { return r.kind === "shells"; }).forEach(function (row) {
+      var r = layers[row.id].r;
+      (r.shells || []).forEach(function (s) {
+        var a = (s.lo_km + 6371) * 1000 / AU_M, b = ((s.hi_km || s.lo_km * 3) + 6371) * 1000 / AU_M;
+        var pts = circle(a).concat(circle(b).reverse());
+        var kinds = ["payloads", "rocket stages", "debris", "components", "other"].filter(function (k) { return s[k]; }).map(function (k) { return s[k].toLocaleString() + " " + k; }).join(", ");
+        var pg = L.polygon(pts, { renderer: canvas, stroke: true, weight: 0.5, color: C("--probe-glow"), fillColor: C("--probe"), fillOpacity: 0.16 }).addTo(routeLayer);
+        pg.on("click", function (e) {
+          L.DomEvent.stop(e);
+          info("<h3>" + esc(s.name) + "</h3><p>" + s.total.toLocaleString() + " objects still in orbit: " + esc(kinds) + ".</p><p class=\"from\">" + esc(r.how) + ". Their places along their orbits are not published here; the band is drawn at the heights of their perigees. Earth's pull: " +
+            sci(pullAt(GM_EARTH, a), "m/s²") + " at its lower edge.</p><div class=\"src\">" + row.credit + "</div>", e.latlng);
+        });
+      });
+    });
+  }
+  function fitReach() {
+    var pts = [[0, 0]];
+    onRows().forEach(function (row) { var r = layers[row.id].r; (r.marks || []).forEach(function (m) { pts.push(m.at); }); });
+    if (onRows().some(function (r) { return r.kind === "rings"; })) pts.push([ringR(1e13), 0], [-ringR(1e13), 0], [0, ringR(1e13)], [0, -ringR(1e13)]);
+    map.fitBounds(L.latLngBounds(pts).pad(0.04), { animate: false, paddingTopLeft: [innerWidth > 720 ? 330 : 10, 10], paddingBottomRight: [innerWidth > 720 ? 330 : 10, 10] });
+    drawFlat();
+  }
+
   function load(row) {
     if (row.rover) return readRover(row);
+    if (row.kind === "rings") return Promise.resolve({ count: 0, unplaced: [] });
+    if (row.kind === "pull") return readPull(row);
     return get(DATA + row.file).then(function (d) {
-      return row.kind === "names" ? readNames(row, d) : row.kind === "probe" ? readSun(row, d) : row.kind === "planets" ? readPlanets(row, d) : readPoints(row, d);
+      switch (row.kind) {
+        case "names": return readNames(row, d);
+        case "probe": return readSun(row, d);
+        case "planets": return readPlanets(row, d);
+        case "stars": case "starsreach": return readStarsFile(row, d);
+        case "dso": return readDsoFile(row, d);
+        case "solarsky": case "solarreach": return readSolar(row, d);
+        case "galreach": return readGalReach(row, d);
+        case "anchors": return readAnchors(row, d);
+        case "companions": return readNear(row, d, "comp");
+        case "lagrange": return readNear(row, d, "lag");
+        case "shells": return readShells(row, d);
+        case "flybys": return readFlybys(row, d);
+        default: return readPoints(row, d);
+      }
     });
   }
 
@@ -555,7 +989,7 @@
   });
   function orb(at, r, core, halo, ring) {
     var g = L.layerGroup();
-    L.circleMarker(at, { renderer: canvas, radius: r * 2.2, stroke: false, fillColor: halo, fillOpacity: 0.14, interactive: false }).addTo(g);
+    L.circleMarker(at, { renderer: canvas, radius: r * 1.8, stroke: false, fillColor: halo, fillOpacity: 0.12, interactive: false }).addTo(g);
     var c = L.circleMarker(at, { renderer: canvas, radius: r, stroke: true, weight: ring ? 1.6 : 1, color: ring ? core : "rgba(255,255,255,0.55)", opacity: 0.9,
       fillColor: core, fillOpacity: ring ? 0 : 0.95, interactive: true }).addTo(g);
     return { group: g, hit: c };
@@ -563,7 +997,7 @@
   // Where a mark is drawn: its place on the ground, or, in the Sun view, its
   // place in the plane (from above: x and y; from the side: x and z), in AU.
   var AU = 10;     // map units per astronomical unit in the Sun view
-  function where(m) { return isSun() ? [(VIEW === "side" ? m.z : m.y) * AU, m.x * AU] : [m.lat, m.lng]; }
+  function where(m) { return m.at ? m.at : isSun() ? [(VIEW === "side" ? m.z : m.y) * AU, m.x * AU] : [m.lat, m.lng]; }
   function drawFlat() {
     if (VIEW === "globe") return;
     markLayer.clearLayers(); stopLayer.clearLayers(); routeLayer.clearLayers();
@@ -571,6 +1005,8 @@
     var zoomable = map.getZoom() < map.getMaxZoom();
     var look = lookOf(LOOK);
     if (isSun()) drawSunFrame(look);
+    if (isReach()) { drawShells(); drawReachFrame(look); }
+    syncDots();
     // Routes: the full drives when the timeline spans every year; otherwise the
     // line through the stops in the years chosen.
     onRows().forEach(function (row) {
@@ -613,6 +1049,47 @@
     drawNames();
   }
   map.on("zoomend", drawFlat);
+  // The big sets' canvas layers follow their rows' ticks.
+  function syncDots() {
+    (BODIES[body] ? BODIES[body].rows : []).forEach(function (row) {
+      var e = layers[row.id];
+      if (!e || !e.r || !e.r.dots) return;
+      var want = e.box.checked && VIEW !== "globe";
+      if (!e.r.layer) e.r.layer = new Dots(e.r.dots, { pane: "overlayPane", tileSize: 256, updateWhenZooming: false });
+      if (want && !map.hasLayer(e.r.layer)) e.r.layer.addTo(map);
+      if (!want && map.hasLayer(e.r.layer)) map.removeLayer(e.r.layer);
+    });
+  }
+  var DOT_LIST = [];
+  function dotsHtml(list) {
+    DOT_LIST = list;
+    if (list.length === 1) return null;
+    return "<h3>" + list.length + " here</h3>" + list.slice(0, 200).map(function (p, i) {
+      return '<details data-dot="' + i + '"><summary><i class="dot" style="background:' + p.c + '"></i>' + esc(p.name) + ' <span class="from">' + esc(p.row.title.replace(/ \(.*\)$/, "")) + "</span></summary><div class=\"dd\">reading\u2026</div></details>";
+    }).join("") + (list.length > 200 ? '<p class="from">' + (list.length - 200) + " more here: zoom in to part them.</p>" : "");
+  }
+  function openDots(list, at) {
+    if (!list.length) return;
+    var many = dotsHtml(list);
+    if (many) { info(many, at); return; }
+    info("<p class=\"from\">reading\u2026</p>", at);
+    dotHtml(list[0]).then(function (h) { info(h, at); }).catch(function () { info("<h3>" + esc(list[0].name) + "</h3>" + (list[0].star ? starFigures(list[0]) : ""), at); });
+  }
+  document.getElementById("info").addEventListener("toggle", function (e) {
+    var d = e.target;
+    if (!d.matches || !d.matches("details[data-dot]") || !d.open || d.dataset.read) return;
+    d.dataset.read = "1";
+    var p = DOT_LIST[+d.dataset.dot];
+    dotHtml(p).then(function (h) { d.querySelector(".dd").innerHTML = h; }).catch(function () { d.querySelector(".dd").textContent = "the full record could not be read"; });
+  }, true);
+  map.on("click", function (e) {
+    var list = [];
+    (BODIES[body] ? BODIES[body].rows : []).forEach(function (row) {
+      var en = layers[row.id];
+      if (en && en.r && en.r.layer && map.hasLayer(en.r.layer)) list = list.concat(en.r.layer.under(e.latlng, 3));
+    });
+    openDots(list, e.latlng);
+  });
   // The Sun and the planets, in the Sun view.
   function drawSunFrame(look) {
     var cols = look[4];
@@ -667,7 +1144,7 @@
   function globeAlt() { try { return globe.pointOfView().altitude || 2.3; } catch (e) { return 2.3; } }
   function drawGlobe() {
     if (!globe || VIEW !== "globe") return;
-    var near = Math.max(0.05, globeAlt() * 0.6);   // degrees: what lies under a click
+    var near = Math.max(0.03, globeAlt() * 0.35);   // degrees: what lies under a click
     var marks = shownMarks(), stops = shownStops(), all = marks.concat(stops);
     var deg = function (a, b) {
       var r = Math.PI / 180, x = Math.sin(a.lat * r) * Math.sin(b.lat * r) + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.cos((a.lng - b.lng) * r);
@@ -675,11 +1152,11 @@
     };
     var pts = marks.map(function (m) {
       var s = STYLE[m.kind];
-      return { lat: m.lat, lng: m.lng, r: Math.max(0.22, m.r / 12), color: C(s[0]), label: esc(m.title), m: m };
+      return { lat: m.lat, lng: m.lng, r: Math.max(0.1, m.r / 22), color: C(s[0]), label: esc(m.title), m: m };
     });
     stops.forEach(function (m) { pts.push({ lat: m.lat, lng: m.lng, r: 0.1, color: C("--rover"), label: esc(m.title), m: m }); });
     pts.forEach(function (p) {
-      p.html = function () { return listHtml(under(all, function (q) { return [deg(q, p.m), 0]; }, function (q) { return near + (q.kind === "stop" ? 0 : q.r / 12 * 0.5); }), true); };
+      p.html = function () { return listHtml(under(all, function (q) { return [deg(q, p.m), 0]; }, function (q) { return near + (q.kind === "stop" ? 0 : q.r / 22); }), true); };
     });
     var paths = [];
     onRows().forEach(function (row) {
@@ -700,8 +1177,21 @@
   }
   // The body's picture, in the look chosen: recoloured on a canvas (the same
   // filters as the flat map), with the grid drawn on where the look has one.
+  // The sky globe's picture: every ticked star and deep-sky object drawn on it.
+  function skyPicture() {
+    var W = 8192, H = 4096, cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    var g = cv.getContext("2d"); g.fillStyle = "#03050A"; g.fillRect(0, 0, W, H);
+    onRows().forEach(function (row) {
+      (layers[row.id].r.dots || []).forEach(function (p) {
+        var x = (p.at[1] + 180) / 360 * W, y = (90 - p.at[0]) / 180 * H;
+        g.globalAlpha = 1; g.fillStyle = p.c; g.beginPath(); g.arc(x, y, Math.max(1, p.r * 1.6), 0, 6.2832); g.fill();
+      });
+    });
+    globe.globeImageUrl(cv.toDataURL("image/jpeg", 0.92));
+  }
   function globePicture() {
-    if (isSun()) return;
+    if (isSun() || isReach()) return;
+    if (isSky()) { skyPicture(); return; }
     var key = body + "|" + LOOK, url = DATA + body + "_globe.jpg", look = lookOf(LOOK);
     var note = document.getElementById("globe-note");
     if (globeTex[key]) { globe.globeImageUrl(globeTex[key]); return; }
@@ -741,6 +1231,14 @@
         .showAtmosphere(true).atmosphereColor("#4E8FA6").atmosphereAltitude(0.1)
         .pointLat("lat").pointLng("lng").pointColor("color").pointRadius("r").pointAltitude(0.003).pointsMerge(false).pointLabel("label")
         .onPointClick(function (p) { info(typeof p.html === "function" ? p.html() : p.html, { lat: p.lat, lng: p.lng }); })
+        .onGlobeClick(function (c) {
+          if (!isSky()) return;
+          var list = [];
+          onRows().forEach(function (row) {
+            (layers[row.id].r.dots || []).forEach(function (p) { var d = Math.hypot(p.at[0] - c.lat, (p.at[1] - c.lng) * Math.cos(c.lat * Math.PI / 180)); if (d < 0.35) list.push({ p: p, d: d }); });
+          });
+          openDots(list.sort(function (a, b) { return a.d - b.d; }).map(function (o) { return o.p; }), { lat: c.lat, lng: c.lng });
+        })
         .pathPoints("pts").pathPointLat(function (q) { return q[1]; }).pathPointLng(function (q) { return lon180(q[0]); }).pathColor("color").pathStroke(1.2)
         .labelLat("lat").labelLng("lng").labelText("text").labelSize("size").labelDotRadius(0).labelResolution(2)
         .labelColor(function () { return "rgba(214,220,228,0.85)"; })
@@ -756,17 +1254,23 @@
     document.querySelectorAll('#setbox input[name="look"]').forEach(function (i) { i.checked = i.value === LOOK; });
     if (ground) ground.getContainer().style.filter = look[2] || "";
     if (grid) { map.removeLayer(grid); grid = null; }
-    if (look[3] && !isSun()) {
+    if (look[3] && kindOf() === "ground") {
       grid = L.layerGroup();
       for (var x = -180; x <= 180; x += 15) L.polyline([[-90, x], [90, x]], { renderer: canvas, color: look[3], weight: 1, interactive: false }).addTo(grid);
       for (var y = -90; y <= 90; y += 15) L.polyline([[y, -180], [y, 180]], { renderer: canvas, color: look[3], weight: 1, interactive: false }).addTo(grid);
       grid.addTo(map);
     }
     if (globe) globePicture();
-    if (isSun()) drawFlat();
+    if (isSun() || isReach()) drawFlat();
+  }
+  function dotLayersOff() {
+    Object.keys(layers).forEach(function (k) { var e = layers[k]; if (e && e.r && e.r.layer && map.hasLayer(e.r.layer)) map.removeLayer(e.r.layer); });
   }
   function viewsFor(key) {
-    return BODIES[key].plane ? [["above", "From above"], ["side", "From the side"]] : [["globe", "Globe"], ["flat", "Flat map"]];
+    var k = kindOf(key);
+    // Round 212o (asked 15 October): the Sun view, from above only.
+    return k === "sun" ? [["above", "From above"]] : k === "sky" ? [["chart", "Sky chart"], ["globe", "Sky globe"]]
+      : k === "reach" ? [["scale", "Every scale"]] : [["globe", "Globe"], ["flat", "Flat map"]];
   }
   function setView(v) {
     VIEW = v;
@@ -778,7 +1282,7 @@
     if (v !== "globe") {
       if (globe) globe.pauseAnimation();
       map.invalidateSize();
-      if (isSun()) fitSun(); else drawFlat();
+      if (isSun()) fitSun(); else if (isReach()) fitReach(); else drawFlat();
       return;
     }
     makeGlobe().then(function () { globe.resumeAnimation(); globePicture(); drawGlobe(); })
@@ -797,6 +1301,7 @@
   function snapBack() {
     if (VIEW === "globe" && globe) globe.pointOfView({ lat: 0, lng: 0, altitude: 2.3 }, 800);
     else if (isSun()) fitSun();
+    else if (isReach()) fitReach();
     else map.fitBounds([[-90, -180], [90, 180]]);
   }
   function redraw() { if (VIEW === "globe") drawGlobe(); else drawFlat(); }
@@ -828,7 +1333,9 @@
 
   function swatch(kind) {
     var m = { obj: ["--obj", "--obj-glow"], mass: ["--mass", "--mass-glow"], plan: ["--plan", "--plan-glow"], rover: ["--rover", "--rover-glow"], names: ["--bone", "--rule"],
-      probe: ["--probe", "--probe-glow"], planets: ["--bone", "--rule"] }[kind];
+      probe: ["--probe", "--probe-glow"], planets: ["--bone", "--rule"], stars: ["--obj", "--obj-glow"], starsreach: ["--obj", "--obj-glow"], dso: ["--gal", "--gal-glow"],
+      solarsky: ["--obj", "--obj-glow"], solarreach: ["--obj", "--obj-glow"], pull: ["--plan", "--plan-glow"], galreach: ["--gal", "--gal-glow"], anchors: ["--mass", "--mass-glow"],
+      companions: ["--obj", "--rover-glow"], lagrange: ["--probe", "--probe-glow"], shells: ["--probe", "--probe-glow"], rings: ["--bone", "--rule"], flybys: ["--plan", "--plan-glow"] }[kind] || ["--bone", "--rule"];
     return "background:" + C(m[0]) + ";box-shadow:0 0 0 2px " + C(m[1]) + "66,0 0 6px " + C(m[1]);
   }
   function show(key) {
@@ -837,18 +1344,21 @@
     body = key;
     var b = BODIES[key];
     document.title = b.name + ": human impact";
-    document.getElementById("body-name").textContent = key === "moon" ? "The Moon" : key === "sun" ? "The Sun" : "Mars";
+    document.getElementById("body-name").textContent = b.title || (key === "moon" ? "The Moon" : key === "sun" ? "The Sun" : "Mars");
     try { history.replaceState(null, "", "#" + key); } catch (e) { /* kept */ }
+    dotLayersOff();
     layers = {}; YLO = YHI = YMIN = YMAX = null;
     document.getElementById("info").hidden = true;
     markLayer.clearLayers(); stopLayer.clearLayers(); routeLayer.clearLayers(); nameLayer.clearLayers();
     if (ground) { map.removeLayer(ground); ground = null; }
-    // The map's frame: the body's ground in degrees, or the plane in AU.
-    map.options.crs = b.plane ? L.CRS.Simple : L.CRS.EPSG4326;
-    map.setMinZoom(b.plane ? -3 : 1); map.setMaxZoom(b.plane ? 10 : 11);
-    map.setMaxBounds(b.plane ? null : [[-140, -240], [140, 240]]);
+    // The map's frame: the body's ground in degrees, the sky in degrees, or a
+    // plane (in AU for the Sun view; on rings for the reach views).
+    var k = kindOf(key), simple = k === "sun" || k === "reach";
+    map.options.crs = simple ? L.CRS.Simple : L.CRS.EPSG4326;
+    map.setMinZoom(k === "sun" ? -3 : k === "reach" ? -1 : 1); map.setMaxZoom(k === "sun" ? 10 : k === "reach" ? 9 : k === "sky" ? 12 : 11);
+    map.setMaxBounds(simple ? null : k === "sky" ? [[-100, -200], [100, 200]] : [[-140, -240], [140, 240]]);
     map.attributionControl._attributions = {};
-    if (!b.plane) {
+    if (k === "ground") {
       ground = L.tileLayer(b.tiles, { tileSize: 256, maxNativeZoom: b.native, maxZoom: 11, noWrap: true, bounds: [[-90, -180], [90, 180]], attribution: b.ground }).addTo(map);
       ground.bringToBack();
     } else map.attributionControl.addAttribution(b.ground);
@@ -857,9 +1367,14 @@
     document.querySelector("#setbox .views").innerHTML = viewsFor(key).map(function (v, i) {
       return '<label><input type="radio" name="view" value="' + v[0] + '"' + (i === 0 ? " checked" : "") + "> " + esc(v[1]) + "</label>";
     }).join("");
+    navButtons(key);
+    // Round 212o (asked 15 October): no basemap choices in the Sun view, and no
+    // view choice where there is only one.
+    setbox.classList.toggle("no-looks", k === "sun");
+    setbox.classList.toggle("one-view", viewsFor(key).length < 2);
     setLook(LOOK);
-    if (!b.plane) map.fitBounds([[-90, -180], [90, 180]], { animate: false });
-    if (globe && !b.plane) { globePicture(); globe.pointsData([]).pathsData([]).labelsData([]); globe.pointOfView({ lat: 0, lng: 0, altitude: 2.3 }); }
+    if (k === "ground" || k === "sky") map.fitBounds([[-90, -180], [90, 180]], { animate: false });
+    if (globe && (k === "ground" || k === "sky")) { globePicture(); globe.pointsData([]).pathsData([]).labelsData([]); globe.pointOfView({ lat: 0, lng: 0, altitude: 2.3 }); }
     document.getElementById("body-note").textContent = b.note;
     var rows = document.getElementById("rows");
     rows.innerHTML = "<h1>" + esc(b.heading) + "</h1>";
@@ -876,7 +1391,7 @@
       load(row).then(function (r) {
         if (body !== mine) return;
         entry.r = r;
-        n.textContent = row.sub + " · " + r.count.toLocaleString() + (row.kind === "names" ? " names" : row.rover ? " stops" : row.kind === "planets" ? " planets" : " entries");
+        if (row.kind !== "rings") n.textContent = row.sub + " · " + r.count.toLocaleString() + (row.kind === "names" ? " names" : row.rover ? " stops" : row.kind === "planets" ? " planets" : row.kind === "shells" ? " objects in orbit" : " entries") + (r.note ? " \u00b7 " + r.note : "");
         if (r.unplaced.length) {
           r.unplaced.forEach(function (t) { unplacedAll.push(t + " (" + row.title.replace(/ \(.*\)$/, "") + ")"); });
           document.getElementById("unplaced-sum").textContent = unplacedAll.length + (unplacedAll.length === 1 ? " entry" : " entries") + " with no published place";
@@ -884,16 +1399,35 @@
           unBox.hidden = false;
         }
         timeline();
-        if (b.plane && VIEW !== "globe") fitSun(); else redraw();
+        if (b.plane && VIEW !== "globe") fitSun(); else if (kindOf(mine) === "reach") fitReach(); else redraw();
       }).catch(function () {
         if (body !== mine) return;
         n.textContent = row.sub + " · not built yet: culprits-tiles-more builds it on its next run";
       });
-      box.addEventListener("change", function () { timeline(); redraw(); });
+      box.addEventListener("change", function () { timeline(); if (isSky() && VIEW === "globe" && globe) skyPicture(); redraw(); });
     });
     setView(viewsFor(key)[0][0]);
   }
 
+  // Round 211o (asked 15 October): under Snap back, in this order: back to the
+  // solar system, back to Earth, then on to the other body (Mars from the
+  // Moon, the Moon from Mars; both from the other views). Inside the map they
+  // ask the map to go; on their own, the page switches itself.
+  function navButtons(key) {
+    var on = [];
+    if (inFrame) on.push(["eyes", "\u2190 Back to the solar system"], ["earth", "\u2190 Back to Earth"]);
+    if (key === "moon") on.push(["mars", "To Mars \u2192"]);
+    else if (key === "mars") on.push(["moon", "To the Moon \u2192"]);
+    else on.push(["moon", "To the Moon \u2192"], ["mars", "To Mars \u2192"]);
+    document.getElementById("nav").innerHTML = on.map(function (b) { return '<button type="button" data-nav="' + b[0] + '">' + b[1] + "</button>"; }).join("");
+  }
+  document.getElementById("nav").addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest("[data-nav]");
+    if (!b) return;
+    var to = b.dataset.nav;
+    if (inFrame) { try { window.parent.postMessage({ culpritsNav: to }, "*"); return; } catch (er) { /* on its own below */ } }
+    if (BODIES[to]) show(to);
+  });
   // The box of looks and views, built like the Earth map's.
   var setbox = document.getElementById("setbox");
   setbox.querySelector(".looks").innerHTML = LOOKS.map(function (l) {

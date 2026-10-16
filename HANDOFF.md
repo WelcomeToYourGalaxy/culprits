@@ -5,6 +5,60 @@ touches.
 
 ---
 
+## Round 212o (15 October)
+
+Rounds 210o, 211o and 212o in one file (210o was not uploaded, so 211o could
+not apply). Needs round 209o. Tiles patch round210o_212o_tiles.py still needed.
+
+- Moon and Mars: every mark one small size where the thing is (mass in its
+  box, not its size); smaller on the globe too.
+- The Hell look is called Red on the Moon, Mars and Sun views.
+- Sun view: no basemap choices; from above only; the planets row is off
+  unless ticked (it is only for finding your way); the objects row says
+  they keep circling the Sun for many years rather than burning up.
+- Combine: a short note under "Place layer into group:"; no "Measured
+  against" choice with two groups or fewer; a Clear button (combine off,
+  groups back to their first; ticked layers stay) and a roll-up arrow.
+
+## Round 211o (15 October)
+
+Needs round 210o (guards on its heading). No tiles patch. No app.js?v= bump.
+
+- The Moon, Mars and other views: under Snap back to global scale, in this
+  order: Back to the solar system, Back to Earth, then To Mars (from the
+  Moon) or To the Moon (from Mars), both from the other views. They message
+  the map (culpritsNav); the map's own floating Back to Earth and Moon/Mars/
+  Sun buttons are hidden while a view is open.
+- Rows moved: Light reaching Earth, Anti-gravity and Gravity assists to a
+  new heading under From Earth ("Light, anti-gravity and gravity assists");
+  To Earth keeps "Gravity reaching Earth" (gravity reaching Earth, Earth's
+  gravity reach).
+
+## Round 210o (15 October)
+
+Needs round 209o (guards on its heading). Tiles patch round210o_212o_tiles.py
+(culprits-tiles-more; needs round210o_212o_tiles.py). No app.js?v= bump.
+
+- How far light and gravity reach, three new views in bodies.html:
+  - Sky (#sky): the sky from Earth, as a chart or a globe: every HYG star
+    (119,626) and deep-sky object (~227,000) sized by the light it sends us
+    (W/m2 from its magnitude); the Sun, Moon and planets today (Horizons);
+    gravity reaching Earth from every body with a published mass.
+  - From the Sun (#sunreach) and From Earth (#earthreach): rings every
+    tenfold distance (log scale), direction by galactic longitude; sunlight
+    and pull at each ring; Oort Cloud and the edge of the Sun's hold
+    (100,000-200,000 AU); Earth's Hill sphere; satellites by height (GCAT);
+    Earth's companions and Lagrange-point craft (Horizons); stars, nearest
+    galaxies, Sgr A*, the Milky Way, Andromeda, Great Attractor, Laniakea.
+  - Data: culprits-tiles-more scripts/reach.py -> bodies/reach/.
+- Main map rows: Gravity and light reaching Earth (To Earth): gravity
+  reaching Earth, light reaching Earth, Earth's gravity reach, anti-gravity
+  (map/data/antigravity.geojson, compiled from Wikipedia's Anti-gravity and
+  Freethink, each entry sourced; no working anti-gravity exists). To the
+  Sun: Sunlight's reach, the Sun's gravity reach. Craft in space: gravity
+  assists (Sun view, flybys).
+- A row may turn on several of its view's rows (bodyLayers).
+
 ## Round 209o (15 October)
 
 Needs round 208o (guards on its heading). Tiles patch round209o_tiles.py

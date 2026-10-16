@@ -286,6 +286,8 @@
   .body-frame[hidden]{display:none}
   html.body-open .space-earth,html.body-open .space-edge{display:none!important}
   html.body-open .space-back{z-index:62}
+  /* Round 211o: with the Moon, Mars or another view open, its own box carries the way back. */
+  html.body-open #spaceBack,html.body-open #spaceBodies{display:none!important}
   .space-edge[hidden]{display:none}
   .space-edge .se{position:absolute;pointer-events:auto}
   .space-edge .t{left:0;right:0;top:0;height:46px}

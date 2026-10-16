@@ -1,0 +1,466 @@
+{
+"type": "FeatureCollection",
+"features": [
+{
+"type": "Feature",
+"properties": {
+"name": "Gravity Research Foundation",
+"who": "Roger Babson; the Gravity Research Foundation",
+"when": "1948 to today",
+"what was claimed or done": "Founded by the economist Roger Babson, after his essay 'Gravity—Our Enemy Number One', to find ways to shield against or reduce gravity.",
+"what came of it": "Wikipedia calls its early efforts 'crankish'; it later turned to understanding gravity and now runs a yearly essay award.",
+"status": "no working effect",
+"where": "Wellesley, Massachusetts, as Wikipedia gives it",
+"sources": "https://en.wikipedia.org/wiki/Anti-gravity https://www.freethink.com/space/anti-gravity-propulsion"
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+-71.2924,
+42.2965
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"name": "Thomas Townsend Brown's 'gravitator' and electrogravitics",
+"who": "Thomas Townsend Brown",
+"when": "1921 to the 1950s",
+"what was claimed or done": "Reported that high-voltage asymmetric capacitors lost weight; built 'gravitator' devices, coined 'electrogravitics' and patented the idea in Britain (1928).",
+"what came of it": "Later tests in vacuum found the force was ion wind, ordinary propulsion, not anti-gravity (NASA Glenn Research Center, 2004).",
+"status": "explained as ion wind",
+"where": "Zanesville, Ohio, his home town",
+"sources": "https://en.wikipedia.org/wiki/Anti-gravity https://www.freethink.com/space/anti-gravity-propulsion"
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+-82.0132,
+39.9403
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"name": "Paul Alfred Biefeld (Biefeld–Brown effect)",
+"who": "Paul Alfred Biefeld, Denison University",
+"when": "1920s",
+"what was claimed or done": "Co-namesake of the Biefeld–Brown effect, the claimed weight loss of charged capacitors.",
+"what came of it": "The effect is explained as ion wind.",
+"status": "explained as ion wind",
+"where": "Denison University, Granville, Ohio",
+"sources": "https://www.freethink.com/space/anti-gravity-propulsion"
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+-82.5212,
+40.0717
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"name": "US Office of Naval Research report on Brown's 'Electro-Gravity Device'",
+"who": "US Office of Naval Research",
+"when": "1952",
+"what was claimed or done": "A report on Thomas Townsend Brown's 'Electro-Gravity Device'.",
+"what came of it": "Wikipedia cites it among its references only.",
+"status": "report",
+"where": "the Office of Naval Research, Arlington, Virginia",
+"sources": "https://en.wikipedia.org/wiki/Anti-gravity"
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+-77.111,
+38.8823
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"name": "US Air Force study of the Biefeld–Brown effect (R. L. Talley)",
+"who": "US Air Force",
+"when": "1990",
+"what was claimed or done": "A funded study testing for a force from high-voltage capacitors.",
+"what came of it": "No force above the detection limit of 2 × 10⁻⁹ newtons.",
+"status": "no effect found",
+"where": "Wikipedia names no place",
+"sources": "https://en.wikipedia.org/wiki/Anti-gravity"
+},
+"geometry": null
+},
+{
+"type": "Feature",
+"properties": {
+"name": "Henry Wallace's spinning-disc patents",
+"who": "Henry Wallace",
+"when": "1968–1974",
+"what was claimed or done": "US patents claiming spinning brass discs make a 'gravitomagnetic' field.",
+"what came of it": "'No independent testing or public demonstration ... is known.'",
+"status": "never tested",
+"where": "Wikipedia names no place",
+"sources": "https://en.wikipedia.org/wiki/Anti-gravity"
+},
+"geometry": null
+},
+{
+"type": "Feature",
+"properties": {
+"name": "Hayasaka and Takeuchi's spinning gyroscope",
+"who": "Hayasaka and Takeuchi",
+"when": "1989",
+"what was claimed or done": "Reported in Physical Review Letters that a gyroscope spinning one way weighed less.",
+"what came of it": "A test a year later found nothing (Nitschke and Wilmath, 1990).",
+"status": "not reproduced",
+"where": "Wikipedia names no place",
+"sources": "https://en.wikipedia.org/wiki/Anti-gravity"
+},
+"geometry": null
+},
+{
+"type": "Feature",
+"properties": {
+"name": "Nitschke and Wilmath's test of spinning gyroscopes",
+"who": "Nitschke and Wilmath",
+"when": "1990",
+"what was claimed or done": "Tested whether a spinning gyroscope changes weight.",
+"what came of it": "'Null result for the weight change of a spinning gyroscope' (Physical Review Letters).",
+"status": "no effect found",
+"where": "Wikipedia names no place",
+"sources": "https://en.wikipedia.org/wiki/Anti-gravity"
+},
+"geometry": null
+},
+{
+"type": "Feature",
+"properties": {
+"name": "Douglas Torr's gravitomagnetic fields in superconductors",
+"who": "Douglas Torr, University of Alabama in Huntsville",
+"when": "1991–1993",
+"what was claimed or done": "Papers proposing that a changing magnetic field could make detectable gravity-like fields in superconductors.",
+"what came of it": "No reproducible example has been accepted.",
+"status": "unconfirmed",
+"where": "University of Alabama in Huntsville",
+"sources": "https://en.wikipedia.org/wiki/Anti-gravity"
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+-86.64,
+34.725
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"name": "Eugene Podkletnov's spinning superconductor",
+"who": "Eugene Podkletnov",
+"when": "1992",
+"what was claimed or done": "Claimed a fast-spinning superconducting disc reduced the weight of things above it by 0.3 to 2 percent.",
+"what came of it": "Many attempts to reproduce it, NASA researchers' among them, had negative results.",
+"status": "not reproduced",
+"where": "Tampere University of Technology, Finland, where he worked",
+"sources": "https://en.wikipedia.org/wiki/Anti-gravity https://www.freethink.com/space/anti-gravity-propulsion"
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+23.8586,
+61.4495
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"name": "Ning Li and AC Gravity LLC",
+"who": "Ning Li; AC Gravity LLC",
+"when": "1997–2002",
+"what was claimed or done": "Claimed a superconducting disc could levitate a bowling ball and a working 'AC Gravity' prototype (Popular Mechanics, 1999); AC Gravity received a $450,000 US Department of Defense grant in 2001.",
+"what came of it": "'No further evidence of this prototype has been offered.'",
+"status": "unconfirmed",
+"where": "Huntsville, Alabama",
+"sources": "https://en.wikipedia.org/wiki/Anti-gravity https://www.freethink.com/space/anti-gravity-propulsion"
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+-86.5861,
+34.7304
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"name": "NASA Breakthrough Propulsion Physics Program",
+"who": "NASA",
+"when": "1996–2002",
+"what was claimed or done": "Studied 'far out' propulsion, anti-gravity among it.",
+"what came of it": "Found no evidence of anti-gravity forces; such approaches were listed as non-viable.",
+"status": "no evidence found",
+"where": "NASA Glenn Research Center, Cleveland, Ohio, which ran it",
+"sources": "https://en.wikipedia.org/wiki/Anti-gravity"
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+-81.8619,
+41.4155
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"name": "NASA Glenn's test of asymmetric capacitors",
+"who": "NASA Glenn Research Center",
+"when": "2004",
+"what was claimed or done": "Tested Brown-style 'lifters' for thrust.",
+"what came of it": "No thrust without ion wind.",
+"status": "explained as ion wind",
+"where": "NASA Glenn Research Center, Cleveland, Ohio",
+"sources": "https://www.freethink.com/space/anti-gravity-propulsion"
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+-81.8619,
+41.4155
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"name": "University of South Carolina 'gravity generator'",
+"who": "Douglas Torr and Timir Datta, University of South Carolina",
+"when": "1998",
+"what was claimed or done": "A leaked document (confirmed to Wired) said the university planned to patent and license a 'gravity generator'.",
+"what came of it": "No further public information followed.",
+"status": "nothing published",
+"where": "University of South Carolina, Columbia",
+"sources": "https://en.wikipedia.org/wiki/Anti-gravity"
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+-81.03,
+33.994
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"name": "Jonathan Campbell's test of Brown-type effects",
+"who": "Jonathan Campbell, NASA",
+"when": "2003",
+"what was claimed or done": "An experiment on Biefeld–Brown effects.",
+"what came of it": "Explained as ion wind; no thrust in vacuum.",
+"status": "explained as ion wind",
+"where": "Wikipedia names no place",
+"sources": "https://en.wikipedia.org/wiki/Anti-gravity"
+},
+"geometry": null
+},
+{
+"type": "Feature",
+"properties": {
+"name": "Martin Tajmar's tests",
+"who": "Martin Tajmar (with M. Kößling and O. Neunzig, 2024)",
+"when": "2004 and 2024",
+"what was claimed or done": "Tested steady electric fields in vacuum for anti-gravity effects.",
+"what came of it": "No effects in vacuum; he argues the Biefeld–Brown effect is corona wind.",
+"status": "no effect found",
+"where": "TU Dresden, Germany, where he works",
+"sources": "https://en.wikipedia.org/wiki/Anti-gravity"
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+13.7268,
+51.0285
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"name": "Institute for Gravity Research, Göde Scientific Foundation",
+"who": "Göde Scientific Foundation",
+"when": "2000s",
+"what was claimed or done": "Tried to reproduce many anti-gravity experiments and offered a one-million-euro reward for one that can be reproduced.",
+"what came of it": "'All attempts ... have been unsuccessful thus far.'",
+"status": "none reproduced",
+"where": "Wikipedia names no place",
+"sources": "https://en.wikipedia.org/wiki/Anti-gravity"
+},
+"geometry": null
+},
+{
+"type": "Feature",
+"properties": {
+"name": "CERN: does antimatter fall up?",
+"who": "CERN researchers",
+"when": "2023",
+"what was claimed or done": "Compared antihydrogen escaping from the top and bottom of a vertical vacuum chamber.",
+"what came of it": "Ruled out repulsive gravity between antihydrogen and Earth.",
+"status": "ruled out",
+"where": "CERN, Meyrin, Switzerland",
+"sources": "https://en.wikipedia.org/wiki/Anti-gravity"
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+6.055,
+46.234
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"name": "US Navy 'Craft Using an Inertial Mass Reduction Device' patent",
+"who": "Salvatore Pais, US Department of the Navy",
+"when": "2016–2018",
+"what was claimed or done": "A patent for a craft that would reduce its inertial mass; approved after the Navy's chief technology officer called it feasible.",
+"what came of it": "Physicists call the engineering implausible (it needs unreachable field strengths and power); the patent lapsed in 2018 for non-payment.",
+"status": "unconfirmed",
+"where": "Naval Air Warfare Center, Patuxent River, Maryland, where Pais worked",
+"sources": "https://www.freethink.com/space/anti-gravity-propulsion"
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+-76.4116,
+38.2861
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"name": "Frederick Alzofon's nuclear-spin theory",
+"who": "Frederick Alzofon, Boeing Aerospace",
+"when": "1981",
+"what was claimed or done": "Proposed that aligning nuclear spins could reduce inertia; bench tests in the 1990s claimed up to 17 percent temporary weight loss.",
+"what came of it": "Never peer-reviewed or reproduced; far from mainstream physics.",
+"status": "unconfirmed",
+"where": "the article names no place",
+"sources": "https://www.freethink.com/space/anti-gravity-propulsion"
+},
+"geometry": null
+},
+{
+"type": "Feature",
+"properties": {
+"name": "Hal Puthoff's metric engineering",
+"who": "Hal Puthoff (associated with SRI)",
+"when": "2010",
+"what was claimed or done": "A paper on engineering spacetime, the framework behind the Navy patent.",
+"what came of it": "Needs negative energy density, never shown in any lab.",
+"status": "unconfirmed",
+"where": "SRI International, Menlo Park, California, with which the article associates him",
+"sources": "https://www.freethink.com/space/anti-gravity-propulsion"
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+-122.175,
+37.4566
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"name": "Exodus Propulsion Technologies",
+"who": "Charles Buhler (NASA electrostatics), Andrew Aurigema",
+"when": "2023–2024",
+"what was claimed or done": "Reported a 40-gram electrostatic unit giving thrust equal to its weight, without propellant; plans an orbital test on a cube satellite.",
+"what came of it": "The explanation offered seems to contradict basic electrostatics and the patent filing has physics errors, though a real force may have been measured.",
+"status": "unconfirmed",
+"where": "Merritt Island, Florida",
+"sources": "https://www.freethink.com/space/anti-gravity-propulsion https://www.fox35orlando.com/news/florida-company-aims-revolutionize-space-travel-electrostatic-propulsion"
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+-80.666,
+28.3181
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"name": "Falcon Space and the Alternative Propulsion Energy Conference",
+"who": "Mark Sokol, Falcon Space",
+"when": "2021 to today",
+"what was claimed or done": "Researches propellantless propulsion, testing past anti-gravity claims (nuclear-spin alignment, superconductors); hosts the conference, with live 'anti-gravity' experiments in 2021.",
+"what came of it": "No result reported.",
+"status": "no result published",
+"where": "Hawthorne, New Jersey",
+"sources": "https://www.freethink.com/space/anti-gravity-propulsion https://www.deep-tech-week.com/organizations/falcon-space https://thedebrief.org/alternative-propulsion-conference-to-showcase-live-anti-gravity-experiments/"
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+-74.1538,
+40.9493
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"name": "Hoverr Inc",
+"who": "Hoverr Inc",
+"when": "2023",
+"what was claimed or done": "Received a $275,000 US National Science Foundation small-business grant for its design.",
+"what came of it": "No result reported.",
+"status": "no result published",
+"where": "California; the article names no city",
+"sources": "https://www.freethink.com/space/anti-gravity-propulsion"
+},
+"geometry": null
+},
+{
+"type": "Feature",
+"properties": {
+"name": "AGES Tech",
+"who": "AGES Tech",
+"when": "2020s",
+"what was claimed or done": "Researching anti-gravity propulsion systems.",
+"what came of it": "No result reported.",
+"status": "no result published",
+"where": "Australia; the article names no city",
+"sources": "https://www.freethink.com/space/anti-gravity-propulsion"
+},
+"geometry": null
+},
+{
+"type": "Feature",
+"properties": {
+"name": "Lindgren, Kovacs and Liukkonen's geometric electromagnetism",
+"who": "Jussi Lindgren, Andras Kovacs, Jukka Liukkonen",
+"when": "2025",
+"what was claimed or done": "A theory paper predicting gravity-like effects in spinning superconductors (Journal of Physics: Conference Series).",
+"what came of it": "Theory only; no experiment.",
+"status": "theory only",
+"where": "the article names no place",
+"sources": "https://www.freethink.com/space/anti-gravity-propulsion"
+},
+"geometry": null
+}
+],
+"note": "Compiled for the Culprits map, round 210o, from the sources named in each entry. Places are the institution or town each source names; entries whose source names no place have no position."
+}

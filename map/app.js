@@ -3754,14 +3754,16 @@ function showBack(on) {
 let BODY_OPEN = null;
 // Round 202o: which Moon and Mars rows are ticked in the layers box, sent to
 // the body map so it shows those (a body with none ticked shows all its own).
-const BODY_PICK = { moon: {}, mars: {}, sun: {} };
+const BODY_PICK = { moon: {}, mars: {}, sun: {}, sky: {}, sunreach: {}, earthreach: {} };
 function bodyPost() {
   const f = document.getElementById("bodyFrame");
   if (f && f.src && f.contentWindow && typeof f.contentWindow.postMessage === "function") f.contentWindow.postMessage({ culpritsLayers: BODY_PICK }, "*");
 }
 let bodyOpenTimer = null;
 function bodyRowChanged(row, on) {
-  BODY_PICK[row.body][row.bodyLayer] = !!on;
+  // Round 210o: a row may turn on several of its view's rows (bodyLayers).
+  if (!BODY_PICK[row.body]) BODY_PICK[row.body] = {};
+  for (const l of row.bodyLayers || [row.bodyLayer]) BODY_PICK[row.body][l] = !!on;
   if (!on) { bodyPost(); return; }
   const go = () => { openBody(row.body); bodyPost(); };
   clearTimeout(bodyOpenTimer);
@@ -3770,7 +3772,7 @@ function bodyRowChanged(row, on) {
 function openBody(key) {
   const f = document.getElementById("bodyFrame");
   if (!f) return;
-  if (!f.src) { f.addEventListener("load", bodyPost); f.src = new URL("bodies.html?v=209#" + key, document.baseURI).href; }
+  if (!f.src) { f.addEventListener("load", bodyPost); f.src = new URL("bodies.html?v=210#" + key, document.baseURI).href; }
   else if (f.contentWindow && typeof f.contentWindow.postMessage === "function") f.contentWindow.postMessage({ culpritsBody: key }, "*");
   f.hidden = false;
   BODY_OPEN = key;
@@ -3779,7 +3781,7 @@ function openBody(key) {
 function closeBody() {
   const f = document.getElementById("bodyFrame");
   if (f) f.hidden = true;
-  if (!AWAY) { BODY_PICK.moon = {}; BODY_PICK.mars = {}; BODY_PICK.sun = {}; }
+  if (!AWAY) for (const k of Object.keys(BODY_PICK)) BODY_PICK[k] = {};
   BODY_OPEN = null;
   bodyButtons();
 }
@@ -3853,6 +3855,16 @@ function leaveEarth() {
   }
 }
 
+// Round 211o (asked 15 October): the Moon, Mars and other views carry their
+// own way back, under Snap back: back to the solar system (Eyes), back to
+// Earth, or on to the other body. They ask this page by message.
+if (typeof window !== "undefined" && window.addEventListener) window.addEventListener("message", (e) => {
+  const nav = e && e.data && e.data.culpritsNav;
+  if (!nav) return;
+  if (nav === "eyes") closeBody();
+  else if (nav === "earth") backToMap();
+  else if (/^[a-z]+$/.test(nav)) openBody(nav);
+});
 function backToMap() {
   if (!AWAY) return;
   AWAY = false;
@@ -20472,8 +20484,9 @@ function comboList() {
   const grp = comboGroups(ids);
   // Round 207o (asked 14 October): the old heading over the groups gone; the
   // list headed "Place layer into group:"; "left out" said plainly.
-  el.innerHTML = ids.length ? `<div style="margin:4px 0 2px">Layers in the same group count as one, so only crossings between different groups are shown. A layer set to "not combined" is shown in full, as if Combine were off.</div>` +
-    `<div class="combo-h">Place layer into group:</div>` + ids.map((id) => {
+  // Round 212o (asked 15 October): a short note under the heading, before the menus.
+  el.innerHTML = ids.length ? `<div class="combo-h">Place layer into group:</div>` +
+    `<div style="margin:0 0 3px;color:var(--dim)">Layers in one group count as one; only crossings between groups show. "Not combined" shows a layer whole.</div>` + ids.map((id) => {
       const out = (COMBO.weights.has(id) ? COMBO.weights.get(id) : 1) > 0 ? null : "0";
       const now = out || grp.get(id);
       return `<div style="display:flex;gap:6px;align-items:center;margin:2px 0"><select data-combo-weight="${escapeHtml(id)}" style="font:inherit;font-size:10.5px">` +
@@ -20705,6 +20718,9 @@ function comboStatsRender() {
   const groups = [...st.present.keys()].sort();
   let by = COMBO.statsBy;
   if (by !== "any" && !st.present.has(by)) by = COMBO.statsBy = "any";
+  // Round 212o (asked 15 October): with two groups there is nothing to choose
+  // between, so the choice is not shown.
+  if (groups.length <= 2) by = "any";
   const nameOf = (id) => { const c = LAYERS.find((x) => x.id === id) || (typeof childById === "function" ? childById(id) : null); return String((c && c.name) || id); };
   const members = (g) => st.rows.filter((r) => r.grp === g).map((r) => nameOf(r.id));
   const pct = (v) => v == null ? "nothing there" : v > 0 && v < 0.005 ? "under 1%" : `${Math.round(v * 100)}%`;
@@ -20718,9 +20734,9 @@ function comboStatsRender() {
   const test = COMBO.mode === "overlap" ? `lies within about 50 km of ${other}`
     : `is in its own top fifth within about 50 km of ${other} in its own top fifth`;
   el.innerHTML = `<div class="combo-h" style="margin-top:6px">How much of each layer meets the others</div>` +
-    `<div style="margin:0 0 2px">Measured against <select id="combo-by" style="font:inherit;font-size:10.5px;max-width:100%"><option value="any"${by === "any" ? " selected" : ""}>${solo ? "every other ticked layer" : "every other group"}</option>` +
+    (groups.length <= 2 ? "" : `<div style="margin:0 0 2px">Measured against <select id="combo-by" style="font:inherit;font-size:10.5px;max-width:100%"><option value="any"${by === "any" ? " selected" : ""}>${solo ? "every other ticked layer" : "every other group"}</option>` +
     groups.map((g) => { const m = members(g); return `<option value="${escapeHtml(g)}"${by === g ? " selected" : ""}>${solo ? "" : `group ${escapeHtml(g)}: `}${escapeHtml(m[0] || "")}${m.length > 1 ? ` and ${m.length - 1} more` : ""}</option>`; }).join("") +
-    `</select></div>` +
+    `</select></div>`) +
     rows.map((r) => `<div style="margin:3px 0">${escapeHtml(nameOf(r.id))}${solo ? "" : ` (group ${escapeHtml(r.grp)})`}: ` +
       (r.same ? (solo ? "the layer measured against" : "in that group itself")
         : `${pct(r.world)} ${what(r.kind)} worldwide ${test}; in the part of the map in view, ${pct(r.view)}.`) + `</div>`).join("");
@@ -24803,13 +24819,13 @@ const OTHER_MAPS = {
     { id: "moon_objects", name: "Moon hardware spotted in orbital photos (LROC)", unit: "opens the Moon view, objects", colour: "#E8E2D4", route: "leave", body: "moon", bodyLayer: "objects", ready: true, lazy: true,
       note: "How it differs from the Wikipedia row: this one pins each piece of hardware exactly where LROC's camera has photographed it, down to experiments and laser reflectors, but gives no masses. LROC's coordinates of human-made objects on the Moon: landers, rovers, experiments left behind, impact craters and retroreflectors (NASA/GSFC/Arizona State University, public domain; Wagner et al. 2017). Ticked, the map leaves Earth and opens the Moon view with this layer on." },
     { id: "moon_list", name: "Moon spacecraft by weight, every mission (Wikipedia)", unit: "opens the Moon view, objects", colour: "#C98BA0", route: "leave", body: "moon", bodyLayer: "list", ready: true, lazy: true,
-      note: "How it differs from the LROC row: one mark per mission's craft or rocket stage, with its mass, crashes and lost craft included, but places are approximate and small items are left out. Wikipedia's List of artificial objects on the Moon, every row and column, sized by mass (CC BY-SA 4.0). Ticked, the map leaves Earth and opens the Moon view with this layer on." },
+      note: "How it differs from the LROC row: one mark per mission's craft or rocket stage, with its mass, crashes and lost craft included, but places are approximate and small items are left out. Wikipedia's List of artificial objects on the Moon, every row and column, each mark where the list puts it, its mass in its box (CC BY-SA 4.0). Ticked, the map leaves Earth and opens the Moon view with this layer on." },
     { id: "moon_artemis", name: "Planned crewed Moon landing regions (NASA)", unit: "opens the Moon view, regions", colour: "#7F9BE0", route: "leave", body: "moon", bodyLayer: "artemis", ready: true, lazy: true,
       note: "NASA's nine candidate regions for the next crewed landing (28 October 2024), each placed at the IAU centre of the feature it is named after, since NASA published them only as a picture. Ticked, the map leaves Earth and opens the Moon view with this layer on." },
     { id: "moon_names", name: "Moon place names, for finding your way (IAU)", unit: "opens the Moon view, names", colour: "#DCD6C6", route: "leave", body: "moon", bodyLayer: "names", ready: true, lazy: true,
       note: "Every IAU name on the Moon (USGS Gazetteer of Planetary Nomenclature); more appear as you zoom in. Ticked, the map leaves Earth and opens the Moon view with this layer on." },
     { id: "mars_list", name: "Mars spacecraft by weight, every mission (Wikipedia)", unit: "opens the Mars view, objects", colour: "#C98BA0", route: "leave", body: "mars", bodyLayer: "list", ready: true, lazy: true,
-      note: "Wikipedia's List of artificial objects on Mars, every row and column, sized by mass (CC BY-SA 4.0). Ticked, the map leaves Earth and opens the Mars view with this layer on." },
+      note: "Wikipedia's List of artificial objects on Mars, every row and column, each mark where the list puts it, with its mass in its box (CC BY-SA 4.0). Ticked, the map leaves Earth and opens the Mars view with this layer on." },
     { id: "mars_m20", name: "Perseverance rover's route and position, live (NASA/JPL)", unit: "opens the Mars view, stops", colour: "#9FD0DC", route: "leave", body: "mars", bodyLayer: "m20", ready: true, lazy: true,
       note: "Every stop and drive of the Perseverance rover since it landed in Jezero crater in 2021, read live from NASA/JPL's own rover map. Ticked, the map leaves Earth and opens the Mars view with this layer on." },
     { id: "mars_msl", name: "Curiosity rover's route and position, live (NASA/JPL)", unit: "opens the Mars view, stops", colour: "#9FD0DC", route: "leave", body: "mars", bodyLayer: "msl", ready: true, lazy: true,
@@ -24828,6 +24844,23 @@ const OTHER_MAPS = {
       note: "Every table on Wikipedia's List of photovoltaics companies that names companies (module shipments by year, production lines, polysilicon, cell and module makers, factories), every row and column as written, each placed at the company's headquarters as Wikidata records it (CC BY-SA 4.0; Wikidata CC0). A company Wikidata does not place is kept and listed as not placed." },
     { id: "sun_objects", name: "Human-made objects orbiting the Sun: probes and spent stages (GCAT)", unit: "opens the Sun view, objects", colour: "#B9D7E6", route: "leave", body: "sun", bodyLayer: "objects", ready: true, lazy: true,
       note: "Jonathan McDowell's General Catalog of Artificial Space Objects, its Heliocentric Register: every probe, spent rocket stage and part in orbit round the Sun, every column as given (CC BY). Each is placed where NASA/JPL's Horizons follows it today; those Horizons does not follow are listed. Ticked, the map leaves Earth and opens the Sun view: the plane the planets go round in, seen from above or from the side." },
+    // Round 210o (asked 15 October): how far light and gravity reach, and
+    // who claims to defy gravity. Each opens the view it belongs to.
+    { id: "sun_light", name: "Sunlight's reach: how much arrives at every planet, star and galaxy", unit: "opens the From the Sun view", colour: "#E8E2D4", route: "leave", body: "sunreach", bodyLayer: "light", bodyLayers: ["light", "solar", "stars", "galaxies", "anchors"], ready: true, lazy: true,
+      note: "Sunlight has no edge: it keeps travelling and grows dimmer with the square of the distance (twice as far, a quarter of the light). Rings every tenfold distance give the sunlight arriving there in W/m\u00b2 (1,361 W/m\u00b2 at Earth) and how long it takes; every planet, every star with a known distance in the HYG catalogue and the nearest galaxies are placed, each with the Sun's light and pull there. Ticked, the map leaves Earth and opens that view." },
+    { id: "sun_pull", name: "The Sun's gravity reach: its pull at every distance, and where its hold ends", unit: "opens the From the Sun view", colour: "#C98BA0", route: "leave", body: "sunreach", bodyLayer: "pull", bodyLayers: ["pull", "solar", "anchors"], ready: true, lazy: true,
+      note: "The Sun's pull (GM over distance squared) on every ring out to the farthest galaxies, the inner and outer Oort Cloud, and where its hold ends, 100,000 to 200,000 AU (1.6 to 3.2 light-years; Levison and Dones 2007), beyond which the galaxy's pull takes its objects; and the larger pulls the Sun is caught in: the Milky Way's black hole and the galaxy, Andromeda, the Great Attractor and Laniakea. Ticked, the map leaves Earth and opens that view." },
+    { id: "earth_pull_in", name: "Gravity reaching Earth: every body with a published mass, and its pull on us", unit: "opens the Sky view", colour: "#7F9BE0", route: "leave", body: "sky", bodyLayer: "pull", bodyLayers: ["pull", "solar"], ready: true, lazy: true,
+      note: "Placed where each is in the sky and sized by its pull on Earth (its mass times the gravitational constant over its distance squared): the Sun, Moon and planets (NASA/JPL Horizons), the nearest stars (Wikipedia's List of nearest stars), the nearest galaxies with a mass on Wikidata, the Milky Way's black hole, the galaxy itself, Andromeda, the Great Attractor and Laniakea, each with its source. Ticked, the map leaves Earth and opens that view." },
+    { id: "earth_light_in", name: "Light reaching Earth: every star, galaxy, cluster and nebula, and how much arrives", unit: "opens the Sky view", colour: "#E8E2D4", route: "leave", body: "sky", bodyLayer: "stars", bodyLayers: ["stars", "dso", "solar"], ready: true, lazy: true,
+      note: "Every star in the HYG catalogue (119,626) and every object in its deep-sky catalogue (about 227,000, mostly galaxies), placed where each is in the sky and sized by the light it sends us, worked out in W/m\u00b2 from its brightness; a click gives its distance, how long its light took, and every column the catalogue gives. Ticked, the map leaves Earth and opens that view." },
+    { id: "earth_pull_out", name: "Earth's gravity reach: what lies within its pull, from satellites to galaxies", unit: "opens the From Earth view", colour: "#8FC3DE", route: "leave", body: "earthreach", bodyLayer: "pull", bodyLayers: ["pull", "orbit", "companions", "lagrange", "solar", "anchors"], ready: true, lazy: true,
+      note: "Earth's pull on every ring out to the farthest galaxies; its Hill sphere (about 1.5 million km), inside which things can orbit it; every satellite, spent stage and piece of debris still in orbit, counted by height (GCAT); the Moon, quasi-satellites, minimoons and trojans (Wikipedia's Claimed moons of Earth) and the spacecraft at the Lagrange points, placed where NASA/JPL Horizons has them today. Ticked, the map leaves Earth and opens that view." },
+    { id: "antigravity", name: "Anti-gravity: everyone who has claimed, funded or tested it", unit: "players", colour: "#9C8CC8", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Anti-gravity", url: DATA_BASE + "/antigravity.geojson" }], nameFrom: ["name"],
+      note: "No working anti-gravity exists: no claim has been reproduced, and tests at NASA, the US Air Force, TU Dresden and CERN found nothing. Every person, company, lab and programme named in Wikipedia's Anti-gravity article and in Freethink's survey of the search, each with what was claimed, what came of it, and its source, placed at the institution or town its source names. Those whose source names no place are listed in the file without a position: the US Air Force's 1990 study, Henry Wallace's patents, Hayasaka and Takeuchi, Nitschke and Wilmath, Jonathan Campbell, the Göde foundation's institute, Frederick Alzofon, Hoverr Inc (California), AGES Tech (Australia), and Lindgren, Kovacs and Liukkonen. Compiled for this map." },
+    { id: "gravity_assists", name: "Gravity assists: spacecraft that used a planet's pull to speed up or turn", unit: "opens the Sun view, flybys", colour: "#7F9BE0", route: "leave", body: "sun", bodyLayer: "flybys", ready: true, lazy: true,
+      note: "Every flyby in Wikipedia's Planetary flyby and List of Earth flybys tables, each drawn in the Sun view where the planet was that day (NASA/JPL Horizons); most swung past to take speed or change course from the planet's pull. Ticked, the map leaves Earth and opens the Sun view." },
     { id: "eyes_craft", name: "Spacecraft in space, going galactic (NASA's Eyes on the Solar System)", unit: "leaves Earth for Eyes, as the Leave Earth button does", colour: "#5E6070", route: "leave", ready: true, lazy: true,
       page: "https://eyes.nasa.gov/apps/solar-system/#/home?featured=false&logo=false&shareButton=false&hd=true",
       note: "Ticked, the map turns to Earth's face and size in NASA/JPL's Eyes on the Solar System and hands the screen over, exactly as the Leave Earth button and zooming out past the globe do (asked for 25 September, in place of the panel along the bottom). In Eyes, every spacecraft it follows is placed where it is now, with its mission. The box in the corner, or unticking, brings the map back." },
@@ -26489,6 +26522,8 @@ const LAYER_KIND = {
   moon_objects: ["insentient", "downstream"], moon_list: ["insentient", "downstream"], moon_artemis: ["insentient", "downstream"], moon_names: ["insentient", "downstream"],
   mars_list: ["insentient", "downstream"], mars_m20: ["insentient", "downstream"], mars_msl: ["insentient", "downstream"], mars_names: ["insentient", "downstream"],
   solar_gem: ["insentient", "upstream"], solar_companies: ["insentient", "upstream"], sun_objects: ["insentient", "downstream"],
+  sun_light: ["insentient", "downstream"], sun_pull: ["insentient", "downstream"], earth_pull_in: ["insentient", "downstream"], earth_light_in: ["insentient", "downstream"],
+  earth_pull_out: ["insentient", "downstream"], antigravity: ["insentient", "upstream"], gravity_assists: ["insentient", "downstream"],
   leverage_chart: ["human", "upstream"],
   cfr_tracker: ["human", "upstream"],
   site_banking_dynasties_charts: ["human", "upstream"],
@@ -28354,16 +28389,20 @@ const PANEL_ORDER = [
   // above Off-planet invasion; empty until they name its layers.
   { h: 1, t: "Off-planet invasion" },
   { h: 2, t: "To Earth" },
+  // Round 210o: the light and pull reaching Earth, Earth's own reach, and anti-gravity.
+  { h: 3, t: "Gravity reaching Earth" }, "earth_pull_in", "earth_pull_out",
   { h: 3, t: "Near-Earth object impacts" }, "esa_risk",
   { h: 3, t: "Unidentified anomalous phenomena" }, "ufo_sightings", "site_ufo_pre1900",
   { h: 2, t: "From Earth" },
   { h: 3, t: "The space industry" }, "space_industry",
   { h: 3, t: "Space launches" }, "ll2_pads", "ll2_upcoming",
   { h: 3, t: "Craft in space" }, "eyes_craft",
+  // Round 211o (asked 15 October): light reaching Earth, anti-gravity and gravity assists under From Earth.
+  { h: 3, t: "Light, anti-gravity and gravity assists" }, "earth_light_in", "antigravity", "gravity_assists",
   // Round 202o: the Moon and Mars, each a heading of its own.
   { h: 3, t: "To the Moon" }, "moon_objects", "moon_list", "moon_artemis", "moon_names",
   { h: 3, t: "To Mars" }, "mars_list", "mars_m20", "mars_msl", "mars_names",
-  { h: 3, t: "To the Sun" }, "solar_gem", "solar_companies", "sun_objects",
+  { h: 3, t: "To the Sun" }, "solar_gem", "solar_companies", "sun_objects", "sun_light", "sun_pull",
   { h: 3, t: "Extraterrestrial life" }, "biosignature",
   // Base and reference (empty since 25 September) taken out; Buildings was
   // taken out with it (26 September, round 56) and put back at the owner's
@@ -29872,7 +29911,12 @@ function comboBox(box) {
   wrap.id = "combo-box";
   wrap.className = "combo-box";
   // Round 200o (asked 14 October): the groups list right under the title.
-  wrap.innerHTML = `<div style="font-size:11.5px">Combine the ticked layers</div>` +
+  // Round 212o (asked 15 October): a Clear button, which puts the combine back
+  // to off without touching the ticked layers, and an arrow that rolls the box up.
+  wrap.innerHTML = `<div class="combo-top"><span style="font-size:11.5px">Combine the ticked layers</span>` +
+    `<button type="button" class="chip combo-clear" id="combo-clear" title="Turn the combine off and put every layer back in its first group; the ticked layers stay ticked">Clear</button>` +
+    `<button type="button" class="p-roll combo-roll" id="combo-roll" aria-expanded="true" title="Roll this box up or down">&#9652;</button></div>` +
+    `<div id="combo-body">` +
     `<div id="combo-rows" style="font-size:10.5px"></div>` +
     `<div class="combo-h">Choose how to combine the layers:</div>` +
     `<select id="combo-mode" aria-label="Combine the ticked layers" style="font:inherit;font-size:11.5px;max-width:100%;margin:3px 0">` +
@@ -29882,8 +29926,22 @@ function comboBox(box) {
     `<div id="combo-fade-row" class="combo-fade" hidden><div class="combo-h">Show the parts that don't cross</div>` +
     `<div style="display:flex;align-items:center;gap:6px"><span>hidden</span><input type="range" id="combo-fade" min="0" max="100" step="5" value="${Math.round(COMBO.fade * 100)}" aria-label="How much of the parts that do not cross is shown" style="flex:1;min-width:0">` +
     `<span id="combo-fade-say" style="min-width:30px;text-align:right">${comboFadeSay()}</span></div></div>` +
-    `<div id="combo-stats" style="font-size:10.5px"></div>`;
+    `<div id="combo-stats" style="font-size:10.5px"></div></div>`;
   box.parentElement.insertBefore(wrap, box);
+  wrap.querySelector("#combo-clear").addEventListener("click", () => {
+    COMBO.groups.clear();
+    COMBO.weights.clear();
+    COMBO.statsBy = "any";
+    const sel = wrap.querySelector("#combo-mode");
+    if (sel) sel.value = "off";
+    comboMode("off");
+  });
+  wrap.querySelector("#combo-roll").addEventListener("click", (e) => {
+    const body = wrap.querySelector("#combo-body"), b = e.currentTarget;
+    body.hidden = !body.hidden;
+    b.innerHTML = body.hidden ? "&#9662;" : "&#9652;";
+    b.setAttribute("aria-expanded", String(!body.hidden));
+  });
   wrap.addEventListener("input", (e) => {
     if (!e.target || e.target.id !== "combo-fade") return;
     COMBO.fade = Math.max(0, Math.min(1, Number(e.target.value) / 100));
@@ -29906,7 +29964,10 @@ function comboBox(box) {
     }
   });
   addStyle(".combo-box{margin:2px 0 8px;padding:6px 8px;border:1px solid rgba(255,255,255,.14);border-radius:5px;background:rgba(0,0,0,.18)}" +
-    ".combo-box .combo-h{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--bone);margin:6px 0 2px}", "combo-box");
+    ".combo-box .combo-h{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--bone);margin:6px 0 2px}" +
+    ".combo-box .combo-top{display:flex;align-items:center;gap:6px}.combo-box .combo-top>span{flex:1}" +
+    ".combo-box .combo-clear{font:inherit;font-size:10.5px;padding:1px 8px;border-radius:9px;border:1px solid rgba(255,255,255,.18);background:none;color:var(--ink,#e8e2d6);cursor:pointer}" +
+    ".combo-box .combo-roll{background:none;border:0;color:var(--dim);cursor:pointer;font-size:12px;padding:0 2px}", "combo-box");
 }
 function layerSearch(box) {
   if (!box || !box.parentElement || typeof document.createElement !== "function" || document.getElementById("layer-search")) return;
