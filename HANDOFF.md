@@ -5,6 +5,29 @@ touches.
 
 ---
 
+## Round nh2 (16 October, the Invasion of non-humans chat)
+
+Needs round nh1 (guards on its heading).
+
+- New rows, filed where the owner asked:
+  - **trawl_mpas** (route geojsonlive; NOT_LIVE entry) straight under Destruction > Of the planet >
+    Biodiversity loss: every marine and partly marine area of the WDPA as a dot, with Global
+    Fishing Watch trawler and dredge hours inside it (tiles nonhuman_trawl_mpas.py, reusing
+    gfw_trawling.ask and the GFW_TOKEN secret; squares weighted by the share the boundary covers).
+  - **wgi_va, wgi_pv, wgi_ge, wgi_rq, wgi_rl, wgi_cc** (route country, totalsFrom
+    nonhuman/wgi.json, field <key>_rank, linear 0-100, reverse) under a new heading
+    Biodiversity loss > How the countries are governed (the page's footnote 19.7; tiles
+    nonhuman_wgi.py, World Bank source 3).
+  - Two older checks in map/test.mjs (round 23 / 99b) now allow a row straight under
+    Biodiversity loss and the new last heading.
+- The owner's free-flowing rivers request (Grill et al. 2019) was already on the map as fish_rivers
+  under Biodiversity loss > Fish; nothing added.
+- nonhuman_atlas's note lists the map's new parts: where pesticides are made (EPA, live; E-PRTR),
+  EU banned pesticide exports (Unearthed and Public Eye), PAN's banned pesticides, roads (GRIP4),
+  drained wetlands (Fluet-Chouinard et al. 2023), human modification inside each protected area,
+  and oil and gas sites (OGIM) by distance from protected areas. Those live in the map's own
+  code (maps repo invasion-of-nonhumans.html), not here.
+
 ## Round 215o (16 October)
 
 Needs round 214o (guards on its heading). No tiles patch. No app.js?v= bump.

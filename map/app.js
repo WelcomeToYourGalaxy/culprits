@@ -23397,7 +23397,7 @@ const SITE_MAPS = {
     { id: "nonhuman_atlas", name: "Invasion of non-humans worldwide: land and sea taken over, invasive species, pesticides, and protected areas undone and mined around (the site's map)",
       unit: "parts", colour: "#2E8FBA", route: "nhatlas", ready: true, lazy: true, keepColour: true, noAreaDots: true,
       pageUrl: "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/invasion-of-nonhumans.html",
-      note: "The site's Invasion of non-humans map, run here by its own code, read from the maps repo when the row is first ticked. Its parts are ticked under the row, each marked live or not live: how people have taken over the land from 10,000 BCE to 2017 (Anthromes 12K) and how much they have changed it today (Human Modification index); the human impacts on the ocean (Halpern et al. 2019); records of invasive and introduced species (GBIF, live), introduced and invasive species per country (GRIIS), when alien species were first recorded (First Records database) and what they have cost (InvaCost); pesticides applied by ingredient (PEST-CHEMGRIDS), pesticide pollution risk (Tang et al. 2021), pesticide use and trade per country (FAOSTAT), the largest pesticide companies and what they own (Wikidata) and pesticides running off into the sea; protected areas by IUCN category (World Database on Protected Areas via Global Forest Watch, the same source as the protected areas row under Biodiversity loss), PADDD events (PADDDtracker), mines by distance from protected areas, and Global Forest Watch's concession maps. The copies are made by culprits-tiles-more (scripts/nonhuman_*.py) into its nonhuman folder; each part's i says how often." },
+      note: "The site's Invasion of non-humans map, run here by its own code, read from the maps repo when the row is first ticked. Its parts are ticked under the row, each marked live or not live: how people have taken over the land from 10,000 BCE to 2017 (Anthromes 12K) and how much they have changed it today (Human Modification index); the human impacts on the ocean (Halpern et al. 2019); records of invasive and introduced species (GBIF, live), introduced and invasive species per country (GRIIS), when alien species were first recorded (First Records database) and what they have cost (InvaCost); pesticides applied by ingredient (PEST-CHEMGRIDS), pesticide pollution risk (Tang et al. 2021), pesticide use and trade per country (FAOSTAT), the largest pesticide companies and what they own (Wikidata), where pesticides are made in the United States (EPA, live) and Europe (E-PRTR), pesticides banned in the EU that EU countries planned to export (Unearthed and Public Eye), which pesticides each country bans (PAN International) and pesticides running off into the sea; roads (GRIP4) and wetlands drained since 1700 (Fluet-Chouinard et al. 2023); protected areas by IUCN category (World Database on Protected Areas via Global Forest Watch, the same source as the protected areas row under Biodiversity loss), how much people have changed the land inside each protected area (Human Modification index), PADDD events (PADDDtracker), mines and oil and gas sites (OGIM) by distance from protected areas, and Global Forest Watch's concession maps. The copies are made by culprits-tiles-more (scripts/nonhuman_*.py) into its nonhuman folder; each part's i says how often." },
     { id: "site_environment_law_shapes", name: "Environmental law instruments — areas", unit: "areas", colour: "#5A6B72", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_environment_law_shapes.geojson",
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
     { id: "site_export_credit_shading", name: "Export credit agencies — country shading", unit: "countries", colour: "#5E6A63", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_export_credit_shading.geojson",
@@ -23960,6 +23960,38 @@ const OTHER_MAPS = {
       attribution: "Grill et al. 2019, Nature; WWF and McGill University (CC BY 4.0)", rasterPaint: { "raster-opacity": 0.95 },
       choices: [], choicesUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/fish_rivers.choices.json",
       note: "Mapping the world's free-flowing rivers (Grill et al. 2019, Nature; CC BY 4.0): every river reach of HydroRIVERS, 8.5 million of them, with its connectivity status index, which says how far dams, reservoirs, roads and water use have cut the river up and changed its flow. A river is free-flowing where the index is 95% or more along its whole length. Drawn from the map's own copy, made by culprits-tiles-more (scripts/fish_rivers.py); every reach is drawn, each square taking the most broken reach in it." },
+    // Round nh2 (asked 16 October): bottom trawling and dredging inside each
+    // marine protected area, filed straight under Biodiversity loss
+    // (tiles nonhuman_trawl_mpas.py).
+    { id: "trawl_mpas", name: "Bottom trawling and dredging inside marine protected areas, hours a year in each (Global Fishing Watch, against the WDPA)", unit: "marine protected areas", colour: "#2E8FBA", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Marine protected areas", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/nonhuman/trawl_mpas.geojson" }],
+      note: "Every marine and partly marine protected area in the World Database on Protected Areas (UNEP-WCMC and IUCN), as a dot at a point inside it, with the hours Global Fishing Watch's apparent fishing effort shows trawlers and dredges fishing inside its boundary in the latest full year, and those hours per square kilometre. Each 0.1 degree square of fishing is counted by the share of it the boundary covers, which assumes the hours are spread evenly across the square. Global Fishing Watch's trawlers include mid-water trawlers; dredges all work the seabed. Areas with no trawling are kept. Made monthly by culprits-tiles-more (scripts/nonhuman_trawl_mpas.py); non-commercial use with credit to Global Fishing Watch." },
+    // Round nh2: how the countries are governed, beside where the species are
+    // (the On-planet invasion page, footnote 19.7). Tiles nonhuman_wgi.py.
+    { id: "wgi_va", name: "Voice and accountability, each country's percentile rank, newest year (Worldwide Governance Indicators, World Bank)", unit: "percentile rank, 0 to 100", colour: "#1E6FA8", route: "country", ready: true, lazy: true, buildScript: "nonhuman_wgi",
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/nonhuman/wgi.json", field: "va_rank" }, linear: [0, 100], reverse: true,
+      attribution: "World Bank, Worldwide Governance Indicators (CC BY 4.0)",
+      note: "The World Bank's Worldwide Governance Indicators (Kaufmann and Kraay): voice and accountability, as each country's percentile rank among all countries in the newest year (0 the lowest, 100 the highest), shaded darker the lower it ranks. Each country's box holds its newest rank for all six measures. Copied weekly from the World Bank's open data service by culprits-tiles-more (scripts/nonhuman_wgi.py), with every year and the estimates themselves in the copy." },
+    { id: "wgi_pv", name: "Political stability and absence of violence, each country's percentile rank, newest year (Worldwide Governance Indicators, World Bank)", unit: "percentile rank, 0 to 100", colour: "#1E6FA8", route: "country", ready: true, lazy: true, buildScript: "nonhuman_wgi",
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/nonhuman/wgi.json", field: "pv_rank" }, linear: [0, 100], reverse: true,
+      attribution: "World Bank, Worldwide Governance Indicators (CC BY 4.0)",
+      note: "The World Bank's Worldwide Governance Indicators (Kaufmann and Kraay): political stability and absence of violence, as each country's percentile rank among all countries in the newest year (0 the lowest, 100 the highest), shaded darker the lower it ranks. Each country's box holds its newest rank for all six measures. Copied weekly from the World Bank's open data service by culprits-tiles-more (scripts/nonhuman_wgi.py), with every year and the estimates themselves in the copy." },
+    { id: "wgi_ge", name: "Government effectiveness, each country's percentile rank, newest year (Worldwide Governance Indicators, World Bank)", unit: "percentile rank, 0 to 100", colour: "#1E6FA8", route: "country", ready: true, lazy: true, buildScript: "nonhuman_wgi",
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/nonhuman/wgi.json", field: "ge_rank" }, linear: [0, 100], reverse: true,
+      attribution: "World Bank, Worldwide Governance Indicators (CC BY 4.0)",
+      note: "The World Bank's Worldwide Governance Indicators (Kaufmann and Kraay): government effectiveness, as each country's percentile rank among all countries in the newest year (0 the lowest, 100 the highest), shaded darker the lower it ranks. Each country's box holds its newest rank for all six measures. Copied weekly from the World Bank's open data service by culprits-tiles-more (scripts/nonhuman_wgi.py), with every year and the estimates themselves in the copy." },
+    { id: "wgi_rq", name: "Regulatory quality, each country's percentile rank, newest year (Worldwide Governance Indicators, World Bank)", unit: "percentile rank, 0 to 100", colour: "#1E6FA8", route: "country", ready: true, lazy: true, buildScript: "nonhuman_wgi",
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/nonhuman/wgi.json", field: "rq_rank" }, linear: [0, 100], reverse: true,
+      attribution: "World Bank, Worldwide Governance Indicators (CC BY 4.0)",
+      note: "The World Bank's Worldwide Governance Indicators (Kaufmann and Kraay): regulatory quality, as each country's percentile rank among all countries in the newest year (0 the lowest, 100 the highest), shaded darker the lower it ranks. Each country's box holds its newest rank for all six measures. Copied weekly from the World Bank's open data service by culprits-tiles-more (scripts/nonhuman_wgi.py), with every year and the estimates themselves in the copy." },
+    { id: "wgi_rl", name: "Rule of law, each country's percentile rank, newest year (Worldwide Governance Indicators, World Bank)", unit: "percentile rank, 0 to 100", colour: "#1E6FA8", route: "country", ready: true, lazy: true, buildScript: "nonhuman_wgi",
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/nonhuman/wgi.json", field: "rl_rank" }, linear: [0, 100], reverse: true,
+      attribution: "World Bank, Worldwide Governance Indicators (CC BY 4.0)",
+      note: "The World Bank's Worldwide Governance Indicators (Kaufmann and Kraay): rule of law, as each country's percentile rank among all countries in the newest year (0 the lowest, 100 the highest), shaded darker the lower it ranks. Each country's box holds its newest rank for all six measures. Copied weekly from the World Bank's open data service by culprits-tiles-more (scripts/nonhuman_wgi.py), with every year and the estimates themselves in the copy." },
+    { id: "wgi_cc", name: "Control of corruption, each country's percentile rank, newest year (Worldwide Governance Indicators, World Bank)", unit: "percentile rank, 0 to 100", colour: "#1E6FA8", route: "country", ready: true, lazy: true, buildScript: "nonhuman_wgi",
+      totalsFrom: { kind: "json", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/nonhuman/wgi.json", field: "cc_rank" }, linear: [0, 100], reverse: true,
+      attribution: "World Bank, Worldwide Governance Indicators (CC BY 4.0)",
+      note: "The World Bank's Worldwide Governance Indicators (Kaufmann and Kraay): control of corruption, as each country's percentile rank among all countries in the newest year (0 the lowest, 100 the highest), shaded darker the lower it ranks. Each country's box holds its newest rank for all six measures. Copied weekly from the World Bank's open data service by culprits-tiles-more (scripts/nonhuman_wgi.py), with every year and the estimates themselves in the copy." },
     { id: "fish_basins", name: "Freshwater fish species in each river basin: native, introduced and found in that basin alone (Tedesco et al. 2017)", unit: "river basins", colour: "#1E6FA8", keepColour: true, route: "pmchoose", ready: true, lazy: true,
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/fish_basins.pmtiles", sourceLayer: "basins", mode: "numbers", defaults: ["native_species"],
       attribution: "Tedesco et al. 2017, Scientific Data 4, 170141 (CC0)",
@@ -26451,6 +26483,8 @@ const LAYER_KIND = {
   ocean_shipping: ["insentient", "downstream"],
   ocean_impacts: ["insentient", "downstream"],
   nonhuman_atlas: ["animal", "downstream"],
+  trawl_mpas: ["animal", "downstream"],
+  wgi_va: ["human", "upstream"], wgi_pv: ["human", "upstream"], wgi_ge: ["human", "upstream"], wgi_rq: ["human", "upstream"], wgi_rl: ["human", "upstream"], wgi_cc: ["human", "upstream"],
   ocean_noise: ["animal", "downstream"], whaling_logbooks: ["animal", "upstream"], shark_catch: ["animal", "upstream"],
   ocean_slr: ["insentient", "downstream"], own_salt_marsh: ["plant", "downstream"], own_burned: ["plant", "downstream"], ocean_light: ["insentient", "downstream"], ocean_trawling: ["insentient", "downstream"], ocean_bycatch: ["insentient", "downstream"], ocean_coastal_people: ["insentient", "downstream"], ocean_runoff: ["insentient", "downstream"], offshore_platforms: ["insentient", "downstream"],
   fur_world: ["animal", "downstream"],
@@ -27896,6 +27930,7 @@ const NOT_LIVE = {
   largest_banks: "Compiled weekly from Wikidata by culprits-tiles-more",
   development_banks: "Compiled weekly from Wikidata by culprits-tiles-more",
   coastal_cleanup: "Ocean Conservancy's cleanup sites, from a copy made daily (their server lets only their own site read it)",
+  trawl_mpas: "Worked out monthly by culprits-tiles-more from Global Fishing Watch and the World Database on Protected Areas",
   food_soy: "Built once from the 2017 data package of Halpern et al. 2022; it is not updated",
   wastewater_plumes: "Built once from the Global Wastewater Model's 2021 data package; it is not updated",
   wastewater_watersheds: "Built once from the Global Wastewater Model's 2021 data package; it is not updated",
@@ -28166,6 +28201,8 @@ const PANEL_ORDER = [
   // Round 94b: the 1996, 2016 and 2020 mangroves moved here from Oceans.
   { h: 5, bundle: "mangroves", colour: "#62755F" },
   { h: 3, t: "Biodiversity loss" },
+  // Round nh2 (asked 16 October): straight under Biodiversity loss.
+  "trawl_mpas",
   // Round 90b/91b (asked 27 September): Global Safety Net's land cover layers
   // (Water Bodies to Inland Water) and the terrestrial ecoregions, filed by title.
   // Round 92b: the land cover in 35 kinds here too. Round 99b (asked 28
@@ -28197,6 +28234,8 @@ const PANEL_ORDER = [
   // timber and wild animals, country by country.
   { h: 4, t: "Wildlife and timber crime" }, "goc_flora", "goc_fauna",
   { h: 4, t: "Companies and financiers" }, "wba_nature_companies", "pe_banks",
+  // Round nh2 (asked 16 October): the page's footnote 19.7.
+  { h: 4, t: "How the countries are governed" }, "wgi_va", "wgi_pv", "wgi_ge", "wgi_rq", "wgi_rl", "wgi_cc",
   // Round 100b (asked 28 September): public money behind the harm, the map's
   // own rows in place of the Subsidising Extinction page.
   // Item 30: the most detailed worldwide land cover and land use found. Round

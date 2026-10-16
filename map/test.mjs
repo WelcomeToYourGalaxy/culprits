@@ -2580,7 +2580,7 @@ console.log("\nthe layers box, as asked for");
         // Safety Net heads the first sub-heading of Biodiversity loss (item 27).
         between("allen_coral", "Reefs and mangroves", "Construction") && at("Fishing") < at("Reefs and mangroves") &&
         // Round 99b: Land Use and Ecoregions first; the country rankings lead Protected areas.
-        o.PANEL_ORDER[at("Biodiversity loss") + 1].t === "Land Use and Ecoregions" && o.PANEL_ORDER[at("Protected areas") + 1] === "gsn_countries");
+        o.PANEL_ORDER.slice(at("Biodiversity loss") + 1).find((x) => x && x.t).t === "Land Use and Ecoregions" /* round nh2: a row may sit straight under Biodiversity loss */ && o.PANEL_ORDER[at("Protected areas") + 1] === "gsn_countries");
   check("Agriculture is Meat and agriculture, holding Agriculture and Meat",
         at("Meat and agriculture") > 0 && at("Agriculture") > at("Meat and agriculture") &&
         between("land_matrix", "Meat and agriculture", "Agriculture") && between("abattoir_facilities", "Facilities", "Marine meats"));   // round 132b: Herds above Facilities
@@ -3513,6 +3513,20 @@ console.log("\nround nh1: the Invasion of non-humans map, run by its own code");
         /: cfg\.route === "nhatlas" \? addNhAtlas\(cfg\)/.test(src));
   check("the row carries both labels and a live mark that sends the reader to its parts",
         /nonhuman_atlas: \["animal", "downstream"\]/.test(src) && /"nhatlas",\n/.test(src) && /nhatlas: "its parts each say whether they are live/.test(src));
+}
+console.log("\nround nh2: trawling inside marine protected areas, and how the countries are governed");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const order = new Function(body + "; return { PANEL_ORDER };")().PANEL_ORDER;
+  const at = (t) => order.findIndex((x) => x && x.t === t);
+  const wgi = ["va", "pv", "ge", "rq", "rl", "cc"].map((k) => `wgi_${k}`);
+  check("trawling inside marine protected areas sits straight under Biodiversity loss, the six governance rows under their own heading there",
+        order.indexOf("trawl_mpas") === at("Biodiversity loss") + 1 && wgi.every((w, i) => order.indexOf(w) === at("How the countries are governed") + 1 + i) &&
+        at("How the countries are governed") > at("Biodiversity loss"));
+  check("both read their copies from the nonhuman folder, say they are copies and carry both labels",
+        /nonhuman\/trawl_mpas\.geojson/.test(src) && /nonhuman\/wgi\.json", field: "va_rank" \}, linear: \[0, 100\], reverse: true/.test(src) &&
+        /  trawl_mpas: "Worked out monthly by culprits-tiles-more/.test(src) && /trawl_mpas: \["animal", "downstream"\]/.test(src) && /wgi_cc: \["human", "upstream"\]/.test(src));
 }
 console.log("\nround of 23 September (9): refresh notes, where each dot is, place names, the green cast");
 {
@@ -5418,7 +5432,7 @@ console.log("\nround 99b: Biodiversity loss refiled; one row each for critical h
   const o = new Function(src.slice(src.indexOf("const BUNDLES = {"), src.indexOf("const ZDC = ")) + src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("];", src.indexOf("const PANEL_ORDER = [")) + 2) + "; return { PANEL_ORDER, BUNDLES };")();
   const heads = (from, to) => o.PANEL_ORDER.slice(o.PANEL_ORDER.findIndex((x) => x && x.t === from), o.PANEL_ORDER.findIndex((x) => x && x.t === to)).filter((x) => x && x.t && x.h === 4).map((x) => x.t);
   check("Biodiversity loss reads Land Use and Ecoregions, Places that matter most for species, Disturbance, Birds, Fish, Soil, Wildlife and timber crime, Companies and financiers",
-        JSON.stringify(heads("Biodiversity loss", "Water scarcity")) === JSON.stringify(["Land Use and Ecoregions", "Places that matter most for species", "Disturbance", "Birds", "Fish", "Soil biodiversity", "Wildlife and timber crime", "Companies and financiers"]));
+        JSON.stringify(heads("Biodiversity loss", "Water scarcity")) === JSON.stringify(["Land Use and Ecoregions", "Places that matter most for species", "Disturbance", "Birds", "Fish", "Soil biodiversity", "Wildlife and timber crime", "Companies and financiers", "How the countries are governed"])); /* round nh2: governance last */
   const i = o.PANEL_ORDER.findIndex((x) => x && x.t === "Places that matter most for species");
   const fives = o.PANEL_ORDER.slice(i, o.PANEL_ORDER.findIndex((x) => x && x.t === "Disturbance")).filter((x) => x && x.h === 5).map((x) => x.t);
   check("…and Places that matter most for species in five parts", JSON.stringify(fives) === JSON.stringify(["Where species are threatened", "Protected areas", "Species richness", "Wild and intact places", "Where animals gather and migrate"]) &&
