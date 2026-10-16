@@ -3772,7 +3772,7 @@ function bodyRowChanged(row, on) {
 function openBody(key) {
   const f = document.getElementById("bodyFrame");
   if (!f) return;
-  if (!f.src) { f.addEventListener("load", bodyPost); f.src = new URL("bodies.html?v=213#" + key, document.baseURI).href; }
+  if (!f.src) { f.addEventListener("load", bodyPost); f.src = new URL("bodies.html?v=214#" + key, document.baseURI).href; }
   else if (f.contentWindow && typeof f.contentWindow.postMessage === "function") f.contentWindow.postMessage({ culpritsBody: key }, "*");
   f.hidden = false;
   BODY_OPEN = key;
@@ -24838,7 +24838,7 @@ const OTHER_MAPS = {
     { id: "solar_gem", name: "Solar farms, 1 MW and up, every phase (Global Energy Monitor)", unit: "solar farm phases", colour: "#6FA8C8", route: "pmtiles", ready: true, lazy: true,
       archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/solar_gem.pmtiles", buildScript: "gem_solar",
       attribution: "Global Energy Monitor, Global Solar Power Tracker (CC BY 4.0)",
-      note: "Global Energy Monitor's Global Solar Power Tracker: every solar farm phase of 1 MW or more it lists worldwide, operating, being built, announced, shelved, cancelled or retired, with every column GEM gives (owner, operator, capacity, status, start year and more), sized by capacity. Rows marked with a TZ ID come from TransitionZero's Solar Asset Mapper (CC BY-NC 4.0). GEM gives the tracker through its download form: once it is downloaded and put in culprits-tiles-more gem/solar/download/, the map's copy is built from it." },
+      note: "Global Energy Monitor's Global Solar Power Tracker: every solar farm phase of 1 MW or more it lists worldwide, operating, being built, announced, shelved, cancelled or retired, with every column GEM gives (owner, operator, capacity, status, start year and more), sized by capacity. Zoomed far out, each phase's box gives its name, phase, capacity, status, country and GEM's ids; zoomed in closer, every column (round 214o: all the columns at every zoom made the file too big for GitHub). Rows marked with a TZ ID come from TransitionZero's Solar Asset Mapper (CC BY-NC 4.0). GEM gives the tracker through its download form: once it is downloaded and put in culprits-tiles-more gem/solar/download/, the map's copy is built from it." },
     { id: "solar_companies", name: "Solar panel and cell makers, by shipments and capacity (Wikipedia)", unit: "company entries", colour: "#8A7FB0", route: "geojsonlive", ready: true, lazy: true, buildScript: "solar_companies",
       files: [{ label: "Solar companies", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/solar/companies.geojson" }], nameFrom: ["Company", "Manufacturer", "Company name"],
       note: "Every table on Wikipedia's List of photovoltaics companies that names companies (module shipments by year, production lines, polysilicon, cell and module makers, factories), every row and column as written, each placed at the company's headquarters as Wikidata records it (CC BY-SA 4.0; Wikidata CC0). A company Wikidata does not place is kept and listed as not placed." },
@@ -24851,10 +24851,12 @@ const OTHER_MAPS = {
     // Round 213o (asked 15 October): Sunlight's reach (outward from the Sun) and
     // Light reaching Earth (inward, to us) under Solar Tech, each saying how it
     // differs from the other; the Sun's gravity reach and gravity assists taken out.
-    { id: "sun_light", name: "Sunlight's reach: how far the Sun's light goes, and every planet, star and galaxy it lands on", unit: "opens the Sunlight's reach view", colour: "#E8E2D4", route: "leave", body: "sunreach", bodyLayer: "light", bodyLayers: ["light", "solar", "stars", "galaxies", "anchors"], ready: true, lazy: true,
-      note: "Outward from the Sun: how much of its light arrives at each distance and at each body. (Light reaching Earth is the other way round: what arrives here, from the Sun and from every star and galaxy.) Sunlight has no edge: it keeps travelling and grows dimmer with the square of the distance (twice as far, a quarter of the light). Rings every tenfold distance give the sunlight arriving there in W/m\u00b2 (1,361 W/m\u00b2 at Earth) and how long it takes; every planet and dwarf planet, every star with a known distance in the HYG catalogue, the nearest galaxies and the farthest bodies are placed, each with the Sun's light there. Ticked, the map leaves Earth and opens that view." },
-    { id: "earth_pull_in", name: "Gravity reaching Earth: every body with a published mass, and its pull on us", unit: "opens the Sky view", colour: "#7F9BE0", route: "leave", body: "sky", bodyLayer: "pull", bodyLayers: ["pull", "solar"], ready: true, lazy: true,
-      note: "Placed where each is in the sky and sized by its pull on Earth (its mass times the gravitational constant over its distance squared): the Sun, Moon and planets (NASA/JPL Horizons), the nearest stars (Wikipedia's List of nearest stars), the nearest galaxies with a mass on Wikidata, the Milky Way's black hole, the galaxy itself, Andromeda, the Great Attractor and Laniakea, each with its source. Ticked, the map leaves Earth and opens that view." },
+    // Round 214o (asked 15 October): retitled.
+    { id: "sun_light", name: "Sunlight's reach \u2013 where else the Sun could be parasitized, now or then", unit: "opens the Sunlight's reach view", colour: "#E8E2D4", route: "leave", body: "sunreach", bodyLayer: "light", bodyLayers: ["light", "solar", "stars", "galaxies", "anchors", "life"], ready: true, lazy: true,
+      note: "Outward from the Sun: how much of its light arrives at each distance and at each body, and so where else its light could be used. A search box finds any planet, star or galaxy by name, and a choice in the view shows only the worlds that could hold life, as Wikipedia's List of potentially habitable exoplanets and List of ocean worlds give them (nothing judged by this map). (Light reaching Earth is the other way round: what arrives here, from the Sun and from every star and galaxy.) Sunlight has no edge: it keeps travelling and grows dimmer with the square of the distance (twice as far, a quarter of the light). Rings every tenfold distance give the sunlight arriving there in W/m\u00b2 (1,361 W/m\u00b2 at Earth) and how long it takes; every planet and dwarf planet, every star with a known distance in the HYG catalogue, the nearest galaxies and the farthest bodies are placed, each with the Sun's light there. Ticked, the map leaves Earth and opens that view." },
+    // Round 214o (asked 15 October): out of the Sky view, into the From Earth view, under Antigravity.
+    { id: "earth_pull_in", name: "Gravity reaching Earth: every body with a published mass, and its pull on us", unit: "opens the From Earth view", colour: "#7F9BE0", route: "leave", body: "earthreach", bodyLayer: "pullin", bodyLayers: ["pullin", "pull"], ready: true, lazy: true,
+      note: "Placed by direction and distance from Earth, on rings every tenfold distance, and sized by its pull on Earth (its mass times the gravitational constant over its distance squared): the Sun, Moon and planets (NASA/JPL Horizons), the nearest stars (Wikipedia's List of nearest stars), the nearest galaxies with a mass on Wikidata, every other body on Wikidata with a mass and a place, the Milky Way's black hole, the galaxy itself, Andromeda, the Great Attractor and Laniakea, each with its source. Ticked, the map leaves Earth and opens that view." },
     { id: "earth_light_in", name: "Light reaching Earth: what arrives here from the Sun and every star, galaxy, cluster and nebula", unit: "opens the Sky view", colour: "#E8E2D4", route: "leave", body: "sky", bodyLayer: "stars", bodyLayers: ["stars", "dso", "solar"], ready: true, lazy: true,
       note: "Inward, to Earth: the light arriving here, laid out as the sky. (Sunlight's reach is the other way round: the Sun's light going out to every distance.) The Sun, Moon and planets today (NASA/JPL Horizons), every star in the HYG catalogue (119,626) and every object in its deep-sky catalogue (about 227,000, mostly galaxies), placed where each is in the sky and sized by the light it sends us, worked out in W/m\u00b2 from its brightness; a click gives its distance, how long its light took, and every column the catalogue gives. Ticked, the map leaves Earth and opens that view." },
     { id: "earth_pull_out", name: "Earth's gravity reach: what lies within its pull, from satellites to galaxies", unit: "opens the From Earth view", colour: "#8FC3DE", route: "leave", body: "earthreach", bodyLayer: "pull", bodyLayers: ["pull", "orbit", "companions", "lagrange", "solar", "anchors"], ready: true, lazy: true,
@@ -24865,7 +24867,7 @@ const OTHER_MAPS = {
     // Round 213o (asked 15 October): every body's field of pull, as a fabric
     // coloured by how many cross at each point; with Anti-gravity.
     { id: "gravity_fields", name: "Gravity's fabric: every field of pull reaching Earth, and how many cross at each point", unit: "opens the From Earth view", colour: "#5458B8", route: "leave", body: "earthreach", bodyLayer: "fabric", bodyLayers: ["fabric", "pull", "solar", "anchors"], ready: true, lazy: true,
-      note: "Every pull reaches everywhere, so a body's field is drawn as the space round it where its own pull outweighs the pull of the larger body it moves with (its Hill sphere: the distance between them times the cube root of its mass over three times the larger body's): the Moon's inside Earth's, Earth's inside the Sun's, the Sun's and the nearest stars' inside the galaxy's. Every body with a published mass and place: the Sun, Moon, planets and dwarf planets (NASA/JPL Horizons), the nearest stars (Wikipedia), the nearest galaxies with a mass on Wikidata, the Great Attractor and Laniakea. The colour is how many fields cross at each point; the shading is all their pulls added together, deepest at each body. Earth's own field is the one anti-gravity claims set out to beat. Ticked, the map leaves Earth and opens the From Earth view." },
+      note: "Every pull reaches everywhere, so a body's field is drawn as the space round it where its own pull outweighs the pull of the larger body it moves with (its Hill sphere: the distance between them times the cube root of its mass over three times the larger body's): the Moon's inside Earth's, Earth's inside the Sun's, the Sun's and the nearest stars' inside the galaxy's. Every body with a published mass and place: the Sun, Moon, planets and dwarf planets (NASA/JPL Horizons), the nearest stars (Wikipedia), the nearest galaxies, and every other body on Wikidata with a mass and a place, stars, black holes, galaxies and clusters far beyond the Milky Way among them, the Great Attractor and Laniakea. The colour is how many fields cross at each point, and the surface rises a step for each, lit from the side so the steps stand out; the pull of all of them added together lifts it further round each body. Earth's own field is the one anti-gravity claims set out to beat. Ticked, the map leaves Earth and opens the From Earth view." },
     { id: "eyes_craft", name: "Spacecraft in space, going galactic (NASA's Eyes on the Solar System)", unit: "leaves Earth for Eyes, as the Leave Earth button does", colour: "#5E6070", route: "leave", ready: true, lazy: true,
       page: "https://eyes.nasa.gov/apps/solar-system/#/home?featured=false&logo=false&shareButton=false&hd=true",
       note: "Ticked, the map turns to Earth's face and size in NASA/JPL's Eyes on the Solar System and hands the screen over, exactly as the Leave Earth button and zooming out past the globe do (asked for 25 September, in place of the panel along the bottom). In Eyes, every spacecraft it follows is placed where it is now, with its mission. The box in the corner, or unticking, brings the map back." },
@@ -28395,14 +28397,16 @@ const PANEL_ORDER = [
   { h: 1, t: "Off-planet invasion" },
   { h: 2, t: "To Earth" },
   // Round 210o: the light and pull reaching Earth, Earth's own reach, and anti-gravity.
-  { h: 3, t: "Gravity reaching Earth" }, "earth_pull_in", "earth_pull_out",
+  // Round 214o: gravity reaching Earth moved under Antigravity; Earth's own reach stays.
+  { h: 3, t: "Earth's gravity reach" }, "earth_pull_out",
   { h: 3, t: "Near-Earth object impacts" }, "esa_risk",
   { h: 3, t: "Unidentified anomalous phenomena" }, "ufo_sightings", "site_ufo_pre1900",
   { h: 2, t: "From Earth" },
   // Round 213o (asked 15 October): Antigravity, its own sub-heading in the
   // space industry, with gravity's fabric.
   { h: 3, t: "The space industry" }, "space_industry",
-  { h: 4, t: "Antigravity" }, "antigravity", "gravity_fields",
+  // Round 214o (asked 15 October): gravity's fabric first, then anti-gravity, then gravity reaching Earth.
+  { h: 4, t: "Antigravity" }, "gravity_fields", "antigravity", "earth_pull_in",
   { h: 3, t: "Space launches" }, "ll2_pads", "ll2_upcoming",
   { h: 3, t: "Craft in space" }, "eyes_craft",
   // Round 202o: the Moon and Mars, each a heading of its own.
@@ -28411,7 +28415,8 @@ const PANEL_ORDER = [
   // Round 213o (asked 15 October): Solar Tech, the solar farms and panel makers
   // with the two sunlight layers.
   { h: 3, t: "To the Sun" }, "sun_objects",
-  { h: 4, t: "Solar Tech" }, "solar_gem", "solar_companies", "sun_light", "earth_light_in",
+  // Round 214o (asked 15 October): light reaching Earth, Sunlight's reach, then the farms and the panel makers.
+  { h: 4, t: "Solar Tech" }, "earth_light_in", "sun_light", "solar_gem", "solar_companies",
   { h: 3, t: "Extraterrestrial life" }, "biosignature",
   // Base and reference (empty since 25 September) taken out; Buildings was
   // taken out with it (26 September, round 56) and put back at the owner's

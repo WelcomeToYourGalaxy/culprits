@@ -5,6 +5,38 @@ touches.
 
 ---
 
+## Round 214o (15 October)
+
+Needs round 213o (guards on its heading). Tiles patch round214o_tiles.py
+(culprits-tiles-more), then refresh gem_solar and reach. No app.js?v= bump;
+bodies.html is asked for as ?v=214.
+
+- Sun view: the planets row on from the start; "what people have sent into
+  orbit around it".
+- Sunlight's reach retitled "Sunlight's reach – where else the Sun could be
+  parasitized, now or then". A search box (every view): finds a mark, star,
+  galaxy or place name among the ticked rows, goes to it and opens its box.
+  A new row, Worlds that could hold life (reach/life.json: every row of
+  Wikipedia's List of potentially habitable exoplanets and List of ocean
+  worlds), and a View choice "Only worlds that could hold life".
+- Sky view: gravity reaching Earth taken out (now row pullin in From Earth,
+  placed by direction and distance; layer earth_pull_in under Antigravity);
+  heading "light reaching Earth from everything with a published
+  brightness". The chart gets a grid with hours and degrees along the edges,
+  the celestial equator, ecliptic and plane of the Milky Way, the 88
+  constellations named at the middle of their stars (HYG con), the brightest
+  named stars; fainter stars and deep-sky objects smaller and dimmer. The
+  globe gets the constellation names and the three lines.
+- Gravity's fabric: adds every Wikidata item with a mass, distance and place
+  (reach/masses.json), deduplicated against the bodies already there; a
+  raised, terraced surface (one step per field, lifted by the summed pull),
+  lit from the upper left.
+- Panel: Solar Tech = light reaching Earth, Sunlight's reach, solar farms,
+  solar panel makers. Antigravity = gravity's fabric, anti-gravity, gravity
+  reaching Earth. To Earth's heading is "Earth's gravity reach".
+- Solar farms note: far zooms carry a few columns, close zooms every column
+  (gem_solar.py now builds two tiers; it was over GitHub's 100 MB).
+
 ## Round 213o (15 October)
 
 Needs round 212o (guards on its heading). Tiles patch round213o_tiles.py
