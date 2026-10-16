@@ -5,6 +5,50 @@ touches.
 
 ---
 
+## Round nh1 (16 October, the Invasion of non-humans chat)
+
+Needs round 214o only as a guard (it changes nothing 214o touched). A separate
+chat from the "o" rounds: its rounds are named nh1, nh2, ...
+
+- New row **nonhuman_atlas** (route **nhatlas**), in SITE_MAPS after
+  site_social_spheres, filed under On-planet invasion > Invasion of the living >
+  Invasion of nonhumans (the On-planet invasion page puts the section under
+  Invasion of the Living, 2a; the owner wrote "pre-birth", flagged to them).
+- addNhAtlas reads the owner's map page (maps repo invasion-of-nonhumans.html),
+  takes its `<script id="nh-core">`, runs it (global eval; defines
+  window.NonHumanAtlas) and calls NonHumanAtlas.create({ map, maplibregl,
+  pmtiles, panel, embedded: true, prefix: "nonhuman_atlas-", boundaries:
+  BOUNDARIES_URL, onStatus }). Its parts are listed in a `.facet.nh-host` under
+  the row; the row's tick shows or hides all of them (afterVisibility ->
+  inst.setVisible). cfg._layerIds is deliberately not set: applyVisibility
+  would turn on parts that are not ticked. keepColour: every layer id starts
+  with "nonhuman_atlas-", so gladLayer leaves the map's own colours.
+  The module also hides layers the host adds beside its own (the "-ring" of
+  fewBeacon).
+- LIVE (route in LIVE_ROUTES) with REFRESH note "its parts each say whether
+  they are live or a copy"; LAYER_KIND animal / downstream.
+- The parts and their data (culprits-tiles-more, scripts/nonhuman_*.py, all
+  output under nonhuman/, a folder nothing else writes):
+  - anthromes (Ellis et al. 2021, Anthromes 12K, Dataverse; nonhuman_anthromes.py)
+  - hm (Human Modification index via Global Safety Net's API, live, redrawn by
+    lightness in teal to cobalt through the module's nhrecolour:// protocol)
+  - ocean, pestsea (reuse tiles/ocean_*.choices.json, Halpern et al. 2019)
+  - gbif (GBIF adhoc .mvt tiles, live, degreeOfEstablishment / establishmentMeans
+    and year range; box lists species via occurrence facets)
+  - griis (nonhuman_griis.py), firsts (nonhuman_firsts.py), invacost
+    (nonhuman_invacost.py)
+  - pestgrid (PEST-CHEMGRIDS from Earthdata; nonhuman_pestgrids.py), pestrisk
+    (Tang et al. 2021, figshare; nonhuman_pestrisk.py), pestuse / pesttrade
+    (FAOSTAT bulk; nonhuman_faostat.py), pestco (Wikidata; nonhuman_pestco.py)
+  - pa (WDPA via GFW vector tiles, live, the same dataset as the protected
+    areas row; coloured by iucn_cat), paddd (PADDDtracker v2.1;
+    nonhuman_paddd.py), mines (mines file against the WDPA public release;
+    nonhuman_extraction.py), conc (GFW catalogue datasets whose names say
+    concession/mining/logging/oil and gas/wood fibre/oil palm, live)
+- Tests: block "round nh1" in map/test.mjs (before "round of 23 September (9)").
+- Not seen in a live browser against the real sources; tried in headless
+  Chromium with stand-ins for every source, alone and inside this map.
+
 ## Round 214r (16 October)
 
 From a separate chat (the "r" round; the "o" rounds go on in their own chat).

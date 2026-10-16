@@ -22735,6 +22735,50 @@ async function addGmoPanel(cfg) {
   applyVisibility(cfg.id);
 }
 
+/* ---------- round nh1: the site's Invasion of non-humans map, by its own code ---------- */
+// The map's page (maps repo invasion-of-nonhumans.html) keeps everything it
+// does in one script, id "nh-core", which defines NonHumanAtlas.create. That
+// script is read from the page and run here once, and the map is made on this
+// map with its parts listed under the row. Every layer it adds starts with
+// this row's id and a dash, so the recolouring leaves its colours as the map
+// draws them (keepColour). Its parts are ticked under the row; unticking the
+// row hides all of them and the parts' list (a part's own tick is kept).
+// cfg._layerIds is not set: applyVisibility would turn on unticked parts.
+async function addNhAtlas(cfg) {
+  let api = typeof window !== "undefined" ? window.NonHumanAtlas : null;
+  if (!api) {
+    let html;
+    try {
+      const r = await fetch(cfg.pageUrl, { cache: "no-cache" });
+      if (!r.ok) throw new Error(`answered ${r.status}`);
+      html = await r.text();
+    } catch (e) { throw new Error(`the map's page could not be read (${e.message})`); }
+    const m = html.match(/<script id="nh-core">([\s\S]*?)<\/script>/);
+    if (!m) throw new Error("the map's page has no nh-core script");
+    try { (0, eval)(m[1]); } catch (e) { throw new Error(`the map's code did not run (${e.message})`); }
+    api = window.NonHumanAtlas;
+    if (!api || typeof api.create !== "function") throw new Error("the map's code did not define NonHumanAtlas");
+  }
+  const box = document.getElementById("layers");
+  const row = box && box.querySelector ? box.querySelector(`[data-layer="${cfg.id}"]`) : null;
+  const anchor = row && row.closest ? row.closest("label") : null;
+  const host = document.createElement("div");
+  host.className = "facet nh-host";
+  host.dataset.chooseFor = cfg.id;
+  host.style.cssText = "display:block;padding:0 0 6px 18px";
+  if (anchor && anchor.after) anchor.after(host);
+  else (box || document.body).appendChild(host);
+  let inst;
+  try {
+    inst = api.create({ map, maplibregl, pmtiles: typeof pmtiles !== "undefined" ? pmtiles : undefined, panel: host, embedded: true,
+      prefix: `${cfg.id}-`, boundaries: BOUNDARIES_URL, onStatus: (t) => setLayerState(cfg.id, t) });
+  } catch (e) { host.remove(); throw new Error(`the map could not be made (${e.message})`); }
+  cfg._nh = inst;
+  cfg.afterVisibility = (vis) => { inst.setVisible(vis === "visible"); host.hidden = vis !== "visible"; };
+  setLayerState(cfg.id, "tick a part under the row");
+  applyVisibility(cfg.id);
+}
+
 const GMO_BOX_CSS = `
 .gmo-cw{margin-top:8px;padding-top:6px;border-top:1px solid rgba(127,168,204,.28)}
 .gmo-cw-h{font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#7fa8cc;margin:2px 0 5px}
@@ -23344,6 +23388,16 @@ const SITE_MAPS = {
     { id: "site_social_spheres", name: "The Social Spheres", unit: "bodies and the people between them", colour: "#5E6068", route: "spheres", ready: true, lazy: true,
       page: "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/social_spheres.html",
       note: "Read live from the map's own page in the maps repo; a click opens the map's own card, run by its own code." },
+    // Round nh1 (asked 16 October): the owner's Invasion of non-humans map
+    // (maps repo invasion-of-nonhumans.html), filed under On-planet invasion >
+    // Invasion of the living > Invasion of nonhumans, where the On-planet
+    // invasion page has the section. Its own code (the page's nh-core script)
+    // is read from the maps repo and run here, so its parts, keys and boxes
+    // are the map's own; see addNhAtlas.
+    { id: "nonhuman_atlas", name: "Invasion of non-humans worldwide: land and sea taken over, invasive species, pesticides, and protected areas undone and mined around (the site's map)",
+      unit: "parts", colour: "#2E8FBA", route: "nhatlas", ready: true, lazy: true, keepColour: true, noAreaDots: true,
+      pageUrl: "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/invasion-of-nonhumans.html",
+      note: "The site's Invasion of non-humans map, run here by its own code, read from the maps repo when the row is first ticked. Its parts are ticked under the row, each marked live or not live: how people have taken over the land from 10,000 BCE to 2017 (Anthromes 12K) and how much they have changed it today (Human Modification index); the human impacts on the ocean (Halpern et al. 2019); records of invasive and introduced species (GBIF, live), introduced and invasive species per country (GRIIS), when alien species were first recorded (First Records database) and what they have cost (InvaCost); pesticides applied by ingredient (PEST-CHEMGRIDS), pesticide pollution risk (Tang et al. 2021), pesticide use and trade per country (FAOSTAT), the largest pesticide companies and what they own (Wikidata) and pesticides running off into the sea; protected areas by IUCN category (World Database on Protected Areas via Global Forest Watch, the same source as the protected areas row under Biodiversity loss), PADDD events (PADDDtracker), mines by distance from protected areas, and Global Forest Watch's concession maps. The copies are made by culprits-tiles-more (scripts/nonhuman_*.py) into its nonhuman folder; each part's i says how often." },
     { id: "site_environment_law_shapes", name: "Environmental law instruments — areas", unit: "areas", colour: "#5A6B72", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_environment_law_shapes.geojson",
       note: "Areas, lines and per-country lists from the map, drawn as the map draws them." },
     { id: "site_export_credit_shading", name: "Export credit agencies — country shading", unit: "countries", colour: "#5E6A63", route: "shapes", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/shapes/site_export_credit_shading.geojson",
@@ -26319,6 +26373,7 @@ function ensureLayer(cfg) {
       : cfg.route === "gta" ? addGtaLayer(cfg)
       : cfg.route === "ctair" || cfg.route === "ctairgas" ? addCtAirLayer(cfg)
       : cfg.route === "companion" ? Promise.resolve().then(() => addCompanion(cfg))
+      : cfg.route === "nhatlas" ? addNhAtlas(cfg)
       : cfg.route === "gmopanel" ? addGmoPanel(cfg)
       : cfg.route === "remains" ? addRemainsLayer(cfg)
       : cfg.route === "remainsfac" ? addRemainsFacLayer(cfg)
@@ -26407,6 +26462,7 @@ const LAYER_KIND = {
   ocean_heat: ["insentient", "downstream"], ocean_bleaching: ["animal", "downstream"],
   ocean_shipping: ["insentient", "downstream"],
   ocean_impacts: ["insentient", "downstream"],
+  nonhuman_atlas: ["animal", "downstream"],
   ocean_noise: ["animal", "downstream"], whaling_logbooks: ["animal", "upstream"], shark_catch: ["animal", "upstream"],
   ocean_slr: ["insentient", "downstream"], own_salt_marsh: ["plant", "downstream"], own_burned: ["plant", "downstream"], ocean_light: ["insentient", "downstream"], ocean_trawling: ["insentient", "downstream"], ocean_bycatch: ["insentient", "downstream"], ocean_coastal_people: ["insentient", "downstream"], ocean_runoff: ["insentient", "downstream"], offshore_platforms: ["insentient", "downstream"],
   fur_world: ["animal", "downstream"],
@@ -27565,6 +27621,8 @@ const LIVE_ROUTES = new Set([
   "arcgis", "arcgisdyn", "arcgisapp", "umap", "kml", "ll2", "ejatlas", "geojsonlive",
   "wpgmza", "atlascities", "trase", "trasefac", "wmsmenu", "gfwmenu", "giga", "gta",
   "rte", "owidgrapher", "spheres", "companion", "gsn", "leave", "adsbmil", "gdeltgeo", "pmvector",
+  // Round nh1: the Invasion of non-humans map; each of its parts says whether it is live.
+  "nhatlas",
   // The Unearthings map's own files, read each time a row is ticked (round 77).
   "remains", "remainsfac", "remainsfind", "remainspanel",
   // The biosignature worlds are read from the assessment page itself each time.
@@ -27626,6 +27684,7 @@ const REFRESH = {
   adsbmil: "read again every minute while ticked",
   worker: "read afresh as the map moves",
   cerulean: "read afresh as the map moves",
+  nhatlas: "its parts each say whether they are live or a copy, and how often a copy is renewed",
 };
 function refreshNote(cfg) {
   let t;
@@ -27910,7 +27969,7 @@ const PANEL_ORDER = [
   // Renamed 26 September (round 60): the living, from birth to death, and
   // the after-life, beside the pre-birth frontlines.
   { h: 2, t: "Invasion of the living" },
-  { h: 3, t: "Invasion of nonhumans" },
+  { h: 3, t: "Invasion of nonhumans" }, "nonhuman_atlas",
   // Round 59 (26 September): the Indigenous Environmental Conflicts rows are
   // one layer with a row per kind of conflict under it, and everything that
   // was under Suppression > Land and territory is here, the Land Matrix

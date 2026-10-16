@@ -3485,6 +3485,27 @@ console.log("\nround of 23 September (8): Waste Atlas rows; soy and maize from H
         ["soyb", "maiz"].every((c) => ["ghg", "water", "nutrient", "disturbance"].every((p) => src.includes(`food_${c}_${p}.pmtiles`))) &&
         o.includes("food_soy") && o.includes("food_maize"));
 }
+console.log("\nround nh1: the Invasion of non-humans map, run by its own code");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const order = new Function(body + "; return { PANEL_ORDER };")().PANEL_ORDER;
+  const at = (t) => order.findIndex((x) => x && x.t === t);
+  check("the row is filed under On-planet invasion > Invasion of the living > Invasion of nonhumans",
+        order.indexOf("nonhuman_atlas") === at("Invasion of nonhumans") + 1 && at("Invasion of the living") < at("Invasion of nonhumans") &&
+        at("On-planet invasion") < at("Invasion of the living"));
+  const row = src.slice(src.indexOf('{ id: "nonhuman_atlas"'), src.indexOf('{ id: "nonhuman_atlas"') + 3000);
+  check("the row reads the map's page from the maps repo, keeps the map's colours and says what it holds",
+        /route: "nhatlas"/.test(row) && /keepColour: true/.test(row) && /maps\/main\/invasion-of-nonhumans\.html/.test(row) &&
+        /PADDD/.test(row) && /IUCN category/.test(row) && /invasive/.test(row) && /pesticide/i.test(row));
+  const fn = src.slice(src.indexOf("async function addNhAtlas(cfg)"), src.indexOf("const GMO_BOX_CSS = `"));
+  check("the map's own nh-core script is run, its parts listed under the row, and hidden with it",
+        /<script id="nh-core">/.test(fn) && /api\.create\(\{ map, maplibregl,/.test(fn) && /prefix: `\$\{cfg\.id\}-`/.test(fn) &&
+        /inst\.setVisible\(vis === "visible"\); host\.hidden = vis !== "visible";/.test(fn) && !/cfg\._layerIds\s*=/.test(fn) &&
+        /: cfg\.route === "nhatlas" \? addNhAtlas\(cfg\)/.test(src));
+  check("the row carries both labels and a live mark that sends the reader to its parts",
+        /nonhuman_atlas: \["animal", "downstream"\]/.test(src) && /"nhatlas",\n/.test(src) && /nhatlas: "its parts each say whether they are live/.test(src));
+}
 console.log("\nround of 23 September (9): refresh notes, where each dot is, place names, the green cast");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
