@@ -3754,7 +3754,7 @@ function showBack(on) {
 let BODY_OPEN = null;
 // Round 202o: which Moon and Mars rows are ticked in the layers box, sent to
 // the body map so it shows those (a body with none ticked shows all its own).
-const BODY_PICK = { moon: {}, mars: {} };
+const BODY_PICK = { moon: {}, mars: {}, sun: {} };
 function bodyPost() {
   const f = document.getElementById("bodyFrame");
   if (f && f.src && f.contentWindow && typeof f.contentWindow.postMessage === "function") f.contentWindow.postMessage({ culpritsLayers: BODY_PICK }, "*");
@@ -3770,7 +3770,7 @@ function bodyRowChanged(row, on) {
 function openBody(key) {
   const f = document.getElementById("bodyFrame");
   if (!f) return;
-  if (!f.src) { f.addEventListener("load", bodyPost); f.src = new URL("bodies.html#" + key, document.baseURI).href; }
+  if (!f.src) { f.addEventListener("load", bodyPost); f.src = new URL("bodies.html?v=209#" + key, document.baseURI).href; }
   else if (f.contentWindow && typeof f.contentWindow.postMessage === "function") f.contentWindow.postMessage({ culpritsBody: key }, "*");
   f.hidden = false;
   BODY_OPEN = key;
@@ -3779,7 +3779,7 @@ function openBody(key) {
 function closeBody() {
   const f = document.getElementById("bodyFrame");
   if (f) f.hidden = true;
-  if (!AWAY) { BODY_PICK.moon = {}; BODY_PICK.mars = {}; }
+  if (!AWAY) { BODY_PICK.moon = {}; BODY_PICK.mars = {}; BODY_PICK.sun = {}; }
   BODY_OPEN = null;
   bodyButtons();
 }
@@ -6791,7 +6791,21 @@ function addOsmLanduseLayer(cfg) {
   bindHtmlPopup(`${cfg.id}-fill`, box);
   bindHtmlPopup(`${cfg.id}-farm`, box);
   rasterChoiceRow(Object.assign(cfg, { choices: cfg.choices || [{ label: "Land use" }], _pick: 0 }));
-  setLayerState(cfg.id, "OpenStreetMap's land use, plot by plot, from zoom 5; most plots as you zoom in");
+  // Round 209o (asked 15 October: "still way too slow"): OpenStreetMap's plots
+  // are only in the tiles close in (towns from
+  // about country size, everything else from about city size), so from the
+  // world view there is nothing yet to draw. The row now says so while the map
+  // is too far out, and says when the plots are in view.
+  const say = () => {
+    if ((visibility.get(cfg.id) || "none") !== "visible") return;
+    const z = map.getZoom();
+    setLayerState(cfg.id, z < 6 ? "zoom in to see it: OpenStreetMap's plots begin at about country size (towns) and city size (the rest)"
+      : z < 9 ? "towns showing; zoom in to city size for every plot" : "OpenStreetMap's land use, plot by plot");
+  };
+  map.on("zoomend", say);
+  cfg.afterVisibility = say;
+  setLayerState(cfg.id, "OpenStreetMap's land use, plot by plot; zoom in to see it (it begins at about country size)");
+  say();
   applyVisibility(cfg.id);
 }
 function addGlwLayer(cfg) {
@@ -13925,8 +13939,31 @@ function terrainUnderBasemaps(box, base, cols) {
     col.appendChild(b);
     how.id = "how-3d";
     how.hidden = true;
-    cols.after(how);
-    b.addEventListener("click", () => { how.hidden = !how.hidden; b.setAttribute("aria-expanded", String(!how.hidden)); });
+    // Round 209o (asked 15 October: it was not clear the notes had opened
+    // below, out of sight): they open as a box of their own beside the
+    // settings box, at the height of the line, closed by its x, the line
+    // again, or a click elsewhere.
+    how.classList.add("how-pop");
+    how.insertAdjacentHTML("afterbegin", `<div class="how-pop-h">Moving the map in 3D<button type="button" class="how-x" aria-label="Close">&#215;</button></div>`);
+    document.body.appendChild(how);
+    const place = () => {
+      const r = b.getBoundingClientRect(), bx = box.getBoundingClientRect(), w = 300;
+      const left = Math.max(8, bx.left - w - 10);
+      how.style.left = `${left}px`;
+      how.style.top = `${Math.max(8, Math.min(window.innerHeight - how.offsetHeight - 8, r.top - 12))}px`;
+      how.style.width = `${w}px`;
+    };
+    const shut = () => { how.hidden = true; b.setAttribute("aria-expanded", "false"); };
+    b.textContent = "How to move in 3D \u203a";
+    b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      how.hidden = !how.hidden;
+      b.setAttribute("aria-expanded", String(!how.hidden));
+      if (!how.hidden) place();
+    });
+    how.querySelector(".how-x").addEventListener("click", shut);
+    document.addEventListener("click", (e) => { if (!how.hidden && !how.contains(e.target) && e.target !== b) shut(); });
+    window.addEventListener("resize", () => { if (!how.hidden) place(); });
   }
   bbody.appendChild(col);
   const hide = () => { if (!terr.querySelector(".lift-row")) terr.style.display = "none"; else setTimeout(hide, 50); };
@@ -24779,6 +24816,18 @@ const OTHER_MAPS = {
       note: "Every stop and drive of the Curiosity rover since it landed in Gale crater in 2012, read live from NASA/JPL's own rover map. Ticked, the map leaves Earth and opens the Mars view with this layer on." },
     { id: "mars_names", name: "Mars place names, for finding your way (IAU)", unit: "opens the Mars view, names", colour: "#DCD6C6", route: "leave", body: "mars", bodyLayer: "names", ready: true, lazy: true,
       note: "Every IAU name on Mars (USGS Gazetteer of Planetary Nomenclature); more appear as you zoom in. Ticked, the map leaves Earth and opens the Mars view with this layer on." },
+    // Round 209o (asked 15 October): To the Sun. The solar industry on Earth
+    // (solar farms, and the companies that make the panels), and the objects
+    // people have sent into orbit round the Sun, which open the Sun view.
+    { id: "solar_gem", name: "Solar farms, 1 MW and up, every phase (Global Energy Monitor)", unit: "solar farm phases", colour: "#6FA8C8", route: "pmtiles", ready: true, lazy: true,
+      archiveUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/tiles/solar_gem.pmtiles", buildScript: "gem_solar",
+      attribution: "Global Energy Monitor, Global Solar Power Tracker (CC BY 4.0)",
+      note: "Global Energy Monitor's Global Solar Power Tracker: every solar farm phase of 1 MW or more it lists worldwide, operating, being built, announced, shelved, cancelled or retired, with every column GEM gives (owner, operator, capacity, status, start year and more), sized by capacity. Rows marked with a TZ ID come from TransitionZero's Solar Asset Mapper (CC BY-NC 4.0). GEM gives the tracker through its download form: once it is downloaded and put in culprits-tiles-more gem/solar/download/, the map's copy is built from it." },
+    { id: "solar_companies", name: "Solar panel and cell makers, by shipments and capacity (Wikipedia)", unit: "company entries", colour: "#8A7FB0", route: "geojsonlive", ready: true, lazy: true, buildScript: "solar_companies",
+      files: [{ label: "Solar companies", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/solar/companies.geojson" }], nameFrom: ["Company", "Manufacturer", "Company name"],
+      note: "Every table on Wikipedia's List of photovoltaics companies that names companies (module shipments by year, production lines, polysilicon, cell and module makers, factories), every row and column as written, each placed at the company's headquarters as Wikidata records it (CC BY-SA 4.0; Wikidata CC0). A company Wikidata does not place is kept and listed as not placed." },
+    { id: "sun_objects", name: "Human-made objects orbiting the Sun: probes and spent stages (GCAT)", unit: "opens the Sun view, objects", colour: "#B9D7E6", route: "leave", body: "sun", bodyLayer: "objects", ready: true, lazy: true,
+      note: "Jonathan McDowell's General Catalog of Artificial Space Objects, its Heliocentric Register: every probe, spent rocket stage and part in orbit round the Sun, every column as given (CC BY). Each is placed where NASA/JPL's Horizons follows it today; those Horizons does not follow are listed. Ticked, the map leaves Earth and opens the Sun view: the plane the planets go round in, seen from above or from the side." },
     { id: "eyes_craft", name: "Spacecraft in space, going galactic (NASA's Eyes on the Solar System)", unit: "leaves Earth for Eyes, as the Leave Earth button does", colour: "#5E6070", route: "leave", ready: true, lazy: true,
       page: "https://eyes.nasa.gov/apps/solar-system/#/home?featured=false&logo=false&shareButton=false&hd=true",
       note: "Ticked, the map turns to Earth's face and size in NASA/JPL's Eyes on the Solar System and hands the screen over, exactly as the Leave Earth button and zooming out past the globe do (asked for 25 September, in place of the panel along the bottom). In Eyes, every spacecraft it follows is placed where it is now, with its mission. The box in the corner, or unticking, brings the map back." },
@@ -26439,6 +26488,7 @@ const LAYER_KIND = {
   eyes_craft: ["insentient", "downstream"],
   moon_objects: ["insentient", "downstream"], moon_list: ["insentient", "downstream"], moon_artemis: ["insentient", "downstream"], moon_names: ["insentient", "downstream"],
   mars_list: ["insentient", "downstream"], mars_m20: ["insentient", "downstream"], mars_msl: ["insentient", "downstream"], mars_names: ["insentient", "downstream"],
+  solar_gem: ["insentient", "upstream"], solar_companies: ["insentient", "upstream"], sun_objects: ["insentient", "downstream"],
   leverage_chart: ["human", "upstream"],
   cfr_tracker: ["human", "upstream"],
   site_banking_dynasties_charts: ["human", "upstream"],
@@ -28313,6 +28363,7 @@ const PANEL_ORDER = [
   // Round 202o: the Moon and Mars, each a heading of its own.
   { h: 3, t: "To the Moon" }, "moon_objects", "moon_list", "moon_artemis", "moon_names",
   { h: 3, t: "To Mars" }, "mars_list", "mars_m20", "mars_msl", "mars_names",
+  { h: 3, t: "To the Sun" }, "solar_gem", "solar_companies", "sun_objects",
   { h: 3, t: "Extraterrestrial life" }, "biosignature",
   // Base and reference (empty since 25 September) taken out; Buildings was
   // taken out with it (26 September, round 56) and put back at the owner's

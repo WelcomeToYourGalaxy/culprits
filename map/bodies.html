@@ -3,42 +3,59 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Moon and Mars: human impact</title>
+<title>Moon, Mars and the Sun: human impact</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <!--
-  The Moon and Mars views of the Culprits map (round 197o, asked 14 October).
-  Opened from the map while NASA's Eyes on the Solar System is showing (the
-  Moon and Mars buttons beside "Back to Earth"), or on its own as
-  bodies.html#moon / bodies.html#mars. Round 206o: a globe first, with a
-  box of looks and views like the Earth map's (top right), a timeline of
-  years, and marks that sit together drawn as one that lists them all.
+  The Moon, Mars and Sun views of the Culprits map (round 197o, asked 14
+  October; the Sun from round 209o, asked 15 October). Opened from the map
+  while NASA's Eyes on the Solar System is showing (the Moon, Mars and Sun
+  buttons beside "Back to Earth"), or on its own as bodies.html#moon,
+  bodies.html#mars, bodies.html#sun.
 
-  Ground: NASA's Moon Trek and Mars Trek tiles, read live from Trek's own
-  tile service (equirectangular, so the map uses Leaflet's plate carrée).
-  The Moon is LRO's wide-angle camera mosaic; Mars is the Viking colour
-  mosaic, in its real colour, as the owner asked.
+  Moon and Mars ground: NASA's Moon Trek and Mars Trek tiles, read live from
+  Trek's own tile service (equirectangular, so the map uses Leaflet's plate
+  carree). The Moon is LRO's wide-angle camera mosaic; Mars is the Viking
+  colour mosaic, in its real colour, as the owner asked. The other looks are
+  that picture recoloured.
 
-  Layers, built by culprits-tiles-more (scripts/bodies.py), each kept as its
-  source gives it, nothing filtered:
+  The Sun view is a map of the plane the planets go round in (seen from
+  above, or from the side), in astronomical units, with each human-made
+  object where NASA/JPL's Horizons follows it.
+
+  Layers, built by culprits-tiles-more (scripts/bodies.py and scripts/sun.py),
+  each kept as its source gives it, nothing filtered:
     everything humans put on the Moon        LROC (NASA/GSFC/ASU), PDS
     objects left on the Moon / Mars, mass    Wikipedia's two lists
     NASA's nine Artemis III regions          NASA, at the named feature's IAU centre
     Perseverance and Curiosity, live         NASA/JPL's own rover maps
     place names                              USGS / IAU gazetteer
+    objects orbiting the Sun                 GCAT Heliocentric Register (CC BY), JPL Horizons
   Colours: bone, teal, cobalt, plum and rose glows; no orange, yellow or green.
+
+  Round 209o (asked 15 October): stars behind every view; every mark drawn on
+  its own, small, where it is, and a click lists every mark under the pointer;
+  boxes open in a free part of the screen, never over another box, and wrap
+  their text; the left box rolls up; the timeline has two ends; looks are
+  Satellite, Twilight, Bioluminescent, Hologram and Hell; Layer colours as on
+  the Earth map.
 -->
 <style>
   :root{--peat:#17150F;--bone:#DCD6C6;--dim:#948D7C;--rule:#322E27;
     --sans:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
     --obj:#E8E2D4;--obj-glow:#4FA3B8;--mass:#C98BA0;--mass-glow:#7A4E78;--plan:#7F9BE0;--plan-glow:#2F4E9A;
-    --rover:#9FD0DC;--rover-glow:#2E7F96}
+    --rover:#9FD0DC;--rover-glow:#2E7F96;--probe:#B9D7E6;--probe-glow:#3F7FA6}
   *{box-sizing:border-box}
-  html,body{margin:0;height:100%;background:#05070B;color:var(--bone);font-family:var(--sans);overflow:hidden}
-  #map{position:absolute;inset:0;background:#05070B}
-  .leaflet-container{background:#05070B;font-family:var(--sans)}
+  html,body{margin:0;height:100%;background:#03050A;color:var(--bone);font-family:var(--sans);overflow:hidden}
+  #stars{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+  #map{position:absolute;inset:0;background:transparent;z-index:1}
+  .leaflet-container{background:transparent!important;font-family:var(--sans)}
   .box{position:absolute;z-index:500;background:rgba(23,21,15,.94);border:1px solid var(--rule);border-radius:3px;
     font-size:13px;line-height:1.35}
   #panel{left:16px;top:16px;width:300px;max-height:calc(100% - 32px);overflow:auto;padding:10px 12px}
+  #panel .ph{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  #panel.shut .pb{display:none}
+  #roll{background:none;border:1px solid var(--rule);border-radius:3px;color:var(--dim);font-size:11px;line-height:1;padding:3px 6px;cursor:pointer}
+  #roll:hover{color:var(--bone);border-color:var(--bone)}
   h1{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);font-weight:500;margin:10px 0 4px}
   .row{display:flex;align-items:flex-start;gap:7px;padding:4px 0;border-top:1px solid var(--rule)}
   .row:first-of-type{border-top:0}
@@ -52,39 +69,37 @@
   details{margin-top:8px;border-top:1px solid var(--rule);padding-top:6px}
   summary{cursor:pointer;color:var(--bone);font-size:12px}
   details ul{margin:4px 0 0;padding-left:16px;font-size:11.5px;color:var(--dim)}
-  .leaflet-popup-content-wrapper,.leaflet-popup-tip{background:rgba(23,21,15,.97);color:var(--bone);border:1px solid var(--rule);box-shadow:0 6px 20px rgba(0,0,0,.5)}
-  .leaflet-popup-content{margin:10px 12px;font-size:12.5px;max-height:320px;overflow:auto;min-width:220px}
-  .leaflet-popup-content h3{margin:0 0 6px;font-size:14px}
-  .leaflet-popup-content table{border-collapse:collapse;width:100%}
-  .leaflet-popup-content td{vertical-align:top;padding:2px 0;border-top:1px solid var(--rule)}
-  .leaflet-popup-content td:first-child{color:var(--dim);padding-right:8px;white-space:nowrap}
-  .leaflet-popup-content hr{border:0;border-top:1px solid #4E8FA6;margin:10px 0}
-  .leaflet-popup-content .src{margin-top:6px;font-size:11px;color:var(--dim)}
-  .leaflet-container a{color:#9FC3DE}
-  .leaflet-popup-close-button{color:var(--dim)!important}
   .leaflet-control-attribution{background:rgba(23,21,15,.85)!important;color:var(--dim)!important;font-size:10.5px}
+  .leaflet-container a{color:#9FC3DE}
   .leaflet-bar a{background:rgba(23,21,15,.94);color:var(--bone);border-color:var(--rule)}
   .leaflet-bar a:hover{background:#2A271F}
   .nm-label{background:none;border:0;box-shadow:none;color:#D6DCE4;font-size:11px;letter-spacing:.04em;
     text-shadow:0 0 4px #000;padding:0}
   .nm-label::before{display:none}
   .plan-label{color:#B9C8F0;font-size:11.5px}
-  /* Zoomed right out, the nine regions sit too close to name; their names
-     come in from zoom 4 (each still opens on a click). */
-  .far .plan-label{display:none}
-  #globe{position:absolute;inset:0;z-index:400;background:#05070B}
+  .planet-label{color:#C9D6E3;font-size:11.5px;letter-spacing:.05em}
+  #globe{position:absolute;inset:0;z-index:2}
   #globe[hidden]{display:none}
-  #gpop{right:16px;bottom:16px;width:340px;max-height:60%;overflow:auto;padding:12px 14px;z-index:600;font-size:12.5px}
-  #gpop[hidden]{display:none}
-  #gpop .gp-x{position:absolute;top:4px;right:8px;background:none;border:0;color:var(--dim);font-size:16px;cursor:pointer}
-  #gpop h3{margin:0 0 6px;font-size:14px}#gpop table{border-collapse:collapse;width:100%}
-  #gpop td{vertical-align:top;padding:2px 0;border-top:1px solid var(--rule)}#gpop td:first-child{color:var(--dim);padding-right:8px;white-space:nowrap}
-  #gpop .src{margin-top:6px;font-size:11px;color:var(--dim)}#gpop a{color:#9FC3DE}
-  #body-name{font-size:17px;font-weight:600;letter-spacing:.03em;margin:0 0 2px}
+  /* The box a click opens: in the free space on the right, under the looks
+     box, never over another box; its text wraps, so it never scrolls sideways. */
+  #info{right:16px;width:360px;overflow-y:auto;overflow-x:hidden;padding:12px 14px;z-index:600;font-size:12.5px}
+  #info[hidden]{display:none}
+  #info .ix{position:absolute;top:4px;right:8px;background:none;border:0;color:var(--dim);font-size:16px;cursor:pointer}
+  #info h3{margin:0 18px 6px 0;font-size:14px;overflow-wrap:anywhere}
+  #info table{border-collapse:collapse;width:100%;table-layout:fixed}
+  #info td{vertical-align:top;padding:2px 0;border-top:1px solid var(--rule);overflow-wrap:anywhere;word-break:break-word}
+  #info td:first-child{color:var(--dim);padding-right:8px;width:36%}
+  #info .src{margin-top:6px;font-size:11px;color:var(--dim);overflow-wrap:anywhere}
+  #info a{color:#9FC3DE;overflow-wrap:anywhere}
+  #info details{margin-top:4px;padding-top:4px}
+  #info details > :not(summary){margin-left:14px}
+  #info .zin{margin:0 0 4px;font-size:11.5px}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+  .from{color:var(--dim);font-size:11px}
+  #body-name{font-size:17px;font-weight:600;letter-spacing:.03em;margin:0}
   /* The looks and views, set out like the Earth map's box: two columns. */
   #setbox{right:16px;top:16px;width:300px;padding:9px 12px 10px}
   body.in-frame #setbox{top:118px}
-  #setbox.behind{z-index:300}
   #setbox .cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
   #setbox .cols > div + div{padding-left:11px;border-left:1px solid var(--rule)}
   #setbox h1{margin:0 0 5px}
@@ -93,48 +108,71 @@
   #snap{margin-top:8px;width:100%;font:inherit;font-size:12px;color:var(--bone);background:none;border:1px solid var(--rule);
     border-radius:3px;padding:5px 6px;cursor:pointer;line-height:1.25}
   #snap:hover{border-color:var(--bone)}
-  /* The timeline: which years to show. */
+  /* The timeline: two ends, so any span of years can be chosen. */
   #time{margin:8px 0 2px;padding-top:7px;border-top:1px solid var(--rule)}
   #time[hidden]{display:none}
-  #time-say{font-size:12px;margin-bottom:3px}
-  #time-range{width:100%;accent-color:#4E8FA6;margin:2px 0}
+  #time-say{font-size:12px;margin-bottom:5px}
+  .dual{position:relative;height:22px}
+  .dual .track{position:absolute;left:0;right:0;top:9px;height:4px;border-radius:2px;background:#3A372F}
+  .dual .fill{position:absolute;top:9px;height:4px;border-radius:2px;background:#4E8FA6}
+  .dual input{position:absolute;left:0;top:0;width:100%;height:22px;margin:0;background:none;pointer-events:none;-webkit-appearance:none;appearance:none}
+  .dual input::-webkit-slider-thumb{pointer-events:auto;-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#DCD6C6;border:2px solid #4E8FA6;cursor:pointer}
+  .dual input::-moz-range-thumb{pointer-events:auto;width:12px;height:12px;border-radius:50%;background:#DCD6C6;border:2px solid #4E8FA6;cursor:pointer}
+  .dual input::-webkit-slider-runnable-track{background:none}
+  .dual input::-moz-range-track{background:none}
   #time .ends{display:flex;justify-content:space-between;font-size:11px;color:var(--dim)}
-  /* Marks that sit together: how many, and the list. */
-  .leaflet-popup-content details,#gpop details{margin-top:4px;padding-top:4px}
-  .leaflet-popup-content details > :not(summary),#gpop details > :not(summary){margin-left:14px}
-  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
-  .from{color:var(--dim);font-size:11px}
-  .zin{margin:0 0 4px;font-size:11.5px}
-  @media (max-width:700px){#panel{width:calc(100% - 32px);max-height:40%}#setbox{top:auto;bottom:16px;left:16px;right:16px;width:auto}
-    body.in-frame #setbox{top:auto}}
+  /* Layer colours, as on the Earth map. */
+  #colours{margin-top:8px;padding-top:7px;border-top:1px solid var(--rule)}
+  #colours .cw{display:flex;gap:10px;align-items:center}
+  #colours .ring{position:relative;width:96px;height:96px;flex:none}
+  #colours .wheel{position:absolute;left:17px;top:17px;width:62px;height:62px;border-radius:50%;cursor:crosshair;touch-action:none;
+    background:radial-gradient(circle closest-side,#8C8C88 0%,rgba(140,140,136,.55) 45%,rgba(140,140,136,0) 100%),
+      conic-gradient(hsl(0,42%,50%),hsl(60,42%,50%),hsl(120,42%,50%),hsl(180,42%,50%),hsl(240,42%,50%),hsl(300,42%,50%),hsl(360,42%,50%));opacity:.75}
+  #colours .wheel.on{opacity:1}
+  #colours .wdot{position:absolute;width:10px;height:10px;margin:-6px 0 0 -6px;border-radius:50%;border:2px solid #E8E2D6;box-shadow:0 0 0 1px rgba(0,0,0,.6);pointer-events:none}
+  #colours .pre{position:absolute;width:15px;height:15px;margin:-8px 0 0 -8px;border-radius:50%;border:1px solid rgba(0,0,0,.55);cursor:pointer;padding:0;opacity:.85}
+  #colours .pre:hover,#colours .pre.on{opacity:1;box-shadow:0 0 0 2px #E8E2D6}
+  #colours .side{display:flex;flex-direction:column;gap:6px;font-size:11.5px;flex:1}
+  #colours .side input{width:100%;accent-color:#4E8FA6}
+  #colours .chip{font:inherit;font-size:11px;padding:2px 8px;border-radius:10px;border:1px solid rgba(78,143,166,.5);background:none;color:var(--bone);cursor:pointer;align-self:flex-start}
+  @media (max-width:720px){#panel{width:calc(100% - 32px);max-height:40%}#setbox{top:auto;bottom:16px;left:16px;right:16px;width:auto}
+    body.in-frame #setbox{top:auto}#info{left:16px;right:16px;width:auto}}
 </style>
 </head>
 <body>
+<canvas id="stars"></canvas>
 <div id="map"></div>
+<div id="globe" hidden></div>
 <div class="box" id="panel">
-  <div id="body-name"></div>
-  <p class="note" id="globe-note"></p>
-  <div id="rows"></div>
-  <div id="time" hidden>
-    <div id="time-say"></div>
-    <input type="range" id="time-range" step="1" aria-label="Show what was there by this year">
-    <div class="ends"><span id="time-lo"></span><span id="time-hi"></span></div>
+  <div class="ph"><div id="body-name"></div><button type="button" id="roll" aria-expanded="true" title="Roll this box up or down">&#9652;</button></div>
+  <div class="pb">
+    <p class="note" id="globe-note"></p>
+    <div id="rows"></div>
+    <div id="time" hidden>
+      <div id="time-say"></div>
+      <div class="dual"><div class="track"></div><div class="fill" id="time-fill"></div>
+        <input type="range" id="time-lo-in" step="1" aria-label="From this year">
+        <input type="range" id="time-hi-in" step="1" aria-label="To this year"></div>
+      <div class="ends"><span id="time-lo"></span><span id="time-hi"></span></div>
+    </div>
+    <div id="colours"><h1 style="margin-top:0">Layer colours</h1>
+      <div class="cw"><div class="ring" id="ring"><div class="wheel" id="wheel" role="slider" tabindex="0" aria-label="Layer colours: drag round the wheel"><i class="wdot" id="wdot"></i></div></div>
+        <div class="side"><label>Darker or lighter<input type="range" id="bright" min="0.5" max="1.6" step="0.05" value="1"></label>
+          <button type="button" class="chip" id="drawn">As drawn</button></div></div>
+    </div>
+    <p class="note" id="body-note"></p>
+    <details id="unplaced-box" hidden><summary id="unplaced-sum"></summary><ul id="unplaced"></ul></details>
   </div>
-  <p class="note" id="body-note"></p>
-  <details id="unplaced-box" hidden><summary id="unplaced-sum"></summary><ul id="unplaced"></ul></details>
 </div>
 <div class="box" id="setbox">
   <div class="cols">
     <div><h1>Basemap</h1><div class="looks"></div></div>
-    <div><h1>View</h1>
-      <label><input type="radio" name="view" value="globe" checked> Globe</label>
-      <label><input type="radio" name="view" value="flat"> Flat map</label>
+    <div><h1>View</h1><div class="views"></div>
       <button type="button" id="snap">Snap back to global scale</button>
     </div>
   </div>
 </div>
-<div id="globe" hidden></div>
-<div class="box" id="gpop" hidden><button type="button" class="gp-x" aria-label="Close">&#215;</button><div class="gp-body"></div></div>
+<div class="box" id="info" hidden><button type="button" class="ix" aria-label="Close">&#215;</button><div class="ib"></div></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 (function () {
@@ -178,31 +216,145 @@
         { id: "names", file: "mars_names.geojson", kind: "names", title: "Place names, for finding your way (IAU)", sub: "Official names of craters, plains and mountains; more appear as you zoom in",
           credit: 'IAU names from the <a href="https://planetarynames.wr.usgs.gov/" target="_blank" rel="noopener">USGS Gazetteer of Planetary Nomenclature</a>', on: true }
       ]
+    },
+    // Round 209o (asked 15 October): the Sun, and the human-made objects going
+    // round it. Not a surface: a map of the plane the planets go round in,
+    // seen from above (or from the side), in astronomical units.
+    sun: {
+      name: "Sun", plane: true, heading: "what people have sent into orbit round it",
+      ground: 'Places: <a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noopener">NASA/JPL Horizons</a>; objects: <a href="https://planet4589.org/space/gcat/" target="_blank" rel="noopener">GCAT</a> (J. McDowell, CC BY)',
+      note: "Each object is placed where NASA/JPL's Horizons follows it today, in the plane of Earth's orbit, in astronomical units (1 AU is Earth's distance from the Sun). Where Horizons' record ends earlier, the object is drawn as a ring at the last place it gives, and its box says when. " +
+            "Objects Horizons does not follow, most spent rocket stages among them, have no published place; they are listed below the rows. Sizes of the marks are not to scale.",
+      rows: [
+        { id: "objects", file: "sun_objects.json", kind: "probe", title: "Human-made objects orbiting the Sun (GCAT)",
+          sub: "Every probe, spent rocket stage and part in the Heliocentric Register, each column as GCAT gives it",
+          credit: 'J. McDowell, <a href="https://planet4589.org/space/gcat/" target="_blank" rel="noopener">General Catalog of Artificial Space Objects</a>, Heliocentric Register (CC BY); places from <a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noopener">NASA/JPL Horizons</a>', on: true },
+        { id: "planets", file: "sun_planets.json", kind: "planets", title: "The planets today, and their paths (NASA/JPL Horizons)",
+          sub: "For finding your way: where each planet is today, and the path it takes round the Sun",
+          credit: '<a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noopener">NASA/JPL Horizons</a>', on: true }
+      ]
     }
   };
 
   var inFrame = window.parent !== window;
   var css = getComputedStyle(document.documentElement);
-  var C = function (n) { return css.getPropertyValue(n).trim(); };
+  var Craw = function (n) { return css.getPropertyValue(n).trim(); };
   var DATA = "https://welcometoyourgalaxy.github.io/culprits-tiles-more/bodies/";
   var NASA_ROVERS = "https://mars.nasa.gov/mmgis-maps/";
   var LANDED = { M20: Date.UTC(2021, 1, 18), MSL: Date.UTC(2012, 7, 6) };   // sol 0 of each rover
   var SOL = 88775244;                                                         // one Mars day, in milliseconds
 
-  // Round 204o (asked 14 October): Earth's basemap looks, made over NASA's own
-  // picture of the body by recolouring it (CSS filters), with a grid where
-  // Earth's look has one. Satellite is the picture as NASA gives it.
+  // ---------- stars behind every view, as on the Earth map ----------
+  // Drawn once from a fixed seed, so they are the same at every visit.
+  function starfield(w, h, n, k) {
+    var cv = document.createElement("canvas");
+    cv.width = w; cv.height = h;
+    var g = cv.getContext("2d"), seed = 0x2F6B4A1D;
+    var rnd = function () { seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; return ((seed >>> 0) % 100000) / 100000; };
+    g.fillStyle = "#03050A"; g.fillRect(0, 0, w, h);
+    for (var i = 0; i < n; i++) {
+      var x = rnd() * w, y = rnd() * h, m = rnd(), r = (m > 0.985 ? 1.4 : m > 0.9 ? 0.9 : 0.55) * k, a = 0.25 + rnd() * 0.65;
+      var tint = rnd(), c = tint > 0.8 ? "210,225,245" : tint > 0.65 ? "235,228,240" : "235,238,242";
+      g.fillStyle = "rgba(" + c + "," + a.toFixed(2) + ")";
+      g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+    }
+    return cv;
+  }
+  var STARS = starfield(2048, 1024, 2600, 1);
+  function drawStars() {
+    var c = document.getElementById("stars"), dpr = window.devicePixelRatio || 1;
+    c.width = innerWidth * dpr; c.height = innerHeight * dpr;
+    var g = c.getContext("2d");
+    for (var x = 0; x < c.width; x += STARS.width) for (var y = 0; y < c.height; y += STARS.height) g.drawImage(STARS, x, y);
+  }
+  drawStars();
+  window.addEventListener("resize", drawStars);
+
+  // ---------- Layer colours: hue, strength and brightness for every mark ----------
+  // The same steps as the Earth map's Layer colours (CSS filter steps worked
+  // out as one colour matrix), with ready-made settings round the wheel.
+  var PRESETS = [
+    ["Deep ocean", { h: 190, r: 0.7, b: 1.25 }], ["Glacier", { h: 195, r: 0.35, b: 1.5 }], ["Cobalt", { h: 225, r: 0.8, b: 1.15 }],
+    ["Slate and bone", { h: 40, r: 0.06, b: 1.55 }], ["Basalt", { h: 200, r: 0.04, b: 1.4 }], ["Dusk", { h: 330, r: 0.55, b: 1.2 }],
+    ["Signal", { h: 345, r: 0.8, b: 1.3 }], ["Ink", { h: 215, r: 0.8, b: 0.7 }]
+  ];
+  var TONE = null;      // null: as drawn
+  try { TONE = JSON.parse(localStorage.getItem("bodies-colours") || "null"); } catch (e) { TONE = null; }
+  function toneMatrix(t) {
+    var rot = ((t.h - 200) % 360 + 540) % 360 - 180, sat = 0.1 + 1.5 * Math.max(0, Math.min(1, t.r)), br = Math.max(0.5, Math.min(1.6, t.b));
+    var a = rot * Math.PI / 180, c = Math.cos(a), n = Math.sin(a);
+    var H = [[0.213 + c * 0.787 - n * 0.213, 0.715 - c * 0.715 - n * 0.715, 0.072 - c * 0.072 + n * 0.928],
+      [0.213 - c * 0.213 + n * 0.143, 0.715 + c * 0.285 + n * 0.140, 0.072 - c * 0.072 - n * 0.283],
+      [0.213 - c * 0.213 - n * 0.787, 0.715 - c * 0.715 + n * 0.715, 0.072 + c * 0.928 + n * 0.072]];
+    var S = [[0.213 + 0.787 * sat, 0.715 - 0.715 * sat, 0.072 - 0.072 * sat], [0.213 - 0.213 * sat, 0.715 + 0.285 * sat, 0.072 - 0.072 * sat],
+      [0.213 - 0.213 * sat, 0.715 - 0.715 * sat, 0.072 + 0.928 * sat]];
+    var M = [0, 1, 2].map(function (i) { return [0, 1, 2].map(function (j) { return S[i][0] * H[0][j] + S[i][1] * H[1][j] + S[i][2] * H[2][j]; }); });
+    return M.map(function (row) { return row.map(function (v) { return v * br; }); });
+  }
+  function C(name) {
+    var c = Craw(name);
+    if (!TONE || !/^#[0-9a-f]{6}$/i.test(c)) return c;
+    var M = toneMatrix(TONE), rgb = [1, 3, 5].map(function (i) { return parseInt(c.slice(i, i + 2), 16); });
+    return "#" + [0, 1, 2].map(function (i) {
+      var v = Math.max(0, Math.min(255, Math.round(M[i][0] * rgb[0] + M[i][1] * rgb[1] + M[i][2] * rgb[2])));
+      return (v < 16 ? "0" : "") + v.toString(16);
+    }).join("");
+  }
+  var wheelCss = function (t) { return "hsl(" + Math.round(t.h) + "," + Math.round(15 + 40 * t.r) + "%," + Math.round(38 + 18 * (t.b - 0.5)) + "%)"; };
+  function colourBox() {
+    var ring = document.getElementById("ring"), wheel = document.getElementById("wheel"), dot = document.getElementById("wdot"), bright = document.getElementById("bright");
+    PRESETS.forEach(function (p, i) {
+      var a = i / PRESETS.length * 2 * Math.PI, b = document.createElement("button");
+      b.type = "button"; b.className = "pre"; b.title = p[0]; b.setAttribute("aria-label", p[0]);
+      b.style.left = (48 + Math.sin(a) * 42).toFixed(1) + "px"; b.style.top = (48 - Math.cos(a) * 42).toFixed(1) + "px";
+      b.style.background = wheelCss(p[1]);
+      b.addEventListener("click", function () { setTone(Object.assign({}, p[1]), i); });
+      ring.appendChild(b);
+    });
+    var place = function () {
+      var t = TONE || { h: 200, r: 0, b: 1 }, a = t.h * Math.PI / 180, r = Math.max(0, Math.min(1, t.r)) * 46;
+      dot.style.left = "calc(50% + " + (Math.sin(a) * r).toFixed(1) + "%)"; dot.style.top = "calc(50% - " + (Math.cos(a) * r).toFixed(1) + "%)";
+      dot.style.background = TONE ? wheelCss(TONE) : "#8C8C88";
+      wheel.classList.toggle("on", !!TONE);
+      bright.value = TONE ? TONE.b : 1;
+      ring.querySelectorAll(".pre").forEach(function (el, i) { el.classList.toggle("on", !!TONE && TONE.preset === i); });
+    };
+    var timer = null;
+    window.setTone = function (t, preset) {
+      TONE = t; if (TONE) TONE.preset = preset;
+      try { localStorage.setItem("bodies-colours", JSON.stringify(TONE)); } catch (e) { /* not kept */ }
+      place();
+      clearTimeout(timer); timer = setTimeout(redraw, 60);
+    };
+    var setTone = window.setTone;
+    var pick = function (ev) {
+      var b = wheel.getBoundingClientRect(), R = b.width / 2, dx = ev.clientX - (b.left + R), dy = ev.clientY - (b.top + R);
+      setTone({ h: (Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360, r: Math.min(1, Math.hypot(dx, dy) / R), b: TONE ? TONE.b : 1 });
+    };
+    var drag = false;
+    wheel.addEventListener("pointerdown", function (ev) { drag = true; try { wheel.setPointerCapture(ev.pointerId); } catch (e) { /* kept */ } pick(ev); ev.preventDefault(); });
+    wheel.addEventListener("pointermove", function (ev) { if (drag) pick(ev); });
+    wheel.addEventListener("pointerup", function () { drag = false; });
+    bright.addEventListener("input", function () { var t = Object.assign({ h: 200, r: 0.04 }, TONE || {}); t.b = +bright.value; setTone(t, TONE ? TONE.preset : undefined); });
+    document.getElementById("drawn").addEventListener("click", function () { setTone(null); });
+    place();
+  }
+
+  // ---------- looks of the ground ----------
+  // Round 209o (asked 15 October): Satellite (NASA's picture as given),
+  // Twilight (was Woodlands: there are no woods on the Moon or Mars),
+  // Bioluminescent (brighter, so the ground glows rather than going black),
+  // Hologram and Hell (crimson, not orange). In the Sun view the looks colour
+  // the Sun's glow and the paths.
   var LOOKS = [
-    ["satellite", "Satellite", "", false],
-    ["jurassic", "Jurassic", "grayscale(.45) contrast(1.15) brightness(.9) sepia(.25) hue-rotate(150deg) saturate(.9)", false],
-    ["atlas", "Atlas", "grayscale(1) sepia(.3) contrast(.95) brightness(1.05)", false],
-    ["wood", "Woodlands", "grayscale(1) sepia(.5) hue-rotate(240deg) saturate(.8) brightness(.55) contrast(1.2)", false],
-    ["night", "Bioluminescent", "grayscale(1) brightness(.35) contrast(1.5) sepia(1) hue-rotate(175deg) saturate(2.2)", false],
-    ["holo", "Hologram", "grayscale(1) invert(1) brightness(.5) contrast(1.7) sepia(1) hue-rotate(160deg) saturate(2.5)", "rgba(127,184,217,0.35)"],
-    ["hell", "Hell", "grayscale(1) brightness(.5) contrast(1.35) sepia(1) hue-rotate(-35deg) saturate(3)", false],
-    ["standard", "Standard", "grayscale(1) contrast(.75) brightness(1.15)", "rgba(200,200,200,0.25)"]
+    ["satellite", "Satellite", "", false, { sun: ["#F1EEE6", "#9FB8C8"], path: "rgba(200,210,220,0.45)" }],
+    ["twilight", "Twilight", "grayscale(1) sepia(.5) hue-rotate(240deg) saturate(.8) brightness(.55) contrast(1.2)", false, { sun: ["#E6DDEB", "#7B6A93"], path: "rgba(170,150,200,0.45)" }],
+    ["night", "Bioluminescent", "grayscale(1) contrast(1.8) brightness(.72) sepia(1) hue-rotate(130deg) saturate(1.9)", false, { sun: ["#D6F4EE", "#3DC2AC"], path: "rgba(61,194,172,0.5)" }],
+    ["holo", "Hologram", "grayscale(1) invert(1) brightness(.5) contrast(1.7) sepia(1) hue-rotate(160deg) saturate(2.5)", "rgba(127,184,217,0.35)", { sun: ["#DCEFFF", "#47AFFF"], path: "rgba(71,175,255,0.5)" }],
+    ["hell", "Hell", "grayscale(1) brightness(.5) contrast(1.4) sepia(1) hue-rotate(-55deg) saturate(2.6)", false, { sun: ["#F4DADF", "#B0283F"], path: "rgba(200,60,80,0.5)" }]
   ];
   var LOOK = "satellite", VIEW = "globe";
+  var lookOf = function (k) { return LOOKS.filter(function (l) { return l[0] === k; })[0] || LOOKS[0]; };
 
   var map = L.map("map", { crs: L.CRS.EPSG4326, center: [0, 0], zoom: 2, minZoom: 1, maxZoom: 11,
     worldCopyJump: false, maxBounds: [[-140, -240], [140, 240]], zoomControl: true });
@@ -212,12 +364,14 @@
   var canvas = L.canvas({ padding: 0.3 });
   var ground = null, grid = null, markLayer = L.layerGroup().addTo(map), stopLayer = L.layerGroup().addTo(map),
     routeLayer = L.layerGroup().addTo(map), nameLayer = L.layerGroup().addTo(map);
-  var layers = {}, body = null, cache = {}, YEAR = null, YMIN = null, YMAX = null;
-  var PICK = { moon: {}, mars: {} };
+  var layers = {}, body = null, cache = {};
+  var YMIN = null, YMAX = null, YLO = null, YHI = null;
+  var PICK = { moon: {}, mars: {}, sun: {} };
   function picked(key, row) {
     var p = PICK[key] || {};
     return Object.keys(p).length ? !!p[row.id] : row.on;
   }
+  var isSun = function () { return !!(BODIES[body] && BODIES[body].plane); };
 
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   function flat(v) {
@@ -232,11 +386,11 @@
     return "";
   }
   // Every field the source gives, in its own order.
-  function popup(row, p) {
-    var html = "<h3>" + esc(titleOf(row, p)) + "</h3><table>";
+  function popup(row, p, title, extra) {
+    var html = "<h3>" + esc(title != null ? title : titleOf(row, p)) + "</h3>" + (extra || "") + "<table>";
     Object.keys(p).forEach(function (k) {
       var v = flat(p[k]);
-      if (v === "") return;
+      if (v === "" || v === "-") return;
       if (/^https?:\/\//.test(v)) v = '<a href="' + esc(v) + '" target="_blank" rel="noopener">' + esc(v) + "</a>"; else v = esc(v);
       html += "<tr><td>" + esc(k) + "</td><td>" + v + "</td></tr>";
     });
@@ -251,13 +405,13 @@
   function kg(p) {
     for (var k in p) {
       if (!/kg/i.test(k)) continue;
-      var m = String(p[k]).replace(/[,  ]/g, "").match(/(\d+(?:\.\d+)?)/);
+      var m = String(p[k]).replace(/[,  ]/g, "").match(/(\d+(?:\.\d+)?)/);
       if (m) return parseFloat(m[1]);
     }
     return null;
   }
   function yearOf(p) {
-    var cands = [p.DATE, p.Year, p.year, p.date];
+    var cands = [p.DATE, p.Year, p.year, p.date, p.LDate];
     for (var i = 0; i < cands.length; i++) { var m = String(cands[i] == null ? "" : cands[i]).match(/\b(19[5-9]\d|20\d\d)\b/); if (m) return +m[1]; }
     return null;
   }
@@ -267,22 +421,24 @@
     var c = f.geometry.coordinates;
     return [c[1], lon180(c[0])];
   }
+  // Round 209o (asked 15 October: marks were crowding one another): smaller
+  // marks, each drawn where it is; the glow is kept, close round each one.
   var STYLE = {
-    obj: ["--obj", "--obj-glow", 3.5], mass: ["--mass", "--mass-glow", 3], plan: ["--plan", "--plan-glow", 6], now: ["--obj", "--rover-glow", 6],
-    stop: ["--rover", "--rover-glow", 1.8]
+    obj: ["--obj", "--obj-glow", 3], mass: ["--mass", "--mass-glow", 2.5], plan: ["--plan", "--plan-glow", 4.5], now: ["--obj", "--rover-glow", 4.5],
+    stop: ["--rover", "--rover-glow", 1.6], probe: ["--probe", "--probe-glow", 3]
   };
 
   // ---------- each row read into marks, routes or names ----------
-  // A mark: { lat, lng, year, planned, kind, r, title, html, row }.
+  // A mark: { lat, lng, year, planned, kind, r, title, html, row, ring }.
   function readPoints(row, fc) {
     var feats = fc.features || [], out = [], unplaced = [], maxKg = 0;
     if (row.kind === "mass") feats.forEach(function (f) { var m = kg(f.properties || {}); if (m && m > maxKg) maxKg = m; });
     feats.forEach(function (f) {
       var p = f.properties || {}, at = ll(f);
-      if (!at) { unplaced.push(p); return; }
+      if (!at) { unplaced.push(titleOf(row, p)); return; }
       var m = row.kind === "mass" ? kg(p) : null;
       out.push({ lat: at[0], lng: at[1], year: row.kind === "plan" ? null : yearOf(p), planned: row.kind === "plan", kind: row.kind,
-        r: row.kind === "mass" ? (m && maxKg ? 2.5 + 8 * Math.sqrt(m / maxKg) : 3) : STYLE[row.kind][2],
+        r: row.kind === "mass" ? (m && maxKg ? 2.2 + 4.8 * Math.sqrt(m / maxKg) : 2.5) : STYLE[row.kind][2],
         title: row.kind === "plan" ? (p.region || "") : titleOf(row, p), html: popup(row, p), row: row });
     });
     return { marks: out, count: feats.length, unplaced: unplaced };
@@ -307,22 +463,44 @@
       var pts = (both[1].features || []).filter(function (f) { return f.geometry; });
       var stops = pts.map(function (f, i) {
         var p = f.properties || {}, at = ll(f), y = p.sol != null ? new Date(LANDED[row.rover] + p.sol * SOL).getUTCFullYear() : null;
-        return { lat: at[0], lng: at[1], year: y, kind: i === pts.length - 1 ? "now" : "stop", r: i === pts.length - 1 ? 6 : 1.8,
+        return { lat: at[0], lng: at[1], year: y, kind: i === pts.length - 1 ? "now" : "stop", r: i === pts.length - 1 ? 4.5 : 1.6,
           title: titleOf(row, p), html: popup(row, p), row: row };
       });
       return { stops: stops, lines: lines, count: pts.length, unplaced: [] };
     });
   }
+  // The Sun's objects: GCAT's columns as given, placed where Horizons has them.
+  function readSun(row, d) {
+    var out = [], unplaced = [];
+    (d.objects || []).forEach(function (o) {
+      var g = o.gcat || {}, name = g.Name || g.PLName || g.JCAT || "";
+      if (!o.pos) { unplaced.push(name + (g.LDate ? " (launched " + g.LDate + ")" : "")); return; }
+      var extra = '<p class="from" style="margin:0 0 6px">' + (o.pos.last
+        ? "Drawn as a ring: the last place NASA/JPL Horizons gives, " + esc(o.pos.date) + "."
+        : "Where NASA/JPL Horizons places it on " + esc(o.pos.date) + ".") +
+        " " + o.pos.x.toFixed(3) + ", " + o.pos.y.toFixed(3) + ", " + o.pos.z.toFixed(3) + " AU (" +
+        Math.hypot(o.pos.x, o.pos.y, o.pos.z).toFixed(2) + " AU from the Sun)" + (o.horizons ? "; Horizons " + esc(o.horizons.name) : "") + "</p>";
+      out.push({ x: o.pos.x, y: o.pos.y, z: o.pos.z, ring: !!o.pos.last, year: yearOf(g), kind: "probe", r: STYLE.probe[2],
+        title: name, html: popup(row, g, name, extra), row: row });
+    });
+    return { marks: out, count: (d.objects || []).length, unplaced: unplaced };
+  }
+  function readPlanets(row, d) {
+    return { planets: d.planets || [], count: (d.planets || []).length, unplaced: [], date: d.date };
+  }
   function load(row) {
     if (row.rover) return readRover(row);
-    return get(DATA + row.file).then(function (fc) { return row.kind === "names" ? readNames(row, fc) : readPoints(row, fc); });
+    return get(DATA + row.file).then(function (d) {
+      return row.kind === "names" ? readNames(row, d) : row.kind === "probe" ? readSun(row, d) : row.kind === "planets" ? readPlanets(row, d) : readPoints(row, d);
+    });
   }
 
   // ---------- what the timeline lets through ----------
+  var atEnds = function () { return YLO == null || (YLO <= YMIN && YHI >= YMAX + 1); };
   function inTime(m) {
-    if (YEAR == null || YMAX == null) return true;
-    if (m.planned) return YEAR > YMAX;
-    return m.year == null || m.year <= YEAR;
+    if (YLO == null) return true;
+    if (m.planned) return YHI > YMAX;
+    return m.year == null || (m.year >= YLO && m.year <= YHI);
   }
   function onRows() {
     return (BODIES[body] ? BODIES[body].rows : []).filter(function (row) { var e = layers[row.id]; return e && e.r && e.box && e.box.checked; });
@@ -338,13 +516,7 @@
     return out;
   }
 
-  // ---------- marks that sit on top of each other share one, listing them all ----------
-  // Round 204o (asked 14 October): marks closer than a few pixels are drawn
-  // as one, with how many; a click lists every one of them, each opening to
-  // its full box, until the map is close enough to part them.
-  // Round 207o (asked 14 October): every mark is drawn on its own. A click
-  // lists every mark under the pointer (each opening to its full box), so a
-  // mark hidden under another is still found; zoom in and they part.
+  // ---------- every mark on its own; a click lists every mark under it ----------
   function under(marks, at, reach) {
     return marks.filter(function (m) { var p = at(m); return p && Math.hypot(p[0], p[1]) <= reach(m); })
       .sort(function (a, b) { var p = at(a), q = at(b); return Math.hypot(p[0], p[1]) - Math.hypot(q[0], q[1]); });
@@ -356,89 +528,122 @@
       return '<details><summary><i class="dot" style="background:' + C(STYLE[m.kind][0]) + '"></i>' + esc(m.title || "") + ' <span class="from">' + esc(m.row.title.replace(/ \(.*\)$/, "")) + "</span></summary>" + m.html + "</details>";
     }).join("");
   }
-  function orb(at, r, core, halo, interactive) {
+  // The box: in the free space on the right, under the looks box.
+  var infoAt = null;
+  function info(html, latlng) {
+    var b = document.getElementById("info");
+    b.querySelector(".ib").innerHTML = html;
+    infoAt = latlng || null;
+    b.hidden = false;
+    placeInfo();
+  }
+  function placeInfo() {
+    var b = document.getElementById("info");
+    if (b.hidden) return;
+    if (innerWidth <= 720) { b.style.top = ""; b.style.bottom = "16px"; b.style.maxHeight = "45%"; return; }
+    var sb = document.getElementById("setbox").getBoundingClientRect(), top = Math.round(sb.bottom + 12);
+    b.style.top = top + "px"; b.style.bottom = ""; b.style.maxHeight = Math.max(160, innerHeight - top - 16) + "px";
+  }
+  window.addEventListener("resize", placeInfo);
+  document.querySelector("#info .ix").addEventListener("click", function () { document.getElementById("info").hidden = true; });
+  document.getElementById("info").addEventListener("click", function (e) {
+    var a = e.target.closest && e.target.closest("[data-zoomin]");
+    if (!a) return;
+    e.preventDefault();
+    if (VIEW === "globe" && globe) { var pv = globe.pointOfView(); globe.pointOfView({ lat: infoAt ? infoAt.lat : pv.lat, lng: infoAt ? infoAt.lng : pv.lng, altitude: Math.max(0.15, pv.altitude / 3) }, 700); }
+    else if (infoAt) map.setView(infoAt, Math.min(map.getMaxZoom(), map.getZoom() + 3));
+  });
+  function orb(at, r, core, halo, ring) {
     var g = L.layerGroup();
-    L.circleMarker(at, { renderer: canvas, radius: r * 2, stroke: false, fillColor: halo, fillOpacity: 0.16, interactive: false }).addTo(g);
-    L.circleMarker(at, { renderer: canvas, radius: r * 1.45, stroke: false, fillColor: halo, fillOpacity: 0.28, interactive: false }).addTo(g);
-    var c = L.circleMarker(at, { renderer: canvas, radius: r, stroke: true, weight: 1, color: halo, opacity: 0.7, fillColor: core, fillOpacity: 0.95, interactive: interactive !== false }).addTo(g);
+    L.circleMarker(at, { renderer: canvas, radius: r * 2.2, stroke: false, fillColor: halo, fillOpacity: 0.14, interactive: false }).addTo(g);
+    var c = L.circleMarker(at, { renderer: canvas, radius: r, stroke: true, weight: ring ? 1.6 : 1, color: ring ? core : "rgba(255,255,255,0.55)", opacity: 0.9,
+      fillColor: core, fillOpacity: ring ? 0 : 0.95, interactive: true }).addTo(g);
     return { group: g, hit: c };
   }
-  // Boxes open on their own, not tied to a mark, so a redraw (a row still
-  // loading, the timeline moved) leaves an open box where it is.
-  // Popups are kept clear of the two boxes: left of the panel, under the looks box.
-  function padTL() {
-    var sb = document.getElementById("setbox").getBoundingClientRect(), mp = document.getElementById("map").getBoundingClientRect();
-    return innerWidth > 700 ? [340, Math.max(20, sb.bottom - mp.top + 10)] : [20, 20];
-  }
-  function opens(layer, html) {
-    return layer.on("click", function (e) { L.DomEvent.stop(e); L.popup({ maxWidth: 380, autoPanPaddingTopLeft: padTL(), autoPanPaddingBottomRight: [20, 20] }).setLatLng(e.latlng).setContent(html).openOn(map); });
-  }
+  // Where a mark is drawn: its place on the ground, or, in the Sun view, its
+  // place in the plane (from above: x and y; from the side: x and z), in AU.
+  var AU = 10;     // map units per astronomical unit in the Sun view
+  function where(m) { return isSun() ? [(VIEW === "side" ? m.z : m.y) * AU, m.x * AU] : [m.lat, m.lng]; }
   function drawFlat() {
-    if (VIEW !== "flat") return;
+    if (VIEW === "globe") return;
     markLayer.clearLayers(); stopLayer.clearLayers(); routeLayer.clearLayers();
-    var pos = function (m) { var p = map.latLngToLayerPoint([m.lat, m.lng]); return [p.x, p.y]; };
+    var pos = function (m) { var p = map.latLngToLayerPoint(where(m)); return [p.x, p.y]; };
     var zoomable = map.getZoom() < map.getMaxZoom();
-    // Routes: the full drives once the timeline is at its end; otherwise the
-    // line through the stops made by the year chosen.
+    var look = lookOf(LOOK);
+    if (isSun()) drawSunFrame(look);
+    // Routes: the full drives when the timeline spans every year; otherwise the
+    // line through the stops in the years chosen.
     onRows().forEach(function (row) {
       var r = layers[row.id].r;
       if (!r.lines) return;
-      if (YEAR == null || YEAR >= YMAX) r.lines.forEach(function (l) {
+      if (atEnds()) r.lines.forEach(function (l) {
         var lat = l.pts.map(function (q) { return [q[1], lon180(q[0])]; });
-        L.polyline(lat, { renderer: canvas, color: C("--rover-glow"), weight: 6, opacity: 0.35, interactive: false }).addTo(routeLayer);
-        L.polyline(lat, { renderer: canvas, color: C("--rover"), weight: 1.6, opacity: 0.95 }).addTo(routeLayer); opens(routeLayer.getLayers().slice(-1)[0], l.html);
+        L.polyline(lat, { renderer: canvas, color: C("--rover-glow"), weight: 5, opacity: 0.3, interactive: false }).addTo(routeLayer);
+        var line = L.polyline(lat, { renderer: canvas, color: C("--rover"), weight: 1.5, opacity: 0.95 }).addTo(routeLayer);
+        line.on("click", function (e) { L.DomEvent.stop(e); info(l.html, e.latlng); });
       });
       else {
         var lat = r.stops.filter(inTime).map(function (m) { return [m.lat, m.lng]; });
-        if (lat.length > 1) L.polyline(lat, { renderer: canvas, color: C("--rover"), weight: 1.6, opacity: 0.95, interactive: false }).addTo(routeLayer);
+        if (lat.length > 1) L.polyline(lat, { renderer: canvas, color: C("--rover"), weight: 1.5, opacity: 0.95, interactive: false }).addTo(routeLayer);
       }
     });
     var stops = shownStops(), marks = shownMarks();
-    // What lies under a click: marks within their own size of it, stops within a few pixels.
     var clickList = function (e) {
       var c = map.latLngToLayerPoint(e.latlng);
       var at = function (m) { var p = pos(m); return [p[0] - c.x, p[1] - c.y]; };
-      return under(marks, at, function (m) { return Math.max(m.r, 5) + 3; }).concat(under(stops, at, function () { return 5; }));
+      return under(marks, at, function (m) { return Math.max(m.r, 4) + 3; }).concat(under(stops, at, function () { return 4; }));
     };
     var opensHere = function (layer) {
       layer.on("click", function (e) {
         L.DomEvent.stop(e);
         var list = clickList(e);
-        if (!list.length) return;
-        L.popup({ maxWidth: 380, autoPanPaddingTopLeft: padTL(), autoPanPaddingBottomRight: [20, 20] })
-          .setLatLng(e.latlng).setContent(listHtml(list, zoomable && list.length > 1)).openOn(map);
+        if (list.length) info(listHtml(list, zoomable && list.length > 1), e.latlng);
       });
     };
     stops.forEach(function (m) {
-      opensHere(L.circleMarker([m.lat, m.lng], { renderer: canvas, radius: 1.8, stroke: false, fillColor: C("--rover"), fillOpacity: 0.85 }).addTo(stopLayer));
+      opensHere(L.circleMarker(where(m), { renderer: canvas, radius: 1.6, stroke: false, fillColor: C("--rover"), fillOpacity: 0.85 }).addTo(stopLayer));
     });
     marks.slice().sort(function (a, b) { return b.r - a.r; }).forEach(function (m) {
-      var s = STYLE[m.kind], o = orb([m.lat, m.lng], m.r, C(s[0]), C(s[1]));
+      var s = STYLE[m.kind], o = orb(where(m), m.r, C(s[0]), C(s[1]), m.ring);
       opensHere(o.hit);
-      if (m.kind === "now") o.hit.bindTooltip(esc(m.title), { permanent: true, direction: "right", className: "nm-label", offset: [8, 0] });
-      else if (m.kind === "plan" && map.getZoom() >= 4) o.hit.bindTooltip(esc(m.title), { permanent: true, direction: "right", className: "nm-label plan-label", offset: [8, 0] });
+      if (m.kind === "now") o.hit.bindTooltip(esc(m.title), { permanent: true, direction: "right", className: "nm-label", offset: [7, 0] });
+      else if (m.kind === "plan" && map.getZoom() >= 4) o.hit.bindTooltip(esc(m.title), { permanent: true, direction: "right", className: "nm-label plan-label", offset: [7, 0] });
       o.group.addTo(markLayer);
     });
     drawNames();
   }
-  // An open box that would sit under the looks box is put in front of it.
-  map.on("popupopen", function () {
-    var sb = document.getElementById("setbox"), el = document.querySelector(".leaflet-popup");
-    if (!el) return;
-    var a = sb.getBoundingClientRect(), b = el.getBoundingClientRect();
-    sb.classList.toggle("behind", !(b.right < a.left || b.left > a.right || b.bottom < a.top || b.top > a.bottom));
-  });
-  map.on("popupclose", function () { document.getElementById("setbox").classList.remove("behind"); });
-  map.on("popupopen", function (e) {
-    var a = e.popup.getElement() && e.popup.getElement().querySelector("[data-zoomin]");
-    if (a) a.addEventListener("click", function (ev) { ev.preventDefault(); map.closePopup(); map.setView(e.popup.getLatLng(), Math.min(map.getMaxZoom(), map.getZoom() + 3)); });
-  });
   map.on("zoomend", drawFlat);
+  // The Sun and the planets, in the Sun view.
+  function drawSunFrame(look) {
+    var cols = look[4];
+    L.circleMarker([0, 0], { renderer: canvas, radius: 26, stroke: false, fillColor: cols.sun[1], fillOpacity: 0.12, interactive: false }).addTo(routeLayer);
+    L.circleMarker([0, 0], { renderer: canvas, radius: 14, stroke: false, fillColor: cols.sun[1], fillOpacity: 0.3, interactive: false }).addTo(routeLayer);
+    L.circleMarker([0, 0], { renderer: canvas, radius: 7, stroke: false, fillColor: cols.sun[0], fillOpacity: 1, interactive: false })
+      .bindTooltip("Sun", { permanent: true, direction: "right", className: "nm-label planet-label", offset: [10, 0] }).addTo(routeLayer);
+    var named = [];
+    onRows().forEach(function (row) {
+      var r = layers[row.id].r;
+      if (!r.planets) return;
+      r.planets.forEach(function (p) {
+        var pt = function (q) { return [(VIEW === "side" ? q[2] : q[1]) * AU, q[0] * AU]; };
+        L.polyline(p.path.map(pt), { renderer: canvas, color: cols.path, weight: 1, interactive: false }).addTo(routeLayer);
+        var dot = L.circleMarker(pt(p.now), { renderer: canvas, radius: 3.5, stroke: true, weight: 1, color: "rgba(255,255,255,0.6)", fillColor: "#C9D6E3", fillOpacity: 1 }).addTo(routeLayer);
+        // A planet is named once it stands clear of the Sun and of the planet named before it.
+        var px = map.latLngToContainerPoint(pt(p.now)), sp = map.latLngToContainerPoint([0, 0]);
+        if (Math.hypot(px.x - sp.x, px.y - sp.y) > 22 && named.every(function (q) { return Math.hypot(px.x - q.x, px.y - q.y) > 26; })) {
+          dot.bindTooltip(esc(p.name), { permanent: true, direction: "right", className: "nm-label planet-label", offset: [6, 0] });
+          named.push(px);
+        }
+        var d = Math.hypot(p.now[0], p.now[1], p.now[2]);
+        dot.on("click", function (e) { L.DomEvent.stop(e); info("<h3>" + esc(p.name) + "</h3><p>Where NASA/JPL Horizons places it on " + esc(r.date || "") + ": " + d.toFixed(2) + " AU from the Sun. The line is its path round the Sun over one of its years.</p><div class=\"src\">" + row.credit + "</div>", e.latlng); });
+      });
+    });
+  }
   // Names: the biggest features first, none over another.
   function drawNames() {
     nameLayer.clearLayers();
     var rows = onRows().filter(function (row) { return row.kind === "names"; });
-    if (!rows.length || VIEW !== "flat") return;
+    if (!rows.length || VIEW === "globe" || isSun()) return;
     var r = layers[rows[0].id].r, z = map.getZoom(), b = map.getBounds().pad(0.05);
     var min = z >= 8 ? 0 : 2400 / Math.pow(2, z), placed = [];
     for (var i = 0; i < r.names.length && placed.length < 200; i++) {
@@ -454,7 +659,7 @@
   }
   map.on("moveend", drawNames);
 
-  // ---------- the globe ----------
+  // ---------- the globe (Moon and Mars) ----------
   var globe = null, globeTex = {};
   function loadScript(src) {
     return new Promise(function (ok, no) { var t = document.createElement("script"); t.src = src; t.onload = ok; t.onerror = no; document.head.appendChild(t); });
@@ -470,17 +675,17 @@
     };
     var pts = marks.map(function (m) {
       var s = STYLE[m.kind];
-      return { lat: m.lat, lng: m.lng, r: Math.max(0.3, m.r / 9), color: C(s[0]), label: esc(m.title), m: m };
+      return { lat: m.lat, lng: m.lng, r: Math.max(0.22, m.r / 12), color: C(s[0]), label: esc(m.title), m: m };
     });
-    stops.forEach(function (m) { pts.push({ lat: m.lat, lng: m.lng, r: 0.12, color: C("--rover"), label: esc(m.title), m: m }); });
+    stops.forEach(function (m) { pts.push({ lat: m.lat, lng: m.lng, r: 0.1, color: C("--rover"), label: esc(m.title), m: m }); });
     pts.forEach(function (p) {
-      p.html = function () { return listHtml(under(all, function (q) { return [deg(q, p.m), 0]; }, function (q) { return near + (q.kind === "stop" ? 0 : q.r / 9 * 0.5); }), false); };
+      p.html = function () { return listHtml(under(all, function (q) { return [deg(q, p.m), 0]; }, function (q) { return near + (q.kind === "stop" ? 0 : q.r / 12 * 0.5); }), true); };
     });
     var paths = [];
     onRows().forEach(function (row) {
       var r = layers[row.id].r;
       if (!r.lines) return;
-      if (YEAR == null || YEAR >= YMAX) r.lines.forEach(function (l) { paths.push({ pts: l.pts, color: C("--rover") }); });
+      if (atEnds()) r.lines.forEach(function (l) { paths.push({ pts: l.pts, color: C("--rover") }); });
       else { var s2 = r.stops.filter(inTime).map(function (m) { return [m.lng, m.lat]; }); if (s2.length > 1) paths.push({ pts: s2, color: C("--rover") }); }
     });
     var labels = [];
@@ -496,7 +701,8 @@
   // The body's picture, in the look chosen: recoloured on a canvas (the same
   // filters as the flat map), with the grid drawn on where the look has one.
   function globePicture() {
-    var key = body + "|" + LOOK, url = DATA + body + "_globe.jpg", look = LOOKS.filter(function (l) { return l[0] === LOOK; })[0];
+    if (isSun()) return;
+    var key = body + "|" + LOOK, url = DATA + body + "_globe.jpg", look = lookOf(LOOK);
     var note = document.getElementById("globe-note");
     if (globeTex[key]) { globe.globeImageUrl(globeTex[key]); return; }
     var img = new Image();
@@ -528,11 +734,14 @@
     var g = document.getElementById("globe");
     return (typeof Globe === "undefined" ? loadScript("https://unpkg.com/globe.gl@2.46.2/dist/globe.gl.min.js") : Promise.resolve()).then(function () {
       if (globe) return;
-      globe = Globe()(g).backgroundColor("#05070B").width(window.innerWidth).height(window.innerHeight)
+      // The globe's sky is wrapped round a sphere far off, so it is drawn
+      // larger and finer, or its stars come out as blurred blobs.
+      var starUrl = starfield(8192, 4096, 9000, 1.1).toDataURL("image/jpeg", 0.9);
+      globe = Globe()(g).backgroundColor("#03050A").backgroundImageUrl(starUrl).width(window.innerWidth).height(window.innerHeight)
         .showAtmosphere(true).atmosphereColor("#4E8FA6").atmosphereAltitude(0.1)
-        .pointLat("lat").pointLng("lng").pointColor("color").pointRadius("r").pointAltitude(0.004).pointsMerge(false).pointLabel("label")
-        .onPointClick(function (p) { var b = document.getElementById("gpop"); b.querySelector(".gp-body").innerHTML = typeof p.html === "function" ? p.html() : p.html; b.hidden = false; })
-        .pathPoints("pts").pathPointLat(function (q) { return q[1]; }).pathPointLng(function (q) { return lon180(q[0]); }).pathColor("color").pathStroke(1.4)
+        .pointLat("lat").pointLng("lng").pointColor("color").pointRadius("r").pointAltitude(0.003).pointsMerge(false).pointLabel("label")
+        .onPointClick(function (p) { info(typeof p.html === "function" ? p.html() : p.html, { lat: p.lat, lng: p.lng }); })
+        .pathPoints("pts").pathPointLat(function (q) { return q[1]; }).pathPointLng(function (q) { return lon180(q[0]); }).pathColor("color").pathStroke(1.2)
         .labelLat("lat").labelLng("lng").labelText("text").labelSize("size").labelDotRadius(0).labelResolution(2)
         .labelColor(function () { return "rgba(214,220,228,0.85)"; })
         .onZoom(function () { clearTimeout(globeTimer); globeTimer = setTimeout(drawGlobe, 250); });
@@ -542,18 +751,22 @@
 
   // ---------- switches ----------
   function setLook(k) {
-    LOOK = k;
-    var look = LOOKS.filter(function (l) { return l[0] === k; })[0];
-    document.querySelectorAll('#setbox input[name="look"]').forEach(function (i) { i.checked = i.value === k; });
+    LOOK = lookOf(k)[0];
+    var look = lookOf(LOOK);
+    document.querySelectorAll('#setbox input[name="look"]').forEach(function (i) { i.checked = i.value === LOOK; });
     if (ground) ground.getContainer().style.filter = look[2] || "";
     if (grid) { map.removeLayer(grid); grid = null; }
-    if (look[3]) {
+    if (look[3] && !isSun()) {
       grid = L.layerGroup();
       for (var x = -180; x <= 180; x += 15) L.polyline([[-90, x], [90, x]], { renderer: canvas, color: look[3], weight: 1, interactive: false }).addTo(grid);
       for (var y = -90; y <= 90; y += 15) L.polyline([[y, -180], [y, 180]], { renderer: canvas, color: look[3], weight: 1, interactive: false }).addTo(grid);
       grid.addTo(map);
     }
     if (globe) globePicture();
+    if (isSun()) drawFlat();
+  }
+  function viewsFor(key) {
+    return BODIES[key].plane ? [["above", "From above"], ["side", "From the side"]] : [["globe", "Globe"], ["flat", "Flat map"]];
   }
   function setView(v) {
     VIEW = v;
@@ -561,40 +774,61 @@
     var g = document.getElementById("globe");
     document.getElementById("map").style.visibility = v === "globe" ? "hidden" : "";
     g.hidden = v !== "globe";
-    document.getElementById("gpop").hidden = true;
-    // The globe stops drawing while the flat map is shown, so it costs nothing.
-    if (v === "flat") { if (globe) globe.pauseAnimation(); map.invalidateSize(); drawFlat(); return; }
+    document.getElementById("info").hidden = true;
+    if (v !== "globe") {
+      if (globe) globe.pauseAnimation();
+      map.invalidateSize();
+      if (isSun()) fitSun(); else drawFlat();
+      return;
+    }
     makeGlobe().then(function () { globe.resumeAnimation(); globePicture(); drawGlobe(); })
       .catch(function () { document.getElementById("globe-note").textContent = "The globe could not be loaded here, so the flat map is shown."; setView("flat"); });
   }
+  function fitSun() {
+    var pts = [[0, 0]];
+    onRows().forEach(function (row) {
+      var r = layers[row.id].r;
+      (r.marks || []).forEach(function (m) { if (inTime(m)) pts.push(where(m)); });
+      (r.planets || []).forEach(function (p) { p.path.forEach(function (q) { pts.push([(VIEW === "side" ? q[2] : q[1]) * AU, q[0] * AU]); }); });
+    });
+    map.fitBounds(L.latLngBounds(pts).pad(0.05), { animate: false, paddingTopLeft: [innerWidth > 720 ? 330 : 10, 10], paddingBottomRight: [innerWidth > 720 ? 330 : 10, 10] });
+    drawFlat();
+  }
   function snapBack() {
     if (VIEW === "globe" && globe) globe.pointOfView({ lat: 0, lng: 0, altitude: 2.3 }, 800);
+    else if (isSun()) fitSun();
     else map.fitBounds([[-90, -180], [90, 180]]);
   }
   function redraw() { if (VIEW === "globe") drawGlobe(); else drawFlat(); }
 
-  // ---------- the timeline ----------
+  // ---------- the timeline: two ends ----------
+  var lo = document.getElementById("time-lo-in"), hi = document.getElementById("time-hi-in");
   function timeline() {
     var ys = [];
     onRows().forEach(function (row) { var r = layers[row.id].r; (r.marks || []).concat(r.stops || []).forEach(function (m) { if (m.year != null) ys.push(m.year); }); });
-    var box = document.getElementById("time"), s = document.getElementById("time-range"), t = document.getElementById("time-say");
-    if (!ys.length) { box.hidden = true; YEAR = null; return; }
-    var lo = Math.min.apply(null, ys), hi = Math.max.apply(null, ys);
-    var atEnd = YEAR == null || YEAR > YMAX;
-    YMIN = lo; YMAX = hi;
-    s.min = lo; s.max = hi + 1;
-    if (atEnd) YEAR = hi + 1;
-    YEAR = Math.max(lo, Math.min(hi + 1, YEAR));
-    s.value = YEAR;
+    var box = document.getElementById("time"), t = document.getElementById("time-say");
+    if (!ys.length) { box.hidden = true; YLO = YHI = null; return; }
+    var a = Math.min.apply(null, ys), b = Math.max.apply(null, ys);
+    var whole = YLO == null || (YLO <= YMIN && YHI >= YMAX + 1);
+    YMIN = a; YMAX = b;
+    if (whole) { YLO = a; YHI = b + 1; }
+    YLO = Math.max(a, Math.min(b + 1, YLO)); YHI = Math.max(YLO, Math.min(b + 1, YHI));
+    [lo, hi].forEach(function (i) { i.min = a; i.max = b + 1; });
+    lo.value = YLO; hi.value = YHI;
+    var fill = document.getElementById("time-fill"), span = (b + 1 - a) || 1;
+    fill.style.left = ((YLO - a) / span * 100) + "%"; fill.style.width = ((YHI - YLO) / span * 100) + "%";
     box.hidden = false;
-    t.textContent = YEAR > hi ? "Everything, up to today, and what is planned" : "What was there by the end of " + YEAR;
-    document.getElementById("time-lo").textContent = lo;
+    var to = YHI > b ? "today" : String(YHI);
+    t.textContent = YLO <= a && YHI > b ? "Every year, up to today, and what is planned" : "From " + YLO + " to " + to + (YHI > b ? ", and what is planned" : "");
+    document.getElementById("time-lo").textContent = a;
     document.getElementById("time-hi").textContent = "today";
   }
-  document.getElementById("time-range").addEventListener("input", function (e) { YEAR = +e.target.value; timeline(); redraw(); });
+  lo.addEventListener("input", function () { YLO = Math.min(+lo.value, YHI); timeline(); redraw(); });
+  hi.addEventListener("input", function () { YHI = Math.max(+hi.value, YLO); timeline(); redraw(); });
 
   function swatch(kind) {
-    var m = { obj: ["--obj", "--obj-glow"], mass: ["--mass", "--mass-glow"], plan: ["--plan", "--plan-glow"], rover: ["--rover", "--rover-glow"], names: ["--bone", "--rule"] }[kind];
+    var m = { obj: ["--obj", "--obj-glow"], mass: ["--mass", "--mass-glow"], plan: ["--plan", "--plan-glow"], rover: ["--rover", "--rover-glow"], names: ["--bone", "--rule"],
+      probe: ["--probe", "--probe-glow"], planets: ["--bone", "--rule"] }[kind];
     return "background:" + C(m[0]) + ";box-shadow:0 0 0 2px " + C(m[1]) + "66,0 0 6px " + C(m[1]);
   }
   function show(key) {
@@ -603,16 +837,29 @@
     body = key;
     var b = BODIES[key];
     document.title = b.name + ": human impact";
-    document.getElementById("body-name").textContent = key === "moon" ? "The Moon" : "Mars";
+    document.getElementById("body-name").textContent = key === "moon" ? "The Moon" : key === "sun" ? "The Sun" : "Mars";
     try { history.replaceState(null, "", "#" + key); } catch (e) { /* kept */ }
-    layers = {}; YEAR = null; YMAX = null;
+    layers = {}; YLO = YHI = YMIN = YMAX = null;
+    document.getElementById("info").hidden = true;
     markLayer.clearLayers(); stopLayer.clearLayers(); routeLayer.clearLayers(); nameLayer.clearLayers();
-    if (ground) map.removeLayer(ground);
-    ground = L.tileLayer(b.tiles, { tileSize: 256, maxNativeZoom: b.native, maxZoom: 11, noWrap: true, bounds: [[-90, -180], [90, 180]], attribution: b.ground }).addTo(map);
-    ground.bringToBack();
+    if (ground) { map.removeLayer(ground); ground = null; }
+    // The map's frame: the body's ground in degrees, or the plane in AU.
+    map.options.crs = b.plane ? L.CRS.Simple : L.CRS.EPSG4326;
+    map.setMinZoom(b.plane ? -3 : 1); map.setMaxZoom(b.plane ? 10 : 11);
+    map.setMaxBounds(b.plane ? null : [[-140, -240], [140, 240]]);
+    map.attributionControl._attributions = {};
+    if (!b.plane) {
+      ground = L.tileLayer(b.tiles, { tileSize: 256, maxNativeZoom: b.native, maxZoom: 11, noWrap: true, bounds: [[-90, -180], [90, 180]], attribution: b.ground }).addTo(map);
+      ground.bringToBack();
+    } else map.attributionControl.addAttribution(b.ground);
+    map.attributionControl._update();
+    // The views this body has.
+    document.querySelector("#setbox .views").innerHTML = viewsFor(key).map(function (v, i) {
+      return '<label><input type="radio" name="view" value="' + v[0] + '"' + (i === 0 ? " checked" : "") + "> " + esc(v[1]) + "</label>";
+    }).join("");
     setLook(LOOK);
-    map.fitBounds([[-90, -180], [90, 180]], { animate: false });
-    if (globe) { globePicture(); globe.pointsData([]).pathsData([]).labelsData([]); globe.pointOfView({ lat: 0, lng: 0, altitude: 2.3 }); }
+    if (!b.plane) map.fitBounds([[-90, -180], [90, 180]], { animate: false });
+    if (globe && !b.plane) { globePicture(); globe.pointsData([]).pathsData([]).labelsData([]); globe.pointOfView({ lat: 0, lng: 0, altitude: 2.3 }); }
     document.getElementById("body-note").textContent = b.note;
     var rows = document.getElementById("rows");
     rows.innerHTML = "<h1>" + esc(b.heading) + "</h1>";
@@ -629,20 +876,22 @@
       load(row).then(function (r) {
         if (body !== mine) return;
         entry.r = r;
-        n.textContent = row.sub + " · " + r.count.toLocaleString() + (row.kind === "names" ? " names" : row.rover ? " stops" : " entries");
+        n.textContent = row.sub + " · " + r.count.toLocaleString() + (row.kind === "names" ? " names" : row.rover ? " stops" : row.kind === "planets" ? " planets" : " entries");
         if (r.unplaced.length) {
-          r.unplaced.forEach(function (p) { var t = titleOf(row, p); unplacedAll.push(t + " (" + row.title.replace(/ \(.*\)$/, "") + ")"); });
-          document.getElementById("unplaced-sum").textContent = unplacedAll.length + (unplacedAll.length === 1 ? " entry" : " entries") + " the sources give no position for";
+          r.unplaced.forEach(function (t) { unplacedAll.push(t + " (" + row.title.replace(/ \(.*\)$/, "") + ")"); });
+          document.getElementById("unplaced-sum").textContent = unplacedAll.length + (unplacedAll.length === 1 ? " entry" : " entries") + " with no published place";
           document.getElementById("unplaced").innerHTML = unplacedAll.map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("");
           unBox.hidden = false;
         }
-        timeline(); redraw();
+        timeline();
+        if (b.plane && VIEW !== "globe") fitSun(); else redraw();
       }).catch(function () {
         if (body !== mine) return;
         n.textContent = row.sub + " · not built yet: culprits-tiles-more builds it on its next run";
       });
       box.addEventListener("change", function () { timeline(); redraw(); });
     });
+    setView(viewsFor(key)[0][0]);
   }
 
   // The box of looks and views, built like the Earth map's.
@@ -656,14 +905,20 @@
   });
   document.getElementById("snap").addEventListener("click", snapBack);
   if (inFrame) document.body.classList.add("in-frame");
-  document.querySelector("#gpop .gp-x").addEventListener("click", function () { document.getElementById("gpop").hidden = true; });
-  document.getElementById("gpop").addEventListener("toggle", function () { /* details open and close in place */ }, true);
+  // The left box rolls up to its title.
+  document.getElementById("roll").addEventListener("click", function () {
+    var p = document.getElementById("panel"), shut = !p.classList.contains("shut");
+    p.classList.toggle("shut", shut);
+    this.innerHTML = shut ? "&#9662;" : "&#9652;";
+    this.setAttribute("aria-expanded", String(!shut));
+  });
+  colourBox();
 
   // The map that opened this view can ask for a body and for the rows ticked there.
   window.addEventListener("message", function (e) {
     if (e.data && e.data.culpritsBody) show(e.data.culpritsBody);
     if (e.data && e.data.culpritsLayers) {
-      PICK = e.data.culpritsLayers;
+      PICK = Object.assign({ moon: {}, mars: {}, sun: {} }, e.data.culpritsLayers);
       (BODIES[body] ? BODIES[body].rows : []).forEach(function (row) { var en = layers[row.id]; if (en && en.box) en.box.checked = picked(body, row); });
       timeline(); redraw();
     }
@@ -671,7 +926,6 @@
   window.addEventListener("hashchange", function () { show(location.hash.slice(1)); });
   var q = new URLSearchParams(location.search).get("body");
   show(q || location.hash.slice(1) || "moon");
-  setView("globe");
 })();
 </script>
 </body>

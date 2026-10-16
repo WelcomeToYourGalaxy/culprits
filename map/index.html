@@ -508,9 +508,13 @@
   .how-3d-btn:hover{color:var(--bone)}
   .how-3d-btn .how-car{text-decoration:none;font-size:9px;transition:transform .15s}
   .how-3d-btn[aria-expanded="true"] .how-car{transform:rotate(180deg)}
-  #how-3d{margin-top:7px;padding-top:6px;border-top:1px solid var(--rule)}
+  #how-3d{position:fixed;z-index:70;padding:8px 12px 10px;background:rgba(23,21,15,.97);border:1px solid var(--rule);border-radius:4px;
+    box-shadow:0 10px 30px rgba(0,0,0,.55);color:var(--bone);font-size:12px;line-height:1.4;margin:0}
   #how-3d[hidden]{display:none}
   #how-3d .how-h{display:none}
+  #how-3d .how-pop-h{display:flex;justify-content:space-between;align-items:center;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-bottom:6px}
+  #how-3d .how-x{background:none;border:0;color:var(--dim);font-size:16px;line-height:1;cursor:pointer;padding:0 0 0 8px}
+  #how-3d .how-x:hover{color:var(--bone)}
   /* Round 106b: Layer colours under Flat map, its menu under its name, narrow;
      the 3D terrain box's own rows; the loading mark on the map. */
   .view-choices .theme-pick{flex-direction:column;gap:3px}
@@ -611,6 +615,7 @@
 <div class="space-bodies" id="spaceBodies" hidden>
   <button type="button" class="space-back" data-body="moon" title="A map of everything people have put on the Moon, and plan to">Moon</button>
   <button type="button" class="space-back" data-body="mars" title="A map of everything people have put on Mars, with the rovers' routes">Mars</button>
+  <button type="button" class="space-back" data-body="sun" title="The objects people have sent into orbit round the Sun, where they are now">Sun</button>
   <button type="button" class="space-back" id="spaceEyes" hidden title="Back to NASA's Eyes on the Solar System">&#8592; Solar system</button>
 </div>
 <iframe id="bodyFrame" class="body-frame" title="The Moon and Mars: what people have put there" hidden></iframe>

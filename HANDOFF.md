@@ -5,6 +5,36 @@ touches.
 
 ---
 
+## Round 209o (15 October)
+
+Needs round 208o (guards on its heading). Tiles patch round209o_tiles.py
+(culprits-tiles-more). No app.js?v= bump.
+
+- To the Sun (Off-planet invasion > From Earth), three rows:
+  - solar_gem: GEM's Global Solar Power Tracker, every phase (CC BY 4.0),
+    tiles/solar_gem.pmtiles, built by gem_solar.py from the owner's download
+    in culprits-tiles-more gem/solar/download/ (GEM gives it by form only);
+  - solar_companies: Wikipedia's List of photovoltaics companies, every
+    company table, at headquarters from Wikidata (solar_companies.py);
+  - sun_objects: GCAT's Heliocentric Register (CC BY), placed by NASA/JPL
+    Horizons (sun.py); opens the new Sun view. A Sun button sits beside
+    Moon and Mars.
+- bodies.html rewritten for the Moon, Mars and the Sun:
+  - stars behind every view; the left box rolls up; Layer colours (presets,
+    wheel, brightness) recolour the marks;
+  - every mark drawn on its own, smaller; a click lists every mark under the
+    pointer; the box opens under the looks box, never over another, and
+    wraps its text (no sideways scrolling);
+  - timeline with two ends;
+  - looks: Satellite, Twilight (was Woodlands), Bioluminescent (now glows),
+    Hologram, Hell (crimson); Jurassic, Atlas and Standard taken off there;
+  - the Sun view: the plane the planets go round in, from above or from the
+    side, in AU; objects Horizons does not follow are listed;
+  - the page is asked as bodies.html?v=209 so browsers fetch the new one.
+- How to move in 3D: opens as a box of its own beside the settings box.
+- Land use: the row says to zoom in while the map is too far out for
+  OpenStreetMap's plots, which only exist in the tiles close in.
+
 ## Round 208o (14 October)
 
 Needs round 207o (guards on its heading). No tiles patch. No app.js?v= bump.

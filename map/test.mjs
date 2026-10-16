@@ -7203,7 +7203,7 @@ console.log("\nround 197o (14 October): the Moon and Mars, from NASA's Eyes");
         /id="spaceBodies" hidden>/.test(page) && /data-body="moon"/.test(page) && /data-body="mars"/.test(page) && /id="spaceEyes" hidden/.test(page) &&
         /<iframe id="bodyFrame" class="body-frame"/.test(page));
   check("they show with Back to the map, and leaving Eyes closes the Moon or Mars too",
-        /if \(bodies\) bodies\.hidden = !on;\n  if \(!on\) closeBody\(\);/.test(src) && /f\.src = new URL\("bodies\.html#" \+ key, document\.baseURI\)\.href;/.test(src));
+        /if \(bodies\) bodies\.hidden = !on;\n  if \(!on\) closeBody\(\);/.test(src) && /f\.src = new URL\("bodies\.html\?v=209#" \+ key, document\.baseURI\)\.href;/.test(src));
   check("the ground is NASA's Moon Trek and Mars Trek tiles, read live; Mars in its real colour",
         /trek\.nasa\.gov\/tiles\/Moon\/EQ\/LRO_WAC_Mosaic_Global_303ppd_v02\/1\.0\.0\/default\/default028mm\/\{z\}\/\{y\}\/\{x\}\.jpg/.test(bodies) &&
         /trek\.nasa\.gov\/tiles\/Mars\/EQ\/Mars_Viking_MDIM21_ClrMosaic_global_232m\/1\.0\.0\/default\/default028mm\/\{z\}\/\{y\}\/\{x\}\.jpg/.test(bodies) &&
@@ -7311,7 +7311,7 @@ console.log("\nround 203o (14 October): Moon and Mars on a globe; clearer rows; 
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const bodies = fs.readFileSync(path.join(HERE, "bodies.html"), "utf8");
   check("a Flat map / Globe choice, the globe from globe.gl wrapped in the stitched Trek picture",
-        /name="view" value="globe" checked/.test(bodies) && /unpkg\.com\/globe\.gl@2\.46\.2\/dist\/globe\.gl\.min\.js/.test(bodies) && /DATA \+ body \+ "_globe\.jpg"/.test(bodies));
+        /return BODIES\[key\]\.plane \? \[\["above", "From above"\], \["side", "From the side"\]\] : \[\["globe", "Globe"\], \["flat", "Flat map"\]\];/.test(bodies) && /unpkg\.com\/globe\.gl@2\.46\.2\/dist\/globe\.gl\.min\.js/.test(bodies) && /DATA \+ body \+ "_globe\.jpg"/.test(bodies));
   check("the rover routes are on the marks' own canvas, so a second canvas cannot take the clicks",
         (bodies.match(/renderer: canvas/g) || []).length >= 8 && !/L\.geoJSON\(/.test(bodies));
   check("longitudes past 180 are brought back round (Wikipedia gives some in degrees west)", /function lon180\(x\) \{ return \(\(x \+ 180\) % 360 \+ 360\) % 360 - 180; \}/.test(bodies));
@@ -7350,16 +7350,17 @@ console.log("\nround 206o (14 October): Moon and Mars as globes first, with look
   check("the way back from the Moon, Mars and the solar system says Back to Earth", />&#8592; Back to Earth<\/button>/.test(html) && !/Back to the map<\/button>/.test(html));
   check("3D terrain sits under Standard in the Basemap column, its notes behind a line that opens them",
         /function terrainUnderBasemaps\(box, base, cols\)/.test(src) && /terrainUnderBasemaps\(box, base, cols\);/.test(src) &&
-        /b\.innerHTML = `Moving the map in 3D <span class="how-car">&#9662;<\/span>`;/.test(src) && /how\.hidden = true;\n    cols\.after\(how\);/.test(src));
+        /b\.textContent = "How to move in 3D \\u203a";/.test(src) && /how\.classList\.add\("how-pop"\);/.test(src));   // round 209o: a box of its own
   check("the Moon and Mars page opens on the globe, with no Moon or Mars buttons of its own",
-        /var LOOK = "satellite", VIEW = "globe";/.test(bodies) && /\n  setView\("globe"\);\n\}\)\(\);/.test(bodies) && !/data-body="moon"/.test(bodies));
+        /var LOOK = "satellite", VIEW = "globe";/.test(bodies) && /setView\(viewsFor\(key\)\[0\]\[0\]\);/.test(bodies) && !/data-body="moon"/.test(bodies));
   check("a looks and views box like the Earth map's: the satellite picture and Earth's seven looks, Globe and Flat map, and Snap back",
-        ["Satellite", "Jurassic", "Atlas", "Woodlands", "Bioluminescent", "Hologram", "Hell", "Standard"].every((n) => bodies.includes(`"${n}"`)) &&
-        /<h1>Basemap<\/h1><div class="looks"><\/div>/.test(bodies) && /<input type="radio" name="view" value="flat"> Flat map/.test(bodies) &&
+        ["Satellite", "Twilight", "Bioluminescent", "Hologram", "Hell"].every((n) => bodies.includes(`"${n}"`)) && !/"Woodlands"|"Jurassic"/.test(bodies) &&   /* round 209o */
+        /<h1>Basemap<\/h1><div class="looks"><\/div>/.test(bodies) && /\["flat", "Flat map"\]/.test(bodies) &&
         /<button type="button" id="snap">Snap back to global scale<\/button>/.test(bodies) && /function snapBack\(\)/.test(bodies));
   check("the globe's picture is loaded first and a failure is said on the page", /img\.crossOrigin = "anonymous";/.test(bodies) && /did not load \(culprits-tiles-more makes it\)/.test(bodies));
   check("a timeline of years: what was there by the end of the year chosen, plans only at its far end",
-        /<input type="range" id="time-range"/.test(bodies) && /if \(m\.planned\) return YEAR > YMAX;/.test(bodies) && /"What was there by the end of " \+ YEAR/.test(bodies) &&
+        /<input type="range" id="time-lo-in"/.test(bodies) && /<input type="range" id="time-hi-in"/.test(bodies) && /if \(m\.planned\) return YHI > YMAX;/.test(bodies) &&
+        /return m\.year == null \|\| \(m\.year >= YLO && m\.year <= YHI\);/.test(bodies) &&
         /p\.sol != null \? new Date\(LANDED\[row\.rover\] \+ p\.sol \* SOL\)\.getUTCFullYear\(\)/.test(bodies));
   const u = new Function(bodies.slice(bodies.indexOf("  function under("), bodies.indexOf("  function listHtml(")) + "; return under;")();
   const hit = u([{ id: 1 }, { id: 2 }, { id: 3 }], (m) => [m.id === 3 ? 100 : m.id * 2, 0], () => 5);
@@ -7367,7 +7368,7 @@ console.log("\nround 206o (14 October): Moon and Mars as globes first, with look
         !/function gather\(/.test(bodies) && /marks\.slice\(\)\.sort\(function \(a, b\) \{ return b\.r - a\.r; \}\)\.forEach\(function \(m\) \{/.test(bodies));
   check("a group's box lists every mark there, each opening to its own box, with a way to zoom in to part them",
         /'<p class="zin"><a href="#" data-zoomin="1">Zoom in to part them<\/a><\/p>'/.test(bodies) && /<details><summary><i class="dot"/.test(bodies) &&
-        /L\.DomEvent\.stop\(e\);/.test(bodies) && /\.setContent\(listHtml\(list, zoomable && list\.length > 1\)\)\.openOn\(map\)/.test(bodies));
+        /L\.DomEvent\.stop\(e\);/.test(bodies) && /if \(list\.length\) info\(listHtml\(list, zoomable && list\.length > 1\), e\.latlng\);/.test(bodies));
   check("the globe stops drawing while the flat map is shown", /if \(globe\) globe\.pauseAnimation\(\);/.test(bodies) && /globe\.resumeAnimation\(\);/.test(bodies));
 }
 
@@ -7419,6 +7420,34 @@ console.log("\nround 208o (14 October): Bioluminescent first; points in the base
   check("colours read from the data are tinted whole; the light rim of a dot is kept", /return out === null \? themeExpr\(v, paletteTint\(base\)\) : out;/.test(src) && /if \(\/stroke-color\$\/\.test\(prop\)/.test(src));
   check("the keys under each row and in the legend follow", /try \{ paletteKeys\(!!t\.palette\); \}/.test(src) && /el\.dataset\.palBg = bg;/.test(src));
   check("the colours follow the rows turned on, the basemap and the Hologram", /if \(was !== \(vis === "visible"\)\) paletteSoon\(\);/.test(src) && /observe\(document\.body, \{ attributes: true, attributeFilter: \["class"\] \}\)/.test(src));
+}
+
+console.log("\nround 209o (15 October): To the Sun; the Moon, Mars and Sun views with stars, two-ended timeline, Layer colours and boxes that never cover another");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
+  const bodies = fs.readFileSync(path.join(HERE, "bodies.html"), "utf8");
+  const o = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("];", src.indexOf("const PANEL_ORDER = [")) + 2) + "; return PANEL_ORDER;")();
+  const at = (t) => o.findIndex((x) => x && x.t === t);
+  check("To the Sun under From Earth: solar farms, solar companies, and objects orbiting the Sun", at("To the Sun") > at("To Mars") && o[at("To the Sun") + 1] === "solar_gem" &&
+        o[at("To the Sun") + 2] === "solar_companies" && o[at("To the Sun") + 3] === "sun_objects" &&
+        /id: "sun_objects"[^\n]*route: "leave", body: "sun", bodyLayer: "objects"/.test(src) && /solar_gem\.pmtiles", buildScript: "gem_solar"/.test(src));
+  check("a Sun button beside Moon and Mars, and the Sun's rows picked like theirs", /data-body="sun"/.test(html) && /const BODY_PICK = \{ moon: \{\}, mars: \{\}, sun: \{\} \};/.test(src));
+  check("the 3D notes open as a box of their own, closed by its x or a click elsewhere", /document\.body\.appendChild\(how\);/.test(src) && /how-x/.test(src) && /#how-3d\{position:fixed;/.test(html));
+  check("land use says to zoom in while the map is too far out to show it", /zoom in to see it: OpenStreetMap's plots begin at about country size/.test(src));
+  check("the Sun view: the plane from above or from the side, in AU, objects where Horizons has them, the rest listed",
+        /sun: \{\n      name: "Sun", plane: true,/.test(bodies) && /map\.options\.crs = b\.plane \? L\.CRS\.Simple : L\.CRS\.EPSG4326;/.test(bodies) &&
+        /function where\(m\) \{ return isSun\(\) \? \[\(VIEW === "side" \? m\.z : m\.y\) \* AU, m\.x \* AU\] : \[m\.lat, m\.lng\]; \}/.test(bodies) &&
+        /if \(!o\.pos\) \{ unplaced\.push\(/.test(bodies) && /ring: !!o\.pos\.last/.test(bodies));
+  check("stars behind every view", /<canvas id="stars"><\/canvas>/.test(bodies) && /\.backgroundImageUrl\(starUrl\)/.test(bodies) && /function starfield\(w, h, n, k\)/.test(bodies));
+  check("the left box rolls up", /<button type="button" id="roll"/.test(bodies) && /#panel\.shut \.pb\{display:none\}/.test(bodies));
+  check("boxes open under the looks box, never over another, and wrap their text", /function placeInfo\(\)/.test(bodies) && /sb\.bottom \+ 12/.test(bodies) &&
+        /#info td\{[^}]*overflow-wrap:anywhere/.test(bodies) && /overflow-x:hidden/.test(bodies) && !/L\.popup\(/.test(bodies));
+  check("Layer colours on the Moon, Mars and Sun views, as on the Earth map", /<h1 style="margin-top:0">Layer colours<\/h1>/.test(bodies) && /function toneMatrix\(t\)/.test(bodies) &&
+        /\["Deep ocean", \{ h: 190, r: 0\.7, b: 1\.25 \}\]/.test(bodies));
+  check("Bioluminescent glows instead of going black; Hell crimson, not orange", /\["night", "Bioluminescent", "grayscale\(1\) contrast\(1\.8\) brightness\(\.72\) sepia\(1\) hue-rotate\(130deg\) saturate\(1\.9\)"/.test(bodies) &&
+        /hue-rotate\(-55deg\)/.test(bodies));
+  check("the page is asked afresh when it changes", /bodies\.html\?v=209#/.test(src));
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
