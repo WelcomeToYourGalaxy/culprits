@@ -7524,3 +7524,28 @@ this file rather than the top. Its map file goes into the maps repo by hand.
   final pass/fail line; it checks order loosely (after Pre-birth frontlines,
   before Reproduction capture if present and Genetic engineering) so headings
   other chats add do not break it.
+
+
+## Child harvesting layer, second patch (16 October)
+
+childharvest2_culprits.py, after childharvest_culprits.py (guards on its
+heading). Anchor-based like the first.
+
+- Owner, 16 October: children taken by states and placed with other families
+  do not belong on the Child Harvesting map. Split by what they are:
+  - children_taken_invaded (geojsonlive, culprits-tiles-more
+    childtaking/invaded.geojson): Russia's taking of Ukrainian children,
+    Australia's Stolen Generations, Native American children adopted out,
+    Greenland's little Danes; under On-planet invasion > Invasion of the
+    living > Invasion of humans > "Children taken from invaded peoples"
+    (new h4 after How each country is invaded).
+  - children_taken_state (childtaking/families.geojson): British child
+    migrants, the Swiss Yenish children, babies seized in Longhui (China);
+    under Suppression > Of humans > Physical suppression > "Children taken
+    from their families" (new h4 before Slavery).
+  - Both have lines from where children were taken to where they were sent.
+  The files come from childharvest_tiles.py.
+- The child_harvesting row's note no longer lists them.
+- The Child Harvesting map now carries every 2026 Horrible Hundred entry (the
+  owner supplied the PDF): 16 new dealers, 70 existing ones given their 2026
+  listing.

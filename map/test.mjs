@@ -7695,5 +7695,21 @@ console.log("\nchild harvesting (16 October): the owner's Child Harvesting map, 
         /id: "fur_trade"[^\n]*route: "geojsonlive"/.test(src) && src.includes("furtrade/trade.geojson") &&
         o.indexOf("fur_trade") > o.indexOf("fur_bans") && o.indexOf("fur_trade") < at("Skin farms") && /\bfur_trade: \["animal", "upstream"\]/.test(src));
 }
+console.log("\nchild harvesting, second patch (16 October): children taken by states, off the Child Harvesting map");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const o = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes(")) + "; return PANEL_ORDER;")();
+  const at = (t) => o.findIndex((x) => x && x.t === t);
+  check("children of invaded peoples are a row under Invasion of humans",
+        /id: "children_taken_invaded"[^\n]*route: "geojsonlive"/.test(src) && src.includes("childtaking/invaded.geojson") &&
+        o.indexOf("children_taken_invaded") > at("Invasion of humans") && o.indexOf("children_taken_invaded") < at("Of countries by countries"));
+  check("the other takings are a row under Physical suppression, before Slavery",
+        /id: "children_taken_state"[^\n]*route: "geojsonlive"/.test(src) && src.includes("childtaking/families.geojson") &&
+        o.indexOf("children_taken_state") > at("Physical suppression") && o.indexOf("children_taken_state") < at("Slavery"));
+  check("both labelled and short-named; the Child Harvesting row's note no longer lists them",
+        /\bchildren_taken_invaded: \["human", "downstream"\]/.test(src) && /\bchildren_taken_state: \["human", "downstream"\]/.test(src) &&
+        /\bchildren_taken_invaded: "Children taken from invaded peoples \(compiled\)"/.test(src) &&
+        !/id: "child_harvesting"[\s\S]{0,4000}?children taken by states and placed/.test(src.slice(src.indexOf('id: "child_harvesting"'), src.indexOf('id: "child_harvesting"') + 4000)));
+}
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

@@ -23202,7 +23202,7 @@ const SITE_MAPS = {
     // (extract.mjs): its own boxes, and each of its parts a facet under the row.
     { id: "child_harvesting", name: "Baby factories, child sellers and breeders of the young, human and nonhuman, worldwide, past and present (Child Harvesting map, compiled from reporting, court and inquiry records, and the USDA)", unit: "records", colour: "#3A78A8", route: "sitemap", ready: true, lazy: true,
       dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/child_harvesting.places.geojson",
-      note: "The owner's Child Harvesting map (WelcomeToYourGalaxy/maps, child_harvesting.html), read each day from the map itself; every mark opens the map's own box with its sources, and where a source only alleges something the box says so. Humans: baby factories; baby-selling rings and sale points, online sales included; illegal surrogacy and egg-harvesting operations; orphanages filled with children taken from families; children killed for ritual body parts; John of God's alleged baby farms in Brazil (alleged by Sabrina Bittencourt in 2018, not proven in court); homes and agencies that took and sold children; baby farming, 1860s to 1920s; the Nazi Lebensborn homes and the camps where kidnapped children were Germanized; the breeding and sale of enslaved children; children taken by states and placed with other families (Russia's taking of Ukrainian children, Australia's Stolen Generations, the US Indian Adoption Project, child migrant schemes); and lines to where children were sent. Nonhumans: puppy mills and puppy farms (the Horrible Hundred reports, 2013 to 2026, and farms, raids and hubs abroad); every USDA-licensed breeder and dealer inspected since 2014, with its inspection record, placed at the middle of its postcode (the Data Liberation Project's copy of the USDA inspection search); Petland's shops and other puppy shops and brokers; foal and yearling auctions, dog auctions and online puppy sellers; puppy trade routes; breeding of other pets; lion and tiger breeding farms; breeders of dogs and monkeys sold to laboratories; mares made pregnant for hormones and blood; hatcheries where male chicks are killed at birth and those sexing eggs instead; young killed or sent away at birth (male chicks, dairy calves and goat kids, foie gras ducklings); the law on killing male chicks in each country; farm animal breeding companies; about 1,100 seed companies worldwide from company histories and national directories, and the regions where seed is multiplied; plant breeders' rights (UPOV) by country; ornamental plant and lawn-grass breeders. Each part can be shown on its own under the row. Dots ringed rather than filled are placed at the middle of a state or country because the source names no town." },
+      note: "The owner's Child Harvesting map (WelcomeToYourGalaxy/maps, child_harvesting.html), read each day from the map itself; every mark opens the map's own box with its sources, and where a source only alleges something the box says so. Humans: baby factories; baby-selling rings and sale points, online sales included; illegal surrogacy and egg-harvesting operations; orphanages filled with children taken from families; children killed for ritual body parts; John of God's alleged baby farms in Brazil (alleged by Sabrina Bittencourt in 2018, not proven in court); homes and agencies that took and sold children; baby farming, 1860s to 1920s; the Nazi Lebensborn homes and the camps where kidnapped children were Germanized; the breeding and sale of enslaved children; and lines to where children were sent. Nonhumans: puppy mills and puppy farms (the Horrible Hundred reports, 2013 to 2026, and farms, raids and hubs abroad); every USDA-licensed breeder and dealer inspected since 2014, with its inspection record, placed at the middle of its postcode (the Data Liberation Project's copy of the USDA inspection search); Petland's shops and other puppy shops and brokers; foal and yearling auctions, dog auctions and online puppy sellers; puppy trade routes; breeding of other pets; lion and tiger breeding farms; breeders of dogs and monkeys sold to laboratories; mares made pregnant for hormones and blood; hatcheries where male chicks are killed at birth and those sexing eggs instead; young killed or sent away at birth (male chicks, dairy calves and goat kids, foie gras ducklings); the law on killing male chicks in each country; farm animal breeding companies; about 1,100 seed companies worldwide from company histories and national directories, and the regions where seed is multiplied; plant breeders' rights (UPOV) by country; ornamental plant and lawn-grass breeders. Each part can be shown on its own under the row. Dots ringed rather than filled are placed at the middle of a state or country because the source names no town." },
     { id: "site_animal_fighting", name: "Animal Fighting Locations", unit: "venues", colour: "#84594F", route: "sitemap", ready: true, lazy: true, dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/site_animal_fighting.places.geojson",
       note: "From the Destruction page's animal fighting map (maps repo)." },
     // Round 75: one row per gas, methane under Methane and carbon dioxide under
@@ -24293,6 +24293,19 @@ const OTHER_MAPS = {
       note: "The owner's map of reproduction capture (WelcomeToYourGalaxy/maps, reproduction_capture.html), read each day from the map itself: forced and coerced sterilization, forced contraception and forced births; cash, tax and housing incentives to raise or lower births; advertising and propaganda; and influence carried abroad (donor funding, funding cuts such as the Mexico City Policy, international networks, surrogacy and egg markets, fertility companies), with a line to each country an entry is aimed at where its sources name one, and a box for each country listing everything recorded for it. With them, every government's answers to the UN's 2018\u20132019 questionnaire on fertility, family planning, reproductive health and abortion (World Population Policies 2019, UN DESA Population Division, CC BY 3.0 IGO): all 197 countries in the UN's table, 107 of which answered, each shaded by the policy it stated on the present level of fertility (raise, lower, maintain, no official policy) and each box giving all 161 answers and the UN's notes as the table gives them. The map itself can shade by any of the 161 questions; this row shows the first. Each entry's box gives what happened, the figures as its sources give them, accountability, and its sources. Coloured as the map colours them: rose for coercion, teal for incentives, lavender for advertising, blue for influence abroad. A compiled list, not every case." },
 
     // ---- round 116b (asked 29 September): gangs inside law enforcement, worldwide ----
+    // Children taken by states (asked 16 October, from the child harvesting
+    // chat): off the Child Harvesting map; invaded peoples under Invasion of
+    // humans, the rest under Physical suppression.
+    { id: "children_taken_invaded", name: "Children of invaded and colonised peoples taken and placed in camps, homes or other families, in Ukraine, Aboriginal Australia, Native America and Greenland (compiled from inquiries, courts and reporting)", unit: "places", colour: "#1E6FA8", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Children taken", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/childtaking/invaded.geojson" }], nameFrom: ["name"],
+      groupColours: { "Russia's taking of Ukrainian children": "#0E2F66", "Australia's Stolen Generations": "#1E6FA8", "Native American children adopted out": "#3FA9C2", "Greenland's little Danes": "#8FD6E8", "Where the children were taken from and to": "#8C6A72" },
+      groupHint: "Coloured by where it happened; lines run from where children were taken to where they were sent",
+      note: "Compiled for this map on 16 October 2026 (moved here from the Child Harvesting map at the owner's word): children taken from peoples under invasion or colonial rule and placed with the invaders' families or institutions. Russia's taking of Ukrainian children since 2022 (the ICC arrest warrants of March 2023, the Yale Humanitarian Research Lab's reports, the camps and placements in Russia, occupied Crimea and Belarus that it, AP and others name, and the towns children were taken from); Australia's Stolen Generations (the 1997 Bringing Them Home inquiry and the named homes); Native American children adopted out through the Indian Adoption Project (1958 to 1967) and before the Indian Child Welfare Act of 1978; and the 22 Greenlandic children sent to Denmark in 1951. Lines run from where children were taken to where they were sent. Each box gives its source; places are the town or, where none is named, the middle of the region or country." },
+    { id: "children_taken_state", name: "Children taken from their families by states and charities and shipped or placed elsewhere, British child migrants, Swiss Yenish children and babies seized in China (compiled from inquiries, apologies and reporting)", unit: "places", colour: "#1E6FA8", route: "geojsonlive", ready: true, lazy: true,
+      files: [{ label: "Children taken", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/childtaking/families.geojson" }], nameFrom: ["name"],
+      groupColours: { "British child migrants": "#1E6FA8", "Swiss Yenish children": "#3FA9C2", "Babies seized for orphanage adoption (China)": "#0E2F66", "Where the children were taken from and to": "#8C6A72" },
+      groupHint: "Coloured by where it happened; lines run from where children were taken to where they were sent",
+      note: "Compiled for this map on 16 October 2026 (moved here from the Child Harvesting map at the owner's word): the child migrant schemes that shipped British children to Canada, Australia, New Zealand and Rhodesia (the 2009 Australian and 2010 UK apologies, the Fairbridge farm schools, Bindoon, and the Home Children receiving homes in Canada); Switzerland's taking of Yenish children by Pro Juventute (1926 to 1973); and babies seized by family-planning officials in Longhui county, Hunan, for orphanage adoption. Lines run from where children were taken to where they were sent. Each box gives its source." },
     { id: "gang_infiltration", name: "Gangs inside law enforcement worldwide: police, sheriffs, federal agents and prison officers working for crime groups, or running their own (compiled from court records, inquiries and reporting)", unit: "cases", colour: "#E0304A", route: "geojsonlive", ready: true, lazy: true,
       files: [{ label: "Gangs inside law enforcement", url: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/lawenforcement/gang_infiltration.geojson" }], nameFrom: ["name"],
       groupColours: { "A crime group working through police or officials": "#E0304A", "Officers running a gang or crime ring of their own": "#4F8BFF" },
@@ -26169,6 +26182,8 @@ const PLAIN_NAMES = {
   allen_coral: "Warm-water coral reefs (Allen Coral Atlas and UNEP-WCMC)",
   site_animal_sacrifice: "Where animals are sacrificed (Animal Sacrifice Map)",
   child_harvesting: "Baby factories, child sellers and breeders worldwide (compiled)",
+  children_taken_invaded: "Children taken from invaded peoples (compiled)",
+  children_taken_state: "Children taken from families by states (compiled)",
   site_animal_fighting: "Where animals are made to fight (Animal Fighting Locations)",
   site_forest500_soy: "Banks and investors with the weakest policies on soy-driven deforestation, 2024: each scored under 2 out of 94 (Forest 500)",
   site_soybean_companies: "Companies trading and processing soybeans",
@@ -26577,6 +26592,8 @@ const LAYER_KIND = {
   allen_coral: ["animal", "downstream"],
   site_animal_sacrifice: ["animal", "downstream"],
   child_harvesting: ["human", "downstream"],
+  children_taken_invaded: ["human", "downstream"],
+  children_taken_state: ["human", "downstream"],
   site_animal_fighting: ["animal", "downstream"],
   site_animal_tourism: ["animal", "downstream"],
   site_circus: ["animal", "downstream"],
@@ -27829,6 +27846,8 @@ const NOT_LIVE = {
   forestatrisk: "Copied once from ForestAtRisk's own files by culprits-tiles-more",
   reproduction_capture: "Read each day from the owner's map in the maps repo",
   child_harvesting: "Read each day from the owner's map in the maps repo",
+  children_taken_invaded: "Compiled for this map from the sources in each box",
+  children_taken_state: "Compiled for this map from the sources in each box",
   holiday_culprits: "Read each day from the owner's map in the maps repo", law_atlas: "Read each day from the owner's atlas in the maps repo",
   gang_infiltration: "Compiled for this map from the sources in each box",
   medical_culprits: "Built weekly by culprits-tiles-more from Wikipedia and Wikidata",
@@ -28024,6 +28043,8 @@ const PANEL_ORDER = [
   // Round 118b (asked 30 September): under subheadings.
   { h: 3, t: "Invasion of humans" },
   { h: 4, t: "How each country is invaded" }, "other_invaded",
+  // Asked 16 October: children taken from invaded peoples.
+  { h: 4, t: "Children taken from invaded peoples" }, "children_taken_invaded",
   { h: 4, t: "Where Indigenous peoples and local communities live" },
   { h: 5, bundle: "landmark", colour: "#6A5E66" },
   { h: 4, t: "Indigenous and community rights" },
@@ -28478,6 +28499,8 @@ const PANEL_ORDER = [
   { h: 4, t: "Courts and corrections" }, "bld_courts", "bld_prisons",
   { h: 4, t: "Discrimination" }, "wjp_discrimination_2022", "wjp_discrimination", "wjp_discrimination_change", "wba_gender_assessment", "wba_gender",
   { h: 4, t: "Human rights and work: companies scored" }, "wba_human_rights", "wba_social", "wba_just_transition",
+  // Asked 16 October: children taken from their families by states.
+  { h: 4, t: "Children taken from their families" }, "children_taken_state",
   { h: 4, t: "Slavery" },
   { h: 5, t: "Prevalence" }, "slavery_prevalence",
   { h: 5, t: "Sites on land" }, "slavery_sites",
