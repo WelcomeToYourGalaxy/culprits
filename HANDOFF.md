@@ -5,6 +5,34 @@ touches.
 
 ---
 
+## Round 217o (16 October)
+
+Needs round 216o (guards on its heading). No tiles patch. No app.js?v= bump.
+
+- Sunlight's reach: a 3D view (globe.gl with the globe hidden; the Sun at the
+  centre; rings every tenfold distance in the galaxy's plane; bodies at their
+  galactic longitude and latitude; stars as particles; names as HTML marks
+  that open their boxes). Its body rows sit in one folding group, "Celestial
+  bodies the Sun's light reaches", with a group tick and the "Show only
+  worlds that could hold life" switch beside its title (the View box option
+  is gone).
+- Sky: rows in the order the Sun, Moon and planets; other stars; galaxies,
+  clusters and nebulae, in plain words; a "How to read this map" box at the
+  top (open by default) and a key to colours and sizes. Stars are coloured by
+  their own light, sized by the light reaching Earth. The basemaps now tint
+  the stars (the overlay pane, and the 3D globe's picture). Views named "Flat
+  chart" and "3D globe".
+- Sun view: planets on from the main map's row too (bodyLayers objects and
+  planets); opens on Uranus's orbit.
+- The Moon, Mars, Sun, sky and Sunlight's reach views open straight away
+  from their rows (leaveEarth(true): no pass through Eyes; Eyes waits behind).
+- Place names first in the Moon and Mars views and on the main map.
+- Moon and Mars globe marks grow with the viewing distance.
+- Biosignature ring: with every world in Wikipedia's two lists (tiles
+  bodies/reach/life.json), small and grey-blue, placed on the page's own
+  distance rail between its worlds by distance from Earth, unassessed, every
+  column in its box; Earth and worlds with no distance left off.
+
 ## Round nh4 (17 October, the Invasion of non-humans chat)
 
 Needs round nh3 (guards on its heading).

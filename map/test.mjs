@@ -7385,7 +7385,8 @@ console.log("\nround 202o (14 October): the Moon and Mars as rows under Off-plan
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const bodies = fs.readFileSync(path.join(HERE, "bodies.html"), "utf8");
   check("The Moon and Mars are headings under From Earth, each with its rows",
-        /\{ h: 3, t: "To the Moon" \}, "moon_objects", "moon_list", "moon_artemis", "moon_names",/.test(src) && /\{ h: 3, t: "To Mars" \}, "mars_list", "mars_m20", "mars_msl", "mars_names",/.test(src));
+        // Round 217o: place names first.
+        /\{ h: 3, t: "To the Moon" \}, "moon_names", "moon_objects", "moon_list", "moon_artemis",/.test(src) && /\{ h: 3, t: "To Mars" \}, "mars_names", "mars_list", "mars_m20", "mars_msl",/.test(src));
   check("a ticked row leaves Earth and opens that body with the ticked rows shown", /function bodyRowChanged\(row, on\)/.test(src) &&
         /if \(leaveRow && leaveRow\.route === "leave" && leaveRow\.body\) bodyRowChanged/.test(src) && /e\.data\.culpritsLayers/.test(bodies));
   check("the pull button says what it does, two lines tall, the two switches stacked beside it",
@@ -7397,7 +7398,7 @@ console.log("\nround 203o (14 October): Moon and Mars on a globe; clearer rows; 
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const bodies = fs.readFileSync(path.join(HERE, "bodies.html"), "utf8");
   check("a Flat map / Globe choice, the globe from globe.gl wrapped in the stitched Trek picture",
-        /return k === "sun" \? \[\["above", "From above"\]\] : k === "sky" \? \[\["chart", "Sky chart"\], \["globe", "Sky globe"\]\]/.test(bodies) && /: \[\["globe", "Globe"\], \["flat", "Flat map"\]\];/.test(bodies) && /unpkg\.com\/globe\.gl@2\.46\.2\/dist\/globe\.gl\.min\.js/.test(bodies) && /DATA \+ body \+ "_globe\.jpg"/.test(bodies));
+        /return k === "sun" \? \[\["above", "From above"\]\] : k === "sky" \? \[\["chart", "Flat chart"\], \["globe", "3D globe"\]\]/.test(bodies) && /: \[\["globe", "Globe"\], \["flat", "Flat map"\]\];/.test(bodies) && /unpkg\.com\/globe\.gl@2\.46\.2\/dist\/globe\.gl\.min\.js/.test(bodies) && /DATA \+ body \+ "_globe\.jpg"/.test(bodies));
   check("the rover routes are on the marks' own canvas, so a second canvas cannot take the clicks",
         (bodies.match(/renderer: canvas/g) || []).length >= 8 && !/L\.geoJSON\(/.test(bodies));
   check("longitudes past 180 are brought back round (Wikipedia gives some in degrees west)", /function lon180\(x\) \{ return \(\(x \+ 180\) % 360 \+ 360\) % 360 - 180; \}/.test(bodies));
@@ -7632,6 +7633,27 @@ console.log("\nround 216o (16 October): who owns the energy and heavy-industry a
   check("GEM's parents and every owner, read from the tiles repo, beside Climate TRACE's owners", ["gem_owner_parents", "gem_owner_entities"].every((id) => o.indexOf(id) > o.indexOf("ct_owned_sites") && new RegExp('id: "' + id + '"[^\\n]*route: "geojsonlive"[^\\n]*buildScript: "gem_ownership"').test(src)) &&
         /culprits-tiles-more\/gem\/ownership\/parents\.geojson/.test(src) && /culprits-tiles-more\/gem\/ownership\/entities\.geojson/.test(src));
   check("credited as GEM asks, with China's ownership dated", /Global Energy Monitor, Global Energy Ownership Tracker, September 2026 \(CC BY 4\.0\)/.test(src) && /Chinese ownership has not been updated since early 2023/.test(src));
+}
+
+console.log("\nround 217o (16 October): 3D for Sunlight's reach; its bodies in one group with the life switch; the sky made readable; planets on; straight to the views; names first; bigger marks; listed worlds on the biosignature ring");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const bodies = fs.readFileSync(path.join(HERE, "bodies.html"), "utf8");
+  check("Sunlight's reach turns to 3D: rings and bodies in their true directions, names facing the viewer", /\["globe", "3D \(turn and tilt\)"\]/.test(bodies) && /function drawReach3D\(\)/.test(bodies) &&
+        /if \(isReach\(\)\) \{ drawReach3D\(\); return; \}/.test(bodies) && /\.htmlElementsData\(labels\)/.test(bodies) && /\.particlesList\("pts"\)/.test(bodies));
+  check("its bodies in one group, the life switch beside the group's title", /groups: \{ bodies: \{ title: "Celestial bodies the Sun's light reaches", life: true \} \}/.test(bodies) &&
+        ["solar", "stars", "galaxies", "anchors", "life"].every((id) => new RegExp('\\{ id: "' + id + '", file: "reach/' + id + '\\.json", kind: "[a-z]+", group: "bodies"').test(bodies)) &&
+        />Show only worlds that could hold life<\/button>/.test(bodies) && !/id="lifeopt"/.test(bodies));
+  check("the sky: the Sun, Moon and planets first, then other stars, then galaxies; how to read it at the top, with a key", /title: "The Sun, Moon and planets today: the light they send us"[\s\S]{0,900}title: "Light from other stars reaching Earth: every star in the HYG catalogue"[\s\S]{0,900}title: "Light from galaxies, star clusters and nebulae/.test(bodies) &&
+        /howto: "<details open><summary><b>How to read this map<\/b>/.test(bodies) && /legend: \[\["#E8E2D4", "The Sun, Moon and planets"\]/.test(bodies) && /<div id="howto" hidden><\/div>/.test(bodies));
+  check("the sky's basemaps colour the stars", /map\.getPane\("overlayPane"\)\.style\.filter = isSky\(\) \? \(look\[2\] \|\| ""\) : "";/.test(bodies) && /g2\.filter = lookF;/.test(bodies));
+  check("the Sun view: the planets on from the main map too, and the view opens on Uranus's orbit", /bodyLayer: "objects", bodyLayers: \["objects", "planets"\]/.test(src) && /if \(p\.name === "Uranus"\) reach =/.test(bodies));
+  check("the Moon, Mars and other views open straight away, without the pass through Eyes", /if \(!AWAY\) leaveEarth\(true\);\n  go\(\);/.test(src) && /if \(!instant && typeof map\.easeTo === "function"\)/.test(src));
+  check("place names first in the Moon and Mars views", /rows: \[\n        \/\/ Round 217o \(asked 16 October\): place names first\.\n        \{ id: "names", file: "moon_names\.geojson"/.test(bodies) && /\{ id: "names", file: "mars_names\.geojson"[\s\S]{0,600}\{ id: "list", file: "mars_list\.geojson"/.test(bodies));
+  check("the Moon and Mars marks grow with the distance they are seen from", /Math\.max\(0\.1, m\.r \/ 22\) \* Math\.max\(1, globeAlt\(\) \/ 0\.45\)/.test(bodies));
+  check("the biosignature ring carries every listed world, unassessed and placed on the page's own rail", /async function listedWorlds\(page\)/.test(src) && /bodies\/reach\/life\.json/.test(src) && /no chance of life is assessed for it/.test(src));
+  const W = new Function(src.slice(src.indexOf("function worldAu("), src.indexOf("async function listedWorlds(")) + "; return worldAu;")();
+  check("the page's distances read as written", Math.abs(W("140 million miles · Jezero Crater") - 1.506) < 0.01 && Math.abs(W("730 trillion miles · constellation Leo") - 730e12 / 92955807) < 1 && Math.abs(W("124 light-years") - 124 * 63241.077) < 1);
 }
 
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");

@@ -3767,7 +3767,10 @@ function bodyRowChanged(row, on) {
   if (!on) { bodyPost(); return; }
   const go = () => { openBody(row.body); bodyPost(); };
   clearTimeout(bodyOpenTimer);
-  if (!AWAY) { leaveEarth(); bodyOpenTimer = setTimeout(go, 1300); } else go();
+  // Round 217o (asked 16 October: the pass through NASA's Eyes confused viewers):
+  // the view opens straight away; Eyes waits behind it for "Back to the solar system".
+  if (!AWAY) leaveEarth(true);
+  go();
 }
 function openBody(key) {
   const f = document.getElementById("bodyFrame");
@@ -3820,7 +3823,7 @@ function panelsAway(on) {
 
 let leftFrom = null;          // the view the map was at when Eyes took over
 
-function leaveEarth() {
+function leaveEarth(instant) {
   if (AWAY || leaving) return;
   leaving = true;
   leftFrom = { center: map.getCenter(), zoom: Math.max(map.getZoom(), handoffZoom() + 0.6), view: VIEW };
@@ -3846,8 +3849,9 @@ function leaveEarth() {
     panelsAway(true);
     setTimeout(() => { if (AWAY) pauseMapWhileAway(true); }, 600);
   };
-  // Moved to Earth's own face and size first, then faded across.
-  if (typeof map.easeTo === "function") {
+  // Moved to Earth's own face and size first, then faded across (straight away
+  // when a Moon, Mars, Sun or sky view is opening over it).
+  if (!instant && typeof map.easeTo === "function") {
     map.easeTo({ center: [to.lon, to.lat], zoom: handoffZoom(), bearing: EYES_FIT.bearing || 0, pitch: 0, roll: 0, duration: 900 });
     setTimeout(done, 950);
   } else {
@@ -6009,10 +6013,56 @@ async function worldPicture(wd) {
   worldPictures.set(name, out);
   return out;
 }
+// Distance from Earth in AU, from the page's own "where" text ("140 million
+// miles", "730 trillion miles", or light-years).
+function worldAu(where) {
+  const t = String(where || "").replace(/,/g, "");
+  let m = /([\d.]+)\s*(thousand|million|billion|trillion)?\s*miles/i.exec(t);
+  if (m) return parseFloat(m[1]) * ({ thousand: 1e3, million: 1e6, billion: 1e9, trillion: 1e12 }[(m[2] || "").toLowerCase()] || 1) / 92955807;
+  m = /([\d.]+)\s*light[- ]years?/i.exec(t);
+  if (m) return parseFloat(m[1]) * 63241.077;
+  return null;
+}
+async function listedWorlds(page) {
+  const d = await getJson("https://welcometoyourgalaxy.github.io/culprits-tiles-more/bodies/reach/life.json", 20000);
+  const rows = (d && d.rows) || [];
+  const earth = rows.find((w) => /^Earth$/i.test(w.name || "") && w.helio_au);
+  const rail = page.map((w) => [worldAu(w.where), Number(w.logX)]).filter((a) => a[0] > 0 && isFinite(a[1])).sort((a, b) => a[0] - b[0]);
+  const at = (au) => {
+    if (rail.length < 2) return null;
+    const x = Math.log10(au);
+    let i = rail.findIndex((r) => Math.log10(r[0]) >= x);
+    if (i <= 0) i = i === 0 ? 1 : rail.length - 1;
+    const [a, b] = [rail[i - 1], rail[i]], la = Math.log10(a[0]), lb = Math.log10(b[0]);
+    return Math.max(0.02, Math.min(1, a[1] + (b[1] - a[1]) * (x - la) / ((lb - la) || 1)));
+  };
+  const have = new Set(page.map((w) => String(w.name || "").toLowerCase().replace(/[^a-z0-9]/g, "")));
+  const out = [];
+  for (const w of rows) {
+    const key = String(w.name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (!key || have.has(key)) continue;           // in the assessment already, with its own place
+    let au = null;
+    if (w.helio_au && earth) au = Math.hypot(w.helio_au[0] - earth.helio_au[0], w.helio_au[1] - earth.helio_au[1], w.helio_au[2] - earth.helio_au[2]);
+    else if (w.d_au) au = w.d_au;
+    if (!(au > 0)) continue;                       // Earth itself, or no distance published
+    const logX = at(au);
+    if (logX == null) continue;
+    have.add(key);
+    out.push({ name: w.name, sub: w.star && w.star !== "Sun" ? `round ${w.star}` : "in the Solar System",
+      where: au < 2000 ? `${au.toFixed(2)} AU from Earth` : `${(au / 63241.077).toLocaleString(undefined, { maximumSignificantDigits: 3 })} light-years from Earth`,
+      prob: "not assessed", probMid: NaN, logX, size: 0.12, listed: w.list, row: w.row || {} });
+  }
+  return out;
+}
 async function addWorldsRingLayer(cfg) {
   let worlds = [];
   try { const r = await fetch(cfg.page); if (r.ok) worlds = worldsParse(await r.text()); } catch (e) { /* not read */ }
   if (!worlds.length) { setLayerState(cfg.id, "the assessment page could not be read"); return; }
+  // Round 217o (asked 16 October): with every world in Wikipedia's List of
+  // potentially habitable exoplanets and List of ocean worlds (culprits-tiles-more
+  // bodies/reach/life.json), each placed on the page's own distance rail between
+  // the page's worlds by its distance from Earth. None is assessed here.
+  try { worlds = worlds.concat(await listedWorlds(worlds)); } catch (e) { /* the page's own worlds stand */ }
   worlds = worlds.slice().sort((a, b) => (a.logX || 0) - (b.logX || 0));
   const box = map.getContainer();
   const cv = document.createElement("canvas");
@@ -6059,7 +6109,7 @@ async function addWorldsRingLayer(cfg) {
         const lo = out + 16, hi = Math.max(lo + 30, scr - 14);
         const d = lo + (hi - lo) * Math.max(0, Math.min(1, Number(wd.logX) || 0));
         placed.push({ wd, x: rcx + c * d, y: rcy + sn * d, ex: rcx + c * out, ey: rcy + sn * out, lo: L, hi: Rt,
-          size: 4 + 8 * (Number(wd.size) || 0.3), colour: worldColour(Number(wd.probMid)), up: i % 2 === 0 });
+          size: 4 + 8 * (Number(wd.size) || 0.3), colour: wd.listed ? "#9FB3C8" : worldColour(Number(wd.probMid)), up: i % 2 === 0 });
       });
       g.setLineDash([2, 4]); g.lineWidth = 0.8; g.strokeStyle = "rgba(227,215,203,0.3)";
       for (const p of placed) { g.beginPath(); g.moveTo(p.ex, p.ey); g.lineTo(p.x, p.y); g.stroke(); }
@@ -6069,13 +6119,15 @@ async function addWorldsRingLayer(cfg) {
     worlds.forEach((wd, i) => {
       const a = (-150 + (120 * i) / Math.max(1, worlds.length - 1)) * Math.PI / 180;
       const d = R * 1.1 + (outer - R * 1.1) * Math.max(0, Math.min(1, Number(wd.logX) || 0));
-      placed.push({ wd, x: cx + Math.cos(a) * d, y: cy + Math.sin(a) * d, size: 4 + 8 * (Number(wd.size) || 0.3), colour: worldColour(Number(wd.probMid)), up: true });
+      placed.push({ wd, x: cx + Math.cos(a) * d, y: cy + Math.sin(a) * d, size: 4 + 8 * (Number(wd.size) || 0.3), colour: wd.listed ? "#9FB3C8" : worldColour(Number(wd.probMid)), up: true });
     });
     g.font = "11px system-ui,sans-serif"; g.textAlign = "center";
     for (const p of placed) {
       g.beginPath(); g.arc(p.x, p.y, p.size, 0, 2 * Math.PI);
       g.fillStyle = p.colour; g.globalAlpha = 0.92; g.fill(); g.globalAlpha = 1;
       g.lineWidth = 0.8; g.strokeStyle = "rgba(10,10,12,0.8)"; g.stroke();
+      // The listed worlds are named in their boxes, not on the ring, which they would crowd.
+      if (p.wd.listed) continue;
       g.fillStyle = "rgba(227,215,203,0.85)";
       g.font = "11px system-ui,sans-serif"; g.textAlign = "center";
       // A label kept on screen, clear of the side boxes (round 62).
@@ -6119,6 +6171,18 @@ async function addWorldsRingLayer(cfg) {
     if (!p) { card.style.display = "none"; return; }
     popupClaimedBy = e.originalEvent || e;
     const wd = p.wd;
+    if (wd.listed) {
+      const tag = wd.listed === "List of ocean worlds" ? "List_of_ocean_worlds" : "List_of_potentially_habitable_exoplanets";
+      card.innerHTML = `<button type="button" class="neo-x" style="float:right;background:none;border:0;cursor:pointer" aria-label="Close">✕</button>` +
+        `<b>${escapeHtml(wd.name)}</b> <span class="meta">${escapeHtml(wd.sub)}</span><div class="meta">${escapeHtml(wd.where)}</div>` +
+        `<table class="meta">${fieldRows(wd.row)}</table>` +
+        `<div class="meta">From Wikipedia's <a href="https://en.wikipedia.org/wiki/${tag}" target="_blank" rel="noopener">${escapeHtml(wd.listed)}</a> (CC BY-SA 4.0), every column as it gives it. Not part of the Biosignature Evidence Assessment: no chance of life is assessed for it. Placed on the assessment's distance rail by its distance from Earth.</div>`;
+      card.style.left = Math.min(e.point.x + 12, box.clientWidth - 310) + "px";
+      card.style.top = Math.max(8, Math.min(e.point.y - 20, box.clientHeight - 350)) + "px";
+      card.style.display = "block";
+      card.querySelector(".neo-x").onclick = () => { card.style.display = "none"; };
+      return;
+    }
     const show = Object.fromEntries(Object.entries(wd).filter(([k]) => !["id", "color", "x", "y", "gap"].includes(k)));
     card.innerHTML = `<button type="button" class="neo-x" style="float:right;background:none;border:0;cursor:pointer" aria-label="Close">✕</button>` +
       `<div class="world-pic" style="min-height:0"></div>` +
@@ -24986,7 +25050,7 @@ const OTHER_MAPS = {
       note: "Every table on Wikipedia's List of photovoltaics companies that names companies (module shipments by year, production lines, polysilicon, cell and module makers, factories), every row and column as written, each placed at the company's headquarters as Wikidata records it (CC BY-SA 4.0; Wikidata CC0). A company Wikidata does not place is kept and listed as not placed." },
     // Round 213o (asked 15 October): named for what it holds; the craft still
     // working are left out in the Sun view (NASA's Eyes shows them).
-    { id: "sun_objects", name: "Dead probes, spent rocket stages and parts orbiting the Sun (GCAT)", unit: "opens the Sun view, objects", colour: "#B9D7E6", route: "leave", body: "sun", bodyLayer: "objects", ready: true, lazy: true,
+    { id: "sun_objects", name: "Dead probes, spent rocket stages and parts orbiting the Sun (GCAT)", unit: "opens the Sun view, objects", colour: "#B9D7E6", route: "leave", body: "sun", bodyLayer: "objects", bodyLayers: ["objects", "planets"], ready: true, lazy: true,
       note: "Jonathan McDowell's General Catalog of Artificial Space Objects, its Heliocentric Register: every dead probe, spent rocket stage and part in orbit round the Sun, every column as given (CC BY). The craft still working, the ones named on Wikipedia's List of active Solar System probes, are left out and named in the Sun view (NASA's Eyes on the Solar System shows them). Each is placed where NASA/JPL's Horizons follows it today; those Horizons does not follow are listed. Out of reach of any air, these do not burn up: they keep circling the Sun for many years. Ticked, the map leaves Earth and opens the Sun view: the plane the planets go round in, seen from above." },
     // Round 210o (asked 15 October): how far light and gravity reach, and
     // who claims to defy gravity. Each opens the view it belongs to.
@@ -25003,7 +25067,7 @@ const OTHER_MAPS = {
       note: "Ticked, the map turns to Earth's face and size in NASA/JPL's Eyes on the Solar System and hands the screen over, exactly as the Leave Earth button and zooming out past the globe do (asked for 25 September, in place of the panel along the bottom). In Eyes, every spacecraft it follows is placed where it is now, with its mission. The box in the corner, or unticking, brings the map back." },
     { id: "biosignature", name: "Biosignature Evidence Assessment", unit: "worlds", colour: "#46B8D8", keepColour: true, route: "worldsring", ready: true, lazy: true,
       page: "https://welcometoyourgalaxy.github.io/maps/off-planet-invasion_embed_13_large-script.html",
-      note: "Your own assessment from the Off-Planet Invasion page, read from the page itself and drawn round the globe at world view: each world further out the further it is from Earth, coloured by the assessed chance its evidence is biological. A click gives the evidence, its status and the mission that could settle it." },
+      note: "Your own assessment from the Off-Planet Invasion page, read from the page itself and drawn round the globe at world view: each world further out the further it is from Earth, coloured by the assessed chance its evidence is biological. A click gives the evidence, its status and the mission that could settle it. With them, smaller and in grey-blue, every other world in Wikipedia's List of potentially habitable exoplanets and List of ocean worlds (CC BY-SA 4.0), placed on the same distance rail by its distance from Earth, every column in its box; none is assessed. Earth itself, and worlds the lists give no distance or place for, are left off the ring." },
     { id: "leverage_chart", name: "The Leverage Chart", unit: "opens it in a panel", colour: "#6A6258", route: "companion", ready: true, lazy: true,
       page: "https://welcometoyourgalaxy.github.io/maps/leverage-chart.html",
       note: "Your own chart from the Solution page, whole, in the panel along the bottom." },
@@ -28635,8 +28699,9 @@ const PANEL_ORDER = [
   { h: 3, t: "Space launches" }, "ll2_pads", "ll2_upcoming",
   { h: 3, t: "Craft in space" }, "eyes_craft",
   // Round 202o: the Moon and Mars, each a heading of its own.
-  { h: 3, t: "To the Moon" }, "moon_objects", "moon_list", "moon_artemis", "moon_names",
-  { h: 3, t: "To Mars" }, "mars_list", "mars_m20", "mars_msl", "mars_names",
+  // Round 217o (asked 16 October): place names first.
+  { h: 3, t: "To the Moon" }, "moon_names", "moon_objects", "moon_list", "moon_artemis",
+  { h: 3, t: "To Mars" }, "mars_names", "mars_list", "mars_m20", "mars_msl",
   // Round 213o (asked 15 October): Solar Tech, the solar farms and panel makers
   // with the two sunlight layers.
   { h: 3, t: "To the Sun" }, "sun_objects",
