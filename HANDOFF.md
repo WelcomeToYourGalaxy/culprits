@@ -7628,3 +7628,41 @@ hand. No tiles patch. No app.js?v= bump.
   individuals > Of humans.
 - test.mjs: one block, "stand your ground (17 October)"; round 102b's check
   allows the line "homicide_worldwide", "stand_your_ground".
+
+
+## Homicide worldwide, third patch (17 October, a separate chat)
+
+Needs the second homicide patch (guards on its heading). Not a numbered round;
+this note goes at the end of this file. Files go into the maps repo by hand.
+No tiles patch. No app.js?v= bump.
+
+- Owner, 17 October: add the Murder Accountability Project and the Global
+  Organized Crime Index, and every country's homicide figures below the
+  national level.
+- maps repo: homicide.html replaced; new folder homicide_within/ (61 files,
+  about 97 MB: one JSON per country, plus Canada's police-service tables in
+  CAN.in.0.json and CAN.in.1.json, read when that list is opened). The map
+  gains a fifth part, the Global Organized Crime Index (GI-TOC; every score
+  of 2021, 2023, 2025; no licence stated), and a "Homicide within countries"
+  list: 59 countries and Eurostat's NUTS regions, each loaded when ticked,
+  shaded per level by its most common figure; boxes are built in the browser
+  from compact tables; every row of each source file is in some box (checked
+  by the build). US counties: MAP's SHR76_25a (929,433 records) and UCR65_25,
+  counted by county, plus the owner's MAP county export.
+- The map reads itself two ways for this map. Read plainly (homicide_worldwide)
+  it draws its own five parts and none of the within files. Read with
+  ?within=all (new row homicide_within) it fetches every within file and draws
+  only those (21,067 areas, 140 overlays: country and level); the reader is
+  recognised by navigator.userAgent === "node". Boxes read that way are short
+  (the shading figure, how many figures, the table names) and link to the
+  full box in the map: homicide.html#w=<KEY>&l=<level>&a=<area>.
+  Local run: extract 93 s; places.geojson 44 MB (11 MB gzipped), boxes.json
+  22 MB.
+- pipeline/sources/_sitemap.py: spec_for passes a registry "wait" (ms) on to
+  extract.mjs, and the node timeout grows by it. registry.json: homicide_within
+  (url maps/main/homicide.html?within=all, wait 120000).
+- app.js: homicide_worldwide's note names the index; new row homicide_within
+  (SITE_MAPS, SHORT_NAMES, LAYER_KIND, LAYER_SITE, NOT_LIVE), PANEL_ORDER
+  "homicide_worldwide", "homicide_within", "stand_your_ground".
+- test.mjs: block "homicide within countries (17 October)"; the stand your
+  ground block allows the new row between it and the homicide row.

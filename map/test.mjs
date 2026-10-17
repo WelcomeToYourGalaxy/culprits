@@ -7748,13 +7748,33 @@ console.log("\nstand your ground (17 October): its own map, beside the homicide 
         reg.some((m) => m.id === "stand_your_ground" && !m.rich && m.url === "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/stand_your_ground.html"));
   check("one row, its places and boxes from the copy, straight after the homicide map",
         /id: "stand_your_ground"[^\n]*route: "sitemap"/.test(src) && src.includes("sitemaps/stand_your_ground.places.geojson") &&
-        o.filter((x) => x === "stand_your_ground").length === 1 && o.indexOf("stand_your_ground") === o.indexOf("homicide_worldwide") + 1);
+        o.filter((x) => x === "stand_your_ground").length === 1 && o.indexOf("stand_your_ground") > o.indexOf("homicide_worldwide") && o.indexOf("stand_your_ground") <= o.indexOf("homicide_worldwide") + 2);
   check("labelled, linked, short-named and marked as read daily",
         /\bstand_your_ground: \["human", "downstream"\]/.test(src) && /\bstand_your_ground: "https:\/\/github\.com\/WelcomeToYourGalaxy\/maps\/blob\/main\/stand_your_ground\.html"/.test(src) &&
         /\bstand_your_ground: "Stand-your-ground and duty-to-retreat laws \(Wikipedia\)"/.test(src) && /\bstand_your_ground: "Read each day/.test(src));
   const row = src.slice(src.indexOf('{ id: "homicide_worldwide"'), src.indexOf('{ id: "homicide_worldwide"') + 3000);
   check("the homicide row no longer names sacrifice, fighting or self-defense law as its own parts",
         !/self-defense law, and animals/.test(row) && /Stand-your-ground law is its own row/.test(row));
+}
+console.log("\nhomicide within countries (17 October): the homicide map's figures within countries, one row beside it");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const reg = JSON.parse(fs.readFileSync(path.join(HERE, "..", "pipeline", "sitemaps", "registry.json"), "utf8")).maps;
+  const sm = fs.readFileSync(path.join(HERE, "..", "pipeline", "sources", "_sitemap.py"), "utf8");
+  const o = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes(")) + "; return PANEL_ORDER;")();
+  const m = reg.find((x) => x.id === "homicide_within");
+  check("read daily from the same map with ?within=all, given time to fetch its parts",
+        !!m && !m.rich && m.url === "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/homicide.html?within=all" && m.wait >= 60000 &&
+        /if m\.get\("wait"\):\n\s+spec\["wait"\] = int\(m\["wait"\]\)/.test(sm));
+  check("one row, its places and boxes from the copy, right after the homicide map and before stand your ground",
+        /id: "homicide_within"[^\n]*route: "sitemap"/.test(src) && src.includes("sitemaps/homicide_within.places.geojson") &&
+        o.filter((x) => x === "homicide_within").length === 1 && o.indexOf("homicide_within") === o.indexOf("homicide_worldwide") + 1 &&
+        o.indexOf("stand_your_ground") === o.indexOf("homicide_within") + 1);
+  check("labelled, linked, short-named and marked as read daily",
+        /\bhomicide_within: \["human", "downstream"\]/.test(src) && /\bhomicide_within: "https:\/\/github\.com\/WelcomeToYourGalaxy\/maps\/blob\/main\/homicide\.html"/.test(src) &&
+        /\bhomicide_within: "Homicide within countries \(official statistics\)"/.test(src) && /\bhomicide_within: "Read each day/.test(src));
+  const row = src.slice(src.indexOf('{ id: "homicide_worldwide"'), src.indexOf('{ id: "homicide_worldwide"') + 3500);
+  check("the homicide row names the organized crime index among its parts", /Global Organized Crime Index/.test(row));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

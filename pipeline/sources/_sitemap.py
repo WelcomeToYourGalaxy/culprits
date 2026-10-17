@@ -51,6 +51,9 @@ def spec_for(m):
         spec["block"] = m["block"]
     if m.get("decode"):
         spec["decode"] = m["decode"]
+    # A map that fetches its data in parts says how long to wait for them (ms).
+    if m.get("wait"):
+        spec["wait"] = int(m["wait"])
     return spec
 
 
@@ -58,7 +61,7 @@ def extract(m):
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as fh:
         out = fh.name
     spec = dict(spec_for(m), out=out)
-    subprocess.run(["node", str(EXTRACT), json.dumps(spec)], check=True, timeout=300)
+    subprocess.run(["node", str(EXTRACT), json.dumps(spec)], check=True, timeout=300 + int(spec.get("wait", 0)) // 1000)
     data = json.loads(pathlib.Path(out).read_text())
     os.unlink(out)
     return data

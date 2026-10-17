@@ -23209,7 +23209,13 @@ const SITE_MAPS = {
     { id: "homicide_worldwide", name: "Homicide worldwide, with organized crime, gang territories and cult killings (compiled from UNODC, Wikipedia and others)", unit: "places", colour: "#88325C", route: "sitemap", ready: true, lazy: true,
       dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/homicide_worldwide.places.geojson",
       keepColour: true,
-      note: "The owner's Homicide worldwide map (WelcomeToYourGalaxy/maps, homicide.html), from the Destruction page's section (1) Of individuals, read each day from the map itself; every mark opens the map's own box with its sources, and each part can be shown on its own under the row. People killed by people in every country, territory and part of a country UNODC gives, shaded by the latest homicide rate, each box holding every figure in UNODC's homicide data (released 12 July 2026, 2003 to 2024): victims by sex and age, by kind of homicide (organized crime or gangs, other crime, interpersonal, socio-political), by weapon, by who killed them and by citizenship; people arrested, suspected and convicted; homicides in prisons. Cult-related homicides named in California's 1989 occult crime primer; every entry of Wikipedia's list of criminal enterprises, gangs and syndicates, placed by Wikidata or by the list's own headings (ringed where only a country is known); and the gang territories of the three gang maps gathered on gangsigns.org (Los Angeles, Southern California, South Bend). UNODC's world and regional estimates are in the map's own About box. War deaths are not here: the page files them under invasion. Stand-your-ground law is its own row below; animal sacrifice and animal fighting are their own rows under Of animals." },
+      note: "The owner's Homicide worldwide map (WelcomeToYourGalaxy/maps, homicide.html), from the Destruction page's section (1) Of individuals, read each day from the map itself; every mark opens the map's own box with its sources, and each part can be shown on its own under the row. People killed by people in every country, territory and part of a country UNODC gives, shaded by the latest homicide rate, each box holding every figure in UNODC's homicide data (released 12 July 2026, 2003 to 2024): victims by sex and age, by kind of homicide (organized crime or gangs, other crime, interpersonal, socio-political), by weapon, by who killed them and by citizenship; people arrested, suspected and convicted; homicides in prisons. Cult-related homicides named in California's 1989 occult crime primer; every entry of Wikipedia's list of criminal enterprises, gangs and syndicates, placed by Wikidata or by the list's own headings (ringed where only a country is known); the gang territories of the three gang maps gathered on gangsigns.org (Los Angeles, Southern California, South Bend); and every score of the Global Organized Crime Index (2021, 2023 and 2025: criminal markets, criminal actors and resilience, 193 countries). UNODC's world and regional estimates are in the map's own About box. War deaths are not here: the page files them under invasion. The same map's figures within countries are the row below. Stand-your-ground law is its own row; animal sacrifice and animal fighting are their own rows under Of animals." },
+    // Homicide within countries (asked 17 October): the same homicide map read with
+    // ?within=all, which draws only its figures within countries (registry "wait").
+    { id: "homicide_within", name: "Homicide within countries, by state, province, district, municipality, county and police area, in 59 countries and Europe's regions (compiled from each country's official statistics)", unit: "areas", colour: "#88325C", route: "sitemap", ready: true, lazy: true,
+      dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/homicide_within.places.geojson",
+      keepColour: true,
+      note: "The owner's Homicide worldwide map (WelcomeToYourGalaxy/maps, homicide.html and its folder homicide_within), read each day for its figures within countries: every homicide figure below the national level that official sources publish openly for 59 countries and Europe's regions, by state, province, district, municipality, county, police area or police station, as far back as each goes. Among them: every US county from the Murder Accountability Project's record of 929,433 homicides since 1976 and police agencies' murders and clearances since 1965; Mexico's municipalities (SESNSP); Brazil's municipalities (IPEA Atlas da Viol\u00eancia); Colombia, Argentina, Chile, Peru, Ecuador, Central America and the Caribbean; Canada, Australia, the United Kingdom, Ireland, Japan, South Korea and Taiwan; France, Italy, Spain, the Netherlands, the Nordic countries, Switzerland, Poland, Portugal and Austria; Eurostat's NUTS regions; South Africa's police stations and districts, Nigeria, Kenya, Uganda, Tanzania and others; India's districts, Pakistan, Indonesia, Malaysia, Mongolia and others. Each country's areas are shaded by its own most common figure; each box gives that figure and how many figures the map holds for the area, with a link to all of them, year by year, in the map itself. Areas with no open boundary file sit in the box of the area they belong to, or in a ringed box at the middle of the country. Each country and level can be shown on its own under the row." },
     // Stand your ground (asked 17 October): the stand-your-ground part of the
     // homicide map made a map of its own (maps repo), read the usual way.
     { id: "stand_your_ground", name: "Stand-your-ground and duty-to-retreat laws, by US state and territory and in nine other jurisdictions (Wikipedia)", unit: "jurisdictions", colour: "#2F8F9D", route: "sitemap", ready: true, lazy: true,
@@ -26022,6 +26028,7 @@ const SHORT_NAMES = {
   homicide_colombia: "Homicides in Colombia since 2010, by town (Ministry of Defence)",
   homicide_wikidata: "Notable murders with a place (Wikidata)",
   homicide_worldwide: "Homicide worldwide, crime groups, gangs and cult killings (compiled)",
+  homicide_within: "Homicide within countries (official statistics)",
   stand_your_ground: "Stand-your-ground and duty-to-retreat laws (Wikipedia)",
   attacks_gw_killings: "Defenders killed, 2012–2022, one by one (Global Witness)",
   attacks_land_resistance: "Attacks on land defenders, Latin America (Land of Resistance)",
@@ -26634,6 +26641,7 @@ const LAYER_KIND = {
   allen_coral: ["animal", "downstream"],
   site_animal_sacrifice: ["animal", "downstream"],
   homicide_worldwide: ["human", "downstream"],
+  homicide_within: ["human", "downstream"],
   stand_your_ground: ["human", "downstream"],
   child_harvesting: ["human", "downstream"],
   children_taken_invaded: ["human", "downstream"],
@@ -27598,6 +27606,7 @@ const LAYER_SITE = {
   site_animal_racing: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/racing-map-embed.html",
   site_animal_sacrifice: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/sacrifice_map.html",
   homicide_worldwide: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/homicide.html",
+  homicide_within: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/homicide.html",
   stand_your_ground: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/stand_your_ground.html",
   child_harvesting: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/child_harvesting.html",
   site_animal_tourism: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/suppression_embed_25_leaflet-map.html",
@@ -27895,6 +27904,7 @@ const NOT_LIVE = {
   reproduction_capture: "Read each day from the owner's map in the maps repo",
   child_harvesting: "Read each day from the owner's map in the maps repo",
   homicide_worldwide: "Read each day from the owner's map in the maps repo",
+  homicide_within: "Read each day from the owner's map in the maps repo",
   stand_your_ground: "Read each day from the owner's map in the maps repo",
   children_taken_invaded: "Compiled for this map from the sources in each box",
   children_taken_state: "Compiled for this map from the sources in each box",
@@ -28525,7 +28535,7 @@ const PANEL_ORDER = [
   // overexploitation of workers under Slavery; homicides worldwide added.
   { h: 3, t: "Of humans" },
   // Asked 17 October: the owner's homicide map, the page's section (1) whole.
-  "homicide_worldwide", "stand_your_ground",
+  "homicide_worldwide", "homicide_within", "stand_your_ground",
   { h: 4, bundle: "killing_indigenous", colour: "#7A1F3D" }, "attacks_cimi", "attacks_caci",
   { h: 4, bundle: "defenders", colour: "#9E2A3E" }, "gw_defenders", "attacks_gw_killings", "attacks_land_resistance", "attacks_frontline",
   { h: 4, bundle: "brazil_land", colour: "#5E3A44" }, "attacks_cpt_violence", "attacks_cpt_threatened", "attacks_cpt_massacres", "attacks_cpt_areas", "attacks_public_agencies", "attacks_cpt_land",
