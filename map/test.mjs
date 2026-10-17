@@ -5571,7 +5571,7 @@ console.log("\nround 102b (28 September): the insentient's kinds, Of groups, Chr
         out.filters[0].values.length === 1 && out.features.length === 2 &&
         /dropTypes: \["Bottled & decorative water", "Collectibles & novelty", "Luxury & fast fashion"\], name: "The Insentient 2026"/.test(src));
   check("Destruction's Of groups holds Of humans alone; Of individuals Of humans and Of animals",
-        /\{ h: 2, t: "Of groups" \},\n  \{ h: 3, t: "Of humans" \},\n  \{ h: 2, t: "Of individuals" \},\n[\s\S]{0,400}\{ h: 3, t: "Of humans" \},\n(  \{ h: 4, bundle[^\n]*\n){4}  \{ h: 3, t: "Of animals" \}, "site_animal_sacrifice",\n\n/.test(src));
+        /\{ h: 2, t: "Of groups" \},\n  \{ h: 3, t: "Of humans" \},\n  \{ h: 2, t: "Of individuals" \},\n[\s\S]{0,400}\{ h: 3, t: "Of humans" \},\n(  \/\/[^\n]*\n)*(  "homicide_worldwide",\n)?(  \{ h: 4, bundle[^\n]*\n){4}  \{ h: 3, t: "Of animals" \}, "site_animal_sacrifice",\n\n/.test(src));
   check("Christmas tree farms and sellers worldwide, the United States map inside it", /id: "xmas_trees"[^\n]*route: "geojsonlive"/.test(src) &&
         /"site_enslaved_plants", "xmas_trees",/.test(src) && /"mymaps_trees",/.test(src.slice(src.indexOf("const PANEL_REMOVED"))));
   check("the asteroids show round the flat map too, the map pulls back to them, and their see-through bar works",
@@ -7719,6 +7719,25 @@ console.log("\nchild harvesting, second patch (16 October): children taken by st
         /\bchildren_taken_invaded: \["human", "downstream"\]/.test(src) && /\bchildren_taken_state: \["human", "downstream"\]/.test(src) &&
         /\bchildren_taken_invaded: "Children taken from invaded peoples \(compiled\)"/.test(src) &&
         !/id: "child_harvesting"[\s\S]{0,4000}?children taken by states and placed/.test(src.slice(src.indexOf('id: "child_harvesting"'), src.indexOf('id: "child_harvesting"') + 4000)));
+}
+console.log("\nhomicide worldwide (17 October): the owner's homicide map, one row under Destruction > Of individuals > Of humans");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const reg = JSON.parse(fs.readFileSync(path.join(HERE, "..", "pipeline", "sitemaps", "registry.json"), "utf8")).maps;
+  const o = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes(")) + "; return PANEL_ORDER;")();
+  const i = o.indexOf("homicide_worldwide");
+  let h2 = -1, h3 = -1;
+  for (let k = i - 1; k >= 0; k--) { const x = o[k]; if (x && x.h === 3 && h3 < 0) h3 = k; if (x && x.h === 2) { h2 = k; break; } }
+  check("the map is read daily from the maps repo the usual way",
+        reg.some((m) => m.id === "homicide_worldwide" && !m.rich && m.url === "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/homicide.html"));
+  check("one row, its places and boxes from the copy",
+        /id: "homicide_worldwide"[^\n]*route: "sitemap"/.test(src) && src.includes("sitemaps/homicide_worldwide.places.geojson"));
+  check("filed once, under Of individuals > Of humans in Destruction",
+        o.filter((x) => x === "homicide_worldwide").length === 1 && i > 0 && o[h2] && o[h2].t === "Of individuals" && o[h3] && o[h3].t === "Of humans" &&
+        i > o.findIndex((x) => x && x.h === 1 && x.t === "Destruction"));
+  check("labelled, linked, short-named and marked as read daily",
+        /\bhomicide_worldwide: \["human", "downstream"\]/.test(src) && /\bhomicide_worldwide: "https:\/\/github\.com\/WelcomeToYourGalaxy\/maps\/blob\/main\/homicide\.html"/.test(src) &&
+        /\bhomicide_worldwide: "Homicide worldwide, [^"]*\(compiled\)"/.test(src) && /\bhomicide_worldwide: "Read each day/.test(src));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

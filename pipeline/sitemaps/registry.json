@@ -74,6 +74,14 @@
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/site/site_secret_societies.html"
   },
   {
+   "id": "homicide_worldwide",
+   "name": "Homicide worldwide, with organized crime, gang territories, cult killings, self-defense law, and animals killed in sacrifice and fights (compiled from UNODC, Wikipedia and others)",
+   "unit": "places",
+   "colour": "#88325C",
+   "note": "The owner's Homicide worldwide map (maps repo), from the Destruction page's section (1) Of individuals.",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/homicide.html"
+  },
+  {
    "id": "reproduction_capture",
    "name": "Reproduction capture worldwide, by force, money, advertising and influence abroad (compiled from rulings, inquiries, the UN and reporting)",
    "unit": "entries",

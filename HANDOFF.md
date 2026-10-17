@@ -7565,3 +7565,39 @@ heading). Anchor-based like the first.
 - The Child Harvesting map now carries every 2026 Horrible Hundred entry (the
   owner supplied the PDF): 16 new dealers, 70 existing ones given their 2026
   listing.
+
+
+## Homicide worldwide (17 October, a separate chat)
+
+Not a numbered round: it changes nothing other rounds touch, so it applies
+before or after them, and this note goes at the end of this file. Its map
+file goes into the maps repo by hand. No tiles patch. No app.js?v= bump.
+
+- New map in WelcomeToYourGalaxy/maps: homicide.html (Leaflet; every mark a
+  circleMarker, polygon or polyline with its popup bound when made, each part
+  a layerGroup named in L.control.layers, so extract.mjs reads it the usual
+  way; no "rich" builder). The Destruction page's section (1) Of individuals,
+  8 parts: homicide by country (every row of UNODC's
+  data_cts_intentional_homicide.xlsx, released 12 July 2026, for 208
+  countries, territories and parts, shaded by the latest rate, every figure in
+  the box; Iraq's two parts each also carry Iraq's whole-country rows, so 207
+  shapes); cult-related homicides named in the OJP/California occult crime
+  primer (4); Wikipedia's list of criminal enterprises, gangs and syndicates
+  placed by Wikidata or the list's own place headings (1,140 placed, ringed
+  where only a country is known; 176 with no place listed in the map's About
+  box); gang territories from the three readable gangsigns.org Google My Maps
+  (LA 2026, Southern California, South Bend; no licence stated); stand-your-
+  ground law by US state and territory and nine other jurisdictions
+  (Wikipedia); the page's animal sacrifice sites (207) and animal fighting
+  venues and regions (144). Extract on the file: 5,770 features, 8 overlays.
+- registry.json: homicide_worldwide (url = maps/main/homicide.html), so the
+  tiles refresh's sitemaps job builds sitemaps/homicide_worldwide.places.geojson
+  and .boxes.json each full run. The row draws nothing until the first
+  refresh after the map is in the maps repo.
+- app.js: the row in SITE_MAPS (route sitemap, keepColour), SHORT_NAMES,
+  LAYER_KIND (human, downstream), LAYER_SITE, NOT_LIVE; PANEL_ORDER: first
+  under Destruction > Of individuals > Of humans, before the bundles. The
+  map's overlays are the row's facet.
+- test.mjs: one block, "homicide worldwide (17 October)", just before the
+  final pass/fail line; round 102b's Of groups check now allows this row
+  (and comments) straight after Of individuals > Of humans.
