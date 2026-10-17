@@ -83,12 +83,12 @@
   },
   {
    "id": "homicide_within",
-   "name": "Homicide within countries, by state, province, district, municipality, county and police area, in 59 countries and Europe's regions (compiled from each country's official statistics)",
+   "name": "Homicide within countries, by state, province, district, municipality, county and police area, in 83 countries and Europe's regions (compiled from each country's official statistics and, where nothing else is published, police figures quoted in the news)",
    "unit": "areas",
    "colour": "#88325C",
    "note": "The owner's Homicide worldwide map (maps repo), read for its figures within countries: ?within=all makes the map draw only those, all countries at once.",
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/homicide.html?within=all",
-   "wait": 120000
+   "wait": 240000
   },
   {
    "id": "stand_your_ground",

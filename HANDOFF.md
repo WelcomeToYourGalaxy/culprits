@@ -7675,3 +7675,38 @@ No tiles patch. No app.js?v= bump.
   "homicide_worldwide", "homicide_within", "stand_your_ground".
 - test.mjs: block "homicide within countries (17 October)"; the stand your
   ground block allows the new row between it and the homicide row.
+
+
+## Homicide worldwide, fourth patch (17 October, a separate chat)
+
+Needs the third homicide patch (guards on its heading). Not a numbered round;
+this note goes at the end of this file. Files go into the maps repo by hand.
+No tiles patch. No app.js?v= bump.
+
+- Owner, 17 October: look again (three more times) for the countries where
+  nothing open turned up below the national level; add New Zealand despite
+  its terms.
+- Found: El Salvador (Medicina Legal, departments and municipalities,
+  2002-2021), Nicaragua, Bolivia, Paraguay, Puerto Rico (municipalities),
+  Sri Lanka (police divisions), Nepal (one narrow category), Rwanda, Iran
+  (provinces), Germany (deaths by assault by state, Destatis via GBE-Bund;
+  Eurostat NUTS assault deaths), Belgium and Turkey (Eurostat NUTS assault
+  deaths), Russia (federal subjects 2006-2017, Wikipedia citing EMISS, marked
+  secondary), Ukraine (regional prosecutors' Form 1 reports, CC BY), Iraq
+  (two research papers), Haiti (UN mission counts of people killed by gangs,
+  by commune), New Zealand (NZ Police offender proceedings by territorial
+  authority, 2014-2026; NZ Police terms allow non-commercial use and forbid
+  alteration without permission: added at the owner's word), and police
+  figures quoted in named news reports or journals, labelled as such: Ghana,
+  Zambia, Namibia, Botswana, Guyana, Bangkok, Hanoi, Chongqing.
+  Still nothing below the national level: Jordan, Egypt, Morocco, Eswatini.
+- The owner's first upload put the country files in the maps repo folder
+  homicide_maps_upload/ (not homicide_within/); the map now reads that
+  folder, so nothing uploaded had to move. It now holds 86 files.
+- Shading: a level is shaded by murder rather than a side offence (driving,
+  conspiracy, attempts and the like) when murder covers at least half the
+  areas. Sources whose monthly tables leave out months with nothing recorded
+  (New Zealand) no longer show full years as incomplete.
+- The within reading takes about 168 s locally (21,891 areas, 192 overlays):
+  registry.json homicide_within "wait" 240000 (was 120000). Its name and
+  app.js note say 83 countries, name the news-quoted sources and the folder.
