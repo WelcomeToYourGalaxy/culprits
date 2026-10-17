@@ -5,6 +5,15 @@ touches.
 
 ---
 
+## Round nh4 (17 October, the Invasion of non-humans chat)
+
+Needs round nh3 (guards on its heading).
+
+- The six governance rows (wgi_*) were empty: the World Bank withdrew the WGI percentile-rank
+  series (GE.PER.RNK and the rest) in its September 2025 revision. They now shade by the new
+  governance score, 0 (worst) to 100 (best), field <key>_score in nonhuman/wgi.json (tiles
+  nonhuman_wgi.py reads GOV_WGI_*.SC, its bounds and the estimate). Names, units and notes say so.
+
 ## Round 216o (16 October)
 
 Needs round 215o (guards on its heading). Tiles patch round216o_tiles.py, then

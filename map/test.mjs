@@ -3525,7 +3525,7 @@ console.log("\nround nh2: trawling inside marine protected areas, and how the co
         order.indexOf("trawl_mpas") === at("Biodiversity loss") + 1 && wgi.every((w, i) => order.indexOf(w) === at("How the countries are governed") + 1 + i) &&
         at("How the countries are governed") > at("Biodiversity loss"));
   check("both read their copies from the nonhuman folder, say they are copies and carry both labels",
-        /nonhuman\/trawl_mpas\.geojson/.test(src) && /nonhuman\/wgi\.json", field: "va_rank" \}, linear: \[0, 100\], reverse: true/.test(src) &&
+        /nonhuman\/trawl_mpas\.geojson/.test(src) && /nonhuman\/wgi\.json", field: "va_score" \}, linear: \[0, 100\], reverse: true/.test(src) &&
         /  trawl_mpas: "Worked out monthly by culprits-tiles-more/.test(src) && /trawl_mpas: \["animal", "downstream"\]/.test(src) && /wgi_cc: \["human", "upstream"\]/.test(src));
 }
 console.log("\nround nh3: population density under Invasion of nonhumans too");
@@ -3537,6 +3537,15 @@ console.log("\nround nh3: population density under Invasion of nonhumans too");
   check("population density sits under Overpopulation and under Invasion of nonhumans",
         order.indexOf("ct_pop", at("Invasion of nonhumans")) === at("Invasion of nonhumans") + 2 && order.indexOf("ct_pop") > -1 &&
         order.lastIndexOf("ct_pop") === at("Overpopulation") + 1);
+}
+console.log("\nround nh4: governance shaded by the World Bank's new score");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const ks = ["va", "pv", "ge", "rq", "rl", "cc"];
+  check("each governance row reads its newest score, 0 to 100, and none still reads the withdrawn percentile rank",
+        ks.every((k) => new RegExp(`id: "wgi_${k}", name: "[^"]*governance score, newest year[^"]*", unit: "governance score, 0 \\(worst\\) to 100 \\(best\\)"`).test(src) &&
+          src.includes(`nonhuman/wgi.json", field: "${k}_score" }, linear: [0, 100], reverse: true`)) &&
+        !/field: "(va|pv|ge|rq|rl|cc)_rank"/.test(src));
 }
 console.log("\nround of 23 September (9): refresh notes, where each dot is, place names, the green cast");
 {
