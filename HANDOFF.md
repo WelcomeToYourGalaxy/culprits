@@ -5,6 +5,22 @@ touches.
 
 ---
 
+## Round 216o (16 October)
+
+Needs round 215o (guards on its heading). Tiles patch round216o_tiles.py, then
+the GEM download goes in gem/ownership/download/ and the refresh runs
+gem_ownership. No app.js?v= bump.
+
+- Two rows under Climate > Who owns the emissions, from Global Energy
+  Monitor's Global Energy Ownership Tracker (September 2026, CC BY 4.0):
+  gem_owner_parents (every parent in the nine sector sheets: units held,
+  status counts, capacity by its shares, operating / being developed / the
+  rest, in GEM's units) and gem_owner_entities (all 27,707 entities, every
+  column, who owns them and what they own, with percentages). Both placed at
+  the headquarters (else registration) country's capital, spread.
+- The workbook (55 MB) is too big for GitHub's web upload, so the owner put
+  in a zip of its sheets as compressed CSVs (every sheet, row and column).
+
 ## Round nh3 (16 October, the Invasion of non-humans chat)
 
 Needs round nh2 (guards on its heading).

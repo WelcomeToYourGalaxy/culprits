@@ -7616,6 +7616,15 @@ console.log("\nround 215o (16 October): every gravity and anti-gravity heading a
   check("the From Earth view and gravity's fabric gone from the Moon, Mars and Sun page", !/earthreach: \{/.test(bodies) && !/function readFabric/.test(bodies) && !/function readPull/.test(bodies));
 }
 
+console.log("\nround 216o (16 October): who owns the energy and heavy-industry assets (Global Energy Ownership Tracker)");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const o = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("];", src.indexOf("const PANEL_ORDER = [")) + 2) + "; return PANEL_ORDER;")();
+  check("GEM's parents and every owner, read from the tiles repo, beside Climate TRACE's owners", ["gem_owner_parents", "gem_owner_entities"].every((id) => o.indexOf(id) > o.indexOf("ct_owned_sites") && new RegExp('id: "' + id + '"[^\\n]*route: "geojsonlive"[^\\n]*buildScript: "gem_ownership"').test(src)) &&
+        /culprits-tiles-more\/gem\/ownership\/parents\.geojson/.test(src) && /culprits-tiles-more\/gem\/ownership\/entities\.geojson/.test(src));
+  check("credited as GEM asks, with China's ownership dated", /Global Energy Monitor, Global Energy Ownership Tracker, September 2026 \(CC BY 4\.0\)/.test(src) && /Chinese ownership has not been updated since early 2023/.test(src));
+}
+
 console.log("\nround 110c (29 September): planted, bought or captured, worldwide");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
