@@ -75,10 +75,10 @@
   },
   {
    "id": "homicide_worldwide",
-   "name": "Homicide worldwide, with organized crime, gang territories and cult killings (compiled from UNODC, Wikipedia and others)",
+   "name": "Homicide worldwide, by country, and cult killings (compiled from UNODC and California's occult crime primer)",
    "unit": "places",
    "colour": "#88325C",
-   "note": "The owner's Homicide worldwide map (maps repo), from the Destruction page's section (1) Of individuals.",
+   "note": "The owner's Homicide worldwide map (maps repo), from the Destruction page's section (1) Of individuals: read plain, the map gives its killings (homicide by country and cult killings) only.",
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/homicide.html"
   },
   {
@@ -91,8 +91,16 @@
    "wait": 240000
   },
   {
+   "id": "homicide_groups",
+   "name": "Crime groups, gangs and cults: every criminal enterprise, gang and syndicate Wikipedia lists, gang territories, and the Global Organized Crime Index (compiled from Wikipedia, Wikidata, gangsigns.org and the Global Initiative)",
+   "unit": "places",
+   "colour": "#5B4A6E",
+   "note": "The owner's Homicide worldwide map (maps repo), read for its crime groups, gangs and organized crime scores: ?part=groups makes the map draw only those.",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/homicide.html?part=groups"
+  },
+  {
    "id": "stand_your_ground",
-   "name": "Stand-your-ground and duty-to-retreat laws, by US state and territory and in nine other jurisdictions (Wikipedia)",
+   "name": "Stand-your-ground and duty-to-retreat laws, every country and territory and every US state (compiled from criminal codes and court decisions)",
    "unit": "jurisdictions",
    "colour": "#2F8F9D",
    "note": "The owner's Stand your ground map (maps repo), from the Destruction page's section (1) Of individuals.",

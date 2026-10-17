@@ -7710,3 +7710,21 @@ No tiles patch. No app.js?v= bump.
 - The within reading takes about 168 s locally (21,891 areas, 192 overlays):
   registry.json homicide_within "wait" 240000 (was 120000). Its name and
   app.js note say 83 countries, name the news-quoted sources and the folder.
+
+
+## Homicide worldwide, fifth patch (17 October, a separate chat)
+
+Needs the fourth homicide patch (guards on its heading). Not a numbered round;
+this note goes at the end of this file.
+
+Asked 17 October: under Destruction > Of individuals > Of humans, Homicide
+worldwide is one layer with its own tick (the `homicides` bundle, retitled),
+holding the homicide map's killings (`homicide_worldwide`, now UNODC by country
+and cult killings only), its figures within countries (`homicide_within`) and
+the four homicide rows that were already in the bundle. The killings of land and
+environmental defenders and Indigenous peoples (`killing_indigenous`,
+`defenders`, `brazil_land`) sit in one category of their own. The map's groups
+are a new row, `homicide_groups` (registry: homicide.html?part=groups), in a new
+category "Crime groups, gangs and cults". Stand your ground is in its own
+category and is now worldwide (the map was rebuilt from each country's code).
+Under Invasion of humans the `homicides` bundle copy is unchanged.
