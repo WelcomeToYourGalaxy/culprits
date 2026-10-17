@@ -75,11 +75,19 @@
   },
   {
    "id": "homicide_worldwide",
-   "name": "Homicide worldwide, with organized crime, gang territories, cult killings, self-defense law, and animals killed in sacrifice and fights (compiled from UNODC, Wikipedia and others)",
+   "name": "Homicide worldwide, with organized crime, gang territories and cult killings (compiled from UNODC, Wikipedia and others)",
    "unit": "places",
    "colour": "#88325C",
    "note": "The owner's Homicide worldwide map (maps repo), from the Destruction page's section (1) Of individuals.",
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/homicide.html"
+  },
+  {
+   "id": "stand_your_ground",
+   "name": "Stand-your-ground and duty-to-retreat laws, by US state and territory and in nine other jurisdictions (Wikipedia)",
+   "unit": "jurisdictions",
+   "colour": "#2F8F9D",
+   "note": "The owner's Stand your ground map (maps repo), from the Destruction page's section (1) Of individuals.",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/stand_your_ground.html"
   },
   {
    "id": "reproduction_capture",

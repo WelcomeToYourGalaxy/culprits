@@ -7601,3 +7601,30 @@ file goes into the maps repo by hand. No tiles patch. No app.js?v= bump.
 - test.mjs: one block, "homicide worldwide (17 October)", just before the
   final pass/fail line; round 102b's Of groups check now allows this row
   (and comments) straight after Of individuals > Of humans.
+
+
+## Homicide worldwide, second patch (17 October, a separate chat)
+
+Needs the first homicide patch (guards on its heading). Not a numbered round;
+this note goes at the end of this file. Two map files go into the maps repo by
+hand. No tiles patch. No app.js?v= bump.
+
+- Owner, 17 October: animal sacrifice and animal fighting have their own maps
+  and rows (site_animal_sacrifice, site_animal_fighting), so they are off the
+  homicide map; and stand-your-ground law is a map of its own.
+- maps repo: homicide.html replaced (4 parts now: homicide by country, cult-
+  related homicides, organized crime groups, gang territories; extract 5,354
+  features, 4 overlays). New stand_your_ground.html (Leaflet, L.polygon per
+  jurisdiction, each kind a layerGroup in L.control.layers): 56 US states and
+  territories in 7 kinds as Wikipedia's article and map classify them, and the
+  9 other jurisdictions it covers drawn as shapes (Alberta's box carries
+  Canada's text too); extract 65 features, 8 overlays.
+- registry.json: stand_your_ground (url = maps/main/stand_your_ground.html);
+  homicide_worldwide's name shortened to match.
+- app.js: homicide_worldwide's name, short name and note say what the map now
+  holds. New row stand_your_ground in SITE_MAPS (route sitemap, keepColour),
+  SHORT_NAMES, LAYER_KIND (human, downstream), LAYER_SITE, NOT_LIVE; in
+  PANEL_ORDER straight after homicide_worldwide, under Destruction > Of
+  individuals > Of humans.
+- test.mjs: one block, "stand your ground (17 October)"; round 102b's check
+  allows the line "homicide_worldwide", "stand_your_ground".

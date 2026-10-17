@@ -5571,7 +5571,7 @@ console.log("\nround 102b (28 September): the insentient's kinds, Of groups, Chr
         out.filters[0].values.length === 1 && out.features.length === 2 &&
         /dropTypes: \["Bottled & decorative water", "Collectibles & novelty", "Luxury & fast fashion"\], name: "The Insentient 2026"/.test(src));
   check("Destruction's Of groups holds Of humans alone; Of individuals Of humans and Of animals",
-        /\{ h: 2, t: "Of groups" \},\n  \{ h: 3, t: "Of humans" \},\n  \{ h: 2, t: "Of individuals" \},\n[\s\S]{0,400}\{ h: 3, t: "Of humans" \},\n(  \/\/[^\n]*\n)*(  "homicide_worldwide",\n)?(  \{ h: 4, bundle[^\n]*\n){4}  \{ h: 3, t: "Of animals" \}, "site_animal_sacrifice",\n\n/.test(src));
+        /\{ h: 2, t: "Of groups" \},\n  \{ h: 3, t: "Of humans" \},\n  \{ h: 2, t: "Of individuals" \},\n[\s\S]{0,400}\{ h: 3, t: "Of humans" \},\n(  \/\/[^\n]*\n)*(  "homicide_worldwide",[^\n]*\n)?(  \{ h: 4, bundle[^\n]*\n){4}  \{ h: 3, t: "Of animals" \}, "site_animal_sacrifice",\n\n/.test(src));
   check("Christmas tree farms and sellers worldwide, the United States map inside it", /id: "xmas_trees"[^\n]*route: "geojsonlive"/.test(src) &&
         /"site_enslaved_plants", "xmas_trees",/.test(src) && /"mymaps_trees",/.test(src.slice(src.indexOf("const PANEL_REMOVED"))));
   check("the asteroids show round the flat map too, the map pulls back to them, and their see-through bar works",
@@ -7738,6 +7738,23 @@ console.log("\nhomicide worldwide (17 October): the owner's homicide map, one ro
   check("labelled, linked, short-named and marked as read daily",
         /\bhomicide_worldwide: \["human", "downstream"\]/.test(src) && /\bhomicide_worldwide: "https:\/\/github\.com\/WelcomeToYourGalaxy\/maps\/blob\/main\/homicide\.html"/.test(src) &&
         /\bhomicide_worldwide: "Homicide worldwide, [^"]*\(compiled\)"/.test(src) && /\bhomicide_worldwide: "Read each day/.test(src));
+}
+console.log("\nstand your ground (17 October): its own map, beside the homicide map; sacrifice and fighting off the homicide map");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const reg = JSON.parse(fs.readFileSync(path.join(HERE, "..", "pipeline", "sitemaps", "registry.json"), "utf8")).maps;
+  const o = new Function(src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes(")) + "; return PANEL_ORDER;")();
+  check("read daily from the maps repo the usual way",
+        reg.some((m) => m.id === "stand_your_ground" && !m.rich && m.url === "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/stand_your_ground.html"));
+  check("one row, its places and boxes from the copy, straight after the homicide map",
+        /id: "stand_your_ground"[^\n]*route: "sitemap"/.test(src) && src.includes("sitemaps/stand_your_ground.places.geojson") &&
+        o.filter((x) => x === "stand_your_ground").length === 1 && o.indexOf("stand_your_ground") === o.indexOf("homicide_worldwide") + 1);
+  check("labelled, linked, short-named and marked as read daily",
+        /\bstand_your_ground: \["human", "downstream"\]/.test(src) && /\bstand_your_ground: "https:\/\/github\.com\/WelcomeToYourGalaxy\/maps\/blob\/main\/stand_your_ground\.html"/.test(src) &&
+        /\bstand_your_ground: "Stand-your-ground and duty-to-retreat laws \(Wikipedia\)"/.test(src) && /\bstand_your_ground: "Read each day/.test(src));
+  const row = src.slice(src.indexOf('{ id: "homicide_worldwide"'), src.indexOf('{ id: "homicide_worldwide"') + 3000);
+  check("the homicide row no longer names sacrifice, fighting or self-defense law as its own parts",
+        !/self-defense law, and animals/.test(row) && /Stand-your-ground law is its own row/.test(row));
 }
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
