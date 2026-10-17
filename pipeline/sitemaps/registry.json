@@ -115,6 +115,22 @@
    "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/reproduction_capture.html"
   },
   {
+   "id": "abortion_grid",
+   "name": "The abortion grid worldwide, with the laws, opinion, abortions, safety, clinics, pills, funds, fetal tissue research and the money behind them (compiled from WHO, Guttmacher, governments, IRS and FEC filings, and reporting)",
+   "unit": "places",
+   "colour": "#3A8790",
+   "note": "The owner's Abortion map (maps repo), from the On-Planet Invasion page's section (b) Unnecessary Abortion.",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/abortion.html"
+  },
+  {
+   "id": "rape_registries",
+   "name": "Rape and the sex-offender registries of every level of government worldwide, with the figures on rape by country (compiled from the registries, the WomanStats Project, WHO, the World Bank and DHS)",
+   "unit": "registries and countries",
+   "colour": "#4673AD",
+   "note": "The owner's Rape map (maps repo), from the On-Planet Invasion page's section (i) Rape.",
+   "url": "https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/rape.html"
+  },
+  {
    "id": "site_ufo_pre1900",
    "name": "Pre-1900 UFO and USO sightings",
    "unit": "recorded sightings",

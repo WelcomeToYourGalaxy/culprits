@@ -2095,6 +2095,45 @@ console.log("\nbuilding types, one layer");
   check("no type is coloured yellow or orange", Object.values(cols(Array.from({ length: 40 }, (_, i) => "t" + i))).every((v) => { const h = Number(/hsl\((\d+)/.exec(v)[1]); return !(h > 20 && h < 90); }));
 }
 
+console.log("\nround 218o (16 October): the Abortion and Rape maps, and pages shown inside the map");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const body = src.slice(src.indexOf("const PANEL_ORDER = ["), src.indexOf("function panelNodes("));
+  const order = new Function(body + "; return PANEL_ORDER;")();
+  const at = (t) => order.findIndex((x) => x && x.t === t);
+  const a = order.indexOf("abortion_grid"), r = order.indexOf("rape_registries");
+  check("Abortion is a heading under Pre-birth frontlines, after Human reproduction and gene therapy, holding its row",
+    at("Pre-birth frontlines") < at("Human reproduction and gene therapy") && at("Human reproduction and gene therapy") < at("Abortion") && at("Abortion") === a - 1 && a < at("Invasion of the living"));
+  check("Rape is a heading under Invasion of humans, before Of countries by countries, holding its row",
+    at("Invasion of humans") < at("Rape") && at("Rape") === r - 1 && r < at("Of countries by countries"));
+  check("each row appears once in the layers box", order.filter((x) => x === "abortion_grid").length === 1 && order.filter((x) => x === "rape_registries").length === 1);
+  const reg = JSON.parse(fs.readFileSync(path.join(HERE, "..", "pipeline", "sitemaps", "registry.json"), "utf8")).maps;
+  for (const [id, file] of [["abortion_grid", "abortion"], ["rape_registries", "rape"]]) {
+    const m = reg.find((x) => x.id === id);
+    check(`${id} is read from the owner's maps repo by the generic reader`, !!m && m.url === `https://raw.githubusercontent.com/WelcomeToYourGalaxy/maps/main/${file}.html` && !m.rich);
+    check(`${id} is a site-map row in the map's own colours, linked, read daily and filed`,
+      new RegExp(`\\{ id: "${id}", name: "[^"_:]+\\(compiled from [^"]+\\)", [^\\n]*route: "sitemap"`).test(src) &&
+      new RegExp(`sitemaps/${id}\\.places\\.geojson",\\n\\s*keepColour: true,`).test(src) &&
+      src.includes(`\n  ${id}: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/${file}.html",`) &&
+      src.includes(`\n  ${id}: "Read each day from the owner's map in the maps repo",`) && new RegExp(`\\n  ${id}: \\["human", "(up|down)stream"\\],`).test(src));
+  }
+  const rape = (src.match(/\{ id: "rape_registries",[\s\S]*?note: "([^"]*)" \}/) || [])[1] || "";
+  check("the Rape row says no names or addresses are copied and that dots sit at the seat of each registry's body", /No names or addresses/.test(rape) && /never at anyone's home/.test(rape));
+  const ab = (src.match(/\{ id: "abortion_grid",[\s\S]*?note: "([^"]*)" \}/) || [])[1] || "";
+  check("the Abortion row names what is left out until permission is given", /Left out until permission is given: Planned Parenthood/.test(ab) && /Plan C/.test(ab));
+  // The in-map panel for pages: only https addresses, opened from data-wtyg-frame.
+  const hook = src.slice(src.indexOf("function siteFramePanel("), src.indexOf("function sitemapHits("));
+  check("a box's data-wtyg-frame button opens the page in a panel over the map", /closest\("\[data-wtyg-frame\]"\)/.test(hook) && /document\.addEventListener\("click", siteFrameClick\)/.test(hook));
+  const made = [];
+  const fakeEl = () => { const e = { style: {}, dataset: {}, hidden: true, href: "", src: "", textContent: "", innerHTML: "", title: "",
+    querySelector: (s) => (e.kids[s] = e.kids[s] || fakeEl()), addEventListener() {}, kids: {} }; return e; };
+  const doc = { getElementById: () => made[0] || null, createElement: () => { const e = fakeEl(); made.push(e); return e; }, body: { appendChild() {} }, addEventListener() {} };
+  const open = new Function("document", hook + "; return openSiteFrame;")(doc);
+  check("an http address is not put in the panel (it would be blocked on the published map)", open("http://example.org/", "x") === false && made.length === 0);
+  check("an https address opens the panel with its title and its own link", open("https://example.org/reg", "A registry") === true &&
+    made[0].querySelector("iframe").src === "https://example.org/reg" && made[0].querySelector(".sf-title").textContent === "A registry" && made[0].querySelector(".sf-open").href === "https://example.org/reg");
+}
+
 console.log("\nround 215r (16 October): the UN's 2019 answers in the Reproduction capture row");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");

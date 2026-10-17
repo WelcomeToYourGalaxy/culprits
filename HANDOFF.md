@@ -5,6 +5,42 @@ touches.
 
 ---
 
+## Round 218o (16 October)
+
+Needs round 217o (guards on its heading). No tiles patch: the two maps are
+read by the daily site-map build once they are in the maps repo. No app.js?v=
+bump. Its own files in the maps repo: abortion.html and rape.html (top folder).
+
+- Owner, 16 October: a map and layer for each of the On-Planet Invasion
+  page's sections (b) Abortion and (i) Rape. The rape one with the world's
+  sex-offender registries at every level of government (data where it can be
+  used, links otherwise); then: show each registry inside the map over its
+  region, where the site allows it; and map the whole abortion grid, not only
+  the names in the section.
+- Rows abortion_grid (new heading "Abortion" under Pre-birth frontlines,
+  after Human reproduction and gene therapy) and rape_registries (new h4
+  "Rape" at the end of Invasion of humans, before Of countries by countries).
+  Both route "sitemap", keepColour, registry.json entries without "rich".
+- siteFrameClick: a box element with data-wtyg-frame="https://..." opens the
+  page in a panel over the map (large in the middle, or small in the corner),
+  with open-in-tab and a note. Only https. Rape map links that loaded in
+  a frame in a headless browser and send no frame-blocking header carry the
+  button (72 on 17 October); the rest open in a new tab.
+- 17 October: added 19 US county and city registries, 107 state, province
+  and city registries elsewhere, more countries, and 42 countries a source
+  says have no registry; the About lists the countries still unchecked.
+- Owner's licence choices (16 October): sources with no stated licence are
+  used with credit; non-commercial licences are fine (the site is
+  non-commercial); sources whose terms forbid copying without written
+  permission are left out until permission is given: Planned Parenthood's
+  health-centre and affiliate lists, NAF's provider list, New Zealand's
+  DECIDE list, UNODC's sexual-violence counts, the Gates grants file, and Plan
+  C's directory (its terms forbid scraping; the online services were rebuilt
+  from each service's own site).
+- No registered person's name or address is copied; registry dots sit at the
+  seat of the body that runs the registry.
+- Tests: one block before "round 215r" in map/test.mjs.
+
 ## Round 217o (16 October)
 
 Needs round 216o (guards on its heading). No tiles patch. No app.js?v= bump.

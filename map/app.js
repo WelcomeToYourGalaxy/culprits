@@ -21089,6 +21089,57 @@ function sitemapBoxHtml(cfg, boxes, box, tooltip) {
   return open + inner + close;
 }
 
+// Round 218o (asked 16 October): a site map's box may carry a button with
+// data-wtyg-frame="<address>" (the Rape map's "Show the registry here"). It
+// opens that page in a panel over the map, large in the middle or small in the
+// corner, with a link to open it in its own tab. Only pages whose sites allow
+// being shown inside another page get the button; the panel says what to do if
+// a site has since stopped allowing it.
+function siteFramePanel() {
+  let el = document.getElementById("site-frame");
+  if (el) return el;
+  el = document.createElement("div");
+  el.id = "site-frame";
+  el.dataset.big = "1";
+  el.style.cssText = "position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(1100px,94vw);height:86vh;z-index:46;display:flex;flex-direction:column;" +
+    "background:var(--peat,#17150F);border:1px solid var(--rule,#322E27);border-radius:3px;box-shadow:0 8px 30px rgba(0,0,0,.5);font-size:12px;color:var(--dim)";
+  el.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--rule,#322E27)">` +
+      `<button type="button" class="sf-grow" title="Smaller" aria-label="Make the panel smaller" style="background:none;border:1px solid var(--rule,#322E27);border-radius:2px;color:inherit;font-size:13px;line-height:1;padding:2px 5px;cursor:pointer">\u2921</button>` +
+      `<b class="sf-title" style="flex:1;color:var(--ink,#E8E2D6);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></b>` +
+      `<a class="sf-open" target="_blank" rel="noopener" style="color:var(--slate,#8A9DA6);white-space:nowrap">open \u2197</a>` +
+      `<button type="button" class="sf-close" aria-label="Close the panel" style="background:none;border:0;color:inherit;font-size:16px;cursor:pointer">\u00d7</button></div>` +
+    `<iframe title="A page shown inside the map" referrerpolicy="no-referrer" style="flex:1;width:100%;border:0;background:#fff"></iframe>` +
+    `<div class="sf-note" style="padding:5px 10px;border-top:1px solid var(--rule,#322E27)"></div>`;
+  document.body.appendChild(el);
+  el.querySelector(".sf-close").addEventListener("click", () => { el.hidden = true; el.style.display = "none"; el.querySelector("iframe").src = "about:blank"; });
+  el.querySelector(".sf-grow").addEventListener("click", (ev) => {
+    const big = el.dataset.big !== "1";
+    el.dataset.big = big ? "1" : "0";
+    Object.assign(el.style, big ? { left: "50%", top: "50%", right: "auto", bottom: "auto", transform: "translate(-50%,-50%)", width: "min(1100px,94vw)", height: "86vh" }
+      : { left: "auto", top: "auto", right: "14px", bottom: "14px", transform: "none", width: "min(480px,46vw)", height: "60vh" });
+    ev.currentTarget.innerHTML = big ? "\u2921" : "\u2922";
+    ev.currentTarget.title = big ? "Smaller" : "Larger";
+  });
+  return el;
+}
+function openSiteFrame(url, title, note) {
+  if (!/^https:\/\//.test(String(url || ""))) return false;
+  const el = siteFramePanel();
+  el.querySelector(".sf-title").textContent = title || url;
+  el.querySelector(".sf-open").href = url;
+  el.querySelector(".sf-note").textContent = note || "If this stays blank, the site has stopped allowing itself to be shown inside another page: use open \u2197.";
+  el.querySelector("iframe").src = url;
+  el.hidden = false;
+  el.style.display = "flex";
+  return true;
+}
+function siteFrameClick(ev) {
+  const t = ev.target && ev.target.closest ? ev.target.closest("[data-wtyg-frame]") : null;
+  if (!t) return;
+  if (openSiteFrame(t.getAttribute("data-wtyg-frame"), t.getAttribute("data-wtyg-title"), t.getAttribute("data-wtyg-note"))) ev.preventDefault();
+}
+if (typeof document !== "undefined" && document.addEventListener) document.addEventListener("click", siteFrameClick);
+
 function sitemapHits(e) {
   const layers = [...SITEMAP_LAYERS].filter((id) => map.getLayer(id) &&
     (map.getLayoutProperty ? map.getLayoutProperty(id, "visibility") !== "none" : true));
@@ -24381,6 +24432,22 @@ const OTHER_MAPS = {
       keepColour: true,
       note: "The owner's map of reproduction capture (WelcomeToYourGalaxy/maps, reproduction_capture.html), read each day from the map itself: forced and coerced sterilization, forced contraception and forced births; cash, tax and housing incentives to raise or lower births; advertising and propaganda; and influence carried abroad (donor funding, funding cuts such as the Mexico City Policy, international networks, surrogacy and egg markets, fertility companies), with a line to each country an entry is aimed at where its sources name one, and a box for each country listing everything recorded for it. With them, every government's answers to the UN's 2018\u20132019 questionnaire on fertility, family planning, reproductive health and abortion (World Population Policies 2019, UN DESA Population Division, CC BY 3.0 IGO): all 197 countries in the UN's table, 107 of which answered, each shaded by the policy it stated on the present level of fertility (raise, lower, maintain, no official policy) and each box giving all 161 answers and the UN's notes as the table gives them. The map itself can shade by any of the 161 questions; this row shows the first. Each entry's box gives what happened, the figures as its sources give them, accountability, and its sources. Coloured as the map colours them: rose for coercion, teal for incentives, lavender for advertising, blue for influence abroad. A compiled list, not every case." },
 
+    // Round 218o (asked 16 October 2026): the owner's two new maps in the maps
+    // repo, from the On-Planet Invasion page: abortion.html for (1)(b)
+    // Unnecessary Abortion, and rape.html for (2)(b)(i) Rape. Read each day by
+    // the generic site-map reader; their own layers are the chips under each
+    // row, their boxes are their own. A box's "Show the registry here" button
+    // opens the registry's site in a panel over the map (siteFrameClick below)
+    // where the site allows being shown inside another page.
+    { id: "abortion_grid", name: "The abortion grid worldwide, with the laws, opinion, abortions, safety, clinics, pills, funds, fetal tissue research and the money behind them (compiled from WHO, Guttmacher, governments, IRS and FEC filings, and reporting)", unit: "places", colour: "#3A8790", route: "sitemap", ready: true, lazy: true,
+      dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/abortion_grid.places.geojson",
+      keepColour: true,
+      note: "The owner's Abortion map (WelcomeToYourGalaxy/maps, abortion.html), read each day from the map itself. Everything the page's section names, each with what its sources say and, where a source only alleges something, what courts and investigators found: Planned Parenthood, IPPF and its member associations, MSI and its country programmes; the fetal tissue suppliers, banks and labs (ABR, StemExpress, ATCC, NIH, FDA, the University of Pittsburgh and others); the Center for Medical Progress videos and the cases and reports that followed; the companies listed. Around them, the wider network: clinics and hospitals (OpenStreetMap, and the official or published lists for England and Wales with 2023 counts, Germany, Spain, France by d\u00e9partement, the Netherlands, Belgium, Ireland, Canada, US independent clinics and US facilities by ZIP code); abortion-pill makers, licence holders and factories; online and pills-by-post services; abortion funds and networks; NIH-funded research using human fetal tissue, 2008\u20132025, by institution; fetal cell lines and products made with them; rules on fetal tissue research; government money (Title X with every grantee and service site, Medicaid, federal funds, donor governments), private money (IRS filings, with grant lines between funders and organisations on the map), political committees (FEC), and aid projects that mention abortion (IATI). Each country's box gives its law (Center for Reproductive Rights and the WHO Global Abortion Policies Database), what adults say (Pew), abortions and unintended pregnancies (Bearak et al. 2022), how safe abortions are in its region (Ganatra et al. 2017), mothers' deaths (WHO and UN), the sex ratio at birth, reasons for abortion (14 countries), and abortion-pill approvals; each US state's box gives its abortions, clinics, facilities and Medicaid rule. The countries can be shaded by any of 43 measures, and the US states by 5, in the map itself; this row shows the law. Left out until permission is given: Planned Parenthood's health-centre and affiliate lists, the National Abortion Federation's list, New Zealand's DECIDE list and Plan C's directory. Dots ringed rather than filled are placed at the middle of a country or region because the source names no town." },
+    { id: "rape_registries", name: "Rape and the sex-offender registries of every level of government worldwide, with the figures on rape by country (compiled from the registries, the WomanStats Project, WHO, the World Bank and DHS)", unit: "registries and countries", colour: "#4673AD", route: "sitemap", ready: true, lazy: true,
+      dataUrl: "https://welcometoyourgalaxy.github.io/culprits-tiles-more/sitemaps/rape_registries.places.geojson",
+      keepColour: true,
+      note: "The owner's Rape map (WelcomeToYourGalaxy/maps, rape.html), read each day from the map itself. Every sex-offender registry found, at every level of government: 4 international schemes, 81 national registries and child-work vetting schemes outside the US, the US national portal and federal registry, the registries of the 50 US states, DC (Minnesota has two) and 5 territories, 152 US tribal nations, 19 US county sheriffs and city police, and 107 state, province, territory and city registries elsewhere (built, or created by law and not yet running, as each box says), each marked at the seat of the body that runs it (never at anyone's home) and coloured by who can search it: anyone, partly, on request, or police only. Each box gives what the registry lists, its count of registered people where one is published, the law and agency, its terms, and its sources; where the site allows being shown inside another page (72 of the links when checked), \u201cShow the registry here\u201d opens it in a panel over the map, and otherwise it opens in a new tab. Clicking a country, a US state or another state or province with its own registry lists its registries; 42 countries where a source says there is none are marked, and the map's About lists the countries still unchecked. No names or addresses of registered people are copied. With them, by country: the WomanStats Project's Comprehensive Scale of Rape, 2018 (the page's map; credited as WomanStats asks), WHO's estimates of violence against women (2018 and 2023), the World Bank's and DHS surveys' figures on sexual violence, and DR Congo by province. The countries can be shaded by 36 measures in the map itself; this row shows the WomanStats scale. Left out until permission is given: the UN Office on Drugs and Crime's police-recorded counts." },
+
     // ---- round 116b (asked 29 September): gangs inside law enforcement, worldwide ----
     // Children taken by states (asked 16 October, from the child harvesting
     // chat): off the Child Harvesting map; invaded peoples under Invasion of
@@ -26067,6 +26134,8 @@ const SHORT_NAMES = {
   fertility_policy: "Government birth rate policies (UN)",
   holiday_culprits: "Who corporatized holidays (compiled)",
   reproduction_capture: "Reproduction capture (compiled)",
+  abortion_grid: "The abortion grid (compiled)",
+  rape_registries: "Rape and sex-offender registries (compiled)",
   gang_infiltration: "Gangs inside law enforcement (compiled)",
   open_payments: "Drug company payments to US doctors, by state (CMS)",
   medical_culprits: "Who profits from sickness (compiled from Wikipedia)",
@@ -26749,6 +26818,8 @@ const LAYER_KIND = {
   site_research_integrity: ["human", "upstream"], troutwood_companies: ["human", "upstream"], wreckers_world: ["insentient", "upstream"], threat_overall: ["human", "upstream"], threat_destruction: ["human", "upstream"], threat_suppression: ["human", "upstream"], threat_crime: ["human", "upstream"], vdem_liberal: ["human", "upstream"], vdem_electoral: ["human", "upstream"], vdem_participatory: ["human", "upstream"], vdem_deliberative: ["human", "upstream"], vdem_egalitarian: ["human", "upstream"], vdem_expression: ["human", "upstream"], vdem_rights: ["human", "upstream"], vdem_civil: ["human", "upstream"], vdem_regime: ["human", "upstream"], school_culprits: ["human", "upstream"], giga_school_points: ["human", "downstream"], stock_exchanges: ["human", "upstream"], research_makers: ["human", "upstream"], fertility_policy: ["human", "upstream"],
   bld_police: ["human", "downstream"], bld_courts: ["human", "downstream"], bld_prisons: ["human", "downstream"], gang_infiltration: ["human", "upstream"],
   reproduction_capture: ["human", "upstream"],
+  abortion_grid: ["human", "upstream"],
+  rape_registries: ["human", "downstream"],
   holiday_culprits: ["human", "upstream"], medical_culprits: ["human", "upstream"], open_payments: ["human", "upstream"], sports_facilities: ["human", "upstream"], sports_betting: ["human", "upstream"], sports_fixing: ["human", "upstream"],
   pet_food_world: ["animal", "upstream"], animal_breeding_osm: ["animal", "upstream"], zoos_aquariums_osm: ["animal", "upstream"], wjp_discrimination: ["human", "downstream"], wjp_discrimination_change: ["human", "downstream"], slavery_convicted_world: ["human", "downstream"], slavery_detected_world: ["human", "downstream"], slavery_cbp_world: ["human", "upstream"],
   site_eyes_network: ["human", "upstream"],
@@ -27740,6 +27811,8 @@ const LAYER_SITE = {
   forestatrisk: "https://forestatrisk.cirad.fr/rasters.html",
   holiday_culprits: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/holiday_culprits.html",
   reproduction_capture: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/reproduction_capture.html",
+  abortion_grid: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/abortion.html",
+  rape_registries: "https://github.com/WelcomeToYourGalaxy/maps/blob/main/rape.html",
   medical_culprits: "https://en.wikipedia.org/wiki/List_of_largest_pharmaceutical_settlements",
   open_payments: "https://openpaymentsdata.cms.gov/",
   sports_facilities: "https://docs.overturemaps.org/", sports_betting: "https://www.wikidata.org/", sports_fixing: "https://en.wikipedia.org/wiki/Match_fixing",
@@ -27975,6 +28048,8 @@ const NOT_LIVE = {
   fertility_policy: "Copied weekly from the UN Population Division by culprits-tiles-more",
   forestatrisk: "Copied once from ForestAtRisk's own files by culprits-tiles-more",
   reproduction_capture: "Read each day from the owner's map in the maps repo",
+  abortion_grid: "Read each day from the owner's map in the maps repo",
+  rape_registries: "Read each day from the owner's map in the maps repo",
   child_harvesting: "Read each day from the owner's map in the maps repo",
   homicide_worldwide: "Read each day from the owner's map in the maps repo",
   homicide_within: "Read each day from the owner's map in the maps repo",
@@ -28164,6 +28239,8 @@ const PANEL_ORDER = [
   { h: 3, t: "Reproduction capture" }, "reproduction_capture",
   { h: 3, t: "Genetic engineering" }, "gmo_env", "gmo_decisions", "gmo_ogtr", "gmo_industry", "gmo_escapes", "gmo_cultivation", "gmo_gmofree", "gmo_incidents", "gmo_regime", "gmo_treaties", "gmo_trials", "gmo_bodies",
   { h: 3, t: "Human reproduction and gene therapy" }, "gmo_therapy", "gmo_fertility",
+  // Round 218o (asked 16 October): the page's (b) Unnecessary Abortion, after (a).
+  { h: 3, t: "Abortion" }, "abortion_grid",
   // Renamed 26 September (round 60): the living, from birth to death, and
   // the after-life, beside the pre-birth frontlines.
   { h: 2, t: "Invasion of the living" },
@@ -28192,6 +28269,8 @@ const PANEL_ORDER = [
   { h: 5, bundle: "defenders", colour: "#9E2A3E" }, "gw_defenders", "attacks_gw_killings", "attacks_land_resistance", "attacks_frontline",
   { h: 5, bundle: "brazil_land", colour: "#5E3A44" }, "attacks_cpt_violence", "attacks_cpt_threatened", "attacks_cpt_massacres", "attacks_cpt_areas", "attacks_public_agencies", "attacks_cpt_land",
   { h: 5, bundle: "homicides", colour: "#6A2A3A" }, "homicide_rates", "homicide_cases", "homicide_colombia", "homicide_wikidata",
+  // Round 218o (asked 16 October): the page's (b)(i) Rape, under Invasion of humans.
+  { h: 4, t: "Rape" }, "rape_registries",
   // Round 74 (27 September): the map's own conflict and military layers in
   // place of the Guerillamap row, which could only link to another site.
   { h: 3, t: "Of countries by countries" }, "site_secret_societies", "capture_all",
