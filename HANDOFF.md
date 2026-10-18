@@ -5,6 +5,23 @@ touches.
 
 ---
 
+## Round 219o (17 October)
+
+Needs round 218o (guards on its heading). No tiles patch. No app.js?v= bump.
+The owner's rape.html in the maps repo is replaced by the 17 October build.
+
+- The rape_registries note now gives the final counts: 102 national
+  registries and child-work vetting schemes outside the US, 545 US county
+  sheriffs and city police (526 from the OffenderWatch state pages the owner
+  saved for AL, IL, IN, LA, OH, WA and WY), 107 sub-national registries
+  elsewhere, 63 countries a source says have none, 77 links shown inside the
+  map. Every other country was searched in its own languages; its box lists
+  the searches.
+- rape.html (maps repo): folding panels, zoom and World buttons, all layers
+  on, DR Congo provinces with their own shading menu, links labelled registry,
+  law, official page or news.
+- Tests: one block before "round 218o" in map/test.mjs.
+
 ## Round 218o (16 October)
 
 Needs round 217o (guards on its heading). No tiles patch: the two maps are

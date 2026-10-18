@@ -2095,6 +2095,14 @@ console.log("\nbuilding types, one layer");
   check("no type is coloured yellow or orange", Object.values(cols(Array.from({ length: 40 }, (_, i) => "t" + i))).every((v) => { const h = Number(/hsl\((\d+)/.exec(v)[1]); return !(h > 20 && h < 90); }));
 }
 
+console.log("\nround 219o (17 October): the Rape row's counts after the wider search");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const rape = (src.match(/\{ id: "rape_registries",[\s\S]*?note: "([^"]*)" \}/) || [])[1] || "";
+  check("the Rape row gives the county, sub-national and national counts and the searched countries",
+    /545 US county sheriffs and city police/.test(rape) && /107 state, province, territory and city registries elsewhere/.test(rape) && /63 countries where a source says there is none/.test(rape));
+}
+
 console.log("\nround 218o (16 October): the Abortion and Rape maps, and pages shown inside the map");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
