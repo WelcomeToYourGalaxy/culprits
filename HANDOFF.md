@@ -5,6 +5,16 @@ touches.
 
 ---
 
+## Round 221o (17 October)
+
+Needs round 220o (guards on its heading). No tiles patch. No app.js?v= bump.
+The owner's rape.html in the maps repo is replaced by the latest build.
+
+- Rape row: 962 US county sheriffs, city police and district attorneys,
+  now from all 34 OffenderWatch state pages the owner saved (the last 12:
+  AR, AZ, CA, CO, CT, FL, GA, ID, KS, MA, MD, MO).
+- Tests: the round 219o block updated.
+
 ## Round 220o (17 October)
 
 Needs round 219o (guards on its heading). No tiles patch. No app.js?v= bump.
