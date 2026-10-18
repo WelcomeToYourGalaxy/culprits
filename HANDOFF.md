@@ -5,6 +5,25 @@ touches.
 
 ---
 
+## Round 220o (17 October)
+
+Needs round 219o (guards on its heading). No tiles patch. No app.js?v= bump.
+The owner's rape.html in the maps repo is replaced by the latest build.
+
+- Repeat checks of every country without a registry: penal and children's
+  codes, UN Committee on the Rights of the Child documents, the Out of the
+  Shadows Index 2026 (indicator 2.3), Council of Europe Lanzarote replies
+  (2026). Rape row now: 118 national registries and vetting schemes outside
+  the US, 108 sub-national elsewhere, 68 countries a source says have none
+  (re-checked for newer laws and bills: Costa Rica and Czechia now have
+  registers by law, Germany and Russia work-with-children checks; bills
+  pending in Ecuador, Egypt, Guyana, BVI, Lithuania, Moldova, Peru,
+  Philippines), 24 countries with nothing either way, 711 US county
+  sheriffs, city police and district attorneys (from 22 OffenderWatch state
+  pages the owner saved), 79 links shown inside
+  the map.
+- Tests: the round 219o block updated.
+
 ## Round 219o (17 October)
 
 Needs round 218o (guards on its heading). No tiles patch. No app.js?v= bump.

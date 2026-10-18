@@ -2100,7 +2100,7 @@ console.log("\nround 219o (17 October): the Rape row's counts after the wider se
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const rape = (src.match(/\{ id: "rape_registries",[\s\S]*?note: "([^"]*)" \}/) || [])[1] || "";
   check("the Rape row gives the county, sub-national and national counts and the searched countries",
-    /545 US county sheriffs and city police/.test(rape) && /107 state, province, territory and city registries elsewhere/.test(rape) && /63 countries where a source says there is none/.test(rape));
+    /711 US county sheriffs, city police and district attorneys/.test(rape) && /108 state, province, territory and city registries elsewhere/.test(rape) && /68 countries where a source says there is none/.test(rape) && /118 national registries/.test(rape));
 }
 
 console.log("\nround 218o (16 October): the Abortion and Rape maps, and pages shown inside the map");
