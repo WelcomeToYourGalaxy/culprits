@@ -5,6 +5,20 @@ touches.
 
 ---
 
+## Round 222o (18 October)
+
+Needs round 221o (guards on its heading). No tiles patch. No app.js?v= bump.
+The owner's rape.html in the maps repo is replaced by the latest build.
+
+- Rape row: 112 state, province, territory and city registries outside the
+  US (was 108). The owner's gazette checks of 17 October added Roraima
+  (Lei 2.189/2025, passed over the governor's veto), Pará (Lei 11.644/2026),
+  Sergipe (Lei 9.491/2024) and Rio de Janeiro (Lei 9.234/2021, which only
+  authorises a register), and confirmed the Amapá, Paraíba, Rio Grande do
+  Norte, Rondônia and Formosa law texts. 'Ley 1041-E' is San Juan's Ley
+  8.062 under its digest number.
+- Tests: the round 219o block updated.
+
 ## Round 221o (17 October)
 
 Needs round 220o (guards on its heading). No tiles patch. No app.js?v= bump.
