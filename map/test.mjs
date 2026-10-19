@@ -2142,6 +2142,13 @@ console.log("\nround 218o (16 October): the Abortion and Rape maps, and pages sh
     made[0].querySelector("iframe").src === "https://example.org/reg" && made[0].querySelector(".sf-title").textContent === "A registry" && made[0].querySelector(".sf-open").href === "https://example.org/reg");
 }
 
+console.log("\nround 225r (19 October): Reproduction capture in the Biodiversity Intactness colours");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const note = (src.match(/\{ id: "reproduction_capture",[\s\S]*?note: "([^"]*)" \}/) || [])[1] || "";
+  check("the note says the row takes the Biodiversity Intactness Index 51 to 100% colours", /Biodiversity Intactness Index 51 to 100% layer/.test(note) && !/dusty rose/.test(note));
+}
+
 console.log("\nround 224r (19 October): Reproduction capture's six parts");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");

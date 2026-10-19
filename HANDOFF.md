@@ -5,6 +5,23 @@ touches.
 
 ---
 
+## Round 225r (19 October)
+
+From the separate "r" chat. Needs round 224r. Tiles patch round225r_tiles.py
+beside it, and a new reproduction_capture.html for the maps repo. No
+app.js?v= bump.
+
+- Owner, 19 October, on the standalone map: the colours of the Invasion of
+  non-humans map's Biodiversity Intactness Index 51 to 100% layer
+  (#9B00C1, #7800CF, #5600DC, #3300EA, #1000F7, and paler mixes; greys for
+  none and not given) for everything; smaller, flatter dots with a dark
+  hairline; square check boxes and bar swatches in place of switches and
+  round blobs; the Culprits map's Jurassic basemap (its Satellite basemap:
+  graded Esri imagery, SAT_RELIEF's terrain palette, Swiss shading and calm
+  sea) added beside Atlas, Satellite, Bioluminescent and Dark.
+- On this map: one sentence of the row's note gives the new colours. The row
+  keeps keepColour, so it draws the map's own colours.
+
 ## Round 224r (19 October)
 
 From the separate "r" chat. Needs round 220r. Tiles patch round224r_tiles.py
