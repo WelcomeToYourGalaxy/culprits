@@ -5,6 +5,28 @@ touches.
 
 ---
 
+## Round 220r (19 October)
+
+From the separate "r" chat. Needs round 215r. Tiles patch round220r_tiles.py
+beside it, and a new reproduction_capture.html for the maps repo. No
+app.js?v= bump.
+
+- Owner, 18 October, on the standalone map: the UN layer first; shorter
+  layer titles; the "each country's record" layer removed; the side panel no
+  longer pushes the page into scrolling; a sleeker look (small solid dots, no
+  glow, plain sans type, switches); the map zooms out to the whole world and
+  no longer repeats past the 180th meridian; Atlas (default), Bioluminescent
+  and Hell basemaps from this map added beside Dark, the Atlas cartouche
+  repainted to read "Reproduction capture".
+- On this map: the row's title shortened; its note no longer mentions the
+  per-country boxes and names the five parts. The overlay names the reader
+  takes as chips are now the map's short titles.
+- The standalone map draws Bioluminescent and Hell with MapLibre 5.24.0 under
+  Leaflet (@maplibre/maplibre-gl-leaflet 0.1.4), with this map's NIGHT and
+  HELL layers, sources and EB Garamond glyphs (read from the culprits Pages
+  site). The sandbox cannot reach the tile servers, so those two were checked
+  for errors only, not by eye.
+
 ## Round 223o (18 October)
 
 Needs round 222o (guards on its heading). No tiles patch. No app.js?v= bump.

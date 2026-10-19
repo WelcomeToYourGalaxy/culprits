@@ -2142,6 +2142,14 @@ console.log("\nround 218o (16 October): the Abortion and Rape maps, and pages sh
     made[0].querySelector("iframe").src === "https://example.org/reg" && made[0].querySelector(".sf-title").textContent === "A registry" && made[0].querySelector(".sf-open").href === "https://example.org/reg");
 }
 
+console.log("\nround 220r (19 October): the Reproduction capture row after the map's redesign");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const m = src.match(/\{ id: "reproduction_capture", name: "([^"]*)",[\s\S]*?note: "([^"]*)" \}/) || [];
+  check("its title is short, with the source in brackets at the end", m[1] === "Reproduction capture worldwide (compiled from rulings, inquiries, the UN and reporting)");
+  check("its note no longer promises a box per country, and names the five parts", !!m[2] && !/a box for each country/.test(m[2]) && /Government birth policies \(UN, 2019\)/.test(m[2]) && /Influence abroad\./.test(m[2]));
+}
+
 console.log("\nround 215r (16 October): the UN's 2019 answers in the Reproduction capture row");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
