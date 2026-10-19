@@ -2142,6 +2142,14 @@ console.log("\nround 218o (16 October): the Abortion and Rape maps, and pages sh
     made[0].querySelector("iframe").src === "https://example.org/reg" && made[0].querySelector(".sf-title").textContent === "A registry" && made[0].querySelector(".sf-open").href === "https://example.org/reg");
 }
 
+console.log("\nround 224r (19 October): Reproduction capture's six parts");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const note = (src.match(/\{ id: "reproduction_capture",[\s\S]*?note: "([^"]*)" \}/) || [])[1] || "";
+  check("the note names the six parts, forced sterilization apart from forced births",
+    /Its six parts are the chips under the row: Government birth policies \(UN, 2019\), Forced sterilization, Forced births and birth control, Birth incentives, Advertising and propaganda, Influence abroad\./.test(note));
+}
+
 console.log("\nround 220r (19 October): the Reproduction capture row after the map's redesign");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");

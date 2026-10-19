@@ -5,6 +5,25 @@ touches.
 
 ---
 
+## Round 224r (19 October)
+
+From the separate "r" chat. Needs round 220r. Tiles patch round224r_tiles.py
+beside it, and a new reproduction_capture.html for the maps repo. No
+app.js?v= bump.
+
+- Owner, 19 October, on the standalone map: forced sterilization and forced
+  births made two layers (the 53 coercion cases split by kind: 33 forced or
+  coerced sterilization; 20 forced births, abortion, contraception, quotas
+  and fines, breeding and child removal); muted colours and small flat dots
+  with a fine light rim; the local-map's lettering (Marcellus, Uncial
+  Antiqua for the title); the UN's 1976-2019 table in place of the one-year
+  figure; a question picker that wraps inside the panel; drag anywhere;
+  a whole-world button and a click on the empty map zooming back out; a
+  click on a dot from far out flying in; a Names switch; a Satellite
+  basemap.
+- On this map: the row's note names the six parts and their colours. The
+  generic reader now finds six overlays, so the row has six chips.
+
 ## Round 220r (19 October)
 
 From the separate "r" chat. Needs round 215r. Tiles patch round220r_tiles.py
