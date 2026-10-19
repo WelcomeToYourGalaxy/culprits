@@ -1,6 +1,6 @@
 {
  "abattoir_facilities": {
-  "validator": null
+  "validator": "9dcdc38e794ee67b11f5a723098315f65db89038"
  },
  "activist_courts": {
   "validator": null
@@ -12,16 +12,16 @@
   "validator": null
  },
  "carbon_bombs": {
-  "validator": null
+  "validator": "15ee2cbd52d93bdb2e04b8511b02d135b9d313da"
  },
  "carbon_majors": {
   "validator": null
  },
  "climate_trace": {
-  "validator": null
+  "validator": "\"097f408549810cb886d828071ddb9a2c-4\""
  },
  "epa_tri_sites": {
-  "validator": null
+  "validator": "count:64990"
  },
  "exec_border": {
   "validator": null
@@ -87,10 +87,10 @@
   "validator": null
  },
  "gem_coal": {
-  "validator": null
+  "validator": "W/\"8c60d520c5f36597c5d983c7b796394d3439498b7b89fb6557ea8b425e8dce91\""
  },
  "gmo_releases": {
-  "validator": null
+  "validator": "cbddaa24650de66fec8f3d235fbdfa7bcb758f86"
  },
  "jud_courts": {
   "validator": null
@@ -99,7 +99,7 @@
   "validator": null
  },
  "land_matrix": {
-  "validator": null
+  "validator": "7009fa0d1ab3f53ca132f4815cbe099484c7e5fa"
  },
  "leg_audit": {
   "validator": null
@@ -141,19 +141,19 @@
   "validator": null
  },
  "local_projects": {
-  "validator": null
+  "validator": "54914fab138d1f8f78b0b7af2f52c87e62b7bf53"
  },
  "owid_co2": {
-  "validator": null
+  "validator": "e5e2073753e5a623f883f95b166f2e66eb7c1c21"
  },
  "power_plants": {
-  "validator": null
+  "validator": "338ee0c1d5956c857a563dbca8212967cd174772"
  },
  "remains_findings": {
   "validator": null
  },
  "remains_records": {
-  "validator": null
+  "validator": "be37ecf3ecfac94bbbb123f1bb2dd4a49df0b914"
  },
  "site_animal_fighting": {
   "validator": null
@@ -198,7 +198,7 @@
   "validator": null
  },
  "slavery_cases": {
-  "validator": null
+  "validator": "dcc1d0d760c83954b7e775f87401479d49e256d2"
  },
  "slavery_determinations": {
   "validator": null
@@ -210,12 +210,12 @@
   "validator": null
  },
  "slavery_fishing": {
-  "validator": null
+  "validator": "736fdd434607ba2eca075d07be5e1333dd48b713"
  },
  "slavery_ports": {
-  "validator": null
+  "validator": "ca506a546c6942f86b81d73fef1f573630cc4b67"
  },
  "slavery_sites": {
-  "validator": null
+  "validator": "2c6019f7b1addbafbebe5072dc12d50c4c67773b"
  }
 }

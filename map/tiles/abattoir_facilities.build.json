@@ -4,13 +4,13 @@
    "file": "abattoir_facilities.pmtiles",
    "from": 0,
    "to": 10,
-   "bytes": 79817260
+   "bytes": 79818876
   },
   {
    "file": "abattoir_facilities_2.pmtiles",
    "from": 11,
    "to": 11,
-   "bytes": 26304870
+   "bytes": 26306543
   }
  ],
  "zoom": 11
