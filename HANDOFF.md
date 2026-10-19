@@ -7852,3 +7852,20 @@ are a new row, `homicide_groups` (registry: homicide.html?part=groups), in a new
 category "Crime groups, gangs and cults". Stand your ground is in its own
 category and is now worldwide (the map was rebuilt from each country's code).
 Under Invasion of humans the `homicides` bundle copy is unchanged.
+
+
+## Homicide worldwide, sixth patch (18 October, the homicide and stand-your-ground chat)
+
+Needs the fifth homicide patch (guards on its heading). Not a numbered round;
+this note goes at the end of this file. No tiles patch. No app.js?v= bump.
+Apply after the 402-place stand_your_ground.html (18 October) is in the maps
+repo.
+
+- The stand_your_ground row's name and note now say the map covers every
+  country and territory and every part with its own criminal law: the US
+  states and territories, Mexico's 32 states, Australia's states and
+  territories, Nigeria's 36 states and the FCT, Bosnia's two entities and
+  Brcko, Micronesia's four states, Scotland and Northern Ireland, Iraqi
+  Kurdistan, Bougainville, Puntland, Aceh, the West Bank and Gaza, and
+  Zanzibar. The same name in pipeline/sitemaps/registry.json. No test change:
+  the round 5 tests check the row's id, route and place, not its name.
