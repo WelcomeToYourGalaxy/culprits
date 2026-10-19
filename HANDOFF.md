@@ -5,6 +5,19 @@ touches.
 
 ---
 
+## Round 223o (18 October)
+
+Needs round 222o (guards on its heading). No tiles patch. No app.js?v= bump.
+The owner's rape.html in the maps repo is replaced by the latest build.
+
+- Rape row: county sheriffs' offices taken off the owner's map (207 US city
+  police, district attorneys and other local offices remain); the map now
+  also shows this atlas's police stations, courts and public defenders' and
+  prosecutors' offices (culprits-buildings archives) and the OpenStreetMap
+  police stations of Mexico to northern South America. Its states-with-a-
+  registry outlines are gone, so the note says a country is clicked.
+- Tests: the round 219o block updated.
+
 ## Round 222o (18 October)
 
 Needs round 221o (guards on its heading). No tiles patch. No app.js?v= bump.
