@@ -5,6 +5,31 @@ touches.
 
 ---
 
+## Round cap1w (19 October)
+
+From the separate "w" chat (the Wars, militaries and weapons standalone
+map). Needs nothing else. Tiles patch roundcap1w_tiles.py beside it. No
+app.js?v= bump.
+
+- Owner, 19 October: asked whether the Planted, bought or captured entries
+  were accurate (XinMin International, Inc. is a FARA registration, not
+  capture), and to check, confirm and fix. Audit (project doc
+  claude/capture-layer-audit-2026-10-19.md): of 34,900 points, 17,769 were
+  FARA registrations, 6,954 the UK sanctions list (filed with the
+  development banks' debarments because "Foreign, Commonwealth & Development
+  Office" has Development in it), 3,980 development bank debarments, and
+  2,907 of 3,358 IPN entries showed people watched, vetted, interned or
+  meant to recruit, not collaborators.
+- Tiles: scripts/capture.py sorts each build (sort_cases, ipn_reading): the
+  moved records go to capture/fara.geojson, uk_sanctions.geojson,
+  debarments.geojson and ipn_watched.geojson, each with "how it was
+  sorted" (and, for IPN, "the words it rests on (IPN)"); cases.geojson keeps
+  the rest (3,714) and by_country.json is counted from them.
+- Map: four "Not capture:" views in capture_all's menu (capture_fara,
+  capture_uk_sanctions, capture_debarments, capture_ipn_watched), hidden
+  from the panel like the other views; the case-by-case note rewritten; the
+  capture card shows how a record was sorted.
+
 ## Round 225r (19 October)
 
 From the separate "r" chat. Needs round 224r. Tiles patch round225r_tiles.py

@@ -2142,6 +2142,23 @@ console.log("\nround 218o (16 October): the Abortion and Rape maps, and pages sh
     made[0].querySelector("iframe").src === "https://example.org/reg" && made[0].querySelector(".sf-title").textContent === "A registry" && made[0].querySelector(".sf-open").href === "https://example.org/reg");
 }
 
+console.log("\nround cap1w (19 October): Planted, bought or captured keeps only cases of capture");
+{
+  const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
+  const ids = ["capture_fara", "capture_uk_sanctions", "capture_debarments", "capture_ipn_watched"];
+  const files = { capture_fara: "fara", capture_uk_sanctions: "uk_sanctions", capture_debarments: "debarments", capture_ipn_watched: "ipn_watched" };
+  const parts = (src.match(/\{ id: "capture_all",[\s\S]*?parts: \[([\s\S]*?)\]\],\n/) || [])[1] || "";
+  check("the four new views are parts of the Planted, bought or captured row", ids.every((id) => parts.includes(`["${id}", "Not capture: `)));
+  check("each reads its own file from the capture folder with the capture box",
+    ids.every((id) => new RegExp(`\\{ id: "${id}", [^\\n]*route: "geojsonlive"[^\\n]*card: "capture",\\n\\s*files: \\[\\{ label: "[^"]+", url: "https://welcometoyourgalaxy\\.github\\.io/culprits-tiles-more/capture/${files[id]}\\.geojson" \\}\\]`).test(src)));
+  check("each is hidden from the panel as a view, once", ids.every((id) => (src.match(new RegExp(`"${id}"`, "g")) || []).length === 3));
+  const note = (src.match(/\{ id: "capture_cases",[\s\S]*?note: "([^"]*)" \}/) || [])[1] || "";
+  check("the case-by-case note no longer says FARA registrations and debarments are drawn there, or that IPN candidates are kept",
+    !/every foreign principal registered under the US Foreign Agents Registration Act, at the principal/.test(note) && !/or registration as a candidate \(marked as not proven\)/.test(note) &&
+    /are not cases of capture, so they are views of their own in the menu under the row/.test(note));
+  check("the box shows how a record was sorted and the IPN words it rests on", /p\["how it was sorted"\] \? `<p class="meta"/.test(src) && /The record says: \\u201c\$\{escapeHtml\(p\["the words it rests on \(IPN\)"\]\)\}/.test(src));
+}
+
 console.log("\nround 225r (19 October): Reproduction capture in the Biodiversity Intactness colours");
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
@@ -7760,7 +7777,7 @@ console.log("\nround 113c (29 September): capture boxes in plain words, truer pl
 {
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
-  check("the capture row uses its own box", /buildScript: "capture", card: "capture",/.test(src) && /  capture\(p, name\) \{/.test(src) && /everyField\(p, \["summary", "name", "part"\]\)/.test(src));
+  check("the capture row uses its own box", /buildScript: "capture", card: "capture",/.test(src) && /  capture\(p, name\) \{/.test(src) && /everyField\(p, \["summary", "name", "part"(, "how it was sorted", "the words it rests on \(IPN\)")?\]\)/.test(src));
   check("the capture note says how points are placed", /placed at the constituency they were elected for/.test(src));
   check("the page asks for this round's script", appVersion(html) >= 1005);
   check("round 167m: the page asks for a fresh copy of the script (browsers kept the old one)", appVersion(html) >= 1006);
