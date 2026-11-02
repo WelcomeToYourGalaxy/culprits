@@ -1,6 +1,6 @@
 {
  "abattoir_facilities": {
-  "validator": "cd81dffb6e95feb93c8fc754d9d018c02f834f10"
+  "validator": "b1aea33e5d49763c0e0af051dd586a0ea8c167ea"
  },
  "activist_courts": {
   "validator": null
@@ -90,7 +90,7 @@
   "validator": "W/\"8c60d520c5f36597c5d983c7b796394d3439498b7b89fb6557ea8b425e8dce91\""
  },
  "gmo_releases": {
-  "validator": "07a922b25afdfe45f57340874fb5b856c124827e"
+  "validator": "e34a371f98bc7b63de5ae3a5a3dca9036493d8cc"
  },
  "jud_courts": {
   "validator": null
@@ -99,7 +99,7 @@
   "validator": null
  },
  "land_matrix": {
-  "validator": "7009fa0d1ab3f53ca132f4815cbe099484c7e5fa"
+  "validator": "7e0b376868da361a2f136980a8a4fdf87fea42b1"
  },
  "leg_audit": {
   "validator": null
@@ -153,7 +153,7 @@
   "validator": null
  },
  "remains_records": {
-  "validator": "414d09dd1abd546637324af24b6e0815c2666c5c"
+  "validator": "5fba5ab30e58101e98fc75095ab398b52844d4aa"
  },
  "site_animal_fighting": {
   "validator": null
@@ -198,7 +198,7 @@
   "validator": null
  },
  "slavery_cases": {
-  "validator": "7bd299aaaeba317a5121bb771ece528f15de842c"
+  "validator": "07383ef25fb0a2cb5af557595c3d78cb0eb2562d"
  },
  "slavery_determinations": {
   "validator": null
@@ -213,9 +213,9 @@
   "validator": "736fdd434607ba2eca075d07be5e1333dd48b713"
  },
  "slavery_ports": {
-  "validator": "017402f86099164bc79f01853eb55ccb7af35bcf"
+  "validator": "c8985511e62ebdf1849750e80c656d80fdb77f1b"
  },
  "slavery_sites": {
-  "validator": "1bd5f56a21b3d485cf0b6bbfe02c888249c0ded7"
+  "validator": "75959c0e348423bb0f8e0b3082cfa6cce5401d12"
  }
 }
