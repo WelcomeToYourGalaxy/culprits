@@ -7965,3 +7965,17 @@ repo.
   Kurdistan, Bougainville, Puntland, Aceh, the West Bank and Gaza, and
   Zanzibar. The same name in pipeline/sitemaps/registry.json. No test change:
   the round 5 tests check the row's id, route and place, not its name.
+
+## Replies on data permissions (3 November)
+
+No tiles patch: the tiles repo was pushed directly (scripts/skytruth.py,
+scripts/groundwater_crops.py, water/groundwater_crops.json).
+
+- New row groundwater_crops under Who causes water scarcity, by Dr Dalin's
+  permission for non-commercial use with citation and DOI (shown).
+- SkyTruth answered the email: overridenum up to 20,000, startdate and enddate
+  (date of the incident), no paging, no bulk export, under about 2 requests a
+  second for at most 30 minutes, at Western Hemisphere night, utm_origin on
+  every request. skytruth.py now reads by date; the ten rows' notes say so. Its
+  first run starts each feed's history again, recovering what the old limit of
+  100 at one spot lost.
