@@ -13939,7 +13939,13 @@ function soundEngine() {
     if (!el) return;
     const want = SOUND.on ? SOUND.want : null;
     const target = want && want === SOUND.now ? SOUND.vol : 0;
-    const step = 0.06;
+    // How far the volume moves is measured in time, not in ticks: on a busy
+    // map the clock is starved and a tick-sized step left the fade half done,
+    // so the swap waited and the map kept playing the basemap before last.
+    const at = typeof performance !== "undefined" ? performance.now() : Date.now();
+    const dt = Math.min(500, Math.max(0, at - (SOUND.last || at)));
+    SOUND.last = at;
+    const step = Math.max(0.02, dt / 350);
     let v = el.volume;
     v = Math.abs(v - target) <= step ? target : v + (v < target ? step : -step);
     try { el.volume = Math.max(0, Math.min(1, v)); } catch (e) { /* kept */ }
