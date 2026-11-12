@@ -14971,23 +14971,86 @@ maplibregl.addProtocol("woodpaint", async (params) => {
   const d = await woodComposite(Number(m[1]), Number(m[2]), Number(m[3]), WOOD.margin);
   return { data: await woodPaintJob(d) };
 });
-// The closest zooms' photograph, given a light woodland grade pixel by pixel
-// (colour only: no blur, no strokes, every detail kept).
+// A box blur over one field of numbers, run twice so the result is smooth,
+// using a summed-area table so the cost does not grow with the radius.
+// Used to make a field change slowly across a square while the picture it
+// came from keeps all its own detail.
+function woodBlurField(A, w, h, r) {
+  r = Math.round(r);
+  if (r < 1) return A;
+  const n = w * h, W = w + 1;
+  let cur = A;
+  for (let pass = 0; pass < 2; pass++) {
+    const S = new Float64Array(W * (h + 1));
+    for (let y = 0; y < h; y++) {
+      let row = 0;
+      for (let x = 0; x < w; x++) { row += cur[y * w + x]; S[(y + 1) * W + x + 1] = S[y * W + x + 1] + row; }
+    }
+    const out = new Float32Array(n);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const x0 = Math.max(0, x - r), x1 = Math.min(w - 1, x + r), y0 = Math.max(0, y - r), y1 = Math.min(h - 1, y + r);
+      out[y * w + x] = (S[(y1 + 1) * W + x1 + 1] - S[y0 * W + x1 + 1] - S[(y1 + 1) * W + x0] + S[y0 * W + x0]) / ((x1 - x0 + 1) * (y1 - y0 + 1));
+    }
+    cur = out;
+  }
+  return cur;
+}
+// The closest zooms' photograph, given a woodland grade.
+// Round 177b (the owner: "still too blotchy at the highest zooms, like a
+// muddy cow field"). It used to decide a colour for every pixel on its own,
+// and on a sharp photograph grass, bare earth, a shadow and a roof each
+// landed somewhere different between two ramps that are a long way apart in
+// colour, so the square came out speckled green and brown: not a photograph
+// any more and not a painting either, just a dirtied photograph.
+// Now the colour is worked out from fields that change slowly across the
+// square - how green the ground is round about, and how light it is round
+// about - and the photograph's own detail is put back on top of that colour
+// as light and shade. A roof stays a bright roof and a hedge a dark hedge,
+// but neither invents a colour of its own, so a field reads as one field.
+// Water and snow are still decided pixel by pixel, so a shoreline stays sharp.
 function woodGradePixels(data, w, h) {
-  const greens = woodRamp(WOOD.greens), earths = woodRamp(WOOD.earths), waters = woodRamp(WOOD.waters), snow = woodHex(WOOD.snow), g0 = WOOD.photoGrade;
-  for (let p = 0, n = w * h; p < n; p++) {
+  const greens = woodRamp(WOOD.greens), earths = woodRamp(WOOD.earths), waters = woodRamp(WOOD.waters);
+  const snow = woodHex(WOOD.snow), g0 = WOOD.photoGrade, n = w * h;
+  const V = new Float32Array(n), L = new Float32Array(n), K = new Uint8Array(n);
+  for (let p = 0; p < n; p++) {
     const q = p * 4, r = data[q], g = data[q + 1], b = data[q + 2];
     const lum = (0.3 * r + 0.59 * g + 0.11 * b) / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    K[p] = (b > g + 6 && b > r + 10 && lum < 0.45) || (lum < 0.07 && b >= r) ? 1 : lum > 0.72 && mx - mn < 28 ? 2 : 0;
+    V[p] = woodGreen(r, g, b, WOOD.green);
+    L[p] = lum;
+  }
+  // A sixth of a square across, which at these zooms is about fifty metres:
+  // wide enough that a tree, a roof or a shadow carries no colour of its own,
+  // narrow enough that a wood and the field beside it are still told apart.
+  // Measured over a suburb, a wood, open fields and a city centre, the
+  // speckle falls as this widens, and the join between one square and the
+  // next gets no worse - it is smaller than the photograph's own step from
+  // one pixel to the next, because the colour is only a wash over detail
+  // that comes from the photograph either way. The blur costs the same at
+  // any width (a summed-area table), so width is free.
+  const rad = Math.max(6, Math.round(Math.min(w, h) / 6));
+  const Vs = woodBlurField(V, w, h, rad), Ls = woodBlurField(L, w, h, rad);
+  for (let p = 0; p < n; p++) {
+    const q = p * 4, r = data[q], g = data[q + 1], b = data[q + 2];
     let c;
-    if ((b > g + 6 && b > r + 10 && lum < 0.45) || (lum < 0.07 && b >= r)) c = waters(Math.max(0, Math.min(1, (lum - 0.02) / 0.35)));
-    else if (lum > 0.72 && mx - mn < 28) c = snow;
+    if (K[p] === 1) c = waters(Math.max(0, Math.min(1, (L[p] - 0.02) / 0.35)));
+    else if (K[p] === 2) c = snow;
     else {
-      const v = woodMix(woodGreen(r, g, b, WOOD.green), WOOD.greenMix);
-      const t0 = Math.min(1, Math.pow(Math.max(0, lum - 0.015) / 0.45, 0.75)), t = Math.max(0, Math.min(1, 0.5 + (t0 - 0.5) * 1.15));
+      const v = woodMix(Vs[p], WOOD.greenMix);
+      const t0 = Math.min(1, Math.pow(Math.max(0, Ls[p] - 0.015) / 0.45, 0.75));
+      const t = Math.max(0, Math.min(1, 0.5 + (t0 - 0.5) * 1.15));
       const a = greens(t), e = earths(t);
-      c = [e[0] + (a[0] - e[0]) * v, e[1] + (a[1] - e[1]) * v, e[2] + (a[2] - e[2]) * v];
+      // The photograph's own light and shade, as how much lighter or darker
+      // this pixel is than the ground round it. Held between a bit over half
+      // and a bit under twice so a white roof or a black shadow cannot blow
+      // the colour out altogether.
+      const k = Ls[p] > 0.02 ? Math.max(0.55, Math.min(1.9, L[p] / Ls[p])) : 1;
+      c = [(e[0] + (a[0] - e[0]) * v) * k, (e[1] + (a[1] - e[1]) * v) * k, (e[2] + (a[2] - e[2]) * v) * k];
     }
-    data[q] = r + (c[0] - r) * g0; data[q + 1] = g + (c[1] - g) * g0; data[q + 2] = b + (c[2] - b) * g0; data[q + 3] = 255;
+    data[q] = r + (c[0] - r) * g0;
+    data[q + 1] = g + (c[1] - g) * g0;
+    data[q + 2] = b + (c[2] - b) * g0;
+    data[q + 3] = 255;
   }
   return data;
 }

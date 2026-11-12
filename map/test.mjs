@@ -6673,13 +6673,32 @@ console.log("\nround 158b (4 October): closest zooms show the real photograph, s
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const block = src.slice(src.indexOf("/* ---------- Autumn woodlands, a sixth basemap"), src.indexOf("/* ---------- end of Autumn woodlands ---------- */"));
   const lib = new Function(block.slice(block.indexOf("var WOOD = {"), block.indexOf("// The paintings are made off the page's main thread")) + "\n" +
-    block.slice(block.indexOf("function woodGradePixels"), block.indexOf("maplibregl.addProtocol(\"woodphoto\"")) + "; return { woodGradePixels, WOOD };")();
+    block.slice(block.indexOf("function woodBlurField"), block.indexOf("maplibregl.addProtocol(\"woodphoto\"")) + "; return { woodGradePixels, WOOD };")();
   check("the photograph fades in at the closest zooms only", lib.WOOD.photoFrom >= 15 && lib.WOOD.photoFull > lib.WOOD.photoFrom && /World_Imagery/.test(lib.WOOD.photo));
   const d = new Uint8ClampedArray(64 * 64 * 4);
   for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) { const q = (y * 64 + x) * 4, on = (x + y) % 2; d[q] = on ? 120 : 30; d[q + 1] = on ? 140 : 60; d[q + 2] = on ? 90 : 30; d[q + 3] = 255; }
   const g = lib.woodGradePixels(d.slice(), 64, 64);
   const diff = Math.abs(g[(10 * 64 + 10) * 4 + 1] - g[(10 * 64 + 11) * 4 + 1]);
-  check("every detail kept: a one-pixel checkerboard stays a checkerboard (no blur)", diff > 50, String(diff));
+  // Round 177b: the colour is worked out from fields that change slowly, but
+  // the photograph's own light and shade are put back on top of it, so fine
+  // detail survives even though neighbouring pixels no longer each pick their
+  // own colour.
+  check("the photograph's detail is kept: a one-pixel checkerboard stays a checkerboard", diff > 50, String(diff));
+  // ...and the colour itself is shared out, which is what stopped the closest
+  // zooms looking like a muddy cow field: two neighbours of the same
+  // brightness but opposite hue come out nearer each other than they went in.
+  {
+    const q = new Uint8ClampedArray(64 * 64 * 4);
+    for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) {
+      const i = (y * 64 + x) * 4, green = (x + y) % 2;
+      q[i] = green ? 70 : 120; q[i + 1] = green ? 120 : 100; q[i + 2] = green ? 60 : 70; q[i + 3] = 255;
+    }
+    const was = (q[(20 * 64 + 20) * 4 + 1] - q[(20 * 64 + 20) * 4]) - (q[(20 * 64 + 21) * 4 + 1] - q[(20 * 64 + 21) * 4]);
+    const o = lib.woodGradePixels(q.slice(), 64, 64);
+    const now = (o[(20 * 64 + 20) * 4 + 1] - o[(20 * 64 + 20) * 4]) - (o[(20 * 64 + 21) * 4 + 1] - o[(20 * 64 + 21) * 4]);
+    check("the colour is a wash, not picked pixel by pixel", Math.abs(now) < Math.abs(was),
+          Math.abs(was).toFixed(0) + " -> " + Math.abs(now).toFixed(0));
+  }
   check("only a light grade: each pixel moves part way, not all the way", Math.abs(g[1] - d[1]) < 30 && g[1] !== d[1]);
   const { map, els } = run();
   map.fire("load");
