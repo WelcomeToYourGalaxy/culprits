@@ -3790,6 +3790,7 @@ function openBody(key) {
   f.hidden = false;
   BODY_OPEN = key;
   bodyButtons();
+  soundFollow();
 }
 function closeBody() {
   const f = document.getElementById("bodyFrame");
@@ -3797,6 +3798,7 @@ function closeBody() {
   if (!AWAY) for (const k of Object.keys(BODY_PICK)) BODY_PICK[k] = {};
   BODY_OPEN = null;
   bodyButtons();
+  soundFollow();
 }
 function bodyButtons() {
   if (typeof document === "undefined") return;
@@ -3829,6 +3831,31 @@ function panelsAway(on) {
     const el = document.querySelector(sel);
     if (el && el.classList) el.classList.toggle("away", on);
   }
+  soundAway(on);
+}
+// Round 178b: the Sound tick lives under the basemap choices, and those fade
+// out when Eyes or the Moon, Mars or Sun view takes the screen - which is
+// exactly where the Moon, Mars and Sun recordings play. So the row itself is
+// moved into a small holder of its own while they are up, and put back
+// afterwards. One row, not two, so there is only ever one tick to find.
+function soundAway(on) {
+  const row = document.getElementById("sound-row");
+  if (!row) return;
+  let hold = document.getElementById("sound-away");
+  if (on) {
+    if (!hold) {
+      hold = document.createElement("div");
+      hold.id = "sound-away";
+      document.body.appendChild(hold);
+    }
+    if (row.parentNode !== hold) hold.appendChild(row);
+    hold.hidden = false;
+  } else {
+    const home = document.querySelector('.sect[data-sect="basemap"] .sect-body');
+    if (home && row.parentNode !== home) home.appendChild(row);
+    if (hold) hold.hidden = true;
+  }
+  soundFollow();
 }
 
 let leftFrom = null;          // the view the map was at when Eyes took over
@@ -13880,21 +13907,32 @@ function sectHead(name, key) {
 // The choice is remembered, but even remembered it waits for a click, because
 // browsers refuse sound that nobody asked for.
 var SCENE_SOUND = {
-  wood: { file: "woodland.mp3", what: "Wind through a forest, Jinsha",
-          by: "Wu Tsan-Cheng, radio aporee", link: "https://archive.org/details/aporee_26087_30170",
-          lic: "CC BY 3.0", licLink: "https://creativecommons.org/licenses/by/3.0/" },
-  atlas: { file: "atlas.mp3", what: "Sea, wind and rain at Trégastel",
-           by: "Yponomeutaneko, radio aporee", link: "https://archive.org/details/aporee_34700_39896",
-           lic: "public domain", licLink: "https://creativecommons.org/publicdomain/mark/1.0/" },
+  // Round 178b: the owner kept Jurassic and Hell and sent the rest back.
+  // Woodlands wanted a forest you could walk in, not bare wind, so three
+  // recordings are laid together: wind in the trees, a dawn chorus over it,
+  // and a small stream under it.
+  wood: { file: "woodland.mp3", what: "A forest at dawn: wind in the trees, birds waking, a stream",
+          parts: [["wind, Jinsha", "https://archive.org/details/aporee_26087_30170"],
+                  ["dawn chorus, North Carolina", "https://archive.org/details/aporee_70023_81561"],
+                  ["stream, Herefordshire", "https://archive.org/details/aporee_52800_60319"]],
+          lic: "CC BY 3.0 and public domain", licLink: "https://creativecommons.org/publicdomain/mark/1.0/" },
+  // Atlas wanted a ship at sea, so: the swell, a hull and rigging working as
+  // the boat rolls, and gulls over it.
+  atlas: { file: "atlas.mp3", what: "A ship at sea: the swell, a hull working, gulls overhead",
+           parts: [["sea, Trégastel", "https://archive.org/details/aporee_34700_39896"],
+                   ["swaying boat, Klaipėda", "https://archive.org/details/aporee_28237_32530"],
+                   ["gulls, Le Havre", "https://archive.org/details/aporee_32837_37737"]],
+           lic: "CC BY 3.0 and public domain", licLink: "https://creativecommons.org/publicdomain/mark/1.0/" },
   hell: { file: "hell.mp3", what: "Mount Yasur erupting, Tanna Island",
           by: "Felix Blume, radio aporee", link: "https://archive.org/details/aporee_58757_67414",
           lic: "public domain", licLink: "https://creativecommons.org/publicdomain/mark/1.0/" },
   // "night" is the basemap shown as Bioluminescent, and "satellite" the one
   // shown as Jurassic: the key is what the code calls it, the label what the
   // reader sees.
-  night: { file: "bioluminescent.mp3", what: "Under a karst lake at Kirkilai",
-           by: "alas23/sala, radio aporee", link: "https://archive.org/details/aporee_29435_33876",
-           lic: "public domain", licLink: "https://creativecommons.org/publicdomain/mark/1.0/" },
+  night: { file: "bioluminescent.mp3", what: "A lagoon with something singing in it: under a karst lake, with the rising tones of Earth's own radiation belts",
+           parts: [["under a karst lake, Kirkilai", "https://archive.org/details/aporee_29435_33876"],
+                   ["chorus from the Van Allen Probes", "https://space-audio.org/"]],
+           lic: "public domain and CC BY 4.0", licLink: "https://creativecommons.org/licenses/by/4.0/" },
   satellite: { file: "jurassic.mp3", what: "Rainforest by night, Pet\u00e9n",
                by: "radio aporee", link: "https://archive.org/details/aporee_31997_36745",
                lic: "public domain", licLink: "https://creativecommons.org/publicdomain/mark/1.0/" },
@@ -13905,10 +13943,25 @@ var SCENE_SOUND = {
   // it, and a basemap with no recording simply shows no Sound tick. Mars
   // (Perseverance's microphone) and the Sun (the 2003 flares) are cut and
   // ready but have no basemap to sit on yet.
-  // Not a basemap but a view over one: while the hologram is on it takes over.
-  hologram: { file: "hologram.mp3", what: "Earth's radio emission heard from the Cluster spacecraft",
-              by: "NASA and the University of Iowa", link: "https://space-audio.org/",
-              lic: "CC BY 4.0", licLink: "https://creativecommons.org/licenses/by/4.0/" },
+  // Not basemaps but views over or instead of one. These win over the basemap
+  // underneath, the body views first, then Eyes.
+  // Round 178b: the Cluster recording moved here from the hologram, where the
+  // owner did not want it. The hologram has nothing until one is chosen, so
+  // it shows no tick.
+  eyes: { file: "solar_system.mp3", what: "Earth's radio emission heard from the Cluster spacecraft",
+          by: "NASA and the University of Iowa", link: "https://space-audio.org/",
+          lic: "CC BY 4.0", licLink: "https://creativecommons.org/licenses/by/4.0/" },
+  "body:moon": { file: "moon.mp3",
+                 what: "The Moon ringing after Apollo 13's spent third stage struck it, 15 April 1970 \u2014 a day of the Apollo 12 seismometer, sped up 1,600 times, with the deepest rumble turned down so it can be heard",
+                 by: "NASA, through EarthScope", link: "https://www.earthscope.org/",
+                 lic: "a US government work, not under copyright", licLink: "" },
+  "body:mars": { file: "mars.mp3", what: "Wind on Mars, Perseverance's microphone, 20 February 2021",
+                 by: "NASA/JPL-Caltech", link: "https://science.nasa.gov/mission/mars-2020-perseverance/sounds-of-mars/",
+                 lic: "a US government work, not under copyright", licLink: "" },
+  "body:sun": { file: "sun.mp3",
+                what: "Radio bursts from the X17 flare of 28 October 2003 and the X28 of 4 November, heard by Cassini",
+                by: "NASA and the University of Iowa", link: "https://space-audio.org/",
+                lic: "CC BY 4.0", licLink: "https://creativecommons.org/licenses/by/4.0/" },
 };
 var SOUND = { on: false, vol: 0.45, el: null, now: null, want: null, timer: null, gen: 0 };
 try {
@@ -13921,6 +13974,11 @@ function soundKeep() {
 // Which recording belongs to what is showing: the hologram first, since it
 // covers the basemap, then the basemap itself.
 function soundScene() {
+  // The Moon, Mars and the Sun are their own views in a frame over everything,
+  // so they come first; then Eyes on the Solar System, which the map hands
+  // over to; then the hologram, which covers the basemap; then the basemap.
+  if (BODY_OPEN && SCENE_SOUND["body:" + BODY_OPEN]) return "body:" + BODY_OPEN;
+  if (typeof AWAY !== "undefined" && AWAY && SCENE_SOUND.eyes) return "eyes";
   const holo = document.getElementById("holo-toggle");
   if (holo && holo.checked && SCENE_SOUND.hologram) return "hologram";
   return SCENE_SOUND[BASEMAP] ? BASEMAP : null;
@@ -14002,8 +14060,13 @@ function soundSay() {
   if (sl) sl.value = String(Math.round(SOUND.vol * 100));
   const said = document.getElementById("sound-credit");
   if (said) {
+    // Some scenes are several recordings laid together, so the credit names
+    // each one and links to it.
+    const who = rec.parts
+      ? rec.parts.map(([nm, url]) => url ? `<a href="${url}" target="_blank" rel="noopener">${escapeHtml(nm)}</a>` : escapeHtml(nm)).join(", ")
+      : rec.link ? `<a href="${rec.link}" target="_blank" rel="noopener">${escapeHtml(rec.by)}</a>` : escapeHtml(rec.by);
     said.innerHTML = SOUND.on
-      ? `${escapeHtml(rec.what)} \u00b7 ${rec.link ? `<a href="${rec.link}" target="_blank" rel="noopener">${escapeHtml(rec.by)}</a>` : escapeHtml(rec.by)}` +
+      ? `${escapeHtml(rec.what)} \u00b7 ${who}` +
         ` \u00b7 ${rec.licLink ? `<a href="${rec.licLink}" target="_blank" rel="noopener">${escapeHtml(rec.lic)}</a>` : escapeHtml(rec.lic)}`
       : escapeHtml(rec.what);
   }
@@ -14625,9 +14688,20 @@ var WOOD = {
   attribution: '<a href="https://s2maps.eu" target="_blank" rel="noopener">Sentinel-2 cloudless - https://s2maps.eu</a> by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024)',
   // Round 155b: cool blue-green in the shadows, warm golden green where the
   // light falls, as in a woodland lit from behind through haze.
-  greens: [[0, "#10221A"], [0.2, "#183320"], [0.4, "#25482A"], [0.6, "#3D6230"], [0.78, "#6B8638"], [0.9, "#A2A253"], [1, "#D6C67E"]],
-  // Bare ground, from dark umber to warm sand in the light.
-  earths: [[0, "#2E2116"], [0.25, "#5A4027"], [0.5, "#8A6639"], [0.75, "#B38C53"], [1, "#DCC08A"]],
+  // Round 178b: the light ends were gold - olive-yellow to pale gold on the
+  // greens, ochre to pale sand on the earths - and at the zooms a reader
+  // actually uses (a state, a basin, a range of hills) dry ground ran all the
+  // way up them while the canyons stayed deep green. That gold against that
+  // green is what still read as cheetah patches, and gold is a colour this
+  // map does not use. The light ends are now a pale sage and a warm stone,
+  // close enough to each other that bright dry ground and bright grass differ
+  // in tone rather than in colour. Measured over California at zoom 7, the
+  // Los Angeles basin at 10 and the San Gabriels at 11, the hue swing falls
+  // by a third and the colour's strength by two fifths, while the light and
+  // shade that show the shape of the land are kept (28.9 against 34.3).
+  greens: [[0, "#10221A"], [0.2, "#183320"], [0.4, "#25482A"], [0.6, "#3D6230"], [0.78, "#5E7540"], [0.9, "#879164"], [1, "#AFB391"]],
+  // Bare ground, from dark umber to warm stone in the light.
+  earths: [[0, "#2E2116"], [0.25, "#55402C"], [0.5, "#7D6646"], [0.75, "#9D8768"], [1, "#BCAE94"]],
   // Water, from the deeps to light on the shallows (round 155b: lighter).
   waters: [[0, "#24414A"], [0.35, "#2F5054"], [0.65, "#4C7068"], [1, "#93A88A"]],
   snow: "#EDE4CC",

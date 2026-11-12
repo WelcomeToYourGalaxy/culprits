@@ -487,6 +487,13 @@
   .sound-row #sound-vol{flex:0 1 92px;min-width:62px;accent-color:#9fb4a8}
   .sound-credit{flex:1 0 100%;margin:2px 0 0;font-size:11px;line-height:1.35;opacity:.72}
   .sound-credit a{color:inherit;text-decoration:underline}
+  /* While Eyes or a body view has the screen the basemap box fades out, so
+     the Sound row is moved into this holder instead (round 178b). */
+  #sound-away{position:fixed;right:14px;bottom:14px;z-index:60;max-width:330px;
+    background:rgba(18,16,22,.86);border:1px solid rgba(255,255,255,.14);border-radius:10px;
+    padding:7px 11px;backdrop-filter:blur(3px);color:#d8d4cc;font-size:12px}
+  #sound-away[hidden]{display:none}
+  #sound-away .sound-credit{max-width:306px;white-space:normal}
   .bm-choices{flex:0 1 auto;min-width:0}
   .view-row .compass-holder.in-view{margin-top:0;align-self:center;flex:0 0 auto}
   .view-row .view-choices{flex:0 0 auto}
@@ -735,7 +742,7 @@
   };
 })();
 </script>
-<script src="./app.js?v=1012"></script>
+<script src="./app.js?v=1013"></script>
 <script src="./wire.js?v=67"></script>
 <!-- The drag bar on the layers box's right edge (made by columnEdge() in
      app.js) ran the full height of the column, so it stayed standing beside
