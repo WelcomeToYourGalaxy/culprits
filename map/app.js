@@ -2137,7 +2137,7 @@ const map = new maplibregl.Map({
   style: {
     version: 8,
     // The opening view: a globe. See VIEWS.
-    projection: { type: "vertical-perspective" },
+    projection: { type: "globe" },
     // The atmosphere, at world view only; gone by the time the map is flat.
     // Tilted close up, the sky above the horizon is dark slate, not
     // MapLibre's default bright blue.
@@ -3668,8 +3668,17 @@ if (typeof map.on === "function") map.on("click", (e) => {
 
 // MapLibre's own projection names. "globe" is its globe that turns into the
 // flat map between zoom 10 and 12; "vertical-perspective" stays a globe.
+// Round 175b: the Globe view takes "globe". Vertical-perspective stays round
+// at every zoom, and close in that round ground drops most of what it should
+// draw: over the roofs of Washington it drew 6 buildings of 49 at zoom 16 and
+// nothing at all past 16.6, so a street of buildings came apart into a few
+// scattered lumps on every basemap. "globe" is the same round Earth at world
+// scale - the world view is unchanged to the pixel - and flattens as you come
+// in, where there is no curve to see and buildings, roads and the rest are
+// drawn whole. Terrain and raised rows already asked for it (round 118b,
+// which the round view cannot carry); now every round view does.
 const VIEWS = {
-  "globe": { projection: "vertical-perspective", leave: true, nm: "Globe" },
+  "globe": { projection: "globe", leave: true, nm: "Globe" },
   "flat":  { projection: "mercator", leave: false, nm: "Flat map" },
 };
 let VIEW = "globe";
@@ -3969,14 +3978,10 @@ function watchForLeaving() {
 // globe it needs MapLibre's "globe" (round at world scale, flattening close
 // up), the one round projection that carries terrain; the flat map stays flat.
 function drawnProjection(kind) {
-  const p = VIEWS[kind || VIEW].projection;
-  // Round 118b: a row raised as ground (Raise figures as heights) carries
-  // terrain too. Without this the globe was drawn in the round view that
-  // cannot carry it, and went dark under the raised rows' points (the owner:
-  // "turned the atlas/globe dark black; only points showed"; the richest
-  // dynasties "darkened at global zooms except when zooming").
-  const raised = typeof reliefStack !== "undefined" && reliefStack.length > 0;
-  return (TERRAIN_ON || raised) && p !== "mercator" ? "globe" : p;
+  // Since round 175b the round view is already MapLibre's "globe" (see
+  // VIEWS), which carries terrain and a raised row as ground, so there is
+  // nothing left to swap: the view's own projection is the one drawn.
+  return VIEWS[kind || VIEW].projection;
 }
 
 function setView(kind) {
@@ -14457,6 +14462,22 @@ var WOOD = {
   waters: [[0, "#24414A"], [0.35, "#2F5054"], [0.65, "#4C7068"], [1, "#93A88A"]],
   snow: "#EDE4CC",
   paper: "#F1E6C8",
+  // Round 175b: how green a pixel reads decides how far its colour travels
+  // from the bare-ground ramp to the growing one. green is the window of
+  // (2g-r-b)/255 the colour follows; greenMix the least and the most of that
+  // travel. The old window was -0.01 to 0.09, narrow enough that on real
+  // pictures almost every pixel pinned to one end: 43% of Cordoba sat on the
+  // pure earth ramp and 16% on the pure green one, which is what laid the
+  // green and tan leopard spots over the land, while 99% of Iowa and of the
+  // Congo sat on pure green with no earth left in them. Measured off those
+  // same pictures the land runs about -0.19 to 0.19; stopping the mix short
+  // of either end keeps earth in the greens and green in the earths, so
+  // neighbouring ground differs in tone instead of changing colour outright.
+  // Wider windows were tried and are worse: they calm Cordoba further but
+  // drain the green out of real forest, turning the Congo and the Iowa fields
+  // khaki. These numbers leave the forests green.
+  green: [-0.19, 0.19],
+  greenMix: [0.1, 0.94],
   sea: ["interpolate", ["linear"], ["elevation"],
     -8000, "#1C3A46", -4000, "#24464E", -1500, "#2C5254", -400, "#3A6260", -60, "#4F7568", -1, "#5E806C",
     0, "rgba(0,0,0,0)"],
@@ -14520,6 +14541,18 @@ function woodRamp(stops) {
     return s[s.length - 1][1];
   };
 }
+// How green a pixel reads, 0 for bare ground to 1 for growing: a straight
+// slope across the window, so the colour slides from one ramp to the other
+// instead of switching between them. (An eased S-curve was tried and is
+// worse: it steepens the middle, which is where most land sits, and the
+// patches came back.) win is the basemap's own green window, mix its own
+// travel. Shared by the underpainting and by the closest zooms' grade, so
+// the two never disagree about what is green.
+function woodGreen(r, g, b, win) {
+  const u = (2 * g - r - b) / 255;
+  return Math.max(0, Math.min(1, (u - win[0]) / (win[1] - win[0])));
+}
+function woodMix(v, mix) { return mix[0] + (mix[1] - mix[0]) * v; }
 function woodGrain(x, y) {
   const h = (i, j) => (Math.imul(Math.imul(i, 374761393) ^ Math.imul(j, 668265263), 1274126177) >>> 0) / 4294967296;
   const i = Math.floor(x), j = Math.floor(y), fx = x - i, fy = y - j;
@@ -14555,7 +14588,7 @@ function woodPaintPixels(data, w, h, gx0, gy0, soft) {
     const lum = (0.3 * r + 0.59 * g + 0.11 * b) / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b);
     if ((b > g + 6 && b > r + 10 && lum < 0.45) || (lum < 0.07 && b >= r)) K[p] = 1;
     else if (lum > 0.72 && mx - mn < 28) K[p] = 2;
-    V[p] = Math.max(0, Math.min(1, ((2 * g - r - b) / 255 + 0.01) / 0.1));
+    V[p] = woodGreen(r, g, b, WOOD.green);
     if (K[p] === 1) T[p] = Math.max(0, Math.min(1, (lum - 0.02) / 0.35));
     else {
       const t = Math.min(1, Math.pow(Math.max(0, lum - 0.015) / 0.45, 0.75));
@@ -14577,7 +14610,7 @@ function woodPaintPixels(data, w, h, gx0, gy0, soft) {
     if (K[p] === 1) c = waters(Ts[p]);
     else if (K[p] === 2) c = snow;
     else {
-      const v = 0.92 * Vs[p], a = greens(Ts[p]), e = earths(Ts[p]);
+      const v = woodMix(Vs[p], WOOD.greenMix), a = greens(Ts[p]), e = earths(Ts[p]);
       c = [e[0] + (a[0] - e[0]) * v, e[1] + (a[1] - e[1]) * v, e[2] + (a[2] - e[2]) * v];
     }
     R[p] = c[0]; G[p] = c[1]; B[p] = c[2];
@@ -14693,7 +14726,7 @@ function woodHelpers() {
   WOOD_HELPERS = [];
   try {
     const code = "var WOOD = " + JSON.stringify(WOOD) + ";\nconst PNG_CRC = new Uint32Array([" + Array.from(PNG_CRC).join(",") + "]);\n" +
-      [woodHex, woodRamp, woodGrain, woodPaintPixels, woodStrokes, pngCrc, rawPng].map(String).join("\n") +
+      [woodHex, woodRamp, woodGreen, woodMix, woodGrain, woodPaintPixels, woodStrokes, pngCrc, rawPng].map(String).join("\n") +
       "\nfunction woodWork(d) { const px = new Uint8ClampedArray(d.data); woodPaintPixels(px, d.N, d.N, d.gx0, d.gy0, d.soft); return rawPng(woodStrokes(px, d.N, d.M, d.z, d.gx0, d.gy0), 256, 256); }" +
       "\nonmessage = (e) => { try { const png = woodWork(e.data); postMessage({ id: e.data.id, png }, [png]); } catch (err) { postMessage({ id: e.data.id, error: String(err) }); } };";
     const url = URL.createObjectURL(new Blob([code], { type: "text/javascript" }));
@@ -14779,7 +14812,7 @@ function woodGradePixels(data, w, h) {
     if ((b > g + 6 && b > r + 10 && lum < 0.45) || (lum < 0.07 && b >= r)) c = waters(Math.max(0, Math.min(1, (lum - 0.02) / 0.35)));
     else if (lum > 0.72 && mx - mn < 28) c = snow;
     else {
-      const v = 0.92 * Math.max(0, Math.min(1, ((2 * g - r - b) / 255 + 0.01) / 0.1));
+      const v = woodMix(woodGreen(r, g, b, WOOD.green), WOOD.greenMix);
       const t0 = Math.min(1, Math.pow(Math.max(0, lum - 0.015) / 0.45, 0.75)), t = Math.max(0, Math.min(1, 0.5 + (t0 - 0.5) * 1.15));
       const a = greens(t), e = earths(t);
       c = [e[0] + (a[0] - e[0]) * v, e[1] + (a[1] - e[1]) * v, e[2] + (a[2] - e[2]) * v];
@@ -15065,6 +15098,12 @@ if (typeof MutationObserver === "function" && typeof document !== "undefined" &&
 var DUSK = {
   sheet: "#2A3440",
   attribution: WOOD.attribution,
+  // Round 175b, as Woodlands: the window of greenness the colour follows and
+  // how far the mix may travel between the bare-ground and growing ramps.
+  // Round 161b called this basemap "blotchy and mouldy at middle zooms";
+  // the narrow old window is what did it, here as there.
+  green: [-0.19, 0.19],
+  greenMix: [0.1, 0.94],
   // Plants: from near-black slate-moss in shadow to grey sage in the light.
   moss: [[0, "#1E2826"], [0.2, "#2C3B33"], [0.4, "#405241"], [0.6, "#586B4E"], [0.8, "#879075"], [1, "#BDBFA6"]],
   // Bare ground: dark umber to bone.
@@ -15179,7 +15218,7 @@ function duskPaintPixels(data, w, h, gx0, gy0, soft) {
   for (let p = 0; p < n; p++) {
     const r = data[p * 4], g = data[p * 4 + 1], b = data[p * 4 + 2];
     K[p] = duskKind(r, g, b);
-    V[p] = Math.max(0, Math.min(1, ((2 * g - r - b) / 255 + 0.01) / 0.1));
+    V[p] = woodGreen(r, g, b, DUSK.green);
     T[p] = duskTone(r, g, b, K[p]);
   }
   const Vs = blur(V, 3 * soft), Tp = blur(T, soft - 0.5);
@@ -15225,7 +15264,7 @@ function duskHelpers() {
   DUSK_HELPERS = [];
   try {
     const code = "var WOOD = " + JSON.stringify(WOOD) + ";\nvar DUSK = " + JSON.stringify(DUSK) + ";\nconst PNG_CRC = new Uint32Array([" + Array.from(PNG_CRC).join(",") + "]);\n" +
-      [woodHex, woodRamp, woodGrain, woodStrokes, pngCrc, rawPng, duskColour, duskKind, duskTone, duskDull, duskPaintPixels, duskWorkWith].map(String).join("\n") +
+      [woodHex, woodRamp, woodGreen, woodMix, woodGrain, woodStrokes, pngCrc, rawPng, duskColour, duskKind, duskTone, duskDull, duskPaintPixels, duskWorkWith].map(String).join("\n") +
       "\nonmessage = (e) => { try { const png = duskWorkWith(WOOD, e.data); postMessage({ id: e.data.id, png }, [png]); } catch (err) { postMessage({ id: e.data.id, error: String(err) }); } };";
     const url = URL.createObjectURL(new Blob([code], { type: "text/javascript" }));
     for (let i = 0; i < 2; i++) {
@@ -15257,7 +15296,7 @@ function duskGradePixels(data, w, h) {
   const V0 = woodHex(DUSK.violet), g0 = DUSK.photoGrade;
   for (let p = 0, n = w * h; p < n; p++) {
     const q = p * 4, r = data[q], g = data[q + 1], b = data[q + 2], kind = duskKind(r, g, b);
-    const v = 0.9 * Math.max(0, Math.min(1, ((2 * g - r - b) / 255 + 0.01) / 0.1));
+    const v = woodMix(woodGreen(r, g, b, DUSK.green), DUSK.greenMix);
     const c = duskDull(duskColour(r, g, b, duskTone(r, g, b, kind), v, kind, Rp), V0, DUSK.dull);
     data[q] = r + (c[0] - r) * g0; data[q + 1] = g + (c[1] - g) * g0; data[q + 2] = b + (c[2] - b) * g0; data[q + 3] = 255;
   }

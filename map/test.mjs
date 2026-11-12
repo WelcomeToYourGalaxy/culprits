@@ -1068,7 +1068,7 @@ console.log("\none world, and the globe");
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const opts = src.slice(src.indexOf("const map = new maplibregl.Map({"), src.indexOf("layers: [", src.indexOf("const map = new maplibregl.Map({")));
   check("the world is not repeated east and west", /renderWorldCopies:\s*false/.test(opts));
-  check("the map opens as a globe", /projection:\s*\{\s*type:\s*"vertical-perspective"\s*\}/.test(opts));
+  check("the map opens as a globe", /projection:\s*\{\s*type:\s*"globe"\s*\}/.test(opts));
   check("an atmosphere at world view, gone by zoom 7", /"atmosphere-blend":\s*\["interpolate",\s*\["linear"\],\s*\["zoom"\]/.test(opts));
   const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   check("MapLibre 5, the first version with a globe", /maplibre-gl@5\.\d+\.\d+\/dist\/maplibre-gl\.js/.test(index) && !/maplibre-gl@4/.test(index));
@@ -1139,7 +1139,7 @@ console.log("\none world, and the globe");
   change({ name: "view", value: "flat" });
   check("the flat map is mercator, with no way out", projections.at(-1) === "mercator" && minZooms.at(-1) === -2);
   change({ name: "view", value: "globe" });
-  check("the globe view stays a globe at every zoom", projections.at(-1) === "vertical-perspective");
+  check("the globe view is MapLibre's globe: round far out, flat close in", projections.at(-1) === "globe");
   check("…and is stopped just past the hand-over size", minZooms.at(-1) > -4 && minZooms.at(-1) < 4,
         String(minZooms.at(-1)));
 }
@@ -1285,7 +1285,7 @@ console.log("\nthe boxes down the left");
   check("the layer box holds the caret that rolls it",
         /panel-head[\s\S]{0,500}id="panelRoll"/.test(index) && /\.panel\.shut > \*\{display:none\}/.test(index));
   check("the zoom reading is off the page", !/id="zoomstate"/.test(index) && /const el = document\.getElementById\("zoomstate"\)/.test(src));
-  check("only two views are offered", /"globe": \{ projection: "vertical-perspective"/.test(src) &&
+  check("only two views are offered", /"globe": \{ projection: "globe"/.test(src) &&
         /"flat":  \{ projection: "mercator"/.test(src) && !/globe-flat/.test(src));
 }
 {
@@ -1304,7 +1304,7 @@ console.log("\nthe boxes down the left");
   panel.fire("click", { target: { id: "leave-earth" } });
   await new Promise((r) => setTimeout(r, 1000));
   check("Leave Earth works from the flat map, at any zoom",
-        el("spaceBack").hidden === false && projections.includes("vertical-perspective") && eased[0].zoom === 0.8);
+        el("spaceBack").hidden === false && projections.includes("globe") && eased[0].zoom === 0.8);
   el("spaceBack").fire("click", {});
   check("coming back puts the flat map back", projections.at(-1) === "mercator" && eased.at(-1).zoom === 6);
 }
@@ -1604,7 +1604,9 @@ console.log("\nthe view row, and terrain where it works");
   const index = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   check("the boxes on the left actually fade out", /\.left-col\.away,\.panel\.away/.test(index));
   check("terrain is drawn on the globe view round, and on the flat map flat",
-        /return \(TERRAIN_ON \|\| raised\) && p !== "mercator" \? "globe" : p;/.test(src));
+        /"globe": \{ projection: "globe", leave: true/.test(src) &&
+        /return VIEWS\[kind \|\| VIEW\]\.projection;/.test(src) &&
+        /"flat":\s+\{ projection: "mercator"/.test(src));
   check("the map tilts to 85 degrees and rolls", /maxPitch: 85/.test(src) && /rollEnabled: true/.test(src));
   check("the compass shows tilt and turn", /showCompass: true, visualizePitch: true/.test(src));
   check("Snap back to global scale sits over Leave Earth", /id="to-globe" class="snap"/.test(src) &&
@@ -5982,7 +5984,7 @@ console.log("\nround 118b (30 September): one surface from all ticked layers, ca
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const html = fs.readFileSync(path.join(HERE, "index.html"), "utf8");
   check("the globe carries terrain while a row holds the ground, so the globe does not go dark",
-        /return \(TERRAIN_ON \|\| raised\) && p !== "mercator" \? "globe" : p;/.test(src) && /reliefGround[\s\S]{0,600}map\.setProjection\(\{ type: want \}\)/.test(src));
+        /"globe": \{ projection: "globe", leave: true/.test(src) && /reliefGround[\s\S]{0,600}map\.setProjection\(\{ type: want \}\)/.test(src));
   check("the painted plate is raster tiles the colour remapping leaves alone",
         /tiles: \["plate:\/\/\{z\}\/\{x\}\/\{y\}"\]/.test(src) && /GLAD_SKIP_SOURCES = new Set\(\[[^\]]*"plate-base"\]\)/.test(src) && /"plate-base"/.test(html));
   check("a lift layer is added without naming a line layer that does not exist yet", !/shapeLift[\s\S]{0,900}`\$\{cfg\.id\}-line`\)/.test(src.slice(src.indexOf("function shapeLift"), src.indexOf("function shapeLift") + 900)));
