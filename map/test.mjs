@@ -4230,7 +4230,8 @@ AAAAAAAAAAAA AAAAAAAAAAAAAAAA | NNNN |    A    | YYYY-MM-DD HH:MM | EEEEEEEE | N
   const f = (t, id = "") => lib.cataloguePlaces(`${t} ${id}`, `${t} ${id}`).join(" | ");
   const P = "Destruction > Of the planet", OUT = lib.CATALOGUE_TAKEN_OUT;
   check("the zoom buttons are right of the basemap choices; north-up where they were",
-        /<div class="bm-row"><div class="bm-choices">/.test(src) && /<\/div><div class="view-zoom" id="view-zoom"><\/div><\/div><\/div><\/div>`;/.test(src) &&
+        /<div class="bm-row"><div class="bm-choices">/.test(src) &&
+        /<\/div><div class="view-zoom" id="view-zoom"><\/div><\/div>` \+ soundPanelHtml\(\) \+ `<\/div><\/div>`;/.test(src) &&
         /<\/div><div class="compass-holder in-view" id="compass-holder"/.test(src));
   check("GLAD-S2 in Amazonia and its coverage are out (round 84b, at the owner's word)",
         ["umd_glad_sentinel2_alerts", "umd_glad_sentinel2_alerts_coverage"].every((id) => f("Deforestation alerts (GLAD-S2) \u2014 Amazonia", id) === OUT));

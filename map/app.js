@@ -3519,6 +3519,7 @@ function setBasemap(kind) {
   // The same fixed grain as the glow, lighter, over the whole Satellite view.
   if (kind === "satellite") glowGrain();
   glowGrainSync();
+  soundFollow();
   if (typeof map.triggerRepaint === "function") map.triggerRepaint();
 }
 
@@ -13864,6 +13865,157 @@ function sectHead(name, key) {
 // Basemap comes first. It is three short rows; View is long, and the box stops
 // at 48vh and scrolls, so with Basemap last its choices sat below the bottom
 // edge and the heading looked like an empty section.
+/* ---------- the sound of each basemap (round 176b) ---------- */
+// Asked 11 November: a button on each basemap that plays sound suited to it.
+// Everything here is a real recording that may be hosted: either a field
+// recording under Creative Commons Attribution or released into the public
+// domain, or a spacecraft's own measurements turned into sound. Nothing is
+// taken from a video-sharing site, whose terms forbid copying the file out,
+// and nothing is music whose rights someone else holds. Each file is a
+// two-minute or shorter loop, its end already crossfaded into its beginning
+// so it joins itself without a seam, all levelled to the same quiet loudness.
+// Files live beside the map in audio/ and are served from this site.
+//
+// Off until asked for: a map that starts making noise is a map people close.
+// The choice is remembered, but even remembered it waits for a click, because
+// browsers refuse sound that nobody asked for.
+var SCENE_SOUND = {
+  wood: { file: "woodland.mp3", what: "Wind through a forest, Jinsha",
+          by: "Wu Tsan-Cheng, radio aporee", link: "https://archive.org/details/aporee_26087_30170",
+          lic: "CC BY 3.0", licLink: "https://creativecommons.org/licenses/by/3.0/" },
+  atlas: { file: "atlas.mp3", what: "Sea, wind and rain at Trégastel",
+           by: "Yponomeutaneko, radio aporee", link: "https://archive.org/details/aporee_34700_39896",
+           lic: "public domain", licLink: "https://creativecommons.org/publicdomain/mark/1.0/" },
+  hell: { file: "hell.mp3", what: "Mount Yasur erupting, Tanna Island",
+          by: "Felix Blume, radio aporee", link: "https://archive.org/details/aporee_58757_67414",
+          lic: "public domain", licLink: "https://creativecommons.org/publicdomain/mark/1.0/" },
+  // "night" is the basemap shown as Bioluminescent, and "satellite" the one
+  // shown as Jurassic: the key is what the code calls it, the label what the
+  // reader sees.
+  night: { file: "bioluminescent.mp3", what: "Under a karst lake at Kirkilai",
+           by: "alas23/sala, radio aporee", link: "https://archive.org/details/aporee_29435_33876",
+           lic: "public domain", licLink: "https://creativecommons.org/publicdomain/mark/1.0/" },
+  satellite: { file: "jurassic.mp3", what: "Rainforest by night, Pet\u00e9n",
+               by: "radio aporee", link: "https://archive.org/details/aporee_31997_36745",
+               lic: "public domain", licLink: "https://creativecommons.org/publicdomain/mark/1.0/" },
+  space: { file: "deep_space.mp3", what: "Jupiter's bow shock, Voyager",
+           by: "NASA and the University of Iowa", link: "https://space-audio.org/",
+           lic: "CC BY 4.0", licLink: "https://creativecommons.org/licenses/by/4.0/" },
+  // Standard (the plain outlines) is left silent: nothing recorded belongs to
+  // it, and a basemap with no recording simply shows no Sound tick. Mars
+  // (Perseverance's microphone) and the Sun (the 2003 flares) are cut and
+  // ready but have no basemap to sit on yet.
+  // Not a basemap but a view over one: while the hologram is on it takes over.
+  hologram: { file: "hologram.mp3", what: "Earth's radio emission heard from the Cluster spacecraft",
+              by: "NASA and the University of Iowa", link: "https://space-audio.org/",
+              lic: "CC BY 4.0", licLink: "https://creativecommons.org/licenses/by/4.0/" },
+};
+var SOUND = { on: false, vol: 0.45, el: null, now: null, want: null, timer: null, gen: 0 };
+try {
+  const kept = localStorage.getItem("culprits-sound");
+  if (kept) { const k = JSON.parse(kept); SOUND.on = !!k.on; if (k.vol >= 0 && k.vol <= 1) SOUND.vol = k.vol; }
+} catch (e) { /* no store, no memory: the button still works */ }
+function soundKeep() {
+  try { localStorage.setItem("culprits-sound", JSON.stringify({ on: SOUND.on, vol: SOUND.vol })); } catch (e) { /* kept */ }
+}
+// Which recording belongs to what is showing: the hologram first, since it
+// covers the basemap, then the basemap itself.
+function soundScene() {
+  const holo = document.getElementById("holo-toggle");
+  if (holo && holo.checked && SCENE_SOUND.hologram) return "hologram";
+  return SCENE_SOUND[BASEMAP] ? BASEMAP : null;
+}
+// One clock does all the moving: it walks the volume toward where it should
+// be, and the moment the sound is down to nothing it swaps in whatever
+// recording is wanted by then. Written this way because the first version
+// faded out and started the next track from the fade's own callback, and a
+// second basemap change arriving mid-fade cancelled that callback with it, so
+// the map kept playing the basemap before last. A clock cannot lose a step:
+// it only ever reads where things are and where they should be.
+function soundEngine() {
+  if (SOUND.timer) return;
+  SOUND.timer = setInterval(() => {
+    const el = SOUND.el;
+    if (!el) return;
+    const want = SOUND.on ? SOUND.want : null;
+    const target = want && want === SOUND.now ? SOUND.vol : 0;
+    const step = 0.06;
+    let v = el.volume;
+    v = Math.abs(v - target) <= step ? target : v + (v < target ? step : -step);
+    try { el.volume = Math.max(0, Math.min(1, v)); } catch (e) { /* kept */ }
+    if (v > 0) return;
+    if (!want) {
+      if (!el.paused) { try { el.pause(); } catch (e) { /* kept */ } }
+      SOUND.now = null;
+      return;
+    }
+    if (SOUND.now === want) return;
+    SOUND.now = want;
+    SOUND.gen = (SOUND.gen || 0) + 1;
+    const gen = SOUND.gen;
+    el.src = "./audio/" + SCENE_SOUND[want].file;
+    const go = el.play();
+    if (go && go.catch) go.catch((err) => {
+      // Swapping one recording for the next rejects the call still in flight
+      // ("AbortError"), which says nothing about the new one: answers from
+      // older swaps are dropped by their number. Only a refusal to play at
+      // all means the tick should go back to off rather than lie about what
+      // is playing. Without both of these the map churned, each swap
+      // cancelling the last and starting again, and settled on the basemap
+      // before last.
+      if (gen !== SOUND.gen) return;
+      if (err && err.name === "NotAllowedError") { SOUND.on = false; SOUND.now = null; soundKeep(); }
+      soundSay();
+    });
+    soundSay();
+  }, 45);
+}
+function soundPlay() {
+  if (!SOUND.el) {
+    SOUND.el = new Audio();
+    SOUND.el.loop = true;
+    SOUND.el.preload = "none";
+    SOUND.el.volume = 0;
+  }
+  SOUND.want = soundScene();
+  soundEngine();
+  soundSay();
+}
+function soundStop() { SOUND.want = null; soundSay(); }
+// What is playing, and who recorded it: a credit that is there while the
+// sound is, not buried in a page of notes.
+function soundSay() {
+  const row = document.getElementById("sound-row");
+  if (!row) return;
+  const key = soundScene(), rec = key && SCENE_SOUND[key];
+  row.hidden = !rec;
+  if (!rec) return;
+  const box = document.getElementById("sound-toggle");
+  if (box) box.checked = SOUND.on;
+  const sl = document.getElementById("sound-vol");
+  if (sl) sl.value = String(Math.round(SOUND.vol * 100));
+  const said = document.getElementById("sound-credit");
+  if (said) {
+    said.innerHTML = SOUND.on
+      ? `${escapeHtml(rec.what)} \u00b7 ${rec.link ? `<a href="${rec.link}" target="_blank" rel="noopener">${escapeHtml(rec.by)}</a>` : escapeHtml(rec.by)}` +
+        ` \u00b7 ${rec.licLink ? `<a href="${rec.licLink}" target="_blank" rel="noopener">${escapeHtml(rec.lic)}</a>` : escapeHtml(rec.lic)}`
+      : escapeHtml(rec.what);
+  }
+}
+function soundPanelHtml() {
+  return `<div class="layer sound-row" id="sound-row" hidden>` +
+    `<label class="sound-tick" title="Play a recording suited to this basemap. Real recordings only: field recordings that may be shared, and spacecraft measurements turned into sound.">` +
+    `<input type="checkbox" id="sound-toggle"><span class="nm">Sound</span></label>` +
+    `<input type="range" id="sound-vol" min="0" max="100" step="5" title="How loud">` +
+    `<p class="sound-credit" id="sound-credit"></p></div>`;
+}
+// The basemap changed, or the hologram went on or off: follow it.
+function soundFollow() {
+  if (SOUND.el) SOUND.want = SOUND.on ? soundScene() : null;
+  else if (SOUND.on) soundPlay();
+  soundSay();
+}
+
 function basemapPanelHtml(opts) {
   // The zoom buttons sit to the right of the basemap choices (24 September).
   return `<div class="sect" data-sect="basemap">` + sectHead("Basemap", "basemap") + `<div class="sect-body">` +
@@ -13871,7 +14023,7 @@ function basemapPanelHtml(opts) {
     opts.map(([k, nm]) =>
       `<label class="layer"><input type="radio" name="basemap" value="${k}"` +
       `${k === BASEMAP ? " checked" : ""}><span class="nm">${nm}</span></label>`).join("") +
-    `</div><div class="view-zoom" id="view-zoom"></div></div></div></div>`;
+    `</div><div class="view-zoom" id="view-zoom"></div></div>` + soundPanelHtml() + `</div></div>`;
 }
 
 // Round 96b (asked 28 September): 3D terrain under Flat map; Place names
@@ -14117,6 +14269,12 @@ function buildBasemapPanel() {
     if (e.target && e.target.id === "to-globe") outToTheGlobe();
   });
   moveZoomButtons();
+  // The hologram's tick is drawn in the layers box, not this one, so its
+  // change is caught on the page and the sound follows it like a basemap.
+  document.addEventListener("change", (e) => {
+    if (e.target && e.target.id === "holo-toggle") setTimeout(soundFollow, 0);
+  });
+  soundSay();
   themeWheelWire(document.getElementById("layer-colours") || box);
   // Round 102b: Eyes warmed while the pointer is on its button.
   const leave = box.querySelector ? box.querySelector("#leave-earth") : null;
@@ -14128,6 +14286,12 @@ function buildBasemapPanel() {
     if (e.target && e.target.id === "names-toggle") setNames(e.target.checked);
     if (e.target && e.target.id === "lift-toggle") setLift(e.target.checked);
     if (e.target && e.target.id === "theme-pick") setTheme(e.target.value);
+    if (e.target && e.target.id === "sound-toggle") { SOUND.on = !!e.target.checked; soundKeep(); if (SOUND.on) soundPlay(); else soundStop(); }
+    if (e.target && e.target.id === "sound-vol") {
+      SOUND.vol = Math.max(0, Math.min(1, Number(e.target.value) / 100));
+      soundKeep();
+      if (SOUND.el && SOUND.on && !SOUND.el.paused) { try { SOUND.el.volume = SOUND.vol; } catch (err) { /* kept */ } }
+    }
   });
 }
 
