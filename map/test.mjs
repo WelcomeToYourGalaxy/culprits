@@ -7550,7 +7550,7 @@ console.log("\nround 206o (14 October): Moon and Mars as globes first, with look
   check("the Moon and Mars page opens on the globe, with no Moon or Mars buttons of its own",
         /var LOOK = "satellite", VIEW = "globe";/.test(bodies) && /setView\(viewsFor\(key\)\[0\]\[0\]\);/.test(bodies) && !/data-body="moon"/.test(bodies));
   check("a looks and views box like the Earth map's: the satellite picture and Earth's seven looks, Globe and Flat map, and Snap back",
-        ["Satellite", "Twilight", "Bioluminescent", "Hologram", "Red"].every((n) => bodies.includes(`"${n}"`)) && !/"Woodlands"|"Jurassic"/.test(bodies) &&   /* round 209o */
+        ["Satellite", "Twilight", "Bioluminescent", "Hologram", "Ember"].every((n) => bodies.includes(`"${n}"`)) && !/"Woodlands"|"Jurassic"/.test(bodies) &&   /* round 209o */
         /<h1>Basemap<\/h1><div class="looks"><\/div>/.test(bodies) && /\["flat", "Flat map"\]/.test(bodies) &&
         /<button type="button" id="snap">Snap back to global scale<\/button>/.test(bodies) && /function snapBack\(\)/.test(bodies));
   check("the globe's picture is loaded first and a failure is said on the page", /img\.crossOrigin = "anonymous";/.test(bodies) && /did not load \(culprits-tiles-more makes it\)/.test(bodies));
@@ -7680,7 +7680,7 @@ console.log("\nround 212o (15 October): small marks on the Moon and Mars; Red; t
   const src = fs.readFileSync(path.join(HERE, "app.js"), "utf8");
   const bodies = fs.readFileSync(path.join(HERE, "bodies.html"), "utf8");
   check("every Moon and Mars mark one small size, not swollen by its mass", /r: STYLE\[row\.kind\]\[2\],/.test(bodies) && /obj: \["--obj", "--obj-glow", 2\.2\], mass: \["--mass", "--mass-glow", 2\.2\]/.test(bodies) && !/sized by its mass/.test(bodies));
-  check("the Hell look is called Red there", /\["hell", "Red",/.test(bodies) && !/"Hell"/.test(bodies));
+  check("the Hell look is called Ember there", /\["hell", "Ember",/.test(bodies) && !/"Hell"|"Red"/.test(bodies));
   check("the Sun view: no basemap choices, from above only, planets on (round 214o), and why the objects stay", /setbox\.classList\.toggle\("no-looks", k === "sun"\);/.test(bodies) &&
         /These do not fall back and burn up/.test(bodies) && /For finding your way: where each planet is today/.test(bodies));
   check("combine: a short note under Place layer into group, no choice to measure against with two groups or fewer, a Clear button and a roll-up arrow",

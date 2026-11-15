@@ -462,14 +462,15 @@
   // Round 209o (asked 15 October): Satellite (NASA's picture as given),
   // Twilight (was Woodlands: there are no woods on the Moon or Mars),
   // Bioluminescent (brighter, so the ground glows rather than going black),
-  // Hologram and Hell (crimson, not orange). In the Sun view the looks colour
+  // Hologram and Ember (was Hell, then Red: crimson ground, not orange). In the
+  // Sun view the looks colour
   // the Sun's glow and the paths.
   var LOOKS = [
     ["satellite", "Satellite", "", false, { sun: ["#F1EEE6", "#9FB8C8"], path: "rgba(200,210,220,0.45)" }],
     ["twilight", "Twilight", "grayscale(1) sepia(.5) hue-rotate(240deg) saturate(.8) brightness(.55) contrast(1.2)", false, { sun: ["#E6DDEB", "#7B6A93"], path: "rgba(170,150,200,0.45)" }],
     ["night", "Bioluminescent", "grayscale(1) contrast(1.8) brightness(.72) sepia(1) hue-rotate(130deg) saturate(1.9)", false, { sun: ["#D6F4EE", "#3DC2AC"], path: "rgba(61,194,172,0.5)" }],
     ["holo", "Hologram", "grayscale(1) invert(1) brightness(.5) contrast(1.7) sepia(1) hue-rotate(160deg) saturate(2.5)", "rgba(127,184,217,0.35)", { sun: ["#DCEFFF", "#47AFFF"], path: "rgba(71,175,255,0.5)" }],
-    ["hell", "Red", "grayscale(1) brightness(.5) contrast(1.4) sepia(1) hue-rotate(-55deg) saturate(2.6)", false, { sun: ["#F4DADF", "#B0283F"], path: "rgba(200,60,80,0.5)" }]
+    ["hell", "Ember", "grayscale(1) brightness(.5) contrast(1.4) sepia(1) hue-rotate(-55deg) saturate(2.6)", false, { sun: ["#F4DADF", "#B0283F"], path: "rgba(200,60,80,0.5)" }]
   ];
   var LOOK = "satellite", VIEW = "globe";
   var lookOf = function (k) { return LOOKS.filter(function (l) { return l[0] === k; })[0] || LOOKS[0]; };
